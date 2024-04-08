@@ -1,0 +1,108 @@
+@@ -1,19 +1,20 @@
+-module adjoint_test_mod
++module adjt_apply_elim_mixed_lp_operator_alg_mod
+   implicit none
+   public
+ 
+   contains
+-  subroutine adjoint_test(mesh, chi, panel_id)
++  subroutine adjt_apply_elim_mixed_lp_operator_alg(mesh, chi, panel_id)
+     use field_mod, only : field_type
+     use function_space_mod, only : function_space_type
+     use mesh_mod, only : mesh_type
+     use function_space_collection_mod, only : function_space_collection
+     use apply_elim_mixed_lp_operator_kernel_mod, only : apply_elim_mixed_lp_operator_kernel_type
+     use adj_apply_elim_mixed_lp_operator_kernel_mod, only : adj_apply_elim_mixed_lp_operator_kernel_type
+     use finite_element_config_mod, only : element_order
+     use fs_continuity_mod, only : w2, w3, wtheta
+-    use operator_mod, only : operator_type
+-    use constants_mod, only : i_def, r_def
++    use r_solver_field_mod, only : r_solver_field_type
++    use r_solver_operator_mod, only : r_solver_operator_type
++    use constants_mod, only : i_def, r_def, r_solver
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+     use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
+-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
++    real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+@@ -26,23 +27,23 @@
+-    type(field_type) :: lhs_exner
+-    type(field_type) :: theta
+-    type(field_type) :: u
+-    type(field_type) :: exner
+-    type(operator_type) :: m3exner
+-    type(operator_type) :: q32
+-    type(operator_type) :: p3theta
+-    type(field_type) :: lhs_exner_input
+-    type(field_type) :: theta_input
+-    type(field_type) :: u_input
+-    type(field_type) :: exner_input
++    type(r_solver_field_type) :: lhs_exner
++    type(r_solver_field_type) :: theta
++    type(r_solver_field_type) :: u
++    type(r_solver_field_type) :: exner
++    type(r_solver_operator_type) :: m3exner
++    type(r_solver_operator_type) :: q32
++    type(r_solver_operator_type) :: p3theta
++    type(r_solver_field_type) :: lhs_exner_input
++    type(r_solver_field_type) :: theta_input
++    type(r_solver_field_type) :: u_input
++    type(r_solver_field_type) :: exner_input
+     real(kind=r_def) :: lhs_exner_inner_prod
+     real(kind=r_def) :: theta_inner_prod
+     real(kind=r_def) :: u_inner_prod
+     real(kind=r_def) :: exner_inner_prod
+-    real(kind=r_def) :: inner1
++    real(kind=r_solver) :: inner1
+     real(kind=r_def) :: lhs_exner_lhs_exner_input_inner_prod
+     real(kind=r_def) :: theta_theta_input_inner_prod
+     real(kind=r_def) :: u_u_input_inner_prod
+     real(kind=r_def) :: exner_exner_input_inner_prod
+-    real(kind=r_def) :: inner2
+-    real(kind=r_def) :: MachineTol
+-    real(kind=r_def) :: relative_diff
++    real(kind=r_solver) :: inner2
++    real(kind=r_solver) :: MachineTol
++    real(kind=r_solver) :: relative_diff
+@@ -72,11 +73,11 @@
+ &apply_elim_mixed_lp_operator_kernel_type(lhs_exner, theta, u, exner, m3exner, q32, p3theta), &
+ &x_innerproduct_x(lhs_exner_inner_prod, lhs_exner), x_innerproduct_x(theta_inner_prod, theta), x_innerproduct_x(u_inner_prod, u), &
+ &x_innerproduct_x(exner_inner_prod, exner))
+-    inner1 = 0.0_r_def
+-    inner1 = inner1 + lhs_exner_inner_prod
+-    inner1 = inner1 + theta_inner_prod
+-    inner1 = inner1 + u_inner_prod
+-    inner1 = inner1 + exner_inner_prod
++    inner1 = 0.0_r_solver
++    inner1 = inner1 + real(lhs_exner_inner_prod, r_solver)
++    inner1 = inner1 + real(theta_inner_prod, r_solver)
++    inner1 = inner1 + real(u_inner_prod, r_solver)
++    inner1 = inner1 + real(exner_inner_prod, r_solver)
+     lhs_exner_lhs_exner_input_inner_prod = 0.0_r_def
+     theta_theta_input_inner_prod = 0.0_r_def
+     u_u_input_inner_prod = 0.0_r_def
+@@ -85,11 +86,11 @@
+ &x_innerproduct_y(lhs_exner_lhs_exner_input_inner_prod, lhs_exner, lhs_exner_input), &
+ &x_innerproduct_y(theta_theta_input_inner_prod, theta, theta_input), x_innerproduct_y(u_u_input_inner_prod, u, u_input), &
+ &x_innerproduct_y(exner_exner_input_inner_prod, exner, exner_input))
+-    inner2 = 0.0_r_def
+-    inner2 = inner2 + lhs_exner_lhs_exner_input_inner_prod
+-    inner2 = inner2 + theta_theta_input_inner_prod
+-    inner2 = inner2 + u_u_input_inner_prod
+-    inner2 = inner2 + exner_exner_input_inner_prod
++    inner2 = 0.0_r_solver
++    inner2 = inner2 + real(lhs_exner_lhs_exner_input_inner_prod, r_solver)
++    inner2 = inner2 + real(theta_theta_input_inner_prod, r_solver)
++    inner2 = inner2 + real(u_u_input_inner_prod, r_solver)
++    inner2 = inner2 + real(exner_exner_input_inner_prod, r_solver)
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol
+@@ -101,6 +102,6 @@
+       call log_event(log_scratch_space, log_level_error)
+     end if
+ 
+-  end subroutine adjoint_test
++  end subroutine adjt_apply_elim_mixed_lp_operator_alg
+ 
+-end module adjoint_test_mod
++end module adjt_apply_elim_mixed_lp_operator_alg_mod

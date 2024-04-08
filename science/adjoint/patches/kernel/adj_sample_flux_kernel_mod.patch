@@ -1,0 +1,20 @@
+@@ -5,8 +5,8 @@
+   use fs_continuity_mod, only : w0, w2
+   use kernel_mod, only : kernel_type
+   implicit none
+-  interface sample_flux_code
+-  module procedure sample_flux_code_r_single, sample_flux_code_r_double
++  interface adj_sample_flux_code
++  module procedure adj_sample_flux_code_r_single, adj_sample_flux_code_r_double
+ end interface
+   type, public, extends(kernel_type) :: adj_sample_flux_kernel_type
+   type(ARG_TYPE) :: META_ARGS(4) = (/ &
+@@ -22,7 +22,7 @@
+ 
+   private
+ 
+-  public :: sample_flux_code
++  public :: adj_sample_flux_code
+ 
+   contains
+   subroutine adj_sample_flux_code_r_single(nlayers, flux, u, rmultiplicity, q, ndf_f, undf_f, map_f, ndf_q, undf_q, map_q, basis_q)

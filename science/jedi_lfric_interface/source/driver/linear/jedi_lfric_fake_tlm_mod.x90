@@ -1,0 +1,90 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief   Initialisation and stepping of the fake tlm model for testing
+!!
+!> @details Handles init of prognostic and linearisation state fields and
+!>          propagation  of the fake tlm model_data for JEDI-LFRIC interface
+!>          testing.
+!>
+module jedi_lfric_fake_tlm_mod
+
+  use constants_mod,                  only : str_def, i_def
+  use driver_model_data_mod,          only : model_data_type
+  use field_mod,                      only : field_type
+  use field_collection_mod,           only : field_collection_type
+  use fs_continuity_mod,              only : W3, Wtheta
+  use mesh_mod,                       only : mesh_type
+  use jedi_lfric_utils_mod,           only : add_real_field
+  use jedi_lfric_linear_fields_mod,   only : variable_names, &
+                                             variable_function_spaces
+
+  implicit none
+
+  contains
+
+  !> @brief  Create the fake_tlm model_data
+  !>
+  !> @param[in]    mesh        Mesh to use for field initialisation
+  !> @param[inout] model_data  The fake tlm model_data
+  subroutine create_fake_tlm_model_data( mesh, model_data)
+
+    implicit none
+
+    type( mesh_type ), pointer, intent(in) :: mesh
+    type( model_data_type ), intent(inout) :: model_data
+
+    ! Local
+    type( field_collection_type ), pointer :: depository
+    integer( kind=i_def )                  :: ivars
+
+    ! Create the depository field collection
+    call model_data%add_empty_field_collection("depository")
+    nullify(depository)
+    depository => model_data%get_field_collection("depository")
+
+    ! Create linearization state and prognostic fields.
+    do ivars=1,size(variable_names)
+      ! Create prognostic fields and add them to model_data
+      call add_real_field( depository, mesh, variable_function_spaces(ivars), &
+                           trim(variable_names(ivars)) )
+      ! Create linearisation state fields and add them to model_data
+      call add_real_field( depository, mesh, variable_function_spaces(ivars), &
+                           "ls_"//trim(variable_names(ivars)) )
+
+    enddo
+  end subroutine create_fake_tlm_model_data
+
+  !> @brief  Step the fake_tlm model_data by doing a copy from the ls fields
+  !>
+  !> @param[inout] model_data  model_data to step
+  subroutine step_fake_tlm( model_data)
+
+    implicit none
+
+    type( model_data_type ), intent(inout) :: model_data
+
+    ! Local
+    type( field_collection_type ), pointer :: depository
+    type( field_type ),            pointer :: field_ptr
+    type( field_type ),            pointer :: ls_field_ptr
+    integer( kind=i_def )                  :: ivars
+
+    ! Get the depository
+    nullify(depository)
+    depository => model_data%get_field_collection("depository")
+
+    ! Loop over all variables and copy linearization state to prognostic variables.
+    !do ivars=1,size(ls_variable_names)
+    do ivars=1,size(variable_names)
+      call depository%get_field(variable_names(ivars), field_ptr)
+      call depository%get_field("ls_"//trim(variable_names(ivars)), ls_field_ptr)
+      call invoke( setval_X(field_ptr, ls_field_ptr) )
+    enddo
+
+  end subroutine step_fake_tlm
+
+end module jedi_lfric_fake_tlm_mod

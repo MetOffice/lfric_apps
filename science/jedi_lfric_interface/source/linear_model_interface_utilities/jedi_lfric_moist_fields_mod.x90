@@ -1,0 +1,76 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief  Routines to initialise/update moisture fields in linear model.
+!>
+!>@detail The fields stored in the linear model prognostic and linear state
+!>        collections contains some fields that are not directly initialised
+!>        This includes all moist_dyn fields and the mixing ratios for snow
+!>        (m_s) and graupel (m_g). This module includes routines to
+!>        initialise/update them.
+!>
+module jedi_lfric_moist_fields_mod
+
+  use constants_mod,                only: r_def
+  use field_mod,                    only: field_type
+  use mr_indices_mod,               only: nummr, imr_g, imr_s
+  use moist_dyn_mod,                only: num_moist_factors
+  use tl_moist_dyn_factors_alg_mod, only: tl_moist_dyn_factors_alg
+  use moist_dyn_factors_alg_mod,    only: moist_dyn_factors_alg
+
+  implicit none
+
+  private
+  public init_moist_fields, update_ls_moist_fields
+
+  contains
+
+  !> @brief   Initialise moist fields that are not propagated.
+  !> @param[in,out] mr          The model state mixing ratios
+  !> @param[in,out] moist_dyn   The model state moist dynamical factors
+  subroutine init_moist_fields( mr, &
+                                moist_dyn )
+
+    implicit none
+
+    type( field_type ), intent(inout) :: mr(nummr)
+    type( field_type ), intent(inout) :: moist_dyn(num_moist_factors)
+
+    ! Graupel and snow moisture fields are set to zero. The other moisture
+    ! fields are updated directly.
+    call invoke( setval_C(mr(imr_g), 0.0_r_def), &
+                 setval_C(mr(imr_s), 0.0_r_def) )
+
+    ! Update the moist dynamics
+    call tl_moist_dyn_factors_alg( moist_dyn, mr )
+
+  end subroutine init_moist_fields
+
+  !> @brief   Update passive linear state fields.
+  !> @details Update the linear state fields that are not stored in the
+  !>          trajectory. The trajectory is an object that stores a 4D
+  !>          set of linear state fields.
+  !>
+  !> @param[in,out] ls_mr        The linear state mixing ratios
+  !> @param[in,out] ls_moist_dyn The linear state moist dynamical factors
+  subroutine update_ls_moist_fields( ls_mr, &
+                                     ls_moist_dyn )
+
+    implicit none
+
+    type( field_type ), intent(inout) :: ls_mr(nummr)
+    type( field_type ), intent(inout) :: ls_moist_dyn(num_moist_factors)
+
+    ! Graupel and snow moisture fields are set to zero. The other moisture
+    ! fields are updated directly.
+    call invoke( setval_C(ls_mr(imr_g), 0.0_r_def), &
+                 setval_C(ls_mr(imr_s), 0.0_r_def) )
+
+    ! All moist dynamics fields are recomputed from ls_mr
+    call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
+
+  end subroutine update_ls_moist_fields
+
+end module jedi_lfric_moist_fields_mod

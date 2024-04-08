@@ -1,0 +1,363 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Linear operator type which applies the mixed (outer) operator.
+!>
+!> @details Calculates the left hand side of the implicit Euler equations.
+!!  Given the field-vector \f$ x = (\mathbf{u'},\theta',\rho',\Pi') \f$ this calculate the
+!!  field-vector \f$ y = (\delta\mathbf{u},\delta\theta,\delta\rho,\delta\Pi) \f$
+!!  where the components are
+!!  calculated via the discretised version of the following set of equations:
+!!
+!!  \f[ \delta\mathbf{u} = \left(1+\mu\Delta t\mathbf{k}\cdot + 2\Delta t\Omega\times\right)\mathbf{u}' \f]
+!!  \f[                  - \tau_u\Delta t c_p\left(\theta^*\nabla\Pi' + \theta'\nabla\Pi^*\right)  \f]
+!!  \f[ \delta    \theta =     \theta' + \tau_\theta\Delta t \mathbf{u}'.\nabla'\theta^* \f]
+!!  \f[ \delta      \rho =       \rho' + \tau_\rho\Delta t \nabla.\left(\rho^*\mathbf{u}'\right)     \f]
+!!  \f[ \delta       \Pi =     \frac{1-\kappa}{\kappa}\frac{\Pi'}{\Pi^*} - \frac{\rho'}{\rho^*} - \frac{\theta'}{\theta^*} \f]
+!!  where \f$ \left(\Pi^*, \rho^*, \theta^*\right) \f$ are a reference profile.
+!!
+!!
+!!  The primed terms are increments to the n+1 timelevel field. Upon
+!!  discretisation, this leads to:
+!!
+!!  \f[ \delta\mathbf{u} = N_u\left(M_2^{si} \mathbf{u}' - P_{2\theta} \theta' - G \Pi'\right) \f]
+!!  \f[ \delta\theta     = N_\theta\left(M_\theta \theta' + P_{\theta2} \mathbf{u}'\right)  \f]
+!!  \f[ \delta\rho       = \rho'  + \tau_\rho\Delta t M_3^{-1} D \left(\rho^*\mathbf{u}'\right)  \f]
+!!  \f[ \delta\Pi        = M_3^{\Pi}\Pi' - M_3^{\rho}\rho' - P_{3\theta}\theta' \f]
+!!  where \f$ N_u \equiv \textrm{M2_diag},\, G \equiv \textrm{div_star} \f$ and \f$ N_\theta \equiv \textrm{mt_lumped_inv} \f$
+!!
+!!  Options to eliminate \f$ \rho' \f$ and either analtycally or discretely eliminate \f$ \theta' \f$ are also available.
+!!  These are detailed in the solver section of: https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
+!!  This elimination then results in the following systems:
+!!
+!!  Discrete Elimination:
+!!  \f[ \delta\mathbf{u} = N_u\left(\left[M_2^{si} + P_{2\theta}M_\theta^{-1}P_{\theta2}\right] \mathbf{u}' - G \Pi'\right) \f]
+!!  \f[ \delta\Pi        = M_3^{\Pi}\Pi' + Q_{32}\mathbf{u}' + P_{3\theta}M_\theta^{-1}P_{\theta2} \mathbf{u}' \f]
+!!
+!!  Analytic Elimination:
+!!  \f[ \delta\mathbf{u} = N_u\left(\left[M_2^{si} + Q_{22}\right] \mathbf{u}' - G \Pi'\right) \f]
+!!  \f[ \delta\Pi        = M_3^{\Pi}\Pi' + Q_{32} \mathbf{u}' \f]
+
+module mixed_operator_alg_mod
+
+  use combine_w2_field_kernel_mod, only: combine_w2_field_kernel_type
+  use constants_mod,               only: r_solver, i_def, l_def
+  use geometric_constants_mod,     only: get_face_selector_ew, &
+                                         get_face_selector_ns
+  use integer_field_mod,           only: integer_field_type
+  use log_mod,                     only: log_event, LOG_LEVEL_ERROR, &
+                                         LOG_LEVEL_INFO,             &
+                                         log_scratch_space
+  use mesh_mod,                    only: mesh_type
+  use mixed_solver_config_mod,     only: split_w, &
+                                         eliminate_variables, &
+                                         eliminate_variables_analytic, &
+                                         eliminate_variables_discrete
+  use sci_linear_operator_mod,     only: abstract_linear_operator_type
+  use sci_r_solver_field_vector_mod, &
+                                   only: r_solver_field_vector_type
+  use split_w2_field_kernel_mod,         only: split_w2_field_kernel_type
+  use vector_mod,                  only: abstract_vector_type
+  use formulation_config_mod,      only: p2theta_vert
+
+  implicit none
+
+  private
+
+  type, public, extends(abstract_linear_operator_type) :: &
+                        mixed_operator_type
+
+    private
+
+   contains
+    !> Over-ride the abstract interface
+    !> param[in,out] self A linear operator
+    !> param[in] x A field vector the linear operator is applied to
+    !> param[in,out] y A field vector, the result
+    procedure, public  :: apply => apply_mixed_operator
+    !> Applies the operator as LMA matrix matrix-vector kernels in all blocks
+    procedure, private :: apply_mixed_operator
+    !> Destroys the object
+    final              :: destroy_mixed_operator
+  end type mixed_operator_type
+
+contains
+
+  !> @brief Applies the mixed operator to the vector, \f$ y = M x \f$.
+  !>
+  !> @param[in,out] self Instance of the mixed operator
+  !> @param[in] x Field vector to be read
+  !> @param[in,out] y Field vector to be written
+  subroutine apply_mixed_operator(self, x, y)
+
+    use boundaries_config_mod,              only: limited_area
+    use io_config_mod,                      only: subroutine_timers
+    use timestepping_config_mod,            only: dt, tau_r
+    use timer_mod,                          only: timer
+    use field_indices_mod,                  only: isol_u, isol_p, &
+                                                  isol_w, isol_uv
+    use operator_mod,                       only: r_solver_operator_type
+    use r_solver_field_mod,                 only: r_solver_field_type
+    use si_operators_alg_mod,               only: get_p2theta,        &
+                                                  get_div_star,       &
+                                                  get_ptheta2,        &
+                                                  get_m3_exner_star,  &
+                                                  get_p3theta,        &
+                                                  get_eliminated_q22, &
+                                                  get_eliminated_q32
+    use fem_constants_mod,                  only: get_w2_mass_matrix_r_solver,         &
+                                                  w2_si_matrix,                        &
+                                                  get_normalisation_r_solver
+    use limited_area_constants_mod,         only: get_mask_r_solver
+    use enforce_bc_kernel_mod,              only: enforce_bc_kernel_type
+    use function_space_mod,                 only: function_space_type
+    use fs_continuity_mod,                  only: W2, W2h, W2v, W3, Wtheta
+    use function_space_collection_mod,      only: function_space_collection
+    use apply_mixed_lu_operator_kernel_mod, only: apply_mixed_lu_operator_kernel_type
+    use apply_mixed_operator_kernel_mod,    only: apply_mixed_operator_kernel_type
+    use apply_elim_mixed_lp_operator_kernel_mod, &
+                                            only: apply_elim_mixed_lp_operator_kernel_type
+    use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod,    only: dg_inc_matrix_vector_kernel_type
+    use apply_mixed_operator_kernel_mod,    only: apply_mixed_operator_kernel_type
+
+    implicit none
+
+    class(mixed_operator_type),  intent(inout) :: self
+    class(abstract_vector_type), intent(in)    :: x
+    class(abstract_vector_type), intent(inout) :: y
+
+    type(r_solver_operator_type), pointer :: mm_vel, &
+                                             p2theta, &
+                                             div_star, &
+                                             ptheta2, &
+                                             m3_exner_star, &
+                                             p3theta
+    type(r_solver_field_type), pointer    :: mt_lumped_inv, &
+                                             m2_diag
+    type(r_solver_field_type)             :: x_uvw, y_uvw
+    type(function_space_type), pointer    :: u_fs, &
+                                             t_fs
+    integer(i_def)                        :: p
+    type(r_solver_field_type), pointer    :: w2_mask, &
+                                             w3_mask
+    type(r_solver_field_type)             :: x_t
+    real(kind=r_solver), parameter        :: minus_one = -1.0_r_solver
+    type(r_solver_field_type)             :: q22u
+    type(r_solver_operator_type), pointer :: q22_op, &
+                                             q32_op
+    type(r_solver_field_type), pointer    :: xvec_uv, &
+                                             xvec_p,  &
+                                             xvec_w
+    type(r_solver_field_type), pointer    :: yvec_uv, &
+                                             yvec_p,  &
+                                             yvec_w
+
+    type(mesh_type), pointer :: mesh
+
+    logical(kind=l_def) :: optimised_operator
+
+    type(r_solver_field_type) :: w2h_mask, w2v_mask
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    if ( subroutine_timers ) call timer('mixed_operator')
+
+    ! Extract mesh ID
+    select type (y)
+    type is (r_solver_field_vector_type)
+      mesh => y%vector(isol_u)%get_mesh()
+    class default
+      write(log_scratch_space, '(A)') &
+            "mixed_operator_alg_mod: incorrect vector_type argument y"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    ! LAM Masks
+    if ( limited_area ) then
+      w2_mask => get_mask_r_solver(W2, mesh%get_id())
+      w3_mask => get_mask_r_solver(W3, mesh%get_id())
+    end if
+
+    if (split_w) then
+      face_selector_ew => get_face_selector_ew( mesh%get_id() )
+      face_selector_ns => get_face_selector_ns( mesh%get_id() )
+    end if
+
+    ! Obtain operators from runtime constants
+    mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh%get_id())
+    m2_diag       => get_normalisation_r_solver(W2, mesh%get_id())
+    ! mm_vel = m2 (or dl) + tau_u*dt*coriolis
+    mm_vel => get_w2_mass_matrix_r_solver(w2_si_matrix, mesh%get_id())
+
+    ! Obtain operators from SI operators
+    p2theta       => get_p2theta()
+    div_star      => get_div_star()
+    ptheta2       => get_ptheta2()
+    m3_exner_star => get_m3_exner_star()
+    p3theta       => get_p3theta()
+
+    select type (x)
+    type is (r_solver_field_vector_type)
+       select type (y)
+       type is (r_solver_field_vector_type)
+         ! If x%vector or y%vector is used in invokes psyclone assumes they are
+         ! of type field_type so instead we use pointers of type
+         ! r_solver_field_type to force it to generate the correct code
+         xvec_uv => x%get_field_from_position(isol_uv)
+         xvec_p  => x%get_field_from_position(isol_p)
+         yvec_uv => y%get_field_from_position(isol_uv)
+         yvec_p  => y%get_field_from_position(isol_p)
+         if ( split_w ) then
+           xvec_w  => x%get_field_from_position(isol_w)
+           yvec_w  => y%get_field_from_position(isol_w)
+         end if
+
+         ! Check if we can use the optimised operator setup
+         optimised_operator = ( p2theta_vert                      .and. &
+                                split_w                           .and. &
+                                eliminate_variables                     &
+                                  == eliminate_variables_discrete .and. &
+                                yvec_uv%get_element_order() == 0 )
+
+         if ( .not. optimised_operator ) then
+           ! Create fields in 3D W2 space
+           p = y%vector(isol_u)%get_element_order()
+           u_fs => function_space_collection%get_fs( mesh, p, W2 )
+
+           call x_uvw%initialise( vector_space = u_fs )
+           call y_uvw%initialise( vector_space = u_fs )
+
+           if ( split_w ) then
+             call invoke( combine_w2_field_kernel_type( x_uvw, xvec_uv, xvec_w, &
+                                                        face_selector_ew,       &
+                                                        face_selector_ns ) )
+           else
+             call invoke( setval_X( x_uvw, xvec_uv ) )
+           end if
+         end if
+
+         select case ( eliminate_variables )
+
+         case ( eliminate_variables_discrete )
+           q32_op => get_eliminated_q32()
+           if ( optimised_operator ) then
+             call invoke( name="apply_mixed_operator_new",                                      &
+                          setval_c( yvec_uv, 0.0_r_solver ),                                    &
+                          apply_mixed_operator_kernel_type( yvec_uv, yvec_w, yvec_p,            &
+                                                            xvec_uv, xvec_w, xvec_p,            &
+                                                            ptheta2, mt_lumped_inv,             &
+                                                            mm_vel, p2theta, div_star, m2_diag, &
+                                                            m3_exner_star, q32_op, p3theta )  )
+           else
+           ! Create theta' field
+           t_fs => function_space_collection%get_fs( mesh, p, Wtheta )
+           call x_t%initialise( vector_space = t_fs )
+           ! theta' = x_t = -mt_lumped_inv*Ptheta2*u'
+           ! then P2theta*theta' = Q22*u' (in the formulation)
+           ! and P3theta*theta'  = Q32*u' (in the formulation)
+           ! but we do not assemble the full Q22 & Q32 matrices as these can
+           ! not be represented by local matrix operators
+           ! Q32 = tau*dt*M3^rho * D * rho^ref
+           ! and x_t = -mt_lumped_inv*Ptheta2*u', so P3theta*x_t gives the
+           ! contribution to the equation of state from eliminating the
+           ! potential temperature
+           call invoke( name="apply_discretely_eliminated_mixed_lhs",                              &
+                        setval_c( x_t, 0.0_r_solver ),                                             &
+                        dg_inc_matrix_vector_kernel_type( x_t, x_uvw, Ptheta2 ),                   &
+                        inc_aX_times_Y( minus_one, x_t, mt_lumped_inv ),                           &
+                        setval_c( y_uvw, 0.0_r_solver ),                                           &
+                        apply_mixed_lu_operator_kernel_type( y_uvw, x_uvw, x_t, xvec_p,            &
+                                                             mm_vel, p2theta, div_star, m2_diag ), &
+                        apply_elim_mixed_lp_operator_kernel_type( yvec_p, x_t, x_uvw,              &
+                                                                  xvec_p, m3_exner_star,           &
+                                                                  q32_op, p3theta),                &
+                        enforce_bc_kernel_type( y_uvw ) )
+           end if
+
+         case ( eliminate_variables_analytic )
+           ! Create theta' field
+           t_fs => function_space_collection%get_fs( mesh, p, Wtheta )
+           call x_t%initialise( vector_space = t_fs )
+           ! For analytic elimination:
+           ! Q32 = tau*dt*M3^rho * D * rho^ref + <v,k * dpi/dz * dtheta/dz * k.v>
+           ! and x_t = 0
+           q32_op => get_eliminated_q32()
+           q22_op => get_eliminated_q22()
+           call q22u%initialise( vector_space = u_fs )
+           call invoke( name="analytic_elim_mixed_lhs",                                            &
+                        setval_c( x_t, 0.0_r_solver ),                                             &
+                        setval_c( y_uvw, 0.0_r_solver ),                                           &
+                        apply_mixed_lu_operator_kernel_type( y_uvw, x_uvw, x_t, xvec_p,            &
+                                                             mm_vel, p2theta, div_star, m2_diag ), &
+                        apply_elim_mixed_lp_operator_kernel_type( yvec_p, x_t, x_uvw,              &
+                                                                  xvec_p, m3_exner_star,           &
+                                                                  q32_op, p3theta),                &
+                        setval_c( q22u, 0.0_r_solver ),                                            &
+                        matrix_vector_kernel_type( q22u, x_uvw, q22_op ),                          &
+                        inc_X_minus_Y( y_uvw, q22u ),                                              &
+                        enforce_bc_kernel_type( y_uvw ) )
+
+         case default
+           call log_event('Invalid mixed solver elimination selected', LOG_LEVEL_ERROR)
+         end select
+
+        ! Lateral boundaries
+         if ( limited_area ) then
+           if ( optimised_operator ) then
+             call w2h_mask%initialise( yvec_uv%get_function_space() )
+             call w2v_mask%initialise( yvec_w%get_function_space() )
+             call invoke(                                               &
+                        split_w2_field_kernel_type( w2h_mask,           &
+                                                    w2v_mask, w2_mask,  &
+                                                    face_selector_ew,   &
+                                                    face_selector_ns ), &
+                        inc_X_times_Y( yvec_uv, w2h_mask ),             &
+                        inc_X_times_Y( yvec_w,  w2v_mask ),             &
+                        inc_X_times_Y( yvec_p,  w3_mask )               &
+                        )
+           else
+             call invoke( &
+                        inc_X_times_Y( y_uvw,  w2_mask ), &
+                        inc_X_times_Y( yvec_p, w3_mask )  &
+                        )
+           end if
+         end if
+
+         if ( .not. optimised_operator ) then
+           if ( split_w )then
+             call invoke( split_w2_field_kernel_type( yvec_uv, yvec_w, y_uvw, &
+                                                      face_selector_ew,       &
+                                                      face_selector_ns ) )
+           else
+             call invoke( setval_X( yvec_uv, y_uvw ) )
+           end if
+        end if
+
+       class default
+          write(log_scratch_space, '(A)') &
+                "mixed_operator_alg_mod: incorrect vector_type argument y"
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+       end select
+    class default
+       write(log_scratch_space, '(A)') &
+             "mixed_operator_alg_mod: incorrect vector_type argument x"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    if ( subroutine_timers ) call timer('mixed_operator')
+
+  end subroutine apply_mixed_operator
+
+  !> @brief Finalizer for the mixed operator
+  !> @param [inout] self the mixed operator
+  subroutine destroy_mixed_operator(self)
+    implicit none
+    type(mixed_operator_type), intent(inout) :: self
+  end subroutine destroy_mixed_operator
+
+end module mixed_operator_alg_mod

@@ -1,0 +1,227 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief An algorithm for performing 2D horizontal semi-Lagrangian advective transport.
+!> @details The algorithm performs multiple 1D horizontal semi-Lagrangian advective
+!!          transports of a field using COSMIC splitting to solve to 2D horizontal
+!!          advection problem. It computes the field at the departure point
+!!          using linear interpolation for the inner stage and a cubic interpolation
+!!          for the outer stage.
+
+module horizontal_sl_advective_alg_mod
+
+  ! Constants and types
+  use constants_mod,                    only: r_tran, i_def, l_def
+  use field_mod,                        only: field_type
+  use integer_field_mod,                only: integer_field_type
+  use io_config_mod,                    only: subroutine_timers
+  use mesh_mod,                         only: mesh_type
+  use r_tran_field_mod,                 only: r_tran_field_type
+  use timer_mod,                        only: timer
+
+  ! Transport runtime and metadata
+  use transport_enumerated_types_mod,   only: splitting_strang_hvh, &
+                                              horizontal_monotone_none
+  use transport_metadata_mod,           only: transport_metadata_type
+  use transport_runtime_alg_mod,        only: transport_runtime_type
+  use transport_runtime_collection_mod, only: get_transport_runtime
+
+  ! Algorithms and Kernels
+  use end_of_transport_step_alg_mod,    only: end_of_advective_step_alg
+  use horizontal_cubic_sl_kernel_mod,   only: horizontal_cubic_sl_kernel_type
+  use horizontal_linear_sl_kernel_mod,  only: horizontal_linear_sl_kernel_type
+  use psykal_lite_transport_mod,        only: invoke_ffsl_panel_swap_kernel_type
+
+  ! Pointers to other objects
+  use geometric_constants_mod,          only: get_panel_id
+
+  ! Configs
+  use transport_config_mod,             only: extended_mesh
+
+  implicit none
+
+  private
+
+  public :: horizontal_sl_advective_alg
+
+  contains
+
+  !-----------------------------------------------------------------------------
+  !> @brief Solves the horizontal advection equation using a semi-Lagrangian scheme.
+  !> @details The algorithm solves the horizontal advection equation by performing
+  !!          multiple 1D horizontal semi-Lagrangian advective transports and COSMIC
+  !!          splitting.
+  !!
+  !> @param[in,out]  field_np1          Field at timestep n+1
+  !> @param[in]      field_n            Field at timestep n
+  !> @param[in]      dt                 Time step (local)
+  !> @param[in]      transport_metadata Metadata for the advection of field
+  subroutine horizontal_sl_advective_alg( field_np1, field_n, dt, transport_metadata )
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),       intent(inout) :: field_np1
+    type(r_tran_field_type),       intent(in)    :: field_n
+    real(kind=r_tran),             intent(in)    :: dt
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    ! Internal Variables
+    type(r_tran_field_type), target :: field_x
+    type(r_tran_field_type), target :: field_y
+    type(r_tran_field_type) :: field_xp
+    type(r_tran_field_type) :: field_yp
+    type(r_tran_field_type) :: half_increment_x
+    type(r_tran_field_type) :: half_increment_y
+    type(r_tran_field_type) :: increment_x
+    type(r_tran_field_type) :: increment_y
+    type(r_tran_field_type) :: increment
+
+    ! Fields for remapping
+    type(r_tran_field_type), target  :: field_big_halo
+    type(r_tran_field_type), target  :: field_x_big_halo
+    type(r_tran_field_type), target  :: field_y_big_halo
+    type(field_type),        pointer :: panel_id => null()
+
+    ! Stencil sizes
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: cfl_stencil_extent
+    logical(kind=l_def) :: strang
+
+    ! Time step and CFL
+    real(kind=r_tran)   :: one_over_dt, half_dt
+
+    ! Mesh
+    type(mesh_type),  pointer :: mesh => null()
+    integer(kind=i_def)       :: mesh_id
+
+    ! Transport runtime and metadata
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+    type(r_tran_field_type),      pointer :: dep_dist_xy
+    integer(kind=i_def),          pointer :: dep_stencil_extent_xy
+    integer(kind=i_def) :: hori_monotone
+    logical(kind=l_def) :: monotone_remap
+
+    if ( subroutine_timers ) call timer('transport.sl_horizontal')
+
+    ! Get mesh ID and panel ID
+    mesh_id = field_n%get_mesh_id()
+    panel_id => get_panel_id(mesh_id)
+
+    ! Get transport_runtime and reversible option
+    mesh => field_n%get_mesh()
+    transport_runtime => get_transport_runtime(mesh)
+
+    ! Get departure points
+    strang = ( transport_metadata%get_splitting() ==  splitting_strang_hvh )
+    dep_dist_xy => transport_runtime%get_dep_dist_xy_w2(mesh_id, strang)
+    ! Get stencil extent
+    dep_stencil_extent_xy => transport_runtime%get_dep_stencil_extent_xy(mesh_id)
+
+    ! Get monotone option
+    hori_monotone = transport_metadata%get_horizontal_monotone()
+
+    ! Get stencil size
+    stencil_extent  = dep_stencil_extent_xy + 1_i_def
+    cfl_stencil_extent = int(stencil_extent)
+
+    ! Initialise fields
+    call field_x%initialise( vector_space = field_n%get_function_space() )
+    call field_y%initialise( vector_space = field_n%get_function_space() )
+    call field_xp%initialise( vector_space = field_n%get_function_space() )
+    call field_yp%initialise( vector_space = field_n%get_function_space() )
+    call increment%initialise( vector_space = field_n%get_function_space() )
+    call increment_x%initialise( vector_space = field_n%get_function_space() )
+    call increment_y%initialise( vector_space = field_n%get_function_space() )
+    call half_increment_x%initialise( vector_space = field_n%get_function_space() )
+    call half_increment_y%initialise( vector_space = field_n%get_function_space() )
+
+    ! If needed remap the field on an extended cubed sphere
+    if ( extended_mesh ) then
+      monotone_remap = ( hori_monotone /= horizontal_monotone_none )
+      call transport_runtime%remap_on_extended_mesh(                  &
+                          field_big_halo, field_n, monotone_remap,    &
+                          transport_metadata%get_enforce_min_value(), &
+                          transport_metadata%get_min_value(),         &
+                          stencil_extent )
+    else
+      call field_big_halo%initialise( field_n%get_function_space(), &
+                                      halo_depth = stencil_extent )
+      call invoke( setval_x( field_big_halo, field_n ) )
+    end if
+
+    ! First advective step with linear interpolation
+    call invoke( horizontal_linear_sl_kernel_type( field_xp,        &
+                                                   field_yp,        &
+                                                   field_big_halo,  &
+                                                   stencil_extent,  &
+                                                   dep_dist_xy,     &
+                                                   cfl_stencil_extent ) )
+
+    ! Constants to get increments
+    one_over_dt = 1.0_r_tran / dt
+    half_dt = 0.5_r_tran * dt
+
+    call invoke( X_minus_Y(half_increment_x, field_n, field_xp),          &
+                 inc_a_times_X(one_over_dt, half_increment_x),            &
+                 X_minus_bY(field_x, field_n, half_dt, half_increment_x), &
+                 X_minus_Y(half_increment_y, field_n, field_yp),          &
+                 inc_a_times_X(one_over_dt, half_increment_y),            &
+                 X_minus_bY(field_y, field_n, half_dt, half_increment_y) )
+
+    ! Final advective step with cubic interpolation
+    stencil_extent = stencil_extent + 1
+    cfl_stencil_extent = int(stencil_extent)
+
+    ! If needed remap the field on an extended cubed sphere
+    if ( extended_mesh ) then
+      call transport_runtime%remap_on_extended_mesh(                  &
+                          field_x_big_halo, field_x, monotone_remap,  &
+                          transport_metadata%get_enforce_min_value(), &
+                          transport_metadata%get_min_value(),         &
+                          stencil_extent )
+      call transport_runtime%remap_on_extended_mesh(                  &
+                          field_y_big_halo, field_y, monotone_remap,  &
+                          transport_metadata%get_enforce_min_value(), &
+                          transport_metadata%get_min_value(),         &
+                          stencil_extent )
+    else
+      call field_x_big_halo%initialise( field_x%get_function_space(), &
+                                        halo_depth = stencil_extent )
+      call field_y_big_halo%initialise( field_y%get_function_space(), &
+                                        halo_depth = stencil_extent )
+      call invoke( setval_x( field_x_big_halo, field_x ), &
+                   setval_x( field_y_big_halo, field_y ) )
+    end if
+
+    call invoke_ffsl_panel_swap_kernel_type(field_x_big_halo, field_y_big_halo, &
+                                            panel_id, stencil_extent)
+
+    call invoke( horizontal_cubic_sl_kernel_type( increment_x,        &
+                                                  increment_y,        &
+                                                  field_x_big_halo,   &
+                                                  stencil_extent,     &
+                                                  field_y_big_halo,   &
+                                                  stencil_extent,     &
+                                                  dep_dist_xy,        &
+                                                  hori_monotone,      &
+                                                  cfl_stencil_extent, &
+                                                  dt ) )
+
+    ! Collect the increments
+    call invoke( X_plus_Y( increment, increment_x, increment_y ),     &
+                 X_minus_bY( field_np1, field_n, dt, increment ) )
+
+    ! End of step: if necessary enforce min val and overwrite in blending zone
+    call end_of_advective_step_alg(field_np1, field_n, transport_metadata)
+
+    if ( subroutine_timers ) call timer('transport.sl_horizontal')
+
+    nullify( mesh, transport_runtime, dep_dist_xy,         &
+             dep_stencil_extent_xy, panel_id )
+
+  end subroutine horizontal_sl_advective_alg
+
+end module horizontal_sl_advective_alg_mod

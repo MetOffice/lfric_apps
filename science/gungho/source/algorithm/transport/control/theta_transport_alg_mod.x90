@@ -1,0 +1,220 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Routine for controlling transport of the potential temperature field.
+
+module theta_transport_alg_mod
+
+  use constants_mod,                  only: i_def, r_def
+  use dg_inc_matrix_vector_kernel_mod,    &
+                                      only: dg_inc_matrix_vector_kernel_type
+  use enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
+  use fem_constants_mod,              only: get_inverse_lumped_mass_matrix, &
+                                            get_mass_matrix_diagonal,       &
+                                            get_mass_matrix
+  use field_mod,                      only: field_type
+  use fs_continuity_mod,              only: Wtheta
+  use function_space_mod,             only: function_space_type
+  use geometric_constants_mod,        only: get_height
+  use io_config_mod,                  only: subroutine_timers
+  use log_mod,                        only: log_event,       &
+                                            LOG_LEVEL_ERROR
+  use mesh_mod,                       only: mesh_type
+  use mesh_collection_mod,            only: mesh_collection
+  use mr_indices_mod,                 only: nummr, imr_v
+  use operator_mod,                   only: operator_type
+  use planet_config_mod,              only: recip_epsilon
+  use sort_column_above_kernel_mod,   only: sort_column_above_kernel_type
+  use timer_mod,                      only: timer
+  use timestepping_config_mod,        only: time_method => method, &
+                                            method_semi_implicit
+  use transport_config_mod,           only: theta_variable,             &
+                                            theta_variable_dry,         &
+                                            theta_variable_virtual_dry, &
+                                            adjust_theta,               &
+                                            adjust_theta_above
+  use transport_enumerated_types_mod, only: equation_form_advective,    &
+                                            equation_form_conservative, &
+                                            equation_form_consistent
+  use transport_field_mod,            only: transport_field
+  use transport_metadata_mod,         only: transport_metadata_type
+  use transport_rho_times_field_alg_mod,  only: transport_rho_times_field_alg
+
+  implicit none
+
+  private
+
+  public :: theta_transport_alg
+
+contains
+
+  !> @brief Central routine for transporting potential temperature field.
+  !> @details Performs a whole transport time step for potential temperature,
+  !!          with different routines called depending on the specified options
+  !!          for transporting the potential temperature. The potential
+  !!          temperature variable to be transported will be obtained, and if
+  !!          the transport equation is conservative then this is the product
+  !!          of a potential temperature with dry density on the shifted mesh.
+  !!          Static adjustment may also be applied to the resulting profile.
+  !!          The potential temperature increment is returned.
+  !> @param[in,out] theta_out_rdef     Dry potential temperature after transport
+  !> @param[in,out] theta_inc_rdef     Dry potential temperature increment
+  !> @param[in]     theta_in_rdef      Dry potential temperature before transport
+  !> @param[in]     mr_out             Moisture mixing ratios after transport
+  !> @param[in]     mr_in              Moisture mixing ratios before transport
+  !> @param[in]     model_dt_rdef      Model timestep
+  !> @param[in]     transport_metadata Contains the configuration options for
+  !!                                   transporting the potential temperature
+  subroutine theta_transport_alg(theta_out_rdef, theta_inc_rdef,         &
+                                 theta_in_rdef, mr_out, mr_in,           &
+                                 model_dt_rdef, transport_metadata)
+
+    implicit none
+
+    ! Arguments
+    type(field_type),      target, intent(inout) :: theta_out_rdef
+    type(field_type),              intent(inout) :: theta_inc_rdef
+    type(field_type),      target, intent(in)    :: theta_in_rdef
+    type(field_type),              intent(in)    :: mr_out(nummr)
+    type(field_type),              intent(in)    :: mr_in(nummr)
+    real(kind=r_def),              intent(in)    :: model_dt_rdef
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    ! Internal variables
+    real(kind=r_def)                      :: one
+    type(field_type),             pointer :: theta_in_ptr => null()
+    type(field_type),             pointer :: theta_out_ptr => null()
+    type(field_type),              target :: theta_vd_in, theta_vd_out
+    type(field_type)                      :: moist_factor_in, moist_factor_out
+    type(field_type),             pointer :: height_wt
+    type(function_space_type),    pointer :: wt_fs => null()
+
+
+    ! ------------------------------------------------------------------------ !
+    ! Convert to the particular potential temperature to be transported
+    ! ------------------------------------------------------------------------ !
+    ! Here we set the pointers theta_in_ptr and theta_out_ptr, which will point
+    ! to the appropriate field objects to be transported (which may be theta or
+    ! theta_vd, etc.) This avoids additional computations and code duplication,
+    ! as whichever theta variable and eqn form that we use, we will transport
+    ! theta_in_ptr to get theta_out_ptr
+    select case ( theta_variable )
+
+      case ( theta_variable_dry )
+        ! Already have the correct variable, so just point to it
+        ! This means that when theta_out_ptr is updated, so will theta_out_rdef
+        theta_in_ptr => theta_in_rdef
+        theta_out_ptr => theta_out_rdef
+
+      case ( theta_variable_virtual_dry )
+        ! Compute theta_vd
+        one = 1.0_r_def
+        wt_fs => theta_in_rdef%get_function_space()
+        call moist_factor_in%initialise( wt_fs )
+        call moist_factor_out%initialise( wt_fs )
+        call theta_vd_out%initialise( wt_fs )
+        call theta_vd_in%initialise( wt_fs )
+
+        call invoke( a_times_X(moist_factor_in, recip_epsilon, mr_in(imr_v)),   &
+                     a_times_X(moist_factor_out, recip_epsilon, mr_out(imr_v)), &
+                     inc_a_plus_X(one, moist_factor_in),                        &
+                     inc_a_plus_X(one, moist_factor_out),                       &
+                     X_times_Y(theta_vd_in, theta_in_rdef, moist_factor_in) )
+
+        ! When theta_out_ptr is updated, so will theta_vd_out
+        theta_in_ptr => theta_vd_in
+        theta_out_ptr => theta_vd_out
+
+        nullify( wt_fs )
+
+      case default
+        call log_event('Theta variable not implemented', LOG_LEVEL_ERROR)
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport depending on equation
+    ! If the equation form is advective:
+    !           Simply transport field in native space
+    ! If the equation form is consistent:
+    !           Requires transformation to densities and evaluation of fluxes.
+    !           This is done in the lowest level algorithms, so can just call
+    !           transport_field.
+    ! If the equation form is conservative:
+    !           This also requires transformation to densities and evaluation
+    !           of fluxes, but is achieved using the transport_rho_times_field
+    !           algorithm (this also divides the result by density at the end
+    !           of the transport step and so returns an updated field.)
+    ! ------------------------------------------------------------------------ !
+    select case ( transport_metadata%get_equation_form() )
+
+
+      ! ---------------------------------------------------------------------- !
+      ! Advective and consistent forms of transport equation
+      ! ---------------------------------------------------------------------- !
+      case ( equation_form_advective, equation_form_consistent )
+
+        call transport_field(theta_out_ptr, theta_in_ptr, model_dt_rdef, transport_metadata)
+
+      ! ---------------------------------------------------------------------- !
+      ! Conservative form of transport equation
+      ! ---------------------------------------------------------------------- !
+      case ( equation_form_conservative )
+
+        call transport_rho_times_field_alg(theta_out_ptr, theta_in_ptr, &
+                                           model_dt_rdef, transport_metadata)
+
+    ! ------------------------------------------------------------------------ !
+    ! Default form of transport equation
+    ! ------------------------------------------------------------------------ !
+    case default
+      call log_event('Form of theta transport equation either not ' // &
+                     'compatible or not implemented', LOG_LEVEL_ERROR)
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Return to dry theta
+    ! ------------------------------------------------------------------------ !
+
+    select case ( theta_variable )
+
+      case ( theta_variable_dry )
+        ! theta_out_rdef already contains the correct field values as it was
+        ! pointed to by theta_out_ptr
+        ! Nothing to do -- can't "pass" in Fortran so just set a dummy variable
+        one = 1.0_r_def
+
+      case ( theta_variable_virtual_dry )
+        ! Compute theta from theta_vd
+        call invoke( X_divideby_Y(theta_out_rdef, theta_vd_out, moist_factor_out) )
+
+      case default
+        call log_event('Theta variable not implemented', LOG_LEVEL_ERROR)
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Apply static adjustment if desired
+    ! ------------------------------------------------------------------------ !
+
+    if ( adjust_theta ) then
+      height_wt => get_height(Wtheta, theta_in_rdef%get_mesh_id())
+      call invoke( sort_column_above_kernel_type(theta_out_rdef, height_wt, &
+                                                 adjust_theta_above) )
+      nullify( height_wt )
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Compute increment
+    ! ------------------------------------------------------------------------ !
+
+    call invoke( X_minus_Y(theta_inc_rdef, theta_out_rdef, theta_in_rdef) )
+
+    nullify( theta_in_ptr, theta_out_ptr )
+
+  end subroutine theta_transport_alg
+
+end module theta_transport_alg_mod

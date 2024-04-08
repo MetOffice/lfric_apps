@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+    <!-- $id$ -->
+    
+ <!--
+============================================================================================================
+=                                           output files definition                                        =
+=                                            Define your own files for SI3                                =
+=                                         put the variables you want...                                    =
+============================================================================================================
+ -->
+    
+ <file_definition type="one_file" name="@expname@_@freq@_@startdate@_@enddate@" sync_freq="1mo" min_digits="4">
+   
+   <file_group id="1m" output_freq="1mo"  output_level="10" enabled=".TRUE.">  <!-- 1m files -->   	
+     <file id="file21" name_suffix="_icemod" description="ice variables" enabled=".true." >
+
+       <!-- ice mask -->
+       <field field_ref="icemask"          name="simsk"   />
+       <field field_ref="icemask05"        name="simsk05" />
+       <field field_ref="icemask15"        name="simsk15" />
+       
+       <!-- general -->
+       <field field_ref="snwvolu"          name="snvolu" />
+       <field field_ref="icethic"          name="sithic" />
+       <field field_ref="icevolu"          name="sivolu" />
+       <field field_ref="iceconc"          name="siconc" />
+       <field field_ref="icesalt"          name="sisali" />
+       <field field_ref="iceapnd"          name="siapnd" />
+       <field field_ref="icevpnd"          name="sivpnd" />
+       <field field_ref="iceepnd"          name="siepnd" />
+       <!-- sst_m is always the potential temperature even when using teos10 -->
+       <field field_ref="sst_m_pot"        name="sst_m_pot"  />
+       <field field_ref="sss_m_abs"        name="sss_m_abs"  />
+       
+       <!-- heat -->
+       <field field_ref="icetemp"          name="sitemp" />
+       <field field_ref="icettop"          name="sittop" />
+       <field field_ref="icetbot"          name="sitbot" />
+       
+       <!-- momentum -->
+       <field field_ref="uice"             name="sivelu"  />
+       <field field_ref="vice"             name="sivelv"  />
+       <field field_ref="icevel"           name="sivelo"  />
+       <field field_ref="utau_ai"          name="utau_ai" />
+       <field field_ref="vtau_ai"          name="vtau_ai" />
+       <field field_ref="utau_oi"          name="utau_oi" />
+       <field field_ref="vtau_oi"          name="vtau_oi" />
+       
+       <!-- rheology -->
+       <field field_ref="icediv"           name="sidive"  />
+       <field field_ref="iceshe"           name="sishea"  />
+       <field field_ref="icestr"           name="sistre"  />
+       <field field_ref="normstr"          name="normstr" />
+       <field field_ref="sheastr"          name="sheastr" />
+       <field field_ref="isig1"            name="isig1"   />
+       <field field_ref="isig2"            name="isig2"   />
+       <field field_ref="isig3"            name="isig3"   />
+       
+       <!-- heat fluxes -->
+       <field field_ref="qt_oce_ai"        name="qt_oce_ai"  />
+       <field field_ref="qt_atm_oi"        name="qt_atm_oi"  />
+       <field field_ref="qtr_ice_top"      name="qtr_ice_top"/>
+       <field field_ref="qtr_ice_bot"      name="qtr_ice_bot"/>
+       <field field_ref="qt_ice"           name="qt_ice"     />
+       <field field_ref="qsr_ice"          name="qsr_ice"    />
+       <field field_ref="qns_ice"          name="qns_ice"    />
+       <field field_ref="qemp_ice"         name="qemp_ice"   />
+       <field field_ref="albedo"           name="albedo"     />
+       
+       <field field_ref="hfxcndtop"        name="hfxcndtop"  />
+       <field field_ref="hfxcndbot"        name="hfxcndbot"  />
+       <field field_ref="hfxsensib"        name="hfxsensib"  />
+       
+       <!-- salt fluxes -->
+       <field field_ref="sfxice"           name="sfxice" />
+       
+       <!-- mass fluxes -->
+       <field field_ref="vfxice"           name="vfxice" />
+       <field field_ref="vfxsnw"           name="vfxsnw" />
+
+       <!-- melt ponds -->
+       <field field_ref="iceapnd_cat"      name="iceapnd_cat"/>
+       <field field_ref="icehpnd_cat"      name="icehpnd_cat"/>
+       <field field_ref="iceafpnd_cat"      name="iceafpnd_cat"/>
+       <field field_ref="iceaepnd_cat"      name="iceaepnd_cat"/>
+       <field field_ref="icehlid_cat"      name="icehlid_cat"/>
+       
+       <!-- categories -->
+       <field field_ref="icemask_cat"      name="simskcat"/>
+       <field field_ref="snwthic_cat"      name="snthicat"/>
+       <field field_ref="iceconc_cat"      name="siconcat"/>
+       <field field_ref="icethic_cat"      name="sithicat"/>
+       <field field_ref="icesalt_cat"      name="sisalcat"/>
+       <field field_ref="icetemp_cat"      name="sitemcat"/>
+       <field field_ref="snwtemp_cat"      name="sntemcat"/>
+
+       <!-- mass balance -->
+       <field field_ref="dmithd"           name="sidmassth"        />
+       <field field_ref="dmidyn"           name="sidmassdyn"       />
+       <field field_ref="dmiopw"           name="sidmassgrowthwat" />
+       <field field_ref="dmibog"           name="sidmassgrowthbot" />
+       <field field_ref="dmisni"           name="sidmasssi"        />
+       <field field_ref="dmisub"           name="sidmassevapsubl"  />
+       <field field_ref="dmisum"           name="sidmassmelttop"   />
+       <field field_ref="dmibom"           name="sidmassmeltbot"   />
+       <field field_ref="dmilam"           name="sidmassmeltlat"   />
+       <field field_ref="dmsspr"           name="sndmasssnf"       />
+       <field field_ref="dmsmel"           name="sndmassmelt"      />
+       <field field_ref="dmssub"           name="sndmasssubl"      />
+       <field field_ref="dmsdyn"           name="sndmassdyn"       />
+       <field field_ref="dmsssi"           name="sndmasssi"        />
+
+     </file>
+     
+     <file id="file22" name_suffix="_SBC_scalar" description="scalar variables" enabled=".true." >
+       <!-- global contents -->
+       <field field_ref="ibgvol_tot"       name="ibgvol_tot"   />
+       <field field_ref="sbgvol_tot"       name="sbgvol_tot"   />
+       <field field_ref="ibgarea_tot"      name="ibgarea_tot"  />
+       <field field_ref="ibgsalt_tot"      name="ibgsalt_tot"  />
+       <field field_ref="ibgheat_tot"      name="ibgheat_tot"  />
+       <field field_ref="sbgheat_tot"      name="sbgheat_tot"  />
+       
+       <!-- global drifts (conservation checks) -->
+       <field field_ref="ibgvolume"        name="ibgvolume"    />
+       <field field_ref="ibgsaltco"        name="ibgsaltco"    />
+       <field field_ref="ibgheatco"        name="ibgheatco"    />
+       <field field_ref="ibgheatfx"        name="ibgheatfx"    />
+       
+       <!-- global forcings  -->
+       <field field_ref="ibgfrcvoltop"     name="ibgfrcvoltop" />
+       <field field_ref="ibgfrcvolbot"     name="ibgfrcvolbot" />
+       <field field_ref="ibgfrctemtop"     name="ibgfrctemtop" />
+       <field field_ref="ibgfrctembot"     name="ibgfrctembot" />
+       <field field_ref="ibgfrcsal"        name="ibgfrcsal"    />
+       <field field_ref="ibgfrchfxtop"     name="ibgfrchfxtop" />
+       <field field_ref="ibgfrchfxbot"     name="ibgfrchfxbot" />
+     </file>
+     
+   </file_group>
+   
+   <file_group id="1ts" output_freq="1ts" output_level="10" enabled=".TRUE."/> <!-- 1 time step files -->
+   <file_group id="1h"  output_freq="1h"  output_level="10" enabled=".TRUE."/> <!-- 1h files -->
+   <file_group id="2h"  output_freq="2h"  output_level="10" enabled=".TRUE."/> <!-- 2h files -->
+   <file_group id="3h"  output_freq="3h"  output_level="10" enabled=".TRUE."/> <!-- 3h files -->     
+   <file_group id="4h"  output_freq="4h"  output_level="10" enabled=".TRUE."/> <!-- 4h files -->
+   <file_group id="6h"  output_freq="6h"  output_level="10" enabled=".TRUE."/> <!-- 6h files -->        
+   <file_group id="1m"  output_freq="1mo" output_level="10" enabled=".TRUE."/> <!-- real monthly files -->
+   <file_group id="2m"  output_freq="2mo" output_level="10" enabled=".TRUE."/> <!-- real 2m files -->
+   <file_group id="3m"  output_freq="3mo" output_level="10" enabled=".TRUE."/> <!-- real 3m files -->
+   <file_group id="4m"  output_freq="4mo" output_level="10" enabled=".TRUE."/> <!-- real 4m files -->
+   <file_group id="6m"  output_freq="6mo" output_level="10" enabled=".TRUE."/> <!-- real 6m files -->
+   <file_group id="1y"  output_freq="1y"  output_level="10" enabled=".TRUE."/> <!-- real yearly files -->
+   <file_group id="2y"  output_freq="2y"  output_level="10" enabled=".TRUE."/> <!-- real 2y files -->
+   <file_group id="5y"  output_freq="5y"  output_level="10" enabled=".TRUE."/> <!-- real 5y files -->
+   <file_group id="10y" output_freq="10y" output_level="10" enabled=".TRUE."/> <!-- real 10y files -->
+   
+ </file_definition>
+ 

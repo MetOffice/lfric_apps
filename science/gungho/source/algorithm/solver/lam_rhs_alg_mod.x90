@@ -1,0 +1,185 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   RHS term operations for limited area models.
+
+module lam_rhs_alg_mod
+
+  use constants_mod,               only: r_def, i_def
+  use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
+  use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
+  use dg_inc_matrix_vector_kernel_mod, &
+                                   only: dg_inc_matrix_vector_kernel_type
+  use enforce_bc_kernel_mod,       only: enforce_bc_kernel_type
+  use io_config_mod,               only: subroutine_timers
+  use timer_mod,                   only: timer
+  use derived_config_mod,          only: bundle_size
+  use si_operators_alg_mod,        only: get_ptheta2, &
+                                         get_rho_at_u
+  use fem_constants_mod,           only: get_im3_div,        &
+                                         get_w2_mass_matrix, &
+                                         w2_si_matrix
+  use limited_area_constants_mod,  only: get_mask
+  use fs_continuity_mod,           only: W2, W3, Wtheta
+  use field_mod,                   only: field_type
+  use r_solver_field_mod,          only: r_solver_field_type
+  use field_collection_mod,        only: field_collection_type
+  use operator_mod,                only: operator_type, &
+                                         r_solver_operator_type
+  use field_indices_mod,           only: igh_u, igh_t, igh_d, igh_p
+  use operator_algebra_kernel_mod, only: operator_setval_x_kernel_type
+  use sci_psykal_light_mod,        only: invoke_copy_to_rdef
+
+  implicit none
+
+  private
+  public :: calc_rhs_lbc
+  public :: apply_mask_rhs
+
+contains
+
+  !> @brief   Apply LAM masks to the RHS.
+  !> @details Set the RHS to zero outside the limited area model interior.
+  !> @param[in,out] rhs The full RHS, to be used in the linear mixed solver
+  subroutine apply_mask_rhs(rhs)
+
+    implicit none
+
+    type(field_type), intent(inout) :: rhs(bundle_size)
+    type(field_type), pointer       :: w2_mask     => null(), &
+                                       w3_mask     => null(), &
+                                       wtheta_mask => null()
+    integer(kind=i_def)             :: mesh_id
+
+    mesh_id = rhs(igh_u)%get_mesh_id()
+
+    ! LAM Masks
+    w2_mask     => get_mask(W2, mesh_id)
+    w3_mask     => get_mask(W3, mesh_id)
+    wtheta_mask => get_mask(Wtheta, mesh_id)
+
+    call invoke( inc_X_times_Y( rhs(igh_u),     &
+                                w2_mask),       &
+                 inc_X_times_Y( rhs(igh_d),     &
+                                w3_mask),       &
+                 inc_X_times_Y( rhs(igh_p),     &
+                                w3_mask),       &
+                 inc_X_times_Y( rhs(igh_t),     &
+                                wtheta_mask)    )
+
+    nullify( w2_mask, w3_mask, wtheta_mask )
+
+  end subroutine apply_mask_rhs
+
+  !> @brief   Compute the RHS LBC term.
+  !> @details Apply the LHS mixed operator to the lateral boundary condition, to
+  !>          be used as an additional RHS term, rhs = A(x_b). This code is
+  !>          similar to the operator constructor in mixed_operator_alg_mod.x90,
+  !>          but noting that x_b is only non-zero for the wind field.
+  !>          Since these terms go into the rhs no normalisation is applied here
+  !>          (in contrast to the mixed operator) since the normalisation is
+  !>          applied for the whole rhs term before the solver is called.
+  !> @param[in,out] rhs        RHS term for the mixed solve, to include LBCs
+  !> @param[in]     lbc_fields Field collection containing LBC data
+  subroutine calc_rhs_lbc( rhs, lbc_fields )
+
+    implicit none
+
+    type(field_type),            intent(inout) :: rhs(bundle_size)
+    type(field_collection_type), intent(in)    :: lbc_fields
+
+    type(field_type),    pointer :: boundary_u => null()
+    type(operator_type), pointer :: mm_vel     => null(), &
+                                    div        => null()
+    type(operator_type)          :: ptheta2
+    type(field_type),    pointer :: mt_lumped_inv => null(), &
+                                    m2_diag       => null()
+    type(field_type)             :: rho_at_u, &
+                                    f_star,   &
+                                    u_tmp,    &
+                                    r_tmp
+    real(r_def),       parameter :: minus_one = -1.0_r_def
+    type(field_type),    pointer :: w2_mask     => null(), &
+                                    w3_mask     => null(), &
+                                    wtheta_mask => null()
+    integer(i_def)               :: mesh_id
+
+    type(r_solver_field_type), pointer :: r_solver_rho_at_u => null()
+    type(r_solver_operator_type), pointer :: r_solver_ptheta2 => null()
+
+    if ( subroutine_timers ) call timer('rhs_lbc')
+
+    mesh_id = rhs(igh_u)%get_mesh_id()
+
+    ! Get the LBC data
+    call lbc_fields%get_field('boundary_u_diff', boundary_u)
+
+    ! LAM Masks
+    w2_mask     => get_mask(W2, mesh_id)
+    w3_mask     => get_mask(W3, mesh_id)
+    wtheta_mask => get_mask(Wtheta, mesh_id)
+
+    ! Obtain operators from runtime constants
+    div => get_im3_div(mesh_id)
+    ! m2 (or dl) + tau_u*dt*coriolis (lagged if required)
+    mm_vel => get_w2_mass_matrix(w2_si_matrix, mesh_id)
+
+    ! Obtain operators from SI operators
+    r_solver_ptheta2  => get_ptheta2()
+    call ptheta2%initialise( rhs(igh_t)%get_function_space(), &
+                             rhs(igh_u)%get_function_space() )
+    call invoke( operator_setval_x_kernel_type(ptheta2, r_solver_ptheta2) )
+    r_solver_rho_at_u => get_rho_at_u()
+    call rho_at_u%initialise( vector_space = rhs(igh_u)%get_function_space() )
+    call invoke_copy_to_rdef(rho_at_u, r_solver_rho_at_u)
+    call f_star%initialise( vector_space = rhs(igh_u)%get_function_space() )
+    call u_tmp%initialise( vector_space = rhs(igh_u)%get_function_space() )
+    call r_tmp%initialise( vector_space = rhs(igh_d)%get_function_space() )
+
+    call invoke( name = "compute_rhs_lbc",                         &
+         ! Initialise field that are incremented
+                      setval_c( u_tmp, 0.0_r_def ),                &
+                      setval_c( rhs(igh_t), 0.0_r_def ),           &
+                      setval_c( rhs(igh_u), 0.0_r_def ),           &
+         ! Initialise rhs pressure
+                      setval_c( rhs(igh_p), 0.0_r_def ),           &
+         ! L_u
+                      matrix_vector_kernel_type(   u_tmp,          &
+                                                   boundary_u,     &
+                                                   mm_vel ),       &
+                      inc_aX_plus_Y(               minus_one,      &
+                                                   rhs(igh_u),     &
+                                                   u_tmp),         &
+                      enforce_bc_kernel_type(      rhs(igh_u) ),   &
+         ! L_theta
+                      dg_inc_matrix_vector_kernel_type(rhs(igh_t), &
+                                                   boundary_u,     &
+                                                   ptheta2 ),      &
+         ! L_rho
+                      X_times_Y(                   f_star,         &
+                                                   rho_at_u,       &
+                                                   boundary_u ),   &
+                      dg_matrix_vector_kernel_type(rhs(igh_d),     &
+                                                   f_star,         &
+                                                   div ),          &
+         ! Lateral boundaries
+                      inc_X_times_Y(               rhs(igh_u),     &
+                                                   w2_mask),       &
+                      inc_X_times_Y(               rhs(igh_d),     &
+                                                   w3_mask),       &
+                      inc_X_times_Y(               rhs(igh_t),     &
+                                                   wtheta_mask)    &
+                      )
+
+    nullify ( boundary_u, w2_mask, w3_mask, wtheta_mask )
+    nullify ( div, mt_lumped_inv, m2_diag, mm_vel )
+    nullify ( r_solver_ptheta2, r_solver_rho_at_u )
+
+    if ( subroutine_timers ) call timer('rhs_lbc')
+
+  end subroutine calc_rhs_lbc
+
+end module lam_rhs_alg_mod

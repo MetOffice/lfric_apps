@@ -1,0 +1,820 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Routines for testing the CMA data structures and kernels.
+!>
+!> @details This module contains several routines for testing the correctness
+!!          of CMA operator kernels. It checks that the following operations
+!!          are carried out directly:
+!!
+!!          * A CMA operator can be applied to a field (compare to result from
+!!            equivalent operator application in LMA representation).
+!!          * Two CMA operators can be multiplied to obtain a new CMA (compare
+!!            result of combined CMA operator application to successive
+!!            application of the two operators in LMA representation).
+!!          * Two CMA operator can be added to obtain a new CMA (compare result
+!!            of combined CMA operator application to successive application of
+!!            the two operators in LMA representation).
+!!          * The equation \f$Au=b\f$ can be solved for \f$u\f$ if \f$A\f$ is a
+!!            CMA operator. For this, calculate \f$b=Au_{in}\f$ where
+!!            \f$u_{in}\f$ is a given field and compare \f$u\f$ and
+!!            \f$u_{in}\f$.
+!!          * The diagonal of a vertical velocity mass matrix can be extracted
+!!            and stored in a CMA (this is tested implicitly, since this CMA is
+!!            used in the construction in the term \f$D_vM_{2,v,inv}D_v^T\f$ in
+!!            the Helmholtz operator. This test currently only works reliably
+!!            if the code is run on one processor.
+!!
+!!          Some of the tests construct a Helmholtz operator of the form
+!!          \f$H=\alpha M_3 + \beta D_v M_{2,v,inv} D_v^T\f$.
+
+module cma_test_algorithm_mod
+
+  ! Standard system kernels
+  use log_mod,                        only : log_event,         &
+                                             log_set_level,     &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_ERROR,   &
+                                             LOG_LEVEL_INFO,    &
+                                             LOG_LEVEL_DEBUG,   &
+                                             LOG_LEVEL_TRACE
+  use constants_mod,                  only : i_def, l_def, r_solver
+  use columnwise_operator_mod,        only : columnwise_operator_type
+  use function_space_mod,             only : function_space_type
+  use function_space_collection_mod,  only : function_space_collection
+  use field_mod,                      only : field_type
+  use r_solver_field_mod,             only : r_solver_field_type
+  use mesh_mod,                       only : mesh_type
+  use quadrature_xyoz_mod,            only : quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,   only : quadrature_rule_gaussian_type
+  use operator_mod,                   only : operator_type, &
+                                             r_solver_operator_type
+  use fs_continuity_mod,              only : W0, W1, W2, W2V, W2H, W3, Wchi
+  use driver_coordinates_mod,         only : assign_coordinate_field
+  use finite_element_config_mod,      only : element_order, &
+                                             coord_order
+  ! Kernels for field assignment and manipulation
+  use enforce_bc_kernel_mod,          only : enforce_bc_kernel_type
+  use assign_field_random_kernel_mod, only : assign_field_random_kernel_type
+  use assign_field_single_column_kernel_mod, only : assign_field_single_column_kernel_type
+  ! Kernels for local operator assembly
+  use compute_mass_matrix_kernel_w2_mod, only : compute_mass_matrix_kernel_w2_type
+  use compute_mass_matrix_kernel_w3_mod, only : compute_mass_matrix_kernel_w3_type
+  use compute_div_operator_kernel_mod,   only : compute_div_operator_kernel_type
+  ! Kernels for local operator application and manipulation
+  use matrix_vector_kernel_mod,           only : matrix_vector_kernel_type
+  use dg_inc_matrix_vector_kernel_mod,    only : dg_inc_matrix_vector_kernel_type
+  use transpose_matrix_vector_kernel_mod, only : transpose_matrix_vector_kernel_type
+  use transpose_matrix_kernel_mod,        only : transpose_matrix_kernel_type
+  use mm_diagonal_kernel_mod,             only : mm_diagonal_kernel_type
+  use mm_diagonal_assembled_kernel_mod,   only : mm_diagonal_assembled_kernel_type
+  use enforce_operator_bc_kernel_mod,     only : enforce_operator_bc_kernel_type
+  use operator_algebra_kernel_mod,        only : operator_setval_x_kernel_type
+  ! Columnwise operator kernels
+  use columnwise_op_asm_kernel_mod,           only : columnwise_op_asm_kernel_type
+  use columnwise_op_asm_diag_hmht_kernel_mod, only : columnwise_op_asm_diag_hmht_kernel_type
+  use columnwise_op_app_kernel_mod,           only : columnwise_op_app_kernel_type
+  use columnwise_op_appinv_kernel_mod,        only : columnwise_op_appinv_kernel_type
+  use columnwise_op_mul_kernel_mod,           only : columnwise_op_mul_kernel_type
+  use columnwise_op_scaledadd_kernel_mod,     only : columnwise_op_scaledadd_kernel_type
+  use columnwise_op_asm_m2v_lumped_inv_kernel_mod, only : columnwise_op_asm_m2v_lumped_inv_kernel_type
+
+  implicit none
+
+  private
+
+  ! Mesh ID
+  type(mesh_type), pointer :: mesh => null()
+
+  ! Index of coordinate function space
+  integer(kind=i_def) :: chi_space
+  ! Coordinate fields
+  type(field_type) :: chi(3)
+  type(field_type) :: panel_id
+  ! Quadrature rule
+  type( quadrature_xyoz_type ) :: qr
+  type( quadrature_rule_gaussian_type ) :: quadrature_rule
+  ! Function spaces
+  ! Coordinates
+  type(function_space_type), pointer :: fs_coord => null()
+  ! Vertical velocity
+  type(function_space_type), pointer :: fs_vel_v => null()
+  ! Horizontal velocity
+  type(function_space_type), pointer :: fs_vel_h => null()
+  ! Pressure
+  type(function_space_type), pointer :: fs_pressure => null()
+  ! Fields (temporaries used for testing)
+  ! Pressure space
+  type(r_solver_field_type) :: p_in,          &
+                               p_tmp,         &
+                               p_out,         &
+                               p_out_cma
+  ! Velocity space
+  type(r_solver_field_type) :: u_v_in,        &
+                               u_v_tmp,       &
+                               u_h_tmp,       &
+                               u_v_out,       &
+                               u_v_out_cma
+  ! Fields storing the diagonal of mass matrices
+  type(r_solver_field_type) :: mm_vel_v_diag, &
+                               mm_vel_h_diag
+  ! LMA operators
+  ! Mass matrices
+  type(r_solver_operator_type) :: mm_vel_v
+  type(r_solver_operator_type) :: mm_vel_h
+  type(r_solver_operator_type) :: mm_pressure
+  ! Divergence and gradient operator
+  type(r_solver_operator_type) :: div_v
+  type(r_solver_operator_type) :: div_h
+  type(r_solver_operator_type) :: grad_v
+  ! r_def LMA operators
+  ! Mass matrices
+  type(operator_type) :: mm_vel_v_r_def
+  type(operator_type) :: mm_vel_h_r_def
+  type(operator_type) :: mm_pressure_r_def
+  ! Divergence and gradient operator
+  type(operator_type) :: div_v_r_def
+  type(operator_type) :: div_h_r_def
+  type(operator_type) :: grad_v_r_def
+  ! CMA operators
+  type(columnwise_operator_type) :: div_v_cma
+  type(columnwise_operator_type) :: mm_vel_v_cma
+  type(columnwise_operator_type) :: grad_v_cma
+  type(columnwise_operator_type) :: mm_pressure_cma
+  type(columnwise_operator_type) :: mm_vel_v_inv_diag_cma
+  ! Bool to avoid initialising this module multiple times, set to
+  ! .true. in first call to cma_test_init().
+  logical(kind=l_def) :: is_initialised = .false.
+
+  ! Export functions
+  public :: cma_test_init
+  public :: test_cma_apply_mass_p
+  public :: test_cma_apply_mass_v
+  public :: test_cma_apply_div_v
+  public :: test_cma_multiply_div_v_mass_v
+  public :: test_cma_multiply_grad_v_div_v
+  public :: test_cma_add
+  public :: test_cma_apply_inv
+  public :: test_cma_diag_DhMDhT
+
+contains
+
+  !> @brief Initialise module.
+  !> @details Create operators which will be assembled into CMAs,
+  !!          assemble CMAs.
+  !!          Also carries out some checks to ensure that the mesh is of
+  !!          an appropriate size (if the grid spacing is too small or too
+  !!          large, the two terms in the Helmholtz operator might have
+  !!          very different magnitude, distorting the test results).
+  !>
+  !> @param[in] mesh Mesh to be used
+  subroutine cma_test_init(mesh_in)
+
+    implicit none
+
+    type(mesh_type), intent(in), pointer :: mesh_in
+
+    ! Local variables
+    integer(kind=i_def) :: i
+
+    ! Return if module has already been initialised
+    if (is_initialised) return
+
+    mesh => mesh_in
+
+    ! Set up coordinate field
+    if ( coord_order == 0 ) then
+       chi_space = W0
+       call log_event( "cma test: Computing W0 coordinate fields", &
+                       LOG_LEVEL_INFO )
+    else
+       chi_space = Wchi
+       call log_event( "cma test: Computing Wchi coordinate fields", &
+                       LOG_LEVEL_INFO )
+    end if
+
+    fs_coord => function_space_collection%get_fs(mesh,        &
+                                                 coord_order, &
+                                                 chi_space)
+
+    fs_pressure => function_space_collection%get_fs(mesh, 1, W3)
+    call panel_id%initialise(vector_space = fs_pressure, &
+                             halo_depth = mesh%get_halo_depth() )
+
+    fs_coord => function_space_collection%get_fs(mesh, coord_order, Wchi)
+
+    do i = 1,3
+      call chi(i)%initialise(vector_space = fs_coord, &
+                             halo_depth = mesh%get_halo_depth() )
+    end do
+
+    call assign_coordinate_field( chi, panel_id, mesh )
+
+    ! Construct quadrature rule
+    qr = quadrature_xyoz_type(3, quadrature_rule)
+
+    ! Extract function spaces from mesh
+    fs_vel_v    => function_space_collection%get_fs(mesh,          &
+                                                    element_order, &
+                                                    W2V)
+    fs_vel_h    => function_space_collection%get_fs(mesh,          &
+                                                    element_order, &
+                                                    W2H)
+    fs_pressure => function_space_collection%get_fs(mesh,          &
+                                                    element_order, &
+                                                    W3)
+    ! Create temporary fields for testing
+    call p_in%initialise( fs_pressure )
+    call p_tmp%initialise( fs_pressure )
+    call p_out%initialise( fs_pressure )
+    call p_out_cma%initialise( fs_pressure )
+    call u_v_in%initialise( fs_vel_v )
+    call u_v_tmp%initialise( fs_vel_v )
+    call u_h_tmp%initialise( fs_vel_h )
+    call u_v_out%initialise( fs_vel_v )
+    call u_v_out_cma%initialise( fs_vel_v )
+
+    ! Create and assemble mass matrices, divergence and gradient operator
+    call mm_vel_v_r_def%initialise( fs_vel_v, fs_vel_v )
+    call mm_vel_h_r_def%initialise( fs_vel_h, fs_vel_h )
+    call mm_pressure_r_def%initialise( fs_pressure, fs_pressure )
+    call div_v_r_def%initialise( fs_pressure, fs_vel_v )
+    call div_h_r_def%initialise( fs_pressure, fs_vel_h )
+    call grad_v_r_def%initialise( fs_vel_v, fs_pressure )
+
+    call invoke( compute_mass_matrix_kernel_w2_type( mm_vel_v_r_def, chi, panel_id, qr ),    &
+                 compute_mass_matrix_kernel_w3_type( mm_pressure_r_def, chi, panel_id, qr ), &
+                 compute_div_operator_kernel_type( div_v_r_def, chi, panel_id, qr ),         &
+                 transpose_matrix_kernel_type( div_v_r_def, grad_v_r_def ) )
+
+    ! These invokes are split to avoid issues with passing two different W2
+    ! operators (on W2h and W2v) to compute_mass_matrix_kernel_w2_type within
+    ! the same invoke
+    call invoke( compute_mass_matrix_kernel_w2_type( mm_vel_h_r_def, chi, panel_id, qr ), &
+                 compute_div_operator_kernel_type( div_h_r_def, chi, panel_id, qr ) )
+
+
+    ! Create r_solver versions and copy over
+    call mm_vel_v%initialise( fs_vel_v, fs_vel_v )
+    call mm_vel_h%initialise( fs_vel_h, fs_vel_h )
+    call mm_pressure%initialise( fs_pressure, fs_pressure )
+    call div_v%initialise( fs_pressure, fs_vel_v )
+    call div_h%initialise( fs_pressure, fs_vel_h )
+    call grad_v%initialise( fs_vel_v, fs_pressure )
+
+    call invoke( operator_setval_x_kernel_type( mm_vel_v, mm_vel_v_r_def ),       &
+                 operator_setval_x_kernel_type( mm_vel_h, mm_vel_h_r_def ),       &
+                 operator_setval_x_kernel_type( mm_pressure, mm_pressure_r_def ), &
+                 operator_setval_x_kernel_type( div_v, div_v_r_def ),             &
+                 operator_setval_x_kernel_type( div_h, div_h_r_def ),             &
+                 operator_setval_x_kernel_type( grad_v, grad_v_r_def ) )
+
+
+    ! Extract diagonal of vertical and horizontal velocity mass matrices.
+    ! Note that this has to be done BEFORE applying the boundary
+    ! conditions to the velocity mass matrix, as it will contain zeros otherwise.
+    ! This is an issue since we later divide by the diagonal mass matrix in
+    ! the field representation.
+    call mm_vel_v_diag%initialise( fs_vel_v )
+    call mm_vel_h_diag%initialise( fs_vel_h )
+    call invoke( setval_c( mm_vel_v_diag, 0.0_r_solver ),               &
+                 mm_diagonal_kernel_type( mm_vel_v_diag, mm_vel_v ), &
+                 setval_c( mm_vel_h_diag, 0.0_r_solver ),               &
+                 mm_diagonal_kernel_type( mm_vel_h_diag, mm_vel_h ), &
+    ! Copy back to LMA representation of diagonal, since this is later used
+    ! to assemble to operator \f$diag(D_h M_{2,h,inv} D_h^T\f$.
+                 mm_diagonal_assembled_kernel_type( mm_vel_h_diag, mm_vel_h ) )
+
+    ! Enforce (vertical) BCs for velocity space on all relevant operators
+    call invoke( enforce_operator_bc_kernel_type( mm_vel_v ), &
+                 enforce_operator_bc_kernel_type( div_v ),    &
+                 enforce_operator_bc_kernel_type( grad_v ) )
+
+    ! Copy to r_solver objects
+
+    ! Create and assemble CMA representations of operators
+    ! Pressure mass matrix
+    call mm_pressure_cma%initialise( fs_pressure, fs_pressure )
+    ! Vertical divergence
+    call div_v_cma%initialise( fs_pressure, fs_vel_v )
+    ! Vertical gradient
+    call grad_v_cma%initialise( fs_vel_v, fs_pressure )
+    ! Vertical velocity mass matrix
+    call mm_vel_v_cma%initialise( fs_vel_v, fs_vel_v )
+    ! Vertical diagonal velocity mass matrix
+    call mm_vel_v_inv_diag_cma%initialise( fs_vel_v, fs_vel_v, 1, 1, 0, 0 )
+    ! Assemble CMA operators
+    call invoke( columnwise_op_asm_kernel_type( mm_pressure, &
+                                                mm_pressure_cma ), &
+                 columnwise_op_asm_kernel_type( div_v,       &
+                                                div_v_cma ),       &
+                 columnwise_op_asm_kernel_type( grad_v,      &
+                                                grad_v_cma ),      &
+                 columnwise_op_asm_kernel_type( mm_vel_v,    &
+                                                mm_vel_v_cma ),    &
+                 columnwise_op_asm_m2v_lumped_inv_kernel_type( mm_vel_v, &
+                                                               mm_vel_v_inv_diag_cma ) )
+    ! Set flag to true to avoid multiple initialisations
+    is_initialised = .true.
+
+  end subroutine cma_test_init
+
+  !> @brief Check if two fields are idential up to some tolerance.
+  !> @details Auxilliary routine which calculates the relative difference
+  !!          \f$\delta = ||x_1-x_2||/||x_1||\f$ of two fields,
+  !!          \f$x_1\f$ and \f$x_2\f$ in the L2 norm. If this difference
+  !!          is smaller than a given tolerance \f$\epsilon\f$, it will print
+  !!          out a string with a PASS message, otherwise it will print a FAIL
+  !!          message.
+  !!          Example:
+  !!
+  !!          *** test            apply vert divergence ***
+  !!            ||X1|| = 0.41820503E+02
+  !!            ||X2|| = 0.41820503E+02
+  !!            ||X1-X2|| = 0.00000000E+00
+  !!            ||X1-X2||/||X1|| = 0.00000000E+00
+  !!            test           apply vert divergence : PASS
+  !>
+  !> @param[in] x1 First field to compare
+  !> @param[in] x2 Second field to compare
+  !> @param[in] tolerance Tolerance \f$\epsilon\f$
+  !> @param[in] label Label for comparison
+  subroutine compare_fields(x1, x2, tolerance, label)
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use constants_mod,                 only: r_def
+    use sci_psykal_light_mod,          only: invoke_rdouble_X_innerproduct_X
+
+    implicit none
+
+    ! Passed parameters
+    type(r_solver_field_type), intent(in) :: x1
+    type(r_solver_field_type), intent(in) :: x2
+    real(kind=r_solver),       intent(in) :: tolerance
+    character(len=*),          intent(in) :: label
+
+    ! Internal variables
+    type(r_solver_field_type) :: dx
+    real(kind=r_solver)       :: dx_nrm_sq, x1_nrm_sq, x2_nrm_sq
+    real(kind=r_def)          :: tmp
+    real(kind=r_solver)       :: use_tol
+    character(len=128)        :: output
+    character(len=4)          :: pass_str
+    type(function_space_type), pointer :: fs => null()
+
+    ! Extract function space for creation of temporary fields
+    fs => function_space_collection%get_fs(mesh,          &
+                                           element_order, &
+                                           x1%which_function_space())
+
+    call dx%initialise(fs)
+
+    ! Calculate differences
+    call invoke( X_minus_Y( dx, x1, x2 ) )
+    call invoke_rdouble_X_innerproduct_X(tmp, dx)
+    dx_nrm_sq = real(tmp, r_solver)
+    call invoke_rdouble_X_innerproduct_X(tmp, x1)
+    x1_nrm_sq = real(tmp, r_solver)
+    call invoke_rdouble_X_innerproduct_X(tmp, x2)
+    x2_nrm_sq = real(tmp, r_solver)
+
+    ! Set use_tol according to r_solver
+    if ( r_solver == real64 ) then
+      use_tol = tolerance
+    else
+      ! Note: Test is: sqrt(dx_nrm_sq/x1_nrm_sq) < use_tol.
+      !       Square root of ratio of 2 squared quantities =
+      !       ratio of square roots, hence the correct spacing
+      !       quantity should be sqrt(x1_nrm_sq).
+      use_tol = 10.0_r_solver*spacing( sqrt(x1_nrm_sq) )
+    end if
+
+    if (sqrt(dx_nrm_sq/x1_nrm_sq) < use_tol) then
+       pass_str = "PASS"
+    else
+       pass_str = "FAIL"
+    end if
+    write(output,'(" *** test ",A32," ***")') trim(label)
+    call log_event( output, LOG_LEVEL_INFO )
+    write(output,'("   ||x1||           = ",E15.8)') sqrt(x1_nrm_sq)
+    call log_event( output, LOG_LEVEL_INFO )
+    write(output,'("   ||x2||           = ",E15.8)') sqrt(x2_nrm_sq)
+    call log_event( output, LOG_LEVEL_INFO )
+    write(output,'("   ||x1-x2||        = ",E15.8)') sqrt(dx_nrm_sq)
+    call log_event( output, LOG_LEVEL_INFO )
+    write(output,'("   ||x1-x2||/||x1|| = ",E15.8)') sqrt(dx_nrm_sq/x1_nrm_sq)
+    call log_event( output, LOG_LEVEL_INFO )
+    write(output,'("   tolerance        = ",E15.8)') use_tol
+    call log_event( output, LOG_LEVEL_INFO )
+    write(output,'("   test",A32," : ",A4)') trim(label), pass_str
+    call log_event( output, LOG_LEVEL_INFO )
+    call log_event( "", LOG_LEVEL_INFO )
+
+  end subroutine compare_fields
+
+  !> @brief Apply the Helmholtz-operator
+  !!        \f$\hat{H}=\alpha M_3 + \beta D_vM_{2,v,inv}D_v^T\f$.
+  !> @details Applies the Helmholtz operator \f$H\f$ using the LMA
+  !!          representation.
+  !>
+  !> @param[in]  alpha Scaling parameter \f$\alpha\f$
+  !> @param[in]  beta Scaling parameter \f$\beta\f$
+  !> @param[in]  p_in Input pressure field \f$p_{in}\f$
+  !> @param[out] p_out Output pressure field \f$p_{out}=\hat{H}p_{in}\f$
+  subroutine apply_helmholtz(alpha, beta, p_in, p_out)
+    implicit none
+
+    ! Passed parameters
+    real(kind=r_solver),       intent(in)    :: alpha, beta
+    type(r_solver_field_type), intent(in)    :: p_in
+    type(r_solver_field_type), intent(inout) :: p_out
+
+    ! Internal variables
+    real(kind=r_solver)                :: beta_divided_by_alpha
+
+    ! Initialise fields
+    call invoke( setval_c( u_v_tmp, 0.0_r_solver ),             &
+                 setval_c( p_tmp,   0.0_r_solver ),             &
+                 setval_c( p_out,   0.0_r_solver ) )
+    ! Apply gradient \f$D_v^T\f$
+    call invoke( matrix_vector_kernel_type( u_v_tmp,         &
+                                            p_in,            &
+                                            grad_v ),        &
+    ! Divide by diagonally lumped vertical velocity mass matrix and
+    ! enforce boundary conditions
+                 inc_X_divideby_Y( u_v_tmp, mm_vel_v_diag ), &
+                 enforce_bc_kernel_type( u_v_tmp ),          &
+    ! Apply divergence \f$D_v\f$
+                 dg_inc_matrix_vector_kernel_type( p_out,    &
+                                                   u_v_tmp,  &
+                                                   div_v ) )
+    beta_divided_by_alpha = beta/alpha
+    call invoke( inc_a_times_X( beta_divided_by_alpha, p_out ),   &
+    ! Apply and add pressure mass matrix \f$M_3\f$
+                 dg_inc_matrix_vector_kernel_type( p_out,         &
+                                                   p_in,          &
+                                                   mm_pressure ), &
+                 inc_a_times_X( alpha, p_out ) )
+  end subroutine apply_helmholtz
+
+  !> @brief Construct CMA representation of Helmholtz operator
+  !!        \f$\hat{H}=\alpha M_3 + \beta D_vM_{2,v,inv}D_v^T\f$.
+  !> @details Construct the CMA representation of \f$H\f$ from available CMAs.
+  !>
+  !> @param[in] alpha_cma Scaling parameter \f$\alpha\f$
+  !> @param[in] beta_cma Scaling parameter \f$\beta\f$
+  !> @param[in,out] helmholtz_cma Helmholtz operator \f$\hat{H}\f$
+  !!                              in CMA representation
+  subroutine assemble_helmholtz_cma(alpha_cma, beta_cma, helmholtz_cma)
+    implicit none
+
+    ! Passed parameters
+    real(kind=r_solver),            intent(in)    :: alpha_cma, beta_cma
+    type(columnwise_operator_type), intent(inout) :: helmholtz_cma
+
+    ! Internal variables
+    type(columnwise_operator_type) :: mm_vel_v_inv_grad_v_cma
+    type(columnwise_operator_type) :: div_v_mm_vel_v_inv_grad_v_cma
+    logical(kind=l_def) :: test
+
+    ! Construct \f$M_{u,v,inv}D_v^T\f$
+    mm_vel_v_inv_grad_v_cma &
+       = mm_vel_v_inv_diag_cma%columnwise_operator_product( grad_v_cma )
+    call invoke( columnwise_op_mul_kernel_type( mm_vel_v_inv_diag_cma,   &
+                                                grad_v_cma,              &
+                                                mm_vel_v_inv_grad_v_cma ) )
+    ! Construct \f$D_vM_{u,v,inv}D_v^T\f$
+    div_v_mm_vel_v_inv_grad_v_cma &
+         = div_v_cma%columnwise_operator_product( mm_vel_v_inv_grad_v_cma )
+    call invoke( columnwise_op_mul_kernel_type( div_v_cma,               &
+                                                mm_vel_v_inv_grad_v_cma, &
+                                                div_v_mm_vel_v_inv_grad_v_cma ) )
+    ! Construct \f$M_3 + D_vM_{u,v,inv}D_v^T\f$
+    helmholtz_cma &
+         = mm_pressure_cma%columnwise_operator_sum( div_v_mm_vel_v_inv_grad_v_cma )
+    call invoke( columnwise_op_scaledadd_kernel_type( mm_pressure_cma,   &
+                                                      div_v_mm_vel_v_inv_grad_v_cma, &
+                                                      helmholtz_cma,     &
+                                                      alpha_cma,         &
+                                                      beta_cma) )
+
+  end subroutine assemble_helmholtz_cma
+
+  !> @brief Test application of pressure mass matrix.
+  !> @details Apply the pressure mass matrix, both as a LMA and as a CMA,
+  !!          and compare the results.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_apply_mass_p(tolerance)
+    implicit none
+    real(kind=r_solver), intent(in) :: tolerance
+    character(len=32) :: label = "apply pressure mass matrix"
+
+    call invoke( assign_field_random_kernel_type( p_in, 1.0_r_solver ), &
+                 setval_c( p_in,      1.0_r_solver ),                   &
+                 setval_c( p_out,     0.0_r_solver ),                   &
+                 setval_c( p_out_cma, 0.0_r_solver ),                   &
+                 columnwise_op_app_kernel_type( p_out_cma,           &
+                                                p_in,                &
+                                                mm_pressure_cma ),   &
+                 dg_inc_matrix_vector_kernel_type( p_out,            &
+                                                   p_in,             &
+                                                   mm_pressure ) )
+    call compare_fields(p_out, p_out_cma, tolerance, label)
+  end subroutine test_cma_apply_mass_p
+
+  !> @brief Test application of (vertical-only) velocity mass matrix.
+  !> @details Apply the (vertical-only) velocity mass matrix,
+  !!          both as a LMA and as a CMA and compare the results.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_apply_mass_v(tolerance)
+    implicit none
+
+    real(kind=r_solver), intent(in) :: tolerance
+    character(len=32) :: label = "apply vert velocity mass matrix"
+
+    call invoke( assign_field_random_kernel_type( u_v_in, 1.0_r_solver ), &
+                 enforce_bc_kernel_type( u_v_in ),                     &
+                 setval_c( u_v_out,     0.0_r_solver ),                   &
+                 setval_c( u_v_out_cma, 0.0_r_solver ),                   &
+    ! Apply velocity mass matrix in CMA representation
+                 columnwise_op_app_kernel_type( u_v_out_cma,           &
+                                                u_v_in,                &
+                                                mm_vel_v_cma ),        &
+    ! Boundary conditioned need to be enforced manually for CMA operation
+                 enforce_bc_kernel_type ( u_v_out_cma ),               &
+    ! Apply velocity mass matrix in LMA representation
+                 matrix_vector_kernel_type( u_v_out,                   &
+                                            u_v_in,                    &
+                                            mm_vel_v ) )
+    call compare_fields(u_v_out, u_v_out_cma, tolerance, label)
+  end subroutine test_cma_apply_mass_v
+
+  !> @brief Test application of (vertical-only) divergence operator.
+  !> @details Apply the (vertical-only) divergence operator,
+  !!          both as a LMA and as a CMA and compare the results.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_apply_div_v(tolerance)
+    implicit none
+
+    real(kind=r_solver), intent(in) :: tolerance
+    character(len=32) :: label = "apply vert divergence"
+
+    call invoke( assign_field_random_kernel_type( u_v_in, 1.0_r_solver ), &
+                 enforce_bc_kernel_type( u_v_in ),                     &
+                 setval_c( p_out,     0.0_r_solver ),                     &
+                 setval_c( p_out_cma, 0.0_r_solver ),                     &
+    ! Apply divergence operator in CMA representation
+                 columnwise_op_app_kernel_type( p_out_cma,             &
+                                                u_v_in,                &
+                                                div_v_cma ),           &
+    ! Apply divergence operator in LMA representation
+                 dg_inc_matrix_vector_kernel_type( p_out,              &
+                                                   u_v_in,             &
+                                                   div_v ) )
+    call compare_fields(p_out, p_out_cma, tolerance, label)
+  end subroutine test_cma_apply_div_v
+
+  !> @brief Test multiplication of two CMA operators (divergence and
+  !!        mass matrix).
+  !> @details Multiply the (vertical-only) divergence operator with the
+  !!          corresponding velocity mass matrix in the CMA representation.
+  !!          Apply the operator and compare to the separate application
+  !!          of the two operators in LMA representation.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_multiply_div_v_mass_v(tolerance)
+    implicit none
+
+    real(kind=r_solver), intent(in) :: tolerance
+
+    character(len=32) :: label = "multiply D_v.M_{u,v}"
+
+    type(columnwise_operator_type) :: div_v_mm_vel_v_cma
+
+    ! Construct combined CMA operator \f$A = D_v.M_{u,v}\f$
+    div_v_mm_vel_v_cma  = div_v_cma%columnwise_operator_product( mm_vel_v_cma )
+
+    call invoke( columnwise_op_mul_kernel_type( div_v_cma,       &
+                                                mm_vel_v_cma,    &
+                                                div_v_mm_vel_v_cma ) )
+    ! Initialise fields
+    call invoke( assign_field_random_kernel_type( u_v_in, 1.0_r_solver ), &
+                 enforce_bc_kernel_type( u_v_in ),                &
+                 setval_c( p_out,     0.0_r_solver ),                &
+                 setval_c( u_v_tmp,   0.0_r_solver ),                &
+                 setval_c( p_out_cma, 0.0_r_solver ) )
+
+    ! Apply combined CMA operator A = D_v.M_{u,v}
+    call invoke( columnwise_op_app_kernel_type( p_out_cma,   &
+                                                u_v_in,      &
+                                                div_v_mm_vel_v_cma ), &
+    ! Successively apply operators in LMA representation:
+    ! first M_{u,v}, then D_v
+                 matrix_vector_kernel_type( u_v_tmp,         &
+                                            u_v_in,          &
+                                            mm_vel_v ),      &
+                 dg_inc_matrix_vector_kernel_type( p_out,    &
+                                            u_v_tmp,         &
+                                            div_v ) )
+
+    call compare_fields(p_out, p_out_cma, tolerance, label)
+
+  end subroutine test_cma_multiply_div_v_mass_v
+
+  !> @brief Test multiplication of two CMA operators (gradient and divergence).
+  !> @details Multiply the (vertical-only) gradient (i.e. the transpose of
+  !!          the divergence operator) with the (vertical-only) divergence
+  !!          operator and compare to the separate application of the two
+  !!          operators in LMA representation.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_multiply_grad_v_div_v(tolerance)
+    implicit none
+
+    real(kind=r_solver), intent(in) :: tolerance
+
+    character(len=32) :: label = "multiply D_v^T.D_v"
+
+    type(columnwise_operator_type) :: grad_v_div_v_cma
+
+    ! Construct combined CMA operator A = D_v^T.D_v
+    grad_v_div_v_cma  = grad_v_cma%columnwise_operator_product( div_v_cma)
+
+    call invoke( columnwise_op_mul_kernel_type( grad_v_cma,   &
+                                                div_v_cma,    &
+                                                grad_v_div_v_cma ) )
+    ! Initialise fields
+    call invoke( assign_field_random_kernel_type( u_v_in, 1.0_r_solver ), &
+                 enforce_bc_kernel_type( u_v_in ),            &
+                 setval_c( p_tmp,       0.0_r_solver ),          &
+                 setval_c( u_v_out,     0.0_r_solver ),          &
+                 setval_c( u_v_out_cma, 0.0_r_solver ) )
+
+    ! Apply combined CMA operator A = D_v^T.D_v
+    call invoke( columnwise_op_app_kernel_type( u_v_out_cma, &
+                                                u_v_in,      &
+                                                grad_v_div_v_cma ), &
+    ! Manually apply boundary conditions
+                 enforce_bc_kernel_type ( u_v_out_cma ),     &
+    ! Successively apply divergence and gradient operators:
+    ! first D_v, then D_v^T
+                 dg_inc_matrix_vector_kernel_type( p_tmp,    &
+                                            u_v_in,          &
+                                            div_v ),         &
+                 matrix_vector_kernel_type( u_v_out,         &
+                                            p_tmp,           &
+                                            grad_v ) )
+
+    call compare_fields(u_v_out, u_v_out_cma, tolerance, label)
+
+  end subroutine test_cma_multiply_grad_v_div_v
+
+  !> @brief Test addition of two CMA operators.
+  !> @details Construct the Helmholtz CMA operator
+  !!          \f$H = \alpha M_3 + \beta D_v D_v^T\f$ in the CMA
+  !!          representation. Compare the result of applying \f$A\f$
+  !!          to applying the operators individually.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_add(tolerance)
+    implicit none
+
+    real(kind=r_solver), intent(in) :: tolerance
+    type(columnwise_operator_type) :: helmholtz_cma
+    character(len=32) :: label = "add M_3+D_v.M_{u,v,inv}.D_v^T"
+    real(kind=r_solver) :: alpha, beta
+    real(kind=r_solver) :: alpha_cma, beta_cma
+
+    ! Choose arbitrary scaling parameters
+    alpha = 2.5_r_solver
+    beta = 3.7_r_solver
+    call invoke( assign_field_random_kernel_type( p_in, 1.0_r_solver ), &
+                 setval_c( p_out,     0.0_r_solver ),                   &
+                 setval_c( p_out_cma, 0.0_r_solver ) )
+
+    ! Assemble CMA representation of Helmholtz operator
+    ! (this is where the addition of two CMAs happens)
+    alpha_cma = alpha
+    beta_cma = beta
+    call assemble_helmholtz_cma(alpha_cma, beta_cma, helmholtz_cma)
+    ! Apply Helmholtz operator using LMAs
+    call apply_helmholtz(alpha, beta, p_in, p_out)
+    ! Apply combined Helmholtz operator in CMA representation
+    call invoke( columnwise_op_app_kernel_type( p_out_cma, &
+                                                p_in,      &
+                                                helmholtz_cma ) )
+    call compare_fields(p_out, p_out_cma, tolerance, label)
+
+  end subroutine test_cma_add
+
+  !> @brief Test inversion of CMA operator.
+  !> @details Construct the CMA operator
+  !!          \f$A = \alpha M_3 + \beta D_v M_{2,v,inv}D_v^T\f$
+  !!          in the CMA representation and solve the system \f$Au=v\f$ where
+  !!          \f$u\f$ is constructed by applying the components of \f$A\f$
+  !!          to a given input field \f$u_{in}\f$. Then compare \f$u\f$ and
+  !!          \f$u_{in}\f$ which should be identical.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_apply_inv(tolerance)
+    implicit none
+
+    real(kind=r_solver), intent(in) :: tolerance
+    type(columnwise_operator_type) :: helmholtz_cma
+    character(len=32) :: label = "solve M_3+D_v.M_{u,v,inv}.D_v^T"
+    real(kind=r_solver) :: alpha, beta
+    real(kind=r_solver) :: alpha_cma, beta_cma
+
+    ! Choose arbitrary scaling parameters
+    alpha = 2.5_r_solver
+    beta = 3.7_r_solver
+    call invoke( assign_field_random_kernel_type( p_in, 1.0_r_solver ), &
+                 setval_c( p_tmp,     0.0_r_solver ),                   &
+                 setval_c( p_out_cma, 0.0_r_solver ) )
+
+    ! Assemble CMA representation of Helmholtz operator
+    alpha_cma = alpha
+    beta_cma = beta
+    call assemble_helmholtz_cma(alpha_cma, beta_cma, helmholtz_cma)
+
+    ! Apply Helmholtz operator using LMAs
+    call apply_helmholtz(alpha, beta, p_in, p_tmp)
+    ! Solve to recover original field
+    call invoke( columnwise_op_appinv_kernel_type( p_out_cma, &
+                                                   p_tmp,     &
+                                                   helmholtz_cma ) )
+    call compare_fields(p_in, p_out_cma, tolerance, label)
+
+  end subroutine test_cma_apply_inv
+
+  !> @brief Test operator \f$diag(D_h M_{2,h,inv} D_h^T)\f$.
+  !> @details Construct the CMA operator \f$D=diag(D_h M_{2,h,inv} D_h^T)\f$
+  !!          and apply it to a pressure field \f$p_{in}\f$ with exactly one
+  !!          entry to obtain \f$p_{out}^{CMA}\f$. Apply
+  !!          \f$D_h M_{2,h,inv} D_h\f$ in LMA representation to the same
+  !!          field to obtain \f$p_{out}\f$. Then the dot-products
+  !!          \f$p_{out}.p_{in}\f$ and \f$p_{out}^{CMA}.p_{in}\f$ should
+  !!          be identical.
+  !!
+  !!          This test currently only works reliably on one processor.
+  !>
+  !> @param[in] tolerance Error tolerance for comparison
+  subroutine test_cma_diag_DhMDhT(tolerance)
+    implicit none
+    type(columnwise_operator_type) :: diag_DhMDhT_cma
+    real(kind=r_solver), intent(in) :: tolerance
+    character(len=32) :: label = "diag D_h.M_{u,h,inv}.D_h^T"
+    type(r_solver_field_type) :: p_out_masked, &
+                                 p_out_masked_cma
+
+    call p_out_masked%initialise( fs_pressure )
+    call p_out_masked_cma%initialise( fs_pressure )
+
+    call invoke( setval_c( p_in,      0.0_r_solver               ), &
+                 setval_c( p_out,     0.0_r_solver               ), &
+                 setval_c( p_out_cma, 0.0_r_solver               ), &
+                 setval_c( u_h_tmp,   0.0_r_solver               ) )
+
+    call invoke( assign_field_single_column_kernel_type( p_in ) )
+
+    ! NOTE: CMA invokes are separate as joining them returns error in
+    ! integration test. Example for Gnu:
+    ! Error: Symbol 'diag_dhmdht_cma_ncol' at (1) has no IMPLICIT type
+
+    ! Build CMA representation of operator \f$diag(D_h M_{2,h,inv} D_h^T)\f$
+    call diag_DhMDht_cma%initialise( fs_pressure, fs_pressure )
+    call invoke( columnwise_op_asm_diag_hmht_kernel_type( div_h,    &
+                                                          mm_vel_h, &
+                                                          diag_DhMDhT_cma ) )
+
+    ! Apply in CMA representation
+    call invoke( columnwise_op_app_kernel_type( p_out_cma,      &
+                                                p_in,           &
+                                                diag_DhMDhT_cma ) )
+
+    ! Apply in LMA representation
+    ! Step 1: weak horizontal gradient
+    call invoke( transpose_matrix_vector_kernel_type( u_h_tmp,   &
+                                                      p_in,      &
+                                                      div_h ),   &
+    ! Step 2: divide by diagonally lumped horizontal mass matrix
+                 inc_X_divideby_Y( u_h_tmp, mm_vel_h_diag ),     &
+    ! Step 3: weak divergence
+                 dg_inc_matrix_vector_kernel_type( p_out,        &
+                                                   u_h_tmp,      &
+                                                   div_h ),      &
+
+    ! Mask with input value to extract diagonal element
+                 X_times_Y( p_out_masked,     p_out,     p_in ), &
+                 X_times_Y( p_out_masked_cma, p_out_cma, p_in ) )
+
+    call compare_fields(p_out_masked, p_out_masked_cma, tolerance,label)
+
+  end subroutine test_cma_diag_DhMDhT
+
+end module cma_test_algorithm_mod

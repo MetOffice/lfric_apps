@@ -1,0 +1,3 @@
+Inner product checksum wind = 400049C93BD2653E
+Inner product checksum geopot = 40D9C1B002B60442
+Inner product checksum q = 40AF2D24B05D838A

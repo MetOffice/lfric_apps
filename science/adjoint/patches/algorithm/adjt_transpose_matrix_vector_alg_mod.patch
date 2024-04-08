@@ -1,0 +1,40 @@
+@@ -1,9 +1,9 @@
+-module adjoint_test_mod
++module adjt_transpose_matrix_vector_alg_mod
+   implicit none
+   public
+ 
+   contains
+-  subroutine adjoint_test(mesh, chi, panel_id)
++  subroutine adjt_transpose_matrix_vector_alg(mesh, chi, panel_id)
+     use field_mod, only : field_type
+     use function_space_mod, only : function_space_type
+     use mesh_mod, only : mesh_type
+@@ -31,6 +31,7 @@
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: lhs_lhs_input_inner_prod
+     real(kind=r_def) :: x_x_input_inner_prod
++    real(kind=r_def), parameter :: lhs_sf = 1.0E-3_r_def
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
+@@ -48,8 +49,9 @@
+ &setop_random_kernel_type(matrix), transpose_matrix_vector_kernel_type(lhs, x, matrix), x_innerproduct_x(lhs_inner_prod, lhs), &
+ &x_innerproduct_x(x_inner_prod, x))
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + lhs_inner_prod
++    inner1 = inner1 + lhs_inner_prod*lhs_sf
+     inner1 = inner1 + x_inner_prod
++    call invoke(inc_a_times_X(lhs_sf, lhs))
+     lhs_lhs_input_inner_prod = 0.0_r_def
+     x_x_input_inner_prod = 0.0_r_def
+     call invoke(adj_transpose_matrix_vector_kernel_type(lhs, x, matrix), x_innerproduct_y(lhs_lhs_input_inner_prod, lhs, &
+@@ -68,6 +70,6 @@
+       call log_event(log_scratch_space, log_level_error)
+     end if
+ 
+-  end subroutine adjoint_test
++  end subroutine adjt_transpose_matrix_vector_alg
+ 
+-end module adjoint_test_mod
++end module adjt_transpose_matrix_vector_alg_mod

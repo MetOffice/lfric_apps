@@ -9,7 +9,7 @@
 
 {# Macro to set wallclock, input is in minutes #}
 {% macro set_wallclock(time) %}
-            --time=00:{{time}}:00
+            --time=00:{{time|int}}:00
 {% endmacro %}
 
 
@@ -24,7 +24,7 @@
 
 
 {% macro set_memory(mem) %}
-    {% set value = mem[0] %}
+    {% set value = mem[0]|int %}
     {% set unit = mem[1] %}
             --mem-per-cpu={{value}}{{unit[:1]}}
 {% endmacro %}

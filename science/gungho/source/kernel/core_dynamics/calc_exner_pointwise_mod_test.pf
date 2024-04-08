@@ -1,0 +1,100 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module calc_exner_pointwise_mod_test
+
+  use constants_mod, only: r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: calc_exner_pointwise_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: calc_exner_pointwise_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type calc_exner_pointwise_test_type
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: scaling  = 1.0_r_def
+
+contains
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,        only : feign_planet_config
+
+    implicit none
+
+    class(calc_exner_pointwise_test_type), intent(inout) :: this
+
+    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
+                              rd=rd, cp=cp, p_zero=p_zero,                 &
+                              scaling_factor=scaling )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(calc_exner_pointwise_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use calc_exner_pointwise_mod, only: calc_exner_pointwise, &
+                                        linear_calc_exner_pointwise
+
+    implicit none
+
+    class(calc_exner_pointwise_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: kappa = rd / cp
+
+    real(kind=r_def) :: exner, exner_exact
+    real(kind=r_def) :: rho, theta, exner_s, rho_s, theta_s
+
+    rho     = 0.5_r_def
+    theta   = 300.0_r_def
+
+    exner_exact =  ( Rd/p_zero * rho * theta ) ** (  kappa / ( 1.0_r_def - kappa ) )
+    exner = calc_exner_pointwise(rho, theta)
+
+    @assertEqual(exner_exact, exner)
+
+    rho_s   = 0.75_r_def
+    theta_s = 310.0_r_def
+    exner_s = 0.9_r_def
+
+    exner_exact = kappa / ( 1.0_r_def - kappa ) * exner_s * ( rho/rho_s + theta/theta_s )
+    exner = linear_calc_exner_pointwise(rho, theta, exner_s, rho_s, theta_s)
+
+    @assertEqual(exner_exact, exner)
+
+  end subroutine test_all
+
+end module calc_exner_pointwise_mod_test

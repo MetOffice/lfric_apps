@@ -1,0 +1,346 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides constants used for mapping fields between meshes.
+!>
+!> @details This module controls the set-up of various objects that are
+!>          used for mapping fields between meshes, that do not change
+!>          during a run. These objects are accessed from this module
+!>          through appropriate 'get' functions.
+!-------------------------------------------------------------------------------
+
+module intermesh_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                     only: i_def, r_def, l_def, str_def
+  use extrusion_mod,                     only: PRIME_EXTRUSION, SHIFTED, &
+                                               DOUBLE_LEVEL
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use fs_continuity_mod,                 only: W2, W3, Wtheta
+  use inventory_by_mesh_mod,             only: inventory_by_mesh_type
+  use log_mod,                           only: log_event, LOG_LEVEL_INFO
+  use mesh_collection_mod,               only: mesh_collection_type
+  use mesh_mod,                          only: mesh_type
+  use operator_mod,                      only: operator_type
+  use quadrature_xyoz_mod,               only: quadrature_xyoz_type
+  use r_tran_field_mod,                  only: r_tran_field_type
+  use timer_mod,                         only: timer
+
+  ! Configuration
+  use finite_element_config_mod,         only: element_order, nqp_exact
+  use io_config_mod,                     only: subroutine_timers
+
+  ! Other algorithms
+  use check_configuration_mod,           only: check_any_wt_eqn_conservative
+  use geometric_constants_mod,           only: get_coordinates, &
+                                               get_panel_id
+  use fem_constants_mod,                 only: get_qr, get_mass_matrix,    &
+                                               get_inverse_W3_mass_matrix, &
+                                               get_mass_matrix_diagonal
+
+  ! Kernels
+  use proj_mr_to_sh_rho_rhs_op_kernel_mod, &
+                                         only: proj_mr_to_sh_rho_rhs_op_kernel_type
+  use consist_w3_to_sh_w3_op_kernel_mod, only: consist_w3_to_sh_w3_op_kernel_type
+  use weights_prolong_w2_kernel_mod,     only: weights_prolong_w2_kernel_type
+  use weights_intermesh_w3_kernel_mod,   only: weights_intermesh_w3_kernel_type
+  use psykal_lite_mod,                   only: invoke_copy_to_rtran
+  use mm_diagonal_kernel_mod,            only: mm_diagonal_kernel_type
+
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  ! Constants for changing extrusion
+  type(inventory_by_mesh_type) :: proj_mr_to_sh_rho_inventory
+  ! Constants for changing horizontal mesh
+  type(inventory_by_mesh_type) :: intermesh_wghts_w2_inventory
+  type(inventory_by_mesh_type) :: intermesh_wghts_rdef_w3_inventory
+  type(inventory_by_mesh_type) :: intermesh_wghts_rtran_w3_inventory
+
+  ! Public functions to create and access the module contents
+
+  public :: create_intermesh_constants
+  public :: final_intermesh_constants
+  public :: get_proj_mr_to_sh_rho_rhs_op
+  public :: get_intermesh_weights_w3_rdef
+  public :: get_intermesh_weights_w3_rtran
+  public :: get_intermesh_weights_w2
+
+
+contains
+  !>@brief Subroutine to create the intermesh mapping constants
+  !> @param[in] mesh_collection      Collection of model's meshes
+  subroutine create_intermesh_constants(mesh_collection, use_multires_coupling)
+    implicit none
+
+    ! Arguments
+    type(mesh_collection_type), intent(in) :: mesh_collection
+    logical(kind=l_def),        intent(in) :: use_multires_coupling
+
+    ! Internal variables
+    type(mesh_type),            pointer :: target_mesh => null()
+    type(mesh_type),            pointer :: source_mesh => null()
+    type(mesh_type),            pointer :: prime_extrusion_mesh => null()
+    type(mesh_type),            pointer :: double_level_mesh => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(field_type),           pointer :: double_level_chi(:) => null()
+    type(field_type),           pointer :: mm_w3_fine => null()
+    type(field_type),           pointer :: mm_w3_coarse => null()
+    type(function_space_type),  pointer :: w3_fs => null()
+    type(function_space_type),  pointer :: wtheta_fs => null()
+    type(function_space_type),  pointer :: target_w2_fs => null()
+    type(function_space_type),  pointer :: target_w3_fs => null()
+    type(function_space_type),  pointer :: source_w2_fs => null()
+    type(function_space_type),  pointer :: source_w3_fs => null()
+    type(operator_type),        pointer :: mm_w3_full_fine => null()
+    type(operator_type),        pointer :: mm_w3_full_coarse => null()
+    type(field_type),           target  :: mm_w3_diag_fine_tmp
+    type(field_type),           target  :: mm_w3_diag_coarse_tmp
+    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(field_type)                    :: dummy_theta
+    type(field_type)                    :: dummy_w2_field
+    type(field_type),           pointer :: proj_mr_to_sh_rho_rhs_op(:) => null()
+    type(field_type),           pointer :: intermesh_weights_w2 => null()
+    type(field_type),           pointer :: intermesh_weights_w3_rdef => null()
+    type(r_tran_field_type),    pointer :: intermesh_weights_w3_rtran => null()
+    logical(kind=l_def)                 :: any_wt_eqn_conservative
+    character(str_def),     allocatable :: all_mesh_names(:)
+    integer(kind=i_def)                 :: num_meshes
+    integer(kind=i_def)                 :: max_num_shifted
+    integer(kind=i_def)                 :: max_num_mesh_maps
+
+    integer(i_def) :: i, j, k, target_ncells, source_ncells
+
+    if ( subroutine_timers ) call timer('intermesh_constants_alg')
+    call log_event( "Gungho: creating intermesh_constants", LOG_LEVEL_INFO )
+
+    ! To loop through mesh collection, get all mesh names
+    ! Then get mesh from collection using these names
+    all_mesh_names = mesh_collection%get_mesh_names()
+
+    num_meshes = SIZE(all_mesh_names)
+    ! Number of prime -> shifted mesh interactions. Can't have more than half
+    ! of the meshes being shifted meshes. Ensure we have at least one space.
+    max_num_shifted = min(num_meshes / 2, 1)
+    ! Max number of horizontal mesh maps. This is the triangle number for (n-1).
+    ! Ensure that we have at least one.
+    max_num_mesh_maps = min(num_meshes*(num_meshes - 1)/2, 1)
+
+    !======================== Initialise inventories ==========================!
+
+    call proj_mr_to_sh_rho_inventory%initialise(name="proj_mr_to_sh_rho_rhs_op", table_len=max_num_shifted)
+    call intermesh_wghts_w2_inventory%initialise(name="intermesh_weights_w2", table_len=max_num_mesh_maps)
+    call intermesh_wghts_rdef_w3_inventory%initialise(name="intermesh_weights_w3_rdef", table_len=max_num_mesh_maps)
+    call intermesh_wghts_rtran_w3_inventory%initialise(name="intermesh_weights_w3_rtran", table_len=max_num_mesh_maps)
+
+    any_wt_eqn_conservative = check_any_wt_eqn_conservative()
+    qr => get_qr()
+
+    ! ============================= Start loop ================================!
+
+    ! Best way to loop through mesh collection is to get all mesh names, then
+    ! to get mesh from collection using these names
+    all_mesh_names = mesh_collection%get_mesh_names()
+    do i = 1, num_meshes
+      target_mesh => mesh_collection%get_mesh(all_mesh_names(i))
+
+      ! =================== CONSTANTS FOR SHIFTED MESH ======================= !
+
+      if ( target_mesh%get_extrusion_id() == SHIFTED ) then
+
+        prime_extrusion_mesh => mesh_collection%get_mesh(target_mesh, PRIME_EXTRUSION)
+        w3_fs => function_space_collection%get_fs(prime_extrusion_mesh, 0, W3)
+
+        if ( any_wt_eqn_conservative ) then
+
+          ! == RHS op for mapping mix ratio in Wt to density in shifted W3 === !
+
+          panel_id => get_panel_id(target_mesh%get_id())
+          double_level_mesh => mesh_collection%get_mesh(target_mesh, DOUBLE_LEVEL)
+          double_level_chi => get_coordinates(double_level_mesh%get_id())
+
+          call proj_mr_to_sh_rho_inventory%add_field_array(                    &
+                       proj_mr_to_sh_rho_rhs_op, w3_fs, 4, prime_extrusion_mesh)
+
+          do k = 1, 4
+            call invoke( setval_c(proj_mr_to_sh_rho_rhs_op(k), 0.0_r_def) )
+          end do
+
+          wtheta_fs => function_space_collection%get_fs(prime_extrusion_mesh, 0, Wtheta)
+          call dummy_theta%initialise( vector_space = wtheta_fs )
+          call invoke( proj_mr_to_sh_rho_rhs_op_kernel_type(                  &
+                                                    proj_mr_to_sh_rho_rhs_op, &
+                                                    double_level_chi,         &
+                                                    panel_id,                 &
+                                                    dummy_theta,              &
+                                                    qr ) )
+
+          nullify( panel_id, double_level_mesh, double_level_chi, wtheta_fs, &
+                   proj_mr_to_sh_rho_rhs_op )
+        end if
+        nullify( prime_extrusion_mesh, w3_fs )
+      end if
+    end do
+
+    ! ================= LOOP FOR HORIZONTAL MESH TRANSFORMS ================= !
+
+    if (use_multires_coupling) then
+      do i = 1, num_meshes
+        target_mesh => mesh_collection%get_mesh(all_mesh_names(i))
+        do j = 1, num_meshes
+          source_mesh => mesh_collection%get_mesh(all_mesh_names(j))
+
+          ! Only do this for prime extrusions, and if there is a mesh map
+          if ( i /= j .and.                                                      &
+              target_mesh%get_extrusion_id() == source_mesh%get_extrusion_id()  &
+              .and. (target_mesh%get_extrusion_id() == PRIME_EXTRUSION .or.     &
+                      target_mesh%get_extrusion_id() == SHIFTED) ) then
+
+            source_ncells = source_mesh%get_ncells()
+            target_ncells = target_mesh%get_ncells()
+
+            if ( target_ncells > source_ncells .and. &
+                 source_mesh%query_mesh_map(target_mesh) ) then
+
+              ! Weights for prolongation
+              source_w2_fs => function_space_collection%get_fs(source_mesh, 0, W2)
+              target_w2_fs => function_space_collection%get_fs(target_mesh, 0, W2)
+
+              call dummy_w2_field%initialise(vector_space = source_w2_fs)
+              call invoke( setval_c(dummy_w2_field, 0.0_r_def) )
+              call intermesh_wghts_w2_inventory%add_field(                       &
+                    intermesh_weights_w2, target_w2_fs, source_mesh, target_mesh)
+
+              call invoke( setval_c(intermesh_weights_w2, 0.0_r_def),            &
+                          weights_prolong_w2_kernel_type(intermesh_weights_w2,  &
+                                                          dummy_w2_field) )
+
+              source_w3_fs => function_space_collection%get_fs(source_mesh, 0, W3)
+              target_w3_fs => function_space_collection%get_fs(target_mesh, 0, W3)
+
+              if (target_mesh%get_extrusion_id() == SHIFTED) then
+                ! Diagonal mass matrices not stored in general for shifted mesh
+                ! so create them here instead
+                mm_w3_full_fine => get_mass_matrix(W3, target_mesh%get_id())
+                mm_w3_full_coarse => get_mass_matrix(W3, source_mesh%get_id())
+                call mm_w3_diag_fine_tmp%initialise( target_w3_fs )
+                call mm_w3_diag_coarse_tmp%initialise( source_w3_fs )
+                call invoke ( setval_c(mm_w3_diag_fine_tmp, 0.0_r_def),     &
+                              mm_diagonal_kernel_type(mm_w3_diag_fine_tmp,  &
+                                                      mm_w3_full_fine) )
+                ! Different meshes so different invokes
+                call invoke ( setval_c(mm_w3_diag_coarse_tmp, 0.0_r_def),     &
+                              mm_diagonal_kernel_type(mm_w3_diag_coarse_tmp,  &
+                                                      mm_w3_full_coarse) )
+
+                  mm_w3_fine => mm_w3_diag_fine_tmp
+                  mm_w3_coarse => mm_w3_diag_coarse_tmp
+              else
+                mm_w3_fine => get_mass_matrix_diagonal(W3, target_mesh%get_id())
+                mm_w3_coarse => get_mass_matrix_diagonal(W3, source_mesh%get_id())
+              end if
+
+              call intermesh_wghts_rdef_w3_inventory%add_field(                  &
+                                      intermesh_weights_w3_rdef, target_w3_fs,   &
+                                      source_mesh, target_mesh)
+              call intermesh_wghts_rtran_w3_inventory%add_field(                 &
+                                      intermesh_weights_w3_rtran, target_w3_fs,  &
+                                      source_mesh, target_mesh)
+
+              call invoke( weights_intermesh_w3_kernel_type(                  &
+                                                  intermesh_weights_w3_rdef,  &
+                                                  mm_w3_fine, mm_w3_coarse) )
+              call invoke_copy_to_rtran(intermesh_weights_w3_rtran,           &
+                                        intermesh_weights_w3_rdef)
+
+              nullify( source_w2_fs, target_w2_fs, source_w3_fs, target_w3_fs, &
+                       mm_w3_fine, mm_w3_coarse, intermesh_weights_w2,         &
+                       intermesh_weights_w3_rdef, intermesh_weights_w3_rtran )
+            end if
+          end if
+          nullify( source_mesh )
+        end do
+      end do
+    end if
+
+    nullify( qr, target_mesh )
+
+    call log_event( "Gungho: created intermesh_constants", LOG_LEVEL_INFO )
+    if ( subroutine_timers ) call timer('intermesh_constants_alg')
+
+  end subroutine create_intermesh_constants
+
+  !> @brief Returns a pointer to the Wtheta to shifted W3 ints
+  !> @param[in] prime_extrusion_mesh  The prime extrusion mesh for the transform
+  !> @return The integrals for transforming a mixing ratio in Wtheta
+  !> to a density in shifted W3
+  function get_proj_mr_to_sh_rho_rhs_op(prime_extrusion_mesh) result(ptr)
+    implicit none
+    type(mesh_type),  intent(in) :: prime_extrusion_mesh
+    type(field_type), pointer    :: ptr(:)
+    call proj_mr_to_sh_rho_inventory%get_field_array(prime_extrusion_mesh, ptr)
+
+  end function get_proj_mr_to_sh_rho_rhs_op
+
+  !> @brief Returns a pointer to the weights for W2 prolongation
+  !> @param[in] fine_mesh    The fine mesh for the transform
+  !> @param[in] coarse_mesh  The coarse mesh for the transform
+  !> @return The field containing weights for W2 prolongation
+  function get_intermesh_weights_w2(fine_mesh, coarse_mesh) result(ptr)
+    implicit none
+    type(mesh_type),  intent(in) :: fine_mesh
+    type(mesh_type),  intent(in) :: coarse_mesh
+    type(field_type), pointer    :: ptr
+    call intermesh_wghts_w2_inventory%get_field(coarse_mesh, fine_mesh, ptr)
+
+  end function get_intermesh_weights_w2
+
+  !> @brief Returns a pointer to the weights for conservative W3 mapping
+  !> @param[in] fine_mesh    The fine mesh for the transform
+  !> @param[in] coarse_mesh  The coarse mesh for the transform
+  !> @return The field containing weights for conservative W3 mapping
+  function get_intermesh_weights_w3_rdef(fine_mesh, coarse_mesh) result(ptr)
+    implicit none
+    type(mesh_type),  intent(in) :: coarse_mesh
+    type(mesh_type),  intent(in) :: fine_mesh
+    type(field_type), pointer    :: ptr
+    call intermesh_wghts_rdef_w3_inventory%get_field(coarse_mesh, fine_mesh, ptr)
+
+  end function get_intermesh_weights_w3_rdef
+
+  !> @brief Returns a pointer to the weights for conservative W3 mapping
+  !> @param[in] fine_mesh    The fine mesh for the transform
+  !> @param[in] coarse_mesh  The coarse mesh for the transform
+  !> @return The field containing weights for conservative W3 mapping
+  function get_intermesh_weights_w3_rtran(fine_mesh, coarse_mesh) result(ptr_r_tran)
+    implicit none
+    type(mesh_type),         intent(in) :: coarse_mesh
+    type(mesh_type),         intent(in) :: fine_mesh
+    type(r_tran_field_type), pointer    :: ptr_r_tran
+    call intermesh_wghts_rtran_w3_inventory%get_field(coarse_mesh, fine_mesh, ptr_r_tran)
+
+  end function get_intermesh_weights_w3_rtran
+
+  !> @brief Explicitly reclaim memory from module scope variables
+  !
+  subroutine final_intermesh_constants()
+
+    implicit none
+
+    call proj_mr_to_sh_rho_inventory%clear()
+    call intermesh_wghts_w2_inventory%clear()
+    call intermesh_wghts_rdef_w3_inventory%clear()
+    call intermesh_wghts_rtran_w3_inventory%clear()
+
+  end subroutine final_intermesh_constants
+
+end module intermesh_constants_mod

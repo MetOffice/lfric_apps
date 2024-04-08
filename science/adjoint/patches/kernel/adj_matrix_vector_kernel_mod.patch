@@ -1,0 +1,20 @@
+@@ -3,8 +3,8 @@
+   use constants_mod, only : i_def, r_double, r_single
+   use kernel_mod, only : kernel_type
+   implicit none
+-  interface matrix_vector_code
+-  module procedure matrix_vector_code_r_single, matrix_vector_code_r_double
++  interface adj_matrix_vector_code
++  module procedure adj_matrix_vector_code_r_single, adj_matrix_vector_code_r_double
+ end interface
+   type, public, extends(kernel_type) :: adj_matrix_vector_kernel_type
+   type(ARG_TYPE) :: META_ARGS(3) = (/ &
+@@ -16,7 +16,7 @@
+ 
+   private
+ 
+-  public :: matrix_vector_code
++  public :: adj_matrix_vector_code
+ 
+   contains
+   subroutine adj_matrix_vector_code_r_single(cell, nlayers, lhs, x, ncell_3d, matrix, ndf1, undf1, map1, ndf2, undf2, map2)

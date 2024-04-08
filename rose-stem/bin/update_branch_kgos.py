@@ -88,7 +88,7 @@ def get_kgo_dirs(job, flow_file):
                 elif line.startswith("NEW_KGO"):
                     new = line.split("=")[-1].strip()
                     new = new.removeprefix("$OUTPUT_ROOT")
-                elif line.startswith("[["):
+                elif line.startswith("[[") and not line.startswith("[[["):
                     sys.exit("Couldn't identify KGO Directories in the suites "
                              f"flow-processed.cylc file for job '{job}'.")
             if current and new:

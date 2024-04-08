@@ -1,0 +1,74 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Map a W2 field to the shifted W2 mesh.
+
+module map_w2_to_sh_w2_alg_mod
+
+  use constants_mod,                    only: i_def
+  use extrusion_mod,                    only: SHIFTED
+  use field_mod,                        only: field_type
+  use fs_continuity_mod,                only: Wtheta
+  use geometric_constants_mod,          only: get_dA_at_w2,         &
+                                              get_face_selector_ew, &
+                                              get_face_selector_ns
+  use integer_field_mod,                only: integer_field_type
+  use mesh_mod,                         only: mesh_type
+  use mesh_collection_mod,              only: mesh_collection
+  use sample_w2_to_sh_w2_kernel_mod,    only: sample_w2_to_sh_w2_kernel_type
+
+  implicit none
+
+  private
+
+  public :: sample_w2_to_sh_w2_alg
+
+contains
+
+  !> @brief Sample a W2 field in the shifted W2 function space.
+  !> @param[in,out] w2_field_shifted The W2 field sampled in shifted W2
+  !> @param[in]     w2_field         The W2 field to map
+  subroutine sample_w2_to_sh_w2_alg(w2_field_shifted, w2_field)
+
+    implicit none
+
+    ! Arguments
+    type(field_type), intent(inout) :: w2_field_shifted
+    type(field_type), intent(in)    :: w2_field
+
+    ! Internal arguments
+    integer(kind=i_def)               :: primary_mesh_id
+    integer(kind=i_def)               :: shifted_mesh_id
+    type(mesh_type),          pointer :: primary_mesh => null()
+    type(mesh_type),          pointer :: shifted_mesh => null()
+    type(field_type),         pointer :: dA_w2 => null()
+    type(field_type),         pointer :: dA_w2_shifted => null()
+    type(integer_field_type), pointer :: face_selector_ew => null()
+    type(integer_field_type), pointer :: face_selector_ns => null()
+
+    ! Get mesh information
+    primary_mesh => w2_field%get_mesh()
+    shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
+    primary_mesh_id = primary_mesh%get_id()
+    shifted_mesh_id = shifted_mesh%get_id()
+    dA_w2 => get_dA_at_w2(primary_mesh_id)
+    dA_w2_shifted => get_dA_at_w2(shifted_mesh_id)
+    face_selector_ew => get_face_selector_ew(primary_mesh_id)
+    face_selector_ns => get_face_selector_ns(primary_mesh_id)
+
+    ! Map field to shifted mesh
+    call invoke( sample_w2_to_sh_w2_kernel_type( w2_field_shifted,   &
+                                                 w2_field,           &
+                                                 dA_w2_shifted,      &
+                                                 dA_w2,              &
+                                                 face_selector_ew,   &
+                                                 face_selector_ns ) )
+
+    nullify( primary_mesh, shifted_mesh, dA_w2, dA_w2_shifted, &
+             face_selector_ew, face_selector_ns )
+
+  end subroutine sample_w2_to_sh_w2_alg
+
+end module map_w2_to_sh_w2_alg_mod

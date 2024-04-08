@@ -1,0 +1,14 @@
+@@ -29,12 +29,11 @@
+     integer(kind=i_def) :: k
+     integer(kind=i_def) :: df
+     real(kind=r_def) :: mr_v_at_dof
+-    real(kind=r_def) :: recip_epsilon_tmp
+ 
+     mr_v_at_dof = 0.0_r_def
+     do k = nlayers - 1, 0, -1
+       do df = ndf_wtheta, 1, -1
+-        mr_v_at_dof = mr_v_at_dof + moist_dyn_gas(map_wtheta(df) + k) * recip_epsilon_tmp
++        mr_v_at_dof = mr_v_at_dof + moist_dyn_gas(map_wtheta(df) + k) * recip_epsilon
+         moist_dyn_gas(map_wtheta(df) + k) = 0.0
+         mr_v(map_wtheta(df) + k) = mr_v(map_wtheta(df) + k) + mr_v_at_dof
+         mr_v_at_dof = 0.0

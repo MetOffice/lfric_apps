@@ -1,0 +1,17 @@
+<file_definition>
+  <!--  IAU files  -->
+  <file id="iau" name="iau" mode="read" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+    <field_group freq_op="1ts" operation="instant" read_access=".TRUE.">
+      <field id="u_in_w3_inc" name="u_in_w3" long_name="eastward_wind_inc" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="v_in_w3_inc" name="v_in_w3" long_name="southward_wind_inc" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="exner_inc" name="exner" long_name="exner_pressure_inc" unit="kg m-1 s-2" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="q_inc" name="q" long_name="specific humidity_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="qcf_inc" name="qcf" long_name="specific_humidity_cloud_ice_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="qcl_inc" name="qcl" long_name="specific_humidity_cloud_liquid_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="rho_r2_inc" name="rho_r2" long_name="density_times_r_squared_inc" unit="kg m-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="theta_inc" name="theta" long_name="air_potential_temperature_inc" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="dust1_mmr_inc" name="dust1_mmr" long_name="Dust division 1 mass mixing ratio inc" unit="kg/kg" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="dust2_mmr_inc" name="dust2_mmr" long_name="Dust division 2 mass mixing ratio inc" unit="kg/kg" grid_ref="full_level_face_grid" operation="once"/>
+    </field_group>
+  </file>
+</file_definition>

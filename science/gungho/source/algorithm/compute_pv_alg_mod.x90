@@ -1,0 +1,94 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Algorithm to compute the potential vorticity: (curl(u) + 2*Omega) dot grad(theta)/rho
+!>@details Compute the potential vorticity in W3 as the cell integrated projection of the weak
+!>         curl of the velocity field (u): <c,xi> = <curl(c),u> and the coriolis term
+!>         dotted with grad of the W0 theta field.
+module compute_pv_alg_mod
+
+  use constants_mod, only: r_def, i_def, l_def
+
+  implicit none
+
+  private
+  public :: compute_pv_alg
+
+contains
+
+  !> @brief Algorithm to compute the vorticity field
+  !> @param[out] pv Potential vorticity field = (curl(u) + 2*Omega) dot grad(theta)/rho
+  !> @param[in]     u Velocity field
+  !> @param[in]     theta Potential temperature field
+  !> @param[in]     rho   Density field
+  subroutine compute_pv_alg(pv, u, theta, rho)
+
+    use field_mod,                      only: field_type
+    use operator_mod,                   only: operator_type
+    use base_mesh_config_mod,           only: f_lat
+    use planet_config_mod,              only: scaled_omega
+    use fem_constants_mod,              only: get_qr, &
+                                              get_inverse_w3_mass_matrix, &
+                                              get_rmultiplicity
+    use finite_element_config_mod,      only: element_order
+    use fs_continuity_mod,              only: W0, W1
+    use function_space_collection_mod,  only: function_space_collection
+    use function_space_mod,             only: function_space_type
+    use mesh_mod,                       only: mesh_type
+    use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+    use matrix_vector_kernel_mod,       only: matrix_vector_kernel_type
+    use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+    use sample_field_kernel_mod,        only: sample_field_kernel_type
+    use compute_total_pv_kernel_mod,    only: compute_total_pv_kernel_type
+    use compute_vorticity_alg_mod,      only: compute_vorticity_alg
+    use geometric_constants_mod,        only: get_coordinates,     &
+                                              get_panel_id
+
+    implicit none
+
+    type(field_type),     intent(inout) :: pv
+    type(field_type),     intent(in)    :: u
+    type(field_type),     intent(in)    :: theta
+    type(field_type),     intent(in)    :: rho
+
+    type(field_type)                    :: xi, theta_in_w0, r_pv
+    type(field_type),           pointer :: w0_rmultiplicity => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(operator_type), pointer :: m3_inv => null()
+
+    type(mesh_type), pointer :: mesh => null()
+
+    mesh => u%get_mesh()
+
+    ! get chi and panel id fields
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+    qr => get_qr( )
+    m3_inv => get_inverse_w3_mass_matrix(mesh%get_id())
+    call xi%initialise( vector_space = &
+    function_space_collection%get_fs(mesh, element_order, W1) )
+    call compute_vorticity_alg(xi, u, .false., w1_flag=.true.)
+
+    w0_rmultiplicity => get_rmultiplicity(W0, mesh%get_id())
+    call theta_in_w0%initialise(vector_space = &
+    function_space_collection%get_fs(mesh, element_order, W0) )
+    call invoke( setval_c(theta_in_w0, 0.0_r_def), &
+                 sample_field_kernel_type(theta_in_w0, w0_rmultiplicity, theta) )
+    call pv%copy_field_properties(r_pv)
+    ! Calculate potential vorticity in W3
+    call invoke( compute_total_pv_kernel_type(r_pv, xi, theta_in_w0, rho,  &
+                                              chi, panel_id, scaled_omega, &
+                                              f_lat, qr),                  &
+                 dg_matrix_vector_kernel_type( pv, r_pv , m3_inv ) )
+
+    nullify( qr, mesh, m3_inv )
+
+  end subroutine compute_pv_alg
+
+end module compute_pv_alg_mod
+

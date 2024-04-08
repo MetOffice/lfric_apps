@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <context id = "transport">
+
+   <axis_definition>
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
+    <axis id="radiation_levels" name="radiation_levels"/>
+   </axis_definition>
+
+
+
+   <grid_definition>
+    <grid id="node_grid">
+      <domain domain_ref="node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_edge_grid">
+      <domain domain_ref="edge"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+   </grid_definition>
+
+   <field_definition prec="8" >
+
+     <!-- Checkpoint group -->
+     <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
+       <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" />
+       <field id="checkpoint_u" name="u" long_name="wind" unit="m s-1" domain_ref="checkpoint_W2" />
+       <field id="checkpoint_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
+       <field id="checkpoint_m_v" name="m_v" long_name="m_v" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
+       <field id="checkpoint_w2_vector" name="w2_vector" long_name="transported_vector" unit="m s-1" domain_ref="checkpoint_W2" />
+       <field id="checkpoint_w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" unit="kg/kg" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
+       <field id="checkpoint_aerosol_wind" name="uaerosol_wind" long_name="aerosol_wind" unit="m s-1" domain_ref="checkpoint_W2" />
+       <field id="checkpoint_divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="s-1" domain_ref="checkpoint_W3" />
+     </field_group>
+
+     <!-- Main diagnostic group -->
+     <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="instant" >
+       <field id="u_in_w2h" name="u_in_w2h" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="v_in_w2h" name="v_in_w2h" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="w_in_wth" name="w_in_wth" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+       <field id="tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" grid_ref="half_level_face_grid" />
+       <field id="tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" grid_ref="half_level_face_grid" />
+       <field id="constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="m_v" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="s-1" grid_ref="half_level_face_grid" />
+       <field id="w2_vector1" name="w2_vector1" long_name="eastward_w2_vector" standard_name="eastward_w2_vector" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="w2_vector2" name="w2_vector2" long_name="northward_w2_vector" standard_name="northward_w2_vector" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="w2_vector3" name="w2_vector3" long_name="upward_w2_vector" standard_name="upward_w2_vector" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" standard_name="wt_aerosol" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" standard_name="w3_aerosol" unit="kg/kg" grid_ref="half_level_face_grid" />
+       <field id="aerosol_wind1" name="aerosol_wind1" long_name="eastward_aerosol_wind" standard_name="eastward_aerosol_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="aerosol_wind2" name="aerosol_wind2" long_name="northward_aerosol_wind" standard_name="northward_aerosol_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="aerosol_wind3" name="aerosol_wind3" long_name="upward_aerosol_wind" standard_name="upward_aerosol_wind" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="height_w3" name="height_w3" long_name="height_of_cell_centres_above_earth_radius" unit="m" grid_ref="half_level_face_grid" />
+       <field id="height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" unit="m" grid_ref="full_level_face_grid" />
+     </field_group>
+
+      <!-- Initial conditions group -->
+     <field_group id="initial_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
+       <field id="init_u_in_w2h" name="u_in_w2h" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_v_in_w2h" name="v_in_w2h" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_w_in_wth" name="w_in_wth" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="init_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="init_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+       <field id="init_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" grid_ref="half_level_face_grid" />
+       <field id="init_tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" grid_ref="half_level_face_grid" />
+       <field id="init_constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_m_v" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="init_w2_vector1" name="w2_vector1" long_name="eastward_w2_vector" standard_name="eastward_w2_vector" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_w2_vector2" name="w2_vector2" long_name="northward_w2_vector" standard_name="northward_w2_vector" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_w2_vector3" name="w2_vector3" long_name="upward_w2_vector" standard_name="upward_w2_vector" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="init_wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" standard_name="wt_aerosol" unit="kg/kg" grid_ref="full_level_face_grid" />
+       <field id="init_w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" standard_name="w3_aerosol" unit="kg/kg" grid_ref="half_level_face_grid" />
+       <field id="init_aerosol_wind1" name="aerosol_wind1" long_name="eastward_aerosol_wind" standard_name="eastward_aerosol_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_aerosol_wind2" name="aerosol_wind2" long_name="northward_aerosol_wind" standard_name="northward_aerosol_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_aerosol_wind3" name="aerosol_wind3" long_name="upward_aerosol_wind" standard_name="upward_aerosol_wind" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="init_height_w3" name="height_w3" long_name="height_of_cell_centres_above_earth_radius" unit="m" grid_ref="half_level_face_grid" />
+       <field id="init_height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" unit="m" grid_ref="full_level_face_grid" />
+     </field_group>
+
+   </field_definition>
+
+   <file_definition
+      type="one_file"
+      time_counter="none">
+
+      <!-- Checkpoint groups -->
+
+      <!-- File definition for checkpoint write -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint" convention="CF" enabled=".FALSE.">
+        <field field_ref="checkpoint_rho"/>
+        <field field_ref="checkpoint_theta"/>
+        <field field_ref="checkpoint_tracer_con"/>
+        <field field_ref="checkpoint_tracer_adv"/>
+        <field field_ref="checkpoint_constant"/>
+        <field field_ref="checkpoint_m_v"/>
+        <field field_ref="checkpoint_u"/>
+        <field field_ref="checkpoint_w2_vector"/>
+        <field field_ref="checkpoint_w3_aerosol"/>
+        <field field_ref="checkpoint_wt_aerosol"/>
+        <field field_ref="checkpoint_aerosol_wind"/>
+        <field field_ref="checkpoint_divergence"/>
+      </file>
+
+       <!-- file definition for checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+       <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="checkpoint_Wtheta" />
+       <field id="restart_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
+       <field id="restart_m_v" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
+       <field id="restart_u" name="u" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+       <field id="restart_w2_vector" name="w2_vector" long_name="transported_vector" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+       <field id="restart_divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="s-1" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" standard_name="wt_aerosol" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
+       <field id="restart_w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" standard_name="w3_aerosol" unit="kg/kg" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_aerosol_wind" name="aerosol_wind" long_name="aerosol_wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+      </file>
+
+      <file id="lfric_diag" name="lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="u_in_w2h"/>
+        <field field_ref="v_in_w2h"/>
+        <field field_ref="w_in_wth"/>
+        <field field_ref="rho"/>
+        <field field_ref="theta"/>
+        <field field_ref="tracer_con"/>
+        <field field_ref="tracer_adv"/>
+        <field field_ref="constant"/>
+        <field field_ref="m_v"/>
+        <field field_ref="divergence"/>
+        <field field_ref="w2_vector1"/>
+        <field field_ref="w2_vector2"/>
+        <field field_ref="w2_vector3"/>
+        <field field_ref="w3_aerosol"/>
+        <field field_ref="wt_aerosol"/>
+        <field field_ref="aerosol_wind1"/>
+        <field field_ref="aerosol_wind2"/>
+        <field field_ref="aerosol_wind3"/>
+      </file>
+
+      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="init_u_in_w2h"/>
+        <field field_ref="init_v_in_w2h"/>
+        <field field_ref="init_w_in_wth"/>
+        <field field_ref="init_rho"/>
+        <field field_ref="init_theta"/>
+        <field field_ref="init_tracer_con"/>
+        <field field_ref="init_tracer_adv"/>
+        <field field_ref="init_constant"/>
+        <field field_ref="init_m_v"/>
+        <field field_ref="init_divergence"/>
+        <field field_ref="init_w2_vector1"/>
+        <field field_ref="init_w2_vector2"/>
+        <field field_ref="init_w2_vector3"/>
+        <field field_ref="init_w3_aerosol"/>
+        <field field_ref="init_wt_aerosol"/>
+        <field field_ref="init_aerosol_wind1"/>
+        <field field_ref="init_aerosol_wind2"/>
+        <field field_ref="init_aerosol_wind3"/>
+        <field field_ref="init_height_w3"/>
+        <field field_ref="init_height_wth"/>
+      </file>
+
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

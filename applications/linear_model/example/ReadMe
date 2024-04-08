@@ -1,0 +1,7 @@
+This directory contains a demonstration of running the linear model using an analytical linearisation state.
+
+This example is run in the rose test suite as part of the 'canned test'.
+
+It can also be run from the command line as follows.
+1. Build the linear model (in the linear directory, 'make build')
+2. Run the linear model (in the linear/example_cannedtest directory, '../bin/linear configuration.nml')

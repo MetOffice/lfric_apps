@@ -1,0 +1,74 @@
+<file_definition>
+
+  <!-- Main diagnostic output file for regional runs -->
+  <file id="lfric_ral_diagnostics" name="lfric_ral_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+    <field field_ref="theta" />
+    <field field_ref="m_v" />
+    <field field_ref="m_cl" />
+    <field field_ref="m_ci" />
+    <field field_ref="m_r" />
+    <field field_ref="exner_in_wth" />
+    <field field_ref="u_in_w3" />
+    <field field_ref="v_in_w3" />
+    <field field_ref="w_in_wth" />
+    <field field_ref="divergence" />
+    <field field_ref="potential_vorticity" />
+    <field field_ref="cloud__cloud_amount_maxrnd" />
+    <field field_ref="cloud__ceilometer_cloud_amount_maxrnd" />
+    <field field_ref="cloud__combined_cloud_amount" />
+    <field field_ref="cloud__very_low_type_cloud_amount" />
+    <field field_ref="cloud__high_type_cloud_amount" />
+    <field field_ref="cloud__cloud_base_altitude" />
+    <field field_ref="microphysics__ls_prec" />
+    <field field_ref="microphysics__ls_rain" />
+    <field field_ref="microphysics__ls_snow" />
+    <field field_ref="microphysics__ls_graup" />
+    <field field_ref="electric__gwp" />
+    <field field_ref="electric__tiwp" />
+    <field field_ref="electric__total_flash_rate" />
+    <field field_ref="electric__num_lightning_flashes" />
+    <field field_ref="microphysics__refl_1km" />
+    <field field_ref="microphysics__refl_comp" />
+    <field field_ref="surface__tile_fraction" />
+    <field field_ref="surface__grid_surface_temperature" />
+    <field field_ref="surface__t1p5m" />
+    <field field_ref="surface__rh1p5m" />
+    <field field_ref="surface__dew_point" />
+    <field field_ref="surface__fog_fraction" />
+    <field field_ref="surface__visibility_with_precip" />
+    <field field_ref="surface__grid_latent_heat" />
+    <field field_ref="surface__wspd10m" />
+    <field field_ref="surface__u10m" />
+    <field field_ref="surface__v10m" />
+    <field field_ref="snow__grid_snow_mass" />
+    <field field_ref="soil__soil_moisture_content" />
+    <field field_ref="soil__soil_moisture" />
+    <field field_ref="soil__soil_temperature" />
+    <field field_ref="turbulence__zh" />
+    <field field_ref="turbulence__zht" />
+    <field field_ref="turbulence__bl_type_ind" />
+    <field field_ref="turbulence__heat_flux_bl" />
+    <field field_ref="radiation__sw_up_toa" />
+    <field field_ref="radiation__sw_down_surf" />
+    <field field_ref="radiation__sw_net_surf" />
+    <field field_ref="radiation__lw_up_toa" />
+    <field field_ref="radiation__lw_down_surf" />
+    <field field_ref="radiation__lw_net_surf" />
+    <field_group id="diag_rts_fields" freq_op="1ts" freq_offset="-14ts" comment="fields only valid on radiation timesteps">
+      <field field_ref="radiation__sw_net_surf_rts"/>
+      <field field_ref="radiation__lw_net_surf_rts"/>
+      <field field_ref="radiation__orographic_correction_rts"/>
+      <field field_ref="radiation__sw_direct_orog_incr_rts"/>
+    </field_group>
+    <field field_ref="radiation__lw_net_skyview_incr"/>
+    <field field_ref="radiation__skyview"/>
+    <field field_ref="processed__trop_level" />
+    <field field_ref="processed__tot_col_dry_air_mass" />
+    <field field_ref="processed__tot_col_wetplusdry_mass" />
+    <field field_ref="processed__tot_col_m_v" />
+    <field field_ref="processed__tot_col_m_ci" />
+    <field field_ref="processed__pmsl" />
+    <field field_ref="aerosol__cloud_drop_no_conc" />
+  </file>
+
+</file_definition>

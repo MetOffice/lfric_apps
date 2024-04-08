@@ -1,0 +1,20 @@
+@@ -34,7 +34,8 @@
+ 
+   contains
+   subroutine adj_rhs_sample_eos_code(nlayers, rhs_eos, exner, rho, theta, moist_dyn_gas, ls_exner, ls_rho, ls_theta, &
+-&ls_moist_dyn_gas, kappa, rd, p_zero, ndf_w3, undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis)
++&ls_moist_dyn_gas, kappa, rd, p_zero, &
++&ndf_w3, undf_w3, map_w3, w3_basis, w3_wt_basis, ndf_wt, undf_wt, map_wt, wt_basis, wt_wt_basis)
+     integer(kind=i_def), intent(in) :: nlayers
+     integer(kind=i_def), intent(in) :: ndf_wt
+     integer(kind=i_def), intent(in) :: ndf_w3
+@@ -43,7 +44,9 @@
+     integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+     integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
+     real(kind=r_def), dimension(1,ndf_w3,ndf_w3), intent(in) :: w3_basis
++    real(kind=r_def), dimension(1,ndf_w3,ndf_wt), intent(in) :: w3_wt_basis
+     real(kind=r_def), dimension(1,ndf_wt,ndf_w3), intent(in) :: wt_basis
++    real(kind=r_def), dimension(1,ndf_wt,ndf_wt), intent(in) :: wt_wt_basis
+     real(kind=r_def), dimension(undf_w3), intent(inout) :: rhs_eos
+     real(kind=r_def), dimension(undf_wt), intent(inout) :: theta
+     real(kind=r_def), dimension(undf_wt), intent(inout) :: moist_dyn_gas

@@ -1,0 +1,110 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Test the TL computation of the 1d horizontal advective update
+module tl_poly_advective_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: tl_poly_advective_test_type
+    private
+  contains
+    procedure test_all
+  end type tl_poly_advective_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use tl_poly_advective_kernel_mod, only: tl_poly_advective_code
+
+    implicit none
+
+    class(tl_poly_advective_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def)            :: answer
+
+    integer(i_def), parameter         :: nlayers = 1
+    integer(i_def), parameter         :: ndf_wt  = 2
+    integer(i_def), parameter         :: ndf_w2  = 4
+    integer(i_def), parameter         :: ndf_w1  = 12
+    integer(i_def), parameter         :: undf_wt = nlayers+1
+    integer(i_def), parameter         :: undf_w2 = ndf_w2*nlayers
+    integer(i_def), parameter         :: undf_w1 = 4*(nlayers+1) + 4*nlayers
+    integer(i_def), dimension(ndf_wt) :: map_wt
+    integer(i_def), dimension(ndf_w1) :: map_w1
+    integer(i_def), dimension(ndf_w2) :: map_w2
+
+    real(r_def), dimension(undf_wt) :: advective
+    real(r_def), dimension(undf_w1) :: tracer
+    real(r_def), dimension(undf_w2) :: wind
+    real(r_def), dimension(undf_w1) :: ls_tracer
+    real(r_def), dimension(undf_w2) :: ls_wind
+
+    integer(i_def) :: df, k
+
+    real(r_def), parameter :: u0 = 1.0_r_def
+
+    map_wt(:) = (/ 1, 2 /)
+    do df = 1,ndf_w2
+      map_w2(df) = 1 + (df-1)*nlayers
+    end do
+    do df = 1,4
+      map_w1(df) = 1 + (df-1)*(nlayers+1)
+      map_w1(df+4) = 1 + (df-1)*nlayers + 4*(nlayers+1)
+      map_w1(df+8) = map_w1(df) + 1
+    end do
+
+    wind(:) = u0
+
+    do df = 1,undf_w1
+      tracer(df) = 300.0_r_def + real(df,r_def)
+    end do
+
+    ls_wind(:) = u0
+
+    do df = 1,undf_w1
+      ls_tracer(df) = 300.0_r_def + real(df,r_def)
+    end do
+
+    call tl_poly_advective_code( nlayers,              &
+                                 advective,            &
+                                 wind,                 &
+                                 tracer,               &
+                                 ls_wind,              &
+                                 ls_tracer,            &
+                                 ndf_wt,               &
+                                 undf_wt,              &
+                                 map_wt,               &
+                                 ndf_w2,               &
+                                 undf_w2,              &
+                                 map_w2,               &
+                                 ndf_w1,               &
+                                 undf_w1,              &
+                                 map_w1                &
+                                 )
+
+    do k = 0,nlayers - 1
+      answer = u0*(tracer(map_w1(3)+k) - tracer(map_w1(1)+k)) &
+             - u0*(tracer(map_w1(4)+k) - tracer(map_w1(2)+k)) &
+             + u0*(ls_tracer(map_w1(3)+k) - ls_tracer(map_w1(1)+k)) &
+             - u0*(ls_tracer(map_w1(4)+k) - ls_tracer(map_w1(2)+k))
+
+      @assertEqual(answer, advective(map_wt(1)+k), tol)
+    end do
+
+  end subroutine test_all
+
+end module tl_poly_advective_kernel_mod_test

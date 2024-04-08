@@ -1,0 +1,30 @@
+<file_definition>
+
+  <!-- Ancillary files only used by regional simulations -->
+  <file id="orography_subgrid_ancil" name="orography_subgrid_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="sd_orog" name="m01s00i034" long_name="standard_deviation_of_orography" unit="1" operation="once" domain_ref="face"/>
+    <field id="grad_x_orog" name="m01s00i005" long_name="orographic_gradient_X_component" unit="1" operation="once" domain_ref="face"/>
+    <field id="grad_y_orog" name="m01s00i006" long_name="orographic_gradient_Y_component" unit="1" operation="once" domain_ref="face"/>
+    <field id="grad_xx_orog" name="m01s00i035" long_name="orographic_gradient_XX_component" unit="1" operation="once" domain_ref="face"/>
+    <field id="grad_xy_orog" name="m01s00i036" long_name="orographic_gradient_XY_component" unit="1" operation="once" domain_ref="face"/>
+    <field id="grad_yy_orog" name="m01s00i037" long_name="orographic_gradient_YY_component" unit="1" operation="once" domain_ref="face"/>
+    <field id="peak_to_trough_orog" name="m01s00i018" long_name="half_of_peak_to_trough_ht_of_orog" unit="1" operation="once" domain_ref="face"/>
+    <field id="silhouette_area_orog" name="m01s00i017" long_name="silhouette_orographic_roughness" unit="1" operation="once" domain_ref="face"/>
+    <field id="horizon_angle" name="horizon_angle" long_name="horizon_angle" unit="radian" operation="once" domain_ref="face" axis_ref="horizon_angles"/>
+    <field id="horizon_aspect" name="horizon_aspect" long_name="horizon_aspect" unit="radian" operation="once" domain_ref="face" axis_ref="horizon_aspects"/>
+  </file>
+
+  <file id="land_area_ancil" name="land_area_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="land_area_fraction" name="land_binary_mask" long_name="land_area_fraction" unit="1" operation="once" domain_ref="face"/>
+  </file>
+
+  <file id="hydtop_ancil" name="hydtop_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="mean_topog_index" name="m01s00i274" long_name="mean_topographic_index" unit="1" operation="once" domain_ref="face" />
+    <field id="stdev_topog_index" name="m01s00i275" long_name="standard_deviation_in_topographic_index" unit="1" operation="once" domain_ref="face" />
+  </file>
+
+  <file id="surface_frac_ancil" name="surface_frac_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="land_tile_fraction" name="m01s00i216" long_name="fractions_of_vegetation_types" unit="1" operation="once" domain_ref="face" axis_ref="land_tiles"/>
+  </file>
+
+</file_definition>

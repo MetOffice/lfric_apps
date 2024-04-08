@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+
+  <context id = "gungho_atm">
+
+   <axis_definition>
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
+    <axis id="radiation_levels" name="radiation_levels"/>
+    <axis id="soil_levels" name="soil_levels" n_glo="4"/>
+   </axis_definition>
+
+   <grid_definition>
+    <grid id="node_grid">
+      <domain domain_ref="node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_edge_grid">
+      <domain domain_ref="edge"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+   </grid_definition>
+
+   <file_definition
+      type="one_file"
+      par_access="collective"
+      time_counter="none">
+
+      <!-- File definition for lfric checkpoint write  -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+        <field id="write_rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="once" prec="8"/>
+        <field id="write_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8"/>
+        <field id="write_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8"/>
+        <field id="write_m_cf" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" prec="8"/>
+        <field id="write_m_r" name="m_r" long_name="rain_mixing_ratio" unit="1" grid_ref="full_level_face_grid" operation="once" prec="8"/>
+      </file>
+
+      <!-- File definition for lfric checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field id="read_rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="instant" />
+       <field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_m_cf" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
+       <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio" unit="1" grid_ref="full_level_face_grid" operation="instant"/>
+       <field id="read_rho_r2" name="rho_r2" long_name="density_times_r_squared" unit="1" grid_ref="half_level_face_grid" operation="instant"/>
+       <field id="read_q" name="q" long_name="specific humidity"  unit="1" grid_ref="full_level_face_grid" operation="instant"/>
+       <field id="read_qcl" name="qcl" long_name="specific_humidity_cloud_liquid"  unit="1" grid_ref="full_level_face_grid" operation="instant"/>
+       <field id="read_qcf" name="qcf" long_name="specific_humidity_cloud_ice"  unit="1" grid_ref="full_level_face_grid" operation="instant"/>
+       <field id="read_qrain" name="qrain" long_name="mass_fraction_of_rain_in_air" unit="1" grid_ref="full_level_face_grid" operation="instant"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

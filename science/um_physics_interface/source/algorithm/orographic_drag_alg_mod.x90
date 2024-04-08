@@ -1,0 +1,207 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the orographic drag parametrization scheme
+
+module orographic_drag_alg_mod
+  use constants_mod, only: i_def
+  use field_mod, only: field_type
+  use field_collection_mod, only: field_collection_type
+  use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci
+  use physics_config_mod,   only: limit_drag_incs
+  use psykal_lite_phys_mod, only: invoke_orographic_drag_kernel
+  use io_config_mod,        only: subroutine_timers
+  use timer_mod,            only: timer
+  use log_mod,              only: log_event, LOG_LEVEL_INFO
+  use mesh_mod,             only: mesh_type
+
+  use geometric_constants_mod, only: get_height
+  use fs_continuity_mod,       only: W3, Wtheta
+
+  ! XIOS output
+  use io_config_mod, only: write_diag, &
+                           use_xios_io
+  use orographic_drag_diags_mod, only: initialise_diags_for_orographic_drag, &
+                                       output_diags_for_orographic_drag
+  use map_fd_to_prognostics_alg_mod, only: set_wind
+
+  implicit none
+
+  private
+  public :: orographic_drag_alg
+
+contains
+
+  !> @details Run the orographic drag parametrization scheme
+  !> @param[in,out] du_tot_orographic_drag Increment to total (3D) wind field
+  !> @param[in,out] dtheta_orographic_drag Increment to theta field
+  !> @param[in]     derived fields         Group of derived fields
+  !> @param[in]     orography_fields       Fields for orographic drag scheme
+  !> @param[in]     theta                  Potential temperature in wtheta
+  !> @param[in]     u                      Wind in W2
+  !> @param[in]     mr_n                   Mixing ratios at time level n
+  subroutine orographic_drag_alg(                                   &
+                    du_tot_orographic_drag, dtheta_orographic_drag, &
+                    derived_fields, orography_fields, theta, u, mr_n)
+
+    ! orographic kernels
+    use orographic_drag_kernel_mod, only: orographic_drag_kernel_type
+    use drag_incs_kernel_mod, only: drag_incs_kernel_type
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: du_tot_orographic_drag
+    type( field_type ), intent( inout ) :: dtheta_orographic_drag
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: orography_fields
+    type( field_type ), intent(in) :: theta, u, mr_n(nummr)
+
+    ! Local fields
+    ! Total orographic drag increments to ...
+    type( field_type ) :: du_orographic_drag    ! ... zonal wind
+    type( field_type ) :: dv_orographic_drag    ! ... meridional wind
+    type( field_type ) :: dw_orographic_drag    ! ... vertical wind (set to zero)
+    type( field_type ) :: dtemp_orographic_drag ! ... temperature
+    type( field_type ) :: du_new_orog_drag      ! ... winds in W2 space
+
+    ! Orographic blocking drag increments to ...
+    type( field_type ) :: du_orog_blk    ! ... zonal wind
+    type( field_type ) :: dv_orog_blk    ! ... meridional wind
+    type( field_type ) :: dtemp_orog_blk ! ... temperature
+
+    ! Orographic gravity wave drag increments to ...
+    type( field_type ) :: du_orog_gwd    ! ... zonal wind
+    type( field_type ) :: dv_orog_gwd    ! ... meridional wind
+    type( field_type ) :: dtemp_orog_gwd ! ... temperature
+
+    ! Temporary unpacked fields from collections
+    type( field_type ), pointer :: u_in_w3      => null()
+    type( field_type ), pointer :: v_in_w3      => null()
+    type( field_type ), pointer :: exner_in_wth => null()
+    type( field_type ), pointer :: wetrho_in_w3 => null()
+
+    type( field_type ), pointer :: sd_orog      => null()
+    type( field_type ), pointer :: grad_xx_orog => null()
+    type( field_type ), pointer :: grad_xy_orog => null()
+    type( field_type ), pointer :: grad_yy_orog => null()
+
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+
+    ! Diagnostics
+
+    ! Zonal and and meridional stress from ...
+    type( field_type ) :: taux_orog_blk, tauy_orog_blk               ! ... orographic blocking drag
+    type( field_type ) :: taux_orog_gwd, tauy_orog_gwd               ! ... orographic gwd drag
+
+    type( mesh_type ), pointer :: mesh => null()
+
+
+    if ( subroutine_timers ) call timer("orographic_drag_alg")
+
+    call log_event( 'slow_physics: Running Orographic drag', LOG_LEVEL_INFO )
+
+    mesh => theta%get_mesh()
+
+    height_wth => get_height(Wtheta, mesh%get_id())
+    height_w3  => get_height(W3, mesh%get_id())
+
+    ! Unpack fields
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+
+    ! Unpack orography fields
+    call orography_fields%get_field('sd_orog', sd_orog)
+    call orography_fields%get_field('grad_xx_orog', grad_xx_orog)
+    call orography_fields%get_field('grad_xy_orog', grad_xy_orog)
+    call orography_fields%get_field('grad_yy_orog', grad_yy_orog)
+
+    ! Local increments
+    call u_in_w3%copy_field_properties(du_orographic_drag)
+    call v_in_w3%copy_field_properties(dv_orographic_drag)
+    call theta%copy_field_properties(dw_orographic_drag)
+    call u_in_w3%copy_field_properties(du_orog_blk)
+    call v_in_w3%copy_field_properties(dv_orog_blk)
+    call u_in_w3%copy_field_properties(du_orog_gwd)
+    call v_in_w3%copy_field_properties(dv_orog_gwd)
+    call theta%copy_field_properties(dtemp_orographic_drag)
+    call theta%copy_field_properties(dtemp_orog_blk)
+    call theta%copy_field_properties(dtemp_orog_gwd)
+
+    ! Initialise field increments from orographic drag
+    call invoke(setval_c(dw_orographic_drag, 0.0_r_def), &
+                setval_c(du_orog_blk,    0.0_r_def),     &
+                setval_c(dv_orog_blk,    0.0_r_def),     &
+                setval_c(dtemp_orog_blk, 0.0_r_def),     &
+                setval_c(du_orog_gwd,    0.0_r_def),     &
+                setval_c(dv_orog_gwd,    0.0_r_def),     &
+                setval_c(dtemp_orog_gwd, 0.0_r_def) )
+
+    ! Initialise orographic drag diagnostics
+    call initialise_diags_for_orographic_drag(                              &
+                                theta, u_in_w3,                             &
+                                taux_orog_blk, tauy_orog_blk,               &
+                                taux_orog_gwd, tauy_orog_gwd)
+
+    ! Call orographic drag kernel
+    ! The orographic drag kernel is temporarily being called from
+    ! psykal_lite_phys_mod.F90 because functionality to loop over a
+    ! subset of points (in this case, points where sd_orog > 0)
+    ! does not currently exist in PSyclone.
+    ! PSyclone ticket relating to this functionality is #487.
+    call invoke_orographic_drag_kernel(                       &
+                du_orog_blk, dv_orog_blk,                     &
+                du_orog_gwd, dv_orog_gwd,                     &
+                dtemp_orog_blk, dtemp_orog_gwd,               &
+                u_in_w3, v_in_w3,                             &
+                wetrho_in_w3, theta, exner_in_wth, sd_orog,   &
+                grad_xx_orog, grad_xy_orog, grad_yy_orog,     &
+                mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),      &
+                height_w3, height_wth,                        &
+                taux_orog_blk, tauy_orog_blk,                 &
+                taux_orog_gwd, tauy_orog_gwd)
+
+    ! Sum increments
+    call invoke(X_plus_Y (du_orographic_drag, du_orog_blk, du_orog_gwd),          &
+                X_plus_Y (dv_orographic_drag, dv_orog_blk, dv_orog_gwd),          &
+                X_plus_Y (dtemp_orographic_drag, dtemp_orog_blk, dtemp_orog_gwd), &
+
+    ! Convert temperature to potential temperature
+                X_divideby_Y (dtheta_orographic_drag, dtemp_orographic_drag, &
+                              exner_in_wth) )
+
+    if ( subroutine_timers ) call timer("orographic_drag_alg")
+
+    if (write_diag .and. use_xios_io) then
+
+      ! Write orographic drag diagnostics
+
+      call output_diags_for_orographic_drag(                                       &
+                     du_orographic_drag, dv_orographic_drag, dtemp_orographic_drag,&
+                     dtheta_orographic_drag, du_orog_blk, dv_orog_blk,             &
+                     dtemp_orog_blk, du_orog_gwd, dv_orog_gwd, dtemp_orog_gwd,     &
+                     taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd)
+
+    end if
+
+    ! Mapping back of wind increments
+    call set_wind(du_tot_orographic_drag, du_orographic_drag, &
+                  dv_orographic_drag, dw_orographic_drag)
+
+    if (limit_drag_incs) then
+      call du_tot_orographic_drag%copy_field_properties(du_new_orog_drag)
+      call invoke(setval_c(du_new_orog_drag,0.0_r_def),             &
+                  drag_incs_kernel_type(du_new_orog_drag,           &
+                                        du_tot_orographic_drag, u), &
+                  setval_X(du_tot_orographic_drag, du_new_orog_drag) )
+    end if
+
+    nullify( mesh )
+
+  end subroutine orographic_drag_alg
+
+end module orographic_drag_alg_mod

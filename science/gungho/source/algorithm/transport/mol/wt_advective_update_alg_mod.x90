@@ -1,0 +1,897 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Compute the advective update A of a Wtheta variable f by a wind U: A = U.grad(f).
+!> @todo There are number of workarounds in this algorithm for aspects which
+!!       aren't yet supported by PSyclone/LFRic:
+!!       1. Issue #868 Multidata fields are not natively supported in PSyclone.
+!!                     Currently we treat these as normal fields but need to
+!!                     additionally pass in ndata_h or ndata_v to the kernels
+!!                     as extra integer arguments.
+!!       2. Issue #1246 Region stencils require both the global maximum size of
+!!                      the stencil and local column size of the stencil.
+!!                      PSyclone currently only passes in the local size and so
+!!                      until this is resolved we also pass in the global maximum
+!!                      size as an integer argument.
+module wt_advective_update_alg_mod
+
+  use check_configuration_mod,            only: check_any_horizontal_method_mol, &
+                                                check_any_vertical_method_mol,   &
+                                                get_required_stencil_depth
+  use constants_mod,                      only: r_def, i_def, l_def, str_def, &
+                                                r_tran, radians_to_degrees
+  use extrusion_mod,                      only: TWOD
+  use geometric_constants_mod,            only: get_coordinates,                &
+                                                get_extended_coordinates,       &
+                                                get_panel_id,                   &
+                                                get_height
+  use fem_constants_mod,                  only: get_mass_matrix_diagonal,       &
+                                                get_inverse_lumped_mass_matrix
+  use field_mod,                          only: field_type
+  use r_tran_field_mod,                   only: r_tran_field_type
+  use finite_element_config_mod,          only: element_order,          &
+                                                nqp_exact,              &
+                                                coord_system,           &
+                                                coord_system_xyz
+  use fs_continuity_mod,                  only: W3, Wtheta
+  use function_space_mod,                 only: function_space_type
+  use function_space_collection_mod,      only: function_space_collection
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use quadrature_rule_gauss_lobatto_mod,  only: quadrature_rule_gauss_lobatto_type
+  use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use quadrature_face_mod,                only: quadrature_face_type
+  use quadrature_edge_mod,                only: quadrature_edge_type
+  use transport_config_mod,               only: operators,            &
+                                                fv_horizontal_order,  &
+                                                fv_vertical_order,    &
+                                                operators_fv,         &
+                                                operators_fem,        &
+                                                oned_reconstruction,  &
+                                                consistent_metric,    &
+                                                extended_mesh
+  use log_mod,                            only: log_event,         &
+                                                LOG_LEVEL_ERROR,   &
+                                                LOG_LEVEL_INFO
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
+  use poly1d_reconstruction_kernel_mod,   only: poly1d_reconstruction_kernel_type
+  use poly1d_vert_adv_coeffs_kernel_mod,  only: poly1d_vert_adv_coeffs_kernel_type
+  use poly1d_advective_coeffs_kernel_mod, only: poly1d_advective_coeffs_kernel_type
+  use poly2d_advective_coeffs_kernel_mod, only: poly2d_advective_coeffs_kernel_type
+  use poly2d_reconstruction_kernel_mod,   only: poly2d_reconstruction_kernel_type
+  use poly_adv_update_kernel_mod,         only: poly_adv_update_kernel_type
+  use runtime_tools_mod,                  only: find_mesh_index, &
+                                                check_initialised_field
+  use transport_enumerated_types_mod,     only: direction_v,                  &
+                                                direction_h,                  &
+                                                direction_3d,                 &
+                                                horizontal_monotone_none,     &
+                                                horizontal_monotone_koren,    &
+                                                horizontal_monotone_clipping, &
+                                                vertical_monotone_none,       &
+                                                vertical_monotone_koren,      &
+                                                vertical_monotone_clipping
+  use transport_metadata_mod,             only: transport_metadata_type
+  use transport_runtime_alg_mod,          only: transport_runtime_type
+  use transport_runtime_collection_mod,   only: get_transport_runtime
+  use polyh_wtheta_koren_kernel_mod,      only: polyh_wtheta_koren_kernel_type
+  use polyv_wtheta_koren_kernel_mod,      only: polyv_wtheta_koren_kernel_type
+  use psykal_lite_mod,                    only: invoke_copy_to_rtran
+  use field_minmax_alg_mod,               only: get_field_minmax
+  use io_config_mod,                      only: subroutine_timers
+  use timer_mod,                          only: timer
+
+  implicit none
+
+  private
+
+  logical(kind=l_def) :: variables_allocated = .false.
+
+  type(inventory_by_mesh_type) :: adv_stencil_extent_inventory
+  type(inventory_by_mesh_type) :: adv_2d_stencil_size_inventory
+  type(inventory_by_mesh_type) :: ndata_h_inventory
+  type(inventory_by_mesh_type) :: ndata_v_inventory
+  type(inventory_by_mesh_type) :: reversible_ndata_v_inventory
+  type(inventory_by_mesh_type) :: adv_coeffs_inventory
+  type(inventory_by_mesh_type) :: vert_adv_coeffs_inventory
+  type(inventory_by_mesh_type) :: reversible_vert_adv_coeffs_inventory
+
+  public  :: wt_advective_update_set_num_meshes
+  public  :: wt_advective_update_alg_init
+  public  :: wt_advective_update_alg_final
+  public  :: wt_advective_update_alg
+  public  :: hori_wt_update_alg
+  public  :: vert_wt_update_alg
+  public  :: get_adv_stencil_extent
+  public  :: get_adv_2d_stencil_size
+  public  :: get_adv_ndata_h
+  public  :: get_adv_ndata_v
+  public  :: get_reversible_adv_ndata_v
+  public  :: get_adv_coeffs
+  public  :: get_vert_adv_coeffs
+  public  :: get_reversible_vert_adv_coeffs
+
+contains
+
+  !=============================================================================
+  !> @brief Allocates the lists of advection coefficients.
+  !!
+  !> @param[in] number_of_meshes Number of meshes to have coefficients on.
+  subroutine wt_advective_update_set_num_meshes( number_of_meshes )
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: number_of_meshes
+
+    if (.not. variables_allocated) then
+      call adv_stencil_extent_inventory%initialise(name="adv_stencil_extent", table_len=number_of_meshes)
+      call adv_2d_stencil_size_inventory%initialise(name="adv_2d_stencil_size", table_len=number_of_meshes)
+      call ndata_h_inventory%initialise(name="adv_ndata_h", table_len=number_of_meshes)
+      call ndata_v_inventory%initialise(name="adv_ndata_v", table_len=number_of_meshes)
+      call reversible_ndata_v_inventory%initialise(name="adv_rev_ndata_v", table_len=number_of_meshes)
+      call adv_coeffs_inventory%initialise(name="hori_adv_coeffs", table_len=number_of_meshes)
+      call vert_adv_coeffs_inventory%initialise(name="vert_adv_coeffs", table_len=number_of_meshes)
+      call reversible_vert_adv_coeffs_inventory%initialise(name="rev_vert_adv_coeffs", table_len=number_of_meshes)
+
+      variables_allocated = .true.
+    else
+      call log_event('Variables have already been allocated for ' // &
+                     'wt_advective_update_alg', LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine wt_advective_update_set_num_meshes
+
+  !=============================================================================
+  !> @brief Initialises the advection coefficients for a single mesh.
+  !!
+  !> @details Initialises the advection coefficients and other constants that
+  !!          can be pre-computed for a single mesh.
+  !!          FV aspects currently only support lowest order elements.
+  !!
+  !> @param[in] mesh The mesh to create all fields on
+  !!
+  subroutine wt_advective_update_alg_init( mesh )
+
+    use domain_mod,              only: domain_type
+    use reference_element_mod,   only: reference_element_type
+    use mesh_mod,                only: mesh_type
+    use geometric_constants_mod, only: get_height
+    use transport_config_mod,    only: reversible
+
+    use compute_mass_matrix_kernel_w_scalar_mod, only: compute_mass_matrix_kernel_w_scalar_type
+    use mm_diagonal_kernel_mod,            only: mm_diagonal_kernel_type
+    use operator_mod,                      only: operator_type
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    integer(kind=i_def)             :: adv_stencil_size
+    integer(kind=i_def)             :: adv_stencil_extent
+    integer(kind=i_def)             :: adv_2d_stencil_size
+    integer(kind=i_def)             :: ndata_h
+    integer(kind=i_def)             :: ndata_v
+    integer(kind=i_def)             :: nfaces_re_h
+    integer(kind=i_def)             :: nfaces_re_v
+    integer(kind=i_def)             :: polynomial
+    logical(kind=l_def)             :: horizontal_edges
+    logical(kind=l_def)             :: vertical_edges
+    type(field_type),       pointer :: chi(:) => null()
+    type(field_type),       pointer :: md_wt => null()
+    type(field_type),       pointer :: panel_id => null()
+    type(mesh_type),        pointer :: twod_mesh => null()
+
+    type(r_tran_field_type), pointer :: adv_coeffs => null()
+    type(r_tran_field_type), pointer :: vert_adv_coeffs => null()
+    type(r_tran_field_type), pointer :: reversible_vert_adv_coeffs => null()
+
+    type(quadrature_rule_gaussian_type)      :: gaussian_quadrature
+    type(quadrature_rule_gauss_lobatto_type) :: gauss_lobatto_quadrature
+
+    type(quadrature_xyoz_type)             :: qr, qr_fem
+    type(quadrature_edge_type)             :: qre
+    type(function_space_type),     pointer :: wt_fs => null()
+    type(r_tran_field_type)                :: wt_field
+    class(reference_element_type), pointer :: reference_element => null()
+
+    integer(kind=i_def)                    :: edge_quad_order
+    integer(kind=i_def)                    :: nqp_xy, nqp_z, nqp_xyz
+    real(kind=r_def)                       :: transform_radius, chi3_max
+    type(function_space_type),     pointer :: multidata_fs => null()
+    type(field_type),              pointer :: height_rdef => null()
+    integer(kind=i_def)                    :: vertical_order, nlayers
+    type(operator_type) :: mm_wtheta
+    type(field_type), target :: mmtheta_diag
+    logical(kind=l_def)      :: any_horizontal_mol, any_vertical_mol
+
+    type(domain_type) :: domain
+    real(kind=r_def)  :: domain_size_x
+    real(kind=r_def)  :: domain_size_y
+
+    reference_element => mesh%get_reference_element()
+    any_horizontal_mol = check_any_horizontal_method_mol()
+    any_vertical_mol = check_any_vertical_method_mol()
+
+    ! Set default values of 0 for the integers to be stored for this mesh_id,
+    ! in case they aren't set below
+    adv_stencil_extent = 0_i_def
+    adv_2d_stencil_size = 0_i_def
+    ndata_h = 0_i_def
+    ndata_v = 0_i_def
+
+    domain = mesh%get_domain()
+    if ( domain%is_lonlat() ) then
+      domain_size_x = domain%maximum_lonlat(axis=1) - domain%minimum_lonlat(axis=1)
+      domain_size_y = domain%maximum_lonlat(axis=2) - domain%minimum_lonlat(axis=2)
+
+      domain_size_x = radians_to_degrees * domain_size_x
+      domain_size_y = radians_to_degrees * domain_size_y
+    else
+      domain_size_x = domain%maximum_xy(axis=1) - domain%minimum_xy(axis=1)
+      domain_size_y = domain%maximum_xy(axis=2) - domain%minimum_xy(axis=2)
+    end if
+
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+    nlayers = mesh%get_nlayers()
+
+    wt_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
+
+    if ( operators == operators_fv ) then
+      ! This setup is only needed for FV methods
+      if ( element_order == 0_i_def ) then
+
+        ! Compute stencil extents
+        adv_stencil_extent = int(real(fv_horizontal_order+1_i_def)/2.0_r_def,i_def)
+        !======================================================================!
+        ! Compute stencil for nonuniform polynomial fit
+        ! Initialise PSy layer arrays (this will not be needed when
+        ! multi-dimensional field arrays are supported)
+        ! This needs some temporary fields for computing undf in the PSy layer
+        md_wt => get_mass_matrix_diagonal(Wtheta, mesh%get_id())
+        call wt_field%initialise( vector_space = wt_fs )
+
+        ! Get topology information from the reference element
+        ! Number of horizontal neighbours
+        nfaces_re_h = reference_element%get_number_horizontal_faces()
+        ! Number of vertical neighbours
+        nfaces_re_v = reference_element%get_number_vertical_faces()
+        if ( oned_reconstruction ) then
+          adv_stencil_size = fv_horizontal_order + 1_i_def
+        else
+          adv_2d_stencil_size = 1_i_def
+          do polynomial = 1, fv_horizontal_order
+            if ( mod(polynomial, 2_i_def) == 0_i_def ) then
+              adv_2d_stencil_size = adv_2d_stencil_size + nfaces_re_h
+            else
+              adv_2d_stencil_size = adv_2d_stencil_size + nfaces_re_h*polynomial
+            end if
+          end do
+          adv_stencil_size = adv_2d_stencil_size
+        end if
+
+        ! Create multi-data space and field for the horizontal advective coefficients
+        ndata_h = nfaces_re_h*adv_stencil_size
+        call ndata_h_inventory%add_integer(ndata_h, mesh)
+        multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, ndata_h, ndata_first=.false. )
+        call adv_coeffs_inventory%add_field(adv_coeffs, multidata_fs, mesh)
+
+        chi => get_coordinates(mesh%get_id())
+        panel_id => get_panel_id(mesh%get_id())
+
+        if ( coord_system == coord_system_xyz ) then
+          transform_radius = 0.0_r_def
+        else
+          ! Compute the smallest surface height of chi(3)
+          ! (this is only needed for spherically-based coordinates
+          ! Transform radius is minimum height + 1
+          call get_field_minmax( chi(3), transform_radius, chi3_max )
+          transform_radius = 1.0_r_def + abs(transform_radius)
+        end if
+
+        nqp_xyz = fv_horizontal_order + 1_i_def
+        if ( oned_reconstruction ) then
+          edge_quad_order = 1_i_def
+        else
+          edge_quad_order = fv_horizontal_order + 1_i_def
+        end if
+
+        ! Compute advective coefficients
+        if (any_horizontal_mol) then
+          call log_event( "Gungho: computing horizontal advective coeffs", LOG_LEVEL_INFO )
+          ! Quadrature rule which has enough points to exactly integrate
+          ! fv_horizontal_order polynomials and is odd order horizontaly and has
+          ! 2 vertical points such that it gives points on the vertical faces
+          nqp_xy = fv_horizontal_order + 3_i_def
+          nqp_z  = 2_i_def
+          qr = quadrature_xyoz_type(nqp_xy, nqp_xy, nqp_z, &
+                                    gauss_lobatto_quadrature)
+          ! Edge based quadrature rule on horizontal edges
+          nqp_xyz = edge_quad_order
+          horizontal_edges = .true.
+          vertical_edges = .false.
+          qre = quadrature_edge_type(nqp_xyz, horizontal_edges, vertical_edges,  &
+                                    reference_element, gaussian_quadrature)
+
+          if ( oned_reconstruction ) then
+            if ( extended_mesh ) then
+              chi => get_extended_coordinates(mesh%get_id())
+              call mm_wtheta%initialise( md_wt%get_function_space(), &
+                                        md_wt%get_function_space() )
+              call mmtheta_diag%initialise( md_wt%get_function_space() )
+              qr_fem = quadrature_xyoz_type(3, gaussian_quadrature)
+              call invoke( name="mm_wt", &
+                          compute_mass_matrix_kernel_w_scalar_type( &
+                                mm_wtheta, chi, panel_id, extended_mesh, qr_fem) )
+              call invoke( setval_c(mmtheta_diag, 0.0_r_def), &
+                          mm_diagonal_kernel_type(mmtheta_diag, mm_wtheta) )
+              md_wt =>  mmtheta_diag
+            end if
+            call invoke( poly1d_advective_coeffs_kernel_type(                    &
+                                                adv_coeffs,                     &
+                                                md_wt,                          &
+                                                adv_stencil_extent,             &
+                                                chi,                            &
+                                                adv_stencil_extent,             &
+                                                panel_id,                       &
+                                                adv_stencil_extent,             &
+                                                ndata_h, fv_horizontal_order,   &
+                                                nfaces_re_h, transform_radius,  &
+                                                domain_size_x, domain_size_y,   &
+                                                nlayers, qr, qre ) )
+          else
+            call invoke( poly2d_advective_coeffs_kernel_type(                    &
+                                                adv_coeffs,                     &
+                                                md_wt,                          &
+                                                adv_stencil_extent,             &
+                                                chi,                            &
+                                                adv_stencil_extent,             &
+                                                panel_id,                       &
+                                                adv_stencil_extent,             &
+                                                ndata_h, fv_horizontal_order,   &
+                                                nfaces_re_h,                    &
+                                                adv_2d_stencil_size,            &
+                                                transform_radius,               &
+                                                domain_size_x, domain_size_y,   &
+                                                nlayers, qr, qre ) )
+          end if
+          nullify(adv_coeffs)
+        end if
+
+        ! Vertical advective coeffs
+        if (any_vertical_mol) then
+          call log_event( "Gungho: computing vertical advective coeffs", LOG_LEVEL_INFO )
+
+        ! Create multi-data space and field for the vertical advective coefficients
+        vertical_order = fv_vertical_order + 1_i_def
+        ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
+        call ndata_v_inventory%add_integer(ndata_v, mesh)
+        multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v, ndata_first=.true. )
+        call vert_adv_coeffs_inventory%add_field(                              &
+                        vert_adv_coeffs, multidata_fs, mesh)
+        height_rdef => get_height(Wtheta, mesh%get_id())
+        call invoke( poly1d_vert_adv_coeffs_kernel_type(                       &
+                                            vert_adv_coeffs,                   &
+                                            height_rdef, ndata_v,              &
+                                            vertical_order) )
+        nullify(multidata_fs, vert_adv_coeffs)
+
+        if ( any(reversible) ) then
+          ! Compute reversible vertical coefficients
+          vertical_order = fv_vertical_order
+          ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
+          call reversible_ndata_v_inventory%add_integer(ndata_v, mesh)
+          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, ndata_v, ndata_first =.true. )
+          call reversible_vert_adv_coeffs_inventory%add_field(                 &
+              reversible_vert_adv_coeffs, multidata_fs, mesh)
+          height_rdef => get_height(Wtheta, mesh%get_id())
+          call invoke( poly1d_vert_adv_coeffs_kernel_type(                     &
+                                              reversible_vert_adv_coeffs,      &
+                                              height_rdef, ndata_v,            &
+                                              vertical_order) )
+          nullify(multidata_fs, reversible_vert_adv_coeffs)
+          end if
+        end if
+        !======================================================================!
+      else
+        call log_event( "Gungho: subgrid mappings needed for FV MoL with high &
+                         order elements", LOG_LEVEL_ERROR )
+      end if
+    end if
+
+    call adv_stencil_extent_inventory%add_integer(adv_stencil_extent, mesh)
+    call adv_2d_stencil_size_inventory%add_integer(adv_2d_stencil_size, mesh)
+
+    nullify( chi, panel_id, md_wt, wt_fs, reference_element, height_rdef, &
+             twod_mesh, multidata_fs )
+
+  end subroutine wt_advective_update_alg_init
+
+  !=============================================================================
+  !> @brief Finalises allocatable arrays.
+  subroutine wt_advective_update_alg_final()
+
+    implicit none
+
+    call vert_adv_coeffs_inventory%clear()
+    call reversible_vert_adv_coeffs_inventory%clear()
+    call adv_coeffs_inventory%clear()
+    call ndata_v_inventory%clear()
+    call ndata_h_inventory%clear()
+    call reversible_ndata_v_inventory%clear()
+    call adv_2d_stencil_size_inventory%clear()
+    call adv_stencil_extent_inventory%clear()
+
+  end subroutine wt_advective_update_alg_final
+
+  !=============================================================================
+  !> @brief Compute the horizontal advective update of a Wtheta field.
+  !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
+  !> @param[in]     wind                Advecting wind field
+  !> @param[in]     field               Wtheta field to advect
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  subroutine hori_wt_update_alg(u_grad_f, wind, field, transport_metadata)
+
+    implicit none
+
+    type(r_tran_field_type),       intent(in)    :: wind
+    type(r_tran_field_type),       intent(in)    :: field
+    type(r_tran_field_type),       intent(inout) :: u_grad_f
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    type(r_tran_field_type)          :: h_reconstruction
+    type(r_tran_field_type), pointer :: adv_coeffs => null()
+
+    type(mesh_type),           pointer :: mesh => null()
+    type(function_space_type), pointer :: multidata_fs => null()
+
+    integer(kind=i_def)          :: mesh_id
+    integer(kind=i_def), pointer :: adv_stencil_extent
+    integer(kind=i_def)          :: stencil_extent
+    integer(kind=i_def), pointer :: adv_2d_stencil_size => null()
+    integer(kind=i_def), pointer :: ndata_h => null()
+
+    type(r_tran_field_type), target  :: remap_field, field_big_halo
+    type(r_tran_field_type), pointer :: field_ptr => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+
+    logical(kind=l_def) :: monotone
+    integer(kind=i_def) :: remap_depth
+
+    if ( subroutine_timers ) call timer('transport.wt_hori_recon')
+
+    mesh => wind%get_mesh()
+    mesh_id = mesh%get_id()
+    adv_stencil_extent => get_adv_stencil_extent(mesh_id)
+    stencil_extent = 1_i_def
+    adv_2d_stencil_size => get_adv_2d_stencil_size(mesh_id)
+    ndata_h => get_adv_ndata_h(mesh_id)
+    adv_coeffs => get_adv_coeffs(mesh_id)
+
+    ! Copy field to a large halo version
+    call field_big_halo%initialise( field%get_function_space(), &
+                                    halo_depth = get_required_stencil_depth() )
+    call invoke( setval_X( field_big_halo, field ) )
+
+    ! Compute reconstruction on a Wtheta multidata field
+    ! each Wt point contains 4 values assigned to each edge,
+    ! in the order (W,S,E,N) which is the same order as a W2 field
+    multidata_fs => &
+      function_space_collection%get_fs( mesh, element_order, Wtheta, 4, ndata_first=.false. )
+    call h_reconstruction%initialise( multidata_fs )
+    monotone = (transport_metadata%get_horizontal_monotone() == horizontal_monotone_koren)
+    if ( extended_mesh .and. (monotone .or. oned_reconstruction) ) then
+      remap_depth = int(fv_horizontal_order/2)
+      transport_runtime => get_transport_runtime(mesh)
+      call transport_runtime%remap_on_extended_mesh(                   &
+                           remap_field, field_big_halo,                &
+                           monotone,                                   &
+                           transport_metadata%get_enforce_min_value(), &
+                           transport_metadata%get_min_value(),         &
+                           remap_depth)
+      field_ptr => remap_field
+      nullify(transport_runtime)
+    else
+      field_ptr => field_big_halo
+    end if
+
+    if ( transport_metadata%get_horizontal_monotone() == horizontal_monotone_koren ) then
+      call invoke( name="wt_koren",                             &
+                   polyh_wtheta_koren_kernel_type(              &
+                                            h_reconstruction,   &
+                                            field_ptr,          &
+                                            adv_stencil_extent, &
+                                            ndata_h))
+
+    else
+      if ( oned_reconstruction ) then
+        ! Use 1d reconstruction
+        call invoke( name="wt_1d_recon",                          &
+                     poly1d_reconstruction_kernel_type(           &
+                                              h_reconstruction,   &
+                                              field_ptr,          &
+                                              adv_stencil_extent, &
+                                              adv_coeffs,         &
+                                              ndata_h,            &
+                                              fv_horizontal_order ) )
+      else
+        ! Use 2d reconstruction
+        call invoke( name="wt_2d_recon",                          &
+                     poly2d_reconstruction_kernel_type(           &
+                                              h_reconstruction,   &
+                                              field_big_halo,     &
+                                              adv_stencil_extent, &
+                                              adv_coeffs,         &
+                                              ndata_h,            &
+                                              adv_2d_stencil_size) )
+      end if
+
+    end if
+
+
+     call invoke( name="poly_update",                           &
+                  poly_adv_update_kernel_type(u_grad_f,         &
+                                              h_reconstruction, &
+                                              stencil_extent,   &
+                                              wind, stencil_extent))
+
+    nullify( adv_coeffs, multidata_fs,    &
+             ndata_h,                     &
+             adv_stencil_extent,          &
+             adv_2d_stencil_size, mesh )
+
+    if ( subroutine_timers ) call timer('transport.wt_hori_recon')
+
+  end subroutine hori_wt_update_alg
+
+  !=============================================================================
+  !> @brief Compute the vertical advective update of a Wtheta field.
+  !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
+  !> @param[in]     wind                Advecting wind field
+  !> @param[in]     field               Wtheta field to advect
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine vert_wt_update_alg(u_grad_f, wind, field, transport_metadata, &
+                                final_rk_stage)
+
+    use poly1d_vert_adv_kernel_mod,     only: poly1d_vert_adv_kernel_type
+
+    implicit none
+
+    type(r_tran_field_type),       intent(in)    :: field, wind
+    type(r_tran_field_type),       intent(inout) :: u_grad_f
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    integer(kind=i_def)              :: mesh_id
+    integer(kind=i_def)              :: vertical_order
+    integer(kind=i_def),     pointer :: ndata_v => null()
+    type(mesh_type),         pointer :: mesh => null()
+    type(r_tran_field_type), pointer :: vert_adv_coeffs => null()
+    type(field_type),        pointer :: height_tr => null()
+    logical(kind=l_def)              :: logspace
+    logical(kind=l_def)              :: reversible
+    integer(kind=i_def)              :: monotonicity
+
+    if ( subroutine_timers ) call timer('transport.wt_vert_recon')
+
+    reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
+    logspace = transport_metadata%get_log_space()
+    monotonicity = transport_metadata%get_vertical_monotone()
+
+    mesh => wind%get_mesh()
+    mesh_id = mesh%get_id()
+
+    ! vertical update
+    if ( reversible ) then
+      ndata_v => get_reversible_adv_ndata_v(mesh_id)
+      vert_adv_coeffs => get_reversible_vert_adv_coeffs(mesh_id)
+      vertical_order = fv_vertical_order
+    else
+      ndata_v => get_adv_ndata_v(mesh_id)
+      vert_adv_coeffs => get_vert_adv_coeffs(mesh_id)
+      vertical_order = fv_vertical_order + 1_i_def
+    end if
+
+    if ( monotonicity == vertical_monotone_koren ) then
+      height_tr => get_height( Wtheta, mesh%get_id() )
+      call invoke( polyv_wtheta_koren_kernel_type(u_grad_f,      &
+                                                  wind,          &
+                                                  field,         &
+                                                  height_tr,     &
+                                                  reversible,    &
+                                                  logspace) )
+      nullify( height_tr )
+    else
+      call invoke( poly1d_vert_adv_kernel_type(u_grad_f,        &
+                                               wind,            &
+                                               field,           &
+                                               vert_adv_coeffs, &
+                                               ndata_v,         &
+                                               vertical_order,  &
+                                               logspace ) )
+    end if
+
+    nullify( vert_adv_coeffs, ndata_v )
+
+    if ( subroutine_timers ) call timer('transport.wt_vert_recon')
+
+  end subroutine vert_wt_update_alg
+
+  !=============================================================================
+  !> @brief Compute advective update of a Wtheta field.
+  !> @details Compute advective update wind.grad(adv_field) using desired spatial
+  !!          reconstruction. Options for this are either FE or FV reconstructions.
+  !> @param[in,out] rhs                 Advective increment
+  !> @param[in]     adv_field           Field to advect
+  !> @param[in]     wind                Advecting wind field
+  !> @param[in]     reversible          Use the reversible reconstruction
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine wt_advective_update_alg(rhs, adv_field, wind, direction, &
+                                     transport_metadata, final_rk_stage)
+
+    use consistent_wind_kernel_mod,     only: consistent_wind_kernel_type
+    use poly1d_vert_adv_kernel_mod,     only: poly1d_vert_adv_kernel_type
+    use rtheta_kernel_mod,              only: rtheta_kernel_type
+    use rtheta_bd_kernel_mod,           only: rtheta_bd_kernel_type
+    use reference_element_mod,          only: reference_element_type
+    use mesh_mod,                       only: mesh_type
+
+    implicit none
+
+    type(r_tran_field_type),       intent(in)    :: adv_field, wind
+    type(r_tran_field_type),       intent(inout) :: rhs
+    integer(kind=i_def),           intent(in)    :: direction
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+
+    type(r_tran_field_type)                :: u_grad_f
+    type(r_tran_field_type),       pointer :: wind_v => null()
+    type(r_tran_field_type),       pointer :: wind_h => null()
+    type(transport_runtime_type),  pointer :: transport_runtime => null()
+    type(field_type), pointer              :: chi(:) => null()
+    type(field_type), pointer              :: mt_lumped_inv_r_def => null()
+    type(r_tran_field_type)                :: mt_lumped_inv_r_tran
+    type(r_tran_field_type)                :: consistent_wind
+    type(r_tran_field_type)                :: u_grad_z
+    type(field_type), pointer              :: height_rdef => null()
+    type(r_tran_field_type)                :: height
+    class(reference_element_type), pointer :: reference_element => null()
+    type(mesh_type), pointer               :: mesh => null()
+    type(quadrature_xyoz_type)             :: qr
+    type(quadrature_face_type)             :: qrf
+    type(quadrature_rule_gaussian_type)    :: quadrature_rule
+    integer(kind=i_def)                    :: wt_stencil_size
+    integer(kind=i_def)                    :: w2_stencil_size
+    logical(kind=l_def)                    :: horizontal_faces
+    logical(kind=l_def)                    :: vertical_faces
+
+    mesh => wind%get_mesh()
+    call u_grad_f%initialise( adv_field%get_function_space() )
+    call invoke( setval_c(u_grad_f, 0.0_r_def ) )
+
+    select case ( operators )
+
+    case default
+      call log_event( "Gungho: Unrecognised option for wtheta reconstruction.", LOG_LEVEL_ERROR )
+
+    case ( operators_fv )
+
+      if ( direction == direction_h .or. direction == direction_3d ) then
+        if ( transport_metadata%get_horizontal_monotone() /= horizontal_monotone_none     .and. &
+             transport_metadata%get_horizontal_monotone() /= horizontal_monotone_clipping .and. &
+             transport_metadata%get_horizontal_monotone() /= horizontal_monotone_koren ) then
+             call log_event("wt_advective_update_alg: Invalid horizontal_monotonicity", LOG_LEVEL_ERROR)
+        end if
+      end if
+      if ( direction == direction_v ) then
+        if ( transport_metadata%get_vertical_monotone() /= vertical_monotone_none     .and. &
+             transport_metadata%get_vertical_monotone() /= vertical_monotone_clipping .and. &
+             transport_metadata%get_vertical_monotone() /= vertical_monotone_koren ) then
+             call log_event("wt_advective_update_alg: Invalid vertical_monotonicity", LOG_LEVEL_ERROR)
+        end if
+      end if
+
+      select case ( direction )
+      case ( direction_3d )
+        transport_runtime => get_transport_runtime(mesh)
+        wind_h => transport_runtime%get_horizontal_advecting_wind(mesh%get_id())
+        wind_v => transport_runtime%get_vertical_advecting_wind(mesh%get_id())
+
+        ! Horizontal update
+        call hori_wt_update_alg(u_grad_f, wind_h, adv_field, transport_metadata)
+
+        ! TODO #3325: Make consistent wind belong to transport_runtime thing
+        if ( consistent_metric ) then
+          ! Consistent wind will be vertical only -- initialise as wind_v
+          height_rdef => get_height(Wtheta, mesh%get_id())
+          call height%initialise( vector_space = height_rdef%get_function_space() )
+          call invoke_copy_to_rtran( height, height_rdef )
+          chi => get_coordinates(mesh%get_id())
+          call u_grad_z%initialise( u_grad_f%get_function_space() )
+          call consistent_wind%initialise( wind_v%get_function_space() )
+          call invoke( setval_c(u_grad_z, 0.0_r_def), &
+                       setval_X(consistent_wind, wind_v) )
+          call hori_wt_update_alg(u_grad_z, wind_h, height, transport_metadata)
+          call invoke( consistent_wind_kernel_type(consistent_wind, wind, &
+                                                   u_grad_z, chi(3)) )
+          ! Then vertical update uses consistent wind
+          call vert_wt_update_alg(u_grad_f, consistent_wind, adv_field, &
+                                  transport_metadata, final_rk_stage)
+          nullify( height_rdef, chi )
+        else
+          ! Not using consistent wind, so just do normal vertical update
+          call vert_wt_update_alg(u_grad_f, wind_v, adv_field, &
+                                  transport_metadata, final_rk_stage)
+          nullify( wind_v )
+        end if
+
+      case ( direction_h )
+        call hori_wt_update_alg(u_grad_f, wind, adv_field, transport_metadata)
+
+      case ( direction_v )
+        call vert_wt_update_alg(u_grad_f, wind, adv_field, &
+                                transport_metadata, final_rk_stage)
+      case default
+        call log_event('Wtheta advective update: direction not recognised', LOG_LEVEL_ERROR)
+      end select
+
+    case ( operators_fem )
+      ! Perform 3D update using FEM operators
+      if ( direction /= direction_3d ) &
+        call log_event( "Gungho: FEM Wt advection requires unsplit method", LOG_LEVEL_ERROR )
+
+      ! Use project u.grad(adv_field) into the adv_field function space
+      qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
+
+      ! Quadrature rule on lateral faces only
+      horizontal_faces = .true.
+      vertical_faces = .false.
+      reference_element => mesh%get_reference_element()
+      qrf = quadrature_face_type(nqp_exact, horizontal_faces, vertical_faces, &
+                                 reference_element, quadrature_rule)
+      wt_stencil_size = 1_i_def
+      w2_stencil_size = 1_i_def
+      call invoke( setval_c(u_grad_f, 0.0_r_def),                     &
+                   rtheta_kernel_type(u_grad_f, adv_field, wind, qr), &
+                   rtheta_bd_kernel_type(u_grad_f, adv_field,         &
+                                         wt_stencil_size, wind,       &
+                                         w2_stencil_size, qrf) )
+
+    end select
+
+    ! rhs = u_grad_f * mt_lumped_inv
+    mt_lumped_inv_r_def => get_inverse_lumped_mass_matrix(Wtheta, mesh%get_id())
+    call mt_lumped_inv_r_tran%initialise(mt_lumped_inv_r_def%get_function_space())
+    call invoke_copy_to_rtran(mt_lumped_inv_r_tran, mt_lumped_inv_r_def)
+    call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv_r_tran) )
+
+    nullify( mt_lumped_inv_r_def, reference_element, mesh  )
+
+  end subroutine wt_advective_update_alg
+
+  !> @brief Returns a pointer to the advective stencil extent
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The advective stencil extent
+  function get_adv_stencil_extent(mesh_id) result(adv_stencil_extent)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: adv_stencil_extent
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call adv_stencil_extent_inventory%get_integer(mesh, adv_stencil_extent)
+    nullify(mesh)
+
+  end function get_adv_stencil_extent
+
+  !> @brief Returns a pointer to the advective 2D stencil size
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The advective 2D stencil size
+  function get_adv_2d_stencil_size(mesh_id) result(adv_2d_stencil_size)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: adv_2d_stencil_size
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call adv_2d_stencil_size_inventory%get_integer(mesh, adv_2d_stencil_size)
+    nullify(mesh)
+
+  end function get_adv_2d_stencil_size
+
+  !> @brief Returns a pointer to the number of horizontal data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_h integer
+  function get_adv_ndata_h(mesh_id) result(ndata_h)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: ndata_h
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call ndata_h_inventory%get_integer(mesh, ndata_h)
+    nullify(mesh)
+
+  end function get_adv_ndata_h
+
+  !> @brief Returns a pointer to the number of vertical data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_v integer
+  function get_adv_ndata_v(mesh_id) result(ndata_v)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: ndata_v
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call ndata_v_inventory%get_integer(mesh, ndata_v)
+    nullify(mesh)
+
+  end function get_adv_ndata_v
+
+  !> @brief Returns a pointer to the number of vertical data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_v integer
+  function get_reversible_adv_ndata_v(mesh_id) result(ndata_v)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: ndata_v
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call reversible_ndata_v_inventory%get_integer(mesh, ndata_v)
+    nullify(mesh)
+
+  end function get_reversible_adv_ndata_v
+
+  !> @brief Returns a pointer to the advective coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The advective coefficients field
+  function get_adv_coeffs(mesh_id) result(adv_coeffs)
+    implicit none
+    integer(kind=i_def),  intent(in) :: mesh_id
+    type(mesh_type),         pointer :: mesh => null()
+    type(r_tran_field_type), pointer :: adv_coeffs
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call adv_coeffs_inventory%get_field(mesh, adv_coeffs)
+    nullify(mesh)
+
+  end function get_adv_coeffs
+
+  !> @brief Returns a pointer to the vertical advective coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical advective coefficient field
+  function get_vert_adv_coeffs(mesh_id) result(vert_adv_coeffs)
+    implicit none
+    integer(kind=i_def),  intent(in) :: mesh_id
+    type(mesh_type),         pointer :: mesh => null()
+    type(r_tran_field_type), pointer :: vert_adv_coeffs
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call vert_adv_coeffs_inventory%get_field(mesh, vert_adv_coeffs)
+    nullify(mesh)
+
+  end function get_vert_adv_coeffs
+
+  !> @brief Returns a pointer to the reversible vertical advective coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical advective coefficient field
+  function get_reversible_vert_adv_coeffs(mesh_id) result(vert_adv_coeffs)
+    implicit none
+    integer(kind=i_def),  intent(in) :: mesh_id
+    type(mesh_type),         pointer :: mesh => null()
+    type(r_tran_field_type), pointer :: vert_adv_coeffs
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call reversible_vert_adv_coeffs_inventory%get_field(mesh, vert_adv_coeffs)
+    nullify(mesh)
+
+  end function get_reversible_vert_adv_coeffs
+
+end module wt_advective_update_alg_mod

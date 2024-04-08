@@ -1,0 +1,241 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module gungho_extrusion_mod_test
+
+  use constants_mod,           only : i_def, r_def
+  use extrusion_mod,           only : extrusion_type, PRIME_EXTRUSION
+  use gungho_extrusion_mod,    only : create_extrusion
+  use feign_config_mod,        only : feign_base_mesh_config, &
+                                      feign_extrusion_config, &
+                                      feign_planet_config
+  use pFUnit_mod
+
+  implicit none
+
+  private
+  public test_planar, test_spherical, test_dcmip, test_shifted_dcmip
+
+  @TestCase
+  type, public, extends(TestCase) :: gungho_extrusion_test_type
+    private
+  contains
+    private
+    procedure, public  :: setUp
+    procedure, public  :: tearDown
+    procedure, public  :: test_planar
+    procedure, public  :: test_spherical
+    procedure, public  :: test_dcmip
+    procedure, public  :: test_shifted_dcmip
+    procedure          :: identify_extrusion
+  end type gungho_extrusion_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(gungho_extrusion_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(gungho_extrusion_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_planar( this )
+
+    use base_mesh_config_mod, only : geometry_planar, &
+                                     topology_fully_periodic
+    use extrusion_config_mod, only : method_uniform, stretching_method_linear
+
+    implicit none
+
+    class(gungho_extrusion_test_type), intent(inout) :: this
+
+    class(extrusion_type), allocatable :: unit_under_test
+
+    call feign_base_mesh_config(               &
+             file_prefix='/foo.nc',            &
+             prime_mesh_name='unit_test',      &
+             geometry=geometry_planar,         &
+             prepartitioned=.false.,           &
+             topology=topology_fully_periodic, &
+             fplane=.false.,                   &
+             f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( domain_top=13.5_r_def, &
+                                 method=method_uniform, &
+                                 number_of_layers=7_i_def, &
+                                 stretching_height=1.0_r_def, &
+                                 stretching_method=stretching_method_linear)
+    call feign_planet_config( gravity=9.98_r_def,       &
+                              radius=637100.0_r_def,    &
+                              omega=7.27E-5_r_def,      &
+                              rd=300.0_r_def,           &
+                              cp=1000.0_r_def,          &
+                              p_zero=100000.0_r_def,    &
+                              scaling_factor=0.5_r_def )
+
+    allocate( unit_under_test, source=create_extrusion() )
+
+    @assertEqual( 'uniform',  trim( this%identify_extrusion( unit_under_test ) ) )
+    @assertEqual( 0.0_r_def,  unit_under_test%get_atmosphere_bottom() )
+    @assertEqual( 13.5_r_def, unit_under_test%get_atmosphere_top() )
+    @assertEqual( 7_i_def,    unit_under_test%get_number_of_layers() )
+
+    deallocate( unit_under_test )
+
+  end subroutine test_planar
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_spherical( this )
+
+    use base_mesh_config_mod, only : geometry_spherical,      &
+
+                                     topology_fully_periodic
+    use extrusion_config_mod, only : method_geometric, stretching_method_linear
+
+    implicit none
+
+    class(gungho_extrusion_test_type), intent(inout) :: this
+
+    class(extrusion_type), allocatable :: unit_under_test
+
+    call feign_base_mesh_config(               &
+             file_prefix='/foo.nc',            &
+             prime_mesh_name='prime',          &
+             geometry=geometry_spherical,      &
+             prepartitioned=.false.,           &
+             topology=topology_fully_periodic, &
+             fplane=.false.,                   &
+             f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( method=method_geometric,   &
+                                 domain_top=600000.0_r_def, &
+                                 number_of_layers=7_i_def,  &
+                                 stretching_height=1.0_r_def, &
+                                 stretching_method=stretching_method_linear )
+    call feign_planet_config( gravity=9.98_r_def,       &
+                              radius=637100.0_r_def,    &
+                              omega=7.27E-5_r_def,      &
+                              rd=300.0_r_def,           &
+                              cp=1000.0_r_def,          &
+                              p_zero=100000.0_r_def,    &
+                              scaling_factor=2.0_r_def )
+
+    allocate( unit_under_test, source=create_extrusion() )
+
+    @assertEqual( 'geometric',    trim( this%identify_extrusion( unit_under_test ) ) )
+    @assertEqual( 318550.0_r_def, unit_under_test%get_atmosphere_bottom() )
+    @assertEqual( 600000.0_r_def, unit_under_test%get_atmosphere_top() )
+    @assertEqual( 7_i_def,        unit_under_test%get_number_of_layers() )
+
+    deallocate( unit_under_test )
+
+  end subroutine test_spherical
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_dcmip( this )
+
+    use gungho_extrusion_mod, only : dcmip_extrusion_type
+
+    implicit none
+
+    class(gungho_extrusion_test_type), intent(inout) :: this
+
+    integer(i_def), parameter :: layers = 5
+    real(r_def),    parameter :: expected(0:layers) &
+                                 = [0.0_r_def,   0.088_r_def, 0.281_r_def, &
+                                    0.510_r_def, 0.752_r_def, 1.0_r_def]
+    real(r_def),    parameter :: tolerance = 0.001_r_def
+
+    type(dcmip_extrusion_type) :: unit_under_test
+    real(r_def)                :: eta(0:layers)
+
+    unit_under_test = dcmip_extrusion_type( 1.0_r_def, 2.0_r_def, layers, &
+                                            PRIME_EXTRUSION )
+
+    call unit_under_test%extrude( eta )
+    @assertEqual( expected, eta, tolerance )
+
+  end subroutine test_dcmip
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_shifted_dcmip( this )
+
+    use gungho_extrusion_mod, only : dcmip_extrusion_type
+    use extrusion_mod,        only : shifted_extrusion_type
+
+    implicit none
+
+    class(gungho_extrusion_test_type), intent(inout) :: this
+
+    integer(i_def), parameter :: layers = 5
+    real(r_def),    parameter :: expected(0:layers+1) &
+                                 = [0.0_r_def, 0.044_r_def,  0.1845_r_def,   &
+                                    0.3955_r_def, 0.631_r_def, 0.876_r_def, 1.0_r_def]
+    real(r_def),    parameter :: tolerance = 0.001_r_def
+
+    type(dcmip_extrusion_type)   :: base_extrusion
+    type(shifted_extrusion_type) :: unit_under_test
+    real(r_def)                  :: eta(0:layers+1)
+
+    base_extrusion = dcmip_extrusion_type( 1.0_r_def, 2.0_r_def, layers, &
+                                           PRIME_EXTRUSION )
+    unit_under_test = shifted_extrusion_type( base_extrusion )
+
+    call unit_under_test%extrude( eta )
+    @assertEqual( expected, eta, tolerance )
+
+  end subroutine test_shifted_dcmip
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  function identify_extrusion( this, extrusion ) result(id)
+
+    use extrusion_mod,        only : uniform_extrusion_type,   &
+                                     quadratic_extrusion_type, &
+                                     geometric_extrusion_type
+    use gungho_extrusion_mod, only : dcmip_extrusion_type
+    implicit none
+
+    class(gungho_extrusion_test_type), intent(in) :: this
+    class(extrusion_type),             intent(in) :: extrusion
+    character(9) :: id
+
+    id = 'unknown  '
+
+    select type (extrusion)
+      type is (uniform_extrusion_type)
+        id = 'uniform'
+      type is (quadratic_extrusion_type)
+        id = 'quadratic'
+      type is (geometric_extrusion_type)
+        id = 'geometric'
+      type is (dcmip_extrusion_type)
+        id = 'dcmip'
+    end select
+
+  end function identify_extrusion
+
+end module gungho_extrusion_mod_test

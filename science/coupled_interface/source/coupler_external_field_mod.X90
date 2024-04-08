@@ -1,0 +1,451 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Provides functionality that performs coupling sends and receives
+!> @details  Extends the abstract external field class to provide the
+!> "copy_from_lfric" and "copy_to_lfric" functions that perform coupling
+!> send and receive (respectively) operations
+! Note that the word "component", in this module, refers to the model
+! components that are being coupled together by Oasis, rather than the LFRic
+! coupler-oasis "component" that this code forms a part of.
+
+module coupler_external_field_mod
+
+#ifdef MCT
+  use mod_oasis,                only: oasis_get,                       &
+                                      oasis_get_ncpl, oasis_get_freqs, &
+                                      oasis_put, oasis_put_inquire,    &
+                                      oasis_sent, oasis_sentout,       &
+                                      oasis_recvd, oasis_recvout, oasis_out
+#endif
+  use abstract_external_field_mod, only: abstract_external_field_type
+  use constants_mod,            only: i_def, r_def, l_def, imdi
+  use coupler_diagnostics_mod,  only: acc_step, ice_sheet_mass
+  use field_mod,                only: field_type, field_proxy_type
+  use field_collection_mod,     only: field_collection_type
+  use function_space_mod,       only: function_space_type
+  use log_mod,                  only: log_event,       &
+                                      LOG_LEVEL_DEBUG, &
+                                      LOG_LEVEL_ERROR, &
+                                      log_scratch_space
+  use model_clock_mod,          only: model_clock_type
+  use mpi_mod,                  only: global_mpi
+  use multi_extract_kernel_mod, only: multi_extract_kernel_type
+  use set_reciprocal_mod,       only: set_reciprocal_type
+
+
+  implicit none
+
+  private
+
+  ! Raw sea-ice fractions that are unaltered by post processing.
+  ! These are used in scaling data when going from atmosphere to ocean.
+  ! r_sea_ice_frac_raw is its reciprocal.
+  type(field_type) :: r_sea_ice_frac_raw
+
+  ! As r_sea_ice_frac_raw but for one sea ice category at a time
+  type(field_type) :: r_sea_ice_frac_onecat
+
+  ! The sending field restricted to one sea ice category at a time
+  type(field_type) :: sfield_onecat
+
+  ! Snow mass on tiles
+  type(field_type), pointer :: snow_mass_on_tiles_ptr
+
+  ! Tile fraction
+  type(field_type), pointer :: tile_fraction_ptr
+
+  public initialise_send_fields, set_r_sea_ice_frac_raw, set_snow_mass_fields
+
+type, extends(abstract_external_field_type), public :: coupler_external_field_type
+  ! Flag for whether this coupling is on the first step after a restart
+  logical(l_def) :: is_first_step
+  ! Length of each timestep
+  real(r_def) :: dt
+  ! Time of coupling in seconds from start of the run
+  integer(i_def) :: mtime
+  !> Maximum number of coupling component models lfric can send the same data
+  integer(i_def) :: max_num_models
+  !> Size  of the coupling send and receive fields
+  integer(i_def) :: icpl_size
+  !> Max length of coupling field names.
+  integer(i_def) :: max_name_length
+  !> Local index for sorting data ready for sending
+  integer(i_def), allocatable :: slocal_index(:)
+contains
+  !> Initialises the object
+  procedure, public :: initialise_cpl_external_field
+  !> Copy data from the LFRic field and pass to the coupler
+  procedure, public :: copy_from_lfric => cpl_field_send
+  !> Copy data from the coupler into the LFRic field
+  procedure, public :: copy_to_lfric => cpl_field_receive
+  !> Sets the time for a coupling operation
+  procedure, public :: set_coupling_time
+!  procedure, public :: initialise_send_fields
+!  procedure, public :: set_r_sea_ice_frac_raw
+end type  coupler_external_field_type
+
+  contains
+
+  !> @brief Initialises the external field used for coupling
+  !> @param [in] lfric_field_ptr Pointer to an lfric field
+  !> @param [in] max_num_models  Max no.components lfric can send same data
+  !> @param [in] icpl_size       Length of the coupling data being sent
+  !> @param [in] max_name_length Max length of coupling field names
+  !> @param [in] slocal_index    Index to sort data for sending
+  subroutine initialise_cpl_external_field( self, lfric_field_ptr, &
+                                            max_num_models, icpl_size, &
+                                            max_name_length, slocal_index )
+  implicit none
+
+  class(coupler_external_field_type), intent(inout) :: self
+  type(field_type), pointer,          intent(in)    :: lfric_field_ptr
+  integer(i_def),                     intent(in)    :: max_num_models
+  integer(i_def),                     intent(in)    :: icpl_size
+  integer(i_def),                     intent(in)    :: max_name_length
+  integer(i_def),                     intent(in)    :: slocal_index(:)
+
+
+  call self%abstract_external_field_initialiser(lfric_field_ptr)
+
+  self%mtime = 0
+  self%max_num_models = max_num_models
+  self%icpl_size = icpl_size
+  self%max_name_length = max_name_length
+  allocate(self%slocal_index, source=slocal_index)
+
+  end subroutine initialise_cpl_external_field
+
+
+  !>@brief Sends field to another component
+  !>@param return_code Optional return code from the copy_from procedure
+  subroutine cpl_field_send(self, return_code)
+
+  implicit none
+
+  class(coupler_external_field_type), intent(inout) :: self
+  integer(i_def), intent(out), optional :: return_code
+
+#ifdef MCT
+  ! Field from which the data will be sent
+  type(field_type), pointer                    :: sfield => null()
+  ! Proxy of the field being sent
+  type( field_proxy_type )                     :: sfield_proxy
+  ! Processed and sorted data ready to be passed to Oasis
+  real(r_def)                                  :: sdata(self%icpl_size)
+  ! Function space needed to get information on the field dimensions
+  type(function_space_type), pointer           :: sfield_space => null()
+  ! Oasis id for variable or data level
+  integer(i_def)                               :: svar_id
+  ! Name of the field being sent
+  character(len=self%max_name_length)          :: sname
+  ! Returned OASIS error code
+  integer(i_def)                               :: ierror
+  ! Returned OASIS info code
+  integer(i_def)                               :: kinfo
+  ! Looping index over the field data
+  integer(i_def)                               :: i
+  ! Looping index over the multi-data levels
+  integer(i_def)                               :: k
+  ! Number of multi-data levels
+  integer(i_def)                               :: ndata
+  ! Number of coupling components the data will be sent to
+  integer(i_def)                               :: ncpl
+  ! Coupling frequency of each model
+  integer(i_def)                               :: cpl_freqs(self%max_num_models)
+  ! Reciprolcal of Number of steps between coupling
+  real(r_def)                                  :: r_cpl_step
+  ! Min,max used for printing to screen
+  real(r_def)                                  :: min_value, max_value
+  !Ice sheet mass scalar
+  real(r_def)                                  :: imass
+  !rank number of current PE
+  integer(i_def)                               :: local_rank
+
+
+  sfield       => self%get_lfric_field_ptr()
+  sname        =  trim(adjustl(sfield%get_name()))
+  sfield_space => sfield%get_function_space()
+  ndata        =  sfield_space%get_ndata()
+
+  do k = 1, ndata
+    svar_id = sfield%get_cpl_id(k)
+    if (svar_id /= imdi) then
+
+      ! Send the data to the coupler
+      call oasis_put_inquire(svar_id, self%mtime, ierror)
+      if (ierror == oasis_sent .or. ierror == oasis_sentout) then
+        call oasis_get_ncpl(svar_id, ncpl, kinfo)
+
+        ! Get the coupling frequency
+        call oasis_get_freqs(svar_id, oasis_out, ncpl, &
+                             cpl_freqs(1:ncpl), kinfo)
+        if (ncpl > self%max_num_models) then
+          write(log_scratch_space, '(3A)')                          &
+                     "PROBLEM cpl_field_send: field ",trim(sname), &
+                     " trying to send to more than the max number of components"
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        endif
+
+        ! Can handle only cases when coupling frequency is the same for all
+        ! components
+        if (maxval(cpl_freqs(1:ncpl)) == minval(cpl_freqs(1:ncpl))) then
+
+          ! Calculate reciprocal of number of timesteps over which the
+          ! accumulations have been calculated. On the first exchange
+          ! following a restart the averaging has already been done so
+          ! in that case set to 1.0
+          if (self%is_first_step) then
+            r_cpl_step = 1.0_r_def
+          else
+            r_cpl_step = 1.0_r_def/(real(cpl_freqs(1), r_def) / self%dt)
+          endif
+
+          ! Get just the category we are sending
+          ! and divide by cpl_step. To maintain bit comparison after checkpoints
+          ! this must be done:
+          !  - before the division by ice fraction
+          !  - as a multiplication by the reciprocal of cpl_step.
+          call invoke(multi_extract_kernel_type(sfield_onecat, &
+                                                sfield, k, 1_i_def), &
+                      inc_a_times_X( r_cpl_step, sfield_onecat ))
+
+          ! Some fields will need to be divided by ice fraction that has
+          ! just been passed from the sea ice model before being coupled
+          ! (time travelling sea ice)
+          if ( sname == 'lf_topmelt' .OR.     &
+               sname == 'lf_iceheatflux' .OR. &
+               sname == 'lf_sublimation' .OR. &
+               sname == 'lf_pensolar' ) then
+            call invoke(multi_extract_kernel_type(r_sea_ice_frac_onecat,           &
+                                                  r_sea_ice_frac_raw, k, 1_i_def), &
+                        inc_X_times_Y(sfield_onecat, r_sea_ice_frac_onecat))
+          endif
+
+          ! Greenland and Antarctic icesheet mass fields need to be
+          ! calculated specially and sent as single value array
+          if(( trim(sname) == 'lf_greenland') .OR. &
+               trim(sname) == 'lf_antarctic') then
+             call ice_sheet_mass(sfield, snow_mass_on_tiles_ptr, &
+                                 tile_fraction_ptr, imass)
+             !oasis_put expects an array
+             sdata(1:1)=imass
+             !0D coupling so only pass from pe0
+             local_rank  = global_mpi%get_comm_rank()
+             if(local_rank == 0) then
+                call oasis_put(svar_id, self%mtime, sdata(1:1), ierror)
+
+                write(log_scratch_space, '(3A, 2E12.3)' ) &
+                                   "cpl_field_send: field ", &
+                                   trim(sname), &
+                                   " sent with value = ", imass
+                call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+             endif
+          else
+
+
+             ! We need the proxy data to proceed beyond this point
+             sfield_proxy = sfield_onecat%get_proxy()
+
+             ! Reorder the LFRic data into the outgoing Oasis send buffer
+             do i = 1, self%icpl_size
+               sdata(i) = sfield_proxy%data(self%slocal_index(i))
+             enddo
+
+             min_value = minval(sdata)
+             max_value = maxval(sdata)
+
+             call oasis_put(svar_id, self%mtime, sdata(:), ierror)
+             write(log_scratch_space, '(3A, 2E12.3)' ) "cpl_field_send: field ", &
+                         trim(sname)," sent with min,max = ",min_value, max_value
+             call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+          endif
+
+        else
+          write(log_scratch_space, '(3A)' ) "PROBLEM cpl_field_send: field ", &
+                 trim(sname), " different frequencies for different components"
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        endif
+      else
+        write(log_scratch_space, '(3A)' ) "cpl_field_send: field ", &
+                       trim(sname), " NOT exchanged on this timestep"
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      endif
+    else
+      write(log_scratch_space, '(3A)' ) "PROBLEM cpl_field_send: field ", &
+                                        trim(sname), " cpl_id NOT set"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    endif
+  enddo
+
+  ! If coupling was successful then reset field to 0 ready to start
+  ! accumulation for the next exchange
+  if (ierror == oasis_sent .or. ierror == oasis_sentout) then
+    if((sname /= 'lf_greenland') .AND. (sname /= 'lf_antarctic')) &
+       call invoke(setval_c(sfield, 0.0_r_def))
+    acc_step = 0.0_r_def
+  endif
+
+  sfield_space => null()
+
+#else
+  write(log_scratch_space, '(A)' ) &
+                 "cpl_field_send: to use OASIS cpp directive MCT must be set"
+  call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+#endif
+
+  end subroutine cpl_field_send
+
+
+  !> @brief Receives field from another coupled component into an LFRic field
+  !>@param return_code The return code from the copy_to procedure
+  !>
+  !
+  subroutine cpl_field_receive( self, return_code )
+  implicit none
+
+  class(coupler_external_field_type), intent(inout) :: self
+  integer(i_def), intent(out), optional :: return_code
+
+#ifdef MCT
+  ! Field into which the data will be received
+  type(field_type), pointer                    :: rfield => null()
+  ! Proxy of the receiving field
+  type(field_proxy_type)                       :: rfield_proxy
+  ! Data received from OASIS
+  real(r_def)                                  :: rdata(self%icpl_size)
+  ! Oasis id for varialble or data level
+  integer(i_def)                               :: rvar_id
+  ! Name of the variable being received
+  character(len=self%max_name_length)          :: rname
+  ! Returned OASIS error code
+  integer(i_def)                               :: ierror
+  ! Looping index over the field data
+  integer(i_def)                               :: i
+  ! Looping index over the multi-data levels
+  integer(i_def)                               :: k
+  ! Number of multi-data levels
+  integer(i_def)                               :: ndata
+
+  rfield       => self%get_lfric_field_ptr()
+  rname        =  trim(adjustl(rfield%get_name()))
+  rfield_proxy =  rfield%get_proxy()
+  ndata        =  rfield_proxy%vspace%get_ndata()
+
+  return_code = 0
+
+  do k = 1, ndata
+    rvar_id = rfield%get_cpl_id(k)
+    if (rvar_id /= imdi) then
+      call oasis_get(rvar_id, self%mtime, rdata(:), ierror)
+      if (ierror == oasis_recvd .or. ierror == oasis_recvout) then
+        do i = 1, self%icpl_size
+          rfield_proxy%data((self%slocal_index(i)-1)*ndata+k) = rdata(i)
+        enddo
+        return_code = 1
+        write(log_scratch_space, '(3A)' ) "cpl_field_receive: field ", &
+                           trim(rname), " received"
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      else
+        write(log_scratch_space, '(3A)' ) "cpl_field_receive: field ", &
+                           trim(rname), " NOT exchanged on this timestep"
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      endif
+    else
+      write(log_scratch_space, '(3A)' ) "PROBLEM cpl_field_receive: field ", &
+                                         trim(rname), " cpl_id NOT set"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    endif
+  enddo
+
+  call rfield_proxy%set_dirty()
+#else
+  return_code = 0
+  write(log_scratch_space, '(A)' ) &
+               "cpl_field_receive: to use OASIS cpp directive MCT must be set"
+  call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+#endif
+  end subroutine cpl_field_receive
+
+
+  !> @brief Sets the time for a coupling operation
+  !> @param [in] model_clock  Time within the model.
+  !
+  subroutine set_coupling_time(self, model_clock)
+  class(coupler_external_field_type), intent(inout) :: self
+  class(model_clock_type),            intent(in)    :: model_clock
+
+  ! Set flag for if this coupling time is the first after a restart
+  self%is_first_step = .false.
+  if (model_clock%get_step() == model_clock%get_first_step()) &
+                                         self%is_first_step = .true.
+  ! Store timestep length
+  self%dt = real(model_clock%get_seconds_per_step(), r_def)
+  ! Store time of coupling in seconds from start of the run
+  self%mtime = &
+       int( model_clock%seconds_from_steps(model_clock%get_step())          &
+            - model_clock%seconds_from_steps(model_clock%get_first_step()), &
+            i_def)
+
+  end subroutine set_coupling_time
+
+  !> @brief Initialises fields used in this module
+  !> @param[in] fld_cpld_fs 2D function space
+  !> @param[in] sice_fs     Sea-ice function space
+  subroutine initialise_send_fields(fld_cpld_fs, sice_fs)
+
+  implicit none
+
+  type(function_space_type), intent(in), pointer :: fld_cpld_fs
+  type(function_space_type), intent(in), pointer :: sice_fs
+
+  call r_sea_ice_frac_raw%initialise( vector_space = sice_fs,        &
+                                      name = "r_sea_ice_frac_raw" )
+  call r_sea_ice_frac_onecat%initialise( vector_space = fld_cpld_fs, &
+                                      name = "r_sea_ice_frac_onecat" )
+  call sfield_onecat%initialise( vector_space = fld_cpld_fs,         &
+                                      name = "sfield_onecat" )
+
+  end subroutine initialise_send_fields
+
+  !> @brief Saves the reciprocal of the sea-ice fraction
+  !> @param[in] sea_ice_fraction Sea ice fraction
+  subroutine set_r_sea_ice_frac_raw(sea_ice_fraction_ptr)
+
+  implicit none
+
+  type( field_type ), intent(in), pointer :: sea_ice_fraction_ptr
+
+  type(function_space_type), pointer :: multidata_fs => null()
+  integer(kind=i_def)                :: ndata
+
+  multidata_fs => sea_ice_fraction_ptr%get_function_space()
+  ndata = multidata_fs%get_ndata()
+  call invoke(set_reciprocal_type(r_sea_ice_frac_raw, sea_ice_fraction_ptr, ndata))
+
+  nullify(multidata_fs)
+
+  end subroutine set_r_sea_ice_frac_raw
+
+  !> @brief Sets up pointers to snow_mass_on_tiles and tile_frac
+  !> @param[in] depository Field collection type containing the fields
+  subroutine set_snow_mass_fields(depository)
+
+  implicit none
+
+  type( field_collection_type ), intent(in)    :: depository
+
+  ! Get snow_depth field into fld_ptr1
+  call depository%get_field("tile_snow_mass", snow_mass_on_tiles_ptr)
+
+  ! Get tile fractions
+  call depository%get_field('tile_fraction', tile_fraction_ptr)
+
+  end subroutine set_snow_mass_fields
+
+end module coupler_external_field_mod

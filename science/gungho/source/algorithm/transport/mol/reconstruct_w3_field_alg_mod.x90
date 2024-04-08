@@ -1,0 +1,794 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Reconstruct a W3 field at W2 points for use in the transport scheme.
+!> @todo There are number of workarounds in this algorithm for aspects which
+!!       aren't yet supported by PSyclone/LFRic:
+!!       1. Issue #868 Multidata fields are not natively supported in PSyclone.
+!!                     Currently we treat these as normal fields but need to
+!!                     additionally pass in ndata_h or ndata_v to the kernels
+!!                     as extra integer arguments.
+!!       2. Issue #1246 Region stencils require both the global maximum size of
+!!                      the stencil and local column size of the stencil.
+!!                      PSyclone currently only passes in the local size and so
+!!                      until this is resolved we also pass in the global maximum
+!!                      size as an integer argument.
+module reconstruct_w3_field_alg_mod
+
+  use check_configuration_mod,        only: check_any_horizontal_method_mol, &
+                                            check_any_vertical_method_mol,   &
+                                            get_required_stencil_depth
+  use combine_multidata_field_kernel_mod, &
+                                      only: combine_multidata_field_kernel_type
+  use constants_mod,                  only: r_def, i_def, l_def, str_def, &
+                                            radians_to_degrees
+  use domain_mod,                     only: domain_type
+  use geometric_constants_mod,        only: get_coordinates,          &
+                                            get_extended_coordinates, &
+                                            get_panel_id,             &
+                                            get_height
+  use fem_constants_mod,              only: get_mass_matrix_diagonal
+  use r_tran_field_mod,               only: r_tran_field_type
+  use field_mod,                      only: field_type
+  use finite_element_config_mod,      only: element_order,          &
+                                            coord_system,           &
+                                            coord_system_xyz
+  use fs_continuity_mod,              only: W2, W2h, W2v, W3, Wtheta
+  use function_space_collection_mod,  only: function_space_collection
+  use function_space_mod,             only: function_space_type
+  use inventory_by_mesh_mod,          only: inventory_by_mesh_type
+  use poly1d_reconstruction_kernel_mod, &
+                                      only: poly1d_reconstruction_kernel_type
+  use poly1d_vert_w3_reconstruction_kernel_mod, &
+                                      only: poly1d_vert_w3_reconstruction_kernel_type, &
+                                            poly1d_vert_w3_reconstruction_init,        &
+                                            poly1d_vert_w3_reconstruction_final
+  use poly1d_flux_coeffs_kernel_mod,  only: poly1d_flux_coeffs_kernel_type
+  use poly1d_vert_flux_coeffs_kernel_mod, &
+                                      only: poly1d_vert_flux_coeffs_kernel_type
+  use poly2d_reconstruction_kernel_mod, &
+                                      only: poly2d_reconstruction_kernel_type
+  use poly2d_flux_coeffs_kernel_mod,  only: poly2d_flux_coeffs_kernel_type
+  use quadrature_rule_gaussian_mod,   only: quadrature_rule_gaussian_type
+  use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+  use quadrature_face_mod,            only: quadrature_face_type
+  use transport_config_mod,           only: operators,            &
+                                            fv_horizontal_order,  &
+                                            fv_vertical_order,    &
+                                            operators_fv,         &
+                                            oned_reconstruction,  &
+                                            extended_mesh
+  use runtime_tools_mod,              only: find_mesh_index,   &
+                                            check_initialised_field
+  use log_mod,                        only: log_event,         &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO
+  use mesh_collection_mod,            only: mesh_collection
+  use mesh_mod,                       only: mesh_type
+  use extrusion_mod,                  only: TWOD
+  use transport_enumerated_types_mod, only: direction_v,                  &
+                                            direction_h,                  &
+                                            direction_3d,                 &
+                                            horizontal_monotone_none,     &
+                                            horizontal_monotone_koren,    &
+                                            vertical_monotone_none,       &
+                                            vertical_monotone_koren
+  use transport_metadata_mod,         only: transport_metadata_type
+  use polyv_w3_koren_kernel_mod,      only: polyv_w3_koren_kernel_type
+  use polyh_w3_koren_kernel_mod,      only: polyh_w3_koren_kernel_type
+
+  use io_config_mod,                  only: subroutine_timers
+  use timer_mod,                      only: timer
+  use transport_runtime_collection_mod, &
+                                      only: get_transport_runtime
+  use transport_runtime_alg_mod,      only: transport_runtime_type
+  use field_minmax_alg_mod,           only: get_field_minmax
+  implicit none
+
+  private
+
+  logical(kind=l_def) :: variables_allocated = .false.
+
+  type(inventory_by_mesh_type) :: flux_stencil_extent_inventory
+  type(inventory_by_mesh_type) :: flux_2d_stencil_size_inventory
+  type(inventory_by_mesh_type) :: ndata_h_inventory
+  type(inventory_by_mesh_type) :: ndata_v_inventory
+  type(inventory_by_mesh_type) :: reversible_ndata_v_inventory
+  type(inventory_by_mesh_type) :: flux_coeffs_inventory
+  type(inventory_by_mesh_type) :: vert_flux_coeffs_inventory
+  type(inventory_by_mesh_type) :: reversible_vert_flux_coeffs_inventory
+  public :: reconstruct_w3_field_alg_set_num_meshes
+  public :: reconstruct_w3_field_alg_init
+  public :: reconstruct_w3_field_alg_final
+  public :: reconstruct_w3_field_alg
+  public :: hori_w3_reconstruct_alg
+  public :: vert_w3_reconstruct_alg
+  public :: get_flux_stencil_extent
+  public :: get_flux_2d_stencil_size
+  public :: get_flux_ndata_h
+  public :: get_flux_ndata_v
+  public :: get_reversible_flux_ndata_v
+  public :: get_flux_coeffs
+  public :: get_vert_flux_coeffs
+  public :: get_reversible_vert_flux_coeffs
+
+contains
+
+  !=============================================================================
+  !> @brief Allocates the lists of flux coefficients.
+  !> @param[in] number_of_meshes Number of meshes to have coefficients on.
+  subroutine reconstruct_w3_field_alg_set_num_meshes( number_of_meshes )
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: number_of_meshes
+
+    ! Allocate the arrays of variables
+    if (.not. variables_allocated) then
+      call flux_stencil_extent_inventory%initialise(name="flux_stencil_extent", table_len=number_of_meshes)
+      call flux_2d_stencil_size_inventory%initialise(name="flux_2d_stencil_size", table_len=number_of_meshes)
+      call flux_coeffs_inventory%initialise(name="hori_flux_coeffs", table_len=number_of_meshes)
+      call vert_flux_coeffs_inventory%initialise(name="vert_flux_coeffs", table_len=number_of_meshes)
+      call reversible_vert_flux_coeffs_inventory%initialise(name="rev_vert_flux_coeffs", table_len=number_of_meshes)
+      call ndata_h_inventory%initialise(name="flux_ndata_h", table_len=number_of_meshes)
+      call ndata_v_inventory%initialise(name="flux_ndata_v", table_len=number_of_meshes)
+      call reversible_ndata_v_inventory%initialise(name="flux_rev_ndata_v", table_len=number_of_meshes)
+      variables_allocated = .true.
+    else
+      call log_event('Variables have already been allocated for ' // &
+                     'reconstruct_w3_field_alg', LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine
+
+
+  !=============================================================================
+  !> @brief Initialises the reconstruction coefficients for a single mesh.
+  !!
+  !> @details Initialises the reconstruction coefficients and other constants that can
+  !!          be pre-computed for a single mesh.
+  !!          FV aspects currently only support lowest order elements.
+  !!
+  !> @param[in] mesh   Mesh to create all fields on
+  !!
+  subroutine reconstruct_w3_field_alg_init( mesh )
+
+    use fs_continuity_mod,             only: W3
+    use function_space_collection_mod, only: function_space_collection
+    use reference_element_mod,         only: reference_element_type
+    use mesh_mod,                      only: mesh_type
+    use transport_config_mod,          only: reversible
+
+    use compute_mass_matrix_kernel_w_scalar_mod, only: compute_mass_matrix_kernel_w_scalar_type
+    use mm_diagonal_kernel_mod,            only: mm_diagonal_kernel_type
+    use operator_mod,                      only: operator_type
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    integer(kind=i_def)         :: mesh_index
+    integer(kind=i_def)         :: flux_stencil_size
+    integer(kind=i_def)         :: polynomial
+    integer(kind=i_def)         :: nfaces_re_h
+    integer(kind=i_def)         :: nfaces_re_v
+    integer(kind=i_def)         :: flux_2d_stencil_size
+    integer(kind=i_def)         :: flux_stencil_extent
+    integer(kind=i_def)         :: ndata_h
+    integer(kind=i_def)         :: ndata_v
+    type(field_type),   pointer :: chi(:) => null()
+    type(field_type),   pointer :: panel_id => null()
+    type(field_type),   pointer :: md_w3 => null()
+
+    type(quadrature_rule_gaussian_type )   :: gaussian_quadrature
+
+    type(quadrature_xyoz_type)             :: qr, qr_fem
+    type(quadrature_face_type)             :: qrf
+    type(function_space_type),     pointer :: w3_fs => null()
+    type(field_type)                       :: w3_field
+    class(reference_element_type), pointer :: reference_element => null()
+    integer(kind=i_def)                    :: face_quad_order
+    integer(kind=i_def)                    :: nqp_xy, nqp_z, nqp_xyz
+    real(kind=r_def)                       :: transform_radius, chi3_max
+    type(function_space_type),     pointer :: multidata_fs => null()
+    logical(kind=l_def)                    :: horizontal_faces
+    logical(kind=l_def)                    :: vertical_faces
+    type(field_type),              pointer :: height => null()
+    integer(kind=i_def)                    :: vertical_order, nlayers
+    type(mesh_type),               pointer :: twod_mesh => null()
+    type(r_tran_field_type),       pointer :: flux_coeffs => null()
+    type(r_tran_field_type),       pointer :: vert_flux_coeffs => null()
+    type(r_tran_field_type),       pointer :: reversible_vert_flux_coeffs => null()
+
+    type(domain_type)        :: domain
+    type(operator_type)      :: mm_w3
+    type(field_type), target :: mm3_diag
+    logical(kind=l_def)      :: any_horizontal_mol, any_vertical_mol
+
+    real(kind=r_def) :: domain_size_x, domain_size_y
+
+    reference_element => mesh%get_reference_element()
+    mesh_index = find_mesh_index(mesh%get_id())
+    any_horizontal_mol = check_any_horizontal_method_mol()
+    any_vertical_mol = check_any_vertical_method_mol()
+
+    ! Set default values of 0 for the integers to be stored for this mesh,
+    ! in case they aren't set below
+    flux_stencil_extent = 0_i_def
+    flux_2d_stencil_size = 0_i_def
+    ndata_h = 0_i_def
+    ndata_v = 0_i_def
+    nlayers = mesh%get_nlayers()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+    domain = mesh%get_domain()
+
+    if ( domain%is_lonlat() ) then
+      domain_size_x = domain%maximum_lonlat(axis=1) - domain%minimum_lonlat(axis=1)
+      domain_size_y = domain%maximum_lonlat(axis=2) - domain%minimum_lonlat(axis=2)
+
+      domain_size_x = domain_size_x * radians_to_degrees
+      domain_size_y = domain_size_y * radians_to_degrees
+    else
+      domain_size_x = domain%maximum_xy(axis=1) - domain%minimum_xy(axis=1)
+      domain_size_y = domain%maximum_xy(axis=2) - domain%minimum_xy(axis=2)
+    end if
+
+    if ( operators == operators_fv ) then
+      ! This setup is only needed for FV methods
+      if ( element_order == 0_i_def ) then
+        ! Compute stencil extents
+        flux_stencil_extent = fv_horizontal_order/2_i_def
+        !======================================================================!
+        ! Compute stencil for nonuniform polynomial fit
+        ! Initialise PSy layer arrays (this will not be needed when
+        ! multi-dimensional field arrays are supported)
+        ! This needs some temporary fields for computing undf in the PSy layer
+        w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
+        call w3_field%initialise( vector_space = w3_fs )
+
+        ! Get topology information from the reference element
+        ! Number of horizontal neighbours
+        nfaces_re_h = reference_element%get_number_horizontal_faces()
+        ! Number of vertical neighbours
+        nfaces_re_v = reference_element%get_number_vertical_faces()
+
+        if ( oned_reconstruction ) then
+          flux_stencil_size = fv_horizontal_order + 1_i_def
+        else
+          ! Compute the maximum number of cells in the flux stencil
+          ! This occurs on a uniform mesh
+          ! (this computation is only correct for quadrilateral meshes)
+          flux_2d_stencil_size = 1_i_def
+          do polynomial = 1, fv_horizontal_order
+            if ( mod(polynomial, 2_i_def) == 0_i_def ) then
+              flux_2d_stencil_size = flux_2d_stencil_size + nfaces_re_h
+            else
+              flux_2d_stencil_size = flux_2d_stencil_size + nfaces_re_h*polynomial
+            end if
+          end do
+          flux_stencil_size = flux_2d_stencil_size
+        end if
+
+        chi => get_coordinates(mesh%get_id())
+        panel_id => get_panel_id(mesh%get_id())
+
+        if ( coord_system == coord_system_xyz ) then
+          transform_radius = 0.0_r_def
+        else
+          ! Compute the smallest surface height of chi(3)
+          ! (this is only needed for spherically-based coordinates
+          ! Transform radius is minimum height + 1
+          call get_field_minmax( chi(3), transform_radius, chi3_max )
+          transform_radius = 1.0_r_def + abs(transform_radius)
+        end if
+
+        nqp_xyz = fv_horizontal_order + 1_i_def
+        qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
+        if ( oned_reconstruction ) then
+          face_quad_order = 1_i_def
+        else
+          face_quad_order = fv_horizontal_order + 1_i_def
+        end if
+        ! Quadrature rule on lateral faces with 1 point in the vertical
+        nqp_xy = face_quad_order
+        nqp_z  = 1
+        horizontal_faces = .true.
+        vertical_faces = .false.
+        qrf = quadrature_face_type(nqp_xy, nqp_z, horizontal_faces, vertical_faces, &
+                                   reference_element, gaussian_quadrature)
+
+        if (any_horizontal_mol) then
+          call log_event( "Gungho: computing horizontal flux coeffs", LOG_LEVEL_INFO )
+
+          md_w3 => get_mass_matrix_diagonal(W3, mesh%get_id())
+          ! Create multi-data space and field for the horizontal flux coefficients
+          ndata_h = nfaces_re_h*flux_stencil_size
+          multidata_fs => function_space_collection%get_fs( twod_mesh, element_order, W3, &
+                                                            ndata_h, ndata_first=.false. )
+          call ndata_h_inventory%add_integer(ndata_h, mesh)
+          call flux_coeffs_inventory%add_field(flux_coeffs, multidata_fs, mesh)
+
+          if ( oned_reconstruction ) then
+            if ( extended_mesh ) then
+              chi => get_extended_coordinates(mesh%get_id())
+              call mm_w3%initialise( md_w3%get_function_space(), &
+                                    md_w3%get_function_space() )
+              call mm3_diag%initialise( md_w3%get_function_space() )
+              qr_fem = quadrature_xyoz_type(3, gaussian_quadrature)
+              call invoke( name="mm_w3", &
+                          compute_mass_matrix_kernel_w_scalar_type( &
+                                mm_w3, chi, panel_id, extended_mesh, qr_fem) )
+              call invoke( setval_c(mm3_diag, 0.0_r_def), &
+                          mm_diagonal_kernel_type(mm3_diag, mm_w3) )
+              md_w3 =>  mm3_diag
+            end if
+            call invoke(poly1d_flux_coeffs_kernel_type(                          &
+                                                  flux_coeffs,                   &
+                                                  md_w3,                         &
+                                                  flux_stencil_extent,           &
+                                                  chi,                           &
+                                                  flux_stencil_extent,           &
+                                                  panel_id,                      &
+                                                  flux_stencil_extent,           &
+                                                  ndata_h,                       &
+                                                  fv_horizontal_order,           &
+                                                  transform_radius,              &
+                                                  domain_size_x,                 &
+                                                  domain_size_y,                 &
+                                                  nlayers,                       &
+                                                  qr, qrf ) )
+          else
+            call invoke(poly2d_flux_coeffs_kernel_type(                          &
+                                                  flux_coeffs,                   &
+                                                  md_w3,                         &
+                                                  flux_stencil_extent,           &
+                                                  chi,                           &
+                                                  flux_stencil_extent,           &
+                                                  panel_id,                      &
+                                                  flux_stencil_extent,           &
+                                                  ndata_h,                       &
+                                                  fv_horizontal_order,           &
+                                                  flux_2d_stencil_size,          &
+                                                  transform_radius,              &
+                                                  domain_size_x,                 &
+                                                  domain_size_y,                 &
+                                                  nlayers,                       &
+                                                  qr, qrf) )
+          end if
+        end if
+
+        ! Vertical flux coeffs
+        if (any_vertical_mol) then
+          call log_event( "Gungho: computing vertical flux coeffs", LOG_LEVEL_INFO )
+          ! Create multi-data space and field for the vertical flux coefficients
+          vertical_order = fv_vertical_order
+          ndata_v = nfaces_re_v*(vertical_order + 1_i_def)
+          call ndata_v_inventory%add_integer(ndata_v, mesh)
+          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, &
+                                                            ndata_v, ndata_first=.true. )
+          call vert_flux_coeffs_inventory%add_field( vert_flux_coeffs, multidata_fs, mesh)
+          height => get_height(Wtheta, mesh%get_id())
+          call invoke(poly1d_vert_flux_coeffs_kernel_type(                       &
+                                            vert_flux_coeffs,                    &
+                                            height,                              &
+                                            ndata_v,                             &
+                                            vertical_order,                      &
+                                            qr ) )
+          nullify(vert_flux_coeffs)
+        end if
+
+        if ( any(reversible) ) then
+          ! Compute reversible vertical coefficients
+          vertical_order = fv_vertical_order-1
+          ndata_v = vertical_order + 1_i_def
+          call reversible_ndata_v_inventory%add_integer(ndata_v, mesh)
+          multidata_fs => function_space_collection%get_fs( mesh, element_order, Wtheta, &
+                                                            ndata_v, ndata_first=.true. )
+          call reversible_vert_flux_coeffs_inventory%add_field(reversible_vert_flux_coeffs, &
+                                                               multidata_fs, mesh)
+          height => get_height(Wtheta, mesh%get_id())
+          call invoke(poly1d_vert_flux_coeffs_kernel_type(                     &
+                                            reversible_vert_flux_coeffs,       &
+                                            height,                            &
+                                            ndata_v,                           &
+                                            vertical_order,                    &
+                                            qr ) )
+          nullify(reversible_vert_flux_coeffs)
+        end if
+        !======================================================================!
+      else
+        call log_event( "Gungho: subgrid mappings needed for FV MoL with high &
+                         order elements", LOG_LEVEL_ERROR )
+      end if
+    end if
+
+    call flux_stencil_extent_inventory%add_integer(flux_stencil_extent, mesh)
+    call flux_2d_stencil_size_inventory%add_integer(flux_2d_stencil_size, mesh)
+
+    nullify( chi, panel_id, md_w3, w3_fs, reference_element, height, twod_mesh )
+
+  end subroutine reconstruct_w3_field_alg_init
+
+  !=============================================================================
+  !> @brief Finalises allocatable arrays.
+  subroutine reconstruct_w3_field_alg_final()
+
+    implicit none
+
+    call ndata_v_inventory%clear()
+    call reversible_ndata_v_inventory%clear()
+    call ndata_h_inventory%clear()
+    call vert_flux_coeffs_inventory%clear()
+    call reversible_vert_flux_coeffs_inventory%clear()
+    call flux_coeffs_inventory%clear()
+    call flux_2d_stencil_size_inventory%clear()
+    call flux_stencil_extent_inventory%clear()
+
+  end subroutine reconstruct_w3_field_alg_final
+
+  !=============================================================================
+  !> @brief Reconstruct a W3 field at W2 points.
+  !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
+  !!          desired spatial reconstruction.
+  !!          Options for this are either FE or FV reconstructions.
+  !> @param[in,out] field_new           Reconstructed field at W2 points
+  !> @param[in]     field_old           Initial W3 field
+  !> @param[in]     direction           Splitting direction (h, v, or 3d) to
+  !!                                    compute reconstruction
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine reconstruct_w3_field_alg(field_new, field_old, direction, &
+                                      transport_metadata, final_rk_stage)
+
+    implicit none
+
+    type(r_tran_field_type), target, intent(in)    :: field_old
+    type(r_tran_field_type),         intent(inout) :: field_new
+    integer(kind=i_def),             intent(in)    :: direction
+    type(transport_metadata_type),   intent(in)    :: transport_metadata
+    logical(kind=l_def),             intent(in)    :: final_rk_stage
+
+    type(mesh_type),              pointer :: mesh => null()
+    type(r_tran_field_type)               :: field_new_h, field_new_v
+    type(function_space_type),    pointer :: w3md_v_fs => null()
+    type(function_space_type),    pointer :: w3md_h_fs => null()
+
+    integer(kind=i_def), parameter :: ndata_h = 4
+    integer(kind=i_def), parameter :: ndata_v = 2
+    integer(kind=i_def), parameter :: ndata   = 6
+    logical(kind=l_def), parameter :: ndata_first = .false.
+
+    mesh => field_new%get_mesh()
+
+    select case ( direction )
+      case ( direction_3d )
+
+        w3md_h_fs => function_space_collection%get_fs( mesh, element_order, W3, &
+                                                       ndata_h, ndata_first = ndata_first )
+        w3md_v_fs => function_space_collection%get_fs( mesh, element_order, W3, &
+                                                       ndata_v, ndata_first = ndata_first )
+
+        call field_new_h%initialise( vector_space=w3md_h_fs )
+        call field_new_v%initialise( vector_space=w3md_v_fs )
+
+        ! Reconstruct W3 field separately in horizontal and vertical
+        call hori_w3_reconstruct_alg(field_new_h, field_old, &
+                                     transport_metadata)
+        call vert_w3_reconstruct_alg(field_new_v, field_old, &
+                                     transport_metadata, final_rk_stage)
+
+        ! Combine horizontal and vertical components of W3 multidata field
+        call invoke( combine_multidata_field_kernel_type(field_new, ndata, &
+                                                         field_new_h, ndata_h, &
+                                                         field_new_v, ndata_v, ndata_first) )
+        nullify( w3md_h_fs, w3md_v_fs )
+
+      case ( direction_h )
+        call hori_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata)
+      case ( direction_v )
+        call vert_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata, final_rk_stage)
+      case default
+        call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
+    end select
+
+    nullify( mesh )
+
+  end subroutine reconstruct_w3_field_alg
+
+  !> @brief Reconstructs a W3 field in the horizontal component of W2
+  !> @param[in,out] field_new           The resulting horizontal W2 field
+  !> @param[in]     field_old           The input W3 field
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  subroutine hori_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata)
+
+    implicit none
+
+    type(r_tran_field_type),       intent(inout) :: field_new
+    type(r_tran_field_type),       intent(in)    :: field_old
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    type(mesh_type),     pointer :: mesh => null()
+    integer(kind=i_def)          :: mesh_id
+    integer(kind=i_def)          :: stencil_extent
+
+    integer(kind=i_def), pointer :: flux_stencil_extent => null()
+    integer(kind=i_def), pointer :: flux_2d_stencil_size => null()
+    integer(kind=i_def), pointer :: ndata_h => null()
+    type(r_tran_field_type),    pointer :: flux_coeffs => null()
+
+    type(r_tran_field_type), target  :: remap_field, field_old_big_halo
+    type(r_tran_field_type), pointer :: field_ptr => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+
+    logical(kind=l_def) :: monotone
+    integer(kind=i_def) :: remap_depth
+
+    if ( subroutine_timers ) call timer('transport.w3_hori_recon')
+
+    mesh => field_new%get_mesh()
+    mesh_id = mesh%get_id()
+
+    ! Get extents and data sizes for this mesh
+    flux_stencil_extent => get_flux_stencil_extent(mesh_id)
+    flux_2d_stencil_size => get_flux_2d_stencil_size(mesh_id)
+    ndata_h => get_flux_ndata_h(mesh_id)
+    flux_coeffs => get_flux_coeffs(mesh_id)
+
+    ! Copy field to a large halo version
+    call field_old_big_halo%initialise( field_old%get_function_space(), &
+                                        halo_depth = get_required_stencil_depth() )
+    call invoke( setval_X( field_old_big_halo, field_old ) )
+
+    monotone = (transport_metadata%get_horizontal_monotone() == horizontal_monotone_koren)
+    if ( extended_mesh .and. (monotone .or. oned_reconstruction) ) then
+      remap_depth = int(fv_horizontal_order/2)
+      transport_runtime => get_transport_runtime(mesh)
+      call transport_runtime%remap_on_extended_mesh(                   &
+                           remap_field, field_old_big_halo,            &
+                           monotone,                                   &
+                           transport_metadata%get_enforce_min_value(), &
+                           transport_metadata%get_min_value(),         &
+                           remap_depth)
+      field_ptr => remap_field
+      nullify(transport_runtime)
+    else
+      field_ptr => field_old_big_halo
+    end if
+
+    if ( transport_metadata%get_horizontal_monotone() == horizontal_monotone_koren ) then
+      ! Compute horizontal components of mass flux with the koren scheme
+      call invoke( name="w3_koren_hor_reconstruction",           &
+              polyh_w3_koren_kernel_type( field_new,             &
+                                          field_ptr,             &
+                                          flux_stencil_extent,   &
+                                          ndata_h ) )
+
+    else if ( oned_reconstruction ) then
+      ! Use 1d flux reconstruction
+      call invoke( name="w3_1dh_reconstruction", &
+                  poly1d_reconstruction_kernel_type( field_new,             &
+                                                     field_ptr,             &
+                                                     flux_stencil_extent,   &
+                                                     flux_coeffs,           &
+                                                     ndata_h,               &
+                                                     fv_horizontal_order ) )
+    else
+      ! Use 2d flux reconstruction
+      stencil_extent = fv_horizontal_order / 2_i_def
+      call invoke( name="w3_2dh_reconstruction", &
+                  poly2d_reconstruction_kernel_type( field_new,             &
+                                                     field_old_big_halo,    &
+                                                     stencil_extent,        &
+                                                     flux_coeffs,           &
+                                                     ndata_h,               &
+                                                     flux_2d_stencil_size) )
+    end if
+
+    nullify(mesh, flux_stencil_extent, flux_2d_stencil_size, ndata_h, flux_coeffs)
+
+    if ( subroutine_timers ) call timer('transport.w3_hori_recon')
+
+  end subroutine hori_w3_reconstruct_alg
+
+  !> @brief Reconstructs a W3 field in the vertical component of W2
+  !> @param[in,out] field_new           The resulting vertical W2 field
+  !> @param[in]     field_old           The input W3 field
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine vert_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata, final_rk_stage)
+
+    implicit none
+
+    type(r_tran_field_type),       intent(inout) :: field_new
+    type(r_tran_field_type),       intent(in)    :: field_old
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    type(mesh_type),         pointer :: mesh => null()
+    integer(kind=i_def)              :: mesh_id
+    integer(kind=i_def),     pointer :: ndata_v => null()
+    type(r_tran_field_type), pointer :: vert_flux_coeffs => null()
+    type(field_type),        pointer :: height_tr => null()
+    integer(kind=i_def)              :: vertical_order
+    logical(kind=l_def)              :: logspace
+    logical(kind=l_def)              :: reversible
+    integer(kind=i_def)              :: monotonicity
+
+    if ( subroutine_timers ) call timer('transport.w3_vert_recon')
+
+    reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
+    logspace = transport_metadata%get_log_space()
+    monotonicity = transport_metadata%get_vertical_monotone()
+
+    mesh => field_new%get_mesh()
+    mesh_id = mesh%get_id()
+
+    ! Compute vertical components of mass flux
+    if ( reversible ) then
+      ndata_v => get_reversible_flux_ndata_v(mesh_id)
+      vert_flux_coeffs => get_reversible_vert_flux_coeffs(mesh_id)
+      vertical_order = fv_vertical_order - 1_i_def
+    else
+      ndata_v => get_flux_ndata_v(mesh_id)
+      vert_flux_coeffs => get_vert_flux_coeffs(mesh_id)
+      vertical_order = fv_vertical_order
+    end if
+
+    if ( monotonicity == vertical_monotone_koren ) then
+      height_tr => get_height( Wtheta, mesh%get_id() )
+      call invoke(name="w3_vert_reconstruction_koren",                         &
+                  polyv_w3_koren_kernel_type( field_new,                       &
+                                              field_old,                       &
+                                              height_tr,                       &
+                                              reversible,                      &
+                                              logspace) )
+      nullify( height_tr )
+    else
+      ! Compute offset stencil used for vertical reconstruction
+      call poly1d_vert_w3_reconstruction_init(vertical_order, &
+                                              mesh%get_nlayers())
+      call invoke(name="w3_1dv_reconstruction",                          &
+        poly1d_vert_w3_reconstruction_kernel_type( field_new, field_old, &
+                                                   vert_flux_coeffs,     &
+                                                   ndata_v,              &
+                                                   vertical_order,       &
+                                                   logspace) )
+      ! Free up offset stencil
+      call poly1d_vert_w3_reconstruction_final()
+
+    end if
+
+    nullify(mesh, ndata_v, vert_flux_coeffs)
+    if ( subroutine_timers ) call timer('transport.w3_vert_recon')
+
+  end subroutine vert_w3_reconstruct_alg
+
+
+  !> @brief Returns a pointer to the flux stencil extent
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The flux stencil extent
+  function get_flux_stencil_extent(mesh_id) result(flux_stencil_extent)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: flux_stencil_extent
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call flux_stencil_extent_inventory%get_integer(mesh, flux_stencil_extent)
+    nullify(mesh)
+
+  end function get_flux_stencil_extent
+
+  !> @brief Returns a pointer to the flux 2D stencil size
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The flux 2D stencil size
+  function get_flux_2d_stencil_size(mesh_id) result(flux_stencil_size)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: flux_stencil_size
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call flux_2d_stencil_size_inventory%get_integer(mesh, flux_stencil_size)
+    nullify(mesh)
+
+  end function get_flux_2d_stencil_size
+
+  !> @brief Returns a pointer to the number of horizontal data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_h integer
+  function get_flux_ndata_h(mesh_id) result(ndata_h)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: ndata_h
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call ndata_h_inventory%get_integer(mesh, ndata_h)
+    nullify(mesh)
+
+  end function get_flux_ndata_h
+
+  !> @brief Returns a pointer to the number of vertical data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_v integer
+  function get_flux_ndata_v(mesh_id) result(ndata_v)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: ndata_v
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call ndata_v_inventory%get_integer(mesh, ndata_v)
+    nullify(mesh)
+
+  end function get_flux_ndata_v
+
+  !> @brief Returns a pointer to the number of reversible vertical data points
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The ndata_v integer
+  function get_reversible_flux_ndata_v(mesh_id) result(ndata_v)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    integer(kind=i_def),    pointer :: ndata_v
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call reversible_ndata_v_inventory%get_integer(mesh, ndata_v)
+    nullify(mesh)
+
+  end function get_reversible_flux_ndata_v
+
+  !> @brief Returns a pointer to the flux coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The flux coefficients field
+  function get_flux_coeffs(mesh_id) result(flux_coeffs)
+    implicit none
+    integer(kind=i_def),  intent(in) :: mesh_id
+    type(mesh_type),         pointer :: mesh => null()
+    type(r_tran_field_type), pointer :: flux_coeffs
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call flux_coeffs_inventory%get_field(mesh, flux_coeffs)
+    nullify(mesh)
+
+  end function get_flux_coeffs
+
+  !> @brief Returns a pointer to the vertical flux coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical flux coefficient field
+  function get_vert_flux_coeffs(mesh_id) result(vert_flux_coeffs)
+    implicit none
+    integer(kind=i_def),  intent(in) :: mesh_id
+    type(mesh_type),         pointer :: mesh => null()
+    type(r_tran_field_type), pointer :: vert_flux_coeffs
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call vert_flux_coeffs_inventory%get_field(mesh, vert_flux_coeffs)
+    nullify(mesh)
+
+  end function get_vert_flux_coeffs
+
+  !> @brief Returns a pointer to the reversible vertical flux coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical flux coefficient field
+  function get_reversible_vert_flux_coeffs(mesh_id) result(vert_flux_coeffs)
+    implicit none
+    integer(kind=i_def),  intent(in) :: mesh_id
+    type(mesh_type),         pointer :: mesh => null()
+    type(r_tran_field_type), pointer :: vert_flux_coeffs
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call reversible_vert_flux_coeffs_inventory%get_field(mesh, vert_flux_coeffs)
+    nullify(mesh)
+
+  end function get_reversible_vert_flux_coeffs
+
+end module reconstruct_w3_field_alg_mod

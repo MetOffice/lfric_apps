@@ -1,0 +1,123 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the horizontal cubic semi-Lagrangian kernel
+
+module horizontal_cubic_sl_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+
+  implicit none
+
+contains
+
+  !------------------------------------------------------------------
+
+  @Test
+  subroutine horizontal_cubic_sl_kernel_test( )
+
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use pFUnit_Mod
+    use horizontal_cubic_sl_kernel_mod, only: horizontal_cubic_sl_code
+    use transport_enumerated_types_mod, only: horizontal_monotone_none
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
+    real(kind=r_tran)            :: answer, use_tol
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_wf = 1
+    integer(kind=i_def), parameter :: ndf_w2 = 4
+    integer(kind=i_def), parameter :: stencil_size = 9
+    integer(kind=i_def), parameter :: stencil_size_x = stencil_size
+    integer(kind=i_def), parameter :: stencil_size_y = stencil_size
+    integer(kind=i_def), parameter :: extent_size = (stencil_size-1)/4
+    integer(kind=i_def), parameter :: undf_w2  = ndf_w2*nlayers
+    integer(kind=i_def), parameter :: undf_wf  = ndf_wf*nlayers
+    integer(kind=i_def), parameter :: undf_wfs = ndf_wf*nlayers*stencil_size
+
+    integer(kind=i_def), dimension(ndf_wf) :: map_wf
+    integer(kind=i_def), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), dimension(ndf_wf,stencil_size_x) :: stencil_map_x
+    integer(kind=i_def), dimension(ndf_wf,stencil_size_y) :: stencil_map_y
+
+    real(kind=r_tran),   dimension(undf_wf)  :: increment_x
+    real(kind=r_tran),   dimension(undf_wf)  :: increment_y
+    real(kind=r_tran),   dimension(undf_wfs) :: field_x
+    real(kind=r_tran),   dimension(undf_wfs) :: field_y
+    real(kind=r_tran),   dimension(undf_w2)  :: dep_pts
+
+    real(kind=r_tran)   :: dt
+    integer(kind=i_def) :: monotone
+
+    ! Stencil map has form
+    !         | 9 |
+    !         | 8 |
+    ! | 3 | 2 | 1 | 6 | 7 |
+    !         | 4 |
+    !         | 5 |
+
+    ! Set up maps
+    stencil_map_x(1,:) = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9 /)
+    stencil_map_y(1,:) = (/ 1, 2, 3, 4, 5, 6, 7, 8, 9 /)
+    map_w2(:) = (/ 1, 2, 3, 4 /)
+    map_wf(1) = 1
+
+    ! Set no monotonicity
+    monotone = horizontal_monotone_none
+
+    ! Set up field y to vary and field x to be constant
+    field_y(:) = (/ 27.0_r_tran, 8.0_r_tran, 1.0_r_tran, &
+                    1.0_r_tran, 1.0_r_tran, 8.0_r_tran, &
+                    1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
+    field_x(:) = (/ 4.0_r_tran, 4.0_r_tran, 4.0_r_tran, &
+                    4.0_r_tran, 4.0_r_tran, 4.0_r_tran, &
+                    4.0_r_tran, 4.0_r_tran, 4.0_r_tran /)
+
+    ! Initialise increment to zero before each test
+    increment_x = 0.0_r_tran
+    increment_y = 0.0_r_tran
+
+    ! Test with fractional departure distance on one panel
+    dep_pts(:) = 0.5_r_tran
+    dt = 1.0_r_tran
+
+    call horizontal_cubic_sl_code( nlayers,        &
+                                   increment_x,    &
+                                   increment_y,    &
+                                   field_x,        &
+                                   stencil_size_x, &
+                                   stencil_map_x,  &
+                                   field_y,        &
+                                   stencil_size_y, &
+                                   stencil_map_y,  &
+                                   dep_pts,        &
+                                   monotone,       &
+                                   extent_size,    &
+                                   dt,             &
+                                   ndf_wf,         &
+                                   undf_wfs,       &
+                                   map_wf,         &
+                                   ndf_w2,         &
+                                   undf_w2,        &
+                                   map_w2 )
+
+    ! Get correct tolerance
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 1.0e-6_r_tran
+    end if
+
+    ! Test increment
+    answer = 7.875_r_tran
+    @assertEqual(answer, increment_x, use_tol)
+    answer = 0.0_r_tran
+    @assertEqual(answer, increment_y, use_tol)
+
+  end subroutine horizontal_cubic_sl_kernel_test
+
+end module horizontal_cubic_sl_kernel_mod_test

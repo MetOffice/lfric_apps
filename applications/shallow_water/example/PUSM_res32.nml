@@ -1,0 +1,20 @@
+&mesh
+  mesh_filename     = 'PUSM_res32.nc'
+  n_meshes          = 1
+  mesh_names        = 'dynamics'
+  partition_mesh    = .false.
+  rotate_mesh       = .false.
+  geometry          = 'planar'
+  topology          = 'periodic'
+  coord_sys         = 'xyz'
+/
+
+&planar_mesh
+  edge_cells_x    = 32
+  edge_cells_y    = 32
+  domain_x        = 1.0
+  domain_y        = 1.0
+  periodic_x      = .true.
+  periodic_y      = .true.
+  create_lbc_mesh = .false.
+/

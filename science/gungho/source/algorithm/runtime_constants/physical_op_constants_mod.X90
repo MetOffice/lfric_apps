@@ -1,0 +1,833 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides physical operators that are constants throughout a run.
+!>
+!> @details This module controls the set-up of various physical operators
+!>          and fields, that do not change during a run. These objects are
+!>          accessed from this module through appropriate 'get' functions.
+!-------------------------------------------------------------------------------
+
+module physical_op_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                      only: i_def, r_def, l_def
+  use field_mod,                          only: field_type
+  use field_parent_mod,                   only: write_interface
+  use field_collection_mod,               only: field_collection_type
+  use function_space_mod,                 only: function_space_type
+  use function_space_collection_mod,      only: function_space_collection
+  use fs_continuity_mod,                  only: W1, W2, W2broken, W3, Wtheta
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use io_config_mod,                      only: subroutine_timers
+  use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
+                                                LOG_LEVEL_ERROR
+  use lfric_xios_write_mod,               only: write_field_generic
+  use mesh_mod,                           only: mesh_type
+  use mesh_collection_mod,                only: mesh_collection
+  use model_clock_mod,                    only: model_clock_type
+  use extrusion_mod,                      only: TWOD
+  use extrusion_config_mod,               only: domain_top
+
+  use operator_mod,                       only: operator_type
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use timer_mod,                          only: timer
+
+  ! Configuration
+  use finite_element_config_mod,          only: element_order,    &
+                                                nqp_exact,        &
+                                                rehabilitate
+  use formulation_config_mod,             only: rotating, use_physics
+  use mixing_config_mod,                  only: smagorinsky
+  use physics_config_mod,                 only: sample_physics_winds
+  use planet_config_mod,                  only: radius, gravity, &
+                                                scaled_omega, scaled_radius
+  use base_mesh_config_mod,               only: f_lat, geometry, geometry_spherical
+
+  ! Other algorithms
+  use geometric_constants_mod,            only: get_dA_at_w2, get_height, &
+                                                get_latitude
+  use fem_constants_mod,                  only: get_detj_at_w2, get_qr
+  use runtime_tools_mod,                  only: primary_mesh_label
+
+  ! PsyKAl PSYClone kernels
+  use calc_delta_at_wtheta_kernel_mod,    only: calc_delta_at_wtheta_kernel_type
+  use calc_dz_centre_kernel_mod,          only: calc_dz_centre_kernel_type
+  use calc_dz_face_kernel_mod,            only: calc_dz_face_kernel_type
+  use calc_da_msl_proj_kernel_mod,        only: calc_da_msl_proj_kernel_type
+  use compute_coriolis_matrix_kernel_mod, only: compute_coriolis_matrix_kernel_type
+  use compute_geopotential_kernel_mod,    only: compute_geopotential_kernel_type
+  use compute_map_u_operators_kernel_mod, only: compute_map_u_operators_kernel_type
+  use compute_sample_u_ops_kernel_mod,    only: compute_sample_u_ops_kernel_type
+
+#ifdef UM_PHYSICS
+  use project_ws_to_w1_operator_kernel_mod,  &
+                                          only: project_ws_to_w1_operator_kernel_type
+  use get_Pnm_star_kernel_mod,            only: get_Pnm_star_kernel_type
+  use stochastic_physics_config_mod,      only: use_spt, stph_spectral_dim, &
+                                                stph_n_max, use_skeb, &
+                                                skeb_rot_du, skeb_rot_du_fe
+#endif
+
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  type(inventory_by_mesh_type) :: geopotential_inventory
+  type(inventory_by_mesh_type) :: delta_at_wtheta_inventory
+  type(inventory_by_mesh_type) :: dx_at_w2_inventory
+  type(inventory_by_mesh_type) :: dtrdz_fd2_inventory
+  type(inventory_by_mesh_type) :: dtrdz_wth_inventory
+  type(inventory_by_mesh_type) :: rdz_fd1_inventory
+  type(inventory_by_mesh_type) :: rdz_w3_inventory
+  type(inventory_by_mesh_type) :: dz_at_wtheta_inventory
+  type(inventory_by_mesh_type) :: max_diff_wtheta_inventory
+  type(inventory_by_mesh_type) :: dA_msl_proj_inventory
+#ifdef UM_PHYSICS
+  type(inventory_by_mesh_type) :: Pnm_star_inventory
+  ! Projections from W3 to W1
+  type(inventory_by_mesh_type) :: project_lon_dot_to_w1_inventory
+  type(inventory_by_mesh_type) :: project_lat_dot_to_w1_inventory
+  type(inventory_by_mesh_type) :: project_r_dot_to_w1_inventory
+#endif
+
+  type(inventory_by_mesh_type) :: coriolis_inventory
+  type(inventory_by_mesh_type) :: u_lon_map_inventory
+  type(inventory_by_mesh_type) :: u_lat_map_inventory
+  type(inventory_by_mesh_type) :: u_up_map_inventory
+  type(inventory_by_mesh_type) :: u_lon_sample_inventory
+  type(inventory_by_mesh_type) :: u_lat_sample_inventory
+  type(inventory_by_mesh_type) :: u_up_sample_inventory
+
+  ! Public functions to create and access the module contents
+
+  public :: create_physical_op_constants
+  public :: final_physical_op_constants
+  public :: get_coriolis
+  public :: get_geopotential
+  public :: get_delta_at_wtheta
+  public :: get_dx_at_w2
+  public :: get_dtrdz_fd2
+  public :: get_dtrdz_wth
+  public :: get_rdz_fd1
+  public :: get_rdz_w3
+  public :: get_dz_at_wtheta
+  public :: get_max_diff
+  public :: get_u_lon_map
+  public :: get_u_lat_map
+  public :: get_u_up_map
+  public :: get_u_lon_sample
+  public :: get_u_lat_sample
+  public :: get_u_up_sample
+  public :: get_dA_msl_proj
+#ifdef UM_PHYSICS
+  public :: get_Pnm_star
+  public :: get_project_lon_dot_to_w1
+  public :: get_project_lat_dot_to_w1
+  public :: get_project_r_dot_to_w1
+#endif
+
+contains
+
+  !> @brief Subroutine to create the physical operator constants
+  !> @param[in] mesh_id_list         List of mesh_ids
+  !> @param[in] chi_list             List of coordinate fields
+  !> @param[in] panel_id_list        List of panel_id fields
+  !> @param[in] label_list           List of labels for meshes
+  !> @param[in] model_clock          Time in the model.
+  subroutine create_physical_op_constants(mesh_id_list,  &
+                                          chi_list,      &
+                                          panel_id_list, &
+                                          label_list,    &
+                                          model_clock )
+
+    implicit none
+
+    ! Arguments
+    integer(kind=i_def),     intent(in) :: mesh_id_list(:)
+    type(field_type),        intent(in) :: chi_list(:,:)
+    type(field_type),        intent(in) :: panel_id_list(:)
+    integer(kind=i_def),     intent(in) :: label_list(:)
+    class(model_clock_type), intent(in) :: model_clock
+
+    ! Internal variables
+    type(function_space_type),  pointer :: w1_k0_fs  => null()
+    type(function_space_type),  pointer :: w2_k0_fs  => null()
+    type(function_space_type),  pointer :: w3_k0_fs  => null()
+    type(function_space_type),  pointer :: w2_fs     => null()
+    type(function_space_type),  pointer :: w2b_fs    => null()
+    type(function_space_type),  pointer :: w3_fs     => null()
+    type(function_space_type),  pointer :: w3_2d_k0_fs => null()
+    type(function_space_type),  pointer :: wtheta_fs => null()
+    type(function_space_type),  pointer :: wtheta_k0_fs => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(field_type),           pointer :: dA_at_w2 => null()
+    type(field_type),           pointer :: detj_at_w2 => null()
+    type(field_type),           pointer :: height_w1 => null()
+    type(field_type),           pointer :: height_w2 => null()
+    type(field_type),           pointer :: height_w3 => null()
+    type(field_type),           pointer :: height_wth => null()
+    type(field_type),           pointer :: dx_at_w2 => null()
+    type(field_type)                    :: r_squared_w2
+    type(field_type)                    :: r_squared_wth
+    type(field_type),           pointer :: geopotential => null()
+    type(field_type),           pointer :: delta_at_wtheta => null()
+    type(field_type),           pointer :: dtrdz_fd2 => null()
+    type(field_type),           pointer :: dtrdz_wth => null()
+    type(field_type),           pointer :: rdz_fd1 => null()
+    type(field_type),           pointer :: rdz_w3 => null()
+    type(field_type),           pointer :: dz_at_wtheta => null()
+    type(field_type),           pointer :: max_diff_wtheta => null()
+    type(field_type),           pointer :: dA_msl_proj => null()
+    type(operator_type),        pointer :: coriolis => null()
+    type(operator_type),        pointer :: u_lon_map => null()
+    type(operator_type),        pointer :: u_lat_map => null()
+    type(operator_type),        pointer :: u_up_map => null()
+    type(operator_type),        pointer :: u_lon_sample => null()
+    type(operator_type),        pointer :: u_lat_sample => null()
+    type(operator_type),        pointer :: u_up_sample => null()
+    type(mesh_type),            pointer :: twod_mesh => null()
+#ifdef UM_PHYSICS
+    type(function_space_type),  pointer :: w_Pnm_star_fs => null()
+    type(field_type),           pointer :: latitude => null()
+    type(field_type),           pointer :: Pnm_star => null()
+    ! Projections from W3 to W1
+    type(operator_type),        pointer :: project_lon_dot_to_w1 => null()
+    type(operator_type),        pointer :: project_lat_dot_to_w1 => null()
+    type(operator_type),        pointer :: project_r_dot_to_w1 => null()
+
+    integer(kind=i_def),      parameter :: xdirection = 1_i_def
+    integer(kind=i_def),      parameter :: ydirection = 2_i_def
+    integer(kind=i_def),      parameter :: zdirection = 3_i_def
+#endif
+    procedure(write_interface), pointer :: write_behaviour => null()
+
+    real(kind=r_def)          :: diffusion_const
+    integer(kind=i_def)       :: num_meshes, i
+
+    type(mesh_type), pointer  :: mesh => null()
+
+    ! Parameters of the cells
+    integer(i_def), parameter :: n_faces = 4_i_def
+    integer(i_def), parameter :: n_centres = 1_i_def
+    logical(l_def), parameter :: inc_surf = .true.
+    logical(l_def), parameter :: ign_surf = .false.
+
+    real(r_def) :: cast_delta_t
+
+    if ( subroutine_timers ) call timer('physical_op_constants_alg')
+    call log_event( "Gungho: creating physical_op_constants", LOG_LEVEL_INFO )
+
+    num_meshes = size(mesh_id_list)
+
+    !========================== Set up collections ============================!
+
+    call geopotential_inventory%initialise(name="geopotential", table_len=num_meshes)
+    call delta_at_wtheta_inventory%initialise (name="delta_at_wtheta", table_len=num_meshes)
+    call dx_at_w2_inventory%initialise(name="dx_at_w2", table_len=num_meshes)
+    call dtrdz_fd2_inventory%initialise(name="dtrdz_fd2", table_len=num_meshes)
+    call dtrdz_wth_inventory%initialise(name="dtrdz_wth", table_len=num_meshes)
+    call rdz_fd1_inventory%initialise(name="rdz_fd1", table_len=num_meshes)
+    call rdz_w3_inventory%initialise(name="rdz_w3", table_len=num_meshes)
+    call dz_at_wtheta_inventory%initialise(name="dz_at_wtheta", table_len=num_meshes)
+    call max_diff_wtheta_inventory%initialise(name="max_diff_wtheta", table_len=num_meshes)
+    call dA_msl_proj_inventory%initialise(name="dA_msl_proj", table_len=num_meshes)
+    call coriolis_inventory%initialise(name="coriolis", table_len=num_meshes)
+    call u_lon_map_inventory%initialise(name="u_lon_map", table_len=num_meshes)
+    call u_lat_map_inventory%initialise(name="u_lat_map", table_len=num_meshes)
+    call u_up_map_inventory%initialise(name="u_up_map", table_len=num_meshes)
+    call u_lon_sample_inventory%initialise(name="u_lon_sample", table_len=num_meshes)
+    call u_lat_sample_inventory%initialise(name="u_lon_sample", table_len=num_meshes)
+    call u_up_sample_inventory%initialise(name="u_lon_sample", table_len=num_meshes)
+
+    !=========== Start loop and initialisation of function_spaces =============!
+
+    qr => get_qr()
+
+    ! Start loop through meshes
+    ! TODO: #2790 should change this structure to avoid looping through meshes
+    do i = 1, num_meshes
+
+      mesh => mesh_collection%get_mesh( mesh_id_list(i) )
+
+      w1_k0_fs  => function_space_collection%get_fs( mesh, 0, W1 )
+      w2_k0_fs  => function_space_collection%get_fs( mesh, 0, W2 )
+      w3_k0_fs  => function_space_collection%get_fs( mesh, 0, W3 )
+      w2_fs     => function_space_collection%get_fs( mesh, element_order, W2 )
+      w2b_fs    => function_space_collection%get_fs( mesh, element_order, W2broken )
+      w3_fs     => function_space_collection%get_fs( mesh, element_order, W3 )
+      wtheta_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
+      wtheta_k0_fs => function_space_collection%get_fs( mesh, 0, Wtheta )
+
+      !===================== Create geopotential field ========================!
+
+      if ( label_list(i) == primary_mesh_label ) then
+        call geopotential_inventory%add_field(geopotential, w3_fs, mesh)
+        if ( rehabilitate ) then
+          call invoke( compute_geopotential_kernel_type( geopotential,  &
+                                                         chi_list(:,i), &
+                                                         gravity,       &
+                                                         scaled_radius ) )
+        else
+          call log_event( "Geopotential computation needs modifying for standard &
+                           W3 mapping", LOG_LEVEL_ERROR )
+        end if
+        nullify(geopotential)
+
+        !=================== Compute Coriolis operator ========================!
+
+        if ( rotating ) then
+          call coriolis_inventory%add_operator(coriolis, w2_fs, w2_fs, mesh)
+          call invoke( compute_coriolis_matrix_kernel_type(coriolis,           &
+                                                           chi_list(:,i),      &
+                                                           panel_id_list(i),   &
+                                                           scaled_omega,       &
+                                                           f_lat, qr) )
+          nullify(coriolis)
+        end if
+      end if
+
+      !=========================== Physics objects ============================!
+
+      if ( label_list(i) == primary_mesh_label ) then
+
+        if ( element_order == 0 ) then
+          call dx_at_w2_inventory%add_field(dx_at_w2, w2_k0_fs, mesh)
+          detj_at_w2 => get_detj_at_w2(mesh%get_id())
+          dA_at_w2 => get_dA_at_w2(mesh%get_id())
+          call invoke(X_divideby_Y(dx_at_w2, detj_at_w2, dA_at_w2))
+          nullify(detj_at_w2, dA_at_w2)
+        end if
+
+        !================ Operators for mapping wind components ===============!
+
+        ! Operators needed to map finite difference physics winds to W2
+        ! finite element winds
+        if (sample_physics_winds) then
+
+          call u_lon_sample_inventory%add_operator(u_lon_sample, w2b_fs, w3_fs, mesh)
+          call u_lat_sample_inventory%add_operator(u_lat_sample, w2b_fs, w3_fs, mesh)
+          call u_up_sample_inventory%add_operator(u_up_sample, w2b_fs, wtheta_fs, mesh)
+
+          call invoke( name="compute_lonlatr_sample_operators",                &
+                       compute_sample_u_ops_kernel_type(u_lon_sample,          &
+                                                        u_lat_sample,          &
+                                                        u_up_sample,           &
+                                                        chi_list(:,i),         &
+                                                        panel_id_list(i)) )
+          nullify(u_lon_sample, u_lat_sample, u_up_sample)
+        else
+
+          call u_lon_map_inventory%add_operator(u_lon_map, w2_fs, w3_fs, mesh)
+          call u_lat_map_inventory%add_operator(u_lat_map, w2_fs, w3_fs, mesh)
+          call u_up_map_inventory%add_operator(u_up_map, w2_fs, wtheta_fs, mesh)
+
+          call invoke( name="compute_lonlatr_galerkin_operators",              &
+                       compute_map_u_operators_kernel_type(u_lon_map,          &
+                                                           u_lat_map,          &
+                                                           u_up_map,           &
+                                                           chi_list(:,i),      &
+                                                           panel_id_list(i),   &
+                                                           qr) )
+          nullify(u_lon_map, u_lat_map, u_up_map)
+        end if
+
+        if (use_physics) then
+
+          ! Quantities needed by all UM physics schemes
+          call r_squared_w2%initialise( vector_space = w2_k0_fs )
+          call r_squared_wth%initialise( vector_space = wtheta_k0_fs )
+          call dtrdz_fd2_inventory%add_field(dtrdz_fd2, w2_k0_fs, mesh)
+          call dtrdz_wth_inventory%add_field(dtrdz_wth, wtheta_k0_fs, mesh)
+          call rdz_fd1_inventory%add_field(rdz_fd1, w1_k0_fs, mesh)
+          call rdz_w3_inventory%add_field(rdz_w3, w3_k0_fs, mesh)
+          write_behaviour => write_field_generic
+          call rdz_w3%set_write_behaviour(write_behaviour)
+          call dz_at_wtheta_inventory%add_field(dz_at_wtheta, wtheta_k0_fs, mesh)
+          call delta_at_wtheta_inventory%add_field(delta_at_wtheta, wtheta_k0_fs, mesh)
+          call max_diff_wtheta_inventory%add_field(max_diff_wtheta, wtheta_k0_fs, mesh)
+
+          height_w1 => get_height(W1, mesh%get_id())
+          height_w2 => get_height(W2, mesh%get_id())
+          height_w3 => get_height(W3, mesh%get_id())
+          height_wth => get_height(Wtheta, mesh%get_id())
+
+          ! Because we can't include function calls in "invoke" argument lists
+          ! we need to extract this value up front.
+          !
+          cast_delta_t = real(model_clock%get_seconds_per_step(), r_def)
+          call invoke( name = "calculate_physics_geometric_objects",           &
+                       ! Calculate dx at wtheta points
+                       calc_delta_at_wtheta_kernel_type(delta_at_wtheta,       &
+                                                        dx_at_w2),             &
+                       ! Calculate r
+                       a_plus_X(r_squared_w2, radius, height_w2),              &
+                       ! Calculate r^2
+                       inc_X_powint_n(r_squared_w2, 2_i_def),                  &
+                       ! Calculate dz at location of lowest order W2 dofs
+                       setval_c(dtrdz_fd2, 1.0_r_def),                         &
+                       calc_dz_centre_kernel_type(dtrdz_fd2, &
+                                                  height_w1, n_faces),         &
+                       ! Calculate r^2 * dz_at_fd2
+                       inc_X_times_Y(dtrdz_fd2, r_squared_w2),                 &
+                       ! Calculate dt / (r^2 * dz_at_fd2 )
+                       inc_a_divideby_X(cast_delta_t, dtrdz_fd2),              &
+                       ! Calculate r
+                       a_plus_X(r_squared_wth, radius, height_wth),            &
+                       ! Calculate r^2
+                       inc_X_powint_n(r_squared_wth, 2_i_def),                 &
+                       ! Calculate dz_at_wtheta
+                       calc_dz_face_kernel_type(dtrdz_wth, height_w3,          &
+                                              height_wth, n_centres, inc_surf),&
+                       ! Calculate r^2 * dz_at_wth
+                       inc_X_times_Y(dtrdz_wth, r_squared_wth),                &
+                       ! Calculate dt / (r^2 * dz_at_wth )
+                       inc_a_divideby_X(cast_delta_t, dtrdz_wth),              &
+                       ! Calculate dz at location of lowest order W1 dofs
+                       setval_c(rdz_fd1, 1.0_r_def),                           &
+                       calc_dz_face_kernel_type(rdz_fd1, height_w2, height_w1, &
+                                                n_faces, ign_surf),            &
+                       ! Calculate 1/dz_at_fd1
+                       inc_X_powint_n(rdz_fd1, (-1_i_def)),                    &
+                       ! Calculate 1/dz at w3 locations
+                       calc_dz_centre_kernel_type(rdz_w3, height_wth,          &
+                                                  n_centres),                  &
+                       inc_X_powint_n(rdz_w3, (-1_i_def)),                     &
+                       ! Calculate dz_at_wtheta
+                       calc_dz_face_kernel_type(dz_at_wtheta, height_w3,       &
+                                             height_wth, n_centres, ign_surf) )
+
+          ! Calculate maximum diffusion coefficient allowed in this run for
+          ! stability based on UMDP 28 equation 32: max_diff = dx^2/(8*dt)
+          diffusion_const = 0.125_r_def &
+                            / real(model_clock%get_seconds_per_step(), r_def)
+          call invoke( name = "calculate_max_diffusion",             &
+                       setval_X( max_diff_wtheta, delta_at_wtheta ), &
+                       inc_X_powint_n( max_diff_wtheta, 2_i_def ),   &
+                       inc_a_times_X( diffusion_const, max_diff_wtheta ) )
+
+          nullify(height_w1, height_w2, height_w3, height_wth, dtrdz_fd2,      &
+                  dtrdz_wth, rdz_fd1, rdz_w3, dz_at_wtheta, delta_at_wtheta,   &
+                  max_diff_wtheta)
+
+          ! Only done on the prime 2D mesh
+          twod_mesh => mesh_collection%get_mesh( mesh, TWOD )
+
+          ! ====== Calculate dA projected to mean sea level ==========
+          w3_2d_k0_fs  => function_space_collection%get_fs( twod_mesh, 0, W3 )
+          call dA_msl_proj_inventory%add_field(dA_msl_proj, w3_2d_k0_fs, twod_mesh)
+          dA_at_w2 => get_dA_at_w2(mesh%get_id())
+          call invoke(calc_da_msl_proj_kernel_type(dA_at_w2, dA_msl_proj, &
+                                                   radius, domain_top,    &
+                                                   geometry, geometry_spherical))
+          nullify(w3_2d_k0_fs, dA_at_w2, dA_msl_proj)
+
+          ! ================= Add Pnm_star for stochastic physics ==============
+#ifdef UM_PHYSICS
+          if (use_spt) then
+
+            call Pnm_star_inventory%initialise(name="Pnm_star", table_len=num_meshes)
+            w_Pnm_star_fs => function_space_collection%get_fs(twod_mesh, 0, W3, stph_spectral_dim)
+            latitude  => get_latitude(twod_mesh%get_id())
+            call Pnm_star_inventory%add_field(Pnm_star, w_Pnm_star_fs, twod_mesh)
+
+            call invoke( setval_c(Pnm_star,  0.0_r_def),              &
+                         get_Pnm_star_kernel_type(Pnm_star, latitude, stph_n_max))
+
+            nullify(latitude, w_Pnm_star_fs, Pnm_star)
+
+          end if
+
+          !================== Projection operators from W3 to W1 ==================!
+
+          if ( use_skeb .and. skeb_rot_du == skeb_rot_du_fe ) then
+            call project_lon_dot_to_w1_inventory%initialise(name="project_lon_dot_to_w1", table_len=num_meshes)
+            call project_lat_dot_to_w1_inventory%initialise(name="project_lat_dot_to_w1", table_len=num_meshes)
+            call project_r_dot_to_w1_inventory%initialise(name="project_r_dot_to_w1", table_len=num_meshes)
+
+            call project_lon_dot_to_w1_inventory%add_operator(project_lon_dot_to_w1, w1_k0_fs, w3_fs, mesh)
+            call project_lat_dot_to_w1_inventory%add_operator(project_lat_dot_to_w1, w1_k0_fs, w3_fs, mesh)
+            call project_r_dot_to_w1_inventory%add_operator(project_r_dot_to_w1, w1_k0_fs, w3_fs, mesh)
+            call invoke( project_ws_to_w1_operator_kernel_type(                    &
+                                             project_lon_dot_to_w1, chi_list(:,i), &
+                                             panel_id_list(i), xdirection, qr),    &
+                         project_ws_to_w1_operator_kernel_type(                    &
+                                             project_lat_dot_to_w1, chi_list(:,i), &
+                                             panel_id_list(i), ydirection, qr),    &
+                         project_ws_to_w1_operator_kernel_type(                    &
+                                             project_r_dot_to_w1, chi_list(:,i),   &
+                                             panel_id_list(i), zdirection, qr) )
+            nullify(project_lon_dot_to_w1, project_lat_dot_to_w1, project_r_dot_to_w1)
+          end if
+#endif
+
+          nullify( twod_mesh )
+
+        end if ! Physics
+
+      end if ! Mesh label
+
+    end do ! Loop through meshes
+
+    nullify(w1_k0_fs, w2_k0_fs, w2_fs, w2b_fs, w3_fs, wtheta_k0_fs, qr, mesh)
+
+    call log_event( "Gungho: created physical_op_constants", LOG_LEVEL_INFO )
+    if ( subroutine_timers ) call timer('physical_op_constants_alg')
+
+  end subroutine create_physical_op_constants
+
+
+  !> @brief Returns the Coriolis operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Coriolis operator
+  function get_coriolis(mesh_id) result(coriolis_op)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(operator_type),    pointer :: coriolis_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+
+    if ( rotating ) then
+      call coriolis_inventory%get_operator(mesh, coriolis_op)
+    else
+      call log_event( "Coriolis operator not computed for non-rotating flow", &
+                      LOG_LEVEL_ERROR)
+    end if
+    nullify(mesh)
+
+  end function get_coriolis
+
+  !> @brief Returns a pointer to the geopotential field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The geopotential field
+  function get_geopotential(mesh_id) result(phi)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: phi
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call geopotential_inventory%get_field(mesh, phi)
+    nullify(mesh)
+
+  end function get_geopotential
+
+  !> @brief Returns the delta_at_wtheta values at Wtheta DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The delta_at_wtheta field
+  function get_delta_at_wtheta(mesh_id) result(delta)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: delta
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call delta_at_wtheta_inventory%get_field(mesh, delta)
+    nullify(mesh)
+
+  end function get_delta_at_wtheta
+
+  !> @brief Returns the dx_at_w2 values at W2 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dx_at_w2 field
+  function get_dx_at_w2(mesh_id) result(delta)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: delta
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call dx_at_w2_inventory%get_field(mesh, delta)
+    nullify(mesh)
+
+  end function get_dx_at_w2
+
+  !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dtrdz_fd2 field
+  function get_dtrdz_fd2(mesh_id) result(dtrdz)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: dtrdz
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call dtrdz_fd2_inventory%get_field(mesh, dtrdz)
+    nullify(mesh)
+
+  end function get_dtrdz_fd2
+
+  !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dtrdz_wth field
+  function get_dtrdz_wth(mesh_id) result(dtrdz)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: dtrdz
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call dtrdz_wth_inventory%get_field(mesh, dtrdz)
+    nullify(mesh)
+
+  end function get_dtrdz_wth
+
+  !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The rdz_fd1 field
+  function get_rdz_fd1(mesh_id) result(rdz)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: rdz
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call rdz_fd1_inventory%get_field(mesh, rdz)
+    nullify(mesh)
+
+  end function get_rdz_fd1
+
+  !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The rdz_w3 field
+  function get_rdz_w3(mesh_id) result(rdz)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: rdz
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call rdz_w3_inventory%get_field(mesh, rdz)
+    nullify(mesh)
+
+  end function get_rdz_w3
+
+  !> @brief Returns the 1/dz values at lowest-order Wtheta DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dz_at_wtheta field
+  function get_dz_at_wtheta(mesh_id) result(dz)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: dz
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call dz_at_wtheta_inventory%get_field(mesh, dz)
+    nullify(mesh)
+
+  end function get_dz_at_wtheta
+
+  !> @brief Returns the surface area of a cell projected to mean sea level
+  !>        i.e. ignoring the orographic effect on the area
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dA_msl_proj field
+  function get_dA_msl_proj(mesh_id) result(dA)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: dA
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call dA_msl_proj_inventory%get_field(mesh, dA)
+    nullify(mesh)
+
+  end function get_dA_msl_proj
+#ifdef UM_PHYSICS
+  !> @brief Returns the Legendre Polynomials times the SH amplitude
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Pnm_max field
+    function get_Pnm_star(mesh_id) result(Pnm_star)
+      implicit none
+      integer(kind=i_def), intent(in) :: mesh_id
+      type(field_type),       pointer :: Pnm_star
+      type(mesh_type),        pointer :: mesh => null()
+
+      mesh => mesh_collection%get_mesh(mesh_id)
+      call Pnm_star_inventory%get_field(mesh, Pnm_star)
+      nullify(mesh)
+
+  end function get_Pnm_star
+
+  !> @brief Returns a pointer to the operator projection from lon dot to W1
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The projection operator
+  function get_project_lon_dot_to_w1(mesh_id) result(proj_op)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(operator_type),      pointer :: proj_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call project_lon_dot_to_w1_inventory%get_operator(mesh, proj_op)
+
+  end function get_project_lon_dot_to_w1
+
+  !> @brief Returns a pointer to the operator projection from lat dot to W1
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The projection operator
+  function get_project_lat_dot_to_w1(mesh_id) result(proj_op)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(operator_type),      pointer :: proj_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call project_lat_dot_to_w1_inventory%get_operator(mesh, proj_op)
+
+  end function get_project_lat_dot_to_w1
+
+  !> @brief Returns a pointer to the operator projection from r dot to W1
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The projection operator
+  function get_project_r_dot_to_w1(mesh_id) result(proj_op)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(operator_type),      pointer :: proj_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call project_r_dot_to_w1_inventory%get_operator(mesh, proj_op)
+
+  end function get_project_r_dot_to_w1
+#endif
+  !> @brief Returns the max Smagorinsky diffusion allowed in this run at Wtheta
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The max_diff_wtheta field
+  function get_max_diff(mesh_id) result(max_diff_smag)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: max_diff_smag
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call max_diff_wtheta_inventory%get_field(mesh, max_diff_smag)
+    nullify(mesh)
+
+  end function get_max_diff
+
+  !> @brief Returns a pointer to the u_lon mapping operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The mapping operator for u_lon to W2
+  function get_u_lon_map(mesh_id) result(u_lon_map_op)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(operator_type),    pointer :: u_lon_map_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call u_lon_map_inventory%get_operator(mesh, u_lon_map_op)
+    nullify(mesh)
+
+  end function get_u_lon_map
+
+  !> @brief Returns a pointer to the u_lat mapping operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The mapping operator for u_lat to W2
+  function get_u_lat_map(mesh_id) result(u_lat_map_op)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(operator_type),    pointer :: u_lat_map_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call u_lat_map_inventory%get_operator(mesh, u_lat_map_op)
+    nullify(mesh)
+
+  end function get_u_lat_map
+
+    !> @brief Returns a pointer to the u_up mapping operator
+    !> @param[in] mesh_id The ID of the mesh to get the object for
+    !> @return The mapping operator for u_up to W2
+    function get_u_up_map(mesh_id) result(u_up_map_op)
+      implicit none
+      integer(kind=i_def), intent(in) :: mesh_id
+      type(mesh_type),        pointer :: mesh => null()
+      type(operator_type),    pointer :: u_up_map_op
+
+      mesh => mesh_collection%get_mesh(mesh_id)
+      call u_up_map_inventory%get_operator(mesh, u_up_map_op)
+      nullify(mesh)
+
+    end function get_u_up_map
+
+  !> @brief Returns a pointer to the u_lon sampling operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The sampling operator for u_lon to W2
+  function get_u_lon_sample(mesh_id) result(u_lon_sample_op)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(operator_type),    pointer :: u_lon_sample_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call u_lon_sample_inventory%get_operator(mesh, u_lon_sample_op)
+    nullify(mesh)
+
+  end function get_u_lon_sample
+
+  !> @brief Returns a pointer to the u_lat sampling operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The sampling operator for u_lat to W2
+  function get_u_lat_sample(mesh_id) result(u_lat_sample_op)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(operator_type),    pointer :: u_lat_sample_op
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call u_lat_sample_inventory%get_operator(mesh, u_lat_sample_op)
+    nullify(mesh)
+
+  end function get_u_lat_sample
+
+    !> @brief Returns a pointer to the u_up sampling operator
+    !> @param[in] mesh_id The ID of the mesh to get the object for
+    !> @return The sampling operator for u_up to W2
+    function get_u_up_sample(mesh_id) result(u_up_sample_op)
+      implicit none
+      integer(kind=i_def), intent(in) :: mesh_id
+      type(mesh_type),        pointer :: mesh => null()
+      type(operator_type),    pointer :: u_up_sample_op
+
+      mesh => mesh_collection%get_mesh(mesh_id)
+      call u_up_sample_inventory%get_operator(mesh, u_up_sample_op)
+      nullify(mesh)
+
+    end function get_u_up_sample
+
+  !> @brief Explicitly reclaim memory from module scope variables
+  !
+  subroutine final_physical_op_constants()
+
+    implicit none
+
+    call geopotential_inventory%clear()
+    call delta_at_wtheta_inventory%clear()
+    call dx_at_w2_inventory%clear()
+    call dtrdz_fd2_inventory%clear()
+    call dtrdz_wth_inventory%clear()
+    call rdz_fd1_inventory%clear()
+    call rdz_w3_inventory%clear()
+    call dz_at_wtheta_inventory%clear()
+#ifdef UM_PHYSICS
+    call Pnm_star_inventory%clear()
+#endif
+    call max_diff_wtheta_inventory%clear()
+    call coriolis_inventory%clear()
+    call u_lon_map_inventory%clear()
+    call u_lat_map_inventory%clear()
+    call u_up_map_inventory%clear()
+    call u_lon_sample_inventory%clear()
+    call u_lat_sample_inventory%clear()
+    call u_up_sample_inventory%clear()
+
+  end subroutine final_physical_op_constants
+
+end module physical_op_constants_mod

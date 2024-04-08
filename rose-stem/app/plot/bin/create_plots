@@ -1,0 +1,148 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+##############################################################################
+# Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+# For further details please refer to the file LICENCE.original which you
+# should have received as part of this distribution.
+##############################################################################
+
+'''
+Python script to plot all levels from a Dynamo output file. Levels are determined
+from the data as they are different for different fields.
+
+This version takes nodal format output files and interpolates onto a regular
+grid.
+
+This version stitches together a directory of files and extracts all levels
+so it can work in the serial case where there is one file or the parallel
+case where there is a file for each processor.
+
+This version is for plotting under suites and accepts command line args
+for the field and timestep to plot. It also plots to file rather than to screen 
+
+'''
+
+
+import numpy as np
+
+# Need to set a non-interactive backend for suites
+import matplotlib
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
+from scipy.interpolate import griddata
+
+import math
+
+import glob
+import sys
+
+from read_data import read_nodal_data
+
+levels = None
+data = None
+
+def make_figure(plotpath, field, component,timestep):
+
+
+  # Determine indices of plots for each page, based upon
+  # 6 plots (2 columns and 3 rows) per page
+
+  pool = range(0, len(levels))
+  plots_on_page = []
+  for first in range(0, len(levels), 6):
+    plots_on_page.append( pool[first:first+6] )
+
+  page = 1
+
+  val_col = 'c' + str(component)
+
+  # Loop through the pages in the list and plot the relevant levels
+  # by indexing into the global levels array
+
+  for plots in plots_on_page:
+
+    count = 1  # set a count for the subplot position on this page 
+
+    # create the figure for this page
+    interp_fig = plt.figure(figsize=(15,10))
+
+    for p in plots:
+
+      p_data = data.loc[data['level'] == levels[p]]
+
+      # get min and max of x,y data for plot axes
+      xmin = p_data['x'].min()
+      xmax = p_data['x'].max()
+      ymin = p_data['y'].min()
+      ymax = p_data['y'].max()
+   
+
+      # Size of regular grid
+      ny, nx = 100, 200
+
+      # Generate a regular grid to interpolate the data onto
+      xi = np.linspace(xmin, xmax, nx)
+      yi = np.linspace(ymin, ymax, ny)
+      xi, yi = np.meshgrid(xi, yi)
+
+
+      # Conversion factor from radians to degrees
+      r2d = 180.0/math.pi;
+
+      # Interpolate using delaunay triangulation 
+      zi = griddata((p_data['x'].values, p_data['y'].values), p_data[val_col].values, (xi, yi), method='linear')
+
+
+      ax = interp_fig.add_subplot(3,2,count)
+      cf = plt.contourf(xi *r2d, yi * r2d, zi)
+      plt.colorbar(cf,  cmap=cm.spectral, format='%0e')
+      plt.axis([np.amin(xi *r2d), np.amax(xi *r2d), np.amin(yi *r2d), np.amax(yi *r2d)])
+      ax.set_title("Level : "  + str(levels[p]))
+      plt.suptitle(field + " " + timestep + " interpolated")
+
+      count +=1
+
+    # Save file as .png
+    out_file_name = plotpath + "/" + field + "_" + timestep + "_" + str(page) +  ".png"
+    interp_fig.savefig(out_file_name , bbox_inches='tight')
+
+    page +=1
+
+if __name__ == "__main__":
+  
+  try:
+    datapath, fields, timesteps, plotpath = sys.argv[1:5]
+  except ValueError:
+    print("Usage: {0} <datapath> <field_names> <timestep_list> <plotpath>".format(sys.argv[0]))
+    exit(1)
+
+  # Split out the list of fields
+  field_list = fields.split(':')
+
+  # Split out the list of timesteps
+  ts_list = timesteps.split(':')
+
+  for field in field_list:
+
+    for ts in ts_list:
+
+      filestem =  datapath + "/diagGungho_nodal_" + field + "_" + ts + "*"
+
+      if field in ['u','xi']:
+        # Vector field - plot w component by default
+        component = 3
+        data = read_nodal_data(filestem, 3, component)
+      else:
+        # Scalar field - only one component to plot
+        component = 1
+        data = read_nodal_data(filestem, 1, component)
+
+      levels = np.sort(data.level.unique())
+
+      # Only try to plot if we found some files for this timestep
+      if len(levels) > 0:
+        make_figure(plotpath,field, component, ts)
+

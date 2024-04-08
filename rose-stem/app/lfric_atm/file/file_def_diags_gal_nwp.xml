@@ -1,0 +1,55 @@
+<file_definition>
+
+  <!-- Main diagnostic output file for global runs -->
+  <file id="lfric_gal_diagnostics" name="lfric_gal_diagnostics" output_freq="18h" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="18h">
+      <field field_ref="theta" />
+      <field field_ref="m_v" />
+      <field field_ref="m_cl" />
+      <field field_ref="m_ci" />
+      <field field_ref="m_r" />
+      <field field_ref="exner_in_wth" />
+      <field field_ref="u_in_w3" />
+      <field field_ref="v_in_w3" />
+      <field field_ref="w_in_wth" />
+      <field field_ref="divergence" />
+      <field field_ref="cloud__cloud_amount_maxrnd" />
+      <field field_ref="cloud__combined_cloud_amount" />
+      <field field_ref="cloud__cloud_fraction_below_1000feet_asl" />
+      <field field_ref="convection__dt_conv" />
+      <field field_ref="convection__dmv_conv" />
+      <field field_ref="convection__massflux_up" />
+      <field field_ref="convection__massflux_up_half" />
+      <field field_ref="convection__entrain_up" />
+      <field field_ref="convection__detrain_up" />
+      <field field_ref="surface__tile_fraction" />
+      <field field_ref="surface__wspd10m" />
+      <field field_ref="surface__grid_surface_temperature" />
+      <field field_ref="surface__tile_temperature"/>
+      <field field_ref="surface__tile_heat_flux"/>
+      <field field_ref="surface__latent_heat"/>
+      <field field_ref="surface__tile_moisture_flux"/>
+      <field field_ref="snow__grid_snow_mass" />
+      <field field_ref="snow__snow_depth"/>
+      <field field_ref="snow__tile_snow_rgrain"/>
+      <field field_ref="snow__snow_layer_temp"/>
+      <field field_ref="snow__snow_layer_thickness"/>
+      <field field_ref="snow__snow_layer_ice_mass"/>
+      <field field_ref="snow__snow_layer_liq_mass"/>
+      <field field_ref="snow__snow_layer_rgrain"/>
+      <field field_ref="surface__sea_ice_fraction"/>
+      <field field_ref="soil__soil_moisture_content" />
+      <field field_ref="turbulence__zh" />
+      <field field_ref="radiation__sw_up_toa" />
+      <field field_ref="radiation__sw_down_surf" />
+      <field field_ref="radiation__lw_up_toa" />
+      <field field_ref="radiation__lw_down_surf" />
+      <field field_ref="processed__tot_col_wetplusdry_mass" />
+      <field field_ref="processed__tot_col_int_energy" />
+      <field field_ref="processed__tot_col_pot_energy" />
+      <field field_ref="processed__trop_level" />
+      <field field_ref="processed__total_prec" />
+    </field_group>
+  </file>
+
+</file_definition>

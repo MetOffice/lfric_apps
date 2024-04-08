@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <context id = "jedi_state">
+
+    <axis_definition>
+      <axis id="vert_axis_half_levels" name="half_levels"/>
+      <axis id="vert_axis_full_levels" name="full_levels"/>
+      <axis id="monthly_climatology" name="monthly_climatology" n_glo="12"/>
+      <axis id="radiation_levels" name="radiation_levels"/>
+    </axis_definition>
+
+    <grid_definition>
+      <grid id="node_grid">
+        <domain domain_ref="node"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="full_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_edge_grid">
+        <domain domain_ref="edge"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="monthly_half_level_face_grid">
+       <domain domain_ref="face"/>
+       <axis axis_ref="vert_axis_half_levels"/>
+       <axis axis_ref="monthly_climatology"/>
+     </grid>
+    </grid_definition>
+
+    <field_definition prec="8" >
+
+      <field_group id="read_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts">
+        <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+        <field id="read_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+        <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+        <field id="read_u10m" name="u10m" long_name="eastward_wind_at_10m" unit="m s-1" domain_ref="face" />
+        <field id="read_u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+        <field id="read_v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+        <field id="read_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+        <field id="read_m_v" name="m_v" long_name="vapour_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="read_m_ci" name="m_ci" long_name="cloud_ice_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+      </field_group>
+
+      <field_group id="write_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="0ts">
+        <field id="write_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+        <field id="write_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+        <field id="write_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+        <field id="write_u10m" name="u10m" long_name="eastward_wind_at_10m" unit="m s-1" domain_ref="face" />
+        <field id="write_u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+        <field id="write_v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" />
+        <field id="write_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+        <field id="write_m_v" name="m_v" long_name="vapour_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="write_m_cl" name="m_cl" long_name="cloud_liquid_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="write_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="write_m_ci" name="m_ci" long_name="cloud_ice_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+      </field_group>
+
+    </field_definition>
+
+    <file_definition type="one_file" time_counter="none">
+
+      <file id="read_model_data" name="read_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." mode="read">
+        <field_group id="read_fields"/>
+      </file>
+
+      <file id="write_model_data" name="write_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." timeseries="both">
+        <field_group id="write_fields"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

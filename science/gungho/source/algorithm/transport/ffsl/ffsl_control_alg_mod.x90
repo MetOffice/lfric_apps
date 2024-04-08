@@ -1,0 +1,198 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Routines for managing FFSL transport schemes.
+
+module ffsl_control_alg_mod
+
+  ! Constants and types
+  use constants_mod,                    only: i_def, r_tran, l_def
+  use extrusion_mod,                    only: SHIFTED
+  use r_tran_field_mod,                 only: r_tran_field_type
+  use function_space_collection_mod,    only: function_space_collection
+  use function_space_mod,               only: function_space_type
+  use fs_continuity_mod,                only: W3, Wtheta
+  use geometric_constants_mod,          only: get_panel_id
+  use log_mod,                          only: log_event,       &
+                                              LOG_LEVEL_ERROR
+  use mesh_mod,                         only: mesh_type
+  use mesh_collection_mod,              only: mesh_collection
+  use transport_metadata_mod,           only: transport_metadata_type
+  use transport_enumerated_types_mod,   only: direction_v,                 &
+                                              direction_h,                 &
+                                              direction_3d,                &
+                                              equation_form_advective,     &
+                                              equation_form_conservative,  &
+                                              equation_form_consistent
+  use transport_runtime_alg_mod,        only: transport_runtime_type
+  use transport_runtime_collection_mod, only: get_transport_runtime
+
+  ! Algorithms
+  use end_of_transport_step_alg_mod,    only: end_of_advective_step_alg,    &
+                                              end_of_conservative_step_alg, &
+                                              end_of_consistent_step_alg
+  use ffsl_hori_alg_mod,                only: ffsl_hori_splitting_alg
+  use ffsl_vert_alg_mod,                only: ffsl_vert_transport_alg
+  use ffsl_3d_alg_mod,                  only: ffsl_3d_splitting_alg
+
+  ! Kernels
+  use inject_sh_w3_to_wt_kernel_mod,    only: inject_sh_w3_to_wt_kernel_type
+  use inject_wt_to_sh_w3_kernel_mod,    only: inject_wt_to_sh_w3_kernel_type
+
+  ! Configs
+  use finite_element_config_mod,        only: element_order
+  use subgrid_config_mod,               only: vertical_order
+
+  implicit none
+
+  private
+
+  public :: ffsl_control
+
+contains
+
+  !=============================================================================
+  !> @brief Controls 3D/vertical/horizontal FFSL transport.
+  !> @details Calls a step of the Flux-Form semi-Lagrangian (FFSL) transport,
+  !!          for any form of the transport equation.
+  !> @param[in,out] field_np1          Field to return at end of transport step
+  !> @param[in]     field_n            Field at the start of the transport step
+  !> @param[in]     direction          Either 3D/vertical/horizontal transport
+  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in]     transport_metadata Contains the configuration options for
+  !!                                   transporting these fields
+  subroutine ffsl_control(field_np1, field_n, direction, &
+                          step_dt, transport_metadata)
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type), target, intent(inout) :: field_np1
+    type(r_tran_field_type), target, intent(in)    :: field_n
+    integer(kind=i_def),             intent(in)    :: direction
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_metadata_type),   intent(in)    :: transport_metadata
+
+    ! Internal variables
+    logical(kind=l_def)                   :: compute_adv_field
+    integer(kind=i_def)                   :: function_space
+    type(function_space_type),    pointer :: w3_shifted_fs => null()
+    type(mesh_type),              pointer :: mesh => null()
+    type(mesh_type),              pointer :: shifted_mesh => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+
+    ! Use pointers inside of this algorithm for field_n and field_np1
+    ! which saves on a field copy
+    type(r_tran_field_type),   pointer :: field_n_ptr => null()
+    type(r_tran_field_type),   pointer :: field_np1_ptr => null()
+    type(r_tran_field_type),   target  :: field_n_w3_shifted
+    type(r_tran_field_type),   target  :: field_np1_w3_shifted
+    type(r_tran_field_type)            :: mass_flux
+    type(r_tran_field_type)            :: increment
+
+    mesh => field_n%get_mesh()
+    transport_runtime => get_transport_runtime(mesh)
+    function_space = field_n%which_function_space()
+
+    ! Determine whether individual routines should return a flux or updated field
+    compute_adv_field = ( transport_metadata%get_equation_form() == equation_form_advective &
+      .or. transport_runtime%get_tracer_step_ctr() /=  transport_runtime%get_num_dry_steps() )
+
+    ! ======================================================================== !
+    ! Convert to shifted W3 if required
+    ! ======================================================================== !
+
+    if (function_space == Wtheta) then
+      ! If the variable is in Wtheta, move into shifted W3
+      shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+      w3_shifted_fs => function_space_collection%get_fs(shifted_mesh, 0_i_def, W3)
+      call field_n_w3_shifted%initialise( vector_space = w3_shifted_fs )
+      call field_np1_w3_shifted%initialise( vector_space = w3_shifted_fs )
+      call invoke( inject_wt_to_sh_w3_kernel_type(field_n_w3_shifted, field_n) )
+      field_n_ptr => field_n_w3_shifted
+      field_np1_ptr => field_np1_w3_shifted
+    else
+      ! Stay on current mesh
+      field_n_ptr => field_n
+      field_np1_ptr => field_np1
+    end if
+
+    ! ======================================================================== !
+    ! Call routine based on direction: vertical; horizontal; or 3D.
+    ! ======================================================================== !
+
+    select case (direction)
+    case (direction_v)
+      call ffsl_vert_transport_alg(mass_flux, increment, field_np1_ptr,        &
+                                   field_n_ptr, step_dt, transport_metadata,   &
+                                   vertical_order, compute_adv_inc=.false.,    &
+                                   compute_field_np1=compute_adv_field)
+
+    case (direction_h)
+      call ffsl_hori_splitting_alg(mass_flux, field_np1_ptr, field_n_ptr,      &
+                                   step_dt, transport_metadata,                &
+                                   compute_field_np1=compute_adv_field)
+
+    case (direction_3d)
+      call ffsl_3d_splitting_alg(mass_flux, field_np1_ptr, field_n_ptr,        &
+                                 step_dt, transport_metadata)
+
+    case default
+      call log_event( "FFSL control: Unrecognized direction", LOG_LEVEL_ERROR )
+
+    end select
+
+    ! ======================================================================== !
+    ! Convert field_np1 back to Wtheta, if required
+    ! ======================================================================== !
+
+    if (function_space == Wtheta .and. compute_adv_field) then
+      ! If Wtheta variable, move field_np1 back to Wtheta
+      call invoke( inject_sh_w3_to_wt_kernel_type(field_np1, field_np1_w3_shifted) )
+    end if
+
+    ! ======================================================================== !
+    ! End of transport step generic routines
+    ! ======================================================================== !
+
+    select case ( transport_metadata%get_equation_form() )
+
+    case ( equation_form_conservative )
+
+      ! Include dt in the mass flux
+      call invoke( inc_a_times_X(step_dt, mass_flux) )
+
+      ! If this is the final step, field_np1 will be computed here from the fluxes
+      ! over the whole transport step
+      ! If this is not the final step, field_np1 already includes the *advective*
+      ! increment, and may be adjusted to enforce min value or in blending zone
+      call end_of_conservative_step_alg(field_np1, field_n, mass_flux, transport_metadata)
+
+    case ( equation_form_consistent )
+
+      ! Include dt in the mass flux
+      call invoke( inc_a_times_X(step_dt, mass_flux) )
+
+      ! If this is the final step, field_np1 will be computed here from the fluxes
+      ! over the whole transport step
+      ! If this is not the final step, field_np1 already includes the *advective*
+      ! increment, and may be adjusted to enforce min value or in blending zone
+      call end_of_consistent_step_alg(field_np1, mass_flux, transport_metadata)
+
+    case ( equation_form_advective )
+      ! End of step: if necessary enforce min val and overwrite in blending zone
+      call end_of_advective_step_alg(field_np1, field_n, transport_metadata)
+
+    case default
+      call log_event( "FFSL control: Unrecognized equation", LOG_LEVEL_ERROR )
+
+    end select
+
+    nullify(mesh, shifted_mesh, field_np1_ptr, field_n_ptr, &
+            w3_shifted_fs, transport_runtime)
+
+  end subroutine ffsl_control
+
+end module ffsl_control_alg_mod

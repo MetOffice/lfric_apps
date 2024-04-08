@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <context id = "gravity_wave">
+
+   <axis_definition>
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
+    <axis id="radiation_levels" name="radiation_levels"/>
+   </axis_definition>
+
+
+
+   <grid_definition>
+    <grid id="node_grid">
+      <domain domain_ref="node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_edge_grid">
+      <domain domain_ref="edge"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+   </grid_definition>
+
+   <field_definition prec="8" >
+
+     <!-- Checkpoint group -->
+     <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
+       <field id="checkpoint_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" domain_ref="checkpoint_Wtheta" />
+       <field id="checkpoint_wind" name="wind" long_name="wind" unit="m s-1" domain_ref="checkpoint_W2" />
+     </field_group>
+
+     <!-- Main diagnostic group -->
+     <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="instant" >
+       <field id="wind1" name="wind1" long_name="Wind1" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="wind2" name="wind2" long_name="Wind2" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="wind3" name="wind3" long_name="Wind3" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="kg m-3" grid_ref="half_level_face_grid" />
+       <field id="buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" grid_ref="full_level_face_grid" />
+     </field_group>
+
+      <!-- Initial conditions group -->
+     <field_group id="initial_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
+       <field id="init_wind1" name="wind1" long_name="Wind1" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_wind2" name="wind2" long_name="Wind2" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_wind3" name="wind3" long_name="Wind3" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="init_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" grid_ref="half_level_face_grid" />
+       <field id="init_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" grid_ref="full_level_face_grid" />
+     </field_group>
+
+   </field_definition>
+
+   <file_definition
+      type="one_file"
+      time_counter="none">
+
+      <!-- Checkpoint groups -->
+
+      <!-- File definition for checkpoint write -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint" convention="CF" enabled=".FALSE.">
+        <field field_ref="checkpoint_pressure"/>
+        <field field_ref="checkpoint_buoyancy"/>
+        <field field_ref="checkpoint_wind"/>
+      </file>
+
+       <!-- file definition for checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+       <field id="restart_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="checkpoint_Wtheta" />
+       <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+      </file>
+
+      <file id="lfric_diag" name="lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="wind1"/>
+        <field field_ref="wind2"/>
+        <field field_ref="wind3"/>
+        <field field_ref="pressure"/>
+        <field field_ref="buoyancy"/>
+      </file>
+
+      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="init_wind1"/>
+        <field field_ref="init_wind2"/>
+        <field field_ref="init_wind3"/>
+        <field field_ref="init_pressure"/>
+        <field field_ref="init_buoyancy"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

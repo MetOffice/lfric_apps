@@ -1,0 +1,621 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides various geometric objects for use throughout gungho.
+!>
+!> @details This module controls the set-up of various objects relating to
+!>          the geometry of the mesh that do not change during a run. These
+!>          objects are accessed from this module through appropriate 'get'
+!>          functions.
+!-------------------------------------------------------------------------------
+
+module geometric_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                      only: i_def, r_def, l_def, str_def
+  use extrusion_mod,                      only: TWOD, PRIME_EXTRUSION
+  use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: W0, W1, W2, W2H, W3, Wtheta, Wchi
+  use function_space_collection_mod,      only: function_space_collection
+  use function_space_mod,                 only: function_space_type
+  use integer_field_mod,                  only: integer_field_type
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use inventory_by_local_mesh_mod,        only: inventory_by_local_mesh_type
+  use io_config_mod,                      only: subroutine_timers
+  use local_mesh_mod,                     only: local_mesh_type
+  use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
+                                                LOG_LEVEL_ERROR
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
+  use reference_element_mod,              only: S, W
+  use timer_mod,                          only: timer
+
+  ! Other algorithms
+  use runtime_tools_mod,                  only: primary_mesh_label,         &
+                                                shifted_mesh_label,         &
+                                                twod_mesh_label,            &
+                                                extra_mesh_label,           &
+                                                multigrid_mesh_label
+
+  ! Configuration
+  use base_mesh_config_mod,               only: f_lat, geometry, &
+                                                geometry_spherical
+  use idealised_config_mod,               only: f_lon
+  use finite_element_config_mod,          only: element_order
+  use transport_config_mod,               only: extended_mesh
+  use planet_config_mod,                  only: scaled_radius
+
+  ! Kernels
+  use calc_dA_at_w2_kernel_mod,           only: calc_dA_at_w2_kernel_type
+  use compute_latlon_kernel_mod,          only: compute_latlon_kernel_type
+  use get_height_kernel_mod,              only: get_height_kernel_type
+  use get_dz_w3_kernel_mod,               only: get_dz_w3_kernel_type
+  use set_any_int_dof_kernel_mod,         only: set_any_int_dof_kernel_type
+  use face_selector_kernel_mod,           only: face_selector_kernel_type
+
+  use extend_chi_field_kernel_mod,        only: extend_chi_field
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  ! Inventories for use in the rest of the model
+  type(inventory_by_mesh_type), target :: chi_inventory
+  type(inventory_by_mesh_type), target :: panel_id_inventory
+
+  ! Coordinate fields
+  type(inventory_by_mesh_type) :: extended_chi_inventory
+
+  ! Other geometric objects
+  type(inventory_by_mesh_type) :: dA_at_w2_inventory
+  type(inventory_by_mesh_type) :: height_w1_inventory
+  type(inventory_by_mesh_type) :: height_w2_inventory
+  type(inventory_by_mesh_type) :: height_w3_inventory
+  type(inventory_by_mesh_type) :: height_wth_inventory
+  type(inventory_by_mesh_type) :: dz_w3_inventory
+  type(inventory_by_mesh_type) :: lat_w3_inventory
+  type(inventory_by_mesh_type) :: lat_w2_inventory
+  type(inventory_by_mesh_type) :: long_w3_inventory
+  type(inventory_by_local_mesh_type) :: face_selector_ew_inventory
+  type(inventory_by_local_mesh_type) :: face_selector_ns_inventory
+  type(inventory_by_local_mesh_type) :: w3_to_w2_displacement_inventory
+
+  ! Public functions to create and access the module contents
+
+  public :: create_geometric_constants
+  public :: final_geometric_constants
+  public :: get_panel_id
+  public :: get_coordinates
+  public :: get_extended_coordinates
+  public :: get_dA_at_w2
+  public :: get_height
+  public :: get_dz_w3
+  public :: get_latitude
+  public :: get_latitude_w2
+  public :: get_longitude
+  public :: get_chi_inventory
+  public :: get_panel_id_inventory
+  public :: get_face_selector_ew
+  public :: get_face_selector_ns
+  public :: get_w3_to_w2_displacement
+
+contains
+
+  !> @brief Subroutine to create the geometric constants
+  !> @param[in] mesh_id_list         List of mesh_ids
+  !> @param[in] chi_in               List of coordinate fields
+  !> @param[in] panel_id_in          List of panel_id fields
+  !> @param[in] label_list           List of labels for meshes
+  subroutine create_geometric_constants(mesh_id_list,      &
+                                        chi_in,            &
+                                        panel_id_in,       &
+                                        label_list         )
+    implicit none
+
+    ! Arguments
+    integer(kind=i_def),    intent(in) :: mesh_id_list(:)
+    type(field_type),       intent(in) :: chi_in(:,:)
+    type(field_type),       intent(in) :: panel_id_in(:)
+    integer(kind=i_def),    intent(in) :: label_list(:)
+
+    ! Internal variables
+    type(function_space_type), pointer :: wth_k0_fs => null() ! lowest order wth fs
+    type(function_space_type), pointer :: w1_k0_fs  => null() ! lowest order w1 fs
+    type(function_space_type), pointer :: w2_k0_fs  => null() ! lowest order w2 fs
+    type(function_space_type), pointer :: w3_k0_fs  => null() ! lowest order w3 fs
+    type(function_space_type), pointer :: wchi_fs  => null()
+    type(function_space_type), pointer :: w2_2d_fs  => null() ! lowest order w2 fs
+    type(function_space_type), pointer :: w3_2d_fs  => null() ! lowest order w3 fs
+    type(function_space_type), pointer :: w2h_2d_fs  => null() ! lowest order w2 fs
+
+    ! Temporary runtime constants
+    type(field_type), pointer :: extended_chi(:) => null()
+    type(field_type), pointer :: height_w1 => null()
+    type(field_type), pointer :: height_w2 => null()
+    type(field_type), pointer :: height_w3 => null()
+    type(field_type), pointer :: height_wth => null()
+    type(field_type), pointer :: dz_w3 => null()
+    type(field_type), pointer :: dA_at_w2 => null()
+    type(field_type), pointer :: long_w3 => null()
+    type(field_type), pointer :: lat_w3 => null()
+    type(field_type), pointer :: lat_w2 => null()
+    type(field_type)          :: long_w2
+    type(integer_field_type)  :: face_counter
+    type(integer_field_type), pointer :: face_selector_ew => null()
+    type(integer_field_type), pointer :: face_selector_ns => null()
+
+    type(mesh_type),       pointer :: mesh => null()
+    type(mesh_type),       pointer :: twod_mesh => null()
+    type(local_mesh_type), pointer :: local_mesh => null()
+
+    ! Temporary values for iterating through list
+    integer(kind=i_def) :: i, num_meshes
+
+    if ( subroutine_timers ) call timer('geometric_constants_alg')
+    call log_event( "Gungho: creating geometric_constants", LOG_LEVEL_INFO )
+
+    num_meshes = size(mesh_id_list)
+
+    call height_w1_inventory%initialise(name="height_w1", table_len=num_meshes)
+    call height_w2_inventory%initialise(name="height_w2", table_len=num_meshes)
+    call height_w3_inventory%initialise(name="height_w3", table_len=num_meshes)
+    call height_wth_inventory%initialise(name="height_wth", table_len=num_meshes)
+    call dz_w3_inventory%initialise(name="dz_w3", table_len=num_meshes)
+    call dA_at_w2_inventory%initialise(name="dA_w2", table_len=num_meshes)
+    call long_w3_inventory%initialise(name="lon_w3", table_len=num_meshes)
+    call lat_w3_inventory%initialise(name="lat_w3", table_len=num_meshes)
+    call lat_w2_inventory%initialise(name="lat_w2", table_len=num_meshes)
+    call face_selector_ew_inventory%initialise(name="face_selector_ew", table_len=num_meshes)
+    call face_selector_ns_inventory%initialise(name="face_selector_ns", table_len=num_meshes)
+    if ( extended_mesh ) call extended_chi_inventory%initialise(name="extended_chi", table_len=num_meshes)
+
+    !==========================================================================!
+    ! Begin loop through meshes
+    !==========================================================================!
+
+    ! TODO: #2790 should change this structure to avoid looping through meshes
+    do i = 1, num_meshes
+
+      !=========== Create function spaces required for setup ==================!
+      mesh => mesh_collection%get_mesh( mesh_id_list(i) )
+
+      w3_k0_fs => function_space_collection%get_fs( mesh, 0, W3 )
+      w2_k0_fs  => function_space_collection%get_fs( mesh, 0, W2 )
+
+      ! Don't need most function spaces for 2D meshes
+      if ( label_list(i) /= twod_mesh_label) then
+        w1_k0_fs  => function_space_collection%get_fs( mesh, 0, W1 )
+        wth_k0_fs => function_space_collection%get_fs( mesh, 0, Wtheta )
+      end if
+
+      !================ Set coordinates field and panel ID ====================!
+
+      if ( extended_mesh .and. ( label_list(i) == primary_mesh_label .or. &
+                                 label_list(i) == shifted_mesh_label )  ) then
+        call log_event( "Computing extended mesh coodinates", LOG_LEVEL_INFO )
+        wchi_fs => chi_in(1,i)%get_function_space()
+        call extended_chi_inventory%add_field_array(extended_chi, wchi_fs, 3, mesh, &
+                                                    halo_depth = mesh%get_halo_depth())
+        call extend_chi_field(extended_chi, chi_in(:,i), panel_id_in(i))
+        nullify(extended_chi, wchi_fs)
+      end if
+
+      !======================= Create a height field ==========================!
+      ! Note that these fields represent the height relative to
+      ! the surface as represented by a sphere.  With the current
+      ! representation of chi, this will result in the lowest
+      ! levels being -ve. This should be reviewed with ticket #562
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label .or. &
+           label_list(i) == multigrid_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
+        call height_w3_inventory%add_field(height_w3, w3_k0_fs, mesh)
+        call height_wth_inventory%add_field(height_wth, wth_k0_fs, mesh)
+        call invoke( get_height_kernel_type( height_w3,          &
+                                             chi_in(:,i),        &
+                                             scaled_radius ),    &
+                     get_height_kernel_type( height_wth,         &
+                                             chi_in(:,i),        &
+                                             scaled_radius )     )
+        nullify(height_w3, height_wth)
+      end if
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
+        call height_w1_inventory%add_field(height_w1, w1_k0_fs, mesh)
+        call invoke( get_height_kernel_type( height_w1,          &
+                                             chi_in(:,i),        &
+                                             scaled_radius ) )
+        nullify(height_w1)
+      end if
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label .or. &
+           label_list(i) == extra_mesh_label ) then
+        call height_w2_inventory%add_field(height_w2, w2_k0_fs, mesh)
+        call invoke( get_height_kernel_type( height_w2,          &
+                                             chi_in(:,i),        &
+                                             scaled_radius ) )
+      end if
+
+      ! ======================= Calculate dz for w3 ===========================!
+      ! Calculate dz at W3 using the difference of the heights at vertical W2 dofs
+
+      if ( label_list(i) == primary_mesh_label .or. &
+           label_list(i) == shifted_mesh_label .or. &
+           label_list(i) == extra_mesh_label) then
+        call dz_w3_inventory%add_field(dz_w3, w3_k0_fs, mesh)
+        call invoke( get_dz_w3_kernel_type(dz_w3, height_w2) )
+        nullify(dz_w3)
+      end if
+      nullify(height_w2)
+
+      ! ================= Compute latitude and longitude maps =================!
+
+      if ( label_list(i) == primary_mesh_label ) then
+        twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+        w3_2d_fs => function_space_collection%get_fs( twod_mesh, 0, W3 )
+        w2_2d_fs  => function_space_collection%get_fs( twod_mesh, 0, W2 )
+        call lat_w3_inventory%add_field(lat_w3, w3_2d_fs, twod_mesh)
+        call long_w3_inventory%add_field(long_w3, w3_2d_fs, twod_mesh)
+        if ( geometry == geometry_spherical ) then
+          call invoke( compute_latlon_kernel_type( lat_w3, long_w3,  &
+                                                   chi_in(:,i),      &
+                                                   panel_id_in(i) )  )
+        else
+          call invoke( setval_c(lat_w3, f_lat),  &
+                       setval_c(long_w3, f_lon) )
+        end if
+
+        ! for w2_k0_fs (only lat)
+        call lat_w2_inventory%add_field(lat_w2, w2_2d_fs, twod_mesh)
+        call long_w2%initialise( w2_2d_fs )
+        if ( geometry == geometry_spherical ) then
+          call invoke( compute_latlon_kernel_type( lat_w2, long_w2,  &
+                                                   chi_in(:,i),      &
+                                                   panel_id_in(i) )  )
+        else
+          call invoke( setval_c(lat_w2, f_lat) )
+        end if
+
+        nullify(lat_w3, long_w3, lat_w2)
+      end if
+
+      !================ Create dA values at W2 dof locations ==================!
+
+      if ( label_list(i) /= twod_mesh_label .and.      &
+           label_list(i) /= multigrid_mesh_label .and. &
+           element_order == 0 ) then
+        call dA_at_w2_inventory%add_field(dA_at_w2, w2_k0_fs, mesh)
+        call invoke( setval_c(dA_at_w2, 0.0_r_def),&
+                     calc_dA_at_w2_kernel_type(dA_at_w2,         &
+                                               chi_in(:,i),      &
+                                               panel_id_in(i)  ) )
+        nullify(dA_at_w2)
+      end if
+
+      !============================ Face selector =============================!
+
+      if ( label_list(i) == twod_mesh_label ) then
+        w2h_2d_fs  => function_space_collection%get_fs( mesh, 0, W2H )
+        local_mesh => mesh%get_local_mesh()
+        call face_counter%initialise( w2h_2d_fs )
+        call face_selector_ew_inventory%add_field(face_selector_ew, w3_k0_fs, local_mesh)
+        call face_selector_ns_inventory%add_field(face_selector_ns, w3_k0_fs, local_mesh)
+        call invoke( int_setval_c(face_counter, 0),                            &
+                     ! Do West and South faces for every cell
+                     int_setval_c(face_selector_ew, 1),                        &
+                     int_setval_c(face_selector_ns, 1),                        &
+                     set_any_int_dof_kernel_type(face_counter, W, 1),          &
+                     set_any_int_dof_kernel_type(face_counter, S, 1),          &
+                     face_selector_kernel_type(face_selector_ew,               &
+                                               face_selector_ns,               &
+                                               face_counter ) )
+        nullify(face_selector_ew, face_selector_ns)
+      end if
+
+    !========================= End loop through meshes ========================!
+
+    end do
+
+    nullify(wth_k0_fs, w3_k0_fs, w2_k0_fs, w1_k0_fs, mesh)
+
+    call log_event( "Gungho: created geometric_constants", LOG_LEVEL_INFO )
+    if ( subroutine_timers ) call timer('geometric_constants_alg')
+
+  end subroutine create_geometric_constants
+
+  !> @brief Function to return a pointer to the panel_id
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The coordinate field array
+  function get_panel_id(mesh_id) result(panel_id_ptr)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(mesh_type),        pointer :: prime_extrusion_mesh => null()
+    type(field_type),       pointer :: panel_id_ptr
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    if (mesh%get_extrusion_id() == TWOD) then
+      prime_extrusion_mesh => mesh_collection%get_mesh(mesh, PRIME_EXTRUSION)
+      call panel_id_inventory%get_field(prime_extrusion_mesh, panel_id_ptr)
+    else
+      call panel_id_inventory%get_field(mesh, panel_id_ptr)
+    end if
+    nullify(mesh, prime_extrusion_mesh)
+  end function get_panel_id
+
+  !> @brief Returns a pointer to the coordinate field array on the finest level
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The coordinate field array
+  function get_coordinates(mesh_id) result(coords_ptr)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(mesh_type),        pointer :: prime_extrusion_mesh => null()
+    type(field_type),       pointer :: coords_ptr(:)
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    if (mesh%get_extrusion_id() == TWOD) then
+      prime_extrusion_mesh => mesh_collection%get_mesh(mesh, PRIME_EXTRUSION)
+      call chi_inventory%get_field_array(prime_extrusion_mesh, coords_ptr)
+    else
+      call chi_inventory%get_field_array(mesh, coords_ptr)
+    end if
+    nullify(mesh, prime_extrusion_mesh)
+
+  end function get_coordinates
+
+  !> @brief Returns a pointer to the extended coordinate field array on the finest level
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The coordinate field array
+  function get_extended_coordinates(mesh_id) result(coords_ptr)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(field_type),       pointer :: coords_ptr(:)
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call extended_chi_inventory%get_field_array(mesh, coords_ptr)
+    nullify(mesh)
+
+  end function get_extended_coordinates
+
+  !> @brief Returns the dA values at W2 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dA field
+  function get_dA_at_w2(mesh_id) result(dA)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(field_type),       pointer :: dA
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call dA_at_w2_inventory%get_field(mesh, dA)
+    nullify(mesh)
+
+  end function get_dA_at_w2
+
+  !> @brief Returns a pointer to a height field
+  !> @param[in] space   The space of the desired height field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return A height field
+  function get_height(space, mesh_id) result(height)
+    implicit none
+    integer(kind=i_def), intent(in) :: space
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(field_type),       pointer :: height
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+
+    select case (space)
+    case (W1)
+      call height_w1_inventory%get_field(mesh, height)
+    case (W2)
+      call height_w2_inventory%get_field(mesh, height)
+    case (W3)
+      call height_w3_inventory%get_field(mesh, height)
+    case (Wtheta)
+      call height_wth_inventory%get_field(mesh, height)
+    case default
+      height => null()
+      call log_event( "Height not available on requested space", LOG_LEVEL_ERROR)
+    end select
+
+    nullify(mesh)
+
+  end function get_height
+
+  !> @brief Returns a pointer to the delta z at W3 field.
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The dz at W3 field
+  function get_dz_w3(mesh_id) result(dz_w3)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(field_type),       pointer :: dz_w3
+    type(mesh_type),        pointer :: mesh => null()
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call dz_w3_inventory%get_field(mesh, dz_w3)
+    nullify(mesh)
+
+  end function get_dz_w3
+
+  !> @brief Returns a pointer to the latitude map
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The latitude field array
+  function get_latitude(mesh_id) result(lat_ptr)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(field_type),       pointer :: lat_ptr
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call lat_w3_inventory%get_field(mesh, lat_ptr)
+    nullify(mesh)
+
+  end function get_latitude
+
+  !> @brief Returns a pointer to the latitude map on W2 space
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The latitude field array
+  function get_latitude_w2(mesh_id) result(lat_ptr)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(field_type),       pointer :: lat_ptr
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call lat_w2_inventory%get_field(mesh, lat_ptr)
+    nullify(mesh)
+
+  end function get_latitude_w2
+
+  !> @brief Returns a pointer to the east-west face selector
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The east-west face selector
+  function get_face_selector_ew(mesh_id) result(selector)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(local_mesh_type),    pointer :: local_mesh => null()
+    type(integer_field_type), pointer :: selector
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    call face_selector_ew_inventory%get_field(local_mesh, selector)
+    nullify(mesh, local_mesh)
+
+  end function get_face_selector_ew
+
+  !> @brief Returns a pointer to the north-south face selector
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The north-south face selector
+  function get_face_selector_ns(mesh_id) result(selector)
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    type(mesh_type),          pointer :: mesh => null()
+    type(local_mesh_type),    pointer :: local_mesh => null()
+    type(integer_field_type), pointer :: selector
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    call face_selector_ns_inventory%get_field(local_mesh, selector)
+    nullify(mesh, local_mesh)
+
+  end function get_face_selector_ns
+
+  !> @brief Returns a pointer to the longitude map
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The longitude field array
+  function get_longitude(mesh_id) result(long_ptr)
+    implicit none
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh => null()
+    type(field_type),       pointer :: long_ptr
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    call long_w3_inventory%get_field(mesh, long_ptr)
+    nullify(mesh)
+
+  end function get_longitude
+
+  !> @brief Returns a pointer to the chi inventory
+  function get_chi_inventory() result(inventory_ptr)
+    implicit none
+    type(inventory_by_mesh_type), pointer :: inventory_ptr
+
+    inventory_ptr => chi_inventory
+
+  end function get_chi_inventory
+
+  !> @brief Returns a pointer to the panel_id inventory
+  function get_panel_id_inventory() result(inventory_ptr)
+    implicit none
+    type(inventory_by_mesh_type), pointer :: inventory_ptr
+
+    inventory_ptr => panel_id_inventory
+
+  end function get_panel_id_inventory
+
+  !> @brief Returns the displacement when averaging from W3 to W2
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The displacement field used for correcting mappings from W3 to W2
+  function get_w3_to_w2_displacement(mesh_id) result(w3_to_w2_displacement)
+    use w3_to_w2_displacement_kernel_mod, only: w3_to_w2_displacement_kernel_type
+    implicit none
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh => null()
+    type(local_mesh_type),     pointer :: local_mesh => null()
+    type(field_type),          pointer :: w3_to_w2_displacement
+    type(field_type)                   :: dummy_w3
+    logical(kind=l_def)                :: constant_exists
+    type(field_type),          pointer :: chi(:) => null()
+    type(field_type),          pointer :: panel_id => null()
+    type(function_space_type), pointer :: w2h_k0_fs => null()
+    type(function_space_type), pointer :: w3_k0_fs => null()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. w3_to_w2_displacement_inventory%is_initialised()) then
+      call w3_to_w2_displacement_inventory%initialise(name="w3_to_w2_displacement", table_len=20)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    constant_exists = w3_to_w2_displacement_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (constant_exists) then
+      ! Return existing constant
+      call w3_to_w2_displacement_inventory%get_field(local_mesh, w3_to_w2_displacement)
+    else
+      ! If this constant doesn't exist, create it
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      w2h_k0_fs => function_space_collection%get_fs(mesh, 0, W2H)
+      w3_k0_fs => function_space_collection%get_fs(mesh, 0, W3)
+
+      call w3_to_w2_displacement_inventory%add_field(w3_to_w2_displacement,    &
+                                                     w2h_k0_fs, local_mesh)
+
+      call dummy_w3%initialise( w3_k0_fs )
+      call invoke( setval_c(w3_to_w2_displacement, 0.0_r_def),                 &
+                   w3_to_w2_displacement_kernel_type(w3_to_w2_displacement,    &
+                                                     chi, panel_id, dummy_w3) )
+
+      nullify(w2h_k0_fs, w3_k0_fs, chi, panel_id)
+    end if
+
+    nullify(mesh, local_mesh)
+
+  end function get_w3_to_w2_displacement
+
+  !> @brief Explicitly reclaim memory from module scope variables
+  !
+  subroutine final_geometric_constants()
+
+    implicit none
+
+    call lat_w2_inventory%clear()
+    call lat_w3_inventory%clear()
+    call long_w3_inventory%clear()
+    call dA_at_w2_inventory%clear()
+    call height_wth_inventory%clear()
+    call height_w3_inventory%clear()
+    call height_w2_inventory%clear()
+    call height_w1_inventory%clear()
+    call dz_w3_inventory%clear()
+    call panel_id_inventory%clear()
+    call chi_inventory%clear()
+    call extended_chi_inventory%clear()
+    call w3_to_w2_displacement_inventory%clear()
+
+  end subroutine final_geometric_constants
+
+end module geometric_constants_mod

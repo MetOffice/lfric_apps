@@ -1,0 +1,56 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+
+!>@use Calls algorithms that are used to check, report or manipulate field data
+module checks_and_balances_alg_mod
+
+  use constants_mod,          only: i_def,r_def
+  use log_mod,                only: log_event,         &
+                                    LOG_LEVEL_INFO
+  use derived_config_mod,     only: bundle_size
+  use checks_config_mod,      only: limit_cfl, max_cfl
+  ! Derived Types
+  use field_mod,              only: field_type
+
+  ! Field indices
+  use field_indices_mod,      only: igh_u
+
+  ! Kernels
+  use limit_wind_kernel_mod,  only: limit_wind_kernel_type
+
+  ! Runtime constants
+  use fem_constants_mod,      only: get_detJ_at_w2
+
+  implicit none
+
+contains
+
+  !> @details Checks and modifies fields where necessary
+  !> @param[inout] state Current state of the model prognostics
+  !> @param[in]    dt    The model timestep length
+  subroutine check_fields(state, dt)
+
+    implicit none
+
+    ! Prognostic fields
+    type(field_type), intent( inout ) :: state(bundle_size)
+    real(kind=r_def), intent( in )    :: dt
+
+    type( field_type ), pointer  :: detJ => null() ! Areas of faces
+
+    detJ => get_detj_at_w2(state(igh_u)%get_mesh_id())
+
+    if (limit_cfl)then
+
+      call invoke(limit_wind_kernel_type(state(igh_u), detJ, max_cfl, dt))
+
+    end if
+
+    nullify( detJ )
+
+  end subroutine check_fields
+
+end module checks_and_balances_alg_mod

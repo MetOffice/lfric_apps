@@ -1,0 +1,20 @@
+@@ -6,8 +6,8 @@
+   use kernel_mod, only : kernel_type
+   use reference_element_mod, only : n
+   implicit none
+-  interface combine_w2_field_code
+-  module procedure combine_w2_field_code_r_single, combine_w2_field_code_r_double
++  interface adj_combine_w2_field_code
++  module procedure adj_combine_w2_field_code_r_single, adj_combine_w2_field_code_r_double
+ end interface
+   type, public, extends(kernel_type) :: adj_combine_w2_field_kernel_type
+   type(ARG_TYPE) :: META_ARGS(5) = (/ &
+@@ -21,7 +21,7 @@
+ 
+   private
+ 
+-  public :: combine_w2_field_code
++  public :: adj_combine_w2_field_code
+ 
+   contains
+   subroutine adj_combine_w2_field_code_r_double(nlayers, uvw, uv, w, face_selector_ew, face_selector_ns, ndf_w2, undf_w2, map_w2, &

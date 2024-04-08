@@ -1,0 +1,242 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief       Populate radiation_fields array with easyaerosol data and create
+!>             relevant diagnostic outputs
+!>
+!>@details     The objectives of this algorithm are two-fold:
+!>         (1) Transfer optical property data from the easyaerosol climatology
+!>             into socrates arrays in radiation_fields in preparation for their
+!>             use in the calculation of aerosol radiative effects.
+!>         (2) Create any requested diagnostic outputs containing aerosol
+!>             optical properties. These include two groups of diagnostics:
+!>             -  the easyaerosol climatology
+!>             -  the full socrates arrays, which include optical properties from
+!>                both easyaerosol and RADAER
+!
+
+module easyaerosol_alg_mod
+
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+  use io_config_mod,                   only: use_xios_io, write_diag
+  use aerosol_config_mod,              only: easyaerosol_sw, easyaerosol_lw, &
+                                             n_radaer_step
+  use socrates_init_mod,               only: n_sw_band, n_lw_band
+  use easyaerosol_diags_mod,           only: easyaerosol_diags
+  use um_physics_init_mod,             only: n_radaer_mode, mode_dimen
+  use radiation_config_mod,            only: n_radstep
+  use constants_mod,                   only: i_def
+
+  implicit none
+
+  private
+  public easyaerosol_alg
+
+contains
+
+  !>@details       Socrates requires the easyaerosol optical property fields
+  !>               alongside those from radaer in the radiaton_fields collection
+  !>               This is achieved by calling these three separate algorithms:
+  !>
+  !>               easyaerosol_aer_alg - populates aer_mix_ratio array
+  !>               easyaerosol_sw_alg  - populate sw arrays and create sw diags
+  !>               easyaerosol_sw_alg  - populate lw arrays and create lw diags
+  !>
+  !>@param[in]     radiation_fields      radiation related fields
+  !>@param[in]     aerosol_fields        aerosol related fields
+  !>@param[in]     derived_fields        derived physical fields
+  !>@param[in]     timestep              Current timestep number
+  subroutine easyaerosol_alg( radiation_fields, aerosol_fields,                &
+                              derived_fields, timestep )
+
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent( in ) :: radiation_fields
+    type( field_collection_type ), intent( in ) :: aerosol_fields
+    type( field_collection_type ), intent( in ) :: derived_fields
+    integer( kind=i_def ), intent( in )         :: timestep
+
+    ! Call on radiation time steps only
+    if (mod(timestep-1_i_def, n_radaer_step*n_radstep) == 0) then
+
+      ! This algorithm will set the aer_mix_ratio array to 1
+      call easyaerosol_aer_alg( radiation_fields )
+
+      ! This algorithm will set the sw optical property arrays
+      if (easyaerosol_sw) then
+        call easyaerosol_sw_alg( radiation_fields, aerosol_fields,             &
+                                 derived_fields )
+      end if
+
+      ! This algorithm will set the lw optical property arrays
+      if (easyaerosol_lw) then
+        call easyaerosol_lw_alg( radiation_fields, aerosol_fields,             &
+                                 derived_fields )
+      end if
+
+    end if
+
+  end subroutine easyaerosol_alg
+
+  !>@details       Socrates aer_mix_ratio array is populated with dummy values
+  !>               for the mode corresponding to the easyaerosol climatology
+  !>@param[in]     radiation_fields      radiation related fields
+
+  subroutine easyaerosol_aer_alg( radiation_fields )
+
+    use easyaerosol_aer_kernel_mod, only: easyaerosol_aer_kernel_type
+
+    implicit none
+    type( field_collection_type ), intent( in ) :: radiation_fields
+
+    ! Unpack air_mix_ratio from radiation_fields
+    type( field_type ), pointer :: aer_mix_ratio => null()
+    call radiation_fields%get_field('aer_mix_ratio', aer_mix_ratio)
+    call invoke( easyaerosol_aer_kernel_type( mode_dimen, aer_mix_ratio) )
+
+  end subroutine easyaerosol_aer_alg
+
+  !>@details       Socrates shortwave aerosol optical property arrays
+  !>               are populated with data from the easyaerosol climatology
+  !>               for the final "mode" (after RADAER data)
+  !>               Shortwave aerosol optical properties diagnostics
+  !>               may also be called from here.
+  !>@param[in]     radiation_fields      radiation related fields
+  !>@param[in]     aerosol_fields        aerosol related fields
+  !>@param[in]     derived_fields        derived physical fields
+  !
+  subroutine easyaerosol_sw_alg( radiation_fields, aerosol_fields,             &
+                                 derived_fields )
+
+    use easyaerosol_sw_kernel_mod, only: easyaerosol_sw_kernel_type
+    use aerosol_config_mod,        only: n_radaer_step
+
+    implicit none
+    type( field_collection_type ), intent( in ) :: radiation_fields
+    type( field_collection_type ), intent( in ) :: aerosol_fields
+    type( field_collection_type ), intent( in ) :: derived_fields
+
+    ! Unpack SW fields and pass to kernel
+    type( field_type ), pointer :: aer_sw_absorption  => null()
+    type( field_type ), pointer :: aer_sw_scattering  => null()
+    type( field_type ), pointer :: aer_sw_asymmetry   => null()
+    type( field_type ), pointer :: easy_absorption_sw => null()
+    type( field_type ), pointer :: easy_extinction_sw => null()
+    type( field_type ), pointer :: easy_asymmetry_sw  => null()
+    type( field_type ), pointer :: aer_mix_ratio      => null()
+    type( field_type ), pointer :: rho_in_wth         => null()
+    type( field_type ), pointer :: lit_fraction_rts   => null()
+
+    call radiation_fields%get_field('aer_sw_absorption', aer_sw_absorption)
+    call radiation_fields%get_field('aer_sw_scattering', aer_sw_scattering)
+    call radiation_fields%get_field('aer_sw_asymmetry',  aer_sw_asymmetry)
+    call aerosol_fields%get_field('easy_absorption_sw',  easy_absorption_sw)
+    call aerosol_fields%get_field('easy_extinction_sw',  easy_extinction_sw)
+    call aerosol_fields%get_field('easy_asymmetry_sw',   easy_asymmetry_sw)
+    call radiation_fields%get_field('aer_mix_ratio',     aer_mix_ratio)
+    call derived_fields%get_field('rho_in_wth',          rho_in_wth)
+    call radiation_fields%get_field('lit_fraction_rts',  lit_fraction_rts)
+
+    ! Kernel that will transfer the EA data into the socrates arrays
+    !
+    call invoke( easyaerosol_sw_kernel_type(                                   &
+                                     n_radaer_mode,                            &
+                                     n_radaer_step,                            &
+                                     n_sw_band,                                &
+                                     aer_sw_absorption,                        &
+                                     aer_sw_scattering,                        &
+                                     aer_sw_asymmetry,                         &
+                                     easy_absorption_sw,                       &
+                                     easy_extinction_sw,                       &
+                                     easy_asymmetry_sw,                        &
+                                     rho_in_wth,                               &
+                                     lit_fraction_rts ) )
+
+    ! Easyaerosol SW diagostics?
+    if ( write_diag .and. use_xios_io ) then
+      call easyaerosol_diags     ( aer_sw_absorption,                          &
+                                   aer_sw_scattering,                          &
+                                   easy_absorption_sw,                         &
+                                   easy_extinction_sw,                         &
+                                   easy_asymmetry_sw,                          &
+                                   aer_mix_ratio,                              &
+                                   rho_in_wth,                                 &
+                                   'sw',                                       &
+                                   n_sw_band )
+    end if
+
+  end subroutine easyaerosol_sw_alg
+
+  !>@details       Socrates shortwave aerosol optical property arrays
+  !>               are populated with data from the easyaerosol climatology
+  !>               for the final "mode" (after RADAER data)
+  !>               Shortwave aerosol optical properties diagnostics
+  !>               may also be called from here.
+  !>@param[in]     radiation_fields      radiation related fields
+  !>@param[in]     aerosol_fields        aerosol related fields
+  !>@param[in]     derived_fields        derived physical fields
+  !
+  subroutine easyaerosol_lw_alg( radiation_fields, aerosol_fields,             &
+                                 derived_fields )
+
+    use easyaerosol_lw_kernel_mod, only: easyaerosol_lw_kernel_type
+
+    implicit none
+    type( field_collection_type ), intent( in ) :: radiation_fields
+    type( field_collection_type ), intent( in ) :: aerosol_fields
+    type( field_collection_type ), intent( in ) :: derived_fields
+
+    ! Unpack LW fields and pass to kernel
+    type( field_type ), pointer :: aer_lw_absorption  => null()
+    type( field_type ), pointer :: aer_lw_scattering  => null()
+    type( field_type ), pointer :: aer_lw_asymmetry   => null()
+    type( field_type ), pointer :: easy_absorption_lw => null()
+    type( field_type ), pointer :: easy_extinction_lw => null()
+    type( field_type ), pointer :: easy_asymmetry_lw  => null()
+    type( field_type ), pointer :: aer_mix_ratio      => null()
+    type( field_type ), pointer :: rho_in_wth         => null()
+
+    call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption)
+    call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering)
+    call radiation_fields%get_field('aer_lw_asymmetry',  aer_lw_asymmetry)
+    call aerosol_fields%get_field('easy_absorption_lw',  easy_absorption_lw)
+    call aerosol_fields%get_field('easy_extinction_lw',  easy_extinction_lw)
+    call aerosol_fields%get_field('easy_asymmetry_lw',   easy_asymmetry_lw)
+    call radiation_fields%get_field('aer_mix_ratio',     aer_mix_ratio)
+    call derived_fields%get_field('rho_in_wth',          rho_in_wth)
+
+    ! Kernel that will transfer the EA data into the socrates arrays
+    !
+    call invoke( easyaerosol_lw_kernel_type(                                   &
+                                     n_radaer_mode,                            &
+                                     n_lw_band,                                &
+                                     aer_lw_absorption,                        &
+                                     aer_lw_scattering,                        &
+                                     aer_lw_asymmetry,                         &
+                                     easy_absorption_lw,                       &
+                                     easy_extinction_lw,                       &
+                                     easy_asymmetry_lw,                        &
+                                     rho_in_wth) )
+
+
+    ! Easyaerosol LW diagostics?
+    if ( write_diag .and. use_xios_io ) then
+      call easyaerosol_diags ( aer_lw_absorption,                              &
+                               aer_lw_scattering,                              &
+                               easy_absorption_lw,                             &
+                               easy_extinction_lw,                             &
+                               easy_asymmetry_lw,                              &
+                               aer_mix_ratio,                                  &
+                               rho_in_wth,                                     &
+                               'lw',                                           &
+                               n_lw_band )
+    end if
+
+  end subroutine easyaerosol_lw_alg
+
+end module easyaerosol_alg_mod

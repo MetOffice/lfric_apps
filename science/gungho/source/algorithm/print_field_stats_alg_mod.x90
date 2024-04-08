@@ -1,0 +1,173 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+! @brief Print some useful statistics about a field
+
+module print_field_stats_alg_mod
+
+implicit none
+
+private
+public :: print_field_stats_alg
+
+contains
+
+! @details Print the max and min of the input field. If these values exceed
+!          some user defined max and min values, then print additional
+!          information regarding the location of the max and min values
+!          (latitude, longitude, height). If no user input is provided,
+!          the location information will always be printed.
+! @param[in] field    Field to print info about
+! @param[in] level    Logging level for output
+! @param[in] printmin User defined min to print info below
+! @param[in] printmax User defined max to print info above
+! @param[in] name     Name of the field to appear in print messages
+subroutine print_field_stats_alg(field, level, printmin, printmax, name)
+
+  use field_mod,               only: field_type
+  use mesh_mod,                only: mesh_type
+  use constants_mod,           only: r_def, str_def, i_def, radians_to_degrees,&
+                                     rmdi
+  use log_mod,                 only: log_event, log_level, log_scratch_space
+  use base_mesh_config_mod,    only: prime_mesh_name
+  use mesh_collection_mod,     only: mesh_collection
+  use fs_continuity_mod,       only: W3, Wtheta
+  use geometric_constants_mod, only: get_latitude, get_longitude, get_height
+  use field_stats_kernel_mod,  only: field_stats_kernel_type
+  use extrusion_mod,           only: TWOD
+  use field_minmax_alg_mod,    only: get_field_minmax
+
+  implicit none
+
+  type(field_type), intent(in) :: field
+  integer(i_def),   intent(in) :: level
+  real(r_def),      intent(in), optional :: printmin, printmax
+  character(*),     intent(in), optional :: name
+
+  integer(i_def)     :: fs_id
+  real(r_def)        :: fmin, fmax, gmax_lev, gmin_lev, gmax_count, gmin_count,&
+                        gmax_lat, gmin_lat, gmax_lon, gmin_lon, gmax_height,   &
+                        gmin_height, minvalue, maxvalue
+  character(str_def) :: field_name
+  type(field_type)   :: max_lev, min_lev, max_count, min_count, max_lat, &
+                        min_lat, max_lon, min_lon, max_height, min_height
+  type( mesh_type ),  pointer :: mesh => null()
+  type( mesh_type ),  pointer :: twod_mesh => null()
+  type( field_type ), pointer :: latitude  => null()
+  type( field_type ), pointer :: longitude => null()
+  type( field_type ), pointer :: height    => null()
+
+  if (log_level() <= level) then
+
+    call get_field_minmax( field, fmin, fmax )
+
+    if (present(name)) then
+      field_name = name
+    else
+      field_name = field%get_name()
+    end if
+
+    write(log_scratch_space,'(A,A,A,F16.8,A,F16.8)') &
+         'Field Min/max ',trim(field_name),' = ',fmin,' ',fmax
+    call log_event( log_scratch_space, level )
+
+    fs_id = field%which_function_space()
+
+    if ( fs_id == Wtheta .or. fs_id == W3 ) then
+
+      if (present(printmin)) then
+        minvalue = printmin
+      else
+        minvalue = rmdi
+      end if
+
+      if (present(printmax)) then
+        maxvalue = printmax
+      else
+        maxvalue = -rmdi
+      end if
+
+      if (fmin <= minvalue .or. fmax >= maxvalue) then
+
+        mesh => field%get_mesh()
+        twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+        latitude  => get_latitude( twod_mesh%get_id() )
+        longitude => get_longitude( twod_mesh%get_id() )
+        height    => get_height( fs_id, mesh%get_id() )
+
+        nullify( mesh, twod_mesh )
+
+        call latitude%copy_field_properties(max_lev)
+        call latitude%copy_field_properties(min_lev)
+        call latitude%copy_field_properties(max_count)
+        call latitude%copy_field_properties(min_count)
+        call latitude%copy_field_properties(max_lat)
+        call latitude%copy_field_properties(min_lat)
+        call latitude%copy_field_properties(max_lon)
+        call latitude%copy_field_properties(min_lon)
+        call latitude%copy_field_properties(max_height)
+        call latitude%copy_field_properties(min_height)
+        call invoke(setval_c(max_lev,    0.0_r_def), &
+                    setval_c(min_lev,    0.0_r_def), &
+                    setval_c(max_count,  0.0_r_def), &
+                    setval_c(min_count,  0.0_r_def), &
+                    setval_c(max_lat,    0.0_r_def), &
+                    setval_c(min_lat,    0.0_r_def), &
+                    setval_c(max_lon,    0.0_r_def), &
+                    setval_c(min_lon,    0.0_r_def), &
+                    setval_c(max_height, 0.0_r_def), &
+                    setval_c(min_height, 0.0_r_def) )
+
+        call invoke(field_stats_kernel_type(field, height, fmax, fmin,         &
+                                            latitude, longitude, max_lev,      &
+                                            min_lev, max_count, min_count,     &
+                                            max_lat, min_lat, max_lon, min_lon,&
+                                            max_height, min_height),           &
+                    sum_X(gmax_lev,    max_lev),    &
+                    sum_X(gmin_lev,    min_lev),    &
+                    sum_X(gmax_count,  max_count),  &
+                    sum_X(gmin_count,  min_count),  &
+                    sum_X(gmax_lat,    max_lat),    &
+                    sum_X(gmin_lat,    min_lat),    &
+                    sum_X(gmax_lon,    max_lon),    &
+                    sum_X(gmin_lon,    min_lon),    &
+                    sum_X(gmax_height, max_height), &
+                    sum_X(gmin_height, min_height) )
+
+        write(log_scratch_space,'(A,I16,A,I16)') &
+        '     at level = ',int(gmin_lev/gmin_count),' ',int(gmax_lev/gmax_count)
+        call log_event( log_scratch_space, level )
+
+        write(log_scratch_space,'(A,ES16.8E2,A,ES16.8E2)') &
+        '    at height = ',gmin_height/gmin_count,' ',gmax_height/gmax_count
+        call log_event( log_scratch_space, level )
+
+        write(log_scratch_space,'(A,F16.8,A,F16.8)') &
+        '  at latitude = ',radians_to_degrees*gmin_lat/gmin_count,' ', &
+                           radians_to_degrees*gmax_lat/gmax_count
+        call log_event( log_scratch_space, level )
+
+        write(log_scratch_space,'(A,F16.8,A,F16.8)') &
+        ' at longitude = ',radians_to_degrees*gmin_lon/gmin_count,' ', &
+                           radians_to_degrees*gmax_lon/gmax_count
+        call log_event( log_scratch_space, level )
+
+        write(log_scratch_space,'(A,I16,A,I16)') &
+        '   degeneracy = ',int(gmin_count),' ',int(gmax_count)
+        call log_event( log_scratch_space, level )
+
+      end if
+
+    else
+
+      call log_event( 'stats only works for w3 or wtheta field', level )
+
+    end if
+
+  end if
+
+end subroutine print_field_stats_alg
+end module print_field_stats_alg_mod

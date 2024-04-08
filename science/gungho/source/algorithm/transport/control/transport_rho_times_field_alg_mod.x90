@@ -1,0 +1,165 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Contains central routine for transporting rho times a field.
+!> @details Contains routine to transport rho times a field pointing to
+!!          particular routines based on the specified transport options.
+
+module transport_rho_times_field_alg_mod
+
+  use constants_mod,                    only: r_def, r_tran, i_def
+  use field_mod,                        only: field_type
+  use r_tran_field_mod,                 only: r_tran_field_type
+  use log_mod,                          only: log_event, LOG_LEVEL_ERROR
+  use transport_metadata_mod,           only: transport_metadata_type
+  use transport_runtime_alg_mod,        only: transport_runtime_type
+  use transport_runtime_collection_mod, only: get_transport_runtime
+  use psykal_lite_mod,                  only: invoke_copy_rtran_to_rdef, &
+                                              invoke_copy_to_rtran
+  use transport_field_mod,              only: transport_field_r_tran
+  use fs_continuity_mod,                only: W3, Wtheta
+  use extrusion_mod,                    only: SHIFTED
+  use enforce_lower_bound_kernel_mod,   only: enforce_lower_bound_kernel_type
+  use function_space_mod,               only: function_space_type
+  use function_space_collection_mod,    only: function_space_collection
+  use mesh_mod,                         only: mesh_type
+  use mesh_collection_mod,              only: mesh_collection
+  use inject_sh_w3_to_wt_kernel_mod,    only: inject_sh_w3_to_wt_kernel_type
+  use inject_wt_to_sh_w3_kernel_mod,    only: inject_wt_to_sh_w3_kernel_type
+
+  implicit none
+
+  private
+
+  public :: transport_rho_times_field_alg
+
+contains
+
+  !> @brief Central routine for transporting density multiplied by fields.
+  !> @details Performs a whole time step, solving the transport equation for
+  !!          rho_n times a field and then returning field/rho_np1 where
+  !!          rho_n and rho_np1 are start/end of transport step density.
+  !!          Only applicable for fields in W3 or Wtheta
+  !> @param[in,out] field_np1_rdef     Field to return at end of transport step
+  !> @param[in]     field_n_rdef       Field at the start of the transport step
+  !> @param[in]     model_dt_rdef      Time difference across time step
+  !> @param[in]     transport_metadata Contains the configuration options for
+  !!                                   transporting these fields
+  subroutine transport_rho_times_field_alg(field_np1_rdef, field_n_rdef, &
+                                           model_dt_rdef, transport_metadata)
+
+    implicit none
+
+    ! Arguments
+    type(field_type),              intent(inout) :: field_np1_rdef
+    type(field_type),              intent(in)    :: field_n_rdef
+    real(kind=r_def),              intent(in)    :: model_dt_rdef
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    ! Local conversions to the r_tran precision
+    type(r_tran_field_type) :: field_np1_rtran
+    type(r_tran_field_type) :: field_n_rtran
+    type(r_tran_field_type) :: rho_field_np1
+    type(r_tran_field_type) :: rho_field_n
+    real(kind=r_tran)       :: model_dt_rtran
+
+    ! Local density and shifting conversions
+    type(r_tran_field_type),   pointer :: rho_d_n => null()
+    type(r_tran_field_type),   pointer :: rho_d_np1 => null()
+    type(r_tran_field_type) :: field_n_sh_w3
+    type(r_tran_field_type) :: field_np1_sh_w3
+    type(function_space_type), pointer :: w3_shifted_fs => null()
+    type(function_space_type), pointer :: w3_fs => null()
+
+    type(mesh_type),              pointer :: primary_mesh => null()
+    type(mesh_type),              pointer :: shifted_mesh => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+    real(kind=r_tran)                     :: min_value
+    integer(kind=i_def)                   :: num_dry_steps
+
+    ! Set up some things that are independent of the function space
+    primary_mesh => field_n_rdef%get_mesh()
+    shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
+    transport_runtime => get_transport_runtime(primary_mesh)
+
+    ! First transfer r_def fields to be r_tran
+    call field_np1_rtran%initialise( vector_space = field_np1_rdef%get_function_space()  )
+    call field_n_rtran%initialise( vector_space = field_n_rdef%get_function_space()  )
+    call invoke_copy_to_rtran( field_n_rtran, field_n_rdef )
+    model_dt_rtran = real( model_dt_rdef, r_tran )
+
+    select case (field_n_rdef%which_function_space())
+    case (W3)
+      ! field is in the same space as density
+      w3_fs => function_space_collection%get_fs(primary_mesh, 0_i_def, W3)
+
+      ! Create local fields
+      call rho_field_n%initialise( vector_space=w3_fs)
+      call rho_field_np1%initialise( vector_space=w3_fs)
+
+      ! rho_d_n is from first step
+      rho_d_n => transport_runtime%get_rho_d(primary_mesh%get_id(), 1)
+      ! rho_d_np1 is from final step
+      num_dry_steps = transport_runtime%get_num_dry_steps()
+      rho_d_np1 => transport_runtime%get_rho_d(primary_mesh%get_id(), num_dry_steps+1)
+
+      ! multiply field by rho in native space
+      call invoke(X_times_Y( rho_field_n, rho_d_n, field_n_rdef))
+
+      call transport_field_r_tran(rho_field_np1, rho_field_n, model_dt_rtran, &
+                                  transport_metadata)
+
+      call invoke( X_divideby_Y(field_np1_rtran, rho_field_np1, rho_d_np1) )
+
+    case (Wtheta)
+      ! field is in the shifted space
+      w3_shifted_fs => function_space_collection%get_fs(shifted_mesh, 0_i_def, W3)
+
+      ! Create some shifted fields
+      call field_n_sh_w3%initialise( vector_space=w3_shifted_fs)
+      call field_np1_sh_w3%initialise( vector_space=w3_shifted_fs)
+      call rho_field_n%initialise( vector_space=w3_shifted_fs)
+      call rho_field_np1%initialise( vector_space=w3_shifted_fs)
+
+      ! rho_d_n is from first step
+      rho_d_n => transport_runtime%get_rho_d(shifted_mesh%get_id(), 1)
+      ! rho_d_np1 is from final step
+      num_dry_steps = transport_runtime%get_num_dry_steps()
+      rho_d_np1 => transport_runtime%get_rho_d(shifted_mesh%get_id(), num_dry_steps+1)
+
+      ! multiply field by rho in shifted space
+      call invoke( inject_wt_to_sh_w3_kernel_type(field_n_sh_w3, field_n_rtran), &
+                   X_times_Y(rho_field_n, field_n_sh_w3, rho_d_n) )
+
+
+      call transport_field_r_tran(rho_field_np1, rho_field_n, model_dt_rtran, &
+                                  transport_metadata)
+
+      call invoke( X_divideby_Y(field_np1_sh_w3, rho_field_np1, rho_d_np1) )
+
+
+      ! Turn back to Wtheta -- separate invoke as on different mesh
+      call invoke( inject_sh_w3_to_wt_kernel_type(field_np1_rtran, field_np1_sh_w3) )
+
+      ! This could lead to negative values at top so enforce lower bound
+      if ( transport_metadata%get_enforce_min_value() ) then
+        min_value = transport_metadata%get_min_value()
+        call invoke( enforce_lower_bound_kernel_type(field_np1_rtran, min_value) )
+      end if
+
+    case  default
+      call log_event('Transporting rho*field not implememented for chosen function space', &
+                     LOG_LEVEL_ERROR)
+
+    end select
+
+    ! -------------------------------------------------------------------- !
+    ! Copy transported fields back to r_def
+    ! -------------------------------------------------------------------- !
+    call invoke_copy_rtran_to_rdef( field_np1_rdef, field_np1_rtran )
+
+  end subroutine transport_rho_times_field_alg
+
+end module transport_rho_times_field_alg_mod

@@ -1,0 +1,90 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module ffsl_panel_swap_kernel_mod_test
+
+  use pFUnit_Mod
+  use constants_mod,      only : i_def, r_tran, r_def
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use ffsl_panel_swap_kernel_mod, only : ffsl_panel_swap_code
+
+    implicit none
+
+    real(kind=r_tran),   parameter   :: tol = 1.0e-6_r_tran
+
+    integer(kind=i_def)              :: nlayers, cell
+    integer(kind=i_def)              :: ndf_w3
+    integer(kind=i_def)              :: undf_w3
+    integer(kind=i_def), allocatable :: map_w3(:,:)
+    real(kind=r_tran),   allocatable :: field_x(:)
+    real(kind=r_tran),   allocatable :: field_y(:)
+    real(kind=r_tran),   allocatable :: field_x_answer(:)
+    real(kind=r_tran),   allocatable :: field_y_answer(:)
+    real(kind=r_def),    allocatable :: panel_id(:)
+
+    ! Set integer values to describe mesh (single layer, three columns)
+    ! Use W3 for panel ID
+    nlayers = 1
+    undf_w3 = 3
+    ndf_w3 = 1
+
+    allocate(map_w3(undf_w3,1))
+    allocate(field_x(undf_w3))
+    allocate(field_y(undf_w3))
+    allocate(field_x_answer(undf_w3))
+    allocate(field_y_answer(undf_w3))
+    allocate(panel_id(undf_w3))
+
+    ! DoF map
+    map_w3 = reshape( [1, 2, 3], [3, 1])
+
+    ! Make fields with different values
+    panel_id = (/ 1.0_r_def, 1.0_r_def, 4.0_r_def /)
+    field_x = (/ 2.0_r_tran, 6.6_r_tran, 1.9_r_tran /)
+    field_y = (/ 3.5_r_tran, 7.2_r_tran, 8.9_r_tran /)
+    ! Answers have the same values when the panel ID is the same, but swapped
+    ! values when the cell has crossed into a rotated panel
+    field_x_answer = (/ 2.0_r_tran, 6.6_r_tran, 8.9_r_tran /)
+    field_y_answer = (/ 3.5_r_tran, 7.2_r_tran, 1.9_r_tran /)
+
+    do cell = 1, undf_w3
+      call ffsl_panel_swap_code( nlayers,        &
+                                 field_x,        &
+                                 field_y,        &
+                                 panel_id,       &
+                                 ndf_w3,         &
+                                 undf_w3,        &
+                                 map_w3(cell,:), &
+                                 ndf_w3,         &
+                                 undf_w3,        &
+                                 map_w3(cell,:) )
+    end do
+
+    ! Check values!
+    @assertEqual( field_x_answer, field_x, tol )
+    @assertEqual( field_y_answer, field_y, tol )
+
+    deallocate(map_w3)
+    deallocate(field_x)
+    deallocate(field_y)
+    deallocate(field_x_answer)
+    deallocate(field_y_answer)
+    deallocate(panel_id)
+
+  end subroutine test_all
+
+end module ffsl_panel_swap_kernel_mod_test

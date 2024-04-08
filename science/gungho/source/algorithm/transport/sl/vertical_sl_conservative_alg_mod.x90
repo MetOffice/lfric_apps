@@ -1,0 +1,235 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Algorithm for a vertical SLICE-remapping scheme.
+!> @details The algorithm solves the 1D vertical conservative transport
+!!          equation by performing a vertical conservative remapping of a field
+!!          using the SLICE algorithm.
+
+module vertical_sl_conservative_alg_mod
+
+  use constants_mod,                      only: r_tran, i_def, l_def
+  use end_of_transport_step_alg_mod,      only: end_of_conservative_step_alg
+  use finite_element_config_mod,          only: element_order
+  use io_config_mod,                      only: subroutine_timers
+  use timer_mod,                          only: timer
+  use integer_field_mod,                  only: integer_field_type
+  use r_tran_operator_mod,                only: r_tran_operator_type
+  use r_tran_field_mod,                   only: r_tran_field_type
+  use transport_config_mod,               only: slice_order,               &
+                                                slice_order_linear,        &
+                                                slice_order_parabola,      &
+                                                slice_order_cubic,         &
+                                                vertical_sl_order,         &
+                                                vertical_sl_order_quintic, &
+                                                dry_field_name
+  use log_mod,                            only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                           only: mesh_type
+  use transport_enumerated_types_mod,     only: splitting_strang_vhv
+  use transport_metadata_mod,             only: transport_metadata_type
+  use transport_runtime_alg_mod,          only: transport_runtime_type
+  use transport_runtime_collection_mod,   only: get_transport_runtime
+  use vertical_mass_remapping_kernel_mod, only: vertical_mass_remapping_kernel_type
+  use vertical_cubic_sl_kernel_mod,       only: vertical_cubic_sl_kernel_type
+  use vertical_quintic_sl_kernel_mod,     only: vertical_quintic_sl_kernel_type
+  use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
+  use fem_constants_mod,                  only: get_mass_matrix_r_tran, &
+                                                get_inverse_w3_mass_matrix_r_tran
+  use fs_continuity_mod,                  only: W2v, W3, Wtheta
+  use function_space_mod,                 only: function_space_type
+  use function_space_collection_mod,      only: function_space_collection
+  use transport_enumerated_types_mod,     only: vertical_monotone_none,           &
+                                                vertical_monotone_strict,         &
+                                                vertical_monotone_relaxed,        &
+                                                vertical_monotone_order_constant, &
+                                                vertical_monotone_order_linear,   &
+                                                vertical_monotone_order_high
+  use psykal_lite_mod,                    only: invoke_dg_matrix_vector_rtran, &
+                                                invoke_copy_to_rtran
+
+  implicit none
+
+  private
+
+  public :: vertical_sl_conservative_alg
+
+contains
+
+  !=========================================================================================
+  !> @brief Algorithm for 1D vertical conservative transport using the SLICE algorithm.
+  !> @param[in,out]  field_np1          Field at timestep n+1 = field_n at departure point
+  !> @param[in]      field_n            Field at timestep n
+  !> @param[in]      transport_metadata Metadata for the advection of field
+  subroutine vertical_sl_conservative_alg( field_np1, field_n, transport_metadata )
+
+    implicit none
+
+    type(r_tran_field_type),       intent(inout) :: field_np1
+    type(r_tran_field_type),       intent(in)    :: field_n
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    ! Parameters, set log_space to be false for conservative SL transport
+    logical(kind=l_def), parameter :: log_space =.false.
+
+    ! Interpolation coefficients
+    type(r_tran_field_type),  pointer :: interp_coef_1  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_2  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_3  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_4  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_5  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_6  => null()
+    type(integer_field_type), pointer :: interp_index_1 => null()
+    type(integer_field_type), pointer :: interp_index_2 => null()
+    type(integer_field_type), pointer :: interp_index_3 => null()
+    type(integer_field_type), pointer :: interp_index_4 => null()
+    type(integer_field_type), pointer :: interp_index_5 => null()
+    type(integer_field_type), pointer :: interp_index_6 => null()
+    type(r_tran_field_type),  pointer :: linear_coef_1  => null()
+    type(r_tran_field_type),  pointer :: linear_coef_2  => null()
+
+    ! Internal variables
+    integer(kind=i_def)                   :: mesh_id
+    type(r_tran_field_type)               :: mass
+    type(r_tran_field_type)               :: dep_dist_z
+    type(r_tran_field_type)               :: flux
+    type(r_tran_operator_type),   pointer :: mm_w3_inv => null()
+    type(r_tran_operator_type),   pointer :: mm_w3 => null()
+    type(r_tran_field_type),      pointer :: dep_dist_z_get => null()
+    type(mesh_type),              pointer :: mesh => null()
+    type(function_space_type),    pointer :: w2v_fs => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+    integer(kind=i_def)  :: monotone, monotone_order
+    logical(l_def)       :: enforce_min_value
+
+    if ( subroutine_timers ) call timer( 'transport.slice_vertical' )
+
+    if ( slice_order /= slice_order_linear  .and. &
+         slice_order /= slice_order_cubic   .and. &
+         slice_order /= slice_order_parabola       ) then
+      call log_event( "vertical_sl_conservative: Invalid slice_order", LOG_LEVEL_ERROR )
+    end if
+
+    ! Get transport_runtime
+    mesh => field_n%get_mesh()
+    mesh_id = mesh%get_id()
+    transport_runtime => get_transport_runtime(mesh)
+    monotone = transport_metadata%get_vertical_monotone()
+    monotone_order = transport_metadata%get_vertical_monotone_order()
+    enforce_min_value = transport_metadata%get_enforce_min_value()
+
+    if ( monotone /= vertical_monotone_none    .and. &
+         monotone /= vertical_monotone_strict  .and. &
+         monotone /= vertical_monotone_relaxed       ) then
+      call log_event( "vertical_sl_conservative: Invalid monotone", LOG_LEVEL_ERROR )
+    end if
+    if ( monotone_order /= vertical_monotone_order_constant  .and. &
+         monotone_order /= vertical_monotone_order_linear    .and. &
+         monotone_order /= vertical_monotone_order_high            ) then
+      call log_event( "vertical_sl_conservative: Invalid monotone_order", LOG_LEVEL_ERROR )
+    end if
+
+    w2v_fs => function_space_collection%get_fs( mesh, element_order, W2v )
+    call flux%initialise( w2v_fs )
+
+    ! Get departure points from transport_runtime
+    dep_dist_z_get  => transport_runtime%get_dep_dist_z_w2(    &
+      field_n%get_mesh_id(),                                          &
+      ( transport_metadata%get_splitting() ==  splitting_strang_vhv ) &
+      )
+    call dep_dist_z%initialise( vector_space = dep_dist_z_get%get_function_space() )
+    call invoke( setval_X(dep_dist_z, dep_dist_z_get) )
+
+    ! Compute conservative SL transport (vertical only) of
+    ! field_np1 =  field_n_D
+    call invoke( setval_X( field_np1, field_n ) )
+
+    call mass%initialise( vector_space = field_n%get_function_space() )
+    mm_w3 => get_mass_matrix_r_tran(W3, field_n%get_mesh_id())
+    mm_w3_inv => get_inverse_w3_mass_matrix_r_tran(field_n%get_mesh_id())
+
+    call invoke_dg_matrix_vector_rtran(mass, field_np1, mm_w3)
+    call invoke( name="vertical_remap",  &
+       vertical_mass_remapping_kernel_type(dep_dist_z, mass, flux, slice_order, &
+                                           monotone, monotone_order,           &
+                                           enforce_min_value) )
+    call invoke_dg_matrix_vector_rtran(field_np1, mass, mm_w3_inv )
+
+    if (transport_runtime%get_tracer_step_ctr() /=  &
+        transport_runtime%get_num_dry_steps()) then
+      ! Not the last split step. Redo in advective form
+      ! Get the SL interpolation coefficients and indices
+      linear_coef_1  => transport_runtime%get_vert_sl_coef(field_n, 0, 1)
+      linear_coef_2  => transport_runtime%get_vert_sl_coef(field_n, 0, 2)
+      interp_coef_1  => transport_runtime%get_vert_sl_coef(field_n, vertical_sl_order, 1)
+      interp_coef_2  => transport_runtime%get_vert_sl_coef(field_n, vertical_sl_order, 2)
+      interp_coef_3  => transport_runtime%get_vert_sl_coef(field_n, vertical_sl_order, 3)
+      interp_coef_4  => transport_runtime%get_vert_sl_coef(field_n, vertical_sl_order, 4)
+      interp_index_1 => transport_runtime%get_vert_sl_index(field_n, vertical_sl_order, 1)
+      interp_index_2 => transport_runtime%get_vert_sl_index(field_n, vertical_sl_order, 2)
+      interp_index_3 => transport_runtime%get_vert_sl_index(field_n, vertical_sl_order, 3)
+      interp_index_4 => transport_runtime%get_vert_sl_index(field_n, vertical_sl_order, 4)
+
+      if (vertical_sl_order == vertical_sl_order_quintic) then
+        ! Quintic semi-Lagrangian transport requires extra interpolation values
+        interp_coef_5  => transport_runtime%get_vert_sl_coef(field_n, vertical_sl_order, 5)
+        interp_coef_6  => transport_runtime%get_vert_sl_coef(field_n, vertical_sl_order, 6)
+        interp_index_5 => transport_runtime%get_vert_sl_index(field_n, vertical_sl_order, 5)
+        interp_index_6 => transport_runtime%get_vert_sl_index(field_n, vertical_sl_order, 6)
+        call invoke( vertical_quintic_sl_kernel_type( field_np1,      &
+                                                      interp_coef_1,  &
+                                                      interp_coef_2,  &
+                                                      interp_coef_3,  &
+                                                      interp_coef_4,  &
+                                                      interp_coef_5,  &
+                                                      interp_coef_6,  &
+                                                      interp_index_1, &
+                                                      interp_index_2, &
+                                                      interp_index_3, &
+                                                      interp_index_4, &
+                                                      interp_index_5, &
+                                                      interp_index_6, &
+                                                      linear_coef_1,  &
+                                                      linear_coef_2,  &
+                                                      monotone,       &
+                                                      monotone_order, &
+                                                      log_space )  )
+
+      else
+        ! Cubic semi-Lagrangian transport
+        call invoke( vertical_cubic_sl_kernel_type( field_np1,      &
+                                                    interp_coef_1,  &
+                                                    interp_coef_2,  &
+                                                    interp_coef_3,  &
+                                                    interp_coef_4,  &
+                                                    interp_index_1, &
+                                                    interp_index_2, &
+                                                    interp_index_3, &
+                                                    interp_index_4, &
+                                                    linear_coef_1,  &
+                                                    linear_coef_2,  &
+                                                    monotone,       &
+                                                    monotone_order, &
+                                                    log_space )  )
+      end if
+
+    end if
+
+    ! If this is the final step, field_np1 will be computed here from the fluxes
+    ! over the whole transport step
+    ! If this is not the final step, field_np1 already includes the *advective*
+    ! increment, and may be adjusted to enforce min value or in blending zone
+    call end_of_conservative_step_alg(field_np1, field_n, flux, transport_metadata)
+
+    nullify( mm_w3, mm_w3_inv, dep_dist_z_get, mesh, transport_runtime, w2v_fs, &
+             linear_coef_1, linear_coef_2, interp_coef_1, interp_coef_2,       &
+             interp_coef_3, interp_coef_4, interp_coef_5, interp_coef_6,       &
+             interp_index_1, interp_index_2, interp_index_3, interp_index_4,   &
+             interp_index_5, interp_index_6 )
+
+    if ( subroutine_timers ) call timer( 'transport.slice_vertical' )
+
+  end subroutine vertical_sl_conservative_alg
+
+end module vertical_sl_conservative_alg_mod

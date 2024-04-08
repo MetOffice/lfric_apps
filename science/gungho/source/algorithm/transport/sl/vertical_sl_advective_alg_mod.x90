@@ -1,0 +1,187 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief An algorithm for performing 1D vertical semi-Lagrangian advective transport.
+!> @details The algorithm performs a 1D vertical semi-Lagrangian advective
+!!          transport of a field. It computes the field at the departure point
+!!          using a cubic or quintic interpolation.
+
+module vertical_sl_advective_alg_mod
+
+  use end_of_transport_step_alg_mod,      only: end_of_advective_step_alg
+  use constants_mod,                      only: r_tran, i_def, l_def
+  use io_config_mod,                      only: subroutine_timers
+  use timer_mod,                          only: timer
+  use integer_field_mod,                  only: integer_field_type
+  use r_tran_field_mod,                   only: r_tran_field_type
+  use vertical_cubic_sl_kernel_mod,       only: vertical_cubic_sl_kernel_type
+  use vertical_quintic_sl_kernel_mod,     only: vertical_quintic_sl_kernel_type
+  use transport_config_mod,               only: vertical_sl_order,         &
+                                                vertical_sl_order_cubic,   &
+                                                vertical_sl_order_quintic, &
+                                                vertical_sl_order_cubic_hermite
+  use log_mod,                            only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                           only: mesh_type
+  use transport_metadata_mod,             only: transport_metadata_type
+  use transport_runtime_alg_mod,          only: transport_runtime_type
+  use transport_runtime_collection_mod,   only: get_transport_runtime
+  use fs_continuity_mod,                  only: W3, Wtheta
+  use transport_enumerated_types_mod,     only: vertical_monotone_none,           &
+                                                vertical_monotone_strict,         &
+                                                vertical_monotone_relaxed,        &
+                                                vertical_monotone_order_constant, &
+                                                vertical_monotone_order_linear,   &
+                                                vertical_monotone_order_high
+
+  implicit none
+
+  private
+
+  public :: vertical_sl_advective_alg
+
+contains
+
+  !-----------------------------------------------------------------------------
+  !> @brief An algorithm to interpolate data to departure points (SL-advection).
+  !!
+  !> @param[in,out]  field_np1          Field at timestep n+1 = field_n at departure point
+  !> @param[in]      field_n            Field at timestep n
+  !> @param[in]      transport_metadata Metadata for the advection of field
+  subroutine vertical_sl_advective_alg( field_np1, field_n, transport_metadata )
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),       intent(inout) :: field_np1
+    type(r_tran_field_type),       intent(in)    :: field_n
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    ! Mesh and transport_runtime
+    type(mesh_type),              pointer :: mesh => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+    integer(kind=i_def) :: monotone, monotone_order, sl_order
+    logical(l_def)      :: reversibility
+    logical(kind=l_def) :: log_space
+
+    ! Interpolation coefficients
+    type(r_tran_field_type),  pointer :: interp_coef_1  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_2  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_3  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_4  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_5  => null()
+    type(r_tran_field_type),  pointer :: interp_coef_6  => null()
+    type(integer_field_type), pointer :: interp_index_1 => null()
+    type(integer_field_type), pointer :: interp_index_2 => null()
+    type(integer_field_type), pointer :: interp_index_3 => null()
+    type(integer_field_type), pointer :: interp_index_4 => null()
+    type(integer_field_type), pointer :: interp_index_5 => null()
+    type(integer_field_type), pointer :: interp_index_6 => null()
+    type(r_tran_field_type),  pointer :: linear_coef_1  => null()
+    type(r_tran_field_type),  pointer :: linear_coef_2  => null()
+
+    if ( subroutine_timers ) call timer( 'transport.sl_vertical' )
+
+    if ( vertical_sl_order /= vertical_sl_order_cubic           .and. &
+         vertical_sl_order /= vertical_sl_order_cubic_hermite   .and. &
+         vertical_sl_order /= vertical_sl_order_quintic               ) then
+      call log_event( "vertical_sl_advective: Invalid vertical_sl_order", LOG_LEVEL_ERROR )
+    end if
+
+    ! Get transport_runtime
+    mesh => field_n%get_mesh()
+    transport_runtime => get_transport_runtime(mesh)
+    monotone = transport_metadata%get_vertical_monotone()
+    monotone_order = transport_metadata%get_vertical_monotone_order()
+    reversibility = transport_metadata%get_reversible()
+    log_space  = transport_metadata%get_log_space()
+
+    if ( monotone /= vertical_monotone_none    .and. &
+         monotone /= vertical_monotone_strict  .and. &
+         monotone /= vertical_monotone_relaxed       ) then
+      call log_event( "vertical_sl_advective: Invalid monotone", LOG_LEVEL_ERROR )
+    end if
+    if ( monotone_order /= vertical_monotone_order_constant  .and. &
+         monotone_order /= vertical_monotone_order_linear    .and. &
+         monotone_order /= vertical_monotone_order_high            ) then
+      call log_event( "vertical_sl_advective: Invalid monotone_order", LOG_LEVEL_ERROR )
+    end if
+
+    sl_order = vertical_sl_order
+    if ( reversibility ) then
+       sl_order = vertical_sl_order_cubic_hermite
+    end if
+
+    ! Compute SL advective transport (vertical only) of
+    ! field_np1 =  field_n_D
+    call invoke( setval_X( field_np1, field_n ) )
+
+    ! Get the SL interpolation coefficients and indices
+    linear_coef_1  => transport_runtime%get_vert_sl_coef(field_n, 0, 1)
+    linear_coef_2  => transport_runtime%get_vert_sl_coef(field_n, 0, 2)
+    interp_coef_1  => transport_runtime%get_vert_sl_coef(field_n, sl_order, 1)
+    interp_coef_2  => transport_runtime%get_vert_sl_coef(field_n, sl_order, 2)
+    interp_coef_3  => transport_runtime%get_vert_sl_coef(field_n, sl_order, 3)
+    interp_coef_4  => transport_runtime%get_vert_sl_coef(field_n, sl_order, 4)
+    interp_index_1 => transport_runtime%get_vert_sl_index(field_n, sl_order, 1)
+    interp_index_2 => transport_runtime%get_vert_sl_index(field_n, sl_order, 2)
+    interp_index_3 => transport_runtime%get_vert_sl_index(field_n, sl_order, 3)
+    interp_index_4 => transport_runtime%get_vert_sl_index(field_n, sl_order, 4)
+
+    if (sl_order == vertical_sl_order_quintic) then
+      ! Quintic semi-Lagrangian transport requires extra interpolation values
+      interp_coef_5  => transport_runtime%get_vert_sl_coef(field_n, sl_order, 5)
+      interp_coef_6  => transport_runtime%get_vert_sl_coef(field_n, sl_order, 6)
+      interp_index_5 => transport_runtime%get_vert_sl_index(field_n, sl_order, 5)
+      interp_index_6 => transport_runtime%get_vert_sl_index(field_n, sl_order, 6)
+      call invoke( vertical_quintic_sl_kernel_type( field_np1,      &
+                                                    interp_coef_1,  &
+                                                    interp_coef_2,  &
+                                                    interp_coef_3,  &
+                                                    interp_coef_4,  &
+                                                    interp_coef_5,  &
+                                                    interp_coef_6,  &
+                                                    interp_index_1, &
+                                                    interp_index_2, &
+                                                    interp_index_3, &
+                                                    interp_index_4, &
+                                                    interp_index_5, &
+                                                    interp_index_6, &
+                                                    linear_coef_1,  &
+                                                    linear_coef_2,  &
+                                                    monotone,       &
+                                                    monotone_order, &
+                                                    log_space ) )
+    else
+      ! Cubic (Lagrange or Hermite) semi-Lagrangian transport
+      call invoke( vertical_cubic_sl_kernel_type( field_np1,      &
+                                                  interp_coef_1,  &
+                                                  interp_coef_2,  &
+                                                  interp_coef_3,  &
+                                                  interp_coef_4,  &
+                                                  interp_index_1, &
+                                                  interp_index_2, &
+                                                  interp_index_3, &
+                                                  interp_index_4, &
+                                                  linear_coef_1,  &
+                                                  linear_coef_2,  &
+                                                  monotone,       &
+                                                  monotone_order, &
+                                                  log_space ) )
+    end if
+
+    ! End of step: if necessary enforce min val and overwrite in blending zone
+    call end_of_advective_step_alg(field_np1, field_n, transport_metadata)
+
+    nullify( mesh, transport_runtime, linear_coef_1, linear_coef_2, &
+             interp_coef_1, interp_coef_2, interp_coef_3,           &
+             interp_coef_4, interp_coef_5, interp_coef_6,           &
+             interp_index_1, interp_index_2, interp_index_3,        &
+             interp_index_4, interp_index_5, interp_index_6 )
+
+    if ( subroutine_timers ) call timer( 'transport.sl_vertical' )
+
+  end subroutine vertical_sl_advective_alg
+
+end module vertical_sl_advective_alg_mod

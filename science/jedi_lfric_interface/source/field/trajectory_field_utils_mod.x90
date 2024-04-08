@@ -1,0 +1,267 @@
+!------------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief  Contains utility methods used by the trajectory object
+!>
+!> @details A set of methods used by the trajectory object is included. this
+!>          includes: copy, copy_create and interpolation for fields stored in
+!>          a fields_collection.
+!>
+module trajectory_field_utils_mod
+
+  use field_collection_mod,          only : field_collection_type
+  use field_collection_iterator_mod, only : field_collection_iterator_type
+  use field_mod,                     only : field_type
+  use integer_field_mod,             only : integer_field_type
+  use constants_mod,                 only : str_def, r_def
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR
+
+  implicit none
+
+  private
+  public :: copy_fields, copy_create_fields, interpolate_fields
+
+  contains
+
+  !> @brief Copy field data from one field collection to another
+  !!
+  !> @param [inout] output_fields field collection to copy to
+  !> @param [in]    input_fields  field collection to copy from
+  subroutine copy_fields( output_fields, &
+                          input_fields )
+
+    implicit none
+
+    type(field_collection_type), intent(inout) :: output_fields
+    type(field_collection_type), intent(in)    :: input_fields
+
+
+    ! Real fields
+    type(field_type),         pointer :: out_field_ptr
+    type(field_type),         pointer :: in_field_ptr
+
+    ! Integer fields
+    type(integer_field_type), pointer :: out_field_ptr_int
+    type(integer_field_type), pointer :: in_field_ptr_int
+
+    type(field_collection_iterator_type) :: iterator
+    character(str_def)                   :: name
+
+    ! Nullify pointers
+    nullify(out_field_ptr, in_field_ptr)
+    nullify(out_field_ptr_int, in_field_ptr_int)
+
+    ! Apply copy to all fields in the input collection
+    call iterator%initialise(input_fields)
+    do
+      if ( .not. iterator%has_next() ) exit
+        select type (listfield => iterator%next())
+          type is (field_type)
+
+            in_field_ptr => listfield
+            name=in_field_ptr%get_name()
+
+            ! Get the required field if available otherwise abort
+            if (output_fields%field_exists(trim(name))) then
+              call output_fields%get_field(name, out_field_ptr)
+            else
+              write(log_scratch_space, '(3A)') "The required real field: ", &
+                trim(name) , ", is not in the output field collection."
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            endif
+
+            ! Copy in to out field
+            call invoke( setval_X(out_field_ptr, in_field_ptr) )
+
+         type is (integer_field_type)
+
+          in_field_ptr_int => listfield
+          name=in_field_ptr_int%get_name()
+
+          ! Get the required field if available otherwise abort
+          if (output_fields%field_exists(trim(name))) then
+            call output_fields%get_field(name, out_field_ptr_int)
+          else
+            write(log_scratch_space, '(3A)') "The required integer field: ", &
+              trim(name) , ", is not in the output field collection."
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          endif
+
+          call invoke( int_setval_X(out_field_ptr_int, in_field_ptr_int) )
+
+        end select
+    end do
+
+  end subroutine copy_fields
+
+  !> @brief Create and copy fields from one field collection to another
+  !>
+  !> @details Create a collection of fields that is identical to another
+  !>          supplied collection. Optionally update the names of the
+  !>          new collection with a supplied prefix.
+  !>
+  !> @param [out] output_fields field collection to copy to
+  !> @param [in]  input_fields  field collection to copy from
+  !> @param [in]  prefix_name   An optional tring to prefix to field names
+  subroutine copy_create_fields( output_fields, &
+                                 input_fields,  &
+                                 prefix_name)
+
+    implicit none
+
+    type(field_collection_type), intent(out) :: output_fields
+    type(field_collection_type),  intent(in) :: input_fields
+    character( len=* ), optional, intent(in) :: prefix_name
+
+    ! Local
+    type( field_type ),             pointer :: in_field_ptr
+    type( integer_field_type ),     pointer :: in_field_ptr_int
+    type( field_type ),         allocatable :: field
+    type( integer_field_type ), allocatable :: field_int
+
+    type( field_collection_iterator_type )  :: iterator
+    character( len=str_def )                :: output_name
+    character( len=str_def )                :: prefix_name_local
+
+    ! Initialise the output_fields
+    call output_fields%initialise( name=input_fields%get_name(), &
+                                   table_len=input_fields%get_table_len() )
+
+    if ( present(prefix_name) ) then
+      prefix_name_local = prefix_name
+    else
+      prefix_name_local = ""
+    endif
+
+    ! Nullify pointers
+    nullify(in_field_ptr)
+    nullify(in_field_ptr_int)
+
+    ! Do the copy create
+    call iterator%initialise( input_fields )
+    do
+      if ( .not. iterator%has_next() ) exit
+        select type (listfield => iterator%next())
+          type is (field_type)
+
+            in_field_ptr => listfield
+            output_name=trim( prefix_name_local)//trim(in_field_ptr%get_name() )
+
+            allocate(field)
+            ! Create the fields
+            call field%initialise( vector_space = in_field_ptr%get_function_space() )
+            ! Copy the fields
+            call in_field_ptr%copy_field_serial( field, name=output_name )
+            ! Add to the list
+            call output_fields%add_field( field )
+
+            deallocate( field )
+
+         type is (integer_field_type)
+
+          in_field_ptr_int => listfield
+          output_name=trim( prefix_name_local)//trim(in_field_ptr_int%get_name() )
+
+          allocate(field_int)
+          ! Create the fields
+          call field_int%initialise( vector_space = in_field_ptr_int%get_function_space() )
+          ! Copy the fields
+          call in_field_ptr_int%copy_field_serial( field_int, name=output_name )
+          ! Add to the list
+          call output_fields%add_field( field_int )
+
+          deallocate( field_int )
+
+        end select
+    end do
+
+  end subroutine copy_create_fields
+
+  !> @brief linearly interpolate two field_collections using supplied weights
+  !>
+  !> @details A method is included that takes two field collections and
+  !>          associated weights. The weights are precomputed and sum to 1.0.
+  !>          For real fields the PSyClone built-in method aX_plus_bY is used
+  !>          to compute a weighted average of the fields. For integer fields,
+  !>          the nearest field (based on the weight) is copied. The result is
+  !>          returned via a third field collection.
+  !>
+  !> @param [inout] interp_fields field collection to store interpolated fields
+  !> @param [in]    t1_fields     field collection at time 1
+  !> @param [in]    t2_fields     field collection at time 2
+  !> @param [in]    t1_weight     weight to apply to fields in t1_fields
+  !> @param [in]    t2_weight     weight to apply to fields in t2_fields
+  subroutine interpolate_fields( interp_fields, &
+                                 t1_fields,     &
+                                 t2_fields,     &
+                                 t1_weight,     &
+                                 t2_weight )
+
+    implicit none
+
+    type(field_collection_type), intent(inout) :: interp_fields
+    type(field_collection_type), intent(in)    :: t1_fields
+    type(field_collection_type), intent(in)    :: t2_fields
+    real(r_def), intent(in)                    :: t1_weight
+    real(r_def), intent(in)                    :: t2_weight
+
+    ! Real fields
+    type(field_type),         pointer :: interp_field_ptr
+    type(field_type),         pointer :: t1_field_ptr
+    type(field_type),         pointer :: t2_field_ptr
+
+    ! Integer fields
+    type(integer_field_type), pointer :: interp_field_ptr_int
+    type(integer_field_type), pointer :: field_ptr_int
+
+    type(field_collection_iterator_type) :: iterator
+    character(str_def)                   :: name
+
+    ! Nullify pointers
+    nullify(interp_field_ptr, t1_field_ptr, t2_field_ptr)
+    nullify(interp_field_ptr_int, field_ptr_int)
+
+    ! Iterate over the input fields
+    call iterator%initialise(t1_fields)
+
+    do
+      if ( .not. iterator%has_next() ) exit
+        select type (listfield => iterator%next())
+          type is (field_type)
+
+            t1_field_ptr => listfield
+            name=t1_field_ptr%get_name()
+            call interp_fields%get_field(name, interp_field_ptr)
+            call t2_fields%get_field(name, t2_field_ptr)
+
+            ! Compute the linear interpolation of the two fields
+            call invoke( aX_plus_bY(interp_field_ptr, &
+                                    t1_weight,        &
+                                    t1_field_ptr,     &
+                                    t2_weight,        &
+                                    t2_field_ptr) )
+
+         type is (integer_field_type)
+
+          ! Do nearest interpolation for integers
+          field_ptr_int => listfield
+          name=field_ptr_int%get_name()
+          if (t1_weight>t2_weight) then
+            call t1_fields%get_field(name, field_ptr_int)
+          else
+            call t2_fields%get_field(name, field_ptr_int)
+          endif
+          call interp_fields%get_field(name, interp_field_ptr_int)
+
+          call invoke(int_setval_X(interp_field_ptr_int, field_ptr_int))
+
+        end select
+    end do
+
+  end subroutine interpolate_fields
+
+end module trajectory_field_utils_mod

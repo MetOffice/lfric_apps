@@ -1,0 +1,506 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Preconditioner for the Euler equations system.
+!>
+!> @details This type is derived from the abstract preconditioner type and
+!!  implements a preconditioner for the mixed system in the
+!!  variables \f$(\mathbf{u'},\theta',\rho',\Pi')\f$.
+!!  More details of the solver forumulation can be found in the solver section of:
+!!  https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
+!!
+!!  The discretised mixed system for the velocity
+!!  (\f$\textbf{u}\f$), pressure (\f$\Pi\f$), density (\f$\rho\f$) and  potential
+!!  temperature (\f$\theta\f$) unknowns is:
+!!
+!!  \f[ \delta\mathbf{u} = \left(M_2 + M_\mu + \tau_u C\right)\mathbf{u}' - \tau_u\Delta t(D^* \Pi' + P_{2\theta} \theta') \f]
+!!  \f[ \delta\rho       = \rho'  + \tau_\rho\Delta t M_3^{-1} D \left(\rho^*\mathbf{u}'\right)  \f]
+!!  \f[ \delta\theta     = M_{\theta} \theta' + \tau_\theta\Delta t P_{\theta2} \mathbf{u}'  \f]
+!!  \f[ \delta\Pi        = M_3^{\Pi}\Pi' - M_3^{\rho}\rho' - P_{3\theta}\theta' \f]
+!!
+!!
+!!  Given the right hand side \f$(\mathbf{R}_u,R_t,R_r,R_p)\f$ this needs to be
+!!  solved for the state \f$(\mathbf{u'},\theta',\rho',\Pi')\f$.
+!!
+!!  To construct a preconditioner, proceed as follows:
+!!
+!!  * Approximately (via lumping the temperature mass matrix) eliminate potential
+!!    temperature to obtain an equation for velocity, density and pressure:
+!!
+!!    \f[ \textbf{R}^*_u = H_B \textbf{u} - \tau_u\Delta t D^* \Pi'        \f]
+!!    \f[            R_r = \rho'  + \tau_\rho\Delta t M_3^{-1} D \left(\rho^*\mathbf{u}'\right)  \f]
+!!    \f[            R_p =  M_3^{\Pi}\Pi' - M_3^{\rho}\rho' \f]
+!!    \f[                - P_{3\theta}\tilde{M}_\theta^{-1}\left(R_t - \tau_\theta\Delta t P_{\theta2}\mathbf{u}'\right) \f]
+!!
+!!    where
+!!    \f[ \textbf{R}^*_u=\textbf{R}_u+\tau_u\Delta t P_{2\theta} \tilde{M}_\theta^{-1} R_t  \f]
+!!    \f[ H_B=\tilde{M}_2 + M_{\mu} + \tau_u\tau_{\theta}(\Delta t)^2 \tilde{P_{2\theta}\tilde{M}_\theta^{-1}P_{theta2}\f]
+!!
+!!    and \f$\tilde{A}\f$ is the lumped version of a matrix \f$A\f$. Note that
+!!    any lumped matrix is diagonal, so inversion is straightforward. The lumped
+!!    matrices are represented as fields.
+!!
+!!  * Eliminate the density to obtain an equation for velocity and the pressure only:
+!!
+!!    \f[ \textbf{R}^*_u = H_B \textbf{u} - \tau_u\Delta t D^* \Pi'        \f]
+!!    \f[          R^*_p =  M_3^{\Pi}\Pi' + \tau_\rho\Delta t M_3^{\rho}M_3^{-1} D\left(\rho^*\mathbf{u}'\right) \f]
+!!    \f[                + \tau_\theta\Delta t P_{3\theta}\tilde{M}_\theta^{-1} P_{\theta2}\mathbf{u}'\right)  \f]
+!!
+!!    where
+!!    \f[ R^*_p= R_p + P_{3\theta}\tilde{M}_\theta^{-1}R_t + \tau_\rho\Delta t M_3^{\rho}M_3^{-1}R_r \f]
+!!
+!!  * Eliminate velocity to obtain a Helmholtz-equation for pressure only:
+!!
+!!    \f[ \mathcal{R} = H \Pi \f]
+!!
+!!    where
+!!
+!!    \f[ \mathcal{R}= R^*_p - \tau_\rho\Delta t M_3^{\rho}M_3^{-1} D\left(\rho^*H_B^{-1}\mathbf{R}^*_u\right) \f]
+!!    \f[                    + \tau_\theta\Delta t P_{3\theta}\tilde{M}_\theta^{-1} P_{\theta2}H_B^-1\mathbf{R}^*_u\right) \f]
+!!
+!!    and the Helmholtz operator is given as
+!!
+!!    \f[ H =  M_3^{\Pi} + \tau_u\tau_\rho\Delta t*2 M_3^{\rho}M_3^{-1} D\left(\rho^*\mathbf{X}\right)
+!!                       + \tau_u\tau_\theta\Delta t*2 P_{3\theta}\tilde{M}_\theta^{-1} P_{\theta2}\mathbf{X}\right) \f]
+!!
+!!    with \f[ X \equiv H_B^-1 D^*\Pi' \f]
+!!
+!!  * Given the solution \f$\Pi'\f$ of the Helmholtz-system, the velocity, density and
+!!    potential temperature are reconstructed as
+!!
+!!    \f[ \textbf{u} = H_B^{-1} (\mathbf{R}^*_u + \tau_u\Delta t D^* \Pi)     \f]
+!!    \f[ \theta     = \tilde{M}_\theta^{-1}(R_t - \tau_\theta\Delta t P_{\theta2} \textbf{u}) \f]
+!!    \f[ \rho       = R_r - \tau_\rho\Delta t M_3^-1 D u \f]
+!!
+!!  More specifically, the preconditioner proceeds along the following steps
+!!
+!!  1. Calculate \f$\textbf{R})u^*\f$ and then \f$R^*_p\f$
+!!  2. Approximately solve the Helmholtz-system \f$R^*_p = H \Pi\f$ with an iterative
+!!     solver
+!!  3. Given \f$\Pi\f$, reconstruct the velocity \f$\textbf{u}\f$, density \f$\rho\f$ and
+!!     potential temperature \f$\theta\f$
+!!
+!!  The Helmholtz system is solved with an iterative solver which is passed
+!!  in the constructor.
+
+module mixed_schur_preconditioner_alg_mod
+
+  use vector_mod,                      only: abstract_vector_type
+  use r_solver_field_mod,              only: r_solver_field_type
+  use constants_mod,                   only: i_def, r_def, r_solver
+  use geometric_constants_mod,         only: get_face_selector_ew, &
+                                             get_face_selector_ns
+  use integer_field_mod,               only: integer_field_type
+  use sci_iterative_solver_mod,        only: abstract_iterative_solver_type
+  use sci_preconditioner_mod,          only: abstract_preconditioner_type
+  use sci_r_solver_field_vector_mod,   only: r_solver_field_vector_type
+  use field_indices_mod,               only: isol_u, isol_p, &
+                                             isol_uv, isol_w
+  use io_config_mod,                   only: subroutine_timers
+  use timer_mod,                       only: timer
+  use mixed_solver_config_mod,         only: split_w
+  use log_mod,                         only: log_event,       &
+                                             LOG_LEVEL_ERROR, &
+                                             LOG_LEVEL_INFO,  &
+                                             log_scratch_space
+  use mesh_mod,                        only: mesh_type
+  use si_operators_alg_mod,            only: get_m3_rho_star, &
+                                             get_compound_div, &
+                                             get_div_star, &
+                                             get_ptheta2v, &
+                                             get_p3theta, &
+                                             get_helm_diag, &
+                                             get_Hb_lumped_inv, &
+                                             get_eliminated_q32
+  use fem_constants_mod,               only: get_normalisation_r_solver
+  use limited_area_constants_mod,      only: get_mask_r_solver
+  use fs_continuity_mod,               only: W2, W3, Wtheta
+  use boundaries_config_mod,           only: limited_area
+  use mixed_solver_config_mod,         only: eliminate_variables,          &
+                                             eliminate_variables_analytic
+  implicit none
+
+  private
+
+  !> @brief Mixed preconditioner type.
+  !>
+  !> @details Implements mixed preconditioner which can be used in the
+  !!          iterative solver algorithms.
+  type, public, extends(abstract_preconditioner_type) :: &
+                        mixed_schur_preconditioner_type
+
+     private
+
+     !> modified right-hand \f$\textbf{R}_u^*\f$
+     type(r_solver_field_type) :: rhs_u
+     !> 1-component field vector for right hand side in pressure system
+     type(r_solver_field_vector_type) :: pressure_b
+     !> 1-component field vector for solution of pressure system
+     type(r_solver_field_vector_type) :: pressure_x
+     !> Pressure (Helmholtz) solver object
+     class(abstract_iterative_solver_type), pointer :: &
+        pressure_solver
+
+     contains
+     ! Override the (abstract interface) for application of
+     ! a preconditioner \f$y = P.x\f$
+     procedure, public :: apply => apply_mixed_schur_preconditioner
+     procedure, private :: apply_mixed_schur_preconditioner
+
+     !> Private methods
+     !> Build the right-hand-side for the Helmholtz equation
+     procedure, private :: build_pressure_rhs
+     !> Reconstruct the velocity and buoyancy from the solution of the
+     !> Helmholtz equation
+     procedure, private :: back_substitute
+
+     !> Destructor
+     final :: destroy_mixed_schur_preconditioner
+  end type mixed_schur_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface mixed_schur_preconditioner_type
+     module procedure mixed_schur_preconditioner_constructor
+  end interface
+
+contains
+  !> @brief Construct a <code> mixed_schur_preconditioner_type</code> object.
+  !>
+  !> @details This constructs all required fields and builds operators such as
+  !!          the lumped buoyancy mass matrix \f$\tilde{M}_b\f$ and the matrix
+  !!          \f$H_B\f$. The current state is passed in as a field vector to
+  !!          be able to extract the relevant function spaces.
+  !!
+  !!          The matrix \f$\tilde{H}_b^{-1}\f$ is passed in as an argument
+  !!          since this matrix is already required for and constructed in
+  !!          the pressure operator.
+  !>
+  !> @param [in] mesh            Mesh to create function spaces on
+  !> @param [in] p               Element order for function spaces
+  !> @param [in] pressure_solver Solver object for Helmholtz system
+  !> @return self the constructed preconditioner object
+  function mixed_schur_preconditioner_constructor(mesh, p,      &
+                                                  pressure_solver) &
+                                                  result(self)
+
+    use function_space_mod,            only: function_space_type
+    use function_space_collection_mod, only: function_space_collection
+    use fs_continuity_mod,             only: W2
+
+    implicit none
+
+    integer(i_def),                                intent(in) :: p
+    type(mesh_type),                       target, intent(in) :: mesh
+    class(abstract_iterative_solver_type), target, intent(in) :: pressure_solver
+
+    type(mixed_schur_preconditioner_type)  :: self
+
+    type(mesh_type),           pointer :: mesh_ptr
+    type(function_space_type), pointer :: fs
+
+    call log_event( 'Constructing approximate Schur mixed preconditioner...', &
+                    LOG_LEVEL_INFO )
+
+    mesh_ptr => mesh
+    fs => function_space_collection%get_fs( mesh_ptr, p, W2 )
+    call self%rhs_u%initialise( vector_space = fs  )
+
+    ! right hand side (b) and solution (x) as a one-component
+    ! field-vector in the pressure space
+    self%pressure_b = r_solver_field_vector_type(1)
+    self%pressure_x = r_solver_field_vector_type(1)
+
+    fs => function_space_collection%get_fs( mesh_ptr, p, W3 )
+    call self%pressure_b%initialise_field( 1, fs )
+    call self%pressure_x%initialise_field( 1, fs )
+
+    ! Set pressure solver
+    self%pressure_solver => pressure_solver
+
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function mixed_schur_preconditioner_constructor
+
+  !> @brief Apply the preconditioner to calculate \f$y = P.x\f$ for the mixed
+  !!        system in velocity, pressure, density and potential temperature.
+  !>
+  !> @details Apply the preconditioner in three steps, as described above:
+  !!          1. Construct right-hand side for Helmholtz system
+  !!          2. Approximately solve Helmholtz-system
+  !!          3. Reconstruct velocity and buoyancy from pressure
+  !>
+  !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
+  !> @param[in] x Field vector containing the residuals
+  !!              \f$(\textbf{R}_u, R_t, R_r, R_t)\f$
+  !> @param[in,out] y Field vector containing the solution
+  !!                  \f$(\textbf{U},\theta,\rho,\Pi)\f$ to be calculated
+  subroutine apply_mixed_schur_preconditioner(self, x, y)
+    implicit none
+    class(mixed_schur_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),            intent(in)    :: x
+    class(abstract_vector_type),            intent(inout) :: y
+
+    if ( subroutine_timers ) call timer('mixed_schur_preconditioner_alg')
+
+    select type(x)
+    type is(r_solver_field_vector_type)
+       select type(y)
+       type is(r_solver_field_vector_type)
+         ! STEP 1: Build RHS for Helmholtz system
+         call self%build_pressure_rhs(x)
+
+         ! STEP 2: Solve Helmholtz system
+         ! Krylov solver to obtain pressure increment
+         if ( subroutine_timers ) call timer('mixed_schur solve')
+
+         ! Set initial guess to pressure incremenet to 0
+         call self%pressure_x%set_scalar(0.0_r_def)
+
+         ! Solve pressure system
+         call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_INFO)
+         call self%pressure_solver%apply(self%pressure_x, self%pressure_b)
+
+         if ( subroutine_timers ) call timer('mixed_schur solve')
+
+          ! STEP 3: Back substitute to obtain other fields
+          call self%back_substitute(y)
+       class default
+          write(log_scratch_space, '(a)') &
+               "mixed_schur_preconditioner_mod: incorrect vector_type argument y"
+          call log_event(log_scratch_space, log_level_error)
+       end select
+
+    class default
+      write(log_scratch_space, '(A)') &
+            "mixed_schur_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    if ( subroutine_timers ) call timer('mixed_schur_preconditioner_alg')
+
+  end subroutine apply_mixed_schur_preconditioner
+
+  !> @brief Compute the right-hand-side for the Helmholtz-equation.
+  !>
+  !> @details Given the right-hand side \f$(\textbf{R}_u,R_t,R_d,R_p)\f$
+  !!          for the mixed system, build the right hand side \f$R^*_p\f$
+  !!          for the Helmholtz equation.
+  !>
+  !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
+  !> @param[in]     rhs0 Initial residuals \f$(\textbf{R}_u,R_t,R_d,R_p)\f$
+  !!                     of the mixed system
+  subroutine build_pressure_rhs(self, rhs0)
+
+    use dg_matrix_vector_kernel_mod,      only: dg_matrix_vector_kernel_type
+    use apply_variable_hx_kernel_mod,     only: apply_variable_hx_kernel_type
+    use opt_apply_variable_hx_kernel_mod, only: opt_apply_variable_hx_kernel_type
+    use operator_mod,                     only: r_solver_operator_type
+    use finite_element_config_mod,        only: element_order
+    use helmholtz_solver_config_mod,      only: normalise
+    use fs_continuity_mod,                only: W2, W2h, W2v
+    use combine_w2_field_kernel_mod,      only: combine_w2_field_kernel_type
+
+    implicit none
+
+    class( mixed_schur_preconditioner_type ),   intent( inout ) :: self
+    type( r_solver_field_vector_type ), target, intent(in)      :: rhs0
+
+    type( r_solver_operator_type ), pointer :: m3_rho_star,    &
+                                               ptheta2,        &
+                                               p3theta,        &
+                                               compound_div,   &
+                                               q32_op
+    type( r_solver_field_type ),    pointer :: mt_lumped_inv,  &
+                                               h_diag,         &
+                                               Hb_lumped_inv
+    type( r_solver_field_type )             :: r_p, rhs_d
+    real( kind=r_solver ),        parameter :: minus_one = -1.0_r_solver
+    type( r_solver_field_type )             :: rhs_uvw
+    type( r_solver_field_type ),  pointer   :: w2_mask, &
+                                               w3_mask
+    integer( kind=i_def )                   :: mesh_id
+    type( r_solver_field_type ),  pointer   :: rhs_uv, &
+                                               rhs_p, &
+                                               rhs_w, &
+                                               rhs
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    if ( subroutine_timers ) call timer('mixed_schur rhs')
+
+    rhs => self%pressure_b%get_field_from_position(1)
+
+    rhs_uv => rhs0%vector(isol_uv)
+    rhs_p  => rhs0%vector(isol_p)
+    if ( split_w ) then
+      rhs_w  => rhs0%vector(isol_w)
+    end if
+
+    mesh_id = rhs_uv%get_mesh_id()
+
+    call rhs_uvw%initialise( vector_space = self%rhs_u%get_function_space() )
+    if (split_w) then
+      face_selector_ew => get_face_selector_ew( mesh_id )
+      face_selector_ns => get_face_selector_ns( mesh_id )
+      call invoke( name="combine_wind", &
+                   combine_w2_field_kernel_type( rhs_uvw, rhs_uv, rhs_w, &
+                                                 face_selector_ew,       &
+                                                 face_selector_ns ) )
+    else
+      call invoke( setval_X( rhs_uvw, rhs_uv ) )
+    end if
+
+    ptheta2       => get_ptheta2v()
+    p3theta       => get_p3theta()
+    m3_rho_star   => get_m3_rho_star()
+    compound_div  => get_compound_div()
+    Hb_lumped_inv => get_Hb_lumped_inv()
+
+    ! Compute rhs_u terms
+    call invoke( name = "compute_elim_helmholtz_ru",           &
+                 X_times_Y( self%rhs_u, rhs_uvw, Hb_lumped_inv ) )
+    if ( limited_area ) then
+      w2_mask => get_mask_r_solver(W2, mesh_id)
+      call invoke( inc_X_times_Y(self%rhs_u, w2_mask) )
+    end if
+
+    ! Compute H(rhs_u)
+    if ( eliminate_variables == eliminate_variables_analytic ) then
+      ! r_pi = rhs_pi - Q32*rhs_u
+      q32_op => get_eliminated_q32()
+      call r_p%initialise( rhs%get_function_space() )
+      call invoke( dg_matrix_vector_kernel_type(r_p, self%rhs_u, q32_op), &
+                   X_minus_Y(rhs, rhs_p, r_p ) )
+    else
+      ! r_pi = rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r
+      ! r_rho already contains M3^-1 factor
+      mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
+      call rhs_d%initialise( rhs%get_function_space() )
+      call invoke( setval_c( rhs_d, 0.0_r_solver ) )
+      if ( element_order == 0 ) then
+        call invoke( name="schur_rhs",                                  &
+                     opt_apply_variable_hx_kernel_type(                 &
+                           rhs, self%rhs_u, mt_lumped_inv, rhs_d,       &
+                           compound_div, p3theta, ptheta2, m3_rho_star, &
+                           minus_one, rhs_p) )
+      else
+        call invoke( apply_variable_hx_kernel_type(                     &
+                           rhs, self%rhs_u, mt_lumped_inv, rhs_d,       &
+                           compound_div, p3theta, ptheta2, m3_rho_star, &
+                           minus_one),                                  &
+                     inc_X_plus_Y(rhs, rhs_p) )
+      end if
+    end if
+
+    if ( limited_area ) then
+      w3_mask => get_mask_r_solver(W3, mesh_id)
+      call invoke( inc_X_times_Y(rhs, w3_mask) )
+    end if
+
+    if ( normalise ) then
+       h_diag => get_helm_diag()
+       call invoke( inc_X_times_Y(rhs, h_diag) )
+    end if
+
+    if ( subroutine_timers ) call timer('mixed_schur rhs')
+
+  end subroutine build_pressure_rhs
+
+  !> @brief Reconstruct velocity and buoyancy from pressure.
+  !>
+  !> @details Given the pressure \f$\Pi\f$ from the solution of the Helmholtz
+  !!          equation, reconstruct the velocity \f$\textbf{U}\f$, density
+  !!          \f$\rho\f$ and potential temperature \f$\theta\f$.
+  !>
+  !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
+  !> @param[in,out] state Solution \f$(\textbf{U},\theta,\rho,\Pi)\f$ of the mixed system
+  subroutine back_substitute(self, state)
+
+    use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
+    use operator_mod,                    only: r_solver_operator_type
+    use enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+    use split_w2_field_kernel_mod,       only: split_w2_field_kernel_type
+    use fs_continuity_mod,               only: W2
+    use scaled_matrix_vector_kernel_mod, only: scaled_matrix_vector_kernel_type
+
+    implicit none
+    class( mixed_schur_preconditioner_type ), intent( inout ) :: self
+    type( r_solver_field_vector_type ),       intent( inout ) :: state
+
+    type( r_solver_field_type ),    pointer :: u_normalisation, &
+                                               Hb_lumped_inv
+    type( r_solver_operator_type ), pointer :: div_star
+    type( r_solver_field_type )             :: u_inc
+    type(r_solver_field_type),      pointer :: w2_mask
+    integer( kind=i_def )                   :: mesh_id
+
+    type(r_solver_field_type), pointer :: state_uv, &
+                                          state_p,  &
+                                          state_w,  &
+                                          exner_inc
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    if ( subroutine_timers ) call timer('Schur back substitute')
+
+    exner_inc => self%pressure_x%get_field_from_position(1)
+
+    mesh_id = self%rhs_u%get_mesh_id()
+
+    ! Create increment fields
+
+    ! u increment
+    call u_inc%initialise( vector_space = self%rhs_u%get_function_space() )
+    u_normalisation => get_normalisation_r_solver(W2, mesh_id)
+    div_star        => get_div_star()
+    Hb_lumped_inv   => get_Hb_lumped_inv()
+    ! u' = ru + BC[HB * unorm * D * p']
+    call invoke( name = "compute_increments",                                &
+                 setval_c(u_inc, 0.0_r_solver),                              &
+                 scaled_matrix_vector_kernel_type(u_inc, exner_inc,          &
+                                                  div_star, u_normalisation, &
+                                                  Hb_lumped_inv),            &
+                 inc_X_plus_Y(u_inc, self%rhs_u),                            &
+                 enforce_bc_kernel_type(u_inc) )
+    if ( limited_area ) then
+      w2_mask => get_mask_r_solver(W2, mesh_id)
+      call invoke( inc_X_times_Y(u_inc, w2_mask) )
+    end if
+
+    state_p => state%get_field_from_position(isol_p)
+    call invoke( setval_X(state_p, exner_inc) )
+
+    if ( split_w )then
+      state_uv => state%get_field_from_position( isol_uv )
+      state_w  => state%get_field_from_position( isol_w )
+      face_selector_ew => get_face_selector_ew( mesh_id )
+      face_selector_ns => get_face_selector_ns( mesh_id )
+      call invoke( name="split_wind", &
+                   setval_c( state_uv, 0.0_r_solver ), &
+                   split_w2_field_kernel_type( state_uv, state_w, u_inc, &
+                                               face_selector_ew, &
+                                               face_selector_ns ) )
+    else
+      state_uv => state%get_field_from_position( isol_u )
+      call invoke( setval_X( state_uv, u_inc ) )
+    end if
+
+    if ( subroutine_timers ) call timer('Schur back substitute')
+
+  end subroutine back_substitute
+
+  !> @brief Destructor
+  !>
+  !> @param[in,out] self Instance of type to be destroyed
+  subroutine destroy_mixed_schur_preconditioner(self)
+    implicit none
+    type(mixed_schur_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_mixed_schur_preconditioner
+
+end module mixed_schur_preconditioner_alg_mod

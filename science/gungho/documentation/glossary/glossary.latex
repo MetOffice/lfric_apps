@@ -1,0 +1,238 @@
+\documentclass[english]{article}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{verbose,tmargin=-4cm,bmargin=1cm,lmargin=1cm,rmargin=1cm}
+\usepackage{array}
+\usepackage{amsbsy}
+\usepackage{amssymb}
+\usepackage[authoryear]{natbib}
+
+\makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
+%% Because html converters don't know tabularnewline
+\providecommand{\tabularnewline}{\\}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
+\input{paper_single_style}
+
+\makeatother
+
+\usepackage{babel}
+\begin{document}
+
+\title{A glossary for GungHo formulation}
+
+
+\date{28 March 2014}
+\maketitle
+\begin{itemize}
+\item The notation is based, wherever possible, on that used in the ENDGame
+formulation.
+\item Because of the lower case coding convention, avoid using upper and
+lower cases to distinguish different variables wherever possible.
+\item The finite-element scheme is applied, in three dimensions, to a \emph{mesh}
+consisting of \emph{cells} with\emph{ faces}, \emph{edges} and \emph{vertices}.
+In two dimensions, the scheme is applied to a \emph{mesh} consisting
+of \emph{cells }with \emph{edges} and \emph{vertices}.
+\end{itemize}
+
+\section{Physical constants}
+
+\begin{center}
+\textbf{\small{}}%
+\begin{tabular}{|m{52mm}||c||l|l|}
+\hline 
+\textbf{\small{}Description} & \textbf{\small{}Symbol} & \textbf{\small{}Value } & \textbf{\small{}Dimensions }\tabularnewline
+\hline 
+\hline 
+Earth's mean radius & $a$ & $6371229.0$ & $\mathrm{m}$\tabularnewline
+\hline 
+Surface equatorial value of gravity & $g_{a}$ & $9.80665$ & $\mathrm{ms}{}^{-2}$\tabularnewline
+\hline 
+Earth's rotation vector & $\boldsymbol{\Omega}$  & $7.292116E-5$ & $\mathrm{s}^{-1}$\tabularnewline
+\hline 
+Reference surface pressure & $p_{0}$ & $100000.0$ & $\mathrm{Kg}\mathrm{m}^{-1}\mathrm{s}^{-2}$ or $\mathrm{Pa}$\tabularnewline
+\hline 
+Gas constant for dry air & $R_{d}$ & $287.05$ & $\mathrm{m}^{2}\mathrm{s}^{-2}\mathrm{K}^{-1}$or $\mathrm{J}\mathrm{Kg}^{-1}\mathrm{K}^{-1}$\tabularnewline
+\hline 
+Specific heat of dry air at constant pressure & $c_{pd}$ & $1005.0$ & $\mathrm{m}^{2}\mathrm{s}^{-2}\mathrm{K}^{-1}$ or $\mathrm{J}\mathrm{Kg}^{-1}\mathrm{K}^{-1}$\tabularnewline
+\hline 
+Ratio of $R_{d}$ and $c_{pd}$  & $\kappa_{d}$ & $R_{d}/c_{pd}=287.05/1005.0$ & dimensionless\tabularnewline
+\hline 
+Ratio of molecular weights of water and dry air & $\varepsilon$ & $0.62198$ & dimensionless\tabularnewline
+\hline 
+Gas constant for water vapour & $R_{v}$ & $R_{d}/\varepsilon=287.05/0.62198$ & $\mathrm{m}^{2}\mathrm{s}^{-2}\mathrm{K}^{-1}$ or $\mathrm{J}\mathrm{Kg}^{-1}\mathrm{K}^{-1}$\tabularnewline
+\hline 
+\end{tabular}
+\par\end{center}{\small \par}
+
+
+\section{Vector spaces}
+
+\begin{center}
+\textbf{\small{}}%
+\begin{tabular}{|p{52mm}||c||p{57mm}|}
+\hline 
+\textbf{\small{}Vector spaces} &  & \textbf{\small{}Symbol }\tabularnewline
+\hline 
+\hline 
+0-form scalars &  & $\mathbb{W}_{0}$\tabularnewline
+\hline 
+{\small{}Circulation 1-form vectors} &  & $\mathbb{W}_{1}$\tabularnewline
+\hline 
+Flux 2-form vectors &  & $\mathbb{W}_{2}$\tabularnewline
+\hline 
+Scalar space for buoyancy etc. &  & $\mathbb{W}_{\theta}$\tabularnewline
+\hline 
+Volume 3-form scalars &  & $\mathbb{W}_{3}$\tabularnewline
+\hline 
+\end{tabular}
+\par\end{center}{\small \par}
+
+
+\section{Variables/trial functions}
+
+\begin{center}
+\textbf{\small{}}%
+\begin{tabular}{|p{52mm}||c||p{57mm}|}
+\hline 
+\textbf{\small{}Variables on a cell }{\small{}together, where relevant,
+with the space they live in} &  & \textbf{\small{}Symbol }\tabularnewline
+\hline 
+\hline 
+General orthogonal coordinates (horizontal, horizontal, vertical) &  & ($\chi_{1}$, $\chi_{2}$, $\chi_{3}$)\tabularnewline
+\hline 
+Transformed, terrain-following, vertical coordinate &  & $\eta$\tabularnewline
+\hline 
+Exner pressure function &  & {\small{}$\Pi$}\tabularnewline
+\hline 
+Kinetic energy per unit mass &  & $K$\tabularnewline
+\hline 
+Vorticity flux  &  & $\mathbf{Q}$\tabularnewline
+\hline 
+Absolute vorticity ($\mathbb{W}_{1}$) &  & $\boldsymbol{\zeta}$\tabularnewline
+\hline 
+Relative vorticity ($\mathbb{W}_{1}$) &  & $\boldsymbol{\xi}$\tabularnewline
+\hline 
+Velocity vector ($\mathbb{W}_{2}$) &  & {\small{}$\mathbf{u}$}\tabularnewline
+\hline 
+Mass flux ($\mathbb{W}_{2}$) &  & $\mathbf{F}$\tabularnewline
+\hline 
+{\small{}Potential temperature }($\mathbb{W}_{\theta}$) &  & {\small{}$\theta_{vd}$}\tabularnewline
+\hline 
+Densities ($\mathbb{W}_{\theta}$) &  & $\rho_{X}$\tabularnewline
+\hline 
+Mixing ratios ($\mathbb{W}_{\theta}$) &  & $m_{X}$\tabularnewline
+\hline 
+{\small{}Dry density }($\mathbb{W}_{3}$) &  & {\small{}$\rho_{d}$}\tabularnewline
+\hline 
+{\small{}Geopotential }($\mathbb{W}_{3}$) &  & {\small{}$\Phi$ }\tabularnewline
+\hline 
+\end{tabular}
+\par\end{center}{\small \par}
+
+Where required a subscript is added to indicate which cell is referred
+to.
+
+The corresponding quantities on the reference cells are represented
+by adding a hat. 
+
+
+\section{Test functions}
+
+The application of a test function, $a$ say, to a trial function,
+$b$ say, followed by volume integration over the entire domain is
+indicated as $\left\langle a,b\right\rangle $ where $a$ and $b$
+can each be a scalar or a vector (when both are vectors an inner or
+dot product is implied). Any plausible test function might be used
+in the method. To avoid ambiguity the space of the test function is
+to be specified as part of the equation (at least when initially used
+and for any final results). 
+
+For example, the continuous continuity equation
+\begin{equation}
+\frac{\partial\rho}{\partial t}+\nabla\cdot\mathbf{F}=0,\label{eq:cont_cont}
+\end{equation}
+could start off its discrete incarnation as
+\begin{equation}
+\left\langle \psi,\frac{\partial\rho}{\partial t}\right\rangle +\left\langle \psi,\nabla\cdot\mathbf{F}\right\rangle =0,\,\,\,\forall\,\,\,\mbox{\ensuremath{\psi}}\in\mathbb{W}_{3}.\label{eq:cont_inner}
+\end{equation}
+
+
+
+\section{Basis functions}
+
+Any variable may be expanded in terms of basis functions in the appropriate
+function space. The subscript $i$ references the individual basis
+functions, the set of which spans each function space over the reference
+cell.
+
+\begin{center}
+\textbf{\small{}}%
+\begin{tabular}{|p{52mm}||c||p{57mm}|}
+\hline 
+\textbf{\small{}Basis functions }{\small{}(again a single reference
+cell is assumed - a subscript, e.g.~subscript $c$, would need to
+be added for multiple reference cells)} &  & \textbf{\small{}Symbol}\tabularnewline
+\hline 
+\hline 
+For $\mathbb{W}_{0}$ space &  & $\gamma_{i}$\tabularnewline
+\hline 
+For $\mathbb{W}_{1}$ space &  & $\mathbf{c}_{i}$ (circulation)\tabularnewline
+\hline 
+For $\mathbb{W}_{2}$ space &  & $\mathbf{v}_{i}$\tabularnewline
+\hline 
+For $\mathbb{W}_{\theta}$ space &  & $w_{i}$ (=vertical component of $\mathbf{v}$)\tabularnewline
+\hline 
+For $\mathbb{W}_{3}$ space &  & $\sigma_{i}$\tabularnewline
+\hline 
+\end{tabular}
+\par\end{center}{\small \par}
+
+Where required a subscript is added to indicate which cell is referred
+to.
+
+The corresponding quantities on the reference cells are represented
+by adding a hat. 
+
+Any variable may be expanded in terms of basis functions in the appropriate
+primal function space. The coefficients in the expansion (the degrees
+of freedom or dofs) have the same variable name as the field expanded
+but with a subscript indicating the degree of freedom and therefore
+with which basis function it is associated. Additionally, the vector
+aspect is carried by the basis function and so any bold font is dropped. 
+
+As examples: 
+
+The expansions of $\widehat{\Pi}$ and $\widehat{\mathbf{u}}$ over
+a reference cell would be represented as (noting that the coefficients
+are unchanged by the transformations between reference and physical
+cells)
+\begin{equation}
+\widehat{\Pi}=\sum_{i=1}^{dof}\Pi_{i}\widehat{\sigma}_{i},\label{eq:Pi_e}
+\end{equation}
+\begin{equation}
+\widehat{\mathbf{u}}=\sum_{i=1}^{dof}u_{i}\widehat{\mathbf{v}}_{i}.\label{eq:u_e}
+\end{equation}
+The global expansions of the physical variables $\Pi$ and $\mathbf{u}$
+would be represented as
+
+\begin{equation}
+\Pi=\sum_{c}\Pi_{c}=\sum_{c}\sum_{i=1}^{dof}\left(\Pi_{c}\right)_{i}\left(\sigma_{c}\right)_{i},\label{eq:Pihat}
+\end{equation}
+\begin{equation}
+\mathbf{u}=\sum_{c}\mathbf{u}_{c}=\sum_{c}\sum_{i=1}^{dof}\left(u_{c}\right)_{i}\left(\mathbf{v}_{c}\right)_{i},\label{eq:uhat}
+\end{equation}
+where which cell $c$ (or any other symbol used) refers to (either
+a reference cell or a physical cell) is inherited from the variable
+it subscripts.
+
+
+\section{Dual grids}
+
+The above is all for a primal grid. If a dual grid is required then
+this would be indicated by applying an overline to all relevant variables
+and basis functions etc.~and this would take precedence over the
+hats and tildes.
+\end{document}

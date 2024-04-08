@@ -1,0 +1,20 @@
+@@ -4,8 +4,8 @@
+   use argument_mod, only : any_discontinuous_space_1, any_space_1, arg_type, cell_column, gh_field, gh_operator, gh_read, gh_real, &
+ &gh_write
+   implicit none
+-  interface dg_matrix_vector_code
+-  module procedure dg_matrix_vector_code_r_single, dg_matrix_vector_code_r_double
++  interface adj_dg_matrix_vector_code
++  module procedure adj_dg_matrix_vector_code_r_single, adj_dg_matrix_vector_code_r_double
+ end interface
+   type, public, extends(kernel_type) :: adj_dg_matrix_vector_kernel_type
+   type(ARG_TYPE) :: META_ARGS(3) = (/ &
+@@ -17,7 +17,7 @@
+ 
+   private
+ 
+-  public :: dg_matrix_vector_code
++  public :: adj_dg_matrix_vector_code
+ 
+   contains
+   subroutine adj_dg_matrix_vector_code_r_single(cell, nlayers, lhs, x, ncell_3d, matrix, ndf1, undf1, map1, ndf2, undf2, map2)

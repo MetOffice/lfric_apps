@@ -1,0 +1,315 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the UM diagnostic and prognostic cloud schemes
+
+module cld_alg_mod
+
+  use constants_mod,                 only: i_def, r_def
+  use field_mod,                     only: field_type
+  use integer_field_mod,             only: integer_field_type
+  use field_collection_mod,          only: field_collection_type
+  use mr_indices_mod,                only: nummr, imr_v, imr_cl, imr_ci,  &
+                                           imr_r, imr_s
+  use enforce_lower_bound_kernel_mod,only: enforce_lower_bound_kernel_type
+  use io_config_mod,                 only: subroutine_timers,             &
+                                           write_conservation_diag,       &
+                                           write_diag, use_xios_io,       &
+                                           diagnostic_frequency
+  use timer_mod,                     only: timer
+  use microphysics_config_mod,       only: microphysics_casim
+  use cloud_config_mod,              only: scheme,                        &
+                                           scheme_smith,                  &
+                                           scheme_bimodal,                &
+                                           scheme_pc2
+  use pc2_initiation_alg_mod,        only: pc2_initiation_alg
+  use pc2_pressure_forcing_alg_mod,  only: pc2_pressure_forcing_alg
+  use physics_mappings_alg_mod,      only: map_physics_scalars
+  use moisture_conservation_alg_mod, only: moisture_conservation_alg
+  use log_mod,                       only: log_event, LOG_LEVEL_INFO
+  use mesh_mod,                      only: mesh_type
+  use geometric_constants_mod,       only: get_height
+  use fs_continuity_mod,             only: Wtheta, W3
+  use cld_diags_mod,                 only: initialise_diags_for_cld,      &
+                                           output_diags_for_cld
+  use um_sizes_init_mod,             only: um_sizes_init
+
+  implicit none
+
+  private
+  public cld_alg
+
+contains
+
+  !>@brief Run the UM Large-scale diagnostic or (parts of) prognostic cloud scheme
+  !>@details The UM Diagnostic cloud scheme:
+  !>         generates liquid and ice cloud fraction and water content,
+  !>         and adjust vapour and temperature, as described in UMDP29
+  !>         (for liquid only for now).
+  !>         Parts of PC2 scheme are also done here.
+  !>@param[in,out] theta_inc         (in,out) Potential temperature increment
+  !>@param[in,out] mr                (in,out) Mixing ratios, in theta space
+  !>@param[in]     theta             (in)     theta in its native space
+  !>@param[in]     exner             (in)     Exner Pressure in w3 space
+  !>@param[in]     rho               (in)     Density in w3 space
+  !>@param[in]     derived_fields    (in)     Group of derived fields
+  !>@param[in]     turbulence_fields (in)     Fields for turbulence scheme
+  !>@param[in]     cloud_fields      (in,out) Fields for cloud scheme
+  !>@param[in]     convection_fields (in)     Fields from convection scheme
+  !>@param[in]     theta_n           (in)     theta at start of timestep
+  !>@param[in]     mr_n              (in)     mixing ratios at start of timestep
+  !>@param[in]     dt                (in)     Timestep length
+  !>@param[in]     step              (in)     Timestep
+  subroutine cld_alg(theta_inc, mr, theta, exner, rho,         &
+                     derived_fields, turbulence_fields,        &
+                     cloud_fields, convection_fields,          &
+                     theta_n, mr_n, step, dt)
+
+    use smith_kernel_mod, only: smith_kernel_type
+    use bm_kernel_mod,    only: bm_kernel_type
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_collection_type ), intent(in) :: convection_fields
+
+    type( field_type ), intent( inout ) :: theta_inc, mr(nummr)
+
+    ! Convention for variables below is to omit their function space
+    ! in their name if they are in native space. However, variable name
+    ! states when in timestep variable is valid.
+    type( field_type ), intent( in )    :: theta            ! Current value wth
+    type( field_type ), intent( in )    :: exner            ! Current value w3
+    type( field_type ), intent( in )    :: rho              ! Current value w3
+    type( field_type ), intent( in )    :: theta_n          ! Start of TS wth
+    type( field_type ), intent( in )    :: mr_n(nummr)      ! Start of TS
+
+    integer( i_def ),   intent( in )    :: step
+    real( r_def ),      intent( in )    :: dt
+
+    ! Variable below is for remapping from w3 to wth.
+    type( field_type ), pointer :: exner_wth => null()
+    type( field_type ) :: dtheta_pc2_inc_pres
+    type( field_type ) :: theta_updated
+    type( field_type ) :: mr_ice
+
+    type( field_type ), pointer :: cf_area  => null()
+    type( field_type ), pointer :: cf_fro  => null()
+    type( field_type ), pointer :: cf_liq  => null()
+    type( field_type ), pointer :: cf_bulk  => null()
+    type( integer_field_type ), pointer :: ntml => null()
+    type( integer_field_type ), pointer :: cumulus => null()
+    type( field_type ), pointer :: rh_crit => null()
+
+    type( field_type ), pointer :: dsldzm      => null()
+    type( field_type ), pointer :: wvar        => null()
+    type( field_type ), pointer :: gradrinr    => null()
+    type( field_type ), pointer :: zh          => null()
+    type( field_type ), pointer :: zhsc        => null()
+    type( field_type ), pointer :: inv_depth   => null()
+    type( integer_field_type ), pointer :: bl_type_ind => null()
+    type( field_type ), pointer :: tau_dec_bm  => null()
+    type( field_type ), pointer :: tau_hom_bm  => null()
+    type( field_type ), pointer :: tau_mph_bm  => null()
+
+    type( field_type ), pointer :: sskew_bm   => null()
+    type( field_type ), pointer :: svar_bm    => null()
+    type( field_type ), pointer :: svar_tb    => null()
+    type( field_type ), pointer :: height_wth => null()
+
+    type( field_type ) :: cld_amount_max
+    type( field_type ) :: cld_amount_rnd
+    type( field_type ) :: cld_amount_maxrnd
+    type( field_type ) :: ceil_cld_amount_maxrnd
+    type( field_type ) :: cld_base_altitude
+    type( field_type ) :: low_cld_base_altitude
+    type( field_type ) :: very_low_cld_amount
+    type( field_type ) :: low_cld_amount
+    type( field_type ) :: medium_cld_amount
+    type( field_type ) :: high_cld_amount
+    type( field_type ) :: very_high_cld_amount
+    type( field_type ) :: combined_cld_amount
+    type( field_type ) :: icing_sfip_li_bcf
+    type( field_type ) :: icing_sfip_lir_com
+    type( field_type ) :: cloud_fraction_below_1000feet_asl
+
+    type( mesh_type ), pointer :: mesh => null()
+    integer(i_def) :: i_mr, ncells
+
+    if ( subroutine_timers ) call timer('cld_alg')
+
+    call log_event( 'End-of-timestep cloud update', LOG_LEVEL_INFO )
+
+    mesh => theta%get_mesh()
+    height_wth => get_height(Wtheta, mesh%get_id())
+
+    ! Map updated pressure into wtheta space
+    call derived_fields%get_field('exner_in_wth', exner_wth)
+    call map_physics_scalars(exner_wth, exner)
+
+    call cloud_fields%get_field('bulk_fraction', cf_bulk)
+    call cloud_fields%get_field('area_fraction', cf_area)
+    call turbulence_fields%get_field('zh', zh)
+
+    call initialise_diags_for_cld( cld_amount_max,                             &
+                                   cld_amount_rnd,                             &
+                                   cld_amount_maxrnd,                          &
+                                   ceil_cld_amount_maxrnd,                     &
+                                   cld_base_altitude,                          &
+                                   low_cld_base_altitude,                      &
+                                   very_low_cld_amount,                        &
+                                   low_cld_amount,                             &
+                                   medium_cld_amount,                          &
+                                   high_cld_amount,                            &
+                                   very_high_cld_amount,                       &
+                                   combined_cld_amount,                        &
+                                   icing_sfip_li_bcf,                          &
+                                   icing_sfip_lir_com,                         &
+                                   cloud_fraction_below_1000feet_asl,          &
+                                   cf_area, zh )
+
+    if (scheme == scheme_smith) then
+
+      call cloud_fields%get_field('frozen_fraction', cf_fro)
+      call cloud_fields%get_field('liquid_fraction', cf_liq)
+      call cloud_fields%get_field('rh_crit', rh_crit)
+      call turbulence_fields%get_field('ntml', ntml)
+      call turbulence_fields%get_field('cumulus', cumulus)
+
+      ncells = mesh%get_last_edge_cell()
+      call um_sizes_init(ncells)
+
+      call mr(imr_ci)%copy_field_properties(mr_ice)
+      call invoke( setval_X(mr_ice, mr(imr_ci)) )
+      if (microphysics_casim) then
+        ! Temporary value of ice to be updated with to
+        ! be total ice including any snow.
+        call invoke( inc_X_plus_Y(mr_ice, mr(imr_s) ) )
+      end if ! microphysics_casim
+
+      call invoke( smith_kernel_type( theta, exner , exner_wth, rh_crit,       &
+                                       ntml, cumulus, mr(imr_v), mr(imr_cl),   &
+                                       mr_ice, cf_area, cf_fro, cf_liq,    &
+                                       cf_bulk, theta_inc) )
+
+      call um_sizes_init(1_i_def)
+
+    else if (scheme == scheme_bimodal) then
+
+      call cloud_fields%get_field('frozen_fraction', cf_fro)
+      call cloud_fields%get_field('liquid_fraction', cf_liq)
+
+      call turbulence_fields%get_field('dsldzm', dsldzm)
+      call turbulence_fields%get_field('wvar', wvar)
+      call turbulence_fields%get_field('gradrinr', gradrinr)
+      call turbulence_fields%get_field('zhsc', zhsc)
+      call turbulence_fields%get_field('inv_depth', inv_depth)
+      call turbulence_fields%get_field('bl_type_ind', bl_type_ind)
+
+      call cloud_fields%get_field('tau_dec_bm', tau_dec_bm)
+      call cloud_fields%get_field('tau_hom_bm', tau_hom_bm)
+      call cloud_fields%get_field('tau_mph_bm', tau_mph_bm)
+
+      call cloud_fields%get_field('sskew_bm', sskew_bm)
+      call cloud_fields%get_field('svar_bm', svar_bm)
+      call cloud_fields%get_field('svar_tb', svar_tb)
+
+      ncells = mesh%get_last_edge_cell()
+      call um_sizes_init(ncells)
+
+     call mr(imr_ci)%copy_field_properties(mr_ice)
+     call invoke( setval_X(mr_ice, mr(imr_ci)) )
+      if (microphysics_casim) then
+        ! Temporary value of ice to be updated with to
+        ! be total ice including any snow.
+        call invoke( inc_X_plus_Y(mr_ice, mr(imr_s) ) )
+      end if ! microphysics_casim
+
+      call invoke( bm_kernel_type(  theta, exner , exner_wth, dsldzm,          &
+                                    wvar, tau_dec_bm, tau_hom_bm, tau_mph_bm,  &
+                                    height_wth, gradrinr, zh, zhsc, inv_depth, &
+                                    bl_type_ind, mr(imr_v), mr(imr_cl),        &
+                                    mr_ice, cf_area, cf_fro, cf_liq,           &
+                                    cf_bulk, theta_inc,                        &
+                                    sskew_bm, svar_bm, svar_tb)   )
+
+      call um_sizes_init(1_i_def)
+
+    else if (scheme == scheme_pc2) then
+
+      ! Do PC2 Pressure forcing
+      call pc2_pressure_forcing_alg( mr,                      & ! IN
+                                     theta,                   & ! IN
+                                     exner_wth,               & ! IN wth
+                                     cloud_fields,            & ! INOUT
+                                     dtheta_pc2_inc_pres, dt )  ! OUT
+
+      ! Temporary value of theta to be updated with increment from
+      ! pressure forcing for use as input for initiation.
+      call theta%copy_field_properties(theta_updated)
+
+      call invoke( setval_X(theta_updated, theta),                             &
+                   inc_X_plus_Y(theta_updated, dtheta_pc2_inc_pres) )
+
+      ! Now do PC2 initiation (and checks)
+      call pc2_initiation_alg( mr,                  & ! INOUT Current
+                               theta_updated,       & ! IN    Updated
+                               exner,               & ! IN    Current exner w3
+                               exner_wth,           & ! IN    Current exner wth
+                               mr_n,                & ! IN    Start of timestep
+                               theta_n,             & ! IN    Start of timestep
+                               derived_fields,      & ! IN
+                               turbulence_fields,   &
+                               cloud_fields,        & ! INOUT
+                               theta_inc )            ! OUT
+
+      call invoke( inc_X_plus_Y(theta_inc, dtheta_pc2_inc_pres) )
+
+    end if
+
+    do i_mr = 1, nummr
+      call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
+    end do
+    if (write_conservation_diag) &
+      call moisture_conservation_alg( rho, mr, 'After cloud' )
+
+    if ( subroutine_timers ) call timer('cld_alg')
+
+    if ( write_diag .and. use_xios_io .and. &
+         mod(step,diagnostic_frequency) == 0 ) then
+
+      ! Cloud Diagnostics
+      call output_diags_for_cld( cld_amount_max,         & ! Diags to be
+                                 cld_amount_rnd,         & ! calculated...
+                                 cld_amount_maxrnd,      &
+                                 ceil_cld_amount_maxrnd, &
+                                 cld_base_altitude,      &
+                                 low_cld_base_altitude,  &
+                                 very_low_cld_amount,    &
+                                 low_cld_amount,         &
+                                 medium_cld_amount,      &
+                                 high_cld_amount,        &
+                                 very_high_cld_amount,   &
+                                 combined_cld_amount,    &
+                                 icing_sfip_li_bcf,      &
+                                 icing_sfip_lir_com,     &
+                                 cloud_fraction_below_1000feet_asl, &
+                                 !
+                                 cloud_fields,           & ! Variables they're
+                                 convection_fields,      & ! calculated from.
+                                 derived_fields,         &
+                                 mr,                     &
+                                 theta,                  &
+                                 theta_inc,              &
+                                 exner_wth )
+    end if
+
+    nullify ( mesh )
+
+  end subroutine cld_alg
+
+end module cld_alg_mod

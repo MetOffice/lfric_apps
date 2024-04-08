@@ -37,6 +37,13 @@ lw_temperature_incr = ['lw_temperature_incr', -2, 1]
 sw_heating_rate = ['sw_heating_rate', 0,    7e-5]
 trop_level      = ['trop_level', 20, 50]
 grid_snow_mass  = ['grid_snow_mass',0,1000]
+snow_depth  = ['snow_depth',0,10]
+tile_snow_rgrain = ['tile_snow_rgrain', 50, 1150]
+snow_layer_temp = ['snow_layer_temp', 200, 273.15]
+snow_layer_thickness = ['snow_layer_thickness', 0, 0.1]
+snow_layer_ice_mass = ['snow_layer_ice_mass', 0, 30]
+snow_layer_liq_mass = ['snow_layer_liq_mass', 0, 2]
+snow_layer_rgrain = ['snow_layer_rgrain', 50, 1150]
 total_prec      = ['total_prec',0,1e-3]
 ls_prec         = ['ls_prec',0,1e-3]
 sw_direct_toa   = ['sw_direct_toa', 0, 1450]
@@ -91,7 +98,7 @@ lw_up_toa_rts = ['lw_up_toa_rts', 100, 400]
 lw_up_clear_toa_rts = ['lw_up_clear_toa_rts', 100, 400]
 lw_down_clear_surf_rts = ['lw_down_clear_surf_rts', 100, 600]
 lw_up_clear_surf_rts = ['lw_up_clear_surf_rts', 100, 600]
-orographic_correction_rts = ['orographic_correction_rts', 0, 4]
+orographic_correction_rts = ['orographic_correction_rts', 0, 2]
 slope_angle = ['slope_angle', 0, 0.1]
 slope_aspect = ['slope_aspect', 0, 6.3]
 skyview = ['skyview', 0.999, 1.001]
@@ -135,6 +142,10 @@ def do_plot(datapath, plotfield, plotpath='.', plotlevel=0):
         lfric = lfric[-1, 0, plotlevel]
     elif lfric.ndim == 3:
         lfric = lfric[-1, plotlevel]
+    elif lfric.ndim == 27:
+        lfric = lfric[-1, 0, plotlevel]
+    elif lfric.ndim == 11:
+        lfric = lfric[-1, 0, plotlevel]
     else:
         lfric = lfric[-1]
 
@@ -161,8 +172,10 @@ def do_plot(datapath, plotfield, plotpath='.', plotlevel=0):
                                 +', max = '+str(field_max) )
     plt.xlim([np.min(x_coord), np.max(x_coord)])
     plt.ylim([np.min(y_coord), np.max(y_coord)])
-
-    plt.savefig(plotpath+'/'+plotfield[varname]+'.png', bbox_inches='tight')
+    if plotlevel != 0:
+        plt.savefig(plotpath+'/'+plotfield[varname]+'_'+str(plotlevel)+'.png', bbox_inches='tight')
+    else:
+        plt.savefig(plotpath+'/'+plotfield[varname]+'.png', bbox_inches='tight')
 
 
 if __name__ == "__main__":
@@ -199,7 +212,6 @@ if __name__ == "__main__":
         do_plot(datapath, sw_heating_rate, plotpath)
     if horizon_plots:
         do_plot(datapath, skyview, plotpath)
-        do_plot(datapath, lw_net_skyview_incr, plotpath)
         do_plot(datapath, horizon_angle, plotpath, plotlevel=2)
         do_plot(datapath, horizon_aspect, plotpath, plotlevel=2)
     if cosp_plots:
@@ -245,6 +257,7 @@ if __name__ == "__main__":
         do_plot(datapath, sw_direct_orog_incr_rts, plotpath)
     if ral_plots:
         do_plot(datapath, ls_prec,      plotpath)
+        do_plot(datapath, lw_net_skyview_incr, plotpath)
     else:
         do_plot(datapath, total_prec,   plotpath)
     if encorr_plots:

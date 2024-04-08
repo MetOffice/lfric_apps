@@ -1,0 +1,21 @@
+@@ -1,9 +1,9 @@
+-module adjoint_test_mod
++module adjt_opt_apply_variable_hx_alg_mod
+   implicit none
+   public
+ 
+   contains
+-  subroutine adjoint_test(mesh, chi, panel_id)
++  subroutine adjt_opt_apply_variable_hx_alg(mesh, chi, panel_id)
+     use field_mod, only : field_type
+     use function_space_mod, only : function_space_type
+     use mesh_mod, only : mesh_type
+@@ -119,6 +119,6 @@
+       call log_event(log_scratch_space, log_level_error)
+     end if
+ 
+-  end subroutine adjoint_test
++  end subroutine adjt_opt_apply_variable_hx_alg
+ 
+-end module adjoint_test_mod
++end module adjt_opt_apply_variable_hx_alg_mod

@@ -1,0 +1,67 @@
+@@ -1,6 +1,6 @@
+ module adj_apply_elim_mixed_lp_operator_kernel_mod
+   use argument_mod, only : arg_type, cell_column, gh_field, gh_inc, gh_operator, gh_read, gh_readwrite, gh_real, gh_write
+-  use constants_mod, only : i_def, r_def
++  use constants_mod, only : i_def, r_solver
+   use kernel_mod, only : kernel_type
+   use fs_continuity_mod, only : w2, w3, wtheta
+   implicit none
+@@ -39,23 +39,23 @@
+     integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
+     integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+     integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+-    real(kind=r_def), dimension(undf_w3), intent(inout) :: lhs_exner
+-    real(kind=r_def), dimension(undf_wt), intent(inout) :: theta
+-    real(kind=r_def), dimension(undf_w3), intent(inout) :: exner
+-    real(kind=r_def), dimension(undf_w2), intent(inout) :: u
+-    real(kind=r_def), dimension(ndf_w3,ndf_w3,ncell1), intent(in) :: m3exner
+-    real(kind=r_def), dimension(ndf_w3,ndf_w2,ncell2), intent(in) :: q32
+-    real(kind=r_def), dimension(ndf_w3,ndf_wt,ncell3), intent(in) :: p3theta
++    real(kind=r_solver), dimension(undf_w3), intent(inout) :: lhs_exner
++    real(kind=r_solver), dimension(undf_wt), intent(inout) :: theta
++    real(kind=r_solver), dimension(undf_w3), intent(inout) :: exner
++    real(kind=r_solver), dimension(undf_w2), intent(inout) :: u
++    real(kind=r_solver), dimension(ndf_w3,ndf_w3,ncell1), intent(in) :: m3exner
++    real(kind=r_solver), dimension(ndf_w3,ndf_w2,ncell2), intent(in) :: q32
++    real(kind=r_solver), dimension(ndf_w3,ndf_wt,ncell3), intent(in) :: p3theta
+     integer(kind=i_def) :: df
+     integer(kind=i_def) :: k
+     integer(kind=i_def) :: ik
+-    real(kind=r_def), dimension(ndf_wt) :: t_e
+-    real(kind=r_def), dimension(ndf_w3) :: p_e
+-    real(kind=r_def), dimension(ndf_w3) :: lhs_e
+-    real(kind=r_def), dimension(ndf_w2) :: u_e
+-    real(kind=r_def), dimension(ndf_w3) :: m3e_pe
+-    real(kind=r_def), dimension(ndf_w3) :: p3t_te
+-    real(kind=r_def), dimension(ndf_w3) :: q32_ue
++    real(kind=r_solver), dimension(ndf_wt) :: t_e
++    real(kind=r_solver), dimension(ndf_w3) :: p_e
++    real(kind=r_solver), dimension(ndf_w3) :: lhs_e
++    real(kind=r_solver), dimension(ndf_w2) :: u_e
++    real(kind=r_solver), dimension(ndf_w3) :: m3e_pe
++    real(kind=r_solver), dimension(ndf_w3) :: p3t_te
++    real(kind=r_solver), dimension(ndf_w3) :: q32_ue
+     integer :: idx
+     integer :: i
+     integer :: j
+@@ -64,13 +64,13 @@
+     integer :: i_2
+     integer :: j_2
+ 
+-    lhs_e = 0.0_r_def
+-    t_e = 0.0_r_def
+-    p_e = 0.0_r_def
+-    u_e = 0.0_r_def
+-    m3e_pe = 0.0_r_def
+-    p3t_te = 0.0_r_def
+-    q32_ue = 0.0_r_def
++    lhs_e = 0.0_r_solver
++    t_e = 0.0_r_solver
++    p_e = 0.0_r_solver
++    u_e = 0.0_r_solver
++    m3e_pe = 0.0_r_solver
++    p3t_te = 0.0_r_solver
++    q32_ue = 0.0_r_solver
+     do k = nlayers - 1, 0, -1
+       ik = cell * nlayers + k - nlayers + 1
+       do df = ndf_w3, 1, -1

@@ -9,7 +9,7 @@
 
 {% macro set_wallclock(time) %}
 {# macro to set wallclock - input is in minutes #}
-            -l walltime=00:{{time}}:00
+            -l walltime=00:{{time|int}}:00
 {% endmacro %}
 
 
@@ -30,7 +30,7 @@
 
 
 {% macro set_memory(mem) %}
-    {% set value = mem[0] %}
+    {% set value = mem[0]|int %}
     {% set unit = mem[1] %}
             -l mem={{value}}{{unit}}
 {% endmacro %}

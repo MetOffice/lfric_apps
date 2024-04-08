@@ -1,0 +1,135 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Prepares the radiation fields
+module init_radiation_fields_alg_mod
+
+  use constants_mod,                   only: r_def, pi
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_radiation_fields_alg
+
+contains
+
+  !> @brief   Initialises the radiation fields
+  !> @details The radiation fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          if the radiation scheme is not used.
+  !> @param[in,out] radiation_fields Collection of fields for radiation scheme
+  subroutine init_radiation_fields_alg(radiation_fields)
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(inout) :: radiation_fields
+
+    ! Outputs from the radiation scheme
+    type( field_type ), pointer :: dtheta_rad        => null()
+    type( field_type ), pointer :: dmv_pc2_rad       => null()
+    type( field_type ), pointer :: sw_heating_rate   => null()
+    type( field_type ), pointer :: lw_heating_rate   => null()
+    type( field_type ), pointer :: sw_up_tile        => null()
+    type( field_type ), pointer :: ozone             => null()
+
+    type( field_type ), pointer :: cos_zenith_angle  => null()
+    type( field_type ), pointer :: lw_down_surf      => null()
+    type( field_type ), pointer :: sw_down_surf      => null()
+    type( field_type ), pointer :: sw_down_blue_surf => null()
+    type( field_type ), pointer :: sw_direct_blue_surf => null()
+
+    type( field_type ), pointer :: sin_stellar_declination_rts => null()
+    type( field_type ), pointer :: stellar_eqn_of_time_rts     => null()
+    type( field_type ), pointer :: orographic_correction_rts   => null()
+
+    type( field_type ), pointer :: slope_angle    => null()
+    type( field_type ), pointer :: slope_aspect   => null()
+    type( field_type ), pointer :: skyview        => null()
+    type( field_type ), pointer :: horizon_angle  => null()
+    type( field_type ), pointer :: horizon_aspect => null()
+
+    type( field_type ), pointer :: aer_mix_ratio => null()
+    type( field_type ), pointer :: aer_sw_absorption => null()
+    type( field_type ), pointer :: aer_sw_scattering => null()
+    type( field_type ), pointer :: aer_sw_asymmetry => null()
+    type( field_type ), pointer :: aer_lw_absorption => null()
+    type( field_type ), pointer :: aer_lw_scattering => null()
+    type( field_type ), pointer :: aer_lw_asymmetry => null()
+
+    real( r_def ), parameter :: pi_by_two = pi / 2.0_r_def
+
+    call radiation_fields%get_field('dtheta_rad', dtheta_rad)
+    call radiation_fields%get_field('dmv_pc2_rad', dmv_pc2_rad)
+    call radiation_fields%get_field('sw_heating_rate', sw_heating_rate)
+    call radiation_fields%get_field('lw_heating_rate', lw_heating_rate)
+    call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+    call radiation_fields%get_field('ozone', ozone)
+
+    call radiation_fields%get_field('cos_zenith_angle', cos_zenith_angle)
+    call radiation_fields%get_field('lw_down_surf', lw_down_surf)
+    call radiation_fields%get_field('sw_down_surf', sw_down_surf)
+    call radiation_fields%get_field('sw_down_blue_surf', sw_down_blue_surf)
+    call radiation_fields%get_field('sw_direct_blue_surf', sw_direct_blue_surf)
+
+    call radiation_fields%get_field('sin_stellar_declination_rts', &
+                                    sin_stellar_declination_rts)
+    call radiation_fields%get_field('stellar_eqn_of_time_rts', &
+                                    stellar_eqn_of_time_rts)
+    call radiation_fields%get_field('orographic_correction_rts', &
+                                    orographic_correction_rts)
+
+    call radiation_fields%get_field('slope_angle', slope_angle)
+    call radiation_fields%get_field('slope_aspect', slope_aspect)
+    call radiation_fields%get_field('skyview', skyview)
+    call radiation_fields%get_field('horizon_angle', horizon_angle)
+    call radiation_fields%get_field('horizon_aspect', horizon_aspect)
+
+    call radiation_fields%get_field('aer_mix_ratio', aer_mix_ratio)
+    call radiation_fields%get_field('aer_sw_absorption', aer_sw_absorption)
+    call radiation_fields%get_field('aer_sw_scattering', aer_sw_scattering)
+    call radiation_fields%get_field('aer_sw_asymmetry', aer_sw_asymmetry)
+    call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption)
+    call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering)
+    call radiation_fields%get_field('aer_lw_asymmetry', aer_lw_asymmetry)
+
+    ! Initialise the increments to 0 for use when the scheme isn't called
+    call invoke( setval_c(dtheta_rad,        0.0_r_def),   &
+                 setval_c(dmv_pc2_rad,       0.0_r_def),   &
+                 setval_c(sw_heating_rate,   0.0_r_def),   &
+                 setval_c(lw_heating_rate,   0.0_r_def),   &
+                 setval_c(sw_up_tile,        0.0_r_def),   &
+                 ! Set to zero if ancil/prognostic isn't read
+                 setval_c(ozone,             0.0_r_def),   &
+                 ! Need to set to zero for lowest level
+                 setval_c(aer_mix_ratio,     0.0_r_def),   &
+                 setval_c(aer_sw_absorption, 0.0_r_def),   &
+                 setval_c(aer_sw_scattering, 0.0_r_def),   &
+                 setval_c(aer_sw_asymmetry,  0.0_r_def),   &
+                 setval_c(aer_lw_absorption, 0.0_r_def),   &
+                 setval_c(aer_lw_scattering, 0.0_r_def),   &
+                 setval_c(aer_lw_asymmetry,  0.0_r_def),   &
+                 ! Set these values for use in SCM testing when radiation is off
+                 setval_c(cos_zenith_angle,  1.0_r_def),   &
+                 setval_c(lw_down_surf,      380.0_r_def), &
+                 setval_c(sw_down_surf,      640.0_r_def), &
+                 setval_c(sw_down_blue_surf, 400.0_r_def), &
+                 setval_c(sw_direct_blue_surf, 200.0_r_def), &
+                 setval_c(sin_stellar_declination_rts, 0.0_r_def), &
+                 setval_c(stellar_eqn_of_time_rts, 0.0_r_def), &
+                 setval_c(orographic_correction_rts, 1.0_r_def), &
+                 setval_c(slope_angle,       0.0_r_def), &
+                 setval_c(slope_aspect,      0.0_r_def), &
+                 setval_c(skyview,           1.0_r_def), &
+                 setval_c(horizon_angle,     pi_by_two), &
+                 setval_c(horizon_aspect,    0.0_r_def) )
+
+  end subroutine init_radiation_fields_alg
+
+end module init_radiation_fields_alg_mod

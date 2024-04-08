@@ -1,0 +1,201 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics relating to the microphysics scheme
+
+module mphys_diagnostics_mod
+
+  use constants_mod,       only: l_def
+  use field_mod,           only: field_type
+  use io_config_mod,       only: subroutine_timers
+  use timer_mod,           only: timer
+
+  use initialise_diagnostics_mod,    only : init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  !-----------------------------
+  ! 3D Diagnostic flags
+  !-----------------------------
+
+  logical (l_def) :: dt_mphys_flag
+  logical (l_def) :: superc_liq_flag
+  logical (l_def) :: superc_rain_flag
+  logical (l_def) :: sfwater_flag
+  logical (l_def) :: sfrain_flag
+  logical (l_def) :: sfsnow_flag
+  logical (l_def) :: refl_tot_flag
+
+  !-----------------------------
+  ! 2D Diagnostic flags
+  !-----------------------------
+
+  logical (l_def) :: refl_1km_flag
+
+  public :: output_diags_for_mphys, initialise_diags_for_mphys
+
+contains
+
+  !> @brief Initialise fields for mphys diagnostics
+  !> @param[inout] superc_liq      Supercooled_liquid_cloud_after_microphysics
+  !> @param[inout] sfwater         Water due to subgrid hills
+  !> @param[inout] sfrain          Seeder-Feeder rain over subgrid hills
+  !> @param[inout] sfsnow          Seeder-Feeder snow over subgrid hills
+  !> @param[inout] refl_tot        Total radar reflectivity
+  !> @param[inout] refl_1km        Radar Reflectivity at 1km above the surface
+  subroutine initialise_diags_for_mphys(superc_liq, superc_rain,               &
+                                        sfwater, sfrain, sfsnow,               &
+                                        refl_tot, refl_1km)
+
+    implicit none
+
+    type( field_type ), intent(inout) :: superc_liq
+    type( field_type ), intent(inout) :: superc_rain
+    type( field_type ), intent(inout) :: sfwater
+    type( field_type ), intent(inout) :: sfrain
+    type( field_type ), intent(inout) :: sfsnow
+    type( field_type ), intent(inout) :: refl_tot
+    type( field_type ), intent(inout) :: refl_1km
+
+    if ( subroutine_timers ) call timer("mphys_diagnostics")
+
+    superc_liq_flag = init_diag(superc_liq, 'microphysics__superc_liq')
+    superc_rain_flag = init_diag(superc_rain, 'microphysics__superc_rain')
+    sfwater_flag = init_diag(sfwater, 'microphysics__sfwater')
+    sfrain_flag = init_diag(sfrain, 'microphysics__sfrain')
+    sfsnow_flag = init_diag(sfsnow, 'microphysics__sfsnow')
+    refl_tot_flag = init_diag(refl_tot, 'microphysics__refl_tot')
+    refl_1km_flag = init_diag(refl_1km, 'microphysics__refl_1km')
+
+    if ( subroutine_timers ) call timer("mphys_diagnostics")
+
+  end subroutine
+
+  !----------------------------------------------------------------------------
+  ! Note: If adding new diagnostics below, please consider whether CASIM
+  !       should have equivalent diagnostics added to the file
+  !       casim_diagnostics_mod.x90
+  !----------------------------------------------------------------------------
+
+  subroutine output_diags_for_mphys(exner_in_wth, dtheta_mphys,               &
+                                    dmv_mphys, dmcl_mphys, dmci_mphys,        &
+                                    dmr_mphys, dmg_mphys, dms_mphys,          &
+                                    dcfl_mphys, dcff_mphys, dbcf_mphys,       &
+                                    superc_liq, superc_rain,                  &
+                                    ls_rain, ls_snow, ls_graup, lsca_2d,      &
+                                    ls_rain_3d, ls_snow_3d, autoconv,         &
+                                    accretion, rim_cry, rim_agg, tnuc,        &
+                                    sfwater, sfrain, sfsnow,                  &
+                                    refl_tot, refl_1km )
+
+    implicit none
+
+    type ( field_type ), intent (in) :: exner_in_wth,                         &
+                                        dtheta_mphys,                         &
+                                        dmv_mphys,                            &
+                                        dmcl_mphys,                           &
+                                        dmci_mphys,                           &
+                                        dmr_mphys,                            &
+                                        dmg_mphys,                            &
+                                        dms_mphys,                            &
+                                        dcfl_mphys,                           &
+                                        dcff_mphys,                           &
+                                        dbcf_mphys,                           &
+                                        superc_liq,                           &
+                                        superc_rain,                          &
+                                        ls_rain,                              &
+                                        ls_snow,                              &
+                                        ls_graup,                             &
+                                        lsca_2d,                              &
+                                        ls_rain_3d,                           &
+                                        ls_snow_3d,                           &
+                                        autoconv,                             &
+                                        accretion,                            &
+                                        rim_cry,                              &
+                                        rim_agg,                              &
+                                        tnuc,                                 &
+                                        sfwater,                              &
+                                        sfrain,                               &
+                                        sfsnow,                               &
+                                        refl_tot,                             &
+                                        refl_1km
+
+    type ( field_type ) :: dt_mphys
+
+    !--------------------------------------
+    ! End of declarations
+    !--------------------------------------
+    if ( subroutine_timers ) call timer ("mphys_diagnostics")
+
+    !--------------------------------------
+    ! Output locally computed 3D diagnostics
+    !--------------------------------------
+
+    call dtheta_mphys%write_field('microphysics__dtheta_mphys')
+
+    dt_mphys_flag = init_diag(dt_mphys, 'microphysics__dt_mphys')
+    if (dt_mphys_flag) then
+      ! Convert from theta increment to temperature increment
+      call invoke( X_times_Y(dt_mphys, dtheta_mphys, exner_in_wth) )
+      call dt_mphys%write_field()
+    end if
+
+    !----------------------------------------
+    ! Output changes to mixing ratios
+    !----------------------------------------
+    call dmv_mphys%write_field('microphysics__dmv_mphys')
+    call dmcl_mphys%write_field('microphysics__dmcl_mphys')
+    call dmci_mphys%write_field('microphysics__dmci_mphys')
+    call dmr_mphys%write_field('microphysics__dmr_mphys')
+    call dms_mphys%write_field('microphysics__dms_mphys')
+    call dmg_mphys%write_field('microphysics__dmg_mphys')
+
+    call dbcf_mphys%write_field('microphysics__dbcf_mphys')
+    call dcfl_mphys%write_field('microphysics__dcfl_mphys')
+    call dcff_mphys%write_field('microphysics__dcff_mphys')
+
+    if (superc_liq_flag) call superc_liq%write_field()
+
+    if (superc_rain_flag) call superc_rain%write_field()
+
+    if (sfwater_flag) call sfwater%write_field()
+
+    if (sfrain_flag) call sfrain%write_field()
+
+    if (sfsnow_flag) call sfsnow%write_field()
+
+    if (refl_tot_flag) call refl_tot%write_field()
+
+    if (refl_1km_flag) call refl_1km%write_field()
+
+    call ls_rain%write_field('microphysics__ls_rain')
+
+    call ls_snow%write_field('microphysics__ls_snow')
+
+    call ls_graup%write_field('microphysics__ls_graup')
+
+    call lsca_2d%write_field('microphysics__lsca_2d')
+
+    call ls_rain_3d%write_field('microphysics__ls_rain_3d')
+
+    call ls_snow_3d%write_field('microphysics__ls_snow_3d')
+
+    call autoconv%write_field('microphysics__autoconv')
+
+    call accretion%write_field('microphysics__accretion')
+
+    call rim_cry%write_field('microphysics__rim_cry')
+
+    call rim_agg%write_field('microphysics__rim_agg')
+
+    call tnuc%write_field('microphysics__tnuc')
+
+    if ( subroutine_timers ) call timer ("mphys_diagnostics")
+
+  end subroutine output_diags_for_mphys
+
+end module mphys_diagnostics_mod

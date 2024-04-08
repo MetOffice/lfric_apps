@@ -1,0 +1,723 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Semi-Implicit solver for the gungho dynamical core.
+!> @details Control routine for the construction and application of
+!!          the semi-implicit solver.
+!!          More details of the solver forumulation can be found in the solver section of:
+!!          https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
+module semi_implicit_solver_alg_mod
+
+  use constants_mod,                      only: i_def, r_def, l_def, r_solver, &
+                                                PRECISION_R_SOLVER
+  use log_mod,                            only: log_event,         &
+                                                log_level,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_DEBUG,   &
+                                                LOG_LEVEL_INFO,    &
+                                                LOG_LEVEL_ERROR,   &
+                                                LOG_LEVEL_TRACE,   &
+                                                LOG_LEVEL_ALWAYS
+
+  ! Config
+  use mixed_solver_config_mod,            only: split_w,                  &
+                                                mixed_solver_a_tol,       &
+                                                eliminate_variables,      &
+                                                eliminate_variables_analytic
+
+  ! Derived Types
+  use field_mod,                          only: field_type
+  use integer_field_mod,                  only: integer_field_type
+  use r_solver_field_mod,                 only: r_solver_field_type
+  use sci_r_solver_field_vector_mod,      only: r_solver_field_vector_type
+  use mesh_mod,                           only: mesh_type
+  use derived_config_mod,                 only: bundle_size
+  use field_indices_mod,                  only: isol_p, isol_u, isol_w, isol_uv, &
+                                                igh_p, igh_t, igh_d,             &
+                                                igh_u, igh_w, igh_uv
+
+  ! Pointers
+  use geometric_constants_mod,            only: get_face_selector_ew, &
+                                                get_face_selector_ns
+
+  ! Algorithms
+  use mixed_operator_alg_mod,             only: mixed_operator_type
+  use mixed_schur_preconditioner_alg_mod, only: mixed_schur_preconditioner_type
+  use pressure_operator_alg_mod,          only: pressure_operator_type
+  use pressure_precon_alg_mod,            only: pressure_preconditioner_type
+  use pressure_diag_precon_alg_mod,       only: pressure_diag_preconditioner_type
+  use sci_multigrid_preconditioner_alg_mod, &
+                                          only: multigrid_preconditioner_type
+  use sci_null_preconditioner_alg_mod,    only: null_preconditioner_type
+
+  ! preconditioner and solver
+  use sci_preconditioner_mod,             only: abstract_preconditioner_type
+  use sci_iterative_solver_mod,           only: abstract_iterative_solver_type, &
+                                                bicgstab_type,                  &
+                                                gmres_type,                     &
+                                                fgmres_type,                    &
+                                                gcr_type,                       &
+                                                block_gcr_type,                 &
+                                                conjugate_gradient_type,        &
+                                                precondition_only_type,         &
+                                                jacobi_type
+
+  ! Kernels
+  use split_w2_field_kernel_mod,          only: split_w2_field_kernel_type
+  use combine_w2_field_kernel_mod,        only: combine_w2_field_kernel_type
+
+  ! IO
+  use io_config_mod,                      only: subroutine_timers
+  use timer_mod,                          only: timer
+
+  implicit none
+
+  private
+
+  ! Operator, preconditioner and iterative solver for mixed problem
+  type( mixed_operator_type )                          :: mixed_operator
+  class( abstract_preconditioner_type ),   allocatable :: mixed_preconditioner
+  class( abstract_iterative_solver_type ), allocatable :: mixed_solver
+
+  !> Operator, preconditioner and iterative solver for
+  !> Helmholtz (pressure) problem
+  type( pressure_operator_type )                       :: pressure_operator
+  class( abstract_preconditioner_type ),   allocatable :: pressure_preconditioner
+  class( abstract_iterative_solver_type ), allocatable :: pressure_solver
+
+  public  :: semi_implicit_solver_alg_init
+  public  :: semi_implicit_solver_alg_final
+  public  :: semi_implicit_solver_alg_step
+  private :: construct_solver_state
+contains
+!=============================================================================!
+  !> @details Initialisation procedure for the semi-implicit solver
+  !> @param[in] state Prognostic state for the solver
+  subroutine semi_implicit_solver_alg_init(state)
+    use mixed_solver_config_mod,       only: si_maximum_iterations,                      &
+                                             si_tolerance,                               &
+                                             si_method,                                  &
+                                             mixed_gcrk => gcrk,                         &
+                                             si_method_cg,                               &
+                                             si_method_bicgstab,                         &
+                                             si_method_gmres,                            &
+                                             si_method_fgmres,                           &
+                                             si_method_gcr,                              &
+                                             si_method_block_gcr,                        &
+                                             si_method_prec_only,                        &
+                                             si_method_jacobi,                           &
+                                             si_preconditioner,                          &
+                                             si_preconditioner_pressure,                 &
+                                             si_preconditioner_diagonal,                 &
+                                             si_preconditioner_none,                     &
+                                             si_monitor_convergence =>                   &
+                                                             monitor_convergence,        &
+                                             si_fail_on_non_converged =>                 &
+                                                             fail_on_non_converged,      &
+                                             mixed_jacobi_relaxation =>                  &
+                                                             jacobi_relaxation
+
+
+    use helmholtz_solver_config_mod,   only: si_pressure_maximum_iterations,             &
+                                             helmholtz_gcrk => gcrk,                     &
+                                             si_pressure_tolerance,                      &
+                                             si_pressure_a_tol,                          &
+                                             helmholtz_method => method,                 &
+                                             method_cg,                                  &
+                                             method_bicgstab,                            &
+                                             method_gmres,                               &
+                                             method_fgmres,                              &
+                                             method_gcr,                                 &
+                                             method_prec_only,                           &
+                                             method_jacobi,                              &
+                                             helmholtz_preconditioner => preconditioner, &
+                                             preconditioner_none,                        &
+                                             preconditioner_diagonal,                    &
+                                             preconditioner_tridiagonal,                 &
+                                             preconditioner_multigrid,                   &
+                                             si_pressure_monitor_convergence =>          &
+                                                              monitor_convergence,       &
+                                             si_pressure_fail_on_non_converged =>        &
+                                                              fail_on_non_converged,     &
+                                             si_pressure_jacobi_relaxation =>            &
+                                                             jacobi_relaxation
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), dimension(bundle_size), intent( in ) :: state
+
+    ! Vertical pressure preconditioner
+    type( pressure_preconditioner_type ) :: Hz_preconditioner
+
+    write(log_scratch_space,'(A)')                          &
+        'SI solver built with '//trim(PRECISION_R_SOLVER)// &
+        '-bit real numbers'
+    call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+
+    pressure_operator &
+      = pressure_operator_type(level=1_i_def)
+
+    ! *** Allocate polymorphic solver- and preconditioner objects ***
+
+    call log_event( "semi_implicit_solver_alg_init: allocate and construct pressure/Helmholtz preconditioner", &
+                       LOG_LEVEL_INFO)
+    ! Allocate pressure preconditioner preconditioner of correct type
+    select case(helmholtz_preconditioner)
+    case(PRECONDITIONER_NONE)
+       allocate( pressure_preconditioner, &
+                 source = null_preconditioner_type() )
+    case(PRECONDITIONER_DIAGONAL)
+       allocate ( pressure_preconditioner, &
+                 source = pressure_diag_preconditioner_type() )
+    case(PRECONDITIONER_TRIDIAGONAL)
+       allocate( pressure_preconditioner, &
+                 source = pressure_preconditioner_type(level=1_i_def) )
+    case(PRECONDITIONER_MULTIGRID)
+       Hz_preconditioner = pressure_preconditioner_type(level=1_i_def)
+       allocate( pressure_preconditioner, &
+                 source = multigrid_preconditioner_type(state(igh_p)%get_function_space(), &
+                                                        pressure_operator, &
+                                                        Hz_preconditioner) )
+    case default
+       call log_event( "Unknown pressure preconditioner specified", &
+                       LOG_LEVEL_ERROR)
+    end select
+
+    call log_event( "semi_implicit_solver_alg_init: Setting up pressure solver", LOG_LEVEL_INFO )
+
+      ! Allocate pressure solver of correct type
+    select case( helmholtz_method )
+    case (METHOD_BICGSTAB)
+       allocate ( pressure_solver, &
+                  source = bicgstab_type( pressure_operator,             &
+                                        pressure_preconditioner,         &
+                                        si_pressure_tolerance,           &
+                                        si_pressure_a_tol,               &
+                                        si_pressure_maximum_iterations,  &
+                                        si_pressure_monitor_convergence, &
+                                        si_pressure_fail_on_non_converged) )
+    case(METHOD_CG)
+       allocate ( pressure_solver, &
+                  source = conjugate_gradient_type( pressure_operator,             &
+                                                  pressure_preconditioner,         &
+                                                  si_pressure_tolerance,           &
+                                                  si_pressure_a_tol,               &
+                                                  si_pressure_maximum_iterations,  &
+                                                  si_pressure_monitor_convergence, &
+                                                  si_pressure_fail_on_non_converged) )
+    case(METHOD_GMRES)
+       allocate ( pressure_solver, &
+                  source = gmres_type( pressure_operator,             &
+                                     pressure_preconditioner,         &
+                                     helmholtz_gcrk,                  &
+                                     si_pressure_tolerance,           &
+                                     si_pressure_a_tol,               &
+                                     si_pressure_maximum_iterations,  &
+                                     si_pressure_monitor_convergence, &
+                                     si_pressure_fail_on_non_converged) )
+    case(METHOD_FGMRES)
+       allocate ( pressure_solver, &
+                  source = fgmres_type( pressure_operator,             &
+                                      pressure_preconditioner,         &
+                                      helmholtz_gcrk,                  &
+                                      si_pressure_tolerance,           &
+                                      si_pressure_a_tol,               &
+                                      si_pressure_maximum_iterations,  &
+                                      si_pressure_monitor_convergence, &
+                                      si_pressure_fail_on_non_converged) )
+    case(METHOD_GCR)
+       allocate ( pressure_solver, &
+                  source = gcr_type( pressure_operator,             &
+                                   pressure_preconditioner,         &
+                                   helmholtz_gcrk,                  &
+                                   si_pressure_tolerance,           &
+                                   si_pressure_a_tol,               &
+                                   si_pressure_maximum_iterations,  &
+                                   si_pressure_monitor_convergence, &
+                                   si_pressure_fail_on_non_converged) )
+    case(METHOD_PREC_ONLY)
+       allocate ( pressure_solver, &
+                  source = precondition_only_type( pressure_operator,               &
+                                                   pressure_preconditioner,         &
+                                                   si_pressure_monitor_convergence) )
+    case(METHOD_JACOBI)
+       allocate ( pressure_solver,                                 &
+                  source = jacobi_type( pressure_operator,         &
+                           pressure_preconditioner,                &
+                           si_pressure_tolerance,                  &
+                           si_pressure_a_tol,                      &
+                           si_pressure_maximum_iterations,         &
+                           si_pressure_monitor_convergence,        &
+                           si_pressure_fail_on_non_converged,      &
+                           si_pressure_jacobi_relaxation ) )
+    case default
+       call log_event("Unknown pressure solver specified",LOG_LEVEL_ERROR)
+    end select
+
+    call log_event( "semi_implicit_solver_alg_init: ... Helmholtz done ", &
+                       LOG_LEVEL_INFO)
+
+    call log_event( "semi_implicit_solver_alg_init: allocate and construct mixed preconditioner", &
+                       LOG_LEVEL_INFO)
+    ! Allocate mixed preconditioner of correct type and call constructor
+    select case(si_preconditioner)
+    case(SI_PRECONDITIONER_PRESSURE)
+       allocate ( mixed_preconditioner, &
+                  source = mixed_schur_preconditioner_type(state(igh_u)%get_mesh(),          &
+                                                           state(igh_u)%get_element_order(), &
+                                                           pressure_solver) )
+
+    case(SI_PRECONDITIONER_NONE)
+       allocate ( mixed_preconditioner, &
+                  source = null_preconditioner_type() )
+
+    case default
+       call log_event("Unknown mixed preconditioner specified",LOG_LEVEL_ERROR)
+    end select
+
+    call log_event( "semi_implicit_solver_alg_init: allocate and construct mixed solver", &
+                       LOG_LEVEL_INFO)
+    ! Allocate mixed solver of correct type
+    select case(si_method)
+    case(SI_METHOD_BICGSTAB)
+       allocate ( mixed_solver, &
+                  source = bicgstab_type( mixed_operator,    &
+                                     mixed_preconditioner,   &
+                                     si_tolerance,           &
+                                     mixed_solver_a_tol,     &
+                                     si_maximum_iterations,  &
+                                     si_monitor_convergence, &
+                                     si_fail_on_non_converged) )
+    case(SI_METHOD_CG)
+       allocate ( mixed_solver, &
+                  source = conjugate_gradient_type( mixed_operator,    &
+                                               mixed_preconditioner,   &
+                                               si_tolerance,           &
+                                               mixed_solver_a_tol,     &
+                                               si_maximum_iterations,  &
+                                               si_monitor_convergence, &
+                                               si_fail_on_non_converged) )
+    case(SI_METHOD_GMRES)
+       allocate ( mixed_solver, &
+                  source = gmres_type( mixed_operator,    &
+                                  mixed_preconditioner,   &
+                                  mixed_gcrk,             &
+                                  si_tolerance,           &
+                                  mixed_solver_a_tol,     &
+                                  si_maximum_iterations,  &
+                                  si_monitor_convergence, &
+                                  si_fail_on_non_converged) )
+    case(SI_METHOD_FGMRES)
+       allocate ( mixed_solver, &
+                  source = fgmres_type( mixed_operator,    &
+                                   mixed_preconditioner,   &
+                                   mixed_gcrk,             &
+                                   si_tolerance,           &
+                                   mixed_solver_a_tol,     &
+                                   si_maximum_iterations,  &
+                                   si_monitor_convergence, &
+                                   si_fail_on_non_converged) )
+    case(SI_METHOD_BLOCK_GCR)
+       allocate ( mixed_solver, &
+                  source = block_gcr_type( mixed_operator,         &
+                                           mixed_preconditioner,   &
+                                           mixed_gcrk,             &
+                                           si_tolerance,           &
+                                           mixed_solver_a_tol,     &
+                                           si_maximum_iterations,  &
+                                           si_monitor_convergence, &
+                                           si_fail_on_non_converged) )
+
+    case(SI_METHOD_GCR)
+       allocate ( mixed_solver, &
+                  source = gcr_type( mixed_operator,         &
+                                     mixed_preconditioner,   &
+                                     mixed_gcrk,             &
+                                     si_tolerance,           &
+                                     mixed_solver_a_tol,     &
+                                     si_maximum_iterations,  &
+                                     si_monitor_convergence, &
+                                     si_fail_on_non_converged) )
+    case(SI_METHOD_PREC_ONLY)
+       allocate ( mixed_solver, &
+                  source = precondition_only_type( mixed_operator,       &
+                                                   mixed_preconditioner, &
+                                                   si_monitor_convergence ) )
+    case(SI_METHOD_JACOBI)
+       allocate ( mixed_solver, &
+                  source = jacobi_type( mixed_operator,           &
+                                        mixed_preconditioner,     &
+                                        si_tolerance,             &
+                                        mixed_solver_a_tol,       &
+                                        si_maximum_iterations,    &
+                                        si_monitor_convergence,   &
+                                        si_fail_on_non_converged, &
+                                        mixed_jacobi_relaxation ) )
+    case default
+       call log_event("Unknown mixed solver specified",LOG_LEVEL_ERROR)
+    end select
+
+    call log_event( "semi_implicit_solver_alg_init: Initialised semi-implicit solver", LOG_LEVEL_INFO )
+
+  end subroutine semi_implicit_solver_alg_init
+
+  !@brief Tidy up semi-implicit solver algorithm module
+  !>
+  !@details Deallocate memory
+  subroutine semi_implicit_solver_alg_final()
+    implicit none
+
+    ! Deallocate mixed preconditioner object
+    if (allocated(mixed_preconditioner)) then
+       deallocate(mixed_preconditioner)
+    end if
+    ! Deallocate mixed solver object
+    if (allocated(mixed_solver)) then
+       deallocate(mixed_solver)
+    end if
+    ! Deallocate pressure preconditioner object
+    if (allocated(pressure_preconditioner)) then
+       deallocate(pressure_preconditioner)
+    end if
+    ! Deallocate pressure solver object
+    if (allocated(pressure_solver)) then
+       deallocate(pressure_solver)
+    end if
+
+  end subroutine semi_implicit_solver_alg_final
+
+!=============================================================================!
+
+  !> @brief An algorithm for timestepping the semi-implicit equations.
+  !>
+  !> @param[in,out] state               Prognostic model state
+  !> @param[in,out] rhs                 Residuals
+  !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics factors
+  !> @param[in]     mr                  Mixing ratio array
+  !> @param[in]     write_moisture_diag Flag to control output of moisture
+  !!                                    conservation diagnostics
+  !> @param[in]     first_iteration     Flag for first inner iteration
+  subroutine semi_implicit_solver_alg_step(state, rhs,              &
+                                           moist_dyn_gas_law,       &
+                                           mr, write_moisture_diag, &
+                                           first_iteration)
+
+    use fem_constants_mod,             only: get_normalisation_r_solver, &
+                                             get_normalisation, &
+                                             get_im3_div_r_solver, &
+                                             get_qr
+    use fs_continuity_mod,             only: W2, Wtheta
+    use mr_indices_mod,                only: nummr
+    use moisture_conservation_alg_mod, only: moisture_conservation_alg
+    use si_operators_alg_mod,          only: get_m3_rho_star,       &
+                                             get_rho_at_u,          &
+                                             get_p2theta,           &
+                                             get_p3theta,           &
+                                             get_ptheta2,           &
+                                             get_eliminated_q2t,    &
+                                             get_eliminated_q3t
+    use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
+    use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod, &
+                                       only: dg_inc_matrix_vector_kernel_type
+    use operator_mod,                  only: operator_type, &
+                                             r_solver_operator_type
+    use field_mod,                     only: field_type
+    use r_solver_field_mod,            only: r_solver_field_type
+    use timestepping_config_mod,       only: dt, tau_r
+    use enforce_bc_kernel_mod,         only: enforce_bc_kernel_type
+    use sci_mass_matrix_solver_alg_mod, &
+                                       only: mass_matrix_solver_alg
+    use sci_psykal_light_mod,          only: invoke_copy_to_rdef, &
+                                             invoke_copy_to_rsolver, &
+                                             invoke_inc_rdefX_plus_rsolverY
+    use field_minmax_alg_mod,          only: log_field_minmax
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), dimension(bundle_size), intent( inout ) :: state
+    type( field_type ), dimension(bundle_size), intent( inout ) :: rhs
+    type( field_type ),                         intent( in )    :: moist_dyn_gas_law
+    type( field_type ), dimension(nummr),       intent( in )    :: mr
+    logical( kind=l_def ),                      intent( in )    :: write_moisture_diag
+    logical( kind=l_def),                       intent( in )    :: first_iteration
+
+    real( kind=r_def )                    :: si_err(bundle_size)
+    type( field_type ),           pointer :: t_normalisation, &
+                                             u_normalisation
+    type( r_solver_field_vector_type )    :: vector_inc, vector_rhs
+
+    ! For analytic elimination of rho and theta
+    type( field_type ) :: rhs_rdef,  &
+                          inc_theta
+
+    type( field_type ) :: rho_guess
+
+    type( r_solver_field_type ), dimension(bundle_size) :: rhs_rsol
+    type( r_solver_field_type ) :: div_u,          &
+                                   rhs_tmp,        &
+                                   f_star,         &
+                                   inc_uvw_rsol,   &
+                                   inc_theta_rsol, &
+                                   inc_rho_rsol
+
+    type( r_solver_field_type ),    pointer :: rho_at_u,      &
+                                               m2_diag,       &
+                                               mt_lumped_inv, &
+                                               inc_uv_rsol,   &
+                                               inc_w_rsol,    &
+                                               inc_exner_rsol
+    type( r_solver_operator_type ), pointer :: div,         &
+                                               m3_rho_star, &
+                                               p3theta,     &
+                                               p2theta,     &
+                                               ptheta2,     &
+                                               q2t_op,      &
+                                               q3t_op
+    real( kind=r_solver ) :: tau_r_dt
+    integer( kind=i_def ) :: mesh_id
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
+
+    ! Input fields are r_def fields so preliminary work uses field_types
+    mesh_id = state(igh_p)%get_mesh_id()
+
+    if ( write_moisture_diag ) then
+      ! Best guess for the prognostic fields state can be calculated as
+      ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
+      ! where fortunately all of the above except "state" is already in "rhs_np1"
+      call rho_guess%initialise( state(igh_d)%get_function_space() )
+      call invoke(X_plus_Y(rho_guess, state(igh_d), rhs(igh_d)))
+      call moisture_conservation_alg( rho_guess, mr, 'Before solve' )
+    end if
+
+    ! Normalise theta & u residual
+    t_normalisation => get_normalisation(Wtheta, mesh_id)
+    u_normalisation => get_normalisation(W2, mesh_id)
+    call invoke( inc_X_times_Y(rhs(igh_u), u_normalisation) )
+    if ( eliminate_variables == eliminate_variables_analytic ) then
+      call rhs_rdef%initialise( vector_space = rhs(igh_t)%get_function_space() )
+      call invoke( setval_x( rhs_rdef, rhs(igh_t) ) )
+      call mass_matrix_solver_alg( rhs(igh_t), rhs_rdef )
+    else
+      call invoke( inc_X_times_Y(rhs(igh_t), t_normalisation) )
+    end if
+
+    ! Write out si residuals
+    if (log_level() == LOG_LEVEL_DEBUG) then
+      call invoke( name = "compute_si_residuals",               &
+                  X_innerproduct_X(si_err(igh_u), rhs(igh_u)), &
+                  X_innerproduct_X(si_err(igh_t), rhs(igh_t)), &
+                  X_innerproduct_X(si_err(igh_d), rhs(igh_d)), &
+                  X_innerproduct_X(si_err(igh_p), rhs(igh_p))  &
+                )
+      write( log_scratch_space, '(A,E16.8)' ) &
+          'Residual in momentum equation:  ',sqrt(si_err(igh_u))
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      write( log_scratch_space, '(A,E16.8)' ) &
+          'Residual in energy equation:    ',sqrt(si_err(igh_t))
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      write( log_scratch_space, '(A,E16.8)' ) &
+          'Residual in continuity equation:',sqrt(si_err(igh_d))
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      write( log_scratch_space, '(A,E16.8)' ) &
+          'Residual in equation of state:  ',sqrt(si_err(igh_p))
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end if
+
+    ! Now we copy data to r_solver fields and proceed with everything
+    ! of kind r_solver
+    call rhs_rsol(igh_u)%initialise( rhs(igh_u)%get_function_space() )
+    call rhs_rsol(igh_t)%initialise( rhs(igh_t)%get_function_space() )
+    call rhs_rsol(igh_d)%initialise( rhs(igh_d)%get_function_space() )
+    call rhs_rsol(igh_p)%initialise( rhs(igh_p)%get_function_space() )
+    ! This is required to put sensible data in the halo so there is something
+    ! for enforce_bc_kernel to work with
+    call invoke(setval_c(rhs_rsol(igh_u), 0.0_r_solver) )
+    call invoke_copy_to_rsolver(rhs_rsol(igh_u), rhs(igh_u))
+    call invoke_copy_to_rsolver(rhs_rsol(igh_t), rhs(igh_t))
+    call invoke_copy_to_rsolver(rhs_rsol(igh_d), rhs(igh_d))
+    call invoke_copy_to_rsolver(rhs_rsol(igh_p), rhs(igh_p))
+
+    if ( first_iteration ) then
+      ! Modify RHS due to elimination of rho and theta only for inner iteration 1
+      ! (for other values rhs_rho = rhs_theta = 0 and so nothing needs to be done)
+      m3_rho_star => get_m3_rho_star()
+      ! Elimination of rho
+      ! Set rhs_p = rhs_p + M_{3,rho} * rhs_rho
+      call invoke( dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_d), m3_rho_star ) )
+
+      ! Elimination of theta
+      if ( eliminate_variables == eliminate_variables_analytic ) then
+        q2t_op => get_eliminated_q2t()
+        q3t_op => get_eliminated_q3t()
+        call invoke( dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), q3t_op ), &
+                     matrix_vector_kernel_type( rhs_rsol(igh_u), rhs_rsol(igh_t), q2t_op ), &
+                     enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
+      else
+        p3theta   => get_p3theta()
+        m2_diag   => get_normalisation_r_solver(W2, mesh_id)
+        ! Set rhs_p = rhs_p + P_{3,theta} * rhs_theta
+        call invoke( dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), p3theta ) )
+        ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
+        call rhs_tmp%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
+        p2theta => get_p2theta()
+        call invoke( setval_c(rhs_tmp, 0.0_r_def),                                   &
+                     matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
+                     inc_X_times_Y(rhs_tmp, m2_diag),                                &
+                     inc_X_plus_Y(rhs_rsol(igh_u), rhs_tmp),                         &
+                     enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
+      end if
+    end if
+
+    ! Solve the semi-implicit operator
+    if ( subroutine_timers ) call timer('mixed_solver')
+    call log_event( "Gungho: mixed solve:", LOG_LEVEL_INFO )
+    ! Create field vectors out of field arrays
+    call construct_solver_state(vector_inc, rhs_rsol, import_fields = .false.)
+    call construct_solver_state(vector_rhs, rhs_rsol, import_fields = .true.)
+    call vector_inc%set_scalar(0.0_r_def)
+    call mixed_solver%apply(vector_inc, vector_rhs)
+    if ( subroutine_timers ) call timer('mixed_solver')
+
+    ! Get the pressure increment
+    inc_exner_rsol => vector_inc%get_field_from_position(isol_p)
+    call log_field_minmax( LOG_LEVEL_DEBUG, 'exner_inc', inc_exner_rsol )
+
+    ! Get the velocity increments and if necessary combine them
+    call inc_uvw_rsol%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
+    if ( split_w ) then
+      inc_uv_rsol => vector_inc%get_field_from_position(isol_uv)
+      inc_w_rsol  => vector_inc%get_field_from_position(isol_w)
+      face_selector_ew => get_face_selector_ew( mesh_id )
+      face_selector_ns => get_face_selector_ns( mesh_id )
+      call invoke( &
+        combine_w2_field_kernel_type( inc_uvw_rsol, inc_uv_rsol, inc_w_rsol, &
+                                      face_selector_ew, face_selector_ns ) &
+      )
+      call log_field_minmax( LOG_LEVEL_DEBUG, 'uv_inc', inc_uv_rsol )
+      call log_field_minmax( LOG_LEVEL_DEBUG, 'w_inc', inc_w_rsol )
+    else
+      call vector_inc%vector(isol_u)%copy_field_properties(inc_uvw_rsol)
+      call invoke( setval_X(inc_uvw_rsol, vector_inc%vector(isol_u)) )
+      call log_field_minmax( LOG_LEVEL_DEBUG, 'uvw_inc', inc_uvw_rsol )
+    end if
+
+    ! Get the theta and rho increments
+    call inc_theta_rsol%initialise( vector_space = rhs_rsol(igh_t)%get_function_space() )
+    call inc_rho_rsol%initialise( vector_space = rhs_rsol(igh_d)%get_function_space() )
+    ! Compute rho increment since solver does not provide one
+    div      => get_im3_div_r_solver(mesh_id)
+    rho_at_u => get_rho_at_u()
+    tau_r_dt = real(-tau_r*dt, kind=r_solver)
+    call div_u%initialise( vector_space = rhs_rsol(igh_p)%get_function_space() )
+    call f_star%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
+
+    call invoke( X_times_Y( f_star, rho_at_u, inc_uvw_rsol ),              &
+                 dg_matrix_vector_kernel_type( div_u, f_star, div ),       &
+                 aX_plus_Y(inc_rho_rsol, tau_r_dt, div_u, rhs_rsol(igh_d)) &
+               )
+
+    ! Compute theta increment since solver does not provide one
+    ptheta2 => get_ptheta2()
+    mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
+    call rhs_tmp%initialise( vector_space = rhs_rsol(igh_t)%get_function_space() )
+    call invoke( setval_c(rhs_tmp, 0.0_r_def), &
+                 dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2))
+
+    if (  eliminate_variables == eliminate_variables_analytic ) then
+      call invoke_copy_to_rdef(rhs_rdef, rhs_tmp)
+      call inc_theta%initialise( state(igh_t)%get_function_space() )
+      call mass_matrix_solver_alg( inc_theta, rhs_rdef )
+      call invoke_copy_to_rsolver(rhs_tmp, inc_theta)
+    else
+      call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv) )
+    end if
+    call invoke( X_minus_Y( inc_theta_rsol, rhs_rsol(igh_t), rhs_tmp) )
+
+    ! Finally we need to add r_solver increments to the r_def state field
+    call invoke_inc_rdefX_plus_rsolverY( state(igh_u), inc_uvw_rsol )
+    call invoke_inc_rdefX_plus_rsolverY( state(igh_p), inc_exner_rsol )
+    call invoke_inc_rdefX_plus_rsolverY( state(igh_t), inc_theta_rsol )
+    call invoke_inc_rdefX_plus_rsolverY( state(igh_d), inc_rho_rsol )
+
+    if ( write_moisture_diag )  &
+      call moisture_conservation_alg( state(igh_d), mr, 'After solve' )
+
+    if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
+
+  end subroutine semi_implicit_solver_alg_step
+
+  !> @brief Construct a field vector state out of a field bundle, expanding to
+  !>        inlcude the split wind fields if necessary
+  !>@param[in,out] vector_state  Field vector to create
+  !>@param[in]     bundle_state  Field bundle to copy
+  !>@param[in]     import fields Import (copy) data from field_bundle
+  subroutine construct_solver_state(vector_state, bundle_state, import_fields)
+    use function_space_collection_mod, only: function_space_collection
+    use fs_continuity_mod,             only: W2v, W2h
+
+    implicit none
+
+    type( r_solver_field_vector_type ),                  intent(inout) :: vector_state
+    type( r_solver_field_type ), dimension(bundle_size), intent(in)    :: bundle_state
+    logical( kind=l_def ),                               intent(in)    :: import_fields
+
+    type( r_solver_field_type ) :: uv, w
+    type( mesh_type ), pointer  :: mesh
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+    integer( kind=i_def ) :: p, state_size
+
+    state_size = 2 ! Default UV + P fields
+    if ( split_w ) &
+      state_size = state_size + 1 ! Additional W field
+
+    vector_state = r_solver_field_vector_type( state_size )
+
+    ! Wind fields
+    if ( split_w ) then
+      p    =  bundle_state(igh_u)%get_element_order()
+      mesh => bundle_state(igh_u)%get_mesh()
+      face_selector_ew => get_face_selector_ew( mesh%get_id() )
+      face_selector_ns => get_face_selector_ns( mesh%get_id() )
+
+      call uv%initialise( function_space_collection%get_fs( mesh, p, W2h ) )
+      call w%initialise( function_space_collection%get_fs( mesh, p, W2v ) )
+      if ( import_fields ) then
+        call invoke( setval_c( uv, 0.0_r_def ), &
+                     setval_c( w,  0.0_r_def ), &
+                     split_w2_field_kernel_type( uv, w, bundle_state(igh_u), &
+                                                 face_selector_ew,           &
+                                                 face_selector_ns ) )
+        call vector_state%import_field( uv, isol_uv )
+        call vector_state%import_field( w, isol_w )
+      else
+        call vector_state%initialise_field( isol_uv, uv%get_function_space() )
+        call vector_state%initialise_field( isol_w,  w%get_function_space() )
+      end if
+    else
+      if ( import_fields ) then
+        call vector_state%import_field( bundle_state(igh_u), isol_u )
+      else
+        call vector_state%initialise_field( isol_u, bundle_state(igh_u)%get_function_space() )
+      end if
+    end if
+
+    ! Pressure fields
+    if ( import_fields ) then
+      call vector_state%import_field( bundle_state(igh_p), isol_p )
+    else
+      call vector_state%initialise_field( isol_p, bundle_state(igh_p)%get_function_space() )
+    end if
+
+  end subroutine construct_solver_state
+
+end module semi_implicit_solver_alg_mod

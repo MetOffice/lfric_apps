@@ -1,0 +1,541 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module controlling the transport of gungho's prognostic variables.
+
+module gungho_transport_control_alg_mod
+
+  use constants_mod,                     only: i_def, r_def, l_def, r_tran, &
+                                               PRECISION_R_TRAN
+  use extrusion_mod,                     only: SHIFTED
+  use field_mod,                         only: field_type
+  use formulation_config_mod,            only: moisture_formulation,     &
+                                               moisture_formulation_dry, &
+                                               use_multires_coupling
+  use local_mesh_mod,                    only: local_mesh_type
+  use log_mod,                           only: log_event,         &
+                                               log_scratch_space, &
+                                               LOG_LEVEL_INFO,    &
+                                               LOG_LEVEL_ERROR,   &
+                                               LOG_LEVEL_ALWAYS
+  use mesh_collection_mod,               only: mesh_collection
+  use mesh_mod,                          only: mesh_type
+  use multires_coupling_config_mod,      only: coarse_aerosol_transport, &
+                                               aerosol_mesh_name
+  use transport_config_mod,              only: transport_ageofair
+  use transport_metadata_mod,            only: transport_metadata_type
+  use transport_runtime_collection_mod,  only: init_transport_runtime_collection, &
+                                               set_transport_runtime,             &
+                                               get_transport_runtime
+  use transport_metadata_collection_mod, only: transport_metadata_collection_type, &
+                                               transport_metadata_collection
+  use check_configuration_mod,           only: check_any_shifted,    &
+                                               check_transport_name, &
+                                               check_any_scheme_mol
+
+  implicit none
+
+  private
+
+  ! Contained suroutines
+  public :: gungho_transport_control_alg_init
+  public :: gungho_transport_control_alg
+  public :: gungho_transport_control_alg_final
+
+contains
+
+  !=============================================================================
+  !> @brief Create all the initialisation structures required for transport in
+  !!        the model.
+  !> @params[in] mesh   The mesh to initialise on
+  subroutine gungho_transport_control_alg_init( mesh )
+
+    use reconstruct_w3_field_alg_mod, only: reconstruct_w3_field_alg_init
+    use wt_advective_update_alg_mod,  only: wt_advective_update_alg_init
+    use transport_config_mod,         only: profile_size,            &
+                                            field_names,             &
+                                            equation_form,           &
+                                            scheme,                  &
+                                            splitting,               &
+                                            horizontal_method,       &
+                                            vertical_method,         &
+                                            enforce_min_value,       &
+                                            min_value,               &
+                                            log_space,               &
+                                            reversible,              &
+                                            horizontal_monotone,     &
+                                            vertical_monotone,       &
+                                            vertical_monotone_order, &
+                                            consistent_ffsl_splitting
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    integer(kind=i_def)           :: config
+    type(transport_metadata_type) :: transport_metadata
+
+    integer(kind=i_def), allocatable :: local_mesh_ids(:)
+    type(mesh_type),         pointer :: aerosol_mesh => null()
+    type(mesh_type),         pointer :: shifted_mesh => null()
+    type(local_mesh_type),   pointer :: local_mesh => null()
+
+    write(log_scratch_space,'(A)')                               &
+        'Transport scheme built with '//trim(PRECISION_R_TRAN)// &
+        '-bit real numbers'
+    call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
+
+    ! Set up linked list of metadatas
+    transport_metadata_collection = transport_metadata_collection_type()
+
+    ! Set up configs using namelist entries
+    do config = 1, profile_size
+
+      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+      ! Set hardwired defaults based upon which field is being advected
+
+      transport_metadata = transport_metadata_type( field_names(config),             &
+                                                    equation_form(config),           &
+                                                    splitting(config),               &
+                                                    scheme(config),                  &
+                                                    horizontal_method(config),       &
+                                                    vertical_method(config),         &
+                                                    horizontal_monotone(config),     &
+                                                    vertical_monotone(config),       &
+                                                    vertical_monotone_order(config), &
+                                                    enforce_min_value(config),       &
+                                                    real(min_value(config), r_tran), &
+                                                    log_space(config),               &
+                                                    reversible(config),              &
+                                                    consistent_ffsl_splitting(config) )
+
+      call transport_metadata_collection%set_transport_metadata(transport_metadata)
+
+    end do
+
+    ! Initialise any necessary transport fields or coefficients
+    if ( check_any_scheme_mol() ) then
+      call reconstruct_w3_field_alg_init( mesh )
+      call wt_advective_update_alg_init( mesh )
+      if (check_any_shifted()) then
+        shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+        call reconstruct_w3_field_alg_init( shifted_mesh )
+      end if
+    end if
+
+    ! Initialise transport_runtime_collection
+    local_mesh => mesh%get_local_mesh()
+    if ( use_multires_coupling .and. coarse_aerosol_transport ) then
+      ! Need two transport runtimes
+      allocate(local_mesh_ids(2))
+      local_mesh_ids(1) = local_mesh%get_id()
+      aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
+      local_mesh => aerosol_mesh%get_local_mesh()
+      local_mesh_ids(2) = local_mesh%get_id()
+
+      ! Initialise transport coefficients for aerosol meshes
+      if ( check_any_scheme_mol() ) then
+        call reconstruct_w3_field_alg_init( aerosol_mesh )
+        call wt_advective_update_alg_init( aerosol_mesh )
+        if (check_any_shifted()) then
+          shifted_mesh => mesh_collection%get_mesh(aerosol_mesh, SHIFTED)
+          call reconstruct_w3_field_alg_init( shifted_mesh )
+        end if
+      end if
+    else
+      ! No coarse transport, so only one transport runtime needed
+      allocate(local_mesh_ids(1))
+      local_mesh_ids(1) = local_mesh%get_id()
+    end if
+
+    call init_transport_runtime_collection(local_mesh_ids)
+
+  end subroutine gungho_transport_control_alg_init
+
+  !=============================================================================
+  !> @brief Advection of prognostic variables for the dynamical core.
+  !> @param[in,out] advection_inc   Advection increment of the dynamics
+  !!                                prognostics [u, rho, theta, exner]
+  !> @param[in]     advected_fields Fields to advect: [u, rho, theta, exner]
+  !> @param[in]     wind_np1        End of timestep wind field
+  !> @param[in]     wind_n          Start of timestep wind field
+  !> @param[in,out] mr_out          Moisture fields after transport
+  !> @param[in]     mr_in           Moisture fields before transport
+  !> @param[in]     model_clock     Time within the model
+  !> @param[in]     outer           Outer (advection) iteration number
+  !> @param[in]     cheap_update    Logical flag for cheap transport update
+  !> @param[in]     prev_inc        (Optional) Advective increment after 1st outer
+  !!                                iteration transport used for cheap transport update
+  !> @param[in]     wind_prev       (Optional) Estimate of end of timestep wind from
+  !!                                previous outer iteration
+  !> @param[in,out] adv_tracer_all_outer
+  !!                                (Optional) Tracers after transport on every iteration
+  !> @param[in]     adv_tracer_all_outer_after_slow
+  !!                                (Optional) Tracers to transport every iteration
+  !> @param[in,out] adv_tracer_last_outer
+  !!                                (Optional) Tracers after transport on final iteration only
+  !> @param[in]     adv_tracer_last_outer_after_slow
+  !!                                (Optional) Tracers to transport on final iteration only
+  !> @param[in,out] con_tracer_all_outer
+  !!                                (Optional) Second group of tracers after transport on every iteration
+  !> @param[in]     con_tracer_all_outer_after_slow
+  !!                                (Optional) Second group of tracers to transport every iteration
+  !> @param[in,out] con_tracer_last_outer
+  !!                                (Optional) Second group of tracers after transport on final iteration only
+  !> @param[in]     con_tracer_last_outer_after_slow
+  !!                                (Optional) Second group of tracers to transport on final iteration only
+
+  subroutine gungho_transport_control_alg(advection_inc, advected_fields,    &
+                                          wind_np1, wind_n, mr_out, mr_in,   &
+                                          model_clock, outer,                &
+                                          cheap_update, prev_inc, wind_prev, &
+                                          adv_tracer_all_outer,              &
+                                          adv_tracer_all_outer_after_slow,   &
+                                          adv_tracer_last_outer,             &
+                                          adv_tracer_last_outer_after_slow,  &
+                                          con_tracer_all_outer,              &
+                                          con_tracer_all_outer_after_slow,   &
+                                          con_tracer_last_outer,             &
+                                          con_tracer_last_outer_after_slow   &
+                                          )
+
+    use derived_config_mod,              only: bundle_size
+    use fem_constants_mod,               only: get_mass_matrix
+    use field_bundle_builtins_mod,       only: bundle_inc_axpby, &
+                                               clone_bundle,     &
+                                               set_bundle_scalar
+    use field_collection_mod,            only: field_collection_type
+    use field_indices_mod,               only: igh_u, igh_t, igh_d, igh_p
+    use finite_element_config_mod,       only: element_order
+    use fs_continuity_mod,               only: Wtheta, W2
+    use function_space_collection_mod,   only: function_space_collection
+    use function_space_mod,              only: function_space_type
+    use intermesh_mappings_alg_mod,      only: map_w2_intermesh
+    use io_config_mod,                   only: write_conservation_diag
+    use model_clock_mod,                 only: model_clock_type
+    use moisture_conservation_alg_mod,   only: moisture_conservation_alg
+    use moist_mr_transport_alg_mod,      only: moist_mr_transport_alg
+    use mr_indices_mod,                  only: nummr, nummr_to_transport
+    use theta_transport_alg_mod,         only: theta_transport_alg
+    use timestepping_config_mod,         only: outer_iterations
+    use tracer_collection_transport_mod, only: tracer_collection_transport_alg, &
+                                               coarse_collection_transport_alg
+    use transport_field_mod,             only: transport_field
+    use transport_runtime_alg_mod,       only: transport_runtime_type
+    use wind_transport_alg_mod,          only: wind_transport_alg
+    use io_config_mod,                   only: subroutine_timers
+    use timer_mod,                       only: timer
+
+    implicit none
+
+    ! Arguments
+    type(field_type),            intent(inout) :: advection_inc(bundle_size)
+    type(field_type),            intent(in)    :: advected_fields(bundle_size)
+    type(field_type),            intent(in)    :: wind_np1
+    type(field_type),            intent(in)    :: wind_n
+    type(field_type),            intent(inout) :: mr_out(nummr)
+    type(field_type),            intent(in)    :: mr_in(nummr)
+    class(model_clock_type),     intent(in)    :: model_clock
+    integer(kind=i_def),         intent(in)    :: outer
+    logical(kind=l_def),         intent(in)    :: cheap_update
+    type(field_type),            intent(in),    optional :: prev_inc(bundle_size)
+    type(field_type),            intent(in),    optional :: wind_prev
+    type(field_collection_type), intent(inout), optional :: adv_tracer_all_outer
+    type(field_collection_type), intent(in),    optional :: adv_tracer_all_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: adv_tracer_last_outer
+    type(field_collection_type), intent(in),    optional :: adv_tracer_last_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: con_tracer_all_outer
+    type(field_collection_type), intent(in),    optional :: con_tracer_all_outer_after_slow
+    type(field_collection_type), intent(inout), optional :: con_tracer_last_outer
+    type(field_collection_type), intent(in),    optional :: con_tracer_last_outer_after_slow
+
+    ! Internal variables
+    type(field_type)    :: fields_np1(bundle_size)
+    type(field_type)    :: wind_for_adv
+    logical(kind=l_def) :: do_moisture_diagnostics
+    real(r_def)         :: cast_dt
+    type(field_type)    :: aerosol_wind_n, aerosol_wind_np1
+
+    type(mesh_type),     pointer :: primary_mesh => null()
+    type(mesh_type),     pointer :: shifted_mesh => null()
+    type(mesh_type),     pointer :: aerosol_primary_mesh => null()
+    type(mesh_type),     pointer :: aerosol_shifted_mesh => null()
+
+    type(function_space_type),     pointer :: aerosol_w2_fs => null()
+    type(transport_runtime_type),  pointer :: dynamics_transport_runtime => null()
+    type(transport_runtime_type),  pointer :: aerosol_transport_runtime => null()
+    type(transport_metadata_type), pointer :: transport_metadata => null()
+
+    if ( subroutine_timers ) call timer('gungho_transport_control')
+
+    ! ------------------------------------------------------------------------ !
+    ! Pre-transport initialisation tasks
+    ! ------------------------------------------------------------------------ !
+
+    call wind_for_adv%initialise( wind_n%get_function_space() )
+    if (cheap_update .AND. outer > 2 .AND. present(wind_prev) ) then
+      ! Use previous wind in the advecting wind calculation
+      call invoke( setval_X(wind_for_adv, wind_prev) )
+    else
+      ! Use wind_n in the advecting wind calculation
+      call invoke( setval_X(wind_for_adv, wind_n) )
+    end if
+
+    ! Create object in transport_runtime_collection (advecting wind etc)
+    if ( check_any_shifted() ) then
+      primary_mesh => wind_n%get_mesh()
+      shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
+
+      call set_transport_runtime( wind_n, wind_np1,   &
+                                  model_clock, outer, &
+                                  cheap_update, shifted_mesh )
+    else
+      call set_transport_runtime( wind_n, wind_np1,   &
+                                  model_clock, outer, &
+                                  cheap_update )
+    end if
+
+    cast_dt = real(model_clock%get_seconds_per_step(), r_def)
+
+    ! Initialise
+    call clone_bundle(advected_fields, fields_np1, bundle_size)
+    call set_bundle_scalar(0.0_r_def, fields_np1, bundle_size)
+
+    ! Determine
+    do_moisture_diagnostics = write_conservation_diag .and. &
+                              outer == outer_iterations
+
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport of prognostic variables
+    ! ------------------------------------------------------------------------ !
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport dry density
+    call log_event( "Transporting density...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('density')
+    call transport_field( fields_np1(igh_d), advected_fields(igh_d), &
+                          cast_dt, transport_metadata )
+    call invoke( X_minus_Y( advection_inc(igh_d), fields_np1(igh_d), &
+                            advected_fields(igh_d) ) )
+
+    ! Compute any quantities required for consistent transport
+    if ( check_any_shifted() ) then
+      dynamics_transport_runtime => get_transport_runtime(primary_mesh)
+      call dynamics_transport_runtime%shift_dry_fields()
+      call dynamics_transport_runtime%compute_consistent_quantities(shifted_mesh)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport wind field
+    call log_event( "Transporting wind...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('wind')
+    call wind_transport_alg( advection_inc(igh_u), advected_fields(igh_u), &
+                             cast_dt, transport_metadata )
+    ! We don't change advection_inc(igh_u) as wind_transport_alg
+    ! already returns weak increment
+
+    ! ------------------------------------------------------------------------ !
+    ! Don't transport Exner pressure
+    call invoke( setval_c(advection_inc(igh_p), 0.0_r_def) )
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport moisture mixing ratio fields
+    if ( moisture_formulation /= moisture_formulation_dry ) then
+      ! Write out moisture diagnostics
+      if ( do_moisture_diagnostics ) then
+        call moisture_conservation_alg( advected_fields(igh_d), &
+                                        mr_in, 'Before transport' )
+      end if
+
+      call log_event("Transporting moisture mixing ratio fields...", LOG_LEVEL_INFO)
+      transport_metadata => transport_metadata_collection%get_transport_metadata('moisture')
+      call moist_mr_transport_alg( mr_out, mr_in, nummr_to_transport, &
+                                   cast_dt, transport_metadata )
+
+      ! ---------------------------------------------------------------------- !
+      ! Transport tracers which are active in fast physics, and therefore need
+      ! transporting on every outer iteration
+      if (present(adv_tracer_all_outer) .and. check_transport_name('adv_tracer') ) then
+        transport_metadata => transport_metadata_collection%get_transport_metadata('adv_tracer')
+        call tracer_collection_transport_alg(adv_tracer_all_outer,            &
+                                             adv_tracer_all_outer_after_slow, &
+                                             cast_dt,                         &
+                                             transport_metadata)
+      end if
+      if (present(con_tracer_all_outer) .and. check_transport_name('con_tracer') ) then
+        transport_metadata => transport_metadata_collection%get_transport_metadata('con_tracer')
+        call tracer_collection_transport_alg(con_tracer_all_outer,            &
+                                             con_tracer_all_outer_after_slow, &
+                                             cast_dt,                         &
+                                             transport_metadata)
+      end if
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport potential temperature
+    ! (must be after moisture but before last_outer tracers due to cheap update)
+    ! Note: the theta increment is pointwise
+    call log_event( "Transporting potential temperature...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('potential_temperature')
+    call theta_transport_alg( fields_np1(igh_t), advection_inc(igh_t), &
+                              advected_fields(igh_t), mr_out, mr_in,   &
+                              cast_dt, transport_metadata )
+
+    if ( moisture_formulation /= moisture_formulation_dry ) then
+      ! ---------------------------------------------------------------------- !
+      ! Transport fields which aren't needed in fast physics, and therefore
+      ! only need transporting on the final outer iteration
+      if (outer == outer_iterations) then
+        if (present(con_tracer_last_outer) .and. check_transport_name('con_tracer') ) then
+
+          ! Set up a coarse transport_runtime if needed for aerosol transport
+          if (use_multires_coupling .and. coarse_aerosol_transport) then
+            ! If we're here, there will be a shifted aerosol mesh
+            aerosol_primary_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
+            aerosol_shifted_mesh => mesh_collection%get_mesh(aerosol_primary_mesh, SHIFTED)
+
+            ! Map winds to coarser mesh
+            aerosol_w2_fs => function_space_collection%get_fs(aerosol_primary_mesh, element_order, W2)
+            call aerosol_wind_n%initialise( aerosol_w2_fs )
+            call aerosol_wind_np1%initialise( aerosol_w2_fs )
+
+            call map_w2_intermesh(aerosol_wind_n, wind_n)
+            call map_w2_intermesh(aerosol_wind_np1, wind_np1)
+
+            ! Set transport runtime -- no cheap update
+            call set_transport_runtime( aerosol_wind_n, aerosol_wind_np1, &
+                                        model_clock, outer, .false.,      &
+                                        aerosol_shifted_mesh )
+
+            ! Restrict dry fields
+            aerosol_transport_runtime => get_transport_runtime(aerosol_primary_mesh)
+            call aerosol_transport_runtime%restrict_dry_fields(dynamics_transport_runtime)
+            call aerosol_transport_runtime%shift_dry_fields()
+            call aerosol_transport_runtime%compute_consistent_quantities(aerosol_shifted_mesh)
+            if (transport_ageofair) then
+              call aerosol_transport_runtime%compute_consistent_quantities(aerosol_primary_mesh)
+            end if
+
+            nullify(aerosol_primary_mesh, aerosol_shifted_mesh, aerosol_w2_fs, &
+                    dynamics_transport_runtime, aerosol_transport_runtime)
+
+          else if ( cheap_update .AND. outer > 1 ) then
+            ! Transport on dynamics mesh and using cheap update
+            ! Recompute transport_runtime with full wind instead of cheap update
+            ! wind, and set cheap_update flag = .false.
+            if ( check_any_shifted() ) then
+              primary_mesh => wind_n%get_mesh()
+              shifted_mesh => mesh_collection%get_mesh(primary_mesh, SHIFTED)
+
+              call set_transport_runtime( wind_n, wind_np1,   &
+                                          model_clock, outer, &
+                                          .false., shifted_mesh )
+            else
+              call set_transport_runtime( wind_n, wind_np1,   &
+                                          model_clock, outer, &
+                                          .false. )
+            end if
+
+            write(log_scratch_space,'(A)') 'Conservative tracer transport is not '// &
+                          'yet fully implemented with the cheap_update scheme'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+          end if
+
+          if ( transport_ageofair .and. &
+               .not. (use_multires_coupling .and. coarse_aerosol_transport) )  then
+            call dynamics_transport_runtime%compute_consistent_quantities(primary_mesh)
+          end if
+
+          ! Transport of tracers -----------------------------------------------
+          transport_metadata => transport_metadata_collection%get_transport_metadata('con_tracer')
+
+          if (use_multires_coupling .and. coarse_aerosol_transport) then
+            call coarse_collection_transport_alg &
+            (                                    &
+              con_tracer_last_outer,             &
+              con_tracer_last_outer_after_slow,  &
+              cast_dt,                           &
+              transport_metadata                 &
+            )
+          else
+            call tracer_collection_transport_alg &
+            (                                    &
+              con_tracer_last_outer,             &
+              con_tracer_last_outer_after_slow,  &
+              cast_dt,                           &
+              transport_metadata                 &
+            )
+          end if
+
+        end if
+
+        if (present(adv_tracer_last_outer) .and. check_transport_name('adv_tracer') ) then
+          ! TODO: This implementation doesn't do coarse resolution transport for this group
+          transport_metadata => transport_metadata_collection%get_transport_metadata('adv_tracer')
+          call tracer_collection_transport_alg   &
+             (                                   &
+              adv_tracer_last_outer,             &
+              adv_tracer_last_outer_after_slow,  &
+              cast_dt,                           &
+              transport_metadata                 &
+              )
+        end if
+      end if
+      ! ---------------------------------------------------------------------- !
+      ! Write out moisture diagnostics
+      if (do_moisture_diagnostics) then
+        call moisture_conservation_alg( fields_np1(igh_d), mr_out, &
+                                        'After transport' )
+      end if
+
+    end if
+
+    ! ---------------------------------------------------------------------- !
+    ! If cheap update we need to add the previous iteration state increments
+    if (cheap_update .AND. outer > 1) then
+      ! Add the previous iteration state increments for density, theta and u
+      ! On the second outer iteration we have
+      ! advection_inc = dt increment(field,(wind_np1-wind_n)/2)
+      ! prev_inc      = dt increment(field,(wind_n)/2)
+      ! We set
+      ! advection_inc = advection_inc + prev_inc = dt increment(field,(wind_np1+wind_n)/2)
+      ! This carries forward for further outer iterations
+      call invoke( inc_X_plus_Y(advection_inc(igh_d),prev_inc(igh_d)), &
+                   inc_X_plus_Y(advection_inc(igh_t),prev_inc(igh_t)), &
+                   inc_X_plus_Y(advection_inc(igh_u),prev_inc(igh_u)) )
+      ! For moisture and tracers the cheap update is done automatically as the output is the
+      ! field after transport (compared to the transport increment for the state fields).
+      ! From the first outer iteration we have
+      ! mr_1 = mr_n - dt increment(mr,wind_n)
+      ! On the second outer iteration we have
+      ! mr_out = mr_1 - dt increment(mr_1,(wind_np1-wind_n)/2)
+      ! This carries forward for further outer iterations
+    end if
+
+    if ( subroutine_timers ) call timer('gungho_transport_control')
+
+  end subroutine gungho_transport_control_alg
+
+  !=============================================================================
+  !> @brief Calls finalising routines for gungho transport.
+  subroutine gungho_transport_control_alg_final()
+
+    use reconstruct_w3_field_alg_mod, only: reconstruct_w3_field_alg_final
+    use wt_advective_update_alg_mod,  only: wt_advective_update_alg_final
+    use transport_runtime_collection_mod, only: transport_runtime_collection_final
+
+    implicit none
+
+    call reconstruct_w3_field_alg_final()
+    call wt_advective_update_alg_final()
+    call transport_runtime_collection_final()
+
+  end subroutine gungho_transport_control_alg_final
+
+end module gungho_transport_control_alg_mod

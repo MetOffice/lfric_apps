@@ -1,0 +1,120 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Tests the compute_column_integral kernel
+module compute_column_integral_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: compute_column_integral_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type compute_column_integral_kernel_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use compute_column_integral_kernel_mod, only : compute_column_integral_code
+
+    implicit none
+
+    class(compute_column_integral_kernel_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def   ! r_def 64bit
+    real(kind=r_def), parameter :: tol32 = 1.0e-4_r_def ! r_def 32bit
+    real(r_def)                 :: use_tol
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 3_i_def
+    real(r_def),         parameter :: radius = 10.0_r_def
+    real(r_def),         parameter :: cv = 700.0_r_def
+    real(r_def),         parameter :: gravity = 10.0_r_def
+
+    integer(kind=i_def), parameter             :: ndf = 1_i_def
+    integer(kind=i_def), parameter             :: undf_w3 = 3_i_def
+    integer(kind=i_def), parameter             :: undf_wth = 4_i_def
+    integer(kind=i_def), parameter             :: undf_2d = 1_i_def
+    integer(kind=i_def), dimension(ndf)        :: map_w3, map_wth, map_2d
+    real(kind=r_def),    dimension(undf_w3)    :: rho_field, air_temperature, height_w3, pot_energy
+    real(kind=r_def),    dimension(undf_wth)   :: height_wth
+    real(kind=r_def),    dimension(undf_2d)    :: tot_col_mass, ans_tot_col_mass
+    real(kind=r_def),    dimension(undf_2d)    :: tot_col_int_energy, ans_tot_col_int_energy
+    real(kind=r_def),    dimension(undf_2d)    :: tot_col_pot_energy, ans_tot_col_pot_energy
+
+    integer(kind=i_def) :: k
+
+    map_w3 = 1_i_def
+    map_wth = 1_i_def
+    map_2d = 1_i_def
+
+    do k = 0, nlayers-1
+        rho_field(map_w3(1) + k) = real(k, r_def)+1.0_r_def
+        height_w3(map_w3(1) + k) = real(k, r_def)+1.0_r_def
+        air_temperature(map_w3(1) + k) = cv * &
+                                         (250.0_r_def + (real(k, r_def)*5.00_r_def)) &
+                                         * rho_field(map_w3(1) + k)
+        pot_energy(map_w3(1) + k) = gravity * height_w3(map_w3(1) + k) &
+                                    * rho_field(map_w3(1) + k)
+    end do
+
+    do k = 0, nlayers
+        height_wth(map_wth(1) + k) = real(k, r_def)+0.5_r_def
+    end do
+
+    ! Column mass test
+    call compute_column_integral_code( nlayers,                   &
+                                   rho_field, height_w3,          &
+                                   height_wth, tot_col_mass,      &
+                                   radius,                        &
+                                   ndf, undf_w3, map_w3,          &
+                                   ndf, undf_wth, map_wth,        &
+                                   ndf, undf_2d, map_2d )
+
+    ! Internal energy test
+    call compute_column_integral_code( nlayers,                   &
+                                   air_temperature, height_w3,    &
+                                   height_wth, tot_col_int_energy,&
+                                   radius,                        &
+                                   ndf, undf_w3, map_w3,          &
+                                   ndf, undf_wth, map_wth,        &
+                                   ndf, undf_2d, map_2d )
+
+    ! Potential energy test
+    call compute_column_integral_code( nlayers,                   &
+                                   pot_energy, height_w3,         &
+                                   height_wth, tot_col_pot_energy,&
+                                   radius,                        &
+                                   ndf, undf_w3, map_w3,          &
+                                   ndf, undf_wth, map_wth,        &
+                                   ndf, undf_2d, map_2d )
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = tol32
+    end if
+
+    ans_tot_col_mass = 9.16_r_def
+    ans_tot_col_int_energy = 1648570.0_r_def
+    ans_tot_col_pot_energy = 221.80_r_def
+    @assertEqual(ans_tot_col_mass,tot_col_mass,use_tol)
+    @assertEqual(ans_tot_col_int_energy,tot_col_int_energy,use_tol)
+    @assertEqual(ans_tot_col_pot_energy,tot_col_pot_energy,use_tol)
+
+  end subroutine test_all
+
+end module compute_column_integral_kernel_mod_test

@@ -1,0 +1,139 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the Galewsky test case initialisation routine
+!>
+
+module galewsky_test_case_mod_test
+
+  use constants_mod,  only : r_def, i_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: galewsky_test_case_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: galewsky_test_case_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type galewsky_test_case_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,                   only: feign_base_mesh_config,           &
+                                                  feign_planet_config,              &
+                                                  feign_initial_wind_config,        &
+                                                  feign_shallow_water_settings_config
+    use initial_wind_config_mod,            only: profile_none
+    use base_mesh_config_mod,               only: geometry_spherical, &
+                                                  topology_fully_periodic
+    use shallow_water_settings_config_mod,  only: momentum_form_momentum, &
+                                                  swe_test_swe_galewsky,  &
+                                                  time_scheme_semi_implicit
+
+    implicit none
+
+    class(galewsky_test_case_test_type), intent(inout) :: this
+
+    call feign_planet_config( gravity=10.0_r_def,      &
+                              radius=6000000.0_r_def,  &
+                              omega=8.0E-5_r_def,      &
+                              rd=300.0_r_def,          &
+                              cp=1000.0_r_def,         &
+                              p_zero=100000.0_r_def,   &
+                              scaling_factor=1.0_r_def )
+
+    call feign_base_mesh_config                     &
+             ( file_prefix='foo',                   &
+               prime_mesh_name='unit_test',         &
+               geometry=geometry_spherical,         &
+               prepartitioned=.false.,              &
+               topology=topology_fully_periodic,    &
+               fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_shallow_water_settings_config(              &
+                  thermal_swe = .false.,                   &
+                  momentum_form = momentum_form_momentum,  &
+                  time_scheme = time_scheme_semi_implicit, &
+                  swe_test = swe_test_swe_galewsky,        &
+                  ref_gp = 10000.0_r_def )
+
+    call feign_initial_wind_config( profile=profile_none,               &
+                                    profile_data_u=(/ 0.0_r_def /),     &
+                                    profile_data_v=(/ 0.0_r_def /),     &
+                                    profile_data_w=(/ 0.0_r_def /),     &
+                                    profile_heights_uv=(/ 0.0_r_def /), &
+                                    profile_heights_w=(/ 0.0_r_def /),  &
+                                    profile_size_uv=1_i_def,            &
+                                    profile_size_w=1_i_def,             &
+                                    sbr_angle_lat=0.0_r_def,            &
+                                    sbr_angle_lon=0.0_r_def,            &
+                                    u0=0.0_r_def,                       &
+                                    v0=0.0_r_def,                       &
+                                    nl_constant=0.0_r_def,              &
+                                    shear=1.0_r_def,                    &
+                                    wavelength=1.0_r_def,               &
+                                    wind_time_period=0.0_r_def,         &
+                                    smp_init_wind=.false. )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(galewsky_test_case_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use galewsky_test_case_mod,            only: galewsky_profile
+    use constants_mod,                     only: pi
+
+    implicit none
+
+    class(galewsky_test_case_test_type), intent(inout) :: this
+
+    real(kind=r_def)       :: lat, long
+    real(kind=r_def)       :: psi_loc, h_loc
+    real(kind=r_def)       :: psi_analytical
+    ! Use e-6 for tolerance as second answer is O(10^8)
+    real(r_def), parameter :: tol = 1.0e-6
+
+    ! Test values both close and away from jet
+
+    lat  = -pi/2.0_r_def
+    long = 0.0_r_def
+    call galewsky_profile(lat, long, psi_loc, h_loc)
+    psi_analytical = 0.0_r_def
+    @assertEqual(psi_analytical, psi_loc, tol)
+
+    lat  = pi/4.0_r_def
+    long = pi/2.0_r_def
+    call galewsky_profile(lat, long, psi_loc, h_loc)
+    psi_analytical = 44767433.3436392_r_def
+    @assertEqual(psi_analytical, psi_loc, tol)
+
+  end subroutine test_all
+
+end module galewsky_test_case_mod_test

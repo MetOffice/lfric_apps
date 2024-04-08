@@ -1,0 +1,123 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the theta_dispersion_factor_kernel
+!>
+module theta_dispersion_factor_kernel_mod_test
+
+
+  use constants_mod, only : i_def, r_tran, r_def, l_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: theta_dispersion_factor_kernel_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type theta_dispersion_factor_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(theta_dispersion_factor_kernel_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,  only: final_configuration
+
+    implicit none
+
+    class(theta_dispersion_factor_kernel_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use theta_dispersion_factor_kernel_mod,    only: theta_dispersion_factor_code
+
+    implicit none
+
+    class(theta_dispersion_factor_kernel_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-4_r_tran
+    real(r_def),  parameter :: deltaz = 12.0_r_def
+    real(r_tran), parameter :: theta0 = 300.0_r_tran
+    real(r_tran), parameter :: dtheta_dz = 0.4_r_tran
+
+    logical(l_def), parameter :: logspace = .false.
+
+    ! Mesh and Spaces
+    integer(i_def), parameter :: nlayers = 4
+    integer(i_def), parameter :: ndf_wt = 2
+    integer(i_def), parameter :: undf_wt = nlayers + 1
+
+    ! Maps
+    integer(i_def), dimension(ndf_wt) :: map_wt
+
+    ! Fields
+    real(r_tran), dimension(undf_wt) :: theta
+    real(r_tran), dimension(undf_wt) :: dtheta
+    real(r_def),  dimension(undf_wt) :: height_wt
+    real(r_tran), dimension(undf_wt) :: dtheta_answer
+
+    integer(i_def) :: j, k
+
+    ! ------------------------------------------------------------------------ !
+    ! Set up DoF maps
+    ! ------------------------------------------------------------------------ !
+
+    map_wt = (/ 1, 2 /)
+
+    ! ------------------------------------------------------------------------ !
+    ! Set up initial fields
+    ! ------------------------------------------------------------------------ !
+
+    ! Uniform height
+    do k = 0, nlayers
+      height_wt(k+1) = real(k, r_def)*deltaz
+    end do
+
+    ! Theta varies linearly with height
+    do k = 0, nlayers
+      theta(k+1) = real(k, r_tran)*dtheta_dz*deltaz + theta0
+    end do
+
+    call theta_dispersion_factor_code( nlayers,      &
+                                       dtheta,       &
+                                       theta,        &
+                                       height_wt,    &
+                                       logspace,     &
+                                       ndf_wt,       &
+                                       undf_wt,      &
+                                       map_wt )
+
+    dtheta_answer(:) = 0.25_r_tran*deltaz*dtheta_dz
+
+    ! Approximately equal as reconstruction uses logarithm
+    @assertEqual(dtheta_answer, dtheta, tol)
+
+  end subroutine test_all
+
+end module theta_dispersion_factor_kernel_mod_test

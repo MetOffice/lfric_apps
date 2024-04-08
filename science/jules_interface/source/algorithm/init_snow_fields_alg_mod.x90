@@ -1,0 +1,80 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the snow fields
+module init_snow_fields_alg_mod
+
+  use constants_mod,                   only: r_def
+
+  ! Derived Types
+  use field_mod,                 only: field_type
+  use integer_field_mod,         only: integer_field_type
+  use field_collection_mod,      only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_snow_fields_alg
+
+contains
+
+  !> @brief   Initialises the snow fields
+  !> @details The snow fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          if case no restart file is used.
+  !> @param[in,out] snow_fields Collection of fields for snow scheme
+  subroutine init_snow_fields_alg(snow_fields)
+
+    use initial_snow_kernel_mod, only: initial_snow_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(inout) :: snow_fields
+
+    ! Prognostic fields
+    type( field_type ), pointer :: tile_snow_mass       => null()
+    type( field_type ), pointer :: tile_snow_rgrain     => null()
+    type( integer_field_type ), pointer :: n_snow_layers => null()
+    type( field_type ), pointer :: snow_depth           => null()
+    type( field_type ), pointer :: snow_soot            => null()
+    type( field_type ), pointer :: snow_under_canopy    => null()
+    type( field_type ), pointer :: snowpack_density     => null()
+    type( field_type ), pointer :: snow_layer_thickness => null()
+    type( field_type ), pointer :: snow_layer_ice_mass  => null()
+    type( field_type ), pointer :: snow_layer_liq_mass  => null()
+    type( field_type ), pointer :: snow_layer_temp      => null()
+    type( field_type ), pointer :: snow_layer_rgrain    => null()
+
+    call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
+    call snow_fields%get_field('tile_snow_rgrain', tile_snow_rgrain)
+    call snow_fields%get_field('n_snow_layers', n_snow_layers)
+    call snow_fields%get_field('snow_depth', snow_depth)
+    call snow_fields%get_field('snow_soot', snow_soot)
+    call snow_fields%get_field('snow_under_canopy', snow_under_canopy)
+    call snow_fields%get_field('snowpack_density', snowpack_density)
+    call snow_fields%get_field('snow_layer_thickness', snow_layer_thickness)
+    call snow_fields%get_field('snow_layer_ice_mass', snow_layer_ice_mass)
+    call snow_fields%get_field('snow_layer_liq_mass', snow_layer_liq_mass)
+    call snow_fields%get_field('snow_layer_temp', snow_layer_temp)
+    call snow_fields%get_field('snow_layer_rgrain', snow_layer_rgrain)
+
+    ! Set snow prognostics to fixed values for use in idealised tests
+    call invoke( setval_c(tile_snow_rgrain, 69.0_r_def),                    &
+                 setval_c(snow_soot, 0.0_r_def),                            &
+                 setval_c(snow_under_canopy, 0.0_r_def),                    &
+                 setval_c(snowpack_density, 100.0_r_def),                   &
+                 setval_c(snow_layer_liq_mass, 0.0_r_def),                  &
+                 setval_c(snow_layer_rgrain, 69.0_r_def),                   &
+                 initial_snow_kernel_type( tile_snow_mass,                  &
+                                           n_snow_layers,                   &
+                                           snow_depth,                      &
+                                           snow_layer_thickness,            &
+                                           snow_layer_ice_mass,             &
+                                           snow_layer_temp ) )
+
+  end subroutine init_snow_fields_alg
+
+end module init_snow_fields_alg_mod

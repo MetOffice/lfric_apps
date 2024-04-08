@@ -1,0 +1,18 @@
+@@ -4,6 +4,7 @@
+   use constants_mod, only : i_def, r_def
+   use fs_continuity_mod, only : w3, wtheta
+   use kernel_mod, only : kernel_type
++  use planet_config_mod, only : kappa, rd, p_zero
+   implicit none
+   type, public, extends(kernel_type) :: adj_project_eos_pressure_kernel_type
+   type(ARG_TYPE) :: META_ARGS(10) = (/ &
+@@ -95,9 +96,6 @@
+     real(kind=r_def) :: ls_theta_vd_at_quad
+     real(kind=r_def) :: tmp_ls_exner
+     real(kind=r_def) :: tmp_exner
+-    real(kind=r_def) :: kappa
+-    real(kind=r_def) :: rd
+-    real(kind=r_def) :: p_zero
+     integer :: i
+     integer :: j
+ 

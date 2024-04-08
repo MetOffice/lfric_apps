@@ -1,0 +1,20 @@
+@@ -4,8 +4,8 @@
+ &gh_read, gh_real
+   use constants_mod, only : i_def, r_def, r_double, r_single
+   implicit none
+-  interface sample_field_code
+-  module procedure sample_field_code_r_single, sample_field_code_r_double
++  interface adj_sample_field_code
++  module procedure adj_sample_field_code_r_single, adj_sample_field_code_r_double
+ end interface
+   type, public, extends(kernel_type) :: adj_sample_field_kernel_type
+   type(ARG_TYPE) :: META_ARGS(3) = (/ &
+@@ -20,7 +20,7 @@
+ 
+   private
+ 
+-  public :: sample_field_code
++  public :: adj_sample_field_code
+ 
+   contains
+   subroutine adj_sample_field_code_r_single(nlayers, field_1, rmultiplicity, field_2, ndf_1, undf_1, map_1, ndf_2, undf_2, map_2, &

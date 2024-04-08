@@ -1,0 +1,122 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Diagonal preconditioner for the pressure equation.
+!>
+!>
+!> @details This preconditioner calculates \f$y = Px = M^{-1}x\f$ where
+!!          \f$M\f$ is the mass matrix for the pressure space.
+!>
+
+module pressure_diag_precon_alg_mod
+
+  use constants_mod,          only : i_def, r_def
+  use log_mod,                only : log_event, &
+                                     LOG_LEVEL_INFO, &
+                                     LOG_LEVEL_ERROR, &
+                                     log_scratch_space
+  use sci_preconditioner_mod, only : abstract_preconditioner_type
+  use vector_mod,             only : abstract_vector_type
+
+  implicit none
+
+  type, public, extends(abstract_preconditioner_type) :: pressure_diag_preconditioner_type
+
+  integer(kind=i_def) :: useless
+
+  contains
+    procedure, public :: apply => apply_pressure_diag_preconditioner
+    procedure, private :: apply_pressure_diag_preconditioner
+
+    final :: destroy_pressure_diag_preconditioner
+
+  end type pressure_diag_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface pressure_diag_preconditioner_type
+    module procedure pressure_diag_preconditioner_constructor
+  end interface
+
+contains
+
+  !> @brief Construct a <code> pressure_diag_preconditioner_type</code> object.
+  !>
+  !> @return self The constructed preconditioner object
+  function pressure_diag_preconditioner_constructor() result(self)
+
+    use log_mod,  only: log_event, LOG_LEVEL_INFO
+    implicit none
+
+    type(pressure_diag_preconditioner_type)  :: self
+
+    call log_event( 'Constructing pressure preconditioner...', &
+         LOG_LEVEL_INFO )
+    ! Make it do something ( this is needed to work with intel on cray)
+    self%useless = 1
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function pressure_diag_preconditioner_constructor
+
+  !> @brief Apply the preconditioner to calculate \f$y = P.x = x\f$.
+  !>
+  !> @details Apply the vertical preconditioner \f$y = H_z^{-1}x\f$.
+  !>
+  !> @param[in,out] self Instance of type pressure_diag_preconditioner_type
+  !> @param[in] x Field vector containing the right hand side of the pressure
+  !> @param[in,out] y Field vector containing the solution
+  subroutine apply_pressure_diag_preconditioner(self, x, y)
+
+    use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
+    use operator_mod,                only: r_solver_operator_type
+    use fem_constants_mod,           only: get_inverse_w3_mass_matrix_r_solver
+    use r_solver_field_mod,          only: r_solver_field_type
+    use sci_r_solver_field_vector_mod, &
+                                     only: r_solver_field_vector_type
+
+    implicit none
+
+    class(pressure_diag_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),         intent(in)    :: x
+    class(abstract_vector_type),         intent(inout) :: y
+    type(r_solver_operator_type), pointer              :: m3_inv => null()
+    type(r_solver_field_type), pointer                 :: x_vec => null(), &
+                                                          y_vec => null()
+
+    select type(x)
+    type is(r_solver_field_vector_type)
+       select type(y)
+       type is(r_solver_field_vector_type)
+          ! Multiply by inverse of mass matrix
+          m3_inv => get_inverse_w3_mass_matrix_r_solver(y%vector(1)%get_mesh_id())
+          x_vec => x%get_field_from_position(1)
+          y_vec => y%get_field_from_position(1)
+          call invoke( dg_matrix_vector_kernel_type(y_vec, x_vec, m3_inv) )
+          nullify( x_vec, y_vec )
+       class default
+          write(log_scratch_space, '(A)') &
+                "pressure_diag_preconditioner_mod: incorrect vector_type argument y"
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+       end select
+    class default
+      write(log_scratch_space, '(A)') "pressure_diag_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+    end select
+
+    nullify( m3_inv )
+
+  end subroutine apply_pressure_diag_preconditioner
+
+  !> @brief Destructor for the diagonal pressure preconditioner.
+  !>
+  !> @param[in,out] self Instance of type to be destroyed
+  subroutine destroy_pressure_diag_preconditioner(self)
+    implicit none
+    type(pressure_diag_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_pressure_diag_preconditioner
+
+end module pressure_diag_precon_alg_mod

@@ -21,20 +21,20 @@
 # dependent changes should be updated to the revision at which those
 # changes were committed to the project's trunk
 
-export lfric_core_rev=
+export lfric_core_rev=50008
 export lfric_core_sources=
 
-export casim_rev=um13.4
+export casim_rev=um13.5
 export casim_sources=
-export jules_rev=27111
+export jules_rev=um13.5
 export jules_sources=
-export shumlib_rev=um13.4
+export shumlib_rev=um13.5
 export shumlib_sources=
-export socrates_rev=um13.4
+export socrates_rev=um13.5
 export socrates_sources=
-export ukca_rev=um13.4
+export ukca_rev=um13.5
 export ukca_sources=
-export um_rev=121127
+export um_rev=vn13.5
 export um_sources=
 
 #### Do not edit the definitions below this line without

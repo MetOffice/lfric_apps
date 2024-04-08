@@ -1,0 +1,1086 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> @brief Compute the locally assembled SI operators.
+!> @details Compute all operators, fields and other objects needed for the
+!!          semi-implicit solver.
+!!          More details of the solver forumulation can be found in the solver section of:
+!!          https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
+module si_operators_alg_mod
+  use constants_mod,             only: i_def, r_def, r_solver
+  use operator_mod,              only: operator_type, r_solver_operator_type
+  use field_mod,                 only: field_type
+  use r_solver_field_mod,        only: r_solver_field_type
+  use fs_continuity_mod,         only: W2, W3
+  use log_mod,                   only: log_event,      &
+                                       LOG_LEVEL_INFO, &
+                                       LOG_LEVEL_ERROR, &
+                                       log_scratch_space
+  use mesh_mod,                  only: mesh_type
+  use helmholtz_solver_config_mod, &
+                                 only: preconditioner,              &
+                                       preconditioner_tridiagonal,  &
+                                       preconditioner_multigrid,    &
+                                       normalise
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+
+  use function_space_chain_mod,  only: multigrid_function_space_chain, &
+                                       w2_multigrid_function_space_chain, &
+                                       wtheta_multigrid_function_space_chain
+  use formulation_config_mod,    only: l_multigrid,          &
+                                       eos_method,           &
+                                       eos_method_sampled,   &
+                                       eos_method_projected, &
+                                       p2theta_vert
+  use multigrid_config_mod,      only: multigrid_chain_nitems
+  use mixed_solver_config_mod,   only: eliminate_variables, &
+                                       eliminate_variables_analytic
+
+  implicit none
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+  type(r_solver_operator_type), allocatable, dimension(:), target :: m3_rho_star
+  type(r_solver_operator_type), allocatable, dimension(:), target :: m3_exner_star
+  type(r_solver_operator_type), allocatable, dimension(:), target :: div_star
+  type(r_solver_operator_type), allocatable, dimension(:), target :: p2theta
+  type(r_solver_operator_type), allocatable, dimension(:), target :: ptheta2
+  type(r_solver_operator_type), allocatable, dimension(:), target :: ptheta2v
+  type(r_solver_operator_type), allocatable, dimension(:), target :: p3theta
+  type(r_solver_operator_type), allocatable, dimension(:), target :: compound_div
+  type(r_solver_operator_type), allocatable, dimension(:), target :: eliminated_q22
+  type(r_solver_operator_type), allocatable, dimension(:), target :: eliminated_q32
+  type(r_solver_operator_type),                            target :: eliminated_q2t
+
+  type(r_solver_field_type), allocatable, dimension(:),   target :: rho_at_u
+  type(r_solver_field_type), allocatable, dimension(:,:), target :: tri_precon
+  type(r_solver_field_type), allocatable, dimension(:,:), target :: Helmholtz_operator
+  type(r_solver_field_type), allocatable, dimension(:),   target :: Helm_diag
+  type(r_solver_field_type), allocatable, dimension(:),   target :: Hb_lumped_inv
+  integer(kind=i_def) :: multigrid_levels
+
+  ! Size of the Helmholtz stencil: 1 Central cell, 4 horizontal neighbours, 2
+  ! cells above (k+1,k+2) and 2 cells below (k-1,k-2)
+  integer(kind=i_def), parameter :: helmholtz_stencil_size = 9
+
+  ! Components of the tridiagonal preconditioner
+  integer(kind=i_def), parameter :: tridiagonal_k   = 1
+  integer(kind=i_def), parameter :: tridiagonal_kp1 = 2
+  integer(kind=i_def), parameter :: tridiagonal_km1 = 3
+
+  ! For the tridiagonal precondition, need to only extract certain
+  ! components of the Helmholtz operator
+  integer(kind=i_def), parameter :: helmholtz_k   = 1
+  integer(kind=i_def), parameter :: helmholtz_kp1 = 6
+  integer(kind=i_def), parameter :: helmholtz_kp2 = 7
+  integer(kind=i_def), parameter :: helmholtz_km1 = 8
+  integer(kind=i_def), parameter :: helmholtz_km2 = 9
+
+  ! Public functions to create and access the module contents
+  public :: create_si_operators
+  public :: compute_si_operators
+  public :: final_si_operators
+  public :: get_m3_rho_star
+  public :: get_m3_exner_star
+  public :: get_div_star
+  public :: get_p2theta
+  public :: get_ptheta2
+  public :: get_ptheta2v
+  public :: get_p3theta
+  public :: get_compound_div
+  public :: get_rho_at_u
+  public :: get_tri_precon
+  public :: get_helm_diag
+  public :: get_Hb_lumped_inv
+  public :: get_Helmholtz_operator
+  public :: get_eliminated_q22
+  public :: get_eliminated_q32
+  public :: get_eliminated_q2t
+  public :: get_eliminated_q3t
+
+  !F90 function overloading
+  interface get_m3_rho_star
+     module procedure get_m3_rho_star_fine, get_m3_rho_star_mg
+  end interface get_m3_rho_star
+
+  interface get_m3_exner_star
+     module procedure get_m3_exner_star_fine, get_m3_exner_star_mg
+  end interface get_m3_exner_star
+
+  interface get_div_star
+     module procedure get_div_star_fine, get_div_star_mg
+  end interface get_div_star
+
+  interface get_p2theta
+     module procedure get_p2theta_fine, get_p2theta_mg
+  end interface get_p2theta
+
+  interface get_ptheta2
+     module procedure get_ptheta2_fine, get_ptheta2_mg
+  end interface get_ptheta2
+
+  interface get_ptheta2v
+     module procedure get_ptheta2v_fine, get_ptheta2v_mg
+  end interface get_ptheta2v
+
+  interface get_p3theta
+     module procedure get_p3theta_fine, get_p3theta_mg
+  end interface get_p3theta
+
+  interface get_compound_div
+     module procedure get_compound_div_fine, get_compound_div_mg
+  end interface get_compound_div
+
+  interface get_rho_at_u
+     module procedure get_rho_at_u_fine, get_rho_at_u_mg
+  end interface get_rho_at_u
+
+  interface get_tri_precon
+     module procedure get_tri_precon_fine, get_tri_precon_mg
+  end interface get_tri_precon
+
+  interface get_helmholtz_operator
+     module procedure get_helmholtz_operator_fine, get_helmholtz_operator_mg
+  end interface get_helmholtz_operator
+
+  interface get_helm_diag
+     module procedure get_helm_diag_fine, get_helm_diag_mg
+  end interface get_helm_diag
+
+  interface get_Hb_lumped_inv
+     module procedure get_Hb_lumped_inv_fine, get_Hb_lumped_inv_mg
+  end interface get_Hb_lumped_inv
+
+  interface get_eliminated_q22
+     module procedure get_eliminated_q22_fine, get_eliminated_q22_mg
+  end interface get_eliminated_q22
+
+  interface get_eliminated_q32
+     module procedure get_eliminated_q32_fine, get_eliminated_q32_mg
+  end interface get_eliminated_q32
+
+contains
+
+  !>@brief Subroutine to create the si operators
+  !>@param[in] mesh The mesh
+  subroutine create_si_operators( mesh )
+
+    use function_space_mod,        only: function_space_type
+    use fs_continuity_mod,         only: W0, W2, W3, Wtheta
+    use finite_element_config_mod, only: element_order
+    use function_space_collection_mod, &
+                                   only: function_space_collection
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    integer(kind=i_def) :: i, j
+    type(function_space_type), pointer     :: w2_fs => null()
+    type(function_space_type), pointer     :: w3_fs => null()
+    type(function_space_type), pointer     :: wt_fs => null()
+
+    if ( subroutine_timers ) call timer('si_operators_alg:create')
+    call log_event( "Gungho: creating si_operators", LOG_LEVEL_INFO )
+
+    if(l_multigrid) then
+       multigrid_levels=multigrid_chain_nitems
+    else
+       multigrid_levels=1
+    end if
+
+    w2_fs => function_space_collection%get_fs( mesh, element_order, W2 )
+    w3_fs => function_space_collection%get_fs( mesh, element_order, W3 )
+    wt_fs => function_space_collection%get_fs( mesh, element_order, Wtheta )
+
+    allocate(m3_rho_star(multigrid_levels))
+    allocate(m3_exner_star(multigrid_levels))
+    allocate(div_star(multigrid_levels))
+    allocate(p2theta(multigrid_levels))
+    allocate(ptheta2(multigrid_levels))
+    allocate(ptheta2v(multigrid_levels))
+    allocate(p3theta(multigrid_levels))
+    allocate(compound_div(multigrid_levels))
+    allocate(eliminated_q22(multigrid_levels))
+    allocate(eliminated_q32(multigrid_levels))
+
+    !fields
+    allocate(rho_at_u(multigrid_levels))
+    if ( preconditioner == preconditioner_tridiagonal .or. &
+                  preconditioner == preconditioner_multigrid) then
+      if ( element_order /= 0 ) then
+         call log_event( "tridiagonal precon only valid for order 0", &
+              LOG_LEVEL_ERROR )
+      end if
+      allocate(tri_precon(3, multigrid_levels))
+   end if
+   if ( element_order == 0 ) then
+     allocate( Helmholtz_operator(helmholtz_stencil_size, multigrid_levels) )
+   end if
+   allocate(helm_diag(multigrid_levels))
+   allocate(Hb_lumped_inv(multigrid_levels))
+
+   if (l_multigrid) then
+      call multigrid_function_space_chain%set_current(w3_fs%get_id())
+      call w2_multigrid_function_space_chain%set_current(w2_fs%get_id())
+      call wtheta_multigrid_function_space_chain%set_current(wt_fs%get_id())
+   end if
+
+   call eliminated_q2t%initialise( w2_fs, wt_fs )
+
+   do i = 1, multigrid_levels
+
+       write(log_scratch_space,'(A,I0,A)') "si_ops[",i,"]:creating ops"
+       call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+       call m3_rho_star(i)%initialise( w3_fs, w3_fs )
+       call m3_exner_star(i)%initialise( w3_fs, w3_fs )
+       call div_star(i)%initialise( w2_fs, w3_fs )
+       call p2theta(i)%initialise( w2_fs, wt_fs )
+       call ptheta2(i)%initialise( wt_fs, w2_fs )
+       call ptheta2v(i)%initialise( wt_fs, w2_fs )
+       call p3theta(i)%initialise( w3_fs, wt_fs )
+       call compound_div(i)%initialise( w3_fs, w2_fs )
+       call eliminated_q22(i)%initialise( w2_fs, w2_fs )
+       call eliminated_q32(i)%initialise( w3_fs, w2_fs )
+
+       call rho_at_u(i)%initialise(vector_space = w2_fs)
+       if ( preconditioner == preconditioner_tridiagonal .or. &
+            preconditioner == preconditioner_multigrid ) then
+          call tri_precon(1,i)%initialise(vector_space = w3_fs)
+          call tri_precon(2,i)%initialise(vector_space = w3_fs)
+          call tri_precon(3,i)%initialise(vector_space = w3_fs)
+       end if
+       if ( element_order == 0 ) then
+         do j = 1,helmholtz_stencil_size
+           call Helmholtz_operator(j,i)%initialise(vector_space = w3_fs)
+         end do
+       end if
+       call helm_diag(i)%initialise(vector_space = w3_fs)
+       call Hb_lumped_inv(i)%initialise(vector_space = w2_fs)
+       if(l_multigrid) then
+          w3_fs=>multigrid_function_space_chain%get_next()
+          w2_fs=>w2_multigrid_function_space_chain%get_next()
+          wt_fs=>wtheta_multigrid_function_space_chain%get_next()
+       end if
+    end do
+   nullify( w2_fs, w3_fs, wt_fs )
+
+   if ( subroutine_timers ) call timer('si_operators_alg:create')
+
+  end subroutine create_si_operators
+
+  !> @brief Explicitly reclaim memory from module scope variables
+  subroutine final_si_operators()
+
+    implicit none
+   ! deallocate everything!
+
+    if(allocated(m3_rho_star)) then
+       deallocate(m3_rho_star)
+    end if
+
+    if(allocated(m3_exner_star)) then
+       deallocate(m3_exner_star)
+    end if
+
+    if(allocated(div_star)) then
+       deallocate(div_star)
+    end if
+
+    if(allocated(p2theta)) then
+       deallocate( p2theta )
+    end if
+
+    if(allocated(ptheta2)) then
+       deallocate(ptheta2)
+    end if
+
+    if(allocated(ptheta2v)) then
+       deallocate(ptheta2v)
+    end if
+
+    if(allocated(p3theta)) then
+       deallocate(p3theta)
+    end if
+
+    if(allocated(compound_div)) then
+       deallocate(compound_div)
+    end if
+
+    if(allocated(rho_at_u)) then
+       deallocate(rho_at_u)
+    end if
+
+    if(allocated(Helm_diag)) then
+       deallocate(Helm_diag)
+    end if
+
+    if(allocated(tri_precon)) then
+       deallocate(tri_precon)
+    end if
+
+    if(allocated(hb_lumped_inv)) then
+       deallocate(hb_lumped_inv)
+    end if
+
+    if(allocated(Helmholtz_operator)) then
+      deallocate(Helmholtz_operator)
+    end if
+
+    if(allocated(eliminated_q22)) then
+      deallocate(eliminated_q22)
+    end if
+
+    if(allocated(eliminated_q32)) then
+      deallocate(eliminated_q32)
+    end if
+
+  end subroutine final_si_operators
+
+  !>@brief Subroutine to compute the si operators
+  !>@param[in] state Bundle of states used to create linear operators
+  !>@param[in] dt    The model timestep length
+  subroutine compute_si_operators(state, dt)
+
+    use quadrature_xyoz_mod,                  only: quadrature_xyoz_type
+    use quadrature_face_mod,                  only: quadrature_face_type
+    use quadrature_rule_gaussian_mod,         only: quadrature_rule_gaussian_type
+    use project_eos_operators_kernel_mod,     only: project_eos_operators_kernel_type
+    use sample_eos_operators_kernel_mod,      only: sample_eos_operators_kernel_type
+    use weighted_div_kernel_mod,              only: weighted_div_kernel_type
+    use weighted_proj_2theta_kernel_mod,      only: weighted_proj_2theta_kernel_type
+    use weighted_proj_theta2_kernel_mod,      only: weighted_proj_theta2_kernel_type
+    use weighted_proj_2thetav_kernel_mod,     only: weighted_proj_2thetav_kernel_type
+    use weighted_proj_theta2v_kernel_mod,     only: weighted_proj_theta2v_kernel_type
+    use weighted_proj_theta2_vert_kernel_mod, only: weighted_proj_theta2_vert_kernel_type
+    use weighted_div_bd_kernel_mod,           only: weighted_div_bd_kernel_type
+    use weighted_proj_2theta_bd_kernel_mod,   only: weighted_proj_2theta_bd_kernel_type
+    use weighted_proj_theta2_bd_kernel_mod,   only: weighted_proj_theta2_bd_kernel_type
+    use compound_operator_kernel_mod,         only: compound_operator_kernel_type
+    use mg_flux_kernel_mod,                   only: mg_flux_kernel_type
+    use sample_flux_kernel_mod,               only: sample_flux_kernel_type
+    use finite_element_config_mod,            only: element_order, &
+                                                    nqp_exact
+    use function_space_mod,                   only: function_space_type
+    use geometric_constants_mod,              only: get_coordinates, &
+                                                    get_panel_id, &
+                                                    get_height
+    use fem_constants_mod,                    only: get_normalisation_r_solver, &
+                                                    get_rmultiplicity, &
+                                                    get_im3_div_r_solver, &
+                                                    get_w2_mass_matrix, &
+                                                    w2_lagged_damping_layer_matrix, &
+                                                    get_detj_at_w3_r_solver, &
+                                                    get_inverse_w3_mass_matrix_r_solver
+    use limited_area_constants_mod,           only: get_mask
+    use derived_config_mod,                   only: bundle_size
+    use invert_local_operator_kernel_mod,     only: invert_local_operator_kernel_type
+    use field_indices_mod,                    only: igh_u, igh_t, igh_d, igh_p
+    use planet_config_mod,                    only: kappa, cp, rd, p_zero
+    use timestepping_config_mod,              only: tau_r, tau_t, tau_u
+    use reference_element_mod,                only: reference_element_type
+    use mesh_mod,                             only: mesh_type
+    use matrix_vector_kernel_mod,             only: matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod,      only: dg_inc_matrix_vector_kernel_type
+    use formulation_config_mod,               only: dlayer_on,       &
+                                                    lagged_orog,     &
+                                                    dry_static_adjust
+    use sort_ref_kernel_mod,                  only: sort_ref_kernel_type
+    use psykal_lite_mod,                      only: invoke_helmholtz_operator_kernel_type, &
+                                                    invoke_elim_helmholtz_operator_kernel_type
+    use sci_psykal_light_mod,                 only: invoke_copy_to_rsolver
+    use boundaries_config_mod,                only: limited_area
+    use sample_eliminated_theta_q32_kernel_mod, &
+                                              only: sample_eliminated_theta_q32_kernel_type
+    use project_eliminated_theta_q32_kernel_mod, &
+                                              only: project_eliminated_theta_q32_kernel_type
+    use eliminated_theta_q22_kernel_mod,      only: eliminated_theta_q22_kernel_type
+    use sample_w3_to_wtheta_kernel_mod,       only: sample_w3_to_wtheta_kernel_type
+    use fs_continuity_mod,                    only: W3, Wtheta
+    use multiplicity_kernel_mod,              only: multiplicity_kernel_type
+    use sample_field_kernel_mod,              only: sample_field_kernel_type
+    use eliminated_theta_q2t_kernel_mod,      only: eliminated_theta_q2t_kernel_type
+    use restrict_scalar_unweighted_kernel_mod,  &
+                                              only: restrict_scalar_unweighted_kernel_type
+    use operator_algebra_kernel_mod,          only: operator_setval_x_kernel_type
+
+    implicit none
+
+    type(field_type), intent(in)           :: state(bundle_size) ! (u, theta, rho, exner)
+    real(kind=r_def), intent(in)           :: dt
+    type(quadrature_xyoz_type)             :: qr
+    type(quadrature_face_type)             :: qrf
+    type(quadrature_rule_gaussian_type)    :: quadrature_rule
+    type(field_type),              pointer :: chi(:) => null()
+    type(field_type),              pointer :: panel_id => null()
+    type(r_solver_operator_type),  pointer :: m3_inv => null(), div => null()
+    type(r_solver_field_type)              :: ones
+    type(field_type),              pointer :: w2_rmultiplicity => null()
+    type(function_space_type),     pointer :: w3_fs => null()
+    type(function_space_type),     pointer :: w2_fs => null()
+    type(function_space_type),     pointer :: wt_fs => null()
+    real(kind=r_solver)                    :: const1, const2, const3
+    integer(kind=i_def), parameter         :: imone = -1_i_def
+    class(reference_element_type), pointer :: reference_element =>null()
+    type(mesh_type),               pointer :: mesh => null()
+    type(operator_type),           pointer :: m2 => null()
+    type(r_solver_field_type),     pointer :: u_normalisation => null(), &
+                                              t_normalisation => null()
+    type(r_solver_field_type)              :: m2_u, theta_adv_term
+    integer(kind=i_def)                    :: level, i
+    type(r_solver_field_type)              :: rsol_w2_mask
+    type(field_type),              pointer :: w2_mask => null()
+    type(field_type), pointer              :: height_w3 => null()
+    type(field_type), pointer              :: height_wt => null()
+    type(r_solver_field_type)              :: multiplicity
+
+    type(r_solver_field_type)              :: exner,        &
+                                              exner_in_wth, &
+                                              rho,          &
+                                              theta,        &
+                                              coarse_field
+    type(r_solver_field_type)              :: rsol_w2_rmultiplicity
+    type(r_solver_operator_type)           :: m2_r_solver
+    type(r_solver_field_type),     pointer :: detj_at_w3 => null()
+
+    ! For continuous fields the default looping depth is to the depth 1 halo
+    ! and so for any fields that are accessed with a stencil the halo_depth
+    ! needs to be one bigger than the required stencil_depth
+    integer(kind=i_def), parameter :: req_stencil_depth = 1
+    integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
+
+    if ( subroutine_timers ) call timer('si_operators_alg:compute')
+    call log_event( "Gungho: computing si_operators", LOG_LEVEL_INFO )
+
+    w3_fs => state(igh_p)%get_function_space()
+    w2_fs => state(igh_u)%get_function_space()
+    wt_fs => state(igh_t)%get_function_space()
+
+    ! Create reference state (as r_solver fields)
+    call exner%initialise( w3_fs, halo_depth = req_halo_depth )
+    call rho%initialise( w3_fs, halo_depth = req_halo_depth )
+    call theta%initialise( wt_fs, halo_depth = req_halo_depth )
+    call invoke_copy_to_rsolver(exner, state(igh_p))
+    call invoke_copy_to_rsolver(rho,   state(igh_d))
+    call invoke_copy_to_rsolver(theta, state(igh_t))
+    if (dry_static_adjust) &
+      call invoke( sort_ref_kernel_type(theta) )
+
+    ! Set the function space chains to the finest levels.
+    if (l_multigrid) then
+       call multigrid_function_space_chain%set_current(w3_fs%get_id())
+       call w2_multigrid_function_space_chain%set_current(w2_fs%get_id())
+       call wtheta_multigrid_function_space_chain%set_current(wt_fs%get_id())
+    end if
+
+    ! quadrature rules set once outside MG loop
+    mesh => theta%get_mesh()
+    reference_element => mesh%get_reference_element()
+    qrf = quadrature_face_type(element_order+2, .true., .false., &
+                               reference_element, quadrature_rule)
+    qr = quadrature_xyoz_type(nqp_exact, quadrature_rule)
+
+    do level = 1, multigrid_levels
+
+       write(log_scratch_space,'(A,I0)') "si_ops: mg level=",level
+       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+       mesh     => rho_at_u(level)%get_mesh()
+       chi      => get_coordinates( mesh%get_id() )
+       panel_id => get_panel_id( mesh%get_id() )
+
+       u_normalisation => get_normalisation_r_solver(W2, mesh%get_id())
+
+       ! Non-topological operators
+       call exner_in_wth%initialise( vector_space = theta%get_function_space() )
+       if ( exner_in_wth%get_element_order() == 0 ) then
+         height_w3 => get_height(W3, mesh%get_id())
+         height_wt => get_height(Wtheta, mesh%get_id())
+         call invoke( sample_w3_to_wtheta_kernel_type(exner_in_wth, exner, &
+                                                      height_wt, height_w3 ) )
+         nullify(height_w3, height_wt)
+       else
+         call multiplicity%initialise( vector_space = theta%get_function_space() )
+         call invoke( setval_c(multiplicity, 0.0_r_solver),      &
+                      multiplicity_kernel_type(multiplicity), &
+                      setval_c(exner_in_wth, 0.0_r_solver),      &
+                      sample_field_kernel_type(exner_in_wth, multiplicity, exner) )
+       end if
+
+       m3_inv => get_inverse_w3_mass_matrix_r_solver( mesh%get_id() )
+       const1 = real(tau_t*tau_u*dt**2*cp, r_solver)
+       select case(eos_method)
+       case(eos_method_sampled)
+         call invoke( sample_eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level), &
+                      p3theta(level), exner, rho, theta, kappa, rd, p_zero) )
+       case(eos_method_projected)
+         call invoke( project_eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level), &
+                      p3theta(level), m3_inv,                                                     &
+                      exner, rho, theta, chi, panel_id, kappa, rd, p_zero,  qr) )
+       case default
+         call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+       end select
+
+       if ( eliminate_variables == eliminate_variables_analytic ) then
+
+         call invoke( eliminated_theta_q22_kernel_type(eliminated_q22(level), theta,       &
+                                                       exner_in_wth, u_normalisation,      &
+                                                       chi, panel_id, const1, qr) )
+       end if
+
+       ! Compute rho^ref at u nodal points
+       if (l_multigrid) then
+          ! rmultiplicity is a half at lowest order, at higher order, MG has to do
+          ! something different anyway
+          call invoke(setval_c(rho_at_u(level), 0.0_r_solver), &
+               mg_flux_kernel_type(rho_at_u(level), rho) )
+       else
+          ! for non MG, at higher order, need computed rmultiplicity
+          call ones%initialise( vector_space = w2_fs )
+          w2_rmultiplicity => get_rmultiplicity( W2, mesh%get_id() )
+          call rsol_w2_rmultiplicity%initialise( w2_fs )
+          call invoke_copy_to_rsolver(rsol_w2_rmultiplicity, w2_rmultiplicity)
+          call invoke( setval_c(ones,            1.0_r_solver),       &
+                       setval_c(rho_at_u(level), 0.0_r_solver),       &
+                       sample_flux_kernel_type(rho_at_u(level), ones, &
+                                               rsol_w2_rmultiplicity, &
+                                               rho) )
+       end if
+
+       ! The rest of the operators are topological and so do not need as high
+       ! quadrature order
+       qr = quadrature_xyoz_type(element_order+2, quadrature_rule)
+
+       ! Cell kernels
+       const1 = real(tau_u*dt*cp, r_solver)
+       const2 = real(tau_t*dt, r_solver)
+       const3 = real(tau_r*dt, r_solver)
+       div => get_im3_div_r_solver(mesh%get_id())
+       if ( p2theta_vert ) then
+         ! The projection operators are restricted to use the vertical only
+         call invoke( weighted_proj_2thetav_kernel_type(p2theta(level), exner, const1, qr), &
+                      weighted_proj_theta2v_kernel_type(ptheta2(level), theta, const2, qr) )
+       else
+         ! The projection operators use horizonal and vertical
+         call invoke( weighted_proj_2theta_kernel_type(p2theta(level), exner, const1, qr), &
+                      weighted_proj_theta2_kernel_type(ptheta2(level), theta, const2, qr), &
+                      weighted_proj_theta2_bd_kernel_type(ptheta2(level), theta,           &
+                                                          req_stencil_depth, const2, qrf), &
+                      weighted_proj_2theta_bd_kernel_type(p2theta(level), exner,           &
+                                                          req_stencil_depth, const1, qrf) )
+       end if
+       call invoke( name = "cell_and_boundary_kernels_vert",                          &
+          weighted_div_kernel_type(div_star(level), theta, const1, qr),               &
+          weighted_proj_theta2_vert_kernel_type(ptheta2v(level), theta, const2, qr),  &
+          ! Boundary kernels
+          weighted_div_bd_kernel_type(div_star(level), theta, req_stencil_depth,      &
+                                      const1, qrf),                                   &
+          ! Compound operators
+          compound_operator_kernel_type( compound_div(level), m3_rho_star(level),     &
+                                         div, rho_at_u(level), const3),               &
+          operator_setval_x_kernel_type( eliminated_q32(level), compound_div(level) ) )
+
+       if ( level == 1 .and. eliminate_variables == eliminate_variables_analytic ) then
+         call invoke( eliminated_theta_q2t_kernel_type(eliminated_q2t, u_normalisation, &
+                                                       exner_in_wth, const1, qr) )
+       end if
+
+       if ( eliminate_variables == eliminate_variables_analytic ) then
+         ! Add on contribution to q32 from eliminating theta
+         select case(eos_method)
+         case(eos_method_sampled)
+           detj_at_w3 => get_detj_at_w3_r_solver( mesh%get_id() )
+           call invoke( sample_eliminated_theta_q32_kernel_type(eliminated_q32(level), theta, detj_at_w3 , &
+                                                                const2) )
+         case(eos_method_projected)
+           call invoke( project_eliminated_theta_q32_kernel_type(eliminated_q32(level), theta,    &
+                                                                 m3_inv, const2, qr ) )
+         case default
+           call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+         end select
+       end if
+
+       ! Compute Hb_lumped_inv field
+       ! mass matrix should include damping layer and lagged-orography terms
+       ! if these options are not true, this matrix won't contain the terms
+       m2 => get_w2_mass_matrix(w2_lagged_damping_layer_matrix, mesh%get_id() )
+
+       call m2_r_solver%initialise( w2_fs, w2_fs )
+       call invoke( operator_setval_x_kernel_type( m2_r_solver, m2 ) )
+       u_normalisation => get_normalisation_r_solver(W2, mesh%get_id())
+       t_normalisation => get_normalisation_r_solver(Wtheta, mesh%get_id())
+
+       call m2_u%initialise( vector_space = w2_fs )
+       call ones%initialise( vector_space = w2_fs )
+       if ( eliminate_variables == eliminate_variables_analytic ) then
+         ! H_B = (Nu * Mu - Q22) * ones
+         call invoke( name = "compute_analytic_lumped_inverse_h_b_operator",              &
+                      setval_c(ones, 1.0_r_solver),                                       &
+                      setval_c(Hb_lumped_inv(level), 0.0_r_solver),                       &
+                      setval_c(m2_u, 0.0_r_solver),                                       &
+                      matrix_vector_kernel_type(Hb_lumped_inv(level), ones, m2_r_solver), &
+                      inc_X_times_Y(Hb_lumped_inv(level), u_normalisation),               &
+                      matrix_vector_kernel_type(m2_u, ones, eliminated_q22(level)),       &
+                      inc_X_minus_Y(Hb_lumped_inv(level), m2_u),                          &
+                      inc_X_powint_n(Hb_lumped_inv(level), imone) )
+
+       else
+         ! H_B = Nu * ( Mu + P2t * Mt^-1 * Pt2v ) * ones
+         call theta_adv_term%initialise( vector_space = wt_fs )
+         call invoke( name = "compute_lumped_inverse_h_b_operator",         &
+                      setval_c(ones, 1.0_r_solver),                         &
+                      setval_c(Hb_lumped_inv(level), 0.0_r_solver),         &
+                      setval_c(theta_adv_term, 0.0_r_solver),               &
+                      dg_inc_matrix_vector_kernel_type(                     &
+                                theta_adv_term, ones, ptheta2v(level)),     &
+                      inc_X_times_Y(theta_adv_term, t_normalisation),       &
+                      matrix_vector_kernel_type(                            &
+                                Hb_lumped_inv(level), theta_adv_term,       &
+                                p2theta(level) ),                           &
+                      matrix_vector_kernel_type(Hb_lumped_inv(level), ones, &
+                                                m2_r_solver),               &
+                      inc_X_times_Y(Hb_lumped_inv(level), u_normalisation), &
+                      inc_X_powint_n(Hb_lumped_inv(level), imone) )
+       end if
+
+       ! Compute the Helmholtz operator
+       if ( element_order == 0 ) then
+         call rsol_w2_mask%initialise( vector_space = w2_fs )
+         if ( limited_area ) then
+           w2_mask => get_mask(W2, mesh%get_id())
+           call invoke_copy_to_rsolver(rsol_w2_mask, w2_mask)
+         else
+           ! Create dummy mask arrays with 1 in every entry
+           call invoke( setval_c(rsol_w2_mask, 1.0_r_solver) )
+         end if
+         if ( eliminate_variables == eliminate_variables_analytic ) then
+           call invoke_elim_helmholtz_operator_kernel_type(                         &
+                                                       Helmholtz_operator(:,level), &
+                                                       Hb_lumped_inv(level),        &
+                                                       req_stencil_depth,           &
+                                                       u_normalisation,             &
+                                                       div_star(level),             &
+                                                       m3_exner_star(level),        &
+                                                       eliminated_q32(level),       &
+                                                       rsol_w2_mask)
+
+         else
+           call invoke_helmholtz_operator_kernel_type( Helmholtz_operator(:,level), &
+                                                       Hb_lumped_inv(level),        &
+                                                       req_stencil_depth,           &
+                                                       u_normalisation,             &
+                                                       div_star(level),             &
+                                                       t_normalisation,             &
+                                                       ptheta2v(level),             &
+                                                       compound_div(level),         &
+                                                       m3_exner_star(level),        &
+                                                       p3theta(level),              &
+                                                       rsol_w2_mask)
+         end if
+       end if
+
+       ! Compute terms for tridiagonal preconditioner
+       if ( preconditioner == preconditioner_tridiagonal .or. &
+            preconditioner == preconditioner_multigrid ) then
+          ! Build using the FEM helmholtz operator, only valid for lowest order
+          if ( element_order == 0 ) then
+            call invoke(setval_X( tri_precon(tridiagonal_k,level),          &
+                                  Helmholtz_operator(helmholtz_k,level)),   &
+                        X_plus_Y( tri_precon(tridiagonal_kp1,level),        &
+                                  Helmholtz_operator(helmholtz_kp1,level),  &
+                                  Helmholtz_operator(helmholtz_kp2,level)), &
+                        X_plus_Y( tri_precon(tridiagonal_km1,level),        &
+                                  Helmholtz_operator(helmholtz_km1,level),  &
+                                  Helmholtz_operator(helmholtz_km2,level)) )
+          else
+             call log_event( "Gungho: tridiagonal preconditioner invalid for element_order > 0", LOG_LEVEL_ERROR )
+          end if
+       end if
+       if ( normalise .and. &
+            preconditioner == preconditioner_tridiagonal ) then
+          call Helmholtz_operator(helmholtz_k,level)%copy_field_properties(Helm_diag(level))
+          call invoke( setval_X( Helm_diag(level), Helmholtz_operator(helmholtz_k,level)), &
+                       inc_X_powint_n(Helm_diag(level), imone) )
+          do i = 1,helmholtz_stencil_size
+            call invoke(inc_X_times_Y(Helmholtz_operator(i,level), Helm_diag(level)) )
+          end do
+          do i = 1,3
+            call invoke(inc_X_times_Y(tri_precon(i,level), Helm_diag(level)) )
+          end do
+       else
+          call invoke( setval_c(Helm_diag(level), 1.0_r_solver) )
+       end if
+
+      ! Restrict the fields for the next level, provided not last time round
+       ! the loop
+       if (level < multigrid_levels) then
+          ! should not get here if no multigrid, but just in case
+          if (l_multigrid) then
+
+             write(log_scratch_space,'(A,I0,A,I0)') &
+                  "si_ops:MG restrict L",level," to L",level+1
+             call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+             ! copy current field to coarse field
+             call theta%copy_field_properties(coarse_field)
+             call invoke( setval_X(coarse_field, theta) )
+             ! set the fs to the next (fine)
+             wt_fs=>wtheta_multigrid_function_space_chain%get_next()
+             call theta%initialise(vector_space = wt_fs, halo_depth=req_halo_depth )
+             ! call restrict
+             call invoke( restrict_scalar_unweighted_kernel_type(theta, coarse_field) )
+
+             ! copy current field to coarse field
+             call rho%copy_field_properties(coarse_field)
+             call invoke( setval_X(coarse_field, rho) )
+             ! set the fs to the next (fine)
+             w3_fs=>multigrid_function_space_chain%get_next()
+             call rho%initialise(vector_space = w3_fs, halo_depth=req_halo_depth )
+             ! call restrict
+             call invoke( restrict_scalar_unweighted_kernel_type(rho, coarse_field) )
+
+             ! copy current field to coarse field
+             call exner%copy_field_properties(coarse_field)
+             call invoke( setval_X(coarse_field, exner) )
+             ! fs already set fine
+             call exner%initialise(vector_space = w3_fs , halo_depth=req_halo_depth)
+             ! call restrict
+             call invoke( restrict_scalar_unweighted_kernel_type(exner, coarse_field) )
+             ! set w2_fs to next in chain
+             w2_fs=>w2_multigrid_function_space_chain%get_next()
+          end if
+       end if
+
+    end do ! end of multigrid levels loop
+
+    nullify( chi, panel_id, m3_inv, div, w2_rmultiplicity, &
+             mesh, reference_element, m2, u_normalisation, t_normalisation, &
+             w2_mask, mesh )
+
+    if ( subroutine_timers ) call timer('si_operators_alg:compute')
+
+  end subroutine compute_si_operators
+
+  !> @brief Function to return a pointer to the m3_rho_star
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_m3_rho_star_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => m3_rho_star(1)
+  end function get_m3_rho_star_fine
+
+  !> @brief Function to return a pointer to the m3_rho_star
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_m3_rho_star_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => m3_rho_star(level)
+  end function get_m3_rho_star_mg
+
+  !> @brief Function to return a pointer to the m3_exner_star
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_m3_exner_star_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => m3_exner_star(1)
+  end function get_m3_exner_star_fine
+
+  !> @brief Function to return a pointer to the m3_exner_star
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_m3_exner_star_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => m3_exner_star(level)
+  end function get_m3_exner_star_mg
+
+  !> @brief Function to return a pointer to the div_star
+  !!        on the finest multigrid level,
+  !> @return The operator
+  function get_div_star_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => div_star(1)
+  end function get_div_star_fine
+
+  !> @brief Function to return a pointer to the div_star
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_div_star_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => div_star(level)
+  end function get_div_star_mg
+
+  !> @brief Function to return a pointer to the p2theta
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_p2theta_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => p2theta(1)
+  end function get_p2theta_fine
+
+  !> @brief Function to return a pointer to the p2theta
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_p2theta_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => p2theta(level)
+  end function get_p2theta_mg
+
+  !> @brief Function to return a pointer to the ptheta2
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_ptheta2_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => ptheta2(1)
+  end function get_ptheta2_fine
+
+  !> @brief Function to return a pointer to the ptheta2
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_ptheta2_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => ptheta2(level)
+  end function get_ptheta2_mg
+
+  !> @brief Function to return a pointer to the ptheta2v
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_ptheta2v_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => ptheta2v(1)
+  end function get_ptheta2v_fine
+
+  !> @brief Function to return a pointer to the ptheta2v
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_ptheta2v_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => ptheta2v(level)
+  end function get_ptheta2v_mg
+
+  !> @brief Function to return a pointer to the p3theta
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_p3theta_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => p3theta(1)
+  end function get_p3theta_fine
+
+  !> @brief Function to return a pointer to the p3theta
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_p3theta_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => p3theta(level)
+  end function get_p3theta_mg
+
+  !> @brief Function to return a pointer to the compound div
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_compound_div_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer ::op
+    op => compound_div(1)
+  end function get_compound_div_fine
+
+  !> @brief Function to return a pointer to the compound div
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_compound_div_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer ::op
+    op => compound_div(level)
+  end function get_compound_div_mg
+
+  !> @brief Function to return a pointer to the rho_at_u
+  !!        on the finest multigrid level.
+  !> @return The field
+  function get_rho_at_u_fine() result(field)
+    implicit none
+    type(r_solver_field_type), pointer :: field
+    field => rho_at_u(1)
+  end function get_rho_at_u_fine
+
+  !> @brief Function to return a pointer to the rho_at_u
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The field
+  function get_rho_at_u_mg(level) result(field)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_field_type), pointer :: field
+    field => rho_at_u(level)
+  end function get_rho_at_u_mg
+
+  !> @brief Function to return a pointer to the tri_precon
+  !!        on the finest multigrid level.
+  !> @return The field
+  function get_tri_precon_fine() result(sol_field)
+    implicit none
+    type(r_solver_field_type), pointer :: sol_field(:)
+    sol_field => tri_precon(:,1)
+  end function get_tri_precon_fine
+
+  !> @brief Function to return a pointer to the tri_precon
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The field
+  function get_tri_precon_mg(level) result(sol_field)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_field_type), pointer :: sol_field(:)
+    sol_field => tri_precon(:,level)
+  end function get_tri_precon_mg
+
+  !> @brief Function to return a pointer to the helmholtz_operator
+  !!        on the finest multigrid level.
+  !> @return The field
+  function get_helmholtz_operator_fine() result(sol_field)
+    implicit none
+    type(r_solver_field_type), pointer :: sol_field(:)
+    sol_field => helmholtz_operator(:,1)
+  end function get_helmholtz_operator_fine
+
+  !> @brief Function to return a pointer to the helmholtz_operator
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The field
+  function get_helmholtz_operator_mg(level) result(sol_field)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_field_type), pointer :: sol_field(:)
+    sol_field => helmholtz_operator(:,level)
+  end function get_helmholtz_operator_mg
+
+  !> @brief Function to return a pointer to the Helm diagonal
+  !!        on the finest multigrid level.
+  !> @return The field
+  function get_helm_diag_fine() result(sol_field)
+    implicit none
+    type(r_solver_field_type), pointer :: sol_field
+    sol_field => helm_diag(1)
+  end function get_helm_diag_fine
+
+  !> @brief Function to return a pointer to the Helm diagonal
+  !!        on the specified multigrid level,
+  !> @param[in] level The multigrid level
+  !> @return The field
+  function get_helm_diag_mg(level) result(sol_field)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_field_type), pointer :: sol_field
+    sol_field => helm_diag(level)
+  end function get_helm_diag_mg
+
+  !> @brief Function to return a pointer to the lumped inverse Hb operator
+  !!        on the finest multigrid level,
+  !> @return The field
+  function get_hb_lumped_inv_fine() result(field)
+    implicit none
+    type(r_solver_field_type), pointer :: field
+    field => hb_lumped_inv(1)
+  end function get_hb_lumped_inv_fine
+
+  !> @brief Function to return a pointer to the lumped inverse Hb operator
+  !!        on the specified multigrid level,
+  !> @param[in] level The multigrid level
+  !> @return The field
+  function get_hb_lumped_inv_mg(level) result(field)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_field_type), pointer :: field
+    field => hb_lumped_inv(level)
+  end function get_hb_lumped_inv_mg
+
+  !> @brief Function to return a pointer to the q22 operator
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_eliminated_q22_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer :: op
+    op => eliminated_q22(1)
+  end function get_eliminated_q22_fine
+
+  !> @brief Function to return a pointer to the q22 operator
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_eliminated_q22_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer :: op
+    op => eliminated_q22(level)
+  end function get_eliminated_q22_mg
+
+  !> @brief Function to return a pointer to the q32 operator
+  !!        on the finest multigrid level.
+  !> @return The operator
+  function get_eliminated_q32_fine() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer :: op
+    op => eliminated_q32(1)
+  end function get_eliminated_q32_fine
+
+  !> @brief Function to return a pointer to the q32 operator
+  !!        on the specified multigrid level.
+  !> @param[in] level The multigrid level
+  !> @return The operator
+  function get_eliminated_q32_mg(level) result(op)
+    implicit none
+    integer(kind=i_def), intent(in) :: level
+    type(r_solver_operator_type), pointer :: op
+    op => eliminated_q32(level)
+  end function get_eliminated_q32_mg
+
+  !> @brief Function to return a pointer to the q2t operator.
+  !> @return The operator
+  function get_eliminated_q2t() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer :: op
+    op => eliminated_q2t
+  end function get_eliminated_q2t
+
+  !> @brief Function to return a pointer to the q3t operator.
+  !> @return The operator
+  function get_eliminated_q3t() result(op)
+    implicit none
+    type(r_solver_operator_type), pointer :: op
+    op => p3theta(1)
+  end function get_eliminated_q3t
+
+end module si_operators_alg_mod

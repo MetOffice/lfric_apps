@@ -1,0 +1,42 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Runs all adjoint tests for kernels found in project working directory.
+!>
+module gen_adj_kernel_tests_mod
+
+  use field_mod,                  only : field_type
+  use mesh_mod,                   only : mesh_type
+
+  implicit none
+
+  public run_gen_adj_kernel_tests
+
+contains
+
+  !> @brief   Runs adjoint tests.
+  !> @details Runs all adjoint tests for generated kernels
+  !>          found in project working directory.
+  !>          If any tests fail, miniapp will stop running.
+  !> @param[in] mesh        Mesh object
+  !> @param[in] chi         Coordinate field
+  !> @param[in] panel_id    Field giving the ID for mesh panels
+  subroutine run_gen_adj_kernel_tests( mesh, chi, panel_id )
+
+    ! Test harness module list
+    ! <adjoint_test_mod>
+
+    implicit none
+
+    type(mesh_type),  pointer,      intent(in) :: mesh
+    type(field_type), dimension(3), intent(in) :: chi
+    type(field_type),               intent(in) :: panel_id
+
+    ! Call an algorithm
+    ! <adjoint_test_call>
+
+  end subroutine run_gen_adj_kernel_tests
+
+end module gen_adj_kernel_tests_mod

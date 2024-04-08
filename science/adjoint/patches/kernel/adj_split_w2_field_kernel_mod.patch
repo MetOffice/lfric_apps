@@ -1,0 +1,20 @@
+@@ -6,8 +6,8 @@
+   use kernel_mod, only : kernel_type
+   use reference_element_mod, only : n
+   implicit none
+-  interface split_w2_field_code
+-  module procedure split_w2_field_code_r_single, split_w2_field_code_r_double
++  interface adj_split_w2_field_code
++  module procedure adj_split_w2_field_code_r_single, adj_split_w2_field_code_r_double
+ end interface
+   type, public, extends(kernel_type) :: adj_split_w2_field_kernel_type
+   type(ARG_TYPE) :: META_ARGS(5) = (/ &
+@@ -21,7 +21,7 @@
+ 
+   private
+ 
+-  public :: split_w2_field_code
++  public :: adj_split_w2_field_code
+ 
+   contains
+   subroutine adj_split_w2_field_code_r_double(nlayers, uv, w, uvw, face_selector_ew, face_selector_ns, ndf_w2h, undf_w2h, map_w2h, &

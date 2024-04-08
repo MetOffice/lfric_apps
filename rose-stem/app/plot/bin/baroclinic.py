@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
-# (c) Crown copyright 2024 Met Office. All rights reserved.
+# (c) Crown copyright 2019 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
@@ -180,7 +180,7 @@ def make_figures(filein, plotpath, fields, vertical_spacing, formulation):
                     else:
                         cmap = magma
                     ys = np.tile(yi, (n_levs, 1))
-
+                    
 
                     if direction == 'xz':
                         lon, height = np.meshgrid(xi, zi)

@@ -1,0 +1,57 @@
+@@ -20,7 +20,7 @@
+                                 GH_FIELD, GH_OPERATOR, &
+                                 GH_READ, GH_WRITE,     &
+                                 GH_REAL, CELL_COLUMN
+-  use constants_mod,     only : r_solver, i_def
++  use constants_mod,     only : r_def, i_def
+   use kernel_mod,        only : kernel_type
+   use fs_continuity_mod, only : W2, W3, Wtheta
+ 
+@@ -105,21 +105,22 @@
+   integer(kind=i_def), dimension(ndf_w2), intent(in) :: map_w2
+ 
+   ! Fields
+-  real(kind=r_solver), dimension(undf_w3), intent(inout) :: lhs_exner
+-  real(kind=r_solver), dimension(undf_wt), intent(in)    :: theta
+-  real(kind=r_solver), dimension(undf_w3), intent(in)    :: exner
+-  real(kind=r_solver), dimension(undf_w2), intent(in)    :: u
++  real(kind=r_def), dimension(undf_w3), intent(inout) :: lhs_exner
++  real(kind=r_def), dimension(undf_wt), intent(in)    :: theta
++  real(kind=r_def), dimension(undf_w3), intent(in)    :: exner
++  real(kind=r_def), dimension(undf_w2), intent(in)    :: u
+ 
+   ! Operators
+-  real(kind=r_solver), dimension(ndf_w3, ndf_w3, ncell1), intent(in) :: m3exner
+-  real(kind=r_solver), dimension(ndf_w3, ndf_w2, ncell2), intent(in) :: q32
+-  real(kind=r_solver), dimension(ndf_w3, ndf_wt, ncell3), intent(in) :: p3theta
++  real(kind=r_def), dimension(ndf_w3, ndf_w3, ncell1), intent(in) :: m3exner
++  real(kind=r_def), dimension(ndf_w3, ndf_w2, ncell2), intent(in) :: q32
++  real(kind=r_def), dimension(ndf_w3, ndf_wt, ncell3), intent(in) :: p3theta
+ 
+   ! Internal variables
+-  integer(kind=i_def)                    :: df, k, ik
+-  real(kind=r_solver), dimension(ndf_wt) :: t_e
+-  real(kind=r_solver), dimension(ndf_w3) :: p_e, lhs_e
+-  real(kind=r_solver), dimension(ndf_w2) :: u_e
++  integer(kind=i_def)                 :: df, k, ik
++  real(kind=r_def), dimension(ndf_wt) :: t_e
++  real(kind=r_def), dimension(ndf_w3) :: p_e, lhs_e
++  real(kind=r_def), dimension(ndf_w2) :: u_e
++  real(kind=r_def), dimension(ndf_w3) :: m3e_pe, p3t_te, q32_ue
+ 
+   do k = 0, nlayers-1
+     do df = 1, ndf_wt
+@@ -135,9 +136,10 @@
+     ik = (cell-1)*nlayers + k + 1
+ 
+     ! LHS for this element
+-    lhs_e = matmul(m3exner(:,:,ik), p_e) &
+-          - matmul(p3theta(:,:,ik), t_e) &
+-          + matmul(q32(:,:,ik),     u_e)
++    m3e_pe = matmul(m3exner(:,:,ik), p_e)
++    p3t_te = matmul(p3theta(:,:,ik), t_e)
++    q32_ue = matmul(q32(:,:,ik),     u_e)
++    lhs_e = m3e_pe - p3t_te + q32_ue
+     do df = 1, ndf_w3
+       lhs_exner(map_w3(df)+k) = lhs_e(df)
+     end do

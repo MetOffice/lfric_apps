@@ -1,0 +1,49 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief Log checksum and readable average of a field
+
+module log_field_alg_mod
+
+implicit none
+private
+public :: log_field_alg
+
+contains
+
+!> @brief Computes the sum and average value of a field
+!> @param[in] field Field to log checksum
+!> @param[in] level Logging level for output
+
+subroutine log_field_alg(field, level)
+  use field_mod,     only: field_type
+  use constants_mod, only: r_def, str_def
+  use log_mod,       only: log_event, log_level, log_scratch_space
+
+  implicit none
+
+  type(field_type), intent(in) :: field
+  integer,          intent(in) :: level
+
+  real(r_def)        :: sum_field, sum_ones
+  character(str_def) :: name
+  type(field_type)   :: ones
+
+  name = field%get_name()
+
+  if (log_level() <= level) then
+    call field%copy_field_properties(ones)
+    call invoke( setval_c(ones, 1.0_r_def), &
+                 sum_X(sum_field, field)  , &
+                 sum_X(sum_ones,  ones)     )
+
+    write(log_scratch_space,'(A,A,E16.8,A,Z16)') trim(name), &
+      ': Average = ', sum_field/sum_ones, ', Sum = ', sum_field
+
+    call log_event( log_scratch_space, level )
+  end if
+
+end subroutine log_field_alg
+end module log_field_alg_mod

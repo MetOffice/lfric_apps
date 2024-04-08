@@ -75,7 +75,7 @@
         mail events = timeout
         abort on stall timeout = True
         stall timeout = PT3H
-        shutdown handlers = "suite_report.py"
+        shutdown handlers = "suite_report.py"	 	
         stall handlers = "suite_report.py"
 
 [scheduling]

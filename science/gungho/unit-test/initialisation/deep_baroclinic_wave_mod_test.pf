@@ -1,0 +1,177 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module deep_baroclinic_wave_mod_test
+
+  use constants_mod, only : r_def, i_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: deep_baroclinic_wave_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: deep_baroclinic_wave_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type deep_baroclinic_wave_test_type
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: scaling  = 1.0_r_def
+
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,            only : feign_base_mesh_config,        &
+                                            feign_planet_config,           &
+                                            feign_initial_pressure_config, &
+                                            feign_initial_wind_config,     &
+                                            feign_formulation_config
+
+    use initial_pressure_config_mod, only : method_balanced
+
+    use initial_wind_config_mod,     only : profile_deep_baroclinic_steady
+
+    use formulation_config_mod,      only : eos_method_projected,    &
+                                            moisture_formulation_dry
+
+    use base_mesh_config_mod,        only : geometry_spherical, &
+                                            topology_fully_periodic
+
+    implicit none
+
+    class(deep_baroclinic_wave_test_type), intent(inout) :: this
+
+    call feign_planet_config( gravity=gravity, radius=radius, omega=omega, &
+                              rd=rd, cp=cp, p_zero=p_zero,                 &
+                              scaling_factor=scaling )
+
+    call feign_base_mesh_config                  &
+             ( file_prefix='foo',                &
+               prime_mesh_name='unit_test',      &
+               geometry=geometry_spherical,      &
+               prepartitioned=.false.,           &
+               topology=topology_fully_periodic, &
+               fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_initial_wind_config                                    &
+             ( profile = profile_deep_baroclinic_steady,              &
+               profile_data_u = (/ 0.0_r_def /),                      &
+               profile_data_v = (/ 0.0_r_def /),                      &
+               profile_data_w = (/ 0.0_r_def /),                      &
+               profile_heights_uv = (/ 0.0_r_def /),                  &
+               profile_heights_w  = (/ 0.0_r_def /),                  &
+               profile_size_uv = 1_i_def,                             &
+               profile_size_w  = 1_i_def,                             &
+               u0 = 0.0_r_def, v0 = 0.0_r_def,                        &
+               sbr_angle_lat = 0.0_r_def,                             &
+               sbr_angle_lon = 0.0_r_def,                             &
+               nl_constant   = 0.0_r_def,                             &
+               shear=1.0_r_def,                                       &
+               wavelength=1.0_r_def,                                  &
+               wind_time_period = 0.0_r_def,                          &
+               smp_init_wind = .false. )
+
+    call feign_initial_pressure_config               &
+             ( method           = method_balanced,   &
+               surface_pressure = surface_pressure )
+
+    call feign_formulation_config(rotating=.true.,                         &
+                                  l_multigrid=.false.,                     &
+                                  lagged_orog=.false.,                     &
+                                  moisture_formulation =                   &
+                                  moisture_formulation_dry,                &
+                                  p2theta_vert=.true.,                     &
+                                  shallow=.false., use_physics=.false.,    &
+                                  use_wavedynamics=.true.,                 &
+                                  use_multires_coupling=.false.,           &
+                                  dry_static_adjust=.false.,               &
+                                  exner_from_eos=.false.,                  &
+                                  eos_method=eos_method_projected,         &
+                                  dlayer_on = .false.,                     &
+                                  init_exner_bt        = .true.,           &
+                                  si_momentum_equation=.true.,             &
+                                  vector_invariant=.true.)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(deep_baroclinic_wave_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use deep_baroclinic_wave_mod,       only: deep_baroclinic_wave, evaluate_streamfunction
+    use constants_mod,                  only: pi
+    use planet_config_mod,              only: scaled_radius, p_zero, Rd, scaled_omega
+    implicit none
+
+    class(deep_baroclinic_wave_test_type), intent(inout) :: this
+
+    real(kind=r_def) :: llr(3)
+    real(r_def)      :: exner, theta, rho, mr
+    real(r_def)      :: analytic_exner, analytic_theta, analytic_rho
+    real(r_def)      :: wind(3), analytic_wind(3)
+    real(r_def)      :: psi, analytic_psi
+    real(r_def)      :: A, B, C, tau1, intt
+
+    real(r_def), parameter :: tol = 1.0e-13
+
+    llr = (/ pi/9.0_r_def, 2.0*pi/9.0_r_def, scaled_radius/)
+    call deep_baroclinic_wave(llr(1), llr(2), 0.0_r_def, &
+                              exner, theta, rho, &
+                              wind(1), wind(2), wind(3), mr)
+
+    analytic_wind(:) = 0.0_r_def
+    @assertEqual(analytic_wind, wind, tol)
+
+    A = 1.0_r_def/0.005_r_def
+    B = 35.0_r_def/66000.0_r_def
+    C = 5.0_r_def/2.0_r_def * (70.0_r_def/74400.0_r_def)
+    tau1 = 1.0_r_def/275.0_r_def + B
+    intt = cos(llr(2))**3 - 3.0_r_def/5.0_r_def*cos(llr(2))**5
+
+    analytic_exner = 1.0_r_def
+    analytic_theta = 1.0_r_def/(tau1 - C*intt)
+    analytic_rho   = p_zero / (Rd * analytic_theta)
+    @assertEqual(analytic_exner, exner, tol)
+    @assertEqual(analytic_theta, theta, tol)
+    @assertEqual(analytic_rho,   rho,   tol)
+
+    psi = evaluate_streamfunction(llr(1), llr(2), 0.0_r_def)
+    analytic_psi = -1.0_r_def/12.0_r_def
+    @assertEqual(analytic_psi,   psi,   tol)
+
+  end subroutine test_all
+
+end module deep_baroclinic_wave_mod_test

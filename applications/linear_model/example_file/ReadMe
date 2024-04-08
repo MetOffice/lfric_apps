@@ -1,0 +1,7 @@
+This directory contains a demonstration of running the linear model using a linearisation state that is first created by running the nonlinear model.
+
+1. Build gungho (in the gungho directory, 'make build')
+2. Build linear (in the linear directory, 'make build')
+3. Run the nonlinear model (in the linear/example_file directory, '../../gungho_model/bin/gungho_model config_nonlinear.nml')
+4. Create the linearisation state file ('. create_ls_file.sh')
+5. Run the linear model (in the linear/example_file directory, '../bin/linear_model config_linear.nml')

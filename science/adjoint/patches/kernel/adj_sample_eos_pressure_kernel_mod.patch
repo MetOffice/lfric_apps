@@ -1,0 +1,37 @@
+@@ -4,6 +4,7 @@
+   use constants_mod, only : i_def, r_def
+   use fs_continuity_mod, only : w3, wtheta
+   use kernel_mod, only : kernel_type
++  use planet_config_mod, only : kappa, rd, p_zero
+   implicit none
+   type, public, extends(kernel_type) :: adj_sample_eos_pressure_kernel_type
+   type(ARG_TYPE) :: META_ARGS(7) = (/ &
+@@ -29,7 +30,7 @@
+ 
+   contains
+   subroutine adj_sample_eos_pressure_code(nlayers, exner, rho, theta, moist_dyn_gas, ls_rho, ls_theta, ls_moist_dyn_gas, ndf_w3, &
+-&undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis)
++&undf_w3, map_w3, w3_basis, basis_w3_on_wt, ndf_wt, undf_wt, map_wt, wt_basis, basis_wt_on_wt)
+     use coordinate_jacobian_mod, only : coordinate_jacobian
+     integer(kind=i_def), intent(in) :: nlayers
+     integer(kind=i_def), intent(in) :: ndf_wt
+@@ -39,7 +40,9 @@
+     integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
+     integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+     real(kind=r_def), dimension(1,ndf_w3,ndf_w3), intent(in) :: w3_basis
++    real(kind=r_def), dimension(1,ndf_w3,ndf_wt), intent(in) :: basis_w3_on_wt
+     real(kind=r_def), dimension(1,ndf_wt,ndf_w3), intent(in) :: wt_basis
++    real(kind=r_def), dimension(1,ndf_wt,ndf_wt), intent(in) :: basis_wt_on_wt
+     real(kind=r_def), dimension(undf_w3), intent(inout) :: exner
+     real(kind=r_def), dimension(undf_w3), intent(inout) :: rho
+     real(kind=r_def), dimension(undf_wt), intent(inout) :: theta
+@@ -59,9 +62,6 @@
+     real(kind=r_def) :: theta_vd_cell
+     real(kind=r_def) :: ls_rho_cell
+     real(kind=r_def) :: ls_theta_vd_cell
+-    real(kind=r_def) :: kappa
+-    real(kind=r_def) :: rd
+-    real(kind=r_def) :: p_zero
+     real(kind=r_def) :: tmp_ls_exner
+     real(kind=r_def) :: tmp_exner
+ 

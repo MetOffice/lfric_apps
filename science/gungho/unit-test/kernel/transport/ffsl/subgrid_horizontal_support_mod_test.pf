@@ -1,0 +1,540 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Test the subgrid horizontal functions used for FFSL transport
+
+module subgrid_horizontal_support_mod_test
+
+  use constants_mod,                  only: i_def, l_def, r_tran
+  use transport_enumerated_types_mod, only: horizontal_monotone_none,    &
+                                            horizontal_monotone_strict,  &
+                                            horizontal_monotone_relaxed, &
+                                            horizontal_monotone_positive
+
+  implicit none
+
+contains
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine fourth_order_horizontal_edge_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: fourth_order_horizontal_edge
+
+    implicit none
+
+    real(kind=r_tran)   :: rho(1:4), edge_value, tol
+    real(kind=r_tran)   :: answer
+    integer(kind=i_def) :: monotone
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Test a linear function with no monotonicity
+    rho(1) = 1.0_r_tran
+    rho(2) = 3.0_r_tran
+    rho(3) = 5.0_r_tran
+    rho(4) = 7.0_r_tran
+    monotone  = horizontal_monotone_none
+
+    answer = 4.0_r_tran
+
+    edge_value = fourth_order_horizontal_edge(rho,monotone)
+
+    @assertEqual(answer, edge_value, tol)
+
+    ! Test a non-linear function with different monotonicity
+    rho(1) = 0.0_r_tran
+    rho(2) = 10.0_r_tran
+    rho(3) = 9.0_r_tran
+    rho(4) = 4.0_r_tran
+
+    ! No monotonicity
+    monotone = horizontal_monotone_none
+    answer = 10.75_r_tran
+
+    edge_value = fourth_order_horizontal_edge(rho,monotone)
+
+    @assertEqual(answer, edge_value, tol)
+
+    ! Strict monotonicity
+    monotone = horizontal_monotone_strict
+    answer = 10.0_r_tran
+
+    edge_value = fourth_order_horizontal_edge(rho,monotone)
+
+    @assertEqual(answer, edge_value, tol)
+
+    ! Relaxed monotonicity
+    monotone = horizontal_monotone_relaxed
+    answer = 10.0_r_tran
+
+    edge_value = fourth_order_horizontal_edge(rho,monotone)
+
+    @assertEqual(answer, edge_value, tol)
+
+    ! Positivity
+    monotone = horizontal_monotone_positive
+    answer = 10.75_r_tran
+
+    edge_value = fourth_order_horizontal_edge(rho,monotone)
+
+    @assertEqual(answer, edge_value, tol)
+
+  end subroutine fourth_order_horizontal_edge_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine horizontal_ppm_recon_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: horizontal_ppm_recon
+
+    implicit none
+
+    real(kind=r_tran)   :: rho(1:5), tol
+    real(kind=r_tran)   :: answer, recon, dep_pt
+    integer(kind=i_def) :: monotone
+
+    ! Set tolerance and switch monotonicity off
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+    monotone = horizontal_monotone_none
+
+    ! This function makes use of other functions within subgrid_horizontal_support_mod,
+    ! so we only test a linear function with no monotonicity
+    rho(1) = 1.0_r_tran
+    rho(2) = 2.0_r_tran
+    rho(3) = 3.0_r_tran
+    rho(4) = 4.0_r_tran
+    rho(5) = 5.0_r_tran
+    dep_pt = 0.5_r_tran
+
+    answer = 3.25_r_tran
+
+    call horizontal_ppm_recon(recon,dep_pt,rho,monotone)
+
+    @assertEqual(answer, recon, tol)
+
+  end subroutine horizontal_ppm_recon_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine horizontal_nirvana_recon_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: horizontal_nirvana_recon
+
+    implicit none
+
+    real(kind=r_tran)   :: rho(1:3), tol
+    real(kind=r_tran)   :: answer, recon, dep_pt
+    integer(kind=i_def) :: monotone
+
+    ! Set tolerance and switch monotonicity off
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+    monotone = horizontal_monotone_none
+
+    ! Test a linear function
+    rho(1) = 2.0_r_tran
+    rho(2) = 4.0_r_tran
+    rho(3) = 6.0_r_tran
+    dep_pt = 0.5_r_tran
+
+    answer = 4.5_r_tran
+
+    call horizontal_nirvana_recon(recon,dep_pt,rho,monotone)
+
+    @assertEqual(answer, recon, tol)
+
+    ! Test a non-linear function
+    rho(1) = 1.0_r_tran
+    rho(2) = 3.0_r_tran
+    rho(3) = 8.0_r_tran
+    dep_pt = 0.5_r_tran
+
+    answer = 3.875_r_tran
+
+    call horizontal_nirvana_recon(recon,dep_pt,rho,monotone)
+
+    @assertEqual(answer, recon, tol)
+
+  end subroutine horizontal_nirvana_recon_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine ppm_density_at_any_edge_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: ppm_density_at_any_edge
+
+    implicit none
+
+    real(kind=r_tran)   :: rho(4), res(5), ans(5)
+    real(kind=r_tran)   :: tol, x
+    integer(kind=i_def) :: i
+    integer(kind=i_def), parameter :: edges(5)=(/1_i_def,2_i_def,3_i_def,4_i_def,5_i_def/)
+    real(kind=r_tran), parameter   :: const(3)=(/2.0_r_tran,-1.0_r_tran,0.5_r_tran/)
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Set the field/rho at the centre of 4 cells of size unity
+    do i= 1,4
+       x = real(i-1_i_def,r_tran) + 0.5_r_tran
+       rho(i) = const(1)+const(2)*x + const(3)*x*x
+    end do
+
+    ! Compute the edge values at every edge=1...5
+    do i=1,5
+       res(i) = ppm_density_at_any_edge(rho,edges(i))
+    end do
+
+    ans=(/1.95833333333333_r_tran, &
+          1.45833333333333_r_tran, &
+          1.95833333333333_r_tran, &
+          3.45833333333333_r_tran, &
+          5.95833333333333_r_tran  /)
+
+    do i=1,5
+      @assertEqual(ans(i), res(i), tol)
+    end do
+
+  end subroutine ppm_density_at_any_edge_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine horizontal_nirvana_recon_spt_edges_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: horizontal_nirvana_recon_spt_edges
+
+    implicit none
+
+    real(kind=r_tran)   :: field(5), recon(5), ans(5)
+    real(kind=r_tran)   :: tol, x, dep, extra
+    integer(kind=i_def) :: i, mono
+    real(kind=r_tran), parameter   :: const(3)=(/2.0_r_tran,-1.0_r_tran,0.5_r_tran/)
+    integer(kind=i_def) :: ipanel(5)
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Set the field of 5 cells of size unity
+    do i=1,5
+       x = real(i-1_i_def,r_tran) + 0.5_r_tran
+       field(i) = const(1)+const(2)*x + const(3)*x*x
+    enddo
+
+    mono = 1
+    dep = 0.6_r_tran
+
+    ! Compute the recon for each case with ipanel varying
+    ipanel(:) = 1_i_def
+    do i=1,5
+       ipanel(1:i) = 2_i_def
+       call horizontal_nirvana_recon_spt_edges(recon(i),dep,field,ipanel,mono)
+       ipanel(:) = 1_i_def
+    enddo
+
+    extra = 1.0e-3_r_tran/3.0_r_tran
+    ans(:) = 2.918_r_tran + extra
+
+    do i=1,5
+      @assertEqual(ans(i), recon(i), tol)
+    end do
+
+  end subroutine horizontal_nirvana_recon_spt_edges_test
+
+!------------------------------------------------------------------
+
+  @test
+  subroutine horizontal_nirvana_case_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: horizontal_nirvana_case
+
+    implicit none
+
+    real(kind=r_tran)   :: tol
+    integer(kind=i_def) :: i
+    integer(kind=i_def) :: ipanel(5),cases(5),ans(5)
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Identify the correct case with cell ipanel varying
+    ! or moving an edge through the cells
+
+    ipanel(:) = 1_i_def
+    do i=1,5
+       ipanel(1:i) = 2_i_def
+       call horizontal_nirvana_case(ipanel,cases(i))
+       ipanel(:) = 1_i_def
+    enddo
+
+    ans(:) = (/1_i_def,3_i_def,2_i_def,1_i_def,1_i_def/)
+
+    do i=1,5
+      @assertEqual(real(ans(i),r_tran), real(cases(i),r_tran), tol)
+    end do
+
+  end subroutine horizontal_nirvana_case_test
+
+!------------------------------------------------------------------
+
+  @test
+  subroutine horizontal_ppm_recon_spt_edges_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: horizontal_ppm_recon_spt_edges
+
+    implicit none
+
+    real(kind=r_tran)   :: field(7), recon(7), ans(7)
+    real(kind=r_tran)   :: tol, x, dep, extra
+    integer(kind=i_def) :: i, mono
+    real(kind=r_tran), parameter   :: const(3)=(/2.0_r_tran,-1.0_r_tran,0.5_r_tran/)
+    integer(kind=i_def) :: ipanel(7)
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+    extra = 1.0e-3_r_tran/3.0_r_tran
+
+    ! Set the field of 5 cells of size unity
+    do i=1,7
+       x = real(i-1_i_def,r_tran) + 0.5_r_tran
+       field(i) = const(1)+const(2)*x + const(3)*x*x
+    enddo
+
+    mono = 1
+    dep = 0.6_r_tran
+
+    ! Compute the recon for each case with ipanel varying
+    ipanel(:) = 1_i_def
+    do i=1,7
+       ipanel(1:i) = 2_i_def
+       call horizontal_ppm_recon_spt_edges(recon(i),dep,field,ipanel,mono)
+       ipanel(:) = 1_i_def
+    enddo
+
+    ans(:) = 5.118_r_tran + extra
+
+    do i=1,7
+      @assertEqual(ans(i), recon(i), tol)
+    end do
+
+  end subroutine horizontal_ppm_recon_spt_edges_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine horizontal_ppm_case_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: horizontal_ppm_case
+
+    implicit none
+
+    real(kind=r_tran)   :: tol
+    integer(kind=i_def) :: i
+    integer(kind=i_def) :: ipanel(7),cases(7),ans(7)
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Identify the correct case with cell ipanel varying
+    ! or moving an edge through the cells
+
+    ipanel(:) = 1_i_def
+    do i=1,7
+       ipanel(1:i) = 2_i_def
+       call horizontal_ppm_case(ipanel,cases(i))
+       ipanel(:) = 1_i_def
+    enddo
+
+    ans(:) = (/1_i_def,4_i_def,5_i_def,3_i_def,2_i_def,1_i_def,1_i_def/)
+
+    do i=1,7
+      @assertEqual(real(ans(i),r_tran),real(cases(i),r_tran), tol)
+    end do
+
+  end subroutine horizontal_ppm_case_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine horizontal_nirvana_coeffs_general_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: horizontal_nirvana_coeffs_general
+
+    implicit none
+
+    real(kind=r_tran)   :: field(3), coeffs(3,3), ans(3,3)
+    real(kind=r_tran)   :: tol
+    real(kind=r_tran), parameter :: extra1 = 1.0_r_tran/3.0_r_tran
+    real(kind=r_tran), parameter :: extra2 = 0.1_r_tran/3.0_r_tran
+    integer(kind=i_def) :: i, j
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Set the field of 3 cells of size unity
+    field(:)=(/1.0_r_tran,3.0_r_tran,6.0_r_tran/)
+
+    do i=1,3
+      call  horizontal_nirvana_coeffs_general(coeffs(:,i),field,i)
+    end do
+
+    ans(:,1) = (/extra1,1.0_r_tran,0.5_r_tran/)
+    ans(:,2) = (/1.8_r_tran+extra2,2.0_r_tran,0.5_r_tran/)
+    ans(:,3) = (/4.0_r_tran+extra1,3.0_r_tran,0.5_r_tran/)
+
+    do i=1,3
+      do j=1,3
+        @assertEqual(ans(i,j), coeffs(i,j), tol)
+      end do
+    end do
+
+  end subroutine horizontal_nirvana_coeffs_general_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine calculate_parabola_coeffs_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: calculate_parabola_coeffs
+
+    implicit none
+
+    real(kind=r_tran)   :: coeffs(3), ans(3)
+    real(kind=r_tran)   :: left_val, right_val, field_cell
+    real(kind=r_tran)   :: tol
+    integer(kind=i_def) :: i
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Set the 3 properties of cell parabola
+    left_val   = 1.0_r_tran
+    right_val  = 3.5_r_tran
+    field_cell = 3.0_r_tran
+
+    call calculate_parabola_coeffs(left_val,right_val,field_cell,coeffs)
+
+    ans(:) = (/1.0_r_tran,7.0_r_tran,-4.5_r_tran/)
+
+    do i=1,3
+      @assertEqual(ans(i), coeffs(i), tol)
+    end do
+
+  end subroutine calculate_parabola_coeffs_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine parabola_mono_test()
+    use pFUnit_Mod
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_horizontal_support_mod, only: parabola_mono, &
+                                              calculate_parabola_coeffs
+    implicit none
+
+    real(kind=r_tran)   :: coeffs(3), ans(3)
+    real(kind=r_tran)   :: left_val, right_val, field_cell
+    real(kind=r_tran)   :: tol
+    integer(kind=i_def) :: i, mono
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Set the 3 properties of cell parabola
+    left_val   = 1.0_r_tran
+    right_val  = 3.5_r_tran
+    field_cell = 3.0_r_tran
+
+    ! Compute the parabola coffs based on the above  parbola properties
+    ! Then apply Strict monotonicity (revert to constant)
+
+    mono = 4
+    call calculate_parabola_coeffs(left_val,right_val,field_cell,coeffs)
+    call parabola_mono(coeffs,left_val,field_cell,right_val,mono)
+
+    ans(:) = (/3.0_r_tran,0.0_r_tran,0.0_r_tran/)
+
+    do i=1,3
+      @assertEqual(ans(i), coeffs(i), tol)
+    end do
+
+    ! Compute the parabola coffs based on the above parbola properties
+    ! Then apply Relaxed monotonicity (monotone cubic)
+
+    mono = 5
+    call calculate_parabola_coeffs(left_val,right_val,field_cell,coeffs)
+    call parabola_mono(coeffs,left_val,field_cell,right_val,mono)
+
+    ans(:) = (/2.0_r_tran,3.0_r_tran,-1.5_r_tran/)
+
+    do i=1,3
+      @assertEqual(ans(i), coeffs(i), tol)
+    end do
+
+  end subroutine parabola_mono_test
+
+  !------------------------------------------------------------------
+
+end module subgrid_horizontal_support_mod_test

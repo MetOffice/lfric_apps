@@ -1,0 +1,70 @@
+@@ -14,7 +14,7 @@
+                                  GH_LOGICAL,            &
+                                  GH_READWRITE, GH_READ, &
+                                  ANY_DISCONTINUOUS_SPACE_1
+-use constants_mod,        only : r_def, i_def, l_def, EPS
++use constants_mod,        only : r_def, i_def, l_def
+ use fs_continuity_mod,    only : W2v, Wtheta
+ use kernel_mod,           only : kernel_type
+ 
+@@ -126,9 +126,12 @@
+ 
+   integer(kind=i_def), dimension(global_order+1) :: stencil
+ 
+-  real(kind=r_def) :: dpdz, ls_dpdz, safe_ls_tracer
++  real(kind=r_def) :: dpdz, ls_dpdz, safe_ls_tracer, EPS
+   real(kind=r_def), dimension(0:nlayers) :: ls_log_tracer
+ 
++  real(kind=r_def) :: tmp1, tmp2
++  integer(kind=i_def) :: i, itmp3
++
+   ij = map_wt(1)
+ 
+   ! For logspace the nonlinear term is:
+@@ -159,7 +162,10 @@
+ 
+     ! Compute the stencil of points required
+     do p = 0, vertical_order
+-      stencil(p+1) = k - floor(real(vertical_order,r_def)/2.0_r_def) + p
++      tmp1 = real(vertical_order,r_def)
++      tmp2 = tmp1/2.0_r_def
++      itmp3 = floor(tmp2)
++      stencil(p+1) = k - itmp3 + p
+     end do
+ 
+     ! Adjust the stencil based upon the wind sign for upwind (odd order)
+@@ -171,9 +177,21 @@
+     stencil = stencil - upwind_offset
+ 
+     ! Adjust stencil near boundaries to avoid going out of bounds
+-    kmin = minval(stencil(1:vertical_order+1))
++    kmin = stencil(1)
++    do i = 2, vertical_order+1
++       if (stencil(i) < kmin) then
++          kmin = stencil(i)
++       end if
++    end do
+     if ( kmin < 0 ) stencil = stencil - kmin
+-    kmax = maxval(stencil(1:vertical_order+1)) - nlayers
++
++    kmax = stencil(1)
++    do i = 2, vertical_order+1
++       if (stencil(i) > kmax) then
++          kmax = stencil(i)
++       end if
++    end do
++    kmax = kmax - nlayers
+     if ( kmax > 0 ) stencil = stencil - kmax
+ 
+     ! Compute the derivative and the advective update
+@@ -184,8 +202,8 @@
+       do p = 1, vertical_order + 1
+         ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
+         dpdz = dpdz + coeff(ik)*tracer(ij + stencil(p)) / &
+-          ! This is a safe version of ls_tracer
+-          sign(max(EPS,abs(ls_tracer(ij + stencil(p)))), ls_tracer(ij + stencil(p)))
++        ! This is a safe version of ls_tracer
++        sign(max(EPS,abs(ls_tracer(ij + stencil(p)))), ls_tracer(ij + stencil(p)))
+         ls_dpdz = ls_dpdz + coeff(ik)*ls_log_tracer(stencil(p))
+       end do
+       ! Need to use same safe ls_tracer here

@@ -1,0 +1,132 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module analytic_density_profiles_mod_test
+
+  use constants_mod, only : r_def
+  use pFUnit_Mod
+
+  implicit none
+
+  private
+  public :: analytic_density_profiles_test_type
+  public :: analytic_density_test, vortex_field_test
+
+  @TestCase
+  type, extends(TestCase) :: analytic_density_profiles_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure vortex_field_test
+  end type analytic_density_profiles_test_type
+
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
+contains
+
+  subroutine setUp( this )
+
+    use feign_config_mod,          only : feign_initial_density_config,   &
+                                          feign_initial_pressure_config,  &
+                                          feign_planet_config
+
+    use initial_pressure_config_mod,  only : method_balanced
+
+    implicit none
+
+    class(analytic_density_profiles_test_type), intent(inout) :: this
+
+    call feign_planet_config( gravity=10.0_r_def, radius=6000000.0_r_def, &
+                              omega=8.0E-5_r_def, rd=300.0_r_def,         &
+                              cp=1000.0_r_def, p_zero=100000.0_r_def,     &
+                              scaling_factor=1.0_r_def )
+
+    call feign_initial_density_config( density_background=0.5_r_def,    &
+                                       density_max=1.0_r_def,           &
+                                       r1=1.0_r_def, x1=2.0_r_def,      &
+                                       y1=3.0_r_def, z1=4.0_r_def,      &
+                                       r2=1.0_r_def, x2=0.0_r_def,      &
+                                       y2=0.0_r_def, z2=0.0_r_def )
+
+    call feign_initial_pressure_config ( method           = method_balanced,   &
+                                         surface_pressure = surface_pressure )
+
+  end subroutine setUp
+
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(analytic_density_profiles_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  @Test
+  subroutine vortex_field_test( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use constants_mod,                 only : PI
+    use analytic_density_profiles_mod, only : vortex_field
+
+    implicit none
+
+    class(analytic_density_profiles_test_type), intent(inout) :: this
+    real(kind=r_def) :: density, time, lat, long, radius
+    real(kind=r_def) :: tol
+
+    tol = 10.0e-8_r_def
+
+    time = 1.0_r_def
+    lat = 0.0_r_def
+    long = 0.0_r_def
+    radius = 6371229.0_r_def
+
+    density = vortex_field(lat,long,radius,time)
+    @assertEqual(1.0_r_def, density, tol)
+
+    long = PI/4.0_r_def
+    density = vortex_field(lat,long,radius,time)
+    @assertEqual(0.599483410782824_r_def, density,tol)
+
+  end subroutine vortex_field_test
+
+
+  @Test
+  subroutine analytic_density_test( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use analytic_density_profiles_mod, only : analytic_density
+    use idealised_config_mod,          only : test_yz_cosine_hill
+
+    implicit none
+
+    class(analytic_density_profiles_test_type), intent(inout) :: this
+
+    real(kind=r_def) :: rho
+    real(kind=r_def) :: chi(3)
+    real(kind=r_def) :: tol
+
+    chi = (/ 2.0_r_def,3.25_r_def,4.5_r_def /)
+    rho = analytic_density(chi , test_yz_cosine_hill, 0.0_r_def)
+    if ( r_def == real64 ) then
+       tol = 10.0E-12_r_def
+    else
+       tol = 10.0_r_def * spacing( rho )
+    endif
+    @assertEqual(0.5_r_def, rho, tol)
+
+
+  end subroutine analytic_density_test
+
+
+end module analytic_density_profiles_mod_test

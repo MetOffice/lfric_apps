@@ -1,0 +1,202 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Contains T.L. routine for advecting (advection-form) fields using MOL.
+
+module tl_mol_advective_alg_mod
+
+  use constants_mod,                  only: r_def, i_def, l_def
+  use field_mod,                      only: field_type
+  use runge_kutta_init_mod,           only: get_rk_transport_weights
+  use log_mod,                        only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                       only: mesh_type
+  use advective_and_flux_alg_mod,     only: advective_and_flux_alg
+  use tl_advective_and_flux_alg_mod,  only: tl_advective_and_flux_alg
+  use transport_metadata_mod,         only: transport_metadata_type
+  use transport_runtime_alg_mod,      only: transport_runtime_type
+  use transport_runtime_collection_mod, &
+                                      only: get_transport_runtime
+  use tl_transport_runtime_collection_mod, &
+                                      only: tl_transport_runtime
+  use transport_config_mod,           only: runge_kutta_method
+  use end_of_transport_step_alg_mod,  only: end_of_advective_step_alg
+  use tl_end_of_transport_step_alg_mod,    &
+                                      only: tl_end_of_advective_step_alg
+
+  implicit none
+
+  public  :: tl_mol_advective_alg
+
+contains
+
+  !> @brief Tangent linear advection of a field with the MOL scheme.
+  !> @details Performs a whole time step advection for the tangent linear model
+  !!          This solves the advection (non-conservative) equation with the
+  !!          specified options in the transport_metadata.
+  !> @param[in,out] field_np1   ACTIVE  Field at the end of the time step
+  !> @param[in]     field       ACTIVE  Field at the start of the transport step
+  !> @param[in]     ls_field    PASSIVE Field at the start of the transport step
+  !> @param[in]     direction   Direction of advection (vertical, horizontal, or 3d)
+  !> @param[in]     transport_metadata
+  !!                         Contains the configuration options for transporting these fields
+  subroutine tl_mol_advective_alg( field_np1, field, ls_field, &
+                                   direction, transport_metadata )
+
+    implicit none
+
+    type(field_type),              intent(inout) :: field_np1
+    type(field_type),              intent(in)    :: field
+    type(field_type),              intent(in)    :: ls_field
+    integer(i_def),                intent(in)    :: direction
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    type(field_type) :: rhs, field_n
+
+    type(field_type), pointer     :: advecting_wind => null()
+    type(field_type), pointer     :: ls_advecting_wind => null()
+    type(field_type)              :: ls_field_np1, ls_field_n
+    type(field_type), allocatable :: stored_ls_field(:,:)
+    type(field_type), allocatable :: rk_field(:)
+    integer(i_def)                :: stage, s
+    integer(i_def)                :: nstage, substep
+    real(r_def),      allocatable :: rk_weights(:,:)
+    type(mesh_type),  pointer     :: mesh => null()
+    type(transport_runtime_type), pointer :: transport_runtime => null()
+    type(field_type)              :: rhs_field, &
+                                     dummy
+
+    integer(i_def) :: number_substeps
+    real(r_def)    :: dt_substep
+    logical(l_def) :: final_rk_stage
+
+    ! Get transport_runtime
+    mesh => field%get_mesh()
+    transport_runtime => get_transport_runtime( mesh )
+    advecting_wind    => tl_transport_runtime%get_directional_advecting_wind( mesh%get_id(), direction )
+    ls_advecting_wind => transport_runtime%get_directional_advecting_wind( mesh%get_id(), direction )
+
+    number_substeps = transport_runtime%get_number_substeps( mesh%get_id(), &
+                                                             direction,     &
+                                                             transport_metadata%get_splitting() )
+
+    dt_substep      = transport_runtime%get_dt_substep( mesh%get_id(), &
+                                                        direction,     &
+                                                        transport_metadata%get_splitting() )
+
+    call rhs%initialise(field%get_function_space())
+    call field_n%initialise(field%get_function_space())
+
+    call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
+    allocate( rk_field(nstage) )
+    allocate( stored_ls_field(number_substeps, nstage) )
+
+    do stage = 1, nstage
+      call rk_field(stage)%initialise(field%get_function_space())
+      do substep = 1, number_substeps
+        call stored_ls_field(substep, stage)%initialise(field%get_function_space())
+      end do
+    end do
+    call rhs_field%initialise( field%get_function_space() )
+
+    call field%copy_field_properties(field_np1)
+    call ls_field%copy_field_properties(ls_field_np1)
+    call invoke( setval_X(field_np1, field), &
+                 setval_X(ls_field_np1, ls_field) )
+
+    !--------------------------------------------------------------------------!
+    !                    Linearisation state
+    !
+    !       This calculates the values of ls_field. These are stored as an
+    !       array for each substep and each RK stage to use in the perturbation
+    !--------------------------------------------------------------------------!
+
+    ! Perform the number of rk-stages and substeps required
+    do substep = 1, number_substeps
+
+      ! Reset field_n ready for the this substep
+      call ls_field_np1%copy_field_properties(ls_field_n)
+      call invoke( setval_X(ls_field_n, ls_field_np1) )
+
+      do stage = 1, nstage
+        ! Store values for use in the perturbation code. This is done before
+        ! advecting so as to pick up the correct linearisation state
+        call invoke( setval_X(stored_ls_field(substep, stage), ls_field_np1) )
+
+        final_rk_stage = ( stage == nstage )
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), ls_field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
+        do s = 1, stage
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
+        end do
+
+        ! Compute update: rhs = u.grad(rhs_field)
+        call advective_and_flux_alg(dummy, rhs, rhs_field, ls_field_n,  &
+                                    ls_advecting_wind, direction,       &
+                                    transport_metadata, final_rk_stage, &
+                                    dt_substep, .false., .true. )
+
+        ! Update field: f = f^n - dt_substep*rhs
+        call invoke( X_minus_bY(ls_field_np1, ls_field_n, dt_substep, rhs) )
+      end do  ! end rk-stages
+
+    end do
+
+    ! End of step: if necessary enforce min val and overwrite in blending zone
+    call end_of_advective_step_alg(ls_field_np1, ls_field_n, transport_metadata)
+
+    ! --------------------------------------------------------------------------
+    !                    Perturbation
+    !
+    !   Repeat the calculation, but now for the tangent linear - adding in
+    !   the values of ls_field_np1(substep,stage) obtained in the
+    !   linearisation stage stage
+    !---------------------------------------------------------------------------
+
+    ! Perform the number of rk-stages and substeps required
+    do substep = 1, number_substeps
+
+      ! Reset field_n ready for the this substep
+      call field_np1%copy_field_properties(field_n)
+      call invoke( setval_X(field_n, field_np1) )
+
+      do stage = 1, nstage
+
+        final_rk_stage = ( stage == nstage )
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_def ) )
+        do s = 1, stage
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
+        end do
+
+        ! Compute update: rhs = u.grad(rhs_field)
+        call tl_advective_and_flux_alg(dummy, rhs, rhs_field, advecting_wind, &
+                                       stored_ls_field(substep, stage),       &
+                                       ls_advecting_wind,                     &
+                                       direction, transport_metadata,         &
+                                       final_rk_stage, dt_substep,            &
+                                       .false., .true. )
+
+        ! Update field: f = f^n - dt_substep*rhs
+        call invoke( X_minus_bY(field_np1, field_n, dt_substep, rhs) )
+      end do  ! end rk-stages
+
+    end do
+
+    ! End of step: if necessary enforce min val and overwrite in blending zone
+    call tl_end_of_advective_step_alg(field_np1, field_n, transport_metadata)
+
+    if ( allocated(rk_field) ) deallocate(rk_field)
+    if ( allocated(rk_weights) ) deallocate(rk_weights)
+    if ( allocated(stored_ls_field) ) deallocate(stored_ls_field)
+
+  end subroutine tl_mol_advective_alg
+
+end module tl_mol_advective_alg_mod

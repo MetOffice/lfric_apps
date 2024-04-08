@@ -1,0 +1,88 @@
+@@ -1,9 +1,9 @@
+-module adjoint_test_mod
++module adjt_poly_advective_alg_mod
+   implicit none
+   public
+ 
+   contains
+-  subroutine adjoint_test(mesh, chi, panel_id)
++  subroutine adjt_poly_advective_alg(mesh, chi, panel_id)
+     use field_mod, only : field_type
+     use function_space_mod, only : function_space_type
+     use mesh_mod, only : mesh_type
+@@ -30,19 +30,13 @@
+     type(field_type) :: advective_input
+     type(field_type) :: wind_input
+     type(field_type) :: tracer_input
+-    type(field_type) :: ls_wind_input
+-    type(field_type) :: ls_tracer_input
+     real(kind=r_def) :: advective_inner_prod
+     real(kind=r_def) :: wind_inner_prod
+     real(kind=r_def) :: tracer_inner_prod
+-    real(kind=r_def) :: ls_wind_inner_prod
+-    real(kind=r_def) :: ls_tracer_inner_prod
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: advective_advective_input_inner_prod
+     real(kind=r_def) :: wind_wind_input_inner_prod
+     real(kind=r_def) :: tracer_tracer_input_inner_prod
+-    real(kind=r_def) :: ls_wind_ls_wind_input_inner_prod
+-    real(kind=r_def) :: ls_tracer_ls_tracer_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
+@@ -58,42 +52,29 @@
+     call advective_input % initialise(vector_space=vector_space_wtheta_ptr, name='advective_input')
+     call wind_input % initialise(vector_space=vector_space_w2_ptr, name='wind_input')
+     call tracer_input % initialise(vector_space=vector_space_w1_ptr, name='tracer_input')
+-    call ls_wind_input % initialise(vector_space=vector_space_w2_ptr, name='ls_wind_input')
+-    call ls_tracer_input % initialise(vector_space=vector_space_w1_ptr, name='ls_tracer_input')
+     advective_inner_prod = 0.0_r_def
+     wind_inner_prod = 0.0_r_def
+     tracer_inner_prod = 0.0_r_def
+-    ls_wind_inner_prod = 0.0_r_def
+-    ls_tracer_inner_prod = 0.0_r_def
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(advective), setval_x(advective_input, advective), setval_random(wind), setval_x(wind_input, wind), &
+-&setval_random(tracer), setval_x(tracer_input, tracer), setval_random(ls_wind), setval_x(ls_wind_input, ls_wind), &
+-&setval_random(ls_tracer), setval_x(ls_tracer_input, ls_tracer), tl_poly_advective_kernel_type(advective, wind, tracer, ls_wind, &
++&setval_random(tracer), setval_x(tracer_input, tracer), setval_random(ls_wind), setval_random(ls_tracer), &
++&tl_poly_advective_kernel_type(advective, wind, tracer, ls_wind, &
+ &ls_tracer), x_innerproduct_x(advective_inner_prod, advective), x_innerproduct_x(wind_inner_prod, wind), &
+-&x_innerproduct_x(tracer_inner_prod, tracer), x_innerproduct_x(ls_wind_inner_prod, ls_wind), &
+-&x_innerproduct_x(ls_tracer_inner_prod, ls_tracer))
++&x_innerproduct_x(tracer_inner_prod, tracer))
+     inner1 = 0.0_r_def
+     inner1 = inner1 + advective_inner_prod
+     inner1 = inner1 + wind_inner_prod
+     inner1 = inner1 + tracer_inner_prod
+-    inner1 = inner1 + ls_wind_inner_prod
+-    inner1 = inner1 + ls_tracer_inner_prod
+     advective_advective_input_inner_prod = 0.0_r_def
+     wind_wind_input_inner_prod = 0.0_r_def
+     tracer_tracer_input_inner_prod = 0.0_r_def
+-    ls_wind_ls_wind_input_inner_prod = 0.0_r_def
+-    ls_tracer_ls_tracer_input_inner_prod = 0.0_r_def
+     call invoke(adj_poly_advective_kernel_type(advective, wind, tracer, ls_wind, ls_tracer), &
+ &x_innerproduct_y(advective_advective_input_inner_prod, advective, advective_input), x_innerproduct_y(wind_wind_input_inner_prod, &
+-&wind, wind_input), x_innerproduct_y(tracer_tracer_input_inner_prod, tracer, tracer_input), &
+-&x_innerproduct_y(ls_wind_ls_wind_input_inner_prod, ls_wind, ls_wind_input), &
+-&x_innerproduct_y(ls_tracer_ls_tracer_input_inner_prod, ls_tracer, ls_tracer_input))
++&wind, wind_input), x_innerproduct_y(tracer_tracer_input_inner_prod, tracer, tracer_input))
+     inner2 = 0.0_r_def
+     inner2 = inner2 + advective_advective_input_inner_prod
+     inner2 = inner2 + wind_wind_input_inner_prod
+     inner2 = inner2 + tracer_tracer_input_inner_prod
+-    inner2 = inner2 + ls_wind_ls_wind_input_inner_prod
+-    inner2 = inner2 + ls_tracer_ls_tracer_input_inner_prod
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol
+@@ -105,6 +86,6 @@
+       call log_event(log_scratch_space, log_level_error)
+     end if
+ 
+-  end subroutine adjoint_test
++  end subroutine adjt_poly_advective_alg
+ 
+-end module adjoint_test_mod
++end module adjt_poly_advective_alg_mod

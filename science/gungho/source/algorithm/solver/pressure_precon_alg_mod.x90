@@ -1,0 +1,161 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Vertical preconditioner for the pressure equation.
+!>
+!> @details This preconditioner calculates \f$y = Px = H_z^{-1}x\f$ where
+!!          \f$H_z\f$ is the vertical part of the Helmholtz operator (scaled
+!!          by the inverse pressure mass matrix), i.e.
+!!
+!!  \f[
+!!  H_z = 1 + M_3^{-1}\left(\omega_c^2 \Delta_h
+!!                        + \omega_c^2/(1+\omega_N^2) D_z M_{u,z,inv} D_z^T)
+!!                    \right)
+!!  \f]
+!!  and \f$\Delta_h = \diag(D_h M_{u,h,inv} D_h^T) \f$. The lumped inverse mass
+!!  matrices are given by \f$M_{u,*,inv}\f$.
+!>
+
+module pressure_precon_alg_mod
+
+  use constants_mod,           only : i_def, r_def
+  use log_mod,                 only : log_event, &
+                                      LOG_LEVEL_INFO, &
+                                      LOG_LEVEL_ERROR, &
+                                      log_scratch_space
+  use sci_hierarchical_preconditioner_mod, &
+                               only : abstract_hierarchical_preconditioner_type
+  use sci_r_solver_field_vector_mod, &
+                               only : r_solver_field_vector_type
+  use vector_mod,              only : abstract_vector_type
+
+  implicit none
+
+  type, public, extends(abstract_hierarchical_preconditioner_type) :: pressure_preconditioner_type
+
+   integer(kind=i_def) :: level
+
+   contains
+     procedure, public :: apply => apply_pressure_preconditioner
+     procedure, private :: apply_pressure_preconditioner
+     procedure, public  :: pressure_preconditioner_assign
+     !> Returns a version of the preconditioner on the next-coarser level
+     procedure, public  :: coarsen => coarsen_pressure_preconditioner
+     procedure, private :: coarsen_pressure_preconditioner
+
+     final :: destroy_pressure_preconditioner
+     !> Override default assignment for pressure_preconditioner_type pairs.
+     generic            :: assignment(=) => pressure_preconditioner_assign
+
+  end type pressure_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface pressure_preconditioner_type
+     module procedure pressure_preconditioner_constructor
+  end interface
+
+contains
+
+  !> @brief Construct a <code> pressure_preconditioner_type</code> object.
+  !>
+  !> @param[in] level Multigrid level
+  !> @return self The constructed preconditioner object
+  function pressure_preconditioner_constructor(level) result(self)
+
+    use log_mod, only: log_event, LOG_LEVEL_INFO
+    implicit none
+
+    integer(kind=i_def), intent(in)    :: level
+    type(pressure_preconditioner_type) :: self
+
+    call log_event( 'Constructing pressure preconditioner...', &
+         LOG_LEVEL_INFO )
+    self%level = level
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function pressure_preconditioner_constructor
+
+  !> @brief Performs a deep copy between pressure_preconditioner_type pairs
+  !!        (for overriding the "=" operator).
+  !>
+  !> @param[out] dest   pressure_preconditioner_type lhs
+  !> @param[in]  source pressure_preconditioner_type rhs
+  subroutine pressure_preconditioner_assign(dest, source)
+
+    implicit none
+    class(pressure_preconditioner_type), intent(in)  :: source
+    class(pressure_preconditioner_type), intent(out) :: dest
+
+    ! Deep copy of the contents of the pressure_preconditioner_type
+    dest%level = source%level
+  end subroutine pressure_preconditioner_assign
+
+  !> @brief Apply the preconditioner to calculate \f$y = P.x = x\f$.
+  !>
+  !> @details Apply the vertical preconditioner \f$y = H_z^{-1}x\f$.
+  !>
+  !> @param[in,out] self Instance of type pressure_preconditioner_type
+  !> @param[in] x Field vector containing the right hand side of the pressure
+  !> @param[in,out] y Field vector containing the solution
+  subroutine apply_pressure_preconditioner(self, x, y)
+    use si_operators_alg_mod,     only: get_tri_precon
+    use sci_tri_solve_kernel_mod, only: tri_solve_kernel_type
+    use r_solver_field_mod,       only: r_solver_field_type
+    implicit none
+    class(pressure_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),         intent(in)    :: x
+    class(abstract_vector_type),         intent(inout) :: y
+
+    type(r_solver_field_type), pointer :: tri(:) => null()
+    type(r_solver_field_type), pointer :: x_vec => null(), &
+                                          y_vec => null()
+    select type(x)
+    type is(r_solver_field_vector_type)
+       select type(y)
+       type is(r_solver_field_vector_type)
+          ! Multiply by inverse of vertical operator \f$ H_z \f$
+          tri => get_tri_precon(self%level)
+          x_vec => x%get_field_from_position(1)
+          y_vec => y%get_field_from_position(1)
+          call invoke( tri_solve_kernel_type(y_vec, x_vec, tri) )
+       class default
+          write(log_scratch_space, '(A)') &
+                "pressure_preconditioner_mod: incorrect vector_type argument y"
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+       end select
+    class default
+      write(log_scratch_space, '(A)') "pressure_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    nullify( tri )
+    nullify( x_vec, y_vec )
+
+  end subroutine apply_pressure_preconditioner
+
+  !> @brief Construct a coarsened version of the preconditioner on the next
+  !!        level of the multigrid hierarchy.
+  !>
+  !> @param[in,out] self Instance of type pressure_preconditioner_type
+  !> @param[in,out] other Coarsed version on next multigrid level
+  subroutine coarsen_pressure_preconditioner(self,other)
+    implicit none
+    class(pressure_preconditioner_type), intent(inout) :: self
+    class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
+    allocate(other, &
+             source = pressure_preconditioner_type(self%level+1) )
+  end subroutine coarsen_pressure_preconditioner
+
+  !> @brief Destructor
+  !>
+  !> @param[in,out] self Instance of type to be destroyed
+  subroutine destroy_pressure_preconditioner(self)
+    implicit none
+    type(pressure_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_pressure_preconditioner
+
+end module pressure_precon_alg_mod
