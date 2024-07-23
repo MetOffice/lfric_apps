@@ -60,8 +60,9 @@ module gungho_model_data_mod
     !> Fields owned by the stochastic physics schemes
     type( field_collection_type ), public   :: stph_fields
     !> Fields that contain coupling data
-    type( field_collection_type ), public :: cpl_snd
-    type( field_collection_type ), public :: cpl_rcv
+    type( field_collection_type ), public :: cpl_snd_2d
+    type( field_collection_type ), public :: cpl_rcv_2d
+    type( field_collection_type ), public :: cpl_snd_0d
     !> @}
 
     !> FD fields used to read initial conditions from LFRic-Input files

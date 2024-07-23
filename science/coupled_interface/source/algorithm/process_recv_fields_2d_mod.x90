@@ -6,9 +6,9 @@
 
 !> @brief Process ocean and sea ice data coming through the coupler
 
-module process_o2a_algorithm_mod
+module process_recv_fields_2d_mod
   use constants_mod,                 only: i_def, r_def
-  use coupler_external_field_mod,    only: set_r_sea_ice_frac_raw
+  use process_send_fields_2d_mod,    only: set_r_sea_ice_frac_raw
   use field_mod,                     only: field_type
   use field_collection_mod,          only: field_collection_type
   use integer_field_mod,             only: integer_field_type
@@ -21,7 +21,7 @@ module process_o2a_algorithm_mod
 
   implicit none
 
-  public process_o2a_algorithm
+  public process_recv_fields_2d
 
   contains
 
@@ -29,9 +29,13 @@ module process_o2a_algorithm_mod
   !> @param[in] dcpl_rcv field collection of all fields recieved through the coupler
   !> @param[in] depository field collection of all other relevant fields
   !> @param[in] n_sea_ice_tile Number of sea ice tiles
-  subroutine process_o2a_algorithm(dcpl_rcv,depository,              &
-                                   n_sea_ice_tile, T_freeze_h2o_sea, &
-                                   therm_cond_sice, therm_cond_sice_snow)
+  !> @param[in] T_freeze_h2o_sea Temperature at which sea water freezes (K)
+  !> @param[in] therm_cond_sice Thermal conductivity of sea-ice (W/m/K)
+  !> @param[in] therm_cond_sice_snow Thermal conductivity of snow
+  !>                                 on zero layer sea-ice (W/m/K)
+  subroutine process_recv_fields_2d(dcpl_rcv,depository,              &
+                                    n_sea_ice_tile, T_freeze_h2o_sea, &
+                                    therm_cond_sice, therm_cond_sice_snow)
    implicit none
    type( field_collection_type ), intent(in)    :: dcpl_rcv
    type( field_collection_type ), intent(in)    :: depository
@@ -125,6 +129,6 @@ module process_o2a_algorithm_mod
                                       )                           &
               )   ! Close invoke.
 
-  end subroutine process_o2a_algorithm
+  end subroutine process_recv_fields_2d
 
-end module process_o2a_algorithm_mod
+end module process_recv_fields_2d_mod

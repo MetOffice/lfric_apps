@@ -1,6 +1,6 @@
 # Files should only ever be removed or renamed in this file, never added
 #
-apps/science/coupled_interface/source/algorithm/coupler_diagnostics_mod.X90
+apps/science/coupled_interface/source/algorithm/process_send_fields_2d_mod.X90
 apps/science/coupled_interface/source/algorithm/coupler_update_prognostics_mod.X90
 apps/science/coupled_interface/source/coupler_external_field_mod.X90
 apps/science/coupled_interface/source/coupler_mod.F90

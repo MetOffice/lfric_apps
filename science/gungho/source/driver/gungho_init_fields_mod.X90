@@ -590,7 +590,7 @@ subroutine create_model_data( modeldb,      &
 
     ! initialise coupling fields
 #ifdef COUPLED
-    if(l_esm_couple) call cpl_init_fields(modeldb%model_data%cpl_rcv)
+    if(l_esm_couple) call cpl_init_fields(modeldb%model_data%cpl_rcv_2d, depository)
 #endif
 
     if (limited_area) then
@@ -853,8 +853,9 @@ subroutine create_model_data( modeldb,      &
       call modeldb%model_data%fd_fields%clear()
 #ifdef COUPLED
       if(l_esm_couple) then
-         call modeldb%model_data%cpl_snd%clear()
-         call modeldb%model_data%cpl_rcv%clear()
+         call modeldb%model_data%cpl_snd_2d%clear()
+         call modeldb%model_data%cpl_rcv_2d%clear()
+         call modeldb%model_data%cpl_snd_0d%clear()
       endif
 #endif
 

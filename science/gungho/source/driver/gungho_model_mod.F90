@@ -680,10 +680,15 @@ contains
        call cpl_fields( mesh, twod_mesh, depository, &
                         prognostic_fields )
        ! Define coupling interface
-       call modeldb%model_data%cpl_snd%initialise(name="cpl_snd")
-       call modeldb%model_data%cpl_rcv%initialise(name="cpl_rcv")
-       call cpl_define( twod_mesh, chi, depository, &
-                        modeldb%model_data%cpl_snd, modeldb%model_data%cpl_rcv )
+       ! Set up collections to hold 2d coupling fields
+       call modeldb%model_data%cpl_snd_2d%initialise(name="cpl_snd_2d")
+       call modeldb%model_data%cpl_rcv_2d%initialise(name="cpl_rcv_2d")
+       ! Set up collection to hold 0d (scalar) coupling fields
+       call modeldb%model_data%cpl_snd_0d%initialise(name="cpl_snd_0d")
+       call cpl_define( twod_mesh, chi, depository,    &
+                        modeldb%model_data%cpl_snd_2d, &
+                        modeldb%model_data%cpl_rcv_2d, &
+                        modeldb%model_data%cpl_snd_0d )
 
     endif
 #endif

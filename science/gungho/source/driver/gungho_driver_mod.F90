@@ -79,7 +79,7 @@ module gungho_driver_mod
 #ifdef COUPLED
   use esm_couple_config_mod,      only : l_esm_couple_test
   use coupler_mod,                only : cpl_snd, cpl_rcv, cpl_fld_update
-  use coupler_diagnostics_mod,    only : save_sea_ice_frac_previous
+  use process_send_fields_2d_mod, only : save_sea_ice_frac_previous
 #endif
 
   implicit none
@@ -256,12 +256,13 @@ contains
        call save_sea_ice_frac_previous(depository)
 
        ! Receive all incoming (ocean/seaice fields) from the coupler
-       call cpl_rcv( modeldb%model_data%cpl_rcv,    &
+       call cpl_rcv( modeldb%model_data%cpl_rcv_2d, &
                      depository, &
                      modeldb%clock )
 
        ! Send all outgoing (ocean/seaice driving fields) to the coupler
-       call cpl_snd( modeldb%model_data%cpl_snd,    &
+       call cpl_snd( modeldb%model_data%cpl_snd_2d, &
+                     modeldb%model_data%cpl_snd_0d, &
                      depository, &
                      modeldb%clock )
 
@@ -362,7 +363,7 @@ contains
        ! Ensure coupling fields are updated at the end of a cycle to ensure the values
        ! stored in and recovered from checkpoint dumps are correct and reproducible
        ! when (re)starting subsequent runs!
-       call cpl_fld_update(modeldb%model_data%cpl_snd,    &
+       call cpl_fld_update(modeldb%model_data%cpl_snd_2d, &
                            depository,                    &
                            modeldb%clock)
     endif
