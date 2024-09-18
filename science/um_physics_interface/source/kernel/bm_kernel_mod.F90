@@ -211,8 +211,8 @@ contains
 
     real(r_um), dimension(seg_len,1) :: zh_in, zhsc_in, dzh_in, bl_type_7_in
 
-    ! profile fields from level 0 upwards
-    real(r_um), dimension(seg_len,1,0:nlayers) :: p_theta_levels
+    ! profile fields from level 1 upwards
+    real(r_um), dimension(seg_len,1,nlayers) :: p_theta_levels
 
     ! error status
     integer(i_um) :: errorstatus
@@ -253,7 +253,7 @@ contains
     end do
 
     do i = 1, seg_len
-      do k = 0, nlayers
+      do k = 1, nlayers
         ! pressure on theta levels
         p_theta_levels(i,1,k) = p_zero*(exner_in_wth(map_wth(1,i) + k))**(1.0_r_def/kappa)
       end do

@@ -984,7 +984,7 @@ contains
             end do
           end if ! l_casim and l_mcr_qcf2
 
-          call bm_ctl( p_theta_levels, tgrad_in, wvar_in,                      &
+          call bm_ctl( p_theta_levels(:,:,1:), tgrad_in, wvar_in,              &
                        tau_dec_in, tau_hom_in, tau_mph_in, z_theta,            &
                        ri_bm, zh, zhsc, dzh, bl_type_7,                        &
                        nlayers, l_mr_physics, t_latest, cf_latest,             &
