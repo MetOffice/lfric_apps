@@ -211,6 +211,7 @@
         "gungho_model_sbr-C24_MG_ex1a_gnu_fast-debug-64bit",
         "gungho_model_sbr-alt1-C24s_MG_ex1a_gnu_fast-debug-64bit",
         "gungho_model_sbr-alt2-C24_MG_op_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_sbr-alt3-C24_MG_ex1a_gnu_fast-debug-64bit-rtran32",
         "gungho_model_sbr_lam-n96_MG_lam_ex1a_gnu_fast-debug-64bit",
         "gungho_model_sbr_lam-n96_MG_lam_rotate_ex1a_gnu_fast-debug-64bit",
         "gungho_model_schar_cart-BiP200x8-500x500_ex1a_gnu_fast-debug-64bit",

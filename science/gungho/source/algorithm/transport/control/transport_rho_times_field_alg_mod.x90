@@ -106,7 +106,7 @@ contains
       rho_d_np1 => transport_runtime%get_rho_d(primary_mesh%get_id(), number_substeps*(num_dry_steps+1))
 
       ! multiply field by rho in native space
-      call invoke( X_times_Y(rho_field_n, rho_d_n, field_n_rdef) )
+      call invoke( X_times_Y(rho_field_n, rho_d_n, field_n_rtran) )
 
       call transport_field_r_tran(rho_field_np1, rho_field_n, model_dt_rtran, &
                                   transport_metadata)
