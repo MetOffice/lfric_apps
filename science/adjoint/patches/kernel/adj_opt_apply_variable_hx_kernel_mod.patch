@@ -1,14 +1,15 @@
-@@ -4,8 +4,8 @@
+@@ -4,9 +4,9 @@
    use fs_continuity_mod, only : w2, w3, wtheta
    use kernel_mod, only : kernel_type
    implicit none
 -  interface opt_apply_variable_hx_code
--  module procedure opt_apply_variable_hx_code_r_single, opt_apply_variable_hx_code_r_double
 +  interface adj_opt_apply_variable_hx_code
-+  module procedure adj_opt_apply_variable_hx_code_r_single, adj_opt_apply_variable_hx_code_r_double
- end interface
+     module procedure :: adj_opt_apply_variable_hx_code_r_single, adj_opt_apply_variable_hx_code_r_double
+-  end interface opt_apply_variable_hx_code
++  end interface adj_opt_apply_variable_hx_code
    type, public, extends(kernel_type) :: adj_opt_apply_variable_hx_kernel_type
    type(ARG_TYPE) :: META_ARGS(10) = (/ &
+     arg_type(gh_field, gh_real, gh_write, w3), &
 @@ -24,7 +24,7 @@
  
    private
@@ -18,16 +19,7 @@
  
    contains
    subroutine adj_opt_apply_variable_hx_code_r_double(cell, nlayers, lhs, x, mt_inv, pressure, ncell_3d_1, div, ncell_3d_2, p3t, &
-@@ -72,6 +72,8 @@
- 
-     div_u = 0.0_r_double
-     t_e = 0.0_r_double
-+    t_e1_vec(:) = 0.0_r_double
-+    t_e2_vec(:) = 0.0_r_double
-     map_w21 = map_w2(1)
-     map_w22 = map_w2(2)
-     map_w23 = map_w2(3)
-@@ -81,8 +83,6 @@
+@@ -83,8 +83,6 @@
      map_w31 = map_w3(1)
      map_wt1 = map_wt(1)
      map_wt2 = map_wt(2)
@@ -36,7 +28,7 @@
      k = nlayers - 1
      ik = cell * nlayers + k - nlayers + 1
      div_u = div_u + lhs(map_w31 + k) * sgn
-@@ -90,22 +90,22 @@
+@@ -92,22 +90,22 @@
      t_e(2) = t_e(2) + sgn * lhs(map_w31 + k)
      pressure(k + map_w31) = pressure(k + map_w31) + m3(ik,1,1) * lhs(map_w31 + k)
      rhs_p(k + map_w3(1)) = rhs_p(k + map_w3(1)) + lhs(map_w31 + k)
@@ -63,7 +55,7 @@
      do k = nlayers - 2, 1, -1
        ik = cell * nlayers + k - nlayers + 1
        div_u = div_u + lhs(map_w31 + k) * sgn
-@@ -113,14 +113,14 @@
+@@ -115,14 +113,14 @@
        t_e2_vec(k) = t_e2_vec(k) + sgn * lhs(map_w31 + k)
        pressure(k + map_w31) = pressure(k + map_w31) + m3(ik,1,1) * lhs(map_w31 + k)
        rhs_p(k + map_w3(1)) = rhs_p(k + map_w3(1)) + lhs(map_w31 + k)
@@ -80,7 +72,7 @@
      enddo
      do k = nlayers - 2, 1, -1
        ik = cell * nlayers + k - nlayers + 1
-@@ -128,34 +128,36 @@
+@@ -130,34 +128,36 @@
        x(k + map_w26) = x(k + map_w26) + mt_inv(k + map_wt2) * p3t(ik,1,2) * pt2(ik,2,6) * t_e2_vec(k)
        x(k + map_w25 + 1) = x(k + map_w25 + 1) + mt_inv(k + map_wt2) * p3t(ik,1,2) * pt2(ik + 1,1,5) * t_e2_vec(k)
        x(k + map_w26 + 1) = x(k + map_w26 + 1) + mt_inv(k + map_wt2) * p3t(ik,1,2) * pt2(ik + 1,1,6) * t_e2_vec(k)
@@ -123,16 +115,7 @@
  
    end subroutine adj_opt_apply_variable_hx_code_r_double
    subroutine adj_opt_apply_variable_hx_code_r_single(cell, nlayers, lhs, x, mt_inv, pressure, ncell_3d_1, div, ncell_3d_2, p3t, &
-@@ -203,6 +205,8 @@
- 
-     div_u = 0.0_r_single
-     t_e = 0.0_r_single
-+    t_e1_vec(:) = 0.0_r_single
-+    t_e2_vec(:) = 0.0_r_single
-     map_w21 = map_w2(1)
-     map_w22 = map_w2(2)
-     map_w23 = map_w2(3)
-@@ -212,8 +216,6 @@
+@@ -216,8 +216,6 @@
      map_w31 = map_w3(1)
      map_wt1 = map_wt(1)
      map_wt2 = map_wt(2)
@@ -141,7 +124,7 @@
      k = nlayers - 1
      ik = cell * nlayers + k - nlayers + 1
      div_u = div_u + lhs(map_w31 + k) * sgn
-@@ -221,22 +223,22 @@
+@@ -225,22 +223,22 @@
      t_e(2) = t_e(2) + sgn * lhs(map_w31 + k)
      pressure(k + map_w31) = pressure(k + map_w31) + m3(ik,1,1) * lhs(map_w31 + k)
      rhs_p(k + map_w3(1)) = rhs_p(k + map_w3(1)) + lhs(map_w31 + k)
@@ -168,7 +151,7 @@
      do k = nlayers - 2, 1, -1
        ik = cell * nlayers + k - nlayers + 1
        div_u = div_u + lhs(map_w31 + k) * sgn
-@@ -244,14 +246,14 @@
+@@ -248,14 +246,14 @@
        t_e2_vec(k) = t_e2_vec(k) + sgn * lhs(map_w31 + k)
        pressure(k + map_w31) = pressure(k + map_w31) + m3(ik,1,1) * lhs(map_w31 + k)
        rhs_p(k + map_w3(1)) = rhs_p(k + map_w3(1)) + lhs(map_w31 + k)
@@ -185,7 +168,7 @@
      enddo
      do k = nlayers - 2, 1, -1
        ik = cell * nlayers + k - nlayers + 1
-@@ -259,34 +261,36 @@
+@@ -263,34 +261,36 @@
        x(k + map_w26) = x(k + map_w26) + mt_inv(k + map_wt2) * p3t(ik,1,2) * pt2(ik,2,6) * t_e2_vec(k)
        x(k + map_w25 + 1) = x(k + map_w25 + 1) + mt_inv(k + map_wt2) * p3t(ik,1,2) * pt2(ik + 1,1,5) * t_e2_vec(k)
        x(k + map_w26 + 1) = x(k + map_w26 + 1) + mt_inv(k + map_wt2) * p3t(ik,1,2) * pt2(ik + 1,1,6) * t_e2_vec(k)

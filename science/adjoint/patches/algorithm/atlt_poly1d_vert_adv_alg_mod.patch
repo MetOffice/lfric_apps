@@ -1,14 +1,4 @@
-@@ -1,15 +1,15 @@
--module adjoint_test_mod
-+module atlt_poly1d_vert_adv_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_poly1d_vert_adv_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
-     use function_space_mod, only : function_space_type
+@@ -9,7 +9,7 @@
      use mesh_mod, only : mesh_type
      use function_space_collection_mod, only : function_space_collection
      use tl_poly1d_vert_adv_kernel_mod, only : tl_poly1d_vert_adv_kernel_type
@@ -47,12 +37,12 @@
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
 @@ -69,59 +57,33 @@
-     call advective_input % initialise(vector_space=vector_space_wtheta_ptr, name='advective_input')
-     call wind_input % initialise(vector_space=vector_space_w2v_ptr, name='wind_input')
-     call tracer_input % initialise(vector_space=vector_space_wtheta_ptr, name='tracer_input')
--    call ls_wind_input % initialise(vector_space=vector_space_w2v_ptr, name='ls_wind_input')
--    call ls_tracer_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_tracer_input')
--    call coeff_input % initialise(vector_space=vector_space_w3_ptr, name='coeff_input')
+     call advective_input%initialise(vector_space=vector_space_wtheta_ptr, name='advective_input')
+     call wind_input%initialise(vector_space=vector_space_w2v_ptr, name='wind_input')
+     call tracer_input%initialise(vector_space=vector_space_wtheta_ptr, name='tracer_input')
+-    call ls_wind_input%initialise(vector_space=vector_space_w2v_ptr, name='ls_wind_input')
+-    call ls_tracer_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_tracer_input')
+-    call coeff_input%initialise(vector_space=vector_space_w3_ptr, name='coeff_input')
 -    ndata = 1_i_def
 -    ndata_input = ndata
 +    ndata = 0_i_def
@@ -111,12 +101,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -133,6 +95,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_poly1d_vert_adv_alg
- 
--end module adjoint_test_mod
-+end module atlt_poly1d_vert_adv_alg_mod

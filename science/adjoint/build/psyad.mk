@@ -43,7 +43,7 @@ $(PSYAD_WDIR)/$1/atl_%_kernel_mod.F90: $(PSYAD_WDIR)/$1/tl_%_kernel_mod.F90 \
 
 	# Running PSyAD
 	echo "*Running* PSyAD on $$(basename $$(notdir $$<))"
-	psyad -api dynamo0.3 -t -otest $$(ATLT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
+	psyad -api lfric -t -otest $$(ATLT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
 
 # For regular kernels.
 $(PSYAD_WDIR)/$1/adj_%_kernel_mod.F90: $(PSYAD_WDIR)/$1/%_kernel_mod.F90 \
@@ -60,7 +60,7 @@ $(PSYAD_WDIR)/$1/adj_%_kernel_mod.F90: $(PSYAD_WDIR)/$1/%_kernel_mod.F90 \
 
 	# Running PSyAD
 	echo "*Running* PSyAD on $$(basename $$(notdir $$<))"
-	psyad -api dynamo0.3 -t -otest $$(ADJT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
+	psyad -api lfric -t -otest $$(ADJT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
 
 #-----------------------------------------------------------------------------
 # For f90s
@@ -93,7 +93,7 @@ $(PSYAD_WDIR)/$1/atl_%_kernel_mod.f90: $(PSYAD_WDIR)/$1/tl_%_kernel_mod.f90 \
 
 	# Running PSyAD
 	echo "*Running* PSyAD on $$(basename $$(notdir $$<))"
-	psyad -api dynamo0.3 -t -otest $$(ATLT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
+	psyad -api lfric -t -otest $$(ATLT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
 
 # For regular kernels.
 $(PSYAD_WDIR)/$1/adj_%_kernel_mod.f90: $(PSYAD_WDIR)/$1/%_kernel_mod.f90 \
@@ -110,7 +110,7 @@ $(PSYAD_WDIR)/$1/adj_%_kernel_mod.f90: $(PSYAD_WDIR)/$1/%_kernel_mod.f90 \
 
 	# Running PSyAD
 	echo "*Running* PSyAD on $$(basename $$(notdir $$<))"
-	psyad -api dynamo0.3 -t -otest $$(ADJT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
+	psyad -api lfric -t -otest $$(ADJT_TARGET) -oad $$@ -a $$(ACTIVE_VARS) -- $$<
 
 endef # PSYAD
 

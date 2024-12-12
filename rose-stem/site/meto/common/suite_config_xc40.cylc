@@ -14,23 +14,23 @@
                        'export PATH=/critical/ukmo/unsupported/gmake/3.8.2/bin:$PATH' %}
 {% endif %}
 
-{% set xc40_compiler_intel = 'module load meto-environment/lfric/intel/17.0.0.098/9' %}
+{% set xc40_compiler_intel = 'module load meto-environment/lfric/intel/17.0.0.098/10' %}
 
-{% set xc40_compiler_cce = 'module load meto-environment/lfric/cce/8.7.0/6' %}
+{% set xc40_compiler_cce = 'module load meto-environment/lfric/cce/8.7.0/7' %}
 {% if site_vars["meto_xc40"] == "xcs" or site_vars["meto_xc40"] == "xcsc" %}
-    {% set xc40_compiler_cce = 'module load meto-environment/lfric/cce/8.7.0/7' %}
+    {% set xc40_compiler_cce = 'module load meto-environment/lfric/cray/8.7.0/8' %}
 {% endif %}
 
 {% set xc40_scitools = 'module load scitools/production-os45-1' %}
 
-{% set xc40_tech = 'module load meto-common/lfric/17 ; '~
+{% set xc40_tech = 'module load meto-common/lfric/18 ; '~
                    'module load cray-snplauncher/$CRAY_MPICH2_VER' %}
 {% if site_vars["meto_xc40"] == "xcs" or site_vars["meto_xc40"] == "xcsc" %}
-    {% set xc40_tech = 'module load meto-common-environment/lfric/17 ; '~
-                        'module load cray-snplauncher/$CRAY_MPICH2_VER' %}
+    {% set xc40_tech = 'module load meto-common-environment/lfric/18 ; '~
+                       'module load cray-snplauncher/$CRAY_MPICH2_VER' %}
 {% endif %}
 
-{% set xc40_compiler_perftools_intel = 'module load meto-environment/lfric-perftools/intel/17.0.0.098/2' %}
+{% set xc40_compiler_perftools_intel = 'module load meto-environment/lfric-perftools/intel/17.0.0.098/3' %}
 
 {% set xc40_cray_vars = 'module load meto-cray-var/cray_runtime_vars' %}
 

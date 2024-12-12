@@ -1,12 +1,7 @@
-@@ -1,20 +1,23 @@
--module adjoint_test_mod
-+module atlt_rhs_sample_eos_alg_mod
-   implicit none
-   public
+@@ -4,17 +4,20 @@
  
    contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_rhs_sample_eos_alg(mesh, chi, panel_id)
+   subroutine atlt_rhs_sample_eos_alg(mesh, chi, panel_id)
 +    use sci_assign_field_random_range_alg_mod, only : assign_field_random_range
      use field_mod, only : field_type
      use function_space_mod, only : function_space_type
@@ -63,18 +58,18 @@
 -    real(kind=r_def) :: ls_rho_ls_rho_input_inner_prod
 -    real(kind=r_def) :: ls_theta_ls_theta_input_inner_prod
 -    real(kind=r_def) :: ls_moist_dyn_gas_ls_moist_dyn_gas_input_inner_prod
-+    real(kind=r_def), parameter :: rhs_eos_sf = 1.0E-11_r_def
++    real(kind=r_def), parameter :: rhs_eos_sf = 1.0E-14_r_def
      real(kind=r_def) :: inner2
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
 @@ -84,79 +70,51 @@
-     call rho_input % initialise(vector_space=vector_space_w3_ptr, name='rho_input')
-     call theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
-     call moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
--    call ls_exner_input % initialise(vector_space=vector_space_w3_ptr, name='ls_exner_input')
--    call ls_rho_input % initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
--    call ls_theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
--    call ls_moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
+     call rho_input%initialise(vector_space=vector_space_w3_ptr, name='rho_input')
+     call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
+     call moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
+-    call ls_exner_input%initialise(vector_space=vector_space_w3_ptr, name='ls_exner_input')
+-    call ls_rho_input%initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
+-    call ls_theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
+-    call ls_moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
 -    call RANDOM_NUMBER(kappa)
 -    kappa_input = kappa
 -    call RANDOM_NUMBER(rd)
@@ -163,12 +158,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -168,6 +126,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_rhs_sample_eos_alg
- 
--end module adjoint_test_mod
-+end module atlt_rhs_sample_eos_alg_mod

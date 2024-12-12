@@ -1,17 +1,4 @@
-@@ -1,19 +1,20 @@
--module adjoint_test_mod
-+module adjt_apply_elim_mixed_lp_operator_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine adjt_apply_elim_mixed_lp_operator_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
-     use function_space_mod, only : function_space_type
-     use mesh_mod, only : mesh_type
-     use function_space_collection_mod, only : function_space_collection
-     use apply_elim_mixed_lp_operator_kernel_mod, only : apply_elim_mixed_lp_operator_kernel_type
+@@ -12,11 +12,12 @@
      use adj_apply_elim_mixed_lp_operator_kernel_mod, only : adj_apply_elim_mixed_lp_operator_kernel_type
      use finite_element_config_mod, only : element_order
      use fs_continuity_mod, only : w2, w3, wtheta
@@ -24,6 +11,9 @@
      use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
 -    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
 +    real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+     type(field_type), intent(in), optional :: panel_id
 @@ -26,23 +27,23 @@
 -    type(field_type) :: lhs_exner
 -    type(field_type) :: theta
@@ -97,12 +87,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -101,6 +102,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine adjt_apply_elim_mixed_lp_operator_alg
- 
--end module adjoint_test_mod
-+end module adjt_apply_elim_mixed_lp_operator_alg_mod

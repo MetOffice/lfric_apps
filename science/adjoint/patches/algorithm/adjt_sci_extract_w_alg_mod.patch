@@ -1,13 +1,4 @@
-@@ -1,15 +1,15 @@
--module adjoint_test_mod
-+module adjt_sci_extract_w_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine adjt_sci_extract_w_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
+@@ -8,8 +8,8 @@
      use function_space_mod, only : function_space_type
      use mesh_mod, only : mesh_type
      use function_space_collection_mod, only : function_space_collection
@@ -18,12 +9,3 @@
      use finite_element_config_mod, only : element_order
      use fs_continuity_mod, only : w2, wtheta
      use constants_mod, only : i_def, r_def
-@@ -67,6 +67,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine adjt_sci_extract_w_alg
- 
--end module adjoint_test_mod
-+end module adjt_sci_extract_w_alg_mod

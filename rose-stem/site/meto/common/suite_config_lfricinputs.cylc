@@ -49,7 +49,7 @@
                      module purge
                      module use /project/extrasoftware/modulefiles.rhel7
                      module use /data/users/lfric/software/modulefiles.rhel7
-                     module load environment/lfric/ifort/19.0_64/7
+                     module load environment/lfric/ifort/19.0_64/9
                      module list 2>&1
                      ulimit -s unlimited
                      """
@@ -63,7 +63,7 @@
                          module purge
                          module use /project/extrasoftware/modulefiles.rhel7
                          module use /data/users/lfric/software/modulefiles.rhel7
-                         module load environment/lfric/gcc/6.1.0/9
+                         module load environment/lfric/gcc/6.1.0/10
                          module list 2>&1
                          """
         post-script = """
@@ -86,7 +86,7 @@
                          module purge
                          module use /data/users/lfric/software/modulefiles.rhel7
                          module use /project/extrasoftware/modulefiles.rhel7
-                         module load environment/lfric/gcc/6.1.0/9
+                         module load environment/lfric/gcc/6.1.0/10
                          module load esmf/7.1.0r/gcc/6.1.0
                          module load scitools/production-os46-3
                          module load ifort/16.0_64
@@ -170,7 +170,7 @@
 {% if site_vars["meto_xc40"] == "xc" %}
         pre-script = """
                      source /data/d03/lfric/modules/setup
-                     module load meto-environment/lfric/intel/17.0.0.098/9
+                     module load meto-environment/lfric/intel/17.0.0.098/10
                      module load cray-snplauncher/$CRAY_MPICH2_VER
                      module swap craype-haswell craype-ivybridge
                      module list 2>&1
@@ -178,7 +178,7 @@
 {% else %}
         pre-script = """
                      module use /common/lfric/modules/modulefiles
-                     module load meto-environment/lfric/intel/17.0.0.098/9
+                     module load meto-environment/lfric/intel/17.0.0.098/10
                      module load cray-snplauncher/$CRAY_MPICH2_VER
                      module swap craype-haswell craype-ivybridge
                      module list 2>&1
@@ -189,7 +189,7 @@
 {% if site_vars["meto_xc40"] == "xc" %}
         pre-script = """
                      source /data/d03/lfric/modules/setup
-                     module load meto-environment/lfric/cce/8.7.0/6
+                     module load meto-environment/lfric/cce/8.7.0/7
                      module load cray-snplauncher/$CRAY_MPICH2_VER
                      module swap craype-haswell craype-ivybridge
                      module list 2>&1
@@ -197,7 +197,7 @@
 {% else %}
         pre-script = """
                      module use /common/lfric/modules/modulefiles
-                     module load meto-environment/lfric/cray/8.7.0/7
+                     module load meto-environment/lfric/cray/8.7.0/8
                      module load cray-snplauncher/$CRAY_MPICH2_VER
                      module swap craype-haswell craype-ivybridge
                      module list 2>&1

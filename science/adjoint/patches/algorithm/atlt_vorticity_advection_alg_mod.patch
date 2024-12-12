@@ -1,14 +1,4 @@
-@@ -1,15 +1,15 @@
--module adjoint_test_mod
-+module atlt_vorticity_advection_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_vorticity_advection_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
-     use function_space_mod, only : function_space_type
+@@ -9,7 +9,7 @@
      use mesh_mod, only : mesh_type
      use function_space_collection_mod, only : function_space_collection
      use tl_vorticity_advection_kernel_mod, only : tl_vorticity_advection_kernel_type
@@ -51,23 +41,23 @@
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
 @@ -69,79 +55,33 @@
-     call vorticity % initialise(vector_space=vector_space_w1_ptr, name='vorticity')
-     call ls_wind % initialise(vector_space=vector_space_w2_ptr, name='ls_wind')
-     call ls_vorticity % initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity')
--    call chi_3(1_i_def) % initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
--    call chi_3(2_i_def) % initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
--    call chi_3(3_i_def) % initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
--    call panel_id_1 % initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
+     call vorticity%initialise(vector_space=vector_space_w1_ptr, name='vorticity')
+     call ls_wind%initialise(vector_space=vector_space_w2_ptr, name='ls_wind')
+     call ls_vorticity%initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity')
+-    call chi_3(1_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
+-    call chi_3(2_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
+-    call chi_3(3_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
+-    call panel_id_1%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
      qr_xyoz = quadrature_xyoz_type(element_order + 3,quadrature_rule)
-     call r_u_input % initialise(vector_space=vector_space_w2_ptr, name='r_u_input')
-     call wind_input % initialise(vector_space=vector_space_w2_ptr, name='wind_input')
-     call vorticity_input % initialise(vector_space=vector_space_w1_ptr, name='vorticity_input')
--    call ls_wind_input % initialise(vector_space=vector_space_w2_ptr, name='ls_wind_input')
--    call ls_vorticity_input % initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity_input')
--    call chi_3_input(1_i_def) % initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
--    call chi_3_input(2_i_def) % initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
--    call chi_3_input(3_i_def) % initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
--    call panel_id_1_input % initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
+     call r_u_input%initialise(vector_space=vector_space_w2_ptr, name='r_u_input')
+     call wind_input%initialise(vector_space=vector_space_w2_ptr, name='wind_input')
+     call vorticity_input%initialise(vector_space=vector_space_w1_ptr, name='vorticity_input')
+-    call ls_wind_input%initialise(vector_space=vector_space_w2_ptr, name='ls_wind_input')
+-    call ls_vorticity_input%initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity_input')
+-    call chi_3_input(1_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
+-    call chi_3_input(2_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
+-    call chi_3_input(3_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
+-    call panel_id_1_input%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
      r_u_inner_prod = 0.0_r_def
      wind_inner_prod = 0.0_r_def
      vorticity_inner_prod = 0.0_r_def
@@ -136,12 +126,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -153,6 +93,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_vorticity_advection_alg
- 
--end module adjoint_test_mod
-+end module atlt_vorticity_advection_alg_mod

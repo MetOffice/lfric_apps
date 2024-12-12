@@ -10,12 +10,12 @@
 {% set ex1a_compiler_gnu =  'module switch cpe/22.11 cpe/23.05 ; ' ~
                             'module load PrgEnv-gnu ; '~
                             'module load gcc/12.2.0 ; '~
-                            'module load lfric-gnu/12.2.0' %}
+                            'module load lfric-gnu/12.2.0/0.5' %}
 
 {% set ex1a_compiler_cce =  'module switch PrgEnv-cray PrgEnv-cray/8.4.0 ; ' ~
                             'module load cpe/23.05 ; '~
                             'module switch cce cce/15.0.0 ; '~
-                            'module load lfric-cray/15.0.0' %}
+                            'module load lfric-cray/15.0.0/0.5' %}
 
 {% set set_ulimit = 'ulimit -s unlimited -c unlimited; '~
                     'ulimit -a '%}

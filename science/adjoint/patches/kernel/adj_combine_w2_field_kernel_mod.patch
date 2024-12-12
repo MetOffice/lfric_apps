@@ -1,14 +1,15 @@
-@@ -6,8 +6,8 @@
+@@ -6,9 +6,9 @@
    use kernel_mod, only : kernel_type
    use reference_element_mod, only : n
    implicit none
 -  interface combine_w2_field_code
--  module procedure combine_w2_field_code_r_single, combine_w2_field_code_r_double
 +  interface adj_combine_w2_field_code
-+  module procedure adj_combine_w2_field_code_r_single, adj_combine_w2_field_code_r_double
- end interface
+     module procedure :: adj_combine_w2_field_code_r_single, adj_combine_w2_field_code_r_double
+-  end interface combine_w2_field_code
++  end interface adj_combine_w2_field_code
    type, public, extends(kernel_type) :: adj_combine_w2_field_kernel_type
    type(ARG_TYPE) :: META_ARGS(5) = (/ &
+     arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_2), &
 @@ -21,7 +21,7 @@
  
    private

@@ -1,12 +1,7 @@
-@@ -1,15 +1,16 @@
--module adjoint_test_mod
-+module atlt_project_eos_pressure_alg_mod
-   implicit none
-   public
+@@ -4,12 +4,13 @@
  
    contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_project_eos_pressure_alg(mesh, chi, panel_id)
+   subroutine atlt_project_eos_pressure_alg(mesh, chi, panel_id)
 +    use sci_assign_field_random_range_alg_mod, only : assign_field_random_range
      use field_mod, only : field_type
      use function_space_mod, only : function_space_type
@@ -67,27 +62,27 @@
      real(kind=r_def) :: inner2
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
-@@ -79,93 +65,51 @@
-     call ls_rho % initialise(vector_space=vector_space_w3_ptr, name='ls_rho')
-     call ls_theta % initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta')
-     call ls_moist_dyn_gas % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas')
--    call chi3(1_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3')
--    call chi3(2_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3')
--    call chi3(3_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3')
--    call panel_id_1 % initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
-     call m3_inv % initialise(vector_space_w3_ptr, vector_space_w3_ptr)
+@@ -79,93 +65,48 @@
+     call ls_rho%initialise(vector_space=vector_space_w3_ptr, name='ls_rho')
+     call ls_theta%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta')
+     call ls_moist_dyn_gas%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas')
+-    call chi3(1_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call chi3(2_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call chi3(3_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call panel_id_1%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
+     call m3_inv%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
      qr_xyoz = quadrature_xyoz_type(element_order + 3,quadrature_rule)
-     call exner_input % initialise(vector_space=vector_space_w3_ptr, name='exner_input')
-     call rho_input % initialise(vector_space=vector_space_w3_ptr, name='rho_input')
-     call theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
-     call moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
--    call ls_rho_input % initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
--    call ls_theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
--    call ls_moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
--    call chi3_input(1_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
--    call chi3_input(2_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
--    call chi3_input(3_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
--    call panel_id_1_input % initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
+     call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
+     call rho_input%initialise(vector_space=vector_space_w3_ptr, name='rho_input')
+     call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
+     call moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
+-    call ls_rho_input%initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
+-    call ls_theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
+-    call ls_moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
+-    call chi3_input(1_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call chi3_input(2_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call chi3_input(3_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call panel_id_1_input%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
      exner_inner_prod = 0.0_r_def
      rho_inner_prod = 0.0_r_def
      theta_inner_prod = 0.0_r_def
@@ -114,7 +109,7 @@
 +    call assign_field_random_range( ls_theta, ls_theta_range(1), ls_theta_range(2) )
 +    call assign_field_random_range( ls_moist_dyn_gas, ls_md1_range(1), ls_md1_range(2) )
 +
-+call invoke(tl_project_eos_pressure_kernel_type(exner, rho, theta, moist_dyn_gas, ls_rho, &
++    call invoke(tl_project_eos_pressure_kernel_type(exner, rho, theta, moist_dyn_gas, ls_rho, &
 +&ls_theta, ls_moist_dyn_gas, chi, panel_id, m3_inv, qr_xyoz), x_innerproduct_x(exner_inner_prod, exner), &
  &x_innerproduct_x(rho_inner_prod, rho), x_innerproduct_x(theta_inner_prod, theta), x_innerproduct_x(moist_dyn_gas_inner_prod, &
 -&moist_dyn_gas), x_innerproduct_x(ls_rho_inner_prod, ls_rho), x_innerproduct_x(ls_theta_inner_prod, ls_theta), &
@@ -122,7 +117,6 @@
 -&x_innerproduct_x(chi3_inner_prod(2_i_def), chi3(2_i_def)), x_innerproduct_x(chi3_inner_prod(3_i_def), chi3(3_i_def)), &
 -&x_innerproduct_x(panel_id_1_inner_prod, panel_id_1))
 +&moist_dyn_gas))
-+
      inner1 = 0.0_r_def
 -    inner1 = inner1 + exner_inner_prod
 +    inner1 = inner1 + exner_inner_prod*exner_sf
@@ -136,9 +130,7 @@
 -    inner1 = inner1 + chi3_inner_prod(2_i_def)
 -    inner1 = inner1 + chi3_inner_prod(3_i_def)
 -    inner1 = inner1 + panel_id_1_inner_prod
-+
 +    call invoke( inc_a_times_X( exner_sf, exner ) )
-+
      exner_exner_input_inner_prod = 0.0_r_def
      rho_rho_input_inner_prod = 0.0_r_def
      theta_theta_input_inner_prod = 0.0_r_def
@@ -178,12 +170,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -177,6 +121,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_project_eos_pressure_alg
- 
--end module adjoint_test_mod
-+end module atlt_project_eos_pressure_alg_mod

@@ -1,12 +1,7 @@
-@@ -1,15 +1,16 @@
--module adjoint_test_mod
-+module atlt_hydrostatic_alg_mod
-   implicit none
-   public
+@@ -4,12 +4,13 @@
  
    contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_hydrostatic_alg(mesh, chi, panel_id)
+   subroutine atlt_hydrostatic_alg(mesh, chi, panel_id)
 +    use sci_assign_field_random_range_alg_mod, only : assign_field_random_range
      use field_mod, only : field_type
      use function_space_mod, only : function_space_type
@@ -18,17 +13,15 @@
      use finite_element_config_mod, only : element_order
      use fs_continuity_mod, only : w2, w3, wtheta
      use constants_mod, only : i_def, r_def
-@@ -17,7 +18,9 @@
+@@ -17,6 +18,8 @@
      use quadrature_rule_gaussian_mod, only : quadrature_rule_gaussian_type
      use setop_random_kernel_mod, only : setop_random_kernel_type
      use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
--    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
 +    use planet_config_mod, only : cp
 +    use adjoint_test_parameters_mod, only : ls_exner_range, ls_theta_range, ls_md1_range, ls_md2_range, ls_md3_range
-+    real(kind=r_def), parameter :: overall_tolerance = 3000.0_r_def
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
      type(mesh_type), pointer, intent(in) :: mesh
      type(field_type), dimension(3), intent(in), optional :: chi
-     type(field_type), intent(in), optional :: panel_id
 @@ -31,32 +34,22 @@
      type(field_type) :: ls_exner
      type(field_type) :: ls_theta
@@ -63,15 +56,15 @@
      real(kind=r_def) :: inner2
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
-@@ -82,91 +75,58 @@
-     call moist_dyn_fac_input(1_i_def) % initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
-     call moist_dyn_fac_input(2_i_def) % initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
-     call moist_dyn_fac_input(3_i_def) % initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
--    call ls_exner_input % initialise(vector_space=vector_space_w3_ptr, name='ls_exner_input')
--    call ls_theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
--    call ls_moist_dyn_fac_input(1_i_def) % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_fac_input')
--    call ls_moist_dyn_fac_input(2_i_def) % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_fac_input')
--    call ls_moist_dyn_fac_input(3_i_def) % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_fac_input')
+@@ -82,91 +75,55 @@
+     call moist_dyn_fac_input(1_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
+     call moist_dyn_fac_input(2_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
+     call moist_dyn_fac_input(3_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
+-    call ls_exner_input%initialise(vector_space=vector_space_w3_ptr, name='ls_exner_input')
+-    call ls_theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
+-    call ls_moist_dyn_fac_input(1_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_fac_input')
+-    call ls_moist_dyn_fac_input(2_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_fac_input')
+-    call ls_moist_dyn_fac_input(3_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_fac_input')
 -    call RANDOM_NUMBER(cp)
 -    cp_input = cp
      r_u_inner_prod = 0.0_r_def
@@ -112,7 +105,6 @@
 -&x_innerproduct_x(ls_moist_dyn_fac_inner_prod(2_i_def), ls_moist_dyn_fac(2_i_def)), &
 -&x_innerproduct_x(ls_moist_dyn_fac_inner_prod(3_i_def), ls_moist_dyn_fac(3_i_def)))
 +&moist_dyn_fac(2_i_def)), x_innerproduct_x(moist_dyn_fac_inner_prod(3_i_def), moist_dyn_fac(3_i_def)))
-+
      inner1 = 0.0_r_def
 -    inner1 = inner1 + cp * cp
 -    inner1 = inner1 + r_u_inner_prod
@@ -127,9 +119,7 @@
 -    inner1 = inner1 + ls_moist_dyn_fac_inner_prod(1_i_def)
 -    inner1 = inner1 + ls_moist_dyn_fac_inner_prod(2_i_def)
 -    inner1 = inner1 + ls_moist_dyn_fac_inner_prod(3_i_def)
-+
 +    call invoke( inc_a_times_X( r_u_sf, r_u ) )
-+
      r_u_r_u_input_inner_prod = 0.0_r_def
      exner_exner_input_inner_prod = 0.0_r_def
      theta_theta_input_inner_prod = 0.0_r_def
@@ -172,12 +162,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -178,6 +138,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_hydrostatic_alg
- 
--end module adjoint_test_mod
-+end module atlt_hydrostatic_alg_mod

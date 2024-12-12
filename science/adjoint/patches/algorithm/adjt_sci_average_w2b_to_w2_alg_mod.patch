@@ -1,13 +1,4 @@
-@@ -1,15 +1,15 @@
--module adjoint_test_mod
-+module adjt_sci_average_w2b_to_w2_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine adjt_sci_average_w2b_to_w2_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
+@@ -8,8 +8,8 @@
      use function_space_mod, only : function_space_type
      use mesh_mod, only : mesh_type
      use function_space_collection_mod, only : function_space_collection
@@ -34,10 +25,10 @@
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
 @@ -45,31 +42,24 @@
-     call rmultiplicity_w2 % initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_w2')
-     call field_w2_input % initialise(vector_space=vector_space_w2_ptr, name='field_w2_input')
-     call field_w2_broken_input % initialise(vector_space=vector_space_w2broken_ptr, name='field_w2_broken_input')
--    call rmultiplicity_w2_input % initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_w2_input')
+     call rmultiplicity_w2%initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_w2')
+     call field_w2_input%initialise(vector_space=vector_space_w2_ptr, name='field_w2_input')
+     call field_w2_broken_input%initialise(vector_space=vector_space_w2broken_ptr, name='field_w2_broken_input')
+-    call rmultiplicity_w2_input%initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_w2_input')
      field_w2_inner_prod = 0.0_r_def
      field_w2_broken_inner_prod = 0.0_r_def
 -    rmultiplicity_w2_inner_prod = 0.0_r_def
@@ -69,12 +60,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -81,6 +71,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine adjt_sci_average_w2b_to_w2_alg
- 
--end module adjoint_test_mod
-+end module adjt_sci_average_w2b_to_w2_alg_mod

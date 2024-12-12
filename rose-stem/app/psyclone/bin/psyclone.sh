@@ -7,13 +7,13 @@
 
 set -e
 
-# Path to Psyclone
+# Path to PSyclone
 export PSYCLONE="$(which psyclone)"
 
-# Version of Psyclone API
-PSYCLONE_API=dynamo0.3
+# Version of PSyclone API
+PSYCLONE_API=lfric
 
-# Declare project array, which indicates the project source psyclone is supposed to be run on.
+# Declare project array, which indicates the project source PSyclone is supposed to be run on.
 declare -a project
 project[0]="lfric_apps"
 project[1]="lfric_core"
@@ -44,14 +44,14 @@ alg_src_dir[2]="${BASE_SRC_DIR}lfric_apps/applications/lfricinputs/source/scinte
 
 PRE_PROCESS_MACROS="RDEF_PRECISION=64"
 
-# Psyclone input files are labelled ".x90"; for each algorithm file we find
-# which matches that naming convention, Psyclone will generate two output files,
+# PSyclone input files are labelled ".x90"; for each algorithm file we find
+# which matches that naming convention, PSyclone will generate two output files,
 # one containing "psy" code and one containing the transformed algorithm.
-# We generate appropriate file names for each, and then invoke Psyclone.
+# We generate appropriate file names for each, and then invoke PSyclone.
 for i in "${!project[@]}"; do
 
   echo
-  echo 'Running psyclone on '"${project[$i]}"' source'
+  echo 'Running PSyclone on '"${project[$i]}"' source'
   echo
 
   # First preprocess the .x90 and .X90 files to remove ifdef's etc.
@@ -66,7 +66,7 @@ for i in "${!project[@]}"; do
 
   done
 
-  # Now setup and invoke psyclone for each processed source file
+  # Now setup and invoke PSyclone for each processed source file
   DIR_LIST="${processed_source}"
   for x90file in $(find $DIR_LIST -name '*.[xX]90'); do
 

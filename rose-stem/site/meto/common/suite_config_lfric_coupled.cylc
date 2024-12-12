@@ -17,15 +17,9 @@
                                'module load meto-gmake/4.3' %}
 {% endif %}
 
-{% set xc40_coupled_intel = 'module load GC5-PrgEnv/intel/17.0.0.098/2024-02-ifort/5101 ; '~
-                            'module unload meto-rose-picker/1.0.0 ; '~
-                            'module load meto-python/3.7.0/venv-os45-1 ; '~
-                            'module load meto-rose-picker/2.0.0/python/3.7.0' %}
+{% set xc40_coupled_intel = 'module load GC5-PrgEnv/intel/17.0.0.098/2024-12-ifort/5427' %}
 {% if site_vars["meto_xc40"] == "xcs" %}
-    {% set xc40_coupled_intel = 'module load GC5-PrgEnv/intel/17.0.0.098/2024-02-ifort/5103 ; '~
-                                'module unload meto-rose-picker/1.0.0 ; '~
-                                'module load meto-python/3.7.0/venv-os45-1 ; '~
-                                'module load meto-rose-picker/2.0.0/python/3.7.0' %}
+    {% set xc40_coupled_intel = 'module load GC5-PrgEnv/intel/17.0.0.098/2024-12-ifort/5425' %}
 {% endif %}
 
 {% set xc40_coupled_setup = 'module load cray-snplauncher/${CRAY_MPICH2_VER}' %}

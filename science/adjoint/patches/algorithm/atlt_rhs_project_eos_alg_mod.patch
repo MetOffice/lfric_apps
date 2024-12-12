@@ -1,12 +1,7 @@
-@@ -1,22 +1,25 @@
--module adjoint_test_mod
-+module atlt_rhs_project_eos_alg_mod
-   implicit none
-   public
+@@ -4,19 +4,22 @@
  
    contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_rhs_project_eos_alg(mesh, chi, panel_id)
+   subroutine atlt_rhs_project_eos_alg(mesh, chi, panel_id)
 +    use sci_assign_field_random_range_alg_mod, only : assign_field_random_range
      use field_mod, only : field_type
      use function_space_mod, only : function_space_type
@@ -75,32 +70,32 @@
 -    real(kind=r_def) :: ls_moist_dyn_gas_ls_moist_dyn_gas_input_inner_prod
 -    real(kind=r_def), dimension(3) :: chi3_chi3_input_inner_prod
 -    real(kind=r_def) :: panel_id_1_panel_id_1_input_inner_prod
-+    real(kind=r_def), parameter :: rhs_eos_sf = 1.0E-32_r_def
++    real(kind=r_def), parameter :: rhs_eos_sf = 1.0E-36_r_def
      real(kind=r_def) :: inner2
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
-@@ -93,118 +71,58 @@
-     call ls_rho % initialise(vector_space=vector_space_w3_ptr, name='ls_rho')
-     call ls_theta % initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta')
-     call ls_moist_dyn_gas % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas')
--    call chi3(1_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3')
--    call chi3(2_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3')
--    call chi3(3_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3')
--    call panel_id_1 % initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
+@@ -93,118 +71,54 @@
+     call ls_rho%initialise(vector_space=vector_space_w3_ptr, name='ls_rho')
+     call ls_theta%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta')
+     call ls_moist_dyn_gas%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas')
+-    call chi3(1_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call chi3(2_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call chi3(3_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call panel_id_1%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
      qr_xyoz = quadrature_xyoz_type(element_order + 3,quadrature_rule)
-     call rhs_eos_input % initialise(vector_space=vector_space_w3_ptr, name='rhs_eos_input')
-     call exner_input % initialise(vector_space=vector_space_w3_ptr, name='exner_input')
-     call rho_input % initialise(vector_space=vector_space_w3_ptr, name='rho_input')
-     call theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
-     call moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
--    call ls_exner_input % initialise(vector_space=vector_space_w3_ptr, name='ls_exner_input')
--    call ls_rho_input % initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
--    call ls_theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
--    call ls_moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
--    call chi3_input(1_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
--    call chi3_input(2_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
--    call chi3_input(3_i_def) % initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
--    call panel_id_1_input % initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
+     call rhs_eos_input%initialise(vector_space=vector_space_w3_ptr, name='rhs_eos_input')
+     call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
+     call rho_input%initialise(vector_space=vector_space_w3_ptr, name='rho_input')
+     call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
+     call moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
+-    call ls_exner_input%initialise(vector_space=vector_space_w3_ptr, name='ls_exner_input')
+-    call ls_rho_input%initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
+-    call ls_theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
+-    call ls_moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
+-    call chi3_input(1_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call chi3_input(2_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call chi3_input(3_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call panel_id_1_input%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
 -    call RANDOM_NUMBER(kappa)
 -    kappa_input = kappa
 -    call RANDOM_NUMBER(rd)
@@ -130,6 +125,12 @@
 -&setval_x(chi3_input(3_i_def), chi3(3_i_def)), setval_random(panel_id_1), setval_x(panel_id_1_input, panel_id_1), &
 -&tl_rhs_project_eos_kernel_type(rhs_eos, exner, rho, theta, moist_dyn_gas, ls_exner, ls_rho, ls_theta, ls_moist_dyn_gas, chi3, &
 -&panel_id_1, kappa, rd, p_zero, qr_xyoz), x_innerproduct_x(rhs_eos_inner_prod, rhs_eos), x_innerproduct_x(exner_inner_prod, &
+-&exner), x_innerproduct_x(rho_inner_prod, rho), x_innerproduct_x(theta_inner_prod, theta), &
+-&x_innerproduct_x(moist_dyn_gas_inner_prod, moist_dyn_gas), x_innerproduct_x(ls_exner_inner_prod, ls_exner), &
+-&x_innerproduct_x(ls_rho_inner_prod, ls_rho), x_innerproduct_x(ls_theta_inner_prod, ls_theta), &
+-&x_innerproduct_x(ls_moist_dyn_gas_inner_prod, ls_moist_dyn_gas), x_innerproduct_x(chi3_inner_prod(1_i_def), chi3(1_i_def)), &
+-&x_innerproduct_x(chi3_inner_prod(2_i_def), chi3(2_i_def)), x_innerproduct_x(chi3_inner_prod(3_i_def), chi3(3_i_def)), &
+-&x_innerproduct_x(panel_id_1_inner_prod, panel_id_1))
 +&setval_x(moist_dyn_gas_input, moist_dyn_gas))
 +
 +    call assign_field_random_range( ls_exner, ls_exner_range(1), ls_exner_range(2) )
@@ -138,16 +139,9 @@
 +    call assign_field_random_range( ls_moist_dyn_gas, ls_md1_range(1), ls_md1_range(2) )
 +
 +    call invoke(tl_rhs_project_eos_kernel_type(rhs_eos, exner, rho, theta, moist_dyn_gas, ls_exner, ls_rho, ls_theta, &
-+&ls_moist_dyn_gas, chi, panel_id, kappa, rd, p_zero, qr_xyoz), &
-+&x_innerproduct_x(rhs_eos_inner_prod, rhs_eos), x_innerproduct_x(exner_inner_prod, &
- &exner), x_innerproduct_x(rho_inner_prod, rho), x_innerproduct_x(theta_inner_prod, theta), &
--&x_innerproduct_x(moist_dyn_gas_inner_prod, moist_dyn_gas), x_innerproduct_x(ls_exner_inner_prod, ls_exner), &
--&x_innerproduct_x(ls_rho_inner_prod, ls_rho), x_innerproduct_x(ls_theta_inner_prod, ls_theta), &
--&x_innerproduct_x(ls_moist_dyn_gas_inner_prod, ls_moist_dyn_gas), x_innerproduct_x(chi3_inner_prod(1_i_def), chi3(1_i_def)), &
--&x_innerproduct_x(chi3_inner_prod(2_i_def), chi3(2_i_def)), x_innerproduct_x(chi3_inner_prod(3_i_def), chi3(3_i_def)), &
--&x_innerproduct_x(panel_id_1_inner_prod, panel_id_1))
++&ls_moist_dyn_gas, chi, panel_id, kappa, rd, p_zero, qr_xyoz), x_innerproduct_x(rhs_eos_inner_prod, rhs_eos), &
++&x_innerproduct_x(exner_inner_prod, exner), x_innerproduct_x(rho_inner_prod, rho), x_innerproduct_x(theta_inner_prod, theta), &
 +&x_innerproduct_x(moist_dyn_gas_inner_prod, moist_dyn_gas))
-+
      inner1 = 0.0_r_def
 -    inner1 = inner1 + kappa * kappa
 -    inner1 = inner1 + rd * rd
@@ -166,9 +160,7 @@
 -    inner1 = inner1 + chi3_inner_prod(2_i_def)
 -    inner1 = inner1 + chi3_inner_prod(3_i_def)
 -    inner1 = inner1 + panel_id_1_inner_prod
-+
 +    call invoke( inc_a_times_X( rhs_eos_sf, rhs_eos ) )
-+
      rhs_eos_rhs_eos_input_inner_prod = 0.0_r_def
      exner_exner_input_inner_prod = 0.0_r_def
      rho_rho_input_inner_prod = 0.0_r_def
@@ -217,12 +209,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -216,6 +134,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_rhs_project_eos_alg
- 
--end module adjoint_test_mod
-+end module atlt_rhs_project_eos_alg_mod

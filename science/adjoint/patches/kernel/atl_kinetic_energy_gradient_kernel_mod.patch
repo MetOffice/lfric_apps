@@ -31,15 +31,15 @@
 +  subroutine atl_kinetic_energy_gradient_code(nlayers, r_u, u, ls_u, chi_1, chi_2, chi_3, panel_id, ndf_w2, undf_w2, map_w2, &
  &w2_basis, w2_diff_basis, ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, &
  &wqp_v)
-     use coordinate_jacobian_mod, only : coordinate_jacobian
-@@ -78,7 +78,6 @@
-     integer :: i
+     use sci_coordinate_jacobian_mod, only : coordinate_jacobian
+@@ -75,7 +75,6 @@
+     real(kind=r_def) :: dv
+     real(kind=r_def), dimension(3) :: mul1
+     real(kind=r_def), dimension(3) :: mul2
+-    integer :: i
      real(kind=r_def) :: res_dot_product
      integer :: idx
--    integer :: i_2
-     integer :: j
-     integer :: i_1
-     integer :: j_1
+     integer :: idx_1
 @@ -153,6 +152,6 @@
        enddo
      enddo

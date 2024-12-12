@@ -1,17 +1,4 @@
-@@ -1,19 +1,20 @@
--module adjoint_test_mod
-+module adjt_apply_mixed_lu_operator_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine adjt_apply_mixed_lu_operator_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
-     use function_space_mod, only : function_space_type
-     use mesh_mod, only : mesh_type
-     use function_space_collection_mod, only : function_space_collection
-     use apply_mixed_lu_operator_kernel_mod, only : apply_mixed_lu_operator_kernel_type
+@@ -12,44 +12,45 @@
      use adj_apply_mixed_lu_operator_kernel_mod, only : adj_apply_mixed_lu_operator_kernel_type
      use finite_element_config_mod, only : element_order
      use fs_continuity_mod, only : w2, w3, wtheta
@@ -24,7 +11,12 @@
      use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
 -    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
 +    real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
-@@ -26,27 +27,27 @@
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+     type(field_type), intent(in), optional :: panel_id
+     TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+     TYPE(function_space_type), POINTER :: vector_space_w3_ptr
+     TYPE(function_space_type), POINTER :: vector_space_wtheta_ptr
 -    type(field_type) :: lhs_u
 -    type(field_type) :: wind
 -    type(field_type) :: theta
@@ -69,6 +61,9 @@
 +    real(kind=r_solver) :: inner2
 +    real(kind=r_solver) :: MachineTol
 +    real(kind=r_solver) :: relative_diff
+ 
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order,w2)
+     vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order,w3)
 @@ -79,12 +80,12 @@
  &setop_random_kernel_type(grad), apply_mixed_lu_operator_kernel_type(lhs_u, wind, theta, exner, mu_cd, p2theta, grad, norm_u), &
  &x_innerproduct_x(lhs_u_inner_prod, lhs_u), x_innerproduct_x(wind_inner_prod, wind), x_innerproduct_x(theta_inner_prod, theta), &
@@ -107,12 +102,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -111,6 +112,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine adjt_apply_mixed_lu_operator_alg
- 
--end module adjoint_test_mod
-+end module adjt_apply_mixed_lu_operator_alg_mod

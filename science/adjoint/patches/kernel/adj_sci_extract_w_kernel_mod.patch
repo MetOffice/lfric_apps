@@ -1,4 +1,4 @@
-@@ -1,11 +1,11 @@
+@@ -1,12 +1,12 @@
 -module adj_extract_w_kernel_mod
 +module adj_sci_extract_w_kernel_mod
    use argument_mod, only : arg_type, cell_column, gh_field, gh_read, gh_real, gh_write
@@ -7,12 +7,13 @@
    use kernel_mod, only : kernel_type
    implicit none
 -  interface extract_w_code
--  module procedure extract_w_code_r_single, extract_w_code_r_double
 +  interface adj_extract_w_code
-+  module procedure adj_extract_w_code_r_single, adj_extract_w_code_r_double
- end interface
+     module procedure :: adj_extract_w_code_r_single, adj_extract_w_code_r_double
+-  end interface extract_w_code
++  end interface adj_extract_w_code
    type, public, extends(kernel_type) :: adj_extract_w_kernel_type
    type(ARG_TYPE) :: META_ARGS(2) = (/ &
+     arg_type(gh_field, gh_real, gh_write, wtheta), &
 @@ -16,7 +16,7 @@
  
    private

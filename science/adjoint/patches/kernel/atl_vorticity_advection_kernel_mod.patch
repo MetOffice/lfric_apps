@@ -40,24 +40,16 @@
 +  subroutine atl_vorticity_advection_code(nlayers, r_u, wind, vorticity, ls_wind, ls_vorticity, chi_1, chi_2, chi_3, panel_id, &
  &ndf_w2, undf_w2, map_w2, w2_basis, ndf_w1, undf_w1, map_w1, w1_basis, ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, &
  &ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
-     use coordinate_jacobian_mod, only : pointwise_coordinate_jacobian, pointwise_coordinate_jacobian_inverse
-@@ -92,15 +92,12 @@
+     use sci_coordinate_jacobian_mod, only : pointwise_coordinate_jacobian, pointwise_coordinate_jacobian_inverse
+@@ -86,7 +86,6 @@
+     real(kind=r_def), dimension(3) :: mul2
+     real(kind=r_def), dimension(3) :: cross_product1
+     real(kind=r_def), dimension(3) :: cross_product2
+-    integer :: i
+     real(kind=r_def) :: res_dot_product
+     integer :: idx
      integer :: idx_1
-     integer :: idx_2
-     integer :: idx_3
--    integer :: i_3
-     integer :: j
-     integer :: ii
-     integer :: i_1
-     integer :: j_1
-     integer :: i_2
-     integer :: j_2
--    integer :: idx_2_1
--    integer :: idx_1_1
- 
-     vorticity_at_quad = 0.0_r_def
-     u_at_quad = 0.0_r_def
-@@ -207,6 +204,6 @@
+@@ -207,6 +206,6 @@
        enddo
      enddo
  

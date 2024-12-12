@@ -1,14 +1,4 @@
-@@ -1,15 +1,15 @@
--module adjoint_test_mod
-+module atlt_sample_eos_pressure_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_sample_eos_pressure_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
-     use function_space_mod, only : function_space_type
+@@ -9,7 +9,7 @@
      use mesh_mod, only : mesh_type
      use function_space_collection_mod, only : function_space_collection
      use tl_sample_eos_pressure_kernel_mod, only : tl_sample_eos_pressure_kernel_type
@@ -43,12 +33,12 @@
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
 @@ -67,55 +58,35 @@
-     call rho_input % initialise(vector_space=vector_space_w3_ptr, name='rho_input')
-     call theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
-     call moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
--    call ls_rho_input % initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
--    call ls_theta_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
--    call ls_moist_dyn_gas_input % initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
+     call rho_input%initialise(vector_space=vector_space_w3_ptr, name='rho_input')
+     call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
+     call moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
+-    call ls_rho_input%initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
+-    call ls_theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
+-    call ls_moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
      exner_inner_prod = 0.0_r_def
      rho_inner_prod = 0.0_r_def
      theta_inner_prod = 0.0_r_def
@@ -102,12 +92,3 @@
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol
-@@ -127,6 +98,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_sample_eos_pressure_alg
- 
--end module adjoint_test_mod
-+end module atlt_sample_eos_pressure_alg_mod

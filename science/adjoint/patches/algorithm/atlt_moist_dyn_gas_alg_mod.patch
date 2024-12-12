@@ -1,14 +1,4 @@
-@@ -1,15 +1,15 @@
--module adjoint_test_mod
-+module atlt_moist_dyn_gas_alg_mod
-   implicit none
-   public
- 
-   contains
--  subroutine adjoint_test(mesh, chi, panel_id)
-+  subroutine atlt_moist_dyn_gas_alg(mesh, chi, panel_id)
-     use field_mod, only : field_type
-     use function_space_mod, only : function_space_type
+@@ -9,7 +9,7 @@
      use mesh_mod, only : mesh_type
      use function_space_collection_mod, only : function_space_collection
      use tl_moist_dyn_gas_kernel_mod, only : tl_moist_dyn_gas_kernel_type
@@ -26,12 +16,3 @@
  &moist_dyn_gas, moist_dyn_gas_input), x_innerproduct_y(mr_v_mr_v_input_inner_prod, mr_v, mr_v_input))
      inner2 = 0.0_r_def
      inner2 = inner2 + moist_dyn_gas_moist_dyn_gas_input_inner_prod
-@@ -65,6 +65,6 @@
-       call log_event(log_scratch_space, log_level_error)
-     end if
- 
--  end subroutine adjoint_test
-+  end subroutine atlt_moist_dyn_gas_alg
- 
--end module adjoint_test_mod
-+end module atlt_moist_dyn_gas_alg_mod
