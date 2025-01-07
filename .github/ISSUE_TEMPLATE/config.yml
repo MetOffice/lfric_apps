@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: LFRic Core community support
+  - name: LFRic community support
     url: https://github.com/MetOffice/simulation-systems/discussions/categories/lfric
     about: Please ask and answer questions here.
+  - name: Documentation
+    url: https://metoffice.github.io/lfric_apps
+    about: Documentation for the LFRic Core software.
