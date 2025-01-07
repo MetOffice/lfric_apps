@@ -1,0 +1,41 @@
+name: Custom Issue
+description: Submit a generic issue to help improve LFRic Core
+title: "[Custom Issue]: "
+labels: ["enhancement"]
+projects: ["MetOffice/208"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to help improve LFRic Core.
+  - type: input
+    id: contact
+    attributes:
+      label: Contact Details
+      description: How can we get in touch with you if we need more info?
+      placeholder: ex. email@example.com
+    validations:
+      required: false
+  - type: textarea
+    id: linked-issues
+    attributes:
+      label: Are there any linked Issues or Pull Requests?
+      description: Please tell us about any issues that might be associated with this bug or PRs that may be affected.
+      placeholder: e.g. #12, MetOffice/Vernier#33
+    validations:
+      required: false
+  - type: textarea
+    id: issue-brief
+    attributes:
+      label: Brief description
+      description: Please give a brief description of the issue.
+      placeholder: Brief description of issue.
+    validations:
+      required: true
+  - type: textarea
+    id: detailed-description
+    attributes:
+      label: Further details of the issue.
+      description: Please give a detailed description of the issue to help with development including any requirements and links to additional literature
+      render: shell
+

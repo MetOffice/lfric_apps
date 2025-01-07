@@ -1,0 +1,47 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main] # branch to trigger deployment
+
+jobs:
+  pages:
+    runs-on: ubuntu-22.04
+    environment:
+      name: github-pages
+      # url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+    - id: extract
+      uses: actions/checkout@v4
+      with:
+        ref: main
+    - id: setup_environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+    - id: finesse_environment
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install sphinx pydata-sphinx-theme sphinx-sitemap sphinx_design
+    - id: sphinx
+      run: |
+        cd documentation
+        make html
+    - id: permissions
+      run: |
+        chmod -c -R +rX "documentation/build/html/"
+    - id: deployment
+      uses: actions/upload-pages-artifact@v3
+      with:
+        name: github-pages
+        path: documentation/build/html
+        retention-days: 1
+    # May not be needed for pull requests?
+    - id: configure
+      uses: actions/configure-pages@v4
+    - id: deploy
+      uses: actions/deploy-pages@v4

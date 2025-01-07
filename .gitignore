@@ -30,3 +30,16 @@
 *.exe
 *.out
 *.app
+
+# Sphinx
+documentation/build
+
+# Jetbrains
+.idea
+
+# vscode
+.vscode
+
+# Emacs backup files
+.#*
+\#*#
