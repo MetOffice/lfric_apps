@@ -2,11 +2,14 @@
 #
 # -- imports -----------------------------------------------------------------
 import os
+
+import docutils
+
 # -- Project information -----------------------------------------------------
 
 project = 'LFRic Apps'
 author = 'Simulation IT'
-copyright = '2024 Met Office. All rights reserved'
+copyright = '2025 Met Office. All rights reserved'
 release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
@@ -100,3 +103,15 @@ rst_prolog = ""
 # Add the contents of the common_links file to the epilog.
 with open('common_links.rst') as file:
     rst_prolog += file.read()
+
+
+def superscript_substitution_role(name, rawtext, text, lineno, inliner,
+                                  options={}, content=[]):
+    node = docutils.nodes.superscript()
+    node2 = docutils.nodes.substitution_reference(refname=text)
+    node += [node2]
+    return [node], []
+
+
+def setup(app):
+    app.add_role('superscript_substitution', superscript_substitution_role)
