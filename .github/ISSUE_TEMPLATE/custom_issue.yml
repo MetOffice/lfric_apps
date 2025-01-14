@@ -1,12 +1,12 @@
 name: Custom Issue
-description: Submit a generic issue to help improve LFRic Core
+description: Submit a generic issue to help improve LFRic Apps
 title: "[Custom Issue]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to help improve LFRic Core.
+        Thanks for taking the time to help improve LFRic Apps.
   - type: input
     id: contact
     attributes:

@@ -34,7 +34,7 @@ html_css_files = ["custom.css"]
 # a list of builtin themes.
 #
 html_theme = 'pydata_sphinx_theme'
-# html_title = "LFRic Core"
+# html_title = "LFRic Apps"
 
 # Generate the sitemap info, this will need updating when we have versioned docs
 html_baseurl = os.environ.get("SPHINX_HTML_BASE_URL", "https://metoffice.github.io/lfric_apps")

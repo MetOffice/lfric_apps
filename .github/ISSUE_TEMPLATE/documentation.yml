@@ -1,12 +1,12 @@
 name: Documentation
-description: Report an issue with the LFRic Core documentation
+description: Report an issue with the LFRic Apps documentation
 title: "[Documentation]: "
 labels: ["documentation"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to help improve the LFRic Core documentation.
+        Thanks for taking the time to help improve the LFRic Apps documentation.
   - type: input
     id: contact
     attributes:
