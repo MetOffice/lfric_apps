@@ -13,7 +13,7 @@ The repository contains the following directories:
 
 - The ``science`` directory contains several libraries of science code and
   interface code which allows calls to external models each of which can be used
-  in the development of applications. For example, the **gungho-model**
+  in the development of applications. For example, the **gungho**
   library provides the dynamical core used in the |Momentum| Atmosphere
   application.
 - The ``applications`` directory contains the different applications that have
