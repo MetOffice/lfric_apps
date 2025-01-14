@@ -1,5 +1,5 @@
 .. -----------------------------------------------------------------------------
-    (c) Crown copyright 2024 Met Office. All rights reserved.
+    (c) Crown copyright 2025 Met Office. All rights reserved.
     The file LICENCE, distributed with this code, contains details of the terms
     under which the code may be used.
    -----------------------------------------------------------------------------
@@ -10,9 +10,9 @@
 LFRic Apps
 ==========
 
-The `LFRic Apps <lfric_apps_github_>`__ repository is home to the
-`LFRic Core <lfric_core_github_>`__ based science applications such as lfric_atm
-and science code such as the GungHo dynamical core.
+The `LFRic Apps <lfric_apps_github_>`__ repository is home to the documentation
+for `LFRic Core <lfric_core_github_>`__ based science applications such as
+lfric_atm and science code such as the GungHo dynamical core.
 
 The `LFRic Core <lfric_core_github_>`__ is developed in a separate repository
 and is designed to be a general modelling infrastructure for earth system
@@ -62,9 +62,10 @@ modelling.
 
                 Developer Guide
 
-Development of the new LFRic atmosphere model is being done within the Momentum
-Partnership. The LFRic atmosphere application is accessible to Met Office
-partners. Key initial aims for the Momentum atmosphere model are as follows:
+Development of the new LFRic atmosphere model is being done within the
+|Momentum| Partnership.
+The LFRic atmosphere application is accessible to Met Office partners.
+Key initial aims for the |Momentum| atmosphere model are as follows:
 
 - The model will be scientifically as good as the UM atmosphere.
 - The model will scale better on future exascale platforms.

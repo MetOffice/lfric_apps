@@ -1,5 +1,5 @@
 .. -----------------------------------------------------------------------------
-     (c) Crown copyright 2023 Met Office. All rights reserved.
+     (c) Crown copyright 2025 Met Office. All rights reserved.
      The file LICENCE, distributed with this code, contains details of the terms
      under which the code may be used.
    -----------------------------------------------------------------------------
@@ -9,9 +9,8 @@
 Applications
 ============
 
-The LFRic Apps repository applications consist of the main Momentum Atmosphere
-application as well as a number of smaller test applications covering various
-aspects of the code being developed. Each application is summarised here:
+This section contains a description of each application contained within the
+lfric_apps repository:
 
 .. toctree::
     :maxdepth: 1

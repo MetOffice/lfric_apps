@@ -1,5 +1,5 @@
 .. -----------------------------------------------------------------------------
-    (c) Crown copyright 2024 Met Office. All rights reserved.
+    (c) Crown copyright 2025 Met Office. All rights reserved.
     The file LICENCE, distributed with this code, contains details of the terms
     under which the code may be used.
    -----------------------------------------------------------------------------
@@ -7,11 +7,11 @@
 
 Guide to the documentation
 --------------------------
-The LFRic Apps documentation is split into a number of main sections, this
-:ref:`Getting Started <getting_started_index>` section contains information on
-the dependencies required to run any of the LFRic based applications
-including those found in LFRic Core. The :ref:`User Guide <user_guide_index>`
-details for users of applications.
+The LFRic Apps documentation is split into a number of main sections. This is
+the :ref:`Getting Started <getting_started_index>` section which contains
+information on the dependencies required to run any of the LFRic based
+applications including those found in LFRic Core.
+The :ref:`User Guide <user_guide_index>` details for users of applications.
 The :ref:`Developer Guide <developer_guide_index>`
 contains guidance for those doing development of the applications themselves.
 

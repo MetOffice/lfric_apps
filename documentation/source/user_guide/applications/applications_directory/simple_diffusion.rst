@@ -1,5 +1,5 @@
 .. -----------------------------------------------------------------------------
-     (c) Crown copyright 2023 Met Office. All rights reserved.
+     (c) Crown copyright 2025 Met Office. All rights reserved.
      The file LICENCE, distributed with this code, contains details of the terms
      under which the code may be used.
    -----------------------------------------------------------------------------
@@ -20,5 +20,5 @@ transported:
    wind components in the full model)
 #. A Wtheta field in a non-conservative (advective) form equation (equivalent to
    the potential temperature in the full model)
-#. A Wtheta field in a consevative (flux) form equation as a mixing ratio
+#. A Wtheta field in a conservative (flux) form equation as a mixing ratio
    (equivalent to moisture in the full model)
