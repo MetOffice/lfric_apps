@@ -11,7 +11,8 @@ The LFRic Apps documentation is split into a number of main sections. This is
 the :ref:`Getting Started <getting_started_index>` section which contains
 information on the dependencies required to run any of the LFRic based
 applications including those found in LFRic Core.
-The :ref:`User Guide <user_guide_index>` details for users of applications.
+The :ref:`User Guide <user_guide_index>` describes the purpose of the 
+applications and how to use them.
 The :ref:`Developer Guide <developer_guide_index>`
 contains guidance for those doing development of the applications themselves.
 
