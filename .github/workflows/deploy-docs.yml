@@ -30,7 +30,7 @@ jobs:
     - id: sphinx
       run: |
         cd documentation
-        make html
+        make clean linkcheck html
     - id: permissions
       run: |
         chmod -c -R +rX "documentation/build/html/"
