@@ -28,6 +28,9 @@ templates_path = ['_templates']
 html_static_path = ["_static"]
 html_css_files = ["custom.css"]
 
+linkcheck_ignore = ['https://github.com/MetOffice/lfric_apps',
+                    'https://github.com/MetOffice/lfric_core']
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
