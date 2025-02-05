@@ -11,6 +11,7 @@
 .. _lfric_core_docs: https://metoffice.github.io/lfric_core
 .. _lfric_core_github: https://github.com/MetOffice/lfric_core
 .. _working_practice_docs: https://metoffice.github.io/simulation-systems
+.. _cylc_docs: https://cylc.github.io/cylc-doc/stable/html/
 
 
 .. Email links
@@ -21,3 +22,6 @@
 .. |reg| unicode:: U+000AE
 .. |regsup| replace:: :superscript_substitution:`reg`
 .. |Momentum| replace:: Momentum\ |regsup|
+.. |br| raw:: html
+
+   <br/>
