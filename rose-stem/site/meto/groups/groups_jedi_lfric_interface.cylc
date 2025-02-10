@@ -15,6 +15,7 @@
         "jedi_lfric_interface_spice_developer",
     ],
     "jedi_lfric_interface_spice_unit_tests": [
+        "jedi_lfric_interface_unit_tests_spice_intel_64bit",
         "jedi_lfric_interface_unit_tests_spice_gnu_64bit",
     ],
     "jedi_lfric_interface_spice_integration_tests": [
@@ -49,9 +50,26 @@
         "jedi_lfric_interface_xc40_developer",
     ],
     "jedi_lfric_interface_xc40_unit_tests": [
+        "jedi_lfric_interface_unit_tests_xc40_intel_64bit",
     ],
     "jedi_lfric_interface_xc40_integration_tests": [
         "jedi_lfric_interface_integration_tests_xc40_intel_64bit",
+    ],
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "jedi_lfric_interface_ex1a_developer": [
+        "jedi_lfric_interface_ex1a_integration_tests",
+    ],
+    "jedi_lfric_interface_ex1a": [
+        "jedi_lfric_interface_ex1a_developer",
+    ],
+    "jedi_lfric_interface_ex1a_unit_tests": [
+        "jedi_lfric_interface_unit_tests_ex1a_cce_64bit",
+    ],
+    "jedi_lfric_interface_ex1a_integration_tests": [
+        "jedi_lfric_interface_integration_tests_ex1a_cce_64bit",
     ],
     }) %}
 
@@ -84,17 +102,21 @@
         "jedi_lfric_interface_developer": [
             "scripts",
             "jedi_lfric_interface_azspice_developer",
+            "jedi_lfric_interface_ex1a_developer",
             "jedi_lfric_interface_integration_tests",
         ],
         "jedi_lfric_interface": [
             "jedi_lfric_interface_developer",
             "jedi_lfric_interface_azspice",
+            "jedi_lfric_interface_ex1a",
         ],
         "jedi_lfric_interface_unit_tests": [
             "jedi_lfric_interface_azspice_unit_tests",
+            "jedi_lfric_interface_ex1a_unit_tests",
         ],
         "jedi_lfric_interface_integration_tests": [
             "jedi_lfric_interface_azspice_integration_tests",
+            "jedi_lfric_interface_ex1a_integration_tests",
         ],
         }) %}
 {% endif %}
@@ -122,5 +144,11 @@
 {% do site_groups.xc40.extend(site_groups.jedi_lfric_interface_xc40) %}
 {% do site_groups.xc40_unit_tests.extend(site_groups.jedi_lfric_interface_xc40_unit_tests) %}
 {% do site_groups.xc40_integration_tests.extend(site_groups.jedi_lfric_interface_xc40_integration_tests) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.jedi_lfric_interface_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.jedi_lfric_interface_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.jedi_lfric_interface_ex1a_unit_tests) %}
+{% do site_groups.ex1a_integration_tests.extend(site_groups.jedi_lfric_interface_ex1a_integration_tests) %}
 
 {% do LOG.debug("Finished in site/meto/groups/groups_jedi_lfric_interface.cylc") %}

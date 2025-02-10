@@ -22,8 +22,10 @@
 !>
 module jedi_lfric_linear_fields_mod
   use constants_mod,                 only : i_def, str_def, r_def
+  use field_mod,                     only : field_type
   use field_collection_mod,          only : field_collection_type
   use fs_continuity_mod,             only : W3, Wtheta, W2
+  use function_space_collection_mod, only : function_space_collection
   use mesh_mod,                      only : mesh_type
 
   implicit none
@@ -71,16 +73,13 @@ contains
 !>                             fields
 subroutine create_linear_fields( mesh, linear_fields )
 
-  use function_space_collection_mod, only : function_space_collection
-  use field_mod,                     only : field_type
-
   implicit none
 
   type( mesh_type ), pointer,     intent(in) :: mesh
   type( field_collection_type ), intent(out) :: linear_fields
 
   ! Local
-  type( field_type ), allocatable :: field
+  type( field_type )              :: field
   character( len=str_def )        :: variable_name
   integer                         :: i
 
@@ -89,8 +88,6 @@ subroutine create_linear_fields( mesh, linear_fields )
 
   ! Create and add the fields defined in the list of variable names
   do i = 1, nvars
-
-    allocate(field)
 
     variable_name = trim(variable_names(i))
 
@@ -102,8 +99,6 @@ subroutine create_linear_fields( mesh, linear_fields )
            name = variable_name )
 
     call linear_fields%add_field( field )
-
-    deallocate( field )
 
   end do
 

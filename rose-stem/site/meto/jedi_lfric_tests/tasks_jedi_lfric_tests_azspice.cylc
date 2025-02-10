@@ -6,15 +6,5 @@
 {% do LOG.debug("Entered site/meto/jedi_lfric_tests/tasks_jedi_lfric_tests_azspice.cylc") %}
 
 {# Set default values for JEDI-LFRic tasks #}
-{% if task_dict %}
-    {% if "full-debug" in task %}
-        {% if "wallclock" not in task_dict %}
-            {% do task_dict.update({"wallclock": 15}) %}
-        {% else %}
-            {% set val = 1.5 * task_dict["wallclock"] %}
-            {% do task_dict.update({"wallclock": val}) %}
-        {% endif %}
-    {% endif %}
-{% endif %}
 
 {% do LOG.debug("Finised in site/meto/jedi_lfric_tests/tasks_jedi_lfric_tests_azspice.cylc") %}

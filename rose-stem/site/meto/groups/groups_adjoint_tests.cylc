@@ -113,16 +113,20 @@
         "adjoint_tests_developer": [
             "scripts",
             "adjoint_tests_azspice_developer",
+            "adjoint_tests_ex1a_developer",
         ],
         "adjoint_tests": [
             "adjoint_tests_developer",
             "adjoint_tests_azspice",
+            "adjoint_tests_ex1a",
         ],
         "adjoint_tests_canned": [
             "adjoint_tests_azspice_canned",
+            "adjoint_tests_ex1a_canned",
         ],
         "adjoint_tests_build": [
             "adjoint_tests_azspice_build",
+            "adjoint_tests_ex1a_build",
         ],
         }) %}
 {% endif %}
