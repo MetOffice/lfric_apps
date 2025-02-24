@@ -5,6 +5,9 @@ import os
 
 import docutils
 
+
+simulations-systems
+
 # -- Project information -----------------------------------------------------
 
 project = 'LFRic Apps'
@@ -57,7 +60,7 @@ html_theme_options = {
         },
         {
             "name": "GitHub Discussions",
-            "url": "https://github.com/MetOffice/simulations-systems/discussions",
+            "url": "https://github.com/MetOffice/simulation-systems/discussions",
             "icon": "far fa-comments",
         }
     ],
