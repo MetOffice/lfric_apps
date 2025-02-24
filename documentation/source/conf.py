@@ -5,9 +5,6 @@ import os
 
 import docutils
 
-
-simulations-systems
-
 # -- Project information -----------------------------------------------------
 
 project = 'LFRic Apps'
