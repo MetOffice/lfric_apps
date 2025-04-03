@@ -26,9 +26,8 @@ Optimisation directory structure
 Within each application there exists an ``optimisation/`` directory that holds
 all PSyclone transformation scripts. These scripts are designed to target both
 LFRic and non-LFRic source code on multiple platforms, and the directory is
-structured to reflect this:
+structured to reflect this::
 
-.. code-block::
       optimisation/
       └── platform/ (ex1a, minimum, xc40, etc.)
           ├── psykal

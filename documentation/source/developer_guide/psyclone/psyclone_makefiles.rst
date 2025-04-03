@@ -20,9 +20,8 @@ intended to target Fortran source files that require a different PSyclone
 mode of operation than PSyKAl, which is the default method applied when building
 LFRic applications.
 
-The app-specific makefile can be found at:
+The app-specific makefile can be found at::
 
-.. code-block::
     <application>/
     └── psyclone_transmute.mk
 
@@ -42,20 +41,19 @@ Targeting platform with OPTIMISATION_PATH
     here for reference.
 
 The ``OPTIMISATION_PATH`` variable is consistent across all applications, and is
-set as:
+set as::
 
     optimisation/<target_platform>
 
 Where ``<target_platform>`` refers to the hardware that the application will run
 on (EX machines, XC40, Archer2, etc.). This information is picked up from the
-task name within rose-stem. For example, the task:
+task name within rose-stem. For example, the task::
 
-    lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-64bit
+    "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-64bit"
 
 has specified a platform of ``ex1a``, so the OPTIMISATION_PATH variable will be
-updated by GNU Make to:
+updated by GNU Make to::
 
-.. code-block::
     optimisation/ex1a/
 
 .. note::
@@ -92,9 +90,8 @@ Each application contains a makefile for storing the names of each module that
 has a transformation script. This list is used by the app-specific PSyclone
 makefile to reduce the number of searches that it must perform by only searching
 for modules included in the list. These makefiles can be found in each
-application at:
+application at::
 
-.. code-block::
     <application>
     └── psyclone_transmute_file_list.mk
 

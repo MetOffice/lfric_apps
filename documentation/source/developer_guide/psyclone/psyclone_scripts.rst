@@ -32,9 +32,8 @@ For example, to add a PSyclone transformation script for the ``ls_ppn.F90``
 module:
 
 * The source file is found here **before** building - **This is NOT the path
-  that should be used**:
+  that should be used**::
 
-.. code-block::
     <LFRIC APPS>
     └── science/
         └── physics_schemes/
@@ -44,9 +43,8 @@ module:
 
 
 * In the **built** ``lfric_atm`` application, ``ls_ppn.F90`` is found here -
-  **use this path**:
+  **use this path**::
 
-.. code-block::
     <lfric_atm working directory>/
     └── large_scale_precipitation/
         └──ls_ppn.F90
@@ -55,9 +53,8 @@ module:
   method of operation.
 
 Therefore, the transformation script for this module needs to be placed here
-(note the matching filename):
+(note the matching filename)::
 
-.. code-block::
     optimisation/
     └── <platform>/
         └── transmute/
@@ -75,17 +72,15 @@ Adding PSyclone transformation scripts to ``psyclone_transmute_file_list.mk``
 
 Instead of checking every module in the built application for a matching
 PSyclone transformation script, each app maintains a list of modules on which to
-apply module-specific PSyclone transformations. This can be found at:
+apply module-specific PSyclone transformations. This can be found at::
 
-.. code-block::
     <application>
     └── psyclone_transmute_file_list.mk
 
 Within this makefile there are environment variables that hold the names of
 Fortran modules/transformation scripts that the app-specific PSyclone makefile
-should target. These are:
+should target. These are::
 
-.. code-block::
     PSYCLONE_PHSYICS_FILES_IMPORT
     PSYCLONE_PHSYICS_FILES_FCM
 
@@ -97,9 +92,8 @@ should target. These are:
   use the ``PSYCLONE_PHSYICS_FILES_FCM`` variable.
 
 Module/transformation script names should be added in the following style (in
-accordance with GNUMake):
+accordance with GNUMake)::
 
-.. code-block:: Make
     PSYCLONE_PHSYICS_FILES_IMPORT = \
     ls_ppn \
     lsp_taper_ndrop \
