@@ -210,7 +210,12 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
    * - task_ranks_per_node
      - Int
      - NA
-     - For manually setting an override for the number of MPI ranks/tasks to run per node. This is set by default on EXZ for multi-node jobs. This value further is adjusted by threads or depth and needs to be scaled appropriately. Example, under-committing XC40, we might set 18 per node to allow more memory for each rank given hardware limitations. For a threaded job of 3 threads, we would set this instead to 6 ranks per node, to maintain 18 CPUs used.
+     - For manually setting an override for the number of MPI ranks/tasks to run per node. This is set by default on EX1A for multi-node jobs. This value further is adjusted by threads or depth and needs to be scaled appropriately. Example, under-committing XC40, we might set 18 per node to allow more memory for each rank given hardware limitations. For a threaded job of 3 threads, we would set this instead to 6 ranks per node, to maintain 18 CPUs used. Can be used in conjunction with ``task_ranks_depth_pad``.
+   * - task_ranks_depth_pad
+     - Int
+     - NA
+     - For adding a manual depth 'pad' to a task, generally used on EXs or XC40s where depth option is available in mpi launch. This is to be used in combination with ``task_ranks_per_node``, but does work on it's own. If only ``task_ranks_per_node`` is set, the ranks may bunch up together on the node, and not utilise all of the extra free memory properly (see `EX Placement <EXlink_>`_.). The 'pad' will push ranks deeper into the node, where they will utilise better cache access and this may improve runtime performance when the two options are used in tandem. If threads are set, the larger of the two values will be passed to depth, and the thread export preserved for threading purposes.
+
    * - **Auto-Populated**
      -
      -
@@ -269,3 +274,5 @@ Exceptions
 * Canned Tests - These require ``app_name: "canned_test"`` to be set in the task dictionary. ``example_dir`` can also be set if not using the default location for the canned test files. The CONFIG-NAME can be set to anything, but ideally this should include "canned" for clarity (and only "canned" if there is just 1 example).
 
 * Perftools can be run over certain applications in lfric_apps, see the compiler section above, and :ref:`perftools_rose-stem`
+
+.. _EXlink: https://www-hpc/ex-user-guide/advice/placement/?h=l1+cache#nodes-diagram
