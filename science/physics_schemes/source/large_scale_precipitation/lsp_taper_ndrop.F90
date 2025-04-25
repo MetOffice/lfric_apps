@@ -413,27 +413,24 @@ if (l_droplet_tpr) then
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
 
+          vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf2(i,j))
+
           if (n_drop_tpr(i,j,level_peak) > ndrop_surf2(i,j)) then
 
             ! if drop number is increasing with height, keep it at
             ! its surface value below z_surf before tapering up to
             ! the z_peak value
 
-            vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf2(i,j))             &
-                   * vala_fac2
-
             n_drop_tpr( i, j, k ) =  max( ndrop_surf2(i,j),                    &
-                 ndrop_surf2(i,j) + vala * temp2 )
+                 ndrop_surf2(i,j) + ( vala * vala_fac2 ) * temp2 )
 
           else
 
             ! if drop number is decreasing with height, make sure it
             ! only reaches its surface value at level 1
 
-            vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf2(i,j))             &
-                   * vala_fac1
-
-            n_drop_tpr( i, j, k ) =  ndrop_surf2(i,j) + vala * temp1
+            n_drop_tpr( i, j, k ) = ndrop_surf2(i,j) +                         &
+                                    ( vala * vala_fac1 ) * temp1
 
           end if
 
@@ -526,27 +523,24 @@ if (l_droplet_tpr) then
       temp2 =  log( eta_theta_levels(k) / eta_theta_levels(level_surf) )
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
+
+          vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf)
+
           if (n_drop_tpr(i,j,level_peak) > ndrop_surf) then
 
             ! if drop number is increasing with height, keep it at
             ! its surface value below z_surf before tapering up to
             ! the z_peak value
 
-            vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf)                   &
-                   * vala_fac2
-
             n_drop_tpr( i, j, k ) =  max( ndrop_surf,                          &
-                 ndrop_surf + vala * temp2 )
+                 ndrop_surf + ( vala * vala_fac2 ) * temp2 )
 
           else
 
             ! if drop number is decreasing with height, make sure it
             ! only reaches its surface value at level 1
 
-            vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf)                   &
-                   * vala_fac1
-
-            n_drop_tpr( i, j, k ) =  ndrop_surf + vala * temp1
+            n_drop_tpr( i, j, k ) =  ndrop_surf + ( vala * vala_fac1 ) * temp1
 
           end if
         end do ! tdims%i
@@ -666,27 +660,24 @@ if (l_droplet_tpr) then
       temp2 =  log( eta_theta_levels(k) / eta_theta_levels(level_surf) )
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
+
+          vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf)
+
           if (n_drop_tpr(i,j,level_peak) > ndrop_surf) then
 
             ! if drop number is increasing with height, keep it at
             ! its surface value below z_surf before tapering up to
             ! the z_peak value
 
-            vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf)                   &
-                   * vala_fac2
-
             n_drop_tpr( i, j, k ) =  max( ndrop_surf,                          &
-                 ndrop_surf + vala * temp2 )
+                 ndrop_surf + ( vala * vala_fac2 ) * temp2 )
 
           else
 
             ! if drop number is decreasing with height, make sure it
             ! only reaches its surface value at level 1
 
-            vala = (n_drop_tpr(i,j,level_peak) - ndrop_surf)                   &
-                   * vala_fac1
-
-            n_drop_tpr( i, j, k ) =  ndrop_surf + vala * temp1
+            n_drop_tpr( i, j, k ) =  ndrop_surf + ( vala * vala_fac1 ) * temp1
 
           end if
         end do ! tdims%i
@@ -746,18 +737,19 @@ if (l_droplet_tpr) then
 
       else ! eta_theta_levels
 
+        vala = (max_drop - ndrop_surf)
+
         if (max_drop > ndrop_surf) then
 
           ! if drop number is increasing with height, keep it at
           ! its surface value below z_surf before tapering up to
           ! the z_peak value
           temp2 =  log( eta_theta_levels(k) / eta_theta_levels(level_surf) )
-          vala = (max_drop - ndrop_surf) / vala_fac2
 
           do j = tdims%j_start, tdims%j_end
             do i = tdims%i_start, tdims%i_end
               n_drop_tpr( i, j, k ) =  max( ndrop_surf,                        &
-                   ndrop_surf + vala * temp2 )
+                   ndrop_surf + ( vala / vala_fac2 ) * temp2 )
             end do ! tdims%i
           end do ! tdims%j
 
@@ -766,11 +758,11 @@ if (l_droplet_tpr) then
           ! if drop number is decreasing with height, make sure it
           ! only reaches its surface value at level 1
           temp1 =  log( eta_theta_levels(k) / eta_theta_levels(1) )
-          vala = (max_drop - ndrop_surf) * vala_fac1
 
           do j = tdims%j_start, tdims%j_end
             do i = tdims%i_start, tdims%i_end
-              n_drop_tpr( i, j, k ) =  ndrop_surf + vala * temp1
+              n_drop_tpr( i, j, k ) = ndrop_surf + ( vala * vala_fac1 )       &
+                                      * temp1
             end do ! tdims%i
           end do ! tdims%j
 
