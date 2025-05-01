@@ -8,11 +8,6 @@
 Adding a PSyclone transformation script for a specific module
 =============================================================
 
-.. warning::
-    This functionality is not yet available on LFRic Apps trunk - please see
-    [LFRic Apps Ticket #624](https://code.metoffice.gov.uk/trac/lfric_apps/ticket/624)
-    for updates.
-
 Adding a transformation script to target a module involves two steps:
 
 1. Add the script to the correct location
@@ -64,11 +59,6 @@ Therefore, the transformation script for this module needs to be placed here
 
 Adding PSyclone transformation scripts to ``psyclone_transmute_file_list.mk``
 -----------------------------------------------------------------------------
-
-.. warning::
-    This functionality is not yet available on LFRic Apps trunk - please see
-    [LFRic Apps Ticket #624](https://code.metoffice.gov.uk/trac/lfric_apps/ticket/624)
-    for updates.
 
 Instead of checking every module in the built application for a matching
 PSyclone transformation script, each app maintains a list of modules on which to

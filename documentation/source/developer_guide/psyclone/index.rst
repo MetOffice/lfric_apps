@@ -29,7 +29,7 @@ LFRic and non-LFRic source code on multiple platforms, and the directory is
 structured to reflect this::
 
       optimisation/
-      └── platform/ (ex1a, minimum, xc40, etc.)
+      └── platform/ (ex1a, minimum, archer2, etc.)
           ├── psykal
           │   ├── global.py
           │   └── sub_directory/

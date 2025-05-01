@@ -8,12 +8,6 @@
 App-specific PSyclone makefiles
 ===============================
 
-.. warning::
-
-    This functionality is not yet available on LFRic Apps trunk - please see
-    [LFRic Apps Ticket #624](https://code.metoffice.gov.uk/trac/lfric_apps/ticket/624)
-    for updates.
-
 Each application contains a Makefile that extends the functionality of the
 ``psyclone.mk`` file in LFRic Core. More specifically, these makefiles are
 intended to target Fortran source files that require a different PSyclone
@@ -46,13 +40,13 @@ set as::
     optimisation/<target_platform>
 
 Where ``<target_platform>`` refers to the hardware that the application will run
-on (EX machines, XC40, Archer2, etc.). This information is picked up from the
+on (EX machines, Archer2, etc.). This information is picked up from the
 task name within rose-stem. For example, the task::
 
     "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-64bit"
 
 has specified a platform of ``ex1a``, so the OPTIMISATION_PATH variable will be
-updated by GNU Make to::
+updated by rose-stem to::
 
     optimisation/ex1a/
 
