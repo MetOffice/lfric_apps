@@ -65,17 +65,19 @@ PSyclone transformation script, each app maintains a list of modules on which to
 apply module-specific PSyclone transformations. This can be found at::
 
     <application>
-    └── psyclone_transmute_file_list.mk
+    └── build/
+      └── psyclone_transmute_file_list.mk
 
 Within this makefile there are environment variables that hold the names of
-Fortran modules/transformation scripts that the app-specific PSyclone makefile
-should target. These are::
+Fortran modules/transformation scripts that the science interface PSyclone
+makefile should target. These are::
 
     PSYCLONE_PHSYICS_FILES_IMPORT
     PSYCLONE_PHSYICS_FILES_FCM
 
 * If the module for which you are adding a transformation script lives in the
-  LFRic Apps directory, please use ``PSYCLONE_PHSYICS_FILES_IMPORT``.
+  LFRic Apps directory, please use ``PSYCLONE_PHSYICS_FILES_IMPORT``. This
+  includes any non-LFRic source stored in the ``interfaces/`` directory.
 
 * If the module is being imported from UKCA, JULES, CASIM, UM, SOCRATES, or any
   other code base and does not have a copy in the LFRic Apps repository, please

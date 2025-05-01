@@ -5,23 +5,30 @@
    -----------------------------------------------------------------------------
 .. _psyclone_makefiles:
 
-App-specific PSyclone makefiles
-===============================
+Science interface PSyclone makefiles
+====================================
 
-Each application contains a Makefile that extends the functionality of the
-``psyclone.mk`` file in LFRic Core. More specifically, these makefiles are
-intended to target Fortran source files that require a different PSyclone
-mode of operation than PSyKAl, which is the default method applied when building
-LFRic applications.
+Each interface to a non-LFRic science applicaton contains a Makefile that
+extends the functionality of the ``psyclone.mk`` file in LFRic Core. More
+specifically, these makefiles are intended to target Fortran source files that
+require a different PSyclone mode of operation than ``psykal``, which is the
+default method applied when building LFRic applications.
 
-The app-specific makefile can be found at::
+This makefile for non-psykal modules can be found at::
 
-    <application>/
-    └── psyclone_transmute.mk
+    <LFRic Apps trunk>
+    └── interfaces/
+      └── <interface_name>/
+        └── build/
+          └── psyclone_transmute.mk
 
-The app-specific PSyclone makefile uses the ``OPTIMISATION_PATH`` and ``DSL``
-variables to narrow the search field and a list of modules to target to reduce
-the number of searches it must perform.
+.. note::
+    It is likely that some interfaces will not have this makefile yet. These
+    will be added as they are required.
+
+The non-psykal PSyclone makefile uses the ``OPTIMISATION_PATH`` and ``DSL``
+variables to narrow the search field, as well as a list of target modules to
+reduce the number of searches it must perform.
 
 The next sections will detail each of these points and how to add a PSyclone
 transformation script for a single module.
@@ -68,8 +75,8 @@ are grouped by the PSyclone method of operation they require (psykal,
 transmute).
 
 The ``DSL`` variable defaults to the LFRic-specific method of operation (psykal).
-For app-specific PSyclone makefiles, ``DSL`` should be set to transmute since
-these makefiles are designed to target non-LFRic source (and hence need a
+For science interface PSyclone makefiles, ``DSL`` should be set to transmute
+since these makefiles are designed to target non-LFRic source (and hence need a
 different method of operation).
 
 .. note::
@@ -81,15 +88,17 @@ List of modules to target
 -------------------------
 
 Each application contains a makefile for storing the names of each module that
-has a transformation script. This list is used by the app-specific PSyclone
-makefile to reduce the number of searches that it must perform by only searching
-for modules included in the list. These makefiles can be found in each
+has a transformation script. This list is used by the science interface PSyclone
+makefiles to reduce the number of searches that it must perform by only
+searching for modules included in the list. These makefiles can be found in each
 application at::
 
     <application>
-    └── psyclone_transmute_file_list.mk
+    └── build/
+        └── psyclone_transmute_file_list.mk
 
 .. note::
     This is only required for modules with transformation scripts held in the
     ``transmute/`` directory (non-LFRic source or modules that are not
-    targeted by the LFRic Core ``psyclone.mk`` file).
+    targeted by the LFRic Core ``psyclone.mk`` file). Some applications will
+    not have this .mk file.
