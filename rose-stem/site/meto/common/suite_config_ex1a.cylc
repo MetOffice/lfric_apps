@@ -46,6 +46,8 @@
 
     [[EX1A_BUILD]]
         inherit=EX1A_SHARED_QUEUE
+        [[[environment]]]
+            TRANSMUTE_INCLUDE_METHOD = specify_include
         [[[directives]]]
             -l select=1:ncpus=24:mem=40GB:tmpsize=12GB
             -l walltime=01:00:00

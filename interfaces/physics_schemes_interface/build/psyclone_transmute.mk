@@ -4,13 +4,36 @@
 # under which the code may be used.
 ##############################################################################
 
+# Default for file selection method for transformation files is for CPU OMP currently
+# This should be overwritten in:
+# rose-stem/site/<site>/common/suite_config_<target>.cylc
+#
+TRANSMUTE_INCLUDE_METHOD ?= specify_include
+
+# Set the DSL Method in use to collect the correct transformation files.
 DSL := transmute
 
 # Find the specific files we wish to preprcoess and psyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
 # the psycloning step.
 #
-SOURCE_F_FILES := $(foreach THE_FILE, $(PSYCLONE_PHYSICS_FILES), $(patsubst $(SOURCE_DIR)/%.xu90, $(SOURCE_DIR)/%.F90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).xu90' -print)))
+ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_include")
+# For CPU OMP method, we want specific files.
+	SOURCE_F_FILES := $(foreach THE_FILE, $(PSYCLONE_PHYSICS_FILES), $(patsubst $(SOURCE_DIR)/%.xu90, $(SOURCE_DIR)/%.F90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).xu90' -print)))
+else ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_exclude")
+# For the offload method, we want to filter out specific files, and do the rest.
+# We don't want to wildcard the whole working directory, this will cause problems. 
+# We want to specifically choose directories we want to pass to the PSyclone transmute method.
+# Therefore if nothing is present in the PSYCLONE_DIRECTORIES variable, then nothing will be 
+# passed to PSyclone.
+	ifneq ($(strip $(PSYCLONE_DIRECTORIES)),)
+		EXTEND_DIR_FULL_PATH := $(foreach THE_DIRECTORY, $(PSYCLONE_DIRECTORIES), $(shell find $(SOURCE_DIR) -name $(THE_DIRECTORY) -print))
+		SOURCE_F_FILES_FULL := $(strip $(foreach THE_PSY_DIR, $(EXTEND_DIR_FULL_PATH), $(patsubst $(SOURCE_DIR)/%.xu90, $(SOURCE_DIR)/%.F90, $(shell find $(THE_PSY_DIR) -name '*.xu90' -print))))
+		SOURCE_EXCEPTION := $(strip $(foreach THE_FILE, $(PSYCLONE_PHYSICS_EXCEPTION), $(patsubst $(SOURCE_DIR)/%.xu90, $(SOURCE_DIR)/%.F90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).xu90' -print))))
+		SOURCE_F_FILES := $(filter-out $(SOURCE_EXCEPTION), $(SOURCE_F_FILES_FULL))
+	endif
+endif
+
 
 # Default make target for file
 #
@@ -31,6 +54,17 @@ $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone \
 			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py \
+			-o $(SOURCE_DIR)/$*.F90 \
+			$<
+
+# Where a local optimisation script exisits, use it.
+#
+.SECONDEXPANSION:
+$(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(shell find $(dirname $(OPTIMISATION_PATH_PSY)/$(DSL)/$$*.py) -name "local.py")
+	echo "Psyclone with local script"
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone \
+			-l all \
+			-s $(shell find $(dirname $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py) -name "local.py") \
 			-o $(SOURCE_DIR)/$*.F90 \
 			$<
 
