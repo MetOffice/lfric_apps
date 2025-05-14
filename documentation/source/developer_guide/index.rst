@@ -12,3 +12,4 @@ Developer Guide
    :maxdepth: 2
 
    lfric_apps_rose_stem/index
+   psyclone/index
