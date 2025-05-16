@@ -1,4 +1,4 @@
-@@ -13,10 +13,12 @@
+@@ -13,46 +13,44 @@
      use finite_element_config_mod, only : element_order_h, element_order_v
      use fs_continuity_mod, only : w2, w3, wtheta
      use operator_mod, only : operator_type
@@ -13,7 +13,9 @@
      type(mesh_type), pointer, intent(in) :: mesh
      type(field_type), dimension(3), intent(in), optional :: chi
      type(field_type), intent(in), optional :: panel_id
-@@ -26,30 +28,26 @@
+     TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+     TYPE(function_space_type), POINTER :: vector_space_w3_ptr
+     TYPE(function_space_type), POINTER :: vector_space_wtheta_ptr
 -    type(field_type) :: lhs
 -    type(field_type) :: x
 -    type(field_type) :: mt_inv
@@ -62,15 +64,21 @@
 +    real(kind=r_solver) :: inner2
 +    real(kind=r_solver) :: MachineTol
 +    real(kind=r_solver) :: relative_diff
-@@ -68,46 +66,38 @@
+ 
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+     vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+@@ -68,46 +66,40 @@
      call m3%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
      call lhs_input%initialise(vector_space=vector_space_w3_ptr, name='lhs_input')
      call x_input%initialise(vector_space=vector_space_w2_ptr, name='x_input')
 -    call mt_inv_input%initialise(vector_space=vector_space_wtheta_ptr, name='mt_inv_input')
      call pressure_input%initialise(vector_space=vector_space_w3_ptr, name='pressure_input')
      call rhs_p_input%initialise(vector_space=vector_space_w3_ptr, name='rhs_p_input')
-     call RANDOM_NUMBER(sgn)
+-    call RANDOM_NUMBER(sgn)
 -    sgn_input = sgn
++    ! NOTE(JC): Known issue with scalar randomisation with MPI. Each process
++    !           generates a different number. See LFRic-apps ticket #765.
++    sgn = 1.0_r_def
      lhs_inner_prod = 0.0_r_def
      x_inner_prod = 0.0_r_def
 -    mt_inv_inner_prod = 0.0_r_def
