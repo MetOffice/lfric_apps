@@ -1,2 +1,2 @@
 # lfric_apps
-LFRic Applications
+LFRic Applications repository
