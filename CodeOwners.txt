@@ -24,7 +24,7 @@ Makefiles                   matthewhambley          --                      core
 = Applications =
 {{{
 Area                        First Contact           Second Contact          Team
-adjoint_tests               terencevockerodt        davidsimonin            data_assimilation
+adjoint_tests               terencevockerodt        joshuacolclough         data_assimilation
 gravity_wave                thomasmelvin            christinejohnson        dynamics_research
 gungho_model                thomasmelvin            benshipway              dynamics_research
 jedi_lfric_tests            stevensandbach          davidsimonin            data_assimilation
@@ -41,7 +41,7 @@ transport                   thomasbendall           jameskent               dyna
 = Science =
 {{{
 Area                        First Contact           Second Contact          Team
-adjoint                     terencevockerodt        davidsimonin            data_assimilation
+adjoint                     terencevockerodt        joshuacolclough         data_assimilation
 constants                   ianboutle               benshipway              dynamics_research
 coupled_interface           mikehobson              jeanrioual              --
 gungho                      thomasmelvin            benshipway              dynamics_research
