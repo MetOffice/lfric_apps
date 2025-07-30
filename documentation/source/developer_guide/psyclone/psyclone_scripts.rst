@@ -21,10 +21,35 @@ Adding a PSyclone transformation script to the correct location
 Each transformation script must reside in a matching location to the target
 source file as found in the **built** application.
 
-Each transformation script must have a **matching filename minus extension**.
+Each file to be transformed must either have a transformation script such as
+a ``global.py`` (present in a site target and psyclone method folder), or
+``local.py`` (present in the correspondingly named folder to the target file),
+or a **matching filename minus extension**.
 
 For example, to add a PSyclone transformation script for the ``ls_ppn.F90``
-module:
+module....
+
+``global.py``:
+Note all files will use this unless overwritten with a
+``local.py`` or a Matching filename.::
+
+    optimisation/
+    └── <platform>/
+        └── transmute/
+            └── global.py
+
+
+``local.py``:
+Note all files in ``large_scale_precipitation`` will use
+this unless overwritten with a matching filename.::
+
+    optimisation/
+    └── <platform>/
+        └── transmute/
+            └── large_scale_precipitation/
+                └── local.py
+
+Matching filename:
 
 * The source file is found here **before** building - **This is NOT the path
   that should be used**::
@@ -90,3 +115,35 @@ accordance with GNUMake)::
     ls_ppn \
     lsp_taper_ndrop \
     mphys_air_density_mod
+
+Adding PSyclone Transmute transformation functions
+-----------------------------------------------------------------------------
+Transformation optimisation scripts for Transmute should be kept clean and
+simple much like the existing PSyKAl scripts,
+Ref: ``applications/lfric_atm/optimisation/meto-ex1a/psykal/global.py``
+
+Functions should exist in their own Python script bucket(s) for Transmute
+like in PSyKAl in LFRic Core. Where this bucket is located is WIP.
+Longer term most may be held in the PSyTrans repository, with
+the intention to reduce code duplication 
+here: `PSyTran <https://github.com/MetOffice/PSyTran>`_.
+
+It is recommended for developers at this time to
+
+* Generate an LFRic Apps ticket to drive the work.
+* Put script functions in a Psyclone folder in the Apps ticket here
+  ``interfaces/physics_schemes_interface/build/psyclone_transmute``.
+* The Python path in the Psyclone_transmute file may need to updated
+  with this path.
+* Where existing script files and functions exist, please utilise them.
+* Top level calls to these functions of course in the transmute
+  optimisation folder in the application, ``lfric_atm`` and ``ngarch``.
+* Start a PSyTrans issue to try and get duplicate code removed and new
+  code reviewed. 
+* Copy down an PSyTrans code used where the duplicated code has been
+  removed into the Apps ticket so we have a local copy, with a comment
+  with the Apps ticket and PSyTrans issue. 
+* Currently PSyTrans is not integrated into the build system.
+* Link this ticket
+  `Apps906 <https://code.metoffice.gov.uk/trac/lfric_apps/ticket/906#ticket>`_,
+  and update it with the functions duplicated to capture technical debt.
