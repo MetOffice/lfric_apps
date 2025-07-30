@@ -123,7 +123,9 @@ simple much like the existing PSyKAl scripts,
 Ref: ``applications/lfric_atm/optimisation/meto-ex1a/psykal/global.py``
 
 Functions should exist in their own Python script bucket(s) for Transmute
-like in PSyKAl in LFRic Core. Where this bucket is located is WIP.
+like in PSyKAl in LFRic Core. Where this bucket is located is WIP, but for
+now will be here
+``interfaces/physics_schemes_interface/build/psyclone_transmute``. |br|
 Longer term most may be held in the PSyTrans repository, with
 the intention to reduce code duplication 
 here: `PSyTran <https://github.com/MetOffice/PSyTran>`_.
