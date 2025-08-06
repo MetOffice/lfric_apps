@@ -8,7 +8,7 @@
 Adding a PSyclone transformation script for a specific module
 =============================================================
 
-Adding a transformation script to target a module involves two steps:
+Adding a Python transformation script to target a module involves two steps:
 
 1. Add the script to the correct location
 2. Add the name of the script/module (minus extension) to the correct variable
@@ -18,8 +18,8 @@ Adding a transformation script to target a module involves two steps:
 Adding a PSyclone transformation script to the correct location
 ---------------------------------------------------------------
 
-Each transformation script must reside in a matching location to the target
-source file as found in the **built** application.
+Each Python transformation script must reside in a matching location to the
+target source file as found in the **built** application.
 
 Each file to be transformed must use a global transformation script, such as
 ``global.py`` (present in a site target and PSyclone method folder), or
@@ -33,7 +33,7 @@ module.
 Storing a global transformation script, ``global.py``:
 All files to be optimised by transmute (see ``psyclone_transmute_file_list.mk``)
 will use this script unless overwritten with a ``local.py`` or if using a matching
- filename. ::
+filename. ::
 
     optimisation/
     └── <platform>/
@@ -128,7 +128,7 @@ Ref: ``applications/lfric_atm/optimisation/meto-ex1a/psykal/global.py``
 Functions should exist in their own Python script bucket(s) for Transmute,
 like in PSyKAl in LFRic Core. Where this bucket is located is a WIP, but for
 now will be here
-``interfaces/physics_schemes_interface/build/psyclone_transmute``. |br|
+``interfaces/physics_schemes_interface/build/psyclone_transmute``.
 In the longer term, most may be held in the PSyTran repository, with
 the intention to reduce code duplication 
 here: `PSyTran <https://github.com/MetOffice/PSyTran>`_.
@@ -145,9 +145,9 @@ It is recommended for developers at this time to use the following process.
   optimisation folder in the application, ``lfric_atm`` and ``ngarch``.
 * Start a PSyTran issue to try and get duplicate code removed and new
   code reviewed. 
-* Copy down an PSyTran code used where the duplicated code has been
-  removed into the Apps ticket so we have a local copy, with a comment
-  with the Apps ticket and PSyTran issue. 
+* Copy down any PSyTran code used, where the duplicated code has been
+  removed in the Apps ticket so we have a local copy of the code from PSyTran,
+  with a comment in the Apps ticket and PSyTran issue. 
 * Currently PSyTran is not integrated into the build system.
 * Link this ticket
   `Apps906 <https://code.metoffice.gov.uk/trac/lfric_apps/ticket/906#ticket>`_,
