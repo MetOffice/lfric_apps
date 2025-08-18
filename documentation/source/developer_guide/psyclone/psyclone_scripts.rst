@@ -5,8 +5,9 @@
    -----------------------------------------------------------------------------
 .. _psyclone_scripts:
 
+================================================================
 Adding a PSyclone transformation script for a specific module
-=============================================================
+================================================================
 
 Adding a Python transformation script to target a module involves two steps:
 
@@ -14,23 +15,25 @@ Adding a Python transformation script to target a module involves two steps:
 2. Add the name of the script/module (minus extension) to the correct variable
    in ``psyclone_transmute_file_list.mk``.
 
-
+----------------------------------------------------------------
 Adding a PSyclone transformation script to the correct location
----------------------------------------------------------------
+----------------------------------------------------------------
 
 Each Python transformation script must reside in a matching location to the
 target source file as found in the **built** application.
 
-Each file to be transformed must use a global transformation script, such as
-``global.py`` (present in a site target and PSyclone method folder), or
-a local transformation script, either like ``local.py`` (present in the
-correspondingly named folder to the target file), or with a
-**matching filename minus extension**.
+Each Fortran source file to be transformed must use either
+* A global transformation scipt, such as ``global.py`` (...), or
+* A local transformation script, such as ``local.py`` (present in the
+correspondingly named folder to the target file)
+* A **matching filename minus extension**, such as ``ls_ppn.py``.
 
 See below for how to add a PSyclone transformation script for the ``ls_ppn.F90``
 module.
 
-Storing a global transformation script, ``global.py``:
+
+**Storing a global transformation script, ``global.py``**:
+----------------------------------------------------------
 All files to be optimised by transmute (see ``psyclone_transmute_file_list.mk``)
 will use this script unless overwritten with a ``local.py`` or if using a matching
 filename. ::
@@ -41,7 +44,8 @@ filename. ::
             └── global.py
 
 
-Storing a local transformation script ``local.py``:
+**Storing a local transformation script, ``local.py``**:
+--------------------------------------------------------
 All files to be optimised by transmute (see ``psyclone_transmute_file_list.mk``)
 in ``large_scale_precipitation`` will use this script unless overwritten with
 a matching filename.::
@@ -52,8 +56,8 @@ a matching filename.::
             └── large_scale_precipitation/
                 └── local.py
 
-Matching filename:
-
+**For a script with matching source filename**:
+-----------------------------------------------
 * The source file is found here **before** building - **This is NOT the path
   that should be used**::
 
@@ -84,9 +88,9 @@ Therefore, the transformation script for this module needs to be placed here
             └── large_scale_precipitation/
                 └── ls_ppn.py
 
-
+----------------------------------------------------------------------------------
 Adding PSyclone transformation scripts to ``psyclone_transmute_file_list.mk``
------------------------------------------------------------------------------
+----------------------------------------------------------------------------------
 
 Instead of checking every module in the built application for a matching
 PSyclone transformation script, each app maintains a list of modules on which to
@@ -119,6 +123,7 @@ accordance with GNUMake)::
     lsp_taper_ndrop \
     mphys_air_density_mod
 
+-----------------------------------------------------------------------------
 Adding PSyclone Transmute transformation functions
 -----------------------------------------------------------------------------
 Transformation optimisation scripts for Transmute, should be kept clean and
@@ -141,7 +146,7 @@ It is recommended for developers at this time to use the following process.
 * The Python path in the ``psyclone_transmute.mk`` file may need to updated
   with this path.
 * Where existing script files and functions exist, please utilise them.
-* Top level calls to these functions should occur in the transmute
+* Top-level calls to these functions should occur in the transmute
   optimisation folder in the application, ``lfric_atm`` and ``ngarch``.
 * Start a PSyTran issue to try and get duplicate code removed and new
   code reviewed. 
