@@ -1,0 +1,47 @@
+# ------------------------------------------------------------------------------
+#  (c) Crown copyright Met Office. All rights reserved.
+#  The file LICENCE, distributed with this code, contains details of the terms
+#  under which the code may be used.
+# ------------------------------------------------------------------------------
+
+name: Build Docs
+on:
+  workflow_call:
+
+jobs:
+  build-html:
+    name: HTML Docs
+    runs-on: ubuntu-24.04
+    steps:
+      - id: extract
+        name: Extract
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - id: setup_environment
+        name: Setup Python environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - id: finesse_environment
+        name: Install Python packages
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install sphinx==8.1.0 pydata-sphinx-theme==0.16.1 sphinx-sitemap==2.6.0 sphinx_design==0.6.1
+      - id: sphinx
+        name: Build Sphinx HTML docs
+        working-directory: ./documentation
+        run: make html
+      - id: permissions
+        name: Set permissions
+        run: |
+          chmod -c -R +rX "documentation/build/html/"
+      - id: deployment
+        name: Upload Artifact
+        if: ${{ (github.event_name == 'push' || github.event_name == 'merge_group') && github.ref_name == 'main'}}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages
+          path: documentation/build/html
+          retention-days: 1
+
