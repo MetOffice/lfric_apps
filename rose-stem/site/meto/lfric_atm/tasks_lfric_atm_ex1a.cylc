@@ -30,7 +30,6 @@
 {% elif task_ns.conf_name == "ral3_mixmol-uk_MG" %}
     {% do task_dict.update({
         "wallclock": 75,
-        "task_ranks_per_node": 108,
         "mpi_parts_xios" : 320,
 
     }) %}
@@ -38,7 +37,6 @@
 {% elif task_ns.conf_name == "ral3-ukv_MG" %}
     {% do task_dict.update({
         "wallclock": 60,
-        "task_ranks_per_node": 128,
         "mpi_parts_xios" : 1440,
 
     }) %}
@@ -46,7 +44,6 @@
 {% elif task_ns.conf_name == "ral3-uk_MG" %}
     {% do task_dict.update({
         "wallclock": 90,
-        "task_ranks_per_node": 112,
         "mpi_parts_xios" : 320,
 
     }) %}
