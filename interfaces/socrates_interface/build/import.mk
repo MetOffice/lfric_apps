@@ -8,7 +8,7 @@ export PROJECT_SOURCE = $(APPS_ROOT_DIR)/interfaces/socrates_interface/source
 .PHONY: import-socrates_interface
 import-socrates_interface:
     # Get a copy of the source code from the SCORATES repository
-	python $(APPS_ROOT_DIR)/build/extract/extract_physics.py -d $(APPS_ROOT_DIR)/dependencies.yaml -w $(SCRATCH_DIR) -e $(APPS_ROOT_DIR)/interfaces/socrates_interface/build/extract.cfg
+	python $(APPS_ROOT_DIR)/build/extract/extract_physics.py -d $(APPS_ROOT_DIR)/dependencies.ini -w $(SCRATCH_DIR) -e $(APPS_ROOT_DIR)/interfaces/socrates_interface/build/extract.cfg
 	$Qrsync -acvz $(SCRATCH_DIR)/socrates $(WORKING_DIR)/
 
     # Extract the interface code

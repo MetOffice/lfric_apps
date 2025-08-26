@@ -48,7 +48,7 @@
 {% set site_groups = {} %}
 {% include "site/"+SITE+"/groups.cylc" %}
 
-{# Read the dependencies.yaml file for UM dependency sources #}
+{# Read the sources of dependencies from the dependencies.ini file #}
 {% set dependencies = read_sources(LFRIC_APPS_SOURCE) %}
 {% if "lfric_apps" not in dependencies %}
     {% do dependencies.update({"lfric_apps": LFRIC_APPS_SOURCE}) %}
