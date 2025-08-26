@@ -1,0 +1,29 @@
+# Git Sources
+
+casim:
+    source: git@github.com:MetOffice/casim.git
+    ref: ce686ac25a522aa9ce0ca2433fb0f67b67468866
+
+jules:
+    source: git@github.com:MetOffice/jules.git
+    ref: 79466cdf7efe343fb88d49532bc2e1f0cca7993d
+
+lfric_apps:
+    source:
+    ref:
+
+lfric_core:
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 5399c4c62a681061299dd3a94faba9b23656965a
+
+socrates:
+    source: git@github.com:MetOffice/socrates.git
+    ref: 4e6f3b2a92d8876b6da05722e531bd31ca45a003
+
+SimSys_Scripts:
+    source: git@github.com:MetOffice/SimSys_Scripts.git
+    ref: main
+
+ukca:
+    source: git@github.com:MetOffice/ukca.git
+    ref: 099f583fb9e7a38a6e0bf3d86b3be3f42518588e

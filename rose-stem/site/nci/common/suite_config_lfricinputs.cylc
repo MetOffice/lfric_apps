@@ -6,8 +6,8 @@
             ROSE_ORIG_HOST = {{ROSE_ORIG_HOST}}
             HOST_SOURCE_LFRIC_APPS = {{SOURCE_LFRIC_APPS}}
             SOURCE_LFRIC_APPS_REV = {{SOURCE_LFRIC_APPS_REV}}
-            SOURCE_LFRIC_CORE = {{lfric_core_source}}
-            SOURCE_SHUMLIB = {{shumlib_source}}
+            SOURCE_LFRIC_CORE = {{dependencies.lfric_core}}
+            SOURCE_SHUMLIB = {{dependencies.shumlib}}
 
     [[GADI_LFRICINPUTS]]
         inherit = GADI_RUN_INTEL

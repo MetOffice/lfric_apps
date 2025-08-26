@@ -28,26 +28,19 @@ def run_command(command):
             f"The command '{command}' failed with error:\n\n{result.stderr}"
         )
 
-# Read paths and sources from environment variables
-source_root = os.environ["SOURCE_ROOT"]
-apps_source = os.environ["SOURCE_LFRIC_APPS"]
-apps_path = os.path.join(source_root, "apps")
-core_source = os.environ["SOURCE_LFRIC_CORE"]
-core_path = os.path.join(source_root, "core")
-ctldata_path = os.path.join(source_root, "ctldata")
 
-print(f"\n[INFO] LFRic Apps Source: {apps_source}")
-print(f"[INFO] LFRic Core Source: {core_source}\n")
+print(f"\n[INFO] LFRic Apps Source: {os.environ["SOURCE_LFRIC_APPS"]}")
+print(f"[INFO] LFRic Core Source: {os.environ["SOURCE_LFRIC_CORE"]}\n")
 
-# Create directories for the different sources
-mkdir_command = f"mkdir -p "
-run_command(f"{mkdir_command}{apps_path}")
-run_command(f"{mkdir_command}{core_path}")
-run_command(f"{mkdir_command}{ctldata_path}")
+# Copy suite_report and fcm_bdiff to bin dir
+bin_dir = os.path.join(os.environ["CYLC_WORKFLOW_RUN_DIR"], "bin")
+scripts_dir = os.path.join(os.environ["SOURCE_ROOT"], "SimSys_Scripts")
+run_command(f"cp {os.path.join(scripts_dir, "suite_report.py")} {bin_dir}")
+run_command(f"cp {os.path.join(scripts_dir, "fcm_bdiff.py")} {bin_dir}")
 
-# Export entire apps and core directories
-run_command(f"fcm export --force {apps_source} {apps_path}")
-run_command(f"fcm export --force {core_source} {core_path}")
+# Make ctldata directory
+ctldata_dir = os.path.join(os.environ["SOURCE_ROOT"], "ctldata")
+run_command(f'mkdir -p {ctldata_dir}')
 
 # Read through the file defining ctldata sources
 # For each source, export into ctldata directory
@@ -68,6 +61,6 @@ with open(ctldata_file) as f:
         dests.append(dest)
         print(f"[INFO] Source: {source}   Dest: {dest}")
         run_command(
-            f"fcm export --force {source} {os.path.join(ctldata_path, dest)}"
-            )
+            f"fcm export --force {source} {os.path.join(ctldata_dir, dest)}"
+        )
 

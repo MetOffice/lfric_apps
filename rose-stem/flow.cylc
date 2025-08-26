@@ -5,6 +5,22 @@
 {# under which the code may be used. #}
 {# ########################################################################### #}
 {% from "cylc.flow" import LOG %}
+{% from "utils" import get_site, get_git_ref %}
+{% from "read_sources" import read_sources  %}
+
+{% set SITE = get_site() %}
+{% do LOG.info("Site: " + SITE) %}
+
+{% if g is defined %}
+    {% set groups = g %}
+{% endif %}
+{% if groups is defined %}
+    {% set RUN_NAMES = groups %}
+{% else %}
+    {% set RUN_NAMES = ["developer"] %}
+{% endif %}
+{% do LOG.info("Running groups: "~RUN_NAMES|join('
+                   ')) %}
 
 {# Include the site variables file #}
 {# Contains some settings used for the workflow #}
@@ -32,20 +48,11 @@
 {% set site_groups = {} %}
 {% include "site/"+SITE+"/groups.cylc" %}
 
-{# Determine the lfric_core_source #}
-{# if SOURCE_LFRIC is populated then use that value #}
-{# Otherwise look in the dependencies.sh #}
-{% if SOURCE_LFRIC is defined and SOURCE_LFRIC %}
-    {% set lfric_core_source = SOURCE_LFRIC %}
-{% else %}
-    {% set lfric_core_source = HOST_SOURCE_LFRIC_APPS|determine_source("lfric_core") %}
+{# Read the dependencies.yaml file for UM dependency sources #}
+{% set dependencies = read_sources(LFRIC_APPS_SOURCE) %}
+{% if "lfric_apps" not in dependencies %}
+    {% do dependencies.update({"lfric_apps": LFRIC_APPS_SOURCE}) %}
 {% endif %}
-
-{# For Coupled App jobs, determine the jules source #}
-{% set jules_source = HOST_SOURCE_LFRIC_APPS|determine_source("jules") %}
-
-{# For LFRic Inputs, determine the shumlib source #}
-{% set shumlib_source = HOST_SOURCE_LFRIC_APPS|determine_source("shumlib") %}
 
 {# Generate list of tasks given by --group= #}
 {# Expand any groups included so list is only tasks #}
@@ -56,7 +63,6 @@
 {% set scripts_list = [] %}
 {{ expand_task_list(site_groups, ["scripts"], false, scripts_list) }}
 {% do set_add(scripts_list, "kgo_groups_checker") %}
-{% do set_add(scripts_list, "export_simsys_scripts") %}
 
 {# Load the task definitions for each application requested at current site #}
 {% set requested_tasks = {} %}

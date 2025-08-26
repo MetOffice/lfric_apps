@@ -13,12 +13,12 @@
 
 {# Extract the Jules source and Jules revision #}
 {# Used in the fcm_make_rivers app - gets this info from dependencies.sh #}
-{% if '@' in jules_source %}
-    {% set jules_rev = '@'~jules_source.split('@')[1] %}
+{% if '@' in dependencies.jules %}
+    {% set jules_rev = '@'~dependencies.jules.split('@')[1] %}
 {% else %}
     {% set jules_rev = '' %}
 {% endif %}
-{% set jules_source = jules_source.split('@')[0] %}
+{% set jules_source = dependencies.jules.split('@')[0] %}
 
 {% if task.startswith("fcm_make2") or task_ns.conf_name == "river" %}
 {# The final build step - either the fcm_make2 task or fcm_make_rivers #}

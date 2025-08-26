@@ -22,12 +22,10 @@
         script  = "rose task-run --app-key=export_source"
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
-    {% if lfric_core_source.startswith("fcm:") %}
-            SOURCE_LFRIC_CORE = {{lfric_core_source}}
-    {% else %}
-            SOURCE_LFRIC_CORE = {{lfric_core_source.split(":")[-1]}}
-    {% endif %}
-            SOURCE_LFRIC_APPS = {{SOURCE_LFRIC_APPS}}
+            SOURCE_LFRIC_CORE = {{dependencies.lfric_core}}
+            SOURCE_LFRIC_APPS = {{dependencies.lfric_apps}}
+            SOURCE_SIMSYS_SCRIPTS = {{dependencies.SimSys_Scripts}}
+
 
 {% elif task.startswith("export-source") %}
 {# 2nd export-source task specific to each platform #}
@@ -51,7 +49,6 @@
                   """
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
-            SOURCE_LFRIC = {{lfric_core_source}}
 
 {% elif task.startswith("export-weights") %}
 {# Task to rsync generated weights files from platform where they are generated #}
