@@ -1,4 +1,4 @@
-import configparser
+import yaml
 import tempfile
 import os
 from subprocess import run
@@ -16,10 +16,10 @@ def get_dependencies_file(wc_loc):
 
     try:
         host, path = wc_loc.split(":")
-        path = os.path.join(path, "dependencies.ini")
+        path = os.path.join(path, "dependencies.yaml")
         copy_command = f"scp -o StrictHostKeyChecking=no {host}:"
     except ValueError:
-        path = os.path.join(wc_loc, "dependencies.ini")
+        path = os.path.join(wc_loc, "dependencies.yaml")
         copy_command = f"cp "
     copy_command += f"{path} {tempdir}"
 
@@ -40,7 +40,7 @@ def get_dependencies_file(wc_loc):
 
 def read_sources(clone_source):
     """
-    Read through the dependencies.ini file, reading in each source. Return a dict of
+    Read through the dependencies.yaml file, reading in each source. Return a dict of
     source: source_string where each source_string is of format:
     - repo_location::./::ref for git repos, where repo_location is the repo url or path
     to clone, ./ indicates the entire repo, and ref is either the branch name or commit
@@ -50,8 +50,8 @@ def read_sources(clone_source):
 
     dependencies_file = get_dependencies_file(clone_source)
 
-    with open(os.path.join(dependencies_file, "dependencies.ini"), "r") as file_object:
-        sources = file_object.read()
+    with open(os.path.join(dependencies_file, "dependencies.yaml")) as stream:
+        sources = yaml.safe_load(stream)
 
     parsed_sources = {}
 

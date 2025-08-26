@@ -3,7 +3,7 @@ import subprocess
 import os
 import tempfile
 import re
-import configparser
+import yaml
 from shutil import rmtree
 from collections import defaultdict
 
@@ -72,7 +72,7 @@ def parse_extract_file(fpath):
 
 def read_dependencies(dependencies_file):
     """
-    Read through the dependencies.ini file, reading in each source. Return a dict of
+    Read through the dependencies.yaml file, reading in each source. Return a dict of
     source: source_string where each source_string is of format:
     - repo_location::./::ref for git repos, where repo_location is the repo url or path
     to clone, ./ indicates the entire repo, and ref is either the branch name or commit
@@ -80,8 +80,8 @@ def read_dependencies(dependencies_file):
     - repo_location@revision for fcm repos.
     """
 
-    with open(dependencies_file, "r") as file_object:
-        sources = file_object.read()
+    with open(dependencies_file) as stream:
+        sources = yaml.safe_load(stream)
 
     parsed_sources = {}
 
@@ -137,7 +137,7 @@ def parse_args():
     parser.add_argument(
         "-d",
         "--dependencies",
-        default="./dependencies.ini",
+        default="./dependencies.yaml",
         help="The dependencies file for the apps working copy.",
     )
     parser.add_argument(
