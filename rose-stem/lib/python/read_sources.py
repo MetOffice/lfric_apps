@@ -59,7 +59,7 @@ def read_sources(clone_source, use_heads):
         source_str = values["source"]
         if not source_str:
             continue
-        if use_heads:
+        if use_heads and "SimSys_Scripts" not in source_str:
             ref = "trunk"
         else:
             ref = values["ref"].strip()
