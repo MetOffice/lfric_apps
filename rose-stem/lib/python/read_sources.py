@@ -60,7 +60,7 @@ def read_sources(clone_source, use_heads):
         if not source_str:
             continue
         if use_heads:
-            ref = "main"
+            ref = "trunk"
         else:
             ref = values["ref"].strip()
         source_str = f"git:{source_str}::./::{ref}"
