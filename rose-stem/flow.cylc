@@ -49,7 +49,7 @@
 {% include "site/"+SITE+"/groups.cylc" %}
 
 {# Read the sources of dependencies from the dependencies.yaml file #}
-{% set dependencies = read_sources(LFRIC_APPS_SOURCE) %}
+{% set dependencies = read_sources(LFRIC_APPS_SOURCE, USE_HEADS) %}
 {% if "lfric_apps" not in dependencies %}
     {% do dependencies.update({"lfric_apps": LFRIC_APPS_SOURCE}) %}
 {% endif %}

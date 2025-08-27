@@ -38,7 +38,7 @@ def get_dependencies_file(wc_loc):
     return tempdir
 
 
-def read_sources(clone_source):
+def read_sources(clone_source, use_heads):
     """
     Read through the dependencies.yaml file, reading in each source. Return a dict of
     source: source_string where each source_string is of format:
@@ -59,7 +59,10 @@ def read_sources(clone_source):
         source_str = values["source"]
         if not source_str:
             continue
-        ref = values["ref"].strip()
+        if use_heads:
+            ref = "main"
+        else:
+            ref = values["ref"].strip()
         source_str = f"git:{source_str}::./::{ref}"
         parsed_sources[source] = source_str
 
