@@ -16,8 +16,6 @@ jobs:
       - id: extract
         name: Extract
         uses: actions/checkout@v4
-        with:
-          ref: main
       - id: setup_environment
         name: Setup Python environment
         uses: actions/setup-python@v5
