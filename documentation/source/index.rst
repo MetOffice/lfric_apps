@@ -16,7 +16,9 @@ lfric_atm and science code such as the GungHo dynamical core.
 
 The `LFRic Core <lfric_core_github_>`__ is developed in a separate repository
 and is designed to be a general modelling infrastructure for earth system
-modelling.
+modelling. This code base contains most of the core infrastructure used by 
+the applications found in the LFRic Apps repository and is documented 
+`here <lfric_core_docs_>`__.
 
 .. grid:: 3
 
