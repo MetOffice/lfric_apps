@@ -45,6 +45,8 @@ sitemap_url_scheme = "{link}"
 html_show_sourcelink = False
 
 html_theme_options = {
+    "announcement": "This documentation is under construction. "
+                    "Thank you for your patience while we add content!",
     "navigation_with_keys": True,
     "use_edit_page_button": True,
     "navbar_end": ["theme-switcher", "navbar-icon-links"],
