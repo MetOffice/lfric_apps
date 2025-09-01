@@ -82,8 +82,8 @@
         mail events = stall timeout
         abort on stall timeout = True
         stall timeout = PT3H
-        shutdown handlers = "suite_report.py"
-        stall handlers = "suite_report.py"
+        shutdown handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+        stall handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
 
 [scheduling]
     [[graph]]

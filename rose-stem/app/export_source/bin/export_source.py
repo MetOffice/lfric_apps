@@ -28,16 +28,6 @@ def run_command(command):
             f"The command '{command}' failed with error:\n\n{result.stderr}"
         )
 
-
-print(f"\n[INFO] LFRic Apps Source: {os.environ["SOURCE_LFRIC_APPS"]}")
-print(f"[INFO] LFRic Core Source: {os.environ["SOURCE_LFRIC_CORE"]}\n")
-
-# Copy suite_report and fcm_bdiff to bin dir
-bin_dir = os.path.join(os.environ["CYLC_WORKFLOW_RUN_DIR"], "bin")
-scripts_dir = os.path.join(os.environ["SOURCE_ROOT"], "SimSys_Scripts")
-run_command(f"cp {os.path.join(scripts_dir, "suite_report.py")} {bin_dir}")
-run_command(f"cp {os.path.join(scripts_dir, "fcm_bdiff.py")} {bin_dir}")
-
 # Make ctldata directory
 ctldata_dir = os.path.join(os.environ["SOURCE_ROOT"], "ctldata")
 run_command(f'mkdir -p {ctldata_dir}')
