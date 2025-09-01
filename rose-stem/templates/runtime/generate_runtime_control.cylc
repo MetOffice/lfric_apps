@@ -22,9 +22,9 @@
         script  = "rose task-run --app-key=export_source"
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
-            SOURCE_LFRIC_CORE = {{dependencies.lfric_core}}
-            SOURCE_LFRIC_APPS = {{dependencies.lfric_apps}}
-            SOURCE_SIMSYS_SCRIPTS = {{dependencies.SimSys_Scripts}}
+            LFRIC_APPS_SOURCE_CODE = {{dependencies.lfric_apps}}
+            LFRIC_CORE_SOURCE_CODE = {{dependencies.lfric_core}}
+            SIMSYS_SCRIPTS_SOURCE_CODE = {{dependencies.simsys_scripts}}
 
 
 {% elif task.startswith("export-source") %}

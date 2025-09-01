@@ -16,8 +16,8 @@ lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
     ref: f8b9b0e0b22cab847faa55ee09cb0e88828a9ba0
 
-SimSys_Scripts:
-    source: git@github.com:james-bruten-mo/SimSys_Scripts.git
+simsys_scripts:
+    source: git@github.com:james-bruten-mo/simsys_scripts.git
     ref: git_migration_pkg_branch
 
 socrates:
