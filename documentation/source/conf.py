@@ -9,7 +9,7 @@ import docutils
 
 project = 'LFRic Apps'
 author = 'Simulation IT'
-copyright = '2025 Met Office. All rights reserved'
+copyright = 'Met Office'
 release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
@@ -73,8 +73,8 @@ html_theme_options = {
         "index": [],
     },
     "footer_start": ["crown-copyright"],
-    "footer_center": ["sphinx-version"],
-    "footer_end": ["theme-version"],
+    "footer_center": ["show-accessibility"],
+    "footer_end": ["sphinx-version", "theme-version"],
     "primary_sidebar_end": []
 }
 
