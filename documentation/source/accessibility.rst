@@ -129,7 +129,7 @@ issues.
 Preparation of this accessibility statement
 -------------------------------------------
 
-This statement was prepared on 02 September 2025. It was last reviewed on ?
+This statement was prepared on 02 September 2025. It was last reviewed on 03 September 2025.
 
 .. _Central Digital & Data Office government website:
    https://www.gov.uk/government/publications/sample-accessibility-statement/sample-accessibility-statement-for-a-fictional-public-sector-website
