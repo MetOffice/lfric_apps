@@ -49,10 +49,7 @@
 {% include "site/"+SITE+"/groups.cylc" %}
 
 {# Read the sources of dependencies from the dependencies.yaml file #}
-{% set dependencies = read_sources(LFRIC_APPS_SOURCE, USE_HEADS) %}
-{% if "lfric_apps" not in dependencies %}
-    {% do dependencies.update({"lfric_apps": LFRIC_APPS_SOURCE}) %}
-{% endif %}
+{% set dependencies = read_sources(LFRIC_APPS_SOURCE, "lfric_apps") %}
 
 {# Generate list of tasks given by --group= #}
 {# Expand any groups included so list is only tasks #}
@@ -118,7 +115,6 @@
             SOURCE_ROOT    = $CYLC_WORKFLOW_SHARE_DIR/source
             OUTPUT_ROOT    = $CYLC_WORKFLOW_SHARE_DIR/output
             LAUNCH_SCRIPT  = $CYLC_WORKFLOW_RUN_DIR/site/{{SITE}}/common/bin
-            INFRASTRUCTURE_ROSESTEM = $SOURCE_ROOT/core/infrastructure/rose-stem/
 
         [[[events]]]
             submission timeout = PT5H

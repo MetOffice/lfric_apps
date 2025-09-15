@@ -19,12 +19,29 @@
 
     [[{{task}}]]
         inherit = EXPORT-SOURCE, {{SITE|upper}}_ORIG, CONTROL_TASK_RETRIES
-        script  = "rose task-run --app-key=export_source"
+        post-script = """
+                      cp $SOURCE_ROOT/lfric_apps/dependencies.yaml $CYLC_WORKFLOW_RUN_DIR
+                      cp $SOURCE_ROOT/SimSys_Scripts/suite_report_git/suite_report_git.py $CYLC_WORKFLOW_RUN_DIR/bin
+                      cp $SOURCE_ROOT/SimSys_Scripts/suite_report_git/suite_data.py $CYLC_WORKFLOW_RUN_DIR/bin
+                      cp $SOURCE_ROOT/SimSys_Scripts/bdiff/git_bdiff.py $CYLC_WORKFLOW_RUN_DIR/bin
+                      """
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
-            LFRIC_APPS_SOURCE_CODE = {{dependencies.lfric_apps}}
-            LFRIC_CORE_SOURCE_CODE = {{dependencies.lfric_core}}
-            SIMSYS_SCRIPTS_SOURCE_CODE = {{dependencies.simsys_scripts}}
+            ROSE_TASK_APP=extract_source
+            DEPENDENCIES={{dependencies}}
+        {% if USE_MIRRORS %}
+            USE_MIRRORS = True
+            {% if "git_mirror_loc" in site_vars %}
+            GIT_MIRROR_LOC = {{site_vars.git_mirror_loc}}
+            {% else %}
+                {{ raise(
+                    "Trying to run with mirrors without setting a mirror location. "
+                    "Ensure 'git_mirror_loc' is included in site_vars."
+                    ) }}
+            {% endif %}
+        {% else %}
+            USE_MIRRORS = False
+        {% endif %}
 
 
 {% elif task.startswith("export-source") %}

@@ -108,8 +108,8 @@
         inherit={{local_build_inherit|upper}}
         execution time limit = PT25M
         script = """
-                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/apps $CYLC_TASK_WORK_DIR/apps_local_build_source
-                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/core $CYLC_TASK_WORK_DIR/core_local_build_source
+                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_apps $CYLC_TASK_WORK_DIR/apps_local_build_source
+                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_core $CYLC_TASK_WORK_DIR/core_local_build_source
                  cd $CYLC_TASK_WORK_DIR/apps_local_build_source
                  python3 build/local_build.py -a gungho_model -c $CYLC_TASK_WORK_DIR/core_local_build_source
                  cd $CYLC_TASK_WORK_DIR
@@ -117,7 +117,7 @@
                  rm -rf $CYLC_TASK_WORK_DIR/core_local_build_source
                  """
         [[[environment]]]
-            SOURCE_LFRIC_APPS = {{dependencies.lfric_apps}}
+            SOURCE_LFRIC_APPS = {{dependencies.lfric_apps.source}}
 
 {% endif %}
 

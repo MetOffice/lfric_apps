@@ -27,7 +27,7 @@
 
 {# Set default values for Gungho tasks #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/science/gungho"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/science/gungho"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "gungho"}) %}
     {% endif %}
