@@ -45,6 +45,7 @@ module init_gungho_prognostics_alg_mod
                                              profile_dcmip301_streamfunction, &
                                              profile_div_free_reversible,     &
                                              profile_eternal_fountain,        &
+                                             profile_NL_case_4,               &
                                              profile_rotational,              &
                                              profile_pw_linear
   use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
@@ -155,10 +156,11 @@ contains
       end if
     else
 
-      if ( profile == profile_sbr_streamfunction .or.  &
+      if ( profile == profile_sbr_streamfunction .or.      &
            profile == profile_dcmip301_streamfunction .or. &
-           profile == profile_eternal_fountain .or. &
-           profile == profile_div_free_reversible .or. &
+           profile == profile_eternal_fountain .or.        &
+           profile == profile_div_free_reversible .or.     &
+           profile == profile_NL_case_4 .or.               &
            profile == profile_rotational ) then
 
         !----------------------------------------------------------------------!

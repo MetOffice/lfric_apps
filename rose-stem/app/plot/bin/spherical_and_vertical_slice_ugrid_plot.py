@@ -81,10 +81,11 @@ def make_figures(filein, plotpath, field_list, slice_list,
 
     elif testname in ['baroclinic', 'aquaplanet', 'spherical', 'lam_gw',
                       'sbr', 'dcmip101', 'vert_def', 'hadley', 'cos_phi',
-                      'four_part_sbr', 'deformation']:
+                      'four_part_sbr', 'deformation', 'divergent']:
         spherical = True
 
-        if testname in ['spherical', 'cos_phi', 'four_part_sbr', 'deformation']:
+        if testname in ['spherical', 'cos_phi', 'four_part_sbr', 
+                        'deformation', 'divergent']:
             # This is a special 2D spherical shell
             zmin = 0.0
             zmax = 1.0
@@ -452,7 +453,7 @@ def make_figures(filein, plotpath, field_list, slice_list,
                         if abs(contour - tracer_background) > epsilon:
                             contour_lines.append(contour)
 
-                elif (testname in ['hadley', 'cos_phi']
+                elif (testname in ['hadley', 'cos_phi', 'deformation','divergent']
                       or (testname in ['sbr', 'dcmip101', 'vert_def'] and
                           field in ['density', 'rho'])):
                     step = 0.1

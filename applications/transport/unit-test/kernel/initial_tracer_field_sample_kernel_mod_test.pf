@@ -116,7 +116,7 @@ contains
     real(kind=r_def), parameter      :: dx = 1.0_r_def
     real(kind=r_def), parameter      :: dy = 1.0_r_def
     real(kind=r_def), parameter      :: dz = 1.0_r_def
-    real(kind=r_def), parameter      :: answer1 = 0.2_r_def
+    real(kind=r_def), parameter      :: answer1 = 0.1_r_def
     real(kind=r_def), parameter      :: answer2 = 1.0_r_def
     real(kind=r_def), parameter      :: domain_max_x = 2.0_r_def
 

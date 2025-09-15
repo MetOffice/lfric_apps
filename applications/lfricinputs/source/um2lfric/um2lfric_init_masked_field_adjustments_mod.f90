@@ -16,6 +16,12 @@ public :: um2lfric_init_masked_field_adjustments
 
 contains
 
+!> @brief     Initialise the masked field adjustments ready for post-processing
+!> @details   Read land/sea masks from the UM file and LFRic ancils and use this
+!!            information to determine which points are not completely on one
+!!            or the other and so need post-processing after regridding.
+!!            Nearest neighbour algorithms are used to determine which data
+!!            should be used instead.
 subroutine um2lfric_init_masked_field_adjustments()
 
 use lfricinp_nearest_neighbour_mod,    only: find_nn_on_um_grid
@@ -26,6 +32,7 @@ use lfricinp_masks_mod,                only: lfricinp_init_masks,              &
                                              um_maritime_mask,                 &
                                              lfric_land_mask,                  &
                                              lfric_maritime_mask
+use lfricinp_stashmaster_mod,          only: stashcode_land_frac
 
 use um2lfric_regrid_weights_mod,           only: get_weights
 use um2lfric_masked_field_adjustments_mod, only: land_field_adjustments,       &
@@ -35,12 +42,11 @@ implicit none
 
 ! Local variables
 character(len=1),    parameter :: um_land_mask_grid_type = 'p'
-integer(kind=int64), parameter :: stashcode_land_mask = 505
 integer(kind=int32)            :: cell_lid, idx_lon_nn, idx_lat_nn, i
 real(kind=real64)              :: lon, lat
 
 ! Initialise masks
-call lfricinp_init_masks(stashcode_land_mask)
+call lfricinp_init_masks(stashcode_land_frac)
 
 !
 ! Initialise land field adjustments
@@ -52,7 +58,7 @@ if (allocated(um_land_mask) .and. allocated(lfric_land_mask)) then
   call land_field_adjustments%find_adjusted_points_src_2d_dst_1d(              &
                                       src_mask=um_land_mask,                   &
                                       dst_mask=lfric_land_mask,                &
-                                      weights=get_weights(stashcode_land_mask))
+                                      weights=get_weights(stashcode_land_frac))
   !
   ! Set map from LFRic adjusted land point indices to UM NN land point indices
   allocate(land_field_adjustments%adjusted_dst_to_src_map_2D(                  &
@@ -86,7 +92,7 @@ if (allocated(um_maritime_mask) .and. allocated(lfric_maritime_mask)) then
   call maritime_field_adjustments%find_adjusted_points_src_2d_dst_1d(          &
                                       src_mask=um_maritime_mask,               &
                                       dst_mask=lfric_maritime_mask,            &
-                                      weights=get_weights(stashcode_land_mask))
+                                      weights=get_weights(stashcode_land_frac))
   !
   ! Set map from LFRic adjusted maritime point indices to UM NN maritime point
   ! indices

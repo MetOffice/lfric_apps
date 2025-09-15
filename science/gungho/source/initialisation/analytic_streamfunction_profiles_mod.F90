@@ -11,11 +11,14 @@ module analytic_streamfunction_profiles_mod
 
 use constants_mod,           only: r_def, i_def, pi
 use extrusion_config_mod,    only: domain_height
-use initial_wind_config_mod, only: profile_sbr_streamfunction,      &
+use initial_wind_config_mod, only: nl_constant,                     &
+                                   profile_sbr_streamfunction,      &
                                    profile_dcmip301_streamfunction, &
                                    profile_div_free_reversible,     &
                                    profile_eternal_fountain,        &
-                                   profile_rotational
+                                   profile_NL_case_4,               &
+                                   profile_rotational,              &
+                                   wind_time_period
 use planet_config_mod,       only: scaled_radius
 use log_mod,                 only: log_event,                &
                                    log_scratch_space,        &
@@ -51,10 +54,9 @@ function analytic_streamfunction( chi, choice, num_options,    &
   real(kind=r_def)                :: psi(3)
   real(kind=r_def)                :: s
   real(kind=r_def)                :: lat_pole, lon_pole
-  real(kind=r_def)                :: u0, time_period, L
+  real(kind=r_def)                :: u0, v0, long_dash, time_period, L
   real(kind=r_def)                :: vortex_zcentre, la, lb, ld, lr
   real(kind=r_def)                :: coeffs(4)
-
 
   select case ( choice )
 
@@ -78,7 +80,7 @@ function analytic_streamfunction( chi, choice, num_options,    &
 
     psi(1) = 0.0_r_def
     psi(3) = 0.0_r_def
-    psi(2) = - u0 * domain_height / pi *                                             &
+    psi(2) = - u0 * domain_height / pi *                                                &
               sin(2.0_r_def * pi * (chi(1) / (2.0_r_def * domain_max_x) + 0.5_r_def)) * &
               sin(pi * chi(3) / domain_height)
   case ( profile_div_free_reversible )
@@ -89,11 +91,26 @@ function analytic_streamfunction( chi, choice, num_options,    &
 
     psi(1) = 0.0_r_def
     psi(3) = 0.0_r_def
-    psi(2) = L * domain_height / time_period *                                    &
-              ( - chi(3) / domain_height                                          &
+    psi(2) = L * domain_height / time_period *                                 &
+              ( - chi(3) / domain_height                                       &
                 + 1.0_r_def / pi * (-0.5_r_def + time / time_period)           &
                 * sin(2.0_r_def * pi * (chi(1) / L - time / time_period))      &
                 * sin(2.0_r_def * pi * chi(3) / domain_height))
+
+  case ( profile_NL_case_4 )
+    ! Deformational wind with a background flow from Nair and Lauritzen JCP (2010)
+
+    ! Translated longitude
+    long_dash = chi(1) - 2.0_r_def*pi*time/wind_time_period
+    ! Coefficents for any sized planet
+    u0 = nl_constant*scaled_radius/wind_time_period
+    v0 = 2.0_r_def*pi*scaled_radius/wind_time_period
+
+    psi(1) = 0.0_r_def
+    psi(2) = 0.0_r_def
+    psi(3) = -scaled_radius * (u0 * (sin(long_dash)**2) * (cos(chi(2))**2) &
+                                  * cos(pi*time/wind_time_period)          &
+                                  - v0 * sin(chi(2)) )
 
   case ( profile_rotational )
     ! A solid body rotation in a vertical slice

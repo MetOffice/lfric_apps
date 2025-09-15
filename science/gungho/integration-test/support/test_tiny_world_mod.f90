@@ -74,13 +74,14 @@ contains
 
   subroutine build_topology(planet_radius, mesh_id )
 
-    use extrusion_mod,       only : extrusion_type,         &
-                                    uniform_extrusion_type, &
-                                    prime_extrusion
-    use partition_mod,       only : partition_type,        &
-                                    partitioner_interface, &
-                                    partitioner_cubedsphere
-    use ugrid_mesh_data_mod, only : ugrid_mesh_data_type
+    use extrusion_mod,           only : extrusion_type,         &
+                                        uniform_extrusion_type, &
+                                        prime_extrusion
+    use panel_decomposition_mod, only : custom_decomposition_type
+    use partition_mod,           only : partition_type,        &
+                                        partitioner_interface, &
+                                        partitioner_cubedsphere
+    use ugrid_mesh_data_mod,     only : ugrid_mesh_data_type
 
     implicit none
 
@@ -88,16 +89,18 @@ contains
     real(r_def), intent(in)  :: planet_radius
     integer,     intent(out) :: mesh_id
 
-    type(ugrid_mesh_data_type)         :: ugrid_data
-    class(extrusion_type), allocatable :: extrusion
-    type(partition_type)               :: partitioner
+    type(ugrid_mesh_data_type)                   :: ugrid_data
+    class(extrusion_type), allocatable           :: extrusion
+    type(custom_decomposition_type), allocatable :: decomposition
+    type(partition_type)                         :: partitioner
 
     call ugrid_data%read_from_file('shared-resources/tiny_world.nc', 'tiny')
     allocate( global_mesh, source=global_mesh_type( ugrid_data ) )
+    decomposition = custom_decomposition_type( num_xprocs=1_i_def, num_yprocs=1_i_def )
     partitioner_proc => partitioner_cubedsphere
     partitioner = partition_type( global_mesh,                           &
                                   partitioner_proc,                      &
-                                  xproc=1_i_def, yproc=1_i_def,          &
+                                  decomposition,                         &
                                   max_stencil_depth=1_i_def,             &
                                   generate_inner_halos=.true.,           &
                                   local_rank=global_mpi%get_comm_rank(), &

@@ -7,10 +7,11 @@
 
 {% set azng_base = 'umask 0022 ; '~
                    'module purge ; '~
-                   'module use ~spackadmin/spack-0.22.2/modules/linux-ubuntu22.04-zen2
-                    module load fcm/2021.05.0/gcc-14.2.0-t4rinp py-psyclone/3.1.0/gcc-14.2.0-je7t5s rose-picker/2.0.0/gcc-12.2.0-jcztbm subversion/1.14.2/gcc-14.2.0-4zbbqs xxdiff/2023-01-10/gcc-14.2.0-ainget py-jinja2/3.1.2/gcc-14.2.0-nogypf ; ' %}
+                   'module use ~spackadmin/spack-0.22.2/modules/linux-ubuntu22.04-zen2 ; '
+                   'module load fcm/2021.05.0/gcc-14.2.0-t4rinp py-psyclone/3.1.0/gcc-14.2.0-je7t5s rose-picker/2.0.0/gcc-12.2.0-jcztbm subversion/1.14.2/gcc-14.2.0-4zbbqs xxdiff/2023-01-10/gcc-14.2.0-ainget py-jinja2/3.1.2/gcc-14.2.0-nogypf ; ' %}
 
-{% set azng_compiler_gnu = 'source /shared/home/spackadmin/bin/prg_gcc-14.2.0-offload-psy-3.0 || true' %}
+{% set azng_compiler_gnu = 'source /shared/home/spackadmin/bin/prg_gcc-14.2.0-offload-psy-3.0  || true' %}
+{% set azng_compiler_nvidia = 'source /shared/home/spackadmin/bin/prg_nvhpc-24.11.3-psy-3.1 || true' %}
 
 {% set azng_run = 'ulimit -s unlimited' %}
 {# see if we need this at some point #}
@@ -29,7 +30,7 @@
         inherit = SANDBOX_BASE
         platform = sandbox
         [[[environment]]]
-            ROSE_LAUNCHER = mpiexec
+            ROSE_LAUNCHER = srun
 
     [[SANDBOX_SERIAL_QUEUE]]
         inherit = SANDBOX_SLURM
@@ -63,9 +64,17 @@
         [[[environment]]]
              COMPILER = 'gnu'
 
+    [[SANDBOX_NVIDIA]]
+        [[[environment]]]
+             COMPILER = 'nvidia'
+
     [[SANDBOX_BUILD_GNU]]
         inherit = SANDBOX_BUILD, SANDBOX_GNU
         {{ generate_script("pre-script", [azng_base, azng_compiler_gnu])}}
+
+    [[SANDBOX_BUILD_NVIDIA]]
+        inherit = SANDBOX_BUILD, SANDBOX_NVIDIA
+        {{ generate_script("pre-script", [azng_base, azng_compiler_nvidia])}}
 
     [[SANDBOX_RUN]]
         inherit = SANDBOX_STANDARD_QUEUE
@@ -73,7 +82,9 @@
             BIG_DATA_DIR   = '/data/users/lfricadmin/data'
             SMALL_DATA_DIR = '/data/users/lfricadmin/data'
             TARGET_PLATFORM = 'sandbox'
-            RUN_METHOD = mpiexec
+            OMP_PLACES = cores
+            OMP_PROC_BIND = close
+            RUN_METHOD = srun
 
     [[SANDBOX_MESH]]
         {{ generate_script("pre-script", [azng_base, azng_compiler_gnu])}}
@@ -96,6 +107,12 @@
     [[SANDBOX_RUN_GNU]]
        {{ generate_script("pre-script", [azng_base, azng_compiler_gnu])}}
        inherit = SANDBOX_RUN, SANDBOX_GNU
+
+    [[SANDBOX_RUN_NVIDIA]]
+        {{ generate_script("pre-script", [azng_base, azng_compiler_nvidia])}}
+        inherit = SANDBOX_RUN, SANDBOX_NVIDIA
+        [[[directives]]]
+            --partition=hbv3
 
     [[SANDBOX_TECH_BASE]]
         inherit = SANDBOX_SHORT_QUEUE

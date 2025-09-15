@@ -33,7 +33,9 @@ public ::  um2lfric_regrid_weightsfile_ctl, get_weights
 contains
 
 !---------------------------------------------------------
-
+!> @brief   Fetches the appropriate weights object for a given stashcode
+!> @param[in]   stashcode   Integer value of stashcode to return weights for
+!> @return      lfricinp_regrid_weights_type object
 function get_weights(stashcode) result (weights)
 
 ! Intrinsic modules
@@ -150,7 +152,9 @@ end if
 
 end function get_weights
 
-
+!> @brief Initialise all regridding weights objects
+!> @details Takes all SCRIP weights files generated for um2lfric and initialises
+!!          objects for each, validating and partitioning based on local mesh.
 subroutine um2lfric_regrid_weightsfile_ctl()
 
 implicit none

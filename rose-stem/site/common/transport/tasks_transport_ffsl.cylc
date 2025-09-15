@@ -147,17 +147,16 @@
         "plot_str": "slices.py diagTransport $NODAL_DATA_DIR theta:tracer_con:tracer_adv:m_v:constant T000000:T000030:T000060:T000090:T000120 0 -100 -100 $PLOT_DIR"
     }) %}
 
-{% elif task_ns.conf_name == "deformation_2d_ffsl-C32" %}
+{% elif task_ns.conf_name == "deformation_2d_ffsl-C48" %}
 
     {% do task_dict.update({
         "opt_confs": ["deformation_2d_ffsl"],
-        "resolution": "C32",
-        "DT": 0.01,
-        "tsteps": 500,
-        "mpi_parts": 6,
-        "use_xios": false,
+        "resolution": "C48",
+        "DT": 1200,
+        "tsteps": 864,
+        "mpi_parts": 12,
         "kgo_checks": [],
-        "plot_str": "slices.py diagTransport $NODAL_DATA_DIR theta:tracer_con:tracer_adv:m_v:constant T000000:T000100:T000200:T000250:T000300:T000400:T000500 -1 -91 0 $PLOT_DIR"
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR rho:theta:tracer_con:tracer_adv:m_v xy all linear deformation"
     }) %}
 
 {% endif %}

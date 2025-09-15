@@ -85,7 +85,7 @@ contains
                                     nl_constant=2.0_r_def,                 &
                                     shear=1.0_r_def,                       &
                                     wavelength=1.0_r_def,                  &
-                                    wind_time_period=10.0_r_def,           &
+                                    wind_time_period=864000.0_r_def,       &
                                     smp_init_wind=.false. )
 
   end subroutine set_up
@@ -242,7 +242,7 @@ contains
 
     @assertEqual(0.0_r_def, u(1), tol)
     @assertEqual(0.0_r_def, u(2), tol)
-    @assertEqual(-1.0_r_def, u(3), tol)
+    @assertEqual(-6.94444444444446_r_def, u(3), tol)
 
     xyz = (/ 0.0_r_def, 12.0_r_def, 21.0_r_def /)
     initial_time = 1.0_r_def
@@ -251,8 +251,8 @@ contains
 
     if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
     @assertEqual(0.0_r_def, u(1), tol)
-    @assertEqual(0.10280308159920292788_r_def, u(2), tol)
-    @assertEqual(-0.90172019935509484245_r_def, u(3), tol)
+    @assertEqual(0.750649700250913_r_def, u(2), tol)
+    @assertEqual(-6.584199489223709_r_def, u(3), tol)
 
     tol = 10.0E-12_r_def
     xyz = (/ 10.0_r_def, 15.0_r_def, 0.0_r_def /)
@@ -261,8 +261,8 @@ contains
                        domain_max_x, domain_max_y )
 
     if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
-    @assertEqual(0.70710678118654768376_r_def, u(1), tol)
-    @assertEqual(-0.38268343236508983729_r_def, u(2), tol)
+    @assertEqual(4.910463758239915_r_def, u(1), tol)
+    @assertEqual(-2.657523835868679_r_def, u(2), tol)
     @assertEqual(0.0_r_def, u(3), tol)
 
     tol = 10.0E-12_r_def
@@ -272,8 +272,8 @@ contains
                        domain_max_x, domain_max_y )
 
     if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
-    @assertEqual(-0.67249851196395715736_r_def, u(1), tol)
-    @assertEqual(0.87866164966657944735_r_def, u(2), tol)
+    @assertEqual(-4.910463758207451_r_def, u(1), tol)
+    @assertEqual(6.415830086841524_r_def, u(2), tol)
     @assertEqual(0.0_r_def, u(3), tol)
 
     tol = 10.0E-12_r_def
@@ -284,17 +284,17 @@ contains
 
     @assertEqual(0.0_r_def, u(1), tol)
     if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
-    @assertEqual(0.38268343236508978_r_def, u(2), tol)
+    @assertEqual(2.657523835868679_r_def, u(2), tol)
 
     tol = 10.0E-12_r_def
-    initial_time = 1.0_r_def
+    initial_time = 691200.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind( llr, initial_time, profile_nl_case_1, 0, &
                        domain_max_x, domain_max_y )
 
     @assertEqual(0.0_r_def, u(1), tol)
     if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
-    @assertEqual(0.36395357202901429_r_def, u(2), tol)
+    @assertEqual(-2.149981946174261_r_def, u(2), tol)
 
     tol = 10.0E-12_r_def
     initial_time = 0.0_r_def
@@ -302,31 +302,29 @@ contains
     u = analytic_wind( llr, initial_time, profile_nl_case_2, 0, &
                        domain_max_x, domain_max_y )
     @assertEqual(0.0_r_def, u(1), tol)
-    @assertEqual(1.4142135623730949_r_def, u(2), tol)
+    @assertEqual(9.820927516479825_r_def, u(2), tol)
 
     initial_time = 0.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind( llr, initial_time, profile_nl_case_3, 0, &
                        domain_max_x, domain_max_y )
-    @assertEqual(0.0_r_def, u(1), tol)
-    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
-    @assertEqual(0.38268343236508978_r_def, u(2), tol)
+    @assertEqual(43.633231299858238_r_def, u(1), tol)
+    @assertEqual(2.657523835868679_r_def, u(2), tol)
 
     tol = 10.0E-12_r_def
     initial_time = 0.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind( llr, initial_time, profile_nl_case_4, 0, &
                        domain_max_x, domain_max_y )
-    @assertEqual(0.62831853071795862_r_def, u(1), tol)
-    @assertEqual(1.4142135623730949_r_def, u(2), tol)
+    @assertEqual(43.633231299858238_r_def, u(1), tol)
+    @assertEqual(9.820927516479825_r_def, u(2), tol)
 
-    initial_time = 1.0_r_def
+    initial_time = 86400.0_r_def
     llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
     u = analytic_wind( llr, initial_time, profile_nl_case_4, 0, &
                        domain_max_x, domain_max_y )
-    @assertEqual(0.62831853071795862_r_def, u(1), tol)
-    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
-    @assertEqual(-0.86354124622677830_r_def, u(2), tol)
+    @assertEqual(43.633231299858238_r_def, u(1), tol)
+    @assertEqual(-5.996814209908186_r_def, u(2), tol)
 
     tol = 10.0E-12_r_def
     initial_time = 3600.0_r_def

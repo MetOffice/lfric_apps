@@ -16,6 +16,8 @@ logical, allocatable :: lfric_land_mask(:), lfric_maritime_mask(:)
 
 contains
 
+!> @brief Initialises UM and LFRic land and maritime masks
+!> @param[in] stashcode_land_mask Stashcode for the UM land fraction
 subroutine lfricinp_init_masks(stashcode_land_mask)
 
 use log_mod,        only: log_event, log_scratch_space, LOG_LEVEL_INFO

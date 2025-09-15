@@ -20,7 +20,7 @@
         script = rose task-run --app-key=generate_weights
 {% endif %}
         [[[environment]]]
-            MPIRUN_N_JOBS = 8
+            MPIRUN_N_JOBS = {{task_values["gen_weights_tasks"]}}
             INTERPOLATION_DIRECTION = {{task_values["app_name"]}}
             LFRIC_MESH_FILE = {{mesh_dir}}/mesh_{{task_values["resolution"]}}.nc
             LFRIC_MESH_NAME = {{task_values["mesh_name"]|default("")}}
@@ -49,7 +49,10 @@
             GRID_TYPE_LFRIC = {{task_values["source_grid_type"]}}
     {% endif %}
         [[[directives]]]
-            {{ set_task_resources(8, [16, "GB"])}}
+            {{ set_task_resources(
+                task_values["gen_weights_tasks"],
+                task_values["gen_weights_memory"]
+                )}}
 
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_gen_weights.cylc") %}

@@ -202,16 +202,56 @@
         "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR rho:theta:tracer_con:tracer_adv:m_v xz all linear cylinder",
     }) %}
 
-{% elif task_ns.conf_name == "deformation_2d_ffsl_bigcfl-C32" %}
+{% elif task_ns.conf_name == "deformation_2d_ffsl_bigcfl-C48" %}
 
     {% do task_dict.update({
         "opt_confs": ["deformation_2d_ffsl_bigcfl"],
-        "resolution": "C32",
-        "DT": 0.1,
-        "tsteps": 50,
-        "mpi_parts": 6,
+        "resolution": "C48",
+        "DT": 9600,
+        "tsteps": 108,
+        "mpi_parts": 12,
+        "wallclock": 20,
         "kgo_checks": [],
-        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR theta:tracer_con:tracer_adv:constant:m_v xy -1 linear deformation",
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR rho:theta:tracer_con:tracer_adv:constant:m_v xy all linear deformation",
+    }) %}
+
+{% elif task_ns.conf_name == "deformation_2d_cylinder_ffsl_bigcfl-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["deformation_2d_ffsl_bigcfl","slotted_cylinder_2d"],
+        "resolution": "C96",
+        "DT": 4800,
+        "tsteps": 216,
+        "mpi_parts": 12,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR rho:theta:tracer_con:tracer_adv:constant:m_v xy all linear deformation",
+    }) %}
+
+{% elif task_ns.conf_name == "divergent_2d_ffsl_bigcfl-C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["divergent_2d_ffsl_bigcfl"],
+        "resolution": "C48",
+        "DT": 12960,
+        "tsteps": 80,
+        "mpi_parts": 12,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR rho:theta:tracer_con:tracer_adv:constant:m_v xy all linear divergent",
+    }) %}
+
+{% elif task_ns.conf_name == "divergent_2d_cylinder_ffsl_bigcfl-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["divergent_2d_ffsl_bigcfl","slotted_cylinder_2d"],
+        "resolution": "C96",
+        "DT": 6480,
+        "tsteps": 160,
+        "mpi_parts": 12,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR rho:theta:tracer_con:tracer_adv:constant:m_v xy all linear divergent",
     }) %}
 
 {% elif task_ns.conf_name == "eternal_fountain_xz_ffsl-BiP100x10-20x20" %}

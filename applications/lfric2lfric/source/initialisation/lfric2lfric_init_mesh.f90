@@ -30,7 +30,6 @@ module lfric2lfric_init_mesh_mod
   use check_local_mesh_mod,        only: check_local_mesh
   use create_mesh_mod,             only: create_mesh
   use extrusion_mod,               only: extrusion_type
-  use global_mesh_mod,             only: global_mesh_type
   use load_global_mesh_mod,        only: load_global_mesh
   use load_local_mesh_mod,         only: load_local_mesh
   use load_local_mesh_maps_mod,    only: load_local_mesh_maps
@@ -41,19 +40,14 @@ module lfric2lfric_init_mesh_mod
                                          log_level_debug
   use namelist_collection_mod,     only: namelist_collection_type
   use namelist_mod,                only: namelist_type
+  use panel_decomposition_mod,     only: panel_decomposition_type
   use partition_mod,               only: partitioner_interface
-  use sci_query_mod,               only: check_uniform_partitions
-  use runtime_partition_mod,       only: mesh_cubedsphere,          &
-                                         mesh_planar, decomp_auto,  &
-                                         decomp_row, decomp_column, &
-                                         get_partition_parameters,  &
+  use runtime_partition_mod,       only: mesh_cubedsphere,       &
+                                         mesh_planar,            &
                                          create_local_mesh_maps, &
                                          create_local_mesh
+  use runtime_partition_lfric_mod, only: get_partition_parameters
   use global_mesh_collection_mod,  only: global_mesh_collection
-  use partitioning_config_mod,     only: panel_decomposition_auto,   &
-                                         panel_decomposition_row,    &
-                                         panel_decomposition_column, &
-                                         panel_decomposition_custom
 
   ! Lfric2lfric modules
   use lfric2lfric_config_mod,      only: regrid_method_map,                   &
@@ -113,18 +107,12 @@ subroutine init_mesh( configuration,           &
   integer(kind=i_def), parameter :: dst = 1
   integer(kind=i_def), parameter :: src = 2
 
-  ! Counters
-  integer(kind=i_def) :: i
-
   ! Namelist variables
   type(namelist_type), pointer :: lfric2lfric_nml      => null()
   type(namelist_type), pointer :: src_partitioning_nml => null()
   type(namelist_type), pointer :: dst_partitioning_nml => null()
 
   ! partitioning namelist variables
-  integer(kind=i_def)              :: panel_decomposition(2)
-  integer(kind=i_def)              :: panel_xproc(2)
-  integer(kind=i_def)              :: panel_yproc(2)
   logical(l_def)                   :: generate_inner_halos(2)
 
   ! lfric2lfric namelist variables
@@ -138,13 +126,12 @@ subroutine init_mesh( configuration,           &
   ! Local variables
   character(len=str_max_filename)     :: mesh_file(2)
 
-  type(global_mesh_type),           pointer :: global_mesh_ptr => null()
   procedure(partitioner_interface), pointer :: partitioner_src => null()
   procedure(partitioner_interface), pointer :: partitioner_dst => null()
 
-  integer(kind=i_def) :: xproc(2)  ! Processor ranks in mesh panel x-direction
-  integer(kind=i_def) :: yproc(2)  ! Processor ranks in mesh panel y-direction
-  logical(kind=l_def) :: partitions_good
+  class(panel_decomposition_type), allocatable :: decomposition_src, &
+                                                  decomposition_dst
+
 
   !============================================================================
   ! Extract and check configuration variables
@@ -154,27 +141,11 @@ subroutine init_mesh( configuration,           &
                                                       'source')
   call src_partitioning_nml%get_value( 'generate_inner_halos', &
                                         generate_inner_halos(src) )
-  call src_partitioning_nml%get_value( 'panel_decomposition', &
-                                        panel_decomposition(src) )
-  if (panel_decomposition(src) == panel_decomposition_custom) then
-    call src_partitioning_nml%get_value( 'panel_xproc', &
-                                          panel_xproc(src) )
-    call src_partitioning_nml%get_value( 'panel_yproc', &
-                                          panel_yproc(src) )
-  end if
 
   dst_partitioning_nml  => configuration%get_namelist('partitioning', &
                                                       'destination')
   call dst_partitioning_nml%get_value( 'generate_inner_halos', &
                                         generate_inner_halos(dst) )
-  call dst_partitioning_nml%get_value( 'panel_decomposition', &
-                                        panel_decomposition(dst) )
-  if (panel_decomposition(dst) == panel_decomposition_custom) then
-    call dst_partitioning_nml%get_value( 'panel_xproc', &
-                                          panel_xproc(dst) )
-    call dst_partitioning_nml%get_value( 'panel_yproc', &
-                                          panel_yproc(dst) )
-  end if
 
   ! Read lfric2lfric namelist
   lfric2lfric_nml    => configuration%get_namelist('lfric2lfric')
@@ -307,57 +278,18 @@ subroutine init_mesh( configuration,           &
 
     ! Set constants that will control partitioning.
     !===========================================================
-    do i=1, 2
-      select case (panel_decomposition(i))
+    call get_partition_parameters( src_partitioning_nml, &
+                                   mesh_selection(src),  &
+                                   total_ranks,          &
+                                   decomposition_src,    &
+                                   partitioner_src )
 
-      case (panel_decomposition_auto)
-        panel_decomposition(i) = decomp_auto
+    call get_partition_parameters( dst_partitioning_nml, &
+                                   mesh_selection(dst),  &
+                                   total_ranks,          &
+                                   decomposition_dst,    &
+                                   partitioner_dst )
 
-      case (panel_decomposition_row)
-        panel_decomposition(i) = decomp_row
-
-      case (panel_decomposition_column)
-        panel_decomposition(i) = decomp_column
-
-      end select
-
-    end do
-
-    if (panel_decomposition(dst) == panel_decomposition_custom) then
-      call get_partition_parameters( mesh_selection(dst),   &
-                                     total_ranks,           &
-                                     panel_xproc(dst),      &
-                                     panel_yproc(dst),      &
-                                     partitioner_dst )
-      xproc(dst) = panel_xproc(dst)
-      yproc(dst) = panel_yproc(dst)
-
-    else
-      call get_partition_parameters( mesh_selection(dst),      &
-                                     panel_decomposition(dst), &
-                                     total_ranks,              &
-                                     xproc(dst),         &
-                                     yproc(dst),         &
-                                     partitioner_dst )
-    end if
-
-    if (panel_decomposition(src) == panel_decomposition_custom) then
-      call get_partition_parameters( mesh_selection(src),   &
-                                     total_ranks,           &
-                                     panel_xproc(src),      &
-                                     panel_yproc(src),      &
-                                     partitioner_src )
-      xproc(src) = panel_xproc(src)
-      yproc(src) = panel_yproc(src)
-
-    else
-      call get_partition_parameters( mesh_selection(src),      &
-                                     panel_decomposition(src), &
-                                     total_ranks,              &
-                                     xproc(src),         &
-                                     yproc(src),         &
-                                     partitioner_src )
-    end if
 
     ! Read in all global meshes from input file
     !===========================================================
@@ -376,45 +308,20 @@ subroutine init_mesh( configuration,           &
       !===========================================================
       call check_global_mesh( configuration, mesh_names )
 
-      ! Optional, Check for even partitions
-      !===========================================================
-      ! Check global meshes which may require even partition sizes,
-      ! these will generally be where there are meshes of differing
-      ! resolutions and the node locations of one mesh overlay the
-      ! the other(s). Checking the lowest resolution mesh for
-      ! even partitions should ensure common geographical partitions.
-      do i=1, size(mesh_names)
-
-        write(log_scratch_space, '(A)') &
-            'Checking partitioning on mesh '//trim(mesh_names(i))
-        call log_event( log_scratch_space, log_level_info )
-
-        global_mesh_ptr => &
-                global_mesh_collection%get_global_mesh( mesh_names(i) )
-        partitions_good = check_uniform_partitions( global_mesh_ptr, &
-                                                    xproc(i), yproc(i) )
-        if ( .not. partitions_good ) then
-          write(log_scratch_space, '(A)')                                &
-              'Global mesh ('// trim(global_mesh_ptr%get_mesh_name()) // &
-              ') ' // 'does not produce even partitions with the ' //    &
-              'requested partition strategy'
-          call log_event( log_scratch_space, log_level_error )
-        end if
-      end do
     end if
 
     ! Partition the global meshes
     !===========================================================
     call create_local_mesh( mesh_names(dst:dst),           &
                             local_rank, total_ranks,       &
-                            xproc(dst), yproc(dst),        &
+                            decomposition_dst,             &
                             stencil_depth,                 &
                             generate_inner_halos(dst),    &
                             partitioner_dst )
 
     call create_local_mesh( mesh_names(src:src),           &
                             local_rank, total_ranks,       &
-                            xproc(src), yproc(src),        &
+                            decomposition_src,             &
                             stencil_depth,                 &
                             generate_inner_halos(src),    &
                             partitioner_src )

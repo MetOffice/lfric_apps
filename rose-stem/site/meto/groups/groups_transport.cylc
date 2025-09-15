@@ -44,7 +44,9 @@
     "transport_azspice_next-config": [
         "transport_curl_free_reversible_xz_ffsl_bigcfl-BiP100x10-20x20_azspice_gnu_fast-debug-64bit",
         "transport_cylinder_xz_ffsl_bigcfl-BiP100x10-20x20_azspice_gnu_fast-debug-64bit",
-        "transport_deformation_2d_ffsl_bigcfl-C32_azspice_gnu_fast-debug-64bit",
+        "transport_deformation_2d_ffsl_bigcfl-C48_azspice_gnu_fast-debug-64bit",
+        "transport_deformation_2d_cylinder_ffsl_bigcfl-C96_azspice_gnu_fast-debug-64bit",
+        "transport_divergent_2d_cylinder_ffsl_bigcfl-C96_azspice_gnu_fast-debug-64bit",
         "transport_eternal_fountain_xz_ffsl-BiP100x10-20x20_azspice_gnu_fast-debug-64bit",
         "transport_hadley_dcmip_ffsl_overset_bigcfl-C48_azspice_gnu_fast-debug-64bit",
         "transport_sbr_hori_cos_phi_ffsl_overset-C32_azspice_gnu_fast-debug-64bit",
@@ -65,7 +67,8 @@
     "transport_azspice_ffsl-additional": [
         "transport_constant_wind_xy_ffsl-BiP40x40-5x5_azspice_gnu_fast-debug-64bit",
         "transport_deformation_yz_ffsl-BiP16x100-2x2_azspice_gnu_fast-debug-64bit",
-        "transport_deformation_2d_ffsl-C32_azspice_gnu_fast-debug-64bit",
+        "transport_deformation_2d_ffsl-C48_azspice_gnu_fast-debug-64bit",
+        "transport_divergent_2d_ffsl_bigcfl-C48_azspice_gnu_fast-debug-64bit",
     ],
     "transport_azspice_ffsl": [
         "transport_azspice_ffsl-horizontal-sbr",
@@ -137,7 +140,9 @@
     "transport_ex1a_next-config": [
         "transport_curl_free_reversible_xz_ffsl_bigcfl-BiP100x10-20x20_ex1a_gnu_fast-debug-64bit",
         "transport_cylinder_xz_ffsl_bigcfl-BiP100x10-20x20_ex1a_gnu_fast-debug-64bit",
-        "transport_deformation_2d_ffsl_bigcfl-C32_ex1a_gnu_fast-debug-64bit",
+        "transport_deformation_2d_ffsl_bigcfl-C48_ex1a_gnu_fast-debug-64bit",
+        "transport_deformation_2d_cylinder_ffsl_bigcfl-C96_ex1a_gnu_fast-debug-64bit",
+        "transport_divergent_2d_cylinder_ffsl_bigcfl-C96_ex1a_gnu_fast-debug-64bit",
         "transport_eternal_fountain_xz_ffsl-BiP100x10-20x20_ex1a_gnu_fast-debug-64bit",
         "transport_hadley_dcmip_ffsl_overset_bigcfl-C48_ex1a_gnu_fast-debug-64bit",
         "transport_sbr_hori_cos_phi_ffsl_overset-C32_ex1a_gnu_fast-debug-64bit",

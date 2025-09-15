@@ -144,9 +144,9 @@ end function vortex_wind
 
 !> @brief Compute Case 1 of Nair and Lauritzen JCP 229 (2010)
 !> @param[in] long Longitudinal position in spherical coordinates
-!> @param[in] lat Latitudinal position in spherical coordinates
-!> @param[in] time Time (timestep multiplied by dt)
-!> @result u Wind field vector (u,v,w) in spherical coordinates
+!> @param[in] lat  Latitudinal position in spherical coordinates
+!> @param[in] time Current time (timestep multiplied by dt)
+!> @result    u    Wind field vector (u,v,w) in spherical coordinates
 function NL_wind_case_1(long,lat,time) result(u)
   use initial_wind_config_mod, only : wind_time_period, nl_constant
 
@@ -155,20 +155,26 @@ function NL_wind_case_1(long,lat,time) result(u)
   real(kind=r_def), intent(in)    :: lat
   real(kind=r_def), intent(in)    :: time
   real(kind=r_def), dimension(3)  :: u
+
+  real(kind=r_def) :: u0
+
   ! Equations below have been taken from Case 1 of Nair and Lauritzen, 2010
   ! "A class of deformational flow test cases for linear transport problems on the sphere"
 
-  u(1) = nl_constant*sin(long/2.0_r_def)**2*sin(2.0_r_def*lat)*cos(pi*time/wind_time_period)
-  u(2) = (nl_constant/2.0_r_def)*sin(long)*cos(lat)*cos(pi*time/wind_time_period)
+  ! Coefficents for any sized planet
+  u0 = nl_constant*scaled_radius/wind_time_period
+
+  u(1) = u0*sin(long/2.0_r_def)**2*sin(2.0_r_def*lat)*cos(pi*time/wind_time_period)
+  u(2) = (u0/2.0_r_def)*sin(long)*cos(lat)*cos(pi*time/wind_time_period)
   u(3) = 0.0_r_def
 
 end function NL_wind_case_1
 
 !> @brief Compute Case 2 of Nair and Lauritzen JCP 229 (2010)
 !> @param[in] long Longitudinal position in spherical coordinates
-!> @param[in] lat Latitudinal position in spherical coordinates
-!> @param[in] time Time (timestep multiplied by dt)
-!> @result u Wind field vector (u,v,w) in spherical coordinates
+!> @param[in] lat  Latitudinal position in spherical coordinates
+!> @param[in] time Current time (timestep multiplied by dt)
+!> @result    u    Wind field vector (u,v,w) in spherical coordinates
 function NL_wind_case_2(long,lat,time) result(u)
   use initial_wind_config_mod, only : wind_time_period, nl_constant
 
@@ -177,20 +183,26 @@ function NL_wind_case_2(long,lat,time) result(u)
   real(kind=r_def), intent(in)    :: lat
   real(kind=r_def), intent(in)    :: time
   real(kind=r_def), dimension(3)  :: u
+
+  real(kind=r_def) :: u0
+
   ! Equations below have been taken from Case 2 of Nair and Lauritzen, 2010
   ! "A class of deformational flow test cases for linear transport problems on the sphere"
 
-  u(1) = nl_constant*sin(long)**2*sin(2.0_r_def*lat)*cos(pi*time/wind_time_period)
-  u(2) = nl_constant*sin(2.0_r_def*long)*cos(lat)*cos(pi*time/wind_time_period)
+  ! Coefficents for any sized planet
+  u0 = nl_constant*scaled_radius/wind_time_period
+
+  u(1) = u0*sin(long)**2*sin(2.0_r_def*lat)*cos(pi*time/wind_time_period)
+  u(2) = u0*sin(2.0_r_def*long)*cos(lat)*cos(pi*time/wind_time_period)
   u(3) = 0.0_r_def
 
 end function NL_wind_case_2
 
 !> @brief Compute Case 3 of Nair and Lauritzen JCP 229 (2010)
 !> @param[in] long Longitudinal position in spherical coordinates
-!> @param[in] lat Latitudinal position in spherical coordinates
-!> @param[in] time Time (timestep multiplied by dt)
-!> @result u Wind field vector (u,v,w) in spherical coordinates
+!> @param[in] lat  Latitudinal position in spherical coordinates
+!> @param[in] time Current time (timestep multiplied by dt)
+!> @result    u    Wind field vector (u,v,w) in spherical coordinates
 function NL_wind_case_3(long,lat,time) result(u)
   use initial_wind_config_mod, only : wind_time_period, nl_constant
 
@@ -199,20 +211,32 @@ function NL_wind_case_3(long,lat,time) result(u)
   real(kind=r_def), intent(in)    :: lat
   real(kind=r_def), intent(in)    :: time
   real(kind=r_def), dimension(3)  :: u
+
+  real(kind=r_def) :: long_dash
+  real(kind=r_def) :: u0, v0
+
   ! Equations below have been taken from Case 3 of Nair and Lauritzen, 2010
   ! "A class of deformational flow test cases for linear transport problems on the sphere"
+  ! with an additional background flow
 
-  u(1) = -nl_constant*sin(long/2.0_r_def)**2*sin(2.0_r_def*lat)*cos(lat)**2*cos(pi*time/wind_time_period)
-  u(2) = (nl_constant/2.0_r_def)*sin(long)*cos(lat)**3*cos(pi*time/wind_time_period)
+  long_dash = long-2.0_r_def*pi*time/wind_time_period
+
+  ! Coefficents for any sized planet
+  u0 = nl_constant*scaled_radius/wind_time_period
+  v0 = 2.0_r_def*pi*scaled_radius/wind_time_period
+
+  u(1) = -u0*sin(long_dash/2.0_r_def)**2*sin(2.0_r_def*lat)*cos(lat)**2 &
+            *cos(pi*time/wind_time_period) + v0*cos(lat)
+  u(2) = (u0/2.0_r_def)*sin(long_dash)*cos(lat)**3*cos(pi*time/wind_time_period)
   u(3) = 0.0_r_def
 
 end function NL_wind_case_3
 
 !> @brief Compute Case 4 of Nair and Lauritzen JCP 229 (2010)
 !> @param[in] long Longitudinal position in spherical coordinates
-!> @param[in] lat Latitudinal position in spherical coordinates
-!> @param[in] time Time (timestep multiplied by dt)
-!> @result u Wind field vector (u,v,w) in spherical coordinates
+!> @param[in] lat  Latitudinal position in spherical coordinates
+!> @param[in] time Current time (timestep multiplied by dt)
+!> @result    u    Wind field vector (u,v,w) in spherical coordinates
 function NL_wind_case_4(long,lat,time) result(u)
   use initial_wind_config_mod, only : wind_time_period, nl_constant
 
@@ -223,14 +247,19 @@ function NL_wind_case_4(long,lat,time) result(u)
   real(kind=r_def), dimension(3)  :: u
 
   real(kind=r_def) :: long_dash
+  real(kind=r_def) :: u0, v0
 
   ! Equations below have been taken from Case 4 of Nair and Lauritzen, 2010
   ! "A class of deformational flow test cases for linear transport problems on the sphere"
 
   long_dash = long-2.0_r_def*pi*time/wind_time_period
 
-  u(1) = nl_constant*sin(long_dash)**2*sin(2.0_r_def*lat)*cos(pi*time/wind_time_period) + (2.0_r_def*pi/wind_time_period)*cos(lat)
-  u(2) = nl_constant*sin(2.0_r_def*long_dash)*cos(lat)*cos(pi*time/wind_time_period)
+  ! Coefficents for any sized planet
+  u0 = nl_constant*scaled_radius/wind_time_period
+  v0 = 2.0_r_def*pi*scaled_radius/wind_time_period
+
+  u(1) = u0*sin(long_dash)**2*sin(2.0_r_def*lat)*cos(pi*time/wind_time_period) + v0*cos(lat)
+  u(2) = u0*sin(2.0_r_def*long_dash)*cos(lat)*cos(pi*time/wind_time_period)
   u(3) = 0.0_r_def
 
 end function NL_wind_case_4

@@ -161,35 +161,23 @@ function analytic_tracer_field(chi, choice, domain_max_x) result(tracer)
     tracer = h1+h2
 
   case( test_slotted_cylinder )
-    ! Cylinder 1
-    if ( l1 < r1 ) then
-      if (abs(long-x1) > r1/6.0_r_def) then
-        h1 = field_max
-      else
-        if (lat < y1-r1*5.0_r_def/12.0_r_def) then
-          h1 = field_max
-        else
-          h1 = field_background
-        end if
-      end if
+
+    ! 2D slotted cylinder
+    if ( l1 <= r1 .and. abs(long-x1) >= r1/6.0_r_def ) then
+      ! Circular region except central strip for first cylinder
+      tracer = field_max
+    else if (l2 <= r2 .and. abs(long-x2) >= r2/6.0_r_def) then
+      ! Circular region except central strip for second cylinder
+      tracer = field_max
+    else if ( l1 <= r1 .and. abs(long-x1) < r1/6.0_r_def .and. lat < y1-r1*5.0_r_def/12.0_r_def) then
+      ! Central strip except slot for first cylinder
+      tracer = field_max
+    else if ( l2 <= r2 .and. abs(long-x2) < r2/6.0_r_def .and. lat > y2+r2*5.0_r_def/12.0_r_def) then
+      ! Central strip except slot for second cylinder
+      tracer = field_max
     else
-      h1 = field_background
+      tracer = field_background
     end if
-    ! Cylinder 2
-    if ( l2 < r2 ) then
-      if (abs(long-x2) > r2/6.0_r_def) then
-        h2 = field_max
-      else
-        if (lat > y2+r2*5.0_r_def/12.0_r_def) then
-          h2 = field_max
-        else
-          h2 = field_background
-        end if
-      end if
-    else
-      h2 = field_background
-    end if
-    tracer = h1 + h2
 
   case( test_constant_field )
     tracer = field_background

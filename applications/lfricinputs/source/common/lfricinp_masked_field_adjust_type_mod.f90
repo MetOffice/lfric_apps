@@ -3,6 +3,9 @@
 ! For further details please refer to the file LICENCE
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
+!> @brief     Module for masked field adjustments TYPE
+!> @details   Holds data and procedures for making adjustments to points
+!!            that are contributed to by multiple field mask types
 module lfricinp_masked_field_adjust_type_mod
 
 ! Intrinsic modules
@@ -57,11 +60,12 @@ contains
 !---------------------------------------------------------
 ! Start of type bound procedures
 !---------------------------------------------------------
-
+!> @brief   Finds all masked field destination points that will require
+!!          post regridding adjustment
+!> @param[in] src_mask  Mask that applies to the source grid
+!> @param[in] dst_mask  Mask that applies to the destination grid
+!> @param[in] weights   Regridding weights for masked data
 subroutine find_adjusted_points_src_2d_dst_1d(self, src_mask, dst_mask, weights)
-!
-! This routine finds all masked field destination points that will require
-! post regridding adjustment
 !
 ! Argument(s)
 !
@@ -149,10 +153,11 @@ deallocate(dst_point_contrb_record)
 end subroutine find_adjusted_points_src_2d_dst_1d
 
 !---------------------------------------------------------
-
+!> @brief Applies post regridding adjustments to masked field destination points
+!> @param[in]     src   2d source data array
+!> @param[inout]  dst   1d destination array
 subroutine apply_masked_adjustment_src_2d_dst_1d(self, src, dst)
 !
-! Apply post regridding adjustments to masked field destination points
 ! Uses real arrays, could be overloaded for different types,
 ! precision and shapes
 !

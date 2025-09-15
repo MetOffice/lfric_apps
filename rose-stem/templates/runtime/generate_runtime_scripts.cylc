@@ -76,7 +76,6 @@
         script="rose task-run --app-key=validate_rose_meta"
         [[[environment]]]
             ROSE_PYTHONPATH = $PYTHONPATH
-            ROSE_META_PATH = $SOURCE_ROOT/core/rose-meta:$SOURCE_ROOT/apps/rose-meta
 
 {% elif "kgo_groups_checker" in task %}
 

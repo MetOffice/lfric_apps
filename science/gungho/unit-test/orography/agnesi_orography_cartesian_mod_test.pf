@@ -133,6 +133,7 @@ contains
 
     use local_mesh_mod,                        only : local_mesh_type
     use mesh_mod,                              only : mesh_type
+    use panel_decomposition_mod,               only : custom_decomposition_type
     use partition_mod,                         only : partition_type,        &
                                                       partitioner_interface, &
                                                       partitioner_planar
@@ -145,16 +146,18 @@ contains
     ! Arguments
     class(agnesi_orography_cartesian_test_type), intent(inout) :: this
     ! Mesh, partition and domain size types
-    type(ugrid_mesh_data_type)                :: ugrid_mesh_data
-    type(global_mesh_type),           pointer :: global_mesh_ptr => null()
-    type(global_mesh_type),           target  :: global_mesh
-    type(mesh_type)                           :: mesh
-    type(domain_type)                         :: domain
-    type(partition_type)                      :: partition
-    procedure(partitioner_interface), pointer :: partitioner_ptr => null()
-    type(local_mesh_type),            pointer :: local_mesh_ptr
-    type(local_mesh_type),            target  :: local_mesh
-    type(uniform_extrusion_type)              :: extrusion
+    type(ugrid_mesh_data_type)                   :: ugrid_mesh_data
+    type(global_mesh_type),           pointer    :: global_mesh_ptr => null()
+    type(global_mesh_type),           target     :: global_mesh
+    type(mesh_type)                              :: mesh
+    type(domain_type)                            :: domain
+    type(custom_decomposition_type), allocatable :: decomposition
+    type(partition_type)                         :: partition
+    procedure(partitioner_interface), pointer    :: partitioner_ptr => null()
+    type(local_mesh_type),            pointer    :: local_mesh_ptr
+    type(local_mesh_type),            target     :: local_mesh
+    type(uniform_extrusion_type)                 :: extrusion
+
     ! Test parameters
     real(r_def), parameter :: tol = 1.0e-3_r_def
     real(r_def)            :: vertex_coords_2d(3,1), chi_surf, chi_test
@@ -167,11 +170,11 @@ contains
     global_mesh_ptr => global_mesh
 
     ! Assign partitioner
+    decomposition = custom_decomposition_type( xproc, yproc )
     partitioner_ptr => partitioner_planar
     partition = partition_type( global_mesh_ptr,       &
                                 partitioner_ptr,       &
-                                xproc,                 &
-                                yproc,                 &
+                                decomposition,         &
                                 1,                     &
                                 generate_inner_halos, &
                                 local_rank,            &

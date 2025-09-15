@@ -7,29 +7,46 @@
 
 {% if task_dict %}
     {% if "tlm_tests_default-C12" in task %}
+
         {% if "wallclock" not in task_dict %}
             {% do task_dict.update({"wallclock": 25}) %}
         {% else %}
             {% set val = 2.5 * task_dict["wallclock"] %}
             {% do task_dict.update({"wallclock": val}) %}
         {% endif %}
-    {% endif %}
-    {% if "tlm_tests_default-dry-C12" in task %}
+
+    {% elif "tlm_tests_default-dry-C12" in task %}
+
         {% if "wallclock" not in task_dict %}
             {% do task_dict.update({"wallclock": 25}) %}
         {% else %}
             {% set val = 2.5 * task_dict["wallclock"] %}
             {% do task_dict.update({"wallclock": val}) %}
         {% endif %}
-    {% endif %}
-    {% if "tlm_forecast_tl_default-C12" in task %}
+
+    {% elif "tlm_forecast_tl_default-C12" in task %}
+
         {% if "wallclock" not in task_dict %}
             {% do task_dict.update({"wallclock": 20}) %}
         {% else %}
             {% set val = 2 * task_dict["wallclock"] %}
             {% do task_dict.update({"wallclock": val}) %}
         {% endif %}
+
+    {% elif task_ns.conf_name == "id_tlm_tests_default-1PE-C12" %}
+
+        {% do task_dict.update({"wallclock": 30}) %}
+
+    {% elif task_ns.conf_name == "tlm_tests_default-1PE-C12" %}
+
+        {% do task_dict.update({"wallclock": 30}) %}
+
+    {% elif task_ns.conf_name == "tlm_tests_default-dry-1PE-C12" %}
+
+        {% do task_dict.update({"wallclock": 30}) %}
+
     {% endif %}
+
 {% endif %}
 
 

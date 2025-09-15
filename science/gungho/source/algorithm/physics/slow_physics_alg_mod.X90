@@ -687,19 +687,21 @@ contains
     !--------------------------------------------------------------------
     ! JULES surface scheme: tile albedo and emissivity
     !--------------------------------------------------------------------
-    ! Switch UM to running i-first on whole domain
-    ncells = mesh%get_last_edge_cell()
-    call um_sizes_init(ncells)
+    if (radiation == radiation_socrates .or. surface == surface_jules) then
+      ! Switch UM to running i-first on whole domain
+      ncells = mesh%get_last_edge_cell()
+      call um_sizes_init(ncells)
 
-    call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
-                      tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
-                      tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
-                      radiation_fields, orography_fields,                  &
-                      surface_fields, soil_fields, snow_fields,            &
-                      twod_mesh, clock%get_step())
+      call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                        tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                        tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
+                        radiation_fields, orography_fields,                  &
+                        surface_fields, soil_fields, snow_fields,            &
+                        twod_mesh, clock%get_step())
 
-    ! Switch UM back to columns
-    call um_sizes_init(1_i_def)
+      ! Switch UM back to columns
+      call um_sizes_init(1_i_def)
+    end if
 
     !--------------------------------------------------------------------
     ! Socrates radiative transfer scheme: SW and LW

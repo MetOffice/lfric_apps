@@ -3,6 +3,9 @@
 ! For further details please refer to the file LICENCE
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
+!> @brief   Module for regridding weights TYPE
+!> @details Holds data from a SCRIP style weights file, and proceedures for
+!>          reading the file and regridding
 module lfricinp_regrid_weights_type_mod
 
 use lfricinp_um_parameters_mod, only: fnamelen, um_rmdi
@@ -52,10 +55,12 @@ contains
 !---------------------------------------------------------
 ! Start of type bound procedures
 !---------------------------------------------------------
-
+!> @brief Applies weights to perform 2d to 1d regridding from source to
+!!        destination
+!> @param[in]     src     2 dimensional source array
+!> @param[inout]  dst     1 dimensional destination array
 subroutine regrid_src_2d_dst_1d(self, src, dst)
 
-! Apply weights to perform regrid between source and destination
 ! Uses real arrays, could be overloaded for different types,
 ! precision and shapes
 real(kind=real64), intent(in) :: src(:,:)
@@ -79,10 +84,12 @@ end do
 end subroutine regrid_src_2d_dst_1d
 
 !---------------------------------------------------------
-
+!> @brief Applies weights to perform 2d to 1d regridding from source to
+!!        destination
+!> @param[in]     src     1 dimensional source array
+!> @param[inout]  dst     2 dimensional destination array
 subroutine regrid_src_1d_dst_2d(self, src, dst)
 
-! Apply weights to perform copy between source and destination
 ! Uses real arrays, could be overloaded for different types,
 ! precision and shapes
 real(kind=real64), intent(in) :: src(:)
@@ -106,7 +113,8 @@ end do
 end subroutine regrid_src_1d_dst_2d
 
 !---------------------------------------------------------
-
+!> @brief    Loads a SCRIP style weights file into the weights derived type
+!> @param[in]  filename  File to be loaded
 subroutine load(self, filename)
 ! Description:
 !  Loads a SCRIP style weights file into a weights derived type
@@ -194,7 +202,8 @@ call check_stat_ncdf( NF90_CLOSE (file_id))
 end subroutine load
 
 !---------------------------------------------------------
-
+!> @brief     Convert 1d src_address into 2d src_address_2d
+!> @param[in] nx Number of x coordinates
 subroutine populate_src_address_2d (self, nx)
 implicit none
 ! Convert the 1D addresses into 2d space
@@ -217,7 +226,8 @@ end do
 end subroutine populate_src_address_2d
 
 !---------------------------------------------------------
-
+!> @brief     Convert 1d dst_address into 2d dst_address_2d
+!> @param[in] nx Number of x coordinates
 subroutine populate_dst_address_2d (self, nx)
 implicit none
 ! Convert the 1D addresses into 2d space
@@ -240,7 +250,8 @@ end do
 end subroutine populate_dst_address_2d
 
 !---------------------------------------------------------
-
+!> @brief Checks the number of points in the source grid against suppied value
+!> @param[in] num_points_src The number of grid points expected in the source
 subroutine validate_src(self, num_points_src)
 use log_mod, only: log_scratch_space, LOG_LEVEL_ERROR, log_event
 
@@ -259,7 +270,8 @@ end if
 end subroutine validate_src
 
 !---------------------------------------------------------
-
+!> @brief Checks the number of points in the destination grid against suppied value
+!> @param[in] num_points_src The number of grid points expected in the destination
 subroutine validate_dst(self, num_points_dst)
 use log_mod, only: log_scratch_space, LOG_LEVEL_ERROR, log_event
 

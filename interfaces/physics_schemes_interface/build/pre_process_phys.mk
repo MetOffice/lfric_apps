@@ -60,7 +60,7 @@ pre_process: $(SOURCE_xu_FILES)
 ifeq ("$(FORTRAN_COMPILER)", "nvfortran")
 $(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.F90
 	echo Pre processing $<
-	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $<
+	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) -o $@ $<
 	-mv $(SOURCE_DIR)/$*.f90 $@
 	-mv $(shell basename $*.f90) $@
 	rm $<

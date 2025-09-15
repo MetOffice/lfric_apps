@@ -17,6 +17,8 @@
     "tech-tests_memory": [6, "GB"],
     "tech-tests_wallclock": 20,
     "tech-tests_cpus": 1,
+    "gen_weights_tasks": 8,
+    "gen_weights_memory": [16, "GB"],
     } %}
 
 {% for item, value in defaults.items() %}

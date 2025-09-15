@@ -12,6 +12,8 @@
         "build_memory": [1, "GB"],
         "build_wallclock": 25,
         "build_cpus": 6,
+        "gen_weights_tasks": 4,
+        "gen_weights_memory": [4, "GB"],
 
         "lfric_atm": {
             "build_wallclock": 45,

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/bash
 #-----------------------------------------------------------------------------
 # (c) Crown copyright 2024 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
@@ -28,29 +28,20 @@ fi
 # Construct launcher options
 #===========================================
 LAUNCHER_OPTS=""
-if [ "${RUN_METHOD}" = "aprun" ] ; then
-  CORES_PER_NUMA_REGION="$(( CORES_PER_NODE / NUMA_REGIONS_PER_NODE ))"
-  POTENTIAL_MPI_TASKS_PER_NUMA_REGION="$(( ( CORES_PER_NUMA_REGION * HYPERTHREADS ) / OMP_NUM_THREADS ))"
-  MPI_TASKS_PER_NUMA_REGION="$(( POTENTIAL_MPI_TASKS_PER_NUMA_REGION > TOTAL_RANKS?TOTAL_RANKS:POTENTIAL_MPI_TASKS_PER_NUMA_REGION ))"
-  LAUNCHER_OPTS="-cc depth -n ${TOTAL_RANKS} -S ${MPI_TASKS_PER_NUMA_REGION} -d ${OMP_NUM_THREADS} -j ${HYPERTHREADS}"
-elif [ "${RUN_METHOD}" = "mpiexec" ] ; then
-  if [ "${SITE_MPI_LAUNCHER_OPTS}" != "" ] ; then
-    LAUNCHER_OPTS=${SITE_MPI_LAUNCHER_OPTS}
-  else
-    LAUNCHER_OPTS="-n ${TOTAL_RANKS}"
-  fi
-elif [ "${RUN_METHOD}" = "srun" ] ; then
-  if [ "${TARGET_PLATFORM}" = "ncas-ex" ] ; then
+if [ "${RUN_METHOD}" = "mpiexec" ] ; then
+  if [ "${TARGET_PLATFORM}" = "sandbox" ] ; then
     if (( "${CORES_PER_NODE_OVERRIDE}" > "0" )) ; then
       NODES="$(( (TOTAL_RANKS+CORES_PER_NODE_OVERRIDE-1) / CORES_PER_NODE_OVERRIDE ))"
     else
       NODES="$(( (TOTAL_RANKS*OMP_NUM_THREADS+CORES_PER_NODE*HYPERTHREADS-1) / CORES_PER_NODE*HYPERTHREADS ))"
     fi
     CPUS_PER_TASK="$(( NODES*CORES_PER_NODE*HYPERTHREADS / TOTAL_RANKS ))"
+    RANKS_PER_NODE="$(( TOTAL_RANKS / NODES ))"
+    echo "Nodes: ${NODES}, Ranks: ${TOTAL_RANKS}, Ranks_per_node: ${RANKS_PER_NODE}, CPUs_per_task: ${CPUS_PER_TASK}"
     if [ ! -z "${XIOS_SERVER_MODE}" ] && [ "${XIOS_SERVER_MODE}" = "True" ] ; then
       LAUNCHER_OPTS="--het-group=0 --distribution=block:block --hint=nomultithread --nodes=${NODES} --ntasks=${TOTAL_RANKS} --cpus-per-task=${CPUS_PER_TASK}"
     else
-      LAUNCHER_OPTS="--distribution=block:block --hint=nomultithread --nodes=${NODES} --ntasks=${TOTAL_RANKS} --cpus-per-task=${CPUS_PER_TASK}"
+      LAUNCHER_OPTS="--bind-to core --report-bindings -n ${TOTAL_RANKS} --map-by ppr:${RANKS_PER_NODE}:node:PE=${CPUS_PER_TASK}"
     fi
   else
     LAUNCHER_OPTS="--ntasks ${TOTAL_RANKS}"
