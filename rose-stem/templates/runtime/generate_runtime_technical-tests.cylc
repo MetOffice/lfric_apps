@@ -37,6 +37,7 @@
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR = $SOURCE_ROOT/lfric_apps
             CORE_ROOT_DIR = $SOURCE_ROOT/lfric_core
+            PHYSICS_ROOT = $SOURCE_ROOT
             WORKING_DIR = {{working_dir}}/{{mode}}
             RDEF_PRECISION = {{task_values["precision"]["rdef"]}}
             BIN_DIR = {{bin_dir}}

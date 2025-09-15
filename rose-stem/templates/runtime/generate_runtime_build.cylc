@@ -41,6 +41,7 @@
             SOURCE_DIRECTORY        = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
             CORE_ROOT_DIR           = $SOURCE_ROOT/lfric_core
+            PHYSICS_ROOT            = $SOURCE_ROOT
             DESTINATION_DIRECTORY   = {{destination_dir}}
             BIN_DIR                 = {{bin_dir}}
             LIB_DIR                 = {{lib_dir}}

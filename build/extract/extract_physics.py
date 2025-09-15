@@ -6,6 +6,7 @@ import re
 import yaml
 from shutil import rmtree
 from collections import defaultdict
+from pathlib import Path
 
 
 def run_command(command, shell=False):
@@ -72,56 +73,55 @@ def parse_extract_file(fpath):
 
 def read_dependencies(dependencies_file):
     """
-    Read through the dependencies.yaml file, reading in each source. Return a dict of
-    source: source_string where each source_string is of format:
-    - repo_location::./::ref for git repos, where repo_location is the repo url or path
-    to clone, ./ indicates the entire repo, and ref is either the branch name or commit
-    hash.
-    - repo_location@revision for fcm repos.
+    Read in the dependencies.yaml file
     """
 
     with open(dependencies_file) as stream:
         sources = yaml.safe_load(stream)
 
-    parsed_sources = {}
-
-    for source, values in sources.items():
-        source_str = values["source"]
-        if not source_str:
-            continue
-        ref = values["ref"].strip()
-        source_str = f"{source_str}::./::{ref}"
-        parsed_sources[source] = source_str
-
-    return parsed_sources
+    return sources
 
 
-def extract_files(dependency, source, files, working):
+def clone_dependency(values, temp_dep):
+    """
+    Clone the physics dependencies into a temporary directory
+    """
+
+    source = values["source"]
+    ref = values["ref"]
+
+    clone_commands = (
+        f"git clone {source} {temp_dep}",
+        f"git -C {temp_dep} checkout {ref}"
+    )
+    for command in clone_commands:
+        run_command(command)
+
+
+
+def extract_files(dependency, values, files, working):
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
     Then delete the temporary directory
     """
 
-    source, _, ref = source.split("::")
-    tempdir = tempfile.mkdtemp()
-    temp_dep = os.path.join(tempdir, dependency)
-    working_dep = os.path.join(working, dependency)
+    tempdir = Path(tempfile.mkdtemp())
+    if "PHYSICS_ROOT" not in os.environ or not Path(os.environ["PHYSICS_ROOT"]).exists():
+        temp_dep = tempdir / dependency
+        clone_dependency(values, temp_dep)
+    else:
+        temp_dep = Path(os.environ["PHYSICS_ROOT"]) / dependency
 
-    checkout_commands = (
-        f"git clone {source} {temp_dep}",
-        f"git -C {temp_dep} checkout {ref}"
-    )
-    for command in checkout_commands:
-        run_command(command)
+    working_dep = working / dependency
 
     # make the working directory location
     run_command(f"mkdir -p {working_dep}")
 
     for extract_file in files:
-        source_file = os.path.join(temp_dep, extract_file)
-        dest_file = os.path.join(working_dep, extract_file)
-        run_command(f"mkdir -p {os.path.dirname(dest_file)}")
+        source_file = temp_dep / extract_file
+        dest_file = working_dep / extract_file
+        run_command(f"mkdir -p {dest_file.parents[0]}")
         copy_command = f"cp -r {source_file} {dest_file}"
         run_command(copy_command)
 
