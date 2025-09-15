@@ -1,6 +1,7 @@
 import yaml
 import tempfile
 import os
+import re
 from subprocess import run
 from shutil import rmtree
 
@@ -9,8 +10,6 @@ def get_dependencies_file(wc_loc):
     Copy the dependencies file to a temporary directory on the local machine that can be
     read.
     """
-
-    print(wc_loc)
 
     tempdir = tempfile.mkdtemp()
 
@@ -37,35 +36,24 @@ def get_dependencies_file(wc_loc):
 
     return tempdir
 
-
-def read_sources(clone_source, use_heads):
+def read_sources(clone_source, repo):
     """
-    Read through the dependencies.yaml file, reading in each source. Return a dict of
-    source: source_string where each source_string is of format:
-    - repo_location::./::ref for git repos, where repo_location is the repo url or path
-    to clone, ./ indicates the entire repo, and ref is either the branch name or commit
-    hash.
-    - repo_location@revision for fcm repos.
+    Load the dependencies.yaml file as a dictionary
     """
 
     dependencies_file = get_dependencies_file(clone_source)
 
     with open(os.path.join(dependencies_file, "dependencies.yaml")) as stream:
-        sources = yaml.safe_load(stream)
+        dependencies = yaml.safe_load(stream)
 
-    parsed_sources = {}
+    if not dependencies[repo]["source"]:
+        dependencies[repo]["source"] = clone_source
 
-    for source, values in sources.items():
-        source_str = values["source"]
-        if not source_str:
-            continue
-        if use_heads and "SimSys_Scripts" not in source_str:
-            ref = "trunk"
-        else:
-            ref = values["ref"].strip()
-        source_str = f"git:{source_str}::./::{ref}"
-        parsed_sources[source] = source_str
+    # Populate parent, assume MetOffice is owner if not set
+    for dependency, values in dependencies.items():
+        if "parent" not in values:
+            dependencies[dependency]["parent"] = f"MetOffice/{dependency}.git"
 
     rmtree(dependencies_file)
 
-    return parsed_sources
+    return dependencies
