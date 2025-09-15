@@ -167,7 +167,7 @@ def main():
                 dependency,
                 dependencies[dependency],
                 extract_lists[dependency],
-                args.working
+                Path(args.working)
             )
 
 
