@@ -36,7 +36,7 @@ def get_dependencies_file(wc_loc):
 
     return tempdir
 
-def read_sources(clone_source, repo):
+def read_sources(clone_source, repo, use_heads):
     """
     Load the dependencies.yaml file as a dictionary
     """
@@ -53,6 +53,8 @@ def read_sources(clone_source, repo):
     for dependency, values in dependencies.items():
         if "parent" not in values:
             dependencies[dependency]["parent"] = f"MetOffice/{dependency}.git"
+        if use_heads:
+            dependencies[dependency]["ref"] = "HEAD"
 
     rmtree(dependencies_file)
 

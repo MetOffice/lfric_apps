@@ -49,7 +49,7 @@
 {% include "site/"+SITE+"/groups.cylc" %}
 
 {# Read the sources of dependencies from the dependencies.yaml file #}
-{% set dependencies = read_sources(LFRIC_APPS_SOURCE, "lfric_apps") %}
+{% set dependencies = read_sources(LFRIC_APPS_SOURCE, "lfric_apps", USE_HEADS) %}
 
 {# Generate list of tasks given by --group= #}
 {# Expand any groups included so list is only tasks #}
