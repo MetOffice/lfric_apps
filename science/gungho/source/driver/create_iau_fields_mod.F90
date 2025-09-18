@@ -22,7 +22,8 @@ module create_iau_fields_mod
   use driver_modeldb_mod,            only : modeldb_type
   use lfric_xios_read_mod,           only : read_field_generic
   use init_time_axis_mod,            only : setup_field
-  use section_choice_config_mod,     only : iau_surf
+  use section_choice_config_mod,     only : iau_surf, &
+                                            iau_sst
 #ifdef UM_PHYSICS
   use iau_config_mod,                only : iau_use_addinf,  &
                                             iau_use_bcorr,   &
@@ -64,6 +65,7 @@ module create_iau_fields_mod
 
     type(field_collection_type), pointer             :: iau_fields
     type(field_collection_type), pointer             :: iau_surf_fields
+    type(field_collection_type), pointer             :: iau_sst_fields
 #ifdef UM_PHYSICS
     type(field_collection_type), pointer             :: iau_pert_fields
     character(str_def)                               :: rho_pert_inc
@@ -204,6 +206,22 @@ module create_iau_fields_mod
          twod_mesh, read_behaviour=read_behaviour, twod=.true., ndata=n_land_tile )
 #endif
     end if
+
+    ! IAU sst increment fields
+    if ( iau_sst ) then
+      call log_event( 'Create IAU sst fields', LOG_LEVEL_INFO )
+
+      call modeldb%fields%add_empty_field_collection("iau_sst_fields")
+      iau_sst_fields => modeldb%fields%get_field_collection("iau_sst_fields")
+
+      checkpoint_restart_flag = .false.
+      read_behaviour => read_field_generic
+
+      call setup_field( iau_sst_fields, depository, prognostic_fields, &
+         "tstar_sea_inc", W3, mesh, checkpoint_restart_flag, &
+         twod_mesh, read_behaviour=read_behaviour, twod=.true. )
+
+    end if ! ( iau_sst )
 
     nullify( iau_fields, iau_surf_fields )
 

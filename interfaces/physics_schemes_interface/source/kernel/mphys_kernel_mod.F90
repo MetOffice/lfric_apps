@@ -335,7 +335,8 @@ subroutine mphys_code( nlayers, seg_len,            &
 
     logical, dimension(seg_len,1) :: land_sea_mask
 
-    integer(i_um) :: i,j,k,n
+    integer(i_um) :: i,k,n
+    integer(i_um), parameter :: j=1
 
     integer(i_um), dimension(npd_arcl_compnts) :: i_arcl_compnts
 
@@ -367,7 +368,6 @@ subroutine mphys_code( nlayers, seg_len,            &
     lspice_dim3 = nlayers
 
     allocate ( easyaerosol_cdnc % cdnc(1,1,1) )
-    easyaerosol_cdnc % cdnc = 0.0_r_um
     easyaerosol_cdnc % dim1 = 1_i_um
     easyaerosol_cdnc % dim2 = 1_i_um
     easyaerosol_cdnc % dim3 = 1_i_um
@@ -375,7 +375,6 @@ subroutine mphys_code( nlayers, seg_len,            &
     cdnc_dim1   = int(seg_len, i_um)
     cdnc_dim2   = 1_i_um
     cdnc_dim3   = nlayers
-    j = 1
     do i = 1, seg_len
       do k = 1, nlayers
         ukca_cdnc_array(i,j,k) = cloud_drop_no_conc(map_wth(1,i) + k)
@@ -395,19 +394,7 @@ subroutine mphys_code( nlayers, seg_len,            &
       land_index(i)  = int(i, i_um)
     end do
 
-    deltaz           = 0.0_r_um
-    biogenic         = 0.0_r_um
-    so4_accu_work    = 0.0_r_um
-    so4_diss_work    = 0.0_r_um
-    aged_bmass_work  = 0.0_r_um
-    cloud_bmass_work = 0.0_r_um
-    aged_ocff_work   = 0.0_r_um
-    cloud_ocff_work  = 0.0_r_um
-    nitr_acc_work    = 0.0_r_um
-    nitr_diss_work   = 0.0_r_um
-
     if (murk_prognostic) then
-      j = 1
       do i = 1, seg_len
         do k = 1, nlayers
           aerosol_work(i,j,k) = murk(map_wth(1,i) + k)
@@ -419,32 +406,13 @@ subroutine mphys_code( nlayers, seg_len,            &
 
     l_cosp_lsp = .false.
 
-    sea_salt_film   = 0.0_r_um
-    sea_salt_jet    = 0.0_r_um
-
-    snow_depth = 0.0_r_um
-    land_frac  = 0.0_r_um
-
     if (prog_tnuc) then
-      j = 1
-      do k = 1, nlayers
-        do i = 1, seg_len
+      do i = 1, seg_len
+        do k = 1, nlayers
           tnuc_new(i,j,k) = real(tnuc(map_wth(1,i) + k),kind=r_um)
-        end do ! i
-      end do ! k
+        end do ! k
+      end do ! i
     end if
-
-    do i = 1, npd_arcl_compnts
-      i_arcl_compnts(i) = i
-    end do
-    arcl(:,:,:,:) = 0.0_r_um
-
-    ls_rain = 0.0_r_um
-    ls_snow = 0.0_r_um
-    ls_rain3d = 0.0_r_um
-    ls_snow3d = 0.0_r_um
-    ls_graup3d = 0.0_r_um
-    rainfrac3d = 0.0_r_um
 
     !-----------------------------------------------------------------------
     ! Initialisation of prognostic variables and arrays
@@ -452,12 +420,10 @@ subroutine mphys_code( nlayers, seg_len,            &
 
     ! This assumes that map_wth(1) points to level 0
     ! and map_w3(1) points to level 1
-    j = 1
-    do k = 1, nlayers
-      do i = 1, seg_len
+    do i = 1, seg_len
+      do k = 1, nlayers
         ! height of levels from centre of planet
         r_rho_levels(i,j,k)   = height_w3(map_w3(1,i) + k-1) + planet_radius
-        r_theta_levels(i,j,k) = height_wth(map_wth(1,i) + k) + planet_radius
 
         rho_r2(i,j,k) = wetrho_in_w3(map_w3(1,i) + k-1) *                      &
                         ( r_rho_levels(i,j,k)**2 )
@@ -478,13 +444,13 @@ subroutine mphys_code( nlayers, seg_len,            &
         qcl_work(i,j,k)  = ml_wth(map_wth(1,i) + k) + dml_wth(map_wth(1,i) + k )
         qcf_work(i,j,k)  = ms_wth(map_wth(1,i) + k) + dms_wth(map_wth(1,i) + k )
 
-      end do ! i
-    end do ! k
+      end do ! k
+    end do ! i
 
-    j = 1
     do i = 1, seg_len
-      ! surface height
-      r_theta_levels(i,j,0) = height_wth(map_wth(1,i) + 0) + planet_radius
+      do k = 0, nlayers
+        r_theta_levels(i,j,k) = height_wth(map_wth(1,i) + k) + planet_radius
+      end do
     end do ! i
 
     ! Optional moist prognostics
@@ -492,50 +458,43 @@ subroutine mphys_code( nlayers, seg_len,            &
     ! Perform allocation of the qcf2 variable as it is required in the UM
     ! microphysics, even if it is not actually used.
     allocate(qcf2_work(1,1,1))
-    qcf2_work = 0.0_r_um
 
     if (l_mcr_qrain) then
       allocate (qrain_work (seg_len, 1, nlayers) )
-      j = 1
-      do k = 1, nlayers
-        do i = 1, seg_len
+      do i = 1, seg_len
+        do k = 1, nlayers
           qrain_work(i,j,k) = mr_wth(map_wth(1,i) + k)
-        end do ! i
-      end do ! k
+        end do ! k
+      end do ! i
     else
       allocate (qrain_work(1,1,1))
-      qrain_work = 0.0_r_um
     end if
 
     if (l_mcr_qgraup) then
       allocate (qgraup_work (seg_len, 1, nlayers) )
-      j = 1
-      do k = 1, nlayers
-        do i = 1, seg_len
+      do i = 1, seg_len
+        do k = 1, nlayers
           qgraup_work(i,j,k) = mg_wth(map_wth(1,i) + k)
-        end do ! i
-      end do ! k
+        end do ! k
+      end do ! i
     else
       allocate(qgraup_work(1,1,1))
-      qgraup_work = 0.0_r_um
     end if
 
     if ( l_mcr_precfrac ) then
       ! Prognostic precipitation fraction...
       ! set from LFRic input prognostic
       allocate (precfrac_work (seg_len, 1, nlayers) )
-      j = 1
-      do k = 1, nlayers
-        do i = 1, seg_len
+      do i = 1, seg_len
+        do k = 1, nlayers
           precfrac_work(i,j,k) = precfrac(map_wth(1,i)+k)
-        end do ! i
-      end do ! k
+        end do ! k
+      end do ! i
 
     else  ! ( l_mcr_precfrac )
       ! Prognostic precipitation fraction switched off; minimal allocation
 
       allocate(precfrac_work(1,1,1))
-      precfrac_work = 0.0_r_um
 
     end if  ! ( l_mcr_precfrac )
 
@@ -543,10 +502,9 @@ subroutine mphys_code( nlayers, seg_len,            &
       ! Parameters from fractional standard deviation (FSD) parametrization
       ! There are 3 parameters used in the empirical fit, each stored as a different
       ! element in the f_arr array.
-      j = 1
-      do n = 1, 3
-        do k = 1, nlayers
-          do i = 1, seg_len
+      do i = 1, seg_len
+        do n = 1, 3
+          do k = 1, nlayers
             f_arr(n,i,j,k) = f_arr_wth(map_farr(1,i) + (n-1)*(nlayers+1) + k)
           end do
         end do
@@ -554,11 +512,12 @@ subroutine mphys_code( nlayers, seg_len,            &
     end if
 
     ! Set this to 1 to account for quasi-uniform grid
-    cos_theta_latitude = 1.0_r_um
+    do i = 1, seg_len
+      cos_theta_latitude(i,1) = 1.0_r_um
+    end do
 
     ! Note: need other options once Smith scheme is in use.
     if ( i_cld_vn == i_cld_off ) then
-      j = 1
       do k = 1, nlayers
         do i = 1, seg_len
           if (qcl_work(i,j,k) >= mprog_min) then
@@ -582,7 +541,6 @@ subroutine mphys_code( nlayers, seg_len,            &
       end do
 
     else ! i_cld_vn > 0
-      j = 1
       do k = 1, nlayers
         do i = 1, seg_len
           cf_work(i,j,k)  = cf_wth( map_wth(1,i) + k) + dbcf_wth( map_wth(1,i) + k)
@@ -590,7 +548,7 @@ subroutine mphys_code( nlayers, seg_len,            &
           cff_work(i,j,k) = cff_wth(map_wth(1,i) + k) + dcff_wth( map_wth(1,i) + k)
         end do
 
-         rhcpt(k) = rhcrit(k)
+        rhcpt(k) = rhcrit(k)
 
       end do
     end if ! i_cld_vn
@@ -605,18 +563,16 @@ subroutine mphys_code( nlayers, seg_len,            &
     ! Calculate low-level blocking for the  Seeder Feeder scheme
     if (orog_rain) then
 
-      zb = 0.0_r_um
-      j = 1
       do i = 1, seg_len
+        zb(i,j) = 0.0_r_um
         hmteff(i,j) = sd_orog(map_2d(1,i)) * nsigmasf
       end do
 
       if (orog_block) then
 
         ! Theta and level height above the surface
-        j = 1
-        do k = 1, nlayers
-          do i = 1, seg_len
+        do i = 1, seg_len
+          do k = 1, nlayers
             theta(i,j,k)    = theta_in_wth(map_wth(1,i) + k)
             z_rho(i,j,k)    = r_rho_levels(i,j,k) - r_theta_levels(i,j,0)
             z_theta(i,j,k)  = r_theta_levels(i,j,k) - r_theta_levels(i,j,0)
@@ -639,31 +595,44 @@ subroutine mphys_code( nlayers, seg_len,            &
     ! Allocate arrays for diagnostics
     if (l_praut_diag) then
       allocate(praut( seg_len, 1, nlayers ))
-      praut = 0.0_r_um
+      do k = 1, nlayers
+        do i = 1, seg_len
+          praut(i,j,k) = 0.0_r_um
+        end do
+      end do
     endif
     if (l_pracw_diag) then
       allocate(pracw( seg_len, 1, nlayers ))
-      pracw = 0.0_r_um
+      do k = 1, nlayers
+        do i = 1, seg_len
+          pracw(i,j,k) = 0.0_r_um
+        end do
+      end do
     endif
     if (l_piacw_diag) then
       allocate(piacw( seg_len, 1, nlayers ))
-      piacw = 0.0_r_um
+      do k = 1, nlayers
+        do i = 1, seg_len
+          piacw(i,j,k) = 0.0_r_um
+        end do
+      end do
     endif
     if (l_psacw_diag) then
       allocate(psacw( seg_len, 1, nlayers ))
-      psacw = 0.0_r_um
+      do k = 1, nlayers
+        do i = 1, seg_len
+          psacw(i,j,k) = 0.0_r_um
+        end do
+      end do
     endif
     if (l_sfwater_diag) then
       allocate(sfwater_um( seg_len, 1, nlayers ))
-      sfwater_um = 0.0_r_um
     endif
     if (l_sfrain_diag) then
       allocate(sfrain_um( seg_len, 1, nlayers ))
-      sfrain_um = 0.0_r_um
     endif
     if (l_sfsnow_diag) then
       allocate(sfsnow_um( seg_len, 1, nlayers ))
-      sfsnow_um = 0.0_r_um
     endif
 
     if (l_refl_tot .or. l_refl_1km) then
@@ -726,7 +695,6 @@ subroutine mphys_code( nlayers, seg_len,            &
                 wtrac_as, wtrac_mp)
 
   ! Update theta and compulsory prognostic variables
-  j = 1
   do i = 1, seg_len
     do k = 1, nlayers
       dtheta(map_wth(1,i) + k) = ( t_work(i,j,k) - t_n(i,j,k) )             &
@@ -752,29 +720,26 @@ subroutine mphys_code( nlayers, seg_len,            &
   ! should have already been initialised to zero.
 
   if (l_mcr_qrain) then
-    j = 1
     do i = 1, seg_len
+      ! Update level 0 to be the same as level 1 (as per UM)
+      dmr_wth(map_wth(1,i) + 0) = qrain_work(i,j,1) - mr_wth(map_wth(1,i) + 0)
       do k = 1, nlayers
         dmr_wth( map_wth(1,i) + k) = qrain_work(i,j,k) - mr_wth( map_wth(1,i) + k )
       end do
-      ! Update level 0 to be the same as level 1 (as per UM)
-      dmr_wth(map_wth(1,i) + 0) = qrain_work(i,j,1) - mr_wth(map_wth(1,i) + 0)
     end do
   end if
 
   if (l_mcr_qgraup) then
-    j = 1
     do i = 1, seg_len
+      ! Update level 0 to be the same as level 1 (as per UM)
+      dmg_wth(map_wth(1,i) + 0) = qgraup_work(i,j,1) - mg_wth(map_wth(1,i) + 0)
       do k = 1, nlayers
         dmg_wth( map_wth(1,i) + k) = qgraup_work(i,j,k) - mg_wth( map_wth(1,i) + k )
       end do
-      ! Update level 0 to be the same as level 1 (as per UM)
-      dmg_wth(map_wth(1,i) + 0) = qgraup_work(i,j,1) - mg_wth(map_wth(1,i) + 0)
     end do
   end if
 
   if (murk_prognostic) then
-    j = 1
     do k = 1, nlayers
       do i = 1, seg_len
         murk(map_wth(1,i) + k) = aerosol_work(i,j,k)
@@ -787,7 +752,6 @@ subroutine mphys_code( nlayers, seg_len,            &
 
   ! Cloud fraction increments
   ! Always calculate them, but only add them on in slow_physics if using PC2.
-  j = 1
   do i = 1, seg_len
     do k = 1, nlayers
       dbcf_wth( map_wth(1,i) + k) = cf_work(i,j,k)  - cf_wth(  map_wth(1,i) + k )
@@ -809,27 +773,62 @@ subroutine mphys_code( nlayers, seg_len,            &
       ls_rain_3d(map_wth(1,i) + k) = ls_rain3d(i,j,k)
       ls_snow_3d(map_wth(1,i) + k) = ls_snow3d(i,j,k)
     end do ! model levels
+  end do
 
-    if ( l_mcr_precfrac ) then
-      do k = 1, nlayers
-        precfrac(map_wth(1,i)+k) = precfrac_work(i,j,k)
-      end do ! k
-      precfrac(map_wth(1,i)+0) = precfrac(map_wth(1,i)+1)
-    end if
-
-    ! Copy diagnostics if selected: autoconversion, accretion, riming rates &
-    ! radar reflectivity.
-    if (l_refl_tot) refl_tot(map_wth(1,i)) = ref_lim ! 0 level
-
+  if ( l_mcr_precfrac ) then
     do k = 1, nlayers
-      if (l_praut_diag) autoconv(map_wth(1,i) + k) = praut(i,j,k)
-      if (l_pracw_diag) accretion(map_wth(1,i) + k) = pracw(i,j,k)
-      if (l_piacw_diag) rim_cry(map_wth(1,i) + k) = piacw(i,j,k)
-      if (l_psacw_diag) rim_agg(map_wth(1,i) + k) = psacw(i,j,k)
-      if (l_refl_tot)   refl_tot(map_wth(1,i) + k) = dbz_tot(i,j,k)
+      do i = 1, seg_len
+        precfrac(map_wth(1,i)+k) = precfrac_work(i,j,k)
+      end do
+    end do ! k
+    do i = 1, seg_len
+      precfrac(map_wth(1,i)+0) = precfrac(map_wth(1,i)+1)
     end do
+  end if
 
-    if (l_refl_1km) then
+  ! Copy diagnostics if selected: autoconversion, accretion, riming rates &
+  ! radar reflectivity.
+  if (l_praut_diag) then
+    do k = 1, nlayers
+      do i = 1, seg_len
+        autoconv(map_wth(1,i) + k) = praut(i,j,k)
+      end do
+    end do
+  end if
+  if (l_pracw_diag) then
+    do k = 1, nlayers
+      do i = 1, seg_len
+        accretion(map_wth(1,i) + k) = pracw(i,j,k)
+      end do
+    end do
+  end if
+  if (l_piacw_diag) then
+    do k = 1, nlayers
+      do i = 1, seg_len
+        rim_cry(map_wth(1,i) + k) = piacw(i,j,k)
+      end do
+    end do
+  end if
+  if (l_psacw_diag) then
+    do k = 1, nlayers
+      do i = 1, seg_len
+        rim_agg(map_wth(1,i) + k) = psacw(i,j,k)
+      end do
+    end do
+  end if
+  if (l_refl_tot) then
+    do i = 1, seg_len
+      refl_tot(map_wth(1,i)) = ref_lim ! 0 level
+    end do
+    do k = 1, nlayers
+      do i = 1, seg_len
+        refl_tot(map_wth(1,i) + k) = dbz_tot(i,j,k)
+      end do
+    end do
+  end if
+
+  if (l_refl_1km) then
+    do i = 1, seg_len
       do k = 1, nlayers
         ! Select the first altitude above 1km (following what the UM does).
         if (height_wth(map_wth(1,i) + k) >= alt_1km ) then
@@ -837,9 +836,8 @@ subroutine mphys_code( nlayers, seg_len,            &
           exit
         end if
       end do
-    end if
-
-  end do ! seg_len
+    end do
+  end if
 
   if (.not. associated(superc_liq_wth, empty_real_data) ) then
     do i = 1, seg_len

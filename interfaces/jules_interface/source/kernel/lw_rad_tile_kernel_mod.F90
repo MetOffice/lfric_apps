@@ -203,13 +203,17 @@ subroutine lw_rad_tile_code(nlayers, seg_len,                       &
     end do nloop
   end do iloop
 
-  snow_fac = 0.0_r_def
+  do n = 1, n_land_tile
+    do i = 1, seg_len
+      snow_fac(i,n) = 0.0_r_def
+    end do
+  end do
   if (update_required) then
 
     ! Calculate Jules information needed
-    flandg = 0.0_r_def
     land_field = 0
     do i = 1, seg_len
+      flandg(i) = 0.0_r_def
       do n = 1, n_land_tile
         flandg(i) = flandg(i) + tile_fraction(map_tile(1,i)+n-1)
       end do

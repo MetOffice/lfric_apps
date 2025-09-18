@@ -19,13 +19,14 @@ module printing_iau_mod
   implicit none
 
   private
-  public :: print_minmax_prog,          &
-            print_meanrms_prog,         &
-            print_minmax_iau,           &
-            print_meanrms_iau,          &
-            print_minmax_cld,           &
-            print_meanrms_cld,          &
-            print_minmax_surf
+  public :: print_minmax_prog,    &
+            print_meanrms_prog,   &
+            print_minmax_iau,     &
+            print_meanrms_iau,    &
+            print_minmax_cld,     &
+            print_meanrms_cld,    &
+            print_minmax_surf,    &
+            print_minmax_iau_surf
 
   contains
 
@@ -341,5 +342,38 @@ module printing_iau_mod
     end if
 
   end subroutine print_minmax_surf
+
+  !> @brief   print the iau_surf_fields min/max
+  !> @details print the min and max of the iau surface increments
+  !> @param[in] iau_surf_fields  The collection of iau surface increment fields
+  !> @param[in] level            Level of logging. If the configured
+  !>                             log_level is less than or equal to
+  !>                             level, output will be shown.
+  subroutine print_minmax_iau_surf( iau_surf_fields, level )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: iau_surf_fields
+    integer( kind = i_def ),       intent(in) :: level
+
+    type( field_type ), pointer :: iau_surf_field
+
+    if( log_level() <= level ) then
+
+      call iau_surf_fields % get_field( 'soil_moisture_inc', iau_surf_field )
+      call log_field_minmax( level, 'soil_moisture_inc', iau_surf_field )
+
+      call iau_surf_fields % get_field( 'soil_temperature_inc', iau_surf_field )
+      call log_field_minmax( level, 'soil_temperature_inc', iau_surf_field )
+
+      call iau_surf_fields % get_field( 'tile_temperature_inc', iau_surf_field )
+      call log_field_minmax( level, 'tile_temperature_inc', iau_surf_field )
+
+      call iau_surf_fields % get_field( 'snow_layer_temp_inc', iau_surf_field )
+      call log_field_minmax( level, 'snow_layer_temp_inc', iau_surf_field )
+
+    end if
+
+  end subroutine print_minmax_iau_surf
 
 end module printing_iau_mod

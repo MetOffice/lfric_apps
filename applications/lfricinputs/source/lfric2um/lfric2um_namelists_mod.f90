@@ -28,7 +28,9 @@ type :: config
   character(len=fnamelen) :: weights_file_face_centre_to_p_neareststod = 'unset'
   character(len=fnamelen) :: weights_file_face_centre_to_u_bilinear = 'unset'
   character(len=fnamelen) :: weights_file_face_centre_to_v_bilinear = 'unset'
-  integer(kind=int64), allocatable ::  stash_list(:)
+  integer(kind=int64), allocatable :: stash_list(:)
+  integer(kind=int64), allocatable :: lbtim_list(:)
+  integer(kind=int64), allocatable :: lbproc_list(:)
   integer(kind=int64) :: um_version_int = um_imdi
   integer(kind=int64) :: dump_validity_time(6) = um_imdi
   integer :: num_fields
@@ -98,7 +100,9 @@ character(len=fnamelen) :: weights_file_face_centre_to_p_bilinear = 'unset'
 character(len=fnamelen) :: weights_file_face_centre_to_p_neareststod = 'unset'
 character(len=fnamelen) :: weights_file_face_centre_to_u_bilinear = 'unset'
 character(len=fnamelen) :: weights_file_face_centre_to_v_bilinear = 'unset'
-integer(kind=int64) ::  stash_list(max_stash_list)
+integer(kind=int64) :: stash_list(max_stash_list)
+integer(kind=int64) :: lbtim_list(max_stash_list)
+integer(kind=int64) :: lbproc_list(max_stash_list)
 integer(kind=int64) :: um_version_int = um_imdi
 integer(kind=int64) :: dump_validity_time(6) = um_imdi
 
@@ -110,10 +114,14 @@ namelist /configure_lfric2um/ output_filename,                                 &
                               weights_file_face_centre_to_u_bilinear,          &
                               weights_file_face_centre_to_v_bilinear,          &
                               stash_list,                                      &
+                              lbtim_list,                                      &
+                              lbproc_list,                                     &
                               um_version_int,                                  &
                               dump_validity_time
 
 stash_list(:) = um_imdi
+lbtim_list(:) = um_imdi
+lbproc_list(:) = um_imdi
 
 self%status = 0
 self%message = 'Reading namelist from ' // trim(lfric2um_nl_fname)
@@ -212,7 +220,11 @@ end if
 
 ! Can now allocate type variable
 allocate(self%stash_list(self%num_fields))
+allocate(self%lbtim_list(self%num_fields))
+allocate(self%lbproc_list(self%num_fields))
 self%stash_list(:) = stash_list(1:self%num_fields)
+self%lbtim_list(:) = lbtim_list(1:self%num_fields)
+self%lbproc_list(:) = lbproc_list(1:self%num_fields)
 
 call um_grid%set_grid_coords(                                                  &
      grid_staggering = igrid_targ ,                                            &

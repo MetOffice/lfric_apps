@@ -350,9 +350,9 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   !-----------------------------------------------------------------------
 
   ! Land tile fractions
-  flandg = 0.0_r_um
   land_field = 0
   do i = 1, seg_len
+    flandg(i,1) = 0.0_r_um
     do n = 1, n_land_tile
       flandg(i,1) = flandg(i,1) + real(tile_fraction(map_tile(1,i)+n-1), r_um)
     end do
@@ -419,9 +419,9 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   end do ! i
 
   ! Sea-ice fraction
-  ainfo%ice_fract_ij = 0.0_r_um
   do i = 1, seg_len
     i_sice = 0
+    ainfo%ice_fract_ij(i,1) = 0.0_r_um
     do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       i_sice = i_sice + 1
       ainfo%ice_fract_ij(i,1) = ainfo%ice_fract_ij(i,1) + &

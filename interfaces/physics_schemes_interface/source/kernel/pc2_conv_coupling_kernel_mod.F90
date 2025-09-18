@@ -152,13 +152,15 @@ subroutine pc2_conv_coupling_code( nlayers, seg_len,                           &
                 ! Other
                 zeros
 
-    integer(i_um) :: i, j, k
+    integer(i_um) :: i, k
+    integer(i_um), parameter :: j = 1
 
     logical, parameter :: l_pc2_prod_qcl_mp=.false.
 
-    zeros=0.0_r_um
+    do i = 1, seg_len
+      zeros(i,j)=0.0_r_um
+    end do
 
-    j = 1
     do k = 1, model_levels-1
 
       if (l_pc2_homog_conv_pressure) then

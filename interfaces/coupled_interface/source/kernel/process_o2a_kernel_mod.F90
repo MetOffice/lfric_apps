@@ -7,18 +7,19 @@
 
 module process_o2a_kernel_mod
 
-use kernel_mod,              only : kernel_type
-use argument_mod,            only : arg_type,              &
-                                    GH_FIELD, GH_REAL,     &
-                                    GH_INTEGER,            &
-                                    GH_READ, GH_READWRITE, &
-                                    GH_SCALAR,             &
-                                    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1, &
-                                    ANY_DISCONTINUOUS_SPACE_2, &
-                                    CELL_COLUMN
-use constants_mod,           only : r_def, i_def
-use sci_constants_mod,       only : zero_C_in_K
-use derived_config_mod,      only : l_couple_ocean, l_couple_sea_ice
+use kernel_mod,                only : kernel_type
+use argument_mod,              only : arg_type,              &
+                                      GH_FIELD, GH_REAL,     &
+                                      GH_INTEGER,            &
+                                      GH_READ, GH_READWRITE, &
+                                      GH_SCALAR,             &
+                                      GH_WRITE, ANY_DISCONTINUOUS_SPACE_1, &
+                                      ANY_DISCONTINUOUS_SPACE_2, &
+                                      CELL_COLUMN
+use constants_mod,             only : r_def, i_def
+use sci_constants_mod,         only : zero_C_in_K
+use section_choice_config_mod, only : iau_sst
+use derived_config_mod,        only : l_couple_ocean, l_couple_sea_ice
 
 implicit none
 
@@ -30,8 +31,9 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: process_o2a_kernel_type
   private
-  type(arg_type) :: meta_args(13) = (/                    &
+  type(arg_type) :: meta_args(14) = (/                    &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), &
@@ -59,6 +61,7 @@ contains
 !> @brief Process ocean and sea ice data coming through the coupler
 !! @param[in] nlayers Number of layers
 !! @param[in,out] sea_surf_temp        the sea surface temperature field
+!! @param[in]     sea_surf_temp_pert   the sea surface temperature perturbations
 !! @param[in,out] sea_ice_fraction     the sea ice fraction field
 !! @param[in,out] sea_ice_thickness    the sea ice thickness field
 !! @param[in,out] sea_ice_layer_t      the sea ice layer temperature field
@@ -79,17 +82,17 @@ contains
 !! @param[in] map_ice Dofmap for the cell at the base of the column for the sea ice
 
 
-subroutine process_o2a_code(nlayers, sea_surf_temp,                  &
-                              sea_ice_fraction, sea_ice_thickness,   &
-                              sea_ice_layer_t, sea_ice_conductivity, &
-                              sea_ice_snow_depth,                    &
-                              melt_pond_fraction, melt_pond_depth,   &
-                              ocn_cpl_point,                         &
-                              n_sea_ice_tile,                        &
-                              T_freeze_h2o_sea,                      &
-                              therm_cond_sice,                       &
-                              therm_cond_sice_snow,                  &
-                              ndf_ocn, undf_ocn, map_ocn,            &
+subroutine process_o2a_code(nlayers, sea_surf_temp, sea_surf_temp_pert, &
+                              sea_ice_fraction, sea_ice_thickness,      &
+                              sea_ice_layer_t, sea_ice_conductivity,    &
+                              sea_ice_snow_depth,                       &
+                              melt_pond_fraction, melt_pond_depth,      &
+                              ocn_cpl_point,                            &
+                              n_sea_ice_tile,                           &
+                              T_freeze_h2o_sea,                         &
+                              therm_cond_sice,                          &
+                              therm_cond_sice_snow,                     &
+                              ndf_ocn, undf_ocn, map_ocn,               &
                               ndf_ice, undf_ice, map_ice)
 
   implicit none
@@ -103,6 +106,7 @@ subroutine process_o2a_code(nlayers, sea_surf_temp,                  &
   integer(kind=i_def), intent(in) :: undf_ice
   integer(kind=i_def), dimension(ndf_ice),  intent(in) :: map_ice
   real(kind=r_def), dimension(undf_ocn), intent(inout) :: sea_surf_temp
+  real(kind=r_def), dimension(undf_ocn), intent(in)    :: sea_surf_temp_pert
   real(kind=r_def), dimension(undf_ice), intent(inout) :: sea_ice_fraction
   real(kind=r_def), dimension(undf_ice), intent(inout) :: sea_ice_thickness
   real(kind=r_def), dimension(undf_ice), intent(inout) :: sea_ice_layer_t
@@ -166,6 +170,13 @@ subroutine process_o2a_code(nlayers, sea_surf_temp,                  &
                                               + sea_ice_fraction(map_ice(1) + i)
 
     end do
+  end if
+
+  ! Add perturbations to sea surface temperature if they have been set
+  ! in the IAU
+  if ( iau_sst ) then
+    sea_surf_temp(map_ocn(1)) = sea_surf_temp(map_ocn(1)) &
+                                       + sea_surf_temp_pert(map_ocn(1))
   end if
 
   ! Set the sea surface temperature to be at the freezing point of water

@@ -40,7 +40,8 @@ Science settings
 - comatb - Modifications to Coma9 for 5km trailblazer setup
 - comorph_dev - development ComorphB configuration
 - da - with IAU from data assimilation
-- eda - with IAU from ensemble data assimilation (with multi-context IO)
+- eda - with IAU from ensemble data assimilation (with multi-context IO),
+        including use of SST perturbations and land surface increments
 - hh_solve - Helmholtz only sovler (no mixed solve)
 - llcs - Use Lambert-Lewis simple convection scheme
 - mol - use MoL transport scheme

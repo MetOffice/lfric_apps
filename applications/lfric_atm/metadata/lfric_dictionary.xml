@@ -287,6 +287,7 @@
   <field id="albedo_obs_scaling" name="albedo_obs_scaling" long_name="albedo_obs_scaling" unit="1" domain_ref="face" axis_ref="land_tile_rad_band" />
   <field id="sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
   <field id="sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
+  <field id="sea_surf_temp_pert" name="sea_surf_temp_pert" long_name="sea_surface_temperature_perturbation" unit="K" domain_ref="face" />
   <field id="internal_flux" name="internal_flux" long_name="internal_flux" unit="W m-2" domain_ref="face" />
   <!-- orography fields -->
   <field id="sd_orog" name="sd_orog" long_name="standard_deviation_of_orography"  unit="m" domain_ref="face" />

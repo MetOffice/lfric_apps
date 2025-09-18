@@ -1680,6 +1680,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   logical :: l_req_rel_humid 
   logical :: l_req_rel_humid_clear_sky
   logical :: l_req_svp
+  logical :: l_req_p_theta_lev
+  logical :: l_req_grid_vol
 
   logical :: l_land_any    ! Land/sea indicator (True for land point)
 
@@ -1698,7 +1700,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(r_def), parameter :: ztodry = 3.0_r_def * rsec_per_hour
 
   ! Grid cell airmass and volume (for some emissions and diagnostics)
-  real(r_um) :: grid_airmass(seg_len,1,nlayers)
   real(r_um) :: grid_volume(seg_len,1,nlayers)
 
   ! Temporary photol_rates array, derived from single species values coming
@@ -1718,7 +1719,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(tracer_names)
   allocate( tracer( seg_len, 1, nlayers, m_fields ) )
-  tracer(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(tracer_names(m))
@@ -2508,7 +2508,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! -- Non-transported prognostics --
   m_fields = size(ntp_names)
   allocate( ntp( seg_len, 1, nlayers, m_fields ) )
-  ntp(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(ntp_names(m))
@@ -2886,53 +2885,56 @@ subroutine aerosol_ukca_code( nlayers,                                         &
     end do
   end do
 
-  ! Set up grid cell volume and mass.
-  ! Volume is represented by det(J) on shifted mesh, except for the lowest level
-  ! where it is detj_shifted(0) + detj_shifted(1) to mimic the UM equivalent :
-  !  r_rho_levels(2) - r_theta_levels(0)
-  do i = 1, seg_len
-    do k = 2, nlayers
-      grid_volume(i,1,k) = real( detj_shifted( map_wth(1,i) + k ), r_um )
-    end do
-  end do
-
-  do i = 1, seg_len
-    grid_volume(i,1,1) = real( detj_shifted( map_wth(1,i) + 1 ) +              &
-                               detj_shifted( map_wth(1,i) + 0 ), r_um )
-  end do
-
-  ! Derive grid airmass as (rho * volume)
-  !  Using wet rho in first instance to replicate UM method used
-  do i = 1, seg_len
-    do k = 1, nlayers
-      grid_airmass(i,1,k) = real ( wetrho_in_wth( map_wth(1,i) + k ), r_um ) * &
-                            grid_volume(i,1,k)
-    end do
-  end do
-
-  ! Calculate pressure on theta levels
-  allocate( p_theta_lev( seg_len, 1, nlayers ) )
-  do i = 1, seg_len
-    do k = 1, nlayers
-      p_theta_lev( i, 1, k ) = p_zero *                                        &
-        real( exner_in_wth( map_wth(1,i) + k ), r_um )**( 1.0_r_um / kappa )
-    end do
-  end do
-
   ! Determine whether humidity-related fields are needed
+  l_req_p_theta_lev = .FALSE.
   l_req_rel_humid = .FALSE.
   l_req_rel_humid_clear_sky = .FALSE.
   l_req_svp = .FALSE.
+  l_req_grid_vol = .FALSE.
   do m = 1, size(env_names_fullht_real)
     select case(env_names_fullht_real(m))
+    case(fldname_p_theta_lev)
+      l_req_p_theta_lev = .TRUE.
     case(fldname_rel_humid)
       l_req_rel_humid = .TRUE.
     case(fldname_rel_humid_clear_sky)
       l_req_rel_humid_clear_sky = .TRUE.
     case(fldname_svp)
       l_req_svp = .TRUE.
+    case(fldname_grid_volume, fldname_grid_airmass)
+      l_req_grid_vol = .TRUE.
     end select
   end do
+
+  if (l_req_grid_vol) then
+
+    ! Set up grid cell volume and mass.
+    ! Volume is represented by det(J) on shifted mesh, except for the lowest lev
+    ! where it is detj_shifted(0) + detj_shifted(1) to mimic the UM equivalent :
+    !  r_rho_levels(2) - r_theta_levels(0)
+    do i = 1, seg_len
+      grid_volume(i,1,1) = real( detj_shifted( map_wth(1,i) + 1 ) +            &
+                               detj_shifted( map_wth(1,i) + 0 ), r_um )
+      do k = 2, nlayers
+        grid_volume(i,1,k) = real( detj_shifted( map_wth(1,i) + k ), r_um )
+      end do
+    end do
+
+  end if
+
+  if (l_req_p_theta_lev .or. l_req_rel_humid .or. l_req_rel_humid_clear_sky    &
+       .or. l_req_svp ) then
+
+    ! Calculate pressure on theta levels
+    allocate( p_theta_lev( seg_len, 1, nlayers ) )
+    do i = 1, seg_len
+      do k = 1, nlayers
+        p_theta_lev( i, 1, k ) = p_zero *                                      &
+           real( exner_in_wth( map_wth(1,i) + k ), r_um )**( 1.0_r_um / kappa )
+      end do
+    end do
+
+  end if
 
   ! Calculate relative humidity, clear-sky relative humidity and/or saturation
   ! vapour pressure as required
@@ -2982,17 +2984,14 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
     if (l_req_rel_humid) then
       allocate( rel_humid(seg_len, 1, nlayers) )
-      rel_humid = 0.0_r_um
     end if
 
     if (l_req_rel_humid_clear_sky) then
       allocate( rel_humid_clear_sky(seg_len, 1, nlayers) )
-      rel_humid_clear_sky = 0.0_r_um
     end if
 
     if (l_req_svp) then
       allocate( svp(seg_len, 1, nlayers) )
-      svp = 0.0_r_um
     end if
 
     call atmos_ukca_humidity(seg_len, 1, nlayers,                              &
@@ -3100,7 +3099,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
     end do
 
     ! Urban ancillaries
-    urban_param%ztm_gb(:) = 0.0_r_um
     if ( l_urban2t ) then
       do i = 1, n_land_pts
         urban_param%ztm_gb(i)= real( urbztm( map_2d( 1, ainfo%land_index(i) )),&
@@ -3132,7 +3130,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_scalar_real)
   allocate( environ_scalar_real( m_fields ) )
-  environ_scalar_real(:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_scalar_real(m))
@@ -3207,7 +3204,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_flat_integer)
   allocate( environ_flat_integer( seg_len, 1, m_fields ) )
-  environ_flat_integer = 0
 
   do m = 1, m_fields
     select case(env_names_flat_integer(m))
@@ -3236,7 +3232,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size( env_names_flat_real )
   allocate( environ_flat_real( seg_len, 1, m_fields ) )
-  environ_flat_real(:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_flat_real(m))
@@ -3468,7 +3463,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_flat_logical)
   allocate( environ_flat_logical( seg_len, 1, m_fields ) )
-  environ_flat_logical = .false.
 
   do m = 1, m_fields
     select case(env_names_flat_logical(m))
@@ -3488,7 +3482,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_flatpft_real)
   allocate(environ_flatpft_real( seg_len, 1, npft, m_fields ))
-  environ_flatpft_real(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_flatpft_real(m))
@@ -3513,7 +3506,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_fullht_real)
   allocate(environ_fullht_real( seg_len, 1, nlayers, m_fields ))
-  environ_fullht_real(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_fullht_real(m))
@@ -3575,8 +3567,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       end do
     case(fldname_p_theta_lev)
       ! Air pressure on theta levels
-      do i = 1, seg_len
-        do k = 1, nlayers
+      do k = 1, nlayers
+        do i = 1, seg_len
           environ_fullht_real( i, 1, k, m ) = p_theta_lev( i, 1, k )
         end do
       end do
@@ -3664,13 +3656,25 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       end do
     case(fldname_rel_humid)
       ! Relative humidity
-      environ_fullht_real(:, :, :, m) = rel_humid(:,:,:)
+      do k = 1, nlayers
+        do i = 1, seg_len
+          environ_fullht_real(i, 1, k, m) = rel_humid(i,1,k)
+        end do
+      end do
     case(fldname_rel_humid_clear_sky)
       ! Clear-sky relative humidity
-      environ_fullht_real(:, :, :, m) = rel_humid_clear_sky(:,:,:)
+      do k = 1, nlayers
+        do i = 1, seg_len
+          environ_fullht_real(i, 1, k, m) = rel_humid_clear_sky(i,1,k)
+        end do
+      end do
     case(fldname_svp)
       ! Saturation vapour pressure
-      environ_fullht_real(:, :, :, m) = svp(:,:,:) 
+      do k = 1, nlayers
+        do i = 1, seg_len
+          environ_fullht_real(i, 1, k, m) = svp(i,1,k)
+        end do
+      end do
     case(fldname_liq_cloud_frac)
       ! Liquid cloud fraction
       do i = 1, seg_len
@@ -3737,16 +3741,18 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       end do
     case(fldname_grid_volume)
       ! Grid cell volume
-      do i = 1, seg_len
-        do k = 1, nlayers
+      do k = 1, nlayers
+        do i = 1, seg_len
           environ_fullht_real( i, 1, k, m ) =  grid_volume( i, 1, k )
         end do
       end do
     case(fldname_grid_airmass)
-      ! Grid cell air mass
+      ! Derive grid airmass as (rho * volume)
+      !  Using wet rho in first instance to replicate UM method used
       do i = 1, seg_len
         do k = 1, nlayers
-          environ_fullht_real( i, 1, k, m ) =  grid_airmass( i, 1, k )
+          environ_fullht_real( i, 1, k, m ) = grid_volume(i,1,k) *             &
+               real ( wetrho_in_wth( map_wth(1,i) + k ), r_um )
         end do
       end do
     case default
@@ -3759,19 +3765,17 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Drivers in full-height plus level zero grid group (1D fields)
   m_fields = size(env_names_fullht0_real)
   allocate( environ_fullht0_real( seg_len, 1, 0:nlayers, m_fields ) )
-  environ_fullht0_real(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_fullht0_real(m))
     case(fldname_interf_z)
       ! Set zeroth level to zero
       do i = 1, seg_len
-        k = 0
-        environ_fullht0_real( i, 1, k, m ) = 0.0_r_um
+        environ_fullht0_real( i, 1, 0, m ) = 0.0_r_um
       end do
 
-      do i = 1, seg_len
-        do k = 1, nlayers - 1
+      do k = 1, nlayers - 1
+        do i = 1, seg_len
           environ_fullht0_real( i, 1, k, m ) =                                 &
             r_rho_levels( i, 1, k+1 ) - r_theta_levels( i, 1, 0 )
         end do
@@ -3793,7 +3797,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   m_fields = size(env_names_fullhtp1_real)
   nlayers_plus_one = nlayers + 1
   allocate( environ_fullhtp1_real( seg_len, 1, nlayers_plus_one, m_fields ) )
-  environ_fullhtp1_real(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_fullhtp1_real(m))
@@ -3835,7 +3838,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_bllev_real)
   allocate( environ_bllev_real( seg_len, 1, bl_levels, m_fields ) )
-  environ_bllev_real(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_bllev_real(m))
@@ -3879,7 +3881,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_entlev_real)
   allocate(environ_entlev_real( seg_len, 1, nlev_ent_tr_mix, m_fields ))
-  environ_entlev_real(:,:,:,:) = 0.0_r_um
 
   do m = 1, m_fields
     select case(env_names_entlev_real(m))
@@ -3950,7 +3951,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_land_real)
   allocate(environ_land_real( n_land_pts, m_fields ))
-  environ_land_real(:,:) = 0.0_r_um
 
   if (l_land_any) then
     do m = 1, m_fields
@@ -3978,14 +3978,13 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_landtile_real)
   allocate(environ_landtile_real( n_land_pts, n_land_tile, m_fields ))
-  environ_landtile_real(:,:,:) = 0.0_r_um
 
   if (l_land_any) then
     do m = 1, m_fields
       select case(env_names_landtile_real(m))
       case(fldname_frac_surft)
-        do i = 1, n_land_pts
-          do j = 1, n_land_tile
+        do j = 1, n_land_tile
+          do i = 1, n_land_pts
             environ_landtile_real( i, j, m ) = ainfo%frac_surft( i, j )
           end do
         end do
@@ -3999,8 +3998,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
           end do
         end do
       case(fldname_z0_surft)
-        do i = 1, n_land_pts
-          do j = 1, n_land_tile
+        do j = 1, n_land_tile
+          do i = 1, n_land_pts
             environ_landtile_real( i, j, m ) = z0_surft( i, j )
           end do
         end do
@@ -4015,7 +4014,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_landtile_logical)
   allocate(environ_landtile_logical( n_land_pts, n_land_tile, m_fields) )
-  environ_landtile_logical = .false.
 
   if (l_land_any) then
     do m = 1, m_fields
@@ -4066,7 +4064,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(env_names_landpft_real)
   allocate(environ_landpft_real( n_land_pts, npft, m_fields ))
-  environ_landpft_real(:,:,:) = 0.0_r_um
 
   if (l_land_any) then
     do m = 1, m_fields
@@ -4097,7 +4094,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(emiss_names_flat)
   allocate( emissions_flat( seg_len, 1, m_fields ) )
-  emissions_flat(:,:,:) = 0.0_r_um
 
   do m = 1, size(emiss_names_flat)
     select case(emiss_names_flat(m))
@@ -4202,7 +4198,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   m_fields = size(emiss_names_fullht)
   allocate( emissions_fullht( seg_len, 1, nlayers, m_fields ) )
-  emissions_fullht(:,:,:,:) = 0.0_r_um
 
   ! Emissions in full height group
 
@@ -4248,7 +4243,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
     m_fields = size(env_names_fullhtphot_real)
     allocate(environ_fullhtphot_real( seg_len, 1, nlayers, jppj, m_fields ))
-    environ_fullhtphot_real = 0.0_r_um
 
     ! Expand the single base rate profile to all the photolytic species
     ! (num=jppj) involved in this chemistry scheme by scaling the values using
@@ -4289,7 +4283,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   else
     ! Allocate to minimal size and initialise
     allocate(environ_fullhtphot_real( 1, 1, 1, 1, 0 ))
-    environ_fullhtphot_real = 0.0_r_um
 
   end if     ! chem_scheme_strattrop / photol_rates reqd
 

@@ -60,6 +60,7 @@ module process_recv_fields_2d_mod
    type( field_type )                 :: sea_v_w3
    type( field_type )                 :: sea_w_wth
    type( field_type ), pointer        :: sea_current_w2_ptr
+   type( field_type ), pointer        :: sea_surf_temp_pert_ptr
    type( field_type ), pointer        :: dA
    type( field_type ), pointer        :: theta_ptr
    type( field_type ), pointer        :: u_w3_ptr
@@ -78,6 +79,7 @@ module process_recv_fields_2d_mod
    call dcpl_rcv%get_field("lf_sunocean",sea_u_current_ptr)
    call dcpl_rcv%get_field("lf_svnocean",sea_v_current_ptr)
    call depository%get_field("sea_current_w2",sea_current_w2_ptr)
+   call depository%get_field("sea_surf_temp_pert",sea_surf_temp_pert_ptr)
    call depository%get_field("theta",theta_ptr)
    call depository%get_field("u_in_w3",u_w3_ptr)
    call depository%get_field("ocn_cpl_point",ocn_cpl_point_ptr)
@@ -124,6 +126,7 @@ module process_recv_fields_2d_mod
 
    ! Process data that has just come through the coupler
    call invoke(process_o2a_kernel_type( sea_surf_temp_ptr,        &
+                                        sea_surf_temp_pert_ptr,   &
                                         sea_ice_fraction_ptr,     &
                                         sea_ice_thickness_ptr,    &
                                         sea_ice_layer_t_ptr,      &

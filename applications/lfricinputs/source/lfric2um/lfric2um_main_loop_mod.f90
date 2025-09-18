@@ -82,7 +82,8 @@ do i_stash = 1, lfric2um_config%num_fields
     if (local_rank == 0 ) then
       ! Create UM field in output file
       call lfricinp_add_um_field_to_file(um_output_file, stashcode, &
-           level, um_grid)
+           level, um_grid, lfric2um_config%lbtim_list(i_stash),     &
+           lfric2um_config%lbproc_list(i_stash))
       ! Adding a 2D UM field to the file increments num_fields by 1 each time
       ! Get the index of the last field added, which is just num_fields
       i_field = um_output_file%num_fields

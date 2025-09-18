@@ -88,6 +88,7 @@ module gungho_setup_io_mod
 #ifdef UM_PHYSICS
                                        iau_pert_path,             &
 #endif
+                                       iau_sst_path,              &
                                        iau_surf_path,             &
                                        lbc_filename,              &
                                        lbc_directory,             &
@@ -126,6 +127,7 @@ module gungho_setup_io_mod
                                        orog_init_option_ancil,    &
                                        orog_init_option_start_dump
   use section_choice_config_mod, only: iau,                       &
+                                       iau_sst,                   &
                                        iau_surf
   use time_config_mod,           only: timestep_start,            &
                                        timestep_end
@@ -773,6 +775,13 @@ module gungho_setup_io_mod
       write(iau_surf_fname,'(A)') trim(iau_surf_path)
       call files_list%insert_item( lfric_xios_file_type( iau_surf_fname,     &
                                                          xios_id="iau_surf", &
+                                                         io_mode=FILE_MODE_READ ))
+    end if
+
+   ! Setup the IAU SST inc file
+    if ( iau_sst )  then
+      call files_list%insert_item( lfric_xios_file_type( trim(iau_sst_path), &
+                                                         xios_id="iau_sst",  &
                                                          io_mode=FILE_MODE_READ ))
     end if
 

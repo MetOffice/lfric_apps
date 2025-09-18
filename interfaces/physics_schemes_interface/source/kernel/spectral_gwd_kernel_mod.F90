@@ -185,9 +185,13 @@ contains
     !-----------------------------------------------------------------------
     ! Initialise some variables (and diagnostics) to zero
 
-    dtemp_on_t = 0.0_r_um
-    du_on_p = 0.0_r_um
-    dv_on_p = 0.0_r_um
+    do k = 1, nlayers
+      do i = 1, seg_len
+        dtemp_on_t(i,1,k) = 0.0_r_um
+        du_on_p(i,1,k) = 0.0_r_um
+        dv_on_p(i,1,k) = 0.0_r_um
+      end do
+    end do
 
     ! This assumes that map_wth(1) points to level 0
     ! and map_w3(1) points to level 1
@@ -229,7 +233,6 @@ contains
     if (.not. associated(tau_east_spectral_gwd, empty_real_data) ) then
       gwspec_eflux_on = .true.
       allocate(gwspec_eflux(seg_len,1,nlayers))
-      gwspec_eflux = 0.0_r_um
     else
       gwspec_eflux_on = .false.
       allocate(gwspec_eflux(1,1,1))
@@ -237,7 +240,6 @@ contains
     if (.not. associated(tau_south_spectral_gwd, empty_real_data) ) then
       gwspec_sflux_on = .true.
       allocate(gwspec_sflux(seg_len,1,nlayers))
-      gwspec_sflux = 0.0_r_um
     else
       gwspec_sflux_on = .false.
       allocate(gwspec_sflux(1,1,1))
@@ -245,7 +247,6 @@ contains
     if (.not. associated(tau_west_spectral_gwd, empty_real_data) ) then
       gwspec_wflux_on = .true.
       allocate(gwspec_wflux(seg_len,1,nlayers))
-      gwspec_wflux = 0.0_r_um
     else
       gwspec_wflux_on = .false.
       allocate(gwspec_wflux(1,1,1))
@@ -253,7 +254,6 @@ contains
     if (.not. associated(tau_north_spectral_gwd, empty_real_data) ) then
       gwspec_nflux_on = .true.
       allocate(gwspec_nflux(seg_len,1,nlayers))
-      gwspec_nflux = 0.0_r_um
     else
       gwspec_nflux_on = .false.
       allocate(gwspec_nflux(1,1,1))

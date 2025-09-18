@@ -278,14 +278,14 @@ contains
 
     ! Increments need to be intialised to zero because they are added onto
     ! previous increments in UM code (not overwritten).
-    du_dt_orog_gwd(:,:) = 0.0_r_um
-    dv_dt_orog_gwd(:,:) = 0.0_r_um
-
-    du_dt_blk(:,:) = 0.0_r_um
-    dv_dt_blk(:,:) = 0.0_r_um
-
-    dtemp_dt_blk(:,:) = 0.0_r_um
-    dtemp_dt_orog_gwd(:,:) = 0.0_r_um
+    do k = 1, nlayers
+      du_dt_orog_gwd(1,k) = 0.0_r_um
+      dv_dt_orog_gwd(1,k) = 0.0_r_um
+      du_dt_blk(1,k) = 0.0_r_um
+      dv_dt_blk(1,k) = 0.0_r_um
+      dtemp_dt_blk(1,k) = 0.0_r_um
+      dtemp_dt_orog_gwd(1,k) = 0.0_r_um
+    end do
 
     ! Recasting fields to UM precision
     do k = 1, nlayers

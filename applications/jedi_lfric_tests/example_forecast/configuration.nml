@@ -44,6 +44,7 @@ limit_cfl=.false.,
 dynamics='gungho',
 external_forcing=.false.,
 iau=.false.,
+iau_sst=.false.,
 iau_surf=.false.,
 /
 &departure_points

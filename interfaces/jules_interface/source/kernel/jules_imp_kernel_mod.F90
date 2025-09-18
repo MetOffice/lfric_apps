@@ -634,9 +634,9 @@ contains
     !-----------------------------------------------------------------------
 
     ! Land tile fractions
-    flandg = 0.0_r_um
     land_field = 0
     do i = 1, seg_len
+      flandg(i,1) = 0.0_r_um
       do n = 1, n_land_tile
         flandg(i,1) = flandg(i,1) + real(tile_fraction(map_tile(1,i)+n-1), r_um)
       end do
@@ -713,9 +713,15 @@ contains
     sf_diag%l_lw_surft = .not. associated(surf_lw_up, empty_real_data)  &
                     .or. .not. associated(surf_lw_down, empty_real_data)
     sf_diag%l_lw_up_sice_weighted_cat = .not. associated(surf_lw_up, empty_real_data)
-
+    sf_diag%sq1p5 = .true.
     call alloc_sf_imp(sf_diag, outer == outer_iterations, land_field)
-    sf_diag%sice_mlt_htf = 0.0_r_um
+    if (sf_diag%simlt) then
+      do n = 1, nice
+        do i = 1, seg_len
+          sf_diag%sice_mlt_htf(i,1,n) = 0.0_r_um
+        end do
+      end do
+    end if
 
     allocate(epot_surft(land_field,ntiles))
     allocate(tscrndcl_surft(land_field,ntiles))
@@ -830,7 +836,9 @@ contains
       end do
 
       ! Land tile temperatures
-      tstar_land = 0.0_r_um
+      do i = 1, seg_len
+        tstar_land(i,1) = 0.0_r_um
+      end do
       do l = 1, land_field
         do n = 1, n_land_tile
           progs%tstar_surft(l, n) = real(tile_temperature(map_tile(1,ainfo%land_index(l))+n-1), r_um)
@@ -864,8 +872,8 @@ contains
       end do
 
       ! Sea-ice temperatures
-      tstar_sice = 0.0_r_um
       do i = 1, seg_len
+        tstar_sice(i,1) = 0.0_r_um
         if (ainfo%ice_fract_ij(i, 1) > 0.0_r_um) then
           i_sice = 0
           do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
@@ -894,10 +902,16 @@ contains
 
       ! Following variables need to be initialised to stop crashed in unused
       ! UM code
-      olr = 300.0_r_um
-      cdr10m_u       = 0.0_r_um
-      cdr10m_v       = 0.0_r_um
-      epot_surft     = 0.0_r_um
+      do i = 1, seg_len
+        olr(i,1) = 300.0_r_um
+        cdr10m_u(i,1) = 0.0_r_um
+        cdr10m_v(i,1) = 0.0_r_um
+      end do
+      do n = 1, ntiles
+        do l = 1, land_field
+          epot_surft(l,n) = 0.0_r_um
+        end do
+      end do
 
       do l = 1, land_field
         do m = 1, sm_levels
@@ -931,21 +945,28 @@ contains
         ! The amount of diffuse visible light is needed for solar penetrating radiation
         sw_diffuse_blue_surf = sw_down_blue_surf(map_2d(1,i)) - sw_direct_blue_surf(map_2d(1,i))
 
-        ! Net SW on sea-ice
+        ! Calculate penetrating solar into sea ice. We use the fraction of penetrating
+        ! solar for direct visible light as it is the same as for diffuse visible light.
+        if (l_sice_swpen .and. ocn_cpl_point(map_2d(1,i)) == 1_i_def ) then
+          i_sice = 0
+          do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+            i_sice = i_sice + 1
+            sea_ice_pensolar(map_sice(1,i)+i_sice-1) = sw_direct_blue_surf(map_2d(1,i)) *    &
+                 sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) + &
+                 sw_diffuse_blue_surf *                                 &
+                 sea_ice_pensolar_frac_diffuse(map_sice(1,i)+i_sice-1)
+          end do
+        else
+          i_sice = 0
+          do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+            i_sice = i_sice + 1
+            sea_ice_pensolar(map_sice(1,i)+i_sice-1) = 0.0_r_def
+          end do
+        endif
+
         i_sice = 0
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
           i_sice = i_sice + 1
-
-          ! Calculate penetrating solar into sea ice. We use the fraction of penetrating
-          ! solar for direct visible light as it is the same as for diffuse visible light.
-          if (l_sice_swpen .and. ocn_cpl_point(map_2d(1,i)) == 1_i_def ) then
-            sea_ice_pensolar(map_sice(1,i)+i_sice-1) = sw_direct_blue_surf(map_2d(1,i)) *    &
-                                      sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) + &
-                                      sw_diffuse_blue_surf *                                 &
-                                      sea_ice_pensolar_frac_diffuse(map_sice(1,i)+i_sice-1)
-          else
-            sea_ice_pensolar(map_sice(1,i)+i_sice-1) = 0.0_r_def
-          endif
 
           ! Net SW on sea-ice
           fluxes%sw_sicat(i, i_sice) = real(sw_down_surf(map_2d(1,i)) -  &
@@ -956,7 +977,9 @@ contains
 
       ! Carbon dioxide
       co2_mmr = real(co2_mix_ratio_now, r_um)
-      co2 = co2_mmr
+      do i = 1, seg_len
+        co2(i,1) = co2_mmr
+      end do
 
       do l = 1, land_field
         ! Canopy water on each tile (canopy_surft)
@@ -969,16 +992,22 @@ contains
           progs%snow_surft(l, n) = real(tile_snow_mass(map_tile(1,ainfo%land_index(l))+n-1), r_um)
           ! Number of snow layers on tiles (nsnow_surft)
           progs%nsnow_surft(l, n) = n_snow_layers(map_tile(1,ainfo%land_index(l))+n-1)
-          ! Equivalent snowdepth for surface calculations.
-          ! code copied from jules_land_sf_explicit
-          ! 4 is a magic number inherited from Jules, meaning radiative canopy
-          ! with heat capacity and snow beneath
-          if ( (can_model == 4) .and. cansnowtile(n) .and. l_snowdep_surf) then
-            jules_vars%snowdep_surft(l, n) = progs%snow_surft(l, n) / rho_snow_const
-          else
-            jules_vars%snowdep_surft(l, n) = real(snow_depth(map_tile(1,ainfo%land_index(l))+n-1), r_um)
-          end if
         end do
+      end do
+      ! Equivalent snowdepth for surface calculations.
+      ! code copied from jules_land_sf_explicit
+      ! 4 is a magic number inherited from Jules, meaning radiative canopy
+      ! with heat capacity and snow beneath
+      do n = 1, n_land_tile
+        if ( (can_model == 4) .and. cansnowtile(n) .and. l_snowdep_surf) then
+          do l = 1, land_field
+            jules_vars%snowdep_surft(l, n) = progs%snow_surft(l, n) / rho_snow_const
+          end do
+        else
+          do l = 1, land_field
+            jules_vars%snowdep_surft(l, n) = real(snow_depth(map_tile(1,ainfo%land_index(l))+n-1), r_um)
+          end do
+        end if
       end do
 
       !-----------------------------------------------------------------------
@@ -1020,10 +1049,14 @@ contains
                real(tile_lw_grey_albedo(map_tile(1,ainfo%land_index(l))+n-1), r_um)
         end do
         ! recalculate the total resistance factor
-        resft(l,:) = fracaero_t(l,:) + (1.0_r_um - fracaero_t(l,:)) * resfs(l,:)
+        do n = 1, n_land_tile
+          resft(l,n) = fracaero_t(l,n) + (1.0_r_um - fracaero_t(l,n)) * resfs(l,n)
+        end do
         resft(l,lake) = 1.0_r_um
         ! recalculate the total lake fraction
-        flake(l,:) = 0.0_r_um
+        do n = 1, n_land_tile
+          flake(l,n) = 0.0_r_um
+        end do
         flake(l,lake) = 1.0_r_um
       end do
       ! Fields only calculated on tiles which exist
@@ -1102,7 +1135,9 @@ contains
       if (outer==outer_iterations) then
 
         if (l_noice_in_turb) then
-          qcf_latest = 0.0_r_def
+          do i = 1, seg_len
+            qcf_latest(i,1) = 0.0_r_def
+          end do
         else
           do i = 1, seg_len
             qcf_latest(i,1) = m_cf(map_wth(1,i) + 1)
@@ -1473,8 +1508,10 @@ contains
 
           allocate(t1p5m_land_loc(seg_len,1))
           allocate(q1p5m_land_loc(seg_len,1))
-          t1p5m_land_loc = 0.0_r_def
-          q1p5m_land_loc = 0.0_r_def
+          do i = 1, seg_len
+            t1p5m_land_loc(i,1) = 0.0_r_def
+            q1p5m_land_loc(i,1) = 0.0_r_def
+          end do
           do n = 1, n_land_tile
             do l = 1, land_field
               t1p5m_land_loc(ainfo%land_index(l),1) = &
@@ -1629,7 +1666,7 @@ contains
           do i = 1, seg_len
             if (tile_fraction(map_tile(1,i)+first_sea_tile-1) > 0.0_r_def) then
               surf_lw_up(map_tile(1,i)+first_sea_tile-1) =                     &
-                   (1.0_r_def - emis_sea) * forcing%lw_down_ij(i,1) +                &
+                   (1.0_r_def - emis_sea) * forcing%lw_down_ij(i,1) +          &
                    emis_sea * sbcon * coast%tstar_sea_ij(i,1) ** 4.0_r_def
             end if
           end do

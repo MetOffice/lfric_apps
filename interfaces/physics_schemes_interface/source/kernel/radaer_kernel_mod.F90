@@ -821,9 +821,6 @@ subroutine radaer_code( nlayers,                                               &
     end do
   end do
 
-  ! Populate (dummy) prescribed single scattering albedo array
-  ukca_radaer_presc_ssa(1,1,1) = 0.0_r_def
-
   ! Long wave ( e.g. ip_infra_red )
   call ukca_radaer_band_average(                                               &
     ! Fixed array dimensions (input)
@@ -1043,19 +1040,32 @@ subroutine radaer_code( nlayers,                                               &
   !------------------------------------------------
   ! Calculate mass thickness of vertical levels
   ! This duplicates calculation of d_mass from set_thermodynamic_kernel_mod
+  if ( ( .not. associated( aod_ukca_ait_sol, empty_real_data ) ) .or.          &
+       ( .not. associated( aaod_ukca_ait_sol, empty_real_data ) ) .or.         &
+       ( .not. associated( aod_ukca_acc_sol, empty_real_data ) ) .or.          &
+       ( .not. associated( aaod_ukca_acc_sol, empty_real_data ) ) .or.         &
+       ( .not. associated( aod_ukca_cor_sol, empty_real_data ) ) .or.          &
+       ( .not. associated( aaod_ukca_cor_sol, empty_real_data ) ) .or.         &
+       ( .not. associated( aod_ukca_ait_ins, empty_real_data ) ) .or.          &
+       ( .not. associated( aaod_ukca_ait_ins, empty_real_data ) ) .or.         &
+       ( .not. associated( aod_ukca_acc_ins, empty_real_data ) ) .or.          &
+       ( .not. associated( aaod_ukca_acc_ins, empty_real_data ) ) .or.         &
+       ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) .or.          &
+       ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) ) then
 
-  d_mass_theta_levels_um(1,1,1) = rho_in_wth(  map_wth(2) ) *                  &
-                                  ( dz_in_wth( map_wth(2) ) +                  &
+    d_mass_theta_levels_um(1,1,1) = rho_in_wth(  map_wth(2) ) *                &
+                                    ( dz_in_wth( map_wth(2) ) +                &
                                     dz_in_wth( map_wth(1) ) )
 
-  do k = 2, nlayers - 1
-    d_mass_theta_levels_um(1,1,k) = rho_in_wth( map_wth(1) + k ) *             &
-                                     dz_in_wth( map_wth(1) + k )
-  end do
+    do k = 2, nlayers - 1
+      d_mass_theta_levels_um(1,1,k) = rho_in_wth( map_wth(1) + k ) *           &
+                                       dz_in_wth( map_wth(1) + k )
+    end do
 
-  d_mass_theta_levels_um(1,1,nlayers) = p_zero *                               &
+    d_mass_theta_levels_um(1,1,nlayers) = p_zero *                             &
                                         exner_in_w3( map_w3(1) + nlayers-1 )** &
                                         ( 1.0_r_def / kappa ) / gravity
+  end if
 
   !------------------------------------------------
   ! Now calculate aod and aaod for Aitken Soluble mode

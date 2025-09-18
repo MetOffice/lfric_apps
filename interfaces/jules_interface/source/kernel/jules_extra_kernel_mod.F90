@@ -561,14 +561,14 @@ contains
     ! Initialisation of JULES data and pointer types
     !-----------------------------------------------------------------------
     ! Land tile fractions
-    flandg = 0.0_r_um
     land_pts = 0
     do i = 1, seg_len
+      flandg(i,1) = 0.0_r_um
       do n = 1, nsurft
         flandg(i,1) = flandg(i,1) + real(tile_fraction(map_tile(1,i)+n-1), r_um)
       end do
+      flandg(i,1) = min(flandg(i,1), 1.0_r_um)
     end do
-    flandg = min(flandg, 1.0_r_um)
 
     do i = 1, seg_len
       if (flandg(i,1) > 0.0_r_um) then
@@ -756,7 +756,11 @@ contains
 
     ! Decrease in saturated conductivity of soil with depth
     allocate(fexp_soilt(land_pts, nsoilt))
-    fexp_soilt = decrease_sath_cond
+    do n = 1, nsoilt
+      do l = 1, land_pts
+        fexp_soilt(l,n) = decrease_sath_cond
+      end do
+    end do
 
     allocate(ti_mean_soilt(land_pts, nsoilt))
     allocate(a_fsat_soilt(land_pts, nsoilt))

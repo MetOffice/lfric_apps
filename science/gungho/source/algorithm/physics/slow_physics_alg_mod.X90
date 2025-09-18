@@ -110,6 +110,7 @@ module slow_physics_alg_mod
   use pc2_rad_response_alg_mod,  only: pc2_rad_response_alg
   use spectral_gwd_alg_mod,      only: spectral_gwd_alg
   use orographic_drag_alg_mod,   only: orographic_drag_alg
+  use map_drag_incs_alg_mod,     only: map_drag_incs_alg
   use bl_exp_alg_mod,            only: bl_exp_alg
   use bl_imp_alg_mod,            only: bl_imp_alg
   use conv_ll_alg_mod,           only: conv_ll_alg
@@ -269,11 +270,13 @@ contains
     ! ...for JULES & Boundary Layer
     type( field_type ) :: recip_l_mo_sea, rhostar, h_blend_orog
     type( field_type ) :: t1_sd_2d, q1_sd_2d
-#endif
     ! ...for spectral GWD
-    type( field_type ) :: du_tot_spectral_gwd, dtheta_spectral_gwd
+    type( field_type ) :: du_spectral_gwd, dv_spectral_gwd
     ! ...for orog GWD
-    type( field_type ) :: du_tot_orographic_drag, dtheta_orographic_drag
+    type( field_type ) :: du_orographic_drag, dv_orographic_drag
+    type( field_type ) :: dw_drag_inc
+#endif
+    type( field_type ) :: du_drag_inc, dtheta_orographic_drag, dtheta_spectral_gwd
     ! ...for methane oxidation
     type( field_type ) :: dmv_methox
     ! ...for boundary layer
@@ -785,9 +788,9 @@ contains
     !--------------------------------------------------------------------
     if (spectral_gwd == spectral_gwd_um .and. &
         spectral_gwd_placement == spectral_gwd_placement_slow) then
-      call du%copy_field_properties(du_tot_spectral_gwd)
       call dtheta%copy_field_properties(dtheta_spectral_gwd)
-      call spectral_gwd_alg(du_tot_spectral_gwd, &
+      call spectral_gwd_alg(du_spectral_gwd,     &
+                            dv_spectral_gwd,     &
                             dtheta_spectral_gwd, &
                             derived_fields,      &
                             microphysics_fields, &
@@ -801,9 +804,9 @@ contains
     !--------------------------------------------------------------------
     if (orographic_drag == orographic_drag_um .and. &
         orographic_drag_placement == orographic_drag_placement_slow) then
-      call du%copy_field_properties(du_tot_orographic_drag)
       call dtheta%copy_field_properties(dtheta_orographic_drag)
-      call orographic_drag_alg(du_tot_orographic_drag, &
+      call orographic_drag_alg(du_orographic_drag,     &
+                               dv_orographic_drag,     &
                                dtheta_orographic_drag, &
                                derived_fields,         &
                                orography_fields,       &
@@ -844,6 +847,38 @@ contains
                       surface_fields,                                     &
                       recip_l_mo_sea, rhostar,                            &
                       h_blend_orog, t1_sd_2d, q1_sd_2d, clock)
+    end if
+
+    !--------------------------------------------------------------------
+    ! Map spectral and orographic drag increments back to W2 space
+    ! This is done here to align it with similar halo exchanges happening
+    ! at the end of bl_exp_alg
+    !--------------------------------------------------------------------
+    if (spectral_gwd_done .or. orographic_drag_done) then
+      call du%copy_field_properties(du_drag_inc)
+      call dtheta%copy_field_properties(dw_drag_inc)
+      call invoke(setval_c(dw_drag_inc, 0.0_r_def))
+      if (spectral_gwd_done .and. orographic_drag_done) then
+        ! If both schemes are called, add the increments and map to W2
+        call invoke(inc_X_plus_Y(du_spectral_gwd, du_orographic_drag), &
+                    inc_X_plus_Y(dv_spectral_gwd, dv_orographic_drag) )
+        call map_drag_incs_alg(du_spectral_gwd, dv_spectral_gwd, &
+                               dw_drag_inc, u, du_drag_inc)
+      else if (spectral_gwd_done) then
+        ! Only spectral scheme called
+        call map_drag_incs_alg(du_spectral_gwd, dv_spectral_gwd, &
+                               dw_drag_inc, u, du_drag_inc)
+      else
+        ! Only orographic scheme called
+        call map_drag_incs_alg(du_orographic_drag, dv_orographic_drag, &
+                               dw_drag_inc, u, du_drag_inc)
+      end if
+      call du_spectral_gwd%field_final()
+      call dv_spectral_gwd%field_final()
+      call du_orographic_drag%field_final()
+      call dv_orographic_drag%field_final()
+      call dw_drag_inc%field_final()
+    end if
 
     !--------------------------------------------------------------------
     ! Calculate Leonard term fluxes and increments
@@ -915,6 +950,7 @@ contains
     !--------------------------------------------------------------------
     ! UM implicit boundary layer and Jules surface schemes
     !--------------------------------------------------------------------
+    if (boundary_layer == boundary_layer_um ) then
       if (blayer_placement == blayer_placement_slow) then
         call du%copy_field_properties(du_bl)
         call bl_imp_alg(dtheta_bl, du_bl, mr,                               &
@@ -1016,17 +1052,21 @@ contains
     end if
 
     if (spectral_gwd_done) then
-      call invoke(inc_X_plus_Y(dtheta, dtheta_spectral_gwd), &
-                  inc_X_plus_Y(du, du_tot_spectral_gwd))
+      call invoke(inc_X_plus_Y(dtheta, dtheta_spectral_gwd))
       call dtheta_spectral_gwd%field_final()
-      call du_tot_spectral_gwd%field_final()
+      if (.not. orographic_drag_done) then
+        ! If not doing orographic drag, add inc here
+        ! else add it with orographic drag incs
+        call invoke(inc_X_plus_Y(du, du_drag_inc))
+        call du_drag_inc%field_final()
+      end if
     end if
 
     if (orographic_drag_done) then
       call invoke(inc_X_plus_Y(dtheta, dtheta_orographic_drag), &
-                  inc_X_plus_Y(du, du_tot_orographic_drag))
+                  inc_X_plus_Y(du, du_drag_inc))
       call dtheta_orographic_drag%field_final()
-      call du_tot_orographic_drag%field_final()
+      call du_drag_inc%field_final()
     end if
 
     if (methox_done) then

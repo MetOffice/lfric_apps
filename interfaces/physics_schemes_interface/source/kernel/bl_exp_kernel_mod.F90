@@ -513,7 +513,8 @@ contains
     ! local switches and scalars
     integer(i_um) :: error_code
     real(r_bl) :: weight1, weight2, weight3
-    logical :: l_spec_z0, l_extra_call, l_cape_opt
+    logical :: l_spec_z0, l_cape_opt
+    logical, parameter :: l_extra_call = .false.
 
     ! profile fields from level 1 upwards
     real(r_bl), dimension(seg_len,1,nlayers) :: rho_dry, z_rho, z_theta,     &
@@ -599,8 +600,6 @@ contains
     !-----------------------------------------------------------------------
     ! diagnostic flags
     error_code=0
-    ! other logicals
-    l_extra_call=.false.
 
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into UM variables
@@ -626,8 +625,8 @@ contains
     end do
 
     if (l_use_surf_in_ri) then
-      tstar = 0.0_r_bl
       do i = 1, seg_len
+        tstar(i,1) = 0.0_r_bl
         do n = 1, n_surf_tile
           if (tile_fraction(map_tile(1,i)+n-1) > 0.0_r_bl) then
             tstar(i,1) = tstar(i,1) + tile_temperature(map_tile(1,i)+n-1) * tile_fraction(map_tile(1,i)+n-1)
@@ -713,15 +712,23 @@ contains
         ! cloud ice mixing ratio
         qcf_conv(i,1,k) = m_ci_n(map_wth(1,i) + k)
         bulk_cf_conv(i,1,k) = cf_bulk(map_wth(1,i) + k)
-        if (l_noice_in_turb) then
-          qcf(i,1,k) = 0.0_r_bl
-          bulk_cloud_fraction(i,1,k) = cf_liquid(map_wth(1,i) + k)
-        else
-          qcf(i,1,k) = m_ci_n(map_wth(1,i) + k)
-          bulk_cloud_fraction(i,1,k) = cf_bulk(map_wth(1,i) + k)
-        end if
       end do
     end do
+    if (l_noice_in_turb) then
+      do i = 1, seg_len
+        do k = 1, nlayers
+          qcf(i,1,k) = 0.0_r_bl
+          bulk_cloud_fraction(i,1,k) = cf_liquid(map_wth(1,i) + k)
+        end do
+      end do
+    else
+      do i = 1, seg_len
+        do k = 1, nlayers
+          qcf(i,1,k) = m_ci_n(map_wth(1,i) + k)
+          bulk_cloud_fraction(i,1,k) = cf_bulk(map_wth(1,i) + k)
+        end do
+      end do
+    end if
 
     if ( smagorinsky ) then
       do i = 1, seg_len
@@ -735,7 +742,9 @@ contains
     end if
 
     ! Set this to 1 to account for quasi-uniform grid
-    cos_theta_latitude = 1.0_r_um
+    do i = 1, seg_len
+      cos_theta_latitude(i,1) = 1.0_r_um
+    end do
 
     do i = 1, seg_len
       ! surface pressure
@@ -744,6 +753,9 @@ contains
         ! computational vertical velocity
         etadot(i,1,k) = velocity_w2v(map_wth(1,i) + k) / z_theta(i,1,nlayers)
       end do
+      ! surface currents
+      u_0_p(i,1) = 0.0_r_bl
+      v_0_p(i,1) = 0.0_r_bl
     end do
 
     do i = 1, seg_len
@@ -790,16 +802,18 @@ contains
     call alloc_bl_expl(bl_diag, .true.)
 
     bl_diag%l_tke      = .true.
-    allocate(BL_diag%tke(seg_len,1,bl_levels))
-    bl_diag%tke = 0.0_r_bl
-
     bl_diag%l_elm3d    = .true.
-    allocate(BL_diag%elm3d(seg_len,1,bl_levels))
-    bl_diag%elm3d = 0.0_r_bl
-
     bl_diag%l_gradrich = .true.
+    allocate(BL_diag%tke(seg_len,1,bl_levels))
+    allocate(BL_diag%elm3d(seg_len,1,bl_levels))
     allocate(BL_diag%gradrich(seg_len,1,bl_levels))
-    bl_diag%gradrich = 0.0_r_bl
+    do k = 1, bl_levels
+      do i = 1, seg_len
+        bl_diag%tke(i,1,k) = 0.0_r_bl
+        bl_diag%elm3d(i,1,k) = 0.0_r_bl
+        bl_diag%gradrich(i,1,k) = 0.0_r_bl
+      end do
+    end do
 
     ! Calculate vertical differences
     do i = 1, seg_len
@@ -838,7 +852,9 @@ contains
         l_shallow, l_mid, delthvu, ql_ad, zhpar, dzh, qcl_inv_top,          &
         zlcl, zlcl_uv, conv_type, no_cumulus, w_max, w, L_cape_opt)
 
-    qsat_lcl = 0.0_r_bl
+    do i = 1, seg_len
+      qsat_lcl(i,1) = 0.0_r_bl
+    end do
     call conv_diag_6a(                                                  &
     !     IN Parallel variables
             seg_len, 1                                                  &
@@ -943,9 +959,9 @@ contains
         ! Scale exchange coefficients by 1/dz factor, as is done for
         ! rhokh_mix in bdy_impl4
         rhokm_mix(i,1,k) = rhokm_mix(i,1,k) * rdz_charney_grid(i,1,k)
+        zeroes(i,1) = 0.0_r_um
       end do
 
-      zeroes = 0.0_r_um
       do k = 1, bl_levels
         do i = 1, seg_len
           w_mixed(i,1,k) = w(i,1,k)

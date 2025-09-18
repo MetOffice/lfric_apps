@@ -21,9 +21,6 @@ module spectral_gwd_alg_mod
   use spectral_gwd_diags_mod, only: initialise_diags_for_spectral_gwd, &
                                     output_diags_for_spectral_gwd
 
-  use map_fd_to_prognostics_alg_mod, only: set_wind
-  use physics_config_mod,   only: limit_drag_incs
-
   implicit none
 
   private
@@ -32,26 +29,28 @@ module spectral_gwd_alg_mod
 contains
 
   !> @brief Run the spectral gravity wave drag scheme
-  !> @param[in,out] du_tot_spectral_gwd  Increment to total (3D) wind field
+  !> @param[in,out] du_spectral_gwd      Increment to zonal wind field
+  !> @param[in,out] dv_spectral_gwd      Increment to meridional wind field
   !> @param[in,out] dtheta_spectral_gwd  Increment to theta field
   !> @param[in]     derived fields       Group of derived fields
   !> @param[in]     microphysics_fields  Fields for mphys scheme
   !> @param[in]     convection_fields    Fields for convection scheme
   !> @param[in]     theta                Potential temperature in wtheta
   !> @param[in]     u                    Wind in W2
-   subroutine spectral_gwd_alg(du_tot_spectral_gwd, dtheta_spectral_gwd, &
-                               derived_fields, microphysics_fields,      &
-                               convection_fields, theta, u)
+  subroutine spectral_gwd_alg(du_spectral_gwd, dv_spectral_gwd,         &
+                              dtheta_spectral_gwd,                      &
+                              derived_fields, microphysics_fields,      &
+                              convection_fields, theta, u)
 
     ! spectral_gwd kernels
     use spectral_gwd_kernel_mod,     only: spectral_gwd_kernel_type
-    use drag_incs_kernel_mod,        only: drag_incs_kernel_type
     use sci_geometric_constants_mod, only: get_latitude_fv, get_height_fv
     use um_sizes_init_mod,           only: um_sizes_init
 
    implicit none
 
-    type( field_type ), intent( inout ) :: du_tot_spectral_gwd
+    type( field_type ), intent( inout ) :: du_spectral_gwd
+    type( field_type ), intent( inout ) :: dv_spectral_gwd
     type( field_type ), intent( inout ) :: dtheta_spectral_gwd
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: microphysics_fields
@@ -60,11 +59,7 @@ contains
 
     ! Local fields
     ! Increments from spectral gravity wave drag to ...
-    type( field_type ) :: du_spectral_gwd    ! ... zonal wind
-    type( field_type ) :: dv_spectral_gwd    ! ... meridional wind
-    type( field_type ) :: dw_spectral_gwd    ! ... vertical wind (set to zero)
     type( field_type ) :: dtemp_spectral_gwd ! ... temperature
-    type( field_type ) :: du_new_spectral_gwd    ! ... winds in W2 space
 
     type( field_type ) :: totalppn ! total surface precipitation
 
@@ -118,7 +113,6 @@ contains
 
     call u_in_w3%copy_field_properties(du_spectral_gwd)
     call v_in_w3%copy_field_properties(dv_spectral_gwd)
-    call theta%copy_field_properties(dw_spectral_gwd)
     call dtheta_spectral_gwd%copy_field_properties(dtemp_spectral_gwd)
     call ls_rain%copy_field_properties(totalppn)
 
@@ -133,9 +127,6 @@ contains
     call um_sizes_init(ncells)
 
     call invoke(                                                            &
-                ! Set vertical wind inc to zero for mapping back of winds
-                setval_c(dw_spectral_gwd, 0.0_r_def),                       &
-
                 ! Add precipitation
                 X_plus_Y(totalppn, ls_rain, ls_snow),                       &
                 inc_X_plus_Y(totalppn, conv_rain),                          &
@@ -165,18 +156,6 @@ contains
                  tau_south_spectral_gwd, tau_west_spectral_gwd,        &
                  tau_north_spectral_gwd)
 
-    end if
-
-    ! Mapping back of wind increments
-    call set_wind(du_tot_spectral_gwd, du_spectral_gwd, dv_spectral_gwd, &
-                  dw_spectral_gwd)
-
-    if (limit_drag_incs) then
-      call du_tot_spectral_gwd%copy_field_properties(du_new_spectral_gwd)
-      call invoke(setval_c(du_new_spectral_gwd,0.0_r_def),             &
-                  drag_incs_kernel_type(du_new_spectral_gwd,           &
-                                        du_tot_spectral_gwd, u),       &
-                  setval_X(du_tot_spectral_gwd, du_new_spectral_gwd) )
     end if
 
     nullify( mesh, twod_mesh )

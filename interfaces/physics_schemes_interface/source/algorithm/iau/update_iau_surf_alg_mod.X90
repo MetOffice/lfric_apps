@@ -13,9 +13,11 @@ module update_iau_surf_alg_mod
   use constants_mod,               only : r_def, i_def
   use field_mod,                   only : field_type
   use field_collection_mod,        only : field_collection_type
-  use log_mod,                     only : log_event, &
-                                          log_level_debug
-  use printing_iau_mod,            only : print_minmax_surf
+  use log_mod,                     only : log_event,       &
+                                          log_level_debug, &
+                                          log_level_info
+  use printing_iau_mod,            only : print_minmax_iau_surf, &
+                                          print_minmax_surf
   use sci_weighted_ave_kernel_mod, only : weighted_ave_kernel_type
   use jules_control_init_mod,      only : n_land_tile
   use limit_soil_moist_kernel_mod, only : limit_soil_moist_kernel_type
@@ -48,13 +50,13 @@ module update_iau_surf_alg_mod
     implicit none
 
     ! Arguments
-    type( field_collection_type ), intent(in)       :: iau_surf_fields
-    type( field_collection_type ), intent(inout)    :: surface_fields
-    type( field_collection_type ), intent(inout)    :: soil_fields
-    type( field_collection_type ), intent(inout)    :: snow_fields
+    type( field_collection_type ), intent(in)    :: iau_surf_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+    type( field_collection_type ), intent(inout) :: soil_fields
+    type( field_collection_type ), intent(inout) :: snow_fields
 
     ! Internal variables
-    integer(kind=i_def)             :: n
+    integer(kind=i_def) :: n
 
     ! Prognostic fields needed for surf iau
     type( field_type ), pointer :: soil_moist_wilt        => null()
@@ -82,6 +84,10 @@ module update_iau_surf_alg_mod
                             snow_fields,    &
                             log_level_debug &
                            )
+
+    call log_event( '- Minmax IAU surface increment fields -', &
+                    log_level_info )
+    call print_minmax_iau_surf( iau_surf_fields, log_level_info )
 
     ! Get fields needed for surf IAU
     call soil_fields%get_field( 'soil_moist_wilt', soil_moist_wilt )
@@ -142,7 +148,7 @@ module update_iau_surf_alg_mod
                            )
 
     nullify( soil_moist_wilt,soil_moist_sat,soil_temperature, &
-             soil_moisture,snow_layer_temp,tile_temperature,   &
+             soil_moisture,snow_layer_temp,tile_temperature,  &
              tile_snow_mass, tile_fraction )
     nullify( soil_temperature_inc,soil_moisture_inc,          &
              snow_layer_temp_inc,tile_temperature_inc )

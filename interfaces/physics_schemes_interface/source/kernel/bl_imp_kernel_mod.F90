@@ -268,7 +268,11 @@ contains
       end do
     end do
     if (l_noice_in_turb) then
-      qcf = 0.0_r_bl
+      do k = 1, nlayers
+        do i = 1, seg_len
+          qcf(i,1,k) = 0.0_r_bl
+        end do
+      end do
     else
       do i = 1, seg_len
         do k = 1, nlayers
@@ -324,7 +328,11 @@ contains
       end do
     end do
     if (l_noice_in_turb) then
-      qcf_latest = 0.0_r_bl
+      do k = 1, nlayers
+        do i = 1, seg_len
+          qcf_latest(i,1,k) = 0.0_r_bl
+        end do
+      end do
     else
       do i = 1, seg_len
         do k = 1, nlayers

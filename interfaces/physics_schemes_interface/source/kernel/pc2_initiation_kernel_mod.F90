@@ -304,11 +304,16 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
     do i = 1, seg_len
       l_cumulus(i,1) = (cumulus(map_2d(1,i)) == 1_i_def)
       zlcl_mix(i,1) = zlcl_mixed(map_2d(1,i))
-      r_theta_levels(i,1,:) = height_wth(map_wth(1,i):map_wth(1,i)+nlayers) &
-                            + planet_radius
+      do k = 0, nlayers
+        r_theta_levels(i,1,k) = height_wth(map_wth(1,i)+k) + planet_radius
+      end do
     end do
 
-    zeros=0.0_r_um
+    do k = 1, nlayers
+      do i = 1, seg_len
+        zeros(i,1,k)=0.0_r_um
+      end do
+    end do
     !-----------------------------------------------------------------------
     ! Initialisation of prognostic variables and arrays
     !-----------------------------------------------------------------------
@@ -316,7 +321,6 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
     do i = 1, seg_len
       p_star(i,1) = p_zero*(exner_wth(map_wth(1,i) + 0))     &
                                    **(1.0_r_def/kappa)
-      p_rho_levels(i,1,nlayers+1) = 0.0_r_um
       do k = 1, nlayers
         ! Calculate temperature, this array will be updated.
         t_work(i,1,k)  = theta_wth(map_wth(1,i) + k) *                  &
@@ -391,11 +395,15 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
 
     ! Calculate qsat(TL) with respect to liquid water, operate on whole column.
     call qsat_wat_mix(qsl_tl, tlts, ptts, seg_len, 1, nlayers )
+    do k = 1, nlayers
+      do i = 1, seg_len
+        ! Total relative humidity (using start of time-step liquid temperature).
+        rhts(i,1,k) = qtts(i,1,k) / qsl_tl(i,1,k)
+      end do
+    end do
 
     do i = 1, seg_len
       do k = 1, nlayers
-        ! Total relative humidity (using start of time-step liquid temperature).
-        rhts(i,1,k) = qtts(i,1,k) / qsl_tl(i,1,k)
         ! Recast LFRic cloud fractions onto cloud fraction work arrays.
         bcf_work(i,1,k) = bcf_wth(map_wth(1,i) + k)
         cfl_work(i,1,k) = cfl_wth(map_wth(1,i) + k)
@@ -404,14 +412,18 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
     end do
 
     ! Initialize
-    t_incr   = 0.0_r_um
-    qv_incr  = 0.0_r_um
-    qcl_incr = 0.0_r_um
-    qcf_incr = 0.0_r_um
-    qcf2_incr = 0.0_r_um
-    bcf_incr = 0.0_r_um
-    cfl_incr = 0.0_r_um
-    cff_incr = 0.0_r_um
+    do k = 1, nlayers
+      do i = 1, seg_len
+        t_incr(i,1,k)   = 0.0_r_um
+        qv_incr(i,1,k)  = 0.0_r_um
+        qcl_incr(i,1,k) = 0.0_r_um
+        qcf_incr(i,1,k) = 0.0_r_um
+        qcf2_incr(i,1,k) = 0.0_r_um
+        bcf_incr(i,1,k) = 0.0_r_um
+        cfl_incr(i,1,k) = 0.0_r_um
+        cff_incr(i,1,k) = 0.0_r_um
+      end do
+    end do
 
     call pc2_initiation_ctl(                               &
                             ! Dimensions of Rh crit array

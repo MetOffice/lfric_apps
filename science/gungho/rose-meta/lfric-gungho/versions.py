@@ -18,16 +18,19 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-"""
-Copy this template and complete to add your macro
+class vn22_t885(MacroUpgrade):
+    """Upgrade macro for ticket #885 by Samantha Pullen."""
 
-class vnXX_txxx(MacroUpgrade):
-    # Upgrade macro for <TICKET> by <Author>
-
-    BEFORE_TAG = "vnX.X"
-    AFTER_TAG = "vnX.X_txxx"
+    BEFORE_TAG = "vn2.2"
+    AFTER_TAG = "vn2.2_t885"
 
     def upgrade(self, config, meta_config=None):
-        # Add settings
+        # Commands From: rose-meta/lfric-gungho
+        """Add iau_sst_path to files namelist"""
+        self.add_setting(config, ["namelist:files", "iau_sst_path"], "''")
+        """Add iau_sst to section_choice namelist"""
+        self.add_setting(
+            config, ["namelist:section_choice", "iau_sst"], ".false."
+        )
+
         return config, self.reports
-"""

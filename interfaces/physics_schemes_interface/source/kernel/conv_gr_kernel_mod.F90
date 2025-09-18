@@ -1199,6 +1199,16 @@ contains
     ! assuming map_wth(1) points to level 0
     ! and map_w3(1) points to level 1
     !-----------------------------------------------------------------------
+    do k = 0, nlayers
+      ! pressure on theta levels
+      p_theta_levels(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
+      ! exner pressure on theta levels
+      exner_theta_levels(1,1,k) = exner_in_wth(map_wth(1) + k)
+      ! height of theta levels from centre of planet
+      r_theta_levels(1,1,k) = height_wth(map_wth(1) + k) + planet_radius
+      ! w wind on theta levels
+      w(1,1,k) = w_in_wth(map_wth(1) + k)
+    end do
     do k = 1, nlayers
       ! wet density on theta and rho levels
       rho_wet_tq(1,1,k) = wetrho_in_wth(map_wth(1) + k)
@@ -1206,17 +1216,12 @@ contains
       ! dry density on theta and rho levels
       rho_dry_theta(1,1,k) = rho_in_wth(map_wth(1) + k)
       rho_dry(1,1,k) = rho_in_w3(map_w3(1) + k-1)
-      ! pressure on rho and theta levels
+      ! pressure on rho levels
       p_rho_levels(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
-      p_theta_levels(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
-      ! exner pressure on rho and theta levels
+      ! exner pressure on rho levels
       exner_rho_levels(1,1,k) = exner_in_w3(map_w3(1) + k-1)
-      exner_theta_levels(1,1,k) = exner_in_wth(map_wth(1) + k)
-      ! w wind on theta levels
-      w(1,1,k) = w_in_wth(map_wth(1) + k)
-      ! height of rho and theta levels from centre of planet
+      ! height of rho levels from centre of planet
       r_rho_levels(1,1,k) = height_w3(map_w3(1) + k-1) + planet_radius
-      r_theta_levels(1,1,k) = height_wth(map_wth(1) + k) + planet_radius
     end do
 
     if ( smagorinsky ) then
@@ -1224,24 +1229,24 @@ contains
     end if
 
     ! surface pressure
-    p_theta_levels(1,1,0) = p_zero*(exner_in_wth(map_wth(1) + 0))**(1.0_r_def/kappa)
     p_star(1,1) = p_theta_levels(1,1,0)
-    exner_theta_levels(1,1,0) = exner_in_wth(map_wth(1) + 0)
     ! setup odd array which is on rho levels but without level 1
     p_rho_minus_one(1,1,0) = p_theta_levels(1,1,0)
-    p_rho_minus_one(1,1,1:nlayers-1) = p_rho_levels(1,1,2:nlayers)
+    do k = 1, nlayers-1
+      p_rho_minus_one(1,1,k) = p_rho_levels(1,1,k+1)
+    end do
     p_rho_minus_one(1,1,nlayers) = 0.0_r_um
     ! and similar array for exner
     exner_rho_minus_one(1,1,0)   = exner_theta_levels(1,1,0)
-    exner_rho_minus_one(1,1,1:nlayers-1) = exner_rho_levels(1,1,2:nlayers)
+    do k = 1, nlayers-1
+      exner_rho_minus_one(1,1,k) = exner_rho_levels(1,1,k+1)
+    end do
     exner_rho_minus_one(1,1,nlayers) = 0.0_r_um
-    ! surface height
-    r_theta_levels(1,1,0) = height_wth(map_wth(1) + 0) + planet_radius
     ! height of levels above surface
-    z_rho = r_rho_levels-r_theta_levels(1,1,0)
-    z_theta(1,1,:) = r_theta_levels(1,1,1:nlayers)-r_theta_levels(1,1,0)
-    ! vertical velocity
-    w(1,1,0) = w_in_wth(map_wth(1) + 0)
+    do k = 1, nlayers
+      z_rho(1,1,k) = r_rho_levels(1,1,k)-r_theta_levels(1,1,0)
+      z_theta(1,1,k) = r_theta_levels(1,1,k)-r_theta_levels(1,1,0)
+    end do
 
     !-----------------------------------------------------------------------
     ! Things passed from other parametrization schemes on this timestep
@@ -1318,32 +1323,25 @@ contains
       cf_liquid_conv(1,1,k) = cf_liq(map_wth(1) + k)
       cf_frozen_conv(1,1,k) = cf_ice(map_wth(1) + k)
       bulk_cf_conv(1,1,k)   = cf_bulk(map_wth(1) + k)
-      if (l_conv_prog_precip) then
-        conv_prog_precip_conv(1,1,k) = conv_prog_precip(map_wth(1) + k)
-      end if
-
       ! Total theta increment
       dtheta_conv(1,1,k) = 0.0_r_um
+      cca_3d(1,1,k) = 0.0_r_um
+      ccw_3d(1,1,k) = 0.0_r_um
     end do
+    if (l_conv_prog_precip) then
+      do k = 1, nlayers
+        conv_prog_precip_conv(1,1,k) = conv_prog_precip(map_wth(1) + k)
+      end do
+    end if
 
     ccb(1,1) = 0_i_um
     cct(1,1) = 0_i_um
     lctop(1,1) = 0_i_um
     lcbase(1,1) = 0_i_um
-    cca_3d = 0.0_r_um
-    ccw_3d = 0.0_r_um
     w_max(1,1) = 0.0_r_um
 
     ! Turn water tracers off in convection and initialise dummy fields
     l_wtrac_conv = .FALSE.
-    q_wtrac(1,1,1)   = 0.0_r_um
-    qcl_wtrac(1,1,1) = 0.0_r_um
-    qcf_wtrac(1,1,1) = 0.0_r_um
-    dqbydt_wtrac(1,1,1)   = 0.0_r_um
-    dqclbydt_wtrac(1,1,1) = 0.0_r_um
-    dqcfbydt_wtrac(1,1,1) = 0.0_r_um
-    rain_wtrac(1,1) = 0.0_r_um
-    snow_wtrac(1,1) = 0.0_r_um
 
     ! Check for negative (less than a minimum) q being passed to convection
     if (l_safe_conv) then
@@ -1760,18 +1758,22 @@ contains
 
       ! Initialise convection work arrays holding information from each
       ! iteration (sub-step)
-      it_cca(1,1,:n_cca_lev)  = 0.0_r_um
-      it_cca0(1,1,:n_cca_lev) = 0.0_r_um
-      it_cca0_dp(1,1,:n_cca_lev) = 0.0_r_um
-      it_cca0_sh(1,1,:n_cca_lev) = 0.0_r_um
-      it_cca0_md(1,1,:n_cca_lev) = 0.0_r_um
+      do k = 1, n_cca_lev
+        it_cca(1,1,k)  = 0.0_r_um
+        it_cca0(1,1,k) = 0.0_r_um
+        it_cca0_dp(1,1,k) = 0.0_r_um
+        it_cca0_sh(1,1,k) = 0.0_r_um
+        it_cca0_md(1,1,k) = 0.0_r_um
+      end do
 
-      it_ccw(1,1,:)  = 0.0_r_um
-      it_ccw0(1,1,:) = 0.0_r_um
-      it_conv_rain_3d(1,1,:) = 0.0_r_um
-      it_conv_snow_3d(1,1,:) = 0.0_r_um
-      it_w2p(1,1,:) = 0.0_r_um
-      it_up_flux(1,1,:) = 0.0_r_um
+      do k = 1, nlayers
+        it_ccw(1,1,k)  = 0.0_r_um
+        it_ccw0(1,1,k) = 0.0_r_um
+        it_conv_rain_3d(1,1,k) = 0.0_r_um
+        it_conv_snow_3d(1,1,k) = 0.0_r_um
+        it_w2p(1,1,k) = 0.0_r_um
+        it_up_flux(1,1,k) = 0.0_r_um
+      end do
 
       it_lcca(1,1)   = 0.0_r_um
       it_lcbase(1,1) = 0

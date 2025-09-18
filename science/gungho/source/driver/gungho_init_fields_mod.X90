@@ -35,6 +35,7 @@ module gungho_init_fields_mod
   use files_config_mod,                   only : checkpoint_stem_name
   use formulation_config_mod,             only : use_physics
   use section_choice_config_mod,          only : iau,                         &
+                                                 iau_sst,                     &
                                                  iau_surf
   use initialization_config_mod,          only : init_option,                 &
                                                  init_option_analytic,        &
@@ -977,6 +978,12 @@ subroutine create_model_data( modeldb,      &
       call read_state( field_collection_ptr )
     end if
 
+    if ( iau_sst ) then
+      call log_event( 'IAU: read sst inc file in initialise', LOG_LEVEL_INFO )
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_sst_fields")
+      call read_state( field_collection_ptr )
+    end if
+
   end subroutine initialise_model_data
 
   !----------------------------------------------------------------------------
@@ -1132,13 +1139,19 @@ subroutine create_model_data( modeldb,      &
       if ( iau_surf ) then
         field_collection_ptr => modeldb%fields%get_field_collection("iau_surf_fields")
         call field_collection_ptr%clear()
-#ifdef UM_PHYSICS
-        if ( iau_use_pertinc ) then
-          field_collection_ptr => modeldb%fields%get_field_collection("iau_pert_fields")
-          call field_collection_ptr%clear()
-        end if
-#endif
       end if
+
+      if ( iau_sst ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_sst_fields")
+        call field_collection_ptr%clear()
+      end if
+
+#ifdef UM_PHYSICS
+      if ( iau_use_pertinc ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_pert_fields")
+        call field_collection_ptr%clear()
+      end if
+#endif
 
       lbc_fields => modeldb%fields%get_field_collection("lbc_fields")
       call lbc_fields%clear()

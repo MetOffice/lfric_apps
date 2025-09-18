@@ -200,18 +200,17 @@ module update_iau_inc_alg_mod
 
     ! Save initial theta, exner on theta levels and humidities, and
     ! calculate initial temperature, for use later
-    call invoke ( setval_X( theta_earlier, theta ),                  &
-                  setval_X( mv_earlier, m_v ),                       &
-                  setval_X( mcl_earlier, m_cl ),                     &
-                  setval_X( mci_earlier, m_ci ),                     &
-                  setval_X( mr_earlier, m_r ),                       &
-                  setval_X( ms_earlier, m_s ),                       &
-                  setval_X( mg_earlier, m_g ),                       &
-                  X_times_Y( temperature_earlier, exner_earlier_wth, &
-                             theta_earlier )                         &
+    call invoke ( setval_X( theta_earlier, theta ), &
+                  setval_X( mv_earlier, m_v ),      &
+                  setval_X( mcl_earlier, m_cl ),    &
+                  setval_X( mci_earlier, m_ci ),    &
+                  setval_X( mr_earlier, m_r ),      &
+                  setval_X( ms_earlier, m_s ),      &
+                  setval_X( mg_earlier, m_g ),      &
+                  X_times_Y( temperature_earlier,   &
+                             exner_earlier_wth,     &
+                             theta_earlier )        &
                 )
-
-    call log_event( '- Entering add_iau_inc -', log_level_debug )
 
     ! Add IAU increments to:
 
@@ -661,7 +660,6 @@ module update_iau_inc_alg_mod
     call log_event( '- Minmax and mean/rms prognostic fields before IAU -', log_level_debug )
     call print_minmax_prog( prognostic_fields, log_level_debug )
     call print_meanrms_prog( prognostic_fields, log_level_debug )
-    call log_event( '- Minmax and mean/rms IAU increment fields -', log_level_info )
 
     if ( iau_ainc_active ) then
       call log_event( '- Minmax and mean/rms IAU increment fields -', log_level_info )

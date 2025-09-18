@@ -56,6 +56,7 @@ module create_physics_prognostics_mod
                                              boundary_layer,                    &
                                              boundary_layer_um,                 &
                                              electric, electric_um,             &
+                                             iau_sst,                           &
                                              surface, surface_jules,            &
                                              orographic_drag,                   &
                                              orographic_drag_um,                &
@@ -148,6 +149,7 @@ contains
     logical(l_def) :: is_empty
     logical(l_def) :: is_rad ! Flag for chemistry fields
                              ! that are radiatively active
+    logical(l_def) :: sst_pert_flag
 #endif
 
     class(clock_type), pointer :: clock
@@ -843,6 +845,16 @@ contains
     call processor%apply(make_spec('sea_v_current', main%surface, W3, twod=.true.,    &
         ckp=.false.))
     call processor%apply(make_spec('sea_current_w2', main%surface, W2, ckp=.false.))
+
+    ! Sea surface temperature perturbation (set in IAU, applied in coupling)
+    ! Needs checkpointing if coupled and iau_sst is enabled
+    if ((checkpoint_couple) .and. (iau_sst)) then
+      sst_pert_flag = .true.
+    else
+      sst_pert_flag = .false.
+    end if
+    call processor%apply(make_spec('sea_surf_temp_pert', main%surface, W3,      &
+        twod=.true., ckp=sst_pert_flag, empty = (.not. sst_pert_flag)))
 
     ! Fields on surface tiles, don't need checkpointing
     call processor%apply(make_spec('tile_heat_flux', main%surface, W3,          &

@@ -548,15 +548,17 @@ contains
     if (loop == 2) then
 
       do i = 1, seg_len
-        do k = 1, nlayers
+        do k = 0, nlayers
           ! height of theta levels from centre of planet
           r_theta_levels(i,1,k) = height_wth(map_wth(1,i) + k) + planet_radius
         end do
-        ! surface height
-        r_theta_levels(i,1,0) = height_wth(map_wth(1,i) + 0) + planet_radius
-        ! height of levels above surface
-        z_theta(i,1,:) = r_theta_levels(i,1,1:nlayers)-r_theta_levels(i,1,0)
         zh(i,1) = zh_2d(map_2d(1,i))
+      end do
+      do k = 1, nlayers
+        do i = 1, seg_len
+          ! height of levels above surface
+          z_theta(i,1,k) = r_theta_levels(i,1,k)-r_theta_levels(i,1,0)
+        end do
       end do
 
       if (fric_heating) then
@@ -685,18 +687,23 @@ contains
           cumulus(i,1) = (cumulus_2d(map_2d(1,i)) == 1_i_def)
           ntml(i,1) = ntml_2d(map_2d(1,i))
           dzh(i,1) = real(inv_depth(map_2d(1,i)), r_um)
-          do k = 1, nlayers
-            ! pressure on rho and theta levels
+          do k = 0, nlayers
+            ! pressure on theta levels
             p_theta_levels(i,1,k) = p_zero*(exner_in_wth(map_wth(1,i) + k))**(1.0_r_def/kappa)
+          end do
+          do k = 1, nlayers
             qcl_latest(i,1,k) = m_cl(map_wth(1,i) + k)
             qcf_latest(i,1,k) = m_s(map_wth(1,i) + k)
             qcf2_latest(i,1,k) = m_ci(map_wth(1,i) + k)
           end do
-          p_theta_levels(i,1,0) = p_zero*(exner_in_wth(map_wth(1,i) + 0))**(1.0_r_def/kappa)
         end do
         if (scheme == scheme_pc2) then
-          qcl_earliest = qcl_latest
-          qcf_earliest = qcf_latest
+          do k = 1, nlayers
+            do i = 1, seg_len
+              qcl_earliest(i,1,k) = qcl_latest(i,1,k)
+              qcf_earliest(i,1,k) = qcf_latest(i,1,k)
+            end do
+          end do
         end if
 
         do i = 1, seg_len
@@ -726,11 +733,15 @@ contains
             bl_type_3(i,1) = bl_type_ind(map_bl(1,i)+2)
             bl_type_4(i,1) = bl_type_ind(map_bl(1,i)+3)
             bl_type_6(i,1) = bl_type_ind(map_bl(1,i)+5)
+            zlcl_mix(i,1) = 0.0_r_um
           end do
-          zlcl_mix = 0.0_r_um
-          cf_earliest = cf_latest
-          cfl_earliest = cfl_latest
-          cff_earliest = cff_latest
+          do k = 1, nlayers
+            do i = 1, seg_len
+              cf_earliest(i,1,k) = cf_latest(i,1,k)
+              cfl_earliest(i,1,k) = cfl_latest(i,1,k)
+              cff_earliest(i,1,k) = cff_latest(i,1,k)
+            end do
+          end do
 
           ! --------------------------------------------------------------------
           ! Inhomogeneous forcing of ice
@@ -922,9 +933,17 @@ contains
               rhcpt(i,1,k) = rh_crit_wth(map_wth(1,i) + k)
               p_rho_levels(i,1,k) = p_zero*(exner_in_w3(map_w3(1,i) + k-1))**(1.0_r_def/kappa)
             end do
-            ! setup odd array which is on rho levels but without level 1
+          end do
+          ! setup odd array which is on rho levels but without level 1
+          do i = 1, seg_len
             p_rho_minus_one(i,1,0) = p_theta_levels(i,1,0)
-            p_rho_minus_one(i,1,1:nlayers-1) = p_rho_levels(i,1,2:nlayers)
+          end do
+          do k = 1, nlayers-1
+            do i = 1, seg_len
+              p_rho_minus_one(i,1,k) = p_rho_levels(i,1,k+1)
+            end do
+          end do
+          do i = 1, seg_len
             p_rho_minus_one(i,1,nlayers) = 0.0_r_um
           end do
 

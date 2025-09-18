@@ -167,7 +167,7 @@ contains
         land_tile_frac(n) = tile_fraction(map_tile(1)+n-1) / total_land_frac
       end do
     else
-      land_tile_frac(n) = 0.0_r_def
+      land_tile_frac(:) = 0.0_r_def
     end if
 
     do n = 1, n_land_tile

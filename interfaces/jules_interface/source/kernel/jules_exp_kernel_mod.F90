@@ -708,7 +708,8 @@ contains
          land_field, ssi_pts, sea_pts
 
     ! local switches and scalars
-    logical :: l_aero_classic, l_spec_z0
+    logical, parameter :: l_aero_classic=.false.
+    logical :: l_spec_z0
     real(r_def) :: sw_diffuse_blue_surf
 
     ! profile fields from level 0 upwards
@@ -822,9 +823,9 @@ contains
     ! Initialisation of JULES data and pointer types
     !-----------------------------------------------------------------------
     ! Land tile fractions
-    flandg = 0.0_r_um
     land_field = 0
     do i = 1, seg_len_halo
+      flandg(i,1) = 0.0_r_um
       do n = 1, n_land_tile
         flandg(i,1) = flandg(i,1) + real(tile_fraction(tile_stencil(1,1,i)+n-1), r_um)
       end do
@@ -909,8 +910,6 @@ contains
     !-----------------------------------------------------------------------
     ! Initialisation of variables and arrays
     !-----------------------------------------------------------------------
-    ! other logicals
-    l_aero_classic=.false.
     ! surface forcing
     if ( iseasurfalg == iseasurfalg_specified_roughness ) then
       l_spec_z0 = .true.
@@ -931,9 +930,13 @@ contains
     allocate(fracaero_t(land_field,ntiles))
     allocate(fracaero_s(land_field,ntiles))
     allocate(epot_surft(land_field,ntiles))
-    fracaero_t       = 0.0_r_um
-    fracaero_s       = 0.0_r_um
-    epot_surft       = 0.0_r_um
+    do n = 1, ntiles
+      do l = 1, land_field
+        fracaero_t(l,n) = 0.0_r_um
+        fracaero_s(l,n) = 0.0_r_um
+        epot_surft(l,n) = 0.0_r_um
+      end do
+    end do
 
     call jules_vars_alloc(land_field,ntype,n_land_tile,rad_nband,nsoilt,       &
                           sm_levels, seg_len, 1, npft, bl_levels, pdims_s,     &
@@ -948,8 +951,12 @@ contains
     !-----------------------------------------------------------------------
     ! Mapping of LFRic fields into Jules variables
     !-----------------------------------------------------------------------
-    k_blend_uv = 1
-    k_blend_tq = 1
+    do i = 1, seg_len_halo
+      k_blend_uv(i,1) = 1
+    end do
+    do i = 1, seg_len
+      k_blend_tq(i,1) = 1
+    end do
 
     l = 0
     do i = 1, seg_len
@@ -1010,8 +1017,10 @@ contains
       end do
       coast%mapj(1,1) = 1
     else
-      flandfac = 1.0_r_def
-      fseafac = 1.0_r_def
+      do i = 1, seg_len_halo
+        flandfac(i,1) = 1.0_r_def
+        fseafac(i,1) = 1.0_r_def
+      end do
     end if
     do i = 1, seg_len_halo
       jules_vars%u_1_p_ij(i,1) = u_in_w3(u_w3_stencil(1,1,i)+k_blend_uv(i,1)-1)
@@ -1069,7 +1078,9 @@ contains
     end do
 
     ! Land tile temperatures
-    tstar_land = 0.0_r_um
+    do i = 1, seg_len
+      tstar_land(i,1) = 0.0_r_um
+    end do
     do l = 1, land_field
       do n = 1, n_land_tile
         progs%tstar_surft(l, n) = real(tile_temperature(map_tile(1,ainfo%land_index(l))+n-1), r_um)
@@ -1091,8 +1102,8 @@ contains
     end do
 
     ! Sea-ice temperatures
-    tstar_sice = 0.0_r_um
     do i = 1, seg_len
+      tstar_sice(i,1) = 0.0_r_um
       if (ainfo%ice_fract_ij(i, 1) > 0.0_r_um) then
         i_sice = 0
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
@@ -1232,7 +1243,9 @@ contains
     end do
 
     ! Emissivity is set in lw_rad_tile_kernel
-    fluxes%l_emis_surft_set(:) = .true.
+    do n = 1, n_land_tile
+      fluxes%l_emis_surft_set(n) = .true.
+    end do
 
     do i = 1, seg_len
       ! Net SW on open sea
@@ -1242,20 +1255,28 @@ contains
       ! The amount of diffuse visible light is needed for solar penetrating radiation
       sw_diffuse_blue_surf = sw_down_blue_surf(map_2d(1,i)) - sw_direct_blue_surf(map_2d(1,i))
 
+      ! Calculate penetrating solar into sea ice as a combination of direct and diffuse
+      ! visible light, multipled by the fraction penetrating
+      if (l_sice_swpen .and. ocn_cpl_point(map_2d(1,i)) == 1_i_def) then
+        i_sice = 0
+        do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+          i_sice = i_sice + 1
+          sea_ice_pensolar(map_sice(1,i)+i_sice-1) = sw_direct_blue_surf(map_2d(1,i)) * &
+               sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) + &
+               sw_diffuse_blue_surf *                                 &
+               sea_ice_pensolar_frac_diffuse(map_sice(1,i)+i_sice-1)
+        end do
+      else
+        i_sice = 0
+        do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
+          i_sice = i_sice + 1
+          sea_ice_pensolar(map_sice(1,i)+i_sice-1) = 0.0_r_def
+        end do
+      endif
+
       i_sice = 0
       do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
         i_sice = i_sice + 1
-
-        ! Calculate penetrating solar into sea ice as a combination of direct and diffuse
-        ! visible light, multipled by the fraction penetrating
-        if (l_sice_swpen .and. ocn_cpl_point(map_2d(1,i)) == 1_i_def) then
-          sea_ice_pensolar(map_sice(1,i)+i_sice-1) = sw_direct_blue_surf(map_2d(1,i)) *      &
-                                      sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) + &
-                                      sw_diffuse_blue_surf *                                 &
-                                      sea_ice_pensolar_frac_diffuse(map_sice(1,i)+i_sice-1)
-        else
-          sea_ice_pensolar(map_sice(1,i)+i_sice-1) = 0.0_r_def
-        endif
 
         ! Net SW on sea-ice
         fluxes%sw_sicat(i, i_sice) = real(sw_down_surf(map_2d(1,i)) -  &
@@ -1311,7 +1332,11 @@ contains
     do i = 1, seg_len
       soil_clay(i, 1) = real(soil_clay_2d(map_2d(1,i)), r_um)
     end do
-    dust_flux = 0.0_r_um
+    do k = 1, ndiv
+      do i = 1, seg_len
+        dust_flux(i,1,k) = 0.0_r_um
+      end do
+    end do
 
     ! Level heights
     do i = 1, seg_len
@@ -1328,8 +1353,9 @@ contains
       ! Land height
       if (land_sea_mask(i,1)) then
         l=l+1
-        if ( (l_ctile .and. coast%fland(l) >  0.0_r_um .and. coast%fland(l) <  1.0_r_um) &
-           .or. any(l_elev_absolute_height) ) then
+        if ( (l_ctile .and. coast%fland(l) > 0.0_r_um .and. &
+                            coast%fland(l) < 1.0_r_um) &
+                            .or. any(l_elev_absolute_height) ) then
           jules_vars%z_land_ij(i,1) = (height_wth(map_wth(1,i))+planet_radius)-planet_radius
           if (jules_vars%z_land_ij(i,1) <  0.0_r_um) &
               jules_vars%z_land_ij(i,1) = 0.0_r_um
@@ -1371,12 +1397,9 @@ contains
     end do
     ! needed to ensure neutral diagnostics can be calculated
     sf_diag%suv10m_n  = .true.
-    sf_diag%l_u10m_n  = sf_diag%suv10m_n
-    sf_diag%l_v10m_n  = sf_diag%suv10m_n
-    sf_diag%l_mu10m_n = sf_diag%suv10m_n
-    sf_diag%l_mv10m_n = sf_diag%suv10m_n
     ! needed to ensure z0h_eff is saved if wanted
     sf_diag%l_z0h_eff_gb = .not. associated(z0h_eff, empty_real_data)
+    sf_diag%l_z0m_gb = .true.
     call alloc_sf_expl(sf_diag, .true., land_field)
 
     !-----------------------------------------------------------------------
@@ -1579,23 +1602,6 @@ contains
       allocate(dust_flux_surft(land_field,ntiles,ndiv))
       allocate(u_s_t_tile(land_field,ntiles,ndivh))
       allocate(u_s_t_dry_tile(land_field,ntiles,ndivh))
-      !initialisation
-      do k=1,ndiv
-        do j=1,ntiles
-          do i=1,land_field
-            dust_flux_surft(i,j,k)=0.0_r_um
-          end do
-        end do
-      end do
-      do k=1,ndivh
-        do j=1,ntiles
-          do i=1,land_field
-            u_s_t_tile(i,j,k) = 0.0_r_um
-            u_s_t_dry_tile(i,j,k) = 0.0_r_um
-          end do
-        end do
-      end do
-
       allocate(soil_layer_moisture(land_field,sm_levels))
       allocate(rhostar_land(land_field))
       allocate(sand_land(land_field))

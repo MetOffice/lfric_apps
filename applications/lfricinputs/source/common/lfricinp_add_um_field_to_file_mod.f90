@@ -70,7 +70,7 @@ public :: lfricinp_add_um_field_to_file
 contains
 
 subroutine lfricinp_add_um_field_to_file(um_file, stashcode, level_index, &
-                                         um_grid)
+                                         um_grid, lbtim_from_conf, lbproc_from_conf)
 ! Description:
 !  Adds a field object of given stashcode and level index to the um file
 !  object. Uses metadata from um_file headers as well as the um_grid
@@ -83,6 +83,8 @@ type(lfricinp_grid_type), intent(in) :: um_grid
 
 integer(kind=int64), intent(in) :: stashcode
 integer(kind=int64), intent(in) :: level_index ! Level index in field array
+integer(kind=int64), intent(in) :: lbtim_from_conf  ! 'lbtim' and 'lbproc' metadata
+integer(kind=int64), intent(in) :: lbproc_from_conf ! values passed in from the conf file
 
 character(len=*), parameter :: routinename = 'lfricinp_add_um_field_to_file'
 
@@ -127,7 +129,7 @@ lookup_int(lbdatd) = fixed_length_header(t1_day)
 lookup_int(lbhrd) = fixed_length_header(t1_hour)
 lookup_int(lbmind) = fixed_length_header(t1_minute)
 lookup_int(lbsecd) = fixed_length_header(t1_second)
-lookup_int(lbtim) = 1  ! hardcode to proleptic gregorian
+lookup_int(lbtim) = lbtim_from_conf
 lookup_int(lbft) = 0 ! Forecast time, difference between datatime and
                      ! validity time
 
@@ -171,7 +173,7 @@ lookup_int(lbpack) = 2 ! Currently only support 32 bit packing
 lookup_int(lbrel) = 3 ! UM version 8.1 onwards
 lookup_int(lbfc) = get_stashmaster_item(stashcode, ppfc) ! field code
 lookup_int(lbcfc) = 0  ! Always set to 0 for UM files
-lookup_int(lbproc) = 0 ! No field processing done
+lookup_int(lbproc) = lbproc_from_conf
 lookup_int(lbvc) = get_stashmaster_item(stashcode, sm_lbvc) !vertical coord type
 lookup_int(lbrvc) = 0 ! Always zero in UM
 lookup_int(lbtyp) = get_stashmaster_item(stashcode, cfff) !Fieldsfile field type
