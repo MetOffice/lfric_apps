@@ -82,6 +82,31 @@
         shutdown handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
         stall handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
 
+# Check if running physics - don't extract these if not
+{% if "lfric_atm" in requested_applications
+      or "jules" in requested_applications
+      or "ngarch" in requested_applications
+      or "lfric_coupled" in requested_applications %}
+
+    {% do LOG.debug("Running Physics Schemes") %}
+
+{% else %}
+
+    {% do LOG.debug("Not Running Physics Schemes") %}
+
+    {% for item in ["casim",
+                    "jules",
+                    "ukca",
+                    "socrates",
+                    "socrates-spectral",
+                    "um_aux"] %}
+
+        {% do dependencies.pop(item, None) %}
+
+    {% endfor %}
+
+{% endif %}
+
 [scheduling]
     [[graph]]
 {% set tasks_to_run = {} %}

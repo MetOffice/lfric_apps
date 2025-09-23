@@ -24,6 +24,14 @@ socrates:
     source: git@github.com:MetOffice/socrates.git
     ref: 924f4950e66c390b0ee6f8c7affc271fa8f8f246
 
+socrates-spectral:
+    source: git@github.com:MetOffice/socrates-spectral.git
+    ref: trunk
+
 ukca:
     source: git@github.com:MetOffice/ukca.git
     ref: d1bcc0afc8428200c900eda6241585e11a481f2d
+
+um_aux:
+    source: git@github.com:MetOffice/um_aux.git
+    ref: trunk
