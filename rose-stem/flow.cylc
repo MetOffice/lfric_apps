@@ -11,11 +11,11 @@
 {% set SITE = get_site() %}
 {% do LOG.info("Site: " + SITE) %}
 
-{% if g is defined %}
-    {% set groups = g %}
-{% endif %}
-{% if groups is defined %}
-    {% set RUN_NAMES = groups %}
+{# Read in groups to run #}
+{% if group is defined %}
+    {% set RUN_NAMES = group %}
+{% elif g is defined %}
+    {% set RUN_NAMES = g %}
 {% else %}
     {% set RUN_NAMES = ["developer"] %}
 {% endif %}
