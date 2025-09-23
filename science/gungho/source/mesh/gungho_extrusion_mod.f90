@@ -32,6 +32,7 @@ module gungho_extrusion_mod
                                    shifted_extrusion_type,     &
                                    double_level_extrusion_type
   use extrusion_config_mod, only : key_from_method,            &
+                                   method_specified_values,    &
                                    method_uniform,             &
                                    method_quadratic,           &
                                    method_geometric,           &
@@ -41,7 +42,8 @@ module gungho_extrusion_mod
                                    method_um_L70_61t_9s_40km,  &
                                    method_um_L120_99t_21s_40km,&
                                    method_um_L140_122t_18s_40km,&
-                                   method_um_L70_50t_20s_80km
+                                   method_um_L70_50t_20s_80km, &
+                                   eta_values
   use log_mod,              only : log_event,       &
                                    log_level_error, &
                                    log_scratch_space
@@ -54,6 +56,20 @@ module gungho_extrusion_mod
   public create_double_level_extrusion
 
   character(*), parameter :: module_name = 'gungho_extrusion_mod'
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Extrudes with user-specified values
+  !>
+  type, public, extends(extrusion_type) :: specified_values_extrusion_type
+    private
+  contains
+    private
+    procedure, public :: extrude => specified_values_extrude
+  end type specified_values_extrusion_type
+
+  interface specified_values_extrusion_type
+    module procedure specified_values_extrusion_constructor
+  end interface specified_values_extrusion_type
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Extrudes with specific UM configuration L38_29t_9s_40km
@@ -154,6 +170,53 @@ module gungho_extrusion_mod
   end interface dcmip_extrusion_type
 
 contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Creates a specified_values_extrusion_type object.
+  !>
+  !> @param[in] atmosphere_bottom Bottom of the atmosphere in meters.
+  !> @param[in] atmosphere_top Top of the atmosphere in meters.
+  !> @param[in] number_of_layers Number of layers in the atmosphere.
+  !> @param[in] extrusion_id Identifier of extrusion type.
+  !>
+  !> @return New uniform_extrusion_type object.
+  !>
+  function specified_values_extrusion_constructor( atmosphere_bottom, &
+                                                   atmosphere_top,    &
+                                                   number_of_layers,  &
+                                                   extrusion_id ) result(new)
+
+    implicit none
+
+    real(r_def),    intent(in) :: atmosphere_bottom
+    real(r_def),    intent(in) :: atmosphere_top
+    integer(i_def), intent(in) :: number_of_layers
+    integer(i_def), intent(in) :: extrusion_id
+
+    type(specified_values_extrusion_type) :: new
+
+    call new%extrusion_constructor( atmosphere_bottom, atmosphere_top, &
+                                    number_of_layers, extrusion_id )
+
+  end function specified_values_extrusion_constructor
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Extrudes the mesh with specified values
+  !>
+  !> @param[out] eta Nondimensional vertical coordinate.
+  !>
+  subroutine specified_values_extrude( this, eta )
+
+    implicit none
+
+    class(specified_values_extrusion_type), intent(in)  :: this
+    real(r_def),                            intent(out) :: eta(0:)
+
+    eta(0) = 0.0000000_r_def
+    eta(1:this%get_number_of_layers()-1) = eta_values ! from the namelist
+    eta(this%get_number_of_layers()) = 1.0000000_r_def
+
+  end subroutine specified_values_extrude
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Creates a um_L38_29t_9s_40km_extrusion_type object.
@@ -687,6 +750,10 @@ contains
     end select
 
     select case (method)
+      case (method_specified_values)
+        allocate( extrusion, source=specified_values_extrusion_type(   &
+                                       atmosphere_bottom, domain_height, &
+                                       number_of_layers, prime_extrusion ) )
       case (method_uniform)
         allocate( extrusion, source=uniform_extrusion_type(              &
                                        atmosphere_bottom, domain_height, &

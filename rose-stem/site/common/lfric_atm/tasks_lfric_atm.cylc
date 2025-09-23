@@ -860,7 +860,7 @@
 {% elif task_ns.conf_name == "aquaplanet-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l38_40km","no_aerosol","aquaplanet"],
+        "opt_confs": ["l38_40km_user_eta","no_aerosol","aquaplanet"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 24,

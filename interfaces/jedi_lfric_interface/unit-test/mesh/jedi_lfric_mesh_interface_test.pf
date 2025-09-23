@@ -86,7 +86,8 @@ module jedi_lfric_mesh_interface_test
       domain_height=1.0_r_def,      &
       number_of_layers=5_i_def,     &
       stretching_height=1.0_r_def,  &
-      stretching_method=stretching_method_linear)
+      stretching_method=stretching_method_linear, &
+      eta_values=(/0.5_r_def/) )
 
   end subroutine setUp
 

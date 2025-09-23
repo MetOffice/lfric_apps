@@ -44,7 +44,8 @@ contains
                                  domain_height=40.0_r_def,    &
                                  number_of_layers=5_i_def,    &
                                  stretching_height=1.0_r_def, &
-                                 stretching_method=stretching_method_linear)
+                                 stretching_method=stretching_method_linear, &
+                                 eta_values=(/0.5_r_def/) )
 
     call feign_planet_config( gravity=10.0_r_def, omega=8.0E-5_r_def, &
                               rd=300.0_r_def, cp=1000.0_r_def,        &

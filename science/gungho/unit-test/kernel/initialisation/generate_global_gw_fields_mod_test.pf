@@ -63,7 +63,8 @@ contains
                                  method=method_uniform,                      &
                                  number_of_layers=2_i_def,                   &
                                  stretching_method=stretching_method_linear, &
-                                 stretching_height=1.0_r_def )
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
 
     call feign_initial_temperature_config( bvf_square=bvf_square,                 &
                                            theta_surf=theta_surf,                 &

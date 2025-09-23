@@ -38,7 +38,8 @@ contains
                                  method=method_uniform,                      &
                                  number_of_layers=2_i_def,                   &
                                  stretching_method=stretching_method_linear, &
-                                 stretching_height=1.0_r_def )
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
     call feign_planet_config( gravity=10.0_r_def,                         &
                               omega=8.0E-5_r_def, rd=300.0_r_def,         &
                               cp=1000.0_r_def, p_zero=100000.0_r_def,     &
