@@ -21,34 +21,10 @@ module consistent_dispersion_kernel_mod_test
   type, public, extends(TestCase) :: consistent_dispersion_kernel_test_type
     private
   contains
-    procedure setUp
-    procedure tearDown
     procedure test_all
   end type consistent_dispersion_kernel_test_type
 
 contains
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
-
-    implicit none
-
-    class(consistent_dispersion_kernel_test_type), intent(inout) :: this
-
-  end subroutine setUp
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
-
-    use configuration_mod,  only: final_configuration
-
-    implicit none
-
-    class(consistent_dispersion_kernel_test_type), intent(inout) :: this
-
-    call final_configuration()
-
-  end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

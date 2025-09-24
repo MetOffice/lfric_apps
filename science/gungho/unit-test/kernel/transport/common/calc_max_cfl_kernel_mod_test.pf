@@ -18,34 +18,10 @@ module calc_max_cfl_kernel_mod_test
   type, extends(TestCase) :: calc_max_cfl_test_type
     private
   contains
-    procedure setUp
     procedure test_all
-    procedure tearDown
   end type calc_max_cfl_test_type
 
 contains
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
-
-    implicit none
-
-    class(calc_max_cfl_test_type), intent(inout) :: this
-
-  end subroutine setUp
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
-
-    use configuration_mod,        only: final_configuration
-
-    implicit none
-
-    class(calc_max_cfl_test_type), intent(inout) :: this
-
-    call final_configuration()
-
-  end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test

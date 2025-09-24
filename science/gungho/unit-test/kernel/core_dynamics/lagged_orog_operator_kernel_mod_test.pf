@@ -53,9 +53,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use configuration_mod,        only: final_configuration
+
     implicit none
 
     class(lagged_orog_operator_test_type), intent(inout) :: this
+
+    call final_configuration()
 
   end subroutine tearDown
 

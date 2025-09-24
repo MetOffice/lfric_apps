@@ -65,6 +65,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use configuration_mod,        only: final_configuration
+
     implicit none
 
     class(moist_dyn_gas_test_type), intent(inout) :: this
@@ -72,6 +74,8 @@ contains
     deallocate(this%map_wtheta)
     deallocate(this%mr_v)
     deallocate(this%moist_dyn_gas)
+    call final_configuration()
+
 
   end subroutine tearDown
 

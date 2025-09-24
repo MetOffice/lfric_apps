@@ -19,34 +19,10 @@ module poly1d_vert_adv_kernel_mod_test
   type, extends(TestCase), public :: poly1d_vert_adv_test_type
     private
   contains
-    procedure setUp
-    procedure tearDown
     procedure test_all
   end type poly1d_vert_adv_test_type
 
 contains
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
-
-    implicit none
-
-    class(poly1d_vert_adv_test_type), intent(inout) :: this
-
-  end subroutine setUp
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
-
-    use configuration_mod, only: final_configuration
-
-    implicit none
-
-    class(poly1d_vert_adv_test_type), intent(inout) :: this
-
-    call final_configuration()
-
-  end subroutine tearDown
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test

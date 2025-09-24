@@ -15,32 +15,9 @@ module gungho_extrusion_mod_test
   implicit none
 
   private
-  public set_up, tear_down, &
-         test_planar, test_spherical, test_dcmip, test_shifted_dcmip
+  public test_planar, test_spherical, test_dcmip, test_shifted_dcmip
 
 contains
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @before
-  subroutine set_up()
-
-    implicit none
-
-    ! Empty procedure.
-
-  end subroutine set_up
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @after
-  subroutine tear_down()
-
-    use configuration_mod,        only: final_configuration
-
-    implicit none
-
-    call final_configuration()
-
-  end subroutine tear_down
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test

@@ -68,6 +68,8 @@ contains
 
   subroutine tearDown( this )
 
+    use configuration_mod,        only: final_configuration
+
     implicit none
 
     class(initialise_diagnostics_test_type), intent(inout) :: this
@@ -75,6 +77,7 @@ contains
     call halo_routing_collection%clear()
     call function_space_collection%clear()
     call mesh_collection%clear()
+    call final_configuration()
 
   end subroutine tearDown
 

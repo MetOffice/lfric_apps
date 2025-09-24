@@ -78,9 +78,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
+    use configuration_mod,        only: final_configuration
+
     implicit none
 
     class(calc_upwind_detj_at_w2_test_type), intent(inout) :: this
+
+    call final_configuration()
 
   end subroutine tearDown
 
