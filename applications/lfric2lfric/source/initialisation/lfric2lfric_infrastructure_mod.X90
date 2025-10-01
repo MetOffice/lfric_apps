@@ -13,7 +13,8 @@
 module lfric2lfric_infrastructure_mod
 
   use add_mesh_map_mod,            only: assign_mesh_maps
-  use constants_mod,               only: str_def, r_def, i_def, l_def
+  use blend_orography_alg_mod,     only: blend_orography
+  use constants_mod,               only: str_def, r_def, i_def, l_def, r_second
   use create_mesh_mod,             only: create_mesh
   use driver_modeldb_mod,          only: modeldb_type
   use driver_fem_mod,              only: init_fem
@@ -24,9 +25,14 @@ module lfric2lfric_infrastructure_mod
                                          uniform_extrusion_type, &
                                          TWOD
   use field_mod,                   only: field_type
+  use field_collection_mod,        only: field_collection_type
+  use fs_continuity_mod,           only: W3
+  use function_space_collection_mod,only: function_space_collection
+  use function_space_mod,          only: function_space_type
   use gungho_extrusion_mod,        only: create_extrusion
   use sci_geometric_constants_mod, only: get_chi_inventory,     &
                                          get_panel_id_inventory
+  use init_altitude_mod,           only: init_altitude
   use inventory_by_mesh_mod,       only: inventory_by_mesh_type
   use io_context_mod,              only: callback_clock_arg
   use linked_list_mod,             only: linked_list_type
@@ -38,7 +44,15 @@ module lfric2lfric_infrastructure_mod
                                          log_level_debug
   use mesh_mod,                    only: mesh_type
   use mesh_collection_mod,         only: mesh_collection
+  use model_clock_mod,             only: model_clock_type
   use namelist_mod,                only: namelist_type
+  use orography_config_mod,        only: orog_init_option,          &
+                                         orog_init_option_analytic, &
+                                         orog_init_option_ancil,    &
+                                         orog_init_option_start_dump
+  use sci_geometric_constants_mod, only: get_chi_inventory,  &
+                                         get_panel_id_inventory
+  use setup_orography_alg_mod,     only: setup_orography_alg
 
   !------------------------------------
   ! lfric2lfric modules
@@ -51,6 +65,11 @@ module lfric2lfric_infrastructure_mod
   use lfric2lfric_init_coupler_mod,only: lfric2lfric_init_coupler_src, &
                                          lfric2lfric_init_coupler_dst, &
                                          lfric2lfric_end_coupler_init
+#ifdef MCT
+  use coupling_mod,                only: coupling_type, &
+                                         get_coupling_from_collection
+  use coupler_exchange_2d_mod,     only: coupler_exchange_2d_type
+#endif
 
   !------------------------------------
   ! Configuration modules
@@ -101,8 +120,15 @@ contains
     ! Coordinate field
     type(field_type),             pointer :: chi(:)
     type(field_type),             pointer :: panel_id
+    type(field_type)                      :: surface_altitude_dst
+    type(field_type)                      :: surface_altitude_src
+    type(field_type)                      :: surface_altitude_src_on_dst
+    type(field_type), pointer             :: src_field
+    type(field_type), pointer             :: dst_field
     type(inventory_by_mesh_type), pointer :: chi_inventory
     type(inventory_by_mesh_type), pointer :: panel_id_inventory
+
+    type(function_space_type), pointer  :: vector_space
 
     !-----------------------
     ! Mesh Pointers
@@ -111,6 +137,8 @@ contains
     type(mesh_type),     pointer :: twod_mesh_src
     type(mesh_type),     pointer :: mesh_dst
     type(mesh_type),     pointer :: twod_mesh_dst
+    type(mesh_type),     pointer :: orography_twod_mesh
+    type(mesh_type),     pointer :: orography_mesh
 
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
@@ -151,6 +179,14 @@ contains
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
 
+    type(coupling_type), pointer :: coupling_ptr
+
+    type(field_collection_type), pointer   :: cpl_snd_2d
+    type(field_collection_type), pointer   :: cpl_rcv_2d
+    integer(i_def), pointer :: local_index(:)
+    type(coupler_exchange_2d_type) :: coupler_exchange_2d
+    integer(i_def) :: ierror
+    logical(l_def) :: is_running
 
     !------------------------
     ! XIOS contexts
@@ -167,7 +203,7 @@ contains
 
 
     ! -------------------------------
-    ! 0.0 Extract namelist variables
+    ! Extract namelist variables
     ! -------------------------------
     planet_nml         => modeldb%configuration%get_namelist('planet')
     extrusion_nml      => modeldb%configuration%get_namelist('extrusion')
@@ -196,10 +232,10 @@ contains
     call finite_element_nml%get_value( 'element_order_v', element_order_v)
 
     !=======================================================================
-    ! 1.0 Mesh
+    ! Mesh
     !=======================================================================
     !-----------------------------------------------------------------------
-    ! 1.1 Create the required extrusions
+    ! Create the required extrusions
     !-----------------------------------------------------------------------
     select case (source_geometry)
       case (source_geometry_planar)
@@ -226,7 +262,7 @@ contains
                                            one_layer, TWOD )
 
     !-----------------------------------------------------------------------
-    ! 1.2 Create the required meshes
+    ! Create the required meshes
     !-----------------------------------------------------------------------
     stencil_depth = get_required_stencil_depth()
     call init_mesh( modeldb%configuration,       &
@@ -243,10 +279,10 @@ contains
                       alt_name=twod_names )
 
     !=======================================================================
-    ! 2.0 Build the FEM function spaces and coordinate fields
+    ! Build the FEM function spaces and coordinate fields
     !=======================================================================
     !-----------------------------------------------------------------------
-    ! 2.1 Create the FEM function spaces
+    ! Create the FEM function spaces
     !-----------------------------------------------------------------------
     ! Create FEM specifics (function spaces and chi field)
     chi_inventory => get_chi_inventory()
@@ -254,7 +290,7 @@ contains
     call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
 
     !-----------------------------------------------------------------------
-    ! 2.2 Create the coordinates fields
+    ! Create the coordinates fields
     !-----------------------------------------------------------------------
     ! Assign pointers to the correct meshes
     mesh_src      => mesh_collection%get_mesh(trim(mesh_names(src)))
@@ -277,10 +313,10 @@ contains
                    log_level_debug)
 
     !=======================================================================
-    ! 3.0 Setup I/O system
+    ! Setup I/O system
     !=======================================================================
     !-----------------------------------------------------------------------
-    ! 3.1 Create the IO context for destination files
+    ! Create the IO context for destination files
     !-----------------------------------------------------------------------
     ! Set a pointer to the method for setting files in the destination
     ! IO context
@@ -300,8 +336,42 @@ contains
     ! output frequency
     call advance(io_context_dst, modeldb%clock)
 
+    !=======================================================================
+    ! Initialise the clock
+    !=======================================================================
+    ! lfric2lfric doesn't use a typical model clock. To make it more flexible,
+    ! fields (which can be multi-level and multi data) are broken down into
+    ! simple 2d fields, which are then passed through regridding. If Oasis is
+    ! being used, it can only provide one coupling per clock tick - so we
+    ! introduce a pseudo clock, that ticks every coupling, rather than every
+    ! timestep. We don't know how many 2d fields will be passed through the
+    ! coupler, yet, so set the upper limit to "huge" to support everything
+    modeldb%clock = model_clock_type(1_i_def, huge(1_i_def), &
+                                        1.0_r_second, 0.0_r_second)
+    is_running = modeldb%clock%tick()
+
+    !=======================================================================
+    ! Initialise destination orography
+    !=======================================================================
+    if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+
+      vector_space => function_space_collection%get_fs( twod_mesh_dst, 0, 0, W3)
+      call surface_altitude_dst%initialise(vector_space,         &
+                                    name='surface_altitude_dst', &
+                                    halo_depth = twod_mesh_dst%get_halo_depth())
+
+      ! Get pointers to the destination mesh:
+      orography_mesh => mesh_collection%get_mesh(mesh_names(dst))
+      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
+
+      ! Set up surface altitude field - this will be used to generate orography
+      call init_altitude( orography_twod_mesh, surface_altitude_dst )
+    end if
+
     !-----------------------------------------------------------------------
-    ! 3.1 Create the IO context for source files
+    ! Create the IO context for source files
     !-----------------------------------------------------------------------
     ! Because the source files are not the same as the 'prime mesh', we have
     ! to initialise the source context manually with the desired mesh
@@ -332,14 +402,33 @@ contains
     call advance(io_context_src, modeldb%clock)
 
     !=======================================================================
-    ! 4.0 Create and initialise prognostic fields
+    ! Initialise source orography
+    !=======================================================================
+    if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+
+      ! Get pointers to the source mesh:
+      orography_mesh => mesh_collection%get_mesh(mesh_names(src))
+      orography_twod_mesh => mesh_collection%get_mesh(orography_mesh, TWOD)
+
+      call surface_altitude_src%initialise(vector_space,         &
+                                    name='surface_altitude_src', &
+                                    halo_depth = twod_mesh_src%get_halo_depth())
+
+      ! Set up surface altitude field - this will be used to generate orography
+      call init_altitude( orography_twod_mesh, surface_altitude_src )
+    end if
+
+    !=======================================================================
+    ! Create and initialise prognostic fields
     !=======================================================================
     call init_lfric2lfric( modeldb, start_dump_filename,                    &
                            source_collection_name, mesh_src, twod_mesh_src, &
                            target_collection_name, mesh_dst, twod_mesh_dst )
 
     !=======================================================================
-    ! 5.0 Initialize variables for each regrid method
+    ! Initialize variables for each regrid method
     !=======================================================================
     select case (regrid_method)
       case (regrid_method_map)
@@ -370,6 +459,69 @@ contains
         call log_event( log_scratch_space, log_level_error )
 #endif
     end select
+
+    !=======================================================================
+    ! The lateral boundary conditions of limited-area models (LAMs) are
+    ! implemented by updating the data values at the boundaries with values
+    ! from a "driving model". To avoid discontinuities, there is a smooth
+    ! transition from the driving model data to the LAM data over a blending
+    ! region. In order to be consistent, the same blending process has to be
+    ! applied to the model orographies.
+    !
+    ! Blend source orography over the blending region of the dest orog
+    !=======================================================================
+    if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+
+      ! Regrid the source orography onto the mesh of the destination orography
+      ! ----------------------------------------------------------------------
+      cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
+      call cpl_snd_2d%get_field("src_face", src_field)
+
+      cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
+      call cpl_rcv_2d%get_field("dst_face", dst_field)
+
+      call invoke(setval_x(src_field, surface_altitude_src))
+
+      ierror=0
+      coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
+      local_index => coupling_ptr%get_local_index()
+      ! send the src orog via OASIS
+      coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
+      local_index => coupling_ptr%get_local_index()
+      call coupler_exchange_2d%initialise(src_field, local_index)
+      call coupler_exchange_2d%set_time(modeldb%clock)
+      call coupler_exchange_2d%copy_from_lfric(ierror)
+      call coupler_exchange_2d%clear()
+
+      ! receive the layer via OASIS
+      coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling_dst" )
+      local_index => coupling_ptr%get_local_index()
+      call coupler_exchange_2d%initialise(dst_field, local_index)
+      call coupler_exchange_2d%set_time(modeldb%clock)
+      call coupler_exchange_2d%copy_to_lfric(ierror)
+      call coupler_exchange_2d%clear()
+
+      ! Done the first coupling - so advance the pseudo-clock
+      is_running = modeldb%clock%tick()
+
+      ! Copy the horizontally regridded src orography into dst orography mesh
+      ! -----------------------------------------------------------
+      call surface_altitude_dst%copy_field_properties( &
+                                                    surface_altitude_src_on_dst)
+      call invoke(setval_x(surface_altitude_src_on_dst, dst_field))
+
+      ! Blend the regridded src orography with the dst orography
+      ! --------------------------------------------------------
+      call blend_orography(surface_altitude_dst, surface_altitude_src_on_dst)
+
+      call setup_orography_alg( mesh_names(dst:dst),            &
+                                orography_mesh%get_mesh_name(), &
+                                chi_inventory,                  &
+                                panel_id_inventory,             &
+                                surface_altitude_dst )
+    end if
 
     deallocate(twod_names)
     deallocate(extrusion)

@@ -16,26 +16,24 @@
     <file_definition type="one_file" par_access="collective" time_counter="none">
 
       <!-- File definition for LFRic checkpoint read -->
-      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".TRUE.">
 
         <!-- Atmosphere fields -->
         <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" operation="once" />
         <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" operation="once" />
 
         <!-- Turbulence fields -->
-	      <field id="restart_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
+        <field id="restart_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
 
       </file>
     </file_definition>
 
     <file_definition type="one_file" par_access="collective" time_counter="none">
-
       <!-- This file contains orography ancil data -->
       <!-- ANCIL FILES -->
       <file id="src_orography_mean_ancil" name="src_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
         <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
       </file>
-
     </file_definition>
 
   </context>
@@ -53,27 +51,25 @@
     <!-- Local file definitions -->
     <file_definition type="one_file" par_access="collective" time_counter="none">
 
-      <!-- File definition for LFRic checkpoint read -->
-      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+      <!-- File definition for LFRic checkpoint -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
 
         <!-- Atmosphere fields -->
         <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
         <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" prec="8" domain_ref="checkpoint_W3" operation="once" />
 
         <!-- Turbulence fields -->
-	      <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+        <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
 
       </file>
     </file_definition>
 
     <file_definition type="one_file" par_access="collective" time_counter="none">
-
       <!-- This file contains orography ancil data -->
       <!-- ANCIL FILES -->
       <file id="dst_orography_mean_ancil" name="dst_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
         <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
       </file>
-
     </file_definition>
 
   </context>
