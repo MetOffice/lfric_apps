@@ -11,6 +11,8 @@
 {% set SITE = get_site() %}
 {% do LOG.info("Site: " + SITE) %}
 
+{% set SOURCE_DIRECTORY = ROSE_ORIG_HOST~":"~CYLC_WORKFLOW_SRC_DIR~"/.." %}
+
 {# Read in groups to run #}
 {% if group is defined %}
     {% set RUN_NAMES = group %}
@@ -49,7 +51,7 @@
 {% include "site/"+SITE+"/groups.cylc" %}
 
 {# Read the sources of dependencies from the dependencies.yaml file #}
-{% set dependencies = read_sources(LFRIC_APPS_SOURCE, "lfric_apps", USE_HEADS) %}
+{% set dependencies = read_sources(SOURCE_DIRECTORY, "lfric_apps", USE_HEADS) %}
 
 {# Generate list of tasks given by --group= #}
 {# Expand any groups included so list is only tasks #}
