@@ -1,0 +1,32 @@
+{% do LOG.debug("Entered site/esnz/macros/macros_cascade.cylc") %}
+
+{# Macro to set wallclock, input is in minutes #}
+{% macro set_wallclock(time) %}
+            -l walltime = 00:{{time}}:00
+{% endmacro %}
+
+
+{% macro set_task_resources(mpi_ranks,
+                        memory,
+                        threads=1,
+                        xios_nodes=0,
+                        ocean_nodes=0,
+                        river_nodes=0,
+                        ranks_per_node=0,
+                        ranks_depth_pad=1) %}
+{% set cores = mpi_ranks|int*threads|int %}
+{% set full_nodes = (cores/192) | round(0, 'floor') | int %}
+{% if full_nodes == 0 %}
+            -l select=1:ncpus={{cores*2}}:mem={{memory[0]|int}}{{memory[1]|lower}}:mpiprocs={{mpi_ranks|int}}:ompthreads={{threads|int}}
+{% elif full_nodes*192 == cores %}
+            -l select={{full_nodes}}:ncpus=384:mem=730gb:mpiprocs={{(192/threads|int)|int}}:ompthreads={{threads|int}}
+{% else %}
+{% set remaining_cores = cores-full_nodes*192 %}
+            -l select={{full_nodes}}:ncpus=384:mem=730gb:mpiprocs=192:ompthreads={{threads|int}}+1:ncpus={{remaining_cores*2}}:mem={{(730*remaining_cores/192)|round|int}}gb:mpiprocs={{(remaining_cores/(threads|int))|int}}:ompthreads={{threads|int}}
+{% endif %}
+{% endmacro %}
+
+{% macro set_memory(mem) %}
+{% endmacro %}
+
+{% do LOG.debug("Finished in site/esnz/macros/macros_cascade.cylc") %}

@@ -1,0 +1,8 @@
+{% do LOG.debug("Entered esnz/suite_config.cylc") %}
+
+    [[ESNZ_ORIG]]
+        platform = login01-background
+
+{% include 'site/esnz/common/suite_config_cascade.cylc' %}
+
+{% do LOG.debug("Finished in esnz/suite_config.cylc") %}

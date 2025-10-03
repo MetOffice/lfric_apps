@@ -5,6 +5,4 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/jedi_lfric_tests/tasks_jedi_lfric_tests_ex1a.cylc") %}
 
-
-
 {% do LOG.debug("Finised in site/meto/jedi_lfric_tests/tasks_jedi_lfric_tests_ex1a.cylc") %}

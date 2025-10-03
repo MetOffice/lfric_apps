@@ -1,0 +1,22 @@
+{% do LOG.debug("Entered site/esnz/variables.cylc") %}
+
+{% do site_vars.update({"known_applications": ["gungho_model",
+                                               "lfric_atm",
+                                               "ngarch",
+                                               "mesh",
+                                               "gungho",
+                                               "socrates",
+                                               "um_physics",
+                                               "linear",]}) %}
+
+{% do site_vars.update({"site_platforms": ["cascade"]}) %}
+
+{% do site_vars.update({"mesh_build": {"cascade": "ifort_fast-debug-64bit"} }) %}
+
+{% do site_vars.update({"scripts_platform": "cascade"}) %}
+
+{% do site_vars.update({"housekeeping_platform": "cascade"}) %}
+
+{% include "site/esnz/common/default_directives.cylc" %}
+
+{% do LOG.debug("Finished in site/esnz/variables.cylc") %}

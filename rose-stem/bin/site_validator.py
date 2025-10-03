@@ -25,7 +25,7 @@ WORKING_CONFIGS = {
         "lfric_atm_gadi_developer",
         "lfricinputs_developer",
     ],
-    "niwa" : ["all"],
+    "esnz" : ["all"],
     "ncas" : ["archer2_atm"],
     "uoe" : ["all"],
     "azngarch": ["azngarch_atm"],

@@ -35,7 +35,7 @@
 
     [[{{task}}]]
         inherit={{inherit.str|upper}}
-        script = 'module list; rose task-run --app-key=compile'
+        script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile'
         execution time limit = PT{{task_values["build_wallclock"]}}M
         [[[environment]]]
             SOURCE_DIRECTORY        = $SOURCE_ROOT/{{src_path}}

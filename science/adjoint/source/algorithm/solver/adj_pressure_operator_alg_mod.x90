@@ -111,7 +111,7 @@ contains
 
     nullify( Helmholtz_operator, x_vec, y_vec, lookup_field, set_counts_field )
 
-    if (subroutine_timers) call timer('helmholtz lhs')
+    if (subroutine_timers) call timer('adj helmholtz lhs')
 
     select type (x)
     type is (r_solver_field_vector_type)
@@ -155,7 +155,7 @@ contains
           call log_event( "apply_adj_pressure_operator: element_orders /= 0 not coded", LOG_LEVEL_ERROR )
         end if
 
-        if (subroutine_timers) call timer('helmholtz lhs')
+        if (subroutine_timers) call timer('adj helmholtz lhs')
 
       class default
         call log_event( "adj_pressure_operator_alg_mod: incorrect vector_type argument y", LOG_LEVEL_ERROR )

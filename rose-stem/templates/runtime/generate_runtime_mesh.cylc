@@ -23,10 +23,10 @@
         [[[environment]]]
             DESTINATION_DIRECTORY = {{destination_dir}}
             BIN_DIR               = {{bin_dir}}
-            MESH_DIR              = {{mesh_dir}}
+            MESH_DIR              = {{mesh_dir}}/{{task_ns.conf_name}}
             SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
             OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{task_ns.conf_name}}
-            TOTAL_RANKS           = {{task_values["mpi_parts"]}}
+            TOTAL_RANKS           = {{ task_values["mesh_cpus"]|default("1",true) }}
             FINAL_RANK            = $((TOTAL_RANKS-1))
 
         [[[directives]]]

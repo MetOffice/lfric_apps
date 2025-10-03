@@ -100,12 +100,17 @@
             BIN_DIR                 = {{bin_dir}}
             LIB_DIR                 = {{lib_dir}}
             MOD_DIR                 = {{mod_dir}}
+{% if task_ns.application == "lfric2lfric" %}
             MESH_DIR                = {{mesh_dir}}
+{% else %}
+            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}
+{% endif %}
             TASK_OUTPUT_DIR         = {{task_output_dir}}
             APP_NAME                = {{task_values["app_name"]}}
             APPLICATION             = {{task_ns.application}}
             LOG_LEVEL               = {{task_values["log_level"]}}
             RESOLUTION              = {{task_values["resolution"]|replace("_MG","")}}
+            ancil_resolution        = {{task_values["ancil_resolution"]|default('NONE')}}
             DT                      = {{task_values["DT"]}}
             USE_XIOS_IO             = {{task_values["use_xios_io"]}}
             NODAL_OUTPUT_ON_W3      = {{task_values["nodal_output_on_w3"]}}

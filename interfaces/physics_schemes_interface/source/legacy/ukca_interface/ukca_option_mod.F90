@@ -82,7 +82,6 @@ logical :: l_ukca_radf22       =.false. ! T when using UKCA HCFC-22 in radn
 logical :: l_ukca_radaer       =.false. ! Radiative effects of UKCA aerosols
 
 logical :: l_ukca_radaer_sustrat =.false. ! Use H2SO4 for stratospheric sulphate
-logical :: l_ukca_radaer_prescribe_ssa=.false. ! Prescribe SSA in RADAER
 logical :: l_ukca_intdd        =.false. ! T when using interact dry deposition
 logical :: l_ukca_ddepo3_ocean =.false. ! when T use Luhar et al. (2018)
                                         ! oceanic O3 dry-deposition scheme
@@ -91,6 +90,17 @@ logical :: l_ukca_set_trace_gases =.false. ! T to use UM values for fCO2 etc
 logical :: l_ukca_use_background_aerosol =.false. ! use bg aerosol climatology
 logical :: l_ukca_dry_dep_so2wet =.false. ! Accounting for wet surfaces in SO2
                                           ! dry deposition.
+
+! Option codes for 'i_ukca_radaer_prescribe_ssa'
+! Prescribe SSA in RADAER
+!   0: No prescribed single scattering albedo
+!   1: Prescribed on 1 wb
+!   2: Prescribed on radiation wavebands
+! By default set this to 0 to turn off the scheme in RADAER
+INTEGER, PARAMETER :: do_not_prescribe = 0
+INTEGER, PARAMETER :: prescribe_one_wb = 1
+INTEGER, PARAMETER :: prescribe_all_wb = 2
+INTEGER :: i_ukca_radaer_prescribe_ssa = 0
 
 ! Tuning options for BC absorption
 integer :: i_ukca_tune_bc      = imdi
@@ -142,6 +152,8 @@ real :: ph_fit_intercept = rmdi ! cloud pH fit intercept
 
 integer :: chem_timestep = imdi         ! Chemical timestep in seconds for N-R
                                         ! and Offline oxidant schemes
+integer :: i_chem_timestep_halvings = imdi ! Integer number of times to half the
+                                        ! ASAD chemistry timestep
 integer :: dts0 = 300                   ! Default Backward Euler timestep
 integer :: nit  = 8                     ! Number of iterations of BE Solver
 
@@ -512,7 +524,7 @@ namelist/run_ukca/ l_ukca, l_ukca_aie1, l_ukca_aie2,                           &
          l_ukca_radf11, l_ukca_radf12, l_ukca_radf113,                         &
          l_ukca_radf22, l_ukca_radaer, i_ukca_tune_bc,                         &
          l_ukca_radaer_sustrat,                                                &
-         l_ukca_radaer_prescribe_ssa,                                          &
+         i_ukca_radaer_prescribe_ssa,                                          &
          l_ukca_intdd, l_ukca_trophet, l_ukca_prescribech4,                    &
          l_ukca_set_trace_gases, l_ukca_use_background_aerosol,                &
          i_ukca_hetconfig, i_ukca_topboundary,                                 &

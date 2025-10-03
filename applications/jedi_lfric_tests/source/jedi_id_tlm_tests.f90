@@ -90,6 +90,8 @@ program jedi_id_tlm_tests
   real( kind=r_def )                        :: dot_product_2
   real( kind=r_def),              parameter :: overall_tolerance = 1500.0_r_def
   real( kind=r_def )                        :: machine_tolerance
+  real( kind=r_def )                        :: absolute_diff
+  real( kind=r_def )                        :: relative_diff
 
   character(*), parameter :: program_name = "jedi_id_tlm_tests"
 
@@ -201,11 +203,18 @@ program jedi_id_tlm_tests
   !    The two dot products should be nearly identical. The tolerance is
   !    included due to order of operation differences computed as the smallest
   !    delta between two numbers of a given type using the larger dot_product
+  absolute_diff = abs( dot_product_1 - dot_product_2 )
   machine_tolerance = spacing( max( abs( dot_product_1 ), abs( dot_product_2 ) ) )
-  if (abs(dot_product_1-dot_product_2)>overall_tolerance*machine_tolerance ) then
-    call log_event("Adjoint test FAILED", LOG_LEVEL_ERROR)
+  relative_diff = absolute_diff / machine_tolerance
+  if (absolute_diff > overall_tolerance * machine_tolerance ) then
+    call run%finalise_timers()  ! We still want timing info even if the test fails
+    write( log_scratch_space, * ) "Adjoint test FAILED", &
+      dot_product_1, dot_product_2, absolute_diff, relative_diff
+    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   else
-    call log_event("Adjoint test PASS", LOG_LEVEL_INFO)
+    write( log_scratch_space, * ) "Adjoint test PASSED", &
+      dot_product_1, dot_product_2, absolute_diff, relative_diff
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
   end if
 
   call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )

@@ -29,5 +29,5 @@ export jules_rev=30893
 export jules_sources=
 export socrates_rev=1869
 export socrates_sources=
-export ukca_rev=6670
+export ukca_rev=7250
 export ukca_sources=

@@ -17,7 +17,7 @@ use argument_mod,                only : arg_type, GH_SCALAR,       &
                                         ANY_DISCONTINUOUS_SPACE_2, &
                                         GH_INTEGER, CELL_COLUMN
 use fs_continuity_mod,           only : W3, W2v, W2
-use constants_mod,               only : r_tran, i_def, EPS_R_TRAN
+use constants_mod,               only : r_tran, i_def
 use kernel_mod,                  only : kernel_type
 use reference_element_mod,       only : E, S, N, W, B, T
 
@@ -112,7 +112,12 @@ subroutine watkins_code( nlayers,             &
   real(kind=r_tran)   :: lip_lim_km1, lip_lim, lip_lim_kp1, slack_km1, remainder
   real(kind=r_tran)   :: max_lip_init, max_lip_new
 
+  ! The threshold sets the maximum allowed Lipschitz number under this scheme,
+  ! while the tolerance is used for checking whether the algorithm has failed,
+  ! and this is slacker than machine precision to avoid machine precision errors
+  ! being detected as failures.
   real(kind=r_tran), parameter :: threshold = 0.9_r_tran
+  real(kind=r_tran), parameter :: tolerance = 1.0E-3_r_tran
 
   ! Set failures to zero
   watkins_failures(map_w3_2d(1)) = 0_i_def
@@ -245,8 +250,8 @@ subroutine watkins_code( nlayers,             &
   ! Check if algorithm has failed, and if so take original wind
   ! -------------------------------------------------------------------------- !
 
-  if (max_lip_new > max_lip_init + EPS_R_TRAN .AND. &
-      max_lip_new > threshold + EPS_R_TRAN) then
+  if (max_lip_new > max_lip_init + tolerance .AND. &
+      max_lip_new > threshold + tolerance) then
     watkins_failures(map_w3_2d(1)) = 1_i_def
 
     ! Set the bottom value
@@ -260,7 +265,7 @@ subroutine watkins_code( nlayers,             &
     ! Set the top values
     first_v_wind(map_w2v(1)+nlayers) = 0.0_r_tran
 
-  else if (max_lip_new > threshold + EPS_R_TRAN) then
+  else if (max_lip_new > threshold + tolerance) then
     watkins_failures(map_w3_2d(1)) = 1_i_def
   end if
 

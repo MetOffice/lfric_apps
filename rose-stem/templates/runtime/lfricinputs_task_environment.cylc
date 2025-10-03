@@ -7,7 +7,7 @@
 
             NUMBER_OF_LAYERS       = {{task_values["target_grid_levs"]}}
             SOURCE_DUMP            = {{task_values["source_dump"]}}
-            LFRIC_MESH_FILE        = {{mesh_dir}}/mesh_{{task_values["resolution"]}}.nc
+            LFRIC_MESH_FILE        = {{mesh_dir}}/{{task_values["resolution"]}}/mesh_{{task_values["resolution"]}}.nc
             LFRIC_MESH_NAME        = {{task_values["mesh_name"]}}
             WEIGHT_LOC             = $CYLC_WORKFLOW_WORK_DIR/1/generate_weights_lfricinputs_{{task_ns.conf_name}}_{{site_vars["scripts_platform"]}}_weightgen_script
     {% if task_values["app_name"] == "um2lfric" or task_values["app_name"] == "scintelapi" %}

@@ -9,7 +9,6 @@ module lfric2lfric_driver_mod
 
   use constants_mod,          only : str_def, i_def, l_def, r_second
   use driver_modeldb_mod,     only : modeldb_type
-  use model_clock_mod,        only : model_clock_type
   use driver_fem_mod,         only : final_fem
   use driver_io_mod,          only : final_io
   use field_parent_mod,       only : field_parent_type
@@ -129,7 +128,6 @@ contains
 
     ! Local parameters
     type(namelist_type), pointer :: files_nml
-    type(namelist_type), pointer :: extrusion_nml
     type(namelist_type), pointer :: lfric2lfric_nml
 
     type(field_collection_type), pointer :: source_fields
@@ -141,14 +139,9 @@ contains
     type(field_type),         pointer :: field_src => null()
     type(field_type),         pointer :: field_dst => null()
 
-    type(function_space_type),     pointer :: vector_space => null()
-    type(model_clock_type),    allocatable :: coupling_clock
     type(lfric_xios_context_type), pointer :: io_context
 
     character(len=str_def)   :: field_name
-    integer(kind=i_def)      :: ndf, nlayers
-    integer(kind=i_def)      :: ntimes
-    logical(kind=l_def)      :: started_clock
 
     ! Namelist pointers
     files_nml       => modeldb%configuration%get_namelist('files')
@@ -162,37 +155,6 @@ contains
     ! Point to source and target field collections
     source_fields => modeldb%fields%get_field_collection(source_collection_name)
     target_fields => modeldb%fields%get_field_collection(target_collection_name)
-
-    ! Get number of layers and create a clock for oasis
-    if (regrid_method == regrid_method_oasis) then
-      extrusion_nml => modeldb%configuration%get_namelist('extrusion')
-      call extrusion_nml%get_value( 'number_of_layers', nlayers )
-
-      ! The last time of the oasis clock must be equal or larger than
-      ! the number of 2d fields to be regridded:
-      !     sum(fields) nlayers*ndata
-      ntimes = 2
-      call iter%initialise(source_fields)
-      do
-        ! Locate the field to be processed in the field collections
-        if ( .not.iter%has_next() ) exit
-        field => iter%next()
-        field_name = field%get_name()
-
-        call source_fields%get_field(field_name, field_src)
-        vector_space => field_src%get_function_space()
-
-        nlayers = vector_space%get_nlayers()
-        ndf = vector_space%get_ndf()
-        nlayers = nlayers + ndf - 1
-
-        ntimes = ntimes + nlayers*vector_space%get_ndata()
-      end do
-      coupling_clock = model_clock_type(1_i_def, ntimes, &
-                                        1.0_r_second, 0.0_r_second)
-      ! Start the coupling clock
-      started_clock = coupling_clock%tick()
-    end if
 
     call read_checkpoint(source_fields,      &
                          start_timestep,     &
@@ -227,7 +189,7 @@ contains
 
         case (regrid_method_oasis)
 #ifdef MCT
-          call lfric2lfric_oasis_regrid(modeldb, coupling_clock, &
+          call lfric2lfric_oasis_regrid(modeldb, &
                                         field_dst, field_src)
 #endif
       end select

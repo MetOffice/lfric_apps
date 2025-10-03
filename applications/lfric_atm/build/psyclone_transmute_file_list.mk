@@ -14,7 +14,7 @@
 
 # Choose which files to Pre-proccess and PSyclone from physics_schemes / other source (e.g. UKCA)
 
-export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod
+export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod gw_ussp_mod
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 

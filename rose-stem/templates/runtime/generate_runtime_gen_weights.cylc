@@ -22,13 +22,13 @@
         [[[environment]]]
             MPIRUN_N_JOBS = {{task_values["gen_weights_tasks"]}}
             INTERPOLATION_DIRECTION = {{task_values["app_name"]}}
-            LFRIC_MESH_FILE = {{mesh_dir}}/mesh_{{task_values["resolution"]}}.nc
+            LFRIC_MESH_FILE = {{mesh_dir}}/{{task_values["resolution"]}}/mesh_{{task_values["resolution"]}}.nc
             LFRIC_MESH_NAME = {{task_values["mesh_name"]|default("")}}
     {% if task_ns.application == "lfric2lfric" %}
-            DST_GRID_PATH = {{mesh_dir}}/mesh_{{task_values["dst_mesh"]}}.nc
+            DST_GRID_PATH = {{mesh_dir}}/{{task_values["dst_mesh"]}}/mesh_{{task_values["dst_mesh"]}}.nc
             DST_GRID_TYPE = {{task_values["dst_type"]}}
             DST_MESH_NAME = {{task_values["dst_name"]}}
-            SRC_GRID_PATH = {{mesh_dir}}/mesh_{{task_values["src_mesh"]}}.nc
+            SRC_GRID_PATH = {{mesh_dir}}/{{task_values["src_mesh"]}}/mesh_{{task_values["src_mesh"]}}.nc
             SRC_GRID_TYPE = {{task_values["src_type"]}}
             SRC_MESH_NAME = {{task_values["src_name"]}}
     {% elif task_values["app_name"] == "um2lfric" %}

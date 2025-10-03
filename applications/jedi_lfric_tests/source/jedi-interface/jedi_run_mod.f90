@@ -10,7 +10,7 @@
 !
 module jedi_run_mod
 
-  use constants_mod,           only : i_def, str_def
+  use constants_mod,           only : i_def, l_def, str_def
   use namelist_collection_mod, only : namelist_collection_type
 
   implicit none
@@ -21,6 +21,7 @@ type, public :: jedi_run_type
   private
   character(str_def)             :: jedi_run_name
   type(namelist_collection_type) :: configuration
+  logical(kind=l_def)            :: timers_finalised
 
 contains
 
@@ -32,6 +33,9 @@ contains
 
   !> Get a pointer to the stored configuration.
   procedure, public ::  get_configuration
+
+  !> Just finalise subroutine timing; to get useful timing statistics from failed adjoint tests
+  procedure, public ::  finalise_timers
 
   !> Finalizer
   procedure, public :: finalise
@@ -86,6 +90,7 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
   use driver_collections_mod,        only: init_collections
   use driver_config_mod,             only: init_config
   use driver_log_mod,                only: init_logger
+  use driver_timer_mod,              only: init_timers
   use jedi_lfric_tests_mod,          only: jedi_lfric_tests_required_namelists
   use lfric_mpi_mod,                 only: lfric_comm_type
 
@@ -111,6 +116,10 @@ subroutine initialise_infrastructure( self, filename, model_communicator )
   call lfric_comm%set_comm_mpi_val(model_communicator)
   call init_logger( lfric_comm, self%jedi_run_name )
 
+  ! Initialise subroutine timers
+  call init_timers( self%jedi_run_name )
+  self%timers_finalised = .false.
+
   ! Initialise collections
   call init_collections()
 
@@ -128,6 +137,21 @@ function get_configuration(self) result(configuration)
 
 end function get_configuration
 
+!> @brief    Just finalise subroutine timing; to get useful timing statistics from failed adjoint tests
+!>
+subroutine finalise_timers(self)
+
+  use driver_timer_mod, only: final_timers
+
+  implicit none
+
+  class(jedi_run_type), intent(inout) :: self
+
+  call final_timers( self%jedi_run_name )
+  self%timers_finalised = .true.
+
+end subroutine finalise_timers
+
 !> @brief    Finalizer for jedi_run_type
 !>
 subroutine finalise(self)
@@ -135,6 +159,7 @@ subroutine finalise(self)
   use driver_collections_mod,        only: final_collections
   use driver_config_mod,             only: final_config
   use driver_log_mod,                only: final_logger
+  use driver_timer_mod,              only: final_timers
   use jedi_lfric_comm_mod,           only: final_external_comm, &
                                            final_internal_comm
   use lfric_mpi_mod,                 only: destroy_comm
@@ -145,6 +170,9 @@ subroutine finalise(self)
 
   ! Finalise collections
   call final_collections()
+
+  ! Finalise subroutine timers
+  if (.not. self%timers_finalised) call final_timers( self%jedi_run_name )
 
   ! Finalise logger
   call final_logger(self%jedi_run_name)

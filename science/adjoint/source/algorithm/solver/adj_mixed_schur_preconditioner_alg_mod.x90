@@ -169,9 +169,9 @@ contains
 
     ! Solve pressure system
     call log_event( 'Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG )
-    if (subroutine_timers) call timer('mixed_schur solve')
+    if (subroutine_timers) call timer('adj mixed_schur solve')
     call self%adj_pressure_solver%apply( self%pressure_x, self%pressure_b )
-    if (subroutine_timers) call timer('mixed_schur solve')
+    if (subroutine_timers) call timer('adj mixed_schur solve')
 
     ! STEP 1: Build RHS for Helmholtz system
 

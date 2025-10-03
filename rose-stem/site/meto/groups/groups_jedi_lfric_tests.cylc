@@ -23,10 +23,17 @@
         "jedi_lfric_tests_tlm_tests_default-1PE-C12_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_default-dry-C12_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_default-dry-1PE-C12_azspice_gnu_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_default-relaxed_solver-C12_azspice_gnu_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_default-relaxed_solver-1PE-C12_azspice_gnu_fast-debug-64bit",
         "jedi_lfric_tests_azspice_integration_tests",
     ],
+    "jedi_lfric_tests_op_azspice_developer": [
+        "jedi_lfric_tests_tlm_forecast_tl_default-C12_op_azspice_gnu_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_default-C12_op_azspice_gnu_fast-debug-64bit",
+    ],
     "jedi_lfric_tests_azspice": [
-        "jedi_lfric_tests_azspice_developer"
+        "jedi_lfric_tests_azspice_developer",
+        "jedi_lfric_tests_op_azspice_developer"
     ],
     "jedi_lfric_tests_azspice_integration_tests": [
         "jedi_lfric_tests_integration_tests_azspice_gnu_64bit",
@@ -53,10 +60,17 @@
         "jedi_lfric_tests_tlm_tests_default-1PE-C12_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_default-dry-C12_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_tlm_tests_default-dry-1PE-C12_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_default-relaxed_solver-C12_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_default-relaxed_solver-1PE-C12_ex1a_cce_fast-debug-64bit",
         "jedi_lfric_tests_ex1a_integration_tests",
     ],
+    "jedi_lfric_tests_op_ex1a_developer": [
+        "jedi_lfric_tests_tlm_forecast_tl_default-C12_op_ex1a_cce_fast-debug-64bit",
+        "jedi_lfric_tests_tlm_tests_default-C12_op_ex1a_cce_fast-debug-64bit",
+    ],
     "jedi_lfric_tests_ex1a": [
-        "jedi_lfric_tests_ex1a_developer"
+        "jedi_lfric_tests_ex1a_developer",
+        "jedi_lfric_tests_op_ex1a_developer"
     ],
     "jedi_lfric_tests_ex1a_integration_tests": [
         "jedi_lfric_tests_integration_tests_ex1a_cce_fast-debug-64bit",

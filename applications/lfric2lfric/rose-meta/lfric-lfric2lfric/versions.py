@@ -20,13 +20,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -47,7 +44,6 @@ class vn22_t885(MacroUpgrade):
         self.add_setting(
             config, ["namelist:section_choice", "iau_sst"], ".false."
         )
-
         return config, self.reports
 
 
@@ -60,5 +56,45 @@ class vn22_t4661(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-driver
         self.add_setting(config, ["namelist:extrusion", "eta_values"], "''")
+        return config, self.reports
+
+
+class vn22_t771(MacroUpgrade):
+    """Upgrade macro for ticket #771 by josephwallwork."""
+
+    BEFORE_TAG = "vn2.2_t4661"
+    AFTER_TAG = "vn2.2_t771"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-chemistry
+        """Add new namelist options for chemistry timestep halving"""
+        self.add_setting(
+            config,
+            ["namelist:chemistry", "i_chem_timestep_halvings"],
+            value="0",
+        )
+        return config, self.reports
+
+
+class vn22_t621(MacroUpgrade):
+    """Upgrade macro for ticket #621 by Mike Hobson."""
+
+    BEFORE_TAG = "vn2.2_t771"
+    AFTER_TAG = "vn2.2_t621"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric2lfric
+        """Add orography, and boundary namelists"""
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = re.sub(
+            r"namelist:files",
+            r"namelist:files" + "\n" + " (namelist:orography)",
+            source,
+        )
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
 
         return config, self.reports

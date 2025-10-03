@@ -57,6 +57,7 @@ module jedi_lfric_linear_modeldb_driver_mod
                                            finalise_model
   use gungho_time_axes_mod,         only : gungho_time_axes_type
   use lfric_mpi_mod,                only : lfric_mpi_type
+  use lfric_xios_context_mod,       only : lfric_xios_context_type
   use log_mod,                      only : log_event,         &
                                            log_scratch_space, &
                                            LOG_LEVEL_TRACE,   &
@@ -96,18 +97,19 @@ contains
     type(atl_si_timestep_type),   intent(inout) :: atl_si_timestep
 
     ! Local
-    type( gungho_time_axes_type )         :: model_axes
-    type( mesh_type ),            pointer :: mesh
-    type( mesh_type ),            pointer :: twod_mesh
-    type( mesh_type ),            pointer :: aerosol_mesh
-    type( mesh_type ),            pointer :: aerosol_twod_mesh
-    type( namelist_type ),        pointer :: base_mesh_nml
-    type( namelist_type ),        pointer :: multires_coupling_nml
-    type( namelist_type ),        pointer :: initialization_nml
-    character( len=str_def )              :: prime_mesh_name
-    character( len=str_def )              :: aerosol_mesh_name
-    logical( kind=l_def )                 :: coarse_aerosol_ancil
-    logical( kind=l_def )                 :: coarse_ozone_ancil
+    type( gungho_time_axes_type )            :: model_axes
+    type( mesh_type ),               pointer :: mesh
+    type( mesh_type ),               pointer :: twod_mesh
+    type( mesh_type ),               pointer :: aerosol_mesh
+    type( mesh_type ),               pointer :: aerosol_twod_mesh
+    type( namelist_type ),           pointer :: base_mesh_nml
+    type( namelist_type ),           pointer :: multires_coupling_nml
+    type( namelist_type ),           pointer :: initialization_nml
+    type( lfric_xios_context_type ), pointer :: io_context
+    character( len=str_def )                 :: prime_mesh_name
+    character( len=str_def )                 :: aerosol_mesh_name
+    logical( kind=l_def )                    :: coarse_aerosol_ancil
+    logical( kind=l_def )                    :: coarse_ozone_ancil
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
 
@@ -173,7 +175,7 @@ contains
                                             aerosol_mesh_name )
       aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
       aerosol_twod_mesh => mesh_collection%get_mesh(aerosol_mesh, TWOD)
-      write( log_scratch_space,'(A,A)' ) "aerosol mesh name:", &
+      write( log_scratch_space, '(A,A)' ) "aerosol mesh name:", &
                                          aerosol_mesh%get_mesh_name()
       call log_event( log_scratch_space, LOG_LEVEL_TRACE )
     else
@@ -204,7 +206,9 @@ contains
     call initialise_adjoint_model( modeldb, &
                                    atl_si_timestep )
 
-    ! Close IO and create new clock that is not linked to XIOS
+    ! Close IO context and clock so that it is not linked to XIOS
+    call modeldb%io_contexts%get_io_context(io_context_name, io_context)
+    call io_context%finalise_xios_context()   
     call final_time( modeldb )
 
     call log_event( "end of initialise_modeldb: initialise_linear_model", &
@@ -268,7 +272,7 @@ contains
     type( atl_si_timestep_type ), intent(inout) :: atl_si_timestep
 
     ! Local
-    logical( kind=l_def )          :: clock_running
+    logical( kind=l_def ) :: clock_running
 
     ! 1. Tick the clock and check its still running
     clock_running = modeldb%clock%tick()

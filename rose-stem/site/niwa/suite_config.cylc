@@ -1,9 +1,0 @@
-{% do LOG.debug("Entered niwa/suite_config.cylc") %}
-
-    [[NIWA_ORIG]]
-        platform = w-mauivlab01
-
-{% include 'site/niwa/common/suite_config_cs500.cylc' %}
-{% include 'site/niwa/common/suite_config_xc50.cylc' %}
-
-{% do LOG.debug("Finished in niwa/suite_config.cylc") %}

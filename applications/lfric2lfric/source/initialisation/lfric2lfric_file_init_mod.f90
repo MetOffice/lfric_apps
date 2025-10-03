@@ -8,9 +8,10 @@
 !!          and formats it so that it can be passed to the infrastructure.
 module lfric2lfric_file_init_mod
 
-  use constants_mod,       only : i_def
+  use constants_mod,       only : i_def,                &
+                                   str_max_filename
   use driver_modeldb_mod,  only : modeldb_type
-  use file_mod,            only : FILE_MODE_READ, &
+  use file_mod,            only : FILE_MODE_READ,       &
                                   FILE_MODE_WRITE
   use files_config_mod,    only : checkpoint_stem_name, &
                                   diag_stem_name,       &
@@ -22,7 +23,13 @@ module lfric2lfric_file_init_mod
                                   use_xios_io
   use lfric_xios_file_mod, only : lfric_xios_file_type, &
                                   OPERATION_TIMESERIES
+  use lfric2lfric_config_mod, only : dst_ancil_directory,           &
+                                     dst_orography_mean_ancil_path, &
+                                     src_ancil_directory,           &
+                                     src_orography_mean_ancil_path
   use linked_list_mod,     only : linked_list_type
+  use orography_config_mod, only : orog_init_option,    &
+                                   orog_init_option_ancil
 
   implicit none
 
@@ -43,6 +50,8 @@ module lfric2lfric_file_init_mod
     type(linked_list_type),        intent(out)   :: files_list
     type(modeldb_type), optional,  intent(inout) :: modeldb
 
+    character(len=str_max_filename) :: src_ancil_fname
+
     if( use_xios_io ) then
 
       ! Set up diagnostic writing info
@@ -60,6 +69,17 @@ module lfric2lfric_file_init_mod
           lfric_xios_file_type( trim(start_dump_filename),       &
                                 xios_id="lfric_checkpoint_read", &
                                 io_mode=FILE_MODE_READ )         )
+
+      ! Setup orography ancillary file
+      if ( orog_init_option == orog_init_option_ancil ) then
+        ! Set orography ancil filename from namelist
+        write(src_ancil_fname,'(A)') trim(src_ancil_directory)//'/'// &
+                                     trim(src_orography_mean_ancil_path)
+        call files_list%insert_item( lfric_xios_file_type(                     &
+                                           trim(src_ancil_fname),              &
+                                           xios_id="src_orography_mean_ancil", &
+                                           io_mode=FILE_MODE_READ ) )
+      end if
 
     endif
 
@@ -80,6 +100,8 @@ module lfric2lfric_file_init_mod
     ! Local variables
     integer(kind=i_def), parameter :: checkpoint_frequency = 1_i_def
 
+    character(len=str_max_filename) :: dst_ancil_fname
+
     if( use_xios_io ) then
 
       ! Setup checkpoint reading context information
@@ -91,6 +113,17 @@ module lfric2lfric_file_init_mod
                                     operation=OPERATION_TIMESERIES,   &
                                     freq=checkpoint_frequency )       )
       endif
+
+      ! Setup orography ancillary file
+      if ( orog_init_option == orog_init_option_ancil ) then
+        ! Set orography ancil filename from namelist
+        write(dst_ancil_fname,'(A)') trim(dst_ancil_directory)//'/'// &
+                                     trim(dst_orography_mean_ancil_path)
+        call files_list%insert_item( lfric_xios_file_type(                     &
+                                           trim(dst_ancil_fname),              &
+                                           xios_id="dst_orography_mean_ancil", &
+                                           io_mode=FILE_MODE_READ ) )
+      end if
 
     endif
 

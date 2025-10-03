@@ -26,8 +26,8 @@
         },
         "mesh": {
             "mesh_wallclock": 20,
-            "mesh_memory": [1, "GB"],
-            "mesh_cpus": 6,
+            "mesh_memory": [6, "GB"],
+            "mesh_cpus": 1,
         },
         "tech-tests": {
             "tech-tests_wallclock": 15,
@@ -54,7 +54,7 @@
         "mesh": {
             "mesh_wallclock": 20,
             "mesh_memory": [6, "GB"],
-            "mesh_cpus": 6,
+            "mesh_cpus": 1,
         },
         "tech-tests": {
             "tech-tests_wallclock": 15,

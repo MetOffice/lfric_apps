@@ -1,0 +1,81 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_lfricinputs.cyc") %}
+
+{# Generate the runtime sections for all lfricinputs tasks #}
+
+    [[{{task_family|upper}}]]
+        inherit={{task_ns.application|upper}}_{{task_ns.platform|upper}}
+
+
+{% if task.startswith("run") %}
+{# um2lfric, lfric2um or scintel #}
+
+    {% set opt_confs = namespace(vals=task_values["opt_confs"][0]) %}
+    {% for opt_conf in task_values["opt_confs"][1:] %}
+        {% set opt_confs.vals = opt_confs.vals~","~opt_conf %}
+    {% endfor %}
+
+    {% if "ntasks" in task_values %}
+        {% set resource_family = SITE|upper~"_"~
+                                 task_ns.platform|upper~"_"~
+                                 task_values["ntasks"]~"_TASKS" %}
+    {% else %}
+        {% set resource_family = SITE|upper~"_"~
+                                 task_ns.platform|upper~
+                                 "_RUN_TASKS" %}
+    {% endif %}
+
+    [[{{task}}]]
+        inherit = {{task_family|upper}}, \
+                  LFRICINPUTS_BASE, \
+                  {{SITE|upper}}_{{task_ns.platform|upper}}_{{task_ns.compiler|upper}}, \
+                  {{SITE|upper}}_{{task_ns.platform|upper}}_NORMAL_QUEUE, \
+                  {{resource_family|upper}}, \
+                  {{task_ns.platform|upper}}_LFRICINPUTS
+        env-script = "eval $(rose task-env)"
+        script = rose task-run --verbose --path= --path="{{bin_dir}}"
+        execution time limit = PT{{task_values["wallclock"]}}M
+        post-script = """
+                      find . -regex '.*PET0+\..+\.Log' -exec cp {} $ROSE_TASK_LOG_DIR \;
+                      find . -regex '.*PET0+\..+\.Log' -exec cat {} \;
+                      module purge
+                      """
+        [[[environment]]]
+            BIN_DIR                = {{bin_dir}}
+            ROSE_TASK_APP          = {{task_values["app_name"]}}
+            ROSE_APP_OPT_CONF_KEYS = {{opt_confs.vals}}
+            NUMBER_OF_LAYERS       = {{task_values["target_grid_levs"]}}
+            SOURCE_DUMP            = {{task_values["source_dump"]}}
+            MESH_DIR               = {{mesh_dir}}
+            LFRIC_MESH_FILE        = {{mesh_dir}}/{{task_values["resolution"]}}/mesh_{{task_values["resolution"]}}.nc
+            LFRIC_MESH_NAME        = {{task_values["mesh_name"]}}
+            WEIGHT_LOC             = $CYLC_WORKFLOW_WORK_DIR/1/generate_weights_lfricinputs_{{task_ns.conf_name}}_{{site_vars["scripts_platform"]}}_weightgen_script
+    {% if task_values["app_name"] == "um2lfric" or task_values["app_name"] == "scintelapi" %}
+            TARGET_GRID_RES        = {{task_values["target_grid_res"]}}
+    {% endif %}
+
+
+{% elif task.startswith("rose_ana") %}
+
+    {% set rose_ana_run_task = "run"~task.replace("rose_ana", "") %}
+    {% set rose_ana_app = "rose_ana_"~task_values["app_name"] %}
+
+    [[{{task}}]]
+        inherit = {{task_family|upper}}, \
+                  LFRICINPUTS_BASE, \
+                  {{SITE|upper}}_{{task_ns.platform|upper}}_1_TASKS, \
+                  {{task_ns.platform|upper}}_LFRICINPUTS, \
+                  ROSE_ANA_{{task_ns.platform|upper}}
+        [[[environment]]]
+            SUITE_DIR     = ../{{rose_ana_run_task}}
+            KGO_DIR       = {{site_vars["lfricinputs_kgo_base"]}}/{{task_values["task_family"]}}/{{kgo_vars[task_values["task_family"]]|default("vn2.1")}}
+            ROSE_TASK_APP = {{rose_ana_app}}
+
+{% endif %}
+
+
+{% do LOG.debug("Finised in templates/runtime/generate_runtime_lfricinputs.cyc") %}

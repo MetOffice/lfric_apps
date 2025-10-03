@@ -1,0 +1,106 @@
+{% do LOG.debug("Entered site/esnz/common/suite_config_cascade.cylc") %}
+
+{% set cascade_export_source = '. /opt/niwa/profile/spack_v0.23_2025.05.1.sh ; '~
+                               'spack load fcm@2021.05.0 /qcebcci ; ' %}
+
+{% set cascade_plot = '. /opt/niwa/profile/conda_24.11.3_2025.05.1.sh ; '~
+                      'conda activate niwa_python313_2025.05.1 ; ' %}
+
+{% set cascade_modules_ifort = '. /opt/niwa/profile/spack_v0.23_2025.05.1.sh ; '~
+                               'spack load fcm@2021.05.0 /qcebcci ; '~
+                               'spack load intel-oneapi-compilers@2023.2.4 /rah4tqk ; '~
+                               'spack load intel-oneapi-mpi@2021.15.0 %intel@2021.10.0 /zuo7pn3 ; '~
+                               'spack load py-psyclone@3.1.0 /5olth2t ; '~
+                               'spack load py-jinja2@3.1.4 /etihymc ; '~
+                               'spack load rose-picker@2.1.0.dev0 /j6jwmly ; ' %}
+
+{% set cascade_build_setup_ifort = 'export FC=mpif90 FPP="cpp -P -x f95-cpp-input" CXX=icpc LDMPI=mpif90 VERBOSE=1 ; '~
+                                   'export PSYCLONE_CONFIG=$(spack location -i py-psyclone@3.1.0 /5olth2t)/share/psyclone/psyclone.cfg ; '~
+                                   'export YAXT_ROOT=$(spack location -i yaxt@0.9.3.1 %intel@2021.10.0 /xyl2s46) ; '~
+                                   'export XIOS_ROOT=$(spack location -i xios@2279 %intel@2021.10.0 /ruwrm7r) ; '~
+                                   'export NETCDF_FORTRAN_ROOT=$(spack location -i netcdf-fortran@4.6.1 %intel@2021.10.0 /nz665uw) ; '~
+                                   'export NETCDF_C_ROOT=$(spack location -i netcdf-c@4.9.2 %intel@2021.10.0 /iqzbdoi) ; '~
+                                   'export SHUMLIB_ROOT=$(spack location -i shumlib@um13.0 %intel@2021.10.0) ; '~
+                                   'export INTEL_FORTRAN_ROOT=$(spack location -i intel-oneapi-compilers@2023.2.4 /rah4tqk) ; '~
+                                   'export FFLAGS="-I$NETCDF_FORTRAN_ROOT/include -I$YAXT_ROOT/include -I$XIOS_ROOT/include -march=core-avx2" ; '~
+                                   'export LDFLAGS="-L$XIOS_ROOT/lib -L$YAXT_ROOT/lib -Wl,-rpath=$YAXT_ROOT/lib '~
+                                   '                -L$NETCDF_FORTRAN_ROOT/lib -Wl,-rpath=$NETCDF_FORTRAN_ROOT/lib '~
+                                   '                -L$NETCDF_C_ROOT/lib -Wl,-rpath=$NETCDF_C_ROOT/lib '~
+                                   '                -L$SHUMLIB_ROOT/lib -Wl,-rpath=$SHUMLIB_ROOT/lib '~
+                                   '                -shared-intel -lirng" ; ' %}
+
+{% set cascade_run_ifort = '. /opt/niwa/profile/spack_v0.23_2025.05.1.sh ; '~
+                           'spack load intel-oneapi-mpi@2021.15.0 %intel@2021.10.0 /zuo7pn3 ; ' %}
+
+[runtime]
+
+    [[CASCADE_BASE]]
+        [[[environment]]]
+            SITE = 'esnz'
+            UMDIR = /opt/niwa/um_sys
+            BUILD_ROOT = ${CYLC_TASK_WORK_DIR}/${CYLC_WORKFLOW_NAME_BASE}_${USER}_cascade
+            SOURCE_ROOT = $CYLC_WORKFLOW_SHARE_DIR/source
+            OUTPUT_ROOT = $CYLC_WORKFLOW_SHARE_DIR/output_cascade
+
+    [[CASCADE_BG]]
+        inherit = CASCADE_BASE
+        platform = login01-background
+
+    [[CASCADE_PBS]]
+        inherit = CASCADE_BASE
+        platform = cascade-pbs
+        [[[directives]]]
+            -q = shortq
+
+    [[CASCADE_BUILD_IFORT]]
+        inherit = CASCADE_BG
+        {{ generate_script("pre-script", [cascade_modules_ifort, cascade_build_setup_ifort]) }}
+        [[[environment]]]
+            USE_MPI_F08 = "use_mpi_f08"
+
+    [[CASCADE_RUN_IFORT]]
+        inherit = CASCADE_PBS
+        {{ generate_script("pre-script", [cascade_run_ifort]) }}
+        [[[environment]]]
+            RUN_METHOD = mpiexec
+            HYPERTHREADS = 1
+            CORES_PER_NODE = 192
+            NUMA_REGIONS_PER_NODE = 2
+            BIG_DATA_DIR = '/opt/niwa/um_sys/lfric/data'
+            TARGET_PLATFORM = 'esnz-cascade'
+
+    [[CASCADE_MESH_IFORT]]
+        inherit = CASCADE_PBS
+        {{ generate_script("pre-script", [cascade_run_ifort]) }}
+
+    [[CASCADE_TECH_TESTS_IFORT]]
+        inherit = CASCADE_BG
+
+    [[CASCADE_PLOT]]
+        inherit = CASCADE_BG
+        {{ generate_script("pre-script", [cascade_plot]) }}
+        [[[environment]]]
+            OUTPUT_ROOT = $CYLC_WORKFLOW_SHARE_DIR/output_cascade
+
+    [[CASCADE_CHECK]]
+        inherit = CASCADE_BG
+        # Skip KGO checks for now
+        pre-script = "echo 'Skipping KGO checks'; exit 0"
+
+    [[CASCADE_SCRIPTS]]
+        inherit = CASCADE_BG
+
+    [[CASCADE_EXPORT-SOURCE]]
+        inherit = CASCADE_BG
+        post-script = "sed -i 's/-warn errors//' ${SOURCE_ROOT}/core/infrastructure/build/fortran/ifort.mk"
+        [[[environment]]]
+            PLATFORM_SYNC = false
+
+    [[EXPORT-SOURCE]]
+        inherit = CASCADE_BG
+        {{ generate_script("pre-script", [cascade_export_source]) }}
+
+    [[CASCADE_HOUSEKEEPING]]
+        inherit=CASCADE_BG
+
+{% do LOG.debug("Finished in site/esnz/common/suite_config_cascade.cylc") %}

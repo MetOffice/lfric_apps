@@ -51,7 +51,7 @@ psyclone: $(SOURCE_F_FILES)
 #
 $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
 	echo Psyclone with file override script $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone \
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py \
 			-o $(SOURCE_DIR)/$*.F90 \
@@ -62,7 +62,7 @@ $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
 .SECONDEXPANSION:
 $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(shell find $(dirname $(OPTIMISATION_PATH_PSY)/$(DSL)/$$*.py) -name "local.py")
 	echo "Psyclone with local script"
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone \
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-s $(shell find $(dirname $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py) -name "local.py") \
 			-o $(SOURCE_DIR)/$*.F90 \
@@ -72,7 +72,7 @@ $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(shell find $(dirname $(OPTIMISATION_
 #
 $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/global.py
 	echo Psyclone with global script $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone \
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py \
 			-o $(SOURCE_DIR)/$*.F90 \
@@ -82,7 +82,7 @@ $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/global.py
 #
 $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90
 	echo "Psyclone pass with no optimisation applied, OMP removed"
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$$PYTHONPATH psyclone \
+	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-o $(SOURCE_DIR)/$*.F90 \
 			$<

@@ -308,8 +308,6 @@ integer         :: jdir
 ! omp block iterator
 integer         :: jj
 !
-! blocking size for omp_block
-integer         :: omp_block
 !
 ! Level for gw launch - in principle this could be launchlev(i,j)
 integer         :: launchlev
@@ -568,32 +566,31 @@ end do  Levels_do2
 ! ----------------------------------------------------------------------+-------
 
 !$OMP do SCHEDULE(STATIC)
-Rows_do3: do j=tdims%j_start,tdims%j_end
-  Row_length_do3: do i=tdims%i_start,tdims%i_end
-    !   Set rho and theta level value of Z_TH.
-    rho_th(i,j,tkfix1start) = rhont_smallhalo(i,j,tkfix1start) *               &
-                              recip_a2
-    nbv(i,j,tkfix1start)    = nbv(i,j,(tkfix1start + 1))
-    rho_th(i,j,tdims%k_end) = rhont_smallhalo(i,j,tdims%k_end) *               &
-                              recip_a2
-    nbv(i,j,tdims%k_end)    = nbv(i,j,tdims%k_end-1)
-  end do  Row_length_do3
-end do  Rows_do3
+Row_length_do3: do i=tdims%i_start,tdims%i_end
+  j = 1
+  !   Set rho and theta level value of Z_TH.
+  rho_th(i,j,tkfix1start) = rhont_smallhalo(i,j,tkfix1start) *               &
+                             recip_a2
+  nbv(i,j,tkfix1start)    = nbv(i,j,(tkfix1start + 1))
+  rho_th(i,j,tdims%k_end) = rhont_smallhalo(i,j,tdims%k_end) *               &
+                             recip_a2
+  nbv(i,j,tdims%k_end)    = nbv(i,j,tdims%k_end-1)
+end do  Row_length_do3
 !$OMP end do
+
 
 !
 Levels_do4: do k=tdims%k_end,(tkfix1start + 1),-1
   ! ----------------------------------------------------------------------+-------
   ! 1.2 Set buoyancy frequency constant up to 1km altitude
   ! ----------------------------------------------------------------------+-------
-!$OMP do SCHEDULE(STATIC)
-  Rows_do4: do j=tdims%j_start,tdims%j_end
-    Row_length_do4: do i=tdims%i_start,tdims%i_end
-      if ( (r_theta_levels(i,j,k) - planet_radius) <  1.0e3)                   &
-        nbv(i,j,k-1) = nbv(i,j,k)
-    end do  Row_length_do4
-  end do  Rows_do4
-!$OMP end do
+  !$OMP do SCHEDULE(STATIC)
+  Row_length_do4: do i=tdims%i_start,tdims%i_end
+    j = 1
+    if ( (r_theta_levels(i,j,k) - planet_radius) <  1.0e3)                   &
+      nbv(i,j,k-1) = nbv(i,j,k)
+  end do  Row_length_do4
+  !$OMP end do
 end do  Levels_do4
 
 !
@@ -621,13 +618,11 @@ IDir_do1: do jdir=1,idir
   ! ----------------------------------------------------------------------+-------
   ! Set wind component for top level, to be equal to that on the top Rho level
   ! ----------------------------------------------------------------------+-------
-  Rows_do5a: do j=tdims%j_start,tdims%j_end
-    Row_length_do5a: do i=tdims%i_start,tdims%i_end
-      udotk(i,j,tdims%k_end,jdir) = uonp(i,j,pdims%k_end)*cosphi(jdir)         &
-                                  + vonp(i,j,pdims%k_end)*sinphi(jdir)
-    end do  Row_length_do5a
-  end do  Rows_do5a
-  !
+  Row_length_do5a: do i=tdims%i_start,tdims%i_end
+    j = 1
+    udotk(i,j,tdims%k_end,jdir) = uonp(i,j,pdims%k_end)*cosphi(jdir)         &
+                                + vonp(i,j,pdims%k_end)*sinphi(jdir)
+  end do  Row_length_do5a
 end do  IDir_do1
 !$OMP end do
 
@@ -784,7 +779,7 @@ deallocate(segments)
 !$OMP  sinphi, pdims, minlaunchlev, L_ussp_heating, r_theta_levels,            &
 !$OMP  r_rho_levels, uonp, vonp, T_inc, tdims, g, cp)                          &
 !$OMP  private(g_g, i, j, k, jdir, jj, dzb, dzu, dzl, uhat, vhat,              &
-!$OMP  ududt, vdvdt, omp_block)
+!$OMP  ududt, vdvdt )
 
 !
 ! ----------------------------------------------------------------------+-------
@@ -794,13 +789,9 @@ deallocate(segments)
 
 ! gives each thread the largest block possible to execute
 
-omp_block = pdims%k_end-(minlaunchlev+1)+1
-!$ omp_block = ceiling(real(((pdims%k_end - (minlaunchlev+1)) + 1))/           &
-!$ omp_get_num_threads())
 
 !$OMP do SCHEDULE(STATIC)
-omp_blocking2: do jj=minlaunchlev+1, pdims%k_end, omp_block
-  Levels_do14: do k=jj, min(jj+omp_block-1,pdims%k_end)
+Levels_do14: do k=minlaunchlev+1, pdims%k_end
     Rows_do14: do j=pdims%j_start,pdims%j_end
       Row_length_do14: do i=pdims%i_start,pdims%i_end
         IDir_do5: do jdir=1,idir
@@ -812,8 +803,7 @@ omp_blocking2: do jj=minlaunchlev+1, pdims%k_end, omp_block
         end do  IDir_do5
       end do  Row_length_do14
     end do  Rows_do14
-  end do  Levels_do14
-end do  omp_blocking2
+end do  Levels_do14
 !$OMP end do
 
 !

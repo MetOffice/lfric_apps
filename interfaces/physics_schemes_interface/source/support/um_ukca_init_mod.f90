@@ -20,6 +20,7 @@ module um_ukca_init_mod
                                        chem_scheme_flexchem,                   &
                                        l_ukca_ro2_ntp,                         &
                                        l_ukca_asad_full,                       &
+                                       i_chem_timestep_halvings,               &
                                        l_ukca_quasinewton,                     &
                                        l_ukca_linox_scaling,                   &
                                        lightnox_scale_fac,                     &
@@ -843,6 +844,7 @@ contains
            ! Chemistry configuration options
            i_ukca_chem_version=i_ukca_chem_version,                            &
            chem_timestep=3600,                                                 &
+           i_chem_timestep_halvings=i_chem_timestep_halvings,                  &
            nrsteps=45,                                                         &
            l_ukca_asad_columns=.true.,                                         &
            l_ukca_asad_full=l_ukca_asad_full,                                  &
@@ -1551,6 +1553,7 @@ contains
            ! Chemistry configuration options
            !
            chem_timestep=3600,                                                 &
+           i_chem_timestep_halvings=0,                                         &
 
            ! UKCA environmental driver configuration options
            !

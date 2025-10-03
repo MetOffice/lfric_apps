@@ -27,6 +27,17 @@
 
       </file>
     </file_definition>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- This file contains orography ancil data -->
+      <!-- ANCIL FILES -->
+      <file id="src_orography_mean_ancil" name="src_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+      </file>
+
+    </file_definition>
+
   </context>
 
   <!-- File definition for LFRic checkpoint write -->
@@ -53,6 +64,16 @@
 	      <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
 
       </file>
+    </file_definition>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- This file contains orography ancil data -->
+      <!-- ANCIL FILES -->
+      <file id="dst_orography_mean_ancil" name="dst_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+      </file>
+
     </file_definition>
 
   </context>

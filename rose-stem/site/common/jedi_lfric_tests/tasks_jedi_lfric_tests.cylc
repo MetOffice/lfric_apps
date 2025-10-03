@@ -10,6 +10,7 @@
     {% do task_dict.update({
         "opt_confs": ["nwp_gal9"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 1800,
         "tsteps": 12,
         "mpi_parts": 6,
@@ -20,6 +21,7 @@
     {% do task_dict.update({
         "opt_confs": ["runge-kutta"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "tsteps": 20,
     }) %}
 
@@ -29,6 +31,7 @@
         "app_name": "jedi_forecast",
         "opt_confs": ["gh-si-for-linear"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 90,
         "tsteps": 13,
         "mpi_parts": 6,
@@ -40,6 +43,7 @@
         "app_name": "jedi_forecast_pseudo",
         "opt_confs": ["default"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 7,
         "mpi_parts": 6,
@@ -51,6 +55,7 @@
         "app_name": "jedi_forecast_pseudo",
         "opt_confs": ["pseudomodel"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 7,
         "mpi_parts": 6,
@@ -62,6 +67,7 @@
         "app_name": "jedi_tlm_forecast_tl",
         "opt_confs": ["default"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 1800,
         "tsteps": 13,
         "mpi_parts": 6,
@@ -73,6 +79,7 @@
         "app_name": "jedi_id_tlm_tests",
         "opt_confs": ["default"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 13,
         "mpi_parts": 6,
@@ -83,6 +90,7 @@
         "app_name": "jedi_id_tlm_tests",
         "opt_confs": ["default"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 13,
         "mpi_parts": 1,
@@ -94,6 +102,7 @@
         "app_name": "jedi_tlm_tests",
         "opt_confs": ["default"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 13,
         "mpi_parts": 6,
@@ -105,6 +114,7 @@
         "app_name": "jedi_tlm_tests",
         "opt_confs": ["default"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 13,
         "mpi_parts": 1,
@@ -116,6 +126,7 @@
         "app_name": "jedi_tlm_tests",
         "opt_confs": ["default", "dry"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 13,
         "mpi_parts": 6,
@@ -127,10 +138,60 @@
         "app_name": "jedi_tlm_tests",
         "opt_confs": ["default", "dry"],
         "resolution": "C12",
+        "ancil_resolution": "C12",
         "DT": 3600,
         "tsteps": 13,
         "mpi_parts": 1,
     }) %}
+
+{% elif task_ns.conf_name == "tlm_tests_default-relaxed_solver-C12" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_tests",
+        "opt_confs": ["default", "relaxed_solver"],
+        "resolution": "C12",
+        "ancil_resolution": "C12",
+        "DT": 3600,
+        "tsteps": 13,
+        "mpi_parts": 6,
+    }) %}
+
+{% elif task_ns.conf_name == "tlm_tests_default-relaxed_solver-1PE-C12" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_tests",
+        "opt_confs": ["default", "relaxed_solver"],
+        "resolution": "C12",
+        "ancil_resolution": "C12",
+        "DT": 3600,
+        "tsteps": 13,
+        "mpi_parts": 1,
+    }) %}
+
+{% elif task_ns.conf_name == "tlm_forecast_tl_default-C12_op" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_forecast_tl",
+        "opt_confs": ["default"],
+        "resolution": "C12_op",
+        "ancil_resolution": "C12",
+        "DT": 1800,
+        "tsteps": 13,
+        "mpi_parts": 6,
+    }) %}
+
+{% elif task_ns.conf_name == "tlm_tests_default-C12_op" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_tests",
+        "opt_confs": ["default"],
+        "resolution": "C12_op",
+        "ancil_resolution": "C12",
+        "DT": 3600,
+        "tsteps": 13,
+        "mpi_parts": 6,
+    }) %}
+
 
 {% elif task_ns.conf_name == "integration_tests" %}
 
@@ -159,9 +220,12 @@
         "id_tlm_tests_default-C12",
         "id_tlm_tests_default-1PE-C12",
         "tlm_tests_default-C12",
+        "tlm_tests_default-C12_op",
         "tlm_tests_default-1PE-C12",
         "tlm_tests_default-dry-C12",
-        "tlm_tests_default-dry-1PE-C12"
+        "tlm_tests_default-dry-1PE-C12",
+        "tlm_tests_default-relaxed_solver-C12",
+        "tlm_tests_default-relaxed_solver-1PE-C12"
     ] %}
 
     {% if task_ns.conf_name not in no_kgo %}

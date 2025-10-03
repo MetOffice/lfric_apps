@@ -387,6 +387,8 @@ subroutine radaer_code( nlayers,                                               &
 
   use ukca_radaer_precalc,               only: npd_ukca_aod_wavel
 
+  use ukca_option_mod,                   only: do_not_prescribe
+
   implicit none
 
   ! Arguments
@@ -525,7 +527,7 @@ subroutine radaer_code( nlayers,                                               &
 
   ! Prescribed single-scattering albedo dummy variables
   ! Make these namelist options later
-  logical, parameter       :: l_ukca_radaer_prescribe_ssa = .false.
+  integer, parameter       :: i_ukca_radaer_prescribe_ssa = do_not_prescribe
   integer(i_um), parameter :: nd_prof_ssa = 1
   integer(i_um), parameter :: nd_layr_ssa = 1
   integer(i_um), parameter :: nd_band_ssa = 1
@@ -871,7 +873,7 @@ subroutine radaer_code( nlayers,                                               &
     ! Logical to describe orientation
     l_inverted,                                                                &
     ! Logical for prescribed single scattering albedo array
-    l_ukca_radaer_prescribe_ssa,                                               &
+    i_ukca_radaer_prescribe_ssa,                                               &
     ! Model level of the tropopause (input)
     trindxrad_um,                                                              &
     ! Prescription of single-scattering albedo
@@ -967,7 +969,7 @@ subroutine radaer_code( nlayers,                                               &
          ! Logical to describe orientation
          l_inverted,                                                           &
          ! Logical for prescribed single scattering albedo array
-         l_ukca_radaer_prescribe_ssa,                                          &
+         i_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause (input)
          trindxrad_um,                                                         &
          ! Prescription of single-scattering albedo
@@ -1114,8 +1116,8 @@ subroutine radaer_code( nlayers,                                               &
          ! Type selection
          ip_ukca_mode_aitken,                                                  &
          soluble_wanted,                                                       &
-         ! Logical for if prescribed SSA is on
-         l_ukca_radaer_prescribe_ssa,                                          &
+         ! Switch for if prescribed SSA is on
+         i_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause
          trindxrad_um,                                                         &
          ! Prescription of single-scattering albedo
@@ -1199,8 +1201,8 @@ subroutine radaer_code( nlayers,                                               &
          ! Type selection
          ip_ukca_mode_accum,                                                   &
          soluble_wanted,                                                       &
-         ! Logical for if prescribed SSA is on
-         l_ukca_radaer_prescribe_ssa,                                          &
+         ! Switch for if prescribed SSA is on
+         i_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause
          trindxrad_um,                                                         &
          ! Prescription of single-scattering albedo
@@ -1284,8 +1286,8 @@ subroutine radaer_code( nlayers,                                               &
          ! Type selection
          ip_ukca_mode_coarse,                                                  &
          soluble_wanted,                                                       &
-         ! Logical for if prescribed SSA is on
-         l_ukca_radaer_prescribe_ssa,                                          &
+         ! Switch for if prescribed SSA is on
+         i_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause
          trindxrad_um,                                                         &
          ! Prescription of single-scattering albedo
@@ -1369,8 +1371,8 @@ subroutine radaer_code( nlayers,                                               &
          ! Type selection
          ip_ukca_mode_aitken,                                                  &
          soluble_unwanted,                                                     &
-         ! Logical for if prescribed SSA is on
-         l_ukca_radaer_prescribe_ssa,                                          &
+         ! Switch for if prescribed SSA is on
+         i_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause
          trindxrad_um,                                                         &
          ! Prescription of single-scattering albedo
@@ -1454,8 +1456,8 @@ subroutine radaer_code( nlayers,                                               &
          ! Type selection
          ip_ukca_mode_accum,                                                   &
          soluble_unwanted,                                                     &
-         ! Logical for if prescribed SSA is on
-         l_ukca_radaer_prescribe_ssa,                                          &
+         ! Switch for if prescribed SSA is on
+         i_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause
          trindxrad_um,                                                         &
          ! Prescription of single-scattering albedo
@@ -1539,8 +1541,8 @@ subroutine radaer_code( nlayers,                                               &
          ! Type selection
          ip_ukca_mode_coarse,                                                  &
          soluble_unwanted,                                                     &
-         ! Logical for if prescribed SSA is on
-         l_ukca_radaer_prescribe_ssa,                                          &
+         ! Switch for if prescribed SSA is on
+         i_ukca_radaer_prescribe_ssa,                                          &
          ! Model level of the tropopause
          trindxrad_um,                                                         &
          ! Prescription of single-scattering albedo
