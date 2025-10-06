@@ -14,7 +14,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: d2f3ddf59372388ee5b4e8757bb2cbe33f864026
+    ref: 3c392bb51c25e62fd8370b73dabed51937c1d0a3
 
 SimSys_Scripts:
     source: git@github.com:james-bruten-mo/SimSys_Scripts.git
@@ -30,7 +30,7 @@ socrates-spectral:
 
 ukca:
     source: git@github.com:MetOffice/ukca.git
-    ref: d1bcc0afc8428200c900eda6241585e11a481f2d
+    ref: 4fa61cc05814c073b497ddc148b541fbecfc3ee8
 
 um_aux:
     source: git@github.com:MetOffice/um_aux.git
