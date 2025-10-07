@@ -20,13 +20,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -47,7 +44,6 @@ class vn22_t885(MacroUpgrade):
         self.add_setting(
             config, ["namelist:section_choice", "iau_sst"], ".false."
         )
-
         return config, self.reports
 
 
@@ -60,7 +56,6 @@ class vn22_t4661(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-driver
         self.add_setting(config, ["namelist:extrusion", "eta_values"], "''")
-
         return config, self.reports
 
 
@@ -77,6 +72,23 @@ class vn22_t771(MacroUpgrade):
             config,
             ["namelist:chemistry", "i_chem_timestep_halvings"],
             value="0",
+        )
+        return config, self.reports
+
+
+class vn22_t369(MacroUpgrade):
+    """Upgrade macro for ticket #369 by Tom Hill (tomhill)."""
+
+    BEFORE_TAG = "vn2.2_t771"
+    AFTER_TAG = "vn2.2_t369"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jedi_lfric_tests
+        """Add incremental_wind_interpolation to namelist jedi_linear_model"""
+        self.add_setting(
+            config,
+            ["namelist:jedi_linear_model", "incremental_wind_interpolation"],
+            ".true.",
         )
 
         return config, self.reports

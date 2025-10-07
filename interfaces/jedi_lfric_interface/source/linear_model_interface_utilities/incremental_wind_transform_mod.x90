@@ -1,0 +1,275 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Incremental variable transformation between the JEDI analysis
+!>        wind variables and the LFRic prognostic wind variables.
+
+module incremental_wind_transform_mod
+
+  use base_wind_transform_mod, only: base_wind_transform_type
+  use field_collection_mod,    only: field_collection_type
+  use field_mod,               only: field_type
+
+  implicit none
+
+  private
+
+  type, public, extends(base_wind_transform_type) :: incremental_wind_transform_type
+
+    private
+
+    !> Extra wind fields for storing copies needed to perform incremental transformation.
+    type(field_type), allocatable :: u_in_w3
+    type(field_type), allocatable :: v_in_w3
+    type(field_type), allocatable :: w_in_wth
+    type(field_type), allocatable :: u_in_w2
+
+    contains
+
+    procedure, public :: initialise
+
+    procedure, public :: process
+    procedure, public :: initialise_for_adjoint
+    procedure, public :: adj_process
+
+    procedure, public :: scalar_to_vector
+    procedure, public :: adj_scalar_to_vector
+    procedure, public :: vector_to_scalar
+    procedure, public :: adj_vector_to_scalar
+
+    final             :: finalise
+
+  end type incremental_wind_transform_type
+
+  contains
+
+  !> @brief Initialise extra fields needed for incremental transformation.
+  !> @param[in] fields Field collection containing wind fields.
+  subroutine initialise( self, fields )
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+    type(field_collection_type),            intent(in)    :: fields
+
+    type(field_type), pointer :: u_in_w3
+    type(field_type), pointer :: v_in_w3
+    type(field_type), pointer :: w_in_wth
+    type(field_type), pointer :: u_in_w2
+
+    allocate(self%u_in_w3)
+    allocate(self%v_in_w3)
+    allocate(self%w_in_wth)
+    allocate(self%u_in_w2)
+
+    call fields%get_field( 'u_in_w3', u_in_w3 )
+    call fields%get_field( 'v_in_w3', v_in_w3 )
+    call fields%get_field( 'w_in_wth', w_in_wth )
+    call fields%get_field( 'u', u_in_w2 )
+
+    call u_in_w3%copy_field_properties(self%u_in_w3)
+    call v_in_w3%copy_field_properties(self%v_in_w3)
+    call w_in_wth%copy_field_properties(self%w_in_wth)
+    call u_in_w2%copy_field_properties(self%u_in_w2)
+
+  end subroutine initialise
+
+  !> @brief Copy LFRic prognostic wind variable fields to use in incremental transformation.
+  !> @param[in] fields Field collection containing wind fields.
+  subroutine process( self, fields )
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+    type(field_collection_type),            intent(in)    :: fields
+
+    type(field_type), pointer :: u_in_w2
+
+    call fields%get_field( 'u', u_in_w2 )
+
+    call invoke(setval_X( self%u_in_w2, u_in_w2 ))
+
+  end subroutine process
+
+  !> @brief Zero extra fields needed for incremental transformation.
+  subroutine initialise_for_adjoint(self)
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+
+    call invoke( setval_c( self%u_in_w3, 0.0_r_def ),  &
+                 setval_c( self%v_in_w3, 0.0_r_def ),  &
+                 setval_c( self%w_in_wth, 0.0_r_def ), &
+                 setval_c( self%u_in_w2, 0.0_r_def ) )
+
+  end subroutine initialise_for_adjoint
+
+  !> @brief (Adjoint of) copy LFRic prognostic wind variable fields to use in incremental transformation.
+  !> @param[in] fields Field collection containing wind fields.
+  subroutine adj_process( self, fields )
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+    type(field_collection_type),            intent(in)    :: fields
+
+    type(field_type), pointer :: u_in_w2
+
+    call fields%get_field( 'u', u_in_w2 )
+
+    call invoke( inc_X_plus_Y( u_in_w2, self%u_in_w2 ), &
+                 setval_c( self%u_in_w2, 0.0_r_def ) )
+
+  end subroutine adj_process
+
+  !> @brief Incrementally transform JEDI analysis wind variables to LFRic prognostic wind variables.
+  !> @param[in] fields Field collection containing wind fields.
+  subroutine scalar_to_vector( self, fields )
+
+    use interpolation_alg_mod, only: interp_w3wth_to_w2_alg
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+    type(field_collection_type),            intent(in)    :: fields
+
+    type(field_type), pointer :: u_in_w3
+    type(field_type), pointer :: v_in_w3
+    type(field_type), pointer :: w_in_wth
+    type(field_type), pointer :: u_in_w2
+
+    call fields%get_field( 'u_in_w3', u_in_w3 )
+    call fields%get_field( 'v_in_w3', v_in_w3 )
+    call fields%get_field( 'w_in_wth', w_in_wth )
+    call fields%get_field( 'u', u_in_w2 )
+
+    call invoke( setval_X( self%u_in_w3, u_in_w3 ), &
+                 setval_X( self%v_in_w3, v_in_w3 ), &
+                 setval_X( self%w_in_wth, w_in_wth ) )
+
+    call interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+
+  end subroutine scalar_to_vector
+
+  !> @brief (Adjoint of) incrementally transform JEDI analysis wind variables to LFRic prognostic wind variables.
+  !> @param[in] fields Field collection containing wind fields.
+  subroutine adj_scalar_to_vector( self, fields )
+
+    use adj_interpolation_alg_mod, only: adj_interp_w3wth_to_w2_alg
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+    type(field_collection_type),            intent(in)    :: fields
+
+    type(field_type), pointer :: u_in_w3
+    type(field_type), pointer :: v_in_w3
+    type(field_type), pointer :: w_in_wth
+    type(field_type), pointer :: u_in_w2
+
+    call fields%get_field( 'u_in_w3', u_in_w3 )
+    call fields%get_field( 'v_in_w3', v_in_w3 )
+    call fields%get_field( 'w_in_wth', w_in_wth )
+    call fields%get_field( 'u', u_in_w2 )
+
+    call adj_interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+
+    call invoke( inc_X_plus_Y( w_in_wth, self%w_in_wth ), &
+                 inc_X_plus_Y( v_in_w3, self%v_in_w3 ),   &
+                 inc_X_plus_Y( u_in_w3, self%u_in_w3 ),   &
+                 setval_c( self%w_in_wth, 0.0_r_def ),    &
+                 setval_c( self%v_in_w3, 0.0_r_def ),     &
+                 setval_c( self%u_in_w3, 0.0_r_def ) )
+
+  end subroutine adj_scalar_to_vector
+
+  !> @brief Incrementally transform LFRic prognostic wind variables to JEDI analysis wind variables.
+  !> @param[in] fields Field collection containing wind fields.
+  subroutine vector_to_scalar( self, fields )
+
+    use interpolation_alg_mod, only: interp_w2_to_w3wth_alg
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+    type(field_collection_type),            intent(in)    :: fields
+
+    type(field_type), pointer :: u_in_w3
+    type(field_type), pointer :: v_in_w3
+    type(field_type), pointer :: w_in_wth
+    type(field_type), pointer :: u_in_w2
+
+    call fields%get_field( 'u_in_w3', u_in_w3 )
+    call fields%get_field( 'v_in_w3', v_in_w3 )
+    call fields%get_field( 'w_in_wth', w_in_wth )
+    call fields%get_field( 'u', u_in_w2 )
+
+    call invoke(inc_X_minus_Y( self%u_in_w2, u_in_w2 ))
+
+    call interp_w2_to_w3wth_alg( self%u_in_w2, &
+                                 self%u_in_w3, &
+                                 self%v_in_w3, &
+                                 self%w_in_wth )
+
+    call invoke( inc_X_minus_Y( u_in_w3, self%u_in_w3 ), &
+                 inc_X_minus_Y( v_in_w3, self%v_in_w3 ), &
+                 inc_X_minus_Y( w_in_wth, self%w_in_wth ) )
+
+  end subroutine vector_to_scalar
+
+  !> @brief (Adjoint of) incrementally transform LFRic prognostic wind variables to JEDI analysis wind variables.
+  !> @param[in] fields Field collection containing wind fields.
+  subroutine adj_vector_to_scalar( self, fields )
+
+    use adj_interpolation_alg_mod, only: adj_interp_w2_to_w3wth_alg
+
+    implicit none
+
+    class(incremental_wind_transform_type), intent(inout) :: self
+    type(field_collection_type),            intent(in)    :: fields
+
+    type(field_type), pointer :: u_in_w3
+    type(field_type), pointer :: v_in_w3
+    type(field_type), pointer :: w_in_wth
+    type(field_type), pointer :: u_in_w2
+
+    call fields%get_field( 'u_in_w3', u_in_w3 )
+    call fields%get_field( 'v_in_w3', v_in_w3 )
+    call fields%get_field( 'w_in_wth', w_in_wth )
+    call fields%get_field( 'u', u_in_w2 )
+
+    call invoke( inc_X_minus_Y( self%w_in_wth, w_in_wth ), &
+                 inc_X_minus_Y( self%v_in_w3, v_in_w3 ),   &
+                 inc_X_minus_Y( self%u_in_w3, u_in_w3 ) )
+
+    call adj_interp_w2_to_w3wth_alg( self%u_in_w2, &
+                                     self%u_in_w3, &
+                                     self%v_in_w3, &
+                                     self%w_in_wth )
+
+    call invoke( setval_c( self%w_in_wth, 0.0_r_def ), &
+                 setval_c( self%v_in_w3, 0.0_r_def ),  &
+                 setval_c( self%u_in_w3, 0.0_r_def ),  &
+                 inc_X_minus_Y( u_in_w2, self%u_in_w2 ) )
+
+  end subroutine adj_vector_to_scalar
+
+  !> @brief Deallocate extra fields needed for incremental transformation.
+  subroutine finalise(self)
+
+    implicit none
+
+    type(incremental_wind_transform_type), intent(inout) :: self
+
+    deallocate(self%u_in_w3)
+    deallocate(self%v_in_w3)
+    deallocate(self%w_in_wth)
+    deallocate(self%u_in_w2)
+
+  end subroutine finalise
+
+end module incremental_wind_transform_mod

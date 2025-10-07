@@ -17,7 +17,7 @@
 !---------------------------------------------------------------------
 module excf_nl_9c_mod
 
-use um_types, only: real_eps, r_bl, real_64
+use um_types, only: rbl_eps, r_bl, real_64
 
 implicit none
 
@@ -961,7 +961,7 @@ do j = pdims%j_start, pdims%j_end
           !-----------------------------------------------------------
       if ( db_top(i,j)  >   zero) then
         dz_inv  = min( v_sum(i,j)*v_sum(i,j) / db_top(i,j) ,100.0_r_bl )
-        l_rad   = 15.0_r_bl * max( one, 200.0_r_bl/(zc(i,j)+1.0e-14_r_bl) )
+        l_rad   = 15.0_r_bl * max( one, 200.0_r_bl/(zc(i,j)+rbl_eps) )
         alpha_t = one - exp(-one_half*dz_inv/l_rad)
            ! Make enhancement due to buoyancy reversal feedback
         alpha_t = alpha_t + br_fback(i,j)*(one-alpha_t)
@@ -980,7 +980,7 @@ do j = pdims%j_start, pdims%j_end
 
         rhokh_ent = rho_we_sml(i,j)/ rdz(i,j,k)
 
-        frac_top = v_top(i,j) / ( v_top(i,j)+w_h_top(i,j)+1.0e-14_r_bl )
+        frac_top = v_top(i,j) / ( v_top(i,j)+w_h_top(i,j)+rbl_eps )
         if ( l_use_sml_dsc_fixes ) then
           ! If bug-fix is on, leave surface-driven entrainment flux set to
           ! zero in cumulus layers if we are using the buoyancy-flux
@@ -1253,7 +1253,7 @@ do j = pdims%j_start, pdims%j_end
           ! found the correct BL top in this case but this test is
           ! kept to keep negative buoyancy fluxes under control
           ! (ie. DEC_THRES_CLEAR=1 ensures wbn_int < |wbp_int|)
-        if (abs(zc(i,j)) < real_eps) dec_thres(i,j) = dec_thres_clear
+        if (abs(zc(i,j)) < rbl_eps) dec_thres(i,j) = dec_thres_clear
           ! ---------------------------------------------------------
         test_well_mixed(i,j) = .true.
         z_inv(i,j)  = zh(i,j)
@@ -1500,10 +1500,10 @@ do j = pdims%j_start, pdims%j_end
       end if
       wb_surf_int(i,j) = bflux_surf(i,j) * z_tq(i,j,ksurf(i,j)) *              &
                     ( one - z_tq(i,j,ksurf(i,j))/(2.0_r_bl*zwb0(i,j)))
-      wb_surf_int(i,j) = max( 1.0e-14_r_bl, wb_surf_int(i,j) )
+      wb_surf_int(i,j) = max( rbl_eps, wb_surf_int(i,j) )
     else
         ! only include surface layer contribution for unstable mixing
-      wb_surf_int(i,j) = 1.0e-14_r_bl
+      wb_surf_int(i,j) = rbl_eps
     end if
 
     wbp_int(i,j) = wbp_int(i,j) + wb_surf_int(i,j) ! must be >0
@@ -2028,7 +2028,7 @@ do n_sweep = 1, num_sweeps_bflux
            bflux_surf(i1,j1) * z_tq(i1,j1,ksurf(i1,j1)) *                      &
            ( one - z_tq(i1,j1,ksurf(i1,j1))/                                   &
                                       (2.0_r_bl*zsml_top(i1,j1)) )
-      wb_surf_int(i1,j1) = max(1.0e-14_r_bl,wb_surf_int(i1,j1))
+      wb_surf_int(i1,j1) = max(rbl_eps,wb_surf_int(i1,j1))
 
           ! Note: WB_DZRAD_INT not included as K_SURF restricted
           !       to below zi-dzrad
@@ -2380,7 +2380,7 @@ do j = pdims%j_start, pdims%j_end
 
     end if
 
-    wb_dzrad_int(i,j) = max( 1.0e-14_r_bl, wb_dzrad_int(i,j) )
+    wb_dzrad_int(i,j) = max( rbl_eps, wb_dzrad_int(i,j) )
 
   end do ! I
 end do ! J

@@ -78,6 +78,7 @@ integer, parameter :: real_jlslsm = real_umphys
 
 ! Smallest non-zero real
 real(kind=real_umphys), parameter :: real_eps = epsilon(0.0)
+real(kind=r_bl), parameter :: rbl_eps = epsilon(0.0_r_bl)
 
 ! Kind for use with OpenMP functions (from omp_lib).
 ! Equal to kind(0) if no OpenMP, else is equal to kind(openmp_version)

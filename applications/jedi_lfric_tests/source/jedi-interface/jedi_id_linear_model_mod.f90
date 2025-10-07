@@ -22,10 +22,13 @@
 module jedi_id_linear_model_mod
 
   use atl_si_timestep_alg_mod,       only : atl_si_timestep_type
-  use constants_mod,                 only : str_def, i_def
+  use base_wind_transform_mod,       only : base_wind_transform_type
+  use constants_mod,                 only : str_def, i_def, l_def
   use driver_time_mod,               only : init_time, final_time
   use field_collection_mod,          only : field_collection_type
   use driver_modeldb_mod,            only : modeldb_type
+  use incremental_wind_transform_mod, &
+                                     only : incremental_wind_transform_type
   use jedi_geometry_mod,             only : jedi_geometry_type
   use jedi_increment_mod,            only : jedi_increment_type
   use jedi_base_linear_model_mod,    only : jedi_base_linear_model_type
@@ -40,10 +43,7 @@ module jedi_id_linear_model_mod
                                             log_scratch_space, &
                                             LOG_LEVEL_ERROR
   use namelist_mod,                  only : namelist_type
-  use transform_winds_mod,           only : wind_scalar_to_vector,     &
-                                            wind_vector_to_scalar,     &
-                                            adj_wind_scalar_to_vector, &
-                                            adj_wind_vector_to_scalar
+  use normal_wind_transform_mod,     only : normal_wind_transform_type
   use jedi_lfric_moist_fields_mod,   only : update_ls_moist_fields,            &
                                             init_moist_fields,                 &
                                             adj_init_moist_fields,             &
@@ -74,6 +74,9 @@ type, public, extends(jedi_base_linear_model_type) :: jedi_id_linear_model_type
   !> (Only needed to initialise and finalise adjoint model)
   !> @todo: Will be incorporated into modeldb in #620
   type( atl_si_timestep_type )         :: atl_si_timestep
+
+  !> Object encapsulating transformation between JEDI analysis wind variables and LFRic prognostic wind variables
+  class(base_wind_transform_type), allocatable :: wind_transform
 
 contains
 
@@ -118,12 +121,14 @@ subroutine initialise( self, jedi_geometry, config_filename )
   character(len=*),                              intent(in) :: config_filename
 
   ! Local
-  type( namelist_type ), pointer :: jedi_lfric_settings_config
-  type( namelist_type ), pointer :: jedi_linear_model_config
-  character( str_def )           :: forecast_length_str
-  character( str_def )           :: nl_time_step_str
-  type( jedi_duration_type )     :: forecast_length
-  type( jedi_duration_type )     :: nl_time_step
+  type(field_collection_type), pointer :: prognostic_fields
+  type( namelist_type ),       pointer :: jedi_lfric_settings_config
+  type( namelist_type ),       pointer :: jedi_linear_model_config
+  character( str_def )                 :: forecast_length_str
+  character( str_def )                 :: nl_time_step_str
+  type( jedi_duration_type )           :: forecast_length
+  type( jedi_duration_type )           :: nl_time_step
+  logical(kind=l_def)                  :: incremental_wind_interpolation
 
   ! 1. Setup modeldb
 
@@ -137,6 +142,17 @@ subroutine initialise( self, jedi_geometry, config_filename )
   ! edge based W2 winds.
   call create_scalar_winds( self%modeldb, jedi_geometry%get_mesh() )
 
+  ! Set up extra fields for incremental wind interpolation, if required
+  prognostic_fields => self%modeldb%fields%get_field_collection("prognostic_fields")
+  jedi_linear_model_config => self%modeldb%configuration%get_namelist('jedi_linear_model')
+  call jedi_linear_model_config%get_value( 'incremental_wind_interpolation', incremental_wind_interpolation )
+  if (incremental_wind_interpolation) then
+    allocate (incremental_wind_transform_type :: self%wind_transform)
+  else
+    allocate (normal_wind_transform_type :: self%wind_transform)
+  end if
+  call self%wind_transform%initialise(prognostic_fields)
+
   ! 2. Setup time
   self%time_step = get_configuration_timestep( self%modeldb%configuration )
 
@@ -145,7 +161,6 @@ subroutine initialise( self, jedi_geometry, config_filename )
   call forecast_length%init(forecast_length_str)
 
   ! 3. Setup trajactory
-  jedi_linear_model_config => self%modeldb%configuration%get_namelist('jedi_linear_model')
   call jedi_linear_model_config%get_value( 'nl_time_step', nl_time_step_str )
   call nl_time_step%init(nl_time_step_str)
 
@@ -207,7 +222,7 @@ subroutine model_initTL(self, increment)
   call increment%get_to_field_collection( variable_names, prognostic_fields )
 
   ! Cell-centred winds to Edge based winds
-  call wind_scalar_to_vector( prognostic_fields )
+  call self%wind_transform%scalar_to_vector(prognostic_fields)
 
   ! Update the missing mixing ratio and moist_dynamics fields. These fields are
   ! computed analytically as outlined in jedi_lfric_linear_fields_mod
@@ -246,14 +261,16 @@ subroutine model_stepTL(self, increment)
   moisture_fields => self%modeldb%fields%get_field_collection("moisture_fields")
   call update_ls_moist_fields( ls_fields, moisture_fields )
 
+  ! Copy pre-step vector winds if doing incremental wind interpolation
+  prognostic_fields => self%modeldb%fields%get_field_collection("prognostic_fields")
+  call self%wind_transform%process(prognostic_fields)
+
   ! 2. Step the linear model
   call identity_step_tl( self%modeldb )
 
   ! 3. Update the Atlas fields from the LFRic prognostic fields
-  prognostic_fields => self%modeldb%fields%get_field_collection("prognostic_fields")
-
   ! Interpolate W2 vector to W3/Wtheta scalar winds
-  call wind_vector_to_scalar( prognostic_fields )
+  call self%wind_transform%vector_to_scalar(prognostic_fields)
 
   call copy_moist_fields_to_prognostic( moisture_fields, prognostic_fields )
 
@@ -302,6 +319,7 @@ subroutine model_initAD(self, increment)
   call zero_field_collection(prognostic_fields)
   moisture_fields => self%modeldb%fields%get_field_collection("moisture_fields")
   call zero_moist_fields(moisture_fields)
+  call self%wind_transform%initialise_for_adjoint()
 
   !>@todo: in ticket #267
   !>       Replace clock with reversible clock
@@ -348,10 +366,13 @@ subroutine model_stepAD(self, increment)
   call copy_moist_fields_from_prognostic( moisture_fields, prognostic_fields )
 
   ! Adjoint of ... Interpolate W2 vector to W3/Wtheta scalar winds
-  call adj_wind_vector_to_scalar( prognostic_fields )
+  call self%wind_transform%adj_vector_to_scalar(prognostic_fields)
 
   !>@todo: in ticket #267
   !> add identity_step_ad when reversable clock is available
+
+  ! Do adjoint of copy of vector winds if doing incremental wind interpolation
+  call self%wind_transform%adj_process(prognostic_fields)
 
 end subroutine model_stepAD
 
@@ -376,7 +397,7 @@ subroutine model_finalAD(self, increment)
   call copy_moist_fields_to_prognostic( moisture_fields, prognostic_fields )
 
   ! Cell-centred winds to Edge based winds
-  call adj_wind_scalar_to_vector( prognostic_fields )
+  call self%wind_transform%adj_scalar_to_vector( prognostic_fields )
 
   ! Get Atlas field emulators to the model_prognostics
   call increment%get_to_field_collection_ad( variable_names, prognostic_fields )

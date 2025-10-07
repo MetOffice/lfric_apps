@@ -25,6 +25,7 @@ variables='theta','rho','exner','u_in_w3','v_in_w3','w_in_wth','m_v',
 'm_cl','m_r','m_s',
 /
 &jedi_linear_model
+incremental_wind_interpolation=.true.,
 nl_time_step='P0DT1H0M0S',
 /
 &jedi_pseudo_model

@@ -15,7 +15,7 @@
 !---------------------------------------------------------------------
 module kmkhz_9c_mod
 
-use um_types, only: real_eps, r_bl
+use um_types, only: rbl_eps, r_bl
 
 implicit none
 
@@ -892,7 +892,7 @@ real(kind=r_bl) ::                                                             &
 real(kind=r_bl) :: rht_k, rht_kp1, rht_kp2
 real(kind=r_bl) :: rht_max ( pdims%i_start:pdims%i_end,                        &
                              pdims%j_start:pdims%j_end )
-real(kind=r_bl) :: interp
+real(kind=r_bl) :: interp, denom
 
 integer ::                                                                     &
  i,                                                                            &
@@ -2237,7 +2237,7 @@ do j = pdims%j_start, pdims%j_end
             dz_disc = dz_disc_min
           else if ( quad_bm*quad_bm  >=  4.0_r_bl*quad_a*quad_c ) then
                 ! solve equation for DZ_DISC...
-            if ( abs(quad_a)  >=  real_eps ) then
+            if ( abs(quad_a)  >=  rbl_eps ) then
                   !   ...quadratic if QUAD_A /= 0
               dz_disc = ( quad_bm - sqrt( quad_bm*quad_bm                      &
                                        - 4.0_r_bl*quad_a*quad_c )              &
@@ -2417,7 +2417,7 @@ do j = pdims%j_start, pdims%j_end
               dz_disc = dz_disc_min
             else if ( quad_bm*quad_bm  >=  4.0_r_bl*quad_a*quad_c ) then
                 ! solve equation for DZ_DISC...
-              if ( abs(quad_a) >= real_eps ) then
+              if ( abs(quad_a) >= rbl_eps ) then
                   !   ...quadratic if QUAD_A ne 0
                 dz_disc = ( quad_bm - sqrt( quad_bm*quad_bm                    &
                                          - 4.0_r_bl*quad_a*quad_c )            &
@@ -3215,9 +3215,9 @@ do j = pdims%j_start, pdims%j_end
         if ( l_check_ntp1 .and. cf(i,j,km+1) > cf(i,j,kmax) ) kmax = km+1
 
         cfl_ml = cf_sml(i,j)*cfl(i,j,kmax)                                     &
-                               /(cfl(i,j,kmax)+cff(i,j,kmax)+1.0e-10_r_bl)
+                               /(cfl(i,j,kmax)+cff(i,j,kmax)+rbl_eps)
         cff_ml = cf_sml(i,j)*cff(i,j,kmax)                                     &
-                               /(cfl(i,j,kmax)+cff(i,j,kmax)+1.0e-10_r_bl)
+                               /(cfl(i,j,kmax)+cff(i,j,kmax)+rbl_eps)
 
         if (cfl_ml > 0.01_r_bl) qcl_ic_top(i,j) = qcl(i,j,kmax)/cfl_ml         &
                          + ( zh(i,j)-z_tq(i,j,km) )*dqcldz(i,j,km)
@@ -3262,9 +3262,11 @@ do j = pdims%j_start, pdims%j_end
 
     db_top_cld(i,j) = g * ( btm_cld(i,j,km)*dsl                                &
                           + bqm_cld(i,j,km)*dqw )
-    chi_s_top(i,j) = -qcl_ic_top(i,j) /                                        &
-                        (a_qsm(i,j,km)*dqw - a_dqsdtm(i,j,km)*dsl)
-    chi_s_top(i,j) = max( zero, min( chi_s_top(i,j), one) )
+    denom = a_qsm(i,j,km)*dqw - a_dqsdtm(i,j,km)*dsl
+    if (abs(denom) > rbl_eps) then
+      chi_s_top(i,j) = -qcl_ic_top(i,j) / denom
+      chi_s_top(i,j) = max( zero, min( chi_s_top(i,j), one) )
+    end if
 
     if ( db_top(i,j)  <   0.003_r_bl ) then
         ! Diagnosed inversion statically unstable:
@@ -3306,9 +3308,9 @@ do j = pdims%j_start, pdims%j_end
           if ( l_check_ntp1 .and. cf(i,j,km+1) > cf(i,j,kmax) ) kmax = km+1
 
           cfl_ml = cf_dsc(i,j)*cfl(i,j,kmax)                                   &
-                                /(cfl(i,j,kmax)+cff(i,j,kmax)+1.0e-10_r_bl)
+                                /(cfl(i,j,kmax)+cff(i,j,kmax)+rbl_eps)
           cff_ml = cf_dsc(i,j)*cff(i,j,kmax)                                   &
-                                /(cfl(i,j,kmax)+cff(i,j,kmax)+1.0e-10_r_bl)
+                                /(cfl(i,j,kmax)+cff(i,j,kmax)+rbl_eps)
           if (cfl_ml > 0.01_r_bl) qcl_ic_top(i,j) = qcl(i,j,kmax)/cfl_ml       &
                         + ( zhsc(i,j)-z_tq(i,j,km) )*dqcldz(i,j,km)
           if (cff_ml > 0.01_r_bl) qcf_ic_top(i,j) = qcf(i,j,kmax)/cff_ml       &
@@ -3353,9 +3355,11 @@ do j = pdims%j_start, pdims%j_end
 
       db_dsct_cld(i,j) = g * ( btm_cld(i,j,km)*dsl                             &
                              + bqm_cld(i,j,km)*dqw )
-      chi_s_dsct(i,j) = -qcl_ic_top(i,j) /                                     &
-                           (a_qsm(i,j,km)*dqw - a_dqsdtm(i,j,km)*dsl)
-      chi_s_dsct(i,j) = max( zero, min( chi_s_dsct(i,j), one) )
+      denom = a_qsm(i,j,km)*dqw - a_dqsdtm(i,j,km)*dsl
+      if (abs(denom) > rbl_eps) then
+        chi_s_dsct(i,j) = -qcl_ic_top(i,j) / denom
+        chi_s_dsct(i,j) = max( zero, min( chi_s_dsct(i,j), one) )
+      end if
 
       if ( db_dsct(i,j) < 0.003_r_bl ) then
          ! Diagnosed inversion statically unstable:
@@ -3430,7 +3434,7 @@ do j = pdims%j_start, pdims%j_end
         !----------------------------
       db_top_cld(i,j) = -db_top_cld(i,j) * cld_factor(i,j)
       d_siems(i,j) = max( zero,                                                &
-           chi_s_top(i,j) * db_top_cld(i,j) / (db_top(i,j)+1.0e-14_r_bl) )
+           chi_s_top(i,j) * db_top_cld(i,j) / (db_top(i,j)+rbl_eps) )
         ! Linear feedback dependence for D<0.1
       br_fback(i,j)= min( one, 10.0_r_bl*d_siems(i,j) )
       zeta_r(i,j)  = zeta_r(i,j) + (one-zeta_r(i,j))*br_fback(i,j)
@@ -3459,14 +3463,14 @@ do j = pdims%j_start, pdims%j_end
           !----------------------------
         db_dsct_cld(i,j) = -db_dsct_cld(i,j) * cld_factor_dsc(i,j)
         d_siems_dsc(i,j) = max( zero, chi_s_dsct(i,j)                          &
-                        * db_dsct_cld(i,j) / (db_dsct(i,j)+1.0e-14_r_bl) )
+                        * db_dsct_cld(i,j) / (db_dsct(i,j)+rbl_eps) )
           ! Linear feedback dependence for D<0.1
         br_fback_dsc(i,j) = min( one, 10.0_r_bl*d_siems_dsc(i,j) )
 
         if ( entr_enhance_by_cu == Buoyrev_feedback                            &
              .and. cumulus(i,j)                                                &
              .and. d_siems_dsc(i,j) < 0.1_r_bl                                 &
-             .and. d_siems_dsc(i,j) > 1.0e-14_r_bl ) then
+             .and. d_siems_dsc(i,j) > rbl_eps ) then
             ! Assume mixing from cumulus can enhance the
             ! buoyancy reversal feedback in regime 0<D<0.1.
             ! Make enhancement dependent on Cu depth:
@@ -4159,7 +4163,7 @@ do j = pdims%j_start, pdims%j_end
       rhokh(i,j,k)     = max( rhokh(i,j,k), rhokh_surf_ent(i,j) )
 
       if (res_inv(i,j) == 1) then
-        Prandtl = min( rhokm(i,j,k)/(1.0e-10_r_bl+rhokh_surf_ent(i,j)),        &
+        Prandtl = min( rhokm(i,j,k)/(rbl_eps+rhokh_surf_ent(i,j)),             &
                        pr_max )
         if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
           ! need velocity scale for TKE diagnostic
@@ -4805,7 +4809,7 @@ do j = pdims%j_start, pdims%j_end
     if ( t_frac(i,j)  >   zero ) then
       w_s_ent = zero
       k = ntml(i,j)
-      if ( abs( dsl_sml(i,j) )  >=  real_eps ) w_s_ent =                       &
+      if ( abs( dsl_sml(i,j) )  >=  rbl_eps ) w_s_ent =                        &
           min( zero, -sls_inc(i,j,k) * dzl(i,j,k) /dsl_sml(i,j) )
         ! Only allow w_e to be reduced to zero!
       we_lim(i,j,2) = rho_mix(i,j,k+1) *                                       &
@@ -4819,7 +4823,7 @@ do j = pdims%j_start, pdims%j_end
     if ( t_frac_dsc(i,j)  >   zero ) then
       w_s_ent = zero
       k = ntdsc(i,j)
-      if ( abs( dsl_dsc(i,j) )  >= real_eps ) w_s_ent =                        &
+      if ( abs( dsl_dsc(i,j) )  >= rbl_eps ) w_s_ent =                         &
           min( zero, -sls_inc(i,j,k) * dzl(i,j,k) /dsl_dsc(i,j) )
         ! Only allow w_e to be reduced to zero!
       we_lim_dsc(i,j,2) = rho_mix(i,j,k) *                                     &
