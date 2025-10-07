@@ -1,7 +1,6 @@
 import yaml
 import tempfile
 import os
-import re
 from subprocess import run
 from shutil import rmtree
 
@@ -19,7 +18,7 @@ def get_dependencies_file(wc_loc):
         copy_command = f"scp -o StrictHostKeyChecking=no {host}:"
     except ValueError:
         path = os.path.join(wc_loc, "dependencies.yaml")
-        copy_command = f"cp "
+        copy_command = "cp "
     copy_command += f"{path} {tempdir}"
 
     result = run(
@@ -54,7 +53,7 @@ def read_sources(clone_source, repo, use_heads):
         if "parent" not in values:
             dependencies[dependency]["parent"] = f"MetOffice/{dependency}.git"
         if use_heads:
-            dependencies[dependency]["ref"] = "HEAD"
+            dependencies[dependency]["ref"] = ""
 
     rmtree(dependencies_file)
 
