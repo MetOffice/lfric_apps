@@ -128,6 +128,8 @@ MODULE invoke_adj_a_h_o_lookup_kernel_mod
     end do
     call vector_mx_proxy%halo_exchange(depth=stencil_extent)
 
+    !$omp parallel default(shared), private(cell)
+    !$omp do schedule(static)
     DO cell = loop0_start, loop0_stop, 1
       CALL adj_apply_helmholtz_op_lookup_code(nlayers_vector_mx, vector_mx_data, vector_amx_data, helmholtz_operator_1_data, &
 &helmholtz_operator_2_data, helmholtz_operator_3_data, helmholtz_operator_4_data, helmholtz_operator_5_data, &
@@ -135,6 +137,8 @@ MODULE invoke_adj_a_h_o_lookup_kernel_mod
 &set_counts_field_data, nindices, lam_mesh, ndf_w3, undf_w3, map_w3(:,cell), ndf_adspc1_lookup_field, undf_adspc1_lookup_field, &
 &map_adspc1_lookup_field(:,cell), ndf_adspc2_set_counts_field, undf_adspc2_set_counts_field, map_adspc2_set_counts_field(:,cell))
     END DO
+    !$omp end do
+    !$omp end parallel
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !

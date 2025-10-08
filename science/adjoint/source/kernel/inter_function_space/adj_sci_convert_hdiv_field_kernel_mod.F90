@@ -7,12 +7,43 @@
 !!        to invoke so the kernel metadata has been removed.
 module adj_sci_convert_hdiv_field_kernel_mod
 
-use constants_mod, only: i_def, r_def
+use kernel_mod,              only : kernel_type
+use argument_mod,            only : arg_type, func_type,       &
+                                    GH_FIELD, GH_REAL, GH_INC, &
+                                    GH_READ, ANY_SPACE_9,      &
+                                    ANY_SPACE_2, ANY_SPACE_1,  &
+                                    ANY_DISCONTINUOUS_SPACE_3, &
+                                    GH_DIFF_BASIS, GH_BASIS,   &
+                                    CELL_COLUMN, GH_EVALUATOR
+use constants_mod,           only : i_def, r_def
 
-!> NOTE: Kernel requires PSyKAl lite code to invoke. Kernel metadata removed.
+!> NOTE: Kernel requires PSyKAl lite code to invoke. Kernel metadata commented out.
+!>       Please see PSyclone issue #2798 for further information.
 implicit none
 
 private
+
+!-------------------------------------------------------------------------------
+! Public types
+!-------------------------------------------------------------------------------
+!> The type declaration for the kernel. Contains the metadata needed by the Psy layer
+!type, public, extends(kernel_type) :: adj_convert_hdiv_field_kernel_type
+!  private
+!  type(arg_type) :: meta_args(4) = (/                                    &
+!       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_1),              &
+!       arg_type(GH_FIELD,   GH_REAL, GH_INC,  ANY_SPACE_2),              &
+!       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),              &
+!       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+!       /)
+!  type(func_type) :: meta_funcs(2) = (/                                  &
+!       func_type(ANY_SPACE_2, GH_BASIS),                                 &
+!       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                   &
+!       /)
+!  integer :: operates_on = CELL_COLUMN
+!  integer :: gh_shape = GH_EVALUATOR
+!contains
+!  procedure, nopass :: adj_convert_hdiv_field_code
+!end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines

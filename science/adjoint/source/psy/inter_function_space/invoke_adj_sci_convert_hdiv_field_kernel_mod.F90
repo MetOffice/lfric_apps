@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> Psy-lite code for `convert_hdiv_field_kernel`.
+!> Psy-lite code for `adj_convert_hdiv_field_kernel`.
 !> Required due to a mismatch in what the kernel is expecting for the BASIS argument,
 !> versus what PSyclone provides, requiring manual intervention.
 !> Please see PSyclone issue #2798 for further information.
@@ -27,6 +27,8 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
       type(field_type), intent(in) :: panel_id
 
       integer(kind=i_def)           :: cell
+      integer(kind=i_def)           :: colour
+      integer(kind=i_def)           :: loop1_start
       integer(kind=i_def)           :: loop0_start, loop0_stop
       integer(kind=i_def)           :: df_aspc2_computational_field, df_aspc9_chi, df_nodal
       real(kind=r_def), allocatable :: basis_aspc2_computational_field_on_aspc1_physical_field3(:,:,:), &
@@ -65,6 +67,9 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
                                                  undf_aspc9_chi, &
                                                  ndf_adspc3_panel_id, &
                                                  undf_adspc3_panel_id
+      integer(kind=i_def), allocatable        :: last_halo_cell_all_colours(:,:)
+      integer(kind=i_def)                     :: ncolour
+      integer(kind=i_def), pointer            :: cmap(:,:)
       integer(kind=i_def)                     :: max_halo_depth_mesh
       type(mesh_type), pointer                :: mesh => null()
 
@@ -96,6 +101,11 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
       !
       mesh => physical_field3_proxy(1)%vspace%get_mesh()
       max_halo_depth_mesh = mesh%get_halo_depth()
+      !
+      ! Get the colourmap
+      !
+      ncolour = mesh%get_ncolours()
+      cmap => mesh%get_colour_map()
       !
       ! Look-up dofmaps for each function space
       !
@@ -163,10 +173,15 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
         end do
       end do
       !
+      ! Initialise mesh properties
+      !
+      last_halo_cell_all_colours = mesh%get_last_halo_cell_all_colours()
+      !
       ! Set-up all of the loop bounds
       !
       loop0_start = 1
-      loop0_stop = mesh%get_last_halo_cell(1)
+      loop0_stop = ncolour
+      loop1_start = 1
       !
       ! Call kernels and communication routines
       !
@@ -191,32 +206,37 @@ module invoke_adj_cvt_hdiv_field_kernel_mod
       if (panel_id_proxy%is_dirty(depth=1)) then
         call panel_id_proxy%halo_exchange(depth=1)
       end if
-
-      do cell=loop0_start,loop0_stop
-        call adj_convert_hdiv_field_code(nlayers, &
-                                         physical_field3_1_data, &
-                                         physical_field3_2_data, &
-                                         physical_field3_3_data, &
-                                         computational_field_data, &
-                                         chi_1_data, &
-                                         chi_2_data, &
-                                         chi_3_data, &
-                                         panel_id_data, &
-                                         ndf_aspc1_physical_field3, &
-                                         undf_aspc1_physical_field3, &
-                                         map_aspc1_physical_field3(:,cell), &
-                                         ndf_aspc2_computational_field, &
-                                         undf_aspc2_computational_field, &
-                                         map_aspc2_computational_field(:,cell), &
+      do colour = loop0_start, loop0_stop, 1
+        !$omp parallel default(shared), private(cell)
+        !$omp do schedule(static)
+        do cell = loop1_start, last_halo_cell_all_colours(colour,1), 1
+        call adj_convert_hdiv_field_code(nlayers,                                                  &
+                                         physical_field3_1_data,                                   &
+                                         physical_field3_2_data,                                   &
+                                         physical_field3_3_data,                                   &
+                                         computational_field_data,                                 &
+                                         chi_1_data,                                               &
+                                         chi_2_data,                                               &
+                                         chi_3_data,                                               &
+                                         panel_id_data,                                            &
+                                         ndf_aspc1_physical_field3,                                &
+                                         undf_aspc1_physical_field3,                               &
+                                         map_aspc1_physical_field3(:,cmap(colour,cell)),           &
+                                         ndf_aspc2_computational_field,                            &
+                                         undf_aspc2_computational_field,                           &
+                                         map_aspc2_computational_field(:,cmap(colour,cell)),       &
                                          basis_aspc2_computational_field_on_aspc1_physical_field3, &
-                                         ndf_aspc9_chi, &
-                                         undf_aspc9_chi, &
-                                         map_aspc9_chi(:,cell), &
-                                         basis_aspc9_chi_on_aspc1_physical_field3, &
-                                         diff_basis_aspc9_chi_on_aspc1_physical_field3, &
-                                         ndf_adspc3_panel_id, &
-                                         undf_adspc3_panel_id, &
-                                         map_adspc3_panel_id(:,cell))
+                                         ndf_aspc9_chi,                                            &
+                                         undf_aspc9_chi,                                           &
+                                         map_aspc9_chi(:,cmap(colour,cell)),                       &
+                                         basis_aspc9_chi_on_aspc1_physical_field3,                 &
+                                         diff_basis_aspc9_chi_on_aspc1_physical_field3,            &
+                                         ndf_adspc3_panel_id,                                      &
+                                         undf_adspc3_panel_id,                                     &
+                                         map_adspc3_panel_id(:,cmap(colour,cell)))
+        end do
+        !$omp end do
+        !$omp end parallel
       end do
       !
       ! Set halos dirty/clean for fields modified in the above loop

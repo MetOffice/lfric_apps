@@ -126,8 +126,8 @@ MODULE invoke_adj_poly2d_recon_lookup_mod
       call coeff_proxy%halo_exchange(depth=stencil_extent)
     end if
 
-    !omp parallel default(shared), private(cell)
-    !omp do schedule(static)
+    !$omp parallel default(shared), private(cell)
+    !$omp do schedule(static)
     DO cell = loop0_start, loop0_stop, 1
       CALL adj_poly2d_recon_lookup_code(nlayers_reconstruction, reconstruction_data, tracer_data, lookup_poly2d_field_data, &
 &set_count_poly2d_field_data, coeff_data, nsets, nindices, ndf_adspc1_reconstruction, undf_adspc1_reconstruction, &
@@ -136,8 +136,8 @@ MODULE invoke_adj_poly2d_recon_lookup_mod
 &ndf_adspc4_set_count_poly2d_field, undf_adspc4_set_count_poly2d_field, map_adspc4_set_count_poly2d_field(:,cell), &
 &ndf_adspc5_coeff, undf_adspc5_coeff, map_adspc5_coeff(:,cell))
     END DO
-    !omp end do
-    !omp end parallel
+    !$omp end do
+    !$omp end parallel
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !
