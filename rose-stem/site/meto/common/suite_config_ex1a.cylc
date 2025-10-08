@@ -174,7 +174,7 @@
         pre-script = """
                      module load nccmp/1.9.1.0
                      module load scitools/production-os47-1
-                     module load um_tools/2023.08.1/openmp
+                     module load um_tools/2025.10.1/openmp
                      export ROSE_PYTHONPATH="$PYTHONPATH"
                      module list 2>&1
                      """

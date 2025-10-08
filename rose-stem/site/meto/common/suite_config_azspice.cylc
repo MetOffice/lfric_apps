@@ -109,7 +109,7 @@
                      module load mpich/4.2.3
                      module load esmf/8.7.0
                      module load scitools/production-os46-3
-                     module load um_tools/2023.08.1/openmp
+                     module load um_tools/2025.10.1/openmp
                      module list 2>&1
                      """
 
@@ -118,7 +118,7 @@
         pre-script = """
                      module purge
                      module load scitools/production-os47-1
-                     module load um_tools/2023.08.1/openmp
+                     module load um_tools/2025.10.1/openmp
                      module load csc/2025.3.20
                      module load gcc/12.2.0
                      module load mpich/4.2.3
