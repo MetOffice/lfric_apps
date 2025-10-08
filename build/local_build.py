@@ -16,6 +16,7 @@ import os
 import sys
 import subprocess
 import argparse
+import yaml
 
 
 def subprocess_run(command):
@@ -55,21 +56,9 @@ def determine_core_source(root_dir):
 
     # Read through the dependencies file and populate revision and source
     # variables for requested repo
-    with open(os.path.join(root_dir, "dependencies.sh"), "r") as dep_file:
-        for line in dep_file:
-            line = line.strip()
-            if line.startswith("export lfric_core_rev"):
-                rev = line.split("=")[1].strip()
-            if line.startswith("export lfric_core_sources"):
-                source = line.split("=")[1].strip()
-        # If source not set then default to trunk
-        if not source:
-            source = "fcm:lfric.xm_tr"
-        # If a revision set then append to source
-        # Defaults to the head of the source
-        if rev:
-            source = f"{source}@{rev}"
-    return source
+    with open(os.path.join(root_dir, "dependencies.yaml"), "r") as stream:
+        dependencies = yaml.safe_load(stream)
+    return dependencies["lfric_core"]
 
 
 def determine_application_path(application, root_dir):
@@ -95,20 +84,23 @@ def determine_application_path(application, root_dir):
 
 def get_lfric_core(core_source, working_dir):
     """
-    Export the lfric_core source if the source is an fcm url
+    Clone the lfric_core source if the source is a git url
     rsync this export into the working dir as the lfric_core source - done so
     incremental builds can still be used.
     If core_source is a local working copy just rsync from there.
     """
 
-    if core_source.startswith("fcm:"):
-        print(f"Exporting lfric_core source from {core_source}")
+    if core_source["source"].endswith(".git"):
+        print("Cloning LFRic Core from Github")
         lfric_core_loc = f"{working_dir}/scratch/core"
-        export_command = f"fcm export --force -q {core_source} {lfric_core_loc}"
-        subprocess_run(export_command)
+        clone_command = f"git clone {core_source["source"]} {lfric_core_loc}"
+        subprocess_run(clone_command)
+        print(f"Checking out the lfric_core ref {core_source["ref"]}")
+        co_command = f"git -C {lfric_core_loc} checkout {core_source["ref"]}"
+        subprocess_run(co_command)
         print("rsyncing the exported lfric_core source")
     else:
-        lfric_core_loc = core_source
+        lfric_core_loc = core_source["source"]
         print("rsyncing the local lfric_core source")
 
     rsync_command = f"rsync -acvzq {lfric_core_loc}/ {working_dir}/lfric_core"
@@ -150,7 +142,7 @@ def build_makefile(
     if um_fcm_platform:
         make_command += f"UM_FCM_TARGET_PLATFORM={um_fcm_platform} "
     if verbose:
-        make_command += f"VERBOSE=1 "
+        make_command += "VERBOSE=1 "
 
     subprocess_run(make_command)
 
@@ -164,18 +156,15 @@ def main():
         description="Wrapper for build makefiles for lfric_apps."
     )
     parser.add_argument(
+        "application",
+        help="Application to build. Will search in both "
+        "science and applications dirs.",
+    )
+    parser.add_argument(
         "-c",
         "--core_source",
         default=None,
-        help="Source for lfric_core. Defaults to looking in "
-        "dependencies file.",
-    )
-    parser.add_argument(
-        "-a",
-        "--application",
-        required=True,
-        help="Application to build. Will search in both "
-        "science and applications dirs.",
+        help="Source for lfric_core. Defaults to looking in " "dependencies file.",
     )
     parser.add_argument(
         "-w",
@@ -194,8 +183,7 @@ def main():
         "-t",
         "--target",
         default="build",
-        help="The makefile target, eg. unit-tests, clean, etc. Default "
-        "of build.",
+        help="The makefile target, eg. unit-tests, clean, etc. Default " "of build.",
     )
     parser.add_argument(
         "-o",
@@ -222,7 +210,7 @@ def main():
     parser.add_argument(
         "-v",
         "--verbose",
-        action='store_true',
+        action="store_true",
         help="Request verbose output from the makefile ",
     )
     args = parser.parse_args()
