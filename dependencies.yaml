@@ -14,7 +14,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: 3c392bb51c25e62fd8370b73dabed51937c1d0a3
+    ref: 9e254cad09a728c4364580372b75f87520321cf2
 
 SimSys_Scripts:
     source: git@github.com:james-bruten-mo/SimSys_Scripts.git
