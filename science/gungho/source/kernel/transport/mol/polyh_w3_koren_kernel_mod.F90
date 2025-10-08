@@ -22,7 +22,7 @@ use argument_mod,      only : arg_type, func_type,         &
                               CELL_COLUMN, GH_EVALUATOR,   &
                               ANY_DISCONTINUOUS_SPACE_1
 use fs_continuity_mod, only : W3
-use constants_mod,     only : i_def, l_def, tiny_eps, r_tran
+use constants_mod,     only : i_def, l_def, SMALL_R_TRAN, r_tran
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -116,7 +116,7 @@ subroutine polyh_w3_koren_code( nlayers,              &
       do k = 0, nlayers - 1
         x = tracer(stencil_map(1,point(2,df))+k) - tracer(stencil_map(1,point(1,df))+k)
         y = tracer(stencil_map(1,point(3,df))+k) - tracer(stencil_map(1,point(2,df))+k)
-        r = (y + tiny_eps)/(x + tiny_eps)
+        r = (y + SMALL_R_TRAN)/(x + SMALL_R_TRAN)
         r1 = 2.0_r_tran*r
         r2 = ( 1.0_r_tran + r1 )/ 3.0_r_tran
         phi = max (0.0_r_tran, min(r1,r2,2.0_r_tran))

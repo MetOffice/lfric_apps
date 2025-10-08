@@ -22,7 +22,7 @@ use argument_mod,      only : arg_type, func_type,         &
                               ANY_DISCONTINUOUS_SPACE_1,   &
                               GH_READ, CELL_COLUMN
 use fs_continuity_mod, only : W3, Wtheta
-use constants_mod,     only : i_def, l_def, tiny_eps, EPS_R_TRAN, r_tran, r_def
+use constants_mod,     only : i_def, l_def, SMALL_R_TRAN, EPS_R_TRAN, r_tran, r_def
 use kernel_mod,        only : kernel_type
 use koren_support_mod, only:  interpolate_to_regular_grid
 
@@ -184,7 +184,7 @@ subroutine polyv_w3_koren_code( nlayers,                           &
                                        t1,t2,t3)
       x = t2 - t1
       y = t3 - t2
-      r = (y + tiny_eps)/(x + tiny_eps)
+      r = (y + SMALL_R_TRAN)/(x + SMALL_R_TRAN)
       r1 = 2.0_r_tran*r
       r2 = (1.0_r_tran + r1)/3.0_r_tran
       phi = max(0.0_r_tran, min(r1,r2,2.0_r_tran))
@@ -196,7 +196,7 @@ subroutine polyv_w3_koren_code( nlayers,                           &
 
       x = t2 - t3
       y = t1 - t2
-      r = (y + tiny_eps)/(x + tiny_eps)
+      r = (y + SMALL_R_TRAN)/(x + SMALL_R_TRAN)
       r1 = 2.0_r_tran*r
       r2 = (1.0_r_tran + r1)/3.0_r_tran
       phi = max(0.0_r_tran, min(r1,r2,2.0_r_tran))

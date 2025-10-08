@@ -63,7 +63,8 @@ contains
 
     real(r_def), parameter :: planet_radius = 637100.0_r_def
     real(r_def), parameter :: scaling_factor = 2.0_r_def
-    real(r_def), parameter :: scaled_radius = scaling_factor * planet_radius
+    real(r_def), parameter :: scaled_radius = planet_radius / scaling_factor
+    real(r_def), parameter :: tolerance = 1.0e-5_r_def
 
     allocate( unit_under_test, source=create_extrusion(                    &
                                            method = method_geometric,      &
@@ -73,8 +74,8 @@ contains
                                            scaled_radius = scaled_radius ) )
 
     @assertEqual( 'geometric',    trim( identify_extrusion( unit_under_test ) ) )
-    @assertEqual( scaled_radius,  unit_under_test%get_atmosphere_bottom() )
-    @assertEqual( 600000.0_r_def, unit_under_test%get_atmosphere_top() )
+    @assertEqual( 318550.0_r_def, unit_under_test%get_atmosphere_bottom(), tolerance )
+    @assertEqual( 600000.0_r_def, unit_under_test%get_atmosphere_top(), tolerance )
     @assertEqual( 7_i_def,        unit_under_test%get_number_of_layers() )
 
     deallocate( unit_under_test )

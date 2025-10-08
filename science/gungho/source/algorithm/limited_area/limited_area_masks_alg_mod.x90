@@ -19,7 +19,8 @@ module limited_area_masks_alg_mod
   use log_mod,                            only: log_event,         &
                                                 log_scratch_space, &
                                                 LOG_LEVEL_ERROR,   &
-                                                LOG_LEVEL_INFO
+                                                LOG_LEVEL_INFO,    &
+                                                LOG_LEVEL_WARNING
   use function_space_mod,                 only: function_space_type
   use mesh_mod,                           only: mesh_type
   use create_edge_mask_kernel_mod,        only: create_edge_mask_kernel_type
@@ -69,17 +70,17 @@ contains
                                          rim_width_ns, rim_width_ew,   &
                                          normal_only
     use extrusion_config_mod,      only: number_of_layers
+    use finite_element_config_mod, only: element_order_h, element_order_v
 
     implicit none
 
     type(field_type), intent(in) :: mask
     real(r_def)                  :: actual_sum
-    real(r_def)                  :: expected_sum
-    real(r_def)                  :: total_edges
+    integer(i_def)               :: expected_sum
+    integer(i_def)               :: total_edges
     real(r_def), parameter       :: tol = 1.0e-8_r_def
 
-    if ( mask%get_element_order_h() > 0 .or. &
-         mask%get_element_order_v() > 0 ) then
+    if ( element_order_h /= 0 .or. element_order_v /= 0 ) then
     ! Although we are able to create the masks for higher order, this check
     ! only works for zero order. Therefore, this check needs to be modified to
     ! work for higher order finite elements.
@@ -110,16 +111,16 @@ contains
     ! This gives the total sum as 96*10 + (96-4)*10 + (96-4)*11
     ! = 96*10 + (96-4)*(2*10 +1 )
 
-    total_edges = 0.0_r_def
+    total_edges = 0
 
     ! Count cell edges on North and South boundaries
     if ( rim_width_ns >= 0 ) then
-      total_edges = total_edges + 2.0_r_def * ( edge_cells_ew &
+      total_edges = total_edges + 2 * ( edge_cells_ew &
                                 - boundary_e - boundary_w )
     endif
     ! Count cell edges on East and West boundaries
     if ( rim_width_ew >= 0 ) then
-      total_edges = total_edges + 2.0_r_def * ( edge_cells_ns &
+      total_edges = total_edges + 2 * ( edge_cells_ns &
                                 - boundary_n - boundary_s )
     endif
 
@@ -135,8 +136,8 @@ contains
           ! Perpendicular
           ( total_edges * number_of_layers ) &
           ! Parallel ( minus 4 corners)
-          + ( total_edges - 4.0_r_def ) &
-          * ( 2.0_r_def * number_of_layers + 1.0_r_def )
+          + ( total_edges - 4 ) &
+          * ( 2 * number_of_layers + 1 )
       endif
     else
       ! 2 Dirichlet Boundaries and 2 Periodic Boundaries
@@ -150,13 +151,13 @@ contains
           ( total_edges * number_of_layers ) &
           ! Parallel
           + ( total_edges ) &
-          * ( 2.0_r_def * number_of_layers + 1.0_r_def )
+          * ( 2 * number_of_layers + 1 )
       endif
     endif
 
-    if ( abs( actual_sum - expected_sum ) > tol ) then
-      write(log_scratch_space, '(A,E16.8,A,E16.8)')                &
-         'Actual number of DOFS in W2 boundary mask ', actual_sum, &
+    if ( int(actual_sum,i_def) /= expected_sum ) then
+      write(log_scratch_space, '(A,I12,A,I12)')                               &
+         'Actual number of DOFS in W2 boundary mask ', int(actual_sum,i_def), &
          ' does not equal the expected value. ', expected_sum
       call log_event(log_scratch_space, LOG_LEVEL_ERROR )
     end if
