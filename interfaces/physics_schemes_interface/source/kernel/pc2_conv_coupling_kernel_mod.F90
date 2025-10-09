@@ -155,8 +155,6 @@ subroutine pc2_conv_coupling_code( nlayers, seg_len,                           &
     integer(i_um) :: i, k
     integer(i_um), parameter :: j = 1
 
-    logical, parameter :: l_pc2_prod_qcl_mp=.false.
-
     do i = 1, seg_len
       zeros(i,j)=0.0_r_um
     end do
@@ -255,7 +253,6 @@ subroutine pc2_conv_coupling_code( nlayers, seg_len,                           &
                         zeros,            & ! Dummy dqclin forcing LWC
                         p_forcing,        & ! dpdt   forcing pressure
                         cfl_forcing,      & ! dcflin forcing lid cloud frac
-                        zeros,            & ! Dummy dqcl_mp
                         ! Output variables
                         t_incr,           & ! Response to temperature
                         qv_incr,          & ! Response to water vapour
@@ -264,9 +261,7 @@ subroutine pc2_conv_coupling_code( nlayers, seg_len,                           &
                         cfl_incr,         & ! Response liquid cloud fraction
                         ! Input variables (other quantities)
                         dbsdtbs_turb_0,   & ! pc2mixingrate dbsdtbs_turb_0
-                        0.0_r_um,         & ! dbsdtbs1      dbsdtbs_turb_1
-                        ! Model switches
-                        l_pc2_prod_qcl_mp ) ! Logical turb production of LWC
+                        0.0_r_um          ) ! dbsdtbs1      dbsdtbs_turb_1
 
       ! Recast back to LFRic space
       do i = 1, seg_len

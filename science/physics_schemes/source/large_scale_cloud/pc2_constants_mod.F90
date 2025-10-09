@@ -9,7 +9,7 @@
   !   A description of what each switch or number refers to is provided
   !   with the namelist
   !
-  !   Any routine wishing to use these options may do so with the 'use'
+  !   Any routine wishing to use these options may do so with the 'USE'
   !   statement.
   !
   ! Code Owner: Please refer to the UM file CodeOwners.txt
@@ -69,6 +69,12 @@ integer, parameter :: pc2eros_exp_rh = 1
 integer, parameter :: pc2eros_hybrid_sidesonly = 3
 ! As pc2_erosion_hybrid_method_all_faces but surface area of
 ! exposed cloud is calculated considering the lateral sides only.
+
+! Erosion numerical method options
+! --------------------------------------------------------------------
+integer, parameter :: i_pc2_erosion_explicit = 1  ! Explicit forwards-in-time
+integer, parameter :: i_pc2_erosion_implicit = 2  ! Implicit wrt cloud-fraction
+integer, parameter :: i_pc2_erosion_analytic = 3  ! Analytical solution
 
 ! Options for PC2 initiation
 ! --------------------------------------------------------------------

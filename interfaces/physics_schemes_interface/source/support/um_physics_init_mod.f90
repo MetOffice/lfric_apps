@@ -99,6 +99,9 @@ module um_physics_init_mod
                                         falliceshear_method_constant,         &
                                         falliceshear_method_off,              &
                                         subgrid_qv, ice_width_in => ice_width,&
+                                    i_pc2_erosion_numerics_in                  &
+                                      => i_pc2_erosion_numerics,               &
+                                    dbsdtbs_turb_0_in => dbsdtbs_turb_0,       &
                                     ent_coef_bm_in => ent_coef_bm,             &
                                     ez_max,                                    &
                                     i_bm_ez_opt_in => i_bm_ez_opt,             &
@@ -110,6 +113,9 @@ module um_physics_init_mod
                                     two_d_fsd_factor_in => two_d_fsd_factor,   &
                                     pc2_init_logic, pc2_init_logic_original,   &
                                     pc2_init_logic_smooth,                     &
+                                    i_pc2_erosion_numerics_explicit,           &
+                                    i_pc2_erosion_numerics_implicit,           &
+                                    i_pc2_erosion_numerics_analytic,           &
                                     i_bm_ez_opt_orig, i_bm_ez_opt_subcrit,     &
                                     i_bm_ez_opt_entpar
 
@@ -345,7 +351,7 @@ contains
          i_pc2_checks_cld_frac_method, l_ensure_min_in_cloud_qcf,          &
          i_pc2_init_logic, dbsdtbs_turb_0,                                 &
          i_pc2_erosion_method, i_pc2_homog_g_method, i_pc2_init_method,    &
-         check_run_cloud, l_pc2_implicit_erosion,                          &
+         check_run_cloud, i_pc2_erosion_numerics,                          &
          cloud_pc2_tol, cloud_pc2_tol_2,                                   &
          forced_cu_fac, i_pc2_conv_coupling, allicetdegc, starticetkelvin, &
          ent_coef_bm, ez_max_bm, i_bm_ez_opt, l_bm_sigma_s_grad,           &
@@ -457,7 +463,9 @@ contains
          pc2eros_exp_rh,pc2eros_hybrid_sidesonly, ignore_shear,            &
          original_but_wrong, acf_cusack, cbl_and_cu, pc2init_smith,        &
          pc2init_logic_original, pc2init_bimodal, i_pc2_homog_g_cf,        &
-         forced_cu_cca, i_pc2_homog_g_width, pc2init_logic_smooth
+         forced_cu_cca, i_pc2_homog_g_width, pc2init_logic_smooth,         &
+         i_pc2_erosion_explicit, i_pc2_erosion_implicit,                   &
+         i_pc2_erosion_analytic
     use rad_input_mod, only: two_d_fsd_factor
     use science_fixes_mod, only:  i_fix_mphys_drop_settle, second_fix,      &
          l_pc2_homog_turb_q_neg, l_fix_ccb_cct, l_fix_conv_precip_evap,     &
@@ -1081,7 +1089,7 @@ contains
 
       case(scheme_pc2)
         i_cld_vn                     = i_cld_pc2
-        dbsdtbs_turb_0               = 1.50e-4_r_um
+        dbsdtbs_turb_0               = real( dbsdtbs_turb_0_in, r_um )
         if (cv_scheme == cv_scheme_comorph) then
           forced_cu = forced_cu_cca
           i_pc2_homog_g_method = i_pc2_homog_g_width
@@ -1105,7 +1113,14 @@ contains
         end select
         if (pc2ini == pc2ini_smith)   i_pc2_init_method = pc2init_smith
         if (pc2ini == pc2ini_bimodal) i_pc2_init_method = pc2init_bimodal
-        l_pc2_implicit_erosion       = .true.
+        select case(i_pc2_erosion_numerics_in)
+          case(i_pc2_erosion_numerics_explicit)
+            i_pc2_erosion_numerics = i_pc2_erosion_explicit
+          case(i_pc2_erosion_numerics_implicit)
+            i_pc2_erosion_numerics = i_pc2_erosion_implicit
+          case(i_pc2_erosion_numerics_analytic)
+            i_pc2_erosion_numerics = i_pc2_erosion_analytic
+        end select
 
       case(scheme_bimodal)
         i_cld_vn   = i_cld_bimodal

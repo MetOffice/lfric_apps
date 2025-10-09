@@ -57,6 +57,9 @@ integer :: i_pc2_conv_coupling = imdi  ! Integer option to determine how the
 integer :: i_pc2_erosion_method = imdi ! Select method for calculating
                                        ! PC2 cloud erosion.
 
+integer :: i_pc2_erosion_numerics = imdi  ! Select numerical method for time
+                                          ! integration of PC2 cloud erosion
+
 integer :: forced_cu = imdi            ! Select option for representing
                                        ! forced cumulus
 
@@ -161,12 +164,6 @@ logical :: l_pc2_homog_conv_pressure=.false.
                                  ! forcing method based on the convective
                                  ! environmental subsidence, consistent
                                  ! with the homogeneous forcing from advection.
-logical :: l_pc2_implicit_erosion=.false.
-                                 ! Switch to solve the PC2 erosion term
-                                 ! (which tends to be "fast") using an
-                                 ! implicit numerical method, to avoid
-                                 ! numerical overshoot and sensitivity to
-                                 ! timestep length.
 logical :: l_cloud_call_b4_conv=.false.
                                  ! Switch to perform an extra call to the
                                  ! large-scale cloud scheme before the
@@ -319,7 +316,8 @@ namelist/RUN_Cloud/ rhcrit, i_eacf, forced_cu, forced_cu_fac,                  &
        cloud_pc2_tol, cloud_pc2_tol_2,                                         &
        dbsdtbs_turb_0, falliceshear_method,                                    &
        l_ensure_min_in_cloud_qcf,                                              &
-       i_pc2_conv_coupling, i_pc2_erosion_method, l_micro_eros,                &
+       i_pc2_conv_coupling, i_pc2_erosion_method, i_pc2_erosion_numerics,      &
+       l_micro_eros,                                                           &
        starticeTKelvin, alliceTdegC, cff_spread_rate, ice_width,               &
        turb_var_fac_bm, ent_coef_bm, max_sigmas, min_sigx_ft,                  &
        i_cld_area, i_cld_vn, l_pc2_lbc, i_rhcpt,                               &
@@ -327,7 +325,7 @@ namelist/RUN_Cloud/ rhcrit, i_eacf, forced_cu, forced_cu_fac,                  &
        l_od_cld_filter, tau_thresh,                                            &
        l_ceil_cld_filter, l_sharpen_cbh_diags, l_pc2_check_init,               &
        l_subgrid_qv, l_pc2_sl_advection,                                       &
-       l_pc2_homog_conv_pressure, l_pc2_implicit_erosion,                      &
+       l_pc2_homog_conv_pressure,                                              &
        l_cloud_call_b4_conv, i_pc2_homog_g_method,                             &
        i_pc2_checks_cld_frac_method,                                           &
        ice_fraction_method, i_pc2_init_method,i_pc2_init_logic,                &
@@ -354,6 +352,7 @@ use pc2_constants_mod, only: acf_off, acf_cusack, acf_brooks,                  &
        i_cld_off, i_cld_smith, i_cld_bimodal,                                  &
        i_pc2_homog_g_cf, i_pc2_homog_g_width,                                  &
        pc2eros_exp_rh, pc2eros_hybrid_sidesonly,                               &
+       i_pc2_erosion_explicit, i_pc2_erosion_implicit, i_pc2_erosion_analytic, &
        pc2init_smith, pc2init_bimodal,                                         &
        pc2init_logic_original, pc2init_logic_simplified, pc2init_logic_smooth, &
        cbl_and_cu, forced_cu_cca
@@ -396,6 +395,10 @@ if ( i_cld_vn == i_cld_pc2) then
 
   call chk_var(i_pc2_erosion_method,'i_pc2_erosion_method',                    &
        [pc2eros_exp_rh, pc2eros_hybrid_sidesonly])
+
+  call chk_var(i_pc2_erosion_numerics,'i_pc2_erosion_numerics',                &
+       [i_pc2_erosion_explicit, i_pc2_erosion_implicit,                        &
+        i_pc2_erosion_analytic])
 
   call chk_var(i_pc2_init_method,'i_pc2_init_method',                          &
        [pc2init_smith, pc2init_bimodal])
@@ -509,6 +512,8 @@ write(lineBuffer,'(A,I0)')' i_pc2_conv_coupling = ',i_pc2_conv_coupling
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,I0)')' i_pc2_erosion_method = ',i_pc2_erosion_method
 call umPrint(lineBuffer,src='cloud_inputs_mod')
+write(lineBuffer,'(A,I0)')' i_pc2_erosion_numerics = ',i_pc2_erosion_numerics
+call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,L1)')' l_micro_eros = ',l_micro_eros
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,F0.4)')' starticeTKelvin = ',starticeTKelvin
@@ -553,9 +558,6 @@ write(lineBuffer,'(A,L1)')' l_pc2_sl_advection = ', l_pc2_sl_advection
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,L1)')' l_pc2_homog_conv_pressure = ',                     &
                             l_pc2_homog_conv_pressure
-call umPrint(lineBuffer,src='cloud_inputs_mod')
-write(lineBuffer,'(A,L1)')' l_pc2_implicit_erosion = ',                        &
-                            l_pc2_implicit_erosion
 call umPrint(lineBuffer,src='cloud_inputs_mod')
 write(lineBuffer,'(A,L1)')' l_cloud_call_b4_conv = ',  l_cloud_call_b4_conv
 call umPrint(lineBuffer,src='cloud_inputs_mod')

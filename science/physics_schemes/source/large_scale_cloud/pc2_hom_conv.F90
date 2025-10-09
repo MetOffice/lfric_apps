@@ -25,26 +25,23 @@ subroutine pc2_hom_conv(                                                       &
  t, q, qcl, cf, cfl, cff,                                                      &
 !      Forcing quantities for driving the homogeneous forcing
  dtin, dqin, dqclin, dpdt, dcflin,                                             &
-!      qcl produced by mixed-phase turbulent processes
- dqcl_mp,                                                                      &
 !      Output increments to the prognostic fields
  dtpc2, dqpc2, dqclpc2, dcfpc2, dcflpc2,                                       &
 !      Other quantities for the turbulence
- pc2mixingrate, dbsdtbs1, l_pc2_prod_qcl_mp)
+ pc2mixingrate, dbsdtbs1 )
 
 use water_constants_mod,   only: lc
 use planet_constants_mod,  only: lcrcp, r, repsilon
 use yomhook,               only: lhook, dr_hook
 use parkind1,              only: jprb, jpim
 use atm_fields_bounds_mod, only: pdims, tdims
-use cloud_inputs_mod,      only: i_pc2_erosion_method,                         &
-     l_fixbug_pc2_qcl_incr,l_fixbug_pc2_mixph, l_pc2_implicit_erosion,         &
-     i_pc2_homog_g_method
+use cloud_inputs_mod,      only: i_pc2_erosion_method, i_pc2_erosion_numerics, &
+     l_fixbug_pc2_qcl_incr,l_fixbug_pc2_mixph, i_pc2_homog_g_method
 use pc2_constants_mod,     only: pc2eros_exp_rh,                               &
      pc2eros_hybrid_sidesonly,                                                 &
+     i_pc2_erosion_explicit, i_pc2_erosion_implicit, i_pc2_erosion_analytic,   &
      pdf_power, pdf_merge_power, dbsdtbs_exp, cloud_rounding_tol,              &
      i_pc2_homog_g_cf, i_pc2_homog_g_width
-use mphys_inputs_mod,      only: l_casim
 use ereport_mod,           only: ereport
 use gen_phys_inputs_mod,   only: l_mr_physics
 use qsat_mod,              only: qsat_wat, qsat_wat_mix
@@ -134,12 +131,6 @@ real(kind=real_umphys), intent(in) ::                                          &
                   tdims%j_start:tdims%j_end)
 !       Increment in liquid cloud fraction (no units)
 
-real(kind=real_umphys), intent(in) ::                                          &
- dqcl_mp(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
-
-logical, intent(in) ::                                                         &
- l_pc2_prod_qcl_mp        ! Called to apply dqcl from mp calc
-
 ! Arguments with intent out. ie: output variables.
 
 real(kind=real_umphys), intent(out) ::                                         &
@@ -202,8 +193,21 @@ real(kind=real_umphys) ::                                                      &
    dcs
 !       Injected cloud fraction
 
+! Variables for analytical erosion method
+real(kind=real_umphys) :: qcl0    ! Liquid water after homog forcing
+real(kind=real_umphys) :: sde0    ! Saturation defecit after homog forcing
+real(kind=real_umphys) :: cfl0    ! Liquid fraction after homog forcing
+real(kind=real_umphys) :: cfc0    ! Clear fraction after homog forcing
+real(kind=real_umphys) :: sde1    ! Saturation defecit guess (Qc > 0)
+real(kind=real_umphys) :: cfc1    ! Clear fraction guess     (Qc > 0)
+real(kind=real_umphys) :: qcl2    ! Liquid water guess       (Qc < 0)
+real(kind=real_umphys) :: cfl2    ! Liquid fraction guess    (Qc < 0)
+real(kind=real_umphys) :: factor  ! Store for gathered terms
+real(kind=real_umphys) :: c_term  ! Constant for PDF end shape
+real(kind=real_umphys) :: b_term  ! Power relating qcl and cfl increments
+
 !  (b)  Others.
-integer :: i,j ! Loop counters: I,J - horizontal position index
+integer :: i,j,n ! Loop counters: I,J - horizontal position index
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -313,7 +317,7 @@ do j = tdims%j_start, tdims%j_end
       ! an additional term because the detrained plume must be saturated.
       ! This can also be written as a forcing.
 
-      !              if (CFL(i,j)  >   0.0 .and. CFL(i,j)  <   1.0) then
+      !              IF (CFL(i,j)  >   0.0 .AND. CFL(i,j)  <   1.0) THEN
       ! This if test is already guaranteed
       if (dcflin(i,j) > 0.0) then
         dcs = dcflin(i,j) / (1.0 - cfl(i,j))
@@ -397,8 +401,7 @@ do j = tdims%j_start, tdims%j_end
             max( (qcl(i,j) - qc * c_1) * dbsdtbs , (-qcl(i,j)) )
       end if
 
-      if (i_pc2_erosion_method == pc2eros_exp_rh .and.                         &
-          l_pc2_prod_qcl_mp .eqv. .false. ) then
+      if (i_pc2_erosion_method == pc2eros_exp_rh ) then
         ! Only calculate change in total cloud fraction here if not using
         ! hybrid method as need to add increments from hybrid erosion.
         ! Change in total cloud fraction will be done later.
@@ -411,7 +414,7 @@ do j = tdims%j_start, tdims%j_end
         ! The following If test is a copy of the PC2_TOTAL_CF subroutine.
         ! -------------------------------------------------------------------
         if (dcflpc2(i,j) > 0.0) then
-          ! ...  .and. CFL(i,j)  <   1.0 already assured.
+          ! ...  .AND. CFL(i,j)  <   1.0 already assured.
           if (l_fixbug_pc2_mixph) then
             ! minimum overlap, this is consistent with pc2_totalcf
             dcfpc2(i,j) = min(dcflpc2(i,j),(1.0-cf(i,j)))
@@ -421,7 +424,7 @@ do j = tdims%j_start, tdims%j_end
                                              (1.0 - cfl(i,j))
           end if
         else if (dcflpc2(i,j) < 0.0) then
-          ! ...  .and. CFL(i,j)  >   0.0 already assured.
+          ! ...  .AND. CFL(i,j)  >   0.0 already assured.
           if (l_fixbug_pc2_mixph) then
             ! minimum overlap, this is consistent with pc2_totalcf
             dcfpc2(i,j) = max(dcflpc2(i,j),(cff(i,j)-cf(i,j)))
@@ -474,8 +477,7 @@ do j = tdims%j_start, tdims%j_end
     !===========================================================
     ! Hybrid PC2 erosion
     !===========================================================
-    if (i_pc2_erosion_method == pc2eros_hybrid_sidesonly .or.                  &
-        l_pc2_prod_qcl_mp ) then
+    if (i_pc2_erosion_method == pc2eros_hybrid_sidesonly ) then
       ! Although this alternative method of doing erosion
       ! is being done in a separate, subsequent bit of code to the
       ! homogeneous forcing, it is effectively making its
@@ -487,48 +489,196 @@ do j = tdims%j_start, tdims%j_end
         ! Erosion of cloud is assumed to only happen from the
         ! cloud surface area exposed to clear sky.
 
-        if ( l_mr_physics ) then
-          call qsat_wat_mix(qsl_t, t(i,j), p_theta_levels(i,j))
-        else
-          call qsat_wat(qsl_t, t(i,j), p_theta_levels(i,j))
-        end if
+        ! Three options are available below for the numerical method used to
+        ! time-integrate the erosion.  For full details and derivation of
+        ! the equations, see UMDP 030: The PC2 Cloud-Scheme, in the subsection
+        ! "Numerical application of the hybrid erosion method".
 
-        ! Calculate the difference from saturation
-        satdiff = qsl_t - q(i,j)
+        if ( i_pc2_erosion_numerics == i_pc2_erosion_explicit ) then
+          ! Use simple explicit numerical method
 
-        ! Calculate exposed lateral surface area. Define a function
-        ! which is an upside-down U shape, going to zero at CFL=0
-        ! and CFL=1 and with a peak value of 0.5 at CFL=0.5.
-        exposed_area = (2.0*cfl(i,j)) - (2.0*cfl(i,j)*cfl(i,j))
+          ! Calculate the difference from saturation
+          satdiff = qsl_t - q(i,j)
 
-        if (l_casim) then
+          ! Calculate exposed lateral surface area. Define a function
+          ! which is an upside-down U shape, going to zero at CFL=0
+          ! and CFL=1 and with a peak value of 0.5 at CFL=0.5.
+          exposed_area = (2.0*cfl(i,j)) - (2.0*cfl(i,j)*cfl(i,j))
           dqcl = - exposed_area * pc2mixingrate * satdiff * timestep
-        else ! l_casim
 
-          if ( l_pc2_prod_qcl_mp ) then
-            dqcl = dqcl_mp(i,j)
-          else
-            dqcl = - exposed_area * pc2mixingrate * satdiff * timestep
-          end if
+          ! Assume that the change in QCL is due to
+          ! width-narrowing. Use that width-narrowing rate to find
+          ! the consistent change in cloud fraction...
 
-        end if ! l_casim
-
-        ! Assume that the change in QCL is due to
-        ! width-narrowing. Use that width-narrowing rate to find
-        ! the consistent change in cloud fraction...
-        if ( l_pc2_implicit_erosion ) then
-          ! Just use explicit initial value of qcl rather than
-          ! the mid-point (an implicit-in-time correction is applied
-          ! later assuming that dcl is the explicit increment).
-          tmp = (qcl(i,j) - (qc * cfl(i,j)) )
-        else
           ! Find the value of qcl half way through the erosion
           ! process for better numerical behaviour.
           midpoint_qcl = qcl(i,j) + ( 0.5 * dqcl )
           tmp = (midpoint_qcl - (qc * cfl(i,j)) )
-        end if
+          dcl = - g_mqc * qc * dqcl / tmp
 
-        dcl = - g_mqc * qc * dqcl / tmp
+        else if ( i_pc2_erosion_numerics == i_pc2_erosion_implicit ) then
+          ! Use approximate implicit numerical method, assuming erosion
+          ! rate reduces in proportion to cloud as it approaches zero.
+          ! This avoids spuriously removing all of the cloud due to
+          ! numerical overshoot.
+
+          ! Calculate explicit qcl increment as above
+          satdiff = qsl_t - q(i,j)
+          exposed_area = (2.0*cfl(i,j)) - (2.0*cfl(i,j)*cfl(i,j))
+          dqcl = - exposed_area * pc2mixingrate * satdiff * timestep
+
+          ! Calculate cloud fraction increment purely explicitly
+          ! (omit use of mid-point qcl) since we apply an implicit correction
+          dcl = - g_mqc * qc * dqcl / ( qcl(i,j) - (qc * cfl(i,j)) )
+
+          ! If erosion is removing cloud
+          if ( dcl < 0.0 .and. dqcl < 0.0 ) then
+            if ( qcl(i,j)+deltal <= 0.0 .or.                                   &
+                 cfl(i,j)+dcflpc2(i,j) <= 0.0 ) then
+              ! Set erosion increments to zero if homogeneous
+              ! forcing has already removed all the cloud.
+              dqcl = 0.0
+              dcl = 0.0
+            else
+              ! Still some cloud left after homogeneous forcing,
+              ! and erosion is trying to remove it; use implicit
+              ! formula for the erosion terms:
+              dqcl = dqcl * ( qcl(i,j) + deltal )                              &
+                          / ( qcl(i,j) - dqcl )
+              dcl  = dcl  * ( cfl(i,j) + dcflpc2(i,j) )                        &
+                          / ( cfl(i,j) - dcl )
+
+            end if  ! Still some cloud left after homogeneous forcing
+          end if  ! ( dcl < 0.0 .AND. dqcl < 0.0 )
+
+        else if ( i_pc2_erosion_numerics == i_pc2_erosion_analytic ) then
+          ! Use approximate analytical solution which behaves smoothly
+          ! and consistently whilst actually allowing erosion to reduce
+          ! cloud to zero when appropriate.
+
+          ! Compute latest values of qc, qcl, sde (after homogeneous forcing)
+          qc = qc + dqcdt
+          qcl0 = qcl(i,j) + deltal
+          cfl0 = cfl(i,j) + dcflpc2(i,j)
+          sde0 = qcl0     - qc
+          cfc0 = 1.0      - cfl0
+
+          if ( cfl0>0.0 .and. cfc0>0.0 .and. qcl0>0.0 .and. sde0>0.0 ) then
+            ! Still have positive cloudy and clear fractions,
+            ! water content and saturation defecit after homogeneous forcing
+
+            if ( qc < -smallp ) then
+              ! Qc is negative; as the PDF is narrowed, we will run out of
+              ! liquid-cloud before the saturation defecit goes to zero.
+              ! Take analytical solution which accounts for cfl diminishing
+              ! as the cloud evaporates...
+
+              ! Initialise guess qcl, cfl after erosion
+              qcl2 = qcl0
+              cfl2 = cfl0
+
+              ! Precalculate terms
+              factor = (pc2mixingrate/al) * 2.0 * cfl0 * timestep / qcl0
+              if ( g_mqc > 0.0 ) then
+                c_term = g_mqc * qcl0 / cfl0**2
+              else
+                ! Set to cloudy-end value in case where homog forcing aborted.
+                c_term = b_factor
+              end if
+
+              do n = 1, 5
+                ! Iterate to correct explicit terms
+
+                ! Compute updated power b (taking mid-point in time)
+                b_term = c_term * qc * 0.5*( 1.0/(qc - qcl0/cfl0)              &
+                                           + 1.0/(qc - qcl2/max(cfl2,smallp)) )
+                ! Safety limit; must be below 1
+                b_term = min( b_term, 0.999 )
+
+                ! Compute new value of qcl using mid-point cfl, qcl
+                qcl2 = qcl0 * max( 1.0 - (1.0-b_term) * factor                 &
+                                       * ( 1.0 - 0.5*(cfl0+cfl2) )             &
+                                       * ( 0.5*(qcl0+qcl2) - qc ),             &
+                                   0.0 )**(1.0/(1.0-b_term))
+
+                ! Compute updated cfl consistent with this
+                cfl2 = cfl0 * (qcl2/qcl0)**b_term
+
+              end do
+
+              ! Set erosion increments consistent with the above
+              dqcl = qcl2 - qcl0
+              dcl  = cfl2 - cfl0
+
+            else if ( qc > smallp ) then
+              ! Qc is positive; as the PDF is narrowed, the saturation
+              ! defecit will approach zero, but since the erosion rate
+              ! is proportional to sd, it will never quite reach zero.
+              ! Take analytical solution which accounts for this...
+
+              ! Initialise guess sde, cfc after erosion
+              sde1 = sde0
+              cfc1 = cfc0
+
+              ! Precalculate terms
+              factor = (pc2mixingrate/al) * 2.0 * cfc0 * timestep
+              if ( g_mqc > 0.0 ) then
+                c_term = g_mqc * sde0 / cfc0**2
+              else
+                ! Set to clear-end value in case where homog forcing aborted.
+                c_term = b_factor
+              end if
+
+              do n = 1, 5
+                ! Iterate to correct explicit terms
+
+                ! Compute updated power b (taking mid-point in time)
+                b_term = c_term * qc * 0.5*( 1.0/(qc + sde0/cfc0)              &
+                                           + 1.0/(qc + sde1/max(cfc1,smallp)) )
+                ! Safety limit; must be below 1
+                b_term = min( b_term, 0.999 )
+
+                ! Compute new value of sde using mid-point cfc
+                sde1 = sde0 * ( 1.0 + b_term * factor                          &
+                                      * ( 1.0 - 0.5*(cfc0+cfc1) )              &
+                              )**(-1.0/b_term)
+
+                ! Compute updated cfc consistent with this
+                cfc1 = cfc0 * (sde1/sde0)**b_term
+
+              end do
+
+              ! Set erosion increments consistent with the above
+              dqcl = sde1 - sde0
+              dcl  = cfc0 - cfc1
+
+            else  ! qc
+              ! Qc is extremely close to zero.
+              ! In this (presumably rare) case, the PDF is exactly centred
+              ! on the saturation point.  This simplifies things, as the
+              ! cloud fraction remains constant under width-narrowing.
+              ! qcl and the saturation defecit both decline exponentially
+              ! towards zero...
+
+              sde1 = sde0 * exp( -(pc2mixingrate/al) * 2.0 * (1.0-cfc0) * cfc0 &
+                                 * timestep )
+
+              ! Set erosion increments consistent with the above
+              dqcl = sde1 - sde0
+              dcl  = 0.0
+
+            end if
+
+          else  ! ( cfl0>0.0 .AND. cfc0>0.0 .AND. qcl0>0.0 .AND. sde0>0.0 )
+            ! Something gone to zero; PDF no longer contains a saturation
+            ! boundary so no erosion possible; set increments to zero
+
+            dqcl = 0.0
+            dcl  = 0.0
+
+          end if  ! ( cfl0>0.0 .AND. cfc0>0.0 .AND. qcl0>0.0 .AND. sde0>0.0 )
+
+        end if  ! ( i_pc2_erosion_numerics = i_pc2_erosion_analytic )
 
       else if ( ( cfl(i,j)  >=  (1.0 - cloud_rounding_tol) .and.               &
                 cfl(i,j)  <=  (1.0 + cloud_rounding_tol) ) .or.                &
@@ -552,61 +702,6 @@ do j = tdims%j_start, tdims%j_end
         dcl=0.0
         dqcl=0.0
       end if
-
-      if ( l_pc2_implicit_erosion ) then
-        ! Use implicit numerical method for the erosion calculation...
-
-        ! If the erosion term is trying to remove cloud,
-        ! change the increment consistent with an implicit
-        ! in time discretisation to avoid it spuriously
-        ! removing all of the cloud due to numerical overshoot.
-        !
-        ! Let's assume:
-        !
-        ! dqcl/dt = qcl f(qcl,cfl)
-        !
-        ! We've so-far calculated this using an explicit method.
-        ! But we now want the implicit solution.
-        ! Let's retain the explicit solution for f(qcl,cfl),
-        ! but solve the leading factor of qcl implicitly,
-        ! accounting for the increments from homogeneous forcing
-        ! and erosion:
-        !
-        ! dqcl_ero = (qcl_n + dqcl_hom + dqcl_ero) f(qcl_n,cfl_n) dt
-        ! => dqcl_ero ( 1 - f(qcl_n,cfl_n) dt )
-        !     = ( qcl_n + dqcl_hom ) f(qcl_n,cfl_n) dt
-        !
-        ! Now our existing explicit increment is:
-        !
-        ! dqcl_ero_expl = qcl_n f(qcl_n,cfl_n) dt
-        !
-        ! => dqcl_ero ( 1 - dqcl_ero_expl/qcl_n )
-        !    = dqcl_ero_expl ( 1 + dqcl_hom/qcl_n )
-        !
-        ! So our updated implicit increment is:
-        ! dqcl_ero = dqcl_ero_expl ( qcl_n + dqcl_hom )
-        !                        / ( qcl_n - dqcl_ero_expl )
-
-        ! If erosion is removing cloud
-        if ( dcl < 0.0 .and. dqcl < 0.0 ) then
-          if ( qcl(i,j)+deltal <= 0.0 .or.                                     &
-               cfl(i,j)+dcflpc2(i,j) <= 0.0 ) then
-            ! Set erosion increments to zero if homogeneous
-            ! forcing has already removed all the cloud.
-            dqcl = 0.0
-            dcl = 0.0
-          else
-            ! Still some cloud left after homogeneous forcing,
-            ! and erosion is trying to remove it; use implicit
-            ! formula for the erosion terms:
-            dqcl = dqcl * ( qcl(i,j) + deltal )                                &
-                        / ( qcl(i,j) - dqcl )
-            dcl  = dcl  * ( cfl(i,j) + dcflpc2(i,j) )                          &
-                        / ( cfl(i,j) - dcl )
-          end if
-        end if
-
-      end if  ! ( l_pc2_implicit_erosion )
 
       ! Add the the erosion increments to the homogeneous forcing ones
       dcflpc2(i,j) = dcflpc2(i,j) + dcl
@@ -642,7 +737,7 @@ do j = tdims%j_start, tdims%j_end
       ! The following If test is a copy of the PC2_TOTAL_CF subroutine.
       ! ---------------------------------------------------------------------
       if (dcflpc2(i,j) > 0.0) then
-        ! ...  .and. CFL(i,j)  <   1.0 already assured.
+        ! ...  .AND. CFL(i,j)  <   1.0 already assured.
         if (l_fixbug_pc2_mixph) then
           ! minimum overlap, this is consistent with pc2_totalcf
           dcfpc2(i,j) = min(dcflpc2(i,j),(1.0-cf(i,j)))
@@ -652,7 +747,7 @@ do j = tdims%j_start, tdims%j_end
                                            (1.0 - cfl(i,j))
         end if
       else if (dcflpc2(i,j) < 0.0) then
-        ! ...  .and. CFL(i,j)  >   0.0 already assured.
+        ! ...  .AND. CFL(i,j)  >   0.0 already assured.
         if (l_fixbug_pc2_mixph) then
           ! minimum overlap, this is consistent with pc2_totalcf
           dcfpc2(i,j) = max(dcflpc2(i,j),(cff(i,j)-cf(i,j)))
