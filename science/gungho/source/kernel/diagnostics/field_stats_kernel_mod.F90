@@ -11,7 +11,7 @@ module field_stats_kernel_mod
                                CELL_COLUMN, GH_SCALAR, GH_WRITE,     &
                                ANY_DISCONTINUOUS_SPACE_1,            &
                                ANY_DISCONTINUOUS_SPACE_2
-  use constants_mod,     only: r_def, i_def
+  use constants_mod,     only: r_def, i_def, r_single, r_double
   use kernel_mod,        only: kernel_type
 
   implicit none
@@ -49,14 +49,18 @@ module field_stats_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2)  &
          /)
     integer :: operates_on = CELL_COLUMN
-  contains
-    procedure, nopass :: field_stats_code
   end type
 
   !---------------------------------------------------------------------------
   ! Contained functions/subroutines
   !---------------------------------------------------------------------------
   public :: field_stats_code
+
+  interface field_stats_code
+    module procedure &
+      field_stats_code_r_single, &
+      field_stats_code_r_double
+    end interface
 
 contains
 
@@ -91,20 +95,20 @@ contains
 !> @param[in]     ndf_2d     The number of dofs per cell for 2d field
 !> @param[in]     undf_2d    The number of unique dofs for 2d field
 !> @param[in]     map_2d     array holding the dofmap for 2d field
-subroutine field_stats_code(nlayers,                            &
-                            field, height,                      &
-                            fmax, fmin,                         &
-                            fmax_excess, fmin_excess,           &
-                            latitude, longitude,                &
-                            max_lev, min_lev,                   &
-                            max_excess_count, min_excess_count, &
-                            max_count, min_count,               &
-                            max_lat, min_lat,                   &
-                            max_lon, min_lon,                   &
-                            max_height, min_height,             &
-                            ndf_3d, undf_3d, map_3d,            &
-                            ndf_2d, undf_2d, map_2d             &
-                            )
+subroutine field_stats_code_r_single(nlayers,                            &
+                                     field, height,                      &
+                                     fmax, fmin,                         &
+                                     fmax_excess, fmin_excess,           &
+                                     latitude, longitude,                &
+                                     max_lev, min_lev,                   &
+                                     max_excess_count, min_excess_count, &
+                                     max_count, min_count,               &
+                                     max_lat, min_lat,                   &
+                                     max_lon, min_lon,                   &
+                                     max_height, min_height,             &
+                                     ndf_3d, undf_3d, map_3d,            &
+                                     ndf_2d, undf_2d, map_2d             &
+                                    )
 
   implicit none
 
@@ -114,18 +118,19 @@ subroutine field_stats_code(nlayers,                            &
   integer(kind=i_def), intent(in) :: ndf_3d, undf_3d
   integer(kind=i_def), intent(in) :: ndf_2d, undf_2d
 
-  real(r_def), intent(in) :: fmax, fmin, fmax_excess, fmin_excess
-  real(kind=r_def), dimension(undf_3d), intent(in) :: field, height
-  real(kind=r_def), dimension(undf_2d), intent(in) :: latitude, longitude
-  real(kind=r_def), dimension(undf_2d), intent(inout) :: max_lev, min_lev
-  real(kind=r_def), dimension(undf_2d), intent(inout) :: max_count, min_count
-  real(kind=r_def), dimension(undf_2d), intent(inout) :: max_excess_count
-  real(kind=r_def), dimension(undf_2d), intent(inout) :: min_excess_count
-  real(kind=r_def), dimension(undf_2d), intent(inout) :: max_lat, min_lat
-  real(kind=r_def), dimension(undf_2d), intent(inout) :: max_lon, min_lon
-  real(kind=r_def), dimension(undf_2d), intent(inout) :: max_height, min_height
-  integer(kind=i_def), dimension(ndf_3d),  intent(in) :: map_3d
-  integer(kind=i_def), dimension(ndf_2d),  intent(in) :: map_2d
+  real(kind=r_single), intent(in) :: fmax, fmin, fmax_excess, fmin_excess
+  real(kind=r_single), dimension(undf_3d), intent(in)    :: field
+  real(kind=r_def),    dimension(undf_3d), intent(in)    :: height
+  real(kind=r_def),    dimension(undf_2d), intent(in)    :: latitude, longitude
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_lev, min_lev
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_count, min_count
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_excess_count
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: min_excess_count
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_lat, min_lat
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_lon, min_lon
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_height, min_height
+  integer(kind=i_def), dimension(ndf_3d),  intent(in)    :: map_3d
+  integer(kind=i_def), dimension(ndf_2d),  intent(in)    :: map_2d
 
   ! Internal variables
   integer(kind=i_def) :: df, k, k_max, df_max
@@ -190,6 +195,108 @@ subroutine field_stats_code(nlayers,                            &
     end do
   end do
 
-end subroutine field_stats_code
+end subroutine field_stats_code_r_single
+
+subroutine field_stats_code_r_double(nlayers,                            &
+                                     field, height,                      &
+                                     fmax, fmin,                         &
+                                     fmax_excess, fmin_excess,           &
+                                     latitude, longitude,                &
+                                     max_lev, min_lev,                   &
+                                     max_excess_count, min_excess_count, &
+                                     max_count, min_count,               &
+                                     max_lat, min_lat,                   &
+                                     max_lon, min_lon,                   &
+                                     max_height, min_height,             &
+                                     ndf_3d, undf_3d, map_3d,            &
+                                     ndf_2d, undf_2d, map_2d             &
+                                    )
+
+  implicit none
+
+  ! Arguments
+  integer(kind=i_def), intent(in) :: nlayers
+
+  integer(kind=i_def), intent(in) :: ndf_3d, undf_3d
+  integer(kind=i_def), intent(in) :: ndf_2d, undf_2d
+
+  real(kind=r_double), intent(in) :: fmax, fmin, fmax_excess, fmin_excess
+  real(kind=r_double), dimension(undf_3d), intent(in)    :: field
+  real(kind=r_def),    dimension(undf_3d), intent(in)    :: height
+  real(kind=r_def),    dimension(undf_2d), intent(in)    :: latitude, longitude
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_lev, min_lev
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_count, min_count
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_excess_count
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: min_excess_count
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_lat, min_lat
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_lon, min_lon
+  real(kind=r_def),    dimension(undf_2d), intent(inout) :: max_height, min_height
+  integer(kind=i_def), dimension(ndf_3d),  intent(in)    :: map_3d
+  integer(kind=i_def), dimension(ndf_2d),  intent(in)    :: map_2d
+
+  ! Internal variables
+  integer(kind=i_def) :: df, k, k_max, df_max
+
+  if (ndf_3d == 4) then
+    df_max = 4
+  else
+    df_max = 1
+  end if
+
+  if (ndf_3d == 2) then
+    k_max = nlayers
+  else
+    k_max = nlayers - 1
+  end if
+
+  ! Count number of points which exceed thresholds -----------------------------
+  do df = 1, df_max
+    max_excess_count(map_2d(df)) = 0.0_r_def
+    min_excess_count(map_2d(df)) = 0.0_r_def
+    do k = 0, k_max
+      if (field(map_3d(df) + k) >= fmax_excess) then
+        ! If the field exceeds the specified threshold, increment the counter
+        max_excess_count(map_2d(df)) = max_excess_count(map_2d(df)) + 1.0_r_def
+      end if
+
+      if (field(map_3d(df) + k) <= fmin_excess) then
+        ! If the field exceeds the specified threshold, increment the counter
+        min_excess_count(map_2d(df)) = min_excess_count(map_2d(df)) + 1.0_r_def
+      end if
+    end do
+  end do
+
+  ! Search for location of global maximum --------------------------------------
+  do df = 1, df_max
+    do k = 0, k_max
+
+      if (field(map_3d(df) + k) >= fmax) then
+        ! If the maximum is at this location, write its information
+        max_lev(map_2d(df))    = real(k, r_def)
+        max_lat(map_2d(df))    = latitude(map_2d(df))
+        max_lon(map_2d(df))    = longitude(map_2d(df))
+        max_height(map_2d(df)) = height(map_3d(df) + k)
+        max_count(map_2d(df)) = 1.0_r_def
+        exit
+      end if
+    end do
+  end do
+
+  ! Search for location of global minimum --------------------------------------
+  do df = 1, df_max
+    do k = 0, k_max
+      if (field(map_3d(df) + k) <= fmin) then
+        ! If the minimum is at this location, write its information
+        min_lev(map_2d(df))    = real(k, r_def)
+        min_lat(map_2d(df))    = latitude(map_2d(df))
+        min_lon(map_2d(df))    = longitude(map_2d(df))
+        min_height(map_2d(df)) = height(map_3d(df) + k)
+        min_count(map_2d(df)) = 1.0_r_def
+        exit
+      end if
+    end do
+  end do
+
+end subroutine field_stats_code_r_double
 
 end module field_stats_kernel_mod

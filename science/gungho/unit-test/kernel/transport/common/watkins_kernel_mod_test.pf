@@ -40,6 +40,7 @@ contains
     real(kind=r_tran),   allocatable :: detj_at_w3(:)
     real(kind=r_tran),   allocatable :: first_v_wind(:)
     real(kind=r_tran),   allocatable :: answer(:)
+    real(kind=r_tran),   allocatable :: lipschitz_max_field(:)
     integer(kind=i_def), allocatable :: watkins_failures(:)
 
     ! Set integer values to describe mesh (single column)
@@ -63,6 +64,7 @@ contains
     allocate(detj_at_w3(undf_w3))
     allocate(answer(undf_w2v))
     allocate(watkins_failures(undf_w3_2d))
+    allocate(lipschitz_max_field(undf_w3_2d))
 
     ! DoF maps
     map_w3 = (/ 1 /)
@@ -153,6 +155,7 @@ contains
 
     call watkins_code( nlayers,             &
                        first_v_wind,        &
+                       lipschitz_max_field, &
                        watkins_failures,    &
                        wind,                &
                        dt,                  &
@@ -253,6 +256,7 @@ contains
 
     call watkins_code( nlayers,             &
                        first_v_wind,        &
+                       lipschitz_max_field, &
                        watkins_failures,    &
                        wind,                &
                        dt,                  &
@@ -280,6 +284,8 @@ contains
     deallocate(detj_at_w3)
     deallocate(wind)
     deallocate(answer)
+    deallocate(watkins_failures)
+    deallocate(lipschitz_max_field)
 
   end subroutine test_all
 

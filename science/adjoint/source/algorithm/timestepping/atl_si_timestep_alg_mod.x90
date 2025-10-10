@@ -21,7 +21,8 @@ module atl_si_timestep_alg_mod
   use mixed_solver_config_mod,             only: guess_np1, reference_reset_time
   use timestepping_config_mod,             only: alpha, spinup_alpha, &
                                                  outer_iterations, inner_iterations
-  use linear_config_mod,                   only: l_stabilise_bl, &
+  use linear_config_mod,                   only: fixed_ls,                 &
+                                                 l_stabilise_bl,           &
                                                  n_bl_levels_to_stabilise, &
                                                  max_bl_stabilisation
   use derived_config_mod,                  only: bundle_size
@@ -101,6 +102,7 @@ module atl_si_timestep_alg_mod
     type(field_type), allocatable :: ls_rhs_phys(:,:,:)
     type(field_type), allocatable :: ls_mr_itns(:,:,:)
     type(field_type), allocatable :: ls_moist_dyn_itns(:,:,:)
+    integer( i_def ) :: ls_outer_iterations, ls_inner_iterations
 
     ! theta_fv transport increment to change to weak form
     type(field_type) :: theta_fv_inc
@@ -151,6 +153,19 @@ contains
 
     ! Allocate internal state field arrays
 
+    if (fixed_ls) then
+       ! The linearisation state is not evolved (a 0x0 looping)
+       ! but ls_outer_iterations and ls_inner_iterations are set to
+       ! 1 so that the arrays are defined.
+       self%ls_outer_iterations = 1_i_def
+       self%ls_inner_iterations = 1_i_def
+    else
+       ! The linearisation state is evolved, and the intermediate iterations
+       ! are used to calculate the evolution of the perturbation.
+       self%ls_outer_iterations = outer_iterations
+       self%ls_inner_iterations = inner_iterations
+    end if
+
     allocate(self%state(bundle_size))
     allocate(self%state_initial(bundle_size))
     allocate(self%state1(bundle_size))
@@ -177,13 +192,13 @@ contains
     allocate(self%ls_mr_n(nummr))
     allocate(self%ls_mr_after_slow(nummr))
 
-    allocate(self%ls_state_itns( bundle_size, outer_iterations, inner_iterations ))
-    allocate(self%ls_rhs_np1( bundle_size, outer_iterations, inner_iterations ))
-    allocate(self%ls_rhs_adv( bundle_size, outer_iterations, inner_iterations ))
-    allocate(self%ls_rhs_phys( bundle_size, outer_iterations, inner_iterations ))
-    allocate(self%ls_mr_inc( nummr, outer_iterations, inner_iterations ))
-    allocate(self%ls_mr_itns( nummr, outer_iterations, inner_iterations ))
-    allocate(self%ls_moist_dyn_itns( num_moist_factors, outer_iterations, inner_iterations ))
+    allocate(self%ls_state_itns( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
+    allocate(self%ls_rhs_np1( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
+    allocate(self%ls_rhs_adv( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
+    allocate(self%ls_rhs_phys( bundle_size, self%ls_outer_iterations, self%ls_inner_iterations ))
+    allocate(self%ls_mr_inc( nummr, self%ls_outer_iterations, self%ls_inner_iterations ))
+    allocate(self%ls_mr_itns( nummr, self%ls_outer_iterations, self%ls_inner_iterations ))
+    allocate(self%ls_moist_dyn_itns( num_moist_factors, self%ls_outer_iterations, self%ls_inner_iterations ))
 
     ! Initialise internal state field objects
 
@@ -217,8 +232,8 @@ contains
     call clone_bundle( self%state, self%ls_advected_state,   bundle_size )
     call clone_bundle( self%state, self%ls_rhs_n,            bundle_size )
 
-    do outer = 1, outer_iterations
-      do inner = 1, inner_iterations
+    do outer = 1, self%ls_outer_iterations
+      do inner = 1, self%ls_inner_iterations
         call clone_bundle( self%state, self%ls_state_itns(:,outer,inner), bundle_size )
         call clone_bundle( self%state, self%ls_rhs_np1(:,outer,inner),    bundle_size )
         call clone_bundle( self%state, self%ls_rhs_adv(:,outer,inner),    bundle_size )
@@ -242,8 +257,8 @@ contains
     call clone_bundle( ls_mr, self%ls_mr_n, nummr )
     call clone_bundle( ls_mr, self%ls_mr_after_slow, nummr )
 
-    do outer = 1, outer_iterations
-      do inner = 1, inner_iterations
+    do outer = 1, self%ls_outer_iterations
+      do inner = 1, self%ls_inner_iterations
         call clone_bundle( ls_moist_dyn, self%ls_moist_dyn_itns(:,outer,inner), num_moist_factors )
         call clone_bundle( ls_mr, self%ls_mr_itns(:,outer,inner), nummr )
         if (self%use_moisture) call clone_bundle( ls_mr, self%ls_mr_inc(:,outer,inner), nummr )
@@ -296,6 +311,7 @@ contains
     type(operator_type), pointer                       :: mm_wt
     type(operator_type), pointer                       :: mm_vel
     integer(kind=i_def)                                :: outer, inner, reference_reset_freq
+    integer(kind=i_def)                                :: ls_outer, ls_inner
     integer(kind=i_def)                                :: next_outer, next_inner
     real(kind=r_def)                                   :: varalpha, varbeta
     type(namelist_type), pointer                       :: mixed_solver_nml
@@ -371,18 +387,21 @@ contains
 
     ! Compute the time-level n dynamics terms
 
+    call copy_bundle( self%ls_state_after_slow, self%ls_advected_state, bundle_size )
+
+    if ( .not. fixed_ls ) then
     call rhs_alg( self%ls_rhs_n, varbeta*cast_dt,                                           &
                   self%ls_state_after_slow, self%ls_state_n, self%ls_moist_dyn_itns(:,1,1), &
                   compute_eos=.false., compute_rhs_t_d=.true., dlayer_rhs=.false., model_clock=modeldb%clock )
 
-    call copy_bundle( self%ls_state_after_slow, self%ls_advected_state, bundle_size )
+
     if (.not. si_momentum_equation) call mass_matrix_solver_alg( self%ls_advected_state(igh_u), self%ls_rhs_n(igh_u) )
       ! Predictor of the wind field (u - beta * dt * rhs) to be advected if using explicit advection
 
     !---------------------------------------------------------------------------
     ! Start the outer (advection) loop
     !---------------------------------------------------------------------------
-    ls_outer_dynamics_loop: do outer = 1, outer_iterations
+    ls_outer_dynamics_loop: do outer = 1, self%ls_outer_iterations
 
       call gungho_transport_control_alg( self%ls_rhs_adv(:,outer,1),        &
                                          self%ls_advected_state,            &
@@ -413,7 +432,7 @@ contains
         !-----------------------------------------------------------------------
         ! Start the inner (nonlinear, Coriolis) loop
         !-----------------------------------------------------------------------
-        ls_inner_dynamics_loop: do inner = 1,inner_iterations
+        ls_inner_dynamics_loop: do inner = 1,self%ls_inner_iterations
 
           ! Calculate the counters for the next iteration
           if (inner == inner_iterations) then
@@ -521,6 +540,7 @@ contains
     !---------------------------------------------------------------------------
     ! End of outer (advection) loop
     !---------------------------------------------------------------------------
+    end if
 
     !---------------------------------------------------------------------------
     ! Perturbation
@@ -571,10 +591,22 @@ contains
     !---------------------------------------------------------------------------
     outer_dynamics_loop: do outer = outer_iterations, 1, -1
 
+      if (fixed_ls) then
+         ls_outer = 1
+      else
+         ls_outer = outer
+      end if
+
       !-------------------------------------------------------------------------
       ! Start the inner (nonlinear, Coriolis) loop
       !-------------------------------------------------------------------------
       inner_dynamics_loop: do inner = inner_iterations, 1, -1
+
+        if (fixed_ls) then
+           ls_inner = 1
+        else
+           ls_inner = inner
+        end if
 
         write( log_scratch_space, '(A,2I3)' ) 'atl_si_timestep_type%step: TL loop indices (o, i): ', outer, inner
         call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -618,15 +650,15 @@ contains
         call set_bundle_scalar( 0.0_r_def,self%state1,bundle_size )
         call set_bundle_scalar( 0.0_r_def,self%state2,bundle_size )
 
-        call atl_rhs_alg( self%rhs_np1,                          &
-                          -varalpha*cast_dt,                     &
-                          self%state1,                           &
-                          self%state2,                           &
-                          moist_dyn,                             &
-                          self%ls_state_itns(:,outer,inner),     &
-                          self%ls_moist_dyn_itns(:,outer,inner), &
-                          .true.,                                &
-                          dlayer_on,                             &
+        call atl_rhs_alg( self%rhs_np1,                                &
+                          -varalpha*cast_dt,                           &
+                          self%state1,                                 &
+                          self%state2,                                 &
+                          moist_dyn,                                   &
+                          self%ls_state_itns(:,ls_outer,ls_inner),     &
+                          self%ls_moist_dyn_itns(:,ls_outer,ls_inner), &
+                          .true.,                                      &
+                          dlayer_on,                                   &
                           modeldb%clock )
 
         call add_bundle( self%state,self%state2 ,self%state, bundle_size )
@@ -642,17 +674,17 @@ contains
                                                          self%theta_fv_inc, mm_wt ), &
                    setval_X( self%rhs_adv(igh_t), self%theta_fv_inc ) )
 
-      call atl_transport_control_alg( self%rhs_adv,                        &
-                                      self%advected_state,                 & ! rhs_adv is INOUT,
-                                      self%state(igh_u),                   &
-                                      self%state_n(igh_u),                 & ! advected_state, state(igh_u), state_n(igh_u) are OUT
-                                      mr,                                  &
-                                      self%mr_after_slow,                  &
-                                      self%ls_advected_state,              &
-                                      self%ls_state_itns(igh_u,outer,1),   &
-                                      self%ls_state_n(igh_u),              &
-                                      self%ls_mr_after_slow,               &
-                                      modeldb%clock,                       &
+      call atl_transport_control_alg( self%rhs_adv,                         &
+                                      self%advected_state,                  & ! rhs_adv is INOUT,
+                                      self%state(igh_u),                    &
+                                      self%state_n(igh_u),                  & ! advected_state, state(igh_u), state_n(igh_u) are OUT
+                                      mr,                                   &
+                                      self%mr_after_slow,                   &
+                                      self%ls_advected_state,               &
+                                      self%ls_state_itns(igh_u,ls_outer,1), &
+                                      self%ls_state_n(igh_u),               &
+                                      self%ls_mr_after_slow,                &
+                                      modeldb%clock,                        &
                                       outer ) ! advected_state finished with
 
     end do outer_dynamics_loop

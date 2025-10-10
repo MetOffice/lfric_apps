@@ -20,13 +20,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -47,7 +44,6 @@ class vn22_t885(MacroUpgrade):
         self.add_setting(
             config, ["namelist:section_choice", "iau_sst"], ".false."
         )
-
         return config, self.reports
 
 
@@ -60,7 +56,6 @@ class vn22_t4661(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-driver
         self.add_setting(config, ["namelist:extrusion", "eta_values"], "''")
-
         return config, self.reports
 
 
@@ -78,7 +73,6 @@ class vn22_t771(MacroUpgrade):
             ["namelist:chemistry", "i_chem_timestep_halvings"],
             value="0",
         )
-
         return config, self.reports
 
 
@@ -93,5 +87,23 @@ class vn22_t887(MacroUpgrade):
         nml = "namelist:cloud"
         self.add_setting(config, [nml, "dbsdtbs_turb_0"], "1.5E-4")
         self.add_setting(config, [nml, "i_pc2_erosion_numerics"], "'implicit'")
+        return config, self.reports
+
+
+class vn22_t987(MacroUpgrade):
+    """Upgrade macro for ticket #987 by Christine Johnson."""
+
+    BEFORE_TAG = "vn2.2_t887"
+    AFTER_TAG = "vn2.2_t987"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-linear
+        scaling = self.get_setting_value(
+            config, ["namelist:planet", "scaling_factor"]
+        )
+        if "125.0" in scaling:
+            self.add_setting(config, ["namelist:linear", "fixed_ls"], ".false.")
+        else:
+            self.add_setting(config, ["namelist:linear", "fixed_ls"], ".true.")
 
         return config, self.reports

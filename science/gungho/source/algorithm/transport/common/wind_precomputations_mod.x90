@@ -1328,6 +1328,7 @@ contains
       ! Initialise with HV splitting, so time step is dt for each direction
       call self%split_ffsl_precomputations(frac_idx)%initialise(               &
               mesh, splitting=splitting_hv, num_substeps=1,                    &
+              wind=self%wind_3d(mesh_idx), dt=dt_precomp,                      &
               flux=wind_flux, reset_unity=.true.,                              &
               max_courant_num=dep_pt_stencil_extent                            &
       )

@@ -19,7 +19,7 @@ module tracer_collection_transport_mod
   use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event,                         &
                                             LOG_LEVEL_ERROR,                   &
-                                            LOG_LEVEL_INFO
+                                            LOG_LEVEL_DEBUG
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
   use timer_mod,                      only: timer
@@ -106,7 +106,7 @@ contains
 
         call log_event(                                                        &
                 "Advecting "//  trim(single_field_in%get_name()),              &
-                LOG_LEVEL_INFO                                                 &
+                LOG_LEVEL_DEBUG                                                &
         )
 
         ! -------------------------------------------------------------------- !
@@ -157,6 +157,10 @@ contains
         end select
       end do ! if ( .not. iterator%has_next() ) exit
     end if ! fields_in%get_length() > 0
+
+    ! Reset the transport metadata. This is done at the end of transport_field,
+    ! but in case there are no fields in the collection, also reset it here
+    call transport_controller%after_transport_field()
 
     if ( subroutine_timers ) call timer('transport.tracer_collection')
 
@@ -237,7 +241,7 @@ contains
         )
         call log_event(                                                        &
                 "Advecting "//  trim(single_field_in%get_name()),              &
-                LOG_LEVEL_INFO                                                 &
+                LOG_LEVEL_DEBUG                                                &
         )
 
         coarse_mesh => mesh_collection%get_mesh(aerosol_mesh_name)

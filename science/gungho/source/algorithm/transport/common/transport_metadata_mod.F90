@@ -42,6 +42,7 @@ module transport_metadata_mod
     integer(kind=i_def)    :: true_vertical_method
     integer(kind=i_def)    :: true_horizontal_monotone
     integer(kind=i_def)    :: true_vertical_monotone
+    integer(kind=i_def)    :: true_splitting
 
     contains
 
@@ -137,6 +138,7 @@ contains
     self%true_vertical_method = vertical_method
     self%true_horizontal_monotone = horizontal_monotone
     self%true_vertical_monotone = vertical_monotone
+    self%true_splitting = splitting
 
   end function transport_metadata_constructor
 
@@ -403,7 +405,10 @@ contains
   !!          if reverting to advective form or not applying monotonicity
   !> @param[in,out] self     The transport_metadata object
   !> @param[in]     outer    The iteration of the semi-implicit outer loop
-  subroutine update_metadata(self, outer)
+  !> @param[in]     adaptive_splitting  Whether to use adaptive splitting. If
+  !!                         true, sets the splitting to the splitting argument.
+  !> @param[in]     splitting The splitting to use if adaptive_splitting is true
+  subroutine update_metadata(self, outer, adaptive_splitting, splitting)
 
     use timestepping_config_mod,    only: outer_iterations
     use transport_config_mod,       only: si_outer_transport,                  &
@@ -424,6 +429,8 @@ contains
 
     class(transport_metadata_type), intent(inout) :: self
     integer(kind=i_def),            intent(in)    :: outer
+    logical(kind=l_def),            intent(in)    :: adaptive_splitting
+    integer(kind=i_def),            intent(in)    :: splitting
 
     if (si_outer_transport /= si_outer_transport_none                          &
         .and. outer < outer_iterations                                         &
@@ -459,6 +466,10 @@ contains
 
     end if
 
+    if (adaptive_splitting) then
+      self%splitting = splitting
+    end if
+
   end subroutine update_metadata
 
   !> @brief Reset the metadata to its original values
@@ -477,6 +488,7 @@ contains
     self%vertical_method = self%true_vertical_method
     self%horizontal_monotone = self%true_horizontal_monotone
     self%vertical_monotone = self%true_vertical_monotone
+    self%splitting = self%true_splitting
 
   end subroutine reset_metadata
 

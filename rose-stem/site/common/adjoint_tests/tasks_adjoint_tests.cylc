@@ -12,6 +12,13 @@
         "resolution": "C12",
     }) %}
 
+{% elif task_ns.conf_name == "varying_ls-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["varying_ls"],
+        "resolution": "C12",
+    }) %}
+
 {% elif task_ns.conf_name == "canned" %}
 
     {% do task_dict.update({

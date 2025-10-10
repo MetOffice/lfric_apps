@@ -383,10 +383,6 @@ contains
       ref_step = transport_counter%get_split_step_of_whole_step_counter()
       call flux_precomputations%initialise_step(ref_step, flux)
 
-      ! TODO: this is only needed for cheap_update or the vector invariant form
-      ! in the shallow water model. It would be nice to get an if statement
-      ! to capture this but would require a shallow water option in gungho
-      ! which is not currently possible
       if ( final_split_step ) then
         call flux_precomputations%set_total_ref_flux(sum_flux)
       end if

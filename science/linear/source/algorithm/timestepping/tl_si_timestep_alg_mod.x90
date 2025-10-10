@@ -28,7 +28,8 @@ module tl_si_timestep_alg_mod
 
   use io_config_mod,               only: subroutine_timers,                    &
                                          write_conservation_diag
-  use linear_config_mod,           only: l_stabilise_bl,           &
+  use linear_config_mod,           only: fixed_ls,                 &
+                                         l_stabilise_bl,           &
                                          n_bl_levels_to_stabilise, &
                                          max_bl_stabilisation
   use mixed_solver_config_mod,     only: guess_np1,                            &
@@ -145,6 +146,7 @@ module tl_si_timestep_alg_mod
   type( field_type ), allocatable :: ls_rhs_phys(:,:,:)
   type( field_type ), allocatable :: ls_mr_itns(:,:,:)
   type( field_type ), allocatable :: ls_moist_dyn_itns(:,:,:)
+  integer( i_def ) :: ls_outer_iterations, ls_inner_iterations
 
   type( field_type ) :: theta_fv_inc ! theta fv transport increment to change to weak form
 
@@ -200,6 +202,19 @@ contains
     ! Allocate internal state field arrays
     !--------------------------------------------------------------------
 
+    if (fixed_ls) then
+      ! The linearisation state is not evolved (a 0x0 looping)
+      ! but ls_outer_iterations and ls_inner_iterations are set to
+      ! 1 so that the arrays are defined.
+      ls_outer_iterations = 1_i_def
+      ls_inner_iterations = 1_i_def
+    else
+      ! The linearisation state is evolved, and the intermediate iterations
+      ! are used to calculate the evolution of the perturbation.
+      ls_outer_iterations = outer_iterations
+      ls_inner_iterations = inner_iterations
+    end if
+
     if (full_init) then
       allocate(state(bundle_size))
       allocate(state_initial(bundle_size))
@@ -222,19 +237,19 @@ contains
       allocate(ls_mr_after_slow(nummr))
 
       allocate(ls_state_itns(bundle_size, &
-               outer_iterations, inner_iterations ))
+               ls_outer_iterations, ls_inner_iterations ))
       allocate(ls_rhs_np1(bundle_size, &
-               outer_iterations, inner_iterations ))
+               ls_outer_iterations, ls_inner_iterations ))
       allocate(ls_rhs_adv(bundle_size, &
-               outer_iterations, inner_iterations ))
+               ls_outer_iterations, ls_inner_iterations ))
       allocate(ls_rhs_phys(bundle_size, &
-                outer_iterations, inner_iterations ))
+               ls_outer_iterations, ls_inner_iterations ))
       allocate(ls_mr_inc(nummr, &
-               outer_iterations, inner_iterations ))
+               ls_outer_iterations, ls_inner_iterations ))
       allocate(ls_mr_itns(nummr, &
-               outer_iterations, inner_iterations ))
+               ls_outer_iterations, ls_inner_iterations ))
       allocate(ls_moist_dyn_itns(num_moist_factors, &
-               outer_iterations, inner_iterations ))
+               ls_outer_iterations, ls_inner_iterations ))
     end if
 
     !--------------------------------------------------------------------
@@ -265,8 +280,8 @@ contains
     call clone_bundle(state, ls_advected_state,   bundle_size)
     call clone_bundle(state, ls_rhs_n,            bundle_size)
 
-    do outer = 1, outer_iterations
-      do inner = 1, inner_iterations
+    do outer = 1, ls_outer_iterations
+      do inner = 1, ls_inner_iterations
         call clone_bundle(state, ls_state_itns(:, outer, inner), bundle_size)
         call clone_bundle(state, ls_rhs_np1(:, outer, inner),    bundle_size)
         call clone_bundle(state, ls_rhs_adv(:, outer, inner),    bundle_size)
@@ -290,8 +305,8 @@ contains
     call clone_bundle(ls_mr, ls_mr_n, nummr)
     call clone_bundle(ls_mr, ls_mr_after_slow, nummr)
 
-    do outer = 1, outer_iterations
-      do inner = 1, inner_iterations
+    do outer = 1,ls_outer_iterations
+      do inner = 1, ls_inner_iterations
         call clone_bundle(ls_moist_dyn, ls_moist_dyn_itns(:, outer, inner), &
                           num_moist_factors)
         call clone_bundle(ls_mr, ls_mr_itns(:, outer, inner), nummr)
@@ -369,6 +384,7 @@ contains
     type( operator_type ), pointer :: mm_vel => null()
 
     integer( kind=i_def ) :: outer, inner, reference_reset_freq
+    integer( kind=i_def ) :: ls_outer, ls_inner
     integer( kind=i_def ) :: next_outer, next_inner
     real( kind=r_def )    :: varalpha, varbeta ! alpha, beta weight to use
                                                ! these may differ from input
@@ -465,12 +481,15 @@ contains
     !--------------------------------------------------------------------
     ! Compute the time-level n dynamics terms
     !--------------------------------------------------------------------
+    call copy_bundle(ls_state_after_slow, ls_advected_state,  bundle_size)
+
+    if ( .not. fixed_ls ) then
+
     call rhs_alg( ls_rhs_n, varbeta*cast_dt, ls_state_after_slow, &
                   ls_state_n, ls_moist_dyn_itns(:,1,1),           &
                   compute_eos=.false., compute_rhs_t_d=.true.,    &
                   dlayer_rhs=.false., model_clock=modeldb%clock )
 
-    call copy_bundle(ls_state_after_slow, ls_advected_state,  bundle_size)
     if ( .not. si_momentum_equation ) then
       ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
       ! explicit advection
@@ -480,7 +499,7 @@ contains
     !==========================================================================
     ! Start the Outer (advection) loop
     !==========================================================================
-    ls_outer_dynamics_loop: do outer = 1,outer_iterations
+    ls_outer_dynamics_loop: do outer = 1,ls_outer_iterations
 
       call gungho_transport_control_alg(ls_rhs_adv(:, outer, 1),        &
                                         ls_advected_state,              &
@@ -517,7 +536,7 @@ contains
         !=====================================================================
         ! Start the Inner (nonlinear, coriolis) loop
         !=====================================================================
-        ls_inner_dynamics_loop: do inner = 1,inner_iterations
+        ls_inner_dynamics_loop: do inner = 1,ls_inner_iterations
 
           write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
                                                 outer, inner
@@ -650,6 +669,7 @@ contains
     !--------------------------------------------------------------------
     ! End of Outer (advection) loop
     !--------------------------------------------------------------------
+    end if
 
 !--------------------------------------------------------------------
 ! Perturbation
@@ -694,17 +714,23 @@ contains
 
     outer_dynamics_loop: do outer = 1,outer_iterations
 
-      call tl_transport_control_alg(rhs_adv,                        &
-                                    advected_state,                 &
-                                    state(igh_u),                   &
-                                    state_n(igh_u),                 &
-                                    mr,                             &
-                                    mr_after_slow,                  &
-                                    ls_advected_state,              &
-                                    ls_state_itns(igh_u, outer, 1), &
-                                    ls_state_n(igh_u),              &
-                                    ls_mr_after_slow,               &
-                                    modeldb%clock,                  &
+      if (fixed_ls) then
+        ls_outer = 1
+      else
+        ls_outer = outer
+      end if
+
+      call tl_transport_control_alg(rhs_adv,                           &
+                                    advected_state,                    &
+                                    state(igh_u),                      &
+                                    state_n(igh_u),                    &
+                                    mr,                                &
+                                    mr_after_slow,                     &
+                                    ls_advected_state,                 &
+                                    ls_state_itns(igh_u, ls_outer, 1), &
+                                    ls_state_n(igh_u),                 &
+                                    ls_mr_after_slow,                  &
+                                    modeldb%clock,                     &
                                     outer )
 
       ! Convert theta increment to weak form
@@ -727,18 +753,24 @@ contains
                                                 outer, inner
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
+          if (fixed_ls) then
+             ls_inner = 1
+          else
+             ls_inner = inner
+          end if
+
           !--------------------------------------------------------------------
           ! Compute the time-level n+1 dynamics terms
           !--------------------------------------------------------------------
-          call tl_rhs_alg(rhs_np1,                            &
-                          -varalpha*cast_dt,                  &
-                          state,                              &
-                          state,                              &
-                          moist_dyn,                          &
-                          ls_state_itns(:, outer, inner),     &
-                          ls_moist_dyn_itns(:, outer, inner), &
-                          .true.,                             &
-                          dlayer_on,                          &
+          call tl_rhs_alg(rhs_np1,                                  &
+                          -varalpha*cast_dt,                        &
+                          state,                                    &
+                          state,                                    &
+                          moist_dyn,                                &
+                          ls_state_itns(:, ls_outer, ls_inner),     &
+                          ls_moist_dyn_itns(:, ls_outer, ls_inner), &
+                          .true.,                                   &
+                          dlayer_on,                                &
                           modeldb%clock)
 
           !--------------------------------------------------------------------

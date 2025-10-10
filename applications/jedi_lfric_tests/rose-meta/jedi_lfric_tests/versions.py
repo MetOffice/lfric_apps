@@ -107,3 +107,22 @@ class vn22_t887(MacroUpgrade):
         self.add_setting(config, [nml, "i_pc2_erosion_numerics"], "'implicit'")
 
         return config, self.reports
+
+
+class vn22_t987(MacroUpgrade):
+    """Upgrade macro for ticket #987 by Christine Johnson."""
+
+    BEFORE_TAG = "vn2.2_t887"
+    AFTER_TAG = "vn2.2_t987"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-linear
+        scaling = self.get_setting_value(
+            config, ["namelist:planet", "scaling_factor"]
+        )
+        if "125.0" in scaling:
+            self.add_setting(config, ["namelist:linear", "fixed_ls"], ".false.")
+        else:
+            self.add_setting(config, ["namelist:linear", "fixed_ls"], ".true.")
+
+        return config, self.reports

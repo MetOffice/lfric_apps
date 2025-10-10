@@ -148,6 +148,7 @@ write_fluxes=.true.,
 write_minmax_tseries=.false.,
 /
 &linear
+fixed_ls=.false.
 pert_option='analytic',
 l_stabilise_bl=.false.,
 /

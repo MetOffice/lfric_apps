@@ -10,6 +10,7 @@
     "adjoint_tests_azspice_developer": [
         "adjoint_tests_default-C12_azspice_gnu_fast-debug-64bit-rsolver64",
         "adjoint_tests_default-C12_azspice_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_varying_ls-C12_azspice_gnu_fast-debug-64bit-rsolver64",
         "adjoint_tests_azspice_canned",
     ],
     "adjoint_tests_azspice": [

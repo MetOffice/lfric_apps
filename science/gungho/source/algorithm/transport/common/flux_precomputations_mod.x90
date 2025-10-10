@@ -35,7 +35,7 @@ module flux_precomputations_alg_mod
                                             transport_overwrite_freq_final,    &
                                             transport_overwrite_freq_split_step
   use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
-                                            r_tran, EPS_R_TRAN
+                                            r_tran, EPS_R_TRAN, r_def
   use departure_points_config_mod,    only: share_stencil_extent
   use extrusion_mod,                  only: PRIME_EXTRUSION, SHIFTED, TWOD
   use field_mod,                      only: field_type
@@ -57,7 +57,7 @@ module flux_precomputations_alg_mod
                                             LOG_LEVEL_DEBUG,                   &
                                             LOG_LEVEL_INFO,                    &
                                             LOG_LEVEL_WARNING,                 &
-                                            log_level
+                                            log_at_level
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
   use psykal_lite_transport_mod,      only: invoke_deep_shift_mass,            &
@@ -109,6 +109,10 @@ module flux_precomputations_alg_mod
 
     ! Total reference flux (over whole transport step), needed for cheap update
     type(r_tran_field_type)               :: total_ref_flux
+
+    ! Wind and dt for whole transport step, needed for logging
+    type(r_tran_field_type),  pointer     :: transporting_wind => null()
+    real(kind=r_tran)                     :: dt
 
     ! Reference fields
     type(r_tran_field_type),  allocatable :: ref_field(:,:)
@@ -171,6 +175,7 @@ module flux_precomputations_alg_mod
     procedure, private :: compute_dep_dist_inner
     procedure, private :: idx_from_mesh_id
     procedure, private :: check_negative_field
+    procedure, public  :: check_all_reference_field
     procedure, public  :: initialise => flux_precomputations_initialiser
     procedure, public  :: finalise
     final              :: destroy_flux_precomputations
@@ -191,6 +196,10 @@ contains
   !> @param[in] prime_mesh    The prime extrusion mesh
   !> @param[in] splitting     Splitting to be used for all pre-computations
   !> @param[in] num_substeps  Number of transport substeps
+  !> @param[in] wind          Transporting wind for the whole transport step.
+  !!                          Used for logging information in case of failure.
+  !> @param[in] dt            Time step for the whole transport step.
+  !!                          Used for logging information in case of failure.
   !> @param[in] ref_field     Optional, reference field (e.g. density) at the
   !!                          start of the transport step. If not provided,
   !!                          then this field is taken to be the unity field.
@@ -210,8 +219,8 @@ contains
   !!                          be used in horizontal calculations.
   subroutine flux_precomputations_initialiser(self, prime_mesh,                &
                                               splitting, num_substeps,         &
-                                              ref_field, flux, reset_unity,    &
-                                              max_courant_num)
+                                              wind, dt, ref_field, flux,       &
+                                              reset_unity, max_courant_num)
 
     use sci_mapping_constants_mod,  only: get_intermesh_weights_w3_rtran
     use sci_restrict_scalar_weighted_kernel_mod,                               &
@@ -235,6 +244,8 @@ contains
     type(mesh_type),                   pointer, intent(in)    :: prime_mesh
     integer(kind=i_def),                        intent(in)    :: splitting
     integer(kind=i_def),                        intent(in)    :: num_substeps
+    type(r_tran_field_type),           target,  intent(in)    :: wind
+    real(kind=r_tran),                          intent(in)    :: dt
     type(r_tran_field_type), optional,          intent(in)    :: ref_field
     type(r_tran_field_type), optional, target,  intent(in)    :: flux
     logical(kind=l_def),     optional,          intent(in)    :: reset_unity
@@ -548,6 +559,10 @@ contains
     self%is_computed_stencil_extent(:,:) = .false.
     self%is_computed_stencil_extent_outer(:,:) = .false.
 
+    ! Set transporting wind and dt, used for logging
+    self%transporting_wind => wind
+    self%dt = dt
+
     if ( subroutine_timers ) call timer('transport.flux_precomp_init')
 
   end subroutine flux_precomputations_initialiser
@@ -570,6 +585,7 @@ contains
 
     class(flux_precomputations_type), intent(inout) :: self
 
+    nullify(self%transporting_wind)
     self%is_initialised_flag = .false.
     self%max_stencil_extent_computed = .false.
     if ( allocated( self%mesh_ids ) )        deallocate( self%mesh_ids )
@@ -993,8 +1009,12 @@ contains
   !!                      the last substep of the previous transport step. An
   !!                      error will be thrown here if the step index is invalid
   !!                      which should help catch these cases.
+  !> @param[in]  negative_check_flag
+  !!                      Optional flag indicating that the a tracer reference
+  !!                      mass should be checked for negative values. By default
+  !!                      this check will happen for the tracer computations
   !> @return The reference mass for the given mesh and step
-  recursive function get_ref_mass(self, mesh_id, step) result(ref_mass)
+  recursive function get_ref_mass(self, mesh_id, step, negative_check_flag) result(ref_mass)
 
     use fv_difference_z_kernel_mod,     only: fv_difference_z_kernel_type
     use fv_difference_2d_kernel_mod,    only: fv_difference_2d_kernel_type
@@ -1006,6 +1026,7 @@ contains
     class(flux_precomputations_type), target, intent(inout) :: self
     integer(kind=i_def),                      intent(in)    :: mesh_id
     integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: negative_check_flag
 
     ! Internal variables
     integer(kind=i_def)                :: mesh_idx, fs_id
@@ -1013,6 +1034,7 @@ contains
     integer(kind=i_def)                :: num_split_steps
     logical(kind=l_def)                :: next_step_hori
     logical(kind=l_def)                :: do_overwrite
+    logical(kind=l_def)                :: negative_check
     type(mesh_type),           pointer :: mesh
     type(function_space_type), pointer :: w3_fs
     type(r_tran_field_type),   pointer :: ref_mass
@@ -1050,9 +1072,9 @@ contains
       if (step > 1) then
         ! Recursive call, as here we obtain reference mass for previous step
         if (self%reset_unity) then
-          ref_mass_prev => self%get_ref_mass(mesh_id, 1)
+          ref_mass_prev => self%get_ref_mass(mesh_id, 1, negative_check_flag)
         else
-          ref_mass_prev => self%get_ref_mass(mesh_id, step-1)
+          ref_mass_prev => self%get_ref_mass(mesh_id, step-1, negative_check_flag)
         end if
 
         ref_flux => self%get_ref_flux(mesh_id, step-1)
@@ -1111,7 +1133,7 @@ contains
         if ( do_overwrite ) then
         ! Only overwrite the final step
           if (transport_overwrite_freq == transport_overwrite_freq_final) then
-            ref_mass_prev => self%get_ref_mass(mesh_id, 1)
+            ref_mass_prev => self%get_ref_mass(mesh_id, 1, negative_check_flag)
           end if
           call overwrite_blending_zone_rtran(self%ref_mass(mesh_idx, step),    &
                                              ref_mass_prev,                    &
@@ -1142,7 +1164,7 @@ contains
       ! ---------------------------------------------------------------------- !
       else if (mesh_idx == 2) then
         if ( subroutine_timers ) call timer('transport.get_ref_mass')
-        ref_mass_prime => self%get_ref_mass(self%mesh_ids(1), step)
+        ref_mass_prime => self%get_ref_mass(self%mesh_ids(1), step, negative_check_flag)
         if (extended_mesh) then
           ! Original field has already been remapped, so can perform a "deep"
           ! shift on the original field to get the shifted, remapped density
@@ -1157,8 +1179,14 @@ contains
         if ( subroutine_timers ) call timer('transport.get_ref_mass')
       end if
 
-      ! Check that mass isn't negative in tracer case
-      if (trim(self%name) == 'tracer') then
+      ! Check if the computed reference mass is negative -----------------------
+      if (present(negative_check_flag)) then
+        negative_check = negative_check_flag
+      else
+        negative_check = (trim(self%name) == 'tracer')
+      end if
+
+      if (negative_check) then
         write(field_name, '(A,I8)') 'ref_mass, step ', step
         call self%check_negative_field(self%ref_mass(mesh_idx, step), field_name)
       end if
@@ -1306,17 +1334,24 @@ contains
   !!        corresponding mass transported in x
   !> @param[in]  mesh_id  Identifier of the mesh to get the field for
   !> @param[in]  step     Index of the split step (of whole transport step)
+  !> @param[in]  negative_check_flag
+  !!                      Optional flag indicating that the a tracer reference
+  !!                      mass should be checked for negative values. By default
+  !!                      this check will happen for the tracer computations
   !> @return The reference field transported in x for the given mesh and step
-  function get_ref_mass_x(self, mesh_id, step) result(ref_mass)
+  function get_ref_mass_x(self, mesh_id, step, negative_check_flag) result(ref_mass)
 
     implicit none
 
     class(flux_precomputations_type), target, intent(inout) :: self
     integer(kind=i_def),                      intent(in)    :: mesh_id
     integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: negative_check_flag
 
     ! Internal variables
+    logical(kind=l_def)              :: negative_check
     integer(kind=i_def)              :: mesh_idx, step_idx
+    character(len=str_def)           :: field_name
     type(r_tran_field_type), pointer :: ref_mass
 
     ! If substepping, step can exceed num_steps, so take that into account here
@@ -1325,6 +1360,21 @@ contains
 
     if (.not. self%ref_mass_x(mesh_idx, step_idx)%is_initialised()) then
       call self%compute_ref_mass_x_and_y(mesh_id, step)
+
+      ! Check if the computed reference masses are negative ----------------------
+      if (present(negative_check_flag)) then
+        negative_check = negative_check_flag
+      else
+        negative_check = (trim(self%name) == 'tracer')
+      end if
+
+      if (negative_check) then
+        ! Both have been calculated, so check both to avoid missing the other
+        write(field_name, '(A,I8)') 'ref_mass_x, step ', step
+        call self%check_negative_field(self%ref_mass_x(mesh_idx, step_idx), field_name)
+        write(field_name, '(A,I8)') 'ref_mass_y, step ', step
+        call self%check_negative_field(self%ref_mass_y(mesh_idx, step_idx), field_name)
+      end if
     end if
 
     ! Return existing field
@@ -1338,16 +1388,23 @@ contains
   !> @param[in]  mesh_id  Identifier of the mesh to get the field for
   !> @param[in]  step     Index of the split step (of whole transport step)
   !> @return The reference mass transported in y for the given mesh and step
-  function get_ref_mass_y(self, mesh_id, step) result(ref_mass)
+  !> @param[in]  negative_check_flag
+  !!                      Optional flag indicating that the a tracer reference
+  !!                      mass should be checked for negative values. By default
+  !!                      this check will happen for the tracer computations
+  function get_ref_mass_y(self, mesh_id, step, negative_check_flag) result(ref_mass)
 
     implicit none
 
     class(flux_precomputations_type), target, intent(inout) :: self
     integer(kind=i_def),                      intent(in)    :: mesh_id
     integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: negative_check_flag
 
     ! Internal variables
+    logical(kind=l_def)              :: negative_check
     integer(kind=i_def)              :: mesh_idx, step_idx
+    character(len=str_def)           :: field_name
     type(r_tran_field_type), pointer :: ref_mass
 
     ! If substepping, step can exceed num_steps, so take that into account here
@@ -1356,6 +1413,21 @@ contains
 
     if (.not. self%ref_mass_y(mesh_idx, step_idx)%is_initialised()) then
       call self%compute_ref_mass_x_and_y(mesh_id, step)
+
+      ! Check if the computed reference masses are negative ----------------------
+      if (present(negative_check_flag)) then
+        negative_check = negative_check_flag
+      else
+        negative_check = (trim(self%name) == 'tracer')
+      end if
+
+      if (negative_check) then
+        ! Both have been calculated, so check both to avoid missing the other
+        write(field_name, '(A,I8)') 'ref_mass_x, step ', step
+        call self%check_negative_field(self%ref_mass_x(mesh_idx, step_idx), field_name)
+        write(field_name, '(A,I8)') 'ref_mass_y, step ', step
+        call self%check_negative_field(self%ref_mass_y(mesh_idx, step_idx), field_name)
+      end if
     end if
 
     ! Return existing field
@@ -1734,7 +1806,6 @@ contains
     type(r_tran_field_type)            :: increment_y
     type(r_tran_field_type)            :: tmp_mass
     type(r_tran_field_type)            :: tmp_field
-    character(len=str_def)             :: field_name
 
     ! If substepping, step can exceed num_steps, so take that into account here
     step_idx = MOD(step - 1, self%num_steps) + 1
@@ -1817,14 +1888,6 @@ contains
       )
     end if
 
-    ! Check that mass isn't negative in tracer case
-    if (trim(self%name) == 'tracer') then
-      write(field_name, '(A,I8)') 'ref_mass_x, step ', step
-      call self%check_negative_field(self%ref_mass_x(mesh_idx, step_idx), field_name)
-      write(field_name, '(A,I8)') 'ref_mass_y, step ', step
-      call self%check_negative_field(self%ref_mass_y(mesh_idx, step_idx), field_name)
-    end if
-
     if ( subroutine_timers ) call timer('transport.get_ref_mass_xy')
 
   end subroutine compute_ref_mass_x_and_y
@@ -1900,7 +1963,7 @@ contains
       )
     end select
 
-    if (log_level() <= LOG_LEVEL_DEBUG) then
+    if (log_at_level(LOG_LEVEL_DEBUG)) then
       if (direction == direction_h) then
         write(field_name, '(2A,I8)')                                           &
             adjustl(trim(self%name)), ' dep_dist_xy_inner, step ', step
@@ -1984,7 +2047,7 @@ contains
             ref_flux, ref_mass_y, ref_mass_x, dep_stencil_extent               &
     )
 
-    if (log_level() <= LOG_LEVEL_DEBUG) then
+    if (log_at_level(LOG_LEVEL_DEBUG)) then
       write(field_name, '(2A,I8)')                                             &
           adjustl(trim(self%name)), ' dep_dist_xy_outer, step ', step
       call log_field_minmax(                                                   &
@@ -2031,7 +2094,10 @@ contains
   !!          distances for tracers if the ref mass is no longer positive.
   subroutine check_negative_field(self, field, field_name)
 
-    use sci_field_minmax_alg_mod, only: get_field_minmax, get_local_field_minmax
+    use sci_field_minmax_alg_mod,  only: get_field_minmax,                     &
+                                         get_local_field_minmax
+    use lipschitz_diag_alg_mod,    only: lipschitz_diag_alg
+    use print_field_stats_alg_mod, only: print_field_stats_alg_rtran
 
     implicit none
 
@@ -2044,7 +2110,7 @@ contains
     real(kind=r_tran) :: field_min
     real(kind=r_tran) :: field_max
 
-    if (log_level() <= LOG_LEVEL_INFO) then
+    if (log_at_level(LOG_LEVEL_INFO)) then
       ! Global min/max is more expensive but makes failure easier to spot
       call get_field_minmax(field, field_min, field_max)
     else
@@ -2053,16 +2119,102 @@ contains
     end if
 
     if (field_min < EPS_R_TRAN) then
-      write(log_scratch_space, '(A,E16.8,A,E16.8,A)')                          &
-        'The minimum of field ' // adjustl(trim(field_name)) // ' is ',        &
-        field_min, ' which is below the tolerance of ', EPS_R_TRAN,            &
-        ' which makes it impossible to find consistent departure distances. '  &
-        // 'Most likely the transporting wind has a maximum Lipschitz number ' &
-        // 'that exceeds 1. Stopping model rather than continuing'
+      ! We're about to fail... log the Lipschitz numbers and field stats
+      ! Protect this behind a log level check to avoid potentially hanging here
+      if (log_at_level(LOG_LEVEL_INFO)) then
+        call lipschitz_diag_alg(                                               &
+                self%splitting, self%transporting_wind,                        &
+                self%dt, LOG_LEVEL_WARNING                                     &
+        )
+        call print_field_stats_alg_rtran(                                      &
+                field, LOG_LEVEL_WARNING, 0.0_r_tran, HUGE(1.0_r_tran),        &
+                field_name                                                     &
+        )
+      end if
+
+      write(log_scratch_space, '(A,E16.8,A)')                                  &
+        'Negative or tiny value ', field_min, ' detected in ' //               &
+        'transport reference field ' // adjustl(trim(field_name)) // '. ' //   &
+        'This makes it impossible to find sensible departure distances. ' //   &
+        'Most likely the input transporting wind to the transport ' //         &
+        'scheme has a maximum Lipschitz number that exceeds 1 somewhere, ' //  &
+        'so check these values. Stopping model now to fail gracefully'
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
   end subroutine check_negative_field
+
+  !> @brief Checks all reference fields on the primary mesh for negative values
+  !> @return If all reference fields are safe, returns .true., otherwise .false.
+  function check_all_reference_field(self) result(ref_field_safe)
+
+    use sci_field_minmax_alg_mod, only: get_field_minmax
+    use check_configuration_mod,  only: check_any_hori_scheme_ffsl
+
+    implicit none
+
+    ! Arguments
+    class(flux_precomputations_type), target, intent(inout) :: self
+
+    ! Internal variables
+    integer(kind=i_def)              :: mesh_id, step
+    real(kind=r_tran)                :: field_min
+    real(kind=r_tran)                :: field_max
+    logical(kind=l_def)              :: ref_field_safe
+    logical(kind=l_def)              :: hori_step
+    integer(kind=i_def)              :: step_of_substep
+    type(r_tran_field_type), pointer :: ref_mass
+
+    ref_field_safe = .true.
+    mesh_id = self%mesh_ids(1) ! Just look at reference masses on the first mesh
+
+    ! No need to check first or final reference fields
+    do step = 1, self%num_steps-1
+      ! Get the reference mass for the end of this step
+      ref_mass => self%get_ref_mass(mesh_id, step+1, negative_check_flag=.false.)
+      call get_field_minmax(ref_mass, field_min, field_max)
+
+      if (field_min < EPS_R_TRAN) then
+        ref_field_safe = .false.
+        EXIT
+      end if
+
+      ! Check the reference mass x and y fields for horizontal steps
+      step_of_substep = MOD(step - 1, get_num_split_steps(self%splitting)) + 1
+      hori_step = (                                                            &
+        get_splitting_direction(self%splitting,step_of_substep) == direction_h &
+        .and. check_any_hori_scheme_ffsl()                                     &
+      )
+      if (hori_step) then
+        ref_mass => self%get_ref_mass_x(mesh_id, step, negative_check_flag=.false.)
+        call get_field_minmax(ref_mass, field_min, field_max)
+        if (field_min < EPS_R_TRAN) then
+          ref_field_safe = .false.
+          EXIT
+        end if
+        ref_mass => self%get_ref_mass_y(mesh_id, step, negative_check_flag=.false.)
+        call get_field_minmax(ref_mass, field_min, field_max)
+        if (field_min < EPS_R_TRAN) then
+          ref_field_safe = .false.
+          EXIT
+        end if
+      end if
+    end do
+
+    if (ref_field_safe) then
+      call log_event(                                                          &
+              'All reference fields are safe, no negative values found',       &
+              LOG_LEVEL_DEBUG                                                  &
+      )
+    else
+      call log_event(                                                          &
+              'Negative values found in reference fields, departure point ' // &
+              'calculations will fail without taking further action',          &
+              LOG_LEVEL_WARNING                                                &
+      )
+    end if
+
+  end function check_all_reference_field
 
   !> @brief Determines the maximum depth to initialise fields to, based on the
   !!        stencil extent of the departure points.
@@ -2119,7 +2271,7 @@ contains
     real(kind=r_tran)                :: max_courant_hori, max_courant_vert
     type(r_tran_field_type), pointer :: dep_dist
 
-    if (log_level() <= LOG_LEVEL_INFO) then
+    if (log_at_level(LOG_LEVEL_INFO)) then
       ! To estimate Courant numbers, use the departure distances for the first
       ! vertical/horizontal steps, and multiply by split step fraction
       hori_found = .false.

@@ -13,7 +13,7 @@ module watkins_kernel_mod
 
 use argument_mod,                only : arg_type, GH_SCALAR,       &
                                         GH_FIELD, GH_REAL,         &
-                                        GH_READWRITE, GH_READ,     &
+                                        GH_WRITE, GH_READ,         &
                                         ANY_DISCONTINUOUS_SPACE_2, &
                                         GH_INTEGER, CELL_COLUMN
 use fs_continuity_mod,           only : W3, W2v, W2
@@ -31,12 +31,13 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: watkins_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                                            &
-       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W2v),                       & ! first_v_wind
-       arg_type(GH_FIELD,  GH_INTEGER, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_2), & ! watkins_failures
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W2),                        & ! wind
-       arg_type(GH_SCALAR, GH_REAL,    GH_READ),                                 & ! dt
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3)                         & ! detj
+  type(arg_type) :: meta_args(6) = (/                                          &
+       arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2v),                         & ! first_v_wind
+       arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),   & ! lipschitz_max_field
+       arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),   & ! watkins_failures
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2),                          & ! wind
+       arg_type(GH_SCALAR, GH_REAL,    GH_READ),                               & ! dt
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3)                           & ! detj
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -52,26 +53,28 @@ contains
 
 !> @brief Implements Watkins algorithm to adjust vertical wind to avoid
 !!        breaching Lipschitz conditions
-!> @param[in]     nlayers          The number of layers in the mesh
-!> @param[in,out] first_v_wind     Wind for first vertical step
-!> @param[in,out] watkins_failures Integer field set to 1 if Watkins fails
-!> @param[in]     wind             3D wind
-!> @param[in]     dt               Transport time step
-!> @param[in]     detj             Det(J) at W3: the volume of cells
-!> @param[in]     ndf_w2v          Number of DoFs per cell for W2V
-!> @param[in]     undf_w2v         Number of W2V DoFs in memory for this partition
-!> @param[in]     map_w2v          Map of lowest-cell W2V DoFs
-!> @param[in]     ndf_w3_2d        Number of DoFs per cell for W3_2d
-!> @param[in]     undf_w3_2d       Number of W3_2d DoFs in memory for this partition
-!> @param[in]     map_w3_2d        Map of W3_2d DoFs
-!> @param[in]     ndf_w2           Number of DoFs per cell for W2
-!> @param[in]     undf_w2          Number of W2 DoFs in memory for this partition
-!> @param[in]     map_w2           Map of lowest-cell W2 DoFs
-!> @param[in]     ndf_w3           Number of DoFs per cell for W3
-!> @param[in]     undf_w3          Number of W3 DoFs in memory for this partition
-!> @param[in]     map_w3           Map of lowest-cell W3 DoFs
+!> @param[in]     nlayers               The number of layers in the mesh
+!> @param[in,out] first_v_wind          Wind for first vertical step
+!> @param[in,out] lipschitz_max_field   Field to store maximum Lipschitz number
+!> @param[in,out] watkins_failures      Integer field set to 1 if Watkins fails
+!> @param[in]     wind                  3D wind
+!> @param[in]     dt                    Transport time step
+!> @param[in]     detj                  Det(J) at W3: the volume of cells
+!> @param[in]     ndf_w2v               Num of DoFs per cell for W2V
+!> @param[in]     undf_w2v              Num of W2V DoFs for this partition
+!> @param[in]     map_w2v               Map of lowest-cell W2V DoFs
+!> @param[in]     ndf_w3_2d             Num of DoFs per cell for W3_2d
+!> @param[in]     undf_w3_2d            Num of W3_2d DoFs for this partition
+!> @param[in]     map_w3_2d             Map of W3_2d DoFs
+!> @param[in]     ndf_w2                Num of DoFs per cell for W2
+!> @param[in]     undf_w2               Num of W2 DoFs for this partition
+!> @param[in]     map_w2                Map of lowest-cell W2 DoFs
+!> @param[in]     ndf_w3                Number of DoFs per cell for W3
+!> @param[in]     undf_w3               Num of W3 DoFs for this partition
+!> @param[in]     map_w3                Map of lowest-cell W3 DoFs
 subroutine watkins_code( nlayers,             &
                          first_v_wind,        &
+                         lipschitz_max_field, &
                          watkins_failures,    &
                          wind,                &
                          dt,                  &
@@ -103,6 +106,7 @@ subroutine watkins_code( nlayers,             &
   real(kind=r_tran),   intent(in)    :: detj(undf_w3)
   real(kind=r_tran),   intent(in)    :: wind(undf_w2)
   real(kind=r_tran),   intent(inout) :: first_v_wind(undf_w2v)
+  real(kind=r_tran),   intent(inout) :: lipschitz_max_field(undf_w3_2d)
   integer(kind=i_def), intent(inout) :: watkins_failures(undf_w3_2d)
 
   integer(kind=i_def) :: k
@@ -268,6 +272,9 @@ subroutine watkins_code( nlayers,             &
   else if (max_lip_new > threshold + tolerance) then
     watkins_failures(map_w3_2d(1)) = 1_i_def
   end if
+
+  ! As we have calculated max Lipschitz numbers, store it for logging
+  lipschitz_max_field(map_w3_2d(1)) = MIN(max_lip_new, max_lip_init)
 
 end subroutine watkins_code
 

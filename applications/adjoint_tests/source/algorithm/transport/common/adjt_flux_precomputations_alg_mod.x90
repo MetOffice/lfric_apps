@@ -15,7 +15,7 @@ module adjt_flux_precomputations_alg_mod
                                                   element_order_v
   use model_clock_mod,                     only : model_clock_type
   use constants_mod,                       only : i_def, r_def, r_tran, l_def
-  use fs_continuity_mod,                   only : W3
+  use fs_continuity_mod,                   only : W3, W2
   use log_mod,                             only : log_event,       &
                                                   LOG_LEVEL_ERROR, &
                                                   LOG_LEVEL_INFO,  &
@@ -72,6 +72,7 @@ module adjt_flux_precomputations_alg_mod
 
     ! Variables for initialising fields
     type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
 
     ! Variables used to handle calculations for fields stored in tl_transport_controller
     integer(kind=i_def)                                :: mesh_id
@@ -79,6 +80,7 @@ module adjt_flux_precomputations_alg_mod
     integer(kind=i_def)                                :: num_steps
     type(tl_transport_controller_type)                 :: tl_transport_controller
     type(transport_controller_type),           pointer :: ls_transport_controller
+    type(r_tran_field_type),                   target  :: dummy_wind
     type(r_tran_field_type), dimension(:), allocatable :: dummy_inp
     type(r_tran_field_type), dimension(:), allocatable :: flux_pc_ref_field_inp
     type(r_tran_field_type), dimension(:), allocatable :: flux_pc_ref_mass_inp
@@ -92,6 +94,7 @@ module adjt_flux_precomputations_alg_mod
     real(kind=r_tran)            :: inner2
     real(kind=r_def)             :: rf_rf_inp_inner_prod
     real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+    real(kind=r_tran), parameter :: dt_logging = 1.0_r_tran
 
     ! Test parameters and variables
     real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
@@ -101,12 +104,15 @@ module adjt_flux_precomputations_alg_mod
     mesh_id = mesh%get_id()
 
     ! Initialising fields
-    vector_space_w3_ptr => function_space_collection%get_fs(                 &
-        mesh, element_order_h, element_order_v, W3                           &
+    vector_space_w3_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W3                             &
+    )
+    vector_space_w2_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W2                             &
     )
 
     call ref_field%initialise( vector_space = vector_space_w3_ptr )
-
+    call dummy_wind%initialise( vector_space = vector_space_w2_ptr )
     call ref_field%copy_field_properties( ref_field_inp )
 
     ! Initialise values
@@ -135,6 +141,8 @@ module adjt_flux_precomputations_alg_mod
     call flux_pc%initialise( mesh,         &
                              splitting,    &
                              num_substeps, &
+                             dummy_wind,   &
+                             dt_logging,   &
                              ref_field )
 
     call init_flux_pc_fieldvals( mesh,                     &

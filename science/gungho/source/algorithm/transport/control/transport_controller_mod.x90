@@ -14,7 +14,8 @@
 module transport_controller_mod
 
   ! Infrastructure
-  use constants_mod,                  only: i_def, l_def, r_tran
+  use constants_mod,                  only: i_def, l_def, r_tran, r_def, IMDI, &
+                                            str_def
   use copy_field_alg_mod,             only: copy_field
   use extrusion_mod,                  only: SHIFTED, TWOD
   use field_mod,                      only: field_type
@@ -27,8 +28,10 @@ module transport_controller_mod
   use log_mod,                        only: log_event,                         &
                                             LOG_LEVEL_INFO,                    &
                                             LOG_LEVEL_ERROR,                   &
+                                            LOG_LEVEL_DEBUG,                   &
                                             LOG_LEVEL_WARNING,                 &
-                                            log_level
+                                            log_scratch_space,                 &
+                                            log_at_level
   use mesh_collection_mod,            only: mesh_collection
   use model_clock_mod,                only: model_clock_type
   use r_tran_field_mod,               only: r_tran_field_type
@@ -47,9 +50,12 @@ module transport_controller_mod
 
   ! Algorithms
   use lipschitz_diag_alg_mod,         only: lipschitz_diag_alg
-  use substep_transport_alg_mod,      only: substep_transport_alg
+  use print_field_stats_alg_mod,      only: print_field_stats_alg_rtran
+  use substep_transport_alg_mod,      only: substep_transport_alg,             &
+                                            adaptive_vhv_splitting_alg
 
   ! Kernels
+  use fv_divergence_3d_kernel_mod,    only: fv_divergence_3d_kernel_type
   use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
   use watkins_kernel_mod,             only: watkins_kernel_type
 
@@ -72,6 +78,8 @@ module transport_controller_mod
     logical(kind=l_def) :: outer_set = .false.
     integer(kind=i_def) :: outer
     logical(kind=l_def) :: cheap_update_step = .false.
+    logical(kind=l_def) :: adaptive_splitting = .false.
+    integer(kind=i_def) :: reference_splitting = IMDI
     integer(kind=i_def) :: max_courant_num = 0
     logical(kind=l_def) :: dep_stencil_extent_computed = .false.
 
@@ -103,7 +111,9 @@ module transport_controller_mod
     procedure, public  :: get_wind_precomputations
     procedure, public  :: get_ffsl_precomputations
     procedure, public  :: get_flux_precomputations
+    procedure, public  :: check_reference_field
     procedure, public  :: get_dep_stencil_extent
+    procedure, public  :: get_reference_splitting
     procedure, public  :: initialise_flux_precomputations
     procedure, public  :: finalise
     final              :: destroy_transport_controller
@@ -144,12 +154,15 @@ contains
   subroutine initialise(self, model_clock, ref_field_rdef, wind_n_rdef,        &
                         wind_np1_rdef, outer, cheap_update_step)
 
+    use split_transport_utils_mod,      only: get_dry_config,                  &
+                                              get_splitting_name
     use transport_config_mod,           only: ffsl_unity_3d,                   &
                                               adjust_vhv_wind,                 &
                                               substep_transport,               &
                                               substep_transport_two,           &
                                               substep_transport_four,          &
-                                              substep_transport_adaptive
+                                              substep_transport_adaptive,      &
+                                              splitting
     use transport_enumerated_types_mod, only: splitting_strang_vhv
 
     implicit none
@@ -168,6 +181,8 @@ contains
     type(r_tran_field_type)            :: vert_wind_flux
     type(r_tran_field_type)            :: step_1_wind_flux
     type(r_tran_field_type)            :: step_3_wind_flux
+    type(r_tran_field_type)            :: lipschitz_max_field
+    type(r_tran_field_type)            :: lipschitz_3d
     type(r_tran_field_type),   pointer :: detj_at_w3
     type(integer_field_type)           :: watkins_fail_field
     type(integer_field_type),  pointer :: face_selector_ew
@@ -181,12 +196,16 @@ contains
     type(function_space_type), pointer :: w3_fs
     type(function_space_type), pointer :: w3_2d_fs
 
-    real(kind=r_tran)   :: dt_rtran, dt_one
-    integer(kind=i_def) :: mesh_id
-    integer(kind=i_def) :: splitting
-    integer(kind=i_def) :: watkins_fail, watkins_min
-    logical(kind=l_def) :: perform_watkins
-    logical(kind=l_def) :: fixed_multiple_substeps
+    real(kind=r_tran)      :: dt_rtran, dt_one
+    real(kind=r_tran)      :: min_lipschitz, max_lipschitz_3d
+    real(kind=r_tran)      :: max_lipschitz, max_lipschitz_alt
+    integer(kind=i_def)    :: mesh_id
+    integer(kind=i_def)    :: watkins_fail, watkins_min
+    integer(kind=i_def)    :: splitting_alt
+    logical(kind=l_def)    :: perform_watkins
+    logical(kind=l_def)    :: fixed_multiple_substeps
+    logical(kind=l_def)    :: logged_lipschitz
+    character(len=str_def) :: splitting_name
 
     if ( subroutine_timers ) call timer('transport.controller_init')
 
@@ -200,6 +219,14 @@ contains
     end if
 
     dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+
+    self%reference_splitting = splitting(get_dry_config())
+
+    ! Start with assumption of one substep
+    self%dt_substep = dt_rtran
+    self%num_substeps = 1
+
+    logged_lipschitz = .false.
 
     ! ------------------------------------------------------------------------ !
     ! Convert winds to r_tran precision
@@ -261,7 +288,6 @@ contains
     !     the number of substeps based on conditions relating to the wind. The
     !     ffsl_precomputations are initialised using the 3D wind.
 
-
     fixed_multiple_substeps = (                                                &
       substep_transport == substep_transport_two .or.                          &
       substep_transport == substep_transport_four                              &
@@ -271,11 +297,54 @@ contains
         .and. .not. fixed_multiple_substeps                                    &
     )
 
+    ! If performing substepping, compute 3D Lipschitz number at this point
+    if (substep_transport == substep_transport_adaptive .or. log_at_level(LOG_LEVEL_INFO)) then
+      call lipschitz_3d%initialise(w3_fs)
+      mesh => self%transporting_wind%get_mesh()
+      mesh_id = mesh%get_id()
+      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      call invoke( fv_divergence_3d_kernel_type(lipschitz_3d,                  &
+                                                self%transporting_wind,        &
+                                                detj_at_w3),                   &
+                   inc_a_times_X(dt_rtran, lipschitz_3d) )
+      call get_field_minmax(lipschitz_3d, min_lipschitz, max_lipschitz_3d)
+
+      ! Log the max Lipschitz number
+      write(log_scratch_space, '(A, E16.8)')                                   &
+          'Transport: max 3D Lipschitz ', max_lipschitz_3d
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+      ! Get more stats if debug log level, or we're in the danger zone
+      ! We've already logged the max, so can avoid recomputing max here if
+      ! we don't need to log the full stats
+      if (log_at_level(LOG_LEVEL_DEBUG).or.                                    &
+            (log_at_level(LOG_LEVEL_INFO) .and. max_lipschitz_3d > 0.5_r_tran)) then
+        call print_field_stats_alg_rtran(                                      &
+                lipschitz_3d, LOG_LEVEL_INFO, -0.5_r_tran, 0.5_r_tran,         &
+                'lipschitz_3d'                                                 &
+        )
+      end if
+
+      if (max_lipschitz_3d > 0.95_r_tran                                       &
+          .and. substep_transport == substep_transport_adaptive) then
+        ! Don't bother with the Watkins algorithm and skip to substepping
+        perform_watkins = .false.
+      end if
+    end if
+
     ! For our default options, we only want to substep if the Watkins algorithm
     ! fails to generate winds that keep Lipschitz numbers below 1. In performing
     ! that calculation, we also generate the winds for each split step so we
     ! want to use those rather than recalculating them
     if (perform_watkins) then
+      if (self%reference_splitting /= splitting_strang_vhv) then
+        call log_event(                                                        &
+          'The adjust_vhv option to use the Watkins algorithm can only be ' // &
+          'used when the reference field uses the V-H-V Strang splitting',     &
+          LOG_LEVEL_ERROR                                                      &
+        )
+      end if
+
       mesh => self%transporting_wind%get_mesh()
       twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
       w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
@@ -293,6 +362,7 @@ contains
       call step_1_wind_flux%initialise(w2v_fs)
       call step_3_wind_flux%initialise(w2v_fs)
       call watkins_fail_field%initialise(w3_2d_fs)
+      call lipschitz_max_field%initialise(w3_2d_fs)
 
       ! Following calculations will include dt in the "wind flux" fields, so
       ! set dt = 1.0 for the Watkins kernel
@@ -310,6 +380,7 @@ contains
                                               face_selector_ns),               &
                    ! Determine the adjusted wind for the first step
                    watkins_kernel_type(step_1_wind_flux,                       &
+                                       lipschitz_max_field,                    &
                                        watkins_fail_field,                     &
                                        wind_flux,                              &
                                        dt_one,                                 &
@@ -324,23 +395,53 @@ contains
         watkins_fail = 0
       end if
 
-      ! Performing one substep
-      self%dt_substep = dt_rtran
-      self%num_substeps = 1
-      splitting = splitting_strang_vhv
+      ! Log maximum intermediate Lipschitz number
+      call get_field_minmax(lipschitz_max_field, min_lipschitz, max_lipschitz)
+      write(log_scratch_space, '(A, E16.8)')                                   &
+          'Transport: max intermediate Lipschitz ', max_lipschitz
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
+      ! Watkins algorithm succeeded so set winds to use in each step
       if (watkins_fail < 1) then
-        ! Log Lipschitz numbers
-        if (log_level() <= LOG_LEVEL_INFO) then
-          call lipschitz_diag_alg(self%transporting_wind, dt_rtran)
-        end if
-
-        call self%ffsl_precomputations%initialise(mesh, splitting, self%num_substeps)
+        call self%ffsl_precomputations%initialise(                             &
+                mesh, self%reference_splitting, self%num_substeps,             &
+                self%transporting_wind, self%dt_substep                        &
+        )
         call self%ffsl_precomputations%initialise_step(step=1, ref_flux=step_1_wind_flux)
         call self%ffsl_precomputations%initialise_step(step=2, ref_flux=hori_wind_flux)
         call self%ffsl_precomputations%initialise_step(step=3, ref_flux=step_3_wind_flux)
 
         call self%ffsl_precomputations%log_courant()
+
+      else if (substep_transport == substep_transport_adaptive) then
+        if (watkins_fail > 0) then
+          ! Watkins algorithm failed, but might another splitting succeed?
+          call adaptive_vhv_splitting_alg(                                     &
+                  max_lipschitz_alt, splitting_alt, self%transporting_wind,    &
+                  dt_rtran                                                     &
+          )
+          logged_lipschitz = .true.
+
+          if (max_lipschitz_alt < 0.95_r_tran) then
+            ! Do alternative splitting
+            watkins_fail = 0
+            self%adaptive_splitting = .true.
+            self%reference_splitting = splitting_alt
+            splitting_name = get_splitting_name(splitting_alt)
+            call log_event(                                                    &
+                'Watkins algorithm failed to keep Lipschitz numbers ' //       &
+                'beneath 1, but using ' // adjustl(trim(splitting_name)) //    &
+                ' splitting instead', LOG_LEVEL_WARNING                        &
+            )
+          else
+            call log_event(                                                    &
+                    'Watkins algorithm failed to keep Lipschitz numbers ' //   &
+                    'beneath 1, so substepping transport instead',             &
+                    LOG_LEVEL_WARNING                                          &
+            )
+          end if
+        end if
+
       else
         call log_event(                                                        &
                 'Watkins algorithm failed to keep Lipschitz numbers ' //       &
@@ -351,10 +452,33 @@ contains
 
     if (.not. perform_watkins .or. (perform_watkins .and. watkins_fail > 0)) then
       call substep_transport_alg(                                              &
-              self%num_substeps, self%transporting_wind, dt_rtran              &
+              self%num_substeps, self%transporting_wind, dt_rtran,             &
+              max_lipschitz_3d                                                 &
       )
 
       self%dt_substep = dt_rtran / real(self%num_substeps, r_tran)
+    end if
+
+    ! Log all Lipschitz numbers for this splitting
+    ! As this routine does some calculations, only call it when the specified
+    ! logging level is appropriate
+    if (log_at_level(LOG_LEVEL_DEBUG) .and. .not. logged_lipschitz) then
+      call lipschitz_diag_alg(                                                 &
+              self%reference_splitting, self%transporting_wind,                &
+              dt_rtran, LOG_LEVEL_DEBUG                                        &
+      )
+    end if
+
+    ! Generally don't need to log the number of substeps, because it should be 1
+    ! So only log it if (a) we're in debug mode, or (b) there is more than one
+    ! substep, in which case it's important to know.
+    ! For processing the log file, it's easier to have this information always
+    ! at the same level (i.e. INFO), so include a check on log level on this
+    ! if statement
+    if (self%num_substeps > 1 .or. log_at_level(LOG_LEVEL_DEBUG)) then
+      write(log_scratch_space, '(A,I4)')                                       &
+          'Transport: Number of transport substeps: ', self%num_substeps
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
     end if
 
     if ( subroutine_timers ) call timer('transport.controller_init')
@@ -379,6 +503,8 @@ contains
 
     self%outer_set = .false.
     self%cheap_update_step = .false.
+    self%adaptive_splitting = .false.
+    self%reference_splitting = IMDI
     self%dep_stencil_extent_computed = .false.
     call self%counter%finalise()
     nullify(self%metadata)
@@ -395,6 +521,164 @@ contains
     call self%finalise()
 
   end subroutine destroy_transport_controller
+
+! ============================================================================ !
+! PREVENT NEGATIVE REFERENCE FIELDS
+! ============================================================================ !
+
+  !> @brief Calculates the reference fields to be used in tracer transport, and
+  !!        if any of these are going to be negative, may perform the Watkins
+  !!        algorithm to adjust how the fluxes are distributed between steps.
+  subroutine check_reference_field(self)
+
+    use transport_config_mod,           only: ffsl_unity_3d,                   &
+                                              adjust_vhv_wind,                 &
+                                              substep_transport,               &
+                                              substep_transport_two,           &
+                                              substep_transport_four,          &
+                                              substep_transport_adaptive,      &
+                                              splitting
+    use transport_enumerated_types_mod, only: splitting_strang_vhv
+
+    implicit none
+
+    class(transport_controller_type), target, intent(inout) :: self
+
+    type(flux_precomputations_type), pointer :: flux_precomputations
+
+    ! Internal variables
+    real(kind=r_tran)                  :: dt_one, dt
+    integer(kind=i_def)                :: mesh_id
+    integer(kind=i_def)                :: watkins_fail, watkins_min
+    logical(kind=l_def)                :: perform_watkins
+    logical(kind=l_def)                :: fixed_multiple_substeps
+    logical(kind=l_def)                :: ref_field_safe
+    type(mesh_type),           pointer :: mesh
+    type(mesh_type),           pointer :: twod_mesh
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2v_fs
+    type(function_space_type), pointer :: w3_2d_fs
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    type(r_tran_field_type),   pointer :: ref_mass
+    type(r_tran_field_type),   pointer :: total_ref_flux
+    type(r_tran_field_type)            :: hori_flux
+    type(r_tran_field_type)            :: vert_flux
+    type(r_tran_field_type)            :: step_1_flux
+    type(r_tran_field_type)            :: step_3_flux
+    type(r_tran_field_type)            :: lipschitz_max_field
+    type(integer_field_type)           :: watkins_fail_field
+
+    flux_precomputations => self%get_flux_precomputations()
+    ref_field_safe = flux_precomputations%check_all_reference_field()
+
+    if (.not. ref_field_safe) then
+      fixed_multiple_substeps = (                                              &
+        substep_transport == substep_transport_two .or.                        &
+        substep_transport == substep_transport_four                            &
+      )
+      perform_watkins = (                                                      &
+          ffsl_unity_3d .and. adjust_vhv_wind                                  &
+          .and. .not. fixed_multiple_substeps                                  &
+      )
+
+      if (perform_watkins) then
+        if (self%reference_splitting /= splitting_strang_vhv) then
+          call log_event(                                                      &
+            'The adjust_vhv option for the Watkins algorithm can only be ' //  &
+            'used when the reference field uses the V-H-V Strang splitting',   &
+            LOG_LEVEL_ERROR                                                    &
+          )
+        end if
+
+        call log_event(                                                        &
+          'Reference field for tracer transport is negative, checking if ' //  &
+          'Watkins alg can be used to adjust the wind', LOG_LEVEL_WARNING      &
+        )
+
+        mesh => self%transporting_wind%get_mesh()
+        twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+        w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
+        w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
+        w3_2d_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
+
+        mesh_id = mesh%get_id()
+        ref_mass => flux_precomputations%get_ref_mass(mesh_id, 1)
+        total_ref_flux => flux_precomputations%get_total_ref_flux()
+        face_selector_ew => get_face_selector_ew(mesh_id)
+        face_selector_ns => get_face_selector_ns(mesh_id)
+
+        call hori_flux%initialise(w2h_fs)
+        call vert_flux%initialise(w2v_fs)
+        call step_1_flux%initialise(w2v_fs)
+        call step_3_flux%initialise(w2v_fs)
+        call watkins_fail_field%initialise(w3_2d_fs)
+        call lipschitz_max_field%initialise(w3_2d_fs)
+
+        ! Following calculations will include dt in the "flux" fields, so
+        ! set dt = 1.0 for the Watkins kernel
+        dt_one = 1.0_r_tran
+
+        call invoke( setval_c(hori_flux, 0.0_r_tran),                          &
+                     setval_c(vert_flux, 0.0_r_tran),                          &
+                     ! Separate wind into horizontal and vertical parts
+                     split_w2_field_kernel_type(hori_flux,                     &
+                                                vert_flux,                     &
+                                                total_ref_flux,                &
+                                                face_selector_ew,              &
+                                                face_selector_ns),             &
+                     ! Determine the adjusted wind for the first step
+                     watkins_kernel_type(step_1_flux,                          &
+                                         lipschitz_max_field,                  &
+                                         watkins_fail_field,                   &
+                                         total_ref_flux,                       &
+                                         dt_one,                               &
+                                         ref_mass),                            &
+                     ! Determine the adjusted wind for the final step
+                     X_minus_Y(step_3_flux, vert_flux, step_1_flux) )
+
+        ! Check if the Watkins algorithm failed
+        call get_field_minmax(watkins_fail_field, watkins_min, watkins_fail)
+        if (watkins_fail < 1) then
+          ! Watkins algorithm succeeded so set fluxes to use in each step
+          ! First finalise the flux precomputations object
+          call flux_precomputations%finalise()
+          ! Initialise by calling getter
+          flux_precomputations => self%get_flux_precomputations()
+
+          ! Initialise the flux for each step
+          call self%flux_precomputations%initialise_step(step=1, ref_flux=step_1_flux)
+          call self%flux_precomputations%initialise_step(step=2, ref_flux=hori_flux)
+          call self%flux_precomputations%initialise_step(step=3, ref_flux=step_3_flux)
+
+        else
+          ! We're about to fail... log the Lipschitz numbers
+          dt = self%dt_substep * real(self%num_substeps, r_tran)
+          call lipschitz_diag_alg(                                             &
+                  self%reference_splitting, self%transporting_wind, dt,        &
+                  LOG_LEVEL_WARNING                                            &
+          )
+
+          call log_event(                                                      &
+            'Watkins algorithm failed to keep all reference fields ' //        &
+            'positive for the transport of tracers. This makes it ' //         &
+            'impossible to find sensible departure distances. Most likely ' // &
+            'the input transporting wind to the transport scheme has a ' //    &
+            'maximum Lipschitz number that exceeds 1 somewhere, so check ' //  &
+            'so check these values. Stopping model now to fail gracefully',    &
+            LOG_LEVEL_ERROR                                                    &
+          )
+        end if
+
+      else
+        call log_event(                                                        &
+          'Reference field for tracer transport is negative, but no ' //       &
+          'scheme to handle this has yet been implemented.', LOG_LEVEL_ERROR   &
+        )
+      end if
+    end if
+
+  end subroutine check_reference_field
 
 ! ============================================================================ !
 ! SETTERS
@@ -416,7 +700,9 @@ contains
 
     ! Initialise counter
     if (self%outer_set) then
-      call self%metadata%update_metadata(self%outer)
+      call self%metadata%update_metadata(                                      &
+              self%outer, self%adaptive_splitting, self%reference_splitting    &
+      )
       call self%counter%initialise(                                            &
               self%metadata, self%dt_substep, self%num_substeps, self%outer    &
       )
@@ -436,7 +722,7 @@ contains
 
     class(transport_controller_type), target, intent(inout) :: self
 
-    if (self%outer_set) then
+    if (self%outer_set .and. associated(self%metadata)) then
       call self%metadata%reset_metadata()
     end if
 
@@ -512,29 +798,17 @@ contains
   !> @return The ffsl_precomputations object
   function get_ffsl_precomputations(self) result(ffsl_precomputations)
 
-    use transport_config_mod,      only: splitting
-    use split_transport_utils_mod, only: get_dry_config
-
     implicit none
 
     class(transport_controller_type), target, intent(inout) :: self
 
     type(flux_precomputations_type), pointer :: ffsl_precomputations
     type(mesh_type),                 pointer :: mesh
-    integer(kind=i_def)                      :: reference_splitting
     type(r_tran_field_type)                  :: wind_flux
-    real(kind=r_tran)                        :: dt_rtran
 
     ! If object is not created, then create it here
     if (.not. self%ffsl_precomputations%is_initialised()) then
       mesh => self%transporting_wind%get_mesh()
-      reference_splitting = splitting(get_dry_config())
-
-      ! Log Lipschitz numbers
-      if (log_level() <= LOG_LEVEL_INFO) then
-        dt_rtran = self%dt_substep * real(self%num_substeps, r_tran)
-        call lipschitz_diag_alg(self%transporting_wind, dt_rtran)
-      end if
 
       ! Wind needs multiplying by dt
       call self%transporting_wind%copy_field_properties(wind_flux)
@@ -546,7 +820,8 @@ contains
       ! For this object, all computations are the same across different substeps
       ! so we only do it for the first substep
       call self%ffsl_precomputations%initialise(                               &
-              mesh, reference_splitting, self%num_substeps, flux=wind_flux     &
+            mesh, self%reference_splitting, self%num_substeps,                 &
+            self%transporting_wind, self%dt_substep, flux=wind_flux            &
       )
       call self%ffsl_precomputations%log_courant()
     end if
@@ -561,22 +836,17 @@ contains
   !> @return The flux_precomputations object
   function get_flux_precomputations(self) result(flux_precomputations)
 
-    use transport_config_mod,      only: splitting
-    use split_transport_utils_mod, only: get_dry_config
-
     implicit none
 
     class(transport_controller_type), target, intent(inout) :: self
 
     type(flux_precomputations_type), pointer :: flux_precomputations
     type(mesh_type),                 pointer :: mesh
-    integer(kind=i_def)                      :: reference_splitting
     integer(kind=i_def)                      :: max_courant_num
 
     ! If object is not created, then create it here
     if (.not. self%flux_precomputations%is_initialised()) then
       mesh => self%transporting_wind%get_mesh()
-      reference_splitting = splitting(get_dry_config())
 
       ! This is used for the consistent transport of tracers, where the fluxes
       ! are the fluxes of the transported reference density. These will be
@@ -593,7 +863,8 @@ contains
         )
 
         call self%flux_precomputations%initialise(                             &
-                mesh, reference_splitting, self%num_substeps,                  &
+                mesh, self%reference_splitting, self%num_substeps,             &
+                self%transporting_wind, self%dt_substep,                       &
                 ref_field=self%ref_field_rtran,                                &
                 max_courant_num=max_courant_num                                &
         )
@@ -601,7 +872,8 @@ contains
         ! Either not sharing stencil extent or don't yet know it, so do not
         ! pass the max_courant_num argument
         call self%flux_precomputations%initialise(                             &
-                mesh, reference_splitting, self%num_substeps,                  &
+                mesh, self%reference_splitting, self%num_substeps,             &
+                self%transporting_wind, self%dt_substep,                       &
                 ref_field=self%ref_field_rtran                                 &
         )
       end if
@@ -687,16 +959,12 @@ contains
   !> @param[in] ref_flux     The reference flux field
   subroutine initialise_flux_precomputations(self, ref_flux)
 
-    use transport_config_mod,      only: splitting
-    use split_transport_utils_mod, only: get_dry_config
-
     implicit none
 
     class(transport_controller_type), target, intent(inout) :: self
     type(r_tran_field_type),                  intent(in)    :: ref_flux
 
     type(mesh_type), pointer :: mesh
-    integer(kind=i_def)      :: reference_splitting
     integer(kind=i_def)      :: max_courant_num
 
     if (self%flux_precomputations%is_initialised()) then
@@ -708,7 +976,6 @@ contains
     end if
 
     mesh => self%transporting_wind%get_mesh()
-    reference_splitting = splitting(get_dry_config())
 
     ! Determine the halo depths to be used in flux computations
     if (share_stencil_extent) then
@@ -731,8 +998,9 @@ contains
     ! Don't provide the max_courant_num argument, as it is more appropriate to
     ! recalculate it for this object
     call self%flux_precomputations%initialise(                                 &
-            mesh, reference_splitting, self%num_substeps, flux=ref_flux,       &
-            max_courant_num=max_courant_num                                    &
+            mesh, self%reference_splitting, self%num_substeps,                 &
+            self%transporting_wind, self%dt_substep,                           &
+            flux=ref_flux, max_courant_num=max_courant_num                     &
     )
 
   end subroutine initialise_flux_precomputations
@@ -759,8 +1027,7 @@ contains
   !> @return The max stencil extent
   function get_dep_stencil_extent(self, mesh_id, step, outer_step, flux_calc) result(stencil_extent)
 
-    use split_transport_utils_mod, only: get_first_hori_step, get_dry_config
-    use transport_config_mod,      only: splitting
+    use split_transport_utils_mod, only: get_first_hori_step
 
     implicit none
 
@@ -772,7 +1039,6 @@ contains
 
     type(flux_precomputations_type), pointer :: flux_precomputations
     integer(kind=i_def) :: prime_mesh_id
-    integer(kind=i_def) :: reference_splitting
     integer(kind=i_def) :: first_hori_step
     integer(kind=i_def) :: stencil_extent
 
@@ -787,8 +1053,7 @@ contains
       ! horizontal transport step of the reference splitting (i.e. density)
       flux_precomputations => self%get_ffsl_precomputations()
       prime_mesh_id = flux_precomputations%get_prime_extrusion_mesh_id()
-      reference_splitting = splitting(get_dry_config())
-      first_hori_step = get_first_hori_step(reference_splitting)
+      first_hori_step = get_first_hori_step(self%reference_splitting)
 
       ! We could conceivably point to the flux precomputations object here,
       ! which might save a calculation if the last outer tracer group is
@@ -823,5 +1088,17 @@ contains
     end if
 
   end function get_dep_stencil_extent
+
+  !> @brief Returns the splitting used for the reference field
+  function get_reference_splitting(self) result(reference_splitting)
+
+    implicit none
+
+    class(transport_controller_type), target, intent(inout) :: self
+    integer(kind=i_def) :: reference_splitting
+
+    reference_splitting = self%reference_splitting
+
+  end function get_reference_splitting
 
 end module transport_controller_mod

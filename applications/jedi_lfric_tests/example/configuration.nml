@@ -193,6 +193,7 @@ write_fluxes=.false.,
 write_minmax_tseries=.false.,
 /
 &linear
+fixed_ls=.true.
 ls_read_w2h=.false.,
 pert_option='file',
 /

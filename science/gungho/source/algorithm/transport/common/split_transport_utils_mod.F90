@@ -7,7 +7,7 @@
 !> @brief Contains utility routines relating to split transport schemes
 module split_transport_utils_mod
 
-  use constants_mod,                  only: i_def, l_def, r_tran
+  use constants_mod,                  only: i_def, l_def, r_tran, str_def
   use log_mod,                        only: log_event,                         &
                                             log_scratch_space,                 &
                                             LOG_LEVEL_ERROR
@@ -17,8 +17,11 @@ module split_transport_utils_mod
                                             direction_3d,                      &
                                             splitting_strang_hvh,              &
                                             splitting_strang_vhv,              &
+                                            splitting_vhvhv_third,             &
+                                            splitting_vhvhv_quarter,           &
                                             splitting_hv,                      &
                                             splitting_vh,                      &
+                                            splitting_vhhv,                    &
                                             splitting_none
 
   implicit none
@@ -46,6 +49,7 @@ module split_transport_utils_mod
   public :: get_splitting_factor
   public :: get_splitting_fraction
   public :: get_splitting_direction
+  public :: get_splitting_name
   public :: get_num_split_steps
   public :: get_next_step_hori
   public :: get_first_hori_step
@@ -319,11 +323,15 @@ contains
     ! Compute total number of split steps
     select case (splitting)
     case (splitting_strang_hvh, splitting_strang_vhv)
-      num_split_steps = 3_i_def
+      num_split_steps = 3
+    case (splitting_vhhv)
+      num_split_steps = 4
+    case (splitting_vhvhv_third, splitting_vhvhv_quarter)
+      num_split_steps = 5
     case (splitting_vh, splitting_hv)
-      num_split_steps = 2_i_def
+      num_split_steps = 2
     case (splitting_none)
-      num_split_steps = 1_i_def
+      num_split_steps = 1
     case default
       call log_event(                                                          &
         'transport_utils, get_num_split_steps: splitting not implemented',     &
@@ -353,39 +361,57 @@ contains
     select case (splitting)
     case (splitting_strang_hvh)
       select case (step)
-      case (1_i_def, 3_i_def)
+      case (1, 3)
         direction = direction_h
-      case (2_i_def)
+      case (2)
         direction = direction_v
       case default
-        call splitting_error_message('Strang HVH', step)
+        call splitting_error_message(splitting, step)
       end select
     case (splitting_strang_vhv)
       select case (step)
-      case (1_i_def, 3_i_def)
+      case (1, 3)
         direction = direction_v
-      case (2_i_def)
+      case (2)
         direction = direction_h
       case default
-        call splitting_error_message('Strang VHV', step)
+        call splitting_error_message(splitting, step)
+      end select
+    case (splitting_vhhv)
+      select case (step)
+      case (1, 4)
+        direction = direction_v
+      case (2, 3)
+        direction = direction_h
+      case default
+        call splitting_error_message(splitting, step)
+      end select
+    case (splitting_vhvhv_third, splitting_vhvhv_quarter)
+      select case (step)
+      case (1, 3, 5)
+        direction = direction_v
+      case (2, 4)
+        direction = direction_h
+      case default
+        call splitting_error_message(splitting, step)
       end select
     case (splitting_hv)
       select case (step)
-      case (1_i_def)
+      case (1)
         direction = direction_h
-      case (2_i_def)
+      case (2)
         direction = direction_v
       case default
-        call splitting_error_message('HV', step)
+        call splitting_error_message(splitting, step)
       end select
     case (splitting_vh)
       select case (step)
-      case (1_i_def)
+      case (1)
         direction = direction_v
-      case (2_i_def)
+      case (2)
         direction = direction_h
       case default
-        call splitting_error_message('VH', step)
+        call splitting_error_message(splitting, step)
       end select
     case (splitting_none)
       direction = direction_3d
@@ -437,13 +463,29 @@ contains
     select case (splitting)
     case (splitting_strang_hvh, splitting_strang_vhv)
       select case (step)
-      case (1_i_def, 3_i_def)
-        frac = 2_i_def
-      case (2_i_def)
-        frac = 1_i_def
+      case (1, 3)
+        frac = 2
+      case (2)
+        frac = 1
+      end select
+    case (splitting_vhhv)
+      frac = 2
+    case (splitting_vhvhv_quarter)
+      select case (step)
+      case (2, 3, 4)
+        frac = 2
+      case (1, 5)
+        frac = 4
+      end select
+    case (splitting_vhvhv_third)
+      select case (step)
+      case (2, 4)
+        frac = 2
+      case (1, 3, 5)
+        frac = 3
       end select
     case (splitting_hv, splitting_vh, splitting_none)
-      frac = 1_i_def
+      frac = 1
     case default
       call log_event(                                                          &
         'transport_utils, get_splitting_fraction: splitting not implemented',  &
@@ -499,7 +541,7 @@ contains
     integer(kind=i_def) :: num_split_steps
     integer(kind=i_def) :: direction_next_step
 
-    first_hori_step = 0_i_def
+    first_hori_step = 0
 
     num_split_steps = get_num_split_steps(splitting)
 
@@ -574,16 +616,60 @@ contains
 
   end subroutine compute_fraction_idxs
 
-  !> @brief Writes an error message when trying to access information about a
-  !!        step for a splitting that does not have this many steps
-  !> @param[in] splitting_name   String to be written out naming this splitting
-  !> @param[in] step             Index of step
-  subroutine splitting_error_message(splitting_name, step)
+  !> @brief Returns the name of the splitting
+  !> @param[in] splitting  Enumerator for particular splitting
+  !> @result    name       The name of the splitting
+  function get_splitting_name(splitting) result(name)
 
     implicit none
 
-    character(len=*),    intent(in) :: splitting_name
+    ! Arguments
+    integer(kind=i_def), intent(in) :: splitting
+
+    ! Internal variables
+    character(len=str_def) :: name
+
+    select case (splitting)
+    case (splitting_strang_hvh)
+      name = 'Strang HVH'
+    case (splitting_strang_vhv)
+      name = 'Strang VHV'
+    case (splitting_vhhv)
+      name = 'VHHV'
+    case (splitting_vhvhv_third)
+      name = 'VHVHV third'
+    case (splitting_vhvhv_quarter)
+      name = 'VHVHV quarter'
+    case (splitting_hv)
+      name = 'HV'
+    case (splitting_vh)
+      name = 'VH'
+    case (splitting_none)
+      name = 'None'
+    case default
+      call log_event(                                                          &
+        'transport_utils, get_splitting_name: splitting not implemented',      &
+         LOG_LEVEL_ERROR                                                       &
+      )
+      name = 'Unknown'
+    end select
+
+  end function get_splitting_name
+
+  !> @brief Writes an error message when trying to access information about a
+  !!        step for a splitting that does not have this many steps
+  !> @param[in] splitting   Enumerator of splitting
+  !> @param[in] step        Index of step
+  subroutine splitting_error_message(splitting, step)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: splitting
     integer(kind=i_def), intent(in) :: step
+
+    character(len=str_def) :: splitting_name
+
+    splitting_name = get_splitting_name(splitting)
 
     write(log_scratch_space, '(A,I6,A,A,A)')                                   &
       'Attempting to access information for step ', step, ' of splitting ',    &
