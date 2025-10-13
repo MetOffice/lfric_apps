@@ -58,6 +58,7 @@ contains
     use function_space_mod,              only: function_space_type
     use horizontal_mass_flux_kernel_mod, only: horizontal_mass_flux_kernel_type
     use vertical_mass_flux_kernel_mod,   only: vertical_mass_flux_kernel_type
+    use fem_advective_update_alg_mod,    only: fem_advective_update_alg
     use fs_continuity_mod,               only: W3, W2, W2h, W2v, Wtheta
     use mesh_mod,                        only: mesh_type
     use sci_fem_constants_mod,           only: get_rmultiplicity_fe, &
@@ -144,7 +145,8 @@ contains
               call invoke( X_times_Y(mass_flux, reconstruction_field, wind) )
             end if
             if ( do_advective ) then
-              call log_event('W3 advective form with FEM operators not supported', LOG_LEVEL_ERROR)
+              call fem_advective_update_alg(adv_inc, density, reconstruction_field, &
+                                            wind, direction, dt)
             end if
 
           case(operators_fv)

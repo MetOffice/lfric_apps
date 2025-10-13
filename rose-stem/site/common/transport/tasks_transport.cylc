@@ -137,6 +137,17 @@
         "use_xios": false,
     }) %}
 
+{% elif task_ns.conf_name == "sbr_hori_cosine_fem-C32" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_cosine_mol","fem_transport"],
+        "resolution": "C32",
+        "DT": 4050,
+        "tsteps": 10,
+        "mpi_parts": 6,
+        "use_xios": false,
+    }) %}
+
 {% elif task_ns.conf_name == "sbr_hori_cos_phi_ffsl_nirv_spt_edges-C32" %}
 
     {% do task_dict.update({

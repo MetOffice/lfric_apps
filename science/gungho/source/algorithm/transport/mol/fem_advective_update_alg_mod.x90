@@ -1,0 +1,102 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module for advective finite-element transport.
+!> @details Algorithm to compute the finite-element advecitve update. The
+!!          advective increment is computed using the finite-element fluxes
+!!          and the wind divergence.
+
+module fem_advective_update_alg_mod
+
+  use constants_mod,               only: r_tran, i_def
+  use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
+  use function_space_mod,          only: function_space_type
+  use r_tran_field_mod,            only: r_tran_field_type
+  use r_tran_operator_mod,         only: r_tran_operator_type
+  use transport_constants_mod,     only: get_directional_im3_div_r_tran
+
+  implicit none
+
+  private
+  public :: fem_advective_update_alg
+
+contains
+
+  !----------------------------------------------------------------------------
+  !> @brief Compute the finite-element advective increment
+  !> @param[in,out]  increment  The advective increment
+  !> @param[in]      field      The advecting field
+  !> @param[in]      recon      The reconstruction of the field
+  !> @param[in]      wind       The wind
+  !> @param[in]      direction  Direction of the transport
+  !> @param[in]      dt         The time step
+  !----------------------------------------------------------------------------
+  subroutine fem_advective_update_alg(increment, field, recon, wind, direction, dt)
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type), intent(inout) :: increment
+    type(r_tran_field_type), intent(in)    :: field
+    type(r_tran_field_type), intent(in)    :: recon
+    type(r_tran_field_type), intent(in)    :: wind
+    integer(kind=i_def),     intent(in)    :: direction
+    real(kind=r_tran),       intent(in)    :: dt
+
+    ! Fields
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: field_inc
+    type(r_tran_field_type) :: con_field
+    type(r_tran_field_type) :: adv_field
+    type(r_tran_field_type) :: unity
+    type(r_tran_field_type) :: unity_inc
+    type(r_tran_field_type) :: unity_np1
+
+    ! Constants, spaces and operators
+    real(kind=r_tran) :: one_over_dt
+    real(kind=r_tran) :: minus_one_over_dt
+    type(function_space_type),  pointer :: recon_fs
+    type(function_space_type),  pointer :: field_fs
+    type(r_tran_operator_type), pointer :: div
+
+    ! Set constants
+    one_over_dt = 1.0_r_tran/dt
+    minus_one_over_dt = -1.0_r_tran/dt
+    recon_fs => recon%get_function_space()
+    field_fs => field%get_function_space()
+    div => get_directional_im3_div_r_tran(field%get_mesh_id(), direction)
+
+    ! Initialise fields
+    call flux%initialise( vector_space=recon_fs )
+    call field_inc%initialise( vector_space=field_fs )
+    call con_field%initialise( vector_space=field_fs )
+    call adv_field%initialise( vector_space=field_fs )
+    call unity%initialise( vector_space=field_fs )
+    call unity_inc%initialise( vector_space=field_fs )
+    call unity_np1%initialise( vector_space=field_fs )
+
+    ! Compute flux
+    call invoke( X_times_Y(flux, recon, wind) )
+
+    ! Following Putman and Lin, JCP, 2007, let F(q) be the flux divergence of q,
+    ! f(q) be the advective increment of q, and s be the unity field.
+    ! The advected field can be written as
+    ! qnp1 = q - dt f(q) = (q - dt F(q))/(s - dt F(s))
+    ! The increment is therefore
+    ! f(q) = (q - qnp1) / dt
+    call invoke( setval_c(unity, 1.0_r_tran),                        &
+                 dg_matrix_vector_kernel_type(field_inc, flux, div), &
+                 dg_matrix_vector_kernel_type(unity_inc, wind, div), &
+                 X_minus_bY(con_field, field, dt, field_inc),        &
+                 X_minus_bY(unity_np1, unity, dt, unity_inc),        &
+                 X_divideby_Y(adv_field, con_field, unity_np1),      &
+                 aX_plus_bY(increment, one_over_dt, field,           &
+                            minus_one_over_dt, adv_field)  )
+
+    nullify( div, recon_fs, field_fs )
+
+  end subroutine fem_advective_update_alg
+
+end module fem_advective_update_alg_mod

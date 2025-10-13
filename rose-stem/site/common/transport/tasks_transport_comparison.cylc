@@ -374,6 +374,48 @@
         "plot_str": "errors.py diagTransport $NODAL_DATA_DIR rho:theta:tracer_con:tracer_adv T000288 -1 -91 0 0.01 $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "comp_sbr_hori_cosine_ffsl-C32" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_cosine_ffsl"],
+        "resolution": "C32",
+        "DT": 4050,
+        "tsteps": 256,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "slices.py diagTransport $NODAL_DATA_DIR theta:tracer_con:tracer_adv:m_v T000000:T000064:T000128:T000192:T000256 -1 -91 0 $PLOT_DIR"
+    }) %}
+
+{% elif task_ns.conf_name == "comp_sbr_hori_cosine_mol-C32" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_cosine_mol"],
+        "resolution": "C32",
+        "DT": 4050,
+        "tsteps": 256,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "slices.py diagTransport $NODAL_DATA_DIR theta:tracer_con:tracer_adv:m_v T000000:T000064:T000128:T000192:T000256 -1 -91 0 $PLOT_DIR"
+    }) %}
+
+{% elif task_ns.conf_name == "comp_sbr_hori_cosine_fem-C32" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_cosine_mol","fem_transport"],
+        "resolution": "C32",
+        "DT": 4050,
+        "tsteps": 256,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "slices.py diagTransport $NODAL_DATA_DIR theta:tracer_con:tracer_adv:m_v T000000:T000064:T000128:T000192:T000256 -1 -91 0 $PLOT_DIR"
+    }) %}
+
 {% elif task_ns.conf_name == "four_part_sbr-C24" %}
 
     {% do task_dict.update({
