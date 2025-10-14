@@ -42,6 +42,7 @@ Science settings
 - da - with IAU from data assimilation
 - eda - with IAU from ensemble data assimilation (with multi-context IO),
         including use of SST perturbations and land surface increments
+- eda_jada - with IAU from JADA control-pert ensemble data assimilation
 - hh_solve - Helmholtz only sovler (no mixed solve)
 - llcs - Use Lambert-Lewis simple convection scheme
 - mol - use MoL transport scheme

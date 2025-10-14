@@ -15,7 +15,9 @@ module update_iau_inc_alg_mod
   use field_collection_mod,             only : field_collection_type
   use driver_modeldb_mod,               only : modeldb_type
   use fs_continuity_mod,                only : W2, W3, Wtheta
-  use iau_config_mod,                   only : iau_pc2,                &
+  use iau_config_mod,                   only : iau_mode,               &
+                                               iau_mode_time_mixed,    &
+                                               iau_pc2,                &
                                                iau_tendency_addinf,    &
                                                iau_tendency_ainc,      &
                                                iau_tendency_bcorr,     &
@@ -416,7 +418,11 @@ module update_iau_inc_alg_mod
    if ( iau_ainc_active ) then
 
      ! Calculate weights to use
-     iau_weight = calc_iau_weight( model_clock, iau_tendency_ainc )
+     if ( iau_mode == iau_mode_time_mixed ) then
+       iau_weight = 1.0_r_def
+     else
+       iau_weight = calc_iau_weight( model_clock, iau_tendency_ainc )
+     end if
 
      write(log_scratch_space,'(A,F16.8)') &
                        'IAU: weight used for analysis increments = ', iau_weight

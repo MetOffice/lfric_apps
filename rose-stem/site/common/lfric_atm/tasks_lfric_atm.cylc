@@ -352,6 +352,20 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_eda_jada-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["eda_jada"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 144,
+        "crun": 2,
+        "crun_compare": false,
+        "mpi_parts": 6,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_gal_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "nwp_gal9_ls_and_jedi-C12" %}
 
     {% do task_dict.update({

@@ -74,8 +74,9 @@ module gungho_driver_mod
   use update_iau_sst_alg_mod,      only : update_iau_sst_alg
   use update_iau_surf_alg_mod,     only : add_surf_inc_alg
   use iau_main_alg_mod,            only : iau_main_alg
-  use iau_config_mod,              only : iau_mode, &
-                                          iau_mode_instantaneous
+  use iau_config_mod,              only : iau_mode,               &
+                                          iau_mode_instantaneous, &
+                                          iau_mode_time_mixed
   use section_choice_config_mod,   only : stochastic_physics, &
                                           stochastic_physics_um
   use stochastic_physics_config_mod, &
@@ -200,7 +201,9 @@ contains
     ! If IAU is active and increments need to be added instantaneously, to the initial
     ! state, then do this now. The IAU should not be activated at this stage in
     ! the case of a checkpoint-restart.
-    if ( ( iau ) .and. ( iau_mode == iau_mode_instantaneous ) ) then
+    if ( ( iau ) .and.                               &
+       ( ( iau_mode == iau_mode_instantaneous ) .OR. &
+         ( iau_mode == iau_mode_time_mixed ) ) ) then
       if ( .not. checkpoint_read ) then
         call update_iau_alg( modeldb,                     &
                              twod_mesh,                   &
