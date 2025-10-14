@@ -26,7 +26,7 @@ def get_precision(build_string):
     # Find a default with format 'NNbit'
     # Use 64 if not set
     try:
-        default = int(re.search("(\d+)bit", build_string).group(1))
+        default = int(re.search(r"(\d+)bit", build_string).group(1))
     except AttributeError:
         default = 64
 
@@ -46,7 +46,7 @@ def get_precision(build_string):
         precision_name = precision_type[0]
         try:
             num = int(
-                re.search(f"{precision_name}(\d+)", build_string).group(1)
+                re.search(rf"{precision_name}(\d+)", build_string).group(1)
             )
         except AttributeError:
             num = precision_type[1]
@@ -56,7 +56,6 @@ def get_precision(build_string):
     # Construct the output string defining the precision
     # Potentially change the default such that it is the most common
     # This ensures that all tasks with the same build get the same build string
-    values_list = list(precisions.values())
     precision_string = f"{default}bit"
     for precision_type in types:
         num = precisions[precision_type[0]]

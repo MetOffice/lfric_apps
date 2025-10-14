@@ -2,81 +2,39 @@ import argparse
 import subprocess
 import os
 import tempfile
-import re
 import yaml
 from shutil import rmtree
-from collections import defaultdict
 from pathlib import Path
+from typing import Dict, List
 
 
-def run_command(command, shell=False):
+def run_command(command):
     """
     Run a subprocess command and return the result object
     Inputs:
         - command, str with command to run
     """
-    if not shell:
-        command = command.split()
+    command = command.split()
     result = subprocess.run(
         command,
         capture_output=True,
         text=True,
         timeout=120,
-        shell=shell,
+        shell=False,
         check=False,
     )
     if result.returncode:
-        print_error(command, result)
+        raise RuntimeError(
+            f"The command '{command}' failed with error:\n\n{result.stderr}"
+        )
 
 
-def print_error(command, result):
-    """
-    Print command and error message if a subprocess fails
-    """
-
-    raise RuntimeError(
-        f"The command '{command}' failed with error:\n\n{result.stderr}"
-    )
-
-def parse_extract_file(fpath):
-    """
-    Parse the extract file, getting a list of files to extract for each source defined.
-    Input:
-        - fpath, path to the extract file
-    Output:
-        - Dictionary of sources. Values is a set of extract files/directories
-    """
-
-    with open(fpath, "r") as f:
-        extract_file = f.readlines()
-
-    extract_lists = defaultdict(list)
-
-    source = None
-    for line in extract_file:
-        line = line.strip()
-        if not line:
-            continue
-
-        if line.startswith("extract.path-incl"):
-            source = re.match(r"extract.path-incl\[(\w+)\]", line).group(1)
-            # Check for filepath on same line
-            line = line.split("=")[1].replace("\\", "").strip()
-            if line:
-                extract_lists[source].append(line)
-        elif source:
-            line = line.replace("\\", "").strip()
-            extract_lists[source].append(line)
-
-    return extract_lists
-
-
-def read_dependencies(dependencies_file):
+def load_yaml(fpath: Path) -> Dict:
     """
     Read in the dependencies.yaml file
     """
 
-    with open(dependencies_file) as stream:
+    with open(fpath) as stream:
         sources = yaml.safe_load(stream)
 
     return sources
@@ -92,14 +50,13 @@ def clone_dependency(values, temp_dep):
 
     clone_commands = (
         f"git clone {source} {temp_dep}",
-        f"git -C {temp_dep} checkout {ref}"
+        f"git -C {temp_dep} checkout {ref}",
     )
     for command in clone_commands:
         run_command(command)
 
 
-
-def extract_files(dependency, values, files, working):
+def extract_files(dependency: str, values: Dict, files: List[str], working: Path):
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
@@ -107,7 +64,10 @@ def extract_files(dependency, values, files, working):
     """
 
     tempdir = Path(tempfile.mkdtemp())
-    if "PHYSICS_ROOT" not in os.environ or not Path(os.environ["PHYSICS_ROOT"]).exists():
+    if (
+        "PHYSICS_ROOT" not in os.environ
+        or not Path(os.environ["PHYSICS_ROOT"]).exists()
+    ):
         temp_dep = tempdir / dependency
         clone_dependency(values, temp_dep)
     else:
@@ -116,7 +76,7 @@ def extract_files(dependency, values, files, working):
     working_dep = working / dependency
 
     # make the working directory location
-    run_command(f"mkdir -p {working_dep}")
+    working_dep.mkdir(parents=True)
 
     for extract_file in files:
         source_file = temp_dep / extract_file
@@ -128,7 +88,7 @@ def extract_files(dependency, values, files, working):
     rmtree(tempdir)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """
     Read command line args
     """
@@ -141,33 +101,30 @@ def parse_args():
         help="The dependencies file for the apps working copy.",
     )
     parser.add_argument(
-        "-w",
-        "--working",
-        default=".",
-        help="Location to perform extract steps in."
+        "-w", "--working", default=".", help="Location to perform extract steps in."
     )
     parser.add_argument(
         "-e",
         "--extract",
-        default="./extract.cfg",
-        help="Path to file containing extract lists"
+        default="./extract.yaml",
+        help="Path to file containing extract lists",
     )
     return parser.parse_args()
 
 
 def main():
-    args = parse_args()
+    args: argparse.Namespace = parse_args()
 
-    extract_lists = parse_extract_file(args.extract)
-    dependencies = read_dependencies(args.dependencies)
+    extract_lists: Dict = load_yaml(args.extract)
+    dependencies: Dict = load_yaml(args.dependencies)
 
     for dependency in dependencies:
-        if extract_lists[dependency]:
+        if dependency in extract_lists:
             extract_files(
                 dependency,
                 dependencies[dependency],
                 extract_lists[dependency],
-                Path(args.working)
+                Path(args.working),
             )
 
 

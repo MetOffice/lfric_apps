@@ -1,0 +1,46 @@
+##############################################################################
+# (c) Crown copyright 2025 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+socrates:
+    - src/cosp_control/cosp_constants_mod.F90
+    - src/cosp_control/cosp_def_diag.F90
+    - src/cosp_control/cosp_diagnostics_mod.F90
+    - src/cosp_control/cosp_input_mod.F90
+    - src/cosp_control/cosp_mod.F90
+    - src/cosp_control/cosp_radiation_mod.F90
+    - src/cosp_control/cosp_types_mod.F90
+    - src/cosp_github/driver/src/cosp2_io.f90
+    - src/cosp_github/model-interface/cosp_errorHandling.F90
+    - src/cosp_github/model-interface/cosp_kinds.F90
+    - src/cosp_github/src
+    - src/cosp_github/subsample_and_optics_example/optics/cosp_optics.F90
+    - src/cosp_github/subsample_and_optics_example/optics/quickbeam_optics
+    - src/illumination/astro_constants_mod.F90
+    - src/illumination/def_orbit.F90
+    - src/illumination/orbprm_mod.F90
+    - src/illumination/socrates_illuminate.F90
+    - src/illumination/solang_mod.F90
+    - src/illumination/solinc_mod.F90
+    - src/illumination/solpos_mod.F90
+    - src/interface_core/socrates_bones.F90
+    - src/interface_core/socrates_cloud_abs_diag.F90
+    - src/interface_core/socrates_cloud_ext_diag.F90
+    - src/interface_core/socrates_cloud_gen.F90
+    - src/interface_core/socrates_cloud_level_diag.F90
+    - src/interface_core/socrates_def_diag.F90
+    - src/interface_core/socrates_runes.F90
+    - src/interface_core/socrates_set_aer.F90
+    - src/interface_core/socrates_set_atm.F90
+    - src/interface_core/socrates_set_bound.F90
+    - src/interface_core/socrates_set_cld.F90
+    - src/interface_core/socrates_set_cld_dim.F90
+    - src/interface_core/socrates_set_cld_mcica.F90
+    - src/interface_core/socrates_set_control.F90
+    - src/interface_core/socrates_set_diag.F90
+    - src/interface_core/socrates_set_dimen.F90
+    - src/interface_core/socrates_set_spectrum.F90
+    - src/interface_core/socrates_set_topography.F90
+    - src/radiance_core

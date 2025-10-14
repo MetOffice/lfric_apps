@@ -20,7 +20,7 @@
 
 extract:
 	# Retrieve and preprocess the UKCA and CASIM code
-	python $(APPS_ROOT_DIR)/build/extract/extract_physics.py -d $(APPS_ROOT_DIR)/dependencies.yaml -w $(SCRATCH_DIR) -e $(APPS_ROOT_DIR)/build/extract/extract.cfg
+	python $(APPS_ROOT_DIR)/build/extract/extract_science.py -d $(APPS_ROOT_DIR)/dependencies.yaml -w $(SCRATCH_DIR) -e $(APPS_ROOT_DIR)/build/extract/extract.cfg
 	$Qrsync -acvz $(SCRATCH_DIR)/ukca $(WORKING_DIR)/science/
 	$Qrsync -acvz $(SCRATCH_DIR)/casim $(WORKING_DIR)/science/
 
