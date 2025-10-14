@@ -21,7 +21,7 @@ module dycore_constants_mod
                                                 get_panel_id
   use sci_fem_constants_mod,              only: get_qr_fe
   use field_mod,                          only: field_type
-  use fs_continuity_mod,                  only: W2, W3
+  use fs_continuity_mod,                  only: W2, W3, Wtheta
   use function_space_collection_mod,      only: function_space_collection
   use function_space_mod,                 only: function_space_type
   use inventory_by_mesh_mod,              only: inventory_by_mesh_type
@@ -53,6 +53,7 @@ module dycore_constants_mod
 
   type(inventory_by_mesh_type)         :: geopotential_inventory
   type(inventory_by_mesh_type)         :: coriolis_inventory
+  type(inventory_by_mesh_type)         :: vert_coriolis_inventory
   type(inventory_by_mesh_type), target :: mm_w2_dl_inventory
   type(inventory_by_mesh_type), target :: mm_w2_si_inventory
   type(inventory_by_mesh_type), target :: mm_w2_dl_lagged_inventory
@@ -71,6 +72,7 @@ module dycore_constants_mod
 
   public :: final_dycore_constants
   public :: get_coriolis
+  public :: get_vert_coriolis
   public :: get_geopotential
   public :: get_w2_mass_matrix
 
@@ -132,6 +134,61 @@ contains
     call coriolis_inventory%get_operator(mesh, coriolis)
 
   end function get_coriolis
+
+  !> @brief Returns the vertical Coriolis operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Coriolis operator
+  function get_vert_coriolis(mesh_id) result(vert_coriolis)
+
+    use base_mesh_config_mod,    only: f_lat
+    use compute_vert_coriolis_matrix_kernel_mod, &
+                                 only: compute_vert_coriolis_matrix_kernel_type
+    use planet_config_mod,       only: scaled_omega
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(operator_type),          pointer :: vert_coriolis
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(quadrature_xyoz_type),   pointer :: qr
+    type(function_space_type),    pointer :: w2_fs
+    type(function_space_type),    pointer :: wt_fs
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. vert_coriolis_inventory%is_initialised()) then
+      call vert_coriolis_inventory%initialise(name="vert_coriolis")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = vert_coriolis_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      ! As this operator is used for initialisation, it always uses lowest-order
+      w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
+      wt_fs => function_space_collection%get_fs(mesh, 0, 0, Wtheta)
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      qr => get_qr_fe()
+
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+
+      call vert_coriolis_inventory%add_operator(vert_coriolis, wt_fs, w2_fs, mesh)
+
+      call invoke( compute_vert_coriolis_matrix_kernel_type(vert_coriolis,     &
+                                                            chi, panel_id,     &
+                                                            scaled_omega,      &
+                                                            f_lat, qr) )
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+    end if
+
+    ! Return constant
+    call vert_coriolis_inventory%get_operator(mesh, vert_coriolis)
+
+  end function get_vert_coriolis
 
   !> @brief Returns a pointer to the geopotential field
   !> @param[in] mesh_id The ID of the mesh to get the object for
@@ -411,6 +468,7 @@ contains
     implicit none
 
     call geopotential_inventory%clear()
+    call vert_coriolis_inventory%clear()
     call coriolis_inventory%clear()
     call mm_w2_dl_inventory%clear()
     call mm_w2_dl_lagged_inventory%clear()

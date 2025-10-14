@@ -6,13 +6,14 @@
 
 !> @brief Compute the Coriolis operator to apply the rotation vector Omega to
 !>        the wind fields.
-!> @details The form of Coriolis operator is:
-!> \f[ <v,2\Omega \times v> \f] where v is the test/trial function for
-!> the velocity space and Omega is the rotation vector of the domain.
-!> The Coriolis terms will then be applied by multiplying this operator
-!> by a wind field.
-!>
-!
+!> @details The form of the Coriolis operator is:
+!!          \f[ < v, 2\Omega \times u > \f] where v is the test function for
+!!          the velocity space W2, u corresponds to the wind field in W2 to
+!!          which this operator will be applied, and Omega is the rotation
+!!          vector of the domain.
+!!          Multiplying this operator by a wind field will assemble the weak
+!!          form of the Coriolis term.
+
 module compute_coriolis_matrix_kernel_mod
 
 use constants_mod,           only: i_def, r_def
@@ -72,7 +73,7 @@ contains
 !! @param[in] cell     Identifying number of cell.
 !! @param[in] nlayers  Number of layers.
 !! @param[in] ncell_3d ncell*ndf
-!! @param[in,out] mm   Local stencil or Coriolis operator.
+!! @param[in,out] matrix   Local stencil or Coriolis operator.
 !! @param[in] chi_1 1st coordinate field
 !! @param[in] chi_2 2nd coordinate field
 !! @param[in] chi_3 3rd coordinate field
@@ -96,7 +97,7 @@ contains
 !! @param[in] wqp_h    Horizontal quadrature weights.
 !! @param[in] wqp_v    Vertical quadrature weights.
 subroutine compute_coriolis_matrix_code(cell, nlayers, ncell_3d,           &
-                                        mm,                                &
+                                        matrix,                            &
                                         chi_1, chi_2, chi_3,               &
                                         panel_id,                          &
                                         omega, f_lat,                      &
@@ -120,7 +121,7 @@ subroutine compute_coriolis_matrix_code(cell, nlayers, ncell_3d,           &
 
   integer(kind=i_def), intent(in)    :: map_chi(ndf_chi)
   integer(kind=i_def), intent(in)    :: map_pid(ndf_pid)
-  real(kind=r_def),    intent(inout) :: mm(ncell_3d,ndf,ndf)
+  real(kind=r_def),    intent(inout) :: matrix(ncell_3d,ndf,ndf)
   real(kind=r_def),    intent(in)    :: basis_chi(1,ndf_chi,nqp_h,nqp_v)
   real(kind=r_def),    intent(in)    :: diff_basis_chi(3,ndf_chi,nqp_h,nqp_v)
   real(kind=r_def),    intent(in)    :: chi_1(undf_chi)
@@ -157,31 +158,38 @@ subroutine compute_coriolis_matrix_code(cell, nlayers, ncell_3d,           &
         chi_3_e(df) = chi_3(map_chi(df) + k - 1)
      end do
 
-    ! Calculate rotation vector Omega = (0, 2*cos(lat), 2*sin(lat)) and Jacobian
+    ! Calculate planet's rotation vector
     if ( geometry == geometry_spherical ) then
-      call rotation_vector_sphere(ndf_chi, nqp_h, nqp_v, chi_1_e, chi_2_e,       &
+      call rotation_vector_sphere(ndf_chi, nqp_h, nqp_v, chi_1_e, chi_2_e,     &
                                   chi_3_e, ipanel, basis_chi, rotation_vector)
     else
-      call rotation_vector_fplane(nqp_h, nqp_v, omega, f_lat, &
-                                  rotation_vector)
+      call rotation_vector_fplane(nqp_h, nqp_v, omega, f_lat, rotation_vector)
     end if
 
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v,                     &
-                             chi_1_e, chi_2_e, chi_3_e, ipanel, &
-                             basis_chi, diff_basis_chi, jac, dj )
+    ! Calculate the Jacobian and its determinant
+    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v,                            &
+                             chi_1_e, chi_2_e, chi_3_e, ipanel,                &
+                             basis_chi, diff_basis_chi, jac, dj)
 
+
+    ! To convert from reference space to physical space:
+    ! Let the volume element be dV and the unit volume be dV_hat, then:
+    ! u = J u_hat/detJ, v = J v_hat/detJ, and dV = detJ dV_hat,
+    ! where hats denote the reference element space, J is the Jacobian, and
+    ! detJ its determinant. This gives
+    ! \int (J w_hat) . (2 Omega x J u_hat) / detJ dV_hat
+    ! Note that some of the detJ factors cancel
     ik = k + (cell-1)*nlayers
-    mm(ik,:,:) = 0.0_r_def
+    matrix(ik,:,:) = 0.0_r_def
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
         do df2 = 1, ndf
           jac_u = matmul(jac(:,:,qp1,qp2),basis(:,df2,qp1,qp2))
-          omega_cross_u = wqp_h(qp1)*wqp_v(qp2)                                &
-                        *cross_product(rotation_vector(:,qp1,qp2),jac_u)       &
-                        /dj(qp1,qp2)
+          omega_cross_u = wqp_h(qp1) * wqp_v(qp2)                              &
+              * cross_product(rotation_vector(:,qp1,qp2), jac_u) / dj(qp1,qp2)
           do df = 1, ndf
-             jac_v = matmul(jac(:,:,qp1,qp2),basis(:,df,qp1,qp2))
-             mm(ik,df,df2) = mm(ik,df,df2) - dot_product(jac_v,omega_cross_u)
+            jac_v = matmul(jac(:,:,qp1,qp2), basis(:,df,qp1,qp2))
+            matrix(ik,df,df2) = matrix(ik,df,df2) - dot_product(jac_v, omega_cross_u)
           end do
         end do
       end do

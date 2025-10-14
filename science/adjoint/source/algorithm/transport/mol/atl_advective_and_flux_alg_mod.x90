@@ -218,9 +218,6 @@ contains
                                                             nsets, nindices )
           end if
 
-          call invoke( setval_c( adv_inc_1, 0.0_r_def ), &
-                       setval_c( adv_inc_2, 0.0_r_def )  )
-
         end if
 
         if ( do_flux ) then

@@ -20,7 +20,7 @@ use argument_mod,               only : arg_type, func_type,      &
                                        ANY_SPACE_9, ANY_SPACE_1, &
                                        GH_BASIS, CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
-use fs_continuity_mod,          only : Wtheta, W3, W2
+use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
 use reference_element_mod,      only : B
 
@@ -37,7 +37,7 @@ type, public, extends(kernel_type) :: hydrostatic_coriolis_kernel_type
        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W3),      &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),      &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  Wtheta),  &
-       arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2),      &
+       arg_type(GH_FIELD,   GH_REAL,    GH_READ,  Wtheta),  &
        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  Wtheta),  &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),      &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3),      &
@@ -90,10 +90,6 @@ contains
 !! @param[in]  undf_wt       Total number of degrees of freedom for wtheta
 !! @param[in]  map_wt        Dofmap for the cell at column base for wt
 !! @param[in]  basis_wt      Basis functions evaluated at wt nodes
-!! @param[in]  ndf_w2        Number of degrees of freedom per cell for w2
-!! @param[in]  undf_w2       Total number of degrees of freedom for w2
-!! @param[in]  map_w2        Dofmap for the cell at column base for w2
-!! @param[in]  basis_w2      Basis functions evaluated at w2 nodes
 subroutine hydrostatic_coriolis_code( nlayers,       &
                                       exner,         &
                                       rho,           &
@@ -117,10 +113,7 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
                                       ndf_wt,        &
                                       undf_wt,       &
                                       map_wt,        &
-                                      basis_wt,      &
-                                      ndf_w2,        &
-                                      undf_w2,       &
-                                      map_w2 )
+                                      basis_wt )
 
   implicit none
 
@@ -129,12 +122,9 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
                                                               ndf_w3,  &
                                                               undf_w3, &
                                                               ndf_wt,  &
-                                                              undf_wt, &
-                                                              ndf_w2,  &
-                                                              undf_w2
+                                                              undf_wt
   integer(kind=i_def), dimension(ndf_w3),       intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wt),       intent(in) :: map_wt
-  integer(kind=i_def), dimension(ndf_w2),       intent(in) :: map_w2
   integer(kind=i_def),                          intent(in) :: eos_index
 
   real(kind=r_def), dimension(undf_w3),      intent(inout) :: exner
@@ -146,7 +136,7 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
                                                               moist_dyn_tot, &
                                                               moist_dyn_fac
   real(kind=r_def), dimension(undf_wt),         intent(in) :: theta
-  real(kind=r_def), dimension(undf_w2),         intent(in) :: coriolis_term
+  real(kind=r_def), dimension(undf_wt),         intent(in) :: coriolis_term
   real(kind=r_def), dimension(1,ndf_w3,ndf_w3), intent(in) :: basis_w3
   real(kind=r_def), dimension(1,ndf_wt,ndf_w3), intent(in) :: basis_wt
   real(kind=r_def),                             intent(in) :: p_zero
@@ -198,14 +188,14 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
 
   ! Exner on other levels from hydrostatic balance
   ! Compute exner at level k-1 from exner at level k plus other terms.
-  ! Add the coriolis term using the bottom face (B) from the cell at level k-1
+  ! Add the coriolis term using the bottom face from the cell at level k-1
   do k = eos_index_m1, 1, -1
 
     dz = height_w3( map_w3(1) + k ) - height_w3( map_w3(1) + k - 1 )
     theta_moist = moist_dyn_gas( map_wt(1) + k ) * theta( map_wt(1) + k ) /   &
                   moist_dyn_tot( map_wt(1) + k )
     exner( map_w3(1) + k - 1 ) = exner( map_w3 (1) + k )         &
-       -  ( coriolis_term( map_w2(B) + k - 1 ) * dz              &
+       -  ( coriolis_term( map_wt(1) + k - 1 ) * dz              &
        +  ( phi( map_w3(1) + k - 1 ) - phi( map_w3(1) + k  ) ) ) &
        / ( cp * theta_moist )
 
@@ -217,7 +207,7 @@ subroutine hydrostatic_coriolis_code( nlayers,       &
     theta_moist = moist_dyn_gas( map_wt(1) + k + 1 ) * theta( map_wt(1) + k + 1) /   &
                   moist_dyn_tot( map_wt(1) + k + 1)
     exner( map_w3(1) + k + 1 ) = exner( map_w3 (1) + k )        &
-       +  ( coriolis_term( map_w2(B) + k ) * dz                 &
+       +  ( coriolis_term( map_wt(1) + k ) * dz                 &
        +  ( phi( map_w3(1) + k ) - phi( map_w3(1) + k + 1 ) ) ) &
        / ( cp * theta_moist )
 

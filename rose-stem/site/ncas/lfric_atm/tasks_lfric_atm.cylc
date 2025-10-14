@@ -1,4 +1,4 @@
-{% do LOG.debug("Started in site/ncas/task_definitions/tasks_lfric_atm.cylc") %}
+{% do LOG.debug("Started in site/ncas/lfric_atm/tasks_lfric_atm.cylc") %}
 
 {% if task_ns.conf_name == "nwp_gal9_perf-C192_MG" %}
 
@@ -42,6 +42,51 @@
         "plot_str": "",
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_1T-C12" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_1T-C12" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_2T-C12" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_1T-C48_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_2T-C48_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_4T-C48_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_1T-C192_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_2T-C192_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_4T-C192_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
 {% endif %}
 
-{% do LOG.debug("Finished in site/ncas/task_definitions/tasks_lfric_atm.cylc") %}
+{% do LOG.debug("Finished in site/ncas/lfric_atm/tasks_lfric_atm.cylc") %}

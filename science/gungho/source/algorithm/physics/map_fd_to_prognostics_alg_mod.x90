@@ -41,7 +41,7 @@ module map_fd_to_prognostics_alg_mod
                                              get_u_lat_sample,     &
                                              get_u_up_sample,      &
                                              get_w3_to_w2_displacement
-  use dycore_constants_mod,            only: get_coriolis,         &
+  use dycore_constants_mod,            only: get_vert_coriolis,    &
                                              get_geopotential
   use fs_continuity_mod,               only: W3, W2, W2broken, Wtheta
   use sci_sort_ref_kernel_mod,         only: sort_ref_kernel_type
@@ -348,10 +348,6 @@ contains
                                        only : hydro_shallow_to_deep_kernel_type
     use moist_dyn_mod,                 only : num_moist_factors
     use matrix_vector_kernel_mod,      only : matrix_vector_kernel_type
-    use sci_dg_convert_hdiv_field_kernel_mod, &
-                                       only : dg_convert_hdiv_field_kernel_type
-    use sci_dg_convert_hdiv_native_kernel_mod, &
-                                       only : dg_convert_hdiv_native_kernel_type
     use sci_nodal_xyz_coordinates_kernel_mod, &
                                        only : nodal_xyz_coordinates_kernel_type
     use sci_psykal_builtin_light_mod,  only : invoke_convert_cart2sphere_vector
@@ -371,30 +367,25 @@ contains
     integer(i_def),     intent( in )    :: eos_height
     type( field_type ), intent( in ), optional, target :: lbc_mask
 
-    type(field_type)               :: c_terms(3)
-    type(field_type)               :: physical_chi(3)
-    type(field_type )              :: coriolis_term, r_c
+    type(field_type )              :: c_vert_term, r_c
     type(field_type )              :: exner_in_wth
     type(field_type )              :: temperature
     type(field_type),      pointer :: geopotential
-    type(field_type),      pointer :: w2_rmultiplicity
     type(field_type),      pointer :: chi(:)
     type(field_type),      pointer :: panel_id
     type(field_type),      pointer :: height_w3
     type(field_type),      pointer :: height_wth
-    type(operator_type),   pointer :: coriolis
+    type(operator_type),   pointer :: vert_coriolis
     type(mesh_type),       pointer :: mesh
     type(field_type),      pointer :: mask
     type(field_type),      target  :: dummy_mask
-    integer(i_def)                 :: i, eos_level
-    logical(l_def)                 :: optimised_conversion
+    integer(i_def)                 :: eos_level
 
-    nullify(geopotential, w2_rmultiplicity, chi, panel_id, height_w3, &
-            height_wth, coriolis, mesh, mask )
+    nullify(geopotential, chi, panel_id, height_w3, &
+            height_wth, vert_coriolis, mesh, mask )
 
     mesh => exner%get_mesh()
     height_w3 => get_height_fv( W3, mesh%get_id() )
-    w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() )
     height_wth => get_height_fv( Wtheta, mesh%get_id() )
     geopotential => get_geopotential( mesh%get_id() )
 
@@ -407,66 +398,27 @@ contains
       mask => dummy_mask
     end if
 
-    chi      => get_coordinates( mesh%get_id() )
-    panel_id => get_panel_id( mesh%get_id() )
-    coriolis => get_coriolis( mesh%get_id() )
+    chi           => get_coordinates( mesh%get_id() )
+    panel_id      => get_panel_id( mesh%get_id() )
+    vert_coriolis => get_vert_coriolis( mesh%get_id() )
 
     ! Create intermediate fields.
-    do i = 1,3
-      call u%copy_field_properties(c_terms(i))
-      call u%copy_field_properties(physical_chi(i))
-      call invoke( setval_c(c_terms(i), 0.0_r_def) )
-    end do
+    call theta%copy_field_properties(c_vert_term)
+    call invoke( setval_c(c_vert_term, 0.0_r_def) )
 
-    if ( associated(coriolis) ) then
+    ! Compute contribution of Coriolis force to vertical balance
+    if ( associated(vert_coriolis) ) then
 
-      call coriolis_term%initialise( vector_space = u%get_function_space() )
-      call r_c%initialise( vector_space = u%get_function_space() )
+      call r_c%initialise( theta%get_function_space() )
 
-      ! Apply Coriolis mass matrix.
-      call invoke( setval_c(r_c, 0.0_r_def) )
-      call invoke( matrix_vector_kernel_type( r_c, u, coriolis ) )
-
-      ! Calculate Coriolis values.
-      call invoke( setval_c( coriolis_term, 0.0_r_def ), &
-                   enforce_bc_kernel_type( r_c ) )
-      call mass_matrix_solver_alg(coriolis_term, r_c)
-
-      ! Convert Coriolis term to 3 components (XYZ) in physical space.
-      ! N.B. although c_terms is a W2 field, and thus has horizontally
-      ! continuous DoFs, hydrostatic_coriolis_kernel only requires the
-      ! vertical DoFs, which are horizontally discontinuous. Hence it is
-      ! safe to use the discontinuous version of this kernel to avoid
-      ! an unnecessary halo exchange, however if the horizontal DoFs are
-      ! ever wanted, it should be changed for the continuous version.
-      optimised_conversion = (                                                 &
-        coord_system == coord_system_native                                    &
-        .and. u%get_element_order_h() == 0                                     &
-        .and. u%get_element_order_v() == 0                                     &
-      )
-      if (optimised_conversion) then
-        call invoke( dg_convert_hdiv_native_kernel_type( c_terms,              &
-                                                         coriolis_term, chi,   &
-                                                         panel_id ) )
-      else
-        call invoke( dg_convert_hdiv_field_kernel_type( c_terms,               &
-                                                        coriolis_term, chi,    &
-                                                        panel_id ) )
-      end if
-
-      do i = 1,3
-        call invoke( inc_X_times_Y(c_terms(i), w2_rmultiplicity) )
-      end do
-
-      ! Convert coordinate field to physical space, i.e. to chi at W2 nodes.
-      call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id) )
-
-      ! Convert to standard SI units (m/s) in spherical coordinates.
-      if ( mesh%is_geometry_spherical() ) then
-        call invoke_convert_cart2sphere_vector(c_terms, physical_chi)
-      end if
-
-    end if ! associated(coriolis)
+      ! Apply Coriolis mass matrix, and solve for vertical term in Wtheta
+      call invoke( setval_c(r_c, 0.0_r_def),                                   &
+                   dg_inc_matrix_vector_kernel_type(r_c, u, vert_coriolis),    &
+                   enforce_bc_kernel_type(r_c) )
+      call mass_matrix_solver_alg(c_vert_term, r_c, bc_flag=.true.)
+      ! Enforce that result is zero at domain bottom and top
+      call invoke( enforce_bc_kernel_type(c_vert_term) )
+    end if ! associated(vert_coriolis)
 
     ! Get the index of the level closest to the height, ignoring the top eta
     ! level as eos_level is to be used for a W3 space rather than Wtheta
@@ -478,7 +430,7 @@ contains
       ! eos_level, and then integrating from this level to the top and the bottom
       ! using hydrostatic balance with Coriolis terms.
       call invoke( hydrostatic_coriolis_kernel_type( exner, rho, theta,       &
-                                                     c_terms(3),              &
+                                                     c_vert_term,             &
                                                      moist_dyn, geopotential, &
                                                      height_w3, mask,         &
                                                      p_zero, kappa,           &
@@ -509,7 +461,7 @@ contains
              ! This integrates down using g (shallow) from eos_level and
              ! then integrates up using phi (deep).
              hydro_shallow_to_deep_kernel_type( exner, temperature,          &
-                                                c_terms(3),                  &
+                                                c_vert_term,                 &
                                                 moist_dyn, geopotential,     &
                                                 height_w3, height_wth,       &
                                                 mask, gravity,               &

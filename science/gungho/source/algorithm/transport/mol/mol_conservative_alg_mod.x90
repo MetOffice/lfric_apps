@@ -176,16 +176,7 @@ module mol_conservative_alg_mod
         ! Apply advection / flux operator depending on formulation
         ! -------------------------------------------------------------------- !
 
-        if ( operators == operators_fem ) then
-          ! The FEM operators are not currently compatible with the advective-
-          ! then-flux approach as advective W3 FEM operators have not been
-          ! implemented yet. When they are implemented in ticket #3705, this
-          ! if-section can be deleted. Until then, discretisation is fully in
-          ! flux form
-          do_flux = .true.
-          do_advective = .false.
-
-        else if (.not. final_rk_stage) then
+        if (.not. final_rk_stage) then
           ! Advective-then-flux form but not last stage: just advective
           do_flux = .false.
           do_advective = .true.

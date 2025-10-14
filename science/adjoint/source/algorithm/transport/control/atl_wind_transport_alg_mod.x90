@@ -171,13 +171,10 @@ contains
                        setval_c(rhs_u, 0.0_r_def),                                                          &
                        inc_X_minus_Y( u_w3_n(3), u_w3_inc(3) ),                                             &
                        inc_X_plus_Y( u_w3_np1(3), u_w3_inc(3) ),                                            &
-                       setval_c( u_w3_inc(3), 0.0_r_def ),                                                  &
                        inc_X_minus_Y( u_w3_n(2), u_w3_inc(2) ),                                             &
                        inc_X_plus_Y( u_w3_np1(2), u_w3_inc(2) ),                                            &
-                       setval_c( u_w3_inc(2), 0.0_r_def ),                                                  &
                        inc_X_minus_Y( u_w3_n(1), u_w3_inc(1) ),                                             &
-                       inc_X_plus_Y( u_w3_np1(1), u_w3_inc(1) ),                                            &
-                       setval_c( u_w3_inc(1), 0.0_r_def ) )
+                       inc_X_plus_Y( u_w3_np1(1), u_w3_inc(1) ) )
 
         else
           ! Assemble right-hand side for Galerkin projection into W2
@@ -189,13 +186,10 @@ contains
                        setval_c(rhs_u, 0.0_r_def),                                            &
                        inc_X_minus_Y( u_w3_n(3), u_w3_inc(3) ),                               &
                        inc_X_plus_Y( u_w3_np1(3), u_w3_inc(3) ),                              &
-                       setval_c( u_w3_inc(3), 0.0_r_def ),                                    &
                        inc_X_minus_Y( u_w3_n(2), u_w3_inc(2) ),                               &
                        inc_X_plus_Y( u_w3_np1(2), u_w3_inc(2) ),                              &
-                       setval_c( u_w3_inc(2), 0.0_r_def ),                                    &
                        inc_X_minus_Y( u_w3_n(1), u_w3_inc(1) ),                               &
-                       inc_X_plus_Y( u_w3_np1(1), u_w3_inc(1) ),                              &
-                       setval_c( u_w3_inc(1), 0.0_r_def ) )
+                       inc_X_plus_Y( u_w3_np1(1), u_w3_inc(1) ) )
         end if
 
         ! -------------------------------------------------------------------- !

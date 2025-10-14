@@ -21,7 +21,7 @@ use argument_mod,               only : arg_type, func_type,      &
                                        ANY_SPACE_9, ANY_SPACE_1, &
                                        GH_BASIS, CELL_COLUMN, GH_EVALUATOR
 use constants_mod,              only : r_def, i_def
-use fs_continuity_mod,          only : Wtheta, W3, W2
+use fs_continuity_mod,          only : Wtheta, W3
 use kernel_mod,                 only : kernel_type
 use reference_element_mod,      only : B
 
@@ -37,7 +37,7 @@ type, public, extends(kernel_type) :: hydro_shallow_to_deep_kernel_type
   type(arg_type) :: meta_args(11) = (/                          &
        arg_type(GH_FIELD,   GH_REAL,    GH_READWRITE, W3),      &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,      Wtheta),  &
-       arg_type(GH_FIELD,   GH_REAL,    GH_READ,      W2),      &
+       arg_type(GH_FIELD,   GH_REAL,    GH_READ,      Wtheta),  &
        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,      Wtheta),  &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,      W3),      &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,      W3),      &
@@ -87,10 +87,6 @@ contains
 !! @param[in]  undf_wt       Total number of degrees of freedom for wtheta
 !! @param[in]  map_wt        Dofmap for the cell at column base for wt
 !! @param[in]  basis_wt      Basis functions evaluated at wt nodes
-!! @param[in]  ndf_w2        Number of degrees of freedom per cell for w2
-!! @param[in]  undf_w2       Total number of degrees of freedom for w2
-!! @param[in]  map_w2        Dofmap for the cell at column base for w2
-!! @param[in]  basis_w2      Basis functions evaluated at w2 nodes
 subroutine hydro_shallow_to_deep_code( &
                                       nlayers,       &
                                       exner,         &
@@ -113,10 +109,7 @@ subroutine hydro_shallow_to_deep_code( &
                                       ndf_wt,        &
                                       undf_wt,       &
                                       map_wt,        &
-                                      basis_wt,      &
-                                      ndf_w2,        &
-                                      undf_w2,       &
-                                      map_w2 )
+                                      basis_wt )
 
   implicit none
 
@@ -125,12 +118,9 @@ subroutine hydro_shallow_to_deep_code( &
                                                               ndf_w3,  &
                                                               undf_w3, &
                                                               ndf_wt,  &
-                                                              undf_wt, &
-                                                              ndf_w2,  &
-                                                              undf_w2
+                                                              undf_wt
   integer(kind=i_def), dimension(ndf_w3),       intent(in) :: map_w3
   integer(kind=i_def), dimension(ndf_wt),       intent(in) :: map_wt
-  integer(kind=i_def), dimension(ndf_w2),       intent(in) :: map_w2
   integer(kind=i_def),                          intent(in) :: eos_index
 
   real(kind=r_def), dimension(undf_w3),      intent(inout) :: exner
@@ -142,7 +132,7 @@ subroutine hydro_shallow_to_deep_code( &
                                                               moist_dyn_fac
   real(kind=r_def), dimension(undf_wt),         intent(in) :: temperature,   &
                                                               height_wth
-  real(kind=r_def), dimension(undf_w2),         intent(in) :: coriolis_term
+  real(kind=r_def), dimension(undf_wt),         intent(in) :: coriolis_term
   real(kind=r_def), dimension(1,ndf_w3,ndf_w3), intent(in) :: basis_w3
   real(kind=r_def), dimension(1,ndf_wt,ndf_w3), intent(in) :: basis_wt
   real(kind=r_def),                             intent(in) :: gravity
@@ -191,8 +181,8 @@ subroutine hydro_shallow_to_deep_code( &
     ! Pi_k-1 = Pi_k * ( cp T_{k-1/2} + (g - F_k-1/2) * (1-w) * dz ) /
     !                 ( cp T_{k-1/2} - (g - F_k-1/2) * w * dz )
     exner( map_w3 (1) + k-1 ) = exner( map_w3(1) + k ) * &
-      ( cp * temp_moist + ( gravity - coriolis_term( map_w2(B) + k ) ) * weight2 ) / &
-      ( cp * temp_moist - ( gravity - coriolis_term( map_w2(B) + k ) ) * weight1 )
+      ( cp * temp_moist + ( gravity - coriolis_term( map_wt(1) + k ) ) * weight2 ) / &
+      ( cp * temp_moist - ( gravity - coriolis_term( map_wt(1) + k ) ) * weight1 )
 
   end do
 
@@ -210,9 +200,9 @@ subroutine hydro_shallow_to_deep_code( &
     !                 ( cp T_k-1/2 + ( (phi_k - phi_k-1) - F_k-1/2 * dz) * w )
     exner( map_w3(1) + k ) = exner( map_w3 (1) + k-1 ) * &
       ( cp * temp_moist - ( phi( map_w3(1) + k ) - phi( map_w3(1) + k - 1 ) &
-                            - coriolis_term( map_w2(B) + k ) * dz ) * weight1 ) / &
+                            - coriolis_term( map_wt(1) + k ) * dz ) * weight1 ) / &
       ( cp * temp_moist + ( phi( map_w3(1) + k ) - phi( map_w3(1) + k - 1 )  &
-                            - coriolis_term( map_w2(B) + k ) * dz ) * weight2 )
+                            - coriolis_term( map_wt(1) + k ) * dz ) * weight2 )
 
   end do
 

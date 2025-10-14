@@ -410,8 +410,7 @@ module atl_mol_conservative_alg_mod
 
     end do substep_loop
 
-    call invoke( inc_X_plus_Y( field, field_n ),   &
-                 inc_X_plus_Y( field, field_np1 ), &
+    call invoke( inc_X_plus_Y( field, field_np1 ), &
                  setval_c( field_np1, 0.0_r_def) )
 
     if ( allocated(rk_field) ) deallocate(rk_field)
