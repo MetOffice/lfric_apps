@@ -6,7 +6,7 @@ casim:
 
 jules:
     source: git@github.com:MetOffice/jules.git
-    ref: 84c70420717e823f4e2231ab29edd0106320d251
+    ref: 8ca7211a7bc0ac8398bd9e08a59bec190a483957
 
 lfric_apps:
     source:
@@ -22,7 +22,7 @@ SimSys_Scripts:
 
 socrates:
     source: git@github.com:MetOffice/socrates.git
-    ref: aea2f0642b4f122e8530f7b2e3b784588505e4a2
+    ref: a01cb26fbc9ca302207439a02e6678a8f260a4d2
 
 socrates-spectral:
     source: git@github.com:MetOffice/socrates-spectral.git
