@@ -239,7 +239,6 @@ cheap_update=.false.
 consistent_metric=.false.,
 dep_pt_stencil_extent=3,
 dry_field_name='density'
-extended_mesh=.false.
 ffsl_inner_order=2
 ffsl_outer_order=2
 ffsl_splitting=5*1
@@ -262,6 +261,9 @@ theta_dispersion_correction=.false.
 theta_variable='dry'
 use_density_predictor=.false.,
 vertical_sl_order='cubic',
+panel_edge_treatment='none'
+panel_edge_high_order=.false.
+special_edges_monotone=3*1,
 /
 &validity_test
 number_gamma_values=2,

@@ -15,11 +15,11 @@ implicit none
 
 private
 
-public  :: FAR_AWAY
-public  :: crosses_panel_edge
-public  :: crosses_rotated_panel_edge
-public  :: rotated_panel_neighbour
-private :: panel_neighbour
+public :: FAR_AWAY
+public :: crosses_panel_edge
+public :: crosses_rotated_panel_edge
+public :: rotated_panel_neighbour
+public :: panel_neighbour
 
 integer(kind=i_def), parameter :: FAR_AWAY = 10000
 

@@ -1573,50 +1573,52 @@ contains
     !-----------------------------------------------------------------------
     if ( stochastic_physics == stochastic_physics_um ) then
 
-      ! Switches for the RP scheme
-      l_rp2 = use_random_parameters
-      i_rp_scheme = 1_i_def ! Use RP2b scheme
-      l_rp2_cycle_in = rp_cycle_in
-      l_rp2_cycle_out = rp_cycle_out
-      rp2_cycle_tm = rp_cycle_tm
+      if (use_random_parameters) then
+        ! Switches for the RP scheme
+        l_rp2 = use_random_parameters
+        i_rp_scheme = 1_i_def ! Use RP2b scheme
+        l_rp2_cycle_in = rp_cycle_in
+        l_rp2_cycle_out = rp_cycle_out
+        rp2_cycle_tm = rp_cycle_tm
 
-      ! Settings for RP algorithm
-      rp2_callfreq = rp_callfreq
-      rp2_decorr_ts = rp_decorr_ts
-      ran_max = rp_ran_max
+        ! Settings for RP algorithm
+        rp2_callfreq = rp_callfreq
+        rp2_decorr_ts = rp_decorr_ts
+        ran_max = rp_ran_max
 
-      ! Parameters
-      a_ent_1_rp = rp_bl_a_ent_1
-      a_ent_shr_rp = rp_bl_a_ent_shr
-      a_ent_shr_rp_max = rp_bl_a_ent_shr_max
-      cbl_mix_fac_rp = rp_bl_cbl_mix_fac
-      cs_rp = rp_bl_smag_coef
-      fxd_cld_num_rp = rp_mp_fxd_cld_num
-      g0_rp = rp_bl_stable_ri_coef
-      g1_rp = rp_bl_cld_top_diffusion
-      ice_fspd_rp = rp_mp_ice_fspd
-      lambda_min_rp = rp_bl_min_mix_length
-      mp_czero_rp = rp_mp_mp_czero
-      mpof_rp = rp_mp_mpof
-      ndrop_surf_rp = rp_mp_ndrop_surf
-      orog_drag_param_rp = rp_lsfc_orog_drag_param
-      par_mezcla_rp = rp_bl_neutral_mix_length
-      ricrit_rp = rp_bl_ricrit
-      snow_fspd_rp = rp_mp_snow_fspd
-      z0_soil_rp = rp_lsfc_z0_soil
-      z0_urban_mult_rp = rp_lsfc_z0_urban_mult
-      z0hm_soil_rp = rp_lsfc_z0hm_soil
+        ! Parameters
+        a_ent_1_rp = rp_bl_a_ent_1
+        a_ent_shr_rp = rp_bl_a_ent_shr
+        a_ent_shr_rp_max = rp_bl_a_ent_shr_max
+        cbl_mix_fac_rp = rp_bl_cbl_mix_fac
+        cs_rp = rp_bl_smag_coef
+        fxd_cld_num_rp = rp_mp_fxd_cld_num
+        g0_rp = rp_bl_stable_ri_coef
+        g1_rp = rp_bl_cld_top_diffusion
+        ice_fspd_rp = rp_mp_ice_fspd
+        lambda_min_rp = rp_bl_min_mix_length
+        mp_czero_rp = rp_mp_mp_czero
+        mpof_rp = rp_mp_mpof
+        ndrop_surf_rp = rp_mp_ndrop_surf
+        orog_drag_param_rp = rp_lsfc_orog_drag_param
+        par_mezcla_rp = rp_bl_neutral_mix_length
+        ricrit_rp = rp_bl_ricrit
+        snow_fspd_rp = rp_mp_snow_fspd
+        z0_soil_rp = rp_lsfc_z0_soil
+        z0_urban_mult_rp = rp_lsfc_z0_urban_mult
+        z0hm_soil_rp = rp_lsfc_z0hm_soil
 
-      n_pft = size(rp_lsfc_z0hm_pft)
-      do n = 1, n_pft
-        alnir_rp(n) = rp_lsfc_alnir(n)
-        alpar_rp(n) = rp_lsfc_alpar(n)
-        lai_mult_rp(n) = rp_lsfc_lai_mult
-        omega_rp(n) = rp_lsfc_omega(n)
-        omnir_rp(n) = rp_lsfc_omnir(n)
-        z0hm_pft_rp(n) = rp_lsfc_z0hm_pft(n)
-        z0v_rp(n) = rp_lsfc_z0v(n)
-      end do
+        n_pft = size(rp_lsfc_z0hm_pft)
+        do n = 1, n_pft
+          alnir_rp(n) = rp_lsfc_alnir(n)
+          alpar_rp(n) = rp_lsfc_alpar(n)
+          lai_mult_rp(n) = rp_lsfc_lai_mult
+          omega_rp(n) = rp_lsfc_omega(n)
+          omnir_rp(n) = rp_lsfc_omnir(n)
+          z0hm_pft_rp(n) = rp_lsfc_z0hm_pft(n)
+          z0v_rp(n) = rp_lsfc_z0v(n)
+        end do
+      end if
 
     end if ! if ( stochastic_physics == stochastic_physics_um ) then
 

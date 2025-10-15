@@ -1,0 +1,59 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module halo_mask_kernel_mod_test
+
+  use funit
+  use constants_mod,          only : i_def
+
+  implicit none
+
+  private
+  public :: halo_mask_test_type , test_all
+
+  @TestCase
+  type, extends(TestCase) :: halo_mask_test_type
+    private
+  contains
+    procedure test_all
+  end type halo_mask_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use halo_mask_kernel_mod,          only: halo_mask_code
+
+    implicit none
+
+    class(halo_mask_test_type), intent(inout) :: this
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: undf_w3 = 1
+    integer(kind=i_def)            :: map_w3(ndf_w3)
+    integer(kind=i_def)            :: halo_mask(undf_w3)
+    integer(kind=i_def)            :: halo_mask_answer(undf_w3)
+
+    halo_mask(:) = 0  ! Testing whether this gets set to 1
+    halo_mask_answer(:) = 1
+    map_w3 =(/ 1 /)
+
+    call halo_mask_code( nlayers,   &
+                         halo_mask, &
+                         ndf_w3,    &
+                         undf_w3,   &
+                         map_w3 )
+
+    ! Check values
+    @assertEqual( halo_mask_answer, halo_mask )
+
+  end subroutine test_all
+
+end module halo_mask_kernel_mod_test

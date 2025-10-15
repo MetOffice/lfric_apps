@@ -47,11 +47,14 @@ module ffsl_hori_alg_mod
                                               swift_inner_update_tracer,       &
                                               ffsl_advective_increment
   use limited_area_lbc_alg_mod,         only: overwrite_blending_zone_rtran
+  use panel_edge_remap_alg_mod,         only: panel_edge_remap_alg
   use remap_on_extended_mesh_alg_mod,   only: remap_on_extended_mesh
 
   ! Kernels
   use sci_average_w2_to_w2b_kernel_mod, only: average_w2_to_w2b_kernel_type
   use ffsl_flux_xy_kernel_mod,          only: ffsl_flux_xy_kernel_type
+  use ffsl_flux_xy_panel_remap_kernel_mod,                                     &
+                                        only: ffsl_flux_xy_panel_remap_kernel_type
   use ffsl_flux_xy_sphere_kernel_mod,   only: ffsl_flux_xy_sphere_kernel_type
   use ffsl_flux_xy_special_edge_kernel_mod,                                    &
                                         only: ffsl_flux_xy_special_edge_kernel_type
@@ -72,12 +75,15 @@ module ffsl_hori_alg_mod
   use check_configuration_mod,          only: check_any_eqn_consistent,        &
                                               get_required_stencil_depth
   use io_config_mod,                    only: subroutine_timers
-  use transport_config_mod,             only: extended_mesh,                   &
-                                              special_edges_treatment,         &
-                                              special_edges_high_order,        &
-                                              ffsl_inner_order,                &
-                                              ffsl_outer_order,                &
-                                              ffsl_unity_3d
+  use transport_config_mod,             only:                                  &
+                                          panel_edge_treatment,                &
+                                          panel_edge_treatment_extended_mesh,  &
+                                          panel_edge_treatment_special_edges,  &
+                                          panel_edge_treatment_remapping,      &
+                                          panel_edge_high_order,               &
+                                          ffsl_inner_order,                    &
+                                          ffsl_outer_order,                    &
+                                          ffsl_unity_3d
 
   implicit none
 
@@ -399,7 +405,7 @@ contains
     call flux%initialise( vector_space = w2h_fs )
 
     ! Set constant values
-    extra_points = ffsl_extra_points(special_edges_treatment, special_edges_high_order)
+    extra_points = ffsl_extra_points(panel_edge_treatment, panel_edge_high_order)
     stencil_extent = MIN(dep_stencil_extent + extra_points + order, mesh%get_halo_depth())
     ndep = ndepk_fs%get_ndata()
 
@@ -414,7 +420,7 @@ contains
 
     ! remap the field on an extended cubed sphere, if required -----------------
     ! If needed remap the field on an extended cubed sphere
-    if ( extended_mesh ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( monotone /= monotone_none )
       remap_depth = stencil_extent
       call remap_on_extended_mesh(field_big_halo, field_n, monotone_remap,     &
@@ -432,7 +438,7 @@ contains
 
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
     ! MASS FLUX COMPUTATION ====================================================
-    if (special_edges_treatment) then
+    if (panel_edge_treatment == panel_edge_treatment_special_edges) then
       ! Special edge treatment ------------------------------------------------
       call invoke( setval_c(flux, 0.0_r_tran),                                 &
                    ffsl_flux_xy_special_edge_kernel_type(                      &
@@ -447,7 +453,7 @@ contains
                                     panel_edge_dist(1:2), stencil_extent,      &
                                     panel_edge_dist(3:4), stencil_extent,      &
                                     face_selector_ew, face_selector_ns,        &
-                                    special_edges_high_order,                  &
+                                    panel_edge_high_order,                     &
                                     ffsl_inner_order, monotone,                &
                                     special_edges_monotone, min_val,           &
                                     ndep, dt ) )
@@ -485,7 +491,7 @@ contains
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
 
     ! fluxes may need unifying to guarantee a unique flux for each face --------
-    if ( extended_mesh ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
       call flux_broken%initialise( w2b_fs )
@@ -559,6 +565,8 @@ contains
     type(r_tran_field_type) :: flux_broken
     type(r_tran_field_type) :: increment_x
     type(r_tran_field_type) :: increment_y
+    type(r_tran_field_type) :: field_x_remapped
+    type(r_tran_field_type) :: field_y_remapped
 
     ! Pointer to field, to avoid unnecessary setval calculation
     type(r_tran_field_type),   pointer :: field_ptr_copy
@@ -595,8 +603,6 @@ contains
 
     ! Get options
     monotone = transport_metadata%get_horizontal_monotone()
-    special_edges_monotone = transport_metadata%get_special_edges_monotone()
-    call monotone_option_special_edges(special_edges_monotone, monotone)
     equation_form = transport_metadata%get_equation_form()
     splitting = transport_metadata%get_splitting()
     enforce_minvalue = transport_metadata%get_enforce_min_value()
@@ -692,7 +698,7 @@ contains
     call increment_y%initialise( vector_space = field_fs )
 
     ! Set constant values
-    extra_points = ffsl_extra_points(special_edges_treatment, special_edges_high_order)
+    extra_points = ffsl_extra_points(panel_edge_treatment, panel_edge_high_order)
     stencil_extent = MIN(dep_stencil_extent + extra_points + order, mesh%get_halo_depth())
     ndep = ndepk_fs%get_ndata()
 
@@ -707,7 +713,7 @@ contains
 
     ! remap the field on an extended cubed sphere, if required -----------------
     ! If needed remap the field on an extended cubed sphere
-    if ( extended_mesh ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( monotone /= monotone_none )
       remap_depth = stencil_extent
       call remap_on_extended_mesh(field_big_halo, field_n, monotone_remap,     &
@@ -719,12 +725,43 @@ contains
                                       halo_depth=get_required_stencil_depth() )
       call invoke( setval_x(field_big_halo, field_n) )
     end if
+
+    if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
+      monotone_remap = ( monotone /= monotone_none )
+      call panel_edge_remap_alg(                                               &
+              field_x_remapped, field_y_remapped,                              &
+              field_big_halo, field_big_halo, stencil_extent,                  &
+              monotone_remap, enforce_minvalue, min_val                        &
+      )
+    end if
+
     field_ptr_copy => field_big_halo
 
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
     ! MASS FLUX COMPUTATION ====================================================
-    if (special_edges_treatment) then
+    if (panel_edge_treatment == panel_edge_treatment_remapping) then
+      ! Use remapped fields at panel edges -------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_panel_remap_kernel_type(                       &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    field_x_remapped, stencil_extent,          &
+                                    dry_mass_n, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    field_y_remapped, stencil_extent,          &
+                                    dry_mass_n_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id,                                  &
+                                    panel_edge_dist(1:2), stencil_extent,      &
+                                    panel_edge_dist(3:4), stencil_extent,      &
+                                    face_selector_ew, face_selector_ns,        &
+                                    order, monotone,                           &
+                                    min_val, ndep, step_dt ) )
+    else if (panel_edge_treatment == panel_edge_treatment_special_edges) then
       ! Special edges ----------------------------------------------------------
+      special_edges_monotone = transport_metadata%get_special_edges_monotone()
+      call monotone_option_special_edges(special_edges_monotone, monotone)
       call invoke( setval_c(flux, 0.0_r_tran),                                 &
                    ffsl_flux_xy_special_edge_kernel_type(                      &
                                     flux,                                      &
@@ -738,7 +775,7 @@ contains
                                     panel_edge_dist(1:2), stencil_extent,      &
                                     panel_edge_dist(3:4), stencil_extent,      &
                                     face_selector_ew, face_selector_ns,        &
-                                    special_edges_high_order, order,           &
+                                    panel_edge_high_order, order,              &
                                     monotone, special_edges_monotone,          &
                                     min_val, ndep, step_dt ) )
     else if (is_cubed_sphere) then
@@ -776,7 +813,7 @@ contains
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
 
     ! fluxes may need unifying to guarantee a unique flux for each face --------
-    if ( extended_mesh ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
       call flux_broken%initialise( w2b_fs )
@@ -868,9 +905,10 @@ contains
     type(integer_field_type),        pointer :: panel_edge_dist(:)
 
     ! Fields and increments
-    type(r_tran_field_type), target :: field_x_big_halo
-    type(r_tran_field_type), target :: field_y_big_halo
-
+    type(r_tran_field_type) :: field_x_big_halo
+    type(r_tran_field_type) :: field_y_big_halo
+    type(r_tran_field_type) :: field_x_remapped
+    type(r_tran_field_type) :: field_y_remapped
     type(r_tran_field_type) :: flux_broken
     type(r_tran_field_type) :: conservative_field_n
     type(r_tran_field_type) :: conservative_field_np1
@@ -914,8 +952,6 @@ contains
 
     ! Get options
     monotone = transport_metadata%get_horizontal_monotone()
-    special_edges_monotone = transport_metadata%get_special_edges_monotone()
-    call monotone_option_special_edges(special_edges_monotone, monotone)
     equation_form = transport_metadata%get_equation_form()
     splitting = transport_metadata%get_splitting()
     swift_splitting = (transport_metadata%get_ffsl_splitting() &
@@ -1025,7 +1061,7 @@ contains
     end if
 
     ! Set constant values
-    extra_points = ffsl_extra_points(special_edges_treatment, special_edges_high_order)
+    extra_points = ffsl_extra_points(panel_edge_treatment, panel_edge_high_order)
     stencil_extent = MIN(dep_stencil_extent + extra_points + order, mesh%get_halo_depth())
     ndep = ndepk_fs%get_ndata()
 
@@ -1040,7 +1076,7 @@ contains
 
     ! remap the field on an extended cubed sphere, if required -----------------
     ! If needed remap the field on an extended cubed sphere
-    if ( extended_mesh ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       monotone_remap = ( monotone /= monotone_none )
       remap_depth = stencil_extent
       call remap_on_extended_mesh(field_x_big_halo, field_x, monotone_remap,   &
@@ -1058,11 +1094,42 @@ contains
                    setval_x(field_y_big_halo, field_y) )
     end if
 
+    if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
+      monotone_remap = ( monotone /= monotone_none )
+      ! Remap x field in y, and y field in x
+      call panel_edge_remap_alg(                                               &
+              field_y_remapped, field_x_remapped,                              &
+              field_y_big_halo, field_x_big_halo, stencil_extent,              &
+              monotone_remap, enforce_minvalue, min_val                        &
+      )
+    end if
+
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
 
     ! MASS FLUX COMPUTATION ====================================================
-    if (special_edges_treatment) then
+    if (panel_edge_treatment == panel_edge_treatment_remapping) then
+      ! Use remapped fields at panel edges -------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_panel_remap_kernel_type(                       &
+                                    flux,                                      &
+                                    field_y_big_halo, stencil_extent,          &
+                                    field_y_remapped, stencil_extent,          &
+                                    dry_mass_y, dep_stencil_extent,            &
+                                    field_x_big_halo, stencil_extent,          &
+                                    field_x_remapped, stencil_extent,          &
+                                    dry_mass_x, dep_stencil_extent,            &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id,                                  &
+                                    panel_edge_dist(1:2), stencil_extent,      &
+                                    panel_edge_dist(3:4), stencil_extent,      &
+                                    face_selector_ew, face_selector_ns,        &
+                                    order, monotone,                           &
+                                    min_val, ndep, dt ) )
+    else if (panel_edge_treatment == panel_edge_treatment_special_edges) then
       ! Special edge treatment ------------------------------------------------
+      special_edges_monotone = transport_metadata%get_special_edges_monotone()
+      call monotone_option_special_edges(special_edges_monotone, monotone)
       call invoke( setval_c(flux, 0.0_r_tran),                                 &
                    ffsl_flux_xy_special_edge_kernel_type(                      &
                                     flux,                                      &
@@ -1076,7 +1143,7 @@ contains
                                     panel_edge_dist(1:2), stencil_extent,      &
                                     panel_edge_dist(3:4), stencil_extent,      &
                                     face_selector_ew, face_selector_ns,        &
-                                    special_edges_high_order, order,           &
+                                    panel_edge_high_order, order,              &
                                     monotone, special_edges_monotone,          &
                                     min_val, ndep, dt ) )
     else if (is_cubed_sphere) then
@@ -1115,7 +1182,7 @@ contains
     if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
 
     ! fluxes may need unifying to guarantee a unique flux for each face --------
-    if ( extended_mesh ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
       call flux_broken%initialise( w2b_fs )
@@ -1202,20 +1269,21 @@ contains
 
   !----------------------------------------------------------------------------
   !> @brief  Returns the number of extra points required for ffsl stencil
-  !! @param[in]   special_edges_treatment    Logical special_edges_treatment=T/F
-  !! @param[in]   special_edges_high_order   Logical to use high order special edges
-  !! @return      extra_points               The number of extra points required
+  !> @param[in] panel_edge_treatment    Enumerator for edge treatment
+  !> @param[in] panel_high_order        Logical to use high order special edges
+  !> @return    extra_points            The number of extra points required
   !----------------------------------------------------------------------------
-  function ffsl_extra_points(special_edges_treatment, &
-                             special_edges_high_order) result(extra_points)
+  function ffsl_extra_points(panel_edge_treatment, &
+                             panel_edge_high_order) result(extra_points)
 
     implicit none
 
-    logical(kind=l_def), intent(in) :: special_edges_treatment
-    logical(kind=l_def), intent(in) :: special_edges_high_order
+    integer(kind=i_def), intent(in) :: panel_edge_treatment
+    logical(kind=l_def), intent(in) :: panel_edge_high_order
     integer(kind=i_def)             :: extra_points
 
-    if ( special_edges_treatment .AND. special_edges_high_order ) then
+    if ( panel_edge_treatment == panel_edge_treatment_special_edges            &
+         .AND. panel_edge_high_order ) then
       extra_points = 1_i_def
     else
       extra_points = 0_i_def
@@ -1224,11 +1292,12 @@ contains
 
   !----------------------------------------------------------------------------
   !> @brief Sets the monotonicity option at special edges which is either
-  !!        no monotonicity, the same as the option away from special edges,
-  !!        or positivity.
-  !! @param[inout] special_edges_monotone The monotone option to set at panel edges
-  !!                                      when the special edges treatment is used
-  !! @param[in]    monotone               The monotone option away from panel edges
+  !>        no monotonicity, the same as the option away from special edges,
+  !>        or positivity.
+  !> @param[in,out] special_edges_monotone The monotonicity option to set at
+  !!                                       panel edges when the special edges
+  !!                                       treatment is used
+  !> @param[in]    monotone                The monotonicity option otherwise
   !----------------------------------------------------------------------------
   subroutine monotone_option_special_edges(special_edges_monotone, &
                                            monotone)

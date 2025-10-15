@@ -44,7 +44,8 @@ module wt_advective_update_alg_mod
                                                 operators_fem,                 &
                                                 oned_reconstruction,           &
                                                 consistent_metric,             &
-                                                extended_mesh
+                                                panel_edge_treatment,          &
+                                                panel_edge_treatment_none
   use transport_constants_mod,            only: get_element_order_h_transport, &
                                                 get_element_order_v_transport
   use log_mod,                            only: log_event,                     &
@@ -144,7 +145,8 @@ contains
                                         Wtheta, 4, ndata_first=.false. )
     call h_reconstruction%initialise( multidata_fs )
     monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
-    if ( extended_mesh .and. (monotone .or. oned_reconstruction) ) then
+    if ( panel_edge_treatment /= panel_edge_treatment_none                     &
+         .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
       call remap_on_extended_mesh(remap_field, field_big_halo,                 &
                                   monotone,                                    &

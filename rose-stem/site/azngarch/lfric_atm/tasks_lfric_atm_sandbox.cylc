@@ -34,6 +34,7 @@
         "mpi_parts": 24,
         "wallclock": 60,
         "threads": 1,
+        "memory": [2, "GB"]
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C48_MG_12x2" %}
@@ -46,6 +47,7 @@
         "mpi_parts": 12,
         "wallclock": 60,
         "threads": 2,
+        "memory": [2, "GB"]
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C48_MG_6x4" %}
@@ -58,6 +60,7 @@
         "mpi_parts": 6,
         "wallclock": 60,
         "threads": 4,
+        "memory": [2, "GB"]
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C192_MG_72x4" %}
@@ -70,6 +73,7 @@
         "mpi_parts": 72,
         "wallclock": 60,
         "threads": 4,
+        "memory": [2, "GB"]
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C192_MG_144x2" %}
@@ -82,6 +86,7 @@
         "mpi_parts": 144,
         "wallclock": 60,
         "threads": 2,
+        "memory": [2, "GB"]
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C192_MG_288x1" %}
@@ -94,6 +99,94 @@
         "mpi_parts": 288,
         "wallclock": 60,
         "threads": 1,
+        "memory": [2, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_short-C12_12x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","um_dump","no_diags"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 12,
+        "wallclock": 20,
+        "threads": 1,
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_short-C12_6x2" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","um_dump","no_diags"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 6,
+        "wallclock": 20,
+        "threads": 2,
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9-C48_MG_24x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","um_dump","no_diags"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 24,
+        "wallclock": 20,
+        "threads": 1,
+        "memory": [8, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9-C48_MG_12x2" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","um_dump","no_diags"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 12,
+        "wallclock": 20,
+        "threads": 2,
+        "memory": [8, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9-C48_MG_6x4" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","um_dump","no_diags"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 6,
+        "wallclock": 20,
+        "threads": 4,
+        "memory": [8, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_chem-C12_12x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","chemistry","um_dump","no_diags"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 12,
+        "wallclock": 20,
+        "threads": 1,
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_chem-C12_6x2" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","chemistry","um_dump","no_diags"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 6,
+        "wallclock": 20,
+        "threads": 2,
     }) %}
 
 {% endif %}

@@ -63,7 +63,8 @@ contains
                                      substep_transport_off,         &
                                      theta_variable_dry,            &
                                      min_val_method_iterative,      &
-                                     calculate_detj_upwind
+                                     calculate_detj_upwind,         &
+                                     panel_edge_treatment_none
 
     implicit none
 
@@ -123,10 +124,9 @@ contains
       cap_density_predictor = 0.001_r_def,                 &
       max_vert_cfl_calc = max_vert_cfl_calc_uniform,       &
       reversible = (/ .false., .false., .false. /),        &
-      extended_mesh = .false.,                             &
-      special_edges_high_order = .false.,                  &
-      special_edges_monotone = (/ 0, 0, 0 /),              &
-      special_edges_treatment = .false.                    &
+      panel_edge_treatment = panel_edge_treatment_none,    &
+      panel_edge_high_order = .false.,                     &
+      special_edges_monotone = (/ 0, 0, 0 /)               &
     )
 
 

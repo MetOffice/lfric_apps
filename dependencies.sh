@@ -21,11 +21,11 @@
 # dependent changes should be updated to the revision at which those
 # changes were committed to the project's trunk
 
-export lfric_core_rev=53779
+export lfric_core_rev=53806
 export lfric_core_sources=
 export casim_rev=apps2.2
 export casim_sources=
-export jules_rev=30893
+export jules_rev=31180
 export jules_sources=
 export socrates_rev=1869
 export socrates_sources=

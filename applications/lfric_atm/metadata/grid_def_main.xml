@@ -105,6 +105,9 @@
   <grid id="scalar_grid">
     <axis axis_ref="scalar_axis"/>
   </grid>
+  <grid id="random_seed_grid">
+    <axis axis_ref="random_seed_size"/>
+  </grid>
   <!-- Zoom filters -->
   <grid id="full_level_0_face_zoom">
     <domain domain_ref="face"/>

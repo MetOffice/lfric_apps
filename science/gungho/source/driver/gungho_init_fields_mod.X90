@@ -23,7 +23,7 @@ module gungho_init_fields_mod
   use driver_modeldb_mod,                 only : modeldb_type
   use gungho_time_axes_mod,               only : gungho_time_axes_type, &
                                                  get_time_axes_from_collection
-  use constants_mod,                      only : i_def, l_def, r_def
+  use constants_mod,                      only : i_def, l_def, r_def, str_def
   use log_mod,                            only : log_event,       &
                                                  LOG_LEVEL_INFO,  &
                                                  LOG_LEVEL_ERROR, &
@@ -36,7 +36,10 @@ module gungho_init_fields_mod
   use formulation_config_mod,             only : use_physics
   use section_choice_config_mod,          only : iau,                         &
                                                  iau_sst,                     &
-                                                 iau_surf
+                                                 iau_surf,                    &
+                                                 cloud, cloud_none,           &
+                                                 stochastic_physics,          &
+                                                 stochastic_physics_um
   use initialization_config_mod,          only : init_option,                 &
                                                  init_option_analytic,        &
                                                  init_option_fd_start_dump,   &
@@ -73,7 +76,6 @@ module gungho_init_fields_mod
   use create_gungho_prognostics_mod,      only : create_gungho_prognostics
   use create_physics_prognostics_mod,     only : create_physics_prognostics
   use field_mapper_mod,                   only : field_mapper_type
-  use section_choice_config_mod,          only : cloud, cloud_none
   use map_fd_to_prognostics_alg_mod,      only : map_fd_to_prognostics
   use gungho_init_prognostics_driver_mod, only : init_gungho_prognostics
   use init_gungho_lbcs_alg_mod,           only : init_lbcs_file_alg,    &
@@ -103,6 +105,12 @@ module gungho_init_fields_mod
   use iau_config_mod,                     only : iau_use_pertinc
   use casim_activate_alg_mod,             only : casim_activate_alg
   use microphysics_config_mod,            only : microphysics_casim
+  use stochastic_physics_config_mod,      only : use_spt, &
+                                                 use_skeb, &
+                                                 use_random_parameters, &
+                                                 ens_memb
+  use random_seed_gen_alg_mod,            only : random_seed_gen_alg
+  use stph_rp_main_alg_mod,               only : stph_rp_init_alg
 #endif
   use linked_list_mod,                    only : linked_list_type, &
                                                  linked_list_item_type
@@ -543,6 +551,7 @@ subroutine create_model_data( modeldb,      &
     type( field_type ), pointer :: ageofair => null()
 
     type( io_value_type ),               pointer :: temp_corr_io_value
+    type( io_value_type ),               pointer :: random_seed_io_value
     procedure( io_operation_interface ), pointer :: io_op_ptr
 
     ! Dust fields
@@ -588,7 +597,12 @@ subroutine create_model_data( modeldb,      &
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: radiation_fields
 
+    character(str_def) :: string
+    integer(i_def) :: i
+    integer(i_def) :: random_seed_size
+    integer(i_def), allocatable :: ranseed(:)
 #ifdef UM_PHYSICS
+    integer(i_def) :: ensemble_number
     procedure(regridder), pointer :: regrid_operation => null()
 
     regrid_operation => map_scalar_intermesh
@@ -620,6 +634,9 @@ subroutine create_model_data( modeldb,      &
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
 
     temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value' )
+    if ( stochastic_physics == stochastic_physics_um ) then
+      random_seed_io_value => get_io_value( modeldb%values, 'random_seed_io_value' )
+    end if
     call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
     call modeldb%values%get_value( 'total_energy_previous', &
                                    total_energy_previous )
@@ -660,6 +677,12 @@ subroutine create_model_data( modeldb,      &
     call temp_corr_io_value%set_checkpoint_read_behaviour(io_op_ptr)
     io_op_ptr => checkpoint_write_value
     call temp_corr_io_value%set_checkpoint_write_behaviour(io_op_ptr)
+    if ( stochastic_physics == stochastic_physics_um ) then
+      io_op_ptr => checkpoint_read_value
+      call random_seed_io_value%set_checkpoint_read_behaviour(io_op_ptr)
+      io_op_ptr => checkpoint_write_value
+      call random_seed_io_value%set_checkpoint_write_behaviour(io_op_ptr)
+    end if
     ! Initialise prognostic fields appropriately
     select case ( prognostic_init_choice )
 
@@ -957,6 +980,54 @@ subroutine create_model_data( modeldb,      &
 
       end if
 
+      if ( stochastic_physics == stochastic_physics_um ) then
+        random_seed_size = size(random_seed_io_value%data)
+        allocate(ranseed(random_seed_size))
+        ranseed(1:random_seed_size) = 0
+
+#ifdef UM_PHYSICS
+        if ( .not. checkpoint_read .or. use_random_parameters ) then
+          if ( use_spt .or. use_skeb .or. use_random_parameters ) then
+            ! Random seed will depend on ensemble member number
+            ensemble_number = ens_memb
+          else
+            ! Set ensemble number to zero for other users of random numbers
+            ensemble_number = 0
+          end if
+          call random_seed_gen_alg(ranseed, ensemble_number)
+
+          ! Initialise RP scheme (stochastic perturbed parameters)
+          if (use_random_parameters) then
+            call random_seed(put = ranseed(1:random_seed_size))
+            call stph_rp_init_alg( modeldb )
+          end if
+        end if
+#endif
+        if ( checkpoint_read ) then
+          ! Read the checkpointed random seed
+          call random_seed_io_value%read_checkpoint()
+
+          ! Convert into integer, because io_value_type can accept only real.
+          do i = 1, random_seed_size
+            ranseed(i) = nint(random_seed_io_value%data(i), i_def)
+          end do
+        end if
+
+        ! Set random seed for stochastic physics
+        call random_seed(put = ranseed(1:random_seed_size))
+
+        write( log_scratch_space, &
+               '(": Random seed generation: Size of random seed: ", I6)' ) &
+               random_seed_size
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+        write( string, '("(",A23, I3, "(I5))" )' ) '"Random Seed Values: ",', &
+               random_seed_size
+        write( log_scratch_space, trim(string) ) &
+               (ranseed(i), i=1,random_seed_size)
+        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+        deallocate(ranseed)
+      end if
     end if
 
     if ( iau ) then
@@ -1001,6 +1072,10 @@ subroutine create_model_data( modeldb,      &
     type( field_collection_type ), pointer :: prognostic_fields
 
     type( io_value_type ), pointer :: temp_corr_io_value
+    type( io_value_type ), pointer :: random_seed_io_value
+    integer(i_def) :: i
+    integer(i_def) :: random_seed_size
+    integer(i_def), allocatable :: ranseed(:)
 
     ! Get pointers to field collections for use downstream
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
@@ -1025,9 +1100,25 @@ subroutine create_model_data( modeldb,      &
 
     !=================== Write fields to checkpoint files ====================!
     if( checkpoint_write ) then
-       call split_complex_prognostics( prognostic_fields )
-       call write_checkpoint( prognostic_fields, modeldb%clock, checkpoint_stem_name )
-       if (encorr_usage/=encorr_usage_none) call temp_corr_io_value%write_checkpoint()
+      call split_complex_prognostics( prognostic_fields )
+      call write_checkpoint( prognostic_fields, modeldb%clock, checkpoint_stem_name )
+      if (encorr_usage/=encorr_usage_none) call temp_corr_io_value%write_checkpoint()
+
+      if ( stochastic_physics == stochastic_physics_um ) then
+        ! Get current random seed
+        random_seed_io_value => get_io_value(modeldb%values, 'random_seed_io_value')
+        random_seed_size = size(random_seed_io_value%data)
+        allocate(ranseed(random_seed_size))
+
+        call random_seed(get = ranseed(1:random_seed_size))
+
+        ! Convert into real, because io_value_type cannot accept integer.
+        do i = 1, random_seed_size
+          random_seed_io_value%data(i) = real(ranseed(i), r_def)
+        end do
+        call random_seed_io_value%write_checkpoint()
+        deallocate(ranseed)
+      end if
     end if
 
   end subroutine output_model_data

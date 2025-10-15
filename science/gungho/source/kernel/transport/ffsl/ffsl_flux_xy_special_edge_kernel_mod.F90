@@ -752,16 +752,16 @@ contains
     end do
 
     ! In the central cell, there is no rotation --------------------------------
-      pid_idx = map_pid(1)
-      edge_dist_l = -ABS(panel_edge_dist_l(pid_idx))
-      edge_dist_r = ABS(panel_edge_dist_r(pid_idx))
+    pid_idx = map_pid(1)
+    edge_dist_l = -ABS(panel_edge_dist_l(pid_idx))
+    edge_dist_r = ABS(panel_edge_dist_r(pid_idx))
 
-      ! Set the nearest distance for the left-most column
-      if (ABS(edge_dist_l) < ABS(edge_dist_r)) then
-        edge_dist_local(rel_idx_k) = edge_dist_l
-      else
-        edge_dist_local(rel_idx_k) = edge_dist_r
-      end if
+    ! Set the nearest distance for the left-most column
+    if (ABS(edge_dist_l) < ABS(edge_dist_r)) then
+      edge_dist_local(rel_idx_k) = edge_dist_l
+    else
+      edge_dist_local(rel_idx_k) = edge_dist_r
+    end if
 
     ! Look at the right-most column in the stencil -----------------------------
     do rel_idx_k = 1, stencil_extent_r

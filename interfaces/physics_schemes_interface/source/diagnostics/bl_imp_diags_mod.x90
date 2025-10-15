@@ -80,6 +80,9 @@ contains
   !> @param[in,out] wspd10m_neut       neutral wind speed at 10m
   !> @param[in,out] u10m_neut          Zonal 10m neutral wind speed
   !> @param[in,out] v10m_neut          Meridional 10m neutral wind speed
+  !> @param[in,out] taux               'Zonal' momentum stress
+  !> @param[in,out] tauy               'Meridional' momentum stress
+  !> @param[in,out] ustar_implicit     Implicit surface friction velocity
   subroutine initialise_diags_for_bl_imp(mv, mcl, mci, cf_bulk,          &
                                          cf_area, cf_liq, cf_fro,        &
                                          dmv_bl, dmcl_bl, dms_bl,        &
@@ -87,7 +90,8 @@ contains
                                          dcfl_bl, dcff_bl,               &
                                          u10m, v10m,                     &
                                          wspd10m_neut, u10m_neut,        &
-                                         v10m_neut)
+                                         v10m_neut, taux, tauy,          &
+                                         ustar_implicit)
 
     implicit none
 
@@ -102,6 +106,10 @@ contains
     type( field_type ), intent(inout) :: u10m, v10m
     type( field_type ), intent(inout) :: wspd10m_neut, u10m_neut
     type( field_type ), intent(inout) :: v10m_neut
+    ! Note that taux and tauy are actually on wtheta in the vertical but
+    ! are mapped from tau_w2 by map_physics_winds (to w3) in bl_imp_alg
+    type( field_type ), intent(inout) :: taux, tauy
+    type( field_type ), intent(inout) :: ustar_implicit
 
     if ( subroutine_timers ) call timer("bl_imp_diags")
 
@@ -135,6 +143,9 @@ contains
     wspd10m_neut_flag = init_diag(wspd10m_neut, 'surface__wspd10m_neut')
     u10m_neut_flag = init_diag(u10m_neut, 'surface__u10m_neut')
     v10m_neut_flag = init_diag(v10m_neut, 'surface__v10m_neut')
+    taux_flag = init_diag(taux, 'turbulence__taux', activate=.true.)
+    tauy_flag = init_diag(tauy, 'turbulence__tauy', activate=.true.)
+    ustar_implicit_flag = init_diag(ustar_implicit, 'surface__ustar_implicit', activate=.true.)
 
     if ( subroutine_timers ) call timer("bl_imp_diags")
 
@@ -150,7 +161,9 @@ contains
   !> @param[in]     wspd10m_neut             neutral wind speed at 10m
   !> @param[in]     u10m_neut                Zonal 10m neutral wind speed
   !> @param[in]     v10m_neut                Meridional 10m neutral wind speed
-  !> @param[in]     tau_w2                   Wind stress in w2
+  !> @param[in]     taux                     'Zonal' momentum stress
+  !> @param[in]     tauy                     'Meridional' momentum stress
+  !> @param[in]     ustar_implicit           Implicit surface friction velocity
   !> @param[in]     taux_ssi                 Surface zonal wind stress over sea, seaice
   !> @param[in]     tauy_ssi                 Surface meridional wind stress over sea, seaice
   !> @param[in]     pseudotau_w2             pseudo wind stress in w2
@@ -199,7 +212,8 @@ contains
                                      wspd10m, u10m, v10m,                      &
                                      wind10m_neut_w2,                          &
                                      wspd10m_neut, u10m_neut, v10m_neut,       &
-                                     tau_w2, taux_ssi, tauy_ssi,               &
+                                     taux, tauy, ustar_implicit,               &
+                                     taux_ssi, tauy_ssi,                       &
                                      pseudotau_w2,                             &
                                      z0m_eff, rho_in_w3, wetrho_in_w3,         &
                                      mv, mcl, mci, mr,                         &
@@ -224,7 +238,8 @@ contains
                                          rho_in_w3, wetrho_in_w3,              &
                                          exner_in_wth, z0m_eff, bl_weight_1dbl,&
                                          ls_rain, ls_snow, lsca_2d,            &
-                                         conv_rain, conv_snow, cca_2d, tau_w2, &
+                                         conv_rain, conv_snow, cca_2d,         &
+                                         taux, tauy, ustar_implicit,           &
                                          pseudotau_w2
 
     ! Prognostic fields to output
@@ -250,7 +265,6 @@ contains
     type( field_type ), intent(inout) :: dcff_bl
 
     ! Local variables
-    type( field_type ) :: ustar_implicit
     type( field_type ) :: wind_gust
     type( field_type ) :: scale_dep_wind_gust
     type( field_type ) :: visibility_with_precip
@@ -263,9 +277,9 @@ contains
     type( field_type ) :: dew_point_ssi
     type( field_type ) :: dew_point_land
 
-    type( field_type ) :: dt_bl, tauz, pseudotauz, du_bl, dv_bl, dw_bl, &
+    type( field_type ) :: dt_bl, pseudotauz, du_bl, dv_bl, dw_bl, &
          w10m_neut, u10m2, v10m2
-    type( field_type ) :: taux, tauy, pseudotaux, pseudotauy
+    type( field_type ) :: pseudotaux, pseudotauy
 
     logical( l_def ) :: ignore
 
@@ -329,14 +343,6 @@ contains
       call dcff_bl%write_field()
     end if
 
-    taux_flag = init_diag(taux, 'turbulence__taux')
-    tauy_flag = init_diag(tauy, 'turbulence__tauy')
-    if (taux_flag .or. tauy_flag) then
-      if (.not. taux_flag) ignore = init_diag(taux, 'turbulence__taux', activate=.true.)
-      if (.not. tauy_flag) ignore = init_diag(tauy, 'turbulence__tauy', activate=.true.)
-      call taux%copy_field_properties(tauz)
-      call map_physics_winds(taux, tauy, tauz, tau_w2)
-    end if
     if (taux_flag) call taux%write_field()
     if (tauy_flag) call tauy%write_field()
 
@@ -381,9 +387,9 @@ contains
     end if
     if (pseudotaux_flag) call pseudotaux%write_field()
     if (pseudotauy_flag) call pseudotauy%write_field()
+    if (ustar_implicit_flag) call ustar_implicit%write_field()
 
     ! Local diagnostic calculated here
-    ustar_implicit_flag = init_diag(ustar_implicit, 'surface__ustar_implicit')
     wind_gust_flag = init_diag(wind_gust, 'surface__wind_gust')
     scale_dep_wind_gust_flag = init_diag(scale_dep_wind_gust, 'surface__scale_dep_wind_gust')
     vis_no_precip_flag = init_diag(visibility_no_precip, 'surface__visibility_no_precip')
@@ -396,17 +402,13 @@ contains
     dew_point_ssi_flag = init_diag(dew_point_ssi, 'surface__dew_point_ssi')
     dew_point_land_flag = init_diag(dew_point_land, 'surface__dew_point_land')
 
-    ! Initialise fields where another diagnostic depends on them
-    if (wind_gust_flag .or. scale_dep_wind_gust_flag) then
-      if (.not. ustar_implicit_flag) ignore = init_diag(ustar_implicit, 'surface__ustar_implicit', activate=.true.)
-    end if
     ! visibility_with_precip requires visibility_no_precip
     if (vis_with_precip_flag .and. .not. vis_no_precip_flag) then
       ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
     end if
 
-    if ( ustar_implicit_flag .or. wind_gust_flag .or. scale_dep_wind_gust_flag &
-         .or. vis_no_precip_flag .or. vis_with_precip_flag .or.                &
+    if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
+         vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
          fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
          fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
          .or. dew_point_ssi_flag .or. dew_point_land_flag ) then
@@ -414,7 +416,6 @@ contains
       ! Calculate various extra diagnostics
       call invoke( bl_extra_diags_kernel_type( rho_in_w3, wetrho_in_w3,        &
                                                heat_flux_bl, moist_flux_bl,    &
-                                               taux, tauy,                     &
                                                exner_in_wth, mci, mr,          &
                                                nr_mphys, ns_mphys, murk,       &
                                                zh, t1p5m, q1p5m, qcl1p5m,      &
@@ -435,7 +436,6 @@ contains
                                                visibility_with_precip,         &
                                                visibility_no_precip ) )
 
-      if (ustar_implicit_flag) call ustar_implicit%write_field()
       if (wind_gust_flag) call wind_gust%write_field()
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
       if (vis_no_precip_flag) call visibility_no_precip%write_field()

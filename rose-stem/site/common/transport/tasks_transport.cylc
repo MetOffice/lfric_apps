@@ -170,6 +170,17 @@
         "use_xios": false,
     }) %}
 
+{% elif task_ns.conf_name == "sbr_hori_cos_phi_ffsl_nirv_remap-C32" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_cos_phi_ffsl_nirv_remap"],
+        "resolution": "C32",
+        "DT": 4050,
+        "tsteps": 10,
+        "mpi_parts": 6,
+        "use_xios": false,
+    }) %}
+
 {% elif task_ns.conf_name == "canned" %}
 
     {% do task_dict.update({
@@ -309,6 +320,34 @@
 
     {% do task_dict.update({
         "opt_confs": ["sbr_hori_cos_phi_ffsl_ppm_spt_edges"],
+        "resolution": "C32",
+        "DT": 4050,
+        "tsteps": 288,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "errors.py diagTransport $NODAL_DATA_DIR rho:theta:tracer_con:tracer_adv:m_v T000288 -1 -91 0 0.01 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "next-sbr_hori_cos_phi_ffsl_nirv_remap-C32" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_cos_phi_ffsl_nirv_remap"],
+        "resolution": "C32",
+        "DT": 4050,
+        "tsteps": 288,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "wallclock": 20,
+        "kgo_checks": [],
+        "plot_str": "errors.py diagTransport $NODAL_DATA_DIR rho:theta:tracer_con:tracer_adv:m_v T000288 -1 -91 0 0.01 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "next-sbr_hori_cos_phi_ffsl_ppm_remap-C32" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_cos_phi_ffsl_ppm_remap"],
         "resolution": "C32",
         "DT": 4050,
         "tsteps": 288,

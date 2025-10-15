@@ -40,6 +40,8 @@ module fast_physics_alg_mod
                                   cv_scheme_gregory_rowntree,         &
                                   cv_scheme_comorph
   use cloud_config_mod,     only: scheme, scheme_pc2, cloud_call_b4_conv
+  use stochastic_physics_config_mod,                       &
+                            only: blpert_type, blpert_type_off
   ! Derived Types
   use field_mod,            only: field_type
   use sci_field_bundle_builtins_mod, &
@@ -70,6 +72,7 @@ module fast_physics_alg_mod
   use jules_extra_alg_mod, only: jules_extra_alg
   ! Stochastic physics
   use stph_main_alg_mod, only: stph_main_alg
+  use blpert_main_alg_mod, only: blpert_main_alg
 #endif
 
   implicit none
@@ -155,11 +158,19 @@ contains
     type( field_type ) :: dmr_cld(nummr)
 
 #ifdef UM_PHYSICS
+    ! ...for boundary layer stochastic perturbation
+    type( field_type ) :: dtheta_blpert
+    type( field_type ) :: dmv_blpert
+
     ! ...surface fields passed from BL to Jules
     type( field_type ) :: surf_heat_flux
     type( field_type ) :: canopy_evap
     type( field_type ) :: water_extraction
     type( field_type ) :: lake_evap
+
+    ! ...surface fields passed from BL to Stochastic Perturbation scheme
+    type( field_type ) :: theta_star_surf
+    type( field_type ) :: qv_star_surf
 
     ! Temporary field to unpack from field collection
     type( field_type ), pointer :: dmv_conv => null()
@@ -174,7 +185,8 @@ contains
     type( field_type), pointer :: exner_in_wth => null()
 
     ! Flags to indicate whether scheme has run and increments need adding
-    logical(kind=l_def) :: boundary_layer_done, stph_done, evap_condense_done
+    logical(kind=l_def) :: boundary_layer_done, stph_done, blpert_done, &
+                           evap_condense_done
 
     ! Flag to indicate that moisture mixing ratio fields are being used
     logical(kind=l_def) :: use_moisture
@@ -197,6 +209,7 @@ contains
                  setval_c(du, 0.0_r_def) )
     boundary_layer_done = .false.
     stph_done= .false.
+    blpert_done= .false.
     evap_condense_done = .false.
 
 #ifdef UM_PHYSICS
@@ -263,7 +276,7 @@ contains
       call du%copy_field_properties(du_bl)
       call bl_imp_alg(dtheta_bl, du_bl, mr,                               &
                       surf_heat_flux, canopy_evap, water_extraction,      &
-                      lake_evap,                                          &
+                      lake_evap, theta_star_surf, qv_star_surf,           &
                       theta, exner, mr_n, rho,                            &
                       derived_fields, radiation_fields, orography_fields, &
                       turbulence_fields, convection_fields, cloud_fields, &
@@ -302,6 +315,15 @@ contains
                           derived_fields, orography_fields, clock)
       end if
       stph_done=.true. ! Collect this increment later on
+
+      if (blpert_type /= blpert_type_off) then
+        call dtheta_stph%copy_field_properties(dtheta_blpert)
+        call dmv_stph%copy_field_properties(dmv_blpert)
+        call blpert_main_alg(dtheta_blpert, dmv_blpert, mr(imr_v),           &
+                             theta_star_surf, qv_star_surf,                  &
+                             turbulence_fields, stph_fields, outer, clock)
+        blpert_done = .true.
+      end if
     end if
 
 #endif
@@ -337,6 +359,11 @@ contains
       call invoke(inc_X_plus_Y(dtheta, dtheta_stph), &
                   inc_X_plus_Y(mr(imr_v), dmv_stph), &
                   inc_X_plus_Y(du, du_stph) )
+    end if
+
+    if (blpert_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_blpert), &
+                  inc_X_plus_Y(mr(imr_v), dmv_blpert) )
     end if
 #endif
 

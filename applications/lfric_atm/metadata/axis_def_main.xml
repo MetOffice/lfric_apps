@@ -35,6 +35,7 @@
   <axis id="photolysis_pathways" name="photolysis_pathways" />
   <axis id="one_time_axis" name="one_time_axis" n_glo="1" />
 
+  <axis id="random_seed_size" name="random_seed_size" />
   <axis id="scalar_axis" name="scalar" n_glo="1" />
   <axis id="aod_wavel" name="aod_wavel" />
 

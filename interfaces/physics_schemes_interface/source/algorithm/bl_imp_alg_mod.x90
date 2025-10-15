@@ -7,7 +7,7 @@
 
 module bl_imp_alg_mod
 
-  use constants_mod,                 only: i_def
+  use constants_mod,                 only: i_def, l_def
   use model_clock_mod,               only: model_clock_type
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
@@ -40,6 +40,9 @@ module bl_imp_alg_mod
                                            glomap_mode_dust_and_clim, &
                                            glomap_mode_ukca
   use microphysics_config_mod,       only: microphysics_casim
+  use stochastic_physics_config_mod, only: blpert_type, &
+                                           blpert_type_theta_star, &
+                                           blpert_type_theta_and_moist
 
   implicit none
 
@@ -60,6 +63,8 @@ contains
   !>@param[out]    canopy_evap       Canopy evaporation from land tiles
   !>@param[out]    water_extraction  Extraction of water from each soil layer
   !>@param[out]    lake_evap         Evaporation from lakes GBM
+  !>@param[out]    theta_star_surf   Atmospheric stability via heat flux
+  !>@param[out]    qv_star_surf      Atmospheric stability via moist flux
   !>@param[in]     theta             Theta in its native (wth) space
   !>@param[in]     exner             Exner Pressure in the w3 space
   !>@param[in]     mr_n              Mixing ratios at time level n
@@ -78,7 +83,7 @@ contains
   !>@param[in]     clock             The clock object
   subroutine bl_imp_alg(dtheta_bl, du_bl, mr,                            &
                         surf_heat_flux, canopy_evap, water_extraction,   &
-                        lake_evap,                                       &
+                        lake_evap, theta_star_surf, qv_star_surf,        &
                         theta, exner, mr_n, rho,                         &
                         derived_fields, radiation_fields,                &
                         orography_fields, turbulence_fields,             &
@@ -88,6 +93,7 @@ contains
 
     use bl_imp_kernel_mod,      only: bl_imp_kernel_type
     use bl_imp2_kernel_mod,     only: bl_imp2_kernel_type
+    use bl_imp_diag_kernel_mod, only: bl_imp_diag_kernel_type
     use jules_imp_alg_mod,      only: jules_imp_alg
     use bl_imp_du_kernel_mod, only: bl_imp_du_kernel_type
 
@@ -95,7 +101,8 @@ contains
 
     type( field_type ), intent( inout )     :: dtheta_bl, du_bl, mr(nummr)
     type( field_type ), intent( out )       :: surf_heat_flux, canopy_evap,   &
-                                               water_extraction, lake_evap
+                                               water_extraction, lake_evap,   &
+                                               theta_star_surf, qv_star_surf
     type( field_type ), intent( in )        :: theta, exner, rho, mr_n(nummr)
 
     type( field_collection_type ), intent(in)    :: derived_fields
@@ -198,7 +205,9 @@ contains
     type( field_type ) :: wind10m_w2, u10m, v10m, w10m, u10m2, v10m2
     type( field_type ) :: wind10m_neut_w2, pseudotau_w2
     type( field_type ) :: wspd10m_neut, u10m_neut, v10m_neut
+    type( field_type ) :: taux, tauy, tauz
     type( field_type ) :: tauz_ssi
+    type( field_type ) :: ustar_implicit
     type( field_type ) :: dmv_bl, dmcl_bl, dmci_bl, dbcf_bl
     type( field_type ) :: dacf_bl, dcfl_bl, dcff_bl
     type( field_type ) :: dqw, dtl, dqw_nt, dtl_nt, qw, tl, ct_ctq,     &
@@ -210,6 +219,7 @@ contains
 
     type( mesh_type ), pointer :: mesh => null()
     integer(i_def) :: loop, ncells
+    logical(l_def) :: diag_step, flag_blpert
 
     if ( subroutine_timers ) call timer("bl_imp_alg")
 
@@ -313,7 +323,8 @@ contains
                                      dcfl_bl, dcff_bl,                         &
                                      u10m, v10m,                               &
                                      wspd10m_neut, u10m_neut,                  &
-                                     v10m_neut)
+                                     v10m_neut, taux, tauy,                    &
+                                     ustar_implicit)
 
     ! Map the convection wind increments into w2 space
     call u_physics%copy_field_properties(du_conv_w2)
@@ -441,6 +452,25 @@ contains
 
     call um_sizes_init(1_i_def)
 
+    diag_step = (mod(model_clock%get_step(),diagnostic_frequency) == 0)
+
+    ! In case surface flux is needed at each outer loop
+    flag_blpert = (blpert_type == blpert_type_theta_star .or. &
+                   blpert_type == blpert_type_theta_and_moist)
+
+    if ((use_xios_io .and. write_diag .and. diag_step .and. & 
+         outer == outer_iterations) .or. flag_blpert) then
+      call taux%copy_field_properties(tauz)
+      call ustar_implicit%copy_field_properties(theta_star_surf)
+      call ustar_implicit%copy_field_properties(qv_star_surf)
+
+      call map_physics_winds(taux, tauy, tauz, tau_w2)
+      call invoke( bl_imp_diag_kernel_type(bt_bl, bq_bl, ftl, fqw, &
+                                           taux, tauy, wetrho_in_w3, &
+                                           theta_star_surf, qv_star_surf, &
+                                           ustar_implicit, zh) )
+    end if
+
     if (outer == outer_iterations) then
       call invoke(setval_X(heat_flux_bl,ftl), &
                   setval_X(moist_flux_bl,fqw) )
@@ -480,11 +510,12 @@ contains
 
       ! Output the BL diagnostics
       if (write_diag) then
-        if (mod(model_clock%get_step(),diagnostic_frequency) == 0) then
+        if (diag_step) then
           call output_diags_for_bl_imp(zh, du_bl, wspd10m, u10m, v10m,         &
                                    wind10m_neut_w2,                            &
                                    wspd10m_neut, u10m_neut, v10m_neut,         &
-                                   tau_w2, taux_ssi, tauy_ssi,                 &
+                                   taux, tauy, ustar_implicit,                 &
+                                   taux_ssi, tauy_ssi,                         &
                                    pseudotau_w2,                               &
                                    z0m_eff, rho, wetrho_in_w3,                 &
                                    mr(imr_v), mr(imr_cl), mr(imr_s),           &

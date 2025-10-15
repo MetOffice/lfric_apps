@@ -20,7 +20,8 @@ module adj_flux_precomputations_mod
   use split_transport_utils_mod,    only : get_direction_w2_fs,               &
                                            get_num_split_steps,               &
                                            use_shifted_mesh
-  use transport_config_mod,         only : extended_mesh
+  use transport_config_mod,         only : panel_edge_treatment,              &
+                                           panel_edge_treatment_extended_mesh
   use transport_constants_mod,      only : get_detj_at_w3_r_tran
   use extrusion_mod,                only : PRIME_EXTRUSION
 
@@ -76,7 +77,7 @@ module adj_flux_precomputations_mod
       call log_event("adj_flux_pc_init: adjoint of optional flux computations not yet implemented.", LOG_LEVEL_ERROR)
     end if
 
-    if ( extended_mesh ) then
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
       call log_event("adj_flux_pc_init: adjoint of extended mesh computations not yet implemented.", LOG_LEVEL_ERROR)
     else
       mesh_id = flux_pc%get_mesh_id_from_idx( 1_i_def )

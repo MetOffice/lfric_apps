@@ -1,0 +1,322 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Interface to the Boundary layer Stochastic Perturbation (BLPERT)
+
+module blpert_main_alg_mod
+
+  use constants_mod,        only: i_def, r_def, l_def
+  use field_collection_mod, only: field_collection_type
+  use field_mod,            only: field_type, field_proxy_type
+  use integer_field_mod,    only: integer_field_type
+  use clock_mod,            only: clock_type
+  use io_config_mod,        only: subroutine_timers
+  use timer_mod,            only: timer
+
+  implicit none
+
+  private
+
+  public blpert_main_alg
+
+contains
+  !>@brief Runs the boundary layer stochastic perturbation scheme (BLPERT)
+  !>@details
+  !>             as documented in UMDP81
+
+  !>@param[in,out]     dtheta_blpert     Increments for theta
+  !>@param[in,out]     dmv_blpert        Increments for mv
+  !>@param[in]         mv                moisture field
+  !>@param[in]         theta_star_surf   Atmospheric stability via heat flux
+  !>@param[in]         qv_star_surf      Atmospheric stability via moist flux
+  !>@param[in]         turbulence_fields Fields from turbulence scheme
+  !>@param[in]         stph_fields       Fields from stochastic physics scheme
+  !>@param[in]         outer             Outer loop counter
+  !>@param[in]         clock             Model time information
+  subroutine blpert_main_alg(dtheta_blpert, dmv_blpert, mv, &
+                             theta_star_surf, qv_star_surf, &
+                             turbulence_fields, stph_fields, outer, clock)
+
+    use stochastic_physics_config_mod, only: blpert_mesh_name, &
+                                             blpert_only_near_edge, &
+                                             blpert_npts_from_edge, &
+                                             blpert_height_bottom, &
+                                             blpert_height_top, &
+                                             blpert_time_correlation, &
+                                             blpert_decorrelation_time
+    use blpert_update_rand_kernel_mod, only: blpert_update_rand_kernel_type
+    use blpert_increment_kernel_mod,   only: blpert_increment_kernel_type
+    use propagate_onion_layers_kernel_mod, &
+                                       only: propagate_onion_layers_kernel_type
+    use create_edge_mask_kernel_mod,   only: create_edge_mask_kernel_type
+    use function_space_collection_mod, only: function_space_collection
+    use function_space_mod,            only: function_space_type
+    use fs_continuity_mod,             only: W3, Wtheta
+    use sci_geometric_constants_mod,   only: get_height_fv
+    use extrusion_config_mod,          only: number_of_layers, domain_height
+    use level_heights_mod,             only: eta_theta_levels
+    use mesh_mod,                      only: mesh_type
+    use local_mesh_mod,                only: local_mesh_type
+    use mesh_collection_mod,           only: mesh_collection
+    use mesh_map_mod,                  only: mesh_map_type
+    use extrusion_mod,                 only: TWOD
+    use intermesh_mappings_alg_mod,    only: map_scalar_intermesh
+    use io_config_mod,                 only: write_diag, use_xios_io
+    use log_mod,                       only: log_event, log_scratch_space, &
+                                             LOG_LEVEL_ERROR
+
+    implicit none
+    type( field_type ), intent(inout) :: dtheta_blpert
+    type( field_type ), intent(inout) :: dmv_blpert
+    type( field_type ), intent(in) :: mv
+    type( field_type ), intent(in) :: theta_star_surf
+    type( field_type ), intent(in) :: qv_star_surf
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(inout) :: stph_fields
+    integer(i_def), intent(in) :: outer
+    class(clock_type), intent(in) :: clock
+    type(function_space_type), pointer :: vector_space
+    type(function_space_type), pointer :: coarse_vector_space
+    type(mesh_type), pointer :: mesh
+    type(mesh_type), pointer :: coarse_mesh
+    type(mesh_type), pointer :: twod_mesh
+    type(mesh_type), pointer :: coarse_twod_mesh
+    type(mesh_map_type), pointer :: mesh_map
+    type(local_mesh_type), pointer :: local_mesh
+
+    type( integer_field_type ), pointer :: ntml
+    type( integer_field_type ), pointer :: cumulus
+    type( integer_field_type ), pointer :: blpert_flag
+    type( field_type ), pointer :: height_wth
+    type( field_type ), pointer :: blpert_rand_fld
+
+    type( integer_field_type ) :: blpert_area
+    type( integer_field_type ) :: blpert_sw
+    type( field_type ) :: dtheta_base
+    type( field_type ) :: dmv_base
+    type( field_type ) :: rand_numb
+    type( field_type ) :: edge_field
+    type( field_type ) :: coarse_buff_field
+    type( field_type ) :: coarse_edge_field
+    type( field_type ) :: rand_numb_coarse
+    type( field_proxy_type ) :: rand_numb_proxy
+    integer(i_def) :: ncells_per_coarse_cell
+    integer(i_def) :: ncells_propagate
+    integer(i_def) :: ncells_global, ncells_local
+    integer(i_def) :: cell, gid
+    integer(i_def) :: iter, k
+    integer(i_def) :: pert_lev_bot, pert_lev_top
+    real(r_def), allocatable :: rand_numb_global(:)
+    real(r_def), pointer, dimension(:) :: rand_numb_data
+    integer(i_def), parameter :: stencil_depth_edge = 1
+    integer(i_def), parameter :: stencil_depth_buff = 1
+    real(r_def) :: dt, auto_corr_coeff, tfac
+
+    if ( subroutine_timers ) call timer("blpert_main_alg")
+
+    nullify(vector_space, coarse_vector_space, mesh, coarse_mesh, &
+            twod_mesh, coarse_twod_mesh, local_mesh, mesh_map,    &
+            ntml, cumulus, blpert_flag, blpert_rand_fld,          &
+            rand_numb_data)
+
+    call turbulence_fields%get_field('ntml', ntml) 
+    call turbulence_fields%get_field('cumulus', cumulus)
+    call stph_fields%get_field('blpert_flag', blpert_flag) 
+    call stph_fields%get_field('blpert_rand_fld', blpert_rand_fld)
+
+    call blpert_flag % copy_field_properties(blpert_area)
+    call blpert_flag % copy_field_properties(blpert_sw)
+    call blpert_rand_fld % copy_field_properties(dtheta_base)
+    call blpert_rand_fld % copy_field_properties(dmv_base)
+
+    mesh => dtheta_blpert % get_mesh()
+    twod_mesh => mesh_collection % get_mesh(mesh, TWOD)
+    vector_space => function_space_collection % get_fs(twod_mesh, 0, 0, W3)
+    height_wth => get_height_fv(Wtheta, mesh % get_id())
+
+    coarse_mesh => mesh_collection % get_mesh(blpert_mesh_name)
+    coarse_twod_mesh => mesh_collection % get_mesh(coarse_mesh, TWOD)
+    coarse_vector_space => function_space_collection % get_fs(coarse_twod_mesh, 0, 0, W3)
+    call rand_numb % initialise(vector_space)
+    call rand_numb_coarse % initialise(coarse_vector_space)
+
+    dt = real(clock%get_seconds_per_step(), r_def)
+
+    !----------------------------------------------------------------!
+    ! Set perturbation target area
+    !----------------------------------------------------------------!
+    if (blpert_only_near_edge) then
+      ! Perturbate only near boundary region
+      call edge_field % initialise(vector_space)
+
+      mesh_map => coarse_mesh % get_mesh_map(mesh)
+      ncells_per_coarse_cell = mesh_map % get_ntarget_cells_per_source_x()
+      if (mod(blpert_npts_from_edge, ncells_per_coarse_cell) /= 0) then
+        write(log_scratch_space, '(A,I3,A,I2)') &
+          " Parameter blpert_npts_from_edge = ", blpert_npts_from_edge, &
+          " must be divisible by ", ncells_per_coarse_cell
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+
+      ! Set 1.0 on outermost cells on coarse mesh (0.0 elsewhere)
+      ! Example in 6x6 mesh
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 !     !     !     !     ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 !     !     !     !     ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 !     !     !     !     ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 !     !     !     !     ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      call coarse_edge_field % initialise(coarse_vector_space)
+      call coarse_buff_field % initialise(coarse_vector_space)
+      call invoke(                                                  &
+                  setval_c(coarse_edge_field, 0.0_r_def),           &
+                  setval_c(coarse_buff_field, 0.0_r_def),           &
+                  setval_c(edge_field, 0.0_r_def),                  &
+                  create_edge_mask_kernel_type(coarse_edge_field,   &
+                                               coarse_buff_field,   &
+                                               stencil_depth_edge,  &
+                                               stencil_depth_buff), &
+                  setval_X(coarse_buff_field, coarse_edge_field)    &
+                 )
+
+      ! Propagate 1.0 regon inward
+      ! Result after once propagation from above figure
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 !     !     ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 !     !     ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 ! 1.0 !
+      !-----!-----!-----!-----!-----!-----!
+      ncells_propagate = blpert_npts_from_edge / ncells_per_coarse_cell - 1
+      do iter = 1, ncells_propagate
+        call invoke( propagate_onion_layers_kernel_type(coarse_edge_field,   &
+                                                        coarse_buff_field,   &
+                                                        stencil_depth_edge), &
+                     inc_min_aX(1.0_r_def, coarse_edge_field),               &
+                     setval_X(coarse_buff_field, coarse_edge_field)          &
+                   )
+      end do
+      ! Remap into fine mesh without interpolation
+      call map_scalar_intermesh(edge_field, coarse_edge_field, &
+                                lowest_order_flag = .true.)
+      ! Convert into integer field
+      call invoke( real_to_int_X(blpert_area, edge_field) )
+    else
+      call invoke( int_setval_c(blpert_area, 1_i_def) )
+    end if ! blpert_only_near_edge
+
+    !----------------------------------------------------------------!
+    ! Generate random number field
+    !----------------------------------------------------------------!
+    ! Generate random number in coarse global mesh
+    local_mesh => coarse_mesh % get_local_mesh()
+    ncells_global = local_mesh % get_ncells_global_mesh()
+    ncells_local = coarse_mesh % get_last_edge_cell()
+    allocate( rand_numb_global(ncells_global) )
+    call random_number( rand_numb_global )
+
+    ! distribute to local coarse mesh
+    rand_numb_proxy = rand_numb_coarse%get_proxy()
+    rand_numb_data => rand_numb_proxy%data
+    do cell = 1, ncells_local
+      gid = local_mesh % get_gid_from_lid(cell)
+      ! Rescale random number from 0.0~1.0 to -1.0~1.0
+      rand_numb_data(cell) = 2.0_r_def * rand_numb_global(gid) - 1.0_r_def
+    end do
+    deallocate( rand_numb_global )
+
+    ! Remap random number to fine mesh
+    call invoke( setval_c(rand_numb, 0.0_r_def) )
+    call map_scalar_intermesh(rand_numb, rand_numb_coarse, &
+                              lowest_order_flag = .true.)
+
+    !----------------------------------------------------------------!
+    ! Determin perturbation point and update random number field
+    !----------------------------------------------------------------!
+    ! Set time correlation parameter
+    if ( blpert_time_correlation ) then
+      auto_corr_coeff = exp(-dt/blpert_decorrelation_time)
+    else
+      auto_corr_coeff = 0.0_r_def
+    end if
+
+    call invoke( blpert_update_rand_kernel_type(blpert_sw, blpert_flag, &
+                 blpert_area, cumulus, blpert_rand_fld, &
+                 theta_star_surf, rand_numb, outer, auto_corr_coeff) )
+
+    !----------------------------------------------------------------!
+    ! Set vertical range of perturbation
+    !----------------------------------------------------------------!
+    if ( blpert_height_bottom > domain_height ) then
+      write(log_scratch_space, '(A,I3,A)') &
+           " Parameter blpert_height_bottom = ", blpert_height_bottom, &
+           " is outside allowed range"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+    if ( blpert_height_top > domain_height ) then
+      write(log_scratch_space, '(A,I3,A)') &
+           " Parameter blpert_height_top = ", blpert_height_top, &
+           " is outside allowed range"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    do k = 1, number_of_layers
+      if ( domain_height * eta_theta_levels(k) >= blpert_height_bottom ) then
+        pert_lev_bot = max(k-1, 1)
+        exit
+      end if
+    end do
+
+    do k = 1, number_of_layers
+      if ( domain_height * eta_theta_levels(k) >= blpert_height_top ) then
+        pert_lev_top = k-1
+        exit
+      end if
+    end do
+
+    !----------------------------------------------------------------!
+    ! Compute increment from random number
+    !----------------------------------------------------------------!
+    if ( blpert_time_correlation ) then
+      ! Very crude attempt to introduce a timestep dependence, because we are
+      ! adding an increment every timestep (60s is the UKV timestep so this
+      ! shouldn't change the answers there)
+      tfac = dt / 60.0_r_def
+    else
+      tfac = 1.0_r_def
+    end if
+
+    call invoke( blpert_increment_kernel_type(dtheta_blpert, dmv_blpert, &
+                 mv, height_wth, blpert_sw, ntml, dtheta_base, dmv_base, &
+                 theta_star_surf, qv_star_surf, blpert_rand_fld, &
+                 pert_lev_bot, pert_lev_top, tfac) )
+
+    !----------------------------------------------------------------!
+    ! Write fields to diagnostics if requested
+    !----------------------------------------------------------------!
+    if (write_diag .and. use_xios_io) then
+      call dtheta_base%write_field('stochastic__dtheta_base_blpert')
+      call dmv_base%write_field('stochastic__dmv_base_blpert')
+    end if
+
+    if ( subroutine_timers ) call timer("blpert_main_alg")
+
+  end subroutine blpert_main_alg
+end module blpert_main_alg_mod

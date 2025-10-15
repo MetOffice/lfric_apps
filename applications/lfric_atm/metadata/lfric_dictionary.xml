@@ -350,6 +350,10 @@
   <field id="aer_lw_absorption" name="aer_lw_absorption" long_name="aer_lw_absorption" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" />
   <field id="aer_lw_scattering" name="aer_lw_scattering" long_name="aer_lw_scattering" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" />
   <field id="aer_lw_asymmetry" name="aer_lw_asymmetry" long_name="aer_lw_asymmetry" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" />
+  <!-- stochastic fields --> 
+  <field id="blpert_rand_fld" name="blpert_rand_fld" long_name="blpert_random_number" unit="1" domain_ref="face" />
+  <field id="blpert_flag" name="blpert_flag" long_name="blpert_perturbed_flag" unit="1" domain_ref="face" />
+  <field id="random_seed" name="random_seed" long_name="random_seed_for_stochastic_physics" unit="1" grid_ref="random_seed_grid" />
   <!-- snow fields -->
   <field id="tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
   <field id="tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles" />

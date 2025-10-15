@@ -42,7 +42,8 @@ contains
                                      substep_transport_off,         &
                                      theta_variable_dry,            &
                                      min_val_method_iterative,      &
-                                     calculate_detj_upwind
+                                     calculate_detj_upwind,         &
+                                     panel_edge_treatment_none
     implicit none
 
     class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
@@ -97,10 +98,9 @@ contains
                                  reversible = (/.false./),                                 &
                                  transport_ageofair=.false.,                               &
                                  ageofair_reset_level = 10,                                &
-                                 extended_mesh = .false.,                                  &
-                                 special_edges_high_order = .false.,                       &
-                                 special_edges_monotone = (/1/),                           &
-                                 special_edges_treatment = .false.                         &
+                                 panel_edge_treatment=panel_edge_treatment_none,           &
+                                 panel_edge_high_order = .false.,                          &
+                                 special_edges_monotone = (/1/)                            &
                                  )
     call feign_base_mesh_config( file_prefix='foo',                   &
                                  prime_mesh_name='unit_test',         &

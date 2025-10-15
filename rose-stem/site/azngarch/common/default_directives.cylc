@@ -7,7 +7,6 @@
 
 {% do default_directives.update({
     "sandbox": {
-        "memory": [25, "GB"],
         "wallclock": 20,
         "build_memory": [25, "GB"],
         "build_wallclock": 240,

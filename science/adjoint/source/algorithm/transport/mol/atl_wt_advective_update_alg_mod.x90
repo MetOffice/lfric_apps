@@ -176,7 +176,8 @@ contains
     use polyh_wtheta_koren_kernel_mod,    only : polyh_wtheta_koren_kernel_type
     use atl_poly_adv_update_kernel_mod,   only : atl_poly_adv_update_kernel_type
     use transport_config_mod,             only : oned_reconstruction,  &
-                                                 extended_mesh
+                                                 panel_edge_treatment, &
+                                                 panel_edge_treatment_none
     use transport_enumerated_types_mod,   only : monotone_koren
     use transport_constants_mod,          only : get_hori_wt_mol_coeffs
 
@@ -233,7 +234,8 @@ contains
     )
     call ls_h_reconstruction%initialise( multidata_fs )
     monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
-    if ( extended_mesh .and. (monotone .or. oned_reconstruction) ) then
+    if ( panel_edge_treatment /= panel_edge_treatment_none                     &
+         .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
       call remap_on_extended_mesh(ls_remap_field, ls_field_big_halo,           &
                                   monotone,                                    &

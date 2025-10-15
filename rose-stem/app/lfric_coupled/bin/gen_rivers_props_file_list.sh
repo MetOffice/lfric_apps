@@ -21,4 +21,5 @@ tee file_list.txt > /dev/null <<EOF
 '$RIV_NUMBER_ANCILLARY/qrparm.rivseq.nc'
 '$RIV_NUMBER_ANCILLARY/qrparm.rivseq.nc'
 '$RIV_NUMBER_ANCILLARY/river_number_trip.nc'
+'$RIV_NUMBER_ANCILLARY/qrclim.rivstor.nc'
 EOF

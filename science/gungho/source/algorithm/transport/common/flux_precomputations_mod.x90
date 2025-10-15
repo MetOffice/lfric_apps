@@ -75,9 +75,8 @@ module flux_precomputations_alg_mod
                                             get_fraction_idx,                  &
                                             get_num_split_steps
   use timer_mod,                      only: timer
-  use transport_config_mod,           only: extended_mesh,                     &
-                                            special_edges_treatment,           &
-                                            special_edges_high_order,          &
+  use transport_config_mod,           only: panel_edge_treatment,              &
+                                            panel_edge_treatment_extended_mesh,&
                                             ffsl_inner_order,                  &
                                             ffsl_outer_order,                  &
                                             dep_pt_stencil_extent
@@ -288,7 +287,7 @@ contains
     if (present(reset_unity)) self%reset_unity = reset_unity
 
     ! Determine settings for extended mesh remapping of density
-    if (extended_mesh) then
+    if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
       ref_config = get_dry_config()
       self%ref_monotone = (horizontal_monotone(ref_config) /= monotone_none)
       self%ref_enforce_min_value = enforce_min_value(ref_config)
@@ -460,7 +459,7 @@ contains
     ! Multiply by cell volume to get mass
     ! If extended mesh, remap reference field here
     detj_w3 => get_detj_at_w3_r_tran(self%mesh_ids(1))
-    if (extended_mesh) then
+    if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
       call tmp_field%initialise(w3_fs)
       call invoke( setval_X(tmp_field, self%ref_field(1,1)) )
       call remap_on_extended_mesh(                                             &
@@ -966,7 +965,7 @@ contains
 
       call self%ref_field(mesh_idx, step)%initialise(w3_fs, halo_depth=halo_depth)
 
-      if (extended_mesh) then
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
         call invoke_deep_X_divideby_Y(self%ref_field(mesh_idx, step),          &
                                       ref_mass, detj_w3)
       else
@@ -1100,7 +1099,8 @@ contains
           step < self%num_steps + 1 .and.                                      &
           get_next_step_hori(self%splitting, MOD(step-2, num_split_steps) + 1) &
         )
-        if (extended_mesh .and. next_step_hori) then
+        if (panel_edge_treatment == panel_edge_treatment_extended_mesh         &
+            .and. next_step_hori) then
           call tmp_mass%initialise(w3_fs)
           call tmp_field%initialise(w3_fs)
           detj_w3 => get_detj_at_w3_r_tran(mesh_id)
@@ -1149,7 +1149,7 @@ contains
 
         if ( subroutine_timers ) call timer('transport.get_ref_mass')
         detj_w3 => get_detj_at_w3_r_tran(mesh_id)
-        if (extended_mesh) then
+        if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
           call invoke_deep_X_times_Y(self%ref_mass(mesh_idx, step),            &
                                      self%ref_field(mesh_idx, step), detj_w3)
         else
@@ -1165,7 +1165,7 @@ contains
       else if (mesh_idx == 2) then
         if ( subroutine_timers ) call timer('transport.get_ref_mass')
         ref_mass_prime => self%get_ref_mass(self%mesh_ids(1), step, negative_check_flag)
-        if (extended_mesh) then
+        if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
           ! Original field has already been remapped, so can perform a "deep"
           ! shift on the original field to get the shifted, remapped density
           ! @todo #4302: replace this with redundant computation
@@ -1250,7 +1250,7 @@ contains
 
       call self%ref_field_x(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
 
-      if (extended_mesh) then
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
         call invoke_deep_X_divideby_Y(self%ref_field_x(mesh_idx, step_idx),    &
                                       ref_mass, detj_w3)
       else
@@ -1314,7 +1314,7 @@ contains
 
       call self%ref_field_y(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
 
-      if (extended_mesh) then
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
         call invoke_deep_X_divideby_Y(self%ref_field_y(mesh_idx, step_idx),    &
                                       ref_mass, detj_w3)
       else
@@ -1848,7 +1848,7 @@ contains
 
     ! If using the extended mesh, remap the reference field here
     ! Store reference field as byproduct of this calculation
-    if (extended_mesh) then
+    if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
       call tmp_mass%initialise(w3_fs)
       call tmp_field%initialise(w3_fs)
       detj_w3 => get_detj_at_w3_r_tran(mesh_id)

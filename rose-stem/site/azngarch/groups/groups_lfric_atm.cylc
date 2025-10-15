@@ -11,6 +11,15 @@
         "lfric_atm_nwp_gal9-C192_MG_144x2_sandbox_nvidia_fast-debug-64bit",
         "lfric_atm_nwp_gal9-C192_MG_72x4_sandbox_nvidia_fast-debug-64bit",
     ],
+    "lfric_atm_clim_sandbox": [
+        "lfric_atm_clim_gal9_short-C12_6x2_sandbox_nvidia_fast-debug-64bit",
+        "lfric_atm_clim_gal9_short-C12_12x1_sandbox_nvidia_fast-debug-64bit",
+        "lfric_atm_clim_gal9_chem-C12_6x2_sandbox_nvidia_fast-debug-64bit",
+        "lfric_atm_clim_gal9_chem-C12_12x1_sandbox_nvidia_fast-debug-64bit",
+        "lfric_atm_clim_gal9-C48_MG_24x1_sandbox_nvidia_fast-debug-64bit",
+        "lfric_atm_clim_gal9-C48_MG_12x2_sandbox_nvidia_fast-debug-64bit",
+        "lfric_atm_clim_gal9-C48_MG_6x4_sandbox_nvidia_fast-debug-64bit",
+    ],
     "lfric_atm_nwp_sandbox": [
         "lfric_atm_nwp_sandbox_developer",
     ],

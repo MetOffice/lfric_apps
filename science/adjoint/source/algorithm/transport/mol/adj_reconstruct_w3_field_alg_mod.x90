@@ -20,7 +20,8 @@ module adj_reconstruct_w3_field_alg_mod
   use function_space_mod,                   only: function_space_type
   use transport_config_mod,                 only: fv_horizontal_order,  &
                                                   oned_reconstruction,  &
-                                                  extended_mesh
+                                                  panel_edge_treatment, &
+                                                  panel_edge_treatment_none
   use log_mod,                              only: log_event,         &
                                                   LOG_LEVEL_ERROR
   use mesh_mod,                             only: mesh_type
@@ -93,7 +94,8 @@ contains
     call invoke( setval_c( field_old_big_halo, 0.0_r_tran ) )
 
     monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
-    if ( extended_mesh .and. (monotone .or. oned_reconstruction) ) then
+    if ( panel_edge_treatment /= panel_edge_treatment_none                     &
+         .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
       call remap_on_extended_mesh(remap_field, field_old_big_halo,             &
                                   monotone,                                    &

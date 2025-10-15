@@ -55,6 +55,7 @@ contains
                                          dmr_mphys(nummr), dtheta_bl, du_bl, &
                                          surf_heat_flux, canopy_evap,        &
                                          water_extraction, lake_evap,        &
+                                         theta_star_surf, qv_star_surf,      &
                                          recip_l_mo_sea, rhostar,            &
                                          h_blend_orog, t1_sd_2d, q1_sd_2d
     type( field_array_type ), pointer :: mr
@@ -142,6 +143,8 @@ contains
     call bl_imp_alg( dtheta_bl, du_bl, mr_after_slow, &
                      surf_heat_flux, canopy_evap,     &
                      water_extraction, lake_evap,     &
+                     theta_star_surf,                 &
+                     qv_star_surf,                    &
                      theta, exner, mr_n, rho,         &
                      derived_fields,                  &
                      radiation_fields,                &

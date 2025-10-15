@@ -38,7 +38,7 @@
     "ex1a": {
         "memory": [6, "GB"],
         "wallclock": 20,
-        "build_memory": [40, "GB"],
+        "build_memory": [50, "GB"],
         "build_wallclock": 25,
         "build_cpus": 24,
 

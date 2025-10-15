@@ -39,7 +39,8 @@ contains
                                     theta_variable_dry,            &
                                     substep_transport_off,         &
                                     min_val_method_iterative,      &
-                                    calculate_detj_upwind
+                                    calculate_detj_upwind,         &
+                                    panel_edge_treatment_none
     implicit none
 
     class(polyv_wtheta_koren_test_type), intent(inout) :: this
@@ -94,10 +95,9 @@ contains
                                  max_vert_cfl_calc = max_vert_cfl_calc_uniform,            &
                                  transport_ageofair=.false.,                               &
                                  ageofair_reset_level = 10,                                &
-                                 extended_mesh = .false.,                                  &
-                                 special_edges_high_order = .false.,                       &
-                                 special_edges_monotone = (/1/),                           &
-                                 special_edges_treatment = .false.                         &
+                                 panel_edge_treatment = panel_edge_treatment_none,         &
+                                 panel_edge_high_order = .false.,                          &
+                                 special_edges_monotone = (/1/)                            &
                                  )
 
   end subroutine setUp

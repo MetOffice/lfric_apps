@@ -57,9 +57,11 @@ module gungho_driver_mod
   use multires_coupling_config_mod, &
                                    only : aerosol_mesh_name
   use remove_field_collection_mod, only : remove_field_collection
-  use section_choice_config_mod,   only : iau,     &
-                                          iau_sst, &
-                                          iau_surf
+  use section_choice_config_mod,   only : iau,                   &
+                                          iau_sst,               &
+                                          iau_surf,              &
+                                          stochastic_physics,    &
+                                          stochastic_physics_um
   use io_value_mod,                only : io_value_type
 
 #ifdef UM_PHYSICS
@@ -77,12 +79,9 @@ module gungho_driver_mod
   use iau_config_mod,              only : iau_mode,               &
                                           iau_mode_instantaneous, &
                                           iau_mode_time_mixed
-  use section_choice_config_mod,   only : stochastic_physics, &
-                                          stochastic_physics_um
   use stochastic_physics_config_mod, &
                                    only : use_random_parameters
-  use stph_rp_main_alg_mod,        only : stph_rp_main_alg, &
-                                          stph_rp_init_alg
+  use stph_rp_main_alg_mod,        only : stph_rp_main_alg
   use flux_calc_all_mod,           only : flux_calc_init, &
                                           flux_calc_step
   use update_tile_temperature_alg_mod, &
@@ -126,8 +125,11 @@ contains
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
 
     type(io_value_type) :: temp_corr_io_value
+    type(io_value_type) :: random_seed_io_value
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
+    integer(i_def) :: random_seed_size
+    real(r_def), allocatable :: real_array(:)
 
 #ifdef UM_PHYSICS
     type( field_collection_type ), pointer :: field_collection_ptr
@@ -168,6 +170,16 @@ contains
     call modeldb%values%add_key_value( 'total_energy', 0.0_r_def )
     ! Total energy of moist atmosphere at previous energy correction step
     call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
+    if ( stochastic_physics == stochastic_physics_um ) then
+      ! Random seed for stochastic physics
+      call random_seed(size = random_seed_size)
+      allocate(real_array(random_seed_size))
+      real_array(1:random_seed_size) = 0.0_r_def
+      call random_seed_io_value%init("random_seed", real_array)
+      call modeldb%values%add_key_value( 'random_seed_io_value', &
+                                         random_seed_io_value )
+      deallocate(real_array)
+    end if
 
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,         &
@@ -248,12 +260,6 @@ contains
       ! IAU sst increment fields can now be cleared from the depository
       call remove_field_collection( modeldb, "iau_sst_fields" )
 
-    end if
-
-    ! Initialise RP scheme (stochastic perturbed parameters)
-    if ( stochastic_physics == stochastic_physics_um .and. &
-         use_random_parameters ) then
-      call stph_rp_init_alg( modeldb )
     end if
 
     ! Specified sensible and latent heat fluxes

@@ -7,7 +7,7 @@
 !> Test the computation of 1d flux coefficients
 module poly1d_flux_coeffs_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, r_tran
+  use constants_mod, only : i_def, r_def, r_tran, l_def
   use funit
   implicit none
 
@@ -71,6 +71,7 @@ contains
     real(r_tran), dimension(3) :: answer, tst
     real(r_tran)               :: use_tol
 
+    logical(l_def), parameter :: extended_mesh = .false.
     integer(i_def), parameter :: nlayers = 1
     integer(i_def), parameter :: mol_order = 2
     integer(i_def), parameter :: nfaces = 4
@@ -214,6 +215,7 @@ contains
                                  mol_order,                 &
                                  h0,                        &
                                  domain_x, domain_y,        &
+                                 extended_mesh,             &
                                  nlayers,                   &
                                  ndf_c,                     &
                                  undf_c,                    &

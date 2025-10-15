@@ -26,19 +26,17 @@ module bl_extra_diags_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_extra_diags_kernel_type
     private
-    type(arg_type) :: meta_args(43) = (/                                  &
+    type(arg_type) :: meta_args(41) = (/                                  &
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! rho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! wetrho_in_w3
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! heat_flux_bl
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! moist_flux_bl
-         arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! taux
-         arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        & ! tauy
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! exner_in_wth
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! mci
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! mr
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! nr_mphys
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! ns_mphys
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                   & ! murk
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! nr_mphys
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! ns_mphys
+         arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    & ! murk
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! zh
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! t1p5m
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! q1p5m
@@ -58,7 +56,7 @@ module bl_extra_diags_kernel_mod
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! conv_rain_2d
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! conv_snow_2d
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! cca_2d_in
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! ustar_implicit
+         arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), & ! ustar_implicit
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! wind_gust
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! scale_dep_wind_gust
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), & ! fog_fraction
@@ -88,8 +86,6 @@ contains
   !> @param[in]     wetrho_in_w3           Wet density field in w3 space
   !> @param[in]     heat_flux_bl           Vertical heat flux on BL levels
   !> @param[in]     moist_flux_bl          Vertical moisture flux on BL levels
-  !> @param[in]     taux                   'Zonal' momentum stress
-  !> @param[in]     tauy                   'Meridional' momentum stress
   !> @param[in]     exner_in_wth           Exner
   !> @param[in]     mci                    Cloud ice mixing ratio
   !> @param[in]     mr                     Rain  mixing ratio
@@ -114,7 +110,7 @@ contains
   !> @param[in]     conv_rain_2d           Surface convective rainfall rate
   !> @param[in]     conv_snow_2d           Surface convective snowfall rate
   !> @param[in]     cca_2d_in              2D convective cloud fraction
-  !> @param[in,out] ustar_implicit         Implicit friction velocity
+  !> @param[in]     ustar_implicit         Implicit friction velocity
   !> @param[in,out] wind_gust              Wind gust
   !> @param[in,out] scale_dep_wind_gust    Scale dependent wind gust
   !> @param[in,out] fog_fraction           Fog_fraction
@@ -141,7 +137,6 @@ contains
                                   wetrho_in_w3,             &
                                   heat_flux_bl,             &
                                   moist_flux_bl,            &
-                                  taux, tauy,               &
                                   exner_in_wth,             &
                                   mci, mr,                  &
                                   nr_mphys, ns_mphys, murk, &
@@ -207,10 +202,6 @@ contains
     real(kind=r_def), intent(in), dimension(undf_w3)    :: wetrho_in_w3
     real(kind=r_def), intent(in), dimension(undf_w3)    :: heat_flux_bl
     real(kind=r_def), intent(in), dimension(undf_w3)    :: moist_flux_bl
-    real(kind=r_def), intent(in), dimension(undf_w3)    :: taux
-    real(kind=r_def), intent(in), dimension(undf_w3)    :: tauy
-    ! Note that taux and tauy are actually on wtheta in the vertical but
-    ! are mapped from tau_w2 by map_physics_winds (to w3) in bl_imp_alg
     real(kind=r_def), intent(in), dimension(undf_wth)   :: exner_in_wth
     real(kind=r_def), intent(in), dimension(undf_wth)   :: mci
     real(kind=r_def), intent(in), dimension(undf_wth)   :: mr
@@ -239,7 +230,6 @@ contains
     real(kind=r_def), intent(inout), pointer :: visibility_no_precip(:)
 
     real(kind=r_def), parameter :: one_third   = 1.0_r_def/3.0_r_def
-    real(kind=r_def), parameter :: one_quarter = 1.0_r_def/4.0_r_def
 
     ! Tunable parameters used in the calculation of the wind gust
     real(kind=r_def), parameter :: c_ws        = 1.0_r_def/24.0_r_def
@@ -269,19 +259,10 @@ contains
     real(r_um), dimension(row_length,rows,n_vis_thresh)   :: pvis
 
     ! Local scalars
-    real(kind=r_def) :: ftl_surf, fqw_surf, taux_surf, tauy_surf,            &
+    real(kind=r_def) :: ftl_surf, fqw_surf, &
                         wstar3_imp, std_dev, gust_contribution
 
     integer(kind=i_def) :: k, icode, i,j
-
-    if ( .not. associated(ustar_implicit, empty_real_data) .or.              &
-         .not. associated(wind_gust, empty_real_data)      .or.              &
-         .not. associated(scale_dep_wind_gust, empty_real_data) ) then
-      taux_surf = taux(map_w3(1)) / wetrho_in_w3(map_w3(1))
-      tauy_surf = tauy(map_w3(1)) / wetrho_in_w3(map_w3(1))
-      ustar_implicit(map_2d(1)) = ( taux_surf*taux_surf +                    &
-                                    tauy_surf*tauy_surf )**one_quarter
-    end if
 
     if ( .not. associated(wind_gust, empty_real_data) .or.                   &
          .not. associated(scale_dep_wind_gust, empty_real_data) ) then

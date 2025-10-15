@@ -29,7 +29,8 @@ module um_ukca_init_mod
                                        top_bdy_opt_overwrt_top_two_lev,        &
                                        top_bdy_opt_overwrt_only_top_lev,       &
                                        top_bdy_opt_overwrt_co_no_o3_top,       &
-                                       top_bdy_opt_overwrt_co_no_o3_h2o_top
+                                       top_bdy_opt_overwrt_co_no_o3_h2o_top,   &
+                                       fjx_solcyc_type
 
   ! Other LFRic modules used
 
@@ -83,6 +84,13 @@ module um_ukca_init_mod
                           ukca_strat_lbc_env,                                  &
                           ukca_get_photol_reaction_data,                       &
                           ukca_photol_varname_len
+
+  ! Photolysis module
+  use photol_api_mod,  only: photol_jlabel_len,                                &
+    !  Max sizes for spectral file data
+    photol_max_miesets, photol_n_solcyc_av, photol_sw_band_aer,                &
+    photol_sw_phases, photol_max_wvl, photol_max_crossec,                      &
+    photol_wvl_intervals, photol_num_tvals
 
   implicit none
 
@@ -527,6 +535,51 @@ module um_ukca_init_mod
 
   ! List of species involved in photolytic reactions
   character(len=ukca_photol_varname_len), pointer, public :: ratj_varnames(:)
+  ! Number of photolytic species ('jppj' elsewhere)
+  integer(kind=i_um), save, public :: n_phot_spc
+
+  ! Photolysis reaction data from UKCA
+  character(len=10), save, pointer,public :: ratj_data(:,:)
+  ! Variables for holding Photolysis / FastJX spectral data
+  !- Fields containing spectral cross-section data (jvspec_file/ fjx_rd_xxx)
+  integer(kind=i_um) :: njval               ! No of species to read x-sections for
+  integer(kind=i_um) :: nw1, nw2            ! Max and min wavelength bins
+  real(kind=r_um), allocatable :: fl(:)     ! TOA solar flux
+  real(kind=r_um), allocatable :: q1d(:,:)  ! Photol rates for O(1D) at 3 temperatures
+  real(kind=r_um), allocatable :: qo2(:,:)  ! Photol rates for O2 at 3 temperatures
+  real(kind=r_um), allocatable :: qo3(:,:)  ! Photol rates for O3 at 3 temperatures
+  real(kind=r_um), allocatable :: qqq(:,:,:) ! Photol rates for all other species
+  real(kind=r_um), allocatable :: qrayl(:)  ! Rayleigh parameters
+  real(kind=r_um), allocatable :: tqq(:,:)  ! Temperature values corresponding to rates
+  real(kind=r_um), allocatable :: wl(:)     ! Effective wavelengths
+
+  !- Fields containing (Mie) scattering parameters (jscat_file/ fjx_rd_mie)
+  integer(kind=i_um) :: jtaumx              ! Max number of cloud sub layers
+  integer(kind=i_um) :: naa                 ! Number of aerosol/ cloud data types
+  real(kind=r_um) :: atau                   ! Cloud sub-layer factor
+  real(kind=r_um) :: atau0                  ! min dtau
+  real(kind=r_um), allocatable :: daa(:)    ! Density of scattering type
+  real(kind=r_um), allocatable :: paa(:,:,:)  ! Phases of scattering types
+  real(kind=r_um), allocatable :: qaa(:,:)  ! Q of scattering types
+  real(kind=r_um), allocatable :: raa(:)    ! Effective radius of scattering type
+  real(kind=r_um), allocatable :: saa(:,:)  ! Single Scattering Albedos
+  real(kind=r_um), allocatable :: waa(:,:)  ! Wavelengths for scattering coefficients
+
+  !- Fields containing Solar cycle information (solcyc_file)
+  integer(kind=i_um), parameter :: n_solcyc_ts = 1476 ! Total months in solar cycle data
+  real(kind=r_um), allocatable :: solcyc_av(:)  ! Average solar cycle
+  real(kind=r_um), allocatable :: solcyc_quanta(:) ! Quanta component of solar cycle
+  real(kind=r_um), allocatable :: solcyc_ts(:)  ! Obs. time series of solar cycle
+  real(kind=r_um), allocatable :: solcyc_spec(:)  ! Spectral component of solar cyle
+
+  integer(kind=i_um), allocatable :: jind(:)     ! Index of species from files
+  character(len=photol_jlabel_len), allocatable :: jlabel(:)  ! Copy of species
+                                    ! names to match those from files
+  real(kind=r_um), pointer :: ratj_jfacta(:)   ! Quantum yield                                    
+  real(kind=r_um), allocatable :: jfacta(:)    ! copy of quantum yield in correct units
+
+  character(len=photol_jlabel_len), allocatable :: titlej(:)
+                                    ! Names of species as read from the spec file
 
   ! Lists of environmental driver fields required for the UKCA configuration
   character(len=ukca_maxlen_fieldname), pointer, public ::                     &
@@ -612,6 +665,7 @@ contains
     nullify(env_names_fullhtphot_real)
     nullify(emiss_names)
     nullify(ratj_varnames)
+    nullify(ratj_data)
 
     row_length_ukca = int( ncells_ukca, i_um )
 
@@ -670,6 +724,7 @@ contains
 
     use ukca_mode_setup, only: i_ukca_bc_tuned
     use ukca_photol_param_mod, only: jppj
+    use fastjx_inphot_mod, only: fastjx_inphot
 
     implicit none
 
@@ -701,7 +756,7 @@ contains
     ! List of photolysis file/variable names required for photolysis
     ! calculations
     character(len=10), save, pointer :: ratj_data(:,:)
-    integer(i_um) :: jppj_in  ! No of photolytic species
+    
     character(len=*), parameter  :: emiss_units = 'kg m-2 s-1'
 
     ! Local copies of ukca configuration variables to allow setting up chemistry
@@ -730,8 +785,10 @@ contains
     integer :: i_ukca_quasinewton_start=2, i_ukca_quasinewton_end=3
     integer :: i_ukca_scenario=ukca_strat_lbc_env
 
-    real(r_um) :: linox_scale_in
-
+    real(r_um) :: linox_scale_in    
+    
+    character(len=ukca_photol_varname_len) :: adjusted_fname  ! intermediate spc/ filename copy
+    
     ! Variables for UKCA error handling
     integer :: ukca_errcode
     character(len=ukca_maxlen_message) :: ukca_errmsg
@@ -952,19 +1009,59 @@ contains
     ! Register emissions required for this run
     call ukca_emiss_init()
 
+    ! Photolysis initialisation
     ! Obtain and store photolysis reactions information, ensuring that
     ! number of species match those expected by photol_param_mod
-    if ( l_ukca_photolysis ) then
-      call ukca_get_photol_reaction_data(ratj_data, ratj_varnames)
-      jppj_in = SIZE(ratj_varnames)
+    if ( l_ukca_photolysis .and. (chem_scheme==chem_scheme_strattrop .or.      &
+      chem_scheme==chem_scheme_strat_test)) then
+      call ukca_get_photol_reaction_data(ratj_data, ratj_varnames,             &
+                                        jfacta_ptr=ratj_jfacta)
+      n_phot_spc = SIZE(ratj_varnames)
 
-      if ( jppj_in /= jppj ) then
+      if ( n_phot_spc /= jppj ) then
         write( log_scratch_space, '(A,2I6,A)' )                                &
           'Mismatch in expected and registered photolysis reactions: ',        &
-           jppj_in, jppj,'. Check definitions in ukca_photol_param_mod'
+           n_phot_spc, jppj,'. Check definitions in ukca_photol_param_mod'
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
-    end if
+      end if    
+
+      ! Read spectral data files, allocate arrays and set up
+      call allocate_fastjx_filevars()
+
+      adjusted_fname = ' '
+      if (.not. allocated(jlabel)) allocate(jlabel(n_phot_spc))
+      jlabel(:) = ''
+      if (.not. allocated(jfacta)) allocate(jfacta(n_phot_spc))
+      jfacta(:) = 0.0
+      if (.not. allocated(jind)) allocate(jind(n_phot_spc))
+
+      do i = 1, n_phot_spc
+        jfacta(i)=ratj_jfacta(i)/100.0e0_r_um
+        adjusted_fname=trim(adjustl(ratj_varnames(i)))
+        jlabel(i)=adjusted_fname(1:photol_jlabel_len)
+        write(log_scratch_space,'(A,I6,E12.3,A12)')'FJX_JFACTA ', i,jfacta(i),jlabel(i)
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)        
+      end do
+
+     ! call wrapper routine that reads FastJX spectral and solar cycle data
+     call fastjx_inphot(                                                       &
+                 ! (Max) data dimensions in files
+                 photol_max_miesets, photol_n_solcyc_av, photol_sw_band_aer,   &
+                 photol_sw_phases, photol_max_wvl, photol_wvl_intervals,       &
+                 photol_max_crossec, photol_num_tvals, n_phot_spc,             &
+                 ! Variables used for/ set from cross-section data
+                 njval, nw1, nw2, fl, q1d, qo2, qo3, qqq, qrayl, tqq, wl,      &
+                 titlej, jlabel, jfacta, jind,                                 &
+                 ! Variables used for/ set from scatterrer data
+                 jtaumx, naa, atau, atau0, daa, paa, qaa, raa, saa, waa,       &
+                 ! Variables used for/ set from solar cycle data
+                 n_solcyc_ts, solcyc_av, solcyc_quanta, solcyc_ts,         &
+                 solcyc_spec )
+
+      ! Deallocate fastjx spectral data as not currently used - placeholder for
+      ! future API implementation
+      call deallocate_fastjx_filevars()
+    end if   ! Photolysis
 
     ! Switch on optional UM microphysics diagnostics required by UKCA
     if (any(env_names_fullht_real(:) == fldname_autoconv))                     &
@@ -1763,5 +1860,83 @@ contains
     end do
 
   end subroutine aerosol_ukca_dust_only_init
+
+! ----------------------------------------------------------------------
+subroutine allocate_fastjx_filevars()
+! ----------------------------------------------------------------------
+! Description:
+!
+! allocate arrays that will hold data from FastJX spectral files. 
+! ----------------------------------------------------------------------
+
+implicit none
+
+! Ensure arrays are not already allocated
+call deallocate_fastjx_filevars()
+
+allocate(fl(photol_max_wvl))
+allocate(q1d(photol_max_wvl, photol_num_tvals))
+allocate(qo2(photol_max_wvl, photol_num_tvals))
+allocate(qo3(photol_max_wvl, photol_num_tvals))
+allocate(qqq(photol_max_wvl, 2, photol_max_crossec))
+allocate(qrayl(photol_max_wvl+1))
+allocate(tqq(photol_num_tvals, photol_max_crossec))
+allocate(wl(photol_max_wvl))
+
+allocate(daa(photol_max_miesets))
+allocate(paa(photol_sw_phases, photol_sw_band_aer, photol_max_miesets))
+allocate(qaa(photol_sw_band_aer, photol_max_miesets))
+allocate(raa(photol_max_miesets))
+allocate(saa(photol_sw_band_aer, photol_max_miesets))
+allocate(waa(photol_sw_band_aer, photol_max_miesets))
+
+allocate(solcyc_av(photol_n_solcyc_av))
+allocate(solcyc_quanta(photol_wvl_intervals))
+allocate(solcyc_spec(photol_max_wvl))
+allocate(solcyc_ts(n_solcyc_ts))
+
+allocate(titlej(photol_max_crossec))
+
+return
+end subroutine allocate_fastjx_filevars
+
+subroutine deallocate_fastjx_filevars()
+  ! ----------------------------------------------------------------------
+  ! Description:
+  !
+  ! Deallocate arrays that hold data from FJX spectral files.
+  ! ----------------------------------------------------------------------
+
+implicit none
+
+if (allocated(titlej)) deallocate(titlej)
+if (allocated(solcyc_ts)) deallocate(solcyc_ts)
+if (allocated(solcyc_spec)) deallocate(solcyc_spec)
+if (allocated(solcyc_quanta)) deallocate(solcyc_quanta)
+if (allocated(solcyc_av)) deallocate(solcyc_av)
+
+if (allocated(waa)) deallocate(waa)
+if (allocated(saa)) deallocate(saa)
+if (allocated(raa)) deallocate(raa)
+if (allocated(qaa)) deallocate(qaa)
+if (allocated(paa)) deallocate(paa)
+if (allocated(daa)) deallocate(daa)
+
+if (allocated(jlabel)) deallocate(jlabel)
+if (allocated(jind)) deallocate(jind)
+if (allocated(jfacta)) deallocate(jfacta)
+
+if (allocated(wl)) deallocate(wl)
+if (allocated(tqq)) deallocate(tqq)
+if (allocated(qrayl)) deallocate(qrayl)
+if (allocated(qqq)) deallocate(qqq)
+if (allocated(qo3)) deallocate(qo3)
+if (allocated(qo2)) deallocate(qo2)
+if (allocated(q1d)) deallocate(q1d)
+if (allocated(fl)) deallocate(fl)
+
+return
+end subroutine deallocate_fastjx_filevars
+
 
 end module um_ukca_init_mod

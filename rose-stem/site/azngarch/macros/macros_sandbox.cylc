@@ -43,6 +43,7 @@
         --ntasks-per-node={{ (eff_rpn if mpi_ranks >= eff_rpn else mpi_ranks)|int }}
         --hint=nomultithread
         --distribution=block:block
+       {{ set_memory(memory) }}
 {% endmacro %}
 
 {% macro set_memory(mem) %}

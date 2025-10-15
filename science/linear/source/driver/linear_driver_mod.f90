@@ -13,6 +13,8 @@ module linear_driver_mod
   use field_mod,                  only : field_type
   use field_collection_mod,       only : field_collection_type
   use io_value_mod,               only : io_value_type
+  use section_choice_config_mod,  only : stochastic_physics, &
+                                         stochastic_physics_um
   use gungho_diagnostics_driver_mod, &
                                   only : gungho_diagnostics_driver
   use gungho_model_mod,           only : initialise_infrastructure, &
@@ -90,10 +92,13 @@ contains
     logical( kind=l_def )          :: nodal_output_on_w3
 
     type( io_value_type ) :: temp_corr_io_value
+    type( io_value_type ) :: random_seed_io_value
     type( field_collection_type ), pointer :: depository
     type( field_collection_type ), pointer :: fd_fields
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
+    integer(i_def) :: random_seed_size
+    real(r_def), allocatable :: real_array(:)
 
     nullify( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, depository )
     nullify( base_mesh_nml, multires_coupling_nml, initialization_nml )
@@ -106,6 +111,16 @@ contains
                                        temp_corr_io_value )
     call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
     call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
+    if ( stochastic_physics == stochastic_physics_um ) then
+      ! Random seed for stochastic physics
+      call random_seed(size = random_seed_size)
+      allocate(real_array(random_seed_size))
+      real_array(1:random_seed_size) = 0.0_r_def
+      call random_seed_io_value%init("random_seed", real_array)
+      call modeldb%values%add_key_value( 'random_seed_io_value', &
+                                         random_seed_io_value )
+      deallocate(real_array)
+    end if
 
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( io_context_name, modeldb )

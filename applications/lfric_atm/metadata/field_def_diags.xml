@@ -864,6 +864,8 @@
   <field id="stochastic__dv_div_skeb" name="dv_div_skeb" long_name="northward_wind_increment_from_divergent_skeb" unit="m s-1" grid_ref="half_level_face_grid" />  
   <field id="stochastic__du_tot_skeb" name="du_tot_skeb" long_name="eastward_wind_increment_from_total_skeb" unit="m s-1" grid_ref="half_level_face_grid" />
   <field id="stochastic__dv_tot_skeb" name="dv_tot_skeb" long_name="northward_wind_increment_from_total_skeb" unit="m s-1" grid_ref="half_level_face_grid" />  
+  <field id="stochastic__dtheta_base_blpert" name="dtheta_base_blpert" long_name="theta_perturbation_base_of_blpert" unit="K" domain_ref="face" />
+  <field id="stochastic__dmv_base_blpert" name="dmv_base_blpert" long_name="mv_perturbation_base_of_blpert" unit="kg kg-1" domain_ref="face" />
   <!-- advection diagnostics -->
   <field id="advection__dtheta_adv" name="dtheta_adv" long_name="potential_temperature_increment_from_advection" unit="K" grid_ref="full_level_face_grid" />
   <field id="advection__dt_adv" name="dt_adv" long_name="temperature_increment_from_advection" unit="K" grid_ref="full_level_face_grid">advection__dtheta_adv * exner_wth_n</field>

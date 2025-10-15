@@ -296,6 +296,9 @@ contains
     type( field_type ) :: canopy_evap
     type( field_type ) :: water_extraction
     type( field_type ) :: lake_evap
+    ! ...surface fields passed from BL to Stochastic Perturbation scheme
+    type( field_type ) :: theta_star_surf
+    type( field_type ) :: qv_star_surf
     ! ...for PC2 checks
     type( field_type ) :: dtheta_pc2_checks, theta_updated
     type( field_type ) :: dmv_pc2_checks, dmcl_pc2_checks, dmci_pc2_checks, &
@@ -955,7 +958,7 @@ contains
         call du%copy_field_properties(du_bl)
         call bl_imp_alg(dtheta_bl, du_bl, mr,                               &
                         surf_heat_flux, canopy_evap, water_extraction,      &
-                        lake_evap,                                          &
+                        lake_evap, theta_star_surf, qv_star_surf,           &
                         theta, exner, mr_n, rho,                            &
                         derived_fields, radiation_fields, orography_fields, &
                         turbulence_fields, convection_fields, cloud_fields, &

@@ -22,6 +22,7 @@ module poly1d_flux_coeffs_kernel_mod
 use argument_mod,      only : arg_type, func_type,         &
                               GH_SCALAR, GH_FIELD,         &
                               GH_INTEGER, GH_REAL,         &
+                              GH_LOGICAL,                  &
                               GH_WRITE, GH_READ,           &
                               STENCIL, CROSS, ANY_SPACE_1, &
                               ANY_DISCONTINUOUS_SPACE_1,   &
@@ -43,7 +44,7 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: poly1d_flux_coeffs_kernel_type
   private
-  type(arg_type) :: meta_args(10) = (/                                                         &
+  type(arg_type) :: meta_args(11) = (/                                                        &
        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),                 &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W3,                        STENCIL(CROSS)), &
        arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_1,               STENCIL(CROSS)), &
@@ -53,6 +54,7 @@ type, public, extends(kernel_type) :: poly1d_flux_coeffs_kernel_type
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                                             &
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                                             &
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),                                             &
+       arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ),                                             &
        arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                                              &
        /)
   type(func_type) :: meta_funcs(1) = (/                                          &
@@ -95,6 +97,8 @@ contains
 !!                             of the height field plus 1.
 !> @param[in] domain_x Domain size in x-direction.
 !> @param[in] domain_y Domain size in y-direction.
+!> @param[in] extended_mesh  Logical specifying whether to use the mesh with
+!!                           extended cubed sphere panels
 !> @param[in] nlayers Number of vertical layers
 !> @param[in] ndf_c Number of degrees of freedom per cell for the coeff space
 !> @param[in] undf_c Total number of degrees of freedom for the coeff space
@@ -135,6 +139,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
                                    transform_radius,           &
                                    domain_x,                   &
                                    domain_y,                   &
+                                   extended_mesh,              &
                                    nlayers,                    &
                                    ndf_c,                      &
                                    undf_c,                     &
@@ -159,7 +164,6 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
                                        geometry_spherical
   use poly_helper_functions_mod, only: local_distance_1d
   use sci_chi_transform_mod,     only: chir2xyz
-  use transport_config_mod,      only: extended_mesh
 
   implicit none
 
@@ -174,6 +178,7 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
   integer(kind=i_def), intent(in) :: nqp_v, nqp_h, nqp_f, nfaces_qr
   integer(kind=i_def), intent(in) :: stencil_size_w3, stencil_size_wx, stencil_size_pid
   real(kind=r_def),    intent(in) :: domain_x, domain_y
+  logical(kind=l_def), intent(in) :: extended_mesh
 
   integer(kind=i_def), dimension(ndf_w3, stencil_size_w3),  intent(in) :: smap_w3
   integer(kind=i_def), dimension(ndf_wx, stencil_size_wx),  intent(in) :: smap_wx

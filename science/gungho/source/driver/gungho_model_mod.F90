@@ -84,6 +84,7 @@ module gungho_model_mod
                                   only : semi_implicit_timestep_type
   use setup_orography_alg_mod,    only : setup_orography_alg
   use idealised_config_mod,       only : perturb_init, perturb_seed
+  use initial_temperature_config_mod, only : perturb, perturb_random
 #ifdef COUPLED
   use coupler_mod,                only : create_coupling_fields, &
                                          generate_coupling_field_collections
@@ -106,10 +107,6 @@ module gungho_model_mod
   use um_physics_init_mod,         only : um_physics_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
-  use random_seed_gen_alg_mod,     only : random_seed_gen_alg
-  use stochastic_physics_config_mod, only : use_spt, &
-                                            use_skeb, &
-                                            use_random_parameters
   use jules_timestep_alg_mod,      only : jules_timestep_type
 #endif
 
@@ -213,6 +210,8 @@ contains
     use time_dimensions_mod,            only: sync_time_dimensions
     use boundaries_config_mod,          only: limited_area
     use formulation_config_mod,         only: use_physics
+    use section_choice_config_mod,      only: stochastic_physics, &
+                                              stochastic_physics_um
     use initialization_config_mod, only: init_option, &
                                          init_option_checkpoint_dump
     use io_config_mod,                  only: checkpoint_read, checkpoint_write
@@ -230,15 +229,27 @@ contains
     call process_gungho_prognostics(persistor)
     ! Add the temperature_correction_rate to the appropriate files
     if ( encorr_usage /= encorr_usage_none ) then
-    if (checkpoint_write) then
-      call add_field( persistor%ckp_out, "temperature_correction_rate", "checkpoint_", "once", &
-                      id_as_name=.true.)
+      if (checkpoint_write) then
+        call add_field( persistor%ckp_out, "temperature_correction_rate", "checkpoint_", "once", &
+                        id_as_name=.true.)
+      end if
+      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+        call add_field( persistor%ckp_inp, "temperature_correction_rate", "restart_", "once", &
+                        id_as_name=.true.)
+      end if
     end if
-    if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
-      call add_field( persistor%ckp_inp, "temperature_correction_rate", "restart_", "once", &
-                      id_as_name=.true.)
+
+    if (stochastic_physics == stochastic_physics_um) then
+      if (checkpoint_write) then
+        call add_field( persistor%ckp_out, "random_seed", "checkpoint_", "once", &
+                        id_as_name=.true.)
+      end if
+      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+        call add_field( persistor%ckp_inp, "random_seed", "restart_", "once", &
+                        id_as_name=.true.)
+      end if
     end if
-    end if
+
     if (limited_area) call process_lbc_fields(persistor)
     if (use_physics) then
       call process_physics_prognostics(persistor)
@@ -409,17 +420,13 @@ contains
     type(namelist_type), pointer :: multigrid_nml
     type(namelist_type), pointer :: multires_coupling_nml
 #ifdef UM_PHYSICS
-    type(namelist_type), pointer :: stochastic_physics_nml
-
-    ! Controls how random seed will be set
-    integer(i_def) :: ensemble_number
     real(r_def) :: dt
 #endif
 
 
     integer(i_def), parameter :: one_layer = 1_i_def
 
-    integer(i_def) :: random_seed_size, proc_rank, big_int
+    integer(i_def) :: random_seed_size, proc_rank, big_int, perturb_seed_in
     integer(i_def), allocatable :: ranseed(:)
 
     !=======================================================================
@@ -834,31 +841,27 @@ contains
       end if
       ! Initialisation of UM variables related to the mesh
       call um_domain_init(mesh)
-
-      ! Random seed controlled by ensemble member number for stochastic physics
-      if ( use_spt .or. use_skeb .or. use_random_parameters ) then
-        ! Random seed will depend on ensemble member number
-        stochastic_physics_nml => modeldb%configuration%get_namelist('stochastic_physics')
-        call stochastic_physics_nml%get_value('ens_memb',ensemble_number)
-      else
-        ! Set ensemble number to zero for other users of random numbers
-        ensemble_number = 0
-      end if
-      call random_seed_gen_alg(ensemble_number)
-
     end if
 #endif
 
     if ( perturb_init ) then
-
       if ( perturb_seed == 0 ) then
         call log_event("Gungho: Perturbation seed is zero", &
                        LOG_LEVEL_ERROR)
       end if
+      perturb_seed_in = perturb_seed
+    else
+      perturb_seed_in = 0
+    end if
+
+    ! Set random seed for initial perturbation
+    ! Note that the seed will be set again with another way
+    ! for stochastic physics afterwards.
+    if ( perturb_init .or. perturb == perturb_random ) then
 
       ! Get length of random seed array required by the compiler
-      call RANDOM_SEED(size = random_seed_size)
-      allocate(ranseed(random_seed_size+1))
+      call random_seed(size = random_seed_size)
+      allocate(ranseed(random_seed_size))
 
       ! Get processor rank for unique seed on each processor
       proc_rank = modeldb%mpi%get_comm_rank()
@@ -868,12 +871,11 @@ contains
 
       ! Allocate random seed across array with some added entropy from
       ! big_int and array index
-      ranseed(:) = perturb_seed + proc_rank*big_int
+      ranseed(:) = perturb_seed_in + proc_rank*big_int
 
       ! Set seed
-      call RANDOM_SEED(PUT = ranseed(1:random_seed_size))
+      call random_seed(put = ranseed(1:random_seed_size))
     end if
-
 
     !=======================================================================
     ! Housekeeping

@@ -22,6 +22,8 @@ module tl_test_driver_mod
                                          finalise_model_data
   use driver_modeldb_mod,         only : modeldb_type
   use gungho_time_axes_mod,       only : gungho_time_axes_type
+  use section_choice_config_mod,  only : stochastic_physics, &
+                                         stochastic_physics_um
   use io_value_mod,               only : io_value_type
   use io_context_mod,             only : io_context_type
   use log_mod,                    only : log_event,         &
@@ -90,6 +92,9 @@ contains
 
     type(gungho_time_axes_type)     :: model_axes
     type(io_value_type)             :: temp_corr_io_value
+    type(io_value_type)             :: random_seed_io_value
+    integer(i_def) :: random_seed_size
+    real(r_def), allocatable :: real_array(:)
 
     call modeldb%values%initialise( 'values', 5 )
 
@@ -118,6 +123,16 @@ contains
     call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
     call modeldb%values%add_key_value( 'total_energy', 0.0_r_def )
     call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
+    if ( stochastic_physics == stochastic_physics_um ) then
+      ! Random seed for stochastic physics
+      call random_seed(size = random_seed_size)
+      allocate(real_array(random_seed_size))
+      real_array(1:random_seed_size) = 0.0_r_def
+      call random_seed_io_value%init("random_seed", real_array)
+      call modeldb%values%add_key_value( 'random_seed_io_value', &
+                                         random_seed_io_value )
+      deallocate(real_array)
+    end if
 
     ! Instantiate the fields stored in model_data
     call create_model_data( modeldb,      &

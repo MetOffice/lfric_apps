@@ -28,7 +28,7 @@ module multidata_field_dimensions_mod
 #ifdef UM_PHYSICS
       !                   1         2         3
       !          123456789012345678901234567890
-      character(30), parameter :: multidata_items(31) = &
+      character(30), parameter :: multidata_items(32) = &
             [character(30) ::                           &
                 'plant_func_types',                     &
                 'sea_ice_categories',                   &
@@ -60,7 +60,8 @@ module multidata_field_dimensions_mod
                 'lw_bands_surface_tiles',               &
                 'sw_bands_radiation_levels',            &
                 'lw_bands_radiation_levels',            &
-                'photolysis_pathways'                   &
+                'photolysis_pathways',                  &
+                'random_seed_size'                      &
       ]
 #endif
 
@@ -260,6 +261,9 @@ end subroutine sync_multidata_field_dimensions
            else
                   dim = 1
            end if
+
+      case('random_seed_size')
+           call random_seed(size=dim)
 
       case ('')
             dim = 1 ! ordinary (non-multidata) field

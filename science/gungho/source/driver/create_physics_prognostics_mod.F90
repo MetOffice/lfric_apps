@@ -60,7 +60,9 @@ module create_physics_prognostics_mod
                                              surface, surface_jules,            &
                                              orographic_drag,                   &
                                              orographic_drag_um,                &
-                                             convection, convection_um
+                                             convection, convection_um,         &
+                                             stochastic_physics,                &
+                                             stochastic_physics_um
   use cloud_config_mod,               only : scheme,                            &
                                              scheme_pc2
   use convection_config_mod,          only : cv_scheme, cv_scheme_comorph
@@ -103,6 +105,7 @@ module create_physics_prognostics_mod
     vo_rad_opt, vo_rad_opt_ancil, vo_rad_opt_prognostic
   use formulation_config_mod,         only : moisture_formulation,    &
                                              moisture_formulation_dry
+  use stochastic_physics_config_mod,  only : blpert_type, blpert_type_off
 
 #ifdef UM_PHYSICS
   use multidata_field_dimensions_mod, only :                                    &
@@ -1830,6 +1833,21 @@ contains
     call processor%apply(make_spec('dtheta_stph', main%stph, Wtheta, ckp=.false.))
     call processor%apply(make_spec('dmv_stph', main%stph, Wtheta, ckp=.false.))
     call processor%apply(make_spec('du_stph', main%stph, W2, ckp=.false.))
+
+    ! 2D fields, might need checkpointing
+    if ( stochastic_physics == stochastic_physics_um ) then
+      if (blpert_type /= blpert_type_off) then
+        is_empty = .false.
+        checkpoint_flag = .true.
+      else
+        is_empty = .true.
+        checkpoint_flag = .false.
+      end if
+      call processor%apply(make_spec('blpert_rand_fld', main%stph, W3, &
+          twod=.true., ckp=checkpoint_flag, empty=is_empty))
+      call processor%apply(make_spec('blpert_flag', main%stph, W3, &
+          twod=.true., is_int=.true., ckp=checkpoint_flag, empty=is_empty))
+    end if
 
 #endif
 

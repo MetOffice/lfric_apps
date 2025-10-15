@@ -6,10 +6,11 @@
 !>@brief Prepares the stochastic physics increment fields
 module init_stph_fields_alg_mod
 
-  use constants_mod,                   only: r_def
+  use constants_mod,                   only: i_def, r_def
 
   ! Derived Types
   use field_mod,                       only: field_type
+  use integer_field_mod,               only: integer_field_type
   use field_collection_mod,            only: field_collection_type
 
   implicit none
@@ -24,6 +25,7 @@ contains
   subroutine init_stph_fields_alg(stph_fields)
 
     use section_choice_config_mod, only: stochastic_physics, stochastic_physics_um
+    use stochastic_physics_config_mod, only: blpert_type, blpert_type_off
 
     implicit none
 
@@ -34,6 +36,8 @@ contains
     type( field_type ), pointer :: dtheta_stph => null()
     type( field_type ), pointer :: dmv_stph => null()
     type( field_type ), pointer :: du_stph => null()
+    type( field_type ), pointer :: blpert_rand_fld => null()
+    type( integer_field_type ), pointer :: blpert_flag => null()
 
 
     if ( stochastic_physics == stochastic_physics_um )then
@@ -44,6 +48,13 @@ contains
       call invoke( setval_c(dtheta_stph,   0.0_r_def), &
                    setval_c(dmv_stph,      0.0_r_def), &
                    setval_c(du_stph,       0.0_r_def) )
+      if (blpert_type /= blpert_type_off) then
+        call stph_fields%get_field('blpert_rand_fld', blpert_rand_fld)
+        call stph_fields%get_field('blpert_flag', blpert_flag)
+
+        call invoke (setval_c(blpert_rand_fld, 0.0_r_def), &
+                     int_setval_c(blpert_flag, 0_i_def))
+      end if
     end if
 
 

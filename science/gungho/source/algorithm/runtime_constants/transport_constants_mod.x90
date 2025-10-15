@@ -62,10 +62,6 @@ module transport_constants_mod
   ! Variables private to this module that can only be accessed by public
   ! functions returning pointers to them
 
-  ! @TODO: revisit making these namelist arguments or variables instead of
-  ! parameters. But for now, hard-code linear extended mesh
-  ! Use linear (=true) or cubic (=false) interpolation
-  logical(kind=l_def), parameter :: linear_remap = .true.
   ! Stencil depth is set to some large number to ensure it contains
   ! enough points for a centred interpolation. The deeper the halo
   ! is the larger the stencil needs to be. A depth 6 stencil is
@@ -98,6 +94,16 @@ module transport_constants_mod
   type(inventory_by_local_mesh_type), target :: ext_mesh_weights_inventory
   type(inventory_by_local_mesh_type), target :: ext_mesh_indices_inventory
   type(inventory_by_local_mesh_type), target :: panel_edge_dist_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_coords_x_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_coords_y_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_weights_x_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_weights_y_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_indices_x_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_indices_y_inventory
+
+  ! Relating to redundant computations in transport
+  type(inventory_by_local_mesh_type), target :: halo_mask_x_inventory
+  type(inventory_by_local_mesh_type), target :: halo_mask_y_inventory
 
   ! MoL coefficients
   type(inventory_by_mesh_type) :: hori_wt_mol_coeffs_inventory
@@ -125,18 +131,30 @@ module transport_constants_mod
   public :: get_extended_mesh_weights
   public :: get_extended_mesh_indices
   public :: get_panel_edge_dist
+  public :: get_panel_edge_coords_x
+  public :: get_panel_edge_coords_y
+  public :: get_panel_edge_weights_x
+  public :: get_panel_edge_weights_y
+  public :: get_panel_edge_indices_x
+  public :: get_panel_edge_indices_y
   public :: get_hori_w3_mol_coeffs
   public :: get_vert_w3_mol_coeffs
   public :: get_reversible_vert_w3_mol_coeffs
   public :: get_hori_wt_mol_coeffs
   public :: get_vert_wt_mol_coeffs
   public :: get_reversible_vert_wt_mol_coeffs
+  public :: get_halo_mask_x
+  public :: get_halo_mask_y
   public :: get_element_order_h_transport
   public :: get_element_order_v_transport
 
   ! Private routines for creating constants
   private :: initialise_remap_on_extended_mesh
   private :: compute_panel_edge_dists
+  private :: compute_panel_edge_coords
+  private :: compute_panel_edge_weights
+  private :: compute_halo_masks
+  private :: compute_third_dl_dz
 
 contains
 
@@ -147,6 +165,7 @@ contains
   !> @param[in] mesh Mesh object to compute remapping weights on
   subroutine initialise_remap_on_extended_mesh(mesh)
 
+    use transport_config_mod, only: panel_edge_high_order
     use psykal_lite_transport_mod, &
         only: invoke_init_remap_on_extended_mesh_kernel_type
 
@@ -157,12 +176,12 @@ contains
     type(local_mesh_type),     pointer :: local_mesh
     type(r_tran_field_type),   pointer :: remap_weights
     type(integer_field_type),  pointer :: remap_indices
-
     type(field_type),          pointer :: chi(:)
     type(field_type),          pointer :: chi_ext(:)
     type(field_type),          pointer :: panel_id
     type(function_space_type), pointer :: w3_fs
 
+    logical(kind=l_def) :: linear_remap
     integer(kind=i_def) :: ndata, halo_depth
 
     if ( subroutine_timers ) call timer('runtime_constants.transport')
@@ -173,6 +192,8 @@ contains
     if (.not. ext_mesh_indices_inventory%is_initialised()) then
       call ext_mesh_indices_inventory%initialise(name="extended_mesh_indices")
     end if
+
+    linear_remap = (.not. panel_edge_high_order)
 
     if ( linear_remap ) then
       ndata = 2
@@ -289,6 +310,239 @@ contains
 
   end subroutine compute_panel_edge_dists
 
+  !> @brief Computes the coordinates of cubed-sphere panels, extended at the
+  !!        panel edges to cross into neighbouring panels
+  !> @param[in] mesh_id The ID of the mesh to compute the coordinates for
+  subroutine compute_panel_edge_coords(mesh_id)
+
+    use finite_element_config_mod,     only: coord_order
+    use panel_edge_coords_kernel_mod,  only: panel_edge_coords_kernel_type
+    use transport_config_mod,          only: ffsl_inner_order, ffsl_outer_order
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def)                   :: depth
+    integer(kind=i_def)                   :: field_depth
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: twod_mesh
+    type(local_mesh_type),        pointer :: local_mesh
+    type(function_space_type),    pointer :: fs
+    type(integer_field_type),     pointer :: panel_edge_dist(:)
+    type(field_type),             pointer :: panel_edge_coords_x(:)
+    type(field_type),             pointer :: panel_edge_coords_y(:)
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+
+    panel_edge_dist => get_panel_edge_dist(mesh_id)
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    ! Initialise inventories if they haven't already been
+    if (.not. panel_edge_coords_x_inventory%is_initialised()) then
+      call panel_edge_coords_x_inventory%initialise(name="panel_edge_coords_x")
+    end if
+    if (.not. panel_edge_coords_y_inventory%is_initialised()) then
+      call panel_edge_coords_y_inventory%initialise(name="panel_edge_coords_y")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+    fs => function_space_collection%get_fs(twod_mesh, coord_order, coord_order, Wchi)
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    field_depth = mesh%get_halo_depth()
+    depth = MAX(ffsl_inner_order, ffsl_outer_order)
+
+    call panel_edge_coords_x_inventory%add_field_array(                        &
+        panel_edge_coords_x, fs, 2, local_mesh, halo_depth=field_depth         &
+    )
+    call panel_edge_coords_y_inventory%add_field_array(                        &
+        panel_edge_coords_y, fs, 2, local_mesh, halo_depth=field_depth         &
+    )
+
+    call invoke( panel_edge_coords_kernel_type(panel_edge_coords_x,            &
+                                               panel_edge_coords_y,            &
+                                               chi, panel_id,                  &
+                                               panel_edge_dist,                &
+                                               depth, field_depth) )
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_panel_edge_coords
+
+  !> @brief Compute weights and indices for remapping fields to neighbouring
+  !!        panels at the edges of cubed-sphere mesh panels
+  !> @param[in] mesh_id  ID of mesh to compute weights and indices on
+  subroutine compute_panel_edge_weights(mesh_id)
+
+    use transport_config_mod,          only: ffsl_inner_order,                 &
+                                             ffsl_outer_order,                 &
+                                             panel_edge_high_order
+    use panel_edge_weights_kernel_mod, only: panel_edge_weights_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh
+    type(mesh_type),           pointer :: twod_mesh
+    type(local_mesh_type),     pointer :: local_mesh
+    type(r_tran_field_type),   pointer :: panel_edge_weights_x
+    type(r_tran_field_type),   pointer :: panel_edge_weights_y
+    type(integer_field_type),  pointer :: panel_edge_indices_x
+    type(integer_field_type),  pointer :: panel_edge_indices_y
+    type(integer_field_type),  pointer :: panel_edge_dist(:)
+    type(field_type),          pointer :: panel_edge_coords_x(:)
+    type(field_type),          pointer :: panel_edge_coords_y(:)
+    type(field_type),          pointer :: chi(:)
+    type(field_type),          pointer :: panel_id
+    type(function_space_type), pointer :: w3_fs
+
+    integer(kind=i_def) :: ndata, max_halo_depth, remap_depth, cross_depth
+
+    ! Get pointers to coordinates and masks for panel edges
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    panel_edge_dist => get_panel_edge_dist(mesh_id)
+    panel_edge_coords_x => get_panel_edge_coords_x(mesh_id)
+    panel_edge_coords_y => get_panel_edge_coords_y(mesh_id)
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    ! Set up fields on 2D mesh in multidata W3 space
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    ! Various depths are used in this algorithm:
+    ! - cross depth:    specifies the size of the stencil to use in remapping,
+    !                   which should increase with the horizontal order. If
+    !                   only going 1 or 2 cells onto the neighbouring panel,
+    !                   then a stencil extent of 3 or 4 should cover all
+    !                   overlapping cells
+    ! - remap_depth:    specifies to what halo depth the remapping is done,
+    !                   which is equal to the horizontal order. When the kernel
+    !                   is called at depths greater than this, nothing happens
+    ! - max_halo_depth: the full depth of halos, which is used to set the size
+    !                   of the weights. These are set to full size to match the
+    !                   transported fields, and the kernel is looped over to
+    !                   this depth, so the weights are set clean for this depth
+    max_halo_depth = mesh%get_halo_depth()
+    remap_depth = MAX(ffsl_inner_order, ffsl_outer_order)
+    if (panel_edge_high_order) then
+      cross_depth = MAX(ffsl_inner_order, ffsl_outer_order) + 2
+      ndata = 4  ! Need 4 points for cubic remapping
+    else
+      cross_depth = MAX(ffsl_inner_order, ffsl_outer_order)
+      ndata = 2  ! Need 2 points for linear remapping
+    end if
+
+    w3_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, ndata)
+
+    if (.not. panel_edge_weights_x_inventory%is_initialised()) then
+      call panel_edge_weights_x_inventory%initialise(name="panel_edge_weights_x")
+    end if
+    if (.not. panel_edge_weights_y_inventory%is_initialised()) then
+      call panel_edge_weights_y_inventory%initialise(name="panel_edge_weights_y")
+    end if
+    if (.not. panel_edge_indices_x_inventory%is_initialised()) then
+      call panel_edge_indices_x_inventory%initialise(name="panel_edge_indices_x")
+    end if
+    if (.not. panel_edge_indices_y_inventory%is_initialised()) then
+      call panel_edge_indices_y_inventory%initialise(name="panel_edge_indices_y")
+    end if
+
+    ! Create fields in the inventories
+    call panel_edge_weights_x_inventory%add_field(                             &
+            panel_edge_weights_x, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call panel_edge_weights_y_inventory%add_field(                             &
+            panel_edge_weights_y, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call panel_edge_indices_x_inventory%add_field(                             &
+            panel_edge_indices_x, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call panel_edge_indices_y_inventory%add_field(                             &
+            panel_edge_indices_y, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+
+    ! Compute remap weights and indices
+    call invoke( panel_edge_weights_kernel_type(                               &
+                                panel_edge_weights_x, panel_edge_weights_y,    &
+                                panel_edge_indices_x, panel_edge_indices_y,    &
+                                chi, cross_depth,                              &
+                                panel_edge_coords_x, panel_edge_coords_y,      &
+                                panel_id, cross_depth,                         &
+                                panel_edge_dist,                               &
+                                panel_edge_high_order,                         &
+                                remap_depth)                                   &
+    )
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_panel_edge_weights
+
+  !> @brief Compute masks for indicating which cells are in the X and Y halos
+  !> @param[in] mesh_id  ID of mesh to compute masks on
+  subroutine compute_halo_masks(mesh_id)
+
+    use halo_mask_kernel_mod,      only: halo_mask_kernel_type
+    use halo_mask_xy_kernel_mod,   only: halo_mask_xy_kernel_type
+    use psykal_lite_transport_mod, only: invoke_halo_mask_xy_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh
+    type(mesh_type),           pointer :: twod_mesh
+    type(local_mesh_type),     pointer :: local_mesh
+    type(integer_field_type)           :: halo_mask
+    type(integer_field_type),  pointer :: halo_mask_x
+    type(integer_field_type),  pointer :: halo_mask_y
+    type(function_space_type), pointer :: w3_fs
+
+    integer(kind=i_def) :: max_halo_depth, cross_depth
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    ! Set up fields on 2D mesh in multidata W3 space
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    max_halo_depth = mesh%get_halo_depth()
+    cross_depth = max_halo_depth + 1
+    w3_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
+
+    if (.not. halo_mask_x_inventory%is_initialised()) then
+      call halo_mask_x_inventory%initialise(name="halo_mask_x")
+    end if
+    if (.not. halo_mask_y_inventory%is_initialised()) then
+      call halo_mask_y_inventory%initialise(name="halo_mask_y")
+    end if
+
+    ! Create fields in the inventories
+    call halo_mask_x_inventory%add_field(                             &
+            halo_mask_x, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call halo_mask_y_inventory%add_field(                             &
+            halo_mask_y, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+
+    ! Create a mask which indicates *all* halo cells
+    call halo_mask%initialise(w3_fs, halo_depth=max_halo_depth)
+    call invoke( int_setval_c(halo_mask, 0),                                   &
+                 int_setval_c(halo_mask_x, 0),                                 &
+                 int_setval_c(halo_mask_y, 0),                                 &
+                 halo_mask_kernel_type(halo_mask, max_halo_depth) )
+    call invoke_halo_mask_xy_kernel_type(halo_mask_x, halo_mask_y, halo_mask,  &
+                                         cross_depth, max_halo_depth)
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_halo_masks
+
   !> @brief Computes the two sets of coefficients for the third-order FFSL
   !!        edge reconstruction
   !> @param[in] mesh_id The ID of the mesh to compute the coefficients for
@@ -347,7 +601,8 @@ contains
 
     use sci_geometric_constants_mod,    only: get_detj_at_w3_fe, &
                                               get_detj_at_w3_fv
-    use transport_config_mod,           only: extended_mesh
+    use transport_config_mod,           only: panel_edge_treatment,            &
+                                              panel_edge_treatment_extended_mesh
     use sci_calc_detj_at_w3_kernel_mod, only: calc_detj_at_w3_kernel_type
 
     implicit none
@@ -376,7 +631,7 @@ contains
       ! Get relevant element orders
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
-      if (extended_mesh) then
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
         chi => get_extended_coordinates(mesh_id)
       else
         chi => get_coordinates(mesh_id)
@@ -401,7 +656,7 @@ contains
       call detj_at_w3_r_tran_inventory%add_field(detj_r_tran, w3_fs, mesh,     &
                                                  halo_depth=halo_depth)
 
-      if (extended_mesh) then
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
       call invoke( calc_detj_at_w3_kernel_type(detj_r_tran, chi, panel_id,     &
                                                halo_depth) )
       else
@@ -1058,6 +1313,272 @@ contains
 
   end function get_panel_edge_dist
 
+  !> @brief Returns a pointer to the "extended" panel coordinates for cells at
+  !!        the edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The coords for cells on cubed-sphere panel edges
+  function get_panel_edge_coords_x(mesh_id) result(panel_edge_coords)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(field_type),                   pointer :: panel_edge_coords(:)
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_coords_x_inventory%is_initialised()) then
+      call panel_edge_coords_x_inventory%initialise(name="panel_edge_coords_x")
+    end if
+
+    constant_exists = panel_edge_coords_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_coords(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_coords_x_inventory%get_field_array(local_mesh, panel_edge_coords)
+
+  end function get_panel_edge_coords_x
+
+  !> @brief Returns a pointer to the "extended" panel coordinates for cells at
+  !!        the edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The coords for cells on cubed-sphere panel edges
+  function get_panel_edge_coords_y(mesh_id) result(panel_edge_coords)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(field_type),                   pointer :: panel_edge_coords(:)
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_coords_y_inventory%is_initialised()) then
+      call panel_edge_coords_y_inventory%initialise(name="panel_edge_coords_y")
+    end if
+
+    constant_exists = panel_edge_coords_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_coords(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_coords_y_inventory%get_field_array(local_mesh, panel_edge_coords)
+
+  end function get_panel_edge_coords_y
+
+  !> @brief Returns a pointer to the weights for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Weights for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_weights_x(mesh_id) result(panel_edge_weights)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(r_tran_field_type),            pointer :: panel_edge_weights
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_weights_x_inventory%is_initialised()) then
+      call panel_edge_weights_x_inventory%initialise(name="panel_edge_weights_x")
+    end if
+
+    constant_exists = panel_edge_weights_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_weights_x_inventory%get_field(local_mesh, panel_edge_weights)
+
+  end function get_panel_edge_weights_x
+
+  !> @brief Returns a pointer to the weights for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Weights for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_weights_y(mesh_id) result(panel_edge_weights)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(r_tran_field_type),            pointer :: panel_edge_weights
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_weights_y_inventory%is_initialised()) then
+      call panel_edge_weights_y_inventory%initialise(name="panel_edge_weights_y")
+    end if
+
+    constant_exists = panel_edge_weights_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_weights_y_inventory%get_field(local_mesh, panel_edge_weights)
+
+  end function get_panel_edge_weights_y
+
+  !> @brief Returns a pointer to the indices for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Indices for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_indices_x(mesh_id) result(panel_edge_indices)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: panel_edge_indices
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_indices_x_inventory%is_initialised()) then
+      call panel_edge_indices_x_inventory%initialise(name="panel_edge_indices_x")
+    end if
+
+    constant_exists = panel_edge_indices_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_indices_x_inventory%get_field(local_mesh, panel_edge_indices)
+
+  end function get_panel_edge_indices_x
+
+  !> @brief Returns a pointer to the indices for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Indices for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_indices_y(mesh_id) result(panel_edge_indices)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: panel_edge_indices
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_indices_y_inventory%is_initialised()) then
+      call panel_edge_indices_y_inventory%initialise(name="panel_edge_indices_y")
+    end if
+
+    constant_exists = panel_edge_indices_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_indices_y_inventory%get_field(local_mesh, panel_edge_indices)
+
+  end function get_panel_edge_indices_y
+
+  ! ========================================================================== !
+  ! GETTERS FOR PERFORMING REDUNDANT COMPUTATIONS
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to the x-halo mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Mask indicating halo cells in the x direction
+  function get_halo_mask_x(mesh_id) result(halo_mask)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: halo_mask
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. halo_mask_x_inventory%is_initialised()) then
+      call halo_mask_x_inventory%initialise(name="halo_mask_x")
+    end if
+
+    constant_exists = halo_mask_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_halo_masks(mesh_id)
+    end if
+
+    ! Return existing constant
+    call halo_mask_x_inventory%get_field(local_mesh, halo_mask)
+
+  end function get_halo_mask_x
+
+  !> @brief Returns a pointer to the y-halo mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Mask indicating halo cells in the y direction
+  function get_halo_mask_y(mesh_id) result(halo_mask)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: halo_mask
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. halo_mask_y_inventory%is_initialised()) then
+      call halo_mask_y_inventory%initialise(name="halo_mask_y")
+    end if
+
+    constant_exists = halo_mask_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_halo_masks(mesh_id)
+    end if
+
+    ! Return existing constant
+    call halo_mask_y_inventory%get_field(local_mesh, halo_mask)
+
+  end function get_halo_mask_y
+
   ! ========================================================================== !
   ! GETTERS FOR MOL COEFFICIENTS
   ! ========================================================================== !
@@ -1078,7 +1599,8 @@ contains
     use sci_compute_mass_matrix_kernel_w_scalar_mod, &
                                     only: compute_mass_matrix_kernel_w_scalar_type
     use sci_mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
-    use transport_config_mod,       only: extended_mesh,                       &
+    use transport_config_mod,       only: panel_edge_treatment,                &
+                                          panel_edge_treatment_extended_mesh,  &
                                           fv_horizontal_order,                 &
                                           oned_reconstruction
 
@@ -1098,6 +1620,7 @@ contains
     logical(kind=l_def)                 :: constant_exists
     logical(kind=l_def)                 :: horizontal_faces
     logical(kind=l_def)                 :: vertical_faces
+    logical(kind=l_def)                 :: extended_mesh
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
     type(quadrature_xyoz_type)          :: qr, qr_fem
     type(quadrature_face_type)          :: qrf
@@ -1128,6 +1651,8 @@ contains
       ! Get the relevant element orders
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
+
+      extended_mesh = (panel_edge_treatment == panel_edge_treatment_extended_mesh)
 
       if (.not. (oned_reconstruction .and. extended_mesh)) then
         ! @TODO #416: this should be done with detj_at_w3_r_tran
@@ -1246,6 +1771,7 @@ contains
                                                     transform_radius,          &
                                                     domain_size_x,             &
                                                     domain_size_y,             &
+                                                    extended_mesh,             &
                                                     nlayers,                   &
                                                     qr, qrf) )
       else
@@ -1416,7 +1942,8 @@ contains
     use sci_compute_mass_matrix_kernel_w_scalar_mod, &
                                     only: compute_mass_matrix_kernel_w_scalar_type
     use sci_mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
-    use transport_config_mod,       only: extended_mesh,                       &
+    use transport_config_mod,       only: panel_edge_treatment,                &
+                                          panel_edge_treatment_extended_mesh,  &
                                           fv_horizontal_order,                 &
                                           oned_reconstruction
 
@@ -1436,6 +1963,7 @@ contains
     logical(kind=l_def)                 :: constant_exists
     logical(kind=l_def)                 :: horizontal_edges
     logical(kind=l_def)                 :: vertical_edges
+    logical(kind=l_def)                 :: extended_mesh
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
     type(quadrature_xyoz_type)          :: qr, qr_fem
     type(quadrature_edge_type)          :: qre
@@ -1467,6 +1995,8 @@ contains
       ! Get the relevant element orders
       element_order_h = get_element_order_h_transport()
       element_order_v = get_element_order_v_transport()
+
+      extended_mesh = (panel_edge_treatment == panel_edge_treatment_extended_mesh)
 
       if (.not. (oned_reconstruction .and. extended_mesh)) then
         if (element_order_h == 0 .and. element_order_v == 0) then
@@ -1585,6 +2115,7 @@ contains
                                                     transform_radius,          &
                                                     domain_size_x,             &
                                                     domain_size_y,             &
+                                                    extended_mesh,             &
                                                     nlayers,                   &
                                                     qr, qre) )
       else
@@ -1786,6 +2317,14 @@ contains
     call ext_mesh_weights_inventory%clear()
     call ext_mesh_indices_inventory%clear()
     call panel_edge_dist_inventory%clear()
+    call panel_edge_coords_x_inventory%clear()
+    call panel_edge_coords_y_inventory%clear()
+    call panel_edge_weights_x_inventory%clear()
+    call panel_edge_weights_y_inventory%clear()
+    call panel_edge_indices_x_inventory%clear()
+    call panel_edge_indices_y_inventory%clear()
+    call halo_mask_x_inventory%clear()
+    call halo_mask_y_inventory%clear()
     call hori_wt_mol_coeffs_inventory%clear()
     call vert_wt_mol_coeffs_inventory%clear()
     call rev_vert_wt_mol_coeffs_inventory%clear()

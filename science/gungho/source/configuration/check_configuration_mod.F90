@@ -7,64 +7,67 @@
 module check_configuration_mod
 
   use constants_mod,        only: i_def, l_def
-  use mixing_config_mod,    only: viscosity,                       &
+  use mixing_config_mod,    only: viscosity,                                   &
                                   viscosity_mu
-  use transport_config_mod, only: operators,                       &
-                                  operators_fv,                    &
-                                  operators_fem,                   &
-                                  consistent_metric,               &
-                                  fv_horizontal_order,             &
-                                  fv_vertical_order,               &
-                                  cheap_update,                    &
-                                  si_outer_transport,              &
-                                  si_outer_transport_none,         &
-                                  profile_size,                    &
-                                  scheme,                          &
-                                  splitting,                       &
-                                  horizontal_method,               &
-                                  vertical_method,                 &
-                                  reversible,                      &
-                                  log_space,                       &
-                                  max_vert_cfl_calc,               &
-                                  max_vert_cfl_calc_dep_point,     &
-                                  equation_form,                   &
-                                  extended_mesh,                   &
-                                  special_edges_treatment,         &
-                                  special_edges_high_order,        &
-                                  dry_field_name,                  &
-                                  field_names,                     &
-                                  use_density_predictor,           &
-                                  enforce_min_value,               &
-                                  horizontal_monotone,             &
-                                  vertical_monotone,               &
-                                  ffsl_splitting,                  &
-                                  ffsl_vertical_order,             &
-                                  ffsl_inner_order,                &
-                                  ffsl_outer_order,                &
-                                  dep_pt_stencil_extent,           &
-                                  substep_transport,               &
-                                  substep_transport_off,           &
-                                  adjust_vhv_wind,                 &
+  use transport_config_mod, only: operators,                                   &
+                                  operators_fv,                                &
+                                  operators_fem,                               &
+                                  consistent_metric,                           &
+                                  fv_horizontal_order,                         &
+                                  fv_vertical_order,                           &
+                                  cheap_update,                                &
+                                  si_outer_transport,                          &
+                                  si_outer_transport_none,                     &
+                                  profile_size,                                &
+                                  scheme,                                      &
+                                  splitting,                                   &
+                                  horizontal_method,                           &
+                                  vertical_method,                             &
+                                  reversible,                                  &
+                                  log_space,                                   &
+                                  max_vert_cfl_calc,                           &
+                                  max_vert_cfl_calc_dep_point,                 &
+                                  equation_form,                               &
+                                  panel_edge_treatment,                        &
+                                  panel_edge_treatment_extended_mesh,          &
+                                  panel_edge_treatment_special_edges,          &
+                                  panel_edge_treatment_remapping,              &
+                                  panel_edge_treatment_none,                   &
+                                  panel_edge_high_order,                       &
+                                  dry_field_name,                              &
+                                  field_names,                                 &
+                                  use_density_predictor,                       &
+                                  enforce_min_value,                           &
+                                  horizontal_monotone,                         &
+                                  vertical_monotone,                           &
+                                  ffsl_splitting,                              &
+                                  ffsl_vertical_order,                         &
+                                  ffsl_inner_order,                            &
+                                  ffsl_outer_order,                            &
+                                  dep_pt_stencil_extent,                       &
+                                  substep_transport,                           &
+                                  substep_transport_off,                       &
+                                  adjust_vhv_wind,                             &
                                   ffsl_unity_3d
-  use transport_enumerated_types_mod,                              &
-                            only: scheme_mol_3d,                   &
-                                  scheme_ffsl_3d,                  &
-                                  scheme_split,                    &
-                                  split_method_mol,                &
-                                  split_method_ffsl,               &
-                                  split_method_sl,                 &
-                                  split_method_null,               &
-                                  equation_form_advective,         &
-                                  equation_form_conservative,      &
-                                  equation_form_consistent,        &
-                                  splitting_strang_hvh,            &
-                                  splitting_strang_vhv,            &
-                                  splitting_none,                  &
-                                  monotone_koren,                  &
-                                  monotone_relaxed,                &
-                                  monotone_strict,                 &
-                                  monotone_clipping,               &
-                                  monotone_qm_pos,                 &
+  use transport_enumerated_types_mod,                                          &
+                            only: scheme_mol_3d,                               &
+                                  scheme_ffsl_3d,                              &
+                                  scheme_split,                                &
+                                  split_method_mol,                            &
+                                  split_method_ffsl,                           &
+                                  split_method_sl,                             &
+                                  split_method_null,                           &
+                                  equation_form_advective,                     &
+                                  equation_form_conservative,                  &
+                                  equation_form_consistent,                    &
+                                  splitting_strang_hvh,                        &
+                                  splitting_strang_vhv,                        &
+                                  splitting_none,                              &
+                                  monotone_koren,                              &
+                                  monotone_relaxed,                            &
+                                  monotone_strict,                             &
+                                  monotone_clipping,                           &
+                                  monotone_qm_pos,                             &
                                   ffsl_splitting_swift, &
                                   ffsl_splitting_cosmic
 
@@ -295,32 +298,38 @@ contains
         write( log_scratch_space, '(A)' ) 'ffsl_outer_order must be between 0 and 2'
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
-      if ( extended_mesh ) then
-        if ( geometry /= geometry_spherical ) then
-          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for spherical geometry'
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end if
+      if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
         if ( coord_system /=  coord_system_native ) then
-          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for native coordinates'
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end if
-        if ( topology /=  topology_fully_periodic) then
-          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for fully periodic topology'
+          write( log_scratch_space, '(A)' )                                    &
+              'extended_mesh panel_edge_treatment only valid for native coordinates'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
         if ( coord_order /= 1 ) then
-          write( log_scratch_space, '(A)' ) 'Extended_mesh only valid for linear coord_order'
+          write( log_scratch_space, '(A)' )                                    &
+              'extended_mesh panel_edge_treatment only valid for linear coord_order'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
       end if
-      if ( special_edges_treatment ) then
+      if ( panel_edge_treatment /= panel_edge_treatment_none ) then
         if ( geometry /= geometry_spherical ) then
-          write( log_scratch_space, '(A)' ) 'Special_edges_treatment only valid for spherical geometry'
+          write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for spherical geometry'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
         if ( topology /=  topology_fully_periodic) then
-          write( log_scratch_space, '(A)' ) 'Special_edges_treatment only valid for fully periodic topology'
+          write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for fully periodic topology'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( any_scheme_mol ) then
+          if ( coord_system /=  coord_system_native ) then
+            write( log_scratch_space, '(A)' )                                    &
+                'MoL panel_edge_treatment only valid for native coordinates'
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+          if ( coord_order /= 1 ) then
+            write( log_scratch_space, '(A)' )                                    &
+                'MoL panel_edge_treatment only valid for linear coord_order'
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
         end if
       end if
       if ( si_outer_transport /= si_outer_transport_none .AND. cheap_update) then
@@ -394,6 +403,14 @@ contains
           write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
             'is being transported with a reversible form of the FFSL scheme, ' // &
             'so it must also have the "reversible" option set to .true.'
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        end if
+
+        if ( horizontal_method(i) == split_method_ffsl                         &
+             .AND. ffsl_splitting(i) == ffsl_splitting_cosmic                  &
+             .AND. panel_edge_treatment == panel_edge_treatment_remapping ) then
+          write( log_scratch_space, '(A)') 'Remapping treatment of panel ' //  &
+            'edges is not implemented for the COSMIC FFSL splitting'
           call log_event(log_scratch_space, LOG_LEVEL_ERROR)
         end if
 
@@ -613,8 +630,13 @@ contains
       stencil_depth = max( stencil_depth,          &
                            dep_pt_stencil_extent + &
                            sl_reconstruction_depth )
-      if ( special_edges_treatment .AND. special_edges_high_order ) then
-         stencil_depth = stencil_depth + 1_i_def
+      if ( panel_edge_treatment == panel_edge_treatment_special_edges ) then
+        if ( panel_edge_high_order ) then
+          stencil_depth = stencil_depth + 1_i_def
+        ! TODO #419: should this be extended when doing redundant computations?
+        ! else if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
+        !   stencil_depth = stencil_depth + 1_i_def
+        end if
       end if
     end if
 

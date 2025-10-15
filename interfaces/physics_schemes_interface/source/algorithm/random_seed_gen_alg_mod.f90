@@ -23,25 +23,27 @@ module random_seed_gen_alg_mod
   !> Only use last two digits of year to prevent numerical overflow at some date
   !> in the future. A random number generated from this seed is used to
   !> multiply the seed again.
+  !>@param[out] iranseed      : Random seed controlled by ensemble member
+  !>                            number for stochastic physics
   !>@param[in] ensemble_number: Allows different ensemble members to have
   !>                            different random number seeds
 
-  subroutine random_seed_gen_alg(ensemble_number)
+  subroutine random_seed_gen_alg(iranseed, ensemble_number)
     use xios, only: xios_date, xios_get_current_date, &
                     xios_date_get_day_of_year, xios_date_get_second_of_day
-    use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_DEBUG
 
     implicit none
 
+    integer(i_def), intent(out) :: iranseed(:)
     integer(i_def), intent(in) :: ensemble_number
 
     type(xios_date) :: datetime
+    integer(i_def) :: i
     integer(i_def) :: year, month, day, utc_shift, hour, minute, &
                       milli_ensemble_number
-    integer(i_def) :: random_seed_size, iarg, max_iarg, i
-    integer(i_def), allocatable :: iranseed(:), prevseed(:)
+    integer(i_def) :: random_seed_size, iarg, max_iarg
+    integer(i_def), allocatable :: prevseed(:)
     real(r_def), allocatable :: rnum(:)
-    character(str_def) :: string
 
     ! Use the datetime from the XIOS clock, should eventually be replaced by
     ! calls to the model clock.
@@ -56,8 +58,7 @@ module random_seed_gen_alg_mod
     milli_ensemble_number = ensemble_number + 100
 
     ! Fetch random seed array size from intrinsic and allocate arrays.
-    call random_seed(size = random_seed_size)
-    if(.not. allocated(iranseed)) allocate(iranseed(random_seed_size))
+    random_seed_size = size(iranseed)
     if(.not. allocated(prevseed)) allocate(prevseed(random_seed_size))
     if(.not. allocated(rnum)) allocate(rnum(random_seed_size))
 
@@ -85,18 +86,6 @@ module random_seed_gen_alg_mod
 
     ! Range of seed from 0 to 2**31 (32-bit Int).
     iranseed = int(iarg*rnum)
-
-    ! Set final random seed
-    call random_seed(put = iranseed(1:random_seed_size))
-
-    ! Log number of seeds and their values in debug output.
-    write( log_scratch_space, &
-           '(": Random seed generation: Size of random seed: ", I6)' ) &
-           random_seed_size
-    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-    write(string, '("(",A23, I3, "(I5))" )') '"Random Seed Values: ",', random_seed_size
-    write( log_scratch_space, trim(string) ) (iranseed(i), i=1,random_seed_size)
-    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
   end subroutine random_seed_gen_alg
 

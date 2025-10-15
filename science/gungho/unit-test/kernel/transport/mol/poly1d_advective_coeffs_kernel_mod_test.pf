@@ -7,7 +7,7 @@
 !> Test the computation of 1d advective coeffs
 module poly1d_advective_coeffs_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, r_tran
+  use constants_mod, only : i_def, r_def, r_tran, l_def
   use funit
   implicit none
 
@@ -118,6 +118,7 @@ contains
     real(r_def), parameter :: dz = 4.0_r_def
     real(r_def), parameter :: dv = dx*dy*dz
     real(r_def), parameter :: h0 = 0.0_r_def
+    logical(l_def), parameter :: extended_mesh = .false.
 
     integer(i_def) :: k, df, s, ij, i, j
 
@@ -227,6 +228,7 @@ contains
                                       h0,                        &
                                       domain_x,                  &
                                       domain_y,                  &
+                                      extended_mesh,             &
                                       nlayers,                   &
                                       ndf_c,                     &
                                       undf_c,                    &

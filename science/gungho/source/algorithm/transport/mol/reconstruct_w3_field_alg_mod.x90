@@ -37,12 +37,13 @@ module reconstruct_w3_field_alg_mod
   use poly2d_reconstruction_kernel_mod, &
                                       only: poly2d_reconstruction_kernel_type
   use remap_on_extended_mesh_alg_mod, only: remap_on_extended_mesh
-  use transport_config_mod,           only: operators,            &
-                                            fv_horizontal_order,  &
-                                            fv_vertical_order,    &
-                                            operators_fv,         &
-                                            oned_reconstruction,  &
-                                            extended_mesh
+  use transport_config_mod,           only: operators,                         &
+                                            fv_horizontal_order,               &
+                                            fv_vertical_order,                 &
+                                            operators_fv,                      &
+                                            oned_reconstruction,               &
+                                            panel_edge_treatment,              &
+                                            panel_edge_treatment_none
   use transport_constants_mod,        only: get_element_order_h_transport, &
                                             get_element_order_v_transport
   use log_mod,                        only: log_event,         &
@@ -199,7 +200,8 @@ contains
     call invoke( setval_X( field_old_big_halo, field_old ) )
 
     monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
-    if ( extended_mesh .and. (monotone .or. oned_reconstruction) ) then
+    if ( panel_edge_treatment /= panel_edge_treatment_none                     &
+         .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
       call remap_on_extended_mesh(remap_field, field_old_big_halo,             &
                                   monotone,                                    &

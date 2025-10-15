@@ -37,7 +37,6 @@
         [[[directives]]]
             --partition=hbv3
             --qos=serial
-            --mem=25GB
             --time=04:00:00
 
     [[SANDBOX_STANDARD_QUEUE]]

@@ -13,7 +13,7 @@ TRANSMUTE_INCLUDE_METHOD ?= specify_include
 # Set the DSL Method in use to collect the correct transformation files.
 DSL := transmute
 
-# Find the specific files we wish to preprcoess and psyclone from physics source
+# Find the specific files we wish to pre-processed and PSyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
 # the psycloning step.
 #
@@ -43,35 +43,35 @@ endif
 #
 psyclone: $(SOURCE_F_FILES)
 
-# Psyclone files back into F90 files.
-# Technically as they are preprocessed and psycloned, they should be f90 files,
+# PSyclone files back into F90 files.
+# Technically as they are pre-processed and PSyclone-d, they should be f90 files,
 # however the analysis step broke and so needs some work. For now they will be F90.
 
 # Where an optimisation script exists for a specific file, use it.
 #
 $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
-	echo Psyclone with file override script $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py
+	echo PSyclone with file override script $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py \
 			-o $(SOURCE_DIR)/$*.F90 \
 			$<
 
-# Where a local optimisation script exisits, use it.
+# Where a local optimisation script exists, use it.
 #
 .SECONDEXPANSION:
-$(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(shell find $(dirname $(OPTIMISATION_PATH_PSY)/$(DSL)/$$*.py) -name "local.py")
-	echo "Psyclone with local script"
+$(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $$(dir $$(OPTIMISATION_PATH_PSY)/$$(DSL)/$$*)local.py
+	echo PSyclone with local script $(dir $(OPTIMISATION_PATH_PSY)/$(DSL)/$*)local.py on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
-			-s $(shell find $(dirname $(OPTIMISATION_PATH_PSY)/$(DSL)/$*.py) -name "local.py") \
+			-s $(dir $(OPTIMISATION_PATH_PSY)/$(DSL)/$*)local.py \
 			-o $(SOURCE_DIR)/$*.F90 \
 			$<
 
 # Where a global optimisation script exists, use it.
 #
 $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/global.py
-	echo Psyclone with global script $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py
+	echo PSyclone with global script $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py \
@@ -81,7 +81,7 @@ $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/global.py
 # Where no optimisation script exists, don't use it.
 #
 $(SOURCE_DIR)/%.F90: $(SOURCE_DIR)/%.xu90
-	echo "Psyclone pass with no optimisation applied, OMP removed"
+	echo PSyclone pass with no optimisation applied, OMP and Clauses removed on $<
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-o $(SOURCE_DIR)/$*.F90 \
