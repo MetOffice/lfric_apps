@@ -120,6 +120,16 @@ ukca:
     - src/control/core/top_level/ukca_time_mod.F90
     - src/control/core/top_level/ukca_tropopause.F90
     - src/control/glomap_clim/interface/glomap_clim_interface_mod.F90
+    - src/control/photolysis/interface/photol_api_mod.F90
+    - src/control/photolysis/interface/photol_calc_ozonecol_mod.F90
+    - src/control/photolysis/interface/photol_check_environment_mod.F90
+    - src/control/photolysis/interface/photol_config_specification_mod.F90
+    - src/control/photolysis/interface/photol_constants_mod.F90
+    - src/control/photolysis/interface/photol_ctl_mod.F90
+    - src/control/photolysis/interface/photol_environment_mod.F90
+    - src/control/photolysis/interface/photol_fieldname_mod.F90
+    - src/control/photolysis/interface/photol_setup_mod.F90
+    - src/control/photolysis/interface/photol_step_control.F90
     - src/control/shared/ukca_error_mod.F90
     - src/science/core/aerosols/activation/ukca_abdulrazzak_ghan.F90
     - src/science/core/aerosols/activation/ukca_activ_mod.F90
@@ -274,6 +284,68 @@ ukca:
     - src/science/glomap_clim/glomap_clim_calc_md_mdt_nd_mod.F90
     - src/science/glomap_clim/glomap_clim_calc_rh_frac_clear_mod.F90
     - src/science/glomap_clim/glomap_clim_pop_md_mdt_nd_mod.F90
+    - src/science/photolysis/fastjx/fastjx_data.F90
+    - src/science/photolysis/fastjx/fastjx_extral.F90
+    - src/science/photolysis/fastjx/fastjx_jratet.F90
+    - src/science/photolysis/fastjx/fastjx_miesct.F90
+    - src/science/photolysis/fastjx/fastjx_opmie.F90
+    - src/science/photolysis/fastjx/fastjx_photoj.F90
+    - src/science/photolysis/fastjx/fastjx_read_ascii.F90
+    - src/science/photolysis/fastjx/fastjx_set_aer.F90
+    - src/science/photolysis/fastjx/fastjx_solar2.F90
+    - src/science/photolysis/fastjx/fastjx_sphere.F90
+    - src/science/photolysis/fastjx/photol_solflux_mod.F90
+    - src/science/photolysis/fastjx/ukca_fastjx.F90
+    - src/science/photolysis/stratospheric/photolib/acsbrcl_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsccl4_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acscnit_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acscos_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acscs2_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsdbrm_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsf11_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsf12_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsf22_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsh2o2_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsh2so4_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acshno3_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsmc_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsmena_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsn2o5_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsn2o_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsno2_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsno_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acso3_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acso3w_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acsso3_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acssr_mod.F90
+    - src/science/photolysis/stratospheric/photolib/acssrw_mod.F90
+    - src/science/photolysis/stratospheric/photolib/calcjs_mod.F90
+    - src/science/photolysis/stratospheric/photolib/cso2o3_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ei1_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ei2_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ei3_mod.F90
+    - src/science/photolysis/stratospheric/photolib/fill_spectra_mod.F90
+    - src/science/photolysis/stratospheric/photolib/inijtab_mod.F90
+    - src/science/photolysis/stratospheric/photolib/invert_mod.F90
+    - src/science/photolysis/stratospheric/photolib/isrchfgt_mod.F90
+    - src/science/photolysis/stratospheric/photolib/lubksb_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ludcmp_mod.F90
+    - src/science/photolysis/stratospheric/photolib/lymana_mod.F90
+    - src/science/photolysis/stratospheric/photolib/quanto12_mod.F90
+    - src/science/photolysis/stratospheric/photolib/quanto1d_mod.F90
+    - src/science/photolysis/stratospheric/photolib/scatcs_mod.F90
+    - src/science/photolysis/stratospheric/photolib/settab_mod.F90
+    - src/science/photolysis/stratospheric/photolib/setzen_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ukca_crossec_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ukca_parpho_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ukca_stdto3_mod.F90
+    - src/science/photolysis/stratospheric/photolib/ukca_tbjs_mod.F90
+    - src/science/photolysis/stratospheric/photol_solang_mod.F90
+    - src/science/photolysis/stratospheric/ukca_um_dissoc_mod.F90
+    - src/science/photolysis/stratospheric/ukca_um_strat_photol_mod.F90
+    - src/science/photolysis/tropospheric/photol_curve_mod.F90
+    - src/science/photolysis/tropospheric/ukca_flupj.F90
+    - src/science/photolysis/tropospheric/ukca_phot2d.F90
     - src/science/plumeria/plumeria_FindT.F90
     - src/science/plumeria/plumeria_cashkarp.F90
     - src/science/plumeria/plumeria_derivs.F90
