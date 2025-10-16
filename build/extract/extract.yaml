@@ -340,7 +340,6 @@ ukca:
     - src/science/photolysis/stratospheric/photolib/ukca_parpho_mod.F90
     - src/science/photolysis/stratospheric/photolib/ukca_stdto3_mod.F90
     - src/science/photolysis/stratospheric/photolib/ukca_tbjs_mod.F90
-    - src/science/photolysis/stratospheric/photol_solang_mod.F90
     - src/science/photolysis/stratospheric/ukca_um_dissoc_mod.F90
     - src/science/photolysis/stratospheric/ukca_um_strat_photol_mod.F90
     - src/science/photolysis/tropospheric/photol_curve_mod.F90

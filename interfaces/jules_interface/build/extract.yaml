@@ -5,18 +5,12 @@
 ##############################################################################
 
 jules:
-    - src/control/cable/cable_land/radiation/alloc_rad_albedo_vars_cbl.F90
     - src/control/cable/cable_land/radiation/cable_land_albedo_mod_cbl.F90
-    - src/control/cable/interface/radiation/rad_driver_cbl.F90
-    - src/control/cable/interface/radiation/rad_unpack_cbl.F90
-    - src/control/cable/shared/LAI_canopy_height_cbl.F90
     - src/control/cable/shared/cable_fields_mod.F90
     - src/control/cable/shared/cable_surface_types_mod.F90
-    - src/control/cable/shared/params_io_cbl.F90
     - src/control/cable/shared/progs_cbl_vars_mod.F90
+    - src/control/cable/shared/params_io_cbl.F90
     - src/control/cable/shared/work_vars_mod_cbl.F90
-    - src/control/cable/util/activeTile_mask_cbl.F90
-    - src/control/cable/util/pack_mod_cbl.F90
     - src/control/lfric/check_unavailable_options_mod.F90
     - src/control/shared/CN_utils_mod.F90
     - src/control/shared/aero.F90
@@ -75,10 +69,6 @@ jules:
     - src/initialisation/shared/check_compatible_options_mod.F90
     - src/initialisation/shared/freeze_soil.F90
     - src/initialisation/shared/wtrac_check_options_mod.F90
-    - src/params/cable/cable_maths_constants_mod.F90
-    - src/params/cable/cable_other_constants_mod.F90
-    - src/params/cable/cable_phys_constants_mod.F90
-    - src/params/cable/grid_constants_cbl.F90
     - src/science/deposition/deposition_check_species_mod.F90
     - src/science/deposition/deposition_from_surf_couple_extra_mod.F90
     - src/science/deposition/deposition_from_ukca_chemistry_mod.F90
@@ -230,13 +220,5 @@ jules:
     - src/science/vegetation/nvg_sparm_jls_mod.F90
     - src/science/vegetation/pft_sparm_jls_mod.F90
     - src/science/vegetation/sparm_jls_mod.F90
-    - src/science_cable/albedo/cbl_albedo.F90
-    - src/science_cable/albedo/cbl_snow_albedo.F90
-    - src/science_cable/radiation/cbl_init_radiation.F90
-    - src/science_cable/radiation/cbl_rhoch.F90
-    - src/science_cable/radiation/cbl_spitter.F90
-    - src/science_cable/roughness/roughnessHGT_effLAI_cbl.F90
-    - src/util/cable/map_veg_parameters_cbl.F90
-    - src/util/cable/masks_cbl.F90
     - src/util/shared/gridbox_mean_mod.F90
     - src/util/shared/metstats/metstats_mod.F90
