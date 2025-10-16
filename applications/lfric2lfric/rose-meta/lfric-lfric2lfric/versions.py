@@ -300,3 +300,16 @@ class vn22_t797(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn22_t995(MacroUpgrade):
+    """Upgrade macro for ticket None by None."""
+
+    BEFORE_TAG = "vn2.2_t797"
+    AFTER_TAG = "vn2.2_t995"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:mixing", "smag_l_calc"], "'UseDx'")
+
+        return config, self.reports

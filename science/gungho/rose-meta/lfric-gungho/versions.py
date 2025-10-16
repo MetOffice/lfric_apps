@@ -222,7 +222,6 @@ class vn22_t36(MacroUpgrade):
         self.add_setting(
             config, [nml, "panel_edge_treatment"], panel_edge_treatment
         )
-
         return config, self.reports
 
 
@@ -260,5 +259,17 @@ class vn22_t797(MacroUpgrade):
             ["namelist:chemistry", "fastjx_dir"],
             "'$UMDIR/vn13.9/ctldata/UKCA/fastj'",
         )
+        return config, self.reports
+
+
+class vn22_t995(MacroUpgrade):
+    """Upgrade macro for ticket TTTT by Unknown."""
+
+    BEFORE_TAG = "vn2.2_t797"
+    AFTER_TAG = "vn2.2_t995"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(config, ["namelist:mixing", "smag_l_calc"], "'UseDx'")
 
         return config, self.reports

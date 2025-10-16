@@ -14,7 +14,7 @@
 {% elif task_ns.conf_name == "baroclinic-C96_MG" %}
 
     {% do task_dict.update({
-        "memory": [30, "GB"],
+        "memory": [54, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "moist_baroclinic_orog-C48_MG" %}
@@ -23,22 +23,22 @@
         "memory": [12, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "robert-moist-smag-l300-BiP200x8-5x5" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
 {% elif task_ns.conf_name == "sbr-C48_MG" %}
 
     {% do task_dict.update({
-        "memory": [12, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "sbr-C96_MG" %}
-
-    {% do task_dict.update({
-        "memory": [48, "GB"],
+        "memory": [24, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "straka_50m-BiP1024x8-50x50" %}
 
     {% do task_dict.update({
-        "memory": [12, "GB"],
+        "memory": [24, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "warm3dbubble-BiP100x100-10x10" %}

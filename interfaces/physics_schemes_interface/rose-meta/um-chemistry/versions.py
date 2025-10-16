@@ -50,7 +50,7 @@ class vn22_t771(MacroUpgrade):
 class vn22_t797(MacroUpgrade):
     """Upgrade macro for ticket #797 by Charlotte Norris."""
 
-    BEFORE_TAG = "vn22_t771"
+    BEFORE_TAG = "vn2.2_t771"
     AFTER_TAG = "vn2.2_t797"
 
     def upgrade(self, config, meta_config=None):

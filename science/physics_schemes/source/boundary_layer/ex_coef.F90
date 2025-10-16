@@ -112,7 +112,7 @@ real(kind=r_bl), intent(in) ::                                                 &
                  ! in Total water content (kg per kg air).
  tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
                  ! in Liquid/frozen water temperature (K).
- rmlmax2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
+ rmlmax2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),       &
                  ! in Square of asymptotic mixing length for Smagorinsky scheme
  z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels+1),        &
                  ! in Z_UV(K) is height of u level k
@@ -585,7 +585,7 @@ if (l_use_var_fixes) then
     do k = 2, bl_levels
       do j = pdims%j_start, pdims%j_end
         do i = pdims%i_start, pdims%i_end
-          turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j)) )
+          turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j,k)) )
         end do
       end do
     end do

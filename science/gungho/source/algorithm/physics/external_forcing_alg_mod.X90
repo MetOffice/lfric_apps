@@ -370,7 +370,7 @@ contains
         call invoke(setval_c(du_forcing, 0.0_r_def))
       end if
 
-      call geostrophic_forcing_alg( du_forcing, exner, time_now )
+      call geostrophic_forcing_alg( du_forcing, derived_fields, exner, time_now )
 
       wind_forcing_done = .true.
 

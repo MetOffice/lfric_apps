@@ -91,6 +91,7 @@ use cv_run_mod, only: l_param_conv, l_wvar_for_conv
 use gen_phys_inputs_mod, only: l_mr_physics
 use jules_surface_mod, only: formdrag, explicit_stress
 use missing_data_mod, only: rmdi
+use mixing_config_mod, only: smag_l_calc, smag_l_calc_use_geo
 use model_domain_mod, only: model_type, mt_single_column
 use mphys_inputs_mod, only: l_subgrid_qcl_mp
 use pc2_constants_mod, only: rhcpt_tke_based, i_cld_bimodal, i_cld_pc2,        &
@@ -554,7 +555,7 @@ real(kind=r_bl) ::                                                             &
  dvdzm(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                    &
        2:bl_levels),                                                           &
                               ! Modulus of wind shear.
- rmlmax2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                 &
+ rmlmax2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end, bl_levels),      &
                               ! Square of asymptotic mixing length
                               ! for Smagorinsky scheme
  ri(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,2:bl_levels),          &
@@ -1274,13 +1275,42 @@ else
 end if  ! test on l_subfilter_vert
 
 if (l_subfilter_horiz .or. l_subfilter_vert) then
+  if (smag_l_calc == smag_l_calc_use_geo) then
+    ! use 3d grid geometric mean
+
+!$OMP do SCHEDULE(STATIC)
+    do k = 1, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
+          rmlmax2(i,j,k) = ( delta_smag(i,j) * delta_smag(i,j) *               &
+                               dzl_charney(i,j,k) )**one_third
+        end do
+      end do
+    end do
+!$OMP end do
+
+  else
+    ! only use horizontal grid
+!$OMP do SCHEDULE(STATIC)
+    do k = 1, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
+          rmlmax2(i,j,k) = delta_smag(i,j)
+        end do
+      end do
+    end do
+!$OMP end do
+
+ end if
 
   if ( l_rp2 .and. i_rp_scheme == i_rp2b ) then
 
 !$OMP do SCHEDULE(STATIC)
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        rmlmax2(i,j) = ( cs_rp(rp_idx) * delta_smag(i,j) )**2
+    do k = 1, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
+          rmlmax2(i,j,k) = ( cs_rp(rp_idx) * rmlmax2(i,j,k) )**2
+        end do
       end do
     end do
 !$OMP end do
@@ -1288,9 +1318,11 @@ if (l_subfilter_horiz .or. l_subfilter_vert) then
   else
 
 !$OMP do SCHEDULE(STATIC)
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        rmlmax2(i,j) = ( mix_factor * delta_smag(i,j) )**2
+    do k = 1, bl_levels
+      do j = pdims%j_start, pdims%j_end
+        do i = pdims%i_start, pdims%i_end
+          rmlmax2(i,j,k) = ( mix_factor * rmlmax2(i,j,k) )**2
+        end do
       end do
     end do
 !$OMP end do
@@ -1303,7 +1335,7 @@ if (l_subfilter_horiz .or. l_subfilter_vert) then
       do i = pdims%i_start, pdims%i_end
         rneutml_sq(i,j,k) = one / (                                            &
                  one/( vkman*(z_tq(i,j,k) + z0m_eff_gb(i,j)) )**2              &
-               + one/rmlmax2(i,j) )
+               + one/rmlmax2(i,j,k) )
       end do
     end do
   end do

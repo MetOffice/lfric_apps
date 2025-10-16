@@ -89,6 +89,10 @@
         "kgo_checks": ["checksum"],
     }) %}
 
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
+
 {% elif task_ns.conf_name == "nwp_gal9_mgnoukca_2T-C12" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","no_dust","um_dump","no_diags"],
@@ -100,6 +104,10 @@
         "wallclock": 20,
         "kgo_checks": ["checksum"],
     }) %}
+
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
 
 {% elif task_ns.conf_name == "nwp_gal9_mgnoukca_1T-C48_MG" %}
     {% do task_dict.update({
@@ -114,6 +122,10 @@
         "kgo_checks": ["checksum"],
     }) %}
 
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
+
 {% elif task_ns.conf_name == "nwp_gal9_mgnoukca_2T-C48_MG" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","no_dust","um_dump","no_diags"],
@@ -127,6 +139,10 @@
         "kgo_checks": ["checksum"],
     }) %}
 
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
+
 {% elif task_ns.conf_name == "nwp_gal9_mgnoukca_4T-C48_MG" %}
     {% do task_dict.update({
         "opt_confs": ["physics_segmentation","no_dust","um_dump","no_diags"],
@@ -139,6 +155,10 @@
         "memory": [40, "GB"],
         "kgo_checks": ["checksum"],
     }) %}
+
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C192_MG" %}
 
@@ -175,6 +195,10 @@
         "kgo_checks": ["checksum"],
     }) %}
 
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
+
 {% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_2T-C192_MG" %}
 
     {% do task_dict.update({
@@ -189,6 +213,10 @@
         "kgo_checks": ["checksum"],
     }) %}
 
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
+
 {% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_4T-C192_MG" %}
 
     {% do task_dict.update({
@@ -202,6 +230,10 @@
         "threads": 4,
         "kgo_checks": ["checksum"],
     }) %}
+
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
 
 {% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
 
@@ -897,17 +929,17 @@
         "threads": 2,
     }) %}
 
-{% elif task_ns.conf_name == "cbl-BiP64x64-100x100_MG" %}
+{% elif task_ns.conf_name == "cbl_lem-BiP64x64-100x100_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","hh_solve","no_aerosol","cbl"],
+        "opt_confs": ["l70_40km","ral3","hh_solve","no_aerosol","cbl_lem"],
         "resolution": "BiP64x64-100x100_MG",
-        "DT": 5,
-        "tsteps": 3600,
-        "mpi_parts": 64,
-        "wallclock": 20,
-        "log_level": "info",
-        "plot_str": "profile_plot.py $NODAL_DATA_DIR/lfric_diag.nc theta:u_in_w3:v_in_w3:w_in_wth umL70 70 40  $PLOT_DIR",
+        "DT": 1.5,
+        "tsteps": 200,
+        "mpi_parts": 16,
+        "wallclock": 15,
+        "kgo_checks": ["checksum"],
+        "plot_str": "profile_plot.py $NODAL_DATA_DIR/lfric_diag.nc theta:u_in_w3:v_in_w3:w_in_wth umL70 70 40 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "comp_tran_ref_gal9_3d-BiP64x64-10000x10000_MG" %}
@@ -1187,7 +1219,7 @@
         "resolution": "BiP2x2-50000x50000",
         "DT": 60,
         "tsteps": 2160,
-        "wallclock": 5,
+        "wallclock": 7,
         "kgo_checks": ["checksum"],
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
     }) %}

@@ -34,22 +34,24 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use feign_config_mod,           only : feign_finite_element_config, &
+    use feign_config_mod,           only : feign_finite_element_config,   &
                                            feign_mixing_config
-    use finite_element_config_mod,  only : cellshape_quadrilateral, &
+    use finite_element_config_mod,  only : cellshape_quadrilateral,       &
                                            coord_system_xyz
-    use mixing_config_mod,          only : method_3d_smag
+    use mixing_config_mod,          only : method_3d_smag,                &
+                                           smag_l_calc, smag_l_calc_UseDx
 
     implicit none
 
     class(leonard_term_kl_test_type), intent(inout) :: this
 
-    call feign_mixing_config( viscosity     = .false.,       &
-                              viscosity_mu  = 0.0_r_def,     &
-                              smagorinsky   = .false.,       &
-                              mix_factor    = 0.2_r_def,     &
-                              method        = method_3d_smag,&
-                              leonard_term  = .false.,       &
+    call feign_mixing_config( viscosity     = .false.,           &
+                              viscosity_mu  = 0.0_r_def,         &
+                              smagorinsky   = .false.,           &
+                              mix_factor    = 0.2_r_def,         &
+                              method        = method_3d_smag,    &
+                              smag_l_calc   = smag_l_calc_UseDx, &
+                              leonard_term  = .false.,           &
                               leonard_kl    = 4.0_r_def )
 
     call feign_finite_element_config(      &

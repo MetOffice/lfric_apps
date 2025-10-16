@@ -57,7 +57,7 @@ module um_physics_init_mod
                                         sc_diag_opt_orig, sc_diag_opt_cu_relax,&
                                         sc_diag_opt_cu_rh_max,                 &
                                         sc_diag_opt_all_rh_max,                &
-                                        sbl_opt, sbl_opt_sharpest,             &
+                                        sbl_opt, sbl_opt_sharpest, sbl_opt_lem,&
                                         sbl_opt_sharp_sea_mes_land,            &
                                         sg_orog_mixing_in => sg_orog_mixing,   &
                                         sg_orog_mixing_none,                   &
@@ -337,7 +337,7 @@ contains
          BrownGrant97_limited, BrownGrant97_original, lem_std,             &
          lem_adjust, interactive_fluxes, specified_fluxes_only,            &
          except_disc_inv, ntml_level_corrn, free_trop_layers, sharpest,    &
-         sg_shear_enh_lambda, l_new_kcloudtop, buoy_integ,                 &
+         lem_stability, sg_shear_enh_lambda, l_new_kcloudtop, buoy_integ,  &
          l_reset_dec_thres, DynDiag_ZL_CuOnly, var_diags_opt,              &
          i_interp_local, i_interp_local_gradients,                         &
          split_tke_and_inv, l_noice_in_turb, l_use_var_fixes,              &
@@ -755,6 +755,8 @@ contains
           sbl_op = sharpest
         case(sbl_opt_sharp_sea_mes_land)
           sbl_op = sharp_sea_mes_land
+        case(sbl_opt_lem)
+          sbl_op = lem_stability
       end select
 
       select case (sg_orog_mixing_in)

@@ -11,6 +11,8 @@ use base_mesh_config_mod,          only: f_lat
 use constants_mod,                 only: i_def, r_def, l_def
 use kernel_mod,                    only: kernel_type
 use field_mod,                     only: field_type
+use field_collection_mod,          only: field_collection_type
+use formulation_config_mod,        only: use_wavedynamics
 use fs_continuity_mod,             only: Wtheta, W3
 use function_space_collection_mod, only: function_space_collection
 use sci_geometric_constants_mod,   only: get_height_fv
@@ -50,10 +52,11 @@ contains
 !>          onto finite element nodal points in Wtheta. Profiles at
 !>          multiple validity times may be specified, with linear interpolation
 !>          being used to evaluate profiles at the current model time.
-!> @param[in,out] du        Forcing increment for wind
-!> @param[in]     exner     Exner field
-!> @param[in]     time_now  Current model time (s)
-subroutine geostrophic_forcing_alg( du, exner, time_now )
+!> @param[in,out] du              Forcing increment for wind
+!> @param[in]     derived_fields  Group of derived fields
+!> @param[in]     exner           Exner field
+!> @param[in]     time_now        Current model time (s)
+subroutine geostrophic_forcing_alg( du, derived_fields, exner, time_now )
 
 use geostrophic_forcing_config_mod, only: number_times,       &
                                           number_heights,     &
@@ -77,9 +80,10 @@ use prof_temporal_interp_mod,    only: prof_temporal_interp
 implicit none
 
 ! Arguments
-type( field_type ), intent( inout )      :: du
-type( field_type ), intent( in ), target :: exner
-real( kind=r_def ), intent( in )         :: time_now
+type( field_type ), intent( inout )         :: du
+type( field_collection_type ), intent( in ) :: derived_fields
+type( field_type ), intent( in ), target    :: exner
+real( kind=r_def ), intent( in )            :: time_now
 
 ! Local variables
 real( kind=r_def )    :: dt_rdef
@@ -95,6 +99,8 @@ type( field_type )    :: dw_in_wth
 
 type( mesh_type ),  pointer :: mesh => null()
 type( field_type ), pointer :: height_w3 => null()
+type( field_type ), pointer :: u_in_w3 => null()
+type( field_type ), pointer :: v_in_w3 => null()
 
 ! dt is r_second, and must be needs casting to r_def in invokes
 dt_rdef = real( dt, kind=r_def )
@@ -132,9 +138,7 @@ end if
 ! Interpolate geostrophic wind profiles onto the model grid
 if ( number_heights == 1 ) then
   call invoke( setval_c(du_in_w3, v_geostrophic_now(1)), &
-               setval_c(dv_in_w3, u_geostrophic_now(1)), &
-               inc_a_times_X( minus_dt_f3, du_in_w3 ),   &
-               inc_a_times_X( dt_f3, dv_in_w3 ) )
+               setval_c(dv_in_w3, u_geostrophic_now(1)) )
 else
 
   select case(coordinate)
@@ -156,7 +160,7 @@ else
   profile_heights(1:profile_size) = heights(1:profile_size)
   profile_extrap = .true.
 
-  if (pressure_coord) then
+  if ( pressure_coord ) then
     ! Interpolation is linear in exner
     do k = 1, number_heights
       profile_heights(k) = (profile_heights(k) / p_zero) ** kappa
@@ -171,7 +175,6 @@ else
     call invoke( profile_interp_kernel_type( du_in_w3, height_w3, &
                                              profile_extrap ) )
   end if
-  call invoke( inc_a_times_X(minus_dt_f3, du_in_w3) )
 
   ! v-component of wind
   profile_data(1:profile_size)    = u_geostrophic_now(1:profile_size)
@@ -182,11 +185,21 @@ else
     call invoke( profile_interp_kernel_type( dv_in_w3, height_w3, &
                                              profile_extrap ) )
   end if
-  call invoke( inc_a_times_X(dt_f3, dv_in_w3) )
 
   nullify( height_w3 )
 
 end if
+
+! Include the Coriolis terms for the single-column model
+if ( .not. use_wavedynamics ) then
+  call derived_fields%get_field('u_in_w3', u_in_w3)
+  call derived_fields%get_field('v_in_w3', v_in_w3)
+  call invoke( inc_X_minus_Y( du_in_w3, v_in_w3 ), &
+               inc_X_minus_Y( dv_in_w3, u_in_w3 ) )
+end if
+
+call invoke( inc_a_times_X( minus_dt_f3, du_in_w3 ), &
+             inc_a_times_X( dt_f3, dv_in_w3 ) )
 
 call set_wind( du, du_in_w3, dv_in_w3, dw_in_wth )
 

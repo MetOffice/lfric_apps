@@ -35,9 +35,10 @@ contains
   subroutine setUp( this )
 
     use sci_chi_transform_mod,     only : init_chi_transforms
-    use feign_config_mod,          only : feign_finite_element_config, &
+    use feign_config_mod,          only : feign_finite_element_config,   &
                                           feign_mixing_config
-    use mixing_config_mod,         only : method_3d_smag
+    use mixing_config_mod,         only : method_3d_smag, smag_l_calc,   &
+                                          smag_l_calc_UseDx
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz
 
@@ -45,12 +46,13 @@ contains
 
     class(tracer_smagorinsky_diff_test_type), intent(inout) :: this
 
-    call feign_mixing_config( viscosity     = .false.,       &
-                              viscosity_mu  = 0.0_r_def,     &
-                              smagorinsky   = .false.,       &
-                              mix_factor    = 0.2_r_def,     &
-                              method        = method_3d_smag,&
-                              leonard_term  = .false.,       &
+    call feign_mixing_config( viscosity     = .false.,           &
+                              viscosity_mu  = 0.0_r_def,         &
+                              smagorinsky   = .false.,           &
+                              mix_factor    = 0.2_r_def,         &
+                              method        = method_3d_smag,    &
+                              smag_l_calc   = smag_l_calc_UseDx, &
+                              leonard_term  = .false.,           &
                               leonard_kl    = 1.0_r_def )
 
     call feign_finite_element_config(      &

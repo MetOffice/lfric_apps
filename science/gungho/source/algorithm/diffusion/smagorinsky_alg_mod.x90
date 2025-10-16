@@ -16,7 +16,8 @@ module smagorinsky_alg_mod
                                        moisture_formulation_dry
   use section_choice_config_mod, only: boundary_layer,     &
                                        boundary_layer_um
-  use mixing_config_mod,         only: mix_factor
+  use mixing_config_mod,         only: mix_factor, smag_l_calc, &
+                                       smag_l_calc_use_geo
 
   use tracer_smagorinsky_diff_kernel_mod, only: tracer_smagorinsky_diff_kernel_type
   use momentum_smagorinsky_kernel_mod,    only: momentum_smagorinsky_kernel_type
@@ -31,7 +32,8 @@ module smagorinsky_alg_mod
                                  only: moisture_conservation_alg
   use sci_geometric_constants_mod,     &
                                  only: get_height_fv, get_panel_id, &
-                                       get_delta_at_wtheta, get_dx_at_w2
+                                       get_delta_at_wtheta, get_dx_at_w2, &
+                                       get_dz_at_wtheta
   use fs_continuity_mod,         only: W1, W2
 
   implicit none
@@ -77,6 +79,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     type( field_type ), pointer :: height_w2 => null()
     type( field_type ), pointer :: height_w1 => null()
     type( field_type ), pointer :: delta => null()
+    type( field_type ), pointer :: dz_wth => null()
     type( field_type ), pointer :: dx_at_w2 => null()
     type( field_type ), pointer :: panel_id => null()
     type( field_type ) :: dmr_v, dmr_cl
@@ -87,6 +90,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     integer(kind=i_def), parameter :: smag_stencil_depth = 1
 
     logical :: use_moisture
+    real( r_def ) :: one_third
 
     if ( subroutine_timers ) call timer("smagorinsky_alg")
 
@@ -156,8 +160,19 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
       call log_event( 'Using pure Smagorinsky coefficient', LOG_LEVEL_INFO )
       ! Calculate visc_h and visc_m as (mix_factor * delta)**2 * shear
       call derived_fields%get_field('shear', shear)
+      ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
+      ! in lfric core as the mininum of the cell horizontal edge lengths
       delta => get_delta_at_wtheta(mesh%get_id())
 
+      if (smag_l_calc == smag_l_calc_use_geo) then
+        ! Use geometric mean mixing length
+        dz_wth => get_dz_at_wtheta(mesh%get_id())
+
+        one_third = 1.0_r_def / 3.0_r_def
+        call invoke( inc_X_powint_n( delta, 2 ),                              &
+                     inc_X_times_Y( delta, dz_wth ),                          &
+                     inc_X_powreal_a( delta, one_third ) )
+      end if
       ! Potential temperature:
       call invoke( a_times_X( visc_h, mix_factor, delta ),                    &
                    inc_X_powint_n( visc_h, 2 ),                               &

@@ -82,6 +82,7 @@
         "lfric_atm_aquaplanet-C12_azspice_gnu_fast-debug-64bit",
         "lfric_atm_thai_ben1-C48_MG_azspice_gnu_fast-debug-64bit",
         "lfric_atm_ral3-seuk_ls_and_jedi_azspice_gnu_fast-debug-64bit",
+        "lfric_atm_cbl_lem-BiP64x64-100x100_MG_azspice_gnu_fast-debug-64bit",
     ],
     "lfric_atm_azspice_io": [
  	    "lfric_atm_io-C12_azspice_gnu_fast-debug-64bit",

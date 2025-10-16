@@ -321,6 +321,8 @@ contains
 
     height_wth       => get_height_fv( Wtheta, mesh%get_id() )
     height_w3        => get_height_fv( W3, mesh%get_id() )
+    ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
+    ! in lfric core as the mininum of the cell horizontal edge lengths
     delta            => get_delta_at_wtheta( mesh%get_id() )
     max_diff_smag    => get_max_diff( mesh%get_id(), model_clock )
     dA               => get_da_at_w2( mesh%get_id() )
