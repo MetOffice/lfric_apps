@@ -152,7 +152,7 @@ def generate_extract_lists(set_of_copied_files, set_of_compiled_files):
 
     print(
         "\n\nGenerating and printing extract lists which can be copied into "
-        "lfric_atm/fcm-make/extract.cfg."
+        "lfric_atm/fcm-make/extract.yaml."
     )
 
     print(
