@@ -26,7 +26,7 @@ def get_precision(build_string):
     # Find a default with format 'NNbit'
     # Use 64 if not set
     try:
-        default = int(re.search("(\d+)bit", build_string).group(1))
+        default = int(re.search(r"(\d+)bit", build_string).group(1))
     except AttributeError:
         default = 64
 
@@ -46,7 +46,7 @@ def get_precision(build_string):
         precision_name = precision_type[0]
         try:
             num = int(
-                re.search(f"{precision_name}(\d+)", build_string).group(1)
+                re.search(rf"{precision_name}(\d+)", build_string).group(1)
             )
         except AttributeError:
             num = precision_type[1]
