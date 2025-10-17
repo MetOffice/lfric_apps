@@ -56,7 +56,7 @@ module process_send_fields_2d_mod
 
   public process_send_fields_2d, cpl_reset_field,    &
          save_sea_ice_frac_previous, ice_sheet_mass, &
-         set_r_sea_ice_frac_raw
+         save_marine_fractions
   contains
 
   !> @brief assignes data to coupling fields
@@ -75,6 +75,7 @@ module process_send_fields_2d_mod
     ! Local variables
     type( field_collection_type ), pointer       :: depository
     type( field_type ), pointer                  :: r_sea_ice_frac_raw
+    type( field_type ), pointer                  :: r_ocean_fraction
     type( field_type ), pointer                  :: dep_fld
     type( field_type ), pointer                  :: fld_ptr1
     type( field_type ), pointer                  :: fld_ptr2
@@ -94,8 +95,9 @@ module process_send_fields_2d_mod
     depository => modeldb%fields%get_field_collection("depository")
     call depository%get_field(trim(fld_name), dep_fld)
 
-    ! Get sea ice frac from the previous step from the depository
+    ! Get sea ice and ocean fractions from the previous step from the depository
     call depository%get_field("r_sea_ice_frac_raw", r_sea_ice_frac_raw)
+    call depository%get_field("r_ocean_fraction", r_ocean_fraction)
 
     ! Calculate the reciprocal of acc_step
     ! If this is the first step after a restart then the division by 
@@ -118,12 +120,15 @@ module process_send_fields_2d_mod
         call invoke(setval_X(fld, dep_fld), &
                     inc_a_times_X( r_acc_step, fld ) )
       case ("lf_solar")
+        ! Solar heat flux
         call invoke(setval_X(fld, dep_fld), &
-                    inc_a_times_X( r_acc_step, fld ) )
+                    inc_a_times_X( r_acc_step, fld ), &
+		    inc_X_times_Y(fld, r_ocean_fraction) )
       case ("lf_heatflux")
-        ! Concoct our heatflux value from various contributing fields.
+        ! Non-solar heat flux
         call invoke(setval_X(fld, dep_fld), &
-                    inc_a_times_X( r_acc_step, fld ) )
+                    inc_a_times_X( r_acc_step, fld ), &
+		    inc_X_times_Y(fld, r_ocean_fraction) )
       case ("lf_train")
         !large scale rain
         call invoke(setval_X(fld, dep_fld), &
@@ -239,9 +244,10 @@ module process_send_fields_2d_mod
   !> @brief Saves the reciprocal of the sea-ice fraction
   !> @param[in] depository field collection - all fields
   !> @param[in] sea_ice_fraction_ptr Sea ice fraction
-  subroutine set_r_sea_ice_frac_raw(depository, sea_ice_fraction_ptr)
+  subroutine save_marine_fractions(depository, sea_ice_fraction_ptr)
 
     use sci_set_reciprocal_mod,   only: set_reciprocal_type
+    use set_r_ocean_fraction_mod, only: set_r_ocean_fraction_type
 
     implicit none
 
@@ -249,17 +255,22 @@ module process_send_fields_2d_mod
     type( field_collection_type ), intent(in)    :: depository
 
     type( field_type ), pointer        :: r_sea_ice_frac_raw
+    type( field_type ), pointer        :: r_ocean_fraction
     type(function_space_type), pointer :: multidata_fs
     integer(kind=i_def)                :: ndata
 
-    ! Get r_sea_ice_frac_raw from the depository
+    ! Get r_sea_ice_frac_raw and r_ocean_fraction from the depository
     call depository%get_field("r_sea_ice_frac_raw", r_sea_ice_frac_raw)
+    call depository%get_field("r_ocean_fraction", r_ocean_fraction)
 
     multidata_fs => sea_ice_fraction_ptr%get_function_space()
     ndata = multidata_fs%get_ndata()
     call invoke(set_reciprocal_type(r_sea_ice_frac_raw, sea_ice_fraction_ptr, ndata))
 
-  end subroutine set_r_sea_ice_frac_raw
+    ! Calculate the ocean fraction (for scaling ocean fluxes)
+    call invoke(set_r_ocean_fraction_type(r_ocean_fraction, sea_ice_fraction_ptr, ndata)) 
+
+  end subroutine save_marine_fractions
 
   !> @brief Calculate the volume of snow on ice tile in region defined by mask
   !> @param[in] mask_field - the coupling field (contains the region mask)

@@ -175,14 +175,20 @@ module coupler_mod
     ! Sea ice fractions used in the previous timestep (not updated by coupling)
     ! (stored as a fraction of the marine portion of the grid box)
     call add_cpl_field(depository, prognostic_fields, &
-         'sea_ice_frac_previous',   sice_space, checkpoint_restart_flag)
+         'sea_ice_frac_previous', sice_space, checkpoint_restart_flag)
     call add_cpl_field(depository, prognostic_fields, &
-         'sea_frac_previous',   vector_space, checkpoint_restart_flag)
+         'sea_frac_previous', vector_space, checkpoint_restart_flag)
     ! Raw sea-ice fractions that are unaltered by post processing.
     ! These are used in scaling data when going from atmosphere to ocean.
     ! r_sea_ice_frac_raw is its reciprocal.
     call add_cpl_field(depository, prognostic_fields, &
-         'r_sea_ice_frac_raw',   sice_space, checkpoint_restart_flag)
+         'r_sea_ice_frac_raw', sice_space, checkpoint_restart_flag)
+
+    ! Raw ocean fractions that are unaltered by post processing.
+    ! These are used in scaling data when going from atmosphere to ocean.
+    ! r_ocean_fraction is its reciprocal.
+    call add_cpl_field(depository, prognostic_fields, &
+         'r_ocean_fraction', vector_space, checkpoint_restart_flag)
 
     ! The following fields contain accumulations, but will be written to
     ! the restart file as means (ready for coupling). Create a variable to
@@ -198,51 +204,51 @@ module coupler_mod
     ! generate the fields passed to the ocean or river model
     checkpoint_restart_flag = .true.
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_taux',   vector_space, checkpoint_restart_flag)
+         'lf_taux', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_tauy',   vector_space, checkpoint_restart_flag)
+         'lf_tauy', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_w10',   vector_space, checkpoint_restart_flag)
+         'lf_w10', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_solar',   vector_space, checkpoint_restart_flag)
+         'lf_solar', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_heatflux',   vector_space, checkpoint_restart_flag)
+         'lf_heatflux', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_train',   vector_space, checkpoint_restart_flag)
+         'lf_train', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_tsnow',   vector_space, checkpoint_restart_flag)
+         'lf_tsnow', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_rsurf',   vector_space, checkpoint_restart_flag)
+         'lf_rsurf', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_rsub',   vector_space, checkpoint_restart_flag)
+         'lf_rsub', vector_space, checkpoint_restart_flag)
 
     ! The following fields are taken care of elsewhere (theoretically)
     ! but we might need duplicates for coupling restarts.
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_evap',   vector_space, checkpoint_restart_flag)
+         'lf_evap', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_topmelt',   sice_space, checkpoint_restart_flag)
+         'lf_topmelt', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_iceheatflux',sice_space, checkpoint_restart_flag)
+         'lf_iceheatflux', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_sublimation',sice_space, checkpoint_restart_flag)
+         'lf_sublimation', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_iceskint',sice_space, checkpoint_restart_flag)
+         'lf_iceskint', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_pensolar',sice_space, checkpoint_restart_flag)
+         'lf_pensolar', sice_space, checkpoint_restart_flag)
 
     ! The following fields don't need to be in checkpoint files as they are
     ! calculated instantaneously from snow depth just before coupling
@@ -264,25 +270,25 @@ module coupler_mod
          'lf_ocn_sst', vector_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_icefrc',   sice_space, checkpoint_restart_flag)
+         'lf_icefrc', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_icetck',   sice_space, checkpoint_restart_flag)
+         'lf_icetck', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_icelayert',sice_space, checkpoint_restart_flag)
+         'lf_icelayert', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_conductivity',sice_space, checkpoint_restart_flag)
+         'lf_conductivity', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_snow_depth',sice_space, checkpoint_restart_flag)
+         'lf_snow_depth', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_pond_frac',sice_space, checkpoint_restart_flag)
+         'lf_pond_frac', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
-         'lf_pond_depth',sice_space, checkpoint_restart_flag)
+         'lf_pond_depth', sice_space, checkpoint_restart_flag)
 
     call add_cpl_field(depository, prognostic_fields, &
          'lf_sunocean', vector_space, checkpoint_restart_flag)

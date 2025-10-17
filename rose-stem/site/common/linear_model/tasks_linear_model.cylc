@@ -5,37 +5,50 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/common/linear_model/tasks_linear_model.cylc") %}
 
-{% if task_ns.conf_name == "nwp_gal9-C12" %}
+{% if task_ns.conf_name == "nwp_gal9-C12_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["nwp_gal9"],
-        "resolution": "C12",
+        "opt_confs": ["nwp_gal9_c12"],
+        "resolution": "C12_MG",
         "DT": 1800,
         "tsteps": 12,
         "mpi_parts": 6,
-        "plot_str": "linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 70 linear_model-nwp-gal9 theta:exner:rho:u_in_w2h:v_in_w2h:w_in_wth:m_v:m_cl:m_r:m_s 120:0:5",
+        "plot_str": "linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 70 linear_model-nwp-gal9_C12 theta:exner:rho:u_in_w2h:v_in_w2h:w_in_wth:m_v:m_cl:m_r:m_s 120:0:5",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_random-C12" %}
+{% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["nwp_gal9_random"],
-        "resolution": "C12",
+        "opt_confs": ["nwp_gal9_c224"],
+        "resolution": "C224_MG",
+        "DT": 1800,
+        "tsteps": 12,
+        "mpi_parts": 1176,
+        "xios_nodes": 4,
+        "mpi_parts_xios" : 16,
+        "log_level": "debug",
+        "plot_str": "linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 70 linear_model-nwp-gal9_C224 theta:exner:rho:u_in_w2h 120:0:5",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_random-C12_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nwp_gal9_c12","random"],
+        "resolution": "C12_MG",
         "DT": 1800,
         "tsteps": 12,
         "mpi_parts": 6,
         "plot_str": "linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 70 linear_model-nwp-gal9_random theta:exner:rho:u_in_w2h:v_in_w2h:w_in_wth:m_v:m_cl:m_r:m_s 120:0:5",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_zero-C12" %}
+{% elif task_ns.conf_name == "nwp_gal9_zero-C12_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["nwp_gal9_zero"],
-        "resolution": "C12",
+        "opt_confs": ["nwp_gal9_c12","zero"],
+        "resolution": "C12_MG",
         "DT": 1800,
         "tsteps": 12,
         "mpi_parts": 6,
-        "plot_str": "linear.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR 70 linear_model-nwp-gal9_random theta:exner:rho:u_in_w2h:v_in_w2h:w_in_wth:m_v:m_cl:m_r:m_s 120:0:5",
     }) %}
 
 {% elif task_ns.conf_name == "runge-kutta-C12" %}

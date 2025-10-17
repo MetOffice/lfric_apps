@@ -93,46 +93,67 @@ def make_figures(filein, plotpath, fields, lid, figname, idx_list):
 
             # Set some levels for contours:
             levels = None
-            if figname == 'linear-semi-implicit':
+            if figname == 'linear_model-semi-implicit':
                 if field == 'rho':
                     levels = np.linspace(-0.001, 0.0001, 11)
-            if figname == 'linear-runge-kutta':
+            if figname == 'linear_model-runge-kutta':
                 if field == 'rho':
                     levels = np.linspace(-0.002, 0.0001, 11)
-            if figname == 'linear-dcmip':
+            if figname == 'linear_model-dcmip':
                 if field == 'theta':
                     levels = np.linspace(-0.12, 0.12, 13)
                 if field == 'u_in_w2h':
                     levels = np.linspace(-0.4, 0.4, 11)
                 if field == 'v_in_w2h':
-                    levels = np.linspace(-0.4, 0.4, 11)
+                    levels = np.linspace(-0.2, 0.2, 11)
                 if field == 'w_in_wth':
                     levels = np.linspace(-0.2, 0.2, 11)
                 if field == 'exner':
-                    levels = np.linspace(-0.0001, 0.0001, 11)
+                    levels = np.linspace(-0.00003, 0.00003, 11)
                 if field == 'rho':
-                    levels = np.linspace(-0.0007, 0.0001, 11)
-            if figname == 'linear-nwp-gal9':
+                    levels = np.linspace(-0.0007, 0.0002, 11)
+            if figname == 'linear_model-nwp-gal9_C12':
                 if field == 'theta':
-                    levels = np.linspace(-8.0, 8.0, 13)
+                    levels = np.linspace(-5.0, 5.0, 10)
                 if field == 'u_in_w2h':
-                    levels = np.linspace(-3.0, 3.0, 11)
+                    levels = np.linspace(-6.0, 6.0, 10)
                 if field == 'v_in_w2h':
-                    levels = np.linspace(-3.0, 3.0, 11)
+                    levels = np.linspace(-6.0, 6.0, 10)
                 if field == 'w_in_wth':
-                    levels = np.linspace(-0.1, 0.1, 11)
+                    levels = np.linspace(-0.05, 0.05, 10)
                 if field == 'exner':
-                    levels = np.linspace(-0.002, 0.002, 11)
+                    levels = np.linspace(-0.003, 0.003, 10)
                 if field == 'rho':
-                    levels = np.linspace(-0.008, 0.008, 11)
+                    levels = np.linspace(-0.005, 0.005, 10)
                 if field == 'm_v':
-                    levels = np.linspace(-0.0015, 0.0015, 11)
+                    levels = np.linspace(-0.0005, 0.0005, 10)
                 if field == 'm_r':
-                    levels = np.linspace(-0.0004, 0.0004, 11)
+                    levels = np.linspace(-0.0001, 0.0001, 10)
                 if field == 'm_cl':
-                    levels = np.linspace(-0.0006, 0.0006, 11)
+                    levels = np.linspace(-0.0001, 0.0001, 10)
                 if field == 'm_s':
-                    levels = np.linspace(-0.0003, 0.0003, 11)
+                    levels = np.linspace(-0.0001, 0.0001, 10)
+            if figname == 'linear_model-nwp-gal9_C224':
+                if field == 'theta':
+                    levels = np.linspace(-6.0, 6.0, 6)
+                if field == 'u_in_w2h':
+                    levels = np.linspace(-12.0, 12.0, 6)
+                if field == 'v_in_w2h':
+                    levels = np.linspace(-12.0, 12.0, 6)
+                if field == 'w_in_wth':
+                    levels = np.linspace(-0.1, 0.1, 6)
+                if field == 'exner':
+                    levels = np.linspace(-0.003, 0.003, 10)
+                if field == 'rho':
+                    levels = np.linspace(-0.05, 0.05, 6)
+                if field == 'm_v':
+                    levels = np.linspace(-0.0005, 0.0005, 6)
+                if field == 'm_r':
+                    levels = np.linspace(-0.0001, 0.0001, 6)
+                if field == 'm_cl':
+                    levels = np.linspace(-0.0001, 0.0001, 6)
+                if field == 'm_s':
+                    levels = np.linspace(-0.0001, 0.0001, 6)
 
             # Vertical levels will be last entry in dimension coords
             levels_name = cube.dim_coords[-1].name()

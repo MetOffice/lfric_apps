@@ -8,9 +8,9 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "linear_model_azspice_developer": [
-        "linear_model_nwp_gal9-C12_azspice_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_random-C12_azspice_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_zero-C12_azspice_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9-C12_MG_azspice_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9_random-C12_MG_azspice_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9_zero-C12_MG_azspice_gnu_fast-debug-64bit",
         "linear_model_runge-kutta-C12_azspice_gnu_fast-debug-64bit",
         "linear_model_semi-implicit-C12_azspice_gnu_fast-debug-64bit",
         "linear_model_dcmip301-C24_azspice_gnu_fast-debug-64bit",
@@ -31,9 +31,10 @@
 {# EX1A Groups #}
 {% do site_groups.update({
     "linear_model_ex1a_developer": [
-        "linear_model_nwp_gal9-C12_ex1a_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_random-C12_ex1a_gnu_fast-debug-64bit",
-        "linear_model_nwp_gal9_zero-C12_ex1a_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9-C224_MG_ex1a_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9-C12_MG_ex1a_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9_random-C12_MG_ex1a_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9_zero-C12_MG_ex1a_gnu_fast-debug-64bit",
         "linear_model_runge-kutta-C12_ex1a_gnu_fast-debug-64bit",
         "linear_model_semi-implicit-C12_ex1a_gnu_fast-debug-64bit",
         "linear_model_dcmip301-C24_ex1a_gnu_fast-debug-64bit",

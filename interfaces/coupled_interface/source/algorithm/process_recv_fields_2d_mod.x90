@@ -8,7 +8,7 @@
 
 module process_recv_fields_2d_mod
   use constants_mod,                 only: i_def, r_def
-  use process_send_fields_2d_mod,    only: set_r_sea_ice_frac_raw
+  use process_send_fields_2d_mod,    only: save_marine_fractions
   use field_mod,                     only: field_type
   use field_collection_mod,          only: field_collection_type
   use integer_field_mod,             only: integer_field_type
@@ -118,11 +118,12 @@ module process_recv_fields_2d_mod
      call invoke(inc_X_divideby_Y(sea_current_w2_ptr, dA))
    end if
 
-   ! Save raw sea ice fractions before any post processing
-   ! for use in scaling data going from atmos to ocean
    if (l_couple_sea_ice) then
-     call set_r_sea_ice_frac_raw(depository, sea_ice_fraction_ptr)
+     ! Save sea ice and ocean fractions before any post processing
+     ! for use in scaling data going from atmos to ocean
+     call save_marine_fractions(depository, sea_ice_fraction_ptr)
    end if
+
 
    ! Process data that has just come through the coupler
    call invoke(process_o2a_kernel_type( sea_surf_temp_ptr,        &
