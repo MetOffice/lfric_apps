@@ -9,7 +9,7 @@
 Wrapper script for makefiles when doing a local build
 Will export a copy of lfric_core using a defined source and rsync it to a
 working dir so that incremental builds can occur.
-It then runs the makefile for the application being made.
+It then runs the makefile for the project being made.
 """
 
 import os
@@ -61,23 +61,23 @@ def determine_core_source(root_dir):
     return dependencies["lfric_core"]
 
 
-def determine_application_path(application, root_dir):
+def determine_project_path(project, root_dir):
     """
-    Determine the path to the makefile for the lfric_apps application being
+    Determine the path to the makefile for the lfric_apps project being
     built. Defaults to the makefile in the top level if none provided.
     Returns a relative path from this file to the makefile directory
     """
 
-    # Find the application in either science/ interfaces/ or applications/
+    # Find the project in either science/ interfaces/ or applications/
     for drc in ["science/", "interfaces/", "applications/"]:
         path = os.path.join(root_dir, drc)
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
-            if item_path and item == application:
+            if item_path and item == project:
                 return item_path
 
     sys.exit(
-        f"The application {application} could not be found in either the "
+        f"The project {project} could not be found in either the "
         "science/ or applications/ directories in this working copy."
     )
 
@@ -109,8 +109,8 @@ def get_lfric_core(core_source, working_dir):
 
 def build_makefile(
     root_dir,
-    application_path,
-    application,
+    project_path,
+    project,
     working_dir,
     ncores,
     target,
@@ -120,17 +120,17 @@ def build_makefile(
     verbose,
 ):
     """
-    Call the make command to build lfric_apps application
+    Call the make command to build lfric_apps project
     """
 
     if target == "clean":
         working_path = working_dir
     else:
-        working_path = os.path.join(working_dir, f"{target}_{application}")
+        working_path = os.path.join(working_dir, f"{target}_{project}")
 
-    print(f"Calling make command for makefile at {application_path}")
+    print(f"Calling make command for makefile at {project_path}")
     make_command = (
-        f"make {target} -C {application_path} -j {ncores} "
+        f"make {target} -C {project_path} -j {ncores} "
         f"WORKING_DIR={working_path} "
         f"CORE_ROOT_DIR={working_dir}/lfric_core "
         f"APPS_ROOT_DIR={root_dir} "
@@ -156,9 +156,9 @@ def main():
         description="Wrapper for build makefiles for lfric_apps."
     )
     parser.add_argument(
-        "application",
-        help="Application to build. Will search in both "
-        "science and applications dirs.",
+        "project",
+        help="project to build. Will search in both "
+        "science and projects dirs.",
     )
     parser.add_argument(
         "-c",
@@ -170,7 +170,7 @@ def main():
         "-w",
         "--working_dir",
         default=None,
-        help="Working directory where builds occur. Default to the application "
+        help="Working directory where builds occur. Default to the project "
         "directory in the working copy.",
     )
     parser.add_argument(
@@ -219,11 +219,11 @@ def main():
     root_dir = get_root_path()
 
     # Work out path for the makefile that we are building
-    application_path = determine_application_path(args.application, root_dir)
+    project_path = determine_project_path(args.project, root_dir)
 
-    # Set the working dir default of the application directory
+    # Set the working dir default of the project directory
     if not args.working_dir:
-        args.working_dir = os.path.join(application_path, "working")
+        args.working_dir = os.path.join(project_path, "working")
     else:
         # If the working dir doesn't end in working, set that here
         if not args.working_dir.strip("/").endswith("working"):
@@ -243,8 +243,8 @@ def main():
     # Build the makefile
     build_makefile(
         root_dir,
-        application_path,
-        args.application,
+        project_path,
+        args.project,
         args.working_dir,
         args.ncores,
         args.target,
