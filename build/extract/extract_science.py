@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import os
+import re
 import tempfile
 import yaml
 from shutil import rmtree
@@ -48,11 +49,17 @@ def clone_dependency(values, temp_dep):
     source = values["source"]
     ref = values["ref"]
 
-    clone_commands = (
-        f"git clone {source} {temp_dep}",
-        f"git -C {temp_dep} checkout {ref}",
-    )
-    for command in clone_commands:
+    # Check if it's a hash
+    if re.match(r"^\s*([0-9a-f]{40})\s*$", ref):
+        commands = (
+            f"git clone --depth 1 {source} {temp_dep}",
+            f"git -C {temp_dep} fetch --depth 1 origin {ref}",
+            f"git -C {temp_dep} checkout {ref}"
+        )
+        for command in commands:
+            run_command(command)
+    else: # This is a branch/tag
+        command = f"git clone --branch {ref} --depth 1 {source} {temp_dep}"
         run_command(command)
 
 

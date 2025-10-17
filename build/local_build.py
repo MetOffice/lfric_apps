@@ -13,6 +13,7 @@ It then runs the makefile for the project being made.
 """
 
 import os
+import re
 import sys
 import subprocess
 import argparse
@@ -82,6 +83,25 @@ def determine_project_path(project, root_dir):
     )
 
 
+def clone_dependency(source, ref, temp_dep):
+    """
+    Clone the physics dependencies into a temporary directory
+    """
+
+    # Check if it's a hash
+    if re.match(r"^\s*([0-9a-f]{40})\s*$", ref):
+        commands = (
+            f"git clone --depth 1 {source} {temp_dep}",
+            f"git -C {temp_dep} fetch --depth 1 origin {ref}",
+            f"git -C {temp_dep} checkout {ref}"
+        )
+        for command in commands:
+            subprocess_run(command)
+    else: # This is a branch/tag
+        command = f"git clone --branch {ref} --depth 1 {source} {temp_dep}"
+        subprocess_run(command)
+
+
 def get_lfric_core(core_source, working_dir):
     """
     Clone the lfric_core source if the source is a git url
@@ -93,11 +113,7 @@ def get_lfric_core(core_source, working_dir):
     if core_source["source"].endswith(".git"):
         print("Cloning LFRic Core from Github")
         lfric_core_loc = f"{working_dir}/scratch/core"
-        clone_command = f"git clone {core_source["source"]} {lfric_core_loc}"
-        subprocess_run(clone_command)
-        print(f"Checking out the lfric_core ref {core_source["ref"]}")
-        co_command = f"git -C {lfric_core_loc} checkout {core_source["ref"]}"
-        subprocess_run(co_command)
+        clone_dependency(core_source["source"], core_source["ref"], lfric_core_loc)
         print("rsyncing the exported lfric_core source")
     else:
         lfric_core_loc = core_source["source"]
