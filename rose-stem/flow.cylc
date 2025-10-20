@@ -13,7 +13,7 @@
 
 {% set SOURCE_DIRECTORY = ROSE_ORIG_HOST~":"~CYLC_WORKFLOW_SRC_DIR~"/.." %}
 {# Inlcude log message for suite_report #}
-{% do LOG.info("SOURCE CLONE="~SOURCE_DIRECTORY) %}
+{% do LOG.info("LFRIC_APPS SOURCE CLONE="~SOURCE_DIRECTORY) %}
 
 {# Read in groups to run #}
 {% if group is defined %}
