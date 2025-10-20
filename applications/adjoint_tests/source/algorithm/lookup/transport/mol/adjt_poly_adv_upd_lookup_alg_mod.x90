@@ -42,6 +42,8 @@ module adjt_poly_adv_upd_lookup_alg_mod
     use adj_lookup_table_generators_alg_mod, only : create_lookup_poly_adv_upd
     use invoke_adj_poly_adv_upd_lookup_mod,  only : invoke_adj_poly_adv_upd_lookup
 
+    implicit none
+
     ! Arguments
     type(mesh_type), pointer,               intent(in) :: mesh
 
@@ -66,15 +68,20 @@ module adjt_poly_adv_upd_lookup_alg_mod
 
     integer(i_def) :: nsets, nindices
 
-    ! Inner product variables
+    ! Copies of input fields used in inner products
     type(r_tran_field_type) :: advective_input
     type(r_tran_field_type) :: reconstruction_input
-    real(kind=r_def) :: advective_inner_prod
-    real(kind=r_def) :: reconstruction_inner_prod
-    real(kind=r_tran) :: inner1
-    real(kind=r_def) :: advective_advective_input_inner_prod
-    real(kind=r_def) :: reconstruction_reconstruction_input_inner_prod
-    real(kind=r_tran) :: inner2
+
+    ! Inner product variables
+    real(kind=r_def)             :: advective_inner_prod
+    real(kind=r_tran)            :: advective_sf
+    real(kind=r_def)             :: reconstruction_inner_prod
+    real(kind=r_tran)            :: reconstruction_sf
+    real(kind=r_tran)            :: inner1
+    real(kind=r_def)             :: advective_advective_input_inner_prod
+    real(kind=r_def)             :: reconstruction_reconstruction_input_inner_prod
+    real(kind=r_tran)            :: inner2
+    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
 
     ! Test variables
     real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
@@ -116,15 +123,23 @@ module adjt_poly_adv_upd_lookup_alg_mod
                  x_innerproduct_x( advective_inner_prod, advective), &
                  x_innerproduct_x( reconstruction_inner_prod, reconstruction) )
 
+    ! Determining scale factors
+    advective_sf = 1.0_r_tran/( real( advective_inner_prod, r_tran ) + eps )
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
+
     inner1 = 0.0_r_tran
-    inner1 = inner1 + real( advective_inner_prod, r_tran )
-    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )
+    inner1 = inner1 + real( advective_inner_prod, r_tran )*advective_sf
+    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )*reconstruction_sf
     write(log_scratch_space, *) "adjt_poly_adv_upd_lookup inner products:"
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write(log_scratch_space, *) "advective inner product = ", real( advective_inner_prod, r_tran )
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write(log_scratch_space, *) "reconstruction inner product = ", real( reconstruction_inner_prod, r_tran )
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( advective_sf, advective ), &
+                 inc_a_times_X( reconstruction_sf, reconstruction ) )
 
     advective_advective_input_inner_prod = 0.0_r_def
     reconstruction_reconstruction_input_inner_prod = 0.0_r_def

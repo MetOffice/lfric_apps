@@ -70,11 +70,14 @@ module adjt_poly1d_recon_lookup_alg_mod
 
     ! Inner product variables
     real(kind=r_def)                    :: reconstruction_inner_prod
+    real(kind=r_tran)                   :: reconstruction_sf
     real(kind=r_def)                    :: tracer_inner_prod
+    real(kind=r_tran)                   :: tracer_sf
     real(kind=r_tran)                   :: inner1
     real(kind=r_def)                    :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_def)                    :: tracer_tracer_input_inner_prod
     real(kind=r_tran)                   :: inner2
+    real(kind=r_tran),        parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_tran),        parameter :: overall_tolerance = 1500.0_r_tran
@@ -117,15 +120,23 @@ module adjt_poly1d_recon_lookup_alg_mod
                  x_innerproduct_x( reconstruction_inner_prod, reconstruction ), &
                  x_innerproduct_x( tracer_inner_prod, tracer ) )
 
+    ! Determining scale factors
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
+    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + eps )
+
     inner1 = 0.0_r_tran
-    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )
-    inner1 = inner1 + real( tracer_inner_prod, r_tran )
+    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )*reconstruction_sf
+    inner1 = inner1 + real( tracer_inner_prod, r_tran )*tracer_sf
     write(log_scratch_space, *) "adjt_poly1d_recon_lookup inner products:"
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write(log_scratch_space, *) "reconstruction inner product = ", real(reconstruction_inner_prod, r_tran)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write(log_scratch_space, *) "tracer inner product = ", real(tracer_inner_prod, r_tran)
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( reconstruction_sf, reconstruction ), &
+                 inc_a_times_X( tracer_sf, tracer ) )
 
     reconstruction_reconstruction_input_inner_prod = 0.0_r_def
     tracer_tracer_input_inner_prod = 0.0_r_def

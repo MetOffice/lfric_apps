@@ -46,7 +46,7 @@ module jules_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_exp_kernel_type
     private
-    type(arg_type) :: meta_args(108) = (/                                      &
+    type(arg_type) :: meta_args(109) = (/                                      &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! exner_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3, STENCIL(REGION)),      &! u_in_w3
@@ -140,6 +140,7 @@ module jules_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_10),&! dust_div_mrel
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_10),&! dust_div_flux
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! day_of_year
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! second_of_day
          arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ), &! flux_e
          arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ), &! flux_h
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbwrr
@@ -262,6 +263,7 @@ contains
   !> @param[in]     dust_div_mrel          Relative soil mass in CLASSIC size divisions
   !> @param[in,out] dust_div_flux          Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1)
   !> @param[in]     day_of_year            The day of the year
+  !> @param[in]     second_of_day          The second of the day
   !> @param[in]     flux_e                 Latent heat flux
   !> @param[in]     flux_h                 Sensible heat flux
   !> @param[in]     urbwrr                 Urban repeating width ratio
@@ -412,6 +414,7 @@ contains
                            dust_div_mrel,                         &
                            dust_div_flux,                         &
                            day_of_year,                           &
+                           second_of_day,                         &
                            flux_e,                                &
                            flux_h,                                &
                            urbwrr,                                &
@@ -543,7 +546,8 @@ contains
     implicit none
 
     ! Arguments
-    integer(kind=i_def), intent(in) :: nlayers, seg_len, seg_len_halo, day_of_year
+    integer(kind=i_def), intent(in) :: nlayers, seg_len, seg_len_halo
+    integer(kind=i_def), intent(in) :: day_of_year, second_of_day
     integer(kind=i_def), intent(in) :: ndf_wth, undf_wth
     integer(kind=i_def), intent(in) :: ndf_w3, undf_w3
     integer(kind=i_def), intent(in) :: ndf_2d, undf_2d
@@ -1432,6 +1436,7 @@ contains
       !Arguments used by JULES-standalone
       !Misc INTENT(IN) DONE
       bq_blend, bt_blend, photosynth_act_rad, day_of_year,                     &
+      second_of_day,                                                           &
       !INOUT Diagnostics, in sf_diags_mod
       sf_diag,                                                                 &
       !Fluxes INTENT(OUT) DONE

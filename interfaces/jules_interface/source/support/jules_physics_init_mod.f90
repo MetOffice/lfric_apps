@@ -94,6 +94,10 @@ module jules_physics_init_mod
                               fd_stability_dep_in => fd_stability_dep,         &
                               fd_stability_dep_none,                           &
                               fd_stability_dep_surf_ri,                        &
+                              anthrop_heat_option_in => anthrop_heat_option,   &
+                              anthrop_heat_option_dukes,                       &
+                              anthrop_heat_option_flanner,                     &
+                              anthrop_heat_mean_in => anthrop_heat_mean,       &
                               l_anthrop_heat_src_in => l_anthrop_heat_src,     &
                               l_urban2t_in => l_urban2t,                       &
                               l_vary_z0m_soil_in => l_vary_z0m_soil
@@ -217,7 +221,8 @@ contains
          Improve_Initial_Guess, formdrag, beta_cnv_bl, fd_hill_option,      &
          i_modiscopt, l_land_ice_imp, no_drag, effective_z0,                &
          capped_lowhill, explicit_stress, l_anthrop_heat_src, l_urban2t,    &
-         l_vary_z0m_soil, l_mo_buoyancy_calc
+         l_vary_z0m_soil, l_mo_buoyancy_calc, anthrop_heat_option, dukes,   &
+         flanner, anthrop_heat_mean
     use jules_rivers_mod, only: lake_water_conserve_method, use_elake_surft
     use jules_urban_mod, only: anthrop_heat_scale, l_moruses_albedo,        &
          l_moruses_emissivity, l_moruses_rough, l_moruses_storage,          &
@@ -467,6 +472,13 @@ contains
     ! ----------------------------------------------------------------
     ! JULES surface settings - contained in module jules_surface
     ! ----------------------------------------------------------------
+    anthrop_heat_mean  = anthrop_heat_mean_in
+    select case (anthrop_heat_option_in)
+      case(anthrop_heat_option_dukes)
+        anthrop_heat_option = dukes
+      case(anthrop_heat_option_flanner)
+        anthrop_heat_option = flanner
+    end select
     beta_cnv_bl     = 0.04_r_um
     select case (cor_mo_iter_in)
       case(cor_mo_iter_lim_oblen)

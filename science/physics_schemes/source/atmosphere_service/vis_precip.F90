@@ -117,7 +117,7 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 i_error=0
 if ((k1stpt+points-1) >  p_field) then
   i_error=1
-  go to 9999
+  return
 end if
 if (pct) then
   do i = k1stpt, k1stpt+points-1
@@ -157,8 +157,6 @@ do i = k1stpt, k1stpt+points-1
                    vis_no_precip(i))
 
 end do
-
-9999 continue
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 return

@@ -76,8 +76,11 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
     integer(kind=i_def)                :: nindices
 
     ! Inner products
-    real(kind=r_def) :: inner1
-    real(kind=r_def) :: inner2
+    real(kind=r_def)            :: vector_mx_vector_mx_inner_prod
+    real(kind=r_def)            :: vector_mx_sf
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: inner2
+    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_def)            :: machine_tolerance
@@ -127,12 +130,17 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
 
     ! <Mx,Mx>
 
-                 x_innerproduct_x( inner1, vector_mx ) )
+                 x_innerproduct_x( vector_mx_vector_mx_inner_prod, vector_mx ) )
 
-    ! Check scaling factors
-
-    write(log_scratch_space, *) "adjt_apply_helmholtz_op_lookup_alg inner product = ", inner1
+    write(log_scratch_space, *) "adjt_apply_helmholtz_op_lookup inner product = ", vector_mx_vector_mx_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    vector_mx_sf = 1.0_r_def / (vector_mx_vector_mx_inner_prod + eps)
+
+    inner1 = vector_mx_vector_mx_inner_prod * vector_mx_sf
+
+    ! Scaling field
+    call invoke( inc_a_times_X( vector_mx_sf, vector_mx ) )
 
     ! Adjoint (AMx)
 

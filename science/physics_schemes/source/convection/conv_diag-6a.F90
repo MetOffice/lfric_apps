@@ -417,7 +417,7 @@ error_code = 0
 
 if ( bl_levels <  1 .or. rows <  1 .or. tdims%k_end <  1 ) then
   error_code = 1
-  go to 9999
+  return
 
 end if
 !-----------------------------------------------------------------------
@@ -611,8 +611,6 @@ end if        ! test on l_extra_call
 !  is not called for stable points so null (zero values) are output from
 !  this routine for stable points.
 !-----------------------------------------------------------------------
-
-9999  continue  ! Branch for error exit.
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 return

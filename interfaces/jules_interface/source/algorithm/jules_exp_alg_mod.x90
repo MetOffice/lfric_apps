@@ -76,7 +76,8 @@ contains
                            rhostar, h_blend_orog, t1_sd_2d, q1_sd_2d)
 
     use psykal_lite_phys_mod, only: invoke_jules_exp_kernel_type
-    use xios, only: xios_date, xios_get_current_date, xios_date_get_day_of_year
+    use xios, only: xios_date, xios_get_current_date,                        &
+                    xios_date_get_day_of_year, xios_date_get_second_of_day
 
     implicit none
 
@@ -226,7 +227,7 @@ contains
     integer(i_def) :: stencil_depth, ncells, ncells_halo
 
     type(xios_date)      :: datetime
-    integer(i_def), save :: day_of_year
+    integer(i_def), save :: day_of_year, second_of_day
 
     if ( subroutine_timers ) call timer('jules_exp_alg')
 
@@ -391,6 +392,7 @@ contains
     ! Get date and time
     call xios_get_current_date(datetime)
     day_of_year = int(xios_date_get_day_of_year(datetime), i_def) + 1_i_def
+    second_of_day = int(xios_date_get_second_of_day(datetime), i_def)
 
     ! Calculate total ice field
     call mr_n(imr_s)%copy_field_properties(mr_ice)
@@ -441,7 +443,8 @@ contains
                                tile_water_extract, blend_height_tq, z0m_eff,   &
                                ustar, soil_moist_avail, snow_unload_rate,      &
                                albedo_obs_scaling, soil_clay, soil_sand,       &
-                               dust_mrel, dust_flux, day_of_year,              &
+                               dust_mrel, dust_flux,                           &
+                               day_of_year, second_of_day,                     &
                                flux_e, flux_h, urbwrr,                         &
                                urbhwr, urbhgt, urbztm, urbdisp,                &
                                rhostar, recip_l_mo_sea,                        &

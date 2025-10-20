@@ -20,9 +20,13 @@ module adjt_poly2d_recon_lookup_alg_mod
                                                      log_scratch_space
     use transport_config_mod,                 only : fv_horizontal_order
     use transport_constants_mod,              only : get_hori_wt_mol_coeffs
+
   implicit none
+
   public :: adjt_poly2d_recon_lookup_alg
+
   contains
+
   !=============================================================================
   !> @brief   Adjoint test for adj_poly2d_recon_lookup_kernel.
   !> @details Passes if adjoint is transpose of tangent linear.
@@ -38,9 +42,11 @@ module adjt_poly2d_recon_lookup_alg_mod
     use integer_field_mod,                    only : integer_field_type
 
     implicit none
+
     ! Arguments
     type(mesh_type), pointer, intent(in) :: mesh
     integer(kind=i_def),      intent(in) :: fspace_enum
+
     ! Internal arguments for kernels
     type(r_tran_field_type)             :: reconstruction
     type(r_tran_field_type)             :: tracer
@@ -49,6 +55,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     type(r_tran_field_type),    pointer :: coeff
     integer(kind=i_def)                 :: ndata
     integer(kind=i_def)                 :: stencil_size
+
     ! Internal variables for initialising and saving input fields
     integer(kind=i_def)                 :: mesh_id
     type(function_space_type),  pointer :: vector_space_wt_md_ptr
@@ -56,6 +63,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     type(r_tran_field_type)             :: reconstruction_input
     type(r_tran_field_type)             :: tracer_input
 
+    ! Lookup table variables
     type(adj_lookup_table_type)         :: lookup
     type(integer_field_type),   pointer :: lookup_field
     type(integer_field_type),   pointer :: num_sets_field
@@ -64,11 +72,15 @@ module adjt_poly2d_recon_lookup_alg_mod
 
     ! Inner product variables
     real(kind=r_def)                    :: reconstruction_inner_prod
+    real(kind=r_tran)                   :: reconstruction_sf
     real(kind=r_def)                    :: tracer_inner_prod
+    real(kind=r_tran)                   :: tracer_sf
     real(kind=r_tran)                   :: inner1
     real(kind=r_def)                    :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_def)                    :: tracer_tracer_input_inner_prod
     real(kind=r_tran)                   :: inner2
+    real(kind=r_tran),        parameter :: eps = 1e-30_r_def
+
     ! Test parameters and variables
     real(kind=r_tran),        parameter :: overall_tolerance = 1500.0_r_tran
     real(kind=r_tran)                   :: machine_tol
@@ -100,6 +112,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     call tracer_input%initialise(vector_space=vector_space_wtheta_ptr, name='tracer_input', halo_depth=2)
     reconstruction_inner_prod = 0.0_r_def
     tracer_inner_prod = 0.0_r_def
+
     ! Initialise arguments and call the tangent-linear kernel.
     call invoke( setval_random(reconstruction), &
                  setval_x(reconstruction_input, reconstruction), &
@@ -111,15 +124,25 @@ module adjt_poly2d_recon_lookup_alg_mod
                                                     stencil_size ), &
                  x_innerproduct_x( reconstruction_inner_prod, reconstruction ), &
                  x_innerproduct_x( tracer_inner_prod, tracer ) )
+
+    ! Determining scale factors
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
+    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + eps )
+
     inner1 = 0.0_r_tran
-    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )
-    inner1 = inner1 + real( tracer_inner_prod, r_tran )
+    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )*reconstruction_sf
+    inner1 = inner1 + real( tracer_inner_prod, r_tran )*tracer_sf
     write(log_scratch_space, *) "adjt_poly2d_recon_lookup inner products:"
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write(log_scratch_space, *) "reconstruction inner product = ", real( reconstruction_inner_prod, r_tran )
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write(log_scratch_space, *) "tracer inner product = ", real( tracer_inner_prod, r_tran )
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( reconstruction_sf, reconstruction ), &
+                 inc_a_times_X( tracer_sf, tracer ) )
+
     reconstruction_reconstruction_input_inner_prod = 0.0_r_def
     tracer_tracer_input_inner_prod = 0.0_r_def
 

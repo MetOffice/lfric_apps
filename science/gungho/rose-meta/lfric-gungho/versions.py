@@ -273,3 +273,21 @@ class vn22_t995(MacroUpgrade):
         self.add_setting(config, ["namelist:mixing", "smag_l_calc"], "'UseDx'")
 
         return config, self.reports
+
+
+class vn22_t202(MacroUpgrade):
+    """Upgrade macro for ticket #202 by Katty Huang."""
+
+    BEFORE_TAG = "vn2.2_t995"
+    AFTER_TAG = "vn2.2_t202"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lfric
+        self.add_setting(
+            config, ["namelist:jules_surface", "anthrop_heat_mean"], "20.0"
+        )
+        self.add_setting(
+            config, ["namelist:jules_surface", "anthrop_heat_option"], "'dukes'"
+        )
+
+        return config, self.reports
