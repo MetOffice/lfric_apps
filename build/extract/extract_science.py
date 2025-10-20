@@ -1,7 +1,6 @@
 import argparse
 import subprocess
 import os
-import re
 import tempfile
 import yaml
 from shutil import rmtree
