@@ -23,7 +23,7 @@ casim:
 
 jules:
     source: git@github.com:MetOffice/jules.git
-    ref: 794de8db7f1733ad32f8d9ca9278042d676f6645
+    ref: 479e43d912712dbb4d6be66c5140da7bd612b63b
 
 lfric_apps:
     source:
