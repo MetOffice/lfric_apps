@@ -12,7 +12,7 @@ module um_ukca_init_mod
                                        glomap_mode_ukca,                       &
                                        glomap_mode_dust_and_clim,              &
                                        emissions, emissions_GC3, emissions_GC5,&
-                                       easyaerosol_cdnc
+                                       easyaerosol_cdnc, ukca_mode_seg_size
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
@@ -38,7 +38,7 @@ module um_ukca_init_mod
                       log_scratch_space,                                       &
                       LOG_LEVEL_ERROR, LOG_LEVEL_INFO
 
-  use constants_mod, only : i_def, r_um, i_um
+  use constants_mod, only : i_def, r_um, i_um, imdi
   use water_constants_mod, only: tfs, rho_water, rhosea, latent_heat_cw => lc
   use chemistry_constants_mod, only: avogadro, boltzmann, rho_so4
 
@@ -784,7 +784,7 @@ contains
     integer :: i_ukca_light_param=1            ! Internal Price-Rind scheme
     integer :: i_ukca_quasinewton_start=2, i_ukca_quasinewton_end=3
     integer :: i_ukca_scenario=ukca_strat_lbc_env
-
+    integer::  i_ukca_mode_seg_size=4          ! GLOMAP-mode segment size
     real(r_um) :: linox_scale_in    
     
     character(len=ukca_photol_varname_len) :: adjusted_fname  ! intermediate spc/ filename copy
@@ -871,6 +871,12 @@ contains
     else
       linox_scale_in = 1.0_r_um
     end if
+
+    ! Set default GLOMAP segment size if no factor supplied
+    if ( ukca_mode_seg_size /= imdi ) THEN
+      i_ukca_mode_seg_size = ukca_mode_seg_size 
+    end if
+
     call ukca_setup( ukca_errcode,                                             &
            ! Context information
            row_length=row_length,                                              &
@@ -946,6 +952,7 @@ contains
            i_mode_nucscav=i_mode_nucscav,                                      &
            mode_activation_dryr=37.5_r_um,                                     &
            mode_incld_so2_rfrac=0.25_r_um,                                     &
+           ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_mp_slinn_impc_scav=.true.,                                   &
            l_dust_mp_ageing=.false.,                                           &

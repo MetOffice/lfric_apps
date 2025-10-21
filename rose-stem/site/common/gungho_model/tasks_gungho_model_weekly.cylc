@@ -102,7 +102,7 @@
         "panel_decomp": "row",
         "wallclock": 15,
         "kgo_checks": [],
-        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR theta_e xz -1 linear bryan_fritsch",
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR theta_e_moist xz -1 linear bryan_fritsch",
     }) %}
 
 {% elif task_ns.conf_name == "earth-like-C48_MG" %}
@@ -128,7 +128,7 @@
         "DT": 2,
         "mpi_parts": 10,
         "threads": 6,
-        "tsteps": 250,
+        "tsteps": 200,
         "panel_decomp": "row",
         "wallclock": 15,
         "kgo_checks": [],

@@ -8,14 +8,26 @@ import os
 from typing import Sequence, Optional, Tuple, Set
 
 from psyclone.psyir.nodes import (
-    Loop, Assignment, Reference,
+    Loop,
+    Assignment,
+    Reference,
     OMPParallelDirective,
-    OMPDoDirective, OMPParallelDoDirective,
-    StructureReference, Member, Literal
+    OMPDoDirective,
+    OMPParallelDoDirective,
+    StructureReference,
+    Member,
+    Literal,
 )
-from psyclone.psyir.symbols import DataSymbol
+from psyclone.psyir.symbols import (
+    DataSymbol,
+    UnsupportedFortranType,
+    CHARACTER_TYPE,
+)
 from psyclone.transformations import (
-    OMPLoopTrans, TransformationError, OMPParallelTrans, OMPParallelLoopTrans
+    OMPLoopTrans,
+    TransformationError,
+    OMPParallelTrans,
+    OMPParallelLoopTrans,
 )
 
 # ------------------------------------------------------------------------------
@@ -109,11 +121,8 @@ def parallel_regions_for_clustered_loops(routine):
     for parent, idx, loop in items:
         if parent is not current_parent:
             # Flush previous parent's tail cluster (if any)
-            if (
-                len(cluster) > 1
-                and not any(
-                    lp.ancestor(OMPParallelDirective) for lp in cluster
-                )
+            if len(cluster) > 1 and not any(
+                lp.ancestor(OMPParallelDirective) for lp in cluster
             ):
                 positions = f"{cluster[0].position}-{cluster[-1].position}"
                 logging.info(
@@ -135,9 +144,8 @@ def parallel_regions_for_clustered_loops(routine):
             continue
 
         # Non-adjacent: flush current cluster, start a new one.
-        if (
-            len(cluster) > 1
-            and not any(lp.ancestor(OMPParallelDirective) for lp in cluster)
+        if len(cluster) > 1 and not any(
+            lp.ancestor(OMPParallelDirective) for lp in cluster
         ):
             positions = f"{cluster[0].position}-{cluster[-1].position}"
             logging.info(
@@ -153,9 +161,8 @@ def parallel_regions_for_clustered_loops(routine):
         prev_idx = idx
 
     # Final tail cluster.
-    if (
-        len(cluster) > 1
-        and not any(lp.ancestor(OMPParallelDirective) for lp in cluster)
+    if len(cluster) > 1 and not any(
+        lp.ancestor(OMPParallelDirective) for lp in cluster
     ):
         positions = f"{cluster[0].position}-{cluster[-1].position}"
         logging.info("Inserting region over loops at positions %s", positions)
@@ -285,9 +292,7 @@ def mark_explicit_privates(node, names):
         )
         return
 
-    if not hasattr(
-        node, "explicitly_private_symbols"
-    ):
+    if not hasattr(node, "explicitly_private_symbols"):
         logging.warning(
             "[warn] cannot set explicit privates:"
             " node has no 'explicitly_private_symbols'."
@@ -325,21 +330,31 @@ def get_compiler():
         s = val.strip().lower()
 
         # GNU / GCC
-        if ("gfortran" in s or "gcc" in s or "gnu" in s):
+        if "gfortran" in s or "gcc" in s or "gnu" in s:
             return "gnu"
 
         # Intel (classic/oneAPI)
-        if ("ifx" in s or "ifort" in s or "intel" in s
-                or "icx" in s or "icc" in s):
+        if (
+            "ifx" in s
+            or "ifort" in s
+            or "intel" in s
+            or "icx" in s
+            or "icc" in s
+        ):
             return "intel"
 
         # Cray CCE
-        if ("cce" in s or "crayftn" in s or "cray" in s):
+        if "cce" in s or "crayftn" in s or "cray" in s:
             return "cce"
 
         # NVIDIA HPC / PGI
-        if ("nvfortran" in s or "nvc" in s or "nvhpc" in s
-                or "pgfortran" in s or "pgi" in s):
+        if (
+            "nvfortran" in s
+            or "nvc" in s
+            or "nvhpc" in s
+            or "pgfortran" in s
+            or "pgi" in s
+        ):
             return "nvhpc"
     return None
 
@@ -430,9 +445,7 @@ def add_parallel_do_over_meta_segments(
                 "applying OMP DO (forced, dynamic).",
                 target.position,
             )
-            OMP_DO_LOOP_TRANS_DYNAMIC.apply(
-                target, options={"force": True}
-            )
+            OMP_DO_LOOP_TRANS_DYNAMIC.apply(target, options={"force": True})
         else:
             logging.info(
                 "Found target loop at %s:"
@@ -445,6 +458,67 @@ def add_parallel_do_over_meta_segments(
 
         logging.info("Member-count PARALLEL DO inserted (dynamic).")
     except TransformationError:
-        logging.warning(
-            "Failed to insert dynamic PARALLEL DO", exc_info=True
-        )
+        logging.warning("Failed to insert dynamic PARALLEL DO", exc_info=True)
+
+
+def first_priv_red_init(node_target, init_scalars, insert_at_start=False):
+    """
+    Add redundant initialisation before a Node, generally a Loop, where
+    a OMP clause has FIRSTPRIVATE added by PSyclone.
+    In PSyclone 3.1, many variables are made FIRSTPRIVATE; particularly
+    variables that have definitions before an OpenMP parallel region, or
+    that are in CodeBlocks. If these variables are uninitialised, then this
+    causes the build to fail with some compilers (notably CCE).
+    A fix for unnecessary FIRSTPRIVATE variables can be found in
+    https://github.com/stfc/PSyclone/issues/2851, which is merged into
+    PSyclone 3.2.
+    Technical debt relating to this function is captured in lfric_apps:#906.
+
+    Parameters
+    ----------
+    node_target : psyclone.psyir.nodes.Node
+        Target Node to reference from, adds redundant initialisation before.
+    init_scalars : List[str]
+        List of str variable indexes to reference against.
+    insert_at_start : bool, optional
+        Toggles whether to insert references at the parent node
+        (typically the start of the OpenMP region), or at the beginning of the
+        Routine. This may be useful if e.g. your loop is initialised inside
+        an if block so may or may not have an actual value at the start
+        of the OpenMP region.
+
+    Returns
+    ----------
+    None : Note the tree has been modified
+    """
+    # Ensure scalars that may be emitted as FIRSTPRIVATE have a value
+    parent = node_target.parent
+    # If True, add variables directly after the variable assignments
+    # rather than later on in the tree, in case we have values that are
+    # initialised inside conditionals later on
+    if insert_at_start:
+        insert_at = 0
+    # Otherwise, put assignments directly before the parallel region
+    else:
+        insert_at = parent.children.index(node_target)
+    for nm in init_scalars:  # e.g., ("jdir", "k")
+        # Try and find the variable in the
+        # continue rather than exit. This pattern should prevent stale
+        # values from being used, since if we hit KeyError the Assignment is
+        # not created.
+        try:
+            sym = node_target.scope.symbol_table.lookup(nm)
+            # ensure character variables are initialised with CHARACTER_TYPE
+            # rather than UnsupportedFortranType
+            if isinstance(sym.datatype, UnsupportedFortranType):
+                init = Assignment.create(
+                    Reference(sym), Literal("", CHARACTER_TYPE)
+                )
+            else:
+                init = Assignment.create(
+                    Reference(sym), Literal("0", sym.datatype)
+                )
+            parent.children.insert(insert_at, init)
+            insert_at += 1
+        except KeyError:
+            continue

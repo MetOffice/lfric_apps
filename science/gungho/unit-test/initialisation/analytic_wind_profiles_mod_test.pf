@@ -59,6 +59,7 @@ contains
                                    moisture_formulation_dry,                     &
                                    moisture_in_solver    = .true.,               &
                                    p2theta_vert          = .true.,               &
+                                   theta_moist_source    = .false.,              &
                                    use_physics           = .false.,              &
                                    shallow               = .false.,              &
                                    use_wavedynamics      = .true.,               &
@@ -69,6 +70,8 @@ contains
                                    init_exner_bt         = .true.,               &
                                    dlayer_on             = .false.,              &
                                    si_momentum_equation  = .true.,               &
+                                   horizontal_physics_predictor=.false.,         &
+                                   horizontal_transport_predictor=.false.,       &
                                    vector_invariant=.true.)
 
     call feign_initial_wind_config( profile=profile_none,                  &

@@ -16,8 +16,8 @@
 
 export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod \
                                 gw_ussp_mod \
-	                        ukca_aero_ctl \
-				ukca_abdulrazzak_ghan
+	                            ukca_aero_ctl \
+				                ukca_abdulrazzak_ghan
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 

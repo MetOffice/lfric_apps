@@ -356,6 +356,18 @@
         "kgo_checks": ["checksum"],
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_hori_pred-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","test_diags","physics_segmentation","hori_predictor"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 36,
+        "mpi_parts": 24,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "nwp_gal9_da-C12" %}
 
     {% do task_dict.update({

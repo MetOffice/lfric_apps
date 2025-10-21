@@ -25,7 +25,8 @@ module predictors_alg_mod
 
   ! Configurations
   use derived_config_mod,         only: bundle_size
-  use formulation_config_mod,     only: si_momentum_equation
+  use formulation_config_mod,     only: horizontal_transport_predictor, &
+                                        si_momentum_equation
   use transport_config_mod,       only: use_density_predictor, &
                                         cap_density_predictor
 
@@ -34,6 +35,8 @@ module predictors_alg_mod
                                   only: dg_matrix_vector_kernel_type
   use sci_mass_matrix_solver_alg_mod, &
                                   only: mass_matrix_solver_alg
+  use sci_hori_mass_matrix_solver_alg_mod, &
+                                  only: hori_mass_matrix_solver_alg
 
   implicit none
 
@@ -82,7 +85,11 @@ contains
 
     ! Predictor of the wind field (u-beta*dt*rhs)
     if ( .not. si_momentum_equation ) then
-      call mass_matrix_solver_alg(advected_state(igh_u), rhs_n)
+      if (horizontal_transport_predictor) then
+        call hori_mass_matrix_solver_alg(advected_state(igh_u), rhs_n, advected_state(igh_u))
+      else
+        call mass_matrix_solver_alg(advected_state(igh_u), rhs_n)
+      end if
     end if
 
     ! Density predictor

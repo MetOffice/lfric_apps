@@ -161,6 +161,8 @@ perturb_init=.false.
 test='cosine_hill',
 /
 &formulation
+horizontal_physics_predictor=.false.
+horizontal_transport_predictor=.false.
 use_multires_coupling=.false.
 /
 &departure_points

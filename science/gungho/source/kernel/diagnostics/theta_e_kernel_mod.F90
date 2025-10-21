@@ -15,9 +15,10 @@ module theta_e_kernel_mod
   use argument_mod,               only : arg_type, GH_SCALAR, &
                                          GH_FIELD, GH_REAL,   &
                                          GH_WRITE, GH_READ,   &
-                                         CELL_COLUMN
+                                         DOF
   use constants_mod,              only : r_def, i_def
   use driver_water_constants_mod, only : latent_heat_h2o_condensation
+  use planet_config_mod,          only : Rd
   use fs_continuity_mod,          only : Wtheta
   use kernel_mod,                 only : kernel_type
 
@@ -33,14 +34,20 @@ module theta_e_kernel_mod
   !>
   type, public, extends(kernel_type) :: theta_e_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                  &
-         arg_type(GH_FIELD,  GH_REAL, GH_WRITE, Wtheta), &
-         arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta), &
-         arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta), &
-         arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta), &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ)           &
-         /)
-    integer :: operates_on = CELL_COLUMN
+    type(arg_type) :: meta_args(11) = (/                                       &
+        arg_type(GH_FIELD,  GH_REAL, GH_WRITE, Wtheta),                        &
+        arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta),                        &
+        arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta),                        &
+        arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta),                        &
+        arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta),                        &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ)                                  &
+    /)
+    integer :: operates_on = DOF
   contains
     procedure, nopass :: theta_e_code
   end type
@@ -52,57 +59,53 @@ public :: theta_e_code
 
 contains
 
-!> @brief   Computes theta_e, the wet equivalent potential temperature.
-!! @param[in]     nlayers      Number of layers
-!! @param[in,out] theta_e      Output theta_e field (wet equiv. pot. temperature)
-!! @param[in]     theta        Input potential temperature field
-!! @param[in]     exner_at_wt  Exner pressure at Wtheta points
-!! @param[in]     mr_v         Mixing ratio of water vapour
-!! @param[in]     cp           Heat capacity of dry air at constant pressure
-!! @param[in]     ndf_wt       Number of degrees of freedom per cell for Wtheta
-!! @param[in]     undf_wt      Total number of degrees of freedom for Wtheta
-!! @param[in]     map_wt       Dofmap for the cell at the base of the column for Wtheta
-subroutine theta_e_code( nlayers,     &
-                         theta_e,     &
+!> @brief Computes theta_e, the wet equivalent potential temperature.
+!> @param[in,out] theta_e        Wet equivalent potential temperature field
+!> @param[in]     theta          Input potential temperature field
+!> @param[in]     exner_at_wt    Exner pressure at Wtheta points
+!> @param[in]     mr_v           Mixing ratio of water vapour
+!> @param[in]     mr_cl          Mixing ratio of cloud liquid
+!> @param[in]     cpd            Heat capacity of dry air at constant pressure
+!> @param[in]     cpv            Heat capacity of water vap at constant pressure
+!> @param[in]     cl             Heat capacity of liquid water
+!> @param[in]     Rd             Gas constant for dry air
+!> @param[in]     p_zero         Reference pressure
+!> @param[in]     recip_epsilon  Reciprocal of the ratio of the gas constants
+subroutine theta_e_code( theta_e,     &
                          theta,       &
                          exner_at_wt, &
                          mr_v,        &
-                         cp,          &
-                         ndf_wt,      &
-                         undf_wt,     &
-                         map_wt       )
+                         mr_cl,       &
+                         cpd,         &
+                         cpv,         &
+                         cl,          &
+                         Rd,          &
+                         p_zero,      &
+                         recip_epsilon )
 
   implicit none
 
   ! Arguments
-  integer(kind=i_def),                     intent(in)    :: nlayers
-  integer(kind=i_def),                     intent(in)    :: undf_wt, ndf_wt
-
-  integer(kind=i_def), dimension(ndf_wt),  intent(in)    :: map_wt
-
-  real(kind=r_def),    dimension(undf_wt), intent(inout) :: theta_e
-  real(kind=r_def),    dimension(undf_wt), intent(in)    :: theta
-  real(kind=r_def),    dimension(undf_wt), intent(in)    :: exner_at_wt
-  real(kind=r_def),    dimension(undf_wt), intent(in)    :: mr_v
-  real(kind=r_def),                        intent(in)    :: cp
+  real(kind=r_def), intent(inout) :: theta_e
+  real(kind=r_def), intent(in)    :: theta
+  real(kind=r_def), intent(in)    :: exner_at_wt
+  real(kind=r_def), intent(in)    :: mr_v, mr_cl
+  real(kind=r_def), intent(in)    :: cpd, cpv, cl, Rd, p_zero, recip_epsilon
 
   ! Internal variables
-  integer(kind=i_def) :: df, min_col_index, max_col_index
-  real(kind=r_def)    :: temperature
+  real(kind=r_def) :: temperature, pressure, dry_pressure, kappa, Lv
+  real(kind=r_def), parameter :: ref_temperature = 273.15_r_def
 
-  ! Find minimum and maximum DoF numberings for this column
-  min_col_index = minval(map_wt)
-  max_col_index = maxval(map_wt) + nlayers - 1
+  temperature = theta * exner_at_wt
+  pressure = p_zero * exner_at_wt**(cpd / Rd)
+  dry_pressure = pressure / (1.0_r_def + recip_epsilon * mr_v)
+  Lv = latent_heat_h2o_condensation - (cl - cpv)*(temperature - ref_temperature)
+  kappa = Rd / (cpd + cl * (mr_v + mr_cl))
 
-  ! Directly loop over all DoFs in the column
-  do df = min_col_index, max_col_index
-
-    temperature = theta(df) * exner_at_wt(df)
-
-    theta_e(df) = theta(df) * &
-          exp( latent_heat_h2o_condensation * mr_v(df) / (cp * temperature) )
-
-  end do
+  theta_e = (                                                                  &
+    temperature * (dry_pressure / p_zero) ** (-kappa)                          &
+    * EXP( (Lv * mr_v) / (temperature * (cpd + cl * (mr_v + mr_cl))) )         &
+  )
 
 end subroutine theta_e_code
 

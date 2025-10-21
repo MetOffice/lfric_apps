@@ -261,6 +261,7 @@ contains
                                   moisture_in_solver=.true.,                &
                                   p2theta_vert=.true.,                      &
                                   shallow=.true., use_physics=.false.,      &
+                                  theta_moist_source=.false.,               &
                                   use_wavedynamics=.true.,                  &
                                   use_multires_coupling=.false.,            &
                                   dry_static_adjust=.false.,                &
@@ -269,6 +270,8 @@ contains
                                   eos_method=eos_method_sampled,            &
                                   init_exner_bt        = .true.,            &
                                   si_momentum_equation=.true.,              &
+                                  horizontal_physics_predictor=.false.,     &
+                                  horizontal_transport_predictor=.false.,   &
                                   vector_invariant=.true.)
 
     call feign_initial_pressure_config( method=method_balanced,             &
@@ -332,6 +335,7 @@ contains
                                   moisture_formulation =                     &
                                   moisture_formulation_dry,                  &
                                   moisture_in_solver=.true.,                 &
+                                  theta_moist_source=.false.,                &
                                   p2theta_vert=.true.,                       &
                                   shallow=.true., use_physics=.false.,       &
                                   use_wavedynamics=.true.,                   &
@@ -342,6 +346,8 @@ contains
                                   eos_method=eos_method_sampled,             &
                                   init_exner_bt        = .false.,            &
                                   si_momentum_equation=.true.,               &
+                                  horizontal_physics_predictor=.false.,      &
+                                  horizontal_transport_predictor=.false.,    &
                                   vector_invariant=.true.)
 
 

@@ -109,6 +109,7 @@ def make_figures(filein, plotpath, field_list, slice_list,
     # Some specific field labels
     title_dict = {'theta': r'$\theta \ / $ K',
                   'theta_e': r'$\theta_e \ / $ K',
+                  'theta_e_moist': r'$\theta_e \ / $ K',
                   'theta_vd_pert': r"$\theta'_{vd} \ / $ K",
                   'rho': r'$\rho \ / $ kg m$^{-3}$',
                   'density': r'$\rho \ / $ kg m$^{-3}$',
@@ -189,8 +190,8 @@ def make_figures(filein, plotpath, field_list, slice_list,
 
         # This is a diagnostic field so we extract several fields
         # Remove this if we actually have theta_e as a diagnostic
-        if field == 'theta_e':
-            cube = get_theta_e_cube(filein, zmin, zmax)
+        if field in ['theta_e', 'theta_e_moist']:
+            cube = get_theta_e_cube(filein, zmin, zmax, field)
         elif field == 'theta_vd_pert':
             cube = get_theta_vd_pert_cube(filein)
         else:
@@ -490,7 +491,7 @@ def make_figures(filein, plotpath, field_list, slice_list,
                     contour_colours = np.arange(min_field, max_field+step,
                                                 step=step)
                     contour_lines = np.copy(contour_colours)
-                elif (testname == 'bryan_fritsch' and field == 'theta_e'):
+                elif (testname == 'bryan_fritsch' and field in ['theta_e', 'theta_e_moist']):
                     step = 0.5
                     min_field = 318.
                     max_field = 330.
@@ -652,16 +653,25 @@ def make_extrusion(extrusion, nz, zmin, zmax):
 # Function for extracting theta_e cube
 # --------------------------------------------------------------------------- #
 
+def get_theta_e_cube(filein, zmin, zmax, field_name):
+    """
+    Takes name of file and returns cube for theta_e variable. If the field name
+    is 'theta_e_moist', then the heat capacities of water species are accounted
+    for rather than zeroed.
+    """
 
-def get_theta_e_cube(filein, zmin, zmax):
-    """
-    Takes name of file and returns cube for theta_e variable.
-    """
-    Lv = 2.501e6
-    cp = 1005.0
+    p_zero = 100000.0  # Reference pressure in Pa
+    Rd = 287.05
+    Rv = 461.51
+    cpd = 1005.0
+    cpv = 1850.0 if field_name == 'theta_e_moist' else 0.0
+    cl = 4180.0 if field_name == 'theta_e_moist' else 0.0
+    Lv0 = 2.501e6
+    T_ref = 273.15
 
     cube_theta = read_ugrid_data(filein, 'theta')
     cube_mr_v = read_ugrid_data(filein, 'm_v')
+    cube_mr_cl = read_ugrid_data(filein, 'm_cl')
     cube_exner = read_ugrid_data(filein, 'exner')
     cube_exner_wtheta = cube_theta.copy()
     cube_shape = np.shape(cube_exner.data)
@@ -670,7 +680,6 @@ def get_theta_e_cube(filein, zmin, zmax):
     levels_name = cube_theta.dim_coords[-1].name()
     nz_full = len(cube_theta.coord(levels_name).points)
     levels_name = cube_exner.dim_coords[-1].name()
-    nz = len(cube_exner.coord(levels_name).points)
     z1d_full = make_extrusion(extrusion, nz_full, zmin, zmax)
     z1d_half = 0.5*(z1d_full[1:] + z1d_full[0:nz_full-1])
 
@@ -679,28 +688,50 @@ def get_theta_e_cube(filein, zmin, zmax):
         weight_denom = z1d_half[j] - z1d_half[j-1]
         weight_upper = z1d_full[j] - z1d_half[j-1]
         weight_lower = z1d_half[j] - z1d_full[j]
-        cube_exner_wtheta.data[:, j, :] = weight_upper / weight_denom *cube_exner.data[:, j, :] + weight_lower / weight_denom *cube_exner.data[:, j, :]
+        cube_exner_wtheta.data[:, j, :] = (
+            weight_upper / weight_denom *cube_exner.data[:, j, :]
+            + weight_lower / weight_denom *cube_exner.data[:, j, :]
+        )
 
     # Bottom
     weight_denom = z1d_half[1] - z1d_half[0]
     weight_upper = z1d_full[0] - z1d_half[0]
     weight_lower = z1d_half[1] - z1d_full[0]
-    cube_exner_wtheta.data[:, 0, :] = weight_upper / weight_denom *cube_exner.data[:, 1, :] + weight_lower / weight_denom *cube_exner.data[:, 0, :]
+    cube_exner_wtheta.data[:, 0, :] = (
+        weight_upper / weight_denom *cube_exner.data[:, 1, :]
+        + weight_lower / weight_denom *cube_exner.data[:, 0, :]
+    )
     # Top
     weight_denom = z1d_half[cube_shape[1]-1] - z1d_half[cube_shape[1]-2]
     weight_upper = z1d_full[cube_shape[1]] - z1d_half[cube_shape[1]-2]
     weight_lower = z1d_half[cube_shape[1]-1] - z1d_full[cube_shape[1]]
-    cube_exner_wtheta.data[:, cube_shape[1], :] = weight_upper / weight_denom *cube_exner.data[:, cube_shape[1]-1, :] + weight_lower / weight_denom *cube_exner.data[:, cube_shape[1]-2, :]
+    cube_exner_wtheta.data[:, cube_shape[1], :] = (
+        weight_upper / weight_denom * cube_exner.data[:, cube_shape[1]-1, :]
+        + weight_lower / weight_denom *cube_exner.data[:, cube_shape[1]-2, :]
+    )
+
+    # Can't take powers of cubes, so manipulate data directly
+    cube_exner_wtheta_pow = cube_exner_wtheta.copy()
+    cube_exner_wtheta_pow.data = cube_exner_wtheta.data ** (cpd / Rd)
 
     # Theta_e
     cube_T = cube_theta * cube_exner_wtheta
-    exp_arg = Lv * cube_mr_v / (cp * cube_T)
-    cube = cube_theta * np.exp(exp_arg.data)
+    cube_p = p_zero * cube_exner_wtheta_pow / (1.0 + Rv / Rd * cube_mr_v)
+    cube_Lv = cube_T.copy()
+    cube_Lv.data = Lv0 - (cl - cpv)*(cube_T.data - T_ref)
+    kappa = Rd / (cpd + cl * (cube_mr_v.data + cube_mr_cl.data))
+
+    # Can't take powers of cubes, so manipulate data directly
+    cube_p_pow = cube_p.copy()
+    cube_p_pow.data = (cube_p.data / p_zero) ** (-kappa)
+
+    exp_arg = cube_Lv * cube_mr_v / ((cpd + cl * (cube_mr_v + cube_mr_cl)) * cube_T)
+    cube = cube_T * cube_p_pow * np.exp(exp_arg.data)
 
     return cube
 
 # --------------------------------------------------------------------------- #
-# Function for extracting theta_e cube
+# Function for extracting theta_vd cube
 # --------------------------------------------------------------------------- #
 
 

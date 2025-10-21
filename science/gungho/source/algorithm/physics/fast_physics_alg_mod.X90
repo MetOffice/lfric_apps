@@ -14,6 +14,11 @@ module fast_physics_alg_mod
                                        stochastic_physics,                &
                                        stochastic_physics_um
 
+  use driver_water_constants_mod, &
+                                 only: heat_capacity_h2o_vapour, &
+                                       heat_capacity_h2o,        &
+                                       gas_constant_h2o
+
   use model_clock_mod,      only: model_clock_type
   use constants_mod,        only: i_def,r_def, l_def
   use log_mod,              only: LOG_LEVEL_INFO, LOG_LEVEL_ERROR, log_event, &
@@ -33,15 +38,18 @@ module fast_physics_alg_mod
                                   evap_condense_placement,                 &
                                   evap_condense_placement_fast
 
-  use formulation_config_mod,                              &
-                            only: moisture_formulation,    &
-                                  moisture_formulation_dry
+  use formulation_config_mod,                               &
+                            only: moisture_formulation,     &
+                                  moisture_formulation_dry, &
+                                  theta_moist_source
   use convection_config_mod,only: cv_scheme, cv_scheme_lambert_lewis, &
                                   cv_scheme_gregory_rowntree,         &
                                   cv_scheme_comorph
   use cloud_config_mod,     only: scheme, scheme_pc2, cloud_call_b4_conv
   use stochastic_physics_config_mod,                       &
                             only: blpert_type, blpert_type_off
+  use planet_config_mod,    only: p_zero, cp, Rd
+
   ! Derived Types
   use field_mod,            only: field_type
   use sci_field_bundle_builtins_mod, &
@@ -190,6 +198,7 @@ contains
 
     ! Flag to indicate that moisture mixing ratio fields are being used
     logical(kind=l_def) :: use_moisture
+    real( kind=r_def )  :: Rv, cpv, cl
 
     integer(i_def) :: i_mr
 
@@ -333,10 +342,22 @@ contains
       call derived_fields%get_field('exner_in_wth', exner_in_wth)
       call clone_bundle(mr, dmr_cld, nummr)
       call dtheta%copy_field_properties(dtheta_cld)
-      call invoke( evap_condense_kernel_type(dtheta_cld, theta,  &
-                                             dmr_cld,            &
-                                             mr,                 &
-                                             exner_in_wth) )
+      if (theta_moist_source) then
+        ! More accurate thermodynamic approximations
+        Rv = gas_constant_h2o
+        cpv = heat_capacity_h2o_vapour
+        cl = heat_capacity_h2o
+      else
+        ! Do not include moist contributions to thermodynamic variables
+        Rv = 0.0_r_def
+        cpv = 0.0_r_def
+        cl = 0.0_r_def
+      end if
+      call invoke( evap_condense_kernel_type(dtheta_cld, theta,                &
+                                             dmr_cld(imr_v), dmr_cld(imr_cl),  &
+                                             mr(imr_v), mr(imr_cl),            &
+                                             exner_in_wth,                     &
+                                             Rd, Rv, cp, cpv, cl, p_zero) )
       evap_condense_done = .true.
     end if
 

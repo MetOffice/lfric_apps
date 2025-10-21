@@ -103,10 +103,13 @@ contains
             moisture_formulation_dry,                                          &
             moisture_in_solver=.true.,                                         &
             p2theta_vert=.true.,                                               &
+            theta_moist_source=.false.,                                        &
             use_physics=.false.,                                               &
             use_wavedynamics=.false.,                                          &
             use_multires_coupling=.false.,                                     &
             si_momentum_equation=.true.,                                       &
+            horizontal_physics_predictor=.false.,                              &
+            horizontal_transport_predictor=.false.,                            &
             vector_invariant=.true.                                            &
     )
     call feign_planet_config(                                                  &

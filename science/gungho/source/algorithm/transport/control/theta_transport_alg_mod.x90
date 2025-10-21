@@ -7,30 +7,62 @@
 
 module theta_transport_alg_mod
 
-  use constants_mod,                  only: i_def, r_def
+  use constants_mod,                  only: i_def, r_def, l_def
+  use copy_field_alg_mod,             only: copy_field
+  use dg_inc_matrix_vector_kernel_mod, &
+                                      only: dg_inc_matrix_vector_kernel_type
+  use dry_to_moist_theta_kernel_mod,  only: dry_to_moist_theta_kernel_type
+  use sci_enforce_lower_bound_kernel_mod,                                      &
+                                      only: enforce_lower_bound_kernel_type
+  use extrusion_mod,                  only: SHIFTED
   use field_mod,                      only: field_type
-  use fs_continuity_mod,              only: Wtheta
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use flux_precomputations_alg_mod,   only: flux_precomputations_type
+  use formulation_config_mod,         only: theta_moist_source
+  use fs_continuity_mod,              only: Wtheta, W2
   use function_space_mod,             only: function_space_type
-  use sci_geometric_constants_mod,    only: get_height_fe, &
-                                            get_height_fv
+  use function_space_collection_mod,  only: function_space_collection
+  use fv_divergence_3d_kernel_mod,    only: fv_divergence_3d_kernel_type
+  use sci_geometric_constants_mod,    only: get_height_fv, get_height_fe
+  use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event, LOG_LEVEL_ERROR
-  use mr_indices_mod,                 only: nummr, imr_v
-  use planet_config_mod,              only: recip_epsilon
+  use map_w2_to_sh_w2_alg_mod,        only: map_w2_to_sh_w2_alg
+  use mesh_mod,                       only: mesh_type
+  use mesh_collection_mod,            only: mesh_collection
+  use moist_to_dry_theta_kernel_mod,  only: moist_to_dry_theta_kernel_type
+  use mr_indices_mod,                 only: nummr, imr_v, imr_cl, imr_r,       &
+                                            imr_ci, imr_s, imr_g
+  use operator_mod,                   only: operator_type
+  use physics_mappings_alg_mod,       only: map_physics_scalars
+  use planet_config_mod,              only: recip_epsilon, cp, Rd, p_zero
+  use r_tran_field_mod,               only: r_tran_field_type
   use sci_sort_column_above_kernel_mod, &
                                       only: sort_column_above_kernel_type
+  use split_transport_utils_mod,      only: use_shifted_mesh,                  &
+                                            get_num_split_steps,               &
+                                            get_dry_config
+  use theta_moist_source_kernel_mod,  only: theta_moist_source_kernel_type
+  use timer_mod,                      only: timer
+  use timestepping_config_mod,        only: time_method => method,             &
+                                            method_semi_implicit
   use transport_config_mod,           only: theta_variable,                    &
                                             theta_variable_dry,                &
                                             theta_variable_virtual_dry,        &
+                                            theta_variable_moist,              &
                                             adjust_theta,                      &
-                                            adjust_theta_above
+                                            adjust_theta_above,                &
+                                            splitting
+  use transport_constants_mod,        only: get_detj_at_w3_r_tran
   use transport_controller_mod,       only: transport_controller_type
+  use transport_counter_mod,          only: transport_counter_type
   use transport_enumerated_types_mod, only: equation_form_advective,           &
                                             equation_form_conservative,        &
                                             equation_form_consistent
   use transport_field_mod,            only: transport_field
   use transport_metadata_mod,         only: transport_metadata_type
-  use transport_rho_times_field_alg_mod,    &
+  use transport_rho_times_field_alg_mod,                                       &
                                       only: transport_rho_times_field_alg
+  use transport_enumerated_types_mod, only: direction_3d
 
   implicit none
 
@@ -76,14 +108,27 @@ contains
     type(transport_metadata_type),   intent(inout) :: transport_metadata
 
     ! Internal variables
-    real(kind=r_def)                   :: one
-    type(field_type),          pointer :: theta_in_ptr
-    type(field_type),          pointer :: theta_out_ptr
-    type(field_type),           target :: theta_vd_in, theta_vd_out
-    type(field_type)                   :: moist_factor_in, moist_factor_out
-    type(field_type),          pointer :: height_wt
-    type(function_space_type), pointer :: wt_fs
-    integer(kind=i_def)                :: equation_form
+    real(kind=r_def)                         :: one, dt
+    integer(kind=i_def)                      :: num_dry_steps
+    type(field_type),                pointer :: theta_in_ptr
+    type(field_type),                pointer :: theta_out_ptr
+    type(field_type),                 target :: theta_vd_in, theta_vd_out
+    type(field_type),                 target :: theta_m_in, theta_m_out
+    type(field_type)                         :: moist_factor_in, moist_factor_out
+    type(r_tran_field_type),         pointer :: rho_in_rtran, rho_out_rtran
+    type(field_type)                         :: rho_in_w3, rho_out_w3
+    type(field_type)                         :: rho_in_wt, rho_out_wt
+    type(field_type),                pointer :: height_wt
+    type(function_space_type),       pointer :: wt_fs, w3_fs, w2_sh_fs
+    integer(kind=i_def)                      :: equation_form
+    type(r_tran_field_type),         pointer :: wind
+    type(r_tran_field_type)                  :: wind_shifted
+    type(flux_precomputations_type), pointer :: flux_precomputations
+    type(mesh_type),                 pointer :: mesh, shifted_mesh
+    type(r_tran_field_type),         pointer :: detj_at_w3
+    type(transport_counter_type),    pointer :: counter
+    type(r_tran_field_type)                  :: div_u_rtran
+    type(field_type)                         :: div_u
 
     ! ------------------------------------------------------------------------ !
     ! Convert to the particular potential temperature to be transported
@@ -122,6 +167,47 @@ contains
         theta_out_ptr => theta_vd_out
 
         nullify( wt_fs )
+
+      case ( theta_variable_moist )
+        ! Moist potential temperature, with different kappa
+        mesh => theta_in_rdef%get_mesh()
+        wt_fs => theta_in_rdef%get_function_space()
+        flux_precomputations => transport_controller%get_flux_precomputations()
+        counter => transport_controller%get_transport_counter()
+        num_dry_steps = (                                                      &
+            get_num_split_steps(splitting(get_dry_config()))                   &
+            * counter%get_num_substeps()                                       &
+        )
+        ! Obtain densities in Wtheta
+        rho_in_rtran => flux_precomputations%get_ref_field(mesh%get_id(), 1)
+        rho_out_rtran => flux_precomputations%get_ref_field(                   &
+            mesh%get_id(), num_dry_steps + 1                                   &
+        )
+        w3_fs => rho_in_rtran%get_function_space()
+        call rho_in_w3%initialise( w3_fs )
+        call rho_out_w3%initialise( w3_fs )
+        call rho_in_wt%initialise( wt_fs )
+        call rho_out_wt%initialise( wt_fs )
+        call copy_field(rho_in_rtran, rho_in_w3)
+        call copy_field(rho_out_rtran, rho_out_w3)
+        call map_physics_scalars(rho_in_wt, rho_in_w3)
+        call map_physics_scalars(rho_out_wt, rho_out_w3)
+
+        call theta_m_in%initialise( wt_fs )
+        call theta_m_out%initialise( wt_fs )
+
+        call invoke( dry_to_moist_theta_kernel_type(theta_m_in,                &
+                                                    theta_in_rdef,             &
+                                                    rho_in_wt,                 &
+                                                    mr_in(imr_v),              &
+                                                    mr_in(imr_cl),             &
+                                                    mr_in(imr_r),              &
+                                                    mr_in(imr_ci),             &
+                                                    mr_in(imr_s),              &
+                                                    mr_in(imr_g),              &
+                                                    cp, Rd, p_zero) )
+        theta_in_ptr => theta_m_in
+        theta_out_ptr => theta_m_out
 
       case default
         call log_event('Theta variable not implemented', LOG_LEVEL_ERROR)
@@ -199,10 +285,67 @@ contains
         call invoke( X_divideby_Y(theta_out_rdef, theta_vd_out,                &
                                   moist_factor_out) )
 
+      case ( theta_variable_moist )
+        call invoke( moist_to_dry_theta_kernel_type(theta_out_rdef,            &
+                                                    theta_m_out,               &
+                                                    rho_out_wt,                &
+                                                    mr_out(imr_v),             &
+                                                    mr_out(imr_cl),            &
+                                                    mr_out(imr_r),             &
+                                                    mr_out(imr_ci),            &
+                                                    mr_out(imr_s),             &
+                                                    mr_out(imr_g),             &
+                                                    cp, Rd, p_zero) )
+
       case default
         call log_event('Theta variable not implemented', LOG_LEVEL_ERROR)
 
     end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Apply moisture source term if desired
+    ! ------------------------------------------------------------------------ !
+
+    if (use_shifted_mesh() .and. theta_moist_source                            &
+        .and. .not. theta_variable == theta_variable_moist ) then
+      mesh => theta_out_rdef%get_mesh()
+      shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+
+      if (element_order_h > 0 .or. element_order_v > 0) then
+        call log_event(                                                        &
+                'Moist source term for theta not implemented for ' //          &
+                'higher-order elements', LOG_LEVEL_ERROR                       &
+        )
+      end if
+
+      ! Get wind on shifted mesh
+      w2_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
+      wind => transport_controller%get_transporting_wind()
+      call wind_shifted%initialise( w2_sh_fs )
+      call map_w2_to_sh_w2_alg(wind_shifted, wind)
+
+      ! Get divergence on shifted mesh
+      detj_at_w3 => get_detj_at_w3_r_tran(shifted_mesh%get_id())
+      call div_u_rtran%initialise( detj_at_w3%get_function_space() )
+      call invoke( fv_divergence_3d_kernel_type(div_u_rtran,                   &
+                                                wind_shifted, detj_at_w3) )
+
+      ! Convert divergence to rdef precision
+      call div_u%initialise( detj_at_w3%get_function_space() )
+      call copy_field(div_u_rtran, div_u)
+
+      counter => transport_controller%get_transport_counter()
+      dt = real(counter%get_dt_substep() * counter%get_num_substeps(), r_def)
+
+      call invoke( theta_moist_source_kernel_type(theta_out_rdef, div_u,       &
+                                                  mr_out(imr_v),               &
+                                                  mr_out(imr_cl),              &
+                                                  mr_out(imr_r),               &
+                                                  mr_out(imr_ci),              &
+                                                  mr_out(imr_s),               &
+                                                  mr_out(imr_g),               &
+                                                  dt, cp, Rd) )
+    end if
 
     ! ------------------------------------------------------------------------ !
     ! Apply static adjustment if desired

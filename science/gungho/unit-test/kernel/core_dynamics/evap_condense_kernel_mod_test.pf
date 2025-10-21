@@ -8,188 +8,90 @@
 module evap_condense_kernel_mod_test
 
   use constants_mod,                       only : i_def, r_def
-  use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap
-  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size
   use funit
 
   implicit none
 
   private
 
-  public :: set_up, tear_down, test_all
+  public :: test_all
 
 contains
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @before
-  subroutine set_up()
-
-    use extrusion_config_mod, only : method_uniform, &
-                                     stretching_method_linear
-    use feign_config_mod,     only : feign_extrusion_config, &
-                                     feign_planet_config
-
-    implicit none
-
-    call feign_extrusion_config( planet_radius=6000000.0_r_def,              &
-                                 domain_height=10.0_r_def,                   &
-                                 method=method_uniform,                      &
-                                 number_of_layers=2_i_def,                   &
-                                 stretching_method=stretching_method_linear, &
-                                 stretching_height=1.0_r_def,                &
-                                 eta_values=(/0.5_r_def/) )
-    call feign_planet_config( gravity=10.0_r_def, omega=8.0E-5_r_def, &
-                              rd=300.0_r_def, cp=1000.0_r_def, &
-                              p_zero=100000.0_r_def,           &
-                              scaling_factor=1.0_r_def )
-
-  end subroutine set_up
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  @after
-  subroutine tear_down()
-
-    use configuration_mod,        only: final_configuration
-
-    implicit none
-
-    call final_configuration()
-
-  end subroutine tear_down
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test
   subroutine test_all()
 
-    use evap_condense_kernel_mod, only : evap_condense_code
+    use evap_condense_kernel_mod, only: evap_condense_code
     use physics_common_mod,       only: qsaturation
 
     implicit none
 
-    real(kind=r_def), parameter :: tol = 1.0e-8_r_def
-    real(kind=r_def)            :: answer
+    integer(kind=i_def), parameter :: undf_wtheta = 3
+    real(kind=r_def),    parameter :: tol = 0.01_r_def
 
-    integer(kind=i_def) :: nlayers, cell
-    integer(kind=i_def) :: ndf_wtheta, undf_wtheta
-    integer(kind=i_def) :: unused
+    real(kind=r_def), allocatable :: theta(:)
+    real(kind=r_def), allocatable :: theta_inc(:)
+    real(kind=r_def), allocatable :: exner_wth(:)
+    real(kind=r_def), allocatable :: mr_v(:)
+    real(kind=r_def), allocatable :: mr_cl(:)
+    real(kind=r_def), allocatable :: mr_v_inc(:)
+    real(kind=r_def), allocatable :: mr_cl_inc(:)
+    real(kind=r_def), allocatable :: answer(:)
 
-    integer(kind=i_def), allocatable :: map_wtheta(:,:)
-    real(kind=r_def), allocatable    :: theta(:)
-    real(kind=r_def), allocatable    :: theta_inc(:)
-    real(kind=r_def), allocatable    :: exner_wth(:)
-    real(kind=r_def), allocatable    :: mr_v(:)
-    real(kind=r_def), allocatable    :: mr_cl(:)
-    real(kind=r_def), allocatable    :: mr_r(:)
-    real(kind=r_def), allocatable    :: mr_ci(:)
-    real(kind=r_def), allocatable    :: mr_s(:)
-    real(kind=r_def), allocatable    :: mr_g(:)
-    real(kind=r_def), allocatable    :: mr_v_inc(:)
-    real(kind=r_def), allocatable    :: mr_cl_inc(:)
-    real(kind=r_def), allocatable    :: mr_r_inc(:)
-    real(kind=r_def), allocatable    :: mr_ci_inc(:)
-    real(kind=r_def), allocatable    :: mr_s_inc(:)
-    real(kind=r_def), allocatable    :: mr_g_inc(:)
+    integer(kind=i_def) :: df
+    real(kind=r_def)    :: cpd, cpv, cl, Rd, Rv, p_zero
 
-    real(kind=r_def) :: recip_epsilon, kappa, cp, Rd, p_zero, Lv
-
-    cp = 1005.0_r_def
-    Rd = 287.05_r_def
-    kappa = cp/Rd
+    cpd = 1000.0_r_def
+    cpv = 3000.0_r_def
+    cl = 4000.0_r_def
+    Rd = 300.0_r_def
+    Rv = 450.0_r_def
     p_zero = 100000.0_r_def
-    Lv =2.501e6_r_def
-
-
-
-    ! Describe domain using canned data
-    nlayers=3
-    call get_wtheta_m3x3_q3x3x3_size( ndf_wtheta, undf_wtheta, unused, &
-                                      unused, unused,                  &
-                                      unused, unused,                  &
-                                      nlayers )
-
-    call get_wtheta_m3x3_dofmap(map_wtheta)
-
 
     ! Create the data
     allocate(exner_wth(undf_wtheta))
     allocate(theta(undf_wtheta))
     allocate(mr_v(undf_wtheta))
     allocate(mr_cl(undf_wtheta))
-    allocate(mr_r(undf_wtheta))
-    allocate(mr_ci(undf_wtheta))
-    allocate(mr_s(undf_wtheta))
-    allocate(mr_g(undf_wtheta))
     allocate(theta_inc(undf_wtheta))
     allocate(mr_v_inc(undf_wtheta))
     allocate(mr_cl_inc(undf_wtheta))
-    allocate(mr_r_inc(undf_wtheta))
-    allocate(mr_ci_inc(undf_wtheta))
-    allocate(mr_s_inc(undf_wtheta))
-    allocate(mr_g_inc(undf_wtheta))
+    allocate(answer(undf_wtheta))
 
     exner_wth(:) = 1.0_r_def
-    theta(:) = 300.0_r_def
-    mr_v(:)  = qsaturation(300.0_r_def, 0.01_r_def*p_zero )
-    mr_cl(:) = 1.2e-4_r_def
-    mr_r(:)  = 0.0_r_def
-    mr_ci(:) = 0.0_r_def
-    mr_s(:)  = 0.0_r_def
-    mr_g(:)  = 0.0_r_def
+    theta(:) = 299.0_r_def
+    mr_cl(:) = 1.0e-2_r_def
     theta_inc(:) = 0.0_r_def
     mr_v_inc(:)  = 0.0_r_def
     mr_cl_inc(:) = 0.0_r_def
-    mr_r_inc(:)  = 0.0_r_def
-    mr_ci_inc(:) = 0.0_r_def
-    mr_s_inc(:)  = 0.0_r_def
-    mr_g_inc(:)  = 0.0_r_def
 
-    cell = 1
-    call evap_condense_code(nlayers, theta_inc, theta,            &
-                            mr_v_inc, mr_cl_inc, mr_r_inc,        &
-                            mr_ci_inc, mr_s_inc, mr_g_inc,        &
-                            mr_v, mr_cl, mr_r, mr_ci, mr_s, mr_g, &
-                            exner_wth,                            &
-                            ndf_wtheta, undf_wtheta, map_wtheta(:,cell))
+    ! Oversaturate by setting vapour to saturation value at higher theta
+    mr_v(:)  = qsaturation(300.0_r_def, 0.01_r_def*p_zero )
 
-    ! There should be no increment to these moisture species
-    answer = 0.0_r_def
-    @assertEqual(answer, mr_r_inc(map_wtheta(1, cell)), tol)
-    @assertEqual(answer, mr_ci_inc(map_wtheta(1, cell)), tol)
-    @assertEqual(answer, mr_s_inc(map_wtheta(1, cell)), tol)
-    @assertEqual(answer, mr_g_inc(map_wtheta(1, cell)), tol)
+    do df = 1, undf_wtheta
+      call evap_condense_code(theta_inc(df), theta(df),    &
+                              mr_v_inc(df), mr_cl_inc(df), &
+                              mr_v(df), mr_cl(df),         &
+                              exner_wth(df),               &
+                              Rd, Rv, cpd, cpv, cl, p_zero)
+    end do
 
+    answer = 0.00032_r_def
+    @assertEqual(-answer, mr_v_inc, tol)
+    @assertEqual(answer, mr_cl_inc, tol)
 
-    answer = 0.0_r_def
-    ! The water vapour field is left slightly oversaturated by the kernel, meaning that not all
-    ! water vapour is converted to cloud liquid. Half of the cloud liquid above 1.0e-4 is converted
-    ! into rain. Giving the following answers
-    @assertEqual(-answer, mr_v_inc(map_wtheta(1, cell)), tol)
+    answer = 0.69_r_def
+    @assertEqual(answer, theta_inc, tol)
 
-    answer = 0.0_r_def
-    @assertEqual(answer, mr_cl_inc(map_wtheta(1, cell)), tol)
-
-    answer = 300.0_r_def
-
-    @assertEqual(answer, theta_inc(map_wtheta(1, cell))+theta(map_wtheta(1, cell)), tol)
-
-
-
-    deallocate(map_wtheta)
     deallocate(mr_v)
     deallocate(mr_cl)
-    deallocate(mr_r)
-    deallocate(mr_ci)
-    deallocate(mr_s)
-    deallocate(mr_g)
     deallocate(mr_v_inc)
     deallocate(mr_cl_inc)
-    deallocate(mr_r_inc)
-    deallocate(mr_ci_inc)
-    deallocate(mr_s_inc)
-    deallocate(mr_g_inc)
     deallocate(exner_wth)
     deallocate(theta)
     deallocate(theta_inc)
+    deallocate(answer)
 
   end subroutine test_all
 

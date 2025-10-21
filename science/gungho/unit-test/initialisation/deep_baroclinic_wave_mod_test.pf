@@ -87,6 +87,7 @@ contains
                                   moisture_formulation =                   &
                                   moisture_formulation_dry,                &
                                   moisture_in_solver=.true.,               &
+                                  theta_moist_source=.false.,              &
                                   p2theta_vert=.true.,                     &
                                   shallow=.false., use_physics=.false.,    &
                                   use_wavedynamics=.true.,                 &
@@ -97,6 +98,8 @@ contains
                                   dlayer_on = .false.,                     &
                                   init_exner_bt        = .true.,           &
                                   si_momentum_equation=.true.,             &
+                                  horizontal_physics_predictor=.false.,    &
+                                  horizontal_transport_predictor=.false.,  &
                                   vector_invariant=.true.)
 
   end subroutine set_up

@@ -10,6 +10,7 @@ module tl_theta_transport_alg_mod
   use constants_mod,                   only: i_def, r_def
   use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
   use field_mod,                       only: field_type
+  use formulation_config_mod,          only: theta_moist_source
   use fs_continuity_mod,               only: Wtheta
   use function_space_mod,              only: function_space_type
   use function_space_collection_mod,   only: function_space_collection
@@ -22,6 +23,7 @@ module tl_theta_transport_alg_mod
   use tl_transport_field_mod,          only: tl_transport_field
   use transport_config_mod,            only: theta_variable,             &
                                              theta_variable_dry,         &
+                                             theta_variable_moist,       &
                                              adjust_theta
   use tl_transport_controller_mod,     only: tl_transport_controller_type
   use transport_enumerated_types_mod,  only: equation_form_advective,    &
@@ -136,6 +138,14 @@ contains
         call log_event('T.L. Theta variable not implemented', LOG_LEVEL_ERROR)
 
     end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Apply moisture source term if desired
+    ! ------------------------------------------------------------------------ !
+
+    if (theta_moist_source .and. .not. theta_variable == theta_variable_moist ) then
+      call log_event('T.L. Theta moist source not implemented', LOG_LEVEL_ERROR)
+    end if
 
     ! ------------------------------------------------------------------------ !
     ! Apply static adjustment if desired

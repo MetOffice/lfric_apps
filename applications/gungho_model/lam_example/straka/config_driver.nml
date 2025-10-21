@@ -62,6 +62,7 @@ moisture_formulation='dry',
 rotating=.false.,
 shallow=.true.,
 si_momentum_equation=.true.,
+theta_moist_source=.false.
 use_physics=.false.,
 use_wavedynamics=.true.,
 vector_invariant=.true.,

@@ -3,9 +3,13 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!>@brief Calls to the slow physics schemes
+!> @brief Calls to the slow physics schemes
 module slow_physics_alg_mod
 
+  use driver_water_constants_mod, &
+                                 only: heat_capacity_h2o_vapour, &
+                                       heat_capacity_h2o,        &
+                                       gas_constant_h2o
   use energy_correction_config_mod,                  &
                                  only: encorr_usage, &
                                        encorr_usage_apply
@@ -83,16 +87,17 @@ module slow_physics_alg_mod
                                  only: add_bundle, clone_bundle, &
                                        set_bundle_scalar
   use formulation_config_mod,    only: moisture_formulation,     &
-                                       moisture_formulation_dry
+                                       moisture_formulation_dry, &
+                                       theta_moist_source
   use io_config_mod,             only: subroutine_timers,        &
                                        write_conservation_diag
   use timer_mod,                 only: timer
   use external_forcing_alg_mod,  only: external_forcing_alg
   use evap_condense_kernel_mod,  only: evap_condense_kernel_type
   use physics_mappings_alg_mod,  only: map_physics_scalars
+  use planet_config_mod,         only: p_zero, kappa, cp, Rd
   ! Physics schemes called
 #ifdef UM_PHYSICS
-  use planet_config_mod,         only: p_zero, kappa
   use locate_tropopause_alg_mod, only: locate_tropopause_alg
   use radaer_alg_mod,            only: radaer_alg
   use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg
@@ -233,6 +238,7 @@ contains
     real( kind=r_def ),        intent(in) :: dtemp_encorr
 
     real( kind=r_def )                    :: time_now
+    real( kind=r_def )                    :: Rv, cpv, cl
 
     ! Local fields...
     ! ...for external forcing
@@ -980,10 +986,22 @@ contains
     if (evap_condense_placement == evap_condense_placement_slow .and. &
         cloud == cloud_evap_condense) then
       call clone_bundle(mr, dmr_cld, nummr)
-      call invoke( evap_condense_kernel_type(dtheta_cld, theta,  &
-                                             dmr_cld,            &
-                                             mr,                 &
-                                             exner_in_wth) )
+      if (theta_moist_source) then
+        ! More accurate thermodynamic approximations
+        Rv = gas_constant_h2o
+        cpv = heat_capacity_h2o_vapour
+        cl = heat_capacity_h2o
+      else
+        ! Do not include moist contributions to thermodynamic variables
+        Rv = 0.0_r_def
+        cpv = 0.0_r_def
+        cl = 0.0_r_def
+      end if
+      call invoke( evap_condense_kernel_type(dtheta_cld, theta,                &
+                                             dmr_cld(imr_v), dmr_cld(imr_cl),  &
+                                             mr(imr_v), mr(imr_cl),            &
+                                             exner_in_wth,                     &
+                                             Rd, Rv, cp, cpv, cl, p_zero) )
       evap_condense_done = .true.
     end if
 

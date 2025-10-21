@@ -60,6 +60,12 @@
         "memory": [48, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_hori_pred-C48_MG" %}
+    {% do task_dict.update({
+        "mpi_parts": 54,
+        "memory": [48, "GB"],
+    }) %}
+
 {% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
 
     {% do task_dict.update({

@@ -8,8 +8,6 @@ module theta_e_kernel_mod_test
 
   use, intrinsic :: iso_fortran_env,       only : real64
   use constants_mod,                       only : i_def, r_def
-  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size
-  use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap
   use funit
 
   implicit none
@@ -57,89 +55,82 @@ contains
     class(theta_e_test_type), intent(inout) :: this
 
     real(kind=r_def),      parameter :: theta0 = 10.0_r_def
-    real(kind=r_def),      parameter :: dtheta = 0.1_r_def
+    real(kind=r_def),      parameter :: dtheta = 0.001_r_def
     real(kind=r_def),      parameter :: Lv = 2.501e6_r_def
-    real(kind=r_def),      parameter :: cp = 1000.0_r_def
-
-    real(kind=r_def),      parameter :: tol = 1.0e-10_r_def
+    real(kind=r_def),      parameter :: cpd = 1000.0_r_def
+    real(kind=r_def),      parameter :: cpv = 0.0_r_def
+    real(kind=r_def),      parameter :: cpl = 0.0_r_def
+    real(kind=r_def),      parameter :: p_zero = 100000.0_r_def
+    real(kind=r_def),      parameter :: Rd = 287.0_r_def
+    real(kind=r_def),      parameter :: Rv = 461.5_r_def
+    real(kind=r_def),      parameter :: recip_epsilon = Rd / Rv
+    real(kind=r_def),      parameter :: tol = 1.0_r_def
     real(kind=r_def)                 :: use_tol
+    integer(kind=i_def),   parameter :: undf_wt = 10
+    integer(kind=i_def)              :: df
 
     ! Fields
     real(kind=r_def),    allocatable :: theta_e(:)
     real(kind=r_def),    allocatable :: theta_d(:)
     real(kind=r_def),    allocatable :: exner_at_wt(:)
     real(kind=r_def),    allocatable :: mr_v(:)
+    real(kind=r_def),    allocatable :: mr_cl(:)
     real(kind=r_def),    allocatable :: answer(:)
 
-    integer(kind=i_def)              :: k, cell
-    integer(kind=i_def)              :: nlayers, ncells
-    integer(kind=i_def)              :: nqp_h, nqp_v
-    integer(kind=i_def)              :: ndf_wt
-    integer(kind=i_def)              :: dim_space, dim_space_diff
-    integer(kind=i_def)              :: undf_wt
-
-    ! Dofmaps
-    integer(kind=i_def), allocatable :: map_wt(:,:)
-
-    nlayers = 3
-    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,   &
-                                      dim_space, dim_space_diff, &
-                                      nqp_h, nqp_v, nlayers      )
-
-
-    call get_wtheta_m3x3_dofmap(map_wt, nlayers)
 
     ! Create the data
     allocate( mr_v( undf_wt ) )
+    allocate( mr_cl( undf_wt ) )
     allocate( exner_at_wt( undf_wt ) )
     allocate( theta_d( undf_wt ) )
     allocate( theta_e( undf_wt ) )
     allocate( answer( undf_wt ) )
 
-    do cell = 1, ncells
-      ! Fill height values
-      do k = 0, nlayers
-        ! Have answer vary linearly with height in log space
-        answer(map_wt(1, cell) + k) = exp( theta0 + dtheta * real(k, r_def) )
-        ! Use that ln(theta_e) = ln(theta_d) + L_v*mr_v/(cp*theta_d*Pi)
-        ! Also have theta_d vary linearly height in log space
-        theta_d(map_wt(1, cell) + k) = exp( theta0 + dtheta / 2.0_r_def * real(k, r_def) )
-        ! Non-log term must make half of contribution to ln(theta_e)
-        ! Take Pi = 1/theta_d, so this comes from mr_v
-        exner_at_wt(map_wt(1, cell) + k) = 1.0_r_def / theta_d(map_wt(1, cell) + k)
-        mr_v(map_wt(1, cell) + k) = dtheta / 2.0_r_def * real(k, r_def) * cp / Lv
-      end do
+    mr_cl(:) = 0.0_r_def
+
+    do df = 1, undf_wt
+      answer(df) = exp( theta0 + dtheta * real(df, r_def) )
+      ! Use that ln(theta_e) = ln(theta_d) + L_v*mr_v/(cp*theta_d*Pi)
+      ! Also have theta_d vary linearly height in log space
+      theta_d(df) = exp( theta0 + dtheta / 2.0_r_def * real(df, r_def) )
+      ! Non-log term must make half of contribution to ln(theta_e)
+      ! Take Pi = 1/theta_d, so this comes from mr_v
+      exner_at_wt(df) = 1.0_r_def / theta_d(df)
+      mr_v(df) = dtheta / 2.0_r_def * real(df, r_def) * cpd / Lv
     end do
 
     ! Make theta_e initially have wrong values
     theta_e(:) = 0.0_r_def
 
-    cell = 4
-    call theta_e_code( nlayers,       &
-                       theta_e,       &
-                       theta_d,       &
-                       exner_at_wt,   &
-                       mr_v,          &
-                       cp,            &
-                       ndf_wt,        &
-                       undf_wt,       &
-                       map_wt(:,cell) )
+    do df = 1, undf_wt
+      call theta_e_code( theta_e(df),       &
+                         theta_d(df),       &
+                         exner_at_wt(df),   &
+                         mr_v(df),          &
+                         mr_cl(df),         &
+                         cpd,               &
+                         cpv,               &
+                         cpl,               &
+                         Rd,                &
+                         p_zero,            &
+                         recip_epsilon)
+    end do
 
     if ( r_def == real64 ) then
        use_tol = tol
     else
        use_tol = 10.0_r_def*spacing( maxval(answer) )
     end if
-    do k = 0, nlayers
-      @assertEqual(answer(map_wt(1, cell)+k), theta_e(map_wt(1, cell)+k), use_tol)
-    end do
+
+    ! Slack tolerance because answer is only approximate
+    @assertEqual(answer, theta_e, use_tol)
 
     deallocate( answer )
     deallocate( theta_e )
     deallocate( theta_d )
     deallocate( mr_v )
+    deallocate( mr_cl )
     deallocate( exner_at_wt )
-    deallocate( map_wt )
 
   end subroutine test_all
 

@@ -325,3 +325,73 @@ class vn22_t202(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn22_t827(MacroUpgrade):
+    """Upgrade macro for ticket #827 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn2.2_t202"
+    AFTER_TAG = "vn2.2_t827"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """
+        Adds the "theta_moist_source" variable to the formulation namelist,
+        which controls the option to add the missing term to the potential
+        temperature equation, relating to the different heat capacities of moist
+        phases. This is set to be trig-ignored when moisture settings are not
+        'traditional'. In both cases the default value is .false.
+        """
+        nml = "namelist:formulation"
+        moisture = self.get_setting_value(config, [nml, "moisture_formulation"])
+        default_setting = ".false."
+        if moisture == "'traditional'":
+            self.add_setting(
+                config, [nml, "theta_moist_source"], default_setting
+            )
+        else:
+            # Trig-ignored as moisture not being used
+            self.add_setting(
+                config, [nml, "!!theta_moist_source"], default_setting
+            )
+
+        return config, self.reports
+
+
+class vn22_t938(MacroUpgrade):
+    """Upgrade macro for ticket #938 by Jon Elsey."""
+
+    BEFORE_TAG = "vn2.2_t827"
+    AFTER_TAG = "vn2.2_t938"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-aerosol
+        # Add setting for ukca_mode_segment_size
+        self.add_setting(
+            config, ["namelist:aerosol", "ukca_mode_seg_size"], value="4"
+        )
+
+        return config, self.reports
+
+
+class vn22_t903(MacroUpgrade):
+    """Upgrade macro for ticket #903 by James Kent."""
+
+    BEFORE_TAG = "vn2.2_t938"
+    AFTER_TAG = "vn2.2_t903"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add horizontal predictor options to formulation namelist
+        self.add_setting(
+            config,
+            ["namelist:formulation", "horizontal_physics_predictor"],
+            ".false.",
+        )
+        self.add_setting(
+            config,
+            ["namelist:formulation", "horizontal_transport_predictor"],
+            ".false.",
+        )
+
+        return config, self.reports

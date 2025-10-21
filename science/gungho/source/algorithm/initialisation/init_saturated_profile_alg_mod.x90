@@ -9,10 +9,13 @@
 module init_saturated_profile_alg_mod
 
 use constants_mod,                   only: r_def, i_def
+use driver_water_constants_mod,      only: heat_capacity_h2o_vapour, &
+                                           heat_capacity_h2o
 use sci_field_bundle_builtins_mod,   only: set_bundle_scalar, clone_bundle
 use field_mod,                       only: field_type
-use formulation_config_mod,          only: moisture_formulation,    &
-                                           moisture_formulation_dry
+use formulation_config_mod,          only: moisture_formulation,     &
+                                           moisture_formulation_dry, &
+                                           theta_moist_source
 use function_space_mod,              only: function_space_type
 use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id
 use idealised_config_mod,            only: test, test_bryan_fritsch
@@ -30,8 +33,10 @@ use moist_dyn_mod,                   only: num_moist_factors
 use mr_indices_mod,                  only: nummr, imr_v, imr_cl
 use norm_alg_mod,                    only: rel_l2_error_alg
 use physics_mappings_alg_mod,        only: map_physics_scalars
-use planet_config_mod,               only: rd, p_zero, kappa, cp
+use planet_config_mod,               only: rd, p_zero, kappa, cp, recip_epsilon
 use theta_e_kernel_mod,              only: theta_e_kernel_type
+use transport_config_mod,            only: theta_variable, &
+                                           theta_variable_moist
 
 implicit none
 
@@ -92,6 +97,7 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
 
   integer(kind=i_def) :: outer_count, theta_count, inner_count
   real(kind=r_def)    :: initial_time, errornorm, one_minus_delta
+  real(kind=r_def)    :: cpv, cpl
 
   ! These parameters are somewhat arbitrary and have been found by trial
   ! and error. However it is not super-important to maximise efficiency
@@ -125,6 +131,16 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   call exner_at_wt%initialise( vector_space = wt_fs )
   call mr_t%initialise( vector_space = wt_fs )
   call theta_pert%initialise( vector_space = wt_fs )
+
+  if (theta_moist_source .or. theta_variable == theta_variable_moist) then
+    cpv = heat_capacity_h2o_vapour
+    cpl = heat_capacity_h2o
+  else
+    ! If we aren't using consistent thermodynamics, the correct equivalent
+    ! potential temperature ignores the heat capacities of moisture species
+    cpv = 0.0_r_def
+    cpl = 0.0_r_def
+  end if
 
   !----------------------------------------------------------------------------!
   ! Specify background theta_e and mr_t fields
@@ -180,8 +196,10 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
       call map_physics_scalars( exner_at_wt, exner )
 
       ! Compute best guess of theta_e
-      call invoke( theta_e_kernel_type( latest_theta_e, theta, &
-                                        exner_at_wt, mr(imr_v), cp ) )
+      call invoke( theta_e_kernel_type( latest_theta_e, theta,                 &
+                                        exner_at_wt, mr(imr_v), mr(imr_cl),    &
+                                        cp, cpv, cpl, Rd, p_zero,              &
+                                        recip_epsilon ) )
 
       ! Check tolerance and break if we are close enough
       errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
@@ -196,13 +214,15 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
       do theta_count = 1, max_theta_iterations
 
         ! Find theta and update best guess
-        call invoke( X_divideby_Y( latest_theta_d, specified_theta_e,  &
-                                                   latest_theta_e ),   &
-                     inc_X_times_Y( latest_theta_d, theta ),           &
-                     inc_aX_plus_bY( one_minus_delta, theta,           &
-                                     delta, latest_theta_d ),          &
-                     theta_e_kernel_type( latest_theta_e, theta,       &
-                                          exner_at_wt, mr(imr_v), cp ) )
+        call invoke( X_divideby_Y( latest_theta_d, specified_theta_e,          &
+                                                   latest_theta_e ),           &
+                     inc_X_times_Y( latest_theta_d, theta ),                   &
+                     inc_aX_plus_bY( one_minus_delta, theta,                   &
+                                     delta, latest_theta_d ),                  &
+                     theta_e_kernel_type( latest_theta_e, theta,               &
+                                          exner_at_wt, mr(imr_v), mr(imr_cl),  &
+                                          cp, cpv, cpl, Rd, p_zero,            &
+                                          recip_epsilon ) )
 
         ! Check tolerance and break if we are close enough
         errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
@@ -217,11 +237,13 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
         do inner_count = 1, max_inner_iterations
           ! Find moisture mixing ratios and update best guess
           call init_mr_fields( latest_mr, theta, exner, rho, moist_dyn )
-          call invoke( inc_aX_plus_bY( one_minus_delta, mr(imr_v),           &
-                                       delta, latest_mr(imr_v) ),            &
-                       X_minus_Y( mr(imr_cl), mr_t, mr(imr_v) ),             &
-                       theta_e_kernel_type( latest_theta_e, theta,           &
-                                            exner_at_wt, mr(imr_v), cp )     )
+          call invoke( inc_aX_plus_bY( one_minus_delta, mr(imr_v),             &
+                                       delta, latest_mr(imr_v) ),              &
+                       X_minus_Y( mr(imr_cl), mr_t, mr(imr_v) ),               &
+                       theta_e_kernel_type( latest_theta_e, theta,             &
+                                            exner_at_wt, mr(imr_v),            &
+                                            mr(imr_cl), cp, cpv, cpl, Rd,      &
+                                            p_zero, recip_epsilon ) )
 
           ! Check tolerance and break if we are close enough
           errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
