@@ -28,10 +28,11 @@
                       """
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
-            ROSE_TASK_APP=extract_source
-            DEPENDENCIES={{dependencies}}
+            ROSE_TASK_APP = extract_source
+            DEPENDENCIES = {{dependencies}}
+            USE_MIRRORS = {{USE_MIRRORS}}
+            USE_TOKENS = {{USE_TOKENS}}
         {% if USE_MIRRORS %}
-            USE_MIRRORS = True
             {% if "git_mirror_loc" in site_vars %}
             GIT_MIRROR_LOC = {{site_vars.git_mirror_loc}}
             {% else %}
@@ -40,8 +41,6 @@
                     "Ensure 'git_mirror_loc' is included in site_vars."
                     ) }}
             {% endif %}
-        {% else %}
-            USE_MIRRORS = False
         {% endif %}
 
 
