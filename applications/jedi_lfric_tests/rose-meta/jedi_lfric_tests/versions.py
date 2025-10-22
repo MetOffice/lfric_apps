@@ -414,3 +414,16 @@ class vn22_t903(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn22_t1012(MacroUpgrade):
+    """Upgrade macro for ticket #1012 by Maggie Hendry."""
+
+    BEFORE_TAG = "vn2.2_t903"
+    AFTER_TAG = "vn2.2_t1012"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lfric
+        # Blank upgrade macro to bump tag
+
+        return config, self.reports

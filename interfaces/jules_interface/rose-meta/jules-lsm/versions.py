@@ -2,8 +2,6 @@ import sys
 
 from metomi.rose.upgrade import MacroUpgrade
 
-from .version21_22 import *
-
 
 class UpgradeError(Exception):
     """Exception created when an upgrade fails."""
@@ -44,6 +42,7 @@ class vn22_t202(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_surface", "anthrop_heat_option"], "'dukes'"
         )
+
         return config, self.reports
 
 

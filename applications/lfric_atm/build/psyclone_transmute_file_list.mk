@@ -16,8 +16,10 @@
 
 export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod \
                                 gw_ussp_mod \
-	                            ukca_aero_ctl \
-				                ukca_abdulrazzak_ghan
+	                        ukca_aero_ctl \
+				ukca_abdulrazzak_ghan \
+                                ukca_chemistry_ctl_full_mod \
+                                ukca_main1-ukca_main1
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 
@@ -29,7 +31,7 @@ export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod \
 # These files will be filtered, and will NOT be run through PSyclone.
 
 # Directories to psyclone
-export PSYCLONE_DIRECTORIES =
+export PSYCLONE_DIRECTORIES = science/ukca
 
 # A general file exception list
 export PSYCLONE_PHYSICS_EXCEPTION =
