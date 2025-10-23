@@ -12,5 +12,4 @@ User Guide
     :maxdepth: 2
 
     applications/index
-
-
+    checkpointing/index
