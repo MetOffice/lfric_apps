@@ -1,3 +1,10 @@
+<!-- This file was created for the Proto-GAL milestone in 2022. Beyond fixing 
+     fields that are broken (including adding the exner field to the output when
+     that functionality is working) and adding chemistry fields, this file 
+     should not be added to or edited. Not all fields processed by this file are
+     for use in the LFRic model itself. Some are used by other applications, 
+     e.g. the IAU, but are included here to test their regrid functionality.
+-->
 <?xml version="1.0" encoding="UTF-8"?>
 <simulation>
 
@@ -100,10 +107,10 @@
 	<field id="icethick" name="icethick" long_name="sea ice depth" unit="m" domain_ref="face" />
 	<field id="rho_r2" name="rho_r2" long_name="density*R*R" unit="1" grid_ref="half_level_face_grid"/>
 	<field id="qcl" name="qcl" long_name="cloud condensate specific liquid content" unit="kg/kg" grid_ref="full_level_face_grid" />
-	<field id="total_aero" name="total_aero" long_name="total aerosol" unit="kg" domain_ref="face" />
+	<field id="total_aero" name="total_aero" long_name="total aerosol" unit="kg" grid_ref="full_level_face_grid" />
 	<field id="ls_snow_rate" name="ls_snow_rate" long_name="Large Scale Snow Rate" unit="kg m-2 s-1" domain_ref="face" />
 	<field id="conv_rain_rate" name="conv_rain_rate" long_name="Convective Rain Rate" unit="kg m-2 s-1" domain_ref="face" />
-	<field id="z0h_tile" name="z0h_tile" long_name="Thermal Roughness Length On Tiles" unit="m" domain_ref="face" />
+	<field id="z0h_tile" name="z0h_tile" long_name="Thermal Roughness Length On Tiles" unit="m" grid_ref="land_tiles_face_grid" />
 	<field id="dust1_mmr" name="dust1_mmr" long_name="Dust Division 1 Mass Mixing Ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
 	<field id="dust2_mmr" name="dust2_mmr" long_name="Dust Division 2 Mass Mixing Ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
 	<field id="qt" name="qt" long_name="Total Specific Humidity" unit="1" grid_ref="full_level_face_grid" />
@@ -256,6 +263,7 @@
 	<field field_ref="frozen_fraction"/>
 	<field field_ref="zh"/>
 	<field field_ref="z0msea"/>
+
 	<!-- Additional fields for basicGAL -->
 	<field field_ref="dd_mf_cb"/>
 	<field field_ref="tile_snow_mass"/>
@@ -280,6 +288,23 @@
 	<field field_ref="tile_temperature"/>
 	<field field_ref="tstar_sea_ice"/>
 	<field field_ref="sea_ice_temperature"/>
+
+	<!-- New fields for proto_gal -->
+	<field field_ref="q"/>
+	<field field_ref="qcf"/>
+	<field field_ref="icefrac"/>
+	<field field_ref="icethick"/>
+	<field field_ref="rho_r2"/>
+	<field field_ref="qcl"/>
+	<field field_ref="total_aero"/>
+	<field field_ref="ls_snow_rate"/>
+	<field field_ref="conv_rain_rate"/>
+	<field field_ref="z0h_tile"/>
+	<field field_ref="dust1_mmr"/>
+	<field field_ref="dust2_mmr"/>
+	<field field_ref="qt"/>
+	<!-- field exner will go here -->
+
         <!-- Chemistry fields -->
         <field field_ref="o3p"/>
         <field field_ref="o1d"/>
