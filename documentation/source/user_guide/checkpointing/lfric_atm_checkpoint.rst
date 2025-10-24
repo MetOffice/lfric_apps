@@ -9,9 +9,10 @@
 LFRic atmosphere checkpoint/restart system
 ==========================================
 
-The LFRic atmosphere can be configured to generate a checkpoint dump at the end
-of each model run. The checkpoint dump can be read in by a new integration of
-the model allowing further timesteps to be run. The dump is written using XIOS.
+The LFRic atmosphere ``lfric_atm`` application can be configured to generate a
+checkpoint dump at the end of each model run. The checkpoint dump can be read in
+by a new integration of the model allowing further timesteps to be run. The dump
+is written using XIOS.
 
 Requesting checkpoint restart
 -----------------------------
@@ -19,15 +20,16 @@ Requesting checkpoint restart
 Set ``checkpoint_write=.true.`` in the ``io`` namelist of the model
 configuration to generate a checkpoint dump at the end of a model run. The
 checkpoint dump will be named after the ``checkpoint_stem_name`` string in the
-``files`` namelist appended with the timestep number of the end of the run.
+``files`` namelist appended with the number of the last timestep of the run.
 
 Set ``checkpoint_read=.true.`` in the ``io`` namelist to restart a run from an
 existing checkpoint dump. The expected start timestep will be defined by
 ``timestep_start`` in the ``time`` namelist. There must exist a checkpoint file
-named according to the normal convention, with the correct timestep (which would
-be the ``timestep_start`` setting minus one) otherwise the run will fail.
+named according to the ``checkpoint_stem_name``, with the correct timestep
+(which would be the ``timestep_start`` setting minus one) otherwise the run will
+fail.
 
-Key ``lfric_atm`` configurations are regularly tested to check that a long
+Some key ``lfric_atm`` configurations are regularly tested to check that a long
 single run produces exactly the same results as a short initial run plus a
 restarted run of the same total length. Maintaining such equivalence is
 considered to be important by scientist users.
@@ -81,8 +83,10 @@ above. Work is underway to split the field into W2H and W2V components to get
 around the problem.
 
 Eventually, all checkpointed fields should be output in layer form using the
-UGRID convention - splitting W1 and W2 fields as needed. At the moment, XIOS
-does not support this for bi-periodic meshes, so checkpointing is still messy.
+UGRID convention - splitting W1 and W2 fields as needed. Work would still be
+required to support configurations that use biperiodic meshes and need to
+checkpoint such fields, though the requirement for checkpointing such
+configurations is low priority.
 
 Configuring the XIOS context
 ----------------------------
@@ -91,7 +95,8 @@ This section does not consider LBC prognostics or ancillary fields.
 
 The term "prognostic fields" broadly refers to the set of model fields that must
 remain in scope throughout a model timestep. The LFRic atmosphere model stores
-the set of prognostic fields in a prognostic field collection.
+the set of prognostic fields in a prognostic field collection held in the main
+``modeldb`` data structure.
 
 Not all prognostic fields need to be written to the checkpoint dump.
 
@@ -105,19 +110,24 @@ configuration to determine several things about the physics prognostics:
 * Initialising those fields that are required.
 * Adding initialised fields to the correct science-specific field collection.
 
-There is also a ``create_gungho_prognostics`` file. In part, the gungho
-prognostics are handled differently because the gungho_model application may
-output the checkpoint using a different format that supports higher order finite
-element tests. For historical reasons all gungho prognostics are output on a 3D
-mesh even though only one of them needs to be on a 3D mesh because it is a W2
-field which cannot be split into levels.
-
 Currently, the underpinning infrastructure cannot support doing all of these
 items at the same time. A solution has been created that involves calling
 ``create_physics_prognostics`` twice. The procedure takes a procedure pointer as
 an argument, enabling the routine to do different things on each call.
 
-Within the procedure, there is code like the following for each possible prognostic field:
+.. attention::
+
+  There is also a ``create_gungho_prognostics`` file that manages the subset of
+  prognostics used by Gungho model configurations. In part, the gungho
+  prognostics are handled differently because the ``gungho_model`` application
+  supports both lowest and higher order finite element order, and checkpointing
+  of the latter requires a different file format. When written with XIOS, all
+  gungho prognostics are output using the legacy format even though only one of
+  them needs to be on a 3D mesh because it is a W2 field which cannot be split
+  into levels.
+
+Within the procedure, there is code like the following for each possible
+prognostic field:
 
 .. code-block:: fortran
 
@@ -139,7 +149,9 @@ Key parts of the above call are:
   * ``make_spec`` returns a ``field spec`` data structure that summarises the
     requirements for the field. Optionally, this can include stating which field
     collection should store it, and what the shape of the field is in terms of
-    its function space, or whether it is a 2D field.
+    its function space, or whether it is a 2D field. Note that where the shape
+    is not specified, the information will be derived from the field definition
+    in the XIOS ``iodef.xml`` file.
   * ``apply`` is a procedure in the ``processor`` object that does work on the
     ``field spec``.
   * ``processor`` can be one of two different objects depending on whether this
@@ -150,8 +162,8 @@ The first call
 ^^^^^^^^^^^^^^
 
 The first call to the code in ``create_physics_prognostics`` is done while the
-XIOS context is being defined. It must be done during this period because it is
-providing a definition of the checkpoint fields to XIOS.
+XIOS context is being defined. It must be done during this period because the
+aim of the call is to provide a definition of the checkpoint fields to XIOS.
 
 During this call, the ``processor`` object is the ``persistor_type`` defined in
 ``gungho_model_mod``. Therefore procedure ``gungho_model_mod:persistor_apply``
@@ -159,26 +171,27 @@ is applied to the ``field spec`` for each field.
 
 If the field is to be written to or read from the checkpoint dump the ``apply``
 method calls ``lfric_xios_metafile_mod:add_field``. The ``add_field`` procedure
-registers an ``xios_field``, for writing to or reading from the checkpoint dump
-using an ID that is the name of the field prefixed with ``checkpoint_``, this is
-a hard coded string literal. The procedure defines the checkpoint field for XIOS
-using XIOS attributes copied from the definition of the field ID (without the
+registers an ``xios_field``, for writing to or reading from the checkpoint dump.
+The ID is the name of the field prefixed with the hard-coded string literal,
+``checkpoint_``. The procedure defines the checkpoint field for XIOS using XIOS
+attributes copied from the definition of the original field ID (without the
 ``checkpoint_`` prefix) in ``lfric_dictionary.xml``.
 
 If the field is not to be checkpointed, then nothing is done during the first
-call ``processor%apply``. Basically, the whole first call to the
-``create_physics_prognostics`` code has no effect if checkpoint is not
-requested.
+call to ``processor%apply``. In fact, the whole first call to the
+``create_physics_prognostics`` code has no purpose and does nothing if
+checkpoint reading or writing is not requested.
 
 The second call
 ^^^^^^^^^^^^^^^
 In the second call, the ``processor`` passed to ``create_prognostics_field`` is
 the ``field_maker_type`` in ``field_maker_mod``.
 
-Briefly, the ``apply`` method in ``field_maker_mod`` initialises the field based
-on the definition drawn from the ``lfric_dictionary.xml`` file, information from
-the ``field spec``. For multidata fields (often referred to as "tiled fields")
-some hardwired or configured settings that are obtained by calling
+Briefly, the ``apply`` method in ``field_maker_mod`` initialises the model field
+based on the definition drawn from the ``lfric_dictionary.xml`` file and
+information from the ``field spec`` generated by the ``make_spec`` call. For
+multidata fields (often referred to as "tiled fields") some hardwired or
+configured settings that are obtained by the ``apply`` method by calling
 ``multidata_field_dimensions_mod:get_multidata_field_dimension``.
 
 Problematically, the ``checkpoint_`` prefix is also used here (hard coded as a
@@ -188,7 +201,10 @@ The information from ``lfric_dictionary.xml`` is extracted using the XIOS
 API. This can only be done after the context definition has been closed. That is
 why this call is done separately from the first call.
 
-@todo: check this and add necessary detail
+@todo: check this and add necessary detail: the fact is that space must be
+provided if the field is not checkpointed, otherwise the model fails. This
+appears to be because space is obtained from the XIOS API. But things work if
+checkpointing is not on - so what happens differently in the second call?
 
 
 Simplified call tree for setting up I/O in LFRic_atm
