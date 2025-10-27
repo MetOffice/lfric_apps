@@ -39,7 +39,7 @@ SimSys_Scripts:
 
 socrates:
     source: git@github.com:MetOffice/socrates.git
-    ref: 948f390e2cffb24978d1c81ba54dd286a2d4c76f
+    ref: b5bf2a416e265b821ee828a4014adf8c025bb692
 
 socrates-spectral:
     source: git@github.com:MetOffice/socrates-spectral.git
@@ -47,7 +47,7 @@ socrates-spectral:
 
 ukca:
     source: git@github.com:MetOffice/ukca.git
-    ref: 9761c8c846beff6cf80021afb20ff76d36c8c31c
+    ref: 962462d814cd6490e7b3193aeccad69774f31115
 
 um_aux:
     source: git@github.com:MetOffice/um_aux.git
