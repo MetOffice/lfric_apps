@@ -437,4 +437,6 @@ theta_variable='dry'
 use_density_predictor=.true.,
 vertical_method=1,1,1,1,
 vertical_sl_order='cubic',
+wind_mono_top=.false.
+wind_mono_top_depth=5
 /

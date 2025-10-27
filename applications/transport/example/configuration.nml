@@ -147,6 +147,8 @@ vertical_method=9*0
 vertical_monotone=9*1
 vertical_monotone_order=9*3
 vertical_sl_order='cubic',
+wind_mono_top=.false.
+wind_mono_top_depth=5
 /
 &planet
 cp=1005.0

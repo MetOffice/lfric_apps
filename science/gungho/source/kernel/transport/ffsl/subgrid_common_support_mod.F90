@@ -37,13 +37,16 @@ contains
   !> @param[in,out] edge_left      Field value at left edge of cell
   !> @param[in,out] edge_right     Field value at right edge of cell
   !> @param[in]     order          Order of the reconstruction
+  !> @param[in]     bottom_layer   Index of layer to apply monotonicity from
   !> @param[in]     nlayers        Number of layers in the mesh
   !----------------------------------------------------------------------------
-  subroutine monotonic_edge(field, monotone, min_val, edge_left, edge_right, order, nlayers)
+  subroutine monotonic_edge(field, monotone, min_val, edge_left, edge_right,   &
+                            order, bottom_layer, nlayers)
 
     implicit none
 
     integer(kind=i_def), intent(in)    :: nlayers
+    integer(kind=i_def), intent(in)    :: bottom_layer
     integer(kind=i_def), intent(in)    :: order
     real(kind=r_tran),   intent(in)    :: field(nlayers,2*order+1)
     integer(kind=i_def), intent(in)    :: monotone
@@ -51,48 +54,50 @@ contains
     real(kind=r_tran),   intent(inout) :: edge_left(nlayers), edge_right(nlayers)
 
     real(kind=r_tran)   :: t1(nlayers)
-    integer(kind=i_def) :: i
+    integer(kind=i_def) :: i, b, t
 
     i = order + 1
+    b = bottom_layer
+    t = nlayers
 
     select case (monotone)
     case (monotone_relaxed, monotone_strict)
       ! Ensure that edge values lie between those of neighbouring cells
-      edge_left(:) = MIN(                                                      &
-          MAX(field(:,i-1), field(:,i)),                                       &
-          MAX(edge_left(:), MIN(field(:,i-1), field(:,i)))                     &
+      edge_left(b:t) = MIN(                                                    &
+          MAX(field(b:t,i-1), field(b:t,i)),                                   &
+          MAX(edge_left(b:t), MIN(field(b:t,i-1), field(b:t,i)))               &
       )
-      edge_right(:) = MIN(                                                     &
-          MAX(field(:,i), field(:,i+1)),                                       &
-          MAX(edge_right(:), MIN(field(:,i), field(:,i+1)))                    &
+      edge_right(b:t) = MIN(                                                   &
+          MAX(field(b:t,i), field(b:t,i+1)),                                   &
+          MAX(edge_right(b:t), MIN(field(b:t,i), field(b:t,i+1)))              &
       )
 
     case (monotone_positive)
       ! Ensure that edges also lie above specified minimum value
-      edge_left(:)  = MAX(edge_left(:), 0.0_r_tran)
-      edge_right(:) = MAX(edge_right(:), 0.0_r_tran)
+      edge_left(b:t)  = MAX(edge_left(b:t), 0.0_r_tran)
+      edge_right(b:t) = MAX(edge_right(b:t), 0.0_r_tran)
 
     case (monotone_qm_pos)
       ! Only bound edges when the central field is outside its neighbours
       ! The t1 variable is a test for this
       ! This is 1 if the cell's value is outside of its neighbours', 0 otherwise
-      t1(:) = 0.5_r_tran - SIGN(0.5_r_tran,                                    &
-          (field(:,i) - field(:,i-1)) * (field(:,i) - field(:,i+1))            &
+      t1(b:t) = 0.5_r_tran - SIGN(0.5_r_tran,                                  &
+          (field(b:t,i) - field(b:t,i-1)) * (field(b:t,i) - field(b:t,i+1))    &
       )
 
       ! Ensure that edge values lie between those of neighbouring cells
-      edge_left(:) = t1(:) * edge_left(:) + (1.0_r_tran - t1(:)) * MAX(        &
-          MIN(field(:,i-1), field(:,i)),                                       &
-          MIN(edge_left(:), MAX(field(:,i-1), field(:,i)))                     &
+      edge_left(b:t) = t1(b:t)*edge_left(b:t) + (1.0_r_tran - t1(b:t))*MAX(    &
+          MIN(field(b:t,i-1), field(b:t,i)),                                   &
+          MIN(edge_left(b:t), MAX(field(b:t,i-1), field(b:t,i)))               &
       )
-      edge_right(:) = t1(:) * edge_right(:) + (1.0_r_tran - t1(:)) * MAX(      &
-          MIN(field(:,i), field(:,i+1)),                                       &
-          MIN(edge_right(:), MAX(field(:,i), field(:,i+1)))                    &
+      edge_right(b:t) = t1(b:t)*edge_right(b:t) + (1.0_r_tran - t1(b:t))*MAX(  &
+          MIN(field(b:t,i), field(b:t,i+1)),                                   &
+          MIN(edge_right(b:t), MAX(field(b:t,i), field(b:t,i+1)))              &
       )
 
       ! Ensure that edges also lie above specified minimum value
-      edge_left(:)  = MAX(edge_left(:), min_val)
-      edge_right(:) = MAX(edge_right(:), min_val)
+      edge_left(b:t)  = MAX(edge_left(b:t), min_val)
+      edge_right(b:t) = MAX(edge_right(b:t), min_val)
     end select
 
   end subroutine monotonic_edge

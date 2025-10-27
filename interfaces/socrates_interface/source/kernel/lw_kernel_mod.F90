@@ -572,15 +572,15 @@ subroutine lw_code(nlayers, n_profile, &
   else
     l_aerosol_mode = .false.
   end if
+  
+  max_threads = 1
+  !$ max_threads = omp_get_max_threads()
 
   do k=0, nlayers
     profile_list = pack( [(l, l=1, n_profile)], &
                          n_cloud_layer(twod_1:twod_last) == k )
     n_profile_list = size(profile_list)
     if (n_profile_list > 0) then
-
-      max_threads = 1
-      !$ max_threads = omp_get_max_threads()
       soc_lw_block = ceiling(real(n_profile_list)/max_threads)
 
       ! The number of indices to run through per k step can become quite small

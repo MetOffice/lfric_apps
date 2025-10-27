@@ -268,7 +268,8 @@ subroutine ffsl_flux_z_rev_nirvana_code( nlayers,   &
 
   ! Apply monotonicity to edges if required
   call monotonic_edge(                                                         &
-          field_local, monotone, min_val, edge_left, edge_right, 1, nlayers-1  &
+          field_local, monotone, min_val, edge_left, edge_right,               &
+          1, 1, nlayers-1                                                      &
   )
 
   ! Compute reconstruction using field edge values

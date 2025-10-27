@@ -59,6 +59,7 @@ contains
 
     real(r_tran)   :: use_tol
     integer(i_def) :: monotone
+    integer(i_def) :: mono_above = 1
 
     ! Set up maps
     map_w3(1)= 1
@@ -76,6 +77,9 @@ contains
     dlb_dz_2 = (/ -1.5_r_tran,  1.0_r_tran,  1.0_r_tran, 1.0_r_tran,  0.5_r_tran /)
     dlb_dz_3 = (/ third,  -sixth,  -sixth, -sixth,  third /)
 
+    ! ======================================================================== !
+    ! Test unlimited Nirvana
+    ! ======================================================================== !
     ! Set up data
     field = (/ 1.0_r_tran, 2.0_r_tran, 3.0_r_tran, 4.0_r_tran, 5.0_r_tran /)
     dep_pts = (/ 0.0_r_tran, 0.1_r_tran, 0.5_r_tran, -1.2_r_tran, -0.1_r_tran, 0.0_r_tran /)
@@ -83,28 +87,29 @@ contains
     answer = (/ 0.0_r_tran,  0.3625_r_tran,  1.125_r_tran, -4.3_r_tran,  -1.1375_r_tran,  0.0_r_tran /)
 
     monotone = monotone_none
-    call ffsl_flux_z_nirvana_code( nlayers,   &
-                                   flux,      &
-                                   frac_wind, &
-                                   dep_pts,   &
-                                   field,     &
-                                   dla_dz_1,  &
-                                   dla_dz_2,  &
-                                   dla_dz_3,  &
-                                   dlb_dz_1,  &
-                                   dlb_dz_2,  &
-                                   dlb_dz_3,  &
-                                   dz,        &
-                                   detj,      &
-                                   dt,        &
-                                   monotone,  &
-                                   min_val,   &
-                                   log_space, &
-                                   ndf_w2v,   &
-                                   undf_w2v,  &
-                                   map_w2v,   &
-                                   ndf_w3,    &
-                                   undf_w3,   &
+    call ffsl_flux_z_nirvana_code( nlayers,     &
+                                   flux,        &
+                                   frac_wind,   &
+                                   dep_pts,     &
+                                   field,       &
+                                   dla_dz_1,    &
+                                   dla_dz_2,    &
+                                   dla_dz_3,    &
+                                   dlb_dz_1,    &
+                                   dlb_dz_2,    &
+                                   dlb_dz_3,    &
+                                   dz,          &
+                                   detj,        &
+                                   dt,          &
+                                   monotone,    &
+                                   min_val,     &
+                                   log_space,   &
+                                   mono_above,  &
+                                   ndf_w2v,     &
+                                   undf_w2v,    &
+                                   map_w2v,     &
+                                   ndf_w3,      &
+                                   undf_w3,     &
                                    map_w3 )
 
     if ( r_tran == real64 ) then
@@ -116,6 +121,9 @@ contains
 
     @assertEqual(answer, flux, use_tol)
 
+    ! ======================================================================== !
+    ! Test relaxed limiter
+    ! ======================================================================== !
     ! Use field to generate extrema
     field = (/ 1.0_r_tran, 4.0_r_tran, 9.0_r_tran, 0.0_r_tran, 1.0_r_tran /)
     dep_pts = (/ 0.0_r_tran, 0.2_r_tran, 0.5_r_tran, -0.2_r_tran, -0.2_r_tran, 0.0_r_tran /)
@@ -123,28 +131,29 @@ contains
     answer = (/ 0.0_r_tran,  0.25_r_tran,  2.5_r_tran, 0.0_r_tran,  -0.25_r_tran,  0.0_r_tran /)
 
     monotone = monotone_relaxed
-    call ffsl_flux_z_nirvana_code( nlayers,   &
-                                   flux,      &
-                                   frac_wind, &
-                                   dep_pts,   &
-                                   field,     &
-                                   dla_dz_1,  &
-                                   dla_dz_2,  &
-                                   dla_dz_3,  &
-                                   dlb_dz_1,  &
-                                   dlb_dz_2,  &
-                                   dlb_dz_3,  &
-                                   dz,        &
-                                   detj,      &
-                                   dt,        &
-                                   monotone,  &
-                                   min_val,   &
-                                   log_space, &
-                                   ndf_w2v,   &
-                                   undf_w2v,  &
-                                   map_w2v,   &
-                                   ndf_w3,    &
-                                   undf_w3,   &
+    call ffsl_flux_z_nirvana_code( nlayers,     &
+                                   flux,        &
+                                   frac_wind,   &
+                                   dep_pts,     &
+                                   field,       &
+                                   dla_dz_1,    &
+                                   dla_dz_2,    &
+                                   dla_dz_3,    &
+                                   dlb_dz_1,    &
+                                   dlb_dz_2,    &
+                                   dlb_dz_3,    &
+                                   dz,          &
+                                   detj,        &
+                                   dt,          &
+                                   monotone,    &
+                                   min_val,     &
+                                   log_space,   &
+                                   mono_above,  &
+                                   ndf_w2v,     &
+                                   undf_w2v,    &
+                                   map_w2v,     &
+                                   ndf_w3,      &
+                                   undf_w3,     &
                                    map_w3 )
 
     if ( r_tran == real64 ) then
@@ -156,6 +165,9 @@ contains
 
     @assertEqual(answer, flux, use_tol)
 
+    ! ======================================================================== !
+    ! Test strict limiter
+    ! ======================================================================== !
     ! Use field to generate extrema
     field = (/ 1.0_r_tran, 4.0_r_tran, 9.0_r_tran, 0.0_r_tran, 1.0_r_tran /)
     dep_pts = (/ 0.0_r_tran, 0.2_r_tran, 0.5_r_tran, -0.2_r_tran, -0.2_r_tran, 0.0_r_tran /)
@@ -163,28 +175,71 @@ contains
     answer = (/ 0.0_r_tran,  0.25_r_tran,  2.5_r_tran, 0.0_r_tran,  -0.25_r_tran,  0.0_r_tran /)
 
     monotone = monotone_strict
-    call ffsl_flux_z_nirvana_code( nlayers,   &
-                                   flux,      &
-                                   frac_wind, &
-                                   dep_pts,   &
-                                   field,     &
-                                   dla_dz_1,  &
-                                   dla_dz_2,  &
-                                   dla_dz_3,  &
-                                   dlb_dz_1,  &
-                                   dlb_dz_2,  &
-                                   dlb_dz_3,  &
-                                   dz,        &
-                                   detj,      &
-                                   dt,        &
-                                   monotone,  &
-                                   min_val,   &
-                                   log_space, &
-                                   ndf_w2v,   &
-                                   undf_w2v,  &
-                                   map_w2v,   &
-                                   ndf_w3,    &
-                                   undf_w3,   &
+    call ffsl_flux_z_nirvana_code( nlayers,     &
+                                   flux,        &
+                                   frac_wind,   &
+                                   dep_pts,     &
+                                   field,       &
+                                   dla_dz_1,    &
+                                   dla_dz_2,    &
+                                   dla_dz_3,    &
+                                   dlb_dz_1,    &
+                                   dlb_dz_2,    &
+                                   dlb_dz_3,    &
+                                   dz,          &
+                                   detj,        &
+                                   dt,          &
+                                   monotone,    &
+                                   min_val,     &
+                                   log_space,   &
+                                   mono_above,  &
+                                   ndf_w2v,     &
+                                   undf_w2v,    &
+                                   map_w2v,     &
+                                   ndf_w3,      &
+                                   undf_w3,     &
+                                   map_w3 )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      ! Set tolerance based on precision of field
+      use_tol = 10.0_r_tran*spacing( maxval(field(:)) )
+    endif
+
+    ! ======================================================================== !
+    ! Test strict limiter only above level 3
+    ! ======================================================================== !
+    field = (/ 1.0_r_tran, 4.0_r_tran, 9.0_r_tran, 0.0_r_tran, 1.0_r_tran /)
+    dep_pts = (/ 0.0_r_tran, 0.2_r_tran, 0.5_r_tran, -0.2_r_tran, -0.2_r_tran, 0.0_r_tran /)
+    frac_wind = (/ 0.0_r_tran, 1.0_r_tran, 2.0_r_tran, -2.0_r_tran, -1.0_r_tran, 0.0_r_tran /)
+    answer = (/ 0.0_r_tran,  0.47_r_tran,  2.5_r_tran, 0.0_r_tran,  -0.25_r_tran,  0.0_r_tran /)
+
+    mono_above = 3
+    monotone = monotone_strict
+    call ffsl_flux_z_nirvana_code( nlayers,     &
+                                   flux,        &
+                                   frac_wind,   &
+                                   dep_pts,     &
+                                   field,       &
+                                   dla_dz_1,    &
+                                   dla_dz_2,    &
+                                   dla_dz_3,    &
+                                   dlb_dz_1,    &
+                                   dlb_dz_2,    &
+                                   dlb_dz_3,    &
+                                   dz,          &
+                                   detj,        &
+                                   dt,          &
+                                   monotone,    &
+                                   min_val,     &
+                                   log_space,   &
+                                   mono_above,  &
+                                   ndf_w2v,     &
+                                   undf_w2v,    &
+                                   map_w2v,     &
+                                   ndf_w3,      &
+                                   undf_w3,     &
                                    map_w3 )
 
     if ( r_tran == real64 ) then
@@ -196,35 +251,84 @@ contains
 
     @assertEqual(answer, flux, use_tol)
 
+    ! ======================================================================== !
+    ! Test strict limiter only above level 4
+    ! ======================================================================== !
+    field = (/ 1.0_r_tran, 4.0_r_tran, 9.0_r_tran, 0.0_r_tran, 1.0_r_tran /)
+    dep_pts = (/ 0.0_r_tran, 0.2_r_tran, 0.5_r_tran, -0.2_r_tran, -0.2_r_tran, 0.0_r_tran /)
+    frac_wind = (/ 0.0_r_tran, 1.0_r_tran, 2.0_r_tran, -2.0_r_tran, -1.0_r_tran, 0.0_r_tran /)
+    answer = (/ 0.0_r_tran,  0.47_r_tran,  2.5_r_tran, -1.0_r_tran,  -0.25_r_tran,  0.0_r_tran /)
+
+    mono_above = 4
+    monotone = monotone_strict
+    call ffsl_flux_z_nirvana_code( nlayers,     &
+                                   flux,        &
+                                   frac_wind,   &
+                                   dep_pts,     &
+                                   field,       &
+                                   dla_dz_1,    &
+                                   dla_dz_2,    &
+                                   dla_dz_3,    &
+                                   dlb_dz_1,    &
+                                   dlb_dz_2,    &
+                                   dlb_dz_3,    &
+                                   dz,          &
+                                   detj,        &
+                                   dt,          &
+                                   monotone,    &
+                                   min_val,     &
+                                   log_space,   &
+                                   mono_above,  &
+                                   ndf_w2v,     &
+                                   undf_w2v,    &
+                                   map_w2v,     &
+                                   ndf_w3,      &
+                                   undf_w3,     &
+                                   map_w3 )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      ! Set tolerance based on precision of field
+      use_tol = 10.0_r_tran*spacing( maxval(field(:)) )
+    endif
+
+    @assertEqual(answer, flux, use_tol)
+
+    ! ======================================================================== !
+    ! Test positive-only limiter
+    ! ======================================================================== !
     ! Use field to generate negative field values and test positive limiter
     field = (/ 1.0_r_tran, 4.0_r_tran, 9.0_r_tran, 0.0_r_tran, 1.0_r_tran /)
     dep_pts = (/ 0.0_r_tran, 0.2_r_tran, 0.5_r_tran, -1.2_r_tran, -0.2_r_tran, 0.0_r_tran /)
     frac_wind = (/ 0.0_r_tran, 1.0_r_tran, 2.0_r_tran, -2.0_r_tran, -1.0_r_tran, 0.0_r_tran /)
     answer = (/ 0.0_r_tran,  0.47_r_tran,  2.5_r_tran, -0.5_r_tran,  -0.25_r_tran,  0.0_r_tran /)
 
+    mono_above = 1
     monotone = monotone_positive
-    call ffsl_flux_z_nirvana_code( nlayers,   &
-                                   flux,      &
-                                   frac_wind, &
-                                   dep_pts,   &
-                                   field,     &
-                                   dla_dz_1,  &
-                                   dla_dz_2,  &
-                                   dla_dz_3,  &
-                                   dlb_dz_1,  &
-                                   dlb_dz_2,  &
-                                   dlb_dz_3,  &
-                                   dz,        &
-                                   detj,      &
-                                   dt,        &
-                                   monotone,  &
-                                   min_val,   &
-                                   log_space, &
-                                   ndf_w2v,   &
-                                   undf_w2v,  &
-                                   map_w2v,   &
-                                   ndf_w3,    &
-                                   undf_w3,   &
+    call ffsl_flux_z_nirvana_code( nlayers,     &
+                                   flux,        &
+                                   frac_wind,   &
+                                   dep_pts,     &
+                                   field,       &
+                                   dla_dz_1,    &
+                                   dla_dz_2,    &
+                                   dla_dz_3,    &
+                                   dlb_dz_1,    &
+                                   dlb_dz_2,    &
+                                   dlb_dz_3,    &
+                                   dz,          &
+                                   detj,        &
+                                   dt,          &
+                                   monotone,    &
+                                   min_val,     &
+                                   log_space,   &
+                                   mono_above,  &
+                                   ndf_w2v,     &
+                                   undf_w2v,    &
+                                   map_w2v,     &
+                                   ndf_w3,      &
+                                   undf_w3,     &
                                    map_w3 )
 
     if ( r_tran == real64 ) then

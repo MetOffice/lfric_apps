@@ -239,4 +239,6 @@ use_density_predictor=.true.
 panel_edge_treatment='none'
 panel_edge_high_order=.true.,
 special_edges_monotone=3*1
+wind_mono_top=.false.
+wind_mono_top_depth=5
 /

@@ -48,7 +48,8 @@ module check_configuration_mod
                                   substep_transport,                           &
                                   substep_transport_off,                       &
                                   adjust_vhv_wind,                             &
-                                  ffsl_unity_3d
+                                  ffsl_unity_3d,                   &
+                                  wind_mono_top
   use transport_enumerated_types_mod,                                          &
                             only: scheme_mol_3d,                               &
                                   scheme_ffsl_3d,                              &
@@ -504,6 +505,20 @@ contains
             call log_event(                                                    &
               '3D unity transport can only be used when all variables '        &
               // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_ERROR)
+          end if
+        end if
+
+        ! For applying monotonicity to wind at the model top, require vertical
+        ! wind transport to use FFSL
+        if ( wind_mono_top ) then
+          if ( trim(field_names(i)) == 'wind' .and. .not.                      &
+              ( vertical_method(i) == split_method_ffsl .and.                  &
+                .not. reversible(i) .and. ffsl_vertical_order(i) == 1 ) ) then
+            call log_event(                                                    &
+                  'The wind_mono_top option only be used when the wind ' //    &
+                  'components are transported vertically with FFSL',           &
+                  LOG_LEVEL_ERROR                                              &
+            )
           end if
         end if
 

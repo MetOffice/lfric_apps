@@ -37,7 +37,7 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: ffsl_flux_z_nirvana_kernel_type
   private
-  type(arg_type) :: meta_args(12) = (/                  &
+  type(arg_type) :: meta_args(13) = (/                  &
        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, W2v), & ! flux
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2v), & ! frac_wind
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  W2v), & ! dep pts
@@ -49,8 +49,9 @@ type, public, extends(kernel_type) :: ffsl_flux_z_nirvana_kernel_type
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),       & ! dt
        arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),       & ! monotone
        arg_type(GH_SCALAR,  GH_REAL,    GH_READ),       & ! min_val
-       arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ)        & ! log_space
-       /)
+       arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ),       & ! log_space
+       arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)        & ! monotone_above
+  /)
   integer :: operates_on = CELL_COLUMN
 contains
   procedure, nopass :: ffsl_flux_z_nirvana_code
@@ -89,34 +90,38 @@ contains
 !!                          quasi-monotone limiter for PPM
 !> @param[in]     log_space Switch to use natural logarithmic space
 !!                          for edge interpolation
+!> @param[in]     monotone_above
+!!                          Levels at and above which to apply the monotonicity
+!!                          limiter. Below this, apply no monotonicity
 !> @param[in]     ndf_w2v   Number of degrees of freedom for W2v per cell
 !> @param[in]     undf_w2v  Number of unique degrees of freedom for W2v
 !> @param[in]     map_w2v   The dofmap for the W2v cell at the base of the column
 !> @param[in]     ndf_w3    Number of degrees of freedom for W3 per cell
 !> @param[in]     undf_w3   Number of unique degrees of freedom for W3
 !> @param[in]     map_w3    The dofmap for the cell at the base of the column
-subroutine ffsl_flux_z_nirvana_code( nlayers,   &
-                                     flux,      &
-                                     frac_wind, &
-                                     dep_dist,  &
-                                     field,     &
-                                     dla_dz_1,  &
-                                     dla_dz_2,  &
-                                     dla_dz_3,  &
-                                     dlb_dz_1,  &
-                                     dlb_dz_2,  &
-                                     dlb_dz_3,  &
-                                     dz,        &
-                                     detj,      &
-                                     dt,        &
-                                     monotone,  &
-                                     min_val,   &
-                                     log_space, &
-                                     ndf_w2v,   &
-                                     undf_w2v,  &
-                                     map_w2v,   &
-                                     ndf_w3,    &
-                                     undf_w3,   &
+subroutine ffsl_flux_z_nirvana_code( nlayers,         &
+                                     flux,            &
+                                     frac_wind,       &
+                                     dep_dist,        &
+                                     field,           &
+                                     dla_dz_1,        &
+                                     dla_dz_2,        &
+                                     dla_dz_3,        &
+                                     dlb_dz_1,        &
+                                     dlb_dz_2,        &
+                                     dlb_dz_3,        &
+                                     dz,              &
+                                     detj,            &
+                                     dt,              &
+                                     monotone,        &
+                                     min_val,         &
+                                     log_space,       &
+                                     monotone_above,  &
+                                     ndf_w2v,         &
+                                     undf_w2v,        &
+                                     map_w2v,         &
+                                     ndf_w3,          &
+                                     undf_w3,         &
                                      map_w3 )
 
   use subgrid_vertical_support_mod,   only: third_order_vertical_edge
@@ -151,6 +156,7 @@ subroutine ffsl_flux_z_nirvana_code( nlayers,   &
   integer(kind=i_def), intent(in)    :: monotone
   real(kind=r_tran),   intent(in)    :: min_val
   logical(kind=l_def), intent(in)    :: log_space
+  integer(kind=i_def), intent(in)    :: monotone_above
 
   ! Local arrays
   integer(kind=i_def) :: sign_displacement(nlayers-1)
@@ -165,10 +171,12 @@ subroutine ffsl_flux_z_nirvana_code( nlayers,   &
   real(kind=r_tran)   :: displacement(nlayers-1)
   real(kind=r_tran)   :: frac_dist(nlayers-1)
   real(kind=r_tran)   :: mass(nlayers)
+  real(kind=r_tran)   :: field_local_lower(MAX(monotone_above-1,1), 3)
+  real(kind=r_tran)   :: field_local_upper(MAX(nlayers-monotone_above,1), 3)
 
   ! Local scalars
   integer(kind=i_def) :: k, w2v_idx, w3_idx
-  integer(kind=i_def) :: b_idx, t_idx, l_idx, r_idx
+  integer(kind=i_def) :: b_idx, t_idx, l_idx, r_idx, array_length
   integer(kind=i_def) :: lowest_whole_cell, highest_whole_cell
   real(kind=r_tran)   :: inv_dt
 
@@ -264,15 +272,44 @@ subroutine ffsl_flux_z_nirvana_code( nlayers,   &
   ! ========================================================================== !
   ! Apply monotonicity to edges if required
   call monotonic_edge(                                                         &
-          field_local, monotone, min_val, edge_left, edge_right, 1, nlayers-1  &
+          field_local, monotone, min_val, edge_left, edge_right,               &
+          1, monotone_above, nlayers-1                                         &
   )
 
   ! Compute reconstruction using field edge values
   ! and quadratic subgrid reconstruction
-  call subgrid_quadratic_recon(                                                &
-          reconstruction, frac_dist, field_local,                              &
-          edge_left, edge_right, monotone, 1, nlayers-1                        &
-  )
+
+  if (monotone /= monotone_none .and. monotone_above > 1) then
+    ! Different monotonicity for different levels, so call this function twice
+    ! Application without monotonicity
+    b_idx = 1
+    t_idx = MIN(monotone_above-1, nlayers-1)
+    array_length = t_idx - b_idx + 1
+    field_local_lower(:,:) = field_local(b_idx:t_idx, :)
+    call subgrid_quadratic_recon(                                              &
+            reconstruction(b_idx:t_idx), frac_dist(b_idx:t_idx),               &
+            field_local_lower, edge_left(b_idx:t_idx),                         &
+            edge_right(b_idx:t_idx), monotone_none, 1, array_length            &
+    )
+
+    ! Application with monotonicity
+    if (monotone_above < nlayers) then
+      b_idx = monotone_above
+      t_idx = nlayers-1
+      array_length = t_idx - b_idx + 1
+      field_local_upper(:,:) = field_local(b_idx:t_idx, :)
+      call subgrid_quadratic_recon(                                            &
+              reconstruction(b_idx:t_idx), frac_dist(b_idx:t_idx),             &
+              field_local_upper, edge_left(b_idx:t_idx),                       &
+              edge_right(b_idx:t_idx), monotone, 1, array_length               &
+      )
+    end if
+  else
+    call subgrid_quadratic_recon(                                              &
+            reconstruction, frac_dist, field_local,                            &
+            edge_left, edge_right, monotone, 1, nlayers-1                      &
+    )
+  end if
 
   ! ========================================================================== !
   ! INTEGER FLUX
@@ -293,6 +330,9 @@ subroutine ffsl_flux_z_nirvana_code( nlayers,   &
   ! ========================================================================== !
   ! Assign flux
   ! ========================================================================== !
+  b_idx = w2v_idx + 1
+  t_idx = w2v_idx + nlayers - 1
+
   flux(b_idx : t_idx) = inv_dt * (                                             &
       frac_wind(b_idx : t_idx) * reconstruction(:)                             &
       + sign_displacement(:) * flux(b_idx : t_idx)                             &

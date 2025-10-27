@@ -89,33 +89,34 @@ contains
 !> @param[in]     ndf_w3    Number of degrees of freedom for W3 per cell
 !> @param[in]     undf_w3   Number of unique degrees of freedom for W3
 !> @param[in]     map_w3    The dofmap for the cell at the base of the column
-subroutine ffsl_flux_z_ppm_code( nlayers,   &
-                                 flux,      &
-                                 frac_wind, &
-                                 dep_dist,  &
-                                 field,     &
-                                 dl_dz_1,   &
-                                 dl_dz_2,   &
-                                 dl_dz_3,   &
-                                 dl_dz_4,   &
-                                 dz,        &
-                                 detj,      &
-                                 dt,        &
-                                 monotone,  &
-                                 min_val,   &
-                                 log_space, &
-                                 ndf_w2v,   &
-                                 undf_w2v,  &
-                                 map_w2v,   &
-                                 ndf_w3,    &
-                                 undf_w3,   &
+subroutine ffsl_flux_z_ppm_code( nlayers,         &
+                                 flux,            &
+                                 frac_wind,       &
+                                 dep_dist,        &
+                                 field,           &
+                                 dl_dz_1,         &
+                                 dl_dz_2,         &
+                                 dl_dz_3,         &
+                                 dl_dz_4,         &
+                                 dz,              &
+                                 detj,            &
+                                 dt,              &
+                                 monotone,        &
+                                 min_val,         &
+                                 log_space,       &
+                                 ndf_w2v,         &
+                                 undf_w2v,        &
+                                 map_w2v,         &
+                                 ndf_w3,          &
+                                 undf_w3,         &
                                  map_w3 )
 
   use subgrid_vertical_support_mod,   only: fourth_order_vertical_edge
   use subgrid_common_support_mod,     only: monotonic_edge,                    &
                                             subgrid_quadratic_recon
   use transport_enumerated_types_mod, only: monotone_none,                     &
-                                            monotone_positive
+                                            monotone_positive,                 &
+                                            monotone_relaxed
 
   implicit none
 
@@ -238,7 +239,8 @@ subroutine ffsl_flux_z_ppm_code( nlayers,   &
   ! ========================================================================== !
   ! Apply monotonicity to edges if required
   call monotonic_edge(                                                         &
-          field_local, monotone, min_val, edge_left, edge_right, 1, nlayers-1  &
+          field_local, monotone, min_val, edge_left, edge_right,               &
+          1, 1, nlayers-1                                                      &
   )
 
   ! Compute reconstruction using field edge values

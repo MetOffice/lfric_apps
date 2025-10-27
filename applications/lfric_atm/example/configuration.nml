@@ -653,4 +653,6 @@ vertical_method=2,3,3,2,3,2,
 vertical_monotone=1,4,1,4,4,4,
 vertical_monotone_order=6*3,
 vertical_sl_order='cubic',
+wind_mono_top=.false.
+wind_mono_top_depth=5
 /

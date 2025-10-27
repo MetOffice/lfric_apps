@@ -75,6 +75,8 @@ contains
                                  adjust_vhv_wind=.false.,                                  &
                                  min_val_abs_tol = -1.0e-12_r_def,                         &
                                  min_val_max_iterations = 100,                             &
+                                 wind_mono_top = .false.,                                  &
+                                 wind_mono_top_depth = 0,                                  &
                                  min_val_method = min_val_method_iterative,                &
                                  dry_field_name='tracer',                                  &
                                  profile_size = 1,                                         &

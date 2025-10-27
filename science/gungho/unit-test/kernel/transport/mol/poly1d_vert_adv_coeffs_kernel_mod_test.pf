@@ -76,6 +76,8 @@ contains
                                  min_val_abs_tol = -1.0e-12_r_def,                         &
                                  min_val_max_iterations = 100,                             &
                                  min_val_method = min_val_method_iterative,                &
+                                 wind_mono_top = .false.,                                  &
+                                 wind_mono_top_depth = 0,                                  &
                                  adjust_theta = .false.,                                   &
                                  adjust_theta_above = 0.0_r_def,                           &
                                  adjust_vhv_wind=.false.,                                  &

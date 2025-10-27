@@ -415,3 +415,39 @@ class vn22_t1012(MacroUpgrade):
         # Blank upgrade macro to bump tag
 
         return config, self.reports
+
+
+class vn22_t953(MacroUpgrade):
+    """Upgrade macro for ticket #593 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn2.2_t1012"
+    AFTER_TAG = "vn2.2_t953"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """
+        Add "wind_mono_top" and "wind_mono_top_depth" to the transport namelist.
+        The "wind_mono_top" option is set to false by default.
+        """
+        num_layers = self.get_setting_value(
+            config, ["namelist:extrusion", "number_of_layers"]
+        )
+        wind_mono_top = ".false."
+        # Add wind_mono_top setting
+        self.add_setting(
+            config, ["namelist:transport", "wind_mono_top"], wind_mono_top
+        )
+        # Add wind_mono_top_depth setting
+        # If the number of layers is greater than 10, set the depth to 5
+        # otherwise set it to 0
+        if int(num_layers) > 10:
+            wind_mono_top_depth = "5"
+        else:
+            wind_mono_top_depth = "0"
+        self.add_setting(
+            config,
+            ["namelist:transport", "wind_mono_top_depth"],
+            wind_mono_top_depth,
+        )
+
+        return config, self.reports

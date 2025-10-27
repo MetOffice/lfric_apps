@@ -60,7 +60,7 @@ contains
     answer_right(1) = 4.5_r_tran
 
     call monotonic_edge(                                                       &
-            rho, monotone, min_val, edge_left, edge_right, order, nlayers      &
+            rho, monotone, min_val, edge_left, edge_right, order, 1, nlayers   &
     )
     @assertEqual(answer_left,  edge_left, tol)
     @assertEqual(answer_right, edge_right, tol)
@@ -75,7 +75,7 @@ contains
     answer_right(1) = 4.0_r_tran
 
     call monotonic_edge(                                                       &
-            rho, monotone, min_val, edge_left, edge_right, order, nlayers      &
+            rho, monotone, min_val, edge_left, edge_right, order, 1, nlayers   &
     )
     @assertEqual(answer_left,  edge_left, tol)
     @assertEqual(answer_right, edge_right, tol)
@@ -90,7 +90,7 @@ contains
     answer_right(1) = 4.0_r_tran
 
     call monotonic_edge(                                                       &
-            rho, monotone, min_val, edge_left, edge_right, order, nlayers      &
+            rho, monotone, min_val, edge_left, edge_right, order, 1, nlayers   &
     )
     @assertEqual(answer_left,  edge_left, tol)
     @assertEqual(answer_right, edge_right, tol)
@@ -105,7 +105,7 @@ contains
     answer_right(1) = 4.5_r_tran
 
     call monotonic_edge(                                                       &
-            rho, monotone, min_val, edge_left, edge_right, order, nlayers      &
+            rho, monotone, min_val, edge_left, edge_right, order, 1, nlayers   &
     )
     @assertEqual(answer_left,  edge_left, tol)
     @assertEqual(answer_right, edge_right, tol)
@@ -120,7 +120,7 @@ contains
     answer_right(1) = 4.5_r_tran
 
     call monotonic_edge(                                                       &
-            rho, monotone, min_val, edge_left, edge_right, order, nlayers      &
+            rho, monotone, min_val, edge_left, edge_right, order, 1, nlayers   &
     )
     @assertEqual(answer_left,  edge_left, tol)
     @assertEqual(answer_right, edge_right, tol)

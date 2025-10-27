@@ -566,7 +566,7 @@ contains
         ! Apply monotonicity to edges if required
         call monotonic_edge(                                                   &
                 field_local, monotone, min_val,                                &
-                field_edge_left, field_edge_right, order, nlayers              &
+                field_edge_left, field_edge_right, order, 1, nlayers           &
         )
         ! Compute reconstruction using field edge values
         ! and quadratic subgrid reconstruction

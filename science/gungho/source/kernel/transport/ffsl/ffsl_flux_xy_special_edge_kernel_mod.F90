@@ -1002,7 +1002,7 @@ contains
         call monotonic_edge(                                                   &
                 field_local, mono_option(1), min_val,                          &
                 field_edge_left, field_edge_right,                             &
-                order+order_offset, nlayers                                    &
+                order+order_offset, 1, nlayers                                 &
         )
         ! Compute reconstruction using field edge values
         ! and quadratic subgrid reconstruction
@@ -1021,7 +1021,7 @@ contains
           call monotonic_edge(                                                 &
                   field_local_tmp, mono_option(k), min_val,                    &
                   field_edge_left(k), field_edge_right(k),                     &
-                  order+order_offset, 1                                        &
+                  order+order_offset, 1, 1                                     &
           )
           ! Compute reconstruction using field edge values
           ! and quadratic subgrid reconstruction

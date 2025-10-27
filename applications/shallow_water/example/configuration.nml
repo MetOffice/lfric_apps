@@ -229,6 +229,8 @@ vertical_method          = 7*1
 vertical_sl_order        = 'cubic'
 vertical_monotone        = 7*1
 vertical_monotone_order  = 7*3
+wind_mono_top            = .false.
+wind_mono_top_depth      = 0
 /
 
 ! These namelist options do not affect the shallow water miniapp and should be left alone

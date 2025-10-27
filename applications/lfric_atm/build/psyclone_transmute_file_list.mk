@@ -16,6 +16,8 @@
 
 export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod \
                                 gw_ussp_mod \
+                                lw_kernel_mod \
+                                sw_kernel_mod \
 	                        ukca_aero_ctl \
 				ukca_abdulrazzak_ghan \
                                 ukca_chemistry_ctl_full_mod \

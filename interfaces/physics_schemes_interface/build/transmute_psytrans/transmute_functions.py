@@ -3,12 +3,17 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
+'''
+Transmute functions for optimisation scripts. Intension is for these to
+eventually live in the PSyTran repo. See Ticket #906.
+'''
 import logging
 import os
 from typing import Sequence, Optional, Tuple, Set
 
 from psyclone.psyir.nodes import (
     Loop,
+    Call,
     Assignment,
     Reference,
     OMPParallelDirective,
@@ -17,9 +22,13 @@ from psyclone.psyir.nodes import (
     StructureReference,
     Member,
     Literal,
+    Schedule,
 )
 from psyclone.psyir.symbols import (
     DataSymbol,
+    ContainerSymbol,
+    RoutineSymbol,
+    ImportInterface,
     UnsupportedFortranType,
     CHARACTER_TYPE,
 )
@@ -423,16 +432,7 @@ def add_parallel_do_over_meta_segments(
     in_parallel_region = bool(target.ancestor(OMPParallelDirective))
 
     # Ensure scalars that may be emitted as FIRSTPRIVATE have a value
-    parent = target.parent
-    insert_at = parent.children.index(target)
-    for nm in init_scalars:  # e.g., ("jdir", "k")
-        try:
-            sym = target.scope.symbol_table.lookup(nm)
-        except KeyError:
-            continue
-        init = Assignment.create(Reference(sym), Literal("0", sym.datatype))
-        parent.children.insert(insert_at, init)
-        insert_at += 1
+    first_priv_red_init(target, init_scalars)
 
     # Explicit privates per policy
     mark_explicit_privates(target, privates)
@@ -522,3 +522,55 @@ def first_priv_red_init(node_target, init_scalars, insert_at_start=False):
             insert_at += 1
         except KeyError:
             continue
+
+
+def replace_n_threads(psyir, n_threads_var_name):
+    '''
+    If a scheme would use omp_get_max_threads() to determine
+    how work is divided, it will often be done so through
+    an omp clause. PSyclone will remove this.
+    We will therefore need to be able to add it to the source.
+    With a given variable name for n_threads know by the developer
+    in the source, replace its initialisation (often to 1) with
+    omp_get_max_threads().
+
+    Parameters
+    ----------
+    psyir object : Uses whole psyir representation
+    n_threads_var_name str : The name of the variable in the
+                             Scheme. Set relative to the scheme.
+
+    Returns
+    ----------
+    None : Note the tree has been modified
+    '''
+
+    imported_lib = False
+    # Walk the schedules
+    for sched in psyir.walk(Schedule):
+        # Walk the Assignments
+        for assign in sched.walk(Assignment):
+            # If the assignment has a lhs and is a reference...
+            if isinstance(assign.lhs, Reference):
+                # and that lhs name is n_threads_var_name
+                if assign.lhs.name == n_threads_var_name:
+                    # Do this once, but only if needed
+                    if imported_lib is False:
+                        # Get the symbol table of the current schedule
+                        symtab = sched.symbol_table
+                        # Set up the omp_library symbol
+                        omp_lib = symtab.find_or_create(
+                            "omp_lib",
+                            symbol_type=ContainerSymbol)
+                        # Set up the omp_get_max_threads symbol
+                        omp_get_max_threads = symtab.find_or_create(
+                            "omp_get_max_threads",
+                            symbol_type=RoutineSymbol,
+                            # Import the reference
+                            interface=ImportInterface(omp_lib))
+                        imported_lib = True
+                    # Replace the rhs of the reference with the
+                    # omp_get_max_threads symbol
+                    assign.rhs.replace_with(
+                        # pylint: disable=possibly-used-before-assignment
+                        Call.create(omp_get_max_threads))

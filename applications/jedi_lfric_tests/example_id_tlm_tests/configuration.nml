@@ -397,6 +397,8 @@ vertical_method=5*1,
 vertical_monotone=5*1,
 vertical_monotone_order=5*1,
 vertical_sl_order='cubic',
+wind_mono_top=.false.
+wind_mono_top_depth=5
 /
 &validity_test
 number_gamma_values=2,
