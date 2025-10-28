@@ -11,7 +11,7 @@ The LFRic makefile build system is reliant on having code from both lfric_core
 and lfric_apps available when launching, preventing the makefile from exporting
 lfric_core as part of the build process. This introduces a circular dependency
 in the makefile build system, not present when everything was on a single repo.
-As the makefile system is planned to be replaced fab, it was decided to not
+As the makefile system is planned to be replaced by fab, it was decided to not
 spend too much effort rewriting the makefiles and instead use a wrapper script
 to export lfric_core and call the make command.
 
