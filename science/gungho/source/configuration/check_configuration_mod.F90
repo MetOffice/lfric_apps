@@ -624,7 +624,7 @@ contains
     implicit none
 
     integer(kind=i_def) :: stencil_depth
-    integer(kind=i_def) :: sl_reconstruction_depth
+    integer(kind=i_def) :: sl_depth, special_edge_pts
     logical(kind=l_def) :: any_horz_dep_pts
 
     stencil_depth = 2
@@ -637,22 +637,37 @@ contains
     any_horz_dep_pts = check_horz_dep_pts()
 
     if ( any_horz_dep_pts ) then
-      ! For SL schemes minimum stencil depth of
-      ! order + 1 is required. This is then extended
-      ! by the dep_pt_stencil_extent (effectively the
-      ! maximum CFL number we want the scheme to work for)
-      sl_reconstruction_depth = max( ffsl_inner_order, ffsl_outer_order ) + 1
-      stencil_depth = max( stencil_depth,          &
-                           dep_pt_stencil_extent + &
-                           sl_reconstruction_depth )
-      if ( panel_edge_treatment == panel_edge_treatment_special_edges ) then
+      ! When an SL scheme is used, the halo depth should be large enough to
+      ! encompass the largest anticipated Courant number (effectively the
+      ! departure distance in the SL scheme), plus any extra cells required for
+      ! the reconstruction of the field at the departure point.
+      ! The maximum anticipated Courant number is set by the user through the
+      ! dep_pt_stencil_extent namelist variable. Other considerations are:
+      ! - the order of reconstruction
+      ! - whether special edge treatment is used (this shifts the stencil by 1)
+
+      if ( panel_edge_treatment == panel_edge_treatment_special_edges          &
+           .AND. panel_edge_high_order ) then
+        special_edge_pts = 1
+      else
+        special_edge_pts = 0
+      end if
+
+      sl_depth = (                                  &
+        dep_pt_stencil_extent                       & ! max anticipated Courant
+        + max( ffsl_inner_order, ffsl_outer_order ) & ! max reconstruction order
+        + special_edge_pts                          & ! special edge treatment
+      )
+
+      if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
         if ( panel_edge_high_order ) then
-          stencil_depth = stencil_depth + 1_i_def
-        ! TODO #419: should this be extended when doing redundant computations?
-        ! else if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
-        !   stencil_depth = stencil_depth + 1_i_def
+          sl_depth = max( sl_depth, 3 )
+        else
+          sl_depth = max( sl_depth, 2 )
         end if
       end if
+
+      stencil_depth = max( stencil_depth, sl_depth )
     end if
 
   end function get_required_stencil_depth

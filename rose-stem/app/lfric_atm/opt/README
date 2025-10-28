@@ -54,6 +54,8 @@ Science settings
 - ral3 - regional configuration
 - ral3_ens - extra config for regional ensembles (including stochastic physics)
 - ral3_scm - single column regional physics (includes convection scheme)
+- ral_mixmol_opts - extra options for regional models when using the MoL
+                    transport scheme and mixed solver configuration
 - ral_opts - extra options for regional models, including LBC blending weights
 - ukca - UKCA Glomap aerosol scheme
 - urban2t - 2-tile urban scheme

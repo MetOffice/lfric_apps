@@ -181,7 +181,7 @@ module horizontal_sl_advective_alg_mod
     hori_monotone = transport_metadata%get_horizontal_monotone()
 
     ! Get stencil size: this corresponds to the value from the departure distances
-    stencil_extent  = dep_stencil_extent_xy
+    stencil_extent = dep_stencil_extent_xy
 
 
     ! Initialise fields

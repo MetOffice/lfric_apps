@@ -873,7 +873,7 @@
 {% elif task_ns.conf_name == "ral3_mixmol-seuk_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","mol"],
+        "opt_confs": ["l70_40km","ral3","ral_mixmol_opts","mol"],
         "resolution": "seuk_MG",
         "DT": 60,
         "tsteps": 120,
@@ -887,7 +887,7 @@
 {% elif task_ns.conf_name == "ral3_mixmol-uk_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["l70_40km","ral3","ral_opts","mol"],
+        "opt_confs": ["l70_40km","ral3","ral_mixmol_opts","mol"],
         "resolution": "uk_MG",
         "DT": 60,
         "tsteps": 360,

@@ -1668,12 +1668,13 @@ contains
 
         if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
 
+        ! We can shorten the stencil extent to the Courant number
         call get_field_minmax(dep_dist, dep_min, dep_max)
+        dep_max = MAX(ABS(dep_max), ABS(dep_min))
+        stencil_extent = CEILING(dep_max, i_def)
 
-        stencil_extent = MIN(                                                  &
-            mesh%get_halo_depth(),                                             &
-            INT(MAX(ABS(dep_max), ABS(dep_min)), i_def) + 1                    &
-        )
+        ! Cap the stencil extent by dep_pt_stencil_extent
+        stencil_extent = MAX(MIN(stencil_extent, dep_pt_stencil_extent), 1)
 
         self%dep_stencil_extent_outer(mesh_idx, step_idx) = stencil_extent
         self%is_computed_stencil_extent_outer(mesh_idx, step_idx) = .true.
@@ -1704,11 +1705,13 @@ contains
 
       if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
 
+      ! We can shorten the stencil extent to the Courant number
       call get_field_minmax(dep_dist, dep_min, dep_max)
-      stencil_extent = MIN(                                                    &
-          mesh%get_halo_depth(),                                               &
-          INT(MAX(ABS(dep_max), ABS(dep_min)), i_def) + 1                      &
-      )
+      dep_max = MAX(ABS(dep_max), ABS(dep_min))
+      stencil_extent = CEILING(dep_max, i_def)
+
+      ! Cap the stencil extent by dep_pt_stencil_extent
+      stencil_extent = MAX(MIN(stencil_extent, dep_pt_stencil_extent), 1)
 
       self%dep_stencil_extent(mesh_idx, step_idx) = stencil_extent
       self%is_computed_stencil_extent(mesh_idx, step_idx) = .true.

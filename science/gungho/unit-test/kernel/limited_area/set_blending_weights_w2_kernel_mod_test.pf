@@ -28,8 +28,9 @@ module set_blending_weights_w2_kernel_mod_test
     integer(kind=i_def), allocatable :: map2(:,:)
     real(kind=r_def),    allocatable :: onion_layers(:)
     real(kind=r_def),    allocatable :: weights_w2_field(:)
-    integer(kind=i_def)              :: stencil_size
-    integer(kind=i_def), allocatable :: stencil_map3(:,:,:)
+    integer(kind=i_def)              :: stencil_max
+    integer(kind=i_def), allocatable :: stencil_sizes(:,:)
+    integer(kind=i_def), allocatable :: stencil_map3(:,:,:,:)
     integer(kind=i_def)              :: depth
     real(kind=r_def),    allocatable :: answer(:)
   contains
@@ -56,6 +57,9 @@ module set_blending_weights_w2_kernel_mod_test
 
     class(set_blending_weights_w2_test_type), intent(inout) :: this
 
+    integer(kind=i_def) :: cell, i, j, k
+    integer(kind=i_def), allocatable :: stencil_map3_cross(:,:,:)
+
     ! Quadrature (not used)
     integer(kind=i_def) :: nqp_h, nqp_v
 
@@ -73,11 +77,25 @@ module set_blending_weights_w2_kernel_mod_test
 
     allocate(this%map3(this%ndf3,this%ncells))
     allocate(this%onion_layers(this%undf3))
+    allocate(this%stencil_sizes(4,this%ncells))
+    allocate(this%stencil_map3(this%ndf3,2,4,this%ncells))
 
     call get_w3_m3x3_dofmap(this%map3, this%nlayers)
-    call get_m3x3_stencil_dofmap_cross(this%stencil_map3, this%map3)
+    call get_m3x3_stencil_dofmap_cross(stencil_map3_cross, this%map3)
 
-    this%stencil_size=size(this%stencil_map3, dim=2)
+    this%stencil_sizes(:,:) = 2
+    this%stencil_max = 2
+
+    ! Convert cross stencil into cross2D stencil
+    do cell = 1, this%ncells
+      do i = 1, this%stencil_max
+        do j = 1, 4
+          ! Index to convert from one stencil into the other
+          k = j * (i - 1) + 1
+          this%stencil_map3(1,i,j,cell) = stencil_map3_cross(1,k,cell)
+        end do
+      end do
+    end do
 
     ! Setup W2 fields
     call get_w2_m3x3_q3x3x3_size(this%ndf2, this%undf2, this%ncells, &
@@ -199,13 +217,13 @@ module set_blending_weights_w2_kernel_mod_test
     !    0.2  0.2/0.2  0.2  0.2/0.2  0.2  0.2/0.2  0.2       W2 Blending Weights
     !     |             |             |             |
     !     |             |             |             |
-    !     +-----0.2-----+-----0.0-----+-----0.2-----+        Values in cells are for DoFs on
+    !     +-----0.2-----+-----0.1-----+-----0.2-----+        Values in cells are for DoFs on
     !     |             |             |             |        top/bottom faces (Vertical DoFs).
     !     |             |             |             |
-    !    0.2  0.2/0.2  0.0  0.0/0.0  0.0  0.2/0.2  0.2
+    !    0.2  0.2/0.2  0.1  0.0/0.0  0.1  0.2/0.2  0.2
     !     |             |             |             |
     !     |             |             |             |
-    !     +-----0.2-----+-----0.0-----+-----0.2-----+
+    !     +-----0.2-----+-----0.1-----+-----0.2-----+
     !     |             |             |             |
     !     |             |             |             |
     !    0.2  0.2/0.2  0.2  0.2/0.2  0.2  0.2/0.2  0.2
@@ -225,28 +243,29 @@ module set_blending_weights_w2_kernel_mod_test
     allocate(this%answer(this%undf2))
 
     this%answer(:) = 0.2_r_def
-    ! horizontal dofs on the boundary of the inner region
-    this%answer(9) = 0.0_r_def
-    this%answer(17) = 0.0_r_def
-    this%answer(21) = 0.0_r_def
-    this%answer(22) = 0.0_r_def
-    ! vertical dofs in the inner region
+    ! Horizontal dofs on the boundary of the inner region
+    this%answer(9) = 0.1_r_def
+    this%answer(17) = 0.1_r_def
+    this%answer(21) = 0.1_r_def
+    this%answer(22) = 0.1_r_def
+    ! Vertical dofs in the inner region
     this%answer(23) = 0.0_r_def
     this%answer(24) = 0.0_r_def
 
     do cell=1,this%ncells
-      call set_blending_weights_w2_code(this%nlayers,          &
-                                        this%weights_w2_field, &
-                                        this%onion_layers,     &
-                                        this%stencil_size,     &
-                                        this%stencil_map3(:,:,cell),     &
-                                        this%depth,            &
-                                        this%ndf2,             &
-                                        this%undf2,            &
-                                        this%map2(:,cell),     &
-                                        this%ndf3,             &
-                                        this%undf3,            &
-                                        this%map3(:,cell)      &
+      call set_blending_weights_w2_code(this%nlayers,                   &
+                                        this%weights_w2_field,          &
+                                        this%onion_layers,              &
+                                        this%stencil_sizes(:,cell),     &
+                                        this%stencil_max,               &
+                                        this%stencil_map3(:,:,:,cell),  &
+                                        this%depth,                     &
+                                        this%ndf2,                      &
+                                        this%undf2,                     &
+                                        this%map2(:,cell),              &
+                                        this%ndf3,                      &
+                                        this%undf3,                     &
+                                        this%map3(:,cell)               &
                                         )
     end do
 
