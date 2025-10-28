@@ -11,5 +11,6 @@ Developer Guide
 .. toctree::
    :maxdepth: 2
 
+   local_builds
    lfric_apps_rose_stem/index
    psyclone/index
