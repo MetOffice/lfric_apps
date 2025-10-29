@@ -96,14 +96,19 @@ This section does not consider LBC prognostics or ancillary fields.
 The term "prognostic fields" broadly refers to the set of model fields that must
 remain in scope throughout a model timestep. The LFRic atmosphere model stores
 the set of prognostic fields in a prognostic field collection held in the main
-``modeldb`` data structure.
+``modeldb`` data structure. This means that a field can be passed more easily
+from one section of the science to another.
 
-Not all prognostic fields need to be written to the checkpoint dump.
-* Prognostic fields that may be written to the dump must be defined in the
-  ``lfric_dictionary.xml`` file which is included in the ``iodef.xml`` file that
-  configures XIOS.
-* Prognostic fields that are not written to the dump are not defined in the
-  ``lfric_dictionary.xml`` file
+Not all prognostic fields need to be written to the checkpoint dump. For some
+fields the need to write a field to the dump depends on the configuration. For
+other fields, the data stored in a field is passed between science sections
+within the same timestep and it does not need to be passed to the next timestep.
+
+* Prognostic fields that are always or sometimes written to the dump must be
+  defined in the ``lfric_dictionary.xml`` file which is included in the
+  ``iodef.xml`` file that configures XIOS.
+* Prognostic fields that are not written to the dump should not be defined in
+  the ``lfric_dictionary.xml`` file.
 
 A module called ``create_physics_prognostics`` holds code that uses model
 configuration to determine several things about the physics prognostics:
@@ -116,9 +121,9 @@ configuration to determine several things about the physics prognostics:
 * Adding initialised fields to the correct science-specific field collection.
 
 Currently, the underpinning infrastructure cannot support doing all of these
-items at the same time. A solution has been created that involves calling
+tasks at the same time. A solution has been created that involves calling
 ``create_physics_prognostics`` twice. The procedure takes a procedure pointer as
-an argument, enabling the routine to do different things on each call.
+an argument, enabling the routine to do different tasks on each call.
 
 .. attention::
 
@@ -132,7 +137,9 @@ an argument, enabling the routine to do different things on each call.
   into levels.
 
 Within the procedure, there is code like the following for each possible
-prognostic field:
+prognostic field. The first prognostic field ``lw_down_surf_rtsi`` may be
+written to the checkpoint file. The second prognostic field ``qcl_at_inv_top``
+is never written to the checkpoint file.
 
 .. code-block:: fortran
 
@@ -142,40 +149,47 @@ prognostic field:
                        twod=.true.))
 
 .. attention::
-   Note that in the calls above, the field that may be checkpointed does not
-   provide the function space type or other information that describes the shape
-   of the field, whereas the field that is not checkpointed provides the
-   function space type ``W3`` and ``twod=.true`` to indicate that the field is
-   on a single layer.
+
+   Note that one of the arguments in the calls above is a function call to
+   ``make_spec``. For the field that may be checkpointed the ``make_spec`` call
+   does not include the function space type or other information that describes
+   the shape of the field, whereas the field that is not checkpointed provides
+   the function space type ``W3`` and ``twod=.true`` (the latter indicates that
+   the field is on a single layer).
 
    Any field that `may` be checkpointed `must` have an XIOS definition (as
    pointed out above, these definitions are stored in the
-   ``lfric_dictionary.xml`` file. It is possible to use this definition to infer
-   the shape of the field (its function space and so forth). Therefore, there is
-   no requirement to provide the argument that define these features. Indeed,
-   doing so results in the definition appearing in two places and raises the
-   possibility that the two definitions may diverge.
-
-Broadly speaking, there will be logic defining whether the code is called for a
-given field depending on whether the field is required; logic will set
-``checkpoint_flag`` depending on whether the field needs to be checkpointed at
-the end of the run (which depends on the scientific configuration, and also on
-whether checkpointing has been enabled). The call also lists the field
-collection to which the field will be added. In ``lfric_atm``, each field
-collection is held in ``model_db`` so is accessible throughout the algorithm
-layer of the model.
+   ``lfric_dictionary.xml`` file). The XML definition is used to infer the shape
+   of the field (its function space and so forth). Such informaton is required
+   to initialise the field within the model. As the information can be extracted
+   from the XML there is no requirement to provide the function space in the
+   ``make_spec`` argument list. Indeed, doing so would result in the definition
+   appearing in two places and raise the possibility that the two definitions
+   may diverge.
 
 Key parts of the above call are:
-  * ``make_spec`` returns a ``field spec`` data structure that summarises the
-    requirements for the field. Optionally, this can include stating which field
-    collection should store it, and what the shape of the field is in terms of
-    its function space or whether it is a 2D field. Note that where the shape is
-    not specified, the information will be derived from the field definition in
-    the XIOS ``iodef.xml`` file.
-  * ``apply`` is a procedure in the ``processor`` object that does work on the
-    ``field spec``.
-  * ``processor`` can be one of two different objects depending on whether this
-    is the first or second call to the ``create_physics_prognostics`` code.
+
+* ``make_spec`` returns a ``field spec`` data structure that summarises the
+  requirements for the field. Optionally, the arguments to ``make_spec`` can
+  include stating which field collection should reference the field.
+
+  * If the ``make_spec`` call sets the ``ckp`` flag then it can be assumed that
+    XIOS may need to read or write the field and therefore an XML record for the
+    field will be in the ``lfric_dictionary.xml`` file that is included in the
+    application's ``iodef.xml`` file. This means that the shape of the field
+    (its function space, number of levels and so forth) can be inferred from the
+    XIOS metadata and does not need to be supplied in the ``make_spec`` argument
+    list.
+  * If the ``make_spec`` call does not set the ``ckp`` flag, then the field is
+    not checkpointed and it must be assumed that there is no XML record for the
+    field in the ``iodef.xml`` file. Therefore, additional arguments are
+    required to the ``make_spec`` call to define the function space type and
+    other information about the field.
+
+* ``apply`` is a procedure in the ``processor`` object that does work on the
+  ``field spec``.
+* ``processor`` can be one of two different objects depending on whether this is
+  the first or second call to the ``create_physics_prognostics`` code.
 
 
 The first call
