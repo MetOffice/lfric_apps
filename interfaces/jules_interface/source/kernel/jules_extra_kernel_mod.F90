@@ -292,10 +292,12 @@ contains
     use atm_fields_bounds_mod,    only: pdims_s, pdims
     use jules_radiation_mod,      only: l_albedo_obs
     use jules_water_resources_mod,                                             &
-                                  only: l_water_domestic,                      &
+                                  only: l_have_groundwater,                    &
+                                        l_have_surface_water, l_water_domestic,&
                                         l_water_industry, l_water_irrigation,  &
                                         l_water_livestock, l_water_resources,  &
-                                        l_water_transfers, nwater_use
+                                        l_water_transfers, n_sw_source,        &
+                                        nwater_use
     use jules_water_tracers_mod,  only: l_wtrac_jls, n_wtrac_jls, n_evap_srce
 
     use crop_vars_mod,            only: crop_vars_type, crop_vars_data_type,   &
@@ -665,10 +667,12 @@ contains
                         l_deposition, ndry_dep_species, chemvars_data)
     call chemvars_assoc(chemvars, chemvars_data)
 
-    call water_resources_alloc(land_pts, nwater_use, l_water_domestic,        &
-                               l_water_industry, l_water_irrigation,          &
-                               l_water_livestock, l_water_resources,          &
-                               l_water_transfers, water_resources_data)
+    call water_resources_alloc(land_pts, n_sw_source, nwater_use,             &
+                               l_have_groundwater, l_have_surface_water,      &
+                               l_water_domestic, l_water_industry,            &
+                               l_water_irrigation, l_water_livestock,         &
+                               l_water_resources, l_water_transfers,          &
+                               water_resources_data)
     call water_resources_assoc(water_resources,water_resources_data)
 
     call wtrac_jls_alloc(land_pts, t_i_length, t_j_length, nsurft, nsoilt,     &

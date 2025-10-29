@@ -10,6 +10,8 @@
     "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit":          BASE,
     "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_full-debug-64bit":              BASE,
     "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit":              BASE,
+    "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit": BASE~"_t808",
+    "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit": BASE~"_t808",
 
     "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_full-debug-64bit":             BASE,
     "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_fast-debug-64bit":             BASE,
@@ -30,6 +32,8 @@
     "lfricinputs_um2lfric-nwp_gal9-N320L70_C12L70_ex1a_gnu_fast-debug-64bit":           BASE,
     "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_full-debug-64bit":           BASE,
     "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_fast-debug-64bit":           BASE,
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_fast-debug-64bit": BASE~"_t808",
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_full-debug-64bit": BASE~"_t808",
     "lfricinputs_um2lfric-protogal_chem-N96L70_C48L70_ex1a_gnu_full-debug-64bit": BASE~"_t190",
     "lfricinputs_um2lfric-protogal_chem-N96L70_C48L70_ex1a_gnu_fast-debug-64bit": BASE~"_t190",
     "lfricinputs_um2lfric-protogal-N96L70_C12L70_ex1a_gnu_full-debug-64bit": BASE~"_t190",

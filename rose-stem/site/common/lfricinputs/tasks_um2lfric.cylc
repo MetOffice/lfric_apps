@@ -125,6 +125,24 @@
         "namelist_src": "um_grid.nml",
     }) %}
 
+{% elif task_ns.conf_name == "um2lfric-nwp_gal9-N320L70_C224L70" %}
+    {% do task_dict.update({
+        "opt_confs": ["nwp_gal9"],
+        "resolution": "C224",
+        "mesh_name": "dynamics",
+        "source_grid_res": "N320",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "C224",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/nwp_gal9_n320l70.astart",
+        "weight_gen_option": "dump-file",
+        "var_res_src": "",
+        "namelist_src": "um_grid.nml",
+        "memory_plot_ex": true,
+    }) %}
+
 {% elif task_ns.conf_name == "um2lfric-protogal-N96L70_C48L70" %}
     {% do task_dict.update({
         "opt_confs": ["protogal"],

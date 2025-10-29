@@ -42,6 +42,10 @@
         "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_full-debug-64bit",
     ],
+    "um2lfric_ex1a_nwp_gal9_C224": [
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_full-debug-64bit",
+    ],
 
     "um2lfric_azspice_nwp_gal9": [
         "um2lfric_azspice_nwp_gal9_C12",
@@ -177,6 +181,10 @@
         "lfric2um_ex1a",
         "scintelapi_ex1a",
     ],
+    "lfricinputs_ex1a_weekly": [
+        "um2lfric_ex1a_weekly",
+        "lfric2um_ex1a_weekly",
+    ],
     "um2lfric_ex1a_developer": [
         "lfricinputs_um2lfric-falklands_lam_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_fast-debug-64bit",
@@ -196,7 +204,10 @@
         "um2lfric_ex1a_aquaplanet_lam",
         "um2lfric_ex1a_aquaplanet_lbc",
         "um2lfric_ex1a_falklands_lam",
-        "um2lfric_ex1a_var_seukv_lam"
+        "um2lfric_ex1a_var_seukv_lam",
+    ],
+    "um2lfric_ex1a_weekly": [
+        "um2lfric_ex1a_nwp_gal9_C224",
     ],
     "lfric2um_ex1a_developer": [
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit",
@@ -206,6 +217,10 @@
         "lfric2um_ex1a_developer",
         "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit",
+    ],
+    "lfric2um_ex1a_weekly": [
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
     ],
     "scintelapi_ex1a_developer": [
         "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_fast-debug-64bit",
@@ -274,6 +289,9 @@
         "lfricinputs_azspice",
         "lfricinputs_ex1a",
     ],
+    "lfricinputs_weekly": [
+        "lfricinputs_ex1a_weekly",
+    ],
     "um2lfric_developer": [
         "um2lfric_azspice_developer",
         "um2lfric_ex1a_developer",
@@ -283,6 +301,9 @@
         "um2lfric_azspice",
         "um2lfric_ex1a",
     ],
+    "um2lfric_weekly": [
+        "um2lfric_ex1a_weekly",
+    ],
     "lfric2um_developer": [
         "lfric2um_azspice_developer",
         "lfric2um_ex1a_developer",
@@ -291,6 +312,9 @@
         "lfric2um_developer",
         "lfric2um_azspice",
         "lfric2um_ex1a",
+    ],
+    "lfric2um_weekly": [
+        "lfric2um_ex1a_weekly",
     ],
     "scintelapi_developer": [
         "scintelapi_azspice_developer",

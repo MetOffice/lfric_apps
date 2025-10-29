@@ -11,6 +11,12 @@
         "mpi_parts": 12,
     }) %}
 
+{% elif task_ns.conf_name == "lfric2um-performance-C224L70_N512L70" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"],
+    }) %}
+
 {% endif %}
 
 {% if task_dict %}
