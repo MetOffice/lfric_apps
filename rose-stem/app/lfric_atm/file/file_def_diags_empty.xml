@@ -1,7 +1,0 @@
-<file_definition>
-
-  <!-- Empty required diagnostic file -->
-  <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
-  </file>
-
-</file_definition>

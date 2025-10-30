@@ -31,18 +31,13 @@
     <file_definition src="./file_def_ancil_main.xml"/>
     <file_definition src="./file_def_ancil_gal.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
-    <file_definition src="./file_def_diags_gal_nwp.xml"/>
+    <file_definition src="./file_def_diags_idealised.xml"/>
     <file_definition src="./file_def_diags_ver.xml"/>
     <file_definition src="./file_def_diags_name.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">
-
-      <!-- Initial conditions diagnostic file -->
-      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-        <field field_ref="init_height_w3" />
-        <field field_ref="init_height_wth" />
-      </file>
 
       <!-- File definition for writing an FD dump -->
       <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >

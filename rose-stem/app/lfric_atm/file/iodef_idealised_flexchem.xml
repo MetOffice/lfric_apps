@@ -15,7 +15,7 @@
 
     <!-- Include domain definitions -->
     <domain_definition src="$METADATA/domain_def_main.xml"/>
-    
+
     <!-- Include grid definitions -->
     <grid_definition src="$METADATA/grid_def_main.xml"/>
     <grid_definition src="$METADATA/grid_def_aero_ctl.xml"/>
@@ -28,11 +28,10 @@
 
     <!-- Include file definitions -->
     <file_definition src="./file_def_check_restart.xml"/>
+    <file_definition src="./file_def_ancil_idealised.xml"/>
     <file_definition src="./file_def_diags_idealised.xml"/>
     <file_definition src="./file_def_diags_flexchem.xml"/>
-    <file_definition src="./file_def_diags_ave.xml"/>
     <file_definition src="./file_def_initial_diags.xml"/>
-    <file_definition src="./file_def_ancil_idealised.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">

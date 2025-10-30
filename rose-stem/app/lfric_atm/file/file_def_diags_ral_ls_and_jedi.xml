@@ -1,8 +1,8 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
   <!-- OPS Background Error file -->
   <!-- Time profile is every 10mins from T+0 to T+1.5 -->
   <file id="lfric_bg_for_hofx" name="seuk_lfric_bg_for_hofx" output_freq="10mi" convention="UGRID" enabled=".TRUE.">
-    <field_group freq_op="10mi" operation="instant">
+    <field_group freq_op="10mi" operation="instant" prec="4">
       <field field_ref="m_v"/>
       <field field_ref="m_cl"/>
       <field field_ref="m_r"/>
@@ -30,7 +30,7 @@
       <field field_ref="cloud__frozen_fraction"/>
       <field field_ref="processed__pressure_in_w3"/>
       <field field_ref="processed__pstar"/>
-      <field field_ref="aerosol__murk"/>
+      <!-- <field field_ref="aerosol__murk"/> -->
       <field field_ref="surface__u10m"/>
       <field field_ref="surface__v10m"/>
       <field field_ref="surface__t1p5m"/>

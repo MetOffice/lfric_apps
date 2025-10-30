@@ -32,7 +32,6 @@
     <file_definition src="./file_def_ancil_gal.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
     <file_definition src="./file_def_diags_idealised.xml"/>
-    <file_definition src="./file_def_diags_ave.xml"/>
     <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->

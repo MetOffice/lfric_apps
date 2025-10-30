@@ -1,0 +1,255 @@
+<file_definition>
+
+  <!-- Diagnostic standard level fields - Hourly -->
+  <file id="lfric_gl_std_levs_diags_1hr" name="lfric_gl_std_levs_diags_1hr" output_freq="1h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="1h" prec="4">
+      <field field_ref="snow__grid_snow_mass"/>
+      <field field_ref="turbulence__zh"/>
+      <field field_ref="surface__grid_surface_temperature"/>
+      <field field_ref="surface__z0m"/>
+      <field field_ref="surface__land_fraction"/>
+      <field field_ref="surface__sea_ice_fraction"/>
+      <field field_ref="orography"/>
+      <field field_ref="processed__r2rho"/>
+      <field field_ref="surface__land_surface_temperature"/>
+      <field field_ref="surface__tile_temperature"/>
+      <field field_ref="surface__u10m"/>
+      <field field_ref="surface__v10m"/>
+      <field field_ref="surface__wspd10m"/>
+      <field field_ref="surface__grid_sensible_heat"/>
+      <field field_ref="surface__grid_moisture_flux"/>
+      <field field_ref="surface__grid_latent_heat"/>
+      <field field_ref="surface__t1p5m"/>
+      <field field_ref="surface__q1p5m"/>
+      <field field_ref="surface__rh1p5m"/>
+      <field field_ref="surface__fog_fraction"/>
+      <field field_ref="surface__dew_point"/>
+      <field field_ref="surface__vis_prob_5km"/>
+      <field field_ref="surface__visibility_with_precip"/>
+      <field field_ref="surface__canopy_height"/>
+      <field field_ref="surface__canopy_water"/>
+      <field field_ref="surface__u10m_neut"/>
+      <field field_ref="surface__v10m_neut"/>
+      <field field_ref="surface__gc_tile"/>
+      <field field_ref="surface__wind_gust"/>
+      <field field_ref="surface__t1p5m_ssi"/>
+      <field field_ref="surface__t1p5m_land"/>
+      <field field_ref="surface__rh1p5m_land"/>
+      <field field_ref="surface__rh1p5m_ssi"/>
+      <field field_ref="surface__fog_fraction_land"/>
+      <field field_ref="surface__fog_fraction_ssi"/>
+      <field field_ref="surface__dew_point_land"/>
+      <field field_ref="surface__dew_point_ssi"/>
+      <field field_ref="microphysics__ls_rain"/>
+      <field field_ref="microphysics__ls_snow"/>
+      <field field_ref="convection__conv_rain"/>
+      <field field_ref="convection__conv_snow"/>
+      <field field_ref="processed__total_prec"/>
+      <field field_ref="convection__lowest_cca_2d"/>
+      <field field_ref="convection__pres_lowest_cv_base"/>
+      <field field_ref="convection__pres_lowest_cv_top"/>
+      <field field_ref="convection__cca_2d"/>
+      <field field_ref="cloud__very_low_type_cloud_amount"/>
+      <field field_ref="cloud__low_type_cloud_amount"/>
+      <field field_ref="cloud__medium_type_cloud_amount"/>
+      <field field_ref="cloud__high_type_cloud_amount"/>
+      <field field_ref="cloud__cloud_fraction_below_1000feet_asl"/>
+      <field field_ref="processed__freeze_lev"/>
+      <field field_ref="cloud__ceilometer_cloud_amount_maxrnd"/>
+      <field field_ref="plev__u"/>
+      <field field_ref="plev__v"/>
+      <field field_ref="plev__w"/>   
+      <field field_ref="plev__geopot"/> 
+      <field field_ref="plev__temp"/> 
+      <field field_ref="plev__rh_ice"/>
+      <field field_ref="plev__thetaw"/>
+      <field field_ref="processed__pmsl"/>
+      <field field_ref="plev__rh_water"/>
+      <field field_ref="processed__tot_col_dry_air_mass"/>
+      <field field_ref="processed__tot_col_wetplusdry_mass"/>
+      <field field_ref="processed__tot_col_m_cl"/>
+      <field field_ref="processed__tot_col_m_cf"/>
+    </field_group>
+    
+    <!-- 2D fields averaged every timestep -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="microphysics__ls_rain" name="ls_rain_average"/>
+      <field field_ref="microphysics__ls_snow" name="ls_snow_average"/>
+      <field field_ref="convection__conv_rain" name="conv_rain_average"/>
+      <field field_ref="convection__conv_snow" name="conv_snow_average"/>
+      <field field_ref="processed__total_prec" name="total_prec_average"/>
+      <field field_ref="convection__lowest_cca_2d" name="conv_lowest_cca_average"/>
+      <field field_ref="convection__pres_lowest_cv_base" name="conv_pressure_lowest_base_average"/>
+      <field field_ref="convection__pres_lowest_cv_top" name="conv_pressure_lowest_top_average"/>
+      <field field_ref="cloud__low_type_cloud_amount" name="low_type_cloud_average"/>
+      <field field_ref="cloud__medium_type_cloud_amount" name="medium_type_cloud_average"/>
+      <field field_ref="cloud__high_type_cloud_amount" name="high_type_cloud_average"/>
+      <field field_ref="processed__pmsl" name="pmsl_average"/>
+    </field_group>  
+    
+    <!-- 2D fields, maximum over sampling period -->
+    <field_group operation="maximum" freq_op="1ts" prec="4">
+      <field field_ref="surface__t1p5m" name="t1p5m_maximum"/>
+      <field field_ref="surface__wind_gust" name="wind_gust_maximum"/>
+      <field field_ref="surface__t1p5m_ssi" name="t1p5m_ssi_maximum"/>
+      <field field_ref="surface__t1p5m_land" name="t1p5m_land_maximum"/>
+      <field field_ref="microphysics__ls_rain" name="ls_rain_maximum"/>
+      <field field_ref="microphysics__ls_snow" name="ls_snow_maximum"/>
+      <field field_ref="convection__conv_rain" name="conv_rain_maximum"/>
+      <field field_ref="convection__conv_snow" name="conv_snow_maximum"/>      
+    </field_group> 
+    
+    <!-- 2D fields, minimum over sampling period -->
+    <field_group operation="minimum" freq_op="1ts" prec="4">
+      <field field_ref="surface__t1p5m" name="t1p5m_minimum"/>
+      <field field_ref="surface__t1p5m_ssi" name="t1p5m_ssi_minimum"/>
+      <field field_ref="surface__t1p5m_land" name="t1p5m_land_minimum"/>  
+    </field_group>    
+    
+    <!-- 2D fields, accumulate over sampling period -->
+    <field_group operation="accumulate" freq_op="1ts" prec="4">  
+      <field field_ref="microphysics__ls_rain_acc"/>
+      <field field_ref="microphysics__ls_snow_acc"/>
+      <field field_ref="convection__conv_rain_acc"/>
+      <field field_ref="convection__conv_snow_acc"/>
+    </field_group>  
+    
+        
+    <!-- Model timestep radiation diagnostics ("corrected") -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="radiation__sw_net_surf"/>
+    </field_group>  
+    
+    <!-- Radiation timestep radiation diagnostics -->
+    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
+      <field field_ref="radiation__sw_direct_surf_rts"/>
+      <field field_ref="radiation__sw_diffuse_surf_rts"/>
+      <field field_ref="radiation__sw_down_uv_surf_rts"/>
+      <field field_ref="radiation__lw_up_toa_rts"/> 
+      <field field_ref="radiation__lw_down_surf_rts"/>  
+    </field_group>     
+  
+  </file>
+  
+  <!-- Diagnostic standard level fields - 3 Hourly -->
+  <file id="lfric_gl_std_levs_diags_3hr" name="lfric_gl_std_levs_diags_3hr" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+    
+    <field_group operation="instant" freq_op="3h" prec="4">
+      <field field_ref="surface__grid_moisture_flux"/>
+      <field field_ref="surface__qt1p5m"/>
+      <field field_ref="surface__leaf_area_index"/>
+      <field field_ref="soil__soil_moisture_content"/> 
+      <field field_ref="surface__grid_canopy_water"/> 
+      <field field_ref="cloud__cloud_amount_rnd"/> 
+    </field_group>     
+    
+    <field_group operation="average" freq_op="3h" prec="4">  
+      <field field_ref="surface__soil_surf_ht_flux" name="soil_surf_ht_flux_average"/>
+      <field field_ref="surface__grid_sublimation" name="grid_sublimation_average"/>
+      <field field_ref="microphysics__ls_rain" name="ls_rain_average"/>
+      <field field_ref="microphysics__ls_snow" name="ls_snow_average"/>
+      <field field_ref="convection__conv_rain" name="conv_rain_average"/>
+      <field field_ref="convection__conv_snow" name="conv_snow_average"/>   
+      <field field_ref="processed__total_prec" name="total_prec_average"/>
+      <field field_ref="convection__lowest_cca_2d" name="conv_lowest_cca_average"/>
+      <field field_ref="convection__pres_lowest_cv_base" name="conv_pressure_lowest_base_average"/>
+      <field field_ref="convection__pres_lowest_cv_top" name="conv_pressure_lowest_top_average"/>
+      <field field_ref="cloud__very_low_type_cloud_amount" name="very_low_type_cloud_average"/>
+      <field field_ref="cloud__low_type_cloud_amount" name="low_type_cloud_average"/>
+      <field field_ref="cloud__medium_type_cloud_amount" name="medium_type_cloud_average"/>
+      <field field_ref="cloud__high_type_cloud_amount" name="high_type_cloud_average"/>
+      <field field_ref="cloud__cloud_fraction_below_1000feet_asl" name="cloud_fraction_below_1000feet_asl_average"/> 
+      <field field_ref="plev__geopot" name="geopot_average"/> 
+      <field field_ref="processed__pmsl" name="pmsl_average"/>
+    </field_group>
+    
+    <!-- 2D fields, maximum over sampling period -->
+    <field_group operation="maximum" freq_op="1ts" prec="4">
+      <field field_ref="processed__total_prec" name="total_prec_maximum"/>
+      <field field_ref="convection__pres_lowest_cv_base" name="conv_pres_lowest_cv_base_maximum"/>     
+    </field_group> 
+          
+    <!-- 2D fields, minimum over sampling period -->
+    <field_group operation="minimum" freq_op="1ts" prec="4">
+      <field field_ref="convection__pres_lowest_cv_top" name="conv_pres_lowest_cv_top_minimum"/>
+    </field_group> 
+    
+       
+    <!-- Model timestep radiation diagnostics ("corrected") -->
+    <field_group operation="instant" freq_op="3h" prec="4">
+      <field field_ref="radiation__sw_up_toa"/>
+      <field field_ref="radiation__sw_direct_toa"/>
+    </field_group>  
+    
+    <!-- Radiation timestep radiation diagnostics -->
+    <field_group operation="instant" freq_op="3h" freq_offset="0ts" prec="4">    
+        <field field_ref="radiation__sw_direct_surf_rts"/>
+        <field field_ref="radiation__sw_up_toa_rts"/>
+        <field field_ref="radiation__sw_up_clear_toa_rts"/>
+        <field field_ref="radiation__sw_down_uv_clear_surf_rts"/>
+        <field field_ref="radiation__lw_net_surf_rts"/>
+        <field field_ref="radiation__lw_up_clear_toa_rts"/>
+        <field field_ref="processed__sw_aer_optical_depth_rts"/>
+    </field_group>        
+  </file>    
+  
+  
+  <file id="lfric_gl_model_levs_diags_1hr" name="lfric_gl_model_levs_diags_1hr" output_freq="1h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+    <!-- Full model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="instant" freq_op="1h" prec="4">
+      <field field_ref="theta"/>
+      <field field_ref="processed__qv"/>
+      <field field_ref="processed__qcl"/>
+      <field field_ref="processed__qcf"/>
+      <field field_ref="w_in_wth"/>
+      <field field_ref="cloud__area_fraction"/>
+      <field field_ref="cloud__bulk_fraction"/>
+      <field field_ref="cloud__liquid_fraction"/>
+      <field field_ref="cloud__frozen_fraction"/> 
+      <field field_ref="processed__qrain"/>
+      <field field_ref="processed__pressure_in_wth"/>
+      <field field_ref="processed__pstar"/>
+      <field field_ref="convection__dmcl_conv"/>
+      <field field_ref="orographic_drag__taux_orographic_drag"/>
+      <field field_ref="orographic_drag__tauy_orographic_drag"/>
+      <field field_ref="orographic_drag__taux_orog_gwd"/>
+      <field field_ref="orographic_drag__tauy_orog_gwd"/>      
+    </field_group> 
+    
+    <field_group operation="average" freq_op="1ts" prec="4"> 
+       <field field_ref="processed__qcf" name="qcf_average"/>
+       <field field_ref="processed__qcl" name="qcl_average"/>
+    </field_group>     
+    
+    <!-- Half model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="instant" freq_op="1h" prec="4">
+      <field field_ref="processed__pressure_in_w3"/>
+      <field field_ref="u_in_w3"/>
+      <field field_ref="v_in_w3"/>
+      <field field_ref="processed__r2rho"/>
+      <field field_ref="exner"/>
+    </field_group>
+  </file> 
+  
+  <file id="lfric_gl_model_levs_diags_3hr" name="lfric_gl_model_levs_diags_3hr" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  
+    <field_group operation="instant" freq_op="3h" prec="4"> 
+       <field field_ref="processed__qcf"/>
+       <field field_ref="processed__qcl"/>
+       <field field_ref="processed__rh_ice"/>       
+    </field_group>    
+  
+    <!-- Full model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="average" freq_op="1ts" prec="4"> 
+       <field field_ref="processed__qcf" name="qcf_average"/>
+       <field field_ref="processed__qcl" name="qcl_average"/>
+       <field field_ref="surface__surface_taux" name="surface_taux_average"/>
+       <field field_ref="surface__surface_tauy" name="surface_tauy_average"/>
+    </field_group>  
+    
+    <!-- Half model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="average" freq_op="1ts" prec="4"> 
+       <field field_ref="turbulence__rib" name="turbulence__rib_average"/>
+    </field_group>   
+  </file>   
+</file_definition>

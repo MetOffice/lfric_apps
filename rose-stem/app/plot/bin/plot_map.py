@@ -293,7 +293,6 @@ if __name__ == "__main__":
         do_plot(datapath, sw_direct_orog_incr_rts, plotpath)
     if ral_plots:
         do_plot(datapath, ls_prec,      plotpath)
-        do_plot(datapath, lw_net_skyview_incr, plotpath)
     else:
         do_plot(datapath, total_prec,   plotpath)
     if encorr_plots:

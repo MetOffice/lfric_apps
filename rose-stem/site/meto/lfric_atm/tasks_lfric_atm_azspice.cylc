@@ -5,43 +5,4 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/lfric_atm/tasks_lfric_atm_azspice.cylc") %}
 
-{% if task_ns.conf_name == "nwp_gal9-C12" %}
-
-    {% do task_dict.update({
-        "memory": [8, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9_nomg-C12" %}
-    {% if ("production" in task) %}
-        {% do task_dict.update({
-            "log_to_rank_zero_only": ".true.",
-        }) %}
-    {% endif %}
-
-{% elif task_ns.conf_name == "nwp_gal9-C12-short" %}
-
-    {% do task_dict.update({
-        "memory": [8, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "scm_ukca_land-BiP2x2-50000x50000" %}
-
-    {% do task_dict.update({
-        "wallclock": 5,
-    }) %}
-
-{% elif task_ns.conf_name == "clim_gal9_nomg-C12" %}
-
-    {% do task_dict.update({
-        "memory": [8, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
-
-    {% do task_dict.update({
-        "memory": [8, "GB"],
-    }) %}
-
-{% endif %}
-
 {% do LOG.debug("Finised in site/meto/lfric_atm/tasks_lfric_atm_azspice.cylc") %}

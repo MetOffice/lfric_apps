@@ -689,7 +689,7 @@ contains
   ricrit_rp = rp_bl_ricrit_pert
   snow_fspd_rp = rp_mp_snow_fspd_pert
   z0_soil_rp = rp_lsfc_z0_soil_pert
-  z0_urban_mult_rp = rp_lsfc_z0_urban_mult_pert
+  if (l_urban2t) z0_urban_mult_rp = rp_lsfc_z0_urban_mult_pert
   z0hm_soil_rp = rp_lsfc_z0hm_soil_pert
   do n = 1, npft
     alnir_rp(n) = rp_lsfc_alnir_pert(n)
@@ -698,7 +698,7 @@ contains
     omega_rp(n) = rp_lsfc_omega_pert(n)
     omnir_rp(n) = rp_lsfc_omnir_pert(n)
     z0hm_pft_rp(n) = rp_lsfc_z0hm_pft_pert(n)
-    z0v_rp(n) = rp_lsfc_z0v_pert(n)
+    if ( l_spec_veg_z0 ) z0v_rp(n) = rp_lsfc_z0v_pert(n)
   end do
 
   end subroutine stph_rp_main_alg

@@ -43,8 +43,8 @@ def do_plot(datapath, plotfield, plotpath='.', plotlevel=0):
     else:
         lfric = lfric[-1, plotlevel]
 
-    x_coord_name = 'projection_x_coordinate'
-    y_coord_name = 'projection_y_coordinate'
+    x_coord_name = 'longitude'
+    y_coord_name = 'latitude'
 
     if plotfield[varname] == 'ls_prec':
        import cf_units

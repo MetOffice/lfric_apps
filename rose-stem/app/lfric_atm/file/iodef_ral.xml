@@ -15,7 +15,7 @@
 
     <!-- Include domain definitions -->
     <domain_definition src="$METADATA/domain_def_main.xml"/>
-    
+
     <!-- Include grid definitions -->
     <grid_definition src="$METADATA/grid_def_main.xml"/>
     <grid_definition src="$METADATA/grid_def_aero_ctl.xml"/>
@@ -33,13 +33,12 @@
     <file_definition src="./file_def_ancil_ral.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
     <file_definition src="./file_def_lbcs.xml"/>
-    <file_definition src="./file_def_diags_empty.xml"/>
     <file_definition src="./file_def_diags_ral.xml"/>
-    <file_definition src="./file_def_diags_ave.xml"/>
     <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">
+
       <!-- File definition for writing an FD dump -->
       <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
       </file>

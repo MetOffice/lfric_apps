@@ -10,9 +10,9 @@
 {# ###################################################################### #}
 {% do site_groups.update({
     "lfric_atm_nwp_gadi_developer": [
-        "lfric_atm_nwp_gal9_nomg-C12_gadi_intel_fast-debug-64bit",
-        "lfric_atm_nwp_gal9_nomg-C12_gadi_intel_production-64bit-rbl32-rtran32",
-        "lfric_atm_nwp_gal9_molw-C12_gadi_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal9-C12_gadi_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal9-C12_gadi_intel_production-64bit-rbl32-rtran32",
+        "lfric_atm_nwp_gal9_mol-C12_gadi_intel_fast-debug-64bit",
         "lfric_atm_nwp_gal9_debug-C12_gadi_intel_full-debug-64bit",
         "lfric_atm_nwp_gal9_short-C12_gadi_intel_fast-debug-64bit",
     ],
@@ -53,9 +53,9 @@
     ],
     "lfric_atm_gadi_developer": [
         "lfric_atm_nwp_gadi_developer",
-        "lfric_atm_clim_gal9_nomg-C12_gadi_intel_fast-debug-64bit",
+        "lfric_atm_clim_gal9-C12_gadi_intel_fast-debug-64bit",
         "lfric_atm_ral_gadi_developer",
-        "lfric_atm_rce_test-BiP64x64-1500x1500_MG_gadi_intel_fast-debug-64bit",
+        "lfric_atm_rce-BiP64x64-1500x1500_MG_gadi_intel_fast-debug-64bit",
         "lfric_atm_scm_gadi_developer",
     ],
     "lfric_atm_gadi_extra": [

@@ -927,9 +927,9 @@
   <field id="processed__qcl" name="qcl" long_name="specific_cloud_liquid_water" standard_name="mass_fraction_of_cloud_liquid_water_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_cl / (1+processed__m_tot) </field>
   <field id="processed__qci" name="qci" long_name="specific_cloud_ice" standard_name="mass_fraction_of_cloud_ice_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_ci / (1+processed__m_tot) </field>
   <field id="processed__qcf" name="qcf" long_name="specific_cloud_frozen_water" standard_name="mass_fraction_of_frozen_water_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> (m_ci+m_s) / (1+processed__m_tot) </field>
-  <field id="processed__qrain" name="qrain" long_name="specific_rain" standard_name="mass_fraction_of_rain_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_r / processed__m_tot </field>
-  <field id="processed__qsnow" name="qsnow" long_name="specific_snow" standard_name="mass_fraction_of_snow_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_s / processed__m_tot </field>
-  <field id="processed__qgraup" name="qgraup" long_name="specific_graupel" standard_name="mass_fraction_of_graupel_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_g / processed__m_tot </field>
+  <field id="processed__qrain" name="qrain" long_name="specific_rain" standard_name="mass_fraction_of_rain_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_r / (1+processed__m_tot) </field>
+  <field id="processed__qsnow" name="qsnow" long_name="specific_snow" standard_name="mass_fraction_of_snow_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_s / (1+processed__m_tot) </field>
+  <field id="processed__qgraup" name="qgraup" long_name="specific_graupel" standard_name="mass_fraction_of_graupel_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_g / (1+processed__m_tot) </field>
   <field id="processed__qcloud" name="qcloud" long_name="specific_cloud_condensate" unit="kg kg-1" grid_ref="full_level_face_grid"> processed__qcl + processed__qci </field>
   <field id="processed__qtotal" name="qtotal" long_name="specific_total_water" unit="kg kg-1" grid_ref="full_level_face_grid"> processed__qv + processed__qcl + processed__qci </field>
   <field id="processed__rh_water" name="rh_water" long_name="relative_humidity_over_water" standard_name="relative_humidity" unit="%" grid_ref="full_level_face_grid" />
@@ -966,8 +966,8 @@
   <field id="plev__w" name="plev_w" long_name="vertical_wind_at_pressure_levels" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__w_clim" name="plev_w_clim" long_name="vertical_wind_at_pressure_levels_for_climate_averaging" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__omega_clim" name="plev_omega_clim" long_name="omega_at_pressure_levels_for_climate_averaging" unit="Pa s-1" domain_ref="face" axis_ref="pressure_levels"/>
-  <field id="plev__geopot" name="plev_geopot" long_name="geopotential_height_at_pressure_levels" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
-  <field id="plev__geopot_clim" name="plev_geopot_clim" long_name="geopotential_height_at_pressure_levels_for_climate_averaging" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
+  <field id="plev__geopot" name="plev_geopot" long_name="geopotential_height_at_pressure_levels" unit="m" domain_ref="face" axis_ref="pressure_levels"/>
+  <field id="plev__geopot_clim" name="plev_geopot_clim" long_name="geopotential_height_at_pressure_levels_for_climate_averaging" unit="m" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__mv_clim" name="plev_mv_clim" long_name="vapour_mixing_ratio_at_pressure_levels_for_climate_averaging" unit="kg kg-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__qv_clim" name="plev_qv_clim" long_name="vapour_specific_humidity_at_pressure_levels_for_climate_averaging" unit="kg kg-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__rh_ice" name="plev_rh_ice" long_name="relative_humidity_wrt_ice_at_pressure_levels" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>

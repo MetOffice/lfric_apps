@@ -5,83 +5,9 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/lfric_atm/tasks_lfric_atm_ex1a.cylc") %}
 
-{% if task_ns.conf_name == "nwp_gal9-C192_MG" %}
+{% if task_ns.conf_name == "nwp_gal9-C48_MG" %}
     {% do task_dict.update({
-        "mpi_parts": 384,
-        "wallclock": 20,
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9_perf-C192_MG" %}
-    {% do task_dict.update({
-        "mpi_parts": 384,
-        "wallclock": 20,
-    }) %}
-
-{% elif task_ns.conf_name == "clim_gal9-C48_MG" %}
-    {% do task_dict.update({
-        "wallclock": 50,
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
-    {% do task_dict.update({
-        "wallclock": 80,
-    }) %}
-
-{% elif task_ns.conf_name == "ral3_mixmol-uk_MG" %}
-    {% do task_dict.update({
-        "wallclock": 75,
-        "mpi_parts_xios" : 320,
-
-    }) %}
-
-{% elif task_ns.conf_name == "ral3-ukv_MG" %}
-    {% do task_dict.update({
-        "wallclock": 60,
-        "mpi_parts_xios" : 1440,
-
-    }) %}
-
-{% elif task_ns.conf_name == "ral3-uk_MG" %}
-    {% do task_dict.update({
-        "wallclock": 90,
-        "mpi_parts_xios" : 320,
-
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9-C48_MG" %}
-    {% do task_dict.update({
-        "mpi_parts": 54,
-        "memory": [48, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9_deep-C48_MG" %}
-    {% do task_dict.update({
-        "mpi_parts": 54,
-        "memory": [48, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9_hori_pred-C48_MG" %}
-    {% do task_dict.update({
-        "mpi_parts": 54,
-        "memory": [48, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
-
-    {% do task_dict.update({
-        "memory": [24, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "clim_gal9_nomg-C12" %}
-
-    {% do task_dict.update({
-        "memory": [24, "GB"],
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}
-
-    {% do task_dict.update({
-        "memory": [24, "GB"],
+        "memory": [40, "GB"],
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
@@ -90,16 +16,40 @@
         "memory": [36, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
 {% elif task_ns.conf_name == "nwp_gal9_debug-C48_MG" %}
 
     {% do task_dict.update({
         "memory": [36, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_mgnoukca-C48_MG" %}
+{% elif task_ns.conf_name == "clim_gal9-C12" %}
 
     {% do task_dict.update({
-        "memory": [36, "GB"],
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-seuk_ls_and_jedi" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"]
     }) %}
 
 {% elif task_ns.conf_name == "ral3_ens-seuk_MG" %}
@@ -114,7 +64,7 @@
         "memory": [24, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "ral3-seuk_MG" %}
+{% elif task_ns.conf_name == "comp_tran_ref_3d_l120-BiP64x64-1500x1500_MG" %}
 
     {% do task_dict.update({
         "memory": [24, "GB"],
@@ -126,14 +76,7 @@
         "memory": [24, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "ral3-seuk_ls_and_jedi" %}
-
-    {% do task_dict.update({
-        "memory": [24, "GB"]
-    }) %}
-
 {% endif %}
-
 
 {% if "perftools" in task_ns.compiler %}
     {% do task_dict.update({

@@ -1,8 +1,8 @@
-<file_definition type="one_file" par_access="collective" time_counter="none">
+<file_definition>
 
   <!-- Diagnostic output file for NAME model on global runs -->
   <file id="lfric_name" name="lfric_name" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
-    <field_group operation="instant" freq_op="3h">
+    <field_group operation="instant" freq_op="3h" prec="4">
       <field field_ref="u_in_w3"/>                      <!-- 3D, Field Name: wind (u-cpt) -->
       <field field_ref="v_in_w3"/>                      <!-- 3D, Field Name: wind (v-cpt) -->
       <field field_ref="w_in_w3"/>                      <!-- 3D, Field Name: wind (w-cpt) -->
@@ -26,7 +26,7 @@
       <field field_ref="surface__tile_fraction"/>       <!-- Operationally will be an ancil -->
     </field_group>
 
-    <field_group operation="average" freq_op="1ts"> 
+    <field_group operation="average" freq_op="1ts" prec="4"> 
       <field field_ref="m_cl"/>                             <!-- 3D, Field Name: cloud liquid water -->
       <field field_ref="m_cf"/>                             <!-- 3D, Field Name: cloud ice water -->
       <field field_ref="convection__cca_2d"/>               <!-- 2D, Field Name: convective cloud amount -->

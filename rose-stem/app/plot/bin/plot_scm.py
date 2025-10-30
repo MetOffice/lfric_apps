@@ -27,7 +27,7 @@ def do_plot(datapath, plotfield, plotpath='.'):
     lfric = lfric[:, :, 0]
 
     plt.figure(figsize=(15, 10))
-    for n, time in enumerate([0, 5, 10, 20, 30, 35]):
+    for n, time in enumerate([0, 2, 4, 8, 12, 14]):
         plt.subplot(2, 3, n+1)
         try:
            # first try wtheta fields

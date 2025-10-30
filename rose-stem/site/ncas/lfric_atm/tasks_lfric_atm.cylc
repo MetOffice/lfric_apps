@@ -1,17 +1,6 @@
 {% do LOG.debug("Started in site/ncas/lfric_atm/tasks_lfric_atm.cylc") %}
 
-{% if task_ns.conf_name == "nwp_gal9_perf-C192_MG" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["um_dump","no_diags"],
-        "resolution": "C192_MG",
-        "DT": 720,
-        "tsteps": 120,
-        "mpi_parts": 384,
-        "wallclock": 20,
-    }) %}
-
-{% elif task_ns.conf_name == "nwp_gal9-C192_MG" %}
+{% if task_ns.conf_name == "nwp_gal9_noukca_3n_1T-C192_MG" %}
 
     {% do task_dict.update({
         "xios_nodes": 4,

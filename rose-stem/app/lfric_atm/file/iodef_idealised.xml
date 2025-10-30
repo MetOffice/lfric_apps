@@ -28,10 +28,9 @@
 
     <!-- Include file definitions -->
     <file_definition src="./file_def_check_restart.xml"/>
-    <file_definition src="./file_def_diags_idealised.xml"/>
-    <file_definition src="./file_def_diags_ave.xml"/>
-    <file_definition src="./file_def_initial_diags.xml"/>
     <file_definition src="./file_def_ancil_idealised.xml"/>
+    <file_definition src="./file_def_diags_idealised.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">

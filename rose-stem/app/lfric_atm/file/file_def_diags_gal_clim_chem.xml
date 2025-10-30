@@ -1,9 +1,9 @@
 <file_definition>
 
   <!-- Main diagnostic output file for global climate runs -->
-  <file id="lfric_gal_diagnostics" name="lfric_gal_diagnostics" output_freq="18h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1d" convention="UGRID" enabled=".TRUE.">
     <!-- 3D fields averaged every timestep -->
-    <field_group operation="average" freq_op="1ts">
+    <field_group operation="average" freq_op="1ts" prec="4">
       <field field_ref="u_in_w3"/>
       <field field_ref="theta"/>
       <field field_ref="m_v"/>
@@ -13,12 +13,15 @@
       <field field_ref="processed__qv"/>
       <field field_ref="processed__qcl"/>
       <field field_ref="processed__qcf"/>
+      <field field_ref="processed__qrain"/>
       <field field_ref="cloud__area_fraction"/>
       <field field_ref="cloud__frozen_fraction"/>
       <field field_ref="cloud__liquid_fraction"/>
       <field field_ref="cloud__bulk_fraction"/>
       <field field_ref="processed__wbig"/>
       <field field_ref="microphysics__tnuc"/>
+      <field field_ref="processed__pressure_in_w3"/>
+      <field field_ref="processed__pressure_in_wth"/>
       <field field_ref="chemistry__emiss_no_aircrft"/>
       <field field_ref="chemistry__o1d"/>
       <field field_ref="chemistry__o3"/>
@@ -85,7 +88,7 @@
     </field_group>
 
     <!-- 2D fields averaged every timestep -->
-    <field_group operation="average" freq_op="1ts">
+    <field_group operation="average" freq_op="1ts" prec="4">
       <field field_ref="processed__total_rain"/>
       <field field_ref="processed__total_snow"/>
       <field field_ref="processed__total_prec"/>
@@ -155,9 +158,8 @@
       <field field_ref="processed__tot_col_dry_air_mass"/>
       <field field_ref="processed__tot_col_m_v"/>
       <field field_ref="processed__tot_col_m_cl"/>
-      <field field_ref="processed__tot_col_m_r"/>
-      <field field_ref="processed__tot_col_m_ci"/>
       <field field_ref="processed__tot_col_m_cf"/>
+      <field field_ref="processed__tot_col_m_r"/>
       <field field_ref="processed__tot_col_m_s"/>
       <field field_ref="processed__tot_col_m_g"/>
       <field field_ref="processed__tot_col_wetplusdry_mass"/>
@@ -172,7 +174,7 @@
     </field_group>
 
     <!-- 2D fields averaged on radiation timesteps -->
-    <field_group operation="average" freq_op="1h" freq_offset="0ts">
+    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
       <field field_ref="radiation__lw_net_surf_rts"/>
       <field field_ref="radiation__lw_down_surf_rts"/>
       <field field_ref="radiation__lw_up_surf_rts"/>
@@ -196,7 +198,7 @@
     </field_group>
 
     <!-- Fields averaged every 6 hours  -->
-    <field_group operation="average" freq_op="6h">
+    <field_group operation="average" freq_op="6h" prec="4">
       <field field_ref="orography"/>
       <field field_ref="surface__tile_fraction"/>
       <field field_ref="surface__land_fraction"/>
@@ -225,7 +227,7 @@
     </field_group>
 
     <!-- COSP satellite simulator diagnostics -->
-    <field_group operation="average" freq_op="1ts">
+    <field_group operation="average" freq_op="1ts" prec="4">
       <field field_ref="cosp__cloud_thermal_absorptivity"/>
       <field field_ref="cosp__cloud_solar_extinction"/>
       <field field_ref="cosp__calipso_low_cloud"/>

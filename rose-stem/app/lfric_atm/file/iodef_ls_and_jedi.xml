@@ -31,9 +31,8 @@
     <file_definition src="./file_def_ancil_main.xml"/>
     <file_definition src="./file_def_ancil_gal.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
-    <file_definition src="./file_def_diags_ave.xml"/>
-    <file_definition src="./file_def_initial_diags.xml"/>
     <file_definition src="./file_def_diags_ls_and_jedi.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">
@@ -60,8 +59,8 @@
         <field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
         <field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
         <field id="read_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="once" />
-	      <field id="read_dust1_mmr" name="dust1_mmr" long_name="dust_division_1_mass_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
-	      <field id="read_dust2_mmr" name="dust2_mmr" long_name="dust_division_2_mass_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_dust1_mmr" name="dust1_mmr" long_name="dust_division_1_mass_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_dust2_mmr" name="dust2_mmr" long_name="dust_division_2_mass_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
         <!-- surface fields -->
         <field id="read_dd_mf_cb" name="dd_mf_cb" long_name="downdraft_massflux_at_cloud_base" unit="Pa s-1" domain_ref="face" operation="once" />
         <field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" operation="once" />

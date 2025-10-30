@@ -3,7 +3,7 @@
   <!-- Var Atmos LS file -->
   <!-- Time profile is hourly from T+3 to T+9 -->
   <file id="lfric_ppvar" name="lfric_ppvar" output_freq="1h" split_freq="1h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
-    <field_group operation="instant" freq_op="1h">
+    <field_group operation="instant" freq_op="1h" prec="4">
       <field field_ref="u_in_w3"/>
       <field field_ref="v_in_w3"/>
       <field field_ref="theta"/>
@@ -20,7 +20,7 @@
       <field field_ref="processed__pressure_in_w3"/>
       <field field_ref="turbulence__zht"/>
     </field_group>
-    <field_group operation="average" freq_op="1ts">
+    <field_group operation="average" freq_op="1ts" prec="4">
       <field field_ref="convection__dth_conv_noshal"/>
       <field field_ref="convection__dmv_conv_noshal"/>
       <field field_ref="convection__massflux_up_half"/>
@@ -30,7 +30,7 @@
   <!-- VAR Surface LS file -->
   <!-- Time profile is T+6 -->
   <file id="lfric_ppscreen" name="lfric_ppscreen" output_freq="9h" convention="UGRID" enabled=".TRUE.">
-    <field_group operation="instant" freq_op="9h">
+    <field_group operation="instant" freq_op="9h" prec="4">
       <field field_ref="u_in_w3" />
       <field field_ref="v_in_w3" />
       <field field_ref="theta" />
@@ -46,7 +46,7 @@
   <!-- OPS Background Error file -->
   <!-- Time profile is hourly from T+0 to T+9 -->
   <file id="lfric_bg_for_hofx" name="lfric_bg_for_hofx" output_freq="1h" convention="UGRID" enabled=".TRUE.">
-    <field_group freq_op="1h" operation="instant">
+    <field_group freq_op="1h" operation="instant" prec="4">
       <field field_ref="m_v"/>
       <field field_ref="m_cl"/>
       <field field_ref="m_r"/>
@@ -90,7 +90,7 @@
   <!-- Background file for land surface -->
   <!-- Time profile T+9 -->
   <file id="lfric_bg_for_land_hofx" name="lfric_bg_for_land_hofx" output_freq="9h" convention="UGRID" enabled=".TRUE.">
-    <field_group freq_op="9h" operation="instant">
+    <field_group freq_op="9h" operation="instant" prec="4">
       <field field_ref="orography" />
       <field field_ref="surface__land_fraction" />
       <field field_ref="surface__t1p5m" />
