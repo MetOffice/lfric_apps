@@ -10,6 +10,7 @@
 !!          More details of the solver forumulation can be found in the solver section of:
 !!          https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
 module si_operators_alg_mod
+  use base_mesh_config_mod,      only: prime_mesh_name
   use constants_mod,             only: i_def, r_def, r_solver
   use model_clock_mod,           only: model_clock_type
   use operator_mod,              only: operator_type, r_solver_operator_type
@@ -706,7 +707,7 @@ contains
        if ( element_order_h == 0 .and. element_order_v == 0 ) then
          call rsol_w2_mask%initialise( vector_space = w2_fs )
          if ( limited_area ) then
-           w2_mask => get_mask_fv(W2, mesh%get_id())
+           w2_mask => get_mask_fv(W2, mesh%get_id(), prime_mesh_name)
            call copy_field(w2_mask, rsol_w2_mask)
          else
            ! Create dummy mask arrays with 1 in every entry

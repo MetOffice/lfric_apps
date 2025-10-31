@@ -43,6 +43,7 @@
 
 module mixed_operator_alg_mod
 
+  use base_mesh_config_mod,            only: prime_mesh_name
   use combine_w2_field_kernel_mod, only: combine_w2_field_kernel_type
   use constants_mod,               only: r_solver, i_def, l_def
   use sci_geometric_constants_mod, only: get_face_selector_ew, &
@@ -186,8 +187,8 @@ contains
 
     ! LAM Masks
     if ( limited_area ) then
-      w2_mask => get_mask_r_solver(W2, mesh%get_id())
-      w3_mask => get_mask_r_solver(W3, mesh%get_id())
+      w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
+      w3_mask => get_mask_r_solver(W3, mesh%get_id(), prime_mesh_name)
     end if
 
     if (split_w) then

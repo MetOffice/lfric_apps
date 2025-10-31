@@ -7,6 +7,7 @@
 
 module adj_mixed_operator_alg_mod
 
+  use base_mesh_config_mod,                        only: prime_mesh_name
   use adj_apply_elim_mixed_lp_operator_kernel_mod, only: adj_apply_elim_mixed_lp_operator_kernel_type
   use adj_apply_mixed_lu_operator_kernel_mod,      only: adj_apply_mixed_lu_operator_kernel_type
   use adj_apply_mixed_operator_kernel_mod,         only: adj_apply_mixed_operator_kernel_type
@@ -115,8 +116,8 @@ contains
 
     ! LAM Masks
     if (limited_area) then
-      w2_mask => get_mask_r_solver( W2, mesh%get_id() )
-      w3_mask => get_mask_r_solver( W3, mesh%get_id() )
+      w2_mask => get_mask_r_solver( W2, mesh%get_id(), prime_mesh_name )
+      w3_mask => get_mask_r_solver( W3, mesh%get_id(), prime_mesh_name )
     end if
 
     if (split_w) then

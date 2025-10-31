@@ -8,14 +8,13 @@
 
 module lam_rhs_alg_mod
 
-  use constants_mod,               only: r_def, i_def
+  use constants_mod,               only: r_def, i_def, l_def, str_def
   use model_clock_mod,             only: model_clock_type
   use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
   use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
   use dg_inc_matrix_vector_kernel_mod, &
                                    only: dg_inc_matrix_vector_kernel_type
   use sci_enforce_bc_kernel_mod,   only: enforce_bc_kernel_type
-  use io_config_mod,               only: subroutine_timers
   use timer_mod,                   only: timer
   use derived_config_mod,          only: bundle_size
   use si_operators_alg_mod,        only: get_rho_at_u
@@ -32,7 +31,6 @@ module lam_rhs_alg_mod
   use field_indices_mod,           only: igh_u, igh_t, igh_d, igh_p
   use sci_operator_algebra_kernel_mod, only: operator_setval_x_kernel_type
   use copy_field_alg_mod,          only: copy_field
-  use timestepping_config_mod,     only: tau_r
 
   implicit none
 
@@ -44,23 +42,25 @@ contains
 
   !> @brief   Apply LAM masks to the RHS.
   !> @details Set the RHS to zero outside the limited area model interior.
-  !> @param[in,out] rhs The full RHS, to be used in the linear mixed solver
-  subroutine apply_mask_rhs(rhs)
+  !> @param[in,out] rhs     The full RHS, to be used in the linear mixed solver
+  !> @param[in]     finest_mesh_name Name of the finest mesh
+  subroutine apply_mask_rhs(rhs, finest_mesh_name)
 
     implicit none
 
-    type(field_type), intent(inout) :: rhs(bundle_size)
-    type(field_type), pointer       :: w2_mask     => null(), &
-                                       w3_mask     => null(), &
-                                       wtheta_mask => null()
-    integer(kind=i_def)             :: mesh_id
+    type(field_type),   intent(inout)  :: rhs(bundle_size)
+    character(len=str_def), intent(in) :: finest_mesh_name
+    type(field_type), pointer          :: w2_mask     => null(), &
+                                          w3_mask     => null(), &
+                                          wtheta_mask => null()
+    integer(kind=i_def)                :: mesh_id
 
     mesh_id = rhs(igh_u)%get_mesh_id()
 
     ! LAM Masks
-    w2_mask     => get_mask_fe(W2, mesh_id)
-    w3_mask     => get_mask_fe(W3, mesh_id)
-    wtheta_mask => get_mask_fe(Wtheta, mesh_id)
+    w2_mask     => get_mask_fe(W2, mesh_id, finest_mesh_name)
+    w3_mask     => get_mask_fe(W3, mesh_id, finest_mesh_name)
+    wtheta_mask => get_mask_fe(Wtheta, mesh_id, finest_mesh_name)
 
     call invoke( inc_X_times_Y( rhs(igh_u),     &
                                 w2_mask),       &
@@ -83,16 +83,23 @@ contains
   !>          Since these terms go into the rhs no normalisation is applied here
   !>          (in contrast to the mixed operator) since the normalisation is
   !>          applied for the whole rhs term before the solver is called.
-  !> @param[in,out] rhs        RHS term for the mixed solve, to include LBCs
-  !> @param[in]     lbc_fields Field collection containing LBC data
-  !> @param[in]     model_clock     Time in the model
-  subroutine calc_rhs_lbc( rhs, lbc_fields, model_clock )
+  !> @param[in,out] rhs         RHS term for the mixed solve, to include LBCs
+  !> @param[in]     lbc_fields  Field collection containing LBC data
+  !> @param[in]     model_clock Time in the model
+  !> @param[in]     finest_mesh_name Name of the finest mesh
+  !> @param[in]     tau_r Relaxation parameter for density in semi-implicit method
+  !> @param[in]     subroutine_timers Enable output of subroutine runtimes
+  subroutine calc_rhs_lbc( rhs, lbc_fields, model_clock, finest_mesh_name, &
+                           tau_r, subroutine_timers )
 
     implicit none
 
     type(field_type),            intent(inout) :: rhs(bundle_size)
     type(field_collection_type), intent(in)    :: lbc_fields
     class(model_clock_type),     intent(in)    :: model_clock
+    character(len=str_def),      intent(in)    :: finest_mesh_name
+    real(r_def),                 intent(in)    :: tau_r
+    logical(l_def),              intent(in)    :: subroutine_timers
 
     type(field_type),    pointer :: boundary_u => null()
     type(operator_type), pointer :: mm_vel     => null(), &
@@ -113,6 +120,7 @@ contains
 
     type(r_solver_field_type), pointer :: r_solver_rho_at_u => null()
 
+
     if ( subroutine_timers ) call timer('rhs_lbc')
 
     mesh_id = rhs(igh_u)%get_mesh_id()
@@ -124,9 +132,9 @@ contains
     call lbc_fields%get_field('boundary_u_diff', boundary_u)
 
     ! LAM Masks
-    w2_mask     => get_mask_fe(W2, mesh_id)
-    w3_mask     => get_mask_fe(W3, mesh_id)
-    wtheta_mask => get_mask_fe(Wtheta, mesh_id)
+    w2_mask     => get_mask_fe(W2, mesh_id, finest_mesh_name)
+    w3_mask     => get_mask_fe(W3, mesh_id, finest_mesh_name)
+    wtheta_mask => get_mask_fe(Wtheta, mesh_id, finest_mesh_name)
 
     ! Obtain operators from runtime constants
     div => get_im3_div_fe(mesh_id)

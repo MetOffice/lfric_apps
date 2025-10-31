@@ -14,7 +14,6 @@
 module limited_area_constants_mod
 
   ! Infrastructure
-  use base_mesh_config_mod,              only: prime_mesh_name
   use constants_mod,                     only: i_def, r_def, l_def, &
                                                str_def, str_short
   use copy_field_alg_mod,                only: copy_field
@@ -128,15 +127,18 @@ module limited_area_constants_mod
 contains
 
   !> @brief Creates the standard set of masks
-  !> @param[in] mesh   Mesh on which to create masks
-  !> @param[in] use_fe Whether to use finite element or finite volume
-  subroutine create_standard_masks(mesh, use_fe)
+  !> @param[in] mesh             Mesh on which to create masks
+  !> @param[in] use_fe           Whether to use finite element or finite volume
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  subroutine create_standard_masks(mesh, use_fe, finest_mesh_name)
 
     implicit none
 
     ! Arguments
     type(mesh_type), pointer, intent(in) :: mesh
     logical(kind=l_def),      intent(in) :: use_fe
+    character(len=str_def),   intent(in) :: finest_mesh_name
 
     ! Internal variables
     integer(kind=i_def)                :: mesh_id
@@ -203,7 +205,7 @@ contains
     w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
     w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
     wtheta_fs => function_space_collection%get_fs( mesh, k_h, k_v, Wtheta )
-    onion_layers => get_onion_layers(mesh_id)
+    onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
 
     ! Add fields to inventory
     call mask_w2_inventory%add_field(mask_w2, w2_fs, mesh, name='w2_mask')
@@ -446,15 +448,18 @@ contains
   end subroutine write_masks
 
   !> @brief  Returns pointer to the interior mask for a finite element space
-  !> @param[in] space The function space of the interior mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space            The function space of the interior mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The interior mask field
-  function get_mask_fe(space, mesh_id) result(mask_ptr)
+  function get_mask_fe(space, mesh_id, finest_mesh_name) result(mask_ptr)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: space
     integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
     integer(kind=i_def)                   :: finest_mesh_id
     type(mesh_type),              pointer :: mesh
     type(mesh_type),              pointer :: finest_mesh
@@ -465,7 +470,7 @@ contains
 
     ! If running at lowest order, use finite volume
     if (element_order_h == 0 .and. element_order_v == 0) then
-      mask_ptr => get_mask_fv(space, mesh_id)
+      mask_ptr => get_mask_fv(space, mesh_id, finest_mesh_name)
       return
     end if
 
@@ -498,12 +503,13 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
 
-      ! Check if this is the prime mesh
-      ! If this is the prime mesh, create all standard prime mesh masks
-      finest_mesh => mesh_collection%get_mesh(prime_mesh_name)
+      ! Check if this is the finest mesh
+      ! If this is the finest mesh, create all standard finest mesh masks
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
       finest_mesh_id = finest_mesh%get_id()
       if (mesh_id == finest_mesh_id) then
-        call create_standard_masks(mesh, use_fe=.true.)
+        call create_standard_masks(mesh, use_fe=.true., &
+                                   finest_mesh_name=finest_mesh_name)
 
       ! Check mesh is prime extrusion
       else if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
@@ -514,11 +520,12 @@ contains
 
       ! Otherwise this is a multigrid mesh
       else
-        ! First check that masks exist on prime mesh
-        ! If masks don't yet exist on prime mesh, create them
+        ! First check that masks exist on finest mesh
+        ! If masks don't yet exist on finest mesh, create them
         constant_exists = inventory%paired_object_exists(finest_mesh_id)
         if (.not. constant_exists) then
-          call create_standard_masks(finest_mesh, use_fe=.true.)
+          call create_standard_masks(finest_mesh, use_fe=.true., &
+                                     finest_mesh_name=finest_mesh_name)
         end if
 
         ! Throw an error if the space is Wtheta
@@ -540,15 +547,18 @@ contains
   end function get_mask_fe
 
   !> @brief  Returns pointer to the interior mask for a finite volume space
-  !> @param[in] space The function space of the interior mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space            The function space of the interior mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The interior mask field
-  function get_mask_fv(space, mesh_id) result(mask_ptr)
+  function get_mask_fv(space, mesh_id, finest_mesh_name) result(mask_ptr)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: space
     integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
     integer(kind=i_def)                   :: finest_mesh_id
     type(mesh_type),              pointer :: mesh
     type(mesh_type),              pointer :: finest_mesh
@@ -586,12 +596,13 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
 
-      ! Check if this is the prime mesh
-      ! If this is the prime mesh, create all standard prime mesh masks
-      finest_mesh => mesh_collection%get_mesh(prime_mesh_name)
+      ! Check if this is the finest mesh
+      ! If this is the finest mesh, create all standard finest mesh masks
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
       finest_mesh_id = finest_mesh%get_id()
       if (mesh_id == finest_mesh_id) then
-        call create_standard_masks(mesh, use_fe=.false.)
+        call create_standard_masks(mesh, use_fe=.false., &
+                                   finest_mesh_name=finest_mesh_name)
 
       ! Check mesh is prime extrusion
       else if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
@@ -602,11 +613,12 @@ contains
 
       ! Otherwise this is a multigrid mesh
       else
-        ! First check that masks exist on prime mesh
-        ! If masks don't yet exist on prime mesh, create them
+        ! First check that masks exist on finest mesh
+        ! If masks don't yet exist on finest mesh, create them
         constant_exists = inventory%paired_object_exists(finest_mesh_id)
         if (.not. constant_exists) then
-          call create_standard_masks(finest_mesh, use_fe=.false.)
+          call create_standard_masks(finest_mesh, use_fe=.false., &
+                                     finest_mesh_name=finest_mesh_name)
         end if
 
         ! Throw an error if the space is Wtheta
@@ -628,15 +640,18 @@ contains
   end function get_mask_fv
 
   !> @brief  Returns pointer to the interior mask at r_solver precision
-  !> @param[in] space The function space of the interior mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space            The function space of the interior mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The interior mask field
-  function get_mask_r_solver(space, mesh_id) result(mask_r_solver)
+  function get_mask_r_solver(space, mesh_id, finest_mesh_name) result(mask_r_solver)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: mesh_id
     integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
     type(mesh_type),              pointer :: mesh
     type(field_type),             pointer :: mask_r_def
     type(r_solver_field_type),    pointer :: mask_r_solver
@@ -673,7 +688,7 @@ contains
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      mask_r_def => get_mask_fe(space, mesh_id)
+      mask_r_def => get_mask_fe(space, mesh_id, finest_mesh_name)
 
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')
 
@@ -691,15 +706,18 @@ contains
   end function get_mask_r_solver
 
   !> @brief  Returns pointer to the boundary mask for a finite element space
-  !> @param[in] space The function space of the boundary mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space            The function space of the boundary mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The boundary mask field
-  function get_boundary_mask_fe(space, mesh_id) result(mask_ptr)
+  function get_boundary_mask_fe(space, mesh_id, finest_mesh_name) result(mask_ptr)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: space
     integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
     type(mesh_type),              pointer :: mesh
     type(mesh_type),              pointer :: finest_mesh
     type(field_type),             pointer :: mask_ptr
@@ -709,7 +727,7 @@ contains
 
     ! If running at lowest order, use finite volume
     if (element_order_h == 0 .and. element_order_v == 0) then
-      mask_ptr => get_boundary_mask_fv(space, mesh_id)
+      mask_ptr => get_boundary_mask_fv(space, mesh_id, finest_mesh_name)
       return
     end if
 
@@ -737,16 +755,17 @@ contains
       ! Create constant if it doesn't already exist
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')
 
-      ! Check if this is the prime mesh
-      finest_mesh => mesh_collection%get_mesh(prime_mesh_name)
+      ! Check if this is the finest mesh
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
       if (mesh_id /= finest_mesh%get_id()) then
         call log_event(                                                        &
-                'Boundary masks only implemented on meshes on prime mesh',     &
+                'Boundary masks only implemented on meshes on finest mesh',    &
                 LOG_LEVEL_ERROR                                                &
         )
       end if
 
-      call create_standard_masks(mesh, use_fe=.true.)
+      call create_standard_masks(mesh, use_fe=.true., &
+                                 finest_mesh_name=finest_mesh_name)
 
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')
     end if
@@ -757,15 +776,18 @@ contains
   end function get_boundary_mask_fe
 
   !> @brief  Returns pointer to the boundary mask for a finite volume space
-  !> @param[in] space The function space of the boundary mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space            The function space of the boundary mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The boundary mask field
-  function get_boundary_mask_fv(space, mesh_id) result(mask_ptr)
+  function get_boundary_mask_fv(space, mesh_id, finest_mesh_name) result(mask_ptr)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: space
     integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
     type(mesh_type),              pointer :: mesh
     type(mesh_type),              pointer :: finest_mesh
     type(field_type),             pointer :: mask_ptr
@@ -797,16 +819,17 @@ contains
       ! Create constant if it doesn't already exist
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')
 
-      ! Check if this is the prime mesh
-      finest_mesh => mesh_collection%get_mesh(prime_mesh_name)
+      ! Check if this is the finest mesh
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
       if (mesh_id /= finest_mesh%get_id()) then
         call log_event(                                                        &
-                'Boundary masks only implemented on meshes on prime mesh',     &
+                'Boundary masks only implemented on meshes on finest mesh',    &
                 LOG_LEVEL_ERROR                                                &
         )
       end if
 
-      call create_standard_masks(mesh, use_fe=.false.)
+      call create_standard_masks(mesh, use_fe=.false., &
+                                 finest_mesh_name=finest_mesh_name)
 
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')
     end if
@@ -817,15 +840,18 @@ contains
   end function get_boundary_mask_fv
 
   !> @brief  Returns pointer to the LBC mask for a finite element space
-  !> @param[in] space The function space of the LBC mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space            The function space of the LBC mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The LBC mask field
-  function get_lbc_mask_fe(space, mesh_id) result(mask_ptr)
+  function get_lbc_mask_fe(space, mesh_id, finest_mesh_name) result(mask_ptr)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: mesh_id
     integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
     type(mesh_type),              pointer :: mesh
     type(field_type),             pointer :: mask_ptr
     type(field_type),             pointer :: chi(:)
@@ -838,7 +864,7 @@ contains
 
     ! If running at lowest order, use finite volume
     if (element_order_h == 0 .and. element_order_v == 0) then
-      mask_ptr => get_lbc_mask_fv(space, mesh_id)
+      mask_ptr => get_lbc_mask_fv(space, mesh_id, finest_mesh_name)
       return
     end if
 
@@ -873,7 +899,7 @@ contains
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      onion_layers => get_onion_layers(mesh_id)
+      onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
       chi => get_coordinates(mesh_id)
 
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')
@@ -899,15 +925,18 @@ contains
   end function get_lbc_mask_fe
 
   !> @brief  Returns pointer to the LBC mask for a finite volume space
-  !> @param[in] space The function space of the LBC mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space            The function space of the LBC mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The LBC mask field
-  function get_lbc_mask_fv(space, mesh_id) result(mask_ptr)
+  function get_lbc_mask_fv(space, mesh_id, finest_mesh_name) result(mask_ptr)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: mesh_id
     integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
     type(mesh_type),              pointer :: mesh
     type(field_type),             pointer :: mask_ptr
     type(field_type),             pointer :: chi(:)
@@ -949,7 +978,7 @@ contains
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      onion_layers => get_onion_layers(mesh_id)
+      onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
       chi => get_coordinates(mesh_id)
 
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')
@@ -974,12 +1003,16 @@ contains
   end function get_lbc_mask_fv
 
   !> @brief  Returns pointer to the onion_layer mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The onion_layer mask
-  function get_onion_layers(mesh_id) result(onion_layers)
+  function get_onion_layers(mesh_id, finest_mesh_name) result(onion_layers)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
     integer(kind=i_def)                   :: local_mesh_id
     type(mesh_type),              pointer :: mesh
     type(mesh_type),              pointer :: finest_mesh
@@ -1002,8 +1035,8 @@ contains
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
 
-      ! Check if this is the prime mesh
-      finest_mesh => mesh_collection%get_mesh(prime_mesh_name)
+      ! Check if this is the finest mesh
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
       prime_mesh => mesh_collection%get_mesh(mesh, PRIME_EXTRUSION)
 
       if (prime_mesh%get_id() == finest_mesh%get_id()) then
@@ -1042,15 +1075,18 @@ contains
   end function get_onion_layers
 
   !> @brief  Returns pointer to the blend mask
-  !> @param[in] space The function space of the blend mask
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] space     The function space of the blend mask
+  !> @param[in] mesh_id   The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
   !> @return The blend mask field
-  function get_blend_mask(space, mesh_id) result(mask_ptr)
+  function get_blend_mask(space, mesh_id, finest_mesh_name) result(mask_ptr)
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: mesh_id
     integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
     type(mesh_type),              pointer :: mesh
     type(field_type),             pointer :: mask_ptr
     type(field_type),             pointer :: chi(:)
@@ -1088,7 +1124,7 @@ contains
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      onion_layers => get_onion_layers(mesh_id)
+      onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
       chi => get_coordinates(mesh_id)
 
       if ( subroutine_timers ) call timer('runtime_constants.limited_area')

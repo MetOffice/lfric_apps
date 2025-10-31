@@ -8,23 +8,24 @@
 !>        gravity wave equations
 module gravity_wave_alg_mod
 
-  use constants_mod,                  only: i_def, r_def, r_solver
+  use constants_mod,                  only: i_def, r_def, l_def, &
+                                            r_second, str_def,   &
+                                            r_solver
+  use driver_modeldb_mod,             only: modeldb_type
   use fs_continuity_mod,              only: W3
   use log_mod,                        only: log_event,         &
                                             log_scratch_space, &
                                             LOG_LEVEL_INFO,    &
                                             LOG_LEVEL_ERROR,   &
                                             LOG_LEVEL_TRACE
+  use namelist_mod,                   only: namelist_type
 
   ! Configuration options
   use finite_element_config_mod,      only: element_order_h, element_order_v
-  use timestepping_config_mod,        only: dt, alpha
   use sci_fem_constants_mod,          only: get_div,                   &
                                             get_inverse_mass_matrix_fe
   use limited_area_constants_mod,     only: get_mask_fe
-  use initial_temperature_config_mod, only: bvf_square
   use gravity_wave_constants_config_mod, only: cs_square,     &
-                                               b_space,       &
                                                b_space_w0,    &
                                                b_space_w3,    &
                                                b_space_wtheta
@@ -65,7 +66,6 @@ module gravity_wave_alg_mod
   use field_indices_mod,              only: igw_u, igw_p, igw_b
 
   use copy_field_alg_mod,             only: copy_field
-  use io_config_mod,                  only: subroutine_timers
   use timer_mod,                      only: timer
 
   implicit none
@@ -488,7 +488,8 @@ contains
   !> @param[in,out] wind     The 3D wind field
   !> @param[in,out] pressure The pressure field
   !> @param[in,out] buoyancy The buoyancy field
-  subroutine gravity_wave_alg_step(wind, pressure, buoyancy)
+  !> @param[inout]  modeldb  The modeldb object
+  subroutine gravity_wave_alg_step(wind, pressure, buoyancy, modeldb)
 
     use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
@@ -501,6 +502,7 @@ contains
 
     ! Prognostic fields
     type( field_type ), intent( inout ) :: wind, pressure, buoyancy
+    class(modeldb_type), intent(inout)  :: modeldb
 
     type(operator_type), pointer :: div    => null()
     type(operator_type), pointer :: m3_inv => null()
@@ -511,16 +513,46 @@ contains
     type( field_type )           :: rhs_p
     type(mesh_type), pointer     :: mesh => null()
 
+    ! Namelists
+    type(namelist_type), pointer :: base_mesh_nml
+    type(namelist_type), pointer :: timestepping_nml
+    type(namelist_type), pointer :: initial_temperature_nml
+    type(namelist_type), pointer :: gravity_wave_constants_nml
+    type(namelist_type), pointer :: io_nml
+
+    ! Namelist parameters
+    character(len=str_def)       :: prime_mesh_name
+    real(kind=r_second)          :: dt
+    real(kind=r_def)             :: bvf_square
+    integer(kind=i_def)          :: b_space
+    logical(kind=l_def)          :: subroutine_timers
+
     ! Auxiliary constants to group invokes
     real(kind=r_def)             :: const1, const2
 
     if ( subroutine_timers ) call timer('gravity_wave_alg')
+
+    ! Pointers to namelists
+    timestepping_nml        => modeldb%configuration%get_namelist('timestepping')
+    initial_temperature_nml => modeldb%configuration%get_namelist('initial_temperature')
+    io_nml           => modeldb%configuration%get_namelist('io')
+
+    ! Obtain namelist parameters
+    call timestepping_nml%get_value( 'dt', dt )
+    call initial_temperature_nml%get_value( 'bvf_square', bvf_square )
+    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
+
     !=== Do a single timestep ==============================================!
     mesh => wind%get_mesh()
     div => get_div(mesh%get_id())
     m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
 
     if ( limited_area ) then
+      base_mesh_nml           => modeldb%configuration%get_namelist('base_mesh')
+      gravity_wave_constants_nml => modeldb%configuration%get_namelist('gravity_wave_constants')
+      call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+      call gravity_wave_constants_nml%get_value( 'b_space', b_space )
+
       select case(b_space)
         case(b_space_w0)
           buoyancy_space = W0
@@ -532,9 +564,9 @@ contains
           call log_event( 'gravity_wave, gravity_wave_alg_mod: '//    &
                           'Invalid buoyancy space', LOG_LEVEL_ERROR )
       end select
-      w2_mask => get_mask_fe(W2, mesh%get_id())
-      w3_mask => get_mask_fe(W3, mesh%get_id())
-      wtheta_mask => get_mask_fe(buoyancy_space, mesh%get_id())
+      w2_mask => get_mask_fe(W2, mesh%get_id(), prime_mesh_name)
+      w3_mask => get_mask_fe(W3, mesh%get_id(), prime_mesh_name)
+      wtheta_mask => get_mask_fe(buoyancy_space, mesh%get_id(), prime_mesh_name)
     endif
 
     call state%import_field(wind,     igw_u)

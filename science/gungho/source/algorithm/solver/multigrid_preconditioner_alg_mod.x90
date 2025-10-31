@@ -8,6 +8,7 @@
 !>
 module multigrid_preconditioner_alg_mod
 
+  use base_mesh_config_mod,    only: prime_mesh_name
   use boundaries_config_mod,   only: limited_area
   use constants_mod,           only: i_def, r_solver, l_def
   use function_space_mod,      only: function_space_type
@@ -207,7 +208,7 @@ contains
        if (limited_area) then
          self%mask_mg(level) = r_solver_field_vector_type( 1 )
          call self%mask_mg(level)%initialise_field( 1,fs )
-         mask => get_mask_r_solver( W3, self%mesh_id(level) )
+         mask => get_mask_r_solver( W3, self%mesh_id(level), prime_mesh_name )
          mask_mg_ptr => self%mask_mg(level)%get_field_from_position(1)
          call invoke( setval_X( mask_mg_ptr, mask ))
        end if

@@ -167,7 +167,7 @@ contains
            '(A,I0)' ) 'Start of timestep ', modeldb%clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    call gravity_wave_alg_step(wind, pressure, buoyancy)
+    call gravity_wave_alg_step(wind, pressure, buoyancy, modeldb)
 
     write( log_scratch_space, &
            '(A,I0)' ) 'End of timestep ', modeldb%clock%get_step()

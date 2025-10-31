@@ -780,7 +780,7 @@ subroutine create_model_data( modeldb,      &
       select case( lbc_option )
         case ( lbc_option_analytic )
           call init_lbcs_analytic_alg( prognostic_fields,     &
-                                       lbc_fields )
+                                       lbc_fields, modeldb )
 
         case ( lbc_option_gungho_file )
           call init_lbcs_file_alg( modeldb%configuration,     &

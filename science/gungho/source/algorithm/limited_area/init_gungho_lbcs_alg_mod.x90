@@ -7,18 +7,17 @@
 !> @brief Initialisation of analytical LBC fields.
 module init_gungho_lbcs_alg_mod
 
-  use constants_mod,                   only: i_def, r_def, str_def
+  use constants_mod,                   only: i_def, r_def, str_def, l_def
+  use driver_modeldb_mod,              only: modeldb_type
   use field_mod,                       only: field_type
   use integer_field_mod,               only: integer_field_type
   use field_collection_mod,            only: field_collection_type
-  use formulation_config_mod,          only: moisture_formulation,    &
-                                             moisture_formulation_dry
+  use formulation_config_mod,          only: moisture_formulation_dry
   use fs_continuity_mod,               only: W2, W3, Wtheta
   use sci_geometric_constants_mod,     only: get_da_at_w2,         &
                                              get_face_selector_ew, &
                                              get_face_selector_ns
-  use initialization_config_mod,       only: lbc_option,             &
-                                             lbc_option_gungho_file, &
+  use initialization_config_mod,       only: lbc_option_gungho_file, &
                                              lbc_option_um2lfric_file
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
@@ -38,7 +37,6 @@ module init_gungho_lbcs_alg_mod
   use linked_list_mod,                 only: linked_list_type
   use mr_indices_mod,                  only: nummr,             &
                                              mr_names
-  use io_config_mod,                   only: subroutine_timers
   use timer_mod,                       only: timer
   use masked_minmax_alg_mod,           only: log_field_masked_minmax
 
@@ -62,34 +60,49 @@ module init_gungho_lbcs_alg_mod
   !!          by the interior.
   !> @param[in]     prognostic_fields The collection of prognostics
   !> @param[in,out] lbc_fields        The collection of LBC fields
-  subroutine init_lbcs_analytic_alg( prognostic_fields, lbc_fields )
+  !> @param [inout] modeldb           The working data set for a model run.
+  subroutine init_lbcs_analytic_alg( prognostic_fields, lbc_fields, modeldb )
 
     implicit none
 
     type( field_collection_type ), intent(in)    :: prognostic_fields
     type( field_collection_type ), intent(inout) :: lbc_fields
+    type(modeldb_type),            intent(inout) :: modeldb
 
-    type( field_type ), pointer :: theta
-    type( field_type ), pointer :: u
-    type( field_type ), pointer :: rho
-    type( field_type ), pointer :: exner
-    type( field_type ), pointer :: mr
+    type( field_type ),  pointer :: theta
+    type( field_type ),  pointer :: u
+    type( field_type ),  pointer :: rho
+    type( field_type ),  pointer :: exner
+    type( field_type ),  pointer :: mr
 
-    type( field_type ), pointer :: lbc_theta
-    type( field_type ), pointer :: lbc_u
-    type( field_type ), pointer :: lbc_rho
-    type( field_type ), pointer :: lbc_exner
-    type( field_type ), pointer :: lbc_mr
-    type( field_type ), pointer :: boundary_u
+    type( field_type ),  pointer :: lbc_theta
+    type( field_type ),  pointer :: lbc_u
+    type( field_type ),  pointer :: lbc_rho
+    type( field_type ),  pointer :: lbc_exner
+    type( field_type ),  pointer :: lbc_mr
+    type( field_type ),  pointer :: boundary_u
 
-    type( field_type ), pointer :: w2_lbc_mask
-    type( field_type ), pointer :: w3_lbc_mask
-    type( field_type ), pointer :: wtheta_lbc_mask
-    type( field_type ), pointer :: w2_boundary_mask
+    type( field_type ),  pointer :: w2_lbc_mask
+    type( field_type ),  pointer :: w3_lbc_mask
+    type( field_type ),  pointer :: wtheta_lbc_mask
+    type( field_type ),  pointer :: w2_boundary_mask
 
-    character(str_def)          :: lbc_name
-    integer(i_def)              :: imr
-    type(mesh_type), pointer    :: mesh
+    character(str_def)           :: lbc_name
+    integer(i_def)               :: imr
+    type(mesh_type), pointer     :: mesh
+
+    type(namelist_type), pointer :: base_mesh_nml
+    type(namelist_type), pointer :: formulation_nml
+
+    character(len=str_def)       :: prime_mesh_name
+    integer(i_def)               :: moisture_formulation
+
+
+    base_mesh_nml    => modeldb%configuration%get_namelist('base_mesh')
+    formulation_nml  => modeldb%configuration%get_namelist('formulation')
+
+    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    call formulation_nml%get_value( 'moisture_formulation', moisture_formulation )
 
     call prognostic_fields%get_field( 'theta', theta )
     call prognostic_fields%get_field( 'u', u )
@@ -100,15 +113,15 @@ module init_gungho_lbcs_alg_mod
 
     if (u%get_element_order_h() > 0 .or. &
         u%get_element_order_v() > 0) then
-      w2_lbc_mask      => get_lbc_mask_fe( W2, mesh%get_id() )
-      w3_lbc_mask      => get_lbc_mask_fe( W3, mesh%get_id() )
-      wtheta_lbc_mask  => get_lbc_mask_fe( wtheta, mesh%get_id() )
-      w2_boundary_mask => get_boundary_mask_fe( W2, mesh%get_id() )
+      w2_lbc_mask      => get_lbc_mask_fe( W2, mesh%get_id(), prime_mesh_name )
+      w3_lbc_mask      => get_lbc_mask_fe( W3, mesh%get_id(), prime_mesh_name )
+      wtheta_lbc_mask  => get_lbc_mask_fe( wtheta, mesh%get_id(), prime_mesh_name )
+      w2_boundary_mask => get_boundary_mask_fe( W2, mesh%get_id(), prime_mesh_name )
     else
-      w2_lbc_mask      => get_lbc_mask_fv( W2, mesh%get_id() )
-      w3_lbc_mask      => get_lbc_mask_fv( W3, mesh%get_id() )
-      wtheta_lbc_mask  => get_lbc_mask_fv( wtheta, mesh%get_id() )
-      w2_boundary_mask => get_boundary_mask_fv( W2, mesh%get_id() )
+      w2_lbc_mask      => get_lbc_mask_fv( W2, mesh%get_id(), prime_mesh_name )
+      w3_lbc_mask      => get_lbc_mask_fv( W3, mesh%get_id(), prime_mesh_name )
+      wtheta_lbc_mask  => get_lbc_mask_fv( wtheta, mesh%get_id(), prime_mesh_name )
+      w2_boundary_mask => get_boundary_mask_fv( W2, mesh%get_id(), prime_mesh_name )
     end if
 
     call lbc_fields%get_field( 'lbc_theta', lbc_theta )
@@ -155,6 +168,14 @@ module init_gungho_lbcs_alg_mod
     class(model_clock_type),        intent(in)    :: clock
     type(field_type),               pointer       :: lbc_v_u
 
+    type(namelist_type), pointer :: io_nml
+    type(namelist_type), pointer :: initialization_nml
+    logical(l_def)               :: subroutine_timers
+    integer(i_def)               :: lbc_option
+
+    io_nml => configuration%get_namelist('io')
+    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
+
     if ( subroutine_timers ) call timer('init_lbcs')
 
     nullify(lbc_v_u)
@@ -164,6 +185,9 @@ module init_gungho_lbcs_alg_mod
                                clock, lbc_fields )
 
     if ( clock%is_initialisation() ) then
+
+      initialization_nml => configuration%get_namelist('initialization')
+      call initialization_nml%get_value( 'lbc_option', lbc_option )
 
       ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
       select case( lbc_option )
@@ -181,7 +205,7 @@ module init_gungho_lbcs_alg_mod
       end select
 
       ! Define boundary_u_driving
-      call define_boundary_u( lbc_fields )
+      call define_boundary_u( configuration, lbc_fields )
 
     end if
 
@@ -207,12 +231,23 @@ module init_gungho_lbcs_alg_mod
     class(model_clock_type),        intent(in)    :: clock
     type(field_type),               pointer       :: lbc_v_u
 
+    type(namelist_type), pointer :: io_nml
+    type(namelist_type), pointer :: initialization_nml
+    logical(l_def)               :: subroutine_timers
+    integer(i_def)               :: lbc_option
+
+    io_nml => configuration%get_namelist('io')
+    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
+
     if ( subroutine_timers ) call timer('update_lbcs')
 
     nullify(lbc_v_u)
 
     call update_variable_fields( lbc_times_list, &
                                  clock,lbc_fields )
+
+    initialization_nml => configuration%get_namelist('initialization')
+    call initialization_nml%get_value( 'lbc_option', lbc_option )
 
     ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
     select case( lbc_option )
@@ -230,7 +265,7 @@ module init_gungho_lbcs_alg_mod
     end select
 
     ! Define boundary_u_driving
-    call define_boundary_u( lbc_fields )
+    call define_boundary_u( configuration, lbc_fields )
 
     if ( subroutine_timers ) call timer('update_lbcs')
 
@@ -287,12 +322,14 @@ module init_gungho_lbcs_alg_mod
   !> @brief   Define the LBC wind on the solver boundary
   !> @details Define boundary_u by applying the w2_boundary_mask
   !!          to lbc_u
+  !> @param[in]     configuration   The application configuration object
   !> @param[in,out] lbc_fields  The collection of lbc fields
-  subroutine define_boundary_u( lbc_fields )
+  subroutine define_boundary_u( configuration, lbc_fields )
 
     implicit none
 
-    type( field_collection_type ), intent(inout) :: lbc_fields
+    type(namelist_collection_type), intent(in)    :: configuration
+    type( field_collection_type ),  intent(inout) :: lbc_fields
     type( field_type ), pointer :: lbc_field
     type( field_type ), pointer :: boundary_u
     type( field_type ), pointer :: w2_boundary_mask
@@ -300,17 +337,23 @@ module init_gungho_lbcs_alg_mod
 
     type( mesh_type ), pointer :: mesh
 
+    type(namelist_type), pointer :: base_mesh_nml
+    character(len=str_def)       :: prime_mesh_name
+
+    base_mesh_nml    => configuration%get_namelist('base_mesh')
+    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+
     call lbc_fields%get_field( 'lbc_u', lbc_field )
     call lbc_fields%get_field( 'boundary_u_driving', boundary_u )
 
     mesh => lbc_field%get_mesh()
     if (lbc_field%get_element_order_h() > 0 .or.&
         lbc_field%get_element_order_v() > 0) then
-      w2_boundary_mask => get_boundary_mask_fe( W2, mesh%get_id() )
-      w2_lbc_mask => get_lbc_mask_fe( W2, mesh%get_id() )
+      w2_boundary_mask => get_boundary_mask_fe( W2, mesh%get_id(), prime_mesh_name )
+      w2_lbc_mask => get_lbc_mask_fe( W2, mesh%get_id(), prime_mesh_name )
     else
-      w2_boundary_mask => get_boundary_mask_fv( W2, mesh%get_id() )
-      w2_lbc_mask => get_lbc_mask_fv( W2, mesh%get_id() )
+      w2_boundary_mask => get_boundary_mask_fv( W2, mesh%get_id(), prime_mesh_name )
+      w2_lbc_mask => get_lbc_mask_fv( W2, mesh%get_id(), prime_mesh_name )
     end if
 
     call invoke( X_times_Y( boundary_u, lbc_field, w2_boundary_mask ) )
@@ -375,6 +418,11 @@ module init_gungho_lbcs_alg_mod
     integer(i_def)            :: lbc_eos_height
 
     type(namelist_type), pointer :: boundaries_nml
+    type(namelist_type), pointer :: base_mesh_nml
+    character(len=str_def)       :: prime_mesh_name
+
+    base_mesh_nml    => configuration%get_namelist('base_mesh')
+    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
 
     nullify( lbc_rho_r2, lbc_rho, lbc_q, lbc_qcl, lbc_qcf, lbc_qrain,    &
              lbc_m_v, lbc_m_cl, lbc_m_s, lbc_m_r, lbc_theta, lbc_exner,  &
@@ -407,11 +455,11 @@ module init_gungho_lbcs_alg_mod
 
     if (lbc_u%get_element_order_h() > 0 .or. &
         lbc_u%get_element_order_v() > 0) then
-      w3_lbc_mask => get_lbc_mask_fe(W3, mesh%get_id())
-      wtheta_lbc_mask => get_lbc_mask_fe(Wtheta, mesh%get_id())
+      w3_lbc_mask => get_lbc_mask_fe(W3, mesh%get_id(), prime_mesh_name)
+      wtheta_lbc_mask => get_lbc_mask_fe(Wtheta, mesh%get_id(), prime_mesh_name)
     else
-      w3_lbc_mask => get_lbc_mask_fv(W3, mesh%get_id())
-      wtheta_lbc_mask => get_lbc_mask_fv(Wtheta, mesh%get_id())
+      w3_lbc_mask => get_lbc_mask_fv(W3, mesh%get_id(), prime_mesh_name)
+      wtheta_lbc_mask => get_lbc_mask_fv(Wtheta, mesh%get_id(), prime_mesh_name)
     end if
 
     call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_theta', &

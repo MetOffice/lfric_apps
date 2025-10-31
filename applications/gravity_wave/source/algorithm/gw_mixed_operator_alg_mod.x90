@@ -26,6 +26,7 @@
 
 module gw_mixed_operator_alg_mod
 
+  use base_mesh_config_mod,              only: prime_mesh_name
   use constants_mod,                     only: r_solver, i_def
   use r_solver_field_mod,                only: r_solver_field_type
   use field_indices_mod,                 only: igw_u, igw_p, igw_b
@@ -209,9 +210,9 @@ contains
 
     if (limited_area) then
       ! Extract limited area mask
-      wtheta_mask => get_mask_r_solver(buoyancy_space, mesh_id)
-      w2_mask => get_mask_r_solver(W2, mesh_id)
-      w3_mask => get_mask_r_solver(W3, mesh_id)
+      wtheta_mask => get_mask_r_solver(buoyancy_space, mesh_id, prime_mesh_name)
+      w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
+      w3_mask => get_mask_r_solver(W3, mesh_id, prime_mesh_name)
     endif
 
     ! Set auxiliary constants

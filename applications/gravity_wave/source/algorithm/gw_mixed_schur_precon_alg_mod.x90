@@ -67,6 +67,7 @@
 
 module gw_mixed_schur_precon_alg_mod
 
+  use base_mesh_config_mod,              only: prime_mesh_name
   use vector_mod,                        only: abstract_vector_type
   use r_solver_field_mod,                only: r_solver_field_type
   use constants_mod,                     only: i_def, r_solver
@@ -439,8 +440,8 @@ contains
     const1 = self%alpha*real(dt,r_solver)
 
     if (limited_area) then
-      w2_mask => get_mask_r_solver(W2, mesh%get_id())
-      w3_mask => get_mask_r_solver(W3, mesh%get_id())
+      w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
+      w3_mask => get_mask_r_solver(W3, mesh%get_id(), prime_mesh_name)
     endif
 
     call invoke( X_times_Y(self%mb_rb,rhs0%vector(igw_b),self%Mb_lumped_inv), &
@@ -513,9 +514,10 @@ contains
           call log_event( 'gravity_wave, gw_mixed_schur_precon_alg_mod: '//  &
                           'Invalid buoyancy space', LOG_LEVEL_ERROR )
       end select
-      w3_mask => get_mask_r_solver(W3, mesh%get_id())
-      w2_mask => get_mask_r_solver(W2, mesh%get_id())
-      wtheta_mask => get_mask_r_solver(buoyancy_space, mesh%get_id())
+      w3_mask => get_mask_r_solver(W3, mesh%get_id(), prime_mesh_name)
+      w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
+      wtheta_mask => get_mask_r_solver(buoyancy_space, mesh%get_id(), &
+                                       prime_mesh_name)
 
       ! Apply masks to pressure, from Helmholtz solve
       call invoke( inc_X_times_Y(self%p_inc, w3_mask) )
