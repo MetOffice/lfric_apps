@@ -5,7 +5,7 @@
 {# under which the code may be used. #}
 {# ########################################################################### #}
 {% from "cylc.flow" import LOG %}
-{% from "utils" import get_site, get_git_ref %}
+{% from "utils" import get_site %}
 {% from "read_sources" import read_sources  %}
 
 {% if SITE is not defined  %}
