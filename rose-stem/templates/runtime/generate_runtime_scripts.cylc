@@ -116,8 +116,6 @@
                  rm -rf $CYLC_TASK_WORK_DIR/apps_local_build_source
                  rm -rf $CYLC_TASK_WORK_DIR/core_local_build_source
                  """
-        [[[environment]]]
-            SOURCE_LFRIC_APPS = {{dependencies.lfric_apps.source}}
 
 {% endif %}
 

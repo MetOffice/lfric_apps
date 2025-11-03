@@ -8,7 +8,9 @@
 {% from "utils" import get_site, get_git_ref %}
 {% from "read_sources" import read_sources  %}
 
-{% set SITE = get_site() %}
+{% if SITE is not defined  %}
+    {% set SITE = get_site() %}
+{% endif %}
 {% do LOG.info("Site: " + SITE) %}
 
 {% set SOURCE_DIRECTORY = ROSE_ORIG_HOST~":"~CYLC_WORKFLOW_SRC_DIR~"/.." %}
