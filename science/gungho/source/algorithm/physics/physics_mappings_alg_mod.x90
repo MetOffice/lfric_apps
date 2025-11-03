@@ -42,9 +42,10 @@ module physics_mappings_alg_mod
                                         only: convert_hdiv_native_kernel_type
   use sci_dg_convert_hdiv_native_kernel_mod, &
                                         only: dg_convert_hdiv_native_kernel_type
+  use sci_convert_cart2sphere_vector_kernel_mod, &
+                                        only: convert_cart2sphere_vector_kernel_type
   use sci_nodal_xyz_coordinates_kernel_mod, &
                                         only: nodal_xyz_coordinates_kernel_type
-  use sci_psykal_builtin_light_mod,     only: invoke_convert_cart2sphere_vector
   use sci_field_minmax_alg_mod,         only: log_field_minmax
 
   implicit none
@@ -182,7 +183,7 @@ contains
         call u1_field%copy_field_properties(physical_chi(2))
         call u1_field%copy_field_properties(physical_chi(3))
         call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id) )
-        call invoke_convert_cart2sphere_vector( wind_map, physical_chi )
+        call invoke( convert_cart2sphere_vector_kernel_type(wind_map, physical_chi) )
       end if
 
       call invoke( name = "copy_wind_fields",       &
@@ -280,7 +281,7 @@ contains
     ! Convert to standard SI units (m/s) in orthogonal directions
 
     if ( geometry == geometry_spherical ) then
-        call invoke_convert_cart2sphere_vector(physical_wind, physical_chi)
+        call invoke( convert_cart2sphere_vector_kernel_type(physical_wind, physical_chi) )
     end if
 
     ! Extract vertical wind into W2V and u,v winds into W2H

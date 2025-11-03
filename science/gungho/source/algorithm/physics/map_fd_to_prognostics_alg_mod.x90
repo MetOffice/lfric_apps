@@ -338,7 +338,6 @@ contains
   !> @param[in] lbc_mask  Optional LBC mask
   subroutine hydrostatic_balance(exner, rho, theta, u, moist_dyn, &
                                  eos_height, lbc_mask)
-
     use dg_inc_matrix_vector_kernel_mod, &
                                        only : dg_inc_matrix_vector_kernel_type
     use sci_enforce_bc_kernel_mod,     only : enforce_bc_kernel_type
@@ -350,7 +349,6 @@ contains
     use matrix_vector_kernel_mod,      only : matrix_vector_kernel_type
     use sci_nodal_xyz_coordinates_kernel_mod, &
                                        only : nodal_xyz_coordinates_kernel_type
-    use sci_psykal_builtin_light_mod,  only : invoke_convert_cart2sphere_vector
     use sci_mass_matrix_solver_alg_mod, &
                                        only : mass_matrix_solver_alg
     use sample_eos_pressure_kernel_mod,  &
@@ -358,6 +356,8 @@ contains
     use sample_eos_rho_kernel_mod,     only : sample_eos_rho_kernel_type
     use sci_sample_w3_to_wtheta_kernel_mod, &
                                        only : sample_w3_to_wtheta_kernel_type
+    use sci_convert_cart2sphere_vector_kernel_mod, &
+                                        only: convert_cart2sphere_vector_kernel_type
 
     implicit none
 

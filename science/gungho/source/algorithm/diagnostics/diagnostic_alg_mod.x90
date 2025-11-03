@@ -18,11 +18,13 @@ module diagnostic_alg_mod
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
   use operator_mod,                  only: operator_type
+  use sci_convert_cart2sphere_vector_kernel_mod, &
+                                     only: convert_cart2sphere_vector_kernel_type
   use sci_nodal_xyz_coordinates_kernel_mod, &
                                      only: nodal_xyz_coordinates_kernel_type
+  use sci_pointwise_convert_xyz2llr_kernel_mod, &
+                                     only: pointwise_convert_xyz2llr_kernel_type
   use psykal_lite_mod,               only: invoke_compute_dof_level_kernel
-  use sci_psykal_builtin_light_mod,  only: invoke_convert_cart2sphere_vector, &
-                                           invoke_pointwise_convert_xyz2llr
   use sci_geometric_constants_mod,   only: get_coordinates,      &
                                            get_panel_id,         &
                                            get_face_selector_ew, &
@@ -278,7 +280,7 @@ contains
     ! If in spherical geometry,
     ! convert the coordinate field to (longitude, latitude, radius)
     if ( geometry == geometry_spherical ) then
-      call invoke_pointwise_convert_xyz2llr(nodal_coordinates)
+      call invoke( pointwise_convert_xyz2llr_kernel_type(nodal_coordinates) )
     end if
 
     ! Compute fractional level of every dof
@@ -394,9 +396,9 @@ contains
     !  convert the coordinate field to (longitude, latitude, radius)
     if ( geometry == geometry_spherical ) then
       if ( output_fs == W1 .or. output_fs == W2) then
-        call invoke_convert_cart2sphere_vector(output_field, nodal_coordinates)
+        call invoke( convert_cart2sphere_vector_kernel_type(output_field, nodal_coordinates) )
       end if
-      call invoke_pointwise_convert_xyz2llr(nodal_coordinates)
+      call invoke( pointwise_convert_xyz2llr_kernel_type(nodal_coordinates) )
     end if
 
     ! Compute fractional level of every dof

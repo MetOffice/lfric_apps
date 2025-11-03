@@ -8,61 +8,17 @@
 module adj_sci_psykal_builtin_light_mod
 
   use, intrinsic :: iso_fortran_env, only : real32, real64
-  use constants_mod,           only: r_def, i_def
-  use field_mod,               only: field_type, field_proxy_type
-  use adj_coord_transform_mod, only: adj_cart2sphere_scalar
+  use constants_mod,                 only: r_def, i_def
+  use field_mod,                     only: field_type, field_proxy_type
 
   implicit none
 
   private
-  public :: invoke_adj_convert_cart2sphere_vector
   public :: invoke_adj_copy_field_32_64
   public :: invoke_adj_copy_field_32_32
   public :: invoke_adj_copy_field_64_64
 
   contains
-
-  !=============================================================================
-  !> @brief Applies the adjoint of invoke_convert_cart2sphere_vector
-  !> @param[in,out] field  A bundle of 3 fields to be transformed
-  !> @param[in]     coords A bundle of 3 fields that includes the
-  !>                       field coordinates
-  subroutine invoke_adj_convert_cart2sphere_vector(field, coords)
-
-    implicit none
-
-    type(field_type), intent(inout) :: field(3)
-    type(field_type), intent(in)    :: coords(3)
-
-    ! Local
-    type(field_proxy_type) :: f_p(3), x_p(3)
-    integer                :: i, df, undf
-
-    do i = 1,3
-      f_p(i) = field(i)%get_proxy()
-      x_p(i) = coords(i)%get_proxy()
-    end do
-
-    undf = f_p(1)%vspace%get_last_dof_annexed()
-
-!Please see PSyclone issues #1351 regarding this implementation
-!$omp parallel default(none)                                                   &
-!$omp private(df)                                                              &
-!$omp shared(undf,f_p,x_p)
-!$omp do schedule(static)
-    do df = undf, 1, -1
-      call adj_cart2sphere_scalar( x_p(1)%data(df), x_p(2)%data(df), &
-                                   x_p(3)%data(df), f_p(1)%data(df), &
-                                   f_p(2)%data(df), f_p(3)%data(df) )
-    end do
-!$omp end do
-!$omp end parallel
-
-    call f_p(1)%set_dirty()
-    call f_p(2)%set_dirty()
-    call f_p(3)%set_dirty()
-
-  end subroutine invoke_adj_convert_cart2sphere_vector
 
   !=============================================================================
   ! COPY ROUTINES
@@ -109,31 +65,31 @@ module adj_sci_psykal_builtin_light_mod
      ! Set-up all of the loop bounds
      !
      loop0_start = 1
-     IF (fsrce_32_proxy%is_dirty(depth=1)) THEN
+     if (fsrce_32_proxy%is_dirty(depth=1)) then
        ! only copy the owned dofs
        loop0_stop = fdest_64_proxy%vspace%get_last_dof_annexed()
-     ELSE
+     else
        ! copy the 1st halo row as well
        loop0_stop = fdest_64_proxy%vspace%get_last_dof_halo(1)
-     END IF
+     end if
      !
      ! Call kernels and communication routines
      !
      !$omp parallel default(shared), private(df)
      !$omp do schedule(static)
-     DO df=loop0_start,loop0_stop
+     do df=loop0_start,loop0_stop
        fsrce_32_proxy%data(df) = fsrce_32_proxy%data(df) + real(fdest_64_proxy%data(df), real32)
        fdest_64_proxy%data(df) = 0.0_real64
-     END DO
+     end do
      !$omp end do
      !$omp end parallel
      !
      ! Set halos dirty/clean for fields modified in the above loop
      !
-     CALL fdest_64_proxy%set_dirty()
-     IF (.not. fsrce_32_proxy%is_dirty(depth=1)) THEN
-       CALL fdest_64_proxy%set_clean(1)
-     END IF
+     call fdest_64_proxy%set_dirty()
+     if (.not. fsrce_32_proxy%is_dirty(depth=1)) then
+       call fdest_64_proxy%set_clean(1)
+     end if
      !
 
   end subroutine invoke_adj_copy_field_32_64
@@ -175,31 +131,31 @@ module adj_sci_psykal_builtin_light_mod
      ! Set-up all of the loop bounds
      !
      loop0_start = 1
-     IF (fsrce_32_proxy%is_dirty(depth=1)) THEN
+     if (fsrce_32_proxy%is_dirty(depth=1)) then
        ! only copy the owned dofs
        loop0_stop = fdest_32_proxy%vspace%get_last_dof_annexed()
-     ELSE
+     else
        ! copy the 1st halo row as well
        loop0_stop = fdest_32_proxy%vspace%get_last_dof_halo(1)
-     END IF
+     end if
      !
      ! Call kernels and communication routines
      !
      !$omp parallel default(shared), private(df)
      !$omp do schedule(static)
-     DO df=loop0_start,loop0_stop
+     do df=loop0_start,loop0_stop
        fsrce_32_proxy%data(df) = fsrce_32_proxy%data(df) + real(fdest_32_proxy%data(df), real32)
        fdest_32_proxy%data(df) = 0.0_real32
-     END DO
+     end do
      !$omp end do
      !$omp end parallel
      !
      ! Set halos dirty/clean for fields modified in the above loop
      !
-     CALL fdest_32_proxy%set_dirty()
-     IF (.not. fsrce_32_proxy%is_dirty(depth=1)) THEN
-       CALL fdest_32_proxy%set_clean(1)
-     END IF
+     call fdest_32_proxy%set_dirty()
+     if (.not. fsrce_32_proxy%is_dirty(depth=1)) then
+       call fdest_32_proxy%set_clean(1)
+     end if
      !
 
   end subroutine invoke_adj_copy_field_32_32
@@ -241,31 +197,31 @@ module adj_sci_psykal_builtin_light_mod
      ! Set-up all of the loop bounds
      !
      loop0_start = 1
-     IF (fsrce_64_proxy%is_dirty(depth=1)) THEN
+     if (fsrce_64_proxy%is_dirty(depth=1)) then
        ! only copy the owned dofs
        loop0_stop = fdest_64_proxy%vspace%get_last_dof_annexed()
-     ELSE
+     else
        ! copy the 1st halo row as well
        loop0_stop = fdest_64_proxy%vspace%get_last_dof_halo(1)
-     END IF
+     end if
      !
      ! Call kernels and communication routines
      !
      !$omp parallel default(shared), private(df)
      !$omp do schedule(static)
-     DO df=loop0_start,loop0_stop
+     do df=loop0_start,loop0_stop
        fsrce_64_proxy%data(df) = fsrce_64_proxy%data(df) + real(fdest_64_proxy%data(df), real64)
        fdest_64_proxy%data(df) = 0.0_real64
-     END DO
+     end do
      !$omp end do
      !$omp end parallel
      !
      ! Set halos dirty/clean for fields modified in the above loop
      !
-     CALL fdest_64_proxy%set_dirty()
-     IF (.not. fsrce_64_proxy%is_dirty(depth=1)) THEN
-       CALL fdest_64_proxy%set_clean(1)
-     END IF
+     call fdest_64_proxy%set_dirty()
+     if (.not. fsrce_64_proxy%is_dirty(depth=1)) then
+       call fdest_64_proxy%set_clean(1)
+     end if
      !
   end subroutine invoke_adj_copy_field_64_64
 

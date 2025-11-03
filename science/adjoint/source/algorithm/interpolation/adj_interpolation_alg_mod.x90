@@ -8,6 +8,8 @@
 !>        wind field and a set of three scalar W3/Wtheta wind fields.
 module adj_interpolation_alg_mod
 
+  use adj_convert_cart2sphere_vector_kernel_mod, &
+                                                 only: adj_convert_cart2sphere_vector_kernel_type
   use adj_sci_extract_w_kernel_mod,              only: adj_extract_w_kernel_type
   use adj_dg_matrix_vector_kernel_mod,           only: adj_dg_matrix_vector_kernel_type
   use adj_dg_inc_matrix_vector_kernel_mod,       only: adj_dg_inc_matrix_vector_kernel_type
@@ -24,7 +26,6 @@ module adj_interpolation_alg_mod
   use operator_mod,                              only: operator_type
   use sci_nodal_xyz_coordinates_kernel_mod,      only: nodal_xyz_coordinates_kernel_type
   use sci_compute_sample_u_ops_kernel_mod,       only: compute_sample_u_ops_kernel_type
-  use adj_sci_psykal_builtin_light_mod,          only: invoke_adj_convert_cart2sphere_vector
 
   implicit none
 
@@ -88,7 +89,7 @@ module adj_interpolation_alg_mod
                  setval_c(physical_wind_w3(2), 0.0_r_def), &
                  setval_c(physical_wind_w3(3), 0.0_r_def), &
                  adj_extract_w_kernel_type(w_in_wth, physical_wind_w2(3)) )
-    call invoke_adj_convert_cart2sphere_vector(physical_wind_w2, physical_chi_w2)
+    call invoke( adj_convert_cart2sphere_vector_kernel_type(physical_wind_w2, physical_chi_w2) )
     call invoke( inc_X_times_Y(physical_wind_w2(3), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(2), w2_rmultiplicity), &
                  inc_X_times_Y(physical_wind_w2(1), w2_rmultiplicity) )
@@ -102,7 +103,7 @@ module adj_interpolation_alg_mod
                  inc_X_plus_Y(physical_wind_w3(1), u_in_w3), &
                  setval_c(v_in_w3, 0.0_r_def), &
                  setval_c(u_in_w3, 0.0_r_def) )
-    call invoke_adj_convert_cart2sphere_vector(physical_wind_w3, physical_chi_w3)
+    call invoke( adj_convert_cart2sphere_vector_kernel_type(physical_wind_w3, physical_chi_w3) )
     call invoke_adj_convert_hdiv_field_kernel(physical_wind_w3, u_in_w2, chi, panel_id)
 
   end subroutine adj_interp_w2_to_w3wth_alg

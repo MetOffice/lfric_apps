@@ -10,41 +10,41 @@
 !!          for fields being used in calculations. The lookup table acts as
 !!          a stencil operation.
 
-MODULE invoke_adj_poly2d_recon_lookup_mod
-  USE constants_mod, ONLY: r_tran, r_def, i_def
-  USE r_tran_field_mod, ONLY: r_tran_field_type, r_tran_field_proxy_type
-  USE integer_field_mod, ONLY: integer_field_type, integer_field_proxy_type
-  IMPLICIT NONE
-  CONTAINS
+module invoke_adj_poly2d_recon_lookup_mod
+  use constants_mod, only: r_tran, r_def, i_def
+  use r_tran_field_mod, only: r_tran_field_type, r_tran_field_proxy_type
+  use integer_field_mod, only: integer_field_type, integer_field_proxy_type
+  implicit none
+  contains
 
-  SUBROUTINE invoke_adj_poly2d_recon_lookup(reconstruction, tracer, &
+  subroutine invoke_adj_poly2d_recon_lookup(reconstruction, tracer, &
                                             lookup_poly2d_field, set_count_poly2d_field, &
                                             coeff, nsets, nindices, &
                                             stencil_extent)
-    USE adj_polynd_recon_zeroing_kernel_mod, ONLY: adj_polynd_recon_zeroing_code
-    USE adj_poly2d_recon_lookup_kernel_mod, ONLY: adj_poly2d_recon_lookup_code
-    USE mesh_mod, ONLY: mesh_type
-    INTEGER(KIND=i_def), intent(in) :: nsets, nindices, stencil_extent
-    TYPE(r_tran_field_type), intent(in) :: reconstruction, tracer, coeff
-    TYPE(integer_field_type), intent(in) :: lookup_poly2d_field, set_count_poly2d_field
-    INTEGER(KIND=i_def) cell
-    INTEGER(KIND=i_def) loop1_start, loop1_stop
-    INTEGER(KIND=i_def) loop0_start, loop0_stop
-    INTEGER(KIND=i_def) nlayers_reconstruction
-    INTEGER(KIND=i_def), pointer, dimension(:) :: set_count_poly2d_field_data
-    INTEGER(KIND=i_def), pointer, dimension(:) :: lookup_poly2d_field_data
-    TYPE(integer_field_proxy_type) lookup_poly2d_field_proxy, set_count_poly2d_field_proxy
-    REAL(KIND=r_tran), pointer, dimension(:) :: coeff_data
-    REAL(KIND=r_tran), pointer, dimension(:) :: tracer_data
-    REAL(KIND=r_tran), pointer, dimension(:) :: reconstruction_data
-    TYPE(r_tran_field_proxy_type) reconstruction_proxy, tracer_proxy, coeff_proxy
-    INTEGER(KIND=i_def), pointer :: map_adspc1_reconstruction(:,:), map_adspc2_tracer(:,:), &
+    use adj_polynd_recon_zeroing_kernel_mod, only: adj_polynd_recon_zeroing_code
+    use adj_poly2d_recon_lookup_kernel_mod, only: adj_poly2d_recon_lookup_code
+    use mesh_mod, only: mesh_type
+    integer(kind=i_def), intent(in) :: nsets, nindices, stencil_extent
+    type(r_tran_field_type), intent(in) :: reconstruction, tracer, coeff
+    type(integer_field_type), intent(in) :: lookup_poly2d_field, set_count_poly2d_field
+    integer(kind=i_def) cell
+    integer(kind=i_def) loop1_start, loop1_stop
+    integer(kind=i_def) loop0_start, loop0_stop
+    integer(kind=i_def) nlayers_reconstruction
+    integer(kind=i_def), pointer, dimension(:) :: set_count_poly2d_field_data
+    integer(kind=i_def), pointer, dimension(:) :: lookup_poly2d_field_data
+    type(integer_field_proxy_type) lookup_poly2d_field_proxy, set_count_poly2d_field_proxy
+    real(kind=r_tran), pointer, dimension(:) :: coeff_data
+    real(kind=r_tran), pointer, dimension(:) :: tracer_data
+    real(kind=r_tran), pointer, dimension(:) :: reconstruction_data
+    type(r_tran_field_proxy_type) reconstruction_proxy, tracer_proxy, coeff_proxy
+    integer(kind=i_def), pointer :: map_adspc1_reconstruction(:,:), map_adspc2_tracer(:,:), &
 &map_adspc3_lookup_poly2d_field(:,:), map_adspc4_set_count_poly2d_field(:,:), map_adspc5_coeff(:,:)
-    INTEGER(KIND=i_def) ndf_adspc1_reconstruction, undf_adspc1_reconstruction, ndf_adspc2_tracer, undf_adspc2_tracer, &
+    integer(kind=i_def) ndf_adspc1_reconstruction, undf_adspc1_reconstruction, ndf_adspc2_tracer, undf_adspc2_tracer, &
 &ndf_adspc3_lookup_poly2d_field, undf_adspc3_lookup_poly2d_field, ndf_adspc4_set_count_poly2d_field, &
 &undf_adspc4_set_count_poly2d_field, ndf_adspc5_coeff, undf_adspc5_coeff
-    INTEGER(KIND=i_def) max_halo_depth_mesh
-    TYPE(mesh_type), pointer :: mesh
+    integer(kind=i_def) max_halo_depth_mesh
+    type(mesh_type), pointer :: mesh
 
     nullify( set_count_poly2d_field_data, lookup_poly2d_field_data, &
              coeff_data, tracer_data, reconstruction_data, &
@@ -128,36 +128,36 @@ MODULE invoke_adj_poly2d_recon_lookup_mod
 
     !$omp parallel default(shared), private(cell)
     !$omp do schedule(static)
-    DO cell = loop0_start, loop0_stop, 1
-      CALL adj_poly2d_recon_lookup_code(nlayers_reconstruction, reconstruction_data, tracer_data, lookup_poly2d_field_data, &
+    do cell = loop0_start, loop0_stop, 1
+      call adj_poly2d_recon_lookup_code(nlayers_reconstruction, reconstruction_data, tracer_data, lookup_poly2d_field_data, &
 &set_count_poly2d_field_data, coeff_data, nsets, nindices, ndf_adspc1_reconstruction, undf_adspc1_reconstruction, &
 &map_adspc1_reconstruction(:,cell), ndf_adspc2_tracer, undf_adspc2_tracer, map_adspc2_tracer(:,cell), &
 &ndf_adspc3_lookup_poly2d_field, undf_adspc3_lookup_poly2d_field, map_adspc3_lookup_poly2d_field(:,cell), &
 &ndf_adspc4_set_count_poly2d_field, undf_adspc4_set_count_poly2d_field, map_adspc4_set_count_poly2d_field(:,cell), &
 &ndf_adspc5_coeff, undf_adspc5_coeff, map_adspc5_coeff(:,cell))
-    END DO
+    end do
     !$omp end do
     !$omp end parallel
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !
-    CALL tracer_proxy%set_dirty()
+    call tracer_proxy%set_dirty()
 
     !
     !omp parallel default(shared), private(cell)
     !omp do schedule(static)
-    DO cell = loop1_start, loop1_stop, 1
-      CALL adj_polynd_recon_zeroing_code(nlayers_reconstruction, reconstruction_data, tracer_data, ndf_adspc1_reconstruction, &
+    do cell = loop1_start, loop1_stop, 1
+      call adj_polynd_recon_zeroing_code(nlayers_reconstruction, reconstruction_data, tracer_data, ndf_adspc1_reconstruction, &
 &undf_adspc1_reconstruction, map_adspc1_reconstruction(:,cell), ndf_adspc2_tracer, undf_adspc2_tracer, map_adspc2_tracer(:,cell))
-    END DO
+    end do
     !omp end do
     !omp end parallel
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !
-    CALL reconstruction_proxy%set_dirty()
+    call reconstruction_proxy%set_dirty()
     !
     !
-  END SUBROUTINE invoke_adj_poly2d_recon_lookup
+  end subroutine invoke_adj_poly2d_recon_lookup
 
-END MODULE invoke_adj_poly2d_recon_lookup_mod
+end module invoke_adj_poly2d_recon_lookup_mod
