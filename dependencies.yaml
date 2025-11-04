@@ -51,4 +51,4 @@ ukca:
 
 um_aux:
     source: git@github.com:MetOffice/um_aux.git
-    ref: trunk
+    ref: main
