@@ -8,4 +8,7 @@ def get_site():
     out, _ = proc.communicate()
     if proc.returncode or "SITE" not in out:
         raise Exception('Could not determine the rose-stem "SITE"')
-    return out.replace("SITE=", "").strip()
+    # At some sites there may be many variables that are returned by rose config rose-stem
+    # Try to just grab the thing after SITE= and then ignore anything afterwards
+    site = out.split("SITE=")[1].split(' ')[0].strip()
+    return site
