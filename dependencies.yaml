@@ -34,8 +34,8 @@ lfric_core:
     ref: 1e7ab16ef47eb7792c3d4909b98b947bfb9b0b49
 
 SimSys_Scripts:
-    source: git@github.com:james-bruten-mo/SimSys_Scripts.git
-    ref: git_migration_pkg_branch
+    source: git@github.com:MetOffice/SimSys_Scripts.git
+    ref: main
 
 socrates:
     source: git@github.com:MetOffice/socrates.git
@@ -43,7 +43,7 @@ socrates:
 
 socrates-spectral:
     source: git@github.com:MetOffice/socrates-spectral.git
-    ref: trunk
+    ref: main
 
 ukca:
     source: git@github.com:MetOffice/ukca.git
