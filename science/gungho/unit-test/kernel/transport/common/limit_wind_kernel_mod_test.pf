@@ -7,11 +7,7 @@
 !>
 module limit_wind_kernel_mod_test
 
-  use constants_mod,                 only: i_def, r_def, r_second
-
-  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
-  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap
-
+  use constants_mod, only: i_def, r_def, r_second
   use funit
 
   implicit none
@@ -23,8 +19,6 @@ module limit_wind_kernel_mod_test
   type, extends(TestCase), public :: limit_wind_test_type
     private
   contains
-    procedure setup
-    procedure tearDown
     procedure test_all
   end type limit_wind_test_type
 
@@ -37,105 +31,44 @@ module limit_wind_kernel_mod_test
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine setUp( this )
-
-    use feign_config_mod,          only : feign_timestepping_config
-
-    use timestepping_config_mod,   only : method_semi_implicit, &
-                                          runge_kutta_method_ssp3
-    implicit none
-
-    class(limit_wind_test_type), intent(inout) :: this
-
-    call feign_timestepping_config(                                   &
-             method=method_semi_implicit,                             &
-             dt=real(DT, r_second), alpha=0.5_r_def, tau_u=0.5_r_def, &
-             tau_t=0.5_r_def, tau_r=0.5_r_def,                        &
-             outer_iterations=1_i_def, inner_iterations=1_i_def,      &
-             runge_kutta_method=runge_kutta_method_ssp3,              &
-             spinup_period=0.0_r_second, spinup_alpha=.false.)
-
-  end subroutine setUp
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine tearDown( this )
-
-    use configuration_mod,        only: final_configuration
-
-    implicit none
-
-    class(limit_wind_test_type), intent(inout) :: this
-
-    call final_configuration()
-
-  end subroutine tearDown
-
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @Test
   subroutine test_all( this )
 
     use limit_wind_kernel_mod, only: limit_wind_code
+
     implicit none
 
     class(limit_wind_test_type), intent(inout) :: this
 
-    real(r_def) :: tol ! tolerence to default precision
-    real(r_def) :: answer
-
     ! Fields
-    real(r_def), allocatable :: wind(:)
-    real(r_def), allocatable :: dJ_on_w2(:)
+    real(r_def) :: wind
+    real(r_def) :: dJ_on_w2
 
     integer :: cell
 
-    ! Sizes
-    integer                 :: nlayers, ncells, nqp_h, nqp_v
-    integer                 :: ndf_w2, undf_w2
-    integer(i_def)          :: dim_space, dim_space_diff
-
-    ! Dofmaps
-    integer(i_def), allocatable :: map_w2(:,:)
-
-    nlayers = 3
-    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,     &
-                                  dim_space, dim_space_diff,   &
-                                  nqp_h, nqp_v,                &
-                                  nlayers )
-    call get_w2_m3x3_dofmap(map_w2)
-
-    ! only test interior cell 5
-    cell=5
-    ! Create the data, including large magnitude winds
-    allocate( wind( undf_w2 ) )
-    allocate( dJ_on_w2( undf_w2 ) )
-
-    wind(:) = U0*DX*DX
-    ! Large vertical wind
-    wind(map_w2(6, cell)) =  UFAST*DX*DX
-    ! Large and negative horizonal wind
-    wind(map_w2(1, cell)) =  -UFAST*DX*DX
-
     ! Get detJ values
-    dJ_on_w2(:) = DX*DX*DX
+    dJ_on_w2 = DX*DX*DX
 
-    call limit_wind_code( nlayers,         &
-                          wind,            &
+
+    wind = U0*DX*DX
+    call limit_wind_code( wind,            &
                           dJ_on_w2, dt,    &
-                          MAX_CFL,         &
-                          ndf_w2, undf_w2, &
-                          map_w2(:,cell)   &
-                          )
+                          MAX_CFL )
+    @assertLessThanOrEqual( wind, DX*DX*DX*MAX_CFL/DT )
 
+    ! Large vertical wind
+    wind =  UFAST*DX*DX
+    call limit_wind_code( wind,            &
+                          dJ_on_w2, dt,    &
+                          MAX_CFL )
+    @assertLessThanOrEqual( wind, DX*DX*DX*MAX_CFL/DT )
 
-    ! The answer returns the max wind.  If the kernel is correct, then
-    ! this should be <= DX*DX*DX*MAX_CFL/DT
-    answer = maxval(abs(wind))
-
-    @assertLessThanOrEqual( answer, DX*DX*DX*MAX_CFL/DT )
-
-    deallocate(wind)
-    deallocate(dJ_on_w2)
-    deallocate(map_w2)
+    ! Large and negative horizonal wind
+    wind =  -UFAST*DX*DX
+    call limit_wind_code( wind,            &
+                          dJ_on_w2, dt,    &
+                          MAX_CFL )
+    @assertLessThanOrEqual( wind, DX*DX*DX*MAX_CFL/DT )
 
   end subroutine test_all
 

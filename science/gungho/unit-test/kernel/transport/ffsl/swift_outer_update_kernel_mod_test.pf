@@ -1,0 +1,64 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief  Test the functionality of swift_outer_update_kernel_mod
+
+module swift_outer_update_kernel_mod_test
+
+  use constants_mod, only: i_def, r_tran, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use swift_outer_update_kernel_mod, only: swift_outer_update_code
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran
+
+    real(kind=r_tran) :: field_np1
+    real(kind=r_tran), parameter :: field_x = 589.4623_r_tran
+    real(kind=r_tran), parameter :: dry_mass_x = 7.531_r_tran
+    real(kind=r_tran), parameter :: field_y = 82.4623_r_tran
+    real(kind=r_tran), parameter :: dry_mass_y = 5.3891_r_tran
+    real(kind=r_tran), parameter :: dt = 531.89523_r_tran
+    real(kind=r_tran), parameter :: increment_x = 34.8094623_r_tran
+    real(kind=r_tran), parameter :: increment_y = 84.23531_r_tran
+    real(kind=r_tran), parameter :: dry_mass_np1 = 65.234_r_tran
+    real(kind=r_tran) :: answer
+
+    field_np1 = 1.56234_r_tran
+
+    !answer = ( - 0.5_r_tran*dt*increment_x      &
+    !           - 0.5_r_tran*dt*increment_y      &
+    !           + 0.5_r_tran*field_x*dry_mass_x  &
+    !           + 0.5_r_tran*field_y*dry_mass_y) &
+    !          /dry_mass_np1
+    answer = -447.8930341583847_r_tran
+
+    call swift_outer_update_code(field_np1,    &
+                                 field_x,      &
+                                 dry_mass_x,   &
+                                 field_y,      &
+                                 dry_mass_y,   &
+                                 dt,           &
+                                 increment_x,  &
+                                 increment_y,  &
+                                 dry_mass_np1)
+
+    @assertEqual(answer, field_np1, tol)
+
+  end subroutine test_all
+
+end module swift_outer_update_kernel_mod_test

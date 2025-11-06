@@ -6,9 +6,7 @@
 !> Test the relative_humidity_kernel
 module relative_humidity_kernel_mod_test
 
-  use constants_mod,                       only : i_def, r_def
-  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size
-  use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap
+  use constants_mod, only : r_def
   use funit
 
   implicit none
@@ -66,89 +64,44 @@ contains
     real(kind=r_def), parameter :: kappa = rd / cp
 
     ! Fields
-    real(kind=r_def)                 :: mr_sat
-    real(kind=r_def),    allocatable :: relative_humidity(:)
-    real(kind=r_def),    allocatable :: theta_d(:)
-    real(kind=r_def),    allocatable :: exner_at_wt(:)
-    real(kind=r_def),    allocatable :: mr_v(:)
-    real(kind=r_def),    allocatable :: answer(:)
-
-    integer(kind=i_def)              :: k, cell
-    integer(kind=i_def)              :: nlayers, ncells
-    integer(kind=i_def)              :: nqp_h, nqp_v
-    integer(kind=i_def)              :: ndf_wt
-    integer(kind=i_def)              :: dim_space, dim_space_diff
-    integer(kind=i_def)              :: undf_wt
-
-    ! Dofmaps
-    integer(kind=i_def), allocatable :: map_wt(:,:)
-
-    nlayers = 3
-    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,   &
-                                      dim_space, dim_space_diff, &
-                                      nqp_h, nqp_v, nlayers      )
-
-
-    call get_wtheta_m3x3_dofmap(map_wt, nlayers)
-
-    ! Create the data
-    allocate( mr_v( undf_wt ) )
-    allocate( exner_at_wt( undf_wt ) )
-    allocate( theta_d( undf_wt ) )
-    allocate( relative_humidity( undf_wt ) )
-    allocate( answer( undf_wt ) )
+    real(kind=r_def) :: mr_sat
+    real(kind=r_def) :: relative_humidity
+    real(kind=r_def) :: theta_d
+    real(kind=r_def) :: exner_at_wt
+    real(kind=r_def) :: mr_v
+    real(kind=r_def) :: answer
 
     ! Strategy behind this test is to fix the temperature at 273.15
     ! In this case, mr_sat from Tetens' formula simplifies to:
     ! mr_sat = qsa1 / (p - qsa4)
     mr_sat = qsa1 / ( 0.01_r_def * p_zero - qsa4 )
 
-    do cell = 1, ncells
-      ! Fill height values
-      do k = 0, nlayers
+    ! Have pressure equal to p_zero
+    exner_at_wt = 1.0_r_def
 
-        ! Have pressure equal to p_zero everywhere
-        exner_at_wt(map_wt(1, cell) + k) = 1.0_r_def
+    ! Then theta_d is equal to temperature
+    theta_d = tk0c
 
-        ! Then theta_d is equal to temperature
-        theta_d(map_wt(1, cell) + k) = tk0c
+    ! Set an arbritrary m_v
+    mr_v = 1.0_r_def / 100.0_r_def
 
-        ! Have mr_v change with height
-        mr_v(map_wt(1, cell) + k) = real(k, r_def) / 100.0_r_def
-
-        ! Use simplified situation to calculate answer
-        answer(map_wt(1, cell) + k) = mr_v(map_wt(1, cell) + k) / mr_sat &
+    ! Use simplified situation to calculate answer
+    answer = mr_v / mr_sat &
           * ( 1.0_r_def + mr_sat * recip_epsilon ) &
-          / ( 1.0_r_def + mr_v(map_wt(1, cell) + k) * recip_epsilon )
-      end do
-    end do
+          / ( 1.0_r_def + mr_v * recip_epsilon )
 
     ! Make relative_humidity initially have wrong values
-    relative_humidity(:) = 0.0_r_def
+    relative_humidity = 0.0_r_def
 
-    cell = 4
-    call relative_humidity_code( nlayers,           &
-                                 relative_humidity, &
+    call relative_humidity_code( relative_humidity, &
                                  mr_v,              &
                                  theta_d,           &
                                  exner_at_wt,       &
                                  recip_epsilon,     &
                                  kappa,             &
-                                 p_zero,            &
-                                 ndf_wt,            &
-                                 undf_wt,           &
-                                 map_wt(:,cell)     )
+                                 p_zero )
 
-    do k = 0, nlayers
-      @assertEqual(answer(map_wt(1, cell)+k), relative_humidity(map_wt(1, cell)+k), tol)
-    end do
-
-    deallocate( answer )
-    deallocate( relative_humidity )
-    deallocate( theta_d )
-    deallocate( mr_v )
-    deallocate( exner_at_wt )
-    deallocate( map_wt )
+    @assertEqual(answer, relative_humidity, tol)
 
   end subroutine test_all
 
