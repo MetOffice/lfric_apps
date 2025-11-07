@@ -15,8 +15,11 @@
 # Choose which files to Pre-proccess and PSyclone from physics_schemes / other source (e.g. UKCA)
 
 export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod \
+                                bm_tau_kernel_mod \
                                 gw_ussp_mod \
                                 lw_kernel_mod \
+                                pc2_initiation_kernel_mod \
+                                pc2_conv_coupling_kernel_mod \
                                 sw_kernel_mod \
 	                        ukca_aero_ctl \
 				ukca_abdulrazzak_ghan \

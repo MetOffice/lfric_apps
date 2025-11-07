@@ -14,7 +14,10 @@
 
 # Choose which files to Pre-proccess and PSyclone from physics / FCM UM source.
 
-export PSYCLONE_PHYSICS_FILES = gw_ussp_mod
+export PSYCLONE_PHYSICS_FILES = gw_ussp_mod \
+                                bm_tau_kernel_mod \
+                                pc2_conv_coupling_kernel_mod \
+                                pc2_initiation_kernel_mod
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 

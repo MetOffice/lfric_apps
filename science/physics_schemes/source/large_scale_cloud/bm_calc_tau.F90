@@ -294,7 +294,7 @@ end if
 
 
 !$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP private(k,j,i,t_corr,ka,bi,ai,ei,dv,p_corr,b0,mom1,qsi,qkw,dissp,        &
+!$OMP private(k,j,i,t_corr,ka,bi,ai,ei,dv,p_corr,b0,qsi,qkw,dissp,             &
 !$OMP         lami,lams,mix_len)                                               &
 !$OMP SHARED(tdims,q,theta,rho_dry,rho_moist,cff_inv,l_mr_physics,tau_mph,     &
 !$OMP        cff,qcf,q_local2d,qcf_local2d,t_local2d,rho_air,repsilon,         &
@@ -303,10 +303,10 @@ end if
 !$OMP        l_casim, qcf2, icenumber_cas, snownumber_cas, spcx,spdx,ipcx,ipdx,&
 !$OMP        mp_czero,mp_tau_lim, ni_small, gam_1_imu_id, gam_1_imu, imu,      &
 !$OMP        ns_small, gam_1_smu_sd, gam_1_smu, smu, qi_small, qs_small,       &
-!$OMP        i_bm_ez_opt)
+!$OMP        i_bm_ez_opt, mom1)
 do k = 1, bl_levels
-!$OMP do SCHEDULE(STATIC)
   do j = tdims%j_start, tdims%j_end
+!$OMP do SCHEDULE(STATIC)
     do i = tdims%i_start, tdims%i_end
 
       ! Calculate decorrelation and homogenisation time scales
@@ -366,15 +366,15 @@ do k = 1, bl_levels
       cff_inv(i,j,k) = 1.0 / max( cff(i,j,k), 0.001 )
 
     end do
+!$OMP end do
   end do
-!$OMP end do NOWAIT
 
-!$OMP do SCHEDULE(STATIC)
   do j = tdims%j_start, tdims%j_end
 
     !Call lsp_moments row by row to help it play nicely with the interface
     if (l_casim) then
       ! For CASIM derive ice moment 1 by combining the snow and ice moments
+!$OMP do SCHEDULE(STATIC)
       do i=tdims%i_start, tdims%i_end
         mom1(i)=0.0
         if ((icenumber_cas(i,j,k) > ni_small) .and.                            &
@@ -392,12 +392,14 @@ do k = 1, bl_levels
         end if
 
       end do
-
+!$OMP end do
     else
+!$OMP SINGLE
       call lsp_moments( tdims%i_len, rho_air(:,j), t_local2d(:,j),             &
            qcf_local2d(:,j), cff_inv(:,j,k), cx(84), mom1 )
+!$OMP END SINGLE
     end if !l_casim
-
+!$OMP do SCHEDULE(STATIC)
     do i = tdims%i_start, tdims%i_end
 
       ! First statement in if test catches any -ve qv from pc2
@@ -436,8 +438,8 @@ do k = 1, bl_levels
       end if       ! qlocal2d > 0
 
     end do         ! i
+!$OMP end do
   end do           ! j
-!$OMP end do NOWAIT
 end do             ! k
 !$OMP end PARALLEL
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

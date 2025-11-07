@@ -574,3 +574,28 @@ def replace_n_threads(psyir, n_threads_var_name):
                     assign.rhs.replace_with(
                         # pylint: disable=possibly-used-before-assignment
                         Call.create(omp_get_max_threads))
+
+
+def set_pure_subroutines(node, names):
+    """
+    Declare subroutines under `node` that are  named in
+    `names` as pure, to enable parallelisation of the
+    encompassing loops.
+    """
+    for call in node.walk(Call):
+        if call.routine.name in names:
+            call.routine.symbol.is_pure = True
+
+
+def match_lhs_assignments(node, names):
+    """
+    Check if any symbol names in list `names` appear on the
+    left-hand side of any assignments under `node` and
+    return those names. Useful for handling, e.g., false
+    dependencies and explicit variable privatisation.
+    """
+    lhs_names = []
+    for assignment in node.walk(Assignment):
+        if assignment.lhs.name in names:
+            lhs_names.append(assignment.lhs.name)
+    return lhs_names
