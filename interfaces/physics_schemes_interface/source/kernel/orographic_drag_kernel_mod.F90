@@ -117,7 +117,7 @@ contains
   !! @param[in]     map_2d         Dofmap for the 2d cell
   !>
   subroutine orographic_drag_kernel_code(                                  &
-                        nlayers, du_orog_blk, dv_orog_blk,                 &
+                        max_pos_cells, nlayers, du_orog_blk, dv_orog_blk,  &
                         du_orog_gwd, dv_orog_gwd,                          &
                         dtemp_orog_blk, dtemp_orog_gwd, u_in_w3, v_in_w3,  &
                         wetrho_in_w3, theta_in_wth, exner_in_wth, sd_orog, &
@@ -129,7 +129,7 @@ contains
                         taux_orog_gwd, tauy_orog_gwd,                      &
                         ! Spatial information
                         ndf_w3, undf_w3, map_w3, ndf_wth, undf_wth,        &
-                        map_wth, ndf_2d, undf_2d, map_2d)
+                        map_wth, ndf_2d, undf_2d, map_2d, seg_len, cell_index)
 
     !---------------------------------------
     ! UM modules
@@ -138,19 +138,19 @@ contains
     use gw_block_mod, only: gw_block
     use gw_setup_mod, only: gw_setup
     use gw_wave_mod,  only: gw_wave
-    use tuning_segments_mod, only: gw_seg_size
 
     implicit none
 
     !----------------------------------------------------------------------
     ! Arguments
     !----------------------------------------------------------------------
-    integer(i_def), intent(in) :: nlayers
+    integer(i_def), intent(in) :: nlayers, max_pos_cells, seg_len !nlayers, total cells (whether orogrogaphically relevant or not), segment length
+    integer(i_def), intent(in), dimension(seg_len) :: cell_index 
     integer(i_def), intent(in) :: ndf_w3, ndf_wth, ndf_2d
     integer(i_def), intent(in) :: undf_w3, undf_wth, undf_2d
-    integer(i_def), intent(in), dimension(ndf_w3)  :: map_w3
-    integer(i_def), intent(in), dimension(ndf_wth) :: map_wth
-    integer(i_def), intent(in), dimension(ndf_2d)  :: map_2d
+    integer(i_def), intent(in), dimension(ndf_w3, max_pos_cells)  :: map_w3 
+    integer(i_def), intent(in), dimension(ndf_wth, max_pos_cells) :: map_wth
+    integer(i_def), intent(in), dimension(ndf_2d, max_pos_cells)  :: map_2d
 
     real(r_def), intent(inout), dimension(undf_w3)  :: du_orog_blk, du_orog_gwd, &
                                                        dv_orog_blk, dv_orog_gwd
@@ -174,7 +174,7 @@ contains
     !----------------------------------------------------------------------
     ! Local variables for input to the kernel
     !----------------------------------------------------------------------
-    integer(i_um), parameter :: seg_len = 1
+
     ! At present, only seg_len = 1 is permitted. This kernel will require work in
     ! order to make this generalisable to seg_len > 1.
 
@@ -202,7 +202,7 @@ contains
     ! which is hardcoded to .false. in the UM code.
     ! We set them here just so that they can be passed in to the subroutines.
     real(r_um), parameter :: delta_lambda=1.0_r_um, delta_phi=1.0_r_um
-    real(r_um), dimension(seg_len), parameter :: latitude=1.0_r_um
+    real(r_um), dimension(seg_len) :: latitude
     logical, parameter :: nonhydro=.false., dynbeta=.false.
 
     ! Output from gw_setup
@@ -239,7 +239,7 @@ contains
     real(r_um) :: fbcd, gsharp, gwd_frc, gwd_fsat, nsigma
     logical :: l_fb_heating, l_gw_heating, l_smooth
 
-    integer(i_um) :: k
+    integer(i_um) :: k, i
 
     integer(i_um), dimension(seg_len) :: ktop, kbot
 
@@ -271,62 +271,72 @@ contains
                        stress_u, stress_v
 
 
+    !dhc - cant be parameter
+    latitude=1.0_r_um
     !-----------------------------------------------------------------------
     ! Initialise arrays and call UM code
     !-----------------------------------------------------------------------
-    drag(1) = .true.
+    drag = .true.
 
     ! Increments need to be intialised to zero because they are added onto
     ! previous increments in UM code (not overwritten).
-    do k = 1, nlayers
-      du_dt_orog_gwd(1,k) = 0.0_r_um
-      dv_dt_orog_gwd(1,k) = 0.0_r_um
-      du_dt_blk(1,k) = 0.0_r_um
-      dv_dt_blk(1,k) = 0.0_r_um
-      dtemp_dt_blk(1,k) = 0.0_r_um
-      dtemp_dt_orog_gwd(1,k) = 0.0_r_um
+
+    do i= 1, seg_len
+      do k = 1, nlayers
+        du_dt_orog_gwd(i,k) = 0.0_r_um
+        dv_dt_orog_gwd(i,k) = 0.0_r_um
+        du_dt_blk(i,k) = 0.0_r_um
+        dv_dt_blk(i,k) = 0.0_r_um
+        dtemp_dt_blk(i,k) = 0.0_r_um
+        dtemp_dt_orog_gwd(i,k) = 0.0_r_um
+      end do
     end do
 
+    !need loop i (points)
     ! Recasting fields to UM precision
-    do k = 1, nlayers
-      u_on_p(1,k) = real(u_in_w3(map_w3(1) + k-1), r_um)
-      v_on_p(1,k) = real(v_in_w3(map_w3(1) + k-1), r_um)
+    do i= 1, seg_len
+      do k = 1, nlayers
+        u_on_p(i,k) = real(u_in_w3(map_w3(1,cell_index(i)) + k-1), r_um)
+        v_on_p(i,k) = real(v_in_w3(map_w3(1,cell_index(i)) + k-1), r_um)
 
-      wetrho(1,k) = real(wetrho_in_w3(map_w3(1) + k-1), r_um)
+        wetrho(i,k) = real(wetrho_in_w3(map_w3(1,cell_index(i)) + k-1), r_um)
 
-      theta(1,k)  = real(theta_in_wth(map_wth(1) + k), r_um)
-      temp(1,k)  = real(exner_in_wth(map_wth(1) + k)*theta_in_wth(map_wth(1) + k), r_um)
+        theta(i,k)  = real(theta_in_wth(map_wth(1,cell_index(i)) + k), r_um)
+        temp(i,k)  = real(exner_in_wth(map_wth(1,cell_index(i)) + k)*theta_in_wth(map_wth(1,cell_index(i)) + k), r_um)
 
-      ! Pressure on layer boundaries (note, top layer is set to zero below)
-      press(1,k) = real(p_zero*(exner_in_wth(map_wth(1) + k)) &
+        ! Pressure on layer boundaries (note, top layer is set to zero below)
+        press(i,k) = real(p_zero*(exner_in_wth(map_wth(1,cell_index(i)) + k)) &
                                       **(1.0_r_um/kappa), r_um)
 
-      ! water vapour mixing ratio
-      q(1,k) = mr_v(map_wth(1) + k)
-      ! cloud liquid mixing ratio
-      qcl(1,k) = mr_cl(map_wth(1) + k)
-      ! cloud ice mixing ratio
-      qcf(1,k) = mr_cf(map_wth(1) + k)
+        ! water vapour mixing ratio
+        q(i,k) = mr_v(map_wth(1,cell_index(i)) + k)
+        ! cloud liquid mixing ratio
+        qcl(i,k) = mr_cl(map_wth(1,cell_index(i)) + k)
+        ! cloud ice mixing ratio
+        qcf(i,k) = mr_cf(map_wth(1,cell_index(i)) + k)
 
-      l_lapse(1,k) = .false.
+        l_lapse(i,k) = .false.
 
-      z_rho_levels(1,k)   = real(height_w3(map_w3(1) + k-1) - height_wth(map_wth(1) + 0), r_um)
-      z_theta_levels(1,k) = real(height_wth(map_wth(1) + k) - height_wth(map_wth(1) + 0), r_um)
-    end do   ! k
+        z_rho_levels(i,k)   = real(height_w3(map_w3(1,cell_index(i)) + k-1) - height_wth(map_wth(1,cell_index(i)) + 0), r_um)
+        z_theta_levels(i,k) = real(height_wth(map_wth(1,cell_index(i)) + k) - height_wth(map_wth(1,cell_index(i)) + 0), r_um)
+      end do   ! k
+    end do !i
 
-    press(1,nlayers) = 0.0_r_um
+    do i=1, seg_len
+      press(i,nlayers) = 0.0_r_um
 
-    sd(1)      = real(sd_orog(map_2d(1)), r_um)
-    grad_xx(1) = real(grad_xx_orog(map_2d(1)), r_um)
-    grad_xy(1) = real(grad_xy_orog(map_2d(1)), r_um)
-    grad_yy(1) = real(grad_yy_orog(map_2d(1)), r_um)
+      sd(i)      = real(sd_orog(map_2d(1,cell_index(i))), r_um)
+      grad_xx(i) = real(grad_xx_orog(map_2d(1,cell_index(i))), r_um)
+      grad_xy(i) = real(grad_xy_orog(map_2d(1,cell_index(i))), r_um)
+      grad_yy(i) = real(grad_yy_orog(map_2d(1,cell_index(i))), r_um)
 
-    ! Scale aware inputs (not currently used in LFRic)
-    orog_f1(1)  = 0.0_r_um
-    orog_f2(1)  = 0.0_r_um
-    orog_f3(1)  = 0.0_r_um
-    orog_amp(1) = 0.0_r_um
-
+      ! Scale aware inputs (not currently used in LFRic)
+      orog_f1(i)  = 0.0_r_um
+      orog_f2(i)  = 0.0_r_um
+      orog_f3(i)  = 0.0_r_um
+      orog_amp(i) = 0.0_r_um
+    end do !i
+    
     ! Recasting of LFRic to UM namelist inputs
     fbcd         = real(cd_flow_blocking, r_um)
     gsharp       = real(gwd_scaling, r_um)
@@ -360,7 +370,7 @@ contains
     end if
 
     ! Call routine to setup orographic drag fields
-    call gw_setup(nlayers, seg_len, gw_seg_size,                     &
+    call gw_setup(nlayers, seg_len, seg_len,                     &
                   ! Inputs
                   u_on_p, v_on_p,  wetrho, theta,                    &
                   ! Inputs to calculate moist buoyancy frequency
@@ -380,7 +390,7 @@ contains
                   v_s_d, v_s_d_on, seg_len)
 
     ! Call routine to compute orographic blocking depth and drag
-    call gw_block(nlayers,seg_len,gw_seg_size,timestep,u_on_p,v_on_p,    &
+    call gw_block(nlayers,seg_len,seg_len,timestep,u_on_p,v_on_p,    &
                   wetrho,nsq,ulow, vlow, modu,                           &
                   z_rho_levels,z_theta_levels,mt_high,                   &
                   sd,slope,anis,mtdir,zb,banis,canis,                    &
@@ -401,7 +411,7 @@ contains
                   tausy_d,tausy_d_on, seg_len)
 
     ! Call routine to compute orographic gravity wave drag
-    call gw_wave(nlayers,seg_len,gw_seg_size,u_on_p,v_on_p,wetrho,   &
+    call gw_wave(nlayers,seg_len,seg_len,u_on_p,v_on_p,wetrho,   &
                  nsq_dry, nsq_unsat, nsq_sat, dzcond, l_lapse, kbot, &
                  ulow,vlow,rholow,psi1,psilow,nlow,modu,ktop,        &
                  z_rho_levels,z_theta_levels,delta_lambda,delta_phi, &
@@ -424,47 +434,51 @@ contains
                  nsq_s_d, nsq_s_d_on, seg_len)
 
     ! Map variables back
-    do k = 1, nlayers
-      du_orog_blk(map_w3(1) + k-1) = real(du_dt_blk(1,k)*timestep, r_def)
-      dv_orog_blk(map_w3(1) + k-1) = real(dv_dt_blk(1,k)*timestep, r_def)
+    do i = 1, seg_len
+      do k = 1, nlayers
+        du_orog_blk(map_w3(1,cell_index(i)) + k-1) = real(du_dt_blk(i,k)*timestep, r_def)
+        dv_orog_blk(map_w3(1,cell_index(i)) + k-1) = real(dv_dt_blk(i,k)*timestep, r_def)
 
-      du_orog_gwd(map_w3(1) + k-1) = real(du_dt_orog_gwd(1,k)*timestep, r_def)
-      dv_orog_gwd(map_w3(1) + k-1) = real(dv_dt_orog_gwd(1,k)*timestep, r_def)
+        du_orog_gwd(map_w3(1,cell_index(i)) + k-1) = real(du_dt_orog_gwd(i,k)*timestep, r_def)
+        dv_orog_gwd(map_w3(1,cell_index(i)) + k-1) = real(dv_dt_orog_gwd(i,k)*timestep, r_def)
 
-      dtemp_orog_blk(map_wth(1) + k)      = real(dtemp_dt_blk(1,k)*timestep, r_def)
-      dtemp_orog_gwd(map_wth(1) + k) = real(dtemp_dt_orog_gwd(1,k)*timestep, r_def)
-    end do ! k
-
+        dtemp_orog_blk(map_wth(1,cell_index(i)) + k)      = real(dtemp_dt_blk(i,k)*timestep, r_def)
+        dtemp_orog_gwd(map_wth(1,cell_index(i)) + k) = real(dtemp_dt_orog_gwd(i,k)*timestep, r_def)
+      end do ! k
+    end do !i
+    
     ! Set level 0 increment such that theta increment will equal level 1
-    dtemp_orog_blk(map_wth(1) + 0) = real(dtemp_dt_blk(1,1)*timestep, r_def)   &
-                                   * exner_in_wth(map_wth(1) + 0)              &
-                                   / exner_in_wth(map_wth(1) + 1)
-    dtemp_orog_gwd(map_wth(1) + 0) = real(dtemp_dt_orog_gwd(1,1)*timestep, r_def)&
-                                   * exner_in_wth(map_wth(1) + 0)                &
-                                   / exner_in_wth(map_wth(1) + 1)
+    do i = 1, seg_len
+      dtemp_orog_blk(map_wth(1,cell_index(i)) + 0) = real(dtemp_dt_blk(i,1)*timestep, r_def)   &
+                                   * exner_in_wth(map_wth(1,cell_index(i)) + 0)              &
+                                   / exner_in_wth(map_wth(1,cell_index(i)) + 1)
+      dtemp_orog_gwd(map_wth(1,cell_index(i)) + 0) = real(dtemp_dt_orog_gwd(i,1)*timestep, r_def)&
+                                   * exner_in_wth(map_wth(1,cell_index(i)) + 0)                &
+                                   / exner_in_wth(map_wth(1,cell_index(i)) + 1)
 
-    ! Map diagnostics back
-    if (.not. associated(taux_orog_blk, empty_real_data) ) then
-      do k = 0, nlayers
-        taux_orog_blk(map_wth(1) + k) = real(tau_x_blk(1,k), r_def)
-      end do
-    end if
-    if (.not. associated(tauy_orog_blk, empty_real_data) ) then
-      do k = 0, nlayers
-        tauy_orog_blk(map_wth(1) + k) = real(tau_y_blk(1,k), r_def)
-      end do
-    end if
-    if (.not. associated(taux_orog_gwd, empty_real_data) ) then
-      do k = 0, nlayers
-        taux_orog_gwd(map_wth(1) + k) = real(tau_x_orog_gwd(1,k), r_def)
-      end do
-    end if
-    if (.not. associated(tauy_orog_gwd, empty_real_data) ) then
-      do k = 0, nlayers
-        tauy_orog_gwd(map_wth(1) + k) = real(tau_y_orog_gwd(1,k), r_def)
-      end do
-    end if
-
+      ! Map diagnostics back
+      if (.not. associated(taux_orog_blk, empty_real_data) ) then
+        do k = 0, nlayers
+          taux_orog_blk(map_wth(1,cell_index(i)) + k) = real(tau_x_blk(i,k), r_def)
+        end do
+      end if
+      if (.not. associated(tauy_orog_blk, empty_real_data) ) then
+        do k = 0, nlayers
+          tauy_orog_blk(map_wth(1,cell_index(i)) + k) = real(tau_y_blk(i,k), r_def)
+        end do
+      end if
+      if (.not. associated(taux_orog_gwd, empty_real_data) ) then
+        do k = 0, nlayers
+          taux_orog_gwd(map_wth(1,cell_index(i)) + k) = real(tau_x_orog_gwd(i,k), r_def)
+        end do
+      end if
+      if (.not. associated(tauy_orog_gwd, empty_real_data) ) then
+        do k = 0, nlayers
+          tauy_orog_gwd(map_wth(1,cell_index(i)) + k) = real(tau_y_orog_gwd(i,k), r_def)
+        end do
+      end if
+    end do !i
+    
   end subroutine orographic_drag_kernel_code
 
 end module orographic_drag_kernel_mod

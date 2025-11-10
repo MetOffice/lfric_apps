@@ -14,15 +14,17 @@ module psykal_lite_phys_mod
   use field_mod,             only : field_type, field_proxy_type
   use integer_field_mod,     only : integer_field_type, integer_field_proxy_type
   use mesh_mod,              only : mesh_type
-
+  
   implicit none
   public
 
 contains
   !---------------------------------------------------------------------
   !> LFRic and PSyclone currently do not have a mechanism to loop over a subset
-  !> of cells in a horizontal domain. The relevant PSyclone ticket relating to
-  !> this is #487.
+  !> of cells in a horizontal domain. Furthermore this is a psykal_lite file which is not PSycloned.
+  !> PSyclone development to this aim can be tracked at https://github.com/stfc/PSyclone/issues/3193
+  !> Future refactoring may seek to push these loops into a kernel layer and then to apply PSyclone.
+  !>
   !> The orographic drag kernel only needs to be applied to a subset of land
   !> points where the standard deviation of subgrid orography is more than zero.
   !>
@@ -41,6 +43,7 @@ contains
 
     use orographic_drag_kernel_mod, only: orographic_drag_kernel_code
     use mesh_mod, only: mesh_type
+    use physics_config_mod,  only : gw_segment
     implicit none
 
     ! Increments from orographic drag
@@ -66,11 +69,16 @@ contains
     ! Number of degrees of freedom
     integer :: ndf_w3, undf_w3, ndf_wtheta, undf_wtheta
 
+    ! Integers for segmentation
+    integer :: applicable_points, nlayers, loop_upper_bound, segment, seg_len, &
+               l_bound, u_bound, n_segments , seg_target
+    
     ! These are in ANY_DISCONTINUOUS_SPACE_1
     integer :: ndf_adspc1_sd_orog, undf_adspc1_sd_orog
 
-    integer :: nlayers, loop_upper_bound
+    integer, allocatable ::    cell_index(:) !dhc record the points with orography
 
+    
     type(field_proxy_type) :: du_blk_proxy, dv_blk_proxy,             &
                               du_orog_gwd_proxy, dv_orog_gwd_proxy,   &
                               dtemp_blk_proxy, dtemp_orog_gwd_proxy,  &
@@ -142,35 +150,62 @@ contains
 
     ! Temporary variable for loop bound helps OpenMP
     loop_upper_bound = mesh%get_last_edge_cell()    
-    ! Loop over cells
-    !$omp parallel do default(shared), private(cell), schedule(static)
+  
+    applicable_points = 0   
+    !cell index padded with 0s beyond applicable_points
+    allocate(cell_index(loop_upper_bound))
+    cell_index = 0
     do cell=1, loop_upper_bound
       ! Only call orographic_drag_kernel_code at points where the
       ! standard deviation of the subgrid orography is more than zero.
       if ( sd_orog_proxy%data(map_adspc1_sd_orog(1, cell)) > 0.0_r_def ) then
 
-        call orographic_drag_kernel_code(                                  &
-                      nlayers, du_blk_proxy%data, dv_blk_proxy%data,       &
-                      du_orog_gwd_proxy%data, dv_orog_gwd_proxy%data,      &
-                      dtemp_blk_proxy%data, dtemp_orog_gwd_proxy%data,     &
-                      u_in_w3_proxy%data, v_in_w3_proxy%data,              &
-                      wetrho_in_w3_proxy%data, theta_in_wth_proxy%data,    &
-                      exner_in_w3_proxy%data,                              &
-                      sd_orog_proxy%data, grad_xx_orog_proxy%data,         &
-                      grad_xy_orog_proxy%data, grad_yy_orog_proxy%data,    &
-                      mr_v_proxy%data, mr_cl_proxy%data, mr_ci_proxy%data, &
-                      height_w3_proxy%data, height_wth_proxy%data,         &
-                      taux_blk_proxy%data, tauy_blk_proxy%data,            &
-                      taux_gwd_proxy%data, tauy_gwd_proxy%data,            &
-                      ndf_w3, undf_w3, map_w3(:,cell),                     &
-                      ndf_wtheta, undf_wtheta, map_wtheta(:,cell),         &
-                      ndf_adspc1_sd_orog, undf_adspc1_sd_orog,   &
-                      map_adspc1_sd_orog(:,cell) )
+         ! We want to select the cells which have orographic drag
+         applicable_points = applicable_points+1
+         cell_index(applicable_points) = cell
 
       end if ! sd_orog_proxy%data(map_adspc1_sd_orog(1, cell)) > 0.0_r_def
 
     end do
-    !$omp end parallel do
+
+    ! Check that the value of gw_segment is acceptable as a target length, otherwise use 1 for safety
+    if (gw_segment .le. 0 .or. gw_segment .gt. applicable_points) then
+      seg_target = 1
+    else
+      seg_target = gw_segment
+    end if
+
+    n_segments = (applicable_points + seg_target - 1) / seg_target
+
+    ! Call orographic_drag_kernel_code if you have applicable points
+    ! seg_len will be seg_target unless you have too few points at the end - l and u bound are of the segment iterated over
+    if (applicable_points .gt. 0) then
+      !$omp parallel do default(shared), private(segment, seg_len, l_bound, u_bound), schedule(dynamic)
+      do segment=1, n_segments
+        seg_len = min(seg_target, applicable_points - (segment - 1) * seg_target)
+        l_bound = (segment - 1) * seg_target + 1
+        u_bound = l_bound + seg_len - 1
+        call orographic_drag_kernel_code(                                                &
+                        loop_upper_bound, nlayers, du_blk_proxy%data, dv_blk_proxy%data, &
+                        du_orog_gwd_proxy%data, dv_orog_gwd_proxy%data,                  &
+                        dtemp_blk_proxy%data, dtemp_orog_gwd_proxy%data,                 &
+                        u_in_w3_proxy%data, v_in_w3_proxy%data,                          &
+                        wetrho_in_w3_proxy%data, theta_in_wth_proxy%data,                &
+                        exner_in_w3_proxy%data,                                          &
+                        sd_orog_proxy%data, grad_xx_orog_proxy%data,                     &
+                        grad_xy_orog_proxy%data, grad_yy_orog_proxy%data,                &
+                        mr_v_proxy%data, mr_cl_proxy%data, mr_ci_proxy%data,             &
+                        height_w3_proxy%data, height_wth_proxy%data,                     &
+                        taux_blk_proxy%data, tauy_blk_proxy%data,                        &
+                        taux_gwd_proxy%data, tauy_gwd_proxy%data,                        &
+                        ndf_w3, undf_w3, map_w3,                                         &
+                        ndf_wtheta, undf_wtheta, map_wtheta,                             &
+                        ndf_adspc1_sd_orog, undf_adspc1_sd_orog,                         &
+                        map_adspc1_sd_orog, seg_len, cell_index(l_bound:u_bound))
+      end do
+      !$omp end parallel do
+    end if
+    deallocate(cell_index)
 
     ! Set halos dirty/clean for fields modified in the above loop
     call du_blk_proxy%set_dirty()
