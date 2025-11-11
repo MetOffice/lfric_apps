@@ -13,8 +13,7 @@ module lfric2lfric_mod
   private
 
   character(len=*), public, parameter ::                       &
-      lfric2lfric_required_namelists(7) =  [ 'base_mesh     ', &
-                                             'extrusion     ', &
+      lfric2lfric_required_namelists(6) =  [ 'extrusion     ', &
                                              'finite_element', &
                                              'partitioning  ', &
                                              'planet        ', &

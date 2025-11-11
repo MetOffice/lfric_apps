@@ -30,6 +30,7 @@ type, public :: lfricinp_grid_type
   integer(kind=int64) :: num_v_points_y = imdi
   integer(kind=int64) :: num_snow_layers = imdi
   integer(kind=int64) :: num_surface_types = imdi
+  integer(kind=int64) :: num_ice_cats = imdi
   real(kind=real64)   :: spacing_x = rmdi
   real(kind=real64)   :: spacing_y = rmdi
   real(kind=real64)   :: grid_origin_x = rmdi

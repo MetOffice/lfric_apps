@@ -29,7 +29,7 @@ module lfric2lfric_field_init_mod
                                                 log_scratch_space, &
                                                 log_level_info,    &
                                                 log_level_trace,   &
-                                                LOG_LEVEL_ERROR
+                                                log_level_error
   use mesh_mod,                           only: mesh_type
   use netcdf,                             only: nf90_inquire_variable, &
                                                 nf90_inquire,          &
@@ -114,7 +114,7 @@ contains
     if (num_fields == 0) then
       log_scratch_space = 'The input file ' // trim(file_name) // &
                           ' does not contain any valid fields'
-      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      call log_event(log_scratch_space, log_level_error)
     end if
 
   end subroutine get_field_list

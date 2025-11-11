@@ -26,7 +26,6 @@ module lfric2lfric_init_mesh_mod
 
   use add_mesh_map_mod,            only: assign_mesh_maps
   use constants_mod,               only: i_def, l_def, str_max_filename
-  use check_global_mesh_mod,       only: check_global_mesh
   use check_local_mesh_mod,        only: check_local_mesh
   use create_mesh_mod,             only: create_mesh
   use extrusion_mod,               only: extrusion_type
@@ -299,16 +298,6 @@ subroutine init_mesh( configuration,           &
       call load_global_mesh( mesh_file(dst), mesh_names(dst) )
       call load_global_mesh( mesh_file(src), mesh_names(src) )
     endif
-
-    if (regrid_method == regrid_method_map) then
-
-      ! Apply configuration related checks to ensure that these
-      ! meshes are suitable for the supplied application
-      ! configuration.
-      !===========================================================
-      call check_global_mesh( configuration, mesh_names )
-
-    end if
 
     ! Partition the global meshes
     !===========================================================

@@ -209,11 +209,14 @@ last_pseudo_level_code =  get_stashmaster_item(stashcode, pseudl)
 select case(last_pseudo_level_code)
 case (7,9) ! ntypes == ntiles (lfricinputs doesn't support aggregate tile)
   last_pseudo_level_num = um_grid % num_surface_types
+case (10)
+  last_pseudo_level_num = um_grid%num_ice_cats
 case (11)
   last_pseudo_level_num = um_grid%num_snow_layers * um_grid%num_surface_types
 case DEFAULT
-  write(log_scratch_space, '(A,I0,A)') &
-       "Last pseudo_level code ", last_pseudo_level_code, " not supported"
+  write(log_scratch_space, '(A,I0,A,I0)') &
+       "Last pseudo_level code ", last_pseudo_level_code, &
+       " not supported for stashcode ",stashcode
   call log_event(log_scratch_space, LOG_LEVEL_ERROR)
 end select
 

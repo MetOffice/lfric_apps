@@ -44,6 +44,7 @@ integer(kind=int64), public, parameter :: soil_levels = 6
 
 ! Parameters for pseudo level type
 integer(kind=int64), public, parameter :: snow_layers_and_tiles = 11
+integer(KIND=int64), public, parameter :: ice_cats = 10
 
 ! STASHcodes
 integer(kind=int64), public, parameter :: stashcode_u                 =   2
@@ -189,6 +190,13 @@ integer(kind=int64), public, parameter :: stashcode_riv_sfcstorage    = 166
 integer(kind=int64), public, parameter :: stashcode_riv_substorage    = 167
 integer(kind=int64), public, parameter :: stashcode_riv_flowin        = 168
 integer(kind=int64), public, parameter :: stashcode_riv_bflowin       = 169
+
+integer(KIND=int64), public, parameter :: stashcode_cpl_sw_rad_sea    = 171
+integer(KIND=int64), public, parameter :: stashcode_cpl_sw_surf_sea   = 172
+integer(KIND=int64), public, parameter :: stashcode_cpl_lw_rad_sea    = 173
+integer(KIND=int64), public, parameter :: stashcode_cpl_lw_surf_sea   = 174
+integer(KIND=int64), public, parameter :: stashcode_cpl_xcomp_windstr = 175
+integer(KIND=int64), public, parameter :: stashcode_cpl_ycomp_windstr = 176
 integer(kind=int64), public, parameter :: stashcode_ice_subl_cat      = 182
 integer(kind=int64), public, parameter :: stashcode_ls_snow_rate      = 187
 integer(kind=int64), public, parameter :: stashcode_conv_rain_rate    = 188
@@ -337,7 +345,7 @@ integer(kind=int64), public, parameter :: stashcode_pstar             = 409
 integer(kind=int64), public, parameter :: stashcode_ice_conc_cat      = 413
 integer(kind=int64), public, parameter :: stashcode_ice_thick_cat     = 414
 integer(kind=int64), public, parameter :: stashcode_ice_temp_cat      = 415
-integer(kind=int64), public, parameter :: stashcode_ice_snow_depth    = 416
+integer(kind=int64), public, parameter :: stashcode_ice_snow_depth_cat= 416
 integer(kind=int64), public, parameter :: stashcode_dust_parent_clay  = 418
 integer(kind=int64), public, parameter :: stashcode_dust_parent_silt  = 419
 

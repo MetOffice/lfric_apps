@@ -16,16 +16,6 @@ target_domain           = 'global',
 /
 !==============================================================================
 
-&base_mesh
-f_lat_deg               = 45.0,
-file_prefix             = 'mesh_C24_MG',
-fplane                  = .false.,
-geometry                = 'spherical',
-prepartitioned          = .false.,
-prime_mesh_name         = 'dynamics',
-topology                = 'fully_periodic',
-/
-
 &extrusion
 domain_height           = 80000.0,
 method                  = 'um_L70_50t_20s_80km',
@@ -43,6 +33,7 @@ checkpoint_stem_name    = 'restart_lfric2lfric',
 
 &finite_element
 cellshape               = 'quadrilateral',
+coord_system            = 'xyz',
 element_order_h         = 0,
 element_order_v         = 0,
 rehabilitate            = .true.,

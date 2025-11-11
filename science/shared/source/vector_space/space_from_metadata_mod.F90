@@ -210,6 +210,8 @@ contains
   !> @brief Space discovery from metadata for field given by XIOS id
   !> @param[in]           xios_id          XIOS id of field
   !> @param[in]           status           Field status (logging only)
+  !> @param[in, optional] mesh_3d          Override 3D mesh
+  !> @param[in, optional] mesh_2d          Override 2D mesh
   !> @param[in, optional] force_mesh       Override derived mesh
   !> @param[in, optional] force_rad_levels Override derived radiation levels
   !> @param[in, optional] force_ndata      Override derived ndata
@@ -255,17 +257,18 @@ contains
     diag_mesh_3d => mesh_collection%get_mesh('test mesh: planar bi-periodic')
     diag_mesh_2d => mesh_collection%get_mesh('test mesh: planar bi-periodic')
 #else
-    ! default to prime_mesh and 2d extrusion of prime mesh
-    diag_mesh_3d => mesh_collection%get_mesh(prime_mesh_name)
-    diag_mesh_2d => mesh_collection%get_mesh_variant(diag_mesh_3d, &
-                                                     extrusion_id=TWOD)
-
     ! if specific meshes have been supplied, override the prime mesh
     if (present(mesh_3d)) then
       diag_mesh_3d => mesh_3d
+    else
+      ! default to prime_mesh
+      diag_mesh_3d => mesh_collection%get_mesh(prime_mesh_name)
     endif
     if (present(mesh_2d)) then
       diag_mesh_2d => mesh_2d
+    else
+      diag_mesh_2d => mesh_collection%get_mesh_variant(diag_mesh_3d, &
+                                                       extrusion_id=TWOD)
     endif
 #endif
 

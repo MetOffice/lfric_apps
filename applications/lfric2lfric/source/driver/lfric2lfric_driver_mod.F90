@@ -7,37 +7,40 @@
 !>
 module lfric2lfric_driver_mod
 
-  use constants_mod,          only : str_def, i_def, l_def, r_second
-  use driver_modeldb_mod,     only : modeldb_type
-  use driver_fem_mod,         only : final_fem
-  use driver_io_mod,          only : final_io
-  use field_parent_mod,       only : field_parent_type
-  use field_mod,              only : field_type
-  use field_collection_mod,   only : field_collection_type
+  use constants_mod,          only: str_def, i_def, l_def, r_second
+  use driver_fem_mod,         only: final_fem
+  use driver_io_mod,          only: final_io
+  use driver_modeldb_mod,     only: modeldb_type
   use field_collection_iterator_mod, only: &
                                     field_collection_iterator_type
+  use field_collection_mod,   only: field_collection_type
+  use field_mod,              only: field_type
+  use field_parent_mod,       only: field_parent_type
   use function_space_mod,     only: function_space_type
-  use mesh_collection_mod,    only: mesh_collection
-  use mesh_mod,               only: mesh_type
+  use lfric_xios_context_mod, only: lfric_xios_context_type
   use lfric_xios_read_mod,    only: read_checkpoint
   use lfric_xios_write_mod,   only: write_checkpoint
-  use sci_checksum_alg_mod,   only: checksum_alg
   use log_mod,                only: log_event, &
                                     log_level_info, &
                                     log_scratch_space
+  use mesh_collection_mod,    only: mesh_collection
+  use mesh_mod,               only: mesh_type
   use namelist_mod,           only: namelist_type
-  use lfric_xios_context_mod, only: lfric_xios_context_type
+  use sci_checksum_alg_mod,   only: checksum_alg
 
   !------------------------------------
   ! lfric2lfric modules
   !------------------------------------
-  use lfric2lfric_infrastructure_mod, only : initialise_infrastructure
   use lfric2lfric_config_mod,         only: regrid_method_map,         &
                                             regrid_method_lfric2lfric, &
                                             regrid_method_oasis
+  use lfric2lfric_infrastructure_mod, only: initialise_infrastructure, &
+                                            context_dst, context_src,  &
+                                            source_collection_name,    &
+                                            target_collection_name
   use lfric2lfric_map_regrid_mod,     only: lfric2lfric_map_regrid
-  use lfric2lfric_oasis_regrid_mod,   only: lfric2lfric_oasis_regrid
   use lfric2lfric_no_regrid_mod,      only: lfric2lfric_no_regrid
+  use lfric2lfric_oasis_regrid_mod,   only: lfric2lfric_oasis_regrid
 
   implicit none
 
@@ -53,30 +56,13 @@ contains
   !!                 extrusions, XIOS contexts and files, field collections
   !!                 and fields.
   !> @param [in,out] modeldb                 The structure holding model state
-  !> @param [in]     context_src             The name of the XIOS context that
-  !!                                         will hold the source file
-  !> @param [in]     context_dst             The name of the XIOS context that
-  !!                                         will hold the file to write to
-  !> @param [in]     source_collection_name  The name of the field collection
-  !!                                         that will store the source fields
-  !> @param [in]     target_collection_name  The name of the field collection
-  !!                                         that will store the target fields
-  subroutine initialise( modeldb,                                        &
-                         context_src, context_dst,                       &
-                         source_collection_name, target_collection_name  )
+  subroutine initialise( modeldb )
 
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
-    character(len=*),   intent(in)    :: context_src
-    character(len=*),   intent(in)    :: context_dst
-    character(len=*),   intent(in)    :: source_collection_name
-    character(len=*),   intent(in)    :: target_collection_name
 
-    call initialise_infrastructure( modeldb,                    &
-                                    context_src, context_dst,   &
-                                    source_collection_name,     &
-                                    target_collection_name      )
+    call initialise_infrastructure( modeldb )
 
   end subroutine initialise
 
@@ -98,27 +84,13 @@ contains
   !!           an outfile.
   !> @param [in,out] modeldb                 The structure that holds model
   !!                                         state
-  !> @param [in]     xios_ctx_src            The name of the XIOS context that
-  !!                                         will hold the source file
-  !> @param [in]     xios_ctx_dst            The name of the XIOS context that
-  !!                                         will hold the file to be written
-  !> @param [in]     source_collection_name  The name of the field collection
-  !!                                         that will store the source fields
-  !> @param [in]     target_collection_name  The name of the field collection
-  !!                                         that will store the target fields
-  subroutine run( modeldb,                                        &
-                  context_src, context_dst,                       &
-                  source_collection_name, target_collection_name  )
+  subroutine run( modeldb )
 
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
-    character(len=*),   intent(in)    :: context_src
-    character(len=*),   intent(in)    :: context_dst
-    character(len=*),   intent(in)    :: source_collection_name
-    character(len=*),   intent(in)    :: target_collection_name
 
-    ! Timestep must be passed to LFRic-XIOS
+    ! LFRic-XIOS constants
     integer(kind=i_def), parameter :: start_timestep = 1_i_def
 
     ! Namelist variables

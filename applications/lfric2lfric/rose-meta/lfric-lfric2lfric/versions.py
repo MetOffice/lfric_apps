@@ -96,7 +96,6 @@ class vn22_t621(MacroUpgrade):
         self.change_setting_value(
             config, ["file:configuration.nml", "source"], source
         )
-
         return config, self.reports
 
 
@@ -111,7 +110,6 @@ class vn22_t887(MacroUpgrade):
         nml = "namelist:cloud"
         self.add_setting(config, [nml, "dbsdtbs_turb_0"], "1.5E-4")
         self.add_setting(config, [nml, "i_pc2_erosion_numerics"], "'implicit'")
-
         return config, self.reports
 
 
@@ -220,7 +218,6 @@ class vn22_t850(MacroUpgrade):
             ["namelist:stochastic_physics", "blpert_max_magnitude"],
             "1.0",
         )
-
         return config, self.reports
 
 
@@ -260,7 +257,6 @@ class vn22_t36(MacroUpgrade):
         self.add_setting(
             config, [nml, "panel_edge_treatment"], panel_edge_treatment
         )
-
         return config, self.reports
 
 
@@ -298,7 +294,6 @@ class vn22_t797(MacroUpgrade):
             ["namelist:chemistry", "fastjx_dir"],
             "'$UMDIR/vn13.9/ctldata/UKCA/fastj'",
         )
-
         return config, self.reports
 
 
@@ -311,7 +306,6 @@ class vn22_t995(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
         self.add_setting(config, ["namelist:mixing", "smag_l_calc"], "'UseDx'")
-
         return config, self.reports
 
 
@@ -329,7 +323,6 @@ class vn22_t202(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_surface", "anthrop_heat_option"], "'dukes'"
         )
-
         return config, self.reports
 
 
@@ -360,7 +353,6 @@ class vn22_t827(MacroUpgrade):
             self.add_setting(
                 config, [nml, "!!theta_moist_source"], default_setting
             )
-
         return config, self.reports
 
 
@@ -376,7 +368,6 @@ class vn22_t938(MacroUpgrade):
         self.add_setting(
             config, ["namelist:aerosol", "ukca_mode_seg_size"], value="4"
         )
-
         return config, self.reports
 
 
@@ -399,7 +390,6 @@ class vn22_t903(MacroUpgrade):
             ["namelist:formulation", "horizontal_transport_predictor"],
             ".false.",
         )
-
         return config, self.reports
 
 
@@ -412,7 +402,6 @@ class vn22_t1012(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/jules-lfric
         # Blank upgrade macro to bump tag
-
         return config, self.reports
 
 
@@ -448,5 +437,17 @@ class vn22_t953(MacroUpgrade):
             ["namelist:transport", "wind_mono_top_depth"],
             wind_mono_top_depth,
         )
+        return config, self.reports
+
+
+class vn22_t711(MacroUpgrade):
+    """Upgrade macro for ticket #711 by Juan M Castillo."""
+
+    BEFORE_TAG = "vn2.2_t953"
+    AFTER_TAG = "vn2.2_t711"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric2lfric
+        # Blank Upgrade Macro
 
         return config, self.reports

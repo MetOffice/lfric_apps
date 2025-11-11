@@ -13,7 +13,7 @@ module um2lfric_namelist_mod
 use, intrinsic :: iso_fortran_env, only : int64, real64
 
 ! UM2LFRic modules
-use lfricinp_um_parameters_mod,     only: fnamelen, um_imdi
+use lfricinp_um_parameters_mod,    only: fnamelen, um_imdi
 
 implicit none
 private
@@ -29,6 +29,7 @@ type :: config
   integer(kind=int64), allocatable ::  stash_list(:)
   integer(kind=int64) :: num_snow_layers = um_imdi
   integer(kind=int64) :: num_surface_types = um_imdi
+  integer(kind=int64) :: num_ice_cats = um_imdi
 
   integer :: num_fields
 
@@ -86,6 +87,7 @@ subroutine load_namelist(self)
   integer(kind=int64)     :: stash_list(max_stash_list)
   integer(kind=int64)     :: num_snow_layers = um_imdi
   integer(kind=int64)     :: num_surface_types = um_imdi
+  integer(kind=int64)     :: num_ice_cats = um_imdi
   logical :: l_land_area_fraction = .false.
 
   namelist /configure_um2lfric/ um_file,                                       &
@@ -95,6 +97,7 @@ subroutine load_namelist(self)
                                 weights_file_u_to_face_centre_bilinear,        &
                                 weights_file_v_to_face_centre_bilinear,        &
                                 stash_list, num_snow_layers, num_surface_types,&
+                                num_ice_cats,                                  &
                                 l_land_area_fraction
 
   stash_list(:) = um_imdi
@@ -104,7 +107,7 @@ subroutine load_namelist(self)
 
   call get_free_unit(self%unit_number)
 
-  open(unit=self%unit_number, file=um2lfric_nl_fname, iostat=self%status,                  &
+  open(unit=self%unit_number, file=um2lfric_nl_fname, iostat=self%status,      &
                               iomsg=self%message)
   if (self%status /= 0) call log_event(self%message, LOG_LEVEL_ERROR)
 
@@ -133,6 +136,7 @@ subroutine load_namelist(self)
                                     weights_file_v_to_face_centre_bilinear
   self%num_snow_layers = num_snow_layers
   self%num_surface_types = num_surface_types
+  self%num_ice_cats = num_ice_cats
   ! Pass the um2lfric namelist variable to the lfricinputs module variable
   lfricinp_l_land_area_fraction = l_land_area_fraction
 

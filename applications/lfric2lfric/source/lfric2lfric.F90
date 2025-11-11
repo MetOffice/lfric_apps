@@ -41,15 +41,6 @@ program lfric2lfric
   character(len=*), parameter   :: program_name = "lfric2lfric"
   character(:),     allocatable :: filename
 
-  ! Source and destination XIOS context names
-  character(len=*), parameter  :: context_dst = "lfric2lfric_destination"
-  character(len=*), parameter  :: context_src = "lfric2lfric_source"
-
-  ! Source and destination field collection names
-  character(len=*), parameter  :: source_collection_name = "source_fields"
-  character(len=*), parameter  :: target_collection_name = "target_fields"
-
-
 #ifdef MCT
   ! Coupler objects
   type(coupling_type)          :: coupler
@@ -87,11 +78,9 @@ program lfric2lfric
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
-  call initialise( modeldb, context_src, context_dst,            &
-                   source_collection_name, target_collection_name )
+  call initialise( modeldb )
 
-  call run( modeldb, context_src, context_dst,            &
-            source_collection_name, target_collection_name )
+  call run( modeldb )
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
   call finalise( program_name, modeldb )

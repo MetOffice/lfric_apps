@@ -46,7 +46,8 @@ call lfricinp_read_stashmaster(um2lfric_config%stashmaster_file)
 ! Initialise the grid
 call lfricinp_set_grid_from_file(um_input_file,                     &
                                  um2lfric_config%num_snow_layers,   &
-                                 um2lfric_config%num_surface_types)
+                                 um2lfric_config%num_surface_types, &
+                                 um2lfric_config%num_ice_cats)
 
 end subroutine um2lfric_initialise_um2lfric
 

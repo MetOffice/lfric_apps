@@ -15,7 +15,8 @@ module lfric2lfric_infrastructure_mod
   use add_mesh_map_mod,            only: assign_mesh_maps
   use blend_orography_alg_mod,     only: blend_orography
   use constants_mod,               only: str_def, r_def, i_def, l_def, r_second
-  use create_mesh_mod,             only: create_mesh
+  use create_mesh_mod,             only: create_extrusion, &
+                                         create_mesh
   use driver_modeldb_mod,          only: modeldb_type
   use driver_fem_mod,              only: init_fem
   use driver_io_mod,               only: init_io, &
@@ -23,13 +24,20 @@ module lfric2lfric_infrastructure_mod
   use check_configuration_mod,     only: get_required_stencil_depth
   use extrusion_mod,               only: extrusion_type,         &
                                          uniform_extrusion_type, &
-                                         TWOD
+                                         prime_extrusion,        &
+                                         twod
   use field_mod,                   only: field_type
   use field_collection_mod,        only: field_collection_type
   use fs_continuity_mod,           only: W3
   use function_space_collection_mod,only: function_space_collection
   use function_space_mod,          only: function_space_type
-  use gungho_extrusion_mod,        only: create_extrusion
+  use gungho_extrusion_mod,        only: dcmip_extrusion_type,                 &
+                                         um_L38_29t_9s_40km_extrusion_type,    &
+                                         um_L85_50t_35s_85km_extrusion_type,   &
+                                         um_L70_61t_9s_40km_extrusion_type,    &
+                                         um_L120_99t_21s_40km_extrusion_type,  &
+                                         um_L140_122t_18s_40km_extrusion_type, &
+                                         um_L70_50t_20s_80km_extrusion_type
   use sci_geometric_constants_mod, only: get_chi_inventory,     &
                                          get_panel_id_inventory
   use init_altitude_mod,           only: init_altitude
@@ -74,18 +82,35 @@ module lfric2lfric_infrastructure_mod
   !------------------------------------
   ! Configuration modules
   !------------------------------------
-  use lfric2lfric_config_mod,     only : regrid_method_oasis,       &
-                                         regrid_method_lfric2lfric, &
-                                         regrid_method_map,         &
-                                         source_geometry_spherical, &
-                                         source_geometry_planar
-  use base_mesh_config_mod,       only : geometry_planar, &
-                                         geometry_spherical
+  use extrusion_config_mod,       only: key_from_method,              &
+                                        method_uniform,               &
+                                        method_geometric,             &
+                                        method_quadratic,             &
+                                        method_dcmip,                 &
+                                        method_um_L38_29t_9s_40km,    &
+                                        method_um_L85_50t_35s_85km,   &
+                                        method_um_L70_61t_9s_40km,    &
+                                        method_um_L120_99t_21s_40km,  &
+                                        method_um_L140_122t_18s_40km, &
+                                        method_um_L70_50t_20s_80km
+  use lfric2lfric_config_mod,     only: regrid_method_oasis,       &
+                                        regrid_method_lfric2lfric, &
+                                        regrid_method_map,         &
+                                        source_geometry_spherical, &
+                                        source_geometry_planar
 
   implicit none
 
   private
   public :: initialise_infrastructure
+
+  ! Source and destination XIOS context names
+  character(len=*), public, parameter  :: context_dst = "lfric2lfric_destination"
+  character(len=*), public, parameter  :: context_src = "lfric2lfric_source"
+
+  ! Source and destination field collection names
+  character(len=*), public, parameter  :: source_collection_name = "source_fields"
+  character(len=*), public, parameter  :: target_collection_name = "target_fields"
 
 contains
 
@@ -96,26 +121,11 @@ contains
   !!                 extrusions, XIOS contexts and files, field collections and
   !!                 fields.
   !> @param [in,out] modeldb                 The structure holding model state
-  !> @param [in]     context_src             The name of the XIOS context that
-  !!                                         will hold the source file
-  !> @param [in]     context_dst             The name of the XIOS context that
-  !!                                         will hold the file to be written
-  !> @param [in]     source_collection_name  The name of the field collection
-  !!                                         that will store the source fields
-  !> @param [in]     target_collection_name  The name of the field collection
-  !!                                         that will store the target fields
-  subroutine initialise_infrastructure( modeldb,                    &
-                                        context_src, context_dst,   &
-                                        source_collection_name,     &
-                                        target_collection_name      )
+  subroutine initialise_infrastructure( modeldb )
 
     implicit none
 
     type(modeldb_type),     intent(inout) :: modeldb
-    character(len=*),       intent(in)    :: context_src
-    character(len=*),       intent(in)    :: context_dst
-    character(len=*),       intent(in)    :: source_collection_name
-    character(len=*),       intent(in)    :: target_collection_name
 
     ! Coordinate field
     type(field_type),             pointer :: chi(:)
@@ -167,9 +177,7 @@ contains
     integer(kind=i_def)     :: element_order_h
     integer(kind=i_def)     :: element_order_v
 
-    integer(kind=i_def)     :: geometry
     integer(kind=i_def)     :: extrusion_method
-
     integer(kind=i_def)     :: number_of_layers
     real(kind=r_def)        :: domain_height
 
@@ -240,26 +248,69 @@ contains
     select case (source_geometry)
       case (source_geometry_planar)
         domain_bottom = 0.0_r_def
-        geometry      = geometry_planar
 
       case (source_geometry_spherical)
         domain_bottom = scaled_radius
-        geometry      = geometry_spherical
 
       case default
         call log_event("Invalid geometry for mesh initialisation", &
                        log_level_error)
     end select
 
-    allocate( extrusion, source=create_extrusion( extrusion_method, &
-                                                  geometry,         &
-                                                  number_of_layers, &
-                                                  domain_height,    &
-                                                  scaled_radius ) )
+    select case (extrusion_method)
+      case (method_uniform, method_quadratic, method_geometric)
+        allocate( extrusion, source=create_extrusion(                    &
+                                       extrusion_method, domain_height,  &
+                                       domain_bottom, number_of_layers,  &
+                                       prime_extrusion ) )
+
+      case (method_dcmip)
+        allocate( extrusion, source=dcmip_extrusion_type(                &
+                                       domain_bottom, domain_height,     &
+                                       number_of_layers, prime_extrusion ) )
+
+      case (method_um_L38_29t_9s_40km)
+        allocate( extrusion, source=um_l38_29t_9s_40km_extrusion_type(   &
+                                       domain_bottom, domain_height,     &
+                                       number_of_layers, prime_extrusion ) )
+
+      case (method_um_L85_50t_35s_85km)
+        allocate( extrusion, source=um_l85_50t_35s_85km_extrusion_type(  &
+                                       domain_bottom, domain_height,     &
+                                       number_of_layers, prime_extrusion ) )
+
+      case (method_um_L70_50t_20s_80km)
+        allocate( extrusion, source=um_l70_50t_20s_80km_extrusion_type(  &
+                                       domain_bottom, domain_height,     &
+                                       number_of_layers, prime_extrusion ) )
+
+      case (method_um_L70_61t_9s_40km)
+        allocate( extrusion, source=um_l70_61t_9s_40km_extrusion_type(   &
+                                       domain_bottom, domain_height,     &
+                                       number_of_layers, prime_extrusion ) )
+
+      case (method_um_L120_99t_21s_40km)
+        allocate( extrusion, source=um_L120_99t_21s_40km_extrusion_type( &
+                                       domain_bottom, domain_height,     &
+                                       number_of_layers, prime_extrusion ) )
+
+      case (method_um_L140_122t_18s_40km)
+        allocate( extrusion, source=um_L140_122t_18s_40km_extrusion_type(&
+                                       domain_bottom, domain_height,     &
+                                       number_of_layers, prime_extrusion ) )
+
+      case default
+        write( log_scratch_space, '(A)' )          &
+            "lfric2lfric_infrastructure_mod" //    &
+            ': Unrecognised extrusion method: ' // &
+            trim(key_from_method( extrusion_method ))
+        call log_event( log_scratch_space, log_level_error )
+
+    end select
 
     extrusion_2d = uniform_extrusion_type( domain_bottom, &
                                            domain_bottom, &
-                                           one_layer, TWOD )
+                                           one_layer, twod )
 
     !-----------------------------------------------------------------------
     ! Create the required meshes
@@ -299,17 +350,13 @@ contains
     twod_mesh_dst => mesh_collection%get_mesh(trim(twod_names(dst)))
 
     ! Log this change
-    call log_event('Source mesh set to: '           &
-                   //mesh_src%get_mesh_name(),      &
+    call log_event('Source mesh set to: ' // mesh_names(src),         &
                    log_level_debug)
-    call log_event('Source 2D mesh set to: '        &
-                   //twod_mesh_src%get_mesh_name(), &
+    call log_event('Source 2D mesh set to: ' // twod_names(src),      &
                    log_level_debug)
-    call log_event('Destination mesh set to: '      &
-                   //mesh_dst%get_mesh_name(),      &
+    call log_event('Destination mesh set to: ' // mesh_names(dst),    &
                    log_level_debug)
-    call log_event('Destination 2D mesh set to: '   &
-                   //twod_mesh_dst%get_mesh_name(), &
+    call log_event('Destination 2D mesh set to: ' // twod_names(dst), &
                    log_level_debug)
 
     !=======================================================================
