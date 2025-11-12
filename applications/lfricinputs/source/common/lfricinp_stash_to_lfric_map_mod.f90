@@ -73,7 +73,7 @@ use lfricinp_stashmaster_mod, only: &
     stashcode_rhor2, stashcode_lsm, stashcode_icefrac, stashcode_icethick,    &
     stashcode_total_aero, stashcode_z0h_tile, stashcode_dust1_mmr,            &
     stashcode_dust2_mmr, stashcode_ls_snow_rate, stashcode_conv_rain_rate,    &
-    stashcode_qt , stashcode_exner,                                           &
+    stashcode_qt , stashcode_p, stashcode_exner,                              &
     stashcode_o3p, stashcode_o1d, stashcode_o3, stashcode_n, stashcode_no,    &
     stashcode_no3, stashcode_no2, stashcode_n2o5, stashcode_ho2no2,           &
     stashcode_hono2, stashcode_h2o2, stashcode_ch4, stashcode_co,             &
@@ -188,6 +188,7 @@ call map_field_name(stashcode_mv, 'm_v')                             ! stash 391
 call map_field_name(stashcode_mcl, 'm_cl')                           ! stash 392
 call map_field_name(stashcode_mcf, 'm_cf')                           ! stash 393
 call map_field_name(stashcode_mr, 'm_r')                             ! stash 394
+call map_field_name(stashcode_p, 'pressure')                         ! stash 407
 call map_field_name(stashcode_ice_conc_cat, 'ice_conc_cat')              ! stash 413
 call map_field_name(stashcode_ice_thick_cat, 'ice_thick_cat')            ! stash 414
 call map_field_name(stashcode_ice_temp_cat, 'ice_temp_cat')              ! stash 415

@@ -9,26 +9,32 @@ module lfric2um_main_loop_mod
 use, intrinsic :: iso_fortran_env, only: int64, real64
 
 ! lfric2um modules
-use lfric2um_namelists_mod, only: lfric2um_config
-use lfricinp_lfric_driver_mod, only: lfric_fields, local_rank, comm, &
-                                     twod_mesh
-use lfric2um_initialise_um_mod, only: um_output_file
-use lfricinp_um_grid_mod, only: um_grid
-use lfric2um_regrid_weights_mod, only: get_weights
+use lfric2um_namelists_mod,       only: lfric2um_config
+use lfricinp_lfric_driver_mod,    only: lfric_fields, local_rank, comm,   &
+                                        twod_mesh
+use lfric2um_initialise_um_mod,   only: um_output_file
+use lfricinp_um_grid_mod,         only: um_grid
+use lfric2um_regrid_weights_mod,  only: get_weights
+use lfric2um_exner_above_top_mod, only: lfric2um_exner_above_top
+use lfric2um_conv_exner_mod,      only: lfric2um_conv_p_exner,            &
+                                        lfric2um_conv_exner_p
 
 ! lfricinp modules
-use lfricinp_stashmaster_mod, only: get_stashmaster_item, levelt, &
-                                    rho_levels, theta_levels, single_level
+use lfricinp_stashmaster_mod,          only: get_stashmaster_item, levelt,     &
+                                             rho_levels, single_level,         &
+                                             stashcode_exner, stashcode_p,     &
+                                             stashcode_q, stashcode_theta,     &
+                                             theta_levels
 use lfricinp_add_um_field_to_file_mod, only: lfricinp_add_um_field_to_file
-use lfricinp_um_level_codes_mod, only: lfricinp_get_num_levels
+use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels
 use lfricinp_check_shumlib_status_mod, only: shumlib
-use lfricinp_regrid_weights_type_mod, only: lfricinp_regrid_weights_type
-use lfricinp_stash_to_lfric_map_mod, only: get_field_name
-use lfricinp_gather_lfric_field_mod, only: lfricinp_gather_lfric_field
+use lfricinp_regrid_weights_type_mod,  only: lfricinp_regrid_weights_type
+use lfricinp_stash_to_lfric_map_mod,   only: get_field_name
+use lfricinp_gather_lfric_field_mod,   only: lfricinp_gather_lfric_field
 
 ! lfric modules
-use field_mod, only: field_type
-use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_INFO
+use field_mod,  only: field_type
+use log_mod,    only: log_event, log_scratch_space, LOG_LEVEL_INFO
 
 implicit none
 
@@ -50,6 +56,16 @@ character(len=*), parameter :: routinename='lfric2um_main_loop'
 type(field_type), pointer :: lfric_field
 type(lfricinp_regrid_weights_type), pointer :: weights
 real(kind=real64), allocatable :: global_field_array(:)
+real(kind=real64), allocatable :: q_top_buffer(:,:)      ! Buffer arrays for
+real(kind=real64), allocatable :: theta_top_buffer(:,:)  ! computing Exner pressure
+real(kind=real64), allocatable :: exner_top_buffer(:,:)  ! above the top level
+logical :: l_conv_p_exner
+
+if (local_rank == 0) then
+  allocate( q_top_buffer(um_grid%num_p_points_x,um_grid%num_p_points_y) )
+  allocate( theta_top_buffer(um_grid%num_p_points_x,um_grid%num_p_points_y) )
+  allocate( exner_top_buffer(um_grid%num_p_points_x,um_grid%num_p_points_y) )
+end if
 
 ! Main loop over requested stashcodes
 do i_stash = 1, lfric2um_config%num_fields
@@ -73,6 +89,8 @@ do i_stash = 1, lfric2um_config%num_fields
     allocate(global_field_array(1))
   end if
 
+  l_conv_p_exner = .false.
+
   ! Loop over number of levels in field
   do level = 1, num_levels
     global_field_array(:) = 0.0_real64
@@ -92,6 +110,20 @@ do i_stash = 1, lfric2um_config%num_fields
       call weights%regrid_src_1d_dst_2d(global_field_array(:), &
            um_output_file%fields(i_field)%rdata(:,:))
 
+      ! Copy the pointers for the top-level fields needed to compute the
+      ! Exner pressure at the half level immediately above the model top
+      if (stashcode == stashcode_q .and. level == num_levels) then
+        q_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
+      else if (stashcode == stashcode_theta .and. level == num_levels) then
+        theta_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
+      else if (stashcode == stashcode_exner .and. level == num_levels) then
+        exner_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
+        l_conv_p_exner = .false.
+      else if (stashcode == stashcode_p .and. level == num_levels) then
+        exner_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
+        l_conv_p_exner = .true.
+      end if
+
       ! Write to file
       call shumlib(routinename//'::write_field',  &
            um_output_file%write_field(i_field))
@@ -100,6 +132,30 @@ do i_stash = 1, lfric2um_config%num_fields
            um_output_file%unload_field(i_field))
     end if
   end do ! end loop over levels
+
+  ! Add the additional upper level for the Exner pressure
+  if (stashcode == stashcode_exner .or. stashcode == stashcode_p) then
+    level = num_levels + 1
+    if (local_rank == 0) then
+      call lfricinp_add_um_field_to_file(um_output_file, stashcode, &
+           level, um_grid, lfric2um_config%lbtim_list(i_stash),     &
+           lfric2um_config%lbproc_list(i_stash))
+      i_field = um_output_file%num_fields
+      if (l_conv_p_exner) then
+        call lfric2um_conv_p_exner(exner_top_buffer)
+      end if
+      call lfric2um_exner_above_top(theta_top_buffer, exner_top_buffer, q_top_buffer, &
+           um_output_file%fields(i_field)%rdata(:,:))
+      if (l_conv_p_exner) then
+        call lfric2um_conv_exner_p(um_output_file%fields(i_field)%rdata(:,:))
+      end if
+      call shumlib(routinename//'::write_field',  &
+           um_output_file%write_field(i_field))
+      call shumlib(routinename//'::unload_field', &
+           um_output_file%unload_field(i_field))
+    end if
+  end if
+
   ! Unload field data from memory
   call lfric_field%field_final()
 end do  ! end loop over field stashcodes
@@ -111,6 +167,11 @@ if (local_rank == 0) then ! Only write UM file with rank 0
   ! Close file
   call shumlib(routinename//'::close_file', &
            um_output_file%close_file())
+
+  deallocate( q_top_buffer )
+  deallocate( theta_top_buffer )
+  deallocate( exner_top_buffer )
+
 end if
 
 end subroutine lfric2um_main_loop

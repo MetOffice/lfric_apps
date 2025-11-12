@@ -120,6 +120,8 @@ select case(last_level_code)
     call shumlib(routinename //'::get_integer_constants_by_index', &
      um_file%get_integer_constants_by_index(ih_soilT_levels,   &
      last_level_num))
+  case(19) ! Number of exner levels includes level above model top
+    last_level_num = model_levels
   case(23) ! Top ozone level
     last_level_num = model_levels
 case DEFAULT
