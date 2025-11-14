@@ -74,6 +74,7 @@
 {% include "site/meto/groups/groups_lfric_coupled.cylc" %}
 {% include "site/meto/groups/groups_linear.cylc" %}
 {% include "site/meto/groups/groups_linear_model.cylc" %}
+{% include "site/meto/groups/groups_name_transport.cylc" %}
 {% include "site/meto/groups/groups_ngarch.cylc" %}
 {% include "site/meto/groups/groups_shallow_water.cylc" %}
 {% include "site/meto/groups/groups_socrates_interface.cylc" %}

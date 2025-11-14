@@ -1,0 +1,87 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/name_transport/tasks_name_transport.cylc") %}
+
+{# ########################### #}
+{# Developer + All Group Tasks #}
+{# ########################### #}
+
+{% if task_ns.conf_name == "cylinder_xz-BiP100x10-20x20" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["cylinder_xz"],
+        "resolution": "BiP100x10-20x20",
+        "DT": 10,
+        "tsteps": 200,
+        "mpi_parts": 4,
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR tracer_con xz all linear cylinder",
+    }) %}
+
+{% elif task_ns.conf_name == "hadley_dcmip-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["hadley_dcmip"],
+        "resolution": "C24",
+        "DT": 600,
+        "tsteps": 144,
+        "mpi_parts": 6,
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR tracer_con yz all linear hadley",
+    }) %}
+
+{% elif task_ns.conf_name == "sbr_hori_lam-n96_lam" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["sbr_hori_lam"],
+        "resolution": "n96_lam",
+        "DT": 1200,
+        "tsteps": 128,
+        "mpi_parts": 12,
+        "use_xios": false,
+        "plot_str": "slices.py diagNameTransport $NODAL_DATA_DIR tracer_con T000000:T000032:T000064:T000096:T000128 -1 -91 0 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "canned" %}
+
+    {% do task_dict.update({
+        "app_name": "canned_test",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "unit_tests" %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{# ############# #}
+{# Generic Tasks #}
+{# ############# #}
+
+{% elif task.startswith("build") %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+    {% if "full-debug" in task %}
+        {% do task_dict.update({
+            "wallclock": 30,
+        }) %}
+    {% endif %}
+
+{% endif %}
+
+{# Set default values for NAME Transport tasks #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "apps/applications/name_transport"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "name_transport"}) %}
+    {% endif %}
+    {% if "kgo_checks" not in task_dict %}
+        {% do task_dict.update({"kgo_checks": ["checksum"]}) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/name_transport/tasks_name_transport.cylc") %}

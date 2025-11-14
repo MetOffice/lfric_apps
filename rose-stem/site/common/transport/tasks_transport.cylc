@@ -178,7 +178,7 @@
 {% elif task_ns.conf_name == "deformation_2d_ffsl_bigcfl-C96" %}
 
     {% do task_dict.update({
-        "opt_confs": ["deformation_2d_bigcfl","special_edges","null_vertical"],
+        "opt_confs": ["deformation_2d_bigcfl","cosine_hill_2d","special_edges","null_vertical"],
         "resolution": "C96",
         "DT": 4800,
         "tsteps": 216,

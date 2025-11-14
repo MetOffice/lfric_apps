@@ -1,0 +1,3 @@
+Inner product checksum rho = 41186A085BF0AF0B
+Inner product checksum u = 421E51A61F1185A0
+Inner product checksum tracer = 411DC485A699499B

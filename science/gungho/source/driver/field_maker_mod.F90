@@ -9,7 +9,8 @@
 !
 module field_maker_mod
 
-  use constants_mod,                  only : i_def, l_def
+  use constants_mod,                  only : i_def, l_def, str_def, r_def, &
+                                             r_second
   use log_mod,                        only : log_event, log_scratch_space,     &
                                              log_level_error
   use field_mod,                      only : field_type
@@ -25,6 +26,7 @@ module field_maker_mod
   use function_space_collection_mod,  only : function_space_collection
   use mesh_mod,                       only : mesh_type
   use clock_mod,                      only : clock_type
+  use model_clock_mod,                only : model_clock_type
   use field_spec_mod,                 only : main_coll_dict,                   &
                                              adv_coll_dict,                    &
                                              moist_arr_dict,                   &
@@ -35,12 +37,18 @@ module field_maker_mod
                                              space_has_xios_io
   use lfric_xios_diag_mod,            only : field_is_valid
   use lfric_xios_time_axis_mod,       only : time_axis_type
+  use lfric_xios_write_mod,           only : create_checkpoint_list
   use io_config_mod,                  only : use_xios_io, &
-                                             checkpoint_write, checkpoint_read
+                                             checkpoint_write, &
+                                             checkpoint_read, &
+                                             checkpoint_times, &
+                                             end_of_run_checkpoint
   use initialization_config_mod,      only : init_option,                      &
                                              init_option_checkpoint_dump
   use empty_data_mod,                 only : empty_real_data,                  &
                                              empty_integer_data
+  use files_config_mod,               only : checkpoint_stem_name
+  use lfric_string_mod,               only : split_string
 
 #ifdef UM_PHYSICS
   use multidata_field_dimensions_mod, only : &
@@ -142,6 +150,12 @@ end function has_xios_io
     type(integer_field_type), pointer :: external_int_field => null()
     logical(l_def) :: advected
     integer(i_def) :: ndata
+    integer(i_def) :: i
+    character(:), allocatable :: split_stem_name(:)
+    character(str_def) :: field_prefix
+    class(clock_type), pointer :: clock
+    real(r_second), allocatable :: all_checkpoint_times(:)
+
 #ifdef UM_PHYSICS
     ndata = get_ndata_val(spec%mult)
 #else
@@ -181,12 +195,29 @@ end function has_xios_io
       end if
     end if
 
+    ! Check whether checkpoint fields have been added to the XIOS context.
     if (use_xios_io .and. spec%ckp .and. space_has_xios_io(spec%space)) then
       if (checkpoint_write) then
-          if (.not. field_is_valid('checkpoint_' // trim(spec%name))) then
-            call log_event('checkpoint field not enabled for ' &
-              // trim(spec%name), log_level_error)
-          end if
+        split_stem_name = split_string( &
+          trim(checkpoint_stem_name), '/' )
+        clock => self%get_clock()
+        select type(clock)
+        type is (model_clock_type)
+          call create_checkpoint_list( clock, checkpoint_times, &
+                                       end_of_run_checkpoint, all_checkpoint_times )
+          do i = 1, size(all_checkpoint_times)
+            write(field_prefix,'(A,A,I10.10,A)') &
+                  trim(split_stem_name(size(split_stem_name))),"_", &
+                  clock%steps_from_seconds(all_checkpoint_times(i)), "_"
+            if (.not. field_is_valid(trim(field_prefix) // trim(spec%name))) then
+              call log_event('Checkpoint field not enabled for ' &
+                // trim(spec%name), log_level_error)
+            end if
+          end do
+        class default
+          call log_event('Unsupported clock type for checkpoint time handling', &
+            log_level_error)
+        end select
       end if
       if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
           if (.not. field_is_valid('restart_' // trim(spec%name))) then

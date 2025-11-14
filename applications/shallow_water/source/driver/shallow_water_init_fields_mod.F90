@@ -12,6 +12,7 @@
 !!
 module shallow_water_init_fields_mod
 
+  use constants_mod,                        only: r_second
   use driver_modeldb_mod,                   only: modeldb_type
   use field_mod,                            only: field_type
   use field_collection_mod,                 only: field_collection_type
@@ -114,6 +115,7 @@ contains
     implicit none
 
     type(modeldb_type),    intent(inout) :: modeldb
+    real(r_second) :: checkpoint_times(1)
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
 
@@ -122,7 +124,9 @@ contains
 
     !=================== Write fields to checkpoint files ====================!
     if ( checkpoint_write ) then
-      call write_checkpoint( prognostic_fields, modeldb%clock, checkpoint_stem_name )
+      checkpoint_times(1) = modeldb%clock%seconds_from_steps(modeldb%clock%get_step())
+      call write_checkpoint( prognostic_fields, modeldb%values, modeldb%clock, &
+                             checkpoint_stem_name, checkpoint_times )
     end if
 
   end subroutine output_model_data

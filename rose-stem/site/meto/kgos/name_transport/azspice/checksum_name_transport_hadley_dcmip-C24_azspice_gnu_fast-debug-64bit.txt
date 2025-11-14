@@ -1,0 +1,3 @@
+Inner product checksum rho = 40E74779C3710C42
+Inner product checksum u = 45449F51081018FC
+Inner product checksum tracer = 40BA0027F0E04893

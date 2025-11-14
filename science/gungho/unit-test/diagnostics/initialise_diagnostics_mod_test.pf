@@ -9,7 +9,7 @@
 module initialise_diagnostics_mod_test
 
   use funit
-  use constants_mod,                  only : i_def, l_def
+  use constants_mod,                  only : i_def, l_def, r_second
   use halo_routing_collection_mod,    only : halo_routing_collection_type, &
                                              halo_routing_collection
   use function_space_collection_mod,  only : function_space_collection_type, &
@@ -93,13 +93,14 @@ contains
     type( field_type ) :: test_field
     logical(l_def) :: ignore
 
-    call feign_io_config( checkpoint_frequency=1, &
-                          checkpoint_read=.false., &
+    call feign_io_config( checkpoint_read=.false., &
+                          checkpoint_times=(/ 1.0_r_second /), &
                           checkpoint_write=.false., &
                           counter_output_suffix='', &
                           diag_active_files=(/ '' /), &
                           diag_always_on_sampling=.false., &
                           diagnostic_frequency=1, &
+                          end_of_run_checkpoint=.false., &
                           file_convention=400256111, &
                           multifile_io=.false., &
                           nodal_output_on_w3=.false., &

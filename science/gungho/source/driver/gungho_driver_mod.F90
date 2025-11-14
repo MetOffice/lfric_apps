@@ -422,6 +422,9 @@ contains
     call gas_calc_all()
 #endif
 
+    ! Write out the model state
+    call output_model_data( modeldb )
+
     nullify(mesh, twod_mesh)
 
   end subroutine step
@@ -454,9 +457,6 @@ contains
     if( multifile_io ) then
       call finalise_multifile_io( modeldb)
     end if
-
-    ! Write out the model state
-    call output_model_data( modeldb )
 
     ! Model configuration finalisation
     call finalise_model( modeldb,               &

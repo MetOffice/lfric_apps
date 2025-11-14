@@ -126,13 +126,18 @@ def make_figures(filein, plotpath, field_list, slice_list,
                   'w3_aerosol': r'$a_\rho \ / $ kg kg$^{-1}$',
                   'wt_aerosol': r'$a_\theta \ / $ kg kg$^{-1}$'}
 
-    # Find number of full levels by asking for theta
-    try:
-        cube = read_ugrid_data(filein, 'theta')
-    except iris.exceptions.ConstraintMismatchError:
-        cube = read_ugrid_data(filein, 'buoyancy')
+    # Find number of full levels by asking for different fields
+    nz_offset = 0
+    for field_name in ['theta', 'buoyancy', 'density', 'rho', 'tracer_con']:
+        try:
+            cube = read_ugrid_data(filein, field_name)
+            if field_name in ['density', 'rho', 'tracer_con']:
+                nz_offset = 1
+            break
+        except iris.exceptions.ConstraintMismatchError:
+            continue
     levels_name = cube.dim_coords[-1].name()
-    nz_full = len(cube.coord(levels_name).points)
+    nz_full = len(cube.coord(levels_name).points) + nz_offset
 
     # Set plot_level for certain tests
     if testname in ['sbr', 'dcmip101', 'vert_def']:

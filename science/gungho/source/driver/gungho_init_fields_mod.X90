@@ -23,7 +23,8 @@ module gungho_init_fields_mod
   use driver_modeldb_mod,                 only : modeldb_type
   use gungho_time_axes_mod,               only : gungho_time_axes_type, &
                                                  get_time_axes_from_collection
-  use constants_mod,                      only : i_def, l_def, r_def, str_def
+  use constants_mod,                      only : i_def, l_def, r_def, str_def, &
+                                                 r_second
   use log_mod,                            only : log_event,       &
                                                  LOG_LEVEL_INFO,  &
                                                  LOG_LEVEL_ERROR, &
@@ -63,12 +64,15 @@ module gungho_init_fields_mod
                                                  snow_source_surf
   use io_config_mod,                      only : checkpoint_read,  &
                                                  checkpoint_write, &
+                                                 checkpoint_times, &
+                                                 end_of_run_checkpoint, &
                                                  write_dump
   use lfric_xios_read_mod,                only : read_checkpoint,  &
                                                  read_state,       &
                                                  checkpoint_read_value
   use lfric_xios_write_mod,               only : write_checkpoint, &
                                                  checkpoint_write_value, &
+                                                 create_checkpoint_list, &
                                                  write_state
   use boundaries_config_mod,              only : limited_area
   use create_iau_fields_mod,              only : create_iau_fields
@@ -552,7 +556,8 @@ subroutine create_model_data( modeldb,      &
 
     type( io_value_type ),               pointer :: temp_corr_io_value
     type( io_value_type ),               pointer :: random_seed_io_value
-    procedure( io_operation_interface ), pointer :: io_op_ptr
+    procedure( io_operation_interface ), pointer :: io_op_read_ptr
+    procedure( io_operation_interface ), pointer :: io_op_write_ptr
 
     ! Dust fields
 #ifdef UM_PHYSICS
@@ -673,15 +678,15 @@ subroutine create_model_data( modeldb,      &
 
     ! Ideally, setting IO behaviour should be part of the initialisation
     ! like with the fields but currently there is no support for this so they are placed here
-    io_op_ptr => checkpoint_read_value
-    call temp_corr_io_value%set_checkpoint_read_behaviour(io_op_ptr)
-    io_op_ptr => checkpoint_write_value
-    call temp_corr_io_value%set_checkpoint_write_behaviour(io_op_ptr)
+    io_op_read_ptr => checkpoint_read_value
+    io_op_write_ptr => checkpoint_write_value
+    if ( encorr_usage /= encorr_usage_none ) then
+      call temp_corr_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
+      call temp_corr_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+    end if
     if ( stochastic_physics == stochastic_physics_um ) then
-      io_op_ptr => checkpoint_read_value
-      call random_seed_io_value%set_checkpoint_read_behaviour(io_op_ptr)
-      io_op_ptr => checkpoint_write_value
-      call random_seed_io_value%set_checkpoint_write_behaviour(io_op_ptr)
+      call random_seed_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
+      call random_seed_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
     end if
     ! Initialise prognostic fields appropriately
     select case ( prognostic_init_choice )
@@ -1071,17 +1076,15 @@ subroutine create_model_data( modeldb,      &
     type( field_collection_type ), pointer :: fd_fields
     type( field_collection_type ), pointer :: prognostic_fields
 
-    type( io_value_type ), pointer :: temp_corr_io_value
     type( io_value_type ), pointer :: random_seed_io_value
     integer(i_def) :: i
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: ranseed(:)
+    real(r_second), allocatable :: all_checkpoint_times(:)
 
     ! Get pointers to field collections for use downstream
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
-
-    temp_corr_io_value => get_io_value(modeldb%values, 'temperature_correction_io_value')
 
     !===================== Write fields to dump ======================!
     if( use_physics ) then
@@ -1100,9 +1103,6 @@ subroutine create_model_data( modeldb,      &
 
     !=================== Write fields to checkpoint files ====================!
     if( checkpoint_write ) then
-      call split_complex_prognostics( prognostic_fields )
-      call write_checkpoint( prognostic_fields, modeldb%clock, checkpoint_stem_name )
-      if (encorr_usage/=encorr_usage_none) call temp_corr_io_value%write_checkpoint()
 
       if ( stochastic_physics == stochastic_physics_um ) then
         ! Get current random seed
@@ -1116,9 +1116,13 @@ subroutine create_model_data( modeldb,      &
         do i = 1, random_seed_size
           random_seed_io_value%data(i) = real(ranseed(i), r_def)
         end do
-        call random_seed_io_value%write_checkpoint()
         deallocate(ranseed)
       end if
+      call split_complex_prognostics( prognostic_fields )
+      call create_checkpoint_list( modeldb%clock, checkpoint_times, &
+                                    end_of_run_checkpoint, all_checkpoint_times )
+      call write_checkpoint( prognostic_fields, modeldb%values, modeldb%clock, &
+                              checkpoint_stem_name, all_checkpoint_times )
     end if
 
   end subroutine output_model_data

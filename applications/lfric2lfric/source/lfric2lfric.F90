@@ -55,8 +55,9 @@ program lfric2lfric
 
   modeldb%mpi => global_mpi
 
-#ifdef MCT
   call modeldb%values%initialise( 'values', table_len=5 )
+
+#ifdef MCT
   call modeldb%values%add_key_value('cpl_name', program_name)
   ! Create a second coupling object for single executable coupling
   ! We do not initialise or finalise it as initialising will set up

@@ -18,6 +18,7 @@
                                                "lfric2lfric",
                                                "physics_schemes_interface",
                                                "socrates_interface",
+                                               "name_transport",
                                                "transport",
                                                "solver",
                                                "linear",

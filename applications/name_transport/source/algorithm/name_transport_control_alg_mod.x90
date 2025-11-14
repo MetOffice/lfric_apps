@@ -1,0 +1,288 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Control module for the name transport miniapp, where the wind is prescribed.
+
+module name_transport_control_alg_mod
+
+  use constants_mod,                     only: i_def, r_def, l_def, str_def
+  use extrusion_mod,                     only: SHIFTED
+  use field_mod,                         only: field_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use fs_continuity_mod,                 only: W3
+  use log_mod,                           only: log_event,       &
+                                               LOG_LEVEL_ERROR, &
+                                               LOG_LEVEL_INFO,  &
+                                               log_scratch_space
+  use mesh_mod,                          only: mesh_type
+  use mesh_collection_mod,               only: mesh_collection
+  use transport_controller_mod,          only: transport_controller_type
+  use transport_metadata_mod,            only: transport_metadata_type
+  use transport_metadata_collection_mod, only: transport_metadata_collection_type
+
+  implicit none
+
+  private
+
+  logical(kind=l_def) :: time_varying_wind
+
+  ! Initial fields, to be compared against at the end for measuring errors
+  ! These are allocatable as there might be one for each mesh
+  type(field_type) :: rho0
+  type(field_type) :: tracer_con0
+
+  type(transport_metadata_collection_type) :: transport_metadata_collection
+
+  ! Contained subroutines
+  public :: name_transport_prerun_setup
+  public :: name_transport_init
+  public :: name_transport_step
+  public :: name_transport_final
+
+contains
+
+  !=============================================================================
+  !> @brief Set up various entities for transport-only time stepping.
+  !> @details Taking the number of meshes, this allocates arrays of true fields
+  !!          and sets up whether the wind is to be updated and the metadata for
+  !!          the transported variables.
+  !> @param[in] number_of_meshes Number of meshes to transport on
+  subroutine name_transport_prerun_setup( number_of_meshes )
+
+    use transport_config_mod,    only: profile_size,            &
+                                       field_names,             &
+                                       equation_form,           &
+                                       scheme,                  &
+                                       splitting,               &
+                                       horizontal_method,       &
+                                       vertical_method,         &
+                                       log_space,               &
+                                       enforce_min_value,       &
+                                       min_value,               &
+                                       reversible,              &
+                                       horizontal_monotone,     &
+                                       vertical_monotone,       &
+                                       vertical_monotone_order, &
+                                       special_edges_monotone,  &
+                                       ffsl_splitting,          &
+                                       ffsl_vertical_order
+
+
+    use initial_wind_config_mod, only: profile,                      &
+                                       profile_curl_free_reversible, &
+                                       profile_div_free_reversible,  &
+                                       profile_xy_NL_case_1,         &
+                                       profile_yz_NL_case_1,         &
+                                       profile_NL_case_1,            &
+                                       profile_NL_case_2,            &
+                                       profile_NL_case_3,            &
+                                       profile_NL_case_4,            &
+                                       profile_hadley_like_dcmip,    &
+                                       profile_sbr_with_vertical,    &
+                                       profile_dcmip_101,            &
+                                       profile_vertical_deformation, &
+                                       profile_four_part_sbr
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: number_of_meshes
+    integer(kind=i_def)             :: config
+    type(transport_metadata_type)   :: transport_metadata
+
+    ! ------------------------------------------------------------------------ !
+    ! Determine if wind is time-varying or not
+    ! ------------------------------------------------------------------------ !
+    if ((profile == profile_xy_NL_case_1)         .or. &
+        (profile == profile_yz_NL_case_1)         .or. &
+        (profile == profile_NL_case_1)            .or. &
+        (profile == profile_NL_case_2)            .or. &
+        (profile == profile_NL_case_3)            .or. &
+        (profile == profile_NL_case_4)            .or. &
+        (profile == profile_hadley_like_dcmip)    .or. &
+        (profile == profile_div_free_reversible)  .or. &
+        (profile == profile_curl_free_reversible) .or. &
+        (profile == profile_sbr_with_vertical)    .or. &
+        (profile == profile_dcmip_101)            .or. &
+        (profile == profile_vertical_deformation  .or. &
+        (profile == profile_four_part_sbr))) then
+      time_varying_wind = .true.
+    else
+      time_varying_wind = .false.
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Set up metadata for variables
+    ! ------------------------------------------------------------------------ !
+    ! Set up linked list of metadatas
+    transport_metadata_collection = transport_metadata_collection_type()
+
+    ! Set up configs using namelist entries
+    do config = 1, profile_size
+
+      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+      transport_metadata = transport_metadata_type( field_names(config),             &
+                                                    equation_form(config),           &
+                                                    splitting(config),               &
+                                                    scheme(config),                  &
+                                                    horizontal_method(config),       &
+                                                    vertical_method(config),         &
+                                                    horizontal_monotone(config),     &
+                                                    vertical_monotone(config),       &
+                                                    vertical_monotone_order(config), &
+                                                    special_edges_monotone(config),  &
+                                                    enforce_min_value(config),       &
+                                                    min_value(config),               &
+                                                    log_space(config),               &
+                                                    reversible(config),              &
+                                                    ffsl_splitting(config),          &
+                                                    ffsl_vertical_order(config) )
+
+      call transport_metadata_collection%set_transport_metadata(transport_metadata)
+
+    end do
+
+  end subroutine name_transport_prerun_setup
+
+
+  !=============================================================================
+  !> @brief Stores the initial values of the fields to be transported.
+  !> @details This copies the initial fields to be transported into variables
+  !!          to be held in this algorithm. At the end of the simulation, this
+  !!          allows us to compare the final states of the field with their
+  !!          initial values, so that the errors incurred by the transport can
+  !!          be measured.
+  !> @param[in] rho         Dry density field (in W3)
+  !> @param[in] tracer_con  Tracer field obeying conservative equation (in W3)
+  subroutine name_transport_init( rho, tracer_con )
+
+    implicit none
+
+    ! Prognostic fields
+    type(field_type), intent(in) :: rho, tracer_con
+
+    ! Store initial values for computing errors
+    call rho%copy_field_properties(rho0)
+    call tracer_con%copy_field_properties(tracer_con0)
+
+    call invoke( setval_X(rho0, rho), &
+                 setval_X(tracer_con0, tracer_con) )
+
+  end subroutine name_transport_init
+
+
+  !=============================================================================
+  !> @brief Performs a single transport-only step.
+  !> @details This performs a single step of the NAME transport app. The
+  !!          gungho code is run in transport-only mode
+  !!          by transporting rho (if required), and tracer_con. The
+  !!          transporting wind field is prescribed, but may be updated if a
+  !!          time-varying profile has been specified.
+  !> @param[in]     model_clock        Time within the model
+  !> @param[in,out] wind               The transporting wind field
+  !> @param[in,out] tracer_con         Tracer field to transport conservatively
+  !> @param[in,out] rho                Dry density field to transport
+  !> @param[in]     transport_density  Whether to transport the density field
+  subroutine name_transport_step( model_clock, wind, tracer_con, &
+                                  rho, transport_density )
+
+    use init_gungho_prognostics_alg_mod,  only: init_u_field
+    use model_clock_mod,                  only: model_clock_type
+    use sci_mass_matrix_solver_alg_mod,   only: mass_matrix_solver_alg
+    use theta_transport_alg_mod,          only: theta_transport_alg
+    use transport_field_mod,              only: transport_field
+
+    implicit none
+
+    ! Arguments
+    class(model_clock_type), intent(in)    :: model_clock
+    type(field_type),        intent(inout) :: wind, rho, tracer_con
+    logical(kind=l_def),     intent(in)    :: transport_density
+
+    real(kind=r_def) :: current_time
+    real(kind=r_def) :: cast_dt
+    type(field_type) :: rho_n
+    type(field_type) :: tracer_con_n
+
+    type(mesh_type),                 pointer :: primary_mesh
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(transport_controller_type)          :: transport_controller
+
+    ! Update the transporting wind field
+    cast_dt = real(model_clock%get_seconds_per_step(), r_def)
+    if ( time_varying_wind ) then
+      current_time = model_clock%get_step() * cast_dt
+      call init_u_field(wind, current_time)
+    end if
+
+    ! Get mesh from wind
+    primary_mesh => wind%get_mesh()
+
+    ! Initialise the main transport controller ---------------------------------
+    call transport_controller%initialise( model_clock, rho, wind )
+
+    ! Transport dry density
+    if (transport_density) then
+      call log_event( "Transporting density...", LOG_LEVEL_INFO)
+      transport_metadata => transport_metadata_collection%get_transport_metadata('rho')
+      call rho%copy_field_properties(rho_n)
+      call invoke( setval_X(rho_n, rho) )
+      call transport_field( rho, rho_n, transport_controller, transport_metadata )
+    else
+      ! Copy density field
+      call rho%copy_field_properties(rho_n)
+      call invoke( setval_X(rho_n, rho) )
+    end if
+
+    ! Transport conservative W3 tracer
+    call log_event( "Transporting conservative tracer...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('tracer_con')
+    call tracer_con%copy_field_properties(tracer_con_n)
+    call invoke( setval_X(tracer_con_n, tracer_con) )
+    call transport_field(                                                      &
+            tracer_con, tracer_con_n, transport_controller, transport_metadata &
+    )
+
+    call transport_controller%finalise()
+
+  end subroutine name_transport_step
+
+
+  !=============================================================================
+  !> @brief Finalises transport only run.
+  !> @details Calculates final error norms for transport schemes and calls
+  !!          finalising routines for transport only run.
+  !> @param[in] rho               Transported dry density field
+  !> @param[in] tracer_con        Transported conservative tracer field
+  !> @param[in] transport_density Flag to show if density was transported
+  subroutine name_transport_final( rho, tracer_con, transport_density )
+
+    use transport_stats_mod,          only: write_transport_stats
+    use split_transport_utils_mod,    only: finalise_split_transport_utils
+
+    implicit none
+
+    ! Prognostic fields
+    type(field_type),    intent(in) :: rho, tracer_con
+    logical(kind=l_def), intent(in) :: transport_density
+
+    ! Internal variables
+    character(str_def)  :: field_name
+
+    ! Calculate and write out statistics
+    if (transport_density) then
+      field_name = 'rho'
+      call write_transport_stats(rho, rho0, field_name)
+    end if
+    field_name = 'tracer_con'
+    call write_transport_stats(tracer_con, tracer_con0, field_name)
+
+    call finalise_split_transport_utils()
+
+  end subroutine name_transport_final
+
+end module name_transport_control_alg_mod

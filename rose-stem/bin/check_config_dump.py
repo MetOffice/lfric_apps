@@ -20,6 +20,7 @@ APPLICATIONS = [
     "applications/gungho_model",
     "applications/lfric_atm",
     "applications/linear_model",
+    "applications/name_transport",
     "applications/ngarch",
     "applications/shallow_water",
     "applications/solver",

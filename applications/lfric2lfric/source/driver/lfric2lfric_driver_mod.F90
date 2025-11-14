@@ -115,6 +115,8 @@ contains
 
     character(len=str_def)   :: field_name
 
+    real(r_second) :: checkpoint_times(1)
+
     ! Namelist pointers
     files_nml       => modeldb%configuration%get_namelist('files')
     lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
@@ -174,7 +176,9 @@ contains
     call modeldb%io_contexts%get_io_context(context_dst, io_context)
     call io_context%set_current()
 
-    call write_checkpoint(target_fields, modeldb%clock, checkpoint_stem_name)
+    checkpoint_times(1) = modeldb%clock%seconds_from_steps(modeldb%clock%get_step())
+    call write_checkpoint( target_fields, modeldb%values, modeldb%clock, &
+                           checkpoint_stem_name, checkpoint_times )
 
     ! Write checksum
     call checksum_alg("lfric2lfric", field_collection=target_fields)

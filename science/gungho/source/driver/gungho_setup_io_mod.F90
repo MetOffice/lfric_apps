@@ -11,13 +11,18 @@
 module gungho_setup_io_mod
 
   use constants_mod,             only: r_def, i_def, str_def, &
-                                       str_max_filename
+                                       str_max_filename, r_second
   use driver_modeldb_mod,        only: modeldb_type
   use file_mod,                  only: FILE_MODE_READ, &
                                        FILE_MODE_WRITE
-  use lfric_xios_file_mod,       only: lfric_xios_file_type
+  use lfric_xios_file_mod,       only: lfric_xios_file_type, &
+                                       OPERATION_TIMESERIES, &
+                                       CONVENTION_CF
+  use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
-  use log_mod,                   only: log_event, log_level_error
+  use log_mod,                   only: log_event, log_level_error, &
+                                       log_scratch_space, log_level_info
+  use model_clock_mod,           only: model_clock_type
   ! Configuration modules
   use files_config_mod,          only: ancil_directory,           &
                                        checkpoint_stem_name,      &
@@ -120,6 +125,8 @@ module gungho_setup_io_mod
                                        diagnostic_frequency,      &
                                        checkpoint_write,          &
                                        checkpoint_read,           &
+                                       checkpoint_times,          &
+                                       end_of_run_checkpoint,     &
                                        write_dump, write_diag,    &
                                        diag_active_files,         &
                                        diag_always_on_sampling
@@ -132,6 +139,7 @@ module gungho_setup_io_mod
   use time_config_mod,           only: timestep_start,            &
                                        timestep_end
   use derived_config_mod,        only: l_couple_sea_ice
+  use lfric_string_mod,          only: split_string
 #ifdef UM_PHYSICS
   use jules_surface_config_mod,  only: l_vary_z0m_soil, l_urban2t
   use specified_surface_config_mod, only: internal_flux_method, &
@@ -177,14 +185,17 @@ module gungho_setup_io_mod
     type(linked_list_type),                intent(out) :: files_list
     type(modeldb_type), optional,          intent(inout)  :: modeldb
 
-    character(len=str_max_filename) :: checkpoint_write_fname, &
-                                       checkpoint_read_fname,  &
-                                       dump_fname,             &
-                                       ancil_fname,            &
-                                       iau_fname,              &
-                                       iau_surf_fname,         &
-                                       lbc_fname,              &
+    character(len=str_max_filename) :: checkpoint_write_fname,  &
+                                       checkpoint_context_name, &
+                                       checkpoint_read_fname,   &
+                                       dump_fname,              &
+                                       ancil_fname,             &
+                                       iau_fname,               &
+                                       iau_surf_fname,          &
+                                       lbc_fname,               &
                                        ls_fname
+    character(:), allocatable :: split_checkpoint_stem_name(:)
+    real(r_second), allocatable :: all_checkpoint_times(:)
 #ifdef UM_PHYSICS
     character(len=str_max_filename) :: aerosol_ancil_directory
     character(len=str_max_filename) :: ozone_ancil_directory
@@ -192,6 +203,7 @@ module gungho_setup_io_mod
     integer(i_def)                  :: ts_start, ts_end
     integer(i_def)                  :: rc
     integer(i_def)                  :: i
+    integer(i_def)                  :: time_point
 
     ! Only proceed if XIOS is being used for I/O
     if (.not. use_xios_io) return
@@ -805,20 +817,57 @@ module gungho_setup_io_mod
     endif
 
     ! Setup checkpoint writing context information
-    if ( checkpoint_write ) then
-      ! Create checkpoint filename from stem and end timestep
-      if( log10(real(ts_end)) >= 10.0_r_def )then
-        call log_event( &
-          "Number of timesteps too big to fit in checkpoint filename", &
-          log_level_error )
+    if (checkpoint_write) then
+      call create_checkpoint_list( modeldb%clock, checkpoint_times, &
+                                   end_of_run_checkpoint, all_checkpoint_times)
+      if ( size(all_checkpoint_times) > 0 ) then
+        do i = 1, size(all_checkpoint_times)
+
+          if( all_checkpoint_times(i) < 0.0_r_def ) then
+            write(log_scratch_space, '(A,F10.3)') &
+              "Negative checkpoint time not allowed: ", all_checkpoint_times(i)
+            call log_event( log_scratch_space, log_level_error )
+          end if
+
+          ! Convert checkpoint time in seconds to timestep number
+          time_point = modeldb%clock%steps_from_seconds( all_checkpoint_times(i) )
+
+          if( log10(real(time_point)) >= 10.0_r_def )then
+            write(log_scratch_space, '(A,I0)') &
+              "Timestep number too big to fit in checkpoint filename: ", time_point
+            call log_event( log_scratch_space, log_level_error )
+          end if
+
+          ! Create checkpoint filename from stem and timepoint
+          write(checkpoint_write_fname,'(A,A,I10.10)') &
+                               trim(checkpoint_stem_name),"_", time_point
+
+          split_checkpoint_stem_name = split_string( trim(checkpoint_stem_name), '/' )
+          ! Check whether checkpoint stem name has a trailing slash (i.e. is a directory)
+          if (split_checkpoint_stem_name(size(split_checkpoint_stem_name)) == "") then
+            call log_event( &
+              "Could not create checkpoint context name from filename: "// &
+              trim(checkpoint_stem_name), &
+              log_level_error )
+          end if
+          write(checkpoint_context_name, '(A,A,I10.10)') &
+               trim(split_checkpoint_stem_name(size(split_checkpoint_stem_name))), &
+               "_", time_point
+          call log_event( "Adding checkpoint file for writing: "// &
+                               trim(checkpoint_write_fname), log_level_info )
+
+          call files_list%insert_item( lfric_xios_file_type( trim(checkpoint_write_fname),                &
+                                                             xios_id=trim(checkpoint_context_name), &
+                                                             io_mode=FILE_MODE_WRITE,               &
+                                                             freq=time_point,                       &
+                                                             field_group_id="checkpoint_fields",    &
+                                                             file_convention=CONVENTION_CF) )
+
+        end do
+      else
+        call log_event("Checkpointing has been turned on but no checkpoint " // &
+                       "times have been specified.", log_level_error)
       end if
-      write(checkpoint_write_fname,'(A,A,I10.10)') &
-                           trim(checkpoint_stem_name),"_", ts_end
-      call files_list%insert_item( lfric_xios_file_type( checkpoint_write_fname,           &
-                                                         xios_id="lfric_checkpoint_write", &
-                                                         io_mode=FILE_MODE_WRITE,          &
-                                                         freq=ts_end,                      &
-                                                         field_group_id="checkpoint_fields" ) )
     end if
 
     ! Setup checkpoint reading context information
@@ -835,7 +884,8 @@ module gungho_setup_io_mod
                                                          xios_id="lfric_checkpoint_read", &
                                                          io_mode=FILE_MODE_READ,          &
                                                          freq=ts_start - 1,               &
-                                                         field_group_id="checkpoint_fields" ) )
+                                                         field_group_id="checkpoint_fields",    &
+                                                         file_convention=CONVENTION_CF ) )
     end if
 
     ! Read checkpoint file as though it were start dump
@@ -847,7 +897,8 @@ module gungho_setup_io_mod
       call files_list%insert_item( lfric_xios_file_type( dump_fname,           &
                                                          xios_id="lfric_checkpoint_read", &
                                                          io_mode=FILE_MODE_READ,          &
-                                                         field_group_id="checkpoint_fields" ) )
+                                                         field_group_id="checkpoint_fields",    &
+                                                         file_convention=CONVENTION_CF ) )
     end if
 
   end subroutine init_gungho_files

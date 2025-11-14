@@ -32,6 +32,7 @@ lfric_atm                   ianboutle               benshipway              dyna
 lfric_coupled               richardhill             benshipway              global_coupled_model_development
 lfricinputs                 charlotteturner         mikehobson              core_capability_development
 linear_model                christinejohnson        thomasbendall           dynamics_research
+name_transport              jameskent               thomasbendall           dynamics_research
 ngarch                      christophermaynard      jamescunningham-smith   ng-arch
 shallow_water               jameskent               alexbrown               dynamics_research
 solver                      christophermaynard      thomasmelvin            ng-opt

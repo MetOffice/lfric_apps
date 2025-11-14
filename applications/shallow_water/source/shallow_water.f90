@@ -50,6 +50,9 @@ program shallow_water
   call modeldb%fields%add_empty_field_collection("prognostics", &
                                                  table_len = 100)
 
+  ! Initialise the key_value pair collection in the modeldb
+  call modeldb%values%initialise( 'values', 5 )
+
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call init_comm( program_name, modeldb )

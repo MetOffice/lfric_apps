@@ -51,8 +51,11 @@ module gungho_model_mod
   use gungho_setup_io_mod,        only : init_gungho_files
   use init_altitude_mod,          only : init_altitude
   use inventory_by_mesh_mod,      only : inventory_by_mesh_type
+  use lfric_string_mod,           only : split_string
   use lfric_xios_context_mod,     only : lfric_xios_context_type
-  use lfric_xios_metafile_mod,    only : metafile_type, add_field
+  use lfric_xios_metafile_mod,    only : metafile_type, add_field, &
+                                         CHECKPOINTING, RESTARTING
+  use lfric_xios_write_mod,       only : create_checkpoint_list
   use linked_list_mod,            only : linked_list_type
   use log_mod,                    only : log_event,          &
                                          log_scratch_space,  &
@@ -118,8 +121,8 @@ module gungho_model_mod
 
   !> @brief Processor class for persisting fields
   type, extends(processor_type) :: persistor_type
-    type(metafile_type) :: ckp_out
-    type(metafile_type) :: ckp_inp
+    type(metafile_type), allocatable :: ckp_out(:)
+    type(metafile_type), allocatable :: ckp_inp(:)
   contains
     private
 
@@ -145,21 +148,55 @@ contains
     use initialization_config_mod, only: init_option, &
                                          init_option_checkpoint_dump
     use io_config_mod,             only: checkpoint_read, &
-                                         checkpoint_write
+                                         checkpoint_write, &
+                                         checkpoint_times, &
+                                         end_of_run_checkpoint
+    use files_config_mod,          only: checkpoint_stem_name
 
     implicit none
 
     class(persistor_type),       intent(inout) :: self
     class(clock_type), target,   intent(in)    :: clock
 
-    character(str_def), parameter :: ckp_out_id = 'lfric_checkpoint_write'
+    character(str_def) :: ckp_out_id
     character(str_def), parameter :: ckp_inp_id = 'lfric_checkpoint_read'
+    character(:), allocatable :: split_stem_name(:)
+    integer(i_def) :: i
+    real(r_second), allocatable :: all_checkpoint_times(:)
 
     call self%set_clock(clock)
 
-    if (checkpoint_write) call self%ckp_out%init(ckp_out_id)
-    if (checkpoint_read .or. init_option == init_option_checkpoint_dump) &
-      call self%ckp_inp%init(ckp_inp_id)
+    ! Add all the checkpoint write files to XIOS named for the checkpoint times.
+    if(checkpoint_write)then
+      select type(clock)
+      type is (model_clock_type)
+        call create_checkpoint_list( clock, checkpoint_times, &
+                                     end_of_run_checkpoint, all_checkpoint_times )
+        if(size(all_checkpoint_times) == 0) then
+          call log_event("Checkpointing has been turned on but no " // &
+                         "checkpoint times have been specified.", &
+                         log_level_error)
+        end if
+        allocate(self%ckp_out(size(all_checkpoint_times)))
+        split_stem_name = split_string( trim(checkpoint_stem_name), '/' )
+        do i = 1, size(all_checkpoint_times)
+          write(ckp_out_id,'(A,A,I10.10)') &
+                trim(split_stem_name(size(split_stem_name))),"_", &
+                clock%steps_from_seconds(all_checkpoint_times(i))
+          call log_event("Persistor initialisation: Creating checkpoint file "// &
+            trim(ckp_out_id), LOG_LEVEL_INFO)
+          call self%ckp_out(i)%init(ckp_out_id)
+        end do
+      class default
+        call log_event("Persistor initialisation: Unsupported clock type", &
+          LOG_LEVEL_ERROR)
+      end select
+    end if
+
+    if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+      allocate(self%ckp_inp(1))
+      call self%ckp_inp(1)%init(ckp_inp_id)
+    end if
 
   end subroutine persistor_init
 
@@ -172,24 +209,24 @@ contains
     use initialization_config_mod, only: init_option, &
                                          init_option_checkpoint_dump
     use io_config_mod,             only: checkpoint_read, &
-                                         checkpoint_write
+                                         checkpoint_write, checkpoint_times
+    use files_config_mod,          only: checkpoint_stem_name
 
     implicit none
 
     class(persistor_type), intent(in) :: self
     type(field_spec_type), intent(in) :: spec
 
-    character(str_def), parameter :: ckp_out_prefix = 'checkpoint_'
-    character(str_def), parameter :: ckp_inp_prefix = 'restart_'
     character(20), parameter :: operation = 'once'
 
     if (spec%ckp .and. space_has_xios_io(spec%space, spec%legacy)) then
-      if (checkpoint_write) &
-        call add_field(self%ckp_out, spec%name, ckp_out_prefix, operation, &
-          id_as_name=.true., legacy=spec%legacy)
+      if (checkpoint_write) then
+        call add_field(self%ckp_out, spec%name, mode=CHECKPOINTING, &
+          operation=operation, id_as_name=.true., legacy=spec%legacy)
+      end if
       if (checkpoint_read .or. init_option == init_option_checkpoint_dump) &
-        call add_field(self%ckp_inp, spec%name, ckp_inp_prefix, operation, &
-          id_as_name=.true., legacy=spec%legacy)
+        call add_field(self%ckp_inp, spec%name, mode=RESTARTING, &
+          operation=operation, id_as_name=.true., legacy=spec%legacy)
     end if
 
   end subroutine persistor_apply
@@ -222,33 +259,34 @@ contains
     type(persistor_type) :: persistor
 
     real(r_second) :: DT
+
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
 
     call persistor%init(clock)
     call process_gungho_prognostics(persistor)
     ! Add the temperature_correction_rate to the appropriate files
-    if ( encorr_usage /= encorr_usage_none ) then
-      if (checkpoint_write) then
-        call add_field( persistor%ckp_out, "temperature_correction_rate", "checkpoint_", "once", &
+    if(checkpoint_write) then
+        if ( encorr_usage /= encorr_usage_none ) then
+          call add_field( persistor%ckp_out, "temperature_correction_rate", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+        end if
+        if (stochastic_physics == stochastic_physics_um) then
+          call add_field( persistor%ckp_out, "random_seed", mode=CHECKPOINTING, operation="once", &
+                          id_as_name=.true.)
+        end if
+    end if
+    if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+      if ( encorr_usage /= encorr_usage_none ) then
+        call add_field( persistor%ckp_inp, "temperature_correction_rate", mode=RESTARTING, operation="once", &
                         id_as_name=.true.)
       end if
-      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
-        call add_field( persistor%ckp_inp, "temperature_correction_rate", "restart_", "once", &
+      if (stochastic_physics == stochastic_physics_um) then
+        call add_field( persistor%ckp_inp, "random_seed", mode=RESTARTING, operation="once", &
                         id_as_name=.true.)
       end if
     end if
 
-    if (stochastic_physics == stochastic_physics_um) then
-      if (checkpoint_write) then
-        call add_field( persistor%ckp_out, "random_seed", "checkpoint_", "once", &
-                        id_as_name=.true.)
-      end if
-      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
-        call add_field( persistor%ckp_inp, "random_seed", "restart_", "once", &
-                        id_as_name=.true.)
-      end if
-    end if
 
     if (limited_area) call process_lbc_fields(persistor)
     if (use_physics) then
