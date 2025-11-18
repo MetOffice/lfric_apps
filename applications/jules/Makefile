@@ -49,7 +49,10 @@ default: build
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 include build/project.mk
-include build/psyclone_transmute_file_list.mk
+# Include transmute list only if not using minimum or no transformations
+ifeq ($(filter "$(PSYCLONE_TRANSFORMATION)", "none" "minimum"),)
+  include build/psyclone_transmute_file_list.mk
+endif
 
 ##############################################################################
 # Build

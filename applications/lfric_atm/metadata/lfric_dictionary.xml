@@ -153,6 +153,7 @@
   <field id="rb" name="rb" long_name="mass_fraction_of_rubidium_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="tio" name="tio" long_name="mass_fraction_of_titanium_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="vo" name="vo" long_name="mass_fraction_of_vanadium_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="photol_rates" name="photol_rates" long_name="photolysis_rates" unit="s-1" operation="once" grid_ref="full_level_face_grid_photol_species" />
   <!-- aerosol fields -->
   <field id="emiss_bc_biofuel" name="emiss_bc_biofuel" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_biofuel_burning" unit="kg m-2 s-1" domain_ref="face" />
   <field id="emiss_bc_fossil" name="emiss_bc_fossil" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_fossil_fuel_burning" unit="kg m-2 s-1" domain_ref="face" />

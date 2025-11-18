@@ -154,6 +154,9 @@ real(r_def), parameter ::                                                      &
   ! Cesium
   log_p_trans_cs =      1.0_r_def
 
+! Maximum value to take the exponential of - returns about 5e21
+real(r_def), parameter :: max_exp = 50.0_r_def
+
 !-------------------------------------------------------------------------------
 ! Public types
 !-------------------------------------------------------------------------------
@@ -232,48 +235,51 @@ contains
 
     ! Loop indices
     integer(i_def) :: k_layer, j
+    real(r_def) :: temperature_capped
 
     do k_layer = 0, nlayers
       j = map_wth(1) + k_layer
 
+      ! Cap temperature at a minimum value of 300K
+      temperature_capped = max(temperature_in_wth(j), 300.0_r_def)
       ! Hydrogen
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_h2,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_h2,   &
         h2(j))
       ! Helium
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_he,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_he,   &
         he(j))
       ! Carbon monoxide
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_co,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_co,   &
         co(j))
       ! Methane
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_ch4,  &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_ch4,  &
         ch4(j))
       ! Water
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_h2o,  &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_h2o,  &
         h2o(j))
       ! Ammonia
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_nh3,  &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_nh3,  &
         nh3(j))
       ! Cesium
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_cs,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_cs,   &
         cs(j))
       ! Potassium
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_k,    &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_k,    &
         k(j))
       ! Lithium
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_li,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_li,   &
         li(j))
       ! Sodium
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_na,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_na,   &
         na(j))
       ! Rubidium
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_rb,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_rb,   &
         rb(j))
       ! Titanium oxide
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_tio,  &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_tio,  &
         tio(j))
       ! Vanadium oxide
-      call calc_mmr_bs1999(pressure_in_wth(j), temperature_in_wth(j), ip_vo,   &
+      call calc_mmr_bs1999(pressure_in_wth(j), temperature_capped, ip_vo,   &
         vo(j))
     end do
 
@@ -318,7 +324,7 @@ contains
     ! Calculate fraction of available oxygen to deplete
     ! that have depleted given temperature in layer
     oxygen_frac_remove = 1.0_r_def /                                           &
-      ( exp((t - t_remove_o) / t_trans_scale_remove_o) + 1.0_r_def )
+      ( exp(min((t - t_remove_o) / t_trans_scale_remove_o,max_exp)) + 1.0_r_def )
 
     ! Calculate H2 and He partial pressures
     pp_h2 = p * (hydrogen_num_frac / 2.0_r_def) / &
@@ -385,49 +391,49 @@ contains
       t_cond = calc_cond_temp(log_p_bar, log_p_trans_tio_vo,                   &
         poly_highp_tio_vo, poly_lowp_tio_vo)
       mmr = 2.0_r_def * num_atoms_ti /                                         &
-            (exp(-(t - t_cond)/t_trans_scale_tio) + 1.0_r_def)
+            (exp(min(-(t - t_cond)/t_trans_scale_tio,max_exp)) + 1.0_r_def)
 
     case (ip_vo)
       ! VO partial pressure relative to H2 partial pressure
       t_cond = calc_cond_temp(log_p_bar, log_p_trans_tio_vo,                   &
         poly_highp_tio_vo, poly_lowp_tio_vo)
       mmr = 2.0_r_def * num_atoms_V /                                          &
-            (exp(-(t - t_cond) / t_trans_scale_vo) + 1.0_r_def)
+            (exp(min(-(t - t_cond) / t_trans_scale_vo,max_exp)) + 1.0_r_def)
 
     case (ip_na)
       ! Sodium partial pressure relative to H2 partial pressure
       t_cond = calc_cond_temp(log_p_bar, log_p_trans_na,                       &
         poly_highp_na, poly_lowp_na)
       mmr = 2.0_r_def * num_atoms_na /                                         &
-        (exp(-(t - t_cond) / t_trans_scale_na) + 1.0_r_def)
+        (exp(min(-(t - t_cond) / t_trans_scale_na,max_exp)) + 1.0_r_def)
 
     case (ip_k)
       ! Potassium partial pressure relative to H2 partial pressure
       t_cond = calc_cond_temp(log_p_bar, log_p_trans_k,                        &
         poly_highp_k, poly_lowp_k)
       mmr = 2.0_r_def * num_atoms_k /                                          &
-        (exp(-(t - t_cond) / t_trans_scale_k) + 1.0_r_def)
+        (exp(min(-(t - t_cond) / t_trans_scale_k,max_exp)) + 1.0_r_def)
 
     case (ip_li)
       ! Lithium partial pressure relative to H2 partial pressure
       t_cond = calc_cond_temp(log_p_bar, log_p_trans_li,                       &
         poly_highp_li, poly_lowp_li)
       mmr = 2.0_r_def * num_atoms_li /                                         &
-        (exp(-(t - t_cond) / t_trans_scale_li) + 1.0_r_def)
+        (exp(min(-(t - t_cond) / t_trans_scale_li,max_exp)) + 1.0_r_def)
 
     case (ip_rb)
       ! Rubidium partial pressure relative to H2 partial pressure
       t_cond = calc_cond_temp(log_p_bar, log_p_trans_rb,                       &
         poly_highp_rb, poly_lowp_rb)
       mmr = 2.0_r_def * num_atoms_rb /                                         &
-        (exp(-(t - t_cond) / t_trans_scale_rb) + 1.0_r_def)
+        (exp(min(-(t - t_cond) / t_trans_scale_rb,max_exp)) + 1.0_r_def)
 
     case (ip_cs)
       ! Cesium partial pressure relative to H2 partial pressure
       t_cond = calc_cond_temp(log_p_bar, log_p_trans_cs,                       &
         poly_highp_cs, poly_lowp_cs)
       mmr = 2.0_r_def * num_atoms_cs /                                         &
-        (exp(-(t - t_cond) / t_trans_scale_cs) + 1.0_r_def)
+        (exp(min(-(t - t_cond) / t_trans_scale_cs,max_exp)) + 1.0_r_def)
 
     case default
       write( log_scratch_space, '(A,I3,A)' )                                  &
@@ -464,7 +470,7 @@ contains
     real(r_def) :: work
 
     work = 1.0_r_def /                                                         &
-      (exp( -(log_p_bar - log_p_trans) / 0.1_r_def) + 1.0_r_def)
+      (exp(min(-(log_p_bar - log_p_trans) / 0.1_r_def,max_exp)) + 1.0_r_def)
     t_cond = 1.0_r_def / ( (poly_lowp(1) * log_p_bar + poly_lowp(2))) *        &
       (1.0_r_def - work) +                                                     &
       1.0_r_def / ( (poly_highp(1)*log_p_bar + poly_highp(2))) * work

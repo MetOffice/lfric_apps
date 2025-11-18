@@ -66,15 +66,18 @@ module fastjx_specs_mod
     integer, intent(in) :: nj1  ! Channel number for reading data file
     character(len=*), intent(in) :: namfil ! Name of scattering data file
                                            ! (e.g., FJX_scat.dat)
-    integer(kind=i_um), intent(out) :: jtaumx, naa
-    real(kind=r_um), intent(out) :: atau, atau0
-    real(kind=r_um), intent(out) :: daa(a_)
-    real(kind=r_um), intent(out) :: paa(sw_phases, sw_band_aer, a_)
-    real(kind=r_um), intent(out) :: qaa(sw_band_aer, a_)
-    real(kind=r_um), intent(out) :: raa(a_)
-    real(kind=r_um), intent(out) :: saa(sw_band_aer, a_)
-    real(kind=r_um), intent(out) :: waa(sw_band_aer, a_)
-    
+    integer(kind=i_um), intent(out) :: jtaumx ! Max num cloud sub-layers
+    integer(kind=i_um), intent(out) :: naa    ! Num aerosol/ cloud data types
+    real(kind=r_um), intent(out) :: atau      ! Cloud sub-layer factor
+    real(kind=r_um), intent(out) :: atau0     ! min atau
+                                              ! Properties of scattering types:
+    real(kind=r_um), intent(out) :: daa(a_)   ! Density
+    real(kind=r_um), intent(out) :: paa(sw_phases, sw_band_aer, a_)  ! Phases
+    real(kind=r_um), intent(out) :: qaa(sw_band_aer, a_)  ! Q
+    real(kind=r_um), intent(out) :: raa(a_)   ! Effective radius
+    real(kind=r_um), intent(out) :: saa(sw_band_aer, a_)  ! Single Scat Albedo
+    real(kind=r_um), intent(out) :: waa(sw_band_aer, a_)  ! Wavelengths
+
     integer :: j, k                      ! Loop variables
 
     ! String containing cloud/aerosol scattering
@@ -138,20 +141,24 @@ module fastjx_specs_mod
     integer, intent(in)       :: nj1 ! Channel number for reading data file
     character(len=*), intent(in)  :: namfil    ! Name of spectral data file
                                                ! (JX_spec.dat)
-    integer(kind=i_um), intent(in)  :: jppj
-    integer(kind=i_um), intent(out) :: njval, nw1, nw2
-    real(kind=r_um), intent(out) :: fl(wx_)
-    real(kind=r_um), intent(out) :: q1d(wx_,3)
-    real(kind=r_um), intent(out) :: qo2(wx_,3)
-    real(kind=r_um), intent(out) :: qo3(wx_,3)
-    real(kind=r_um), intent(out) :: qqq(wx_,2,x_)
-    real(kind=r_um), intent(out) :: qrayl(wx_+1)
-    real(kind=r_um), intent(out) :: tqq(3,x_)
-    real(kind=r_um), intent(out) :: wl(wx_)
+    integer(kind=i_um), intent(in)  :: jppj    ! Num of photolytic species
+    integer(kind=i_um), intent(out) :: njval   ! Num of species with x-section
+    integer(kind=i_um), intent(out) :: nw1     ! Min wavelength bin
+    integer(kind=i_um), intent(out) :: nw2     ! Max wavelength bin
+    real(kind=r_um), intent(out) :: fl(wx_)    ! TOA solar flux
+                                               ! Photolysis rates for:
+    real(kind=r_um), intent(out) :: q1d(wx_,3)  ! O1D (3 temperatures)
+    real(kind=r_um), intent(out) :: qo2(wx_,3)  ! O2
+    real(kind=r_um), intent(out) :: qo3(wx_,3)  ! O3
+    real(kind=r_um), intent(out) :: qqq(wx_,2,x_) ! All other species
+
+    real(kind=r_um), intent(out) :: qrayl(wx_+1)  ! Rayleigh parameters
+    real(kind=r_um), intent(out) :: tqq(3,x_)     ! temp corresponding to rates
+    real(kind=r_um), intent(out) :: wl(wx_)       ! effective wavelengths
 
     character(len=photol_jlabel_len), intent(in) :: jlabel(jppj)
-    real(kind=r_um), intent(in) :: jfacta(jppj)
-    integer(kind=i_um), intent(out) :: jind(jppj)
+    real(kind=r_um), intent(in) :: jfacta(jppj)   ! Quantum yields  
+    integer(kind=i_um), intent(out) :: jind(jppj)  ! Index of species from file
 
     character (len=errormessagelength)        :: cmessage
                                                ! String for error handling
@@ -254,12 +261,13 @@ module fastjx_specs_mod
     integer, intent(in)       :: nj1 ! Channel number for reading data file
     character(len=*), intent(in)  :: namfil    ! Name of solar cycle data file
 
-    integer(kind=i_um), intent(in) :: n_solcyc_ts
-    real(kind=r_um), intent(out) :: solcyc_av(n_solcyc_av)
-    real(kind=r_um), intent(out) :: solcyc_quanta(jpwav)
-    real(kind=r_um), intent(out) :: solcyc_ts(n_solcyc_ts)
-    real(kind=r_um), intent(out) :: solcyc_spec(wx_)
-    integer(kind=i_um)           :: n_solcyc_ts_file
+    integer(kind=i_um), intent(in) :: n_solcyc_ts  ! Total months of solcyc val
+    real(kind=r_um), intent(out) :: solcyc_av(n_solcyc_av)  ! Avg solar cycle
+    real(kind=r_um), intent(out) :: solcyc_quanta(jpwav)    ! Quantum component
+    real(kind=r_um), intent(out) :: solcyc_ts(n_solcyc_ts)  ! Observed tseries
+    real(kind=r_um), intent(out) :: solcyc_spec(wx_)       ! Spectral component
+
+    integer(kind=i_um)           :: n_solcyc_ts_file    
 
     ! Pointer to pass to read routine
     real(kind=r_um), pointer :: solcyc_ts_ptr(:)
@@ -268,9 +276,10 @@ module fastjx_specs_mod
       call fastjx_rd_sol_file( nj1, namfil, n_solcyc_ts_file, solcyc_av,      &
                              solcyc_quanta, solcyc_ts_ptr, solcyc_spec )
       if (n_solcyc_ts_file /= n_solcyc_ts) then
-        write( log_scratch_space, '(A,I0)' )                                  &
-              'Read solcyc_ts array has unexpected size: ',                   &
-              n_solcyc_ts_file, ', expected: ', n_solcyc_ts
+        write( log_scratch_space, '(2(A,I0),A)' )                              &
+          'Solar Cycle file records do not match specified value: expected ',  &
+          n_solcyc_ts, ', found: ', n_solcyc_ts_file,                          &
+          '. Check chemistry namelist value fjx_solcyc_months '
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       end if
       ! Copy data to array, to enable broadcast      

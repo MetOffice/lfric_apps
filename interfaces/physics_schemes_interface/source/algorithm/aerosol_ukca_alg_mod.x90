@@ -8,6 +8,7 @@
 module aerosol_ukca_alg_mod
 
   use mesh_mod, only: mesh_type
+  use model_clock_mod, only: model_clock_type
 
   implicit none
 
@@ -33,7 +34,7 @@ contains
   !>@param[in] soil_fields           Fields for soil hydrology scheme
   !>@param[in] state                 Dynamics state
   !>@param[in] mr                    Mixing ratios
-  !>@param[in] timestep_number       Time step number
+  !>@param[in] model_clock           Time in model
 
   subroutine aerosol_ukca_alg( chemistry_fields,                               &
                                aerosol_fields,                                 &
@@ -47,17 +48,21 @@ contains
                                soil_fields,                                    &
                                state,                                          &
                                mr,                                             &
-                               timestep_number )
+                               model_clock )
 
     use field_mod,                     only: field_type
     use integer_field_mod,             only: integer_field_type
     use field_collection_mod,          only: field_collection_type
     use fs_continuity_mod,             only: W3, Wtheta
+    use function_space_collection_mod, only: function_space_collection
+    use function_space_mod,            only: function_space_type
+    use multidata_field_dimensions_mod, only :                                 &
+        get_ndata_val => get_multidata_field_dimension
     use mesh_collection_mod,           only: mesh_collection
     use extrusion_mod,                 only: SHIFTED
     use field_indices_mod,             only: igh_t, igh_p
     use mr_indices_mod,                only: imr_v, imr_cl, imr_ci, imr_s
-    use constants_mod,                 only: i_timestep, i_def
+    use constants_mod,                 only: i_def, l_def
     use sci_geometric_constants_mod,   only: get_latitude_fv,                  &
                                              get_longitude_fv,                 &
                                              get_height_fv, get_da_msl_proj,   &
@@ -74,7 +79,11 @@ contains
 
     use chemistry_config_mod,          only: chem_scheme,                      &
                                              chem_scheme_strattrop,            &
-                                             chem_scheme_strat_test
+                                             chem_scheme_strat_test,           &
+                                             chem_timestep,                    &
+                                             photol_scheme, photol_scheme_off, &
+                                             photol_scheme_prescribed,         &
+                                             photol_scheme_fastjx    
 
     use sci_field_minmax_alg_mod,      only: log_field_minmax
     use microphysics_config_mod,       only: microphysics_casim
@@ -107,7 +116,15 @@ contains
                                              atmospheric_o2
 
     use um_sizes_init_mod,             only: um_sizes_init
+    use um_ukca_init_mod,              only: n_phot_spc, ratj_varnames
+    use ukca_photol_param_mod,         only: jppj, jrate_fac, jp_names
+  
     use pseudo_photol_kernel_mod,      only: pseudo_photol_kernel_type
+    use map_pseudophotol_kernel_mod,   only: map_pseudophotol_kernel_type
+    use calc_albedo_kernel_mod,        only: calc_albedo_kernel_type
+    use photol_kernel_mod,             only: photol_kernel_type
+    use msat_kernel_mod,               only: msat_kernel_type
+    use photol_diags_kernel_mod,       only: photol_diags_kernel_type
 
     implicit none
 
@@ -125,7 +142,7 @@ contains
     type( field_collection_type ), intent(in) :: aerosol_fields
     type( field_type ), intent(in) :: state(:)
     type( field_type ), intent(in) :: mr(:)
-    integer( i_timestep ), intent(in) :: timestep_number
+    class(model_clock_type), intent(in) :: model_clock
 
     ! -- Local variables --
 
@@ -133,6 +150,7 @@ contains
 
     type( mesh_type ),  pointer :: mesh
     type( mesh_type ),  pointer :: shifted_mesh
+    type( function_space_type ), pointer :: vector_space
 
     type( field_type ), pointer :: latitude_w3
     type( field_type ), pointer :: longitude_w3
@@ -146,6 +164,9 @@ contains
     type( field_type ), pointer :: sin_stellar_declination_rts
     type( field_type ), pointer :: stellar_eqn_of_time_rts
 
+    type( field_type ), pointer :: sw_up_tile
+    type( field_type ), pointer :: sw_down_surf
+  
     ! Microphysics fields
     type( field_type ), pointer :: ls_rain_3d
     type( field_type ), pointer :: ls_snow_3d
@@ -386,14 +407,33 @@ contains
     type( field_type ), pointer :: emiss_om_biomass
     type( field_type ), pointer :: emiss_so2_nat
 
-    ! These fields are required by photolysis, which is not currently ported.
-    ! However, as these are 'required' environment fields when
-    ! chem_scheme=strattrop, they are added with dummy values here.
-    ! Photol_rates_single is the diagnostic to hold a sample vertical profile.
+    ! Fields used only in photolysis, but currently listed as
+    ! 'required' environment fields in UKCA when chem_scheme=strattrop
+    type( field_type ) :: conv_cloud_lwp
+    type( field_type ) :: surf_albedo
 
-    type( field_type ) :: dumm_cv_cloud_lwp
-    type( field_type ) :: dumm_srf_albedo
-    type( field_type ) :: photol_rates_single
+    ! For relative humidity calculation
+    type( field_type ) :: msat
+    type( field_type ) :: rel_humid_frac
+    ! Calculate humidity for only water where temp < 0.0
+    logical(l_def), parameter :: water_only = .true.
+
+    ! Photolysis rates array and sample output fields
+    type( field_type ) :: photol_rates
+    type( field_type ) :: photol_rate_jo1d
+    type( field_type ) :: photol_rate_jno2
+    type( field_type ) :: photol_rate_profile
+
+    ! Other Photolysis driving fields - pre-set currently
+    type( field_type ) :: sulp_accum
+    type( field_type ) :: sulp_aitken
+    type( field_type ) :: aod_sulp_accum
+    type( field_type ) :: aod_sulp_aitken
+    
+    ! Photolysis rates from Socrates - expected to be linked with
+    ! photolysis_rates_rts field, which is currently a diagnostic
+    type( field_type ) :: photol_rates_rts_jo2
+    type( field_type ) :: photol_rates_rts_jo2b
 
     ! Derived fields (to be derived from current state after modification
     ! during the timestep)
@@ -423,6 +463,7 @@ contains
     type( xios_date ) :: datetime
 
     integer( kind=i_def ) :: ncells
+    integer( kind=i_def)  :: jp1, jp2  ! Indices for photolysis fields
 
     type( field_type ) :: mr_ice
 
@@ -433,6 +474,7 @@ contains
     ! Nullify pointers declared above
     nullify(mesh)
     nullify(shifted_mesh)
+    nullify(vector_space)
     nullify(latitude_w3)
     nullify(longitude_w3)
     nullify(height_w3)
@@ -442,6 +484,8 @@ contains
     nullify(detj_shifted)
     nullify(sin_stellar_declination_rts)
     nullify(stellar_eqn_of_time_rts)
+    nullify(sw_up_tile)
+    nullify(sw_down_surf)
     nullify(ls_rain_3d)
     nullify(ls_snow_3d)
     nullify(autoconv)
@@ -681,6 +725,8 @@ contains
                                      sin_stellar_declination_rts)
     call radiation_fields%get_field('stellar_eqn_of_time_rts',                 &
                                      stellar_eqn_of_time_rts)
+    call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+    call radiation_fields%get_field('sw_down_surf', sw_down_surf)
 
     call microphysics_fields%get_field('ls_rain_3d', ls_rain_3d)
     call microphysics_fields%get_field('ls_snow_3d', ls_snow_3d)
@@ -921,12 +967,6 @@ contains
     call aerosol_fields%get_field('emiss_om_biomass', emiss_om_biomass)
     call aerosol_fields%get_field('emiss_so2_nat', emiss_so2_nat)
 
-    ! Dummy / temp field initialisations - 2-D real
-    call zh%copy_field_properties(dumm_cv_cloud_lwp)
-    call zh%copy_field_properties(dumm_srf_albedo)
-    call invoke( setval_c(dumm_cv_cloud_lwp, 0.0_r_def), &
-                 setval_c(dumm_srf_albedo,   0.0_r_def) )
-
     ! Get location, level heights, cell area and volume data
 
     mesh => sin_stellar_declination_rts%get_mesh()   ! 2-D mesh
@@ -959,25 +999,166 @@ contains
     if (microphysics_casim) then
       call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
     end if
+    
+    ! Fields needed by UKCA and Photolysis
+    call zh%copy_field_properties(conv_cloud_lwp)
+    call zh%copy_field_properties(surf_albedo)
 
-    ! Pseudo / specified photolysis rates array
-    call ls_rain_3d%copy_field_properties(photol_rates_single)
-    call invoke ( setval_c(photol_rates_single, 0.0_r_def) )
+    call invoke( setval_c(conv_cloud_lwp, 0.0_r_def),                          &
+                       setval_c(surf_albedo, 0.0_r_def) )
+  
+    ! Multi-dimensional field: photol_rates
+    vector_space=>function_space_collection%get_fs(mesh,0,0,Wtheta,            &
+                   get_ndata_val('photol_species') )
 
-    if ( chem_scheme == chem_scheme_strattrop ) then
-      ! Should be ideally based on  i_ukca_photol but currently
-      ! default for strattrop.
+    call photol_rates%initialise(vector_space)
+    call invoke( setval_c(photol_rates,    0.0_r_def) )
 
-      call invoke ( pseudo_photol_kernel_type ( photol_rates_single,           &
-                                                current_time_hour,             &
-                                                current_time_minute,           &
-                                                latitude_w3,                   &
-                                                longitude_w3 ) )
+    if ( chem_scheme == chem_scheme_strattrop .and.                            &
+         photol_scheme /= photol_scheme_off ) then
+      ! Photolysis currently linked to Strattrop      
 
-    end if
+      ! Sample Rates to output; wtheta grid
+      call ls_rain_3d%copy_field_properties(photol_rate_jo1d)
+      call ls_rain_3d%copy_field_properties(photol_rate_jno2)
+
+      call invoke( setval_c(photol_rate_jo1d,  0.0_r_def),                     &
+                   setval_c(photol_rate_jno2,  0.0_r_def) )
+      
+      ! Only call photolysis if this is a chemistry timestep as photol rates
+      ! are only used by chemistry
+      if (mod( model_clock%get_step(),                                         &
+            chem_timestep/int(model_clock%get_seconds_per_step()) ) == 0) then
+
+        if ( subroutine_timers ) call timer('ukca_photolysis_alg')
+        ! FastJX scheme
+        if (photol_scheme == photol_scheme_fastjx )  then
+
+          ! Allocate and initialise required fields
+          ! sulp_accum, sulp_aitken and aod preset to values same as UM.
+          call ls_rain_3d%copy_field_properties(sulp_accum)
+          call ls_rain_3d%copy_field_properties(sulp_aitken)
+          call ls_rain_3d%copy_field_properties(aod_sulp_accum)
+          call ls_rain_3d%copy_field_properties(aod_sulp_aitken)
+          call ls_rain_3d%copy_field_properties(photol_rates_rts_jo2)
+          call ls_rain_3d%copy_field_properties(photol_rates_rts_jo2b)
+          
+          call invoke ( setval_c(sulp_accum,     1.0e-25_r_def),                &
+                        setval_c(sulp_aitken,    1.0e-25_r_def),                &
+                        setval_c(aod_sulp_accum, 1.0e3_r_def),                  &
+                        setval_c(aod_sulp_aitken, 1.0e3_r_def),                 &
+                        setval_c(photol_rates_rts_jo2,  0.0_r_def),             &
+                        setval_c(photol_rates_rts_jo2b, 0.0_r_def) )
+
+          ! Calculate Relative humidity (as fraction: 0.0-1.0)    
+          call mr(imr_v)%copy_field_properties(msat)
+          call mr(imr_v)%copy_field_properties(rel_humid_frac)
+          call invoke( setval_c(msat,             0.0_r_def),                  &
+                       setval_c(rel_humid_frac,   0.0_r_def),                  &
+                       msat_kernel_type(msat, exner_in_wth,                    &
+                                        state(igh_t), water_only),             &
+                       X_divideby_Y(rel_humid_frac, mr(imr_v), msat),          &
+                       inc_max_aX(0.0_r_def, rel_humid_frac),                  &
+                       inc_min_aX(1.0_r_def, rel_humid_frac) )
+
+          ! Derive required inputs, surface albedo first 
+          call invoke ( calc_albedo_kernel_type ( surf_albedo,                 &
+                                            sw_down_surf,                      &
+                                            tile_fraction,                     &
+                                            sw_up_tile),                       &
+                        photol_kernel_type ( photol_rates,                     &
+                                            current_time_year,                 &
+                                            current_time_month,                &
+                                            current_time_day,                  &
+                                            current_time_hour,                 &
+                                            current_time_minute,               &
+                                            current_time_second,               &
+                                            current_time_daynum,               &
+                                            previous_time_hour,                &
+                                            previous_time_minute,              &
+                                            previous_time_second,              &
+                                            o3,                                &
+                                            state(igh_t),                      &
+                                            exner_in_wth,                      &
+                                            height_wth,                        &
+                                            mr(imr_cl),                        &
+                                            mr_ice,                            &
+                                            rel_humid_frac,                    &
+                                            cca,                               &
+                                            area_fraction,                     &
+                                            sulp_accum,                        &
+                                            sulp_aitken,                       &
+                                            aod_sulp_accum,                    &
+                                            aod_sulp_aitken,                   &
+                                            photol_rates_rts_jo2,              &
+                                            photol_rates_rts_jo2b,             &
+                                            height_w3,                         &
+                                            state(igh_p),                      &
+                                            tile_fraction,                     &
+                                            latitude_w3,                       &
+                                            longitude_w3,                      &
+                                            sin_stellar_declination_rts,       &
+                                            stellar_eqn_of_time_rts,           &
+                                            conv_cloud_lwp,                    &
+                                            surf_albedo,                       &
+                                            cv_base,                           &
+                                            cv_top ) )
+
+            ! Extract sample rates from full array for verification
+            ! Currently only rates for O1D and NO2 output, so ignore others
+            do jp1 = 1, n_phot_spc
+              select case(trim(ratj_varnames(jp1)))
+              case ('jo3a')
+                !  jO(1D)         
+                call invoke (  photol_diags_kernel_type(photol_rate_jo1d,      &
+                                                        jp1,                   &
+                                                        photol_rates) )
+              case ('jno2')
+                !  jNO2
+                call invoke (  photol_diags_kernel_type(photol_rate_jno2,      &
+                                                        jp1,                   &
+                                                        photol_rates) )
+              end select
+            end do
+  
+        end if  ! Fast-JX
+      
+        ! Specified photolysis rates - based on location and local time
+        if ( photol_scheme == photol_scheme_prescribed ) then
+          call ls_rain_3d%copy_field_properties(photol_rate_profile)
+
+          call invoke ( pseudo_photol_kernel_type ( photol_rate_profile,       &
+                                                    current_time_hour,         &
+                                                    current_time_minute,       &
+                                                    latitude_w3,               &
+                                                    longitude_w3 ) )
+
+          ! Expand the single base rate profile to all the photolytic species
+          ! (num=jppj) involved in this chemistry scheme by scaling the values
+          ! using a species-specific jrate_fac, derived from a sample UM run.
+          loop_1 : do jp2 = 1, n_phot_spc
+            loop_2 : do jp1 = 1, jppj
+              if ( ratj_varnames(jp2) == trim(jp_names(jp1)) ) then
+                 call invoke ( map_pseudophotol_kernel_type( photol_rates,     &
+                                                        photol_rate_profile,   &
+                                                        jp2,                   &
+                                                        jrate_fac(jp1) ) )
+                 exit loop_2
+              end if
+            end do loop_2
+          end do loop_1
+
+        end if  ! photol_scheme = fastjx/ prescribed
+
+        if ( subroutine_timers ) call timer('ukca_photolysis_alg')
+        
+      end if  ! Chem timestep
+    
+    end if  ! Chem/ photolysis schemes
 
     ! Do UKCA time step
 
+    if ( subroutine_timers ) call timer('ukca_chemistry_alg')
     call invoke(aerosol_ukca_kernel_type( o3p,                                 &
                                           o1d,                                 &
                                           o3,                                  &
@@ -1124,7 +1305,7 @@ contains
                                           pvol_om_ait_ins,                     &
                                           pvol_du_acc_ins,                     &
                                           pvol_du_cor_ins,                     &
-                                          timestep_number,                     &
+                                          model_clock%get_step(),              &
                                           current_time_year,                   &
                                           current_time_month,                  &
                                           current_time_day,                    &
@@ -1214,8 +1395,8 @@ contains
                                           rdz_w3,                              &
                                           dtrdz_tq_bl,                         &
                                           zhsc,                                &
-                                          dumm_cv_cloud_lwp,                   &
-                                          dumm_srf_albedo,                     &
+                                          conv_cloud_lwp,                      &
+                                          surf_albedo,                         &
                                           cv_base,                             &
                                           cv_top,                              &
                                           level_ent,                           &
@@ -1226,7 +1407,6 @@ contains
                                           ent_we_lim_dsc,                      &
                                           ent_t_frac_dsc,                      &
                                           ent_zrzi_dsc,                        &
-                                          photol_rates_single,                 &
                                           h2o2_limit,                          &
                                           dms_conc_ocean,                      &
                                           dust_flux,                           &
@@ -1257,8 +1437,10 @@ contains
                                           emiss_no_aircrft,                    &
                                           emiss_bc_biomass,                    &
                                           emiss_om_biomass,                    &
-                                          emiss_so2_nat ))
+                                          emiss_so2_nat,                       &
+                                          photol_rates  ))
 
+    if ( subroutine_timers ) call timer('ukca_chemistry_alg')
     call um_sizes_init(1_i_def)
 
     ! Save time for reference at next step
@@ -1364,7 +1546,6 @@ contains
         call so3%write_field('chemistry__so3')
         call passive_o3%write_field('chemistry__passive_o3')
         call age_of_air%write_field('chemistry__age_of_air')
-        call photol_rates_single%write_field('chemistry__photol_rate')
 
         call emiss_c2h6%write_field('chemistry__emiss_c2h6')
         call emiss_c3h8%write_field('chemistry__emiss_c3h8')
@@ -1379,6 +1560,10 @@ contains
         call emiss_no%write_field('chemistry__emiss_no')
         call emiss_no_aircrft%write_field('chemistry__emiss_no_aircrft')
 
+        if (photol_scheme /= photol_scheme_off )  then
+          call photol_rate_jo1d%write_field('chemistry__photol_rate_jo1d')
+          call photol_rate_jno2%write_field('chemistry__photol_rate_jno2')
+        end if  
       end if    ! chem_scheme_strattrop
 
       call dms%write_field('chemistry__dms')

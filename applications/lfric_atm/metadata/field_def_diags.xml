@@ -145,7 +145,6 @@
   <field id="chemistry__so3" name="so3" long_name="mass_fraction_of_sulphur_trioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="chemistry__passive_o3" name="passive_o3" long_name="mass_fraction_of_passive_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="chemistry__age_of_air" name="age_of_air" long_name="mass_fraction_of_age_of_air_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
-  <field id="chemistry__photol_rate" name="photol_rate" long_name="sample_photolysis_rate" unit="s-1" grid_ref="full_level_face_grid" />
   <field id="chemistry__dms" name="dms" long_name="mass_fraction_of_dimethyl_sulfide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="chemistry__so2" name="so2" long_name="mass_fraction_of_sulfur_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="chemistry__h2so4" name="h2so4" long_name="mass_fraction_of_sulfuric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
@@ -165,6 +164,8 @@
   <field id="chemistry__rb" name="rb" long_name="mass_fraction_of_rubidium_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
   <field id="chemistry__tio" name="tio" long_name="mass_fraction_of_titanium_oxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
   <field id="chemistry__vo" name="vo" long_name="mass_fraction_of_vanadium_oxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />  
+  <field id="chemistry__photol_rate_jo1d" name="photol_rate_jo1d" long_name="photolysis_rate_of_ozone_to_1d_oxygen_atom" unit="s-1" grid_ref="full_level_face_grid" />
+  <field id="chemistry__photol_rate_jno2" name="photol_rate_jno2" long_name="photolysis_rate_of_nitrogen_dioxide" unit="s-1" grid_ref="full_level_face_grid" />
   <!-- aerosol diagnostics -->
   <field id="aerosol__murk" name="murk" long_name="simple_single_species_aerosol_murk" unit="microg kg-1" grid_ref="full_level_face_grid" />
   <field id="aerosol__dust_flux" name="dust_flux" long_name="dust_emissions_flux_in_size_bins" unit="kg m-2 s-1" domain_ref="face" axis_ref="dust_divisions" />

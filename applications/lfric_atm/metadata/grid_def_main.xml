@@ -36,6 +36,11 @@
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="photolysis_pathways"/>
   </grid>
+  <grid id="full_level_face_grid_photol_species">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="photol_species"/>
+  </grid>  
   <grid id="3D_monthly_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>

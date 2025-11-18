@@ -486,7 +486,7 @@ contains
     ! If using checkpointed reference state, then calculate semi-implicit
     ! operators using the checkpointed reference state
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
-    reference_reset_freq = int(reference_reset_time / cast_dt, i_def)
+    reference_reset_freq = nint(reference_reset_time / cast_dt, i_def)
     if (mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0) then
       call moisture_fields%get_field("moist_dyn_ref", moist_dyn_ref_array)
       moist_dyn_ref => moist_dyn_ref_array%bundle
@@ -713,7 +713,7 @@ contains
     ! This occurs every n timesteps, where n is calculated as reference_reset_time divided by dt.
     ! The reference_reset_time is specified in the configuration namelist.
     ! Note that this reset can only occur at most once per timestep.
-    reference_reset_freq = int(reference_reset_time / cast_dt, i_def)
+    reference_reset_freq = nint(reference_reset_time / cast_dt, i_def)
 
     if ( mod(model_clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) then
       ! Compute semi-implicit operators with current model state
@@ -1129,7 +1129,7 @@ contains
                               microphysics_fields, turbulence_fields,    &
                               convection_fields, cloud_fields,           &
                               surface_fields, soil_fields,               &
-                              self%state, mr, model_clock%get_step() )
+                              self%state, mr, model_clock )
     end if
 #endif
 

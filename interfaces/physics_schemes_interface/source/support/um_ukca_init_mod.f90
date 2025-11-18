@@ -24,16 +24,21 @@ module um_ukca_init_mod
                                        l_ukca_quasinewton,                     &
                                        l_ukca_linox_scaling,                   &
                                        lightnox_scale_fac,                     &
-                                       i_ukca_chem_version,                    &
+                                       i_ukca_chem_version, chem_timestep,     &
                                        top_bdy_opt, top_bdy_opt_no_overwrt,    &
                                        top_bdy_opt_overwrt_top_two_lev,        &
                                        top_bdy_opt_overwrt_only_top_lev,       &
                                        top_bdy_opt_overwrt_co_no_o3_top,       &
                                        top_bdy_opt_overwrt_co_no_o3_h2o_top,   &
-                                       fjx_solcyc_type
+                                       ! Variables related to initialisation of photolysis    
+                                       photol_scheme, photol_scheme_off,       &
+                                       photol_scheme_fastjx,                   &
+                                       photol_scheme_prescribed, fastjx_mode,  &
+                                       fastjx_numwavel, fastjx_prescutoff,     &
+                                       fjx_solcyc_type, fjx_solcyc_months
 
   ! Other LFRic modules used
-
+  use model_clock_mod, only: model_clock_type
   use log_mod, only : log_event,                                               &
                       log_scratch_space,                                       &
                       LOG_LEVEL_ERROR, LOG_LEVEL_INFO
@@ -86,7 +91,7 @@ module um_ukca_init_mod
                           ukca_photol_varname_len
 
   ! Photolysis module
-  use photol_api_mod,  only: photol_jlabel_len,                                &
+  use photol_api_mod,  only: photol_jlabel_len, photol_fieldname_len,          &
     !  Max sizes for spectral file data
     photol_max_miesets, photol_n_solcyc_av, photol_sw_band_aer,                &
     photol_sw_phases, photol_max_wvl, photol_max_crossec,                      &
@@ -566,7 +571,7 @@ module um_ukca_init_mod
   real(kind=r_um), allocatable :: waa(:,:)  ! Wavelengths for scattering coefficients
 
   !- Fields containing Solar cycle information (solcyc_file)
-  integer(kind=i_um), parameter :: n_solcyc_ts = 1476 ! Total months in solar cycle data
+  integer(kind=i_um) :: n_solcyc_ts         ! Total months in solar cycle data
   real(kind=r_um), allocatable :: solcyc_av(:)  ! Average solar cycle
   real(kind=r_um), allocatable :: solcyc_quanta(:) ! Quanta component of solar cycle
   real(kind=r_um), allocatable :: solcyc_ts(:)  ! Obs. time series of solar cycle
@@ -580,6 +585,11 @@ module um_ukca_init_mod
 
   character(len=photol_jlabel_len), allocatable :: titlej(:)
                                     ! Names of species as read from the spec file
+
+  ! Set default value of chemical timesteps (seconds), for configs that do
+  ! not read chemistry namelist
+  integer(kind=i_um), parameter :: default_chem_timestep = 3600_i_def
+  integer(kind=i_um) :: i_chem_timestep ! Local copy of timestep
 
   ! Lists of environmental driver fields required for the UKCA configuration
   character(len=ukca_maxlen_fieldname), pointer, public ::                     &
@@ -621,9 +631,25 @@ module um_ukca_init_mod
   character(len=ukca_maxlen_emiss_var_name), allocatable, public ::            &
     emiss_names_fullht(:)
 
+  ! Names of environmental driver fields -by type- required for Photolysis
+  character(len=photol_fieldname_len), pointer, public ::                      &
+                                     photol_fldnames_scalar_real(:)
+  character(len=photol_fieldname_len), pointer, public ::                      &
+                                     photol_fldnames_flat_integer(:)
+  character(len=photol_fieldname_len), pointer, public ::                      &
+                                     photol_fldnames_flat_real(:)
+  character(len=photol_fieldname_len), pointer, public ::                      &
+                                     photol_fldnames_fullht_real(:)
+  character(len=photol_fieldname_len), pointer, public ::                      &
+                                     photol_fldnames_fullht0_real(:)
+  character(len=photol_fieldname_len), pointer, public ::                      &
+                                     photol_fldnames_fullhtphot_real(:)
+
+  integer, save, public :: n_phot_flds_req ! Num of photol driving fields
+
 contains
 
-  subroutine um_ukca_init(ncells_ukca)
+  subroutine um_ukca_init(ncells_ukca, model_clock)
   !> @brief Set up the UKCA model
 
   use nlsizes_namelist_mod, only: bl_levels, rows, model_levels
@@ -633,16 +659,16 @@ contains
                                      c3_grass, c4_grass,                       &
                                      shrub, urban, lake, soil, ice
 
-  ! UM modules used
-
-  use timestep_mod,         only: timestep
+  ! UM modules used  
   use cv_run_mod,           only: l_param_conv
 
   implicit none
 
     integer(i_def), intent(in) :: ncells_ukca
+    class(model_clock_type), intent(in) :: model_clock
 
     integer(i_um) :: row_length_ukca
+    integer(i_def) :: i_timestep
 
     ! Nullify pointers declared globally in this module
     nullify(n_slots)
@@ -666,14 +692,47 @@ contains
     nullify(emiss_names)
     nullify(ratj_varnames)
     nullify(ratj_data)
+    nullify(photol_fldnames_scalar_real)
+    nullify(photol_fldnames_flat_integer)
+    nullify(photol_fldnames_flat_real)
+    nullify(photol_fldnames_fullht_real)
+    nullify(photol_fldnames_fullht0_real)
+    nullify(photol_fldnames_fullhtphot_real)
 
     row_length_ukca = int( ncells_ukca, i_um )
+
+    ! Check that chemistry timestep (length) specified is not less than model
+    ! timestep, and is divisible as whole number (assuming both in _def)
+    ! For configurations that do not read the chemistry namelist, the value
+    ! is IMDI so set to a default value.
+    i_timestep = int( model_clock%get_seconds_per_step() )
+
+    if ( chem_timestep < 0_i_def ) then
+      i_chem_timestep = default_chem_timestep
+    else 
+      if ( chem_timestep < i_timestep .or.                                     &
+                mod(chem_timestep, i_timestep) /= 0_i_def ) then
+        write(log_scratch_space, '(A,I0,A,A)')'Incorrect chem_timestep found ',  &
+        chem_timestep,' This cannot be less than model timestep and has to ',  &
+        'be fully divisible. (Check: namelist:chemistry)'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      else 
+        i_chem_timestep = int(chem_timestep, i_um)
+      end if
+    end if
+
+    ! Set n_solcyc_ts to namelist input if set, otherwise 1 for allocations.
+    if ( fjx_solcyc_type > 0_i_def .and. fjx_solcyc_months > 0_i_def ) then
+      n_solcyc_ts = int(fjx_solcyc_months, i_um)
+    else
+      n_solcyc_ts = 1_i_um
+    end if
 
     if ( ( aerosol == aerosol_um ) .and.                                       &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
 
         call aerosol_ukca_dust_only_init( row_length_ukca, rows, model_levels, &
-                                          bl_levels, timestep, l_param_conv )
+                  bl_levels, model_clock%get_seconds_per_step(), l_param_conv )
 
     else if ( ( aerosol == aerosol_um .and.                                    &
                 glomap_mode == glomap_mode_ukca ) .or.                         &
@@ -683,8 +742,8 @@ contains
 
         call ukca_init( row_length_ukca, rows, model_levels, bl_levels,        &
                         ntype, npft, brd_leaf, ndl_leaf, c3_grass, c4_grass,   &
-                        shrub, urban, lake, soil, ice,                         &
-                        dzsoil_io(1), timestep, l_param_conv )
+                        shrub, urban, lake, soil, ice, dzsoil_io(1),           &
+                        model_clock%get_seconds_per_step(), l_param_conv )
 
     end if
 
@@ -725,6 +784,10 @@ contains
     use ukca_mode_setup, only: i_ukca_bc_tuned
     use ukca_photol_param_mod, only: jppj
     use fastjx_inphot_mod, only: fastjx_inphot
+    use cloud_config_mod, only: cloud_scheme => scheme, scheme_pc2
+    use extrusion_config_mod,  only : number_of_layers
+    use photol_api_mod,  only: photol_setup, photol_off, photol_strat_only,    &
+                            photol_2d, photol_fastjx, photol_get_environ_varlist
 
     implicit none
 
@@ -755,8 +818,6 @@ contains
 
     ! List of photolysis file/variable names required for photolysis
     ! calculations
-    character(len=10), save, pointer :: ratj_data(:,:)
-    
     character(len=*), parameter  :: emiss_units = 'kg m-2 s-1'
 
     ! Local copies of ukca configuration variables to allow setting up chemistry
@@ -767,6 +828,9 @@ contains
     integer :: i_tmp_ukca_chem=ukca_chem_off
     integer :: i_tmp_ukca_activation_scheme
     integer :: i_ukca_top_boundary_opt = i_no_overwrt
+    integer :: i_photol_scheme = photol_scheme_off
+    ! Photolysis error handling method - print message and return control
+    integer, parameter :: photol_err_return = 3
 
     logical :: l_ukca_ageair = .false.
     logical :: l_ukca_set_trace_gases = .false.
@@ -906,7 +970,7 @@ contains
            l_ukca_ageair=l_ukca_ageair,                                        &
            ! Chemistry configuration options
            i_ukca_chem_version=i_ukca_chem_version,                            &
-           chem_timestep=3600,                                                 &
+           chem_timestep=i_chem_timestep,                                      &
            i_chem_timestep_halvings=i_chem_timestep_halvings,                  &
            nrsteps=45,                                                         &
            l_ukca_asad_columns=.true.,                                         &
@@ -944,6 +1008,13 @@ contains
            l_param_conv=l_param_conv,                                          &
            l_ctile=.true.,                                                     &
            l_environ_rel_humid=.true.,                                         &
+           ! Settings for managing photolysis environmental driver
+           ! requirements on behalf of the separate UKCA Photolysis code
+           i_photol_scheme = i_photol_scheme,                                  &
+           i_photol_scheme_off = photol_off,                                   &
+           i_photol_scheme_strat_only = photol_strat_only,                     &
+           i_photol_scheme_2d = photol_2d,                                     &
+           i_photol_scheme_fastjx = photol_fastjx,                             &
            ! General GLOMAP configuration options
            i_mode_nzts=15,                                                     &
            i_mode_setup=8,                                                     &
@@ -1025,33 +1096,37 @@ contains
                                         jfacta_ptr=ratj_jfacta)
       n_phot_spc = SIZE(ratj_varnames)
 
-      if ( n_phot_spc /= jppj ) then
-        write( log_scratch_space, '(A,2I6,A)' )                                &
-          'Mismatch in expected and registered photolysis reactions: ',        &
-           n_phot_spc, jppj,'. Check definitions in ukca_photol_param_mod'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if    
+      if ( photol_scheme == photol_scheme_prescribed )  then
+        if ( n_phot_spc /= jppj ) then
+          write( log_scratch_space, '(A,2I6,A)' )                              &
+            'Mismatch in expected and registered photolysis reactions: ',      &
+             n_phot_spc, jppj,'. Check definitions in ukca_photol_param_mod'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if    
+      else if ( photol_scheme == photol_scheme_fastjx ) then
 
-      ! Read spectral data files, allocate arrays and set up
-      call allocate_fastjx_filevars()
+        ! Read spectral data files, allocate arrays and set up
+        call allocate_fastjx_filevars()
 
-      adjusted_fname = ' '
-      if (.not. allocated(jlabel)) allocate(jlabel(n_phot_spc))
-      jlabel(:) = ''
-      if (.not. allocated(jfacta)) allocate(jfacta(n_phot_spc))
-      jfacta(:) = 0.0
-      if (.not. allocated(jind)) allocate(jind(n_phot_spc))
+        adjusted_fname = ' '
+        if (.not. allocated(jlabel)) allocate(jlabel(n_phot_spc))
+        jlabel(:) = ''
+        if (.not. allocated(jfacta)) allocate(jfacta(n_phot_spc))
+        jfacta(:) = 0.0
+        if (.not. allocated(jind)) allocate(jind(n_phot_spc))
+        jind(:) = 0
 
-      do i = 1, n_phot_spc
-        jfacta(i)=ratj_jfacta(i)/100.0e0_r_um
-        adjusted_fname=trim(adjustl(ratj_varnames(i)))
-        jlabel(i)=adjusted_fname(1:photol_jlabel_len)
-        write(log_scratch_space,'(A,I6,E12.3,A12)')'FJX_JFACTA ', i,jfacta(i),jlabel(i)
-        call log_event(log_scratch_space, LOG_LEVEL_INFO)        
-      end do
+        do i = 1, n_phot_spc
+          jfacta(i)=ratj_jfacta(i)/100.0e0_r_um
+          adjusted_fname=trim(adjustl(ratj_varnames(i)))
+          jlabel(i)=adjusted_fname(1:photol_jlabel_len)
+          write(log_scratch_space,'(A,I6,E12.3,A12)')'FJX_JFACTA ', i,         &
+            jfacta(i),jlabel(i)
+          call log_event(log_scratch_space, LOG_LEVEL_INFO)        
+        end do
 
-     ! call wrapper routine that reads FastJX spectral and solar cycle data
-     call fastjx_inphot(                                                       &
+        ! call wrapper routine that reads FastJX spectral and solar cycle data
+        call fastjx_inphot(                                                    &
                  ! (Max) data dimensions in files
                  photol_max_miesets, photol_n_solcyc_av, photol_sw_band_aer,   &
                  photol_sw_phases, photol_max_wvl, photol_wvl_intervals,       &
@@ -1065,10 +1140,110 @@ contains
                  n_solcyc_ts, solcyc_av, solcyc_quanta, solcyc_ts,         &
                  solcyc_spec )
 
-      ! Deallocate fastjx spectral data as not currently used - placeholder for
-      ! future API implementation
-      call deallocate_fastjx_filevars()
-    end if   ! Photolysis
+      end if  ! Prescribed or FastJX photolysis scheme
+
+      ! Convert namelist inputs to integers recognised by Photolysis scheme
+      ! Photol_scheme might be undefined (imdi) if namelist item is not active,
+      ! so set default value to Off (= 0) as 'pseudo' does not require setup.
+      ! Using Case here even though only single option, for provision to
+      ! include future schemes
+      select case (photol_scheme)
+      case(photol_scheme_fastjx)
+        i_photol_scheme = photol_fastjx      
+      case default  
+        i_photol_scheme = photol_off      
+      end select
+    
+      ! Call Photolysis setup routine to initialise Photolysis
+      ! Hardwired options, CCA field defined on full_face_level_grid, so
+      ! l_3d_cca = .true. and n_cca_lev = number_of_layers (model_levels)
+      ! l_cal360 always .false. since LFRic uses 365-day calendar
+      ! l_environ_ztop = false: model top derived from other level height fields
+      if ( photol_scheme /= photol_scheme_off) then
+        call photol_setup(i_photol_scheme,                                     &
+                        ukca_errcode,                                          &
+                        l_cal360=.false.,                                      &
+                        n_cca_lev=number_of_layers,                            &
+                        timestep=timestep,                                     &
+                        chem_timestep=int(chem_timestep, i_um),                &
+                        fastjx_numwl=fastjx_numwavel,                          &
+                        fastjx_mode=fastjx_mode,                               &
+                        fastjx_prescutoff=real(fastjx_prescutoff, r_um),       &
+                        l_strat_chem=(chem_scheme == chem_scheme_strattrop),   &
+                        l_cloud_pc2=(cloud_scheme == scheme_pc2),              &
+                        l_3d_cca=.true.,                                       &
+                        l_environ_ztop=.false.,                                &
+                        ! Variables holding FastJX spectral/ solar data
+                        n_phot_spc=n_phot_spc,                                 &
+                        njval=njval,                                           &
+                        nw1=nw1,                                               &
+                        nw2=nw2,                                               &
+                        jtaumx=jtaumx,                                         &
+                        naa=naa,                                               &
+                        n_solcyc_ts=n_solcyc_ts,                               &
+                        jind=jind,                                             &
+                        atau=atau,                                             &
+                        atau0=atau0,                                           &
+                        fl=fl,                                                 &
+                        q1d=q1d,                                               &
+                        qo2=qo2,                                               &
+                        qo3=qo3,                                               &
+                        qqq=qqq,                                               &
+                        qrayl=qrayl,                                           &
+                        tqq=tqq,                                               &
+                        wl=wl,                                                 &
+                        daa=daa,                                               &
+                        paa=paa,                                               &
+                        qaa=qaa,                                               &
+                        raa=raa,                                               &
+                        saa=saa,                                               &
+                        waa=waa,                                               &
+                        solcyc_av=solcyc_av,                                   &
+                        solcyc_quanta=solcyc_quanta,                           &
+                        solcyc_ts=solcyc_ts,                                   &
+                        solcyc_spec=solcyc_spec,                               &
+                        jfacta=jfacta,                                         &
+                        jlabel=jlabel,                                         &
+                        titlej=titlej,                                         &
+                        i_error_method=photol_err_return,                      &
+                        error_message=ukca_errmsg, error_routine=ukca_errproc)
+        if (ukca_errcode /= 0) then
+          write( log_scratch_space, '(A,I0,A,A,A,A)' ) 'Photolysis error ',    &
+            ukca_errcode, ' in ', ukca_errproc, ': ', ukca_errmsg
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )      
+        end if
+        ! Obtain the list of environment fields required by Photolysis
+        n_phot_flds_req = 0
+        
+        call photol_get_environ_varlist(ukca_errcode,                          &
+              varnames_scalar_real_ptr=photol_fldnames_scalar_real,            &
+              varnames_flat_integer_ptr=photol_fldnames_flat_integer,          &
+              varnames_flat_real_ptr=photol_fldnames_flat_real,                &
+              varnames_fullht_real_ptr=photol_fldnames_fullht_real,            &
+              varnames_fullht0_real_ptr=photol_fldnames_fullht0_real,          &
+              varnames_fullhtphot_real_ptr=photol_fldnames_fullhtphot_real,    &
+              error_message=ukca_errmsg, error_routine=ukca_errproc )
+        if (ukca_errcode > 0) THEN
+          write( log_scratch_space, '(A,I0,A,A,A,A)' ) 'Photolysis error ',    &
+                 ukca_errcode, ' in ', ukca_errproc, ': ', ukca_errmsg
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        ! Determine total number of expected fields - for allocations later
+        ! Note: fullhtphot_real will be size=1 even though it contains multiple spc
+        n_phot_flds_req = size(photol_fldnames_scalar_real)                    &
+         + size(photol_fldnames_flat_integer)                                  &
+         + size(photol_fldnames_flat_real)                                     &
+         + size(photol_fldnames_fullht_real)                                   &
+         + size(photol_fldnames_fullht0_real)                                  &
+         + size(photol_fldnames_fullhtphot_real)
+
+      end if  ! if not photol_scheme_off
+
+      ! Deallocate fastjx spectral data arrays as no longer needed
+      if ( photol_scheme == photol_scheme_fastjx )                             &
+        call deallocate_fastjx_filevars()
+  
+    end if   ! Strattrop and l_ukca_photolysis
 
     ! Switch on optional UM microphysics diagnostics required by UKCA
     if (any(env_names_fullht_real(:) == fldname_autoconv))                     &
@@ -1656,7 +1831,7 @@ contains
 
            ! Chemistry configuration options
            !
-           chem_timestep=3600,                                                 &
+           chem_timestep=i_chem_timestep,                                      &
            i_chem_timestep_halvings=0,                                         &
 
            ! UKCA environmental driver configuration options

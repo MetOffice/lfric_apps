@@ -108,6 +108,8 @@ contains
     type( field_type ), pointer :: conv_snow
     type( field_type ), pointer :: conv_snow_3d
     type( field_type ), pointer :: cca_2d
+    type( field_type ), pointer :: cv_base
+    type( field_type ), pointer :: cv_top
     type( field_type ), pointer :: cca
     type( field_type ), pointer :: ccw
     type( field_type ), pointer :: dt_conv
@@ -255,7 +257,6 @@ contains
     type( field_type ), pointer :: height_wth
 
     ! local variables
-    type( field_type ) :: cv_base,cv_top
     type( field_type ) :: lowest_cv_base,lowest_cv_top
     type( field_type ) :: entrain_up,entrain_down
     type( field_type ) :: detrain_up,detrain_down
@@ -326,6 +327,8 @@ contains
     call convection_fields%get_field('massflux_up', massflux_up)
     call convection_fields%get_field('massflux_down', massflux_down)
     call convection_fields%get_field('cape_diluted', cape_diluted)
+    call convection_fields%get_field('cv_base', cv_base)
+    call convection_fields%get_field('cv_top', cv_top)
     call convection_fields%get_field('pressure_inc_env', pressure_inc_env)
 
     ! Unpack cloud fields

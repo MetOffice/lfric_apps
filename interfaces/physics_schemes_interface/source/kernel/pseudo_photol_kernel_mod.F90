@@ -3,11 +3,11 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Temporarily sets up photolysis rates for a representative species.
+!> @brief Sets up a prescribed photolysis rate profile based on location and local time.
 
 module pseudo_photol_kernel_mod
 
-  use argument_mod,      only: arg_type, ANY_DISCONTINUOUS_SPACE_4, &
+  use argument_mod,      only: arg_type, ANY_DISCONTINUOUS_SPACE_1, &
                                GH_FIELD, GH_REAL, GH_SCALAR,        &
                                GH_INTEGER, GH_READ, GH_READWRITE,   &
                                CELL_COLUMN
@@ -27,12 +27,12 @@ module pseudo_photol_kernel_mod
   !>
   type, public, extends(kernel_type) :: pseudo_photol_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                                         &
-         arg_type( GH_FIELD,  GH_REAL,    GH_READWRITE,  WTHETA),               & ! photol_rate_single
-         arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),                            & ! current_time_hour
-         arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),                            & ! current_time_minute
-         arg_type( GH_FIELD,  GH_REAL,    GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! latitude
-         arg_type( GH_FIELD,  GH_REAL,    GH_READ, ANY_DISCONTINUOUS_SPACE_4 )  & ! longitude
+    type(arg_type) :: meta_args(5) = (/                                        &
+         arg_type( GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),              & ! photol_rate_single
+         arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),                           & ! current_time_hour
+         arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),                           & ! current_time_minute
+         arg_type( GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1 ), & ! latitude
+         arg_type( GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1 )  & ! longitude
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -46,7 +46,7 @@ module pseudo_photol_kernel_mod
 
 contains
 
-!> @brief Uses a standard photolysis rate and creates a 1-D profile by applying
+!> @brief Uses a standard photolysis value and creates a 1-D profile by applying
 !!        diurnal, vertical and geographical scaling.
 !!        Uses current time and longitude to determine rough 'local time' with
 !!        a view to applying the peak as observed in actual calculations.
@@ -54,8 +54,7 @@ contains
 !!        peak at equator (ignore N/S hemisphere seasons for now).
 !>
 !> @param[in]     nlayers             Number of layers
-!> @param[in,out] photol_rate_single  Photolysis rate for a
-!!                                    representative species
+!> @param[in,out] photol_rate_single  Photolysis rates profile
 !> @param[in]     current_hour        Current model hour
 !> @param[in]     current_minutes     Current model minutes
 !> @param[in]     latitude array      Latitude (radians)
@@ -80,13 +79,14 @@ subroutine pseudo_photol_code(nlayers,                             &
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in) :: nlayers
-  integer(kind=i_def), intent(in) :: ndf_wtheta, undf_wtheta
+  integer(kind=i_def), intent(in) :: nlayers   
+  integer(kind=i_def), intent(in) :: ndf_wtheta
+  integer(kind=i_def), intent(in) :: undf_wtheta
   integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta
   integer(kind=i_def), intent(in) :: ndf_2d, undf_2d
   integer(kind=i_def), dimension(ndf_2d), intent(in) :: map_2d
 
-  real(kind=r_def), dimension(undf_wtheta), intent(inout) :: photol_rate_single
+  real(kind=r_def), intent(in out), dimension(undf_wtheta) :: photol_rate_single
   integer(kind=i_def), intent(in) :: current_hour
   integer(kind=i_def), intent(in) :: current_minute
   real(kind=r_def), intent(in), dimension(undf_2d) :: latitude
@@ -101,7 +101,7 @@ subroutine pseudo_photol_code(nlayers,                             &
   real(kind=r_def) :: tdiff    ! Local-GMT diff based on longitude
   real(kind=r_def) :: jrate
 
-  ! Standard Rate i.e reference/ base rate to use to generate the profile
+  ! Standard Rate (s^-1) i.e reference/ base rate used to generate the profile
   real(kind=r_def), parameter :: std_rate = 1.3_r_def
 
   ! Diurnal scaling factors for local time (from sample model values)
@@ -132,7 +132,7 @@ subroutine pseudo_photol_code(nlayers,                             &
   tloc = max(tloc, 1_i_def)
   tloc = min(tloc, 24_i_def)
 
-  ! Non-(vertically)-varying component - diurnal and geographical scaling
+  ! Non-vertically-varying component - diurnal and geographical scaling
   cos_lat = cos(latitude(map_2d(1)))
   cos_lat = min(cos_lat, 1.0_r_def)
   cos_lat = max(cos_lat, 0.0_r_def)

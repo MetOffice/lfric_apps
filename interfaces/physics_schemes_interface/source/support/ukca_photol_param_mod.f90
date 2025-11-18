@@ -8,7 +8,7 @@
 
 module ukca_photol_param_mod
 
-  use constants_mod, only : r_um, i_um
+  use constants_mod, only : r_def, i_um
 
   ! UKCA API module
   use ukca_api_mod,  only : ukca_photol_varname_len
@@ -55,30 +55,30 @@ module ukca_photol_param_mod
               !   56(R)       57(R)       58          59          60
                'jpan     ','jpan     ','jpna33   ','jpna67   ','jso3     ']
 
-  real(kind=r_um), parameter, dimension(jppj):: jrate_fac = [                  &
-   !  1              2(R)           3              4              5
-   2.246e-05_r_um,2.246e-05_r_um,1.738e-07_r_um,2.485e-05_r_um,3.031e-02_r_um, &
-   !  6              7              8              9              10
-   1.000e+00_r_um,1.762e-01_r_um,1.192e-01_r_um,3.638e-07_r_um,3.431e-06_r_um, &
-   !  11             12             13             14             15
-   0.000e+00_r_um,4.369e-03_r_um,1.108e-04_r_um,5.469e-05_r_um,1.677e-11_r_um, &
-   !  16             17             18             19             20
-   5.838e-06_r_um,5.038e-04_r_um,1.515e-04_r_um,5.362e-10_r_um,2.269e-05_r_um, &
-   !  21             22             23             24             25
-   0.000e+00_r_um,2.515e-05_r_um,1.015e-04_r_um,1.538e-04_r_um,1.331e-07_r_um, &
-   !  26             27             28             29             30
-   6.700e-03_r_um,8.692e-04_r_um,5.792e-03_r_um,3.038e-05_r_um,9.231e-05_r_um, &
-   !  31             32             33(R)          34             35
-   1.285e-05_r_um,8.385e-06_r_um,8.385e-06_r_um,1.246e-05_r_um,7.023e-06_r_um, &
-   !  36             37             38(R)          39(R)          40(R)
-   4.862e-06_r_um,1.677e-05_r_um,1.677e-05_r_um,1.677e-05_r_um,1.677e-05_r_um, &
-   !  41(R)          42(R)          43             44             45
-   1.677e-05_r_um,1.677e-05_r_um,2.569e-03_r_um,1.746e-07_r_um,1.731e-04_r_um, &
-   !  46             47             48             49             50
-   1.654e-07_r_um,2.715e-02_r_um,6.823e-02_r_um,5.069e-01_r_um,1.438e-10_r_um, &
-   !  51             52             53             54             55
-   0.000e+00_r_um,6.400e-04_r_um,1.277e-03_r_um,2.492e-01_r_um,3.915e-05_r_um, &
-   !  56(R)          57(R)          58             59             60
-   3.915e-05_r_um,3.915e-05_r_um,1.431e-05_r_um,7.846e-05_r_um,0.000e+00_r_um ]
+  real(kind=r_def), parameter, dimension(jppj):: jrate_fac = [                  &
+   !     1              2(R)           3              4              5
+   2.246e-05_r_def,2.246e-05_r_def,1.738e-07_r_def,2.485e-05_r_def,3.031e-02_r_def, &
+   !     6              7              8              9              10
+   1.000e+00_r_def,1.762e-01_r_def,1.192e-01_r_def,3.638e-07_r_def,3.431e-06_r_def, &
+   !     11             12             13             14             15
+   0.000e+00_r_def,4.369e-03_r_def,1.108e-04_r_def,5.469e-05_r_def,1.677e-11_r_def, &
+   !     16             17             18             19             20
+   5.838e-06_r_def,5.038e-04_r_def,1.515e-04_r_def,5.362e-10_r_def,2.269e-05_r_def, &
+   !     21             22             23             24             25
+   0.000e+00_r_def,2.515e-05_r_def,1.015e-04_r_def,1.538e-04_r_def,1.331e-07_r_def, &
+   !     26             27             28             29             30
+   6.700e-03_r_def,8.692e-04_r_def,5.792e-03_r_def,3.038e-05_r_def,9.231e-05_r_def, &
+   !     31             32             33(R)          34             35
+   1.285e-05_r_def,8.385e-06_r_def,8.385e-06_r_def,1.246e-05_r_def,7.023e-06_r_def, &
+   !     36             37             38(R)          39(R)          40(R)
+   4.862e-06_r_def,1.677e-05_r_def,1.677e-05_r_def,1.677e-05_r_def,1.677e-05_r_def, &
+   !     41(R)          42(R)          43             44             45
+   1.677e-05_r_def,1.677e-05_r_def,2.569e-03_r_def,1.746e-07_r_def,1.731e-04_r_def, &
+   !     46             47             48             49             50
+   1.654e-07_r_def,2.715e-02_r_def,6.823e-02_r_def,5.069e-01_r_def,1.438e-10_r_def, &
+   !     51             52             53             54             55
+   0.000e+00_r_def,6.400e-04_r_def,1.277e-03_r_def,2.492e-01_r_def,3.915e-05_r_def, &
+   !     56(R)          57(R)          58             59             60
+   3.915e-05_r_def,3.915e-05_r_def,1.431e-05_r_def,7.846e-05_r_def,0.000e+00_r_def ]
 
 end module ukca_photol_param_mod

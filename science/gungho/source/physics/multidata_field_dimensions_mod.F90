@@ -28,7 +28,7 @@ module multidata_field_dimensions_mod
 #ifdef UM_PHYSICS
       !                   1         2         3
       !          123456789012345678901234567890
-      character(30), parameter :: multidata_items(32) = &
+      character(30), parameter :: multidata_items(33) = &
             [character(30) ::                           &
                 'plant_func_types',                     &
                 'sea_ice_categories',                   &
@@ -61,7 +61,8 @@ module multidata_field_dimensions_mod
                 'sw_bands_radiation_levels',            &
                 'lw_bands_radiation_levels',            &
                 'photolysis_pathways',                  &
-                'random_seed_size'                      &
+                'random_seed_size',                     &
+                'photol_species'                        &
       ]
 #endif
 
@@ -162,6 +163,8 @@ end subroutine sync_multidata_field_dimensions
     use ukca_radaer_precalc,     only: npd_ukca_aod_wavel
 
     use aerosol_config_mod,      only: l_radaer
+    use chemistry_config_mod,    only: chem_scheme, chem_scheme_strattrop
+    use um_ukca_init_mod,        only: n_phot_spc
 #endif
 
     use log_mod,                 only: log_event, LOG_LEVEL_ERROR,             &
@@ -264,7 +267,12 @@ end subroutine sync_multidata_field_dimensions
 
       case('random_seed_size')
            call random_seed(size=dim)
-
+      case ('photol_species')
+            if (chem_scheme == chem_scheme_strattrop) then
+               dim = n_phot_spc
+            else
+               dim = 1
+            end if
       case ('')
             dim = 1 ! ordinary (non-multidata) field
 #endif

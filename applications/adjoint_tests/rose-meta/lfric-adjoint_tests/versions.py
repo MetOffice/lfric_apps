@@ -467,3 +467,45 @@ class vn22_t4020(MacroUpgrade):
         self.add_setting(config, ["namelist:io", "checkpoint_times"], "")
 
         return config, self.reports
+
+
+class vn22_t618(MacroUpgrade):
+    """Upgrade macro for ticket #618 by Mohit Dalvi."""
+
+    BEFORE_TAG = "vn2.2_t4020"
+    AFTER_TAG = "vn2.2_t618"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-chemistry
+        """
+        Add Photolysis scheme and FastJX namelist items to chemistry namelist.
+        Value of photol_scheme is based on chem_scheme choice.
+        Change the value of fastjx_dir to replace hardwired path with
+        link from central ctldata extract
+        """
+        chem_scheme = self.get_setting_value(
+            config, ["namelist:chemistry", "chem_scheme"]
+        )
+        if chem_scheme == "'strattrop'":
+            phot_scheme = "'fastjx'"
+        else:
+            phot_scheme = "'off'"  # Default
+        self.add_setting(
+            config, ["namelist:chemistry", "photol_scheme"], phot_scheme
+        )
+        self.add_setting(
+            config, ["namelist:chemistry", "chem_timestep"], "3600"
+        )
+        self.add_setting(config, ["namelist:chemistry", "fastjx_mode"], "1")
+        self.add_setting(
+            config, ["namelist:chemistry", "fastjx_prescutoff"], "20.0"
+        )
+        self.add_setting(
+            config, ["namelist:chemistry", "fjx_solcyc_months"], "0"
+        )
+        self.add_setting(config, ["namelist:chemistry", "fjx_solcyc_type"], "0")
+        self.change_setting_value(
+            config, ["namelist:chemistry", "fastjx_dir"], "'fastj'"
+        )
+
+        return config, self.reports

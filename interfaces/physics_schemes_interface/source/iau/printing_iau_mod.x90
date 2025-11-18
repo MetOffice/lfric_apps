@@ -15,6 +15,9 @@ module printing_iau_mod
   use print_meanrms_field_mod, only : print_meanrms_field
   use sci_field_minmax_alg_mod, &
                                only : log_field_minmax
+  use extrusion_config_mod,        only: planet_radius
+  use fs_continuity_mod,           only: W3
+  use sci_geometric_constants_mod, only: get_height_fv
 
   implicit none
 
@@ -200,6 +203,9 @@ module printing_iau_mod
     integer( kind = i_def ),       intent(in) :: level
 
     type( field_type ), pointer               :: iau_field
+    type( field_type ), pointer               :: height_w3
+    type( field_type )                        :: radius_w3
+    integer( kind=i_def )                     :: mesh_id
 
     if( log_level() <= level ) then
 
@@ -226,7 +232,14 @@ module printing_iau_mod
 
       if ( iau_wet_density ) then
         call iau_fields % get_field( 'rho_r2_inc', iau_field )
-        call print_meanrms_field( iau_field, level )
+        ! Divide by r2 to create wet density
+        mesh_id = iau_field%get_mesh_id()
+        height_w3 => get_height_fv(W3, mesh_id)
+        call iau_field%copy_field_properties(radius_w3)
+        call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ),       &
+                     inc_X_divideby_Y( iau_field, radius_w3 ),              &
+                     inc_X_divideby_Y( iau_field, radius_w3 ) )
+        call print_meanrms_field( iau_field, level, 'wetrho_inc' )
       else
         call iau_fields % get_field( 'rho_inc', iau_field )
         call print_meanrms_field( iau_field, level )

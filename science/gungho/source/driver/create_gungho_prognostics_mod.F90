@@ -98,7 +98,7 @@ contains
     ! Create reference fields for solver. They are only created and checkpointed if either the first or
     ! final steps are not semi-implicit operator recalculation timesteps
     dt = real(clock%get_seconds_per_step(), r_def)
-    reference_reset_freq = int(reference_reset_time / dt, i_def)
+    reference_reset_freq = nint(reference_reset_time / dt, i_def)
     checkpoint_flag =                                                &
       mod(clock%get_first_step()-1, reference_reset_freq) /= 0 .or.  &
       mod(clock%get_last_step(),    reference_reset_freq) /= 0

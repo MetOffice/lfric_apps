@@ -15,6 +15,7 @@ use argument_mod,      only: arg_type, GH_FIELD, GH_SCALAR, GH_INTEGER,        &
                              ANY_DISCONTINUOUS_SPACE_4,                        &
                              ANY_DISCONTINUOUS_SPACE_5,                        &
                              ANY_DISCONTINUOUS_SPACE_6,                        &
+                             ANY_DISCONTINUOUS_SPACE_7,                        &
                              DOMAIN
 
 use fs_continuity_mod, only: WTHETA, W3
@@ -280,7 +281,6 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_t_frac_dsc
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_5 ), & ! ent_zrzi_dsc
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! h2o2_limit
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! photol_rates_single
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_4 ), & ! dms_conc_ocean
        arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_6 ), & ! dust_flux
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4 ), & ! surf_wetness
@@ -310,7 +310,8 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_no_aircrft
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_bc_biomass
        arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_om_biomass
-       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA )       & ! emiss_so2_nat
+       arg_type( GH_FIELD, GH_REAL, GH_READ, WTHETA ),      & ! emiss_so2_nat
+       arg_type( GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_7 ) & ! photol_rates
        /)
   integer :: operates_on = DOMAIN
 
@@ -583,7 +584,6 @@ contains
 !> @param[in]     ent_we_lim_dsc      Rho * entrainment rate at DSC inversion (kg m-2 s-1)
 !> @param[in]     ent_t_frac_dsc      Fraction of time DSC inversion is above level
 !> @param[in]     ent_zrzi_dsc        Level height as fraction of DSC inversion height above DSC ML base
-!> @param[in]     photol_rates_single Photolysis rate, sample (s-1)
 !> @param[in]     h2o2_limit          Hydrogen peroxide m.m.r. upper limit
 !> @param[in]     dms_conc_ocean      DMS concentration in seawater (nmol l-1)
 !> @param[in]     dust_flux           Dust emission fluxes in CLASSIC size divisions (kg m-2 s-1)
@@ -615,6 +615,7 @@ contains
 !> @param[in]     emiss_bc_biomass    Black C emissions from biomass burning (kg m-2 s-1)
 !> @param[in]     emiss_om_biomass    Organic matter emissions from biomass burning expressed as C (kg m-2 s-1)
 !> @param[in]     emiss_so2_nat       SO2 natural emissions expressed as S (kg m-2 s-1)
+!> @param[in]     photol_rates        Photolysis rates (s-1)
 !> @param[in]     ndf_wth             Number of DOFs per cell for potential temperature space
 !> @param[in]     undf_wth            Number of unique DOFs for potential temperature space
 !> @param[in]     map_wth             Dofmap for the cell at the base of the column for potential temperature space
@@ -639,6 +640,9 @@ contains
 !> @param[in]     ndf_dust            Number of DOFs per cell for dust divisions
 !> @param[in]     undf_dust           Number of unique DOFs for dust divisions
 !> @param[in]     map_dust            Dofmap for cell for dust divisions
+!> @param[in]     ndf_nphot           Number of DOFs per cell for photolysis species
+!> @param[in]     undf_nphot          Number of unique DOFs for photolysis species
+!> @param[in]     map_nphot           Dofmap for cell for photolysis species
 
 subroutine aerosol_ukca_code( nlayers,                                         &
                               seg_len,                                         &
@@ -890,7 +894,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               ent_we_lim_dsc,                                  &
                               ent_t_frac_dsc,                                  &
                               ent_zrzi_dsc,                                    &
-                              photol_rates_single,                             &
                               h2o2_limit,                                      &
                               dms_conc_ocean,                                  &
                               dust_flux,                                       &
@@ -922,6 +925,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               emiss_bc_biomass,                                &
                               emiss_om_biomass,                                &
                               emiss_so2_nat,                                   &
+                              photol_rates,                                    &
                               ndf_wth, undf_wth, map_wth,                      &
                               ndf_w3, undf_w3, map_w3,                         &
                               ndf_tile, undf_tile, map_tile,                   &
@@ -929,7 +933,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               ndf_soil, undf_soil, map_soil,                   &
                               ndf_2d, undf_2d, map_2d,                         &
                               ndf_ent, undf_ent, map_ent,                      &
-                              ndf_dust, undf_dust, map_dust)
+                              ndf_dust, undf_dust, map_dust,                   &
+                              ndf_nphot, undf_nphot, map_nphot)
 
   use constants_mod,    only: r_def, i_def, r_um, i_um, i_timestep,            &
                               radians_to_degrees
@@ -1218,7 +1223,8 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               fldname_grid_volume,                             &
                               fldname_grid_airmass,                            &
                               fldname_photol_rates,                            &
-                              nlev_ent_tr_mix
+                              nlev_ent_tr_mix,                                 &
+                              n_phot_spc
 
   use log_mod,              only: log_event, log_scratch_space, LOG_LEVEL_ERROR
   use chemistry_config_mod, only: chem_scheme, chem_scheme_strattrop
@@ -1248,7 +1254,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! UKCA API module
   use ukca_api_mod,         only: ukca_step_control, ukca_maxlen_message, &
                                   ukca_maxlen_procname
-  use ukca_photol_param_mod, only: jppj, jrate_fac, jp_names
 
   implicit none
 
@@ -1280,6 +1285,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   integer(kind=i_def), intent(in) :: ndf_dust
   integer(kind=i_def), intent(in) :: undf_dust
   integer(kind=i_def), dimension(ndf_dust, seg_len), intent(in) :: map_dust
+  integer(kind=i_def), intent(in) :: ndf_nphot
+  integer(kind=i_def), intent(in) :: undf_nphot
+  integer(kind=i_def), dimension(ndf_nphot, seg_len), intent(in) :: map_nphot
 
   real(kind=r_def), intent(in out), dimension(undf_wth) :: o3p
   real(kind=r_def), intent(in out), dimension(undf_wth) :: o1d
@@ -1533,7 +1541,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_we_lim_dsc
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_t_frac_dsc
   real(kind=r_def), intent(in), dimension(undf_ent) :: ent_zrzi_dsc
-  real(kind=r_def), intent(in), dimension(undf_wth) :: photol_rates_single
   real(kind=r_def), intent(in), dimension(undf_wth) :: h2o2_limit
   real(kind=r_def), intent(in), dimension(undf_2d) :: dms_conc_ocean
   real(kind=r_def), intent(in), dimension(undf_dust) :: dust_flux
@@ -1565,7 +1572,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_bc_biomass
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_om_biomass
   real(kind=r_def), intent(in), dimension(undf_wth) :: emiss_so2_nat
-
+  real(kind=r_def), intent(in), dimension(undf_nphot) :: photol_rates
 
   ! Local variables for the kernel
 
@@ -1701,10 +1708,6 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! Grid cell airmass and volume (for some emissions and diagnostics)
   real(r_um) :: grid_volume(seg_len,1,nlayers)
-
-  ! Temporary photol_rates array, derived from single species values coming
-  ! from algorithm layer
-  real(r_um), allocatable :: photol_rates(:,:,:)
 
   ! UKCA error reporting variables
   character(len=ukca_maxlen_message)  :: ukca_errmsg  ! Error return message
@@ -4239,36 +4242,19 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   end do
 
   ! Photolysis rates driving field with full height and no. photol reactions
-  if ( chem_scheme == chem_scheme_strattrop ) then  ! Should be l_use_photol
+  if ( chem_scheme == chem_scheme_strattrop ) then
 
     m_fields = size(env_names_fullhtphot_real)
-    allocate(environ_fullhtphot_real( seg_len, 1, nlayers, jppj, m_fields ))
-
-    ! Expand the single base rate profile to all the photolytic species
-    ! (num=jppj) involved in this chemistry scheme by scaling the values using
-    ! a different factor for each species (as derived from a sample UM run)
-    allocate(photol_rates( seg_len, nlayers, jppj ))
-    loop_1 : do jp2 = 1, jppj
-      loop_2 : do jp1 = 1, jppj
-        if ( ratj_varnames(jp2) == trim(jp_names(jp1)) ) then
-          do k = 1, nlayers
-            do i = 1, seg_len
-              photol_rates(i, k, jp2) = jrate_fac(jp1) *                       &
-                real(photol_rates_single(map_wth(1,i) + k ), r_um)
-            end do
-          end do
-          exit loop_2
-        end if
-      end do loop_2
-    end do loop_1
-
+    allocate(environ_fullhtphot_real( seg_len, 1, nlayers, n_phot_spc, m_fields ))
+    
     do m = 1, m_fields
       if ( env_names_fullhtphot_real(m) == fldname_photol_rates ) then
         ! Photol rates
-        do jp1 = 1, jppj
+        do jp1 = 1, n_phot_spc
           do k = 1, nlayers
             do i = 1, seg_len
-              environ_fullhtphot_real(i,1,k,jp1,m) = photol_rates(i,k,jp1)
+              environ_fullhtphot_real(i,1,k,jp1,m) =                           &
+                photol_rates(map_nphot(1, i) + ( (jp1-1)*(nlayers+1) ) + k)
             end do
           end do
         end do
@@ -4279,7 +4265,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
     end do    ! m_fields
-    deallocate(photol_rates)
+    
   else
     ! Allocate to minimal size and initialise
     allocate(environ_fullhtphot_real( 1, 1, 1, 1, 0 ))

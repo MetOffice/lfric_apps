@@ -27,7 +27,8 @@ subroutine collision_rate( n_points,                                           &
 
 use comorph_constants_mod, only: pi, coef_wf_spread, col_eff_coef,             &
                      kin_visc, drag_coef_cond,                                 &
-                     real_cvprec, six, half, four_thirds, min_float
+                     real_cvprec, six, half, four_thirds, min_float,           &
+                     sqrt_min_float
 
 implicit none
 
@@ -178,7 +179,7 @@ end do
 ! where r_col/w_col is the timescale for the collision
 do ic = 1, n_points
   coll_eff(ic) = exp( -col_eff_coef                                            &
-                       * ( r_col(ic) / max( w_col(ic), min_float ) )           &
+                       * ( r_col(ic) / max( w_col(ic), sqrt_min_float ) )      &
                        * def_rate(ic) )
   ! coll_eff now stores the collection efficiency / dimensionless
 end do

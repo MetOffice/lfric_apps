@@ -359,7 +359,7 @@ contains
       end if
 
       ! Initialisation of UKCA physics variables
-      call um_ukca_init(ncells_ukca)
+      call um_ukca_init(ncells_ukca, model_clock)
 
     end if
 #endif
