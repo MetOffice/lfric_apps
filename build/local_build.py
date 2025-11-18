@@ -249,10 +249,12 @@ def main():
 
     # Determine the core source if not provided
     if args.core_source is None:
-        args.core_source = determine_core_source(root_dir)
+        core_source = determine_core_source(root_dir)
+    else:
+        core_source = {"source": args.core_source}
 
     # Export and rsync the lfric_core source
-    get_lfric_core(args.core_source, args.working_dir)
+    get_lfric_core(core_source, args.working_dir)
 
     # Build the makefile
     build_makefile(
