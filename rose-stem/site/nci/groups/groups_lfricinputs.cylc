@@ -22,14 +22,14 @@
     ],
 
     "um2lfric_gadi_protogal": [
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_gadi_intel_fast-debug-64bit",
     ],
     "um2lfric_protogal": [
         "um2lfric_gadi_protogal",
     ],
 
     "um2lfric_gadi_protogal_chem": [
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C12L70_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_gadi_intel_fast-debug-64bit",
     ],
     "um2lfric_protogal_chem": [
         "um2lfric_gadi_protogal_chem",
@@ -79,8 +79,8 @@
     "um2lfric_gadi_developer": [
         "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_gadi_intel_fast-debug-64bit",
         "lfricinputs_um2lfric-basicgal-N96L70_C12L70_gadi_intel_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_gadi_intel_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C12L70_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_gadi_intel_fast-debug-64bit",
         "lfricinputs_um2lfric-aquaplanet_lam_gadi_intel_fast-debug-64bit",
         "lfricinputs_um2lfric-aquaplanet_lbc_gadi_intel_fast-debug-64bit",
         "lfricinputs_um2lfric-falklands_lam_gadi_intel_fast-debug-64bit",

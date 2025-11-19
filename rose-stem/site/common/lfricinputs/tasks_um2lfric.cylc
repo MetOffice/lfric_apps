@@ -143,12 +143,12 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "um2lfric-protogal-N96L70_C48L70" %}
+{% elif task_ns.conf_name == "um2lfric-protogal-N320L70_C48L70" %}
     {% do task_dict.update({
         "opt_confs": ["protogal"],
         "resolution": "C48",
         "mesh_name": "dynamics",
-        "source_grid_res": "N96",
+        "source_grid_res": "N320",
         "source_grid_levs": "70",
         "source_grid_type": "global",
         "target_grid_res": "C48",
@@ -160,12 +160,12 @@
         "namelist_src": "um_grid.nml",
     }) %}
 
-{% elif task_ns.conf_name == "um2lfric-protogal-N96L70_C12L70" %}
+{% elif task_ns.conf_name == "um2lfric-protogal-N320L70_C12L70" %}
     {% do task_dict.update({
         "opt_confs": ["protogal"],
         "resolution": "C12",
         "mesh_name": "dynamics",
-        "source_grid_res": "N96",
+        "source_grid_res": "N320",
         "source_grid_levs": "70",
         "source_grid_type": "global",
         "target_grid_res": "C12",
@@ -177,12 +177,12 @@
         "namelist_src": "um_grid.nml",
     }) %}
 
-{% elif task_ns.conf_name == "um2lfric-protogal_chem-N96L70_C48L70" %}
+{% elif task_ns.conf_name == "um2lfric-protogal_chem-N48L70_C48L70" %}
     {% do task_dict.update({
         "opt_confs": ["protogal_chem"],
         "resolution": "C48",
         "mesh_name": "dynamics",
-        "source_grid_res": "N96",
+        "source_grid_res": "N48",
         "source_grid_levs": "70",
         "source_grid_type": "global",
         "target_grid_res": "C48",
@@ -194,32 +194,15 @@
         "namelist_src": "um_grid.nml",
     }) %}
 
-{% elif task_ns.conf_name == "um2lfric-protogal_chem-N96L70_C12L70" %}
+{% elif task_ns.conf_name == "um2lfric-protogal_chem-N48L70_C12L70" %}
     {% do task_dict.update({
         "opt_confs": ["protogal_chem"],
         "resolution": "C12",
         "mesh_name": "dynamics",
-        "source_grid_res": "N96",
+        "source_grid_res": "N48",
         "source_grid_levs": "70",
         "source_grid_type": "global",
         "target_grid_res": "C12",
-        "target_grid_levs": "70",
-        "target_grid_type": "global",
-        "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/ga7_chem_N48eL70.astart",
-        "weight_gen_option": "dump-file",
-        "var_res_src": "",
-        "namelist_src": "um_grid.nml",
-    }) %}
-
-{% elif task_ns.conf_name == "um2lfric-protogal_chem-N96L70_C48L70" %}
-    {% do task_dict.update({
-        "opt_confs": ["protogal_chem"],
-        "resolution": "C48",
-        "mesh_name": "dynamics",
-        "source_grid_res": "N96",
-        "source_grid_levs": "70",
-        "source_grid_type": "global",
-        "target_grid_res": "C48",
         "target_grid_levs": "70",
         "target_grid_type": "global",
         "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/ga7_chem_N48eL70.astart",

@@ -57,21 +57,21 @@
     ],
 
     "um2lfric_azspice_protogal": [
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_azspice_gnu_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_azspice_gnu_full-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_full-debug-64bit",
     ],
     "um2lfric_ex1a_protogal": [
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_ex1a_gnu_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_full-debug-64bit",
     ],
 
     "um2lfric_azspice_protogal_chem": [
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C12L70_azspice_gnu_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C12L70_azspice_gnu_full-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_full-debug-64bit",
     ],
     "um2lfric_ex1a_protogal_chem": [
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C48L70_ex1a_gnu_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C48L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_full-debug-64bit",
     ],
 
     "um2lfric_azspice_aquaplanet_lam": [
@@ -129,9 +129,9 @@
         "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_azspice_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_full-debug-64bit",
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_azspice_gnu_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_azspice_gnu_full-debug-64bit",
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_full-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-falklands_lam_azspice_gnu_fast-debug-64bit",
@@ -191,8 +191,8 @@
         "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-basicgal-N96L70_C12L70_ex1a_gnu_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal-N96L70_C12L70_ex1a_gnu_fast-debug-64bit",
-        "lfricinputs_um2lfric-protogal_chem-N96L70_C48L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_fast-debug-64bit",
     ],
     "um2lfric_ex1a": [
         "um2lfric_ex1a_developer",

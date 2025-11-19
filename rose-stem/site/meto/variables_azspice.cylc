@@ -22,11 +22,11 @@
     "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_fast-debug-64bit":         BASE,
     "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_full-debug-64bit":         BASE,
 
-    "lfricinputs_um2lfric-protogal-N96L70_C12L70_azspice_gnu_fast-debug-64bit": BASE~"_t190",
-    "lfricinputs_um2lfric-protogal-N96L70_C12L70_azspice_gnu_full-debug-64bit": BASE~"_t190",
+    "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_fast-debug-64bit": BASE~"_t819",
+    "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_full-debug-64bit": BASE~"_t819",
 
-    "lfricinputs_um2lfric-protogal_chem-N96L70_C12L70_azspice_gnu_fast-debug-64bit": BASE~"_t190",
-    "lfricinputs_um2lfric-protogal_chem-N96L70_C12L70_azspice_gnu_full-debug-64bit": BASE~"_t190",
+    "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_fast-debug-64bit": BASE~"_t819",
+    "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_full-debug-64bit": BASE~"_t819",
 
     "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_fast-debug-64bit":                 BASE,
     "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_full-debug-64bit":                 BASE,
