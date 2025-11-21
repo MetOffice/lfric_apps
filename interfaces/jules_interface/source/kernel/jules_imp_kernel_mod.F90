@@ -744,9 +744,8 @@ contains
 
     ! Sea-ice fraction
     do i = 1, seg_len
-      i_sice = 0
       do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-        i_sice = i_sice + 1
+        i_sice = n - first_sea_ice_tile + 1
         ainfo%ice_fract_ij(i,1) = ainfo%ice_fract_ij(i,1) + &
              real(tile_fraction(map_tile(1,i)+n-1), r_um)
         ainfo%ice_fract_ncat_sicat(i, 1, i_sice) = real(tile_fraction(map_tile(1,i)+n-1), r_um)
@@ -875,9 +874,8 @@ contains
       do i = 1, seg_len
         tstar_sice(i,1) = 0.0_r_um
         if (ainfo%ice_fract_ij(i, 1) > 0.0_r_um) then
-          i_sice = 0
           do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-            i_sice = i_sice + 1
+            i_sice = n - first_sea_ice_tile + 1
             coast%tstar_sice_sicat(i, 1, i_sice) = real(tile_temperature(map_tile(1,i)+n-1), r_um)
             tstar_sice(i,1) = tstar_sice(i,1) &
                + ainfo%ice_fract_ncat_sicat(i,1,i_sice) * &
@@ -948,25 +946,22 @@ contains
         ! Calculate penetrating solar into sea ice. We use the fraction of penetrating
         ! solar for direct visible light as it is the same as for diffuse visible light.
         if (l_sice_swpen .and. ocn_cpl_point(map_2d(1,i)) == 1_i_def ) then
-          i_sice = 0
           do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-            i_sice = i_sice + 1
+            i_sice = n - first_sea_ice_tile + 1
             sea_ice_pensolar(map_sice(1,i)+i_sice-1) = sw_direct_blue_surf(map_2d(1,i)) *    &
                  sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) + &
                  sw_diffuse_blue_surf *                                 &
                  sea_ice_pensolar_frac_diffuse(map_sice(1,i)+i_sice-1)
           end do
         else
-          i_sice = 0
           do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-            i_sice = i_sice + 1
+            i_sice = n - first_sea_ice_tile + 1
             sea_ice_pensolar(map_sice(1,i)+i_sice-1) = 0.0_r_def
           end do
         endif
 
-        i_sice = 0
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-          i_sice = i_sice + 1
+          i_sice = n - first_sea_ice_tile + 1
 
           ! Net SW on sea-ice
           fluxes%sw_sicat(i, i_sice) = real(sw_down_surf(map_2d(1,i)) -  &
@@ -1069,14 +1064,13 @@ contains
         end do
       end do
 
-      i_tile = 0
       do n = 1, n_land_tile
         do m = 1, sm_levels
+          i_tile=sm_levels*(n-1) + m - 1  
           do k = 1, ainfo%surft_pts(n)
             l = ainfo%surft_index(k,n)
             wt_ext_surft(l,m,n) = tile_water_extract(map_smtile(1,ainfo%land_index(l))+i_tile)
           end do
-          i_tile = i_tile + 1
         end do
       end do
 
@@ -1097,9 +1091,8 @@ contains
       end if
 
       do i = 1, seg_len
-        i_sice = 0
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-          i_sice = i_sice + 1
+          i_sice = n - first_sea_ice_tile + 1
           alpha1_sice(i,1,i_sice) = alpha1_tile(map_tile(1,i)+n-1)
           rhokh_sice(i,1,i_sice) = rhokh_tile(map_tile(1,i)+n-1)
         end do
@@ -1108,9 +1101,8 @@ contains
         chr1p5m_sice(i,1) = chr1p5m_tile(map_tile(1,i)+first_sea_ice_tile-1)
       end do
       ! Fields are only written on sea-ice points
-      i_sice = 0
       do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-        i_sice = i_sice + 1
+        i_sice = n - first_sea_ice_tile + 1
         do l = 1, ainfo%sice_pts_ncat(i_sice)
           i = ainfo%sice_index_ncat(l,i_sice)
           ashtf_prime(i,1,i_sice) = ashtf_prime_tile(map_tile(1,i)+n-1)
@@ -1168,9 +1160,8 @@ contains
 
       if (outer == outer_iterations) then
         do i = 1, seg_len
-          i_sice = 0
           do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-            i_sice = i_sice + 1
+            i_sice = n - first_sea_ice_tile + 1
             fluxes%surf_ht_flux_sice(i,1,i_sice) = surf_ht_flux(map_tile(1,i)+n-1)
           end do
         end do
@@ -1333,9 +1324,8 @@ contains
         end do
 
         ! Update sea-ice tiles
-        i_sice = 0
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-          i_sice = i_sice + 1
+          i_sice = n - first_sea_ice_tile + 1
           do i = 1, seg_len
             tile_temperature(map_tile(1,i)+n-1) = real(coast%tstar_sice_sicat(i,1,i_sice), r_def)
             tile_heat_flux(map_tile(1,i)+n-1) = real(fluxes%ftl_sicat(i,1,i_sice), r_def)
@@ -1358,9 +1348,8 @@ contains
                  real(fluxes%surf_htf_surft(l, n), r_def)
           end do
         end do
-        i_sice = 0
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-          i_sice = i_sice + 1
+          i_sice = n - first_sea_ice_tile + 1
           do i = 1, seg_len
             if (tile_fraction(map_tile(1,i)+n-1) > 0.0_r_def) then
               surf_ht_flux(map_tile(1,i)+n-1) =                             &
@@ -1624,9 +1613,8 @@ contains
                      real(fluxes%radnet_surft(l, n), r_def)
               end do
             end do
-          i_sice = 0
           do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-            i_sice = i_sice + 1
+            i_sice = n - first_sea_ice_tile + 1
             do i = 1, seg_len
               if (tile_fraction(map_tile(1,i)+n-1) > 0.0_r_def) then
                 surf_radnet(map_tile(1,i)+n-1) =                              &
@@ -1652,9 +1640,8 @@ contains
                    real(sf_diag%lw_up_surft(l, n), r_def)
             end do
           end do
-          i_sice = 0
           do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-            i_sice = i_sice + 1
+            i_sice = n - first_sea_ice_tile + 1
             do i = 1, seg_len
               if (tile_fraction(map_tile(1,i)+n-1) > 0.0_r_def) then
                 surf_lw_up(map_tile(1,i)+n-1) =                                &

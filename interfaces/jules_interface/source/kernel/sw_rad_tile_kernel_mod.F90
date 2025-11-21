@@ -18,7 +18,7 @@ use argument_mod,      only : arg_type,                  &
                               ANY_DISCONTINUOUS_SPACE_6, &
                               DOMAIN
 use fs_continuity_mod, only:  W3, WTheta
-use constants_mod,     only : r_def, i_def, r_um, i_um
+use constants_mod,     only : r_def, i_def, l_def, r_um, i_um
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -314,7 +314,10 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   real(r_um), dimension(:,:), allocatable        :: snow_surft
 
   ! single level logical fields
-  logical, dimension(seg_len,1)                  :: land_sea_mask
+  logical(l_def), dimension(seg_len,1)                  :: land_sea_mask
+
+  ! Reverse index of land points
+  integer(i_def), dimension(seg_len,1)                  :: reverse_land_index
 
   ! Inputs to surf_couple_radiation
   real(r_um), dimension(seg_len, 1)              :: flandg, ws_10m_sea, chloro
@@ -410,20 +413,21 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   allocate(snow_surft(land_field, ntiles))
 
   ! Land_index
+  reverse_land_index = 0
   l = 0
   do i = 1, seg_len
     if ( flandg(i,1) > 0.0_r_um ) then
       l = l+1
       ainfo%land_index(l) = i
+      reverse_land_index(i,1) = l
     end if
   end do ! i
 
   ! Sea-ice fraction
   do i = 1, seg_len
-    i_sice = 0
     ainfo%ice_fract_ij(i,1) = 0.0_r_um
     do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-      i_sice = i_sice + 1
+      i_sice = n - first_sea_ice_tile + 1
       ainfo%ice_fract_ij(i,1) = ainfo%ice_fract_ij(i,1) + &
                            real(tile_fraction(map_tile(1,i)+n-1), r_um)
       ainfo%ice_fract_ncat_sicat(i,1, i_sice) = &
@@ -481,9 +485,8 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
   ! Sea-ice temperatures
   do i = 1, seg_len
     if ( ainfo%ice_fract_ij(i,1) > 0.0_r_um ) then
-      i_sice = 0
       do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-        i_sice = i_sice + 1
+        i_sice = n - first_sea_ice_tile + 1
         coast%tstar_sice_sicat(i,1,i_sice) = &
             real(tile_temperature(map_tile(1,i)+n-1), r_um)
       end do ! n
@@ -608,9 +611,8 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
 
   do i = 1, seg_len
     ! Lying snow mass on sea ice categories
-    i_sice = 0
     do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-      i_sice = i_sice + 1
+      i_sice = n - first_sea_ice_tile + 1
       progs%snow_mass_sea_sicat(i,1,i_sice) = &
                           real(tile_snow_mass(map_tile(1,i)+n-1), r_um)
     end do ! n
@@ -642,19 +644,14 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
     progs_cbl_vars  &
     )
 
-  df_rtile = 0
   do i_band = 1, n_band
     ! Land tile albedos
-    df_rtile = n_surf_tile*(i_band-1)
     do n = 1, n_land_tile
-      df_rtile = df_rtile + 1
-      l = 0
+      df_rtile = n_surf_tile*(i_band-1) + n
       do i = 1, seg_len
         r1 = map_tile(1,i)+n-1
         r2 = map_sw_tile(1,i)+df_rtile-1
-        if ( flandg(i,1) > 0.0_r_um ) then
-          l = l+1
-        end if
+        l = reverse_land_index(i,1)
         if ( tile_fraction(r1) > 0.0_r_def ) then
           tile_sw_direct_albedo(r2) &
                = weight_blue(i_band) &
@@ -674,9 +671,8 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
     end do ! n
 
     ! Sea tile albedos
-    df_rtile = first_sea_tile-1 + n_surf_tile*(i_band-1)
     do n = first_sea_tile, first_sea_tile + n_sea_tile - 1
-      df_rtile = df_rtile + 1
+      df_rtile = n_surf_tile*(i_band-1) + n
       do i = 1, seg_len
         r1 = map_tile(1,i)+n-1
         r2 = map_sw_tile(1,i)+df_rtile-1
@@ -691,9 +687,8 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
     end do ! n
 
     ! Sea-ice tile albedos
-    df_rtile = first_sea_ice_tile-1 + n_surf_tile*(i_band-1)
     do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
-      df_rtile = df_rtile + 1
+      df_rtile = n_surf_tile*(i_band-1) + n
       i_sice = n - first_sea_ice_tile + 1
       do i = 1, seg_len
         r1 = map_tile(1,i)+n-1
@@ -726,17 +721,15 @@ subroutine sw_rad_tile_code(nlayers, seg_len,                       &
 
   ! Scaling factors needed for use in surface exchange code
   if ( l_albedo_obs ) then
-    df_rtile = 0
     do i_band = 1, rad_nband
       do n = 1, n_land_tile
-        do l = 1, land_field
+         df_rtile=n_land_tile*(i_band-1) + n - 1
+         do l = 1, land_field
           if ( fland(l) > 0.0_r_um ) then
              albedo_obs_scaling(map_scal(1,ainfo%land_index(l))+df_rtile) = &
                           jules_vars%albobs_scaling_surft(l,n,i_band)
           end if
         end do ! l
-        ! Counting from 0, so increment index here
-        df_rtile = df_rtile + 1
       end do ! n
     end do ! i_band
   end if

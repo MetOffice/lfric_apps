@@ -863,7 +863,6 @@ contains
 
     ! Snow prognostics
     do l = 1, land_pts
-      i_snow = 0
       do n = 1, nsurft
         ! Lying snow mass on land tiles
         progs%snow_surft(l,n) = real(tile_snow_mass(map_tile(1,ainfo%land_index(l))+n-1), r_um)
@@ -878,6 +877,7 @@ contains
         ! Snowpack density (rho_snow_grnd_surft)
         progs%rho_snow_grnd_surft(l,n) = real(snowpack_density(map_tile(1,ainfo%land_index(l))+n-1), r_um)
         do j = 1, nsmax
+          i_snow = nsmax*(n-1) + j - 1
           ! Thickness of snow layers
           progs%ds_surft(l,n,j) = real(snow_layer_thickness(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
           ! Mass of ice in snow layers
@@ -888,8 +888,6 @@ contains
           progs%tsnow_surft(l,n,j) = real(snow_layer_temp(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
           ! Grain size of snow layers
           progs%rgrainl_surft(l,n,j) = real(snow_layer_rgrain(map_snow(1,ainfo%land_index(l))+i_snow), r_um)
-          ! Counting from 0 so increment here
-          i_snow = i_snow + 1
         end do
       end do
     end do
@@ -1012,10 +1010,10 @@ contains
         snowice_melt(map_tile(1,ainfo%land_index(l))+n-1) = real(fluxes%melt_surft(l,n), r_def)
       end do
     end do
-    i_snow = 0
     do n = 1, nsurft
       do j = 1, nsmax
         do l = 1, land_pts
+          i_snow = nsmax*(n-1) + j - 1 
           ! Thickness of snow layers
           snow_layer_thickness(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%ds_surft(l,n,j), r_def)
           ! Mass of ice in snow layers
@@ -1027,8 +1025,6 @@ contains
           ! Grain size of snow layers
           snow_layer_rgrain(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%rgrainl_surft(l,n,j), r_def)
         end do
-        ! Counting from 0 so increment here
-        i_snow = i_snow + 1
       end do
     end do
 
