@@ -8,6 +8,7 @@
                                                "jedi_lfric_tests",
                                                "shallow_water",
                                                "lfricinputs",
+                                               "lfric2lfric",
                                                "linear_model",
                                                "gungho",
                                                "socrates_interface",

@@ -10,6 +10,7 @@
         "gungho_model_gadi_developer",
         "lfric_atm_gadi_developer",
         "lfricinputs_gadi_developer",
+        "lfric2lfric_gadi_developer",
     ],
     "developer" : [
         "gadi_developer",
@@ -52,6 +53,7 @@
 {% include "site/nci/groups/groups_jedi_lfric_interface.cylc" %}
 {% include "site/nci/groups/groups_jedi_lfric_tests.cylc" %}
 {% include "site/nci/groups/groups_lfricinputs.cylc" %}
+{% include "site/nci/groups/groups_lfric2lfric.cylc" %}
 {% include "site/nci/groups/groups_lfric_atm.cylc" %}
 {% include "site/nci/groups/groups_linear.cylc" %}
 {% include "site/nci/groups/groups_linear_model.cylc" %}
