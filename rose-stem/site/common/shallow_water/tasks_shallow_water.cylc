@@ -148,6 +148,7 @@
         "threads": 3,
         "use_xios": false,
         "kgo_checks": [],
+        "wallclock": 30,
         "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
     }) %}
 
