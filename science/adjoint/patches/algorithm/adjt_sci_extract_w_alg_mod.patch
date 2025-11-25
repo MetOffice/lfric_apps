@@ -31,7 +31,12 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_wtheta_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,wtheta)
-@@ -46,9 +49,19 @@
+@@ -42,14 +45,23 @@
+     call u_physics_input%initialise(vector_space=vector_space_w2_ptr, name='u_physics_input')
+     velocity_w2v_inner_prod = 0.0_r_def
+     u_physics_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(velocity_w2v), setval_x(velocity_w2v_input, velocity_w2v), setval_random(u_physics), &
  &setval_x(u_physics_input, u_physics), extract_w_kernel_type(velocity_w2v, u_physics), x_innerproduct_x(velocity_w2v_inner_prod, &
  &velocity_w2v), x_innerproduct_x(u_physics_inner_prod, u_physics))
@@ -53,3 +58,11 @@
      velocity_w2v_velocity_w2v_input_inner_prod = 0.0_r_def
      u_physics_u_physics_input_inner_prod = 0.0_r_def
      call invoke(adj_extract_w_kernel_type(velocity_w2v, u_physics), x_innerproduct_y(velocity_w2v_velocity_w2v_input_inner_prod, &
+@@ -57,7 +69,6 @@
+     inner2 = 0.0_r_def
+     inner2 = inner2 + velocity_w2v_velocity_w2v_input_inner_prod
+     inner2 = inner2 + u_physics_u_physics_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

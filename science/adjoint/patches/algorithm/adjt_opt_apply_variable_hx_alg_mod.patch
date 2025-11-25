@@ -74,7 +74,7 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
-@@ -68,46 +71,62 @@
+@@ -68,48 +71,62 @@
      call m3%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
      call lhs_input%initialise(vector_space=vector_space_w3_ptr, name='lhs_input')
      call x_input%initialise(vector_space=vector_space_w2_ptr, name='x_input')
@@ -91,6 +91,7 @@
 -    mt_inv_inner_prod = 0.0_r_def
      pressure_inner_prod = 0.0_r_def
      rhs_p_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(lhs), setval_x(lhs_input, lhs), setval_random(x), setval_x(x_input, x), setval_random(mt_inv), &
 -&setval_x(mt_inv_input, mt_inv), setval_random(pressure), setval_x(pressure_input, pressure), setval_random(rhs_p), &
@@ -153,6 +154,7 @@
 -    inner2 = inner2 + mt_inv_mt_inv_input_inner_prod
 -    inner2 = inner2 + pressure_pressure_input_inner_prod
 -    inner2 = inner2 + rhs_p_rhs_p_input_inner_prod
+-
 +    inner2 = 0.0_r_solver
 +    inner2 = inner2 + real( lhs_lhs_input_inner_prod, r_solver )
 +    inner2 = inner2 + real( x_x_input_inner_prod, r_solver )

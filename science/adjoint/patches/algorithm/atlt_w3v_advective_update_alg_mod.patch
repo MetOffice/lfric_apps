@@ -15,7 +15,7 @@
      real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
      type(mesh_type), pointer, intent(in) :: mesh
      type(field_type), dimension(3), intent(in), optional :: chi
-@@ -28,61 +28,58 @@
+@@ -28,64 +28,59 @@
      type(field_type) :: wind
      type(operator_type) :: m3_inv
      type(field_type) :: advective_increment_input
@@ -54,6 +54,7 @@
 -    tracer_inner_prod = 0.0_r_def
 -    ls_wind_inner_prod = 0.0_r_def
      wind_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(advective_increment), setval_x(advective_increment_input, advective_increment), &
 -&setval_random(tracer), setval_x(tracer_input, tracer), setval_random(ls_wind), setval_x(ls_wind_input, ls_wind), &
@@ -99,5 +100,7 @@
 -    inner2 = inner2 + tracer_tracer_input_inner_prod
 -    inner2 = inner2 + ls_wind_ls_wind_input_inner_prod
      inner2 = inner2 + wind_wind_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

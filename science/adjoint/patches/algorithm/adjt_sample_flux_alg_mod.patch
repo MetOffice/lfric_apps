@@ -31,7 +31,7 @@
  
      vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
-@@ -50,34 +47,31 @@
+@@ -50,36 +47,31 @@
      call q%initialise(vector_space=vector_space_w0_ptr, name='q')
      call flux_input%initialise(vector_space=vector_space_w2_ptr, name='flux_input')
      call u_input%initialise(vector_space=vector_space_w2_ptr, name='u_input')
@@ -41,6 +41,7 @@
      u_inner_prod = 0.0_r_def
 -    rmultiplicity_inner_prod = 0.0_r_def
 -    q_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(flux), setval_x(flux_input, flux), setval_random(u), setval_x(u_input, u), &
 -&setval_random(rmultiplicity), setval_x(rmultiplicity_input, rmultiplicity), setval_random(q), setval_x(q_input, q), &
@@ -79,6 +80,7 @@
      inner2 = inner2 + u_u_input_inner_prod
 -    inner2 = inner2 + rmultiplicity_rmultiplicity_input_inner_prod
 -    inner2 = inner2 + q_q_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

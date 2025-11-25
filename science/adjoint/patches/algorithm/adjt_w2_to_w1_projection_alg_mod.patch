@@ -23,7 +23,12 @@
  
      vector_space_w1_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w1)
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
-@@ -51,9 +54,19 @@
+@@ -47,14 +50,23 @@
+     call u_w2_input%initialise(vector_space=vector_space_w2_ptr, name='u_w2_input')
+     v_w1_inner_prod = 0.0_r_def
+     u_w2_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(v_w1), setval_x(v_w1_input, v_w1), setval_random(u_w2), setval_x(u_w2_input, u_w2), &
  &w2_to_w1_projection_kernel_type(v_w1, u_w2, qr_xyoz), x_innerproduct_x(v_w1_inner_prod, v_w1), x_innerproduct_x(u_w2_inner_prod, &
  &u_w2))
@@ -45,3 +50,11 @@
      v_w1_v_w1_input_inner_prod = 0.0_r_def
      u_w2_u_w2_input_inner_prod = 0.0_r_def
      call invoke(adj_w2_to_w1_projection_kernel_type(v_w1, u_w2, qr_xyoz), x_innerproduct_y(v_w1_v_w1_input_inner_prod, v_w1, &
+@@ -62,7 +74,6 @@
+     inner2 = 0.0_r_def
+     inner2 = inner2 + v_w1_v_w1_input_inner_prod
+     inner2 = inner2 + u_w2_u_w2_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

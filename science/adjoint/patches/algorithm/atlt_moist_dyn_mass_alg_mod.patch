@@ -29,7 +29,15 @@
  
      vector_space_wtheta_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,wtheta)
      call moist_dyn_tot%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_tot')
-@@ -65,14 +68,44 @@
+@@ -55,7 +58,6 @@
+     mr_ci_inner_prod(4_i_def) = 0.0_r_def
+     mr_ci_inner_prod(5_i_def) = 0.0_r_def
+     mr_ci_inner_prod(6_i_def) = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(moist_dyn_tot), setval_x(moist_dyn_tot_input, moist_dyn_tot), setval_random(mr_ci(1_i_def)), &
+ &setval_x(mr_ci_input(1_i_def), mr_ci(1_i_def)), setval_random(mr_ci(2_i_def)), setval_x(mr_ci_input(2_i_def), mr_ci(2_i_def)), &
+@@ -66,14 +68,44 @@
  &x_innerproduct_x(mr_ci_inner_prod(2_i_def), mr_ci(2_i_def)), x_innerproduct_x(mr_ci_inner_prod(3_i_def), mr_ci(3_i_def)), &
  &x_innerproduct_x(mr_ci_inner_prod(4_i_def), mr_ci(4_i_def)), x_innerproduct_x(mr_ci_inner_prod(5_i_def), mr_ci(5_i_def)), &
  &x_innerproduct_x(mr_ci_inner_prod(6_i_def), mr_ci(6_i_def)))
@@ -81,7 +89,7 @@
      moist_dyn_tot_moist_dyn_tot_input_inner_prod = 0.0_r_def
      mr_ci_mr_ci_input_inner_prod(1_i_def) = 0.0_r_def
      mr_ci_mr_ci_input_inner_prod(2_i_def) = 0.0_r_def
-@@ -80,7 +113,7 @@
+@@ -81,7 +113,7 @@
      mr_ci_mr_ci_input_inner_prod(4_i_def) = 0.0_r_def
      mr_ci_mr_ci_input_inner_prod(5_i_def) = 0.0_r_def
      mr_ci_mr_ci_input_inner_prod(6_i_def) = 0.0_r_def
@@ -90,3 +98,11 @@
  &x_innerproduct_y(moist_dyn_tot_moist_dyn_tot_input_inner_prod, moist_dyn_tot, moist_dyn_tot_input), &
  &x_innerproduct_y(mr_ci_mr_ci_input_inner_prod(1_i_def), mr_ci(1_i_def), mr_ci_input(1_i_def)), &
  &x_innerproduct_y(mr_ci_mr_ci_input_inner_prod(2_i_def), mr_ci(2_i_def), mr_ci_input(2_i_def)), &
+@@ -97,7 +129,6 @@
+     inner2 = inner2 + mr_ci_mr_ci_input_inner_prod(4_i_def)
+     inner2 = inner2 + mr_ci_mr_ci_input_inner_prod(5_i_def)
+     inner2 = inner2 + mr_ci_mr_ci_input_inner_prod(6_i_def)
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

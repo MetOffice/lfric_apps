@@ -65,8 +65,11 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
-@@ -67,16 +73,36 @@
+@@ -65,19 +71,38 @@
+     theta_inner_prod = 0.0_r_def
+     u_inner_prod = 0.0_r_def
      exner_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(lhs_exner), setval_x(lhs_exner_input, lhs_exner), setval_random(theta), setval_x(theta_input, &
 -&theta), setval_random(u), setval_x(u_input, u), setval_random(exner), setval_x(exner_input, exner), &
@@ -110,7 +113,7 @@
      lhs_exner_lhs_exner_input_inner_prod = 0.0_r_def
      theta_theta_input_inner_prod = 0.0_r_def
      u_u_input_inner_prod = 0.0_r_def
-@@ -85,11 +111,11 @@
+@@ -86,12 +111,11 @@
  &x_innerproduct_y(lhs_exner_lhs_exner_input_inner_prod, lhs_exner, lhs_exner_input), &
  &x_innerproduct_y(theta_theta_input_inner_prod, theta, theta_input), x_innerproduct_y(u_u_input_inner_prod, u, u_input), &
  &x_innerproduct_y(exner_exner_input_inner_prod, exner, exner_input))
@@ -119,6 +122,7 @@
 -    inner2 = inner2 + theta_theta_input_inner_prod
 -    inner2 = inner2 + u_u_input_inner_prod
 -    inner2 = inner2 + exner_exner_input_inner_prod
+-
 +    inner2 = 0.0_r_solver
 +    inner2 = inner2 + real(lhs_exner_lhs_exner_input_inner_prod, r_solver)
 +    inner2 = inner2 + real(theta_theta_input_inner_prod, r_solver)

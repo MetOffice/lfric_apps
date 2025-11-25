@@ -29,7 +29,12 @@
  
      vector_space_wtheta_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,wtheta)
      call moist_dyn_gas%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas')
-@@ -44,12 +47,22 @@
+@@ -40,22 +43,30 @@
+     call mr_v_input%initialise(vector_space=vector_space_wtheta_ptr, name='mr_v_input')
+     moist_dyn_gas_inner_prod = 0.0_r_def
+     mr_v_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(moist_dyn_gas), setval_x(moist_dyn_gas_input, moist_dyn_gas), setval_random(mr_v), &
  &setval_x(mr_v_input, mr_v), tl_moist_dyn_gas_kernel_type(moist_dyn_gas, mr_v), x_innerproduct_x(moist_dyn_gas_inner_prod, &
  &moist_dyn_gas), x_innerproduct_x(mr_v_inner_prod, mr_v))
@@ -55,3 +60,8 @@
  &moist_dyn_gas, moist_dyn_gas_input), x_innerproduct_y(mr_v_mr_v_input_inner_prod, mr_v, mr_v_input))
      inner2 = 0.0_r_def
      inner2 = inner2 + moist_dyn_gas_moist_dyn_gas_input_inner_prod
+     inner2 = inner2 + mr_v_mr_v_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

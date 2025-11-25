@@ -24,46 +24,15 @@
      integer :: idx_8
      integer :: idx_9
      integer :: idx_10
-@@ -107,7 +106,7 @@
-     iw2v = map_w2v(1)
-     do df = ndf_w2, 1, -1
-       do idx_12 = iw3 + nm1, iw3, -1
--        u_e(idx_12 - iw3 + LBOUND(u_e(:,:), 1),df) = u_e(idx_12 - iw3 + LBOUND(u_e(:,:), 1),df) + q32(idx_12 + ij - iw3,1,df) * &
-+        u_e(idx_12 - iw3 + LBOUND(u_e, dim=1),df) = u_e(idx_12 - iw3 + LBOUND(u_e, dim=1),df) + q32(idx_12 + ij - iw3,1,df) * &
- &lhs_p(idx_12)
-       enddo
-     enddo
-@@ -124,7 +123,7 @@
-         iw2v = map_w2v(df)
-         iw2 = map_w2(ndf_w2h + df)
-         do idx_10 = iw2v + nm1, iw2v, -1
--          u_e(idx_10 - iw2v + LBOUND(u_e(:,:), 1),df2) = u_e(idx_10 - iw2v + LBOUND(u_e(:,:), 1),df2) + mu_cd(idx_10 + ij - &
-+          u_e(idx_10 - iw2v + LBOUND(u_e, dim=1),df2) = u_e(idx_10 - iw2v + LBOUND(u_e, dim=1),df2) + mu_cd(idx_10 + ij - &
- &iw2v,df + ndf_w2h,df2) * norm_u(idx_10 + iw2 - iw2v) * lhs_w(idx_10)
-         enddo
-       enddo
-@@ -144,13 +143,10 @@
+@@ -143,10 +142,7 @@
      do idx_8 = iw2v + nlayers, iw2v, -1
        lhs_w(idx_8) = 0.0
      enddo
 -    do idx_7 = UBOUND(t_col, dim=1), LBOUND(t_col, dim=1), -1
--      t_col(:) = t_col(:) + mt_lumped_inv(idx_7 + iwt - LBOUND(t_col(idx_7), 1)) * t_col(idx_7)
+-      t_col = t_col + mt_lumped_inv(idx_7 + iwt - LBOUND(t_col(idx_7), 1)) * t_col(idx_7)
 -      t_col(idx_7) = 0.0
 -    enddo
 +    t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
      do df = ndf_w2, 1, -1
        do idx_6 = nm1 + 1, 1, -1
--        u_e(idx_6 + LBOUND(u_e(:,:), 1) - 1,df) = u_e(idx_6 + LBOUND(u_e(:,:), 1) - 1,df) + (-pt2(idx_6 + ij - 1,2,df) * &
-+        u_e(idx_6 + LBOUND(u_e, dim=1) - 1,df) = u_e(idx_6 + LBOUND(u_e, dim=1) - 1,df) + (-pt2(idx_6 + ij - 1,2,df) * &
- &t_col(idx_6))
-       enddo
-       do idx_5 = nm1, 0, -1
-@@ -165,7 +161,7 @@
-         iw2h = map_w2h(df)
-         iw2 = map_w2(df)
-         do idx_3 = iw2h + nm1, iw2h, -1
--          u_e(idx_3 - iw2h + LBOUND(u_e(:,:), 1),df2) = u_e(idx_3 - iw2h + LBOUND(u_e(:,:), 1),df2) + mu_cd(idx_3 + ij - &
-+          u_e(idx_3 - iw2h + LBOUND(u_e, dim=1),df2) = u_e(idx_3 - iw2h + LBOUND(u_e, dim=1),df2) + mu_cd(idx_3 + ij - &
- &iw2h,df,df2) * norm_u(idx_3 + iw2 - iw2h) * lhs_uv(idx_3)
-         enddo
-       enddo
+         u_e(idx_6 + LBOUND(u_e, 1) - 1,df) = u_e(idx_6 + LBOUND(u_e, 1) - 1,df) + (-pt2(idx_6 + ij - 1,2,df) * t_col(idx_6))

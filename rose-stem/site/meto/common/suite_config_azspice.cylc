@@ -9,7 +9,7 @@
                       'module purge ; '~
                       'module use /home/users/lfricadmin/lmod ; ' %}
 
-{% set azspice_compiler_gnu = 'module load lfric/vn2.2' %}
+{% set azspice_compiler_gnu = 'module load lfric/vn3.0' %}
 
 {% set azspice_coupled_gnu = 'module load xios/2701-oasis ; '~
                              'module load oasis' %}
@@ -18,7 +18,7 @@
 
 {% set azspice_scitools = 'module load scitools/production-os47-1' %}
 
-{% set azspice_tech = 'module load lfric/vn2.2' %}
+{% set azspice_tech = 'module load lfric/vn3.0' %}
 
     [[AZSPICE_BASE]]
         platform = spice

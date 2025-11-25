@@ -13,7 +13,7 @@
      real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
      type(mesh_type), pointer, intent(in) :: mesh
      type(field_type), dimension(3), intent(in), optional :: chi
-@@ -26,60 +26,57 @@
+@@ -26,62 +26,57 @@
      type(field_type) :: wind
      type(field_type) :: reconstruction
      type(field_type) :: mass_flux_input
@@ -51,6 +51,7 @@
 -    ls_wind_inner_prod = 0.0_r_def
      wind_inner_prod = 0.0_r_def
 -    reconstruction_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
 -    call invoke(setval_random(mass_flux), setval_x(mass_flux_input, mass_flux), setval_random(ls_wind), setval_x(ls_wind_input, &
 -&ls_wind), setval_random(wind), setval_x(wind_input, wind), setval_random(reconstruction), setval_x(reconstruction_input, &
@@ -95,6 +96,7 @@
 -    inner2 = inner2 + ls_wind_ls_wind_input_inner_prod
      inner2 = inner2 + wind_wind_input_inner_prod
 -    inner2 = inner2 + reconstruction_reconstruction_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

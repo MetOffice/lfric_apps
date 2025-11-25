@@ -64,7 +64,7 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
-@@ -82,91 +79,80 @@
+@@ -82,93 +79,80 @@
      call moist_dyn_fac_input(1_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
      call moist_dyn_fac_input(2_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
      call moist_dyn_fac_input(3_i_def)%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_fac_input')
@@ -86,6 +86,7 @@
 -    ls_moist_dyn_fac_inner_prod(1_i_def) = 0.0_r_def
 -    ls_moist_dyn_fac_inner_prod(2_i_def) = 0.0_r_def
 -    ls_moist_dyn_fac_inner_prod(3_i_def) = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(r_u), setval_x(r_u_input, r_u), setval_random(exner), setval_x(exner_input, exner), &
  &setval_random(theta), setval_x(theta_input, theta), setval_random(moist_dyn_fac(1_i_def)), setval_x(moist_dyn_fac_input(1_i_def), &
@@ -197,6 +198,7 @@
 -    inner2 = inner2 + ls_moist_dyn_fac_ls_moist_dyn_fac_input_inner_prod(1_i_def)
 -    inner2 = inner2 + ls_moist_dyn_fac_ls_moist_dyn_fac_input_inner_prod(2_i_def)
 -    inner2 = inner2 + ls_moist_dyn_fac_ls_moist_dyn_fac_input_inner_prod(3_i_def)
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

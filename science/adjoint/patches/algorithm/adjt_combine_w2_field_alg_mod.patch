@@ -49,7 +49,7 @@
  
      vector_space_w2h_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2h)
      vector_space_w2v_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2v)
-@@ -53,47 +55,49 @@
+@@ -53,49 +55,49 @@
      call uvw%initialise(vector_space=vector_space_w3_ptr, name='uvw')
      call uv%initialise(vector_space=vector_space_w2h_ptr, name='uv')
      call w%initialise(vector_space=vector_space_w2v_ptr, name='w')
@@ -68,6 +68,7 @@
      w_inner_prod = 0.0_r_def
 -    face_selector_ew_inner_prod = 0.0_r_def
 -    face_selector_ns_inner_prod = 0.0_r_def
+-
 +    face_selector_ew => get_face_selector_ew(mesh%get_id())
 +    face_selector_ns => get_face_selector_ns(mesh%get_id())
      ! Initialise arguments and call the tangent-linear kernel.
@@ -119,6 +120,7 @@
      inner2 = inner2 + w_w_input_inner_prod
 -    inner2 = inner2 + face_selector_ew_face_selector_ew_input_inner_prod
 -    inner2 = inner2 + face_selector_ns_face_selector_ns_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

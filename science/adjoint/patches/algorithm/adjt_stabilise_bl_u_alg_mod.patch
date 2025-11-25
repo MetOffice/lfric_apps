@@ -33,7 +33,7 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      call u_stabilised%initialise(vector_space=vector_space_w2_ptr, name='u_stabilised')
-@@ -49,9 +51,7 @@
+@@ -49,25 +51,34 @@
      call u_initial_input%initialise(vector_space=vector_space_w2_ptr, name='u_initial_input')
      call u_final_input%initialise(vector_space=vector_space_w2_ptr, name='u_final_input')
      n_levels_to_stabilise = 1_i_def
@@ -43,7 +43,10 @@
      u_stabilised_inner_prod = 0.0_r_def
      u_initial_inner_prod = 0.0_r_def
      u_final_inner_prod = 0.0_r_def
-@@ -61,12 +61,24 @@
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(u_stabilised), setval_x(u_stabilised_input, u_stabilised), setval_random(u_initial), &
+ &setval_x(u_initial_input, u_initial), setval_random(u_final), setval_x(u_final_input, u_final), &
  &stabilise_bl_u_kernel_type(u_stabilised, u_initial, u_final, n_levels_to_stabilise, max_stabilisation), &
  &x_innerproduct_x(u_stabilised_inner_prod, u_stabilised), x_innerproduct_x(u_initial_inner_prod, u_initial), &
  &x_innerproduct_x(u_final_inner_prod, u_final))
@@ -73,7 +76,7 @@
      u_stabilised_u_stabilised_input_inner_prod = 0.0_r_def
      u_initial_u_initial_input_inner_prod = 0.0_r_def
      u_final_u_final_input_inner_prod = 0.0_r_def
-@@ -75,8 +87,6 @@
+@@ -76,12 +87,9 @@
  &x_innerproduct_y(u_initial_u_initial_input_inner_prod, u_initial, u_initial_input), &
  &x_innerproduct_y(u_final_u_final_input_inner_prod, u_final, u_final_input))
      inner2 = 0.0_r_def
@@ -82,3 +85,7 @@
      inner2 = inner2 + u_stabilised_u_stabilised_input_inner_prod
      inner2 = inner2 + u_initial_u_initial_input_inner_prod
      inner2 = inner2 + u_final_u_final_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

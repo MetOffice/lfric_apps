@@ -70,7 +70,7 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
-@@ -66,40 +69,55 @@
+@@ -66,42 +69,55 @@
      call wind_input%initialise(vector_space=vector_space_w2_ptr, name='wind_input')
      call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
      call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
@@ -80,6 +80,7 @@
 -    theta_inner_prod = 0.0_r_def
 -    exner_inner_prod = 0.0_r_def
 -    norm_u_inner_prod = 0.0_r_def
+-
 +    lhs_u_inner_prod = 0.0_r_solver
 +    wind_inner_prod = 0.0_r_solver
 +    theta_inner_prod = 0.0_r_solver
@@ -141,6 +142,7 @@
 -    inner2 = inner2 + theta_theta_input_inner_prod
 -    inner2 = inner2 + exner_exner_input_inner_prod
 -    inner2 = inner2 + norm_u_norm_u_input_inner_prod
+-
 +&exner, exner_input))
 +    inner2 = 0.0_r_solver
 +    inner2 = inner2 + real(lhs_u_lhs_u_input_inner_prod, r_solver)

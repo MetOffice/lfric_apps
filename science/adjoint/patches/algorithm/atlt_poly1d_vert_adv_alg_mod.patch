@@ -49,7 +49,7 @@
  
      vector_space_w2v_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2v)
      vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
-@@ -69,59 +61,47 @@
+@@ -69,61 +61,47 @@
      call advective_input%initialise(vector_space=vector_space_wtheta_ptr, name='advective_input')
      call wind_input%initialise(vector_space=vector_space_w2v_ptr, name='wind_input')
      call tracer_input%initialise(vector_space=vector_space_wtheta_ptr, name='tracer_input')
@@ -69,6 +69,7 @@
 -    ls_wind_inner_prod = 0.0_r_def
 -    ls_tracer_inner_prod = 0.0_r_def
 -    coeff_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(advective), setval_x(advective_input, advective), setval_random(wind), setval_x(wind_input, wind), &
 -&setval_random(tracer), setval_x(tracer_input, tracer), setval_random(ls_wind), setval_x(ls_wind_input, ls_wind), &
@@ -128,6 +129,7 @@
 -    inner2 = inner2 + ls_wind_ls_wind_input_inner_prod
 -    inner2 = inner2 + ls_tracer_ls_tracer_input_inner_prod
 -    inner2 = inner2 + coeff_coeff_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

@@ -36,7 +36,7 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w2broken_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2broken)
-@@ -45,31 +45,34 @@
+@@ -45,33 +45,34 @@
      call rmultiplicity_w2%initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_w2')
      call field_w2_input%initialise(vector_space=vector_space_w2_ptr, name='field_w2_input')
      call field_w2_broken_input%initialise(vector_space=vector_space_w2broken_ptr, name='field_w2_broken_input')
@@ -44,6 +44,7 @@
      field_w2_inner_prod = 0.0_r_def
      field_w2_broken_inner_prod = 0.0_r_def
 -    rmultiplicity_w2_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(field_w2), setval_x(field_w2_input, field_w2), setval_random(field_w2_broken), &
 -&setval_x(field_w2_broken_input, field_w2_broken), setval_random(rmultiplicity_w2), setval_x(rmultiplicity_w2_input, &
@@ -81,6 +82,7 @@
      inner2 = inner2 + field_w2_field_w2_input_inner_prod
      inner2 = inner2 + field_w2_broken_field_w2_broken_input_inner_prod
 -    inner2 = inner2 + rmultiplicity_w2_rmultiplicity_w2_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

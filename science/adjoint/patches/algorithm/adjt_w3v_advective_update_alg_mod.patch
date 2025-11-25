@@ -11,7 +11,7 @@
      real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
      type(mesh_type), pointer, intent(in) :: mesh
      type(field_type), dimension(3), intent(in), optional :: chi
-@@ -28,51 +28,55 @@
+@@ -28,53 +28,55 @@
      type(operator_type) :: m3_inv
      type(field_type) :: advective_increment_input
      type(field_type) :: tracer_input
@@ -45,6 +45,7 @@
      advective_increment_inner_prod = 0.0_r_def
      tracer_inner_prod = 0.0_r_def
 -    wind_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(advective_increment), setval_x(advective_increment_input, advective_increment), &
 -&setval_random(tracer), setval_x(tracer_input, tracer), setval_random(wind), setval_x(wind_input, wind), &
@@ -82,6 +83,7 @@
 -    inner2 = inner2 + advective_increment_advective_increment_input_inner_prod
 -    inner2 = inner2 + tracer_tracer_input_inner_prod
 -    inner2 = inner2 + wind_wind_input_inner_prod
+-
 +&x_innerproduct_y(tracer_tracer_input_inner_prod, tracer, tracer_input))
 +    inner2 = 0.0_r_tran
 +    inner2 = inner2 + real(advective_increment_advective_increment_input_inner_prod, r_tran)

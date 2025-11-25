@@ -12,7 +12,7 @@
      type(mesh_type), pointer, intent(in) :: mesh
      type(field_type), dimension(3), intent(in), optional :: chi
      type(field_type), intent(in), optional :: panel_id
-@@ -25,49 +25,54 @@
+@@ -25,51 +25,54 @@
      type(field_type) :: wind
      type(field_type) :: reconstruction
      type(field_type) :: mass_flux_input
@@ -46,6 +46,7 @@
      mass_flux_inner_prod = 0.0_r_def
 -    wind_inner_prod = 0.0_r_def
      reconstruction_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
 -    call invoke(setval_random(mass_flux), setval_x(mass_flux_input, mass_flux), setval_random(wind), setval_x(wind_input, wind), &
 +    call invoke(setval_random(mass_flux), setval_x(mass_flux_input, mass_flux), setval_random(wind), &
@@ -79,6 +80,7 @@
 -    inner2 = inner2 + mass_flux_mass_flux_input_inner_prod
 -    inner2 = inner2 + wind_wind_input_inner_prod
 -    inner2 = inner2 + reconstruction_reconstruction_input_inner_prod
+-
 +&x_innerproduct_y(mass_flux_mass_flux_input_inner_prod, mass_flux, mass_flux_input), &
 +&x_innerproduct_y(reconstruction_reconstruction_input_inner_prod, reconstruction, reconstruction_input))
 +    inner2 = 0.0_r_tran

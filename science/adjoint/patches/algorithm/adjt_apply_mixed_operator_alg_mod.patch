@@ -45,7 +45,7 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w2h_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2h)
-@@ -95,52 +96,73 @@
+@@ -95,53 +96,73 @@
      call wind_uv_input%initialise(vector_space=vector_space_w2h_ptr, name='wind_uv_input')
      call wind_w_input%initialise(vector_space=vector_space_w2v_ptr, name='wind_w_input')
      call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
@@ -59,6 +59,7 @@
      exner_inner_prod = 0.0_r_def
 -    mt_lumped_inv_inner_prod = 0.0_r_def
 -    norm_u_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(lhs_uv), setval_x(lhs_uv_input, lhs_uv), setval_random(lhs_w), setval_x(lhs_w_input, lhs_w), &
  &setval_random(lhs_p), setval_x(lhs_p_input, lhs_p), setval_random(wind_uv), setval_x(wind_uv_input, wind_uv), &
@@ -142,12 +143,13 @@
      inner2 = 0.0_r_def
      inner2 = inner2 + lhs_uv_lhs_uv_input_inner_prod
      inner2 = inner2 + lhs_w_lhs_w_input_inner_prod
-@@ -148,8 +170,6 @@
+@@ -149,9 +170,6 @@
      inner2 = inner2 + wind_uv_wind_uv_input_inner_prod
      inner2 = inner2 + wind_w_wind_w_input_inner_prod
      inner2 = inner2 + exner_exner_input_inner_prod
 -    inner2 = inner2 + mt_lumped_inv_mt_lumped_inv_input_inner_prod
 -    inner2 = inner2 + norm_u_norm_u_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

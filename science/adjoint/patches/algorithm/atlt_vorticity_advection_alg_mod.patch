@@ -55,7 +55,7 @@
  
      vector_space_w1_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w1)
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
-@@ -69,79 +59,47 @@
+@@ -69,81 +59,47 @@
      call vorticity%initialise(vector_space=vector_space_w1_ptr, name='vorticity')
      call ls_wind%initialise(vector_space=vector_space_w2_ptr, name='ls_wind')
      call ls_vorticity%initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity')
@@ -82,6 +82,7 @@
 -    chi_3_inner_prod(2_i_def) = 0.0_r_def
 -    chi_3_inner_prod(3_i_def) = 0.0_r_def
 -    panel_id_1_inner_prod = 0.0_r_def
+-
      ! Initialise arguments and call the tangent-linear kernel.
      call invoke(setval_random(r_u), setval_x(r_u_input, r_u), setval_random(wind), setval_x(wind_input, wind), &
 -&setval_random(vorticity), setval_x(vorticity_input, vorticity), setval_random(ls_wind), setval_x(ls_wind_input, ls_wind), &
@@ -155,6 +156,7 @@
 -    inner2 = inner2 + chi_3_chi_3_input_inner_prod(2_i_def)
 -    inner2 = inner2 + chi_3_chi_3_input_inner_prod(3_i_def)
 -    inner2 = inner2 + panel_id_1_panel_id_1_input_inner_prod
+-
      ! Test the inner-product values for equality, allowing for the precision of the active variables
      MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
      relative_diff = ABS(inner1 - inner2) / MachineTol

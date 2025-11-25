@@ -44,7 +44,7 @@
      real(kind=r_def) :: inner1
      real(kind=r_def) :: field_out_field_out_input_inner_prod
      real(kind=r_def) :: field1_in_field1_in_input_inner_prod
-@@ -44,22 +45,25 @@
+@@ -44,39 +45,52 @@
      real(kind=r_def) :: inner2
      real(kind=r_def) :: MachineTol
      real(kind=r_def) :: relative_diff
@@ -84,7 +84,10 @@
      field_out_inner_prod = 0.0_r_def
      field1_in_inner_prod = 0.0_r_def
      field2_in_inner_prod = 0.0_r_def
-@@ -69,13 +73,24 @@
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(field_out), setval_x(field_out_input, field_out), setval_random(field1_in), &
+ &setval_x(field1_in_input, field1_in), setval_random(field2_in), setval_x(field2_in_input, field2_in), &
  &combine_multidata_field_kernel_type(field_out, n, field1_in, n1, field2_in, n2, ndata_first), &
  &x_innerproduct_x(field_out_inner_prod, field_out), x_innerproduct_x(field1_in_inner_prod, field1_in), &
  &x_innerproduct_x(field2_in_inner_prod, field2_in))
@@ -115,7 +118,7 @@
      field_out_field_out_input_inner_prod = 0.0_r_def
      field1_in_field1_in_input_inner_prod = 0.0_r_def
      field2_in_field2_in_input_inner_prod = 0.0_r_def
-@@ -84,9 +99,6 @@
+@@ -85,13 +99,9 @@
  &x_innerproduct_y(field1_in_field1_in_input_inner_prod, field1_in, field1_in_input), &
  &x_innerproduct_y(field2_in_field2_in_input_inner_prod, field2_in, field2_in_input))
      inner2 = 0.0_r_def
@@ -125,3 +128,7 @@
      inner2 = inner2 + field_out_field_out_input_inner_prod
      inner2 = inner2 + field1_in_field1_in_input_inner_prod
      inner2 = inner2 + field2_in_field2_in_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol
