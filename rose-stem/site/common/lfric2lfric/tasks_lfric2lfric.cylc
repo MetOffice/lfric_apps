@@ -104,7 +104,7 @@
         "dst_mesh": "seuk_MG",
         "dst_name": "multigrid_l1",
         "dst_type": "regional",
-        "src_mesh": "C12_C16_lam",
+        "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
     }) %}
