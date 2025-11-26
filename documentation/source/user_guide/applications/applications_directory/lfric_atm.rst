@@ -10,8 +10,8 @@ The LFRic atmosphere model - lfric_atm
 ======================================
 
 The `lfric_atm` application is the LFRic atmosphere model used within the
-|Momentum| system. It is build using the LFRic core infrastructure
-code. It runs the Gungho Dynamical core coupled to several physical
+|Momentum| system. It is built using the LFRic core infrastructure
+code. It runs the Gungho dynamical core coupled to several physical
 parametrizations. Some parametrizations are included in the LFRic apps code
 base, others such as Jules, Socrates and UKCA are extracted from external
 repositories.

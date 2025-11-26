@@ -27,12 +27,12 @@ existing checkpoint dump. The expected start timestep will be defined by
 ``timestep_start`` in the ``time`` namelist. There must exist a checkpoint file
 named according to the ``checkpoint_stem_name``, with the correct timestep
 (which would be the ``timestep_start`` setting minus one) otherwise the run will
-fail.
+fail. Typically, such a file will have been created by a preceding run.
 
 Some key ``lfric_atm`` configurations are regularly tested to check that a long
 single run produces exactly the same results as a short initial run plus a
 restarted run of the same total length. Maintaining such equivalence is
-considered to be important by scientist users.
+important for many scientific requirements.
 
 As some configurations of ``lfric_atm`` do not run all the same science every
 timestep, runs that use checkpoint and restart may need to restart at a
@@ -70,23 +70,17 @@ be checkpointed:
    reading process. To ensure correct behaviour, such fields could be split into
    the full-level and half-level components which are written and read
    separately.
-2. XIOS can only write discontinuous fields in layer form when the convention is
-   set to "UGRID". Other field output can be written in the "CF" convention.
+2. XIOS can write discontinuous fields in layer form only when the convention is
+   set to `UGRID`_. Other field outputs can be written in the `CF`_ convention.
 3. XIOS does not currently support the layer output of data on the edges of
-   cells in discontinuous fields on a bi-periodic mesh. Apparently, it can't
-   cope with the wrap-around cells (where the data points on the very right of
-   the domain and those on the left form a single imaginary wrap-around cell).
+   cells in discontinuous fields on a bi-periodic mesh.
+
+.. _CF: https://cfconventions.org/
+.. _UGRID: https://ugrid-conventions.github.io/ugrid-conventions/
 
 Currently, ``lfric_atm`` outputs at least one W2 field which means
 checkpoint-restart suffers the restriction described in the first point
-above. Work is underway to split the field into W2H and W2V components to get
-around the problem.
-
-Eventually, all checkpointed fields should be output in layer form using the
-UGRID convention - splitting W1 and W2 fields as needed. Work would still be
-required to support configurations that use biperiodic meshes and need to
-checkpoint such fields, though the requirement for checkpointing such
-configurations is low priority.
+above.
 
 Configuring the XIOS context
 ----------------------------
@@ -283,7 +277,7 @@ Simplified call tree for setting up I/O in LFRic_atm
         │               │   │           │
         │               │   │           ├──(various xios calls…) 	xios
         │               │   │           │
-	│               │   │           └──handle_legacy_field 		(components/lfric-xios/lfric_xios_metafile_mod.F90)
+        │               │   │           └──handle_legacy_field 		(components/lfric-xios/lfric_xios_metafile_mod.F90)
         │               │   │
         │               │   └──process_physics_prognostics(persistor)
         │               │       │					(gungho/driver/create_physics_prognostics_mod.F90)
