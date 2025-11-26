@@ -11,19 +11,11 @@
                             'module load PrgEnv-gnu ; '~
                             'module load gcc/12.2.0 ; '~
                             'module load lfric-gnu/12.2.0/3.0+ || true' %}
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/trunk
 
 {% set ex1a_compiler_cce =  'module switch PrgEnv-cray PrgEnv-cray/8.4.0 ; ' ~
                             'module load cpe/23.05 ; '~
                             'module switch cce cce/15.0.0 ; '~
-<<<<<<< HEAD
-                            'module load lfric-cray/15.0.0/3.0+ || true' %}
-=======
                             'module load lfric-cray/15.0.0/3.0+ || true ' %}
->>>>>>> upstream/trunk
 
 {% set ex1a_coupled_cce = 'module unload xios/2701-h57fm7d || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
