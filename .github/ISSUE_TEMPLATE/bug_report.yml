@@ -1,7 +1,7 @@
-name: Bug Report
+name: Bug Report Issue
 description: File a bug report.
-title: "[Bug]: "
 labels: ["bug"]
+type: bug
 body:
   - type: markdown
     attributes:
@@ -12,15 +12,25 @@ body:
     attributes:
       label: Contact Details
       description: How can we get in touch with you if we need more info?
-      placeholder: e.g. email@example.com
+      placeholder: e.g. email@example.com @octocat
     validations:
       required: false
-  - type: textarea
+  - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: What version of our software are you running?
+      options:
+        - main
+      default: 0
+    validations:
+      required: true      
+  - type: input
     id: linked-issues
     attributes:
       label: Are there any linked Issues or Pull Requests?
       description: Please tell us about any issues that might be associated with this bug or PRs that may be affected.
-      placeholder: e.g. "#12, MetOffice/Vernier#33, lfric-srs#1981, lfric_apps-srs#123"
+      placeholder: e.g. "#12, MetOffice/lfric_apps#33, ticket:1981"
     validations:
       required: false
   - type: textarea
@@ -31,19 +41,10 @@ body:
       placeholder: Tell us what you see!
     validations:
       required: true
-  - type: dropdown
-    id: version
-    attributes:
-      label: Version
-      description: What version of our software are you running?
-      options:
-        - main
-      default: 0
-    validations:
-      required: true
   - type: textarea
     id: logs
     attributes:
       label: Relevant log output
       description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
       render: shell
+
