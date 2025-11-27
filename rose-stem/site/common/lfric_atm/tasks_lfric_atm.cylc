@@ -36,6 +36,44 @@
         "memory_plot_ex": true,
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_ragged-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","test_diags","physics_segmentation"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 36,
+        "mpi_parts": 30,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+        "memory_plot_ex": true,
+        "panel_decomp": "auto_nonuniform",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_deep-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","deep","test_diags","physics_segmentation"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 36,
+        "mpi_parts": 24,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_nomg-C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["nwp_gal9_nomg"],
+        "resolution": "C48",
+        "DT": 1800,
+        "tsteps": 36,
+        "mpi_parts": 24,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "nwp_gal9-pert-C12" %}
 
     {% do task_dict.update({

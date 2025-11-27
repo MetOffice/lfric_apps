@@ -182,6 +182,17 @@
         "gungho_model_gh_profile_omp2_192mpi-C64_MG_ex1a_gnu_production-64bit",
         "gungho_model_gh_profile_omp2_96mpi-C64_MG_ex1a_gnu_production-64bit",
     ],
+    "gungho_model_ex1a_partitioning": [
+        "gungho_model_test_partition-C896_MG_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C896_MG_nonuniform_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C896_MG_nonuniform4704_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C896_MG_guided_nonuniform_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C896_MG_guided_nonuniform4704_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C896_MG_guided_nonuniform12798_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C96_MG_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C96_MG_nonuniform_ex1a_cce_fast-debug-64bit",
+        "gungho_model_test_partition-C96_MG_guided_nonuniform_ex1a_cce_fast-debug-64bit",
+    ],
     "gungho_model_ex1a_performance": [
         "gungho_model_ex1a_C256_performance",
         "gungho_model_ex1a_C512_performance",

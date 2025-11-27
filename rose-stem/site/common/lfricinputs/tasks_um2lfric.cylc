@@ -254,6 +254,7 @@
         "opt_confs": ["falklands_lam"],
         "resolution": "falklands",
         "mesh_name": "gungho",
+        "panel_decomp": "custom",
         "source_grid_res": "",
         "source_grid_levs": "70",
         "source_grid_type": "regional",

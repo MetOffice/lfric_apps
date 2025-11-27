@@ -509,7 +509,7 @@
         "use_xios": false,
         "log_level": "warning",
         "mpi_parts": 48,
-        "threads": 6,
+        "threads": 4,
         "tsteps": 384,
         "wallclock": 40,
         "kgo_checks": [],
@@ -651,6 +651,79 @@
         "kgo_checks": [],
     }) %}
 
+{% elif task_ns.conf_name == "test_partition-C896_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["held-suarez", "no_io"],
+        "resolution": "C896_MG",
+        "DT": 300,
+        "use_xios": false,
+        "log_level": "debug",
+        "mpi_parts": 4704,
+        "threads": 1,
+        "tsteps": 288,
+        "wallclock": 40,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "test_partition-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["held-suarez", "no_io"],
+        "resolution": "C96_MG",
+        "DT": 1800,
+        "log_level": "debug",
+        "mpi_parts": 96,
+        "threads": 2,
+        "tsteps": 288,
+        "wallclock": 40,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "test_partition-C896_MG_nonuniform4704" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["held-suarez", "no_io", "auto_nonuniform"],
+        "resolution": "C896_MG",
+        "DT": 300,
+        "use_xios": false,
+        "log_level": "debug",
+        "mpi_parts": 4704,
+        "threads": 1,
+        "tsteps": 288,
+        "wallclock": 40,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "test_partition-C96_MG_nonuniform" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["held-suarez", "no_io", "auto_nonuniform"],
+        "resolution": "C96_MG",
+        "DT": 1800,
+        "log_level": "debug",
+        "mpi_parts": 120,
+        "threads": 2,
+        "tsteps": 288,
+        "wallclock": 40,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "test_partition-C896_MG_nonuniform" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["held-suarez", "no_io", "auto_nonuniform"],
+        "resolution": "C896_MG",
+        "DT": 300,
+        "use_xios": false,
+        "log_level": "debug",
+        "mpi_parts": 12768,
+        "threads": 1,
+        "tsteps": 288,
+        "wallclock": 40,
+        "kgo_checks": [],
+    }) %}
+
 {% elif task_ns.conf_name == "gh_profile_omp2_192mpi-C64_MG" %}
 
     {% do task_dict.update({
@@ -658,7 +731,7 @@
         "resolution": "C64_MG",
         "DT": 1800,
         "use_xios": false,
-        "log_level": "warning",
+        "log_level": "debug",
         "mpi_parts": 192,
         "threads": 2,
         "tsteps": 1440,

@@ -9,6 +9,8 @@
     {% if "mpi_parts" not in task_dict %}
         {% do task_dict.update({
             "mpi_parts": 12,
+            "xproc": 3,
+            "yproc": 4,
         }) %}
     {% endif %}
 {% endif %}

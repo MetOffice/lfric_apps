@@ -23,6 +23,8 @@
     {% if "mpi_parts" not in task_dict %}
         {% do task_dict.update({
             "mpi_parts": 126,
+            "xproc": 9,
+            "yproc": 14,
         }) %}
     {% endif %}
     {% if task_dict["app_name"] == "um2lfric" %}

@@ -17,6 +17,9 @@
         "DT": 4,
         "tsteps": 500,
         "mpi_parts": 4,
+        "panel_decomp": "custom",
+        "xproc": 2,
+        "yproc": 2,
         "wallclock": 20,
         "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR theta:tracer_con:tracer_adv:m_v xz all linear cylinder",
     }) %}

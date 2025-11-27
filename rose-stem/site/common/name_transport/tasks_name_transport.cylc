@@ -17,6 +17,7 @@
         "DT": 10,
         "tsteps": 200,
         "mpi_parts": 4,
+        "kgo_checks": [],
         "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR tracer_con xz all linear cylinder",
     }) %}
 
