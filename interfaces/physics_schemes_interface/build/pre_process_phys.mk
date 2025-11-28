@@ -67,6 +67,6 @@ $(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.F90
 else
 $(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.F90
 	echo Pre processing $<
-	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $< $@
+	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $< >$@
 	rm $<
 endif

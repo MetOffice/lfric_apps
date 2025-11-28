@@ -508,7 +508,7 @@
         "DT": 1200,
         "use_xios": false,
         "log_level": "warning",
-        "mpi_parts": 48,
+        "mpi_parts": 96,
         "threads": 4,
         "tsteps": 384,
         "wallclock": 40,
