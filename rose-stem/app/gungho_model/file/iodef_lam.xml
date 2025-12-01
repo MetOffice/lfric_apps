@@ -10,6 +10,9 @@
   <!-- Include variable definitions -->
   <variable_definition src="$METADATA/variable_def_main.xml"/>
 
+  <!-- Include scalar definitions -->
+  <scalar_definition src="$METADATA/scalar_def_main.xml"/>
+
   <!-- Include axis definitions -->
   <axis_definition src="$METADATA/axis_def_main.xml"/>
 
