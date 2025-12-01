@@ -10,7 +10,7 @@ from typing import Dict, List
 
 def run_command(command):
     """
-    Run a subprocess command and return the result object
+    Run a subprocess command and check output
     Inputs:
         - command, str with command to run
     """
