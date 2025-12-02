@@ -43,3 +43,8 @@ documentation/build
 # Emacs backup files
 .#*
 \#*#
+
+# Python
+__pycache__
+*.pyc
+.pytest_cache
