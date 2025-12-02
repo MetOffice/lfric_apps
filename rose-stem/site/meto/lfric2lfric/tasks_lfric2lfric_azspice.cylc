@@ -1,0 +1,12 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/lfric2lfric/tasks_lfric2lfric_azspice.cylc") %}
+
+{% if task_dict %}
+    {% do task_dict.update({"build_families": ["AZSPICE_BUILD_COUPLED_"~task_ns.compiler|upper]}) %}
+{% endif %}
+
+{% do LOG.debug("Finised in site/meto/lfric2lfric/tasks_lfric2lfric_azspice.cylc") %}

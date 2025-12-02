@@ -1,0 +1,205 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief iau_pc2 assimilation module.
+
+module iau_pc2_assimilation_alg_mod
+
+   use constants_mod,                     only : i_def, r_def, r_um, i_um, r_second
+   use field_collection_mod,              only : field_collection_type
+   use field_mod,                         only : field_type
+   use fs_continuity_mod,                 only : Wtheta
+   use integer_field_mod,                 only : integer_field_type
+   use iau_pc2_cff_kernel_mod,            only : iau_pc2_cff_kernel_type
+   use gen_phys_inputs_mod,               only : l_mr_physics
+   use nlsizes_namelist_mod,              only : model_levels
+   use pc2_checks_kernel_mod,             only : pc2_checks_kernel_type
+   use pc2_homog_iau_kernel_mod,          only : pc2_homog_iau_kernel_type
+   use sci_enforce_lower_bound_kernel_mod, only : enforce_lower_bound_kernel_type
+   use sci_enforce_upper_bound_kernel_mod, only : enforce_upper_bound_kernel_type
+
+   implicit none
+
+   private
+   public :: iau_pc2_assimilation
+
+  contains
+  !> @brief    iau_pc2 assimilation
+  !> @details  Calls different PC2 kernels to update the cloud fields
+  !>           after the iau updates
+  !>@param[in,out]  cloud_fields       Fields for cloud scheme
+  !>@param[in]      theta              Potential temperature
+  !>@param[in]      theta_earlier      Copy of potential temperature before incrementing
+  !>@param[in]      exner_wth          Exner pressure on wtheta space
+  !>@param[in]      exner_earlier_wth  Copy of exner pressure on wtheta before incrementing
+  !>@param[in]      m_v                Vapour mass mixing ratio
+  !>@param[in]      mv_earlier         Copy of vapour mass mixing ratio before incrementing
+  !>@param[in]      m_cl               Liquid cloud mass mixing ratio
+  !>@param[in]      mcl_earlier        Copy of liquid cloud mass mixing ratio before incrementing
+  !>@param[in]      m_s                Snow mixing ratio
+  !>@param[in]      ms_earlier         Copy of snow mixing ratio before incrementing
+  !>@param[in]      m_g                Graupel mixing ratio
+  !>@param[in]      mg_earlier         Copy of graupel mixing ratio before incrementing
+  !>@param[in]      dt                 Timestep length (s)
+  subroutine iau_pc2_assimilation( exner_wth,exner_earlier_wth,             &
+                                   theta, theta_earlier,                    &
+                                   m_v, mv_earlier ,                        &
+                                   m_cl, mcl_earlier,                       &
+                                   m_ci, mci_earlier,                       &
+                                   m_r, mr_earlier,                         &
+                                   m_s, ms_earlier,                         &
+                                   m_g, mg_earlier,                         &
+                                   cloud_fields, dt )
+
+  implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_type ),            intent(inout) :: theta
+    type( field_type ),            intent(in)    :: theta_earlier
+    type( field_type ),            intent(in)    :: exner_wth
+    type( field_type ),            intent(in)    :: exner_earlier_wth
+    type( field_type ),            intent(inout) :: m_v
+    type( field_type ),            intent(in)    :: mv_earlier
+    type( field_type ),            intent(inout) :: m_cl
+    type( field_type ),            intent(in)    :: mcl_earlier
+    type( field_type ),            intent(inout) :: m_ci
+    type( field_type ),            intent(in)    :: mci_earlier
+    type( field_type ),            intent(in)    :: m_r
+    type( field_type ),            intent(in)    :: mr_earlier
+    type( field_type ),            intent(in)    :: m_s
+    type( field_type ),            intent(in)    :: ms_earlier
+    type( field_type ),            intent(in)    :: m_g
+    type( field_type ),            intent(in)    :: mg_earlier
+    real(r_second),                intent(in)    :: dt
+
+    ! Cloud fields
+    type( field_type ), pointer :: acf => null()
+    type( field_type ), pointer :: bcf => null()
+    type( field_type ), pointer :: cff => null()
+    type( field_type ), pointer :: cfl => null()
+
+
+    ! pc2 forcing fields
+    type( field_type )      :: theta_forcing_wth
+    type( field_type )      :: mv_forcing_wth
+    type( field_type )      :: mcl_forcing_wth
+    type( field_type )      :: ms_forcing_wth
+
+    ! Various responses
+    type( field_type )      :: theta_inc_wth ! theta response from iau_pc2_check
+    type( field_type )      :: mv_inc_wth  !mv response from iau_pc2_check
+    type( field_type )      :: mcl_inc_wth !mcl response from iau_pc2_check
+    type( field_type )      :: mci_inc_wth !mci response from iau_pc2_check
+    type( field_type )      :: ms_inc_wth  !ms response from iau_pc2_check
+    type( field_type )      :: cff_inc_wth !cff response from iau_pc2_check
+    type( field_type )      :: cfl_inc_wth !cfl response from iau_pc2_homogeneous and check
+    type( field_type )      :: bcf_inc_wth !bcf response from iau_pc2_homogeneous and check
+
+    ! Cloud fields
+    call cloud_fields % get_field( 'area_fraction',acf )
+    call cloud_fields % get_field( 'bulk_fraction',bcf )
+    call cloud_fields % get_field( 'frozen_fraction',cff )
+    call cloud_fields % get_field( 'liquid_fraction',cfl )
+
+    ! Other fields
+    call theta % copy_field_properties( theta_forcing_wth )
+    call m_v % copy_field_properties( mv_forcing_wth )
+    call m_v % copy_field_properties( mcl_forcing_wth )
+    call m_v % copy_field_properties( ms_forcing_wth )
+    call theta % copy_field_properties( theta_inc_wth )
+    call m_v % copy_field_properties( mv_inc_wth )
+    call m_cl % copy_field_properties( mcl_inc_wth )
+    call m_ci % copy_field_properties( mci_inc_wth )
+    call m_s % copy_field_properties( ms_inc_wth )
+    call cff % copy_field_properties( cff_inc_wth )
+    call cfl % copy_field_properties( cfl_inc_wth )
+    call bcf % copy_field_properties( bcf_inc_wth )
+
+    ! Compute the delta fields ( actual - earlier )
+    call invoke( X_minus_Y( theta_forcing_wth, theta, theta_earlier ),        &
+                 X_minus_Y( mv_forcing_wth, m_v, mv_earlier ) ,               &
+                 X_minus_Y( mcl_forcing_wth, m_cl, mcl_earlier ),             &
+
+                 ! Call PC2 homogeneous response to forcing
+                 pc2_homog_iau_kernel_type( mv_earlier,             &
+                                            mcl_earlier,            &
+                                            cfl,                    &
+                                            cff,                    &
+                                            bcf,                    &
+                                            theta_earlier,          &
+                                            exner_wth,              &
+                                            exner_earlier_wth,      &
+                                            ! Forcings
+                                            theta_forcing_wth,      &
+                                            mv_forcing_wth,         &
+                                            mcl_forcing_wth,        &
+                                            ! Response increments
+                                            theta_inc_wth,          &
+                                            mv_inc_wth,             &
+                                            mcl_inc_wth,            &
+                                            cfl_inc_wth,            &
+                                            bcf_inc_wth,            &
+                                            ! Other
+                                            dt ),                   &
+
+                 ! Add pc2 increments to fields with IAU increments included
+                 ! N.B. theta and mv are not updated due to the PC2 response
+                 inc_X_plus_Y( m_cl, mcl_inc_wth ), &
+                 inc_X_plus_Y( cfl, cfl_inc_wth ),  &
+                 inc_X_plus_Y( bcf, bcf_inc_wth ),  &
+
+                 ! Calculate changes to ice cloud fraction
+                 X_minus_Y ( ms_forcing_wth, m_s, ms_earlier ),       &
+                 iau_pc2_cff_kernel_type( ms_earlier, ms_forcing_wth, &
+                                           bcf, cfl, cff ),           &
+
+                 ! Call the pc2_check
+                 pc2_checks_kernel_type( m_v,                   &
+                                         m_cl,                  &
+                                         m_ci,                  &
+                                         m_s,                   &
+                                         cfl,                   &
+                                         cff,                   &
+                                         bcf,                   &
+                                         theta,                 &
+                                         exner_wth,             &
+                                         ! Responses
+                                         theta_inc_wth,         &
+                                         mv_inc_wth,            &
+                                         mcl_inc_wth,           &
+                                         mci_inc_wth,           &
+                                         ms_inc_wth,            &
+                                         cfl_inc_wth,           &
+                                         cff_inc_wth,           &
+                                         bcf_inc_wth  ),        &
+
+                 ! Update cloud liquid fraction and cloud bulk fraction and m_cl
+                 inc_X_plus_Y( theta, theta_inc_wth ),     &
+                 inc_X_plus_Y( m_v, mv_inc_wth ),          &
+                 inc_X_plus_Y( m_cl, mcl_inc_wth ),        &
+                 inc_X_plus_Y( m_ci, mci_inc_wth ),        &
+                 inc_X_plus_Y( m_s, ms_inc_wth ),          &
+                 inc_X_plus_Y( cfl, cfl_inc_wth ),         &
+                 inc_X_plus_Y( cff, cff_inc_wth ),         &
+                 inc_X_plus_Y( bcf, bcf_inc_wth ),         &
+                 enforce_lower_bound_kernel_type (m_v,  0.0_r_def), &
+                 enforce_lower_bound_kernel_type (m_cl, 0.0_r_def), &
+                 enforce_lower_bound_kernel_type (m_ci, 0.0_r_def), &
+                 enforce_lower_bound_kernel_type (m_s, 0.0_r_def),  &
+                 enforce_lower_bound_kernel_type (cfl,  0.0_r_def), &
+                 enforce_lower_bound_kernel_type (cff,  0.0_r_def), &
+                 enforce_lower_bound_kernel_type (bcf,  0.0_r_def), &
+                 enforce_upper_bound_kernel_type (cfl, 1.0_r_def, 1.0_r_def), &
+                 enforce_upper_bound_kernel_type (cff, 1.0_r_def, 1.0_r_def), &
+                 enforce_upper_bound_kernel_type (bcf, 1.0_r_def, 1.0_r_def), &
+                 setval_X(acf, bcf) )
+
+    nullify( acf, bcf, cff, cfl )
+
+  end subroutine iau_pc2_assimilation
+
+end module iau_pc2_assimilation_alg_mod

@@ -1,0 +1,75 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the vertical Lipschitz calculation
+
+module lipschitz_vertical_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: lipschitz_vertical_test_type
+    private
+  contains
+    procedure test_all
+  end type lipschitz_vertical_test_type
+
+contains
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use lipschitz_vertical_kernel_mod, only: lipschitz_vertical_code
+
+    implicit none
+
+    class(lipschitz_vertical_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran
+
+    ! DOF and stencil parameters
+    integer(kind=i_def), parameter :: nlayers = 6
+    integer(kind=i_def), parameter :: ndf_w2 = 2
+    integer(kind=i_def), parameter :: undf_w2 = 7
+    integer(kind=i_def)            :: cell
+
+    ! Maps
+    integer(kind=i_def), dimension(ndf_w2)  :: map_w2
+
+    ! Fields
+    real(kind=r_tran),   dimension(undf_w2) :: dep_dist_z
+    real(kind=r_tran),   dimension(undf_w2) :: lipschitz
+    real(kind=r_tran),   dimension(undf_w2) :: answer
+
+    ! Set up maps
+    map_w2(:) = (/ 1, 2 /)
+
+    dep_dist_z(:) = (/ 0.0_r_tran, 1.2_r_tran, -5.0_r_tran, 0.5_r_tran, &
+                       0.3_r_tran, -0.4_r_tran, 0.0_r_tran /)
+    answer(:) = (/ 0.0_r_tran, 1.2_r_tran, 5.5_r_tran, 5.5_r_tran, &
+                  -0.2_r_tran, 0.4_r_tran, 0.0_r_tran  /)
+
+    lipschitz(:) = 0.0_r_tran
+
+    call lipschitz_vertical_code( nlayers,     &
+                                  lipschitz,   &
+                                  dep_dist_z,  &
+                                  ndf_w2,      &
+                                  undf_w2,     &
+                                  map_w2 )
+
+    @assertEqual(answer, lipschitz, tol)
+
+  end subroutine test_all
+
+end module lipschitz_vertical_kernel_mod_test

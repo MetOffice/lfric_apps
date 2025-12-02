@@ -1,0 +1,454 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Provides routines for initialising each of gungho's prognostics
+module init_gungho_prognostics_alg_mod
+
+  use log_mod,                         only: log_event,         &
+                                             LOG_LEVEL_ERROR,   &
+                                             LOG_LEVEL_INFO
+  use constants_mod,                   only: r_def, i_def, radians_to_degrees
+  use domain_mod,                      only: domain_type
+  use extrusion_config_mod,            only: planet_radius
+  use sci_mass_matrix_solver_alg_mod,  only: mass_matrix_solver_alg
+  use sample_init_u_alg_mod,           only: sample_init_u_alg
+  use sci_geometric_constants_mod,     only: get_coordinates, &
+                                             get_panel_id,    &
+                                             get_height_fe,   &
+                                             get_height_fv
+  use sci_fem_constants_mod,           only: get_inverse_mass_matrix_fe, &
+                                             get_inverse_mass_matrix_fv, &
+                                             get_qr_fe, get_qr_fv
+  use base_mesh_config_mod,            only: geometry,           &
+                                             geometry_spherical, &
+                                             geometry_planar
+  use formulation_config_mod,          only: eos_method,              &
+                                             eos_method_sampled,      &
+                                             eos_method_projected,    &
+                                             moisture_formulation,    &
+                                             moisture_formulation_dry
+  use idealised_config_mod,            only: test,                &
+                                             test_bryan_fritsch,  &
+                                             test_grabowski_clark
+  use initial_pressure_config_mod,     only: method,           &
+                                             method_sampled,   &
+                                             method_projected, &
+                                             method_balanced
+  use initial_wind_config_mod,         only: smp_init_wind,                   &
+                                             sbr_angle_lat, sbr_angle_lon,    &
+                                             u0, v0,                          &
+                                             profile,                         &
+                                             profile_sbr_streamfunction,      &
+                                             profile_dcmip301_streamfunction, &
+                                             profile_div_free_reversible,     &
+                                             profile_eternal_fountain,        &
+                                             profile_NL_case_4,               &
+                                             profile_rotational,              &
+                                             profile_pw_linear
+  use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
+                                             recip_epsilon
+
+  ! PsyKAl-lite kernels
+  use sci_field_bundle_builtins_mod,   only: set_bundle_scalar
+
+  ! PsyKAl PSyclone kernels
+  use dg_matrix_vector_kernel_mod,     only: dg_matrix_vector_kernel_type
+  use set_exner_kernel_mod,            only: set_exner_kernel_type
+  use set_rho_kernel_mod,              only: set_rho_kernel_type
+  use initial_u_kernel_mod,            only: initial_u_kernel_type
+  use sci_enforce_bc_kernel_mod,       only: enforce_bc_kernel_type
+  use initial_theta_kernel_mod,        only: initial_theta_kernel_type
+  use initial_exner_sample_kernel_mod, only: initial_exner_sample_kernel_type
+  use initial_rho_sample_kernel_mod,   only: initial_rho_sample_kernel_type
+  use project_eos_rho_kernel_mod,      only: project_eos_rho_kernel_type
+  use sample_eos_rho_kernel_mod,       only: sample_eos_rho_kernel_type
+  use hydrostatic_exner_kernel_mod,    only: hydrostatic_exner_kernel_type
+  use initial_mr_kernel_mod,           only: initial_mr_kernel_type
+  use initial_streamfunc_kernel_mod,   only: initial_streamfunc_kernel_type
+  use strong_curl_kernel_mod,          only: strong_curl_kernel_type
+  use sample_initial_u_kernel_mod,     only: sample_initial_u_kernel_type
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+  use mesh_mod,                        only: mesh_type
+  use quadrature_xyoz_mod,             only: quadrature_xyoz_type
+  use operator_mod,                    only: operator_type
+  use function_space_collection_mod,   only: function_space_collection
+
+  ! Handles
+  use fs_continuity_mod,               only: W1, W3, Wtheta
+  use mr_indices_mod,                  only: nummr, mr_names, imr_v
+  use moist_dyn_mod,                   only: num_moist_factors, gas_law
+
+  implicit none
+
+  private
+  public :: init_u_field
+  public :: init_theta_field
+  public :: init_exner_field
+  public :: init_rho_field
+  public :: init_mr_fields
+
+contains
+
+  !> @details This routine initialises the wind field.
+  !> @param[in,out] u          Wind velocity field
+  !> @param[in]     time       time, used for setting analytic profiles
+  subroutine init_u_field(u, time)
+
+    implicit none
+
+    type(field_type), intent(inout) :: u
+    real(kind=r_def), intent(in)    :: time
+
+    type(mesh_type), pointer            :: mesh => null()
+    type(field_type)                    :: r_u, r_psi, psi
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+
+    type(domain_type)   :: domain
+    real(kind=r_def)    :: domain_max_x
+    real(kind=r_def)    :: domain_max_y
+    integer(kind=i_def) :: element_order_h
+    integer(kind=i_def) :: element_order_v
+
+    mesh => u%get_mesh()
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+    domain = mesh%get_domain()
+    if ( domain%is_lonlat() ) then
+      domain_max_x = radians_to_degrees * domain%maximum_lonlat(axis=1)
+      domain_max_y = radians_to_degrees * domain%maximum_lonlat(axis=2)
+    else
+      domain_max_x = domain%maximum_xy(axis=1)
+      domain_max_y = domain%maximum_xy(axis=2)
+    end if
+
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      qr => get_qr_fe()
+    else
+      qr => get_qr_fv()
+    end if
+
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+
+    !--------------------------------------------------------------------------!
+    ! Initialise U according to formulation by sampling
+    !--------------------------------------------------------------------------!
+
+    if (smp_init_wind) then
+      if ( geometry /= geometry_planar ) then
+        call log_event('Sampling initial wind only implemented for planar geometry', &
+                       LOG_LEVEL_ERROR)
+      end if
+      if ( profile == profile_pw_linear ) then
+        call sample_init_u_alg( u )
+      else
+        call invoke( name = "get_u_from_sampling", &
+                     setval_c( u, 0.0_r_def ),     &
+                     sample_initial_u_kernel_type( u, chi, u0, v0 ) )
+      end if
+    else
+
+      if ( profile == profile_sbr_streamfunction .or.      &
+           profile == profile_dcmip301_streamfunction .or. &
+           profile == profile_eternal_fountain .or.        &
+           profile == profile_div_free_reversible .or.     &
+           profile == profile_NL_case_4 .or.               &
+           profile == profile_rotational ) then
+
+        !----------------------------------------------------------------------!
+        ! Initialise from stream function
+        !----------------------------------------------------------------------!
+
+        call log_event( "Gungho: Initialising winds from stream function",     &
+                        LOG_LEVEL_INFO )
+        call psi%initialise( vector_space =                                    &
+                function_space_collection%get_fs(mesh, element_order_h,        &
+                                                 element_order_v, W1) )
+        call r_psi%initialise( vector_space =                                  &
+                function_space_collection%get_fs(mesh, element_order_h,        &
+                                                 element_order_v, W1) )
+        call invoke( name = "initialise_streamfunction",                       &
+                     setval_c(psi, 0.0_r_def),                                 &
+                     setval_c(r_psi, 0.0_r_def),                               &
+                     initial_streamfunc_kernel_type( r_psi, chi, panel_id,     &
+                                                     time, domain_max_x,       &
+                                                     sbr_angle_lat,            &
+                                                     sbr_angle_lon,            &
+                                                     u0, v0, qr ) )
+        ! We do not want to force zero stream function at boundaries
+        call mass_matrix_solver_alg(psi, r_psi, bc_flag=.false.)
+        call invoke( name = "get_u_from_curl_of_psi", &
+                     strong_curl_kernel_type(u, psi) )
+        ! Prevent any flux out from the domain
+        ! However for spherical domains this could prevent the resulting
+        ! wind from being divergence-free, so only do this for Cartesian domains
+        if (geometry /= geometry_spherical) then
+          call invoke( name = "apply_bcs_to_u", &
+                       enforce_bc_kernel_type( u ) )
+        end if
+
+      else
+        !----------------------------------------------------------------------!
+        ! Initialise U according to formulation by projecting
+        !----------------------------------------------------------------------!
+
+        call log_event("Initialise u with projection", LOG_LEVEL_INFO)
+        call r_u%initialise( vector_space =  u%get_function_space() )
+        call invoke( name = "get_u_from_projection",                       &
+                     setval_c( u, 0.0_r_def ), setval_c( r_u, 0.0_r_def ), &
+                     initial_u_kernel_type( r_u, chi, panel_id, time,      &
+                                            domain_max_x, domain_max_y,    &
+                                            qr ),                          &
+                     enforce_bc_kernel_type( r_u ) )
+        call mass_matrix_solver_alg(u, r_u)
+      end if
+    end if
+
+    call r_u%field_final()
+    call r_psi%field_final()
+    call psi%field_final()
+
+    nullify( chi, panel_id, qr )
+
+  end subroutine init_u_field
+
+  !> @details This routine initialises the potential temperature field.
+  !> @param[in,out] theta      potential temperature field
+  subroutine init_theta_field(theta)
+
+    implicit none
+
+    type(field_type), intent(inout) :: theta
+
+    integer(kind=i_def)             :: mesh_id
+    type(field_type),       pointer :: chi(:) => null()
+    type(field_type),       pointer :: panel_id => null()
+
+    mesh_id = theta%get_mesh_id()
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+
+    call invoke( initial_theta_kernel_type( theta, chi, panel_id ) )
+
+    nullify( chi, panel_id )
+
+  end subroutine init_theta_field
+
+
+  !> @details This routine initialises the Exner pressure field.
+  !> @param[in,out] exner      Exner pressure field
+  !> @param[in]     theta      potential temperature field
+  !> @param[in]     moist_dyn  array of fields with moist dynamics factors
+  !> @param[in]     time       time, used for setting analytic profiles
+  subroutine init_exner_field(exner, theta, moist_dyn, time)
+
+    implicit none
+
+    ! Arguments
+    type(field_type), intent(inout) :: exner
+    type(field_type), intent(in)    :: theta
+    type(field_type), intent(in)    :: moist_dyn(num_moist_factors)
+    real(kind=r_def), intent(in)    :: time
+
+    ! Internal variables
+    integer(kind=i_def)                 :: mesh_id
+    integer(kind=i_def)                 :: element_order_h, &
+                                           element_order_v
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(field_type),           pointer :: height_wth => null()
+    type(field_type),           pointer :: height_w3 => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+
+    ! Get element orders
+    element_order_h = exner%get_element_order_h()
+    element_order_v = exner%get_element_order_v()
+
+    ! Point to objects for this mesh
+    mesh_id = exner%get_mesh_id()
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      height_w3 => get_height_fe(W3, mesh_id)
+      height_wth => get_height_fe(Wtheta, mesh_id)
+      qr => get_qr_fe()
+    else
+      height_w3 => get_height_fv(W3, mesh_id)
+      height_wth => get_height_fv(Wtheta, mesh_id)
+      qr => get_qr_fv()
+    end if
+
+    ! Initialise Exner pressure according to formulation
+    select case(method)
+      case(method_balanced)
+        ! Initialise exner assuming hydrostatic balance
+        call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
+                                                    height_wth, height_w3,   &
+                                                    chi, panel_id, gravity,  &
+                                                    p_zero, rd, cp, planet_radius ) )
+      case(method_sampled)
+        ! Initialise exner through sampling analytic solution
+        call invoke (initial_exner_sample_kernel_type( exner, chi, panel_id, time ) )
+      case(method_projected)
+        ! Initialise exner by projecting analytic solution
+        call invoke( set_exner_kernel_type ( exner, chi, panel_id, time, qr ) )
+      case default
+        call log_event( "Gungho: Unrecognised method in initial_pressure", LOG_LEVEL_ERROR )
+    end select
+
+    nullify( chi, panel_id, height_wth, height_w3, qr )
+
+  end subroutine init_exner_field
+
+
+  !> @details This routine initialises the Exner pressure field. It is callable
+  !>          so that it can be used by other modules.
+  !> @param[in,out] rho        dry density field
+  !> @param[in]     theta      potential temperature field
+  !> @param[in]     exner      Exner pressure field
+  !> @param[in]     moist_dyn  array of fields with moist dynamics factors
+  !> @param[in]     time       time, used for setting analytic profiles
+  subroutine init_rho_field(rho, theta, exner, moist_dyn, time)
+
+    implicit none
+
+    ! Arguments
+    type(field_type), intent(inout) :: rho
+    type(field_type), intent(in)    :: theta
+    type(field_type), intent(in)    :: exner
+    type(field_type), intent(in)    :: moist_dyn(num_moist_factors)
+    real(kind=r_def), intent(in)    :: time
+
+    ! Internal variables
+    integer(kind=i_def)                 :: mesh_id
+    integer(kind=i_def)                 :: element_order_h, &
+                                           element_order_v
+    type(field_type)                    :: r_rho
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(operator_type),        pointer :: m3_inv => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+
+    ! Get element orders
+    element_order_h = exner%get_element_order_h()
+    element_order_v = exner%get_element_order_v()
+
+    ! Point to objects for this mesh
+    mesh_id = rho%get_mesh_id()
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+      qr => get_qr_fe()
+    else
+      m3_inv => get_inverse_mass_matrix_fv(W3, mesh_id)
+      qr => get_qr_fv()
+    end if
+
+    call r_rho%initialise( vector_space =  rho%get_function_space() )
+
+    ! Initialise rho using equation of state, either sampled or projected
+    select case(eos_method)
+      case(eos_method_sampled)
+        ! Diagnose density from equation of state by sampling
+        call invoke( sample_eos_rho_kernel_type( rho, exner, theta,     &
+                                                 moist_dyn(gas_law),    &
+                                                 kappa, rd, p_zero ) )
+      case(eos_method_projected)
+        ! Diagnose density from equation of state by projection
+        call invoke( setval_c( r_rho, 0.0_r_def ),                      &
+                     project_eos_rho_kernel_type( r_rho, exner, theta,  &
+                                                  moist_dyn(gas_law),   &
+                                                  chi, panel_id, kappa, &
+                                                  rd, p_zero, qr ),     &
+                     dg_matrix_vector_kernel_type(rho, r_rho, m3_inv) )
+      case default
+        call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+    end select
+
+    call r_rho%field_final()
+    nullify( chi, panel_id, m3_inv, qr )
+
+  end subroutine init_rho_field
+
+
+  !> @details This routine initialises the moisture mixing ratio fields.
+  !> @param[in,out] mr         array of moisture mixing ratio fields
+  !> @param[in]     theta      potential temperature field
+  !> @param[in,out] exner      Exner pressure field
+  !> @param[in,out] rho        dry density field
+  !> @param[in,out] moist_dyn  moist dynamics factors
+  subroutine init_mr_fields(mr, theta, exner, rho, moist_dyn)
+
+    use moist_dyn_factors_alg_mod, only: moist_dyn_factors_alg
+
+    implicit none
+
+    type(field_type), intent(inout) :: mr(nummr)
+    type(field_type), intent(in)    :: theta
+    type(field_type), intent(inout) :: exner
+    type(field_type), intent(inout) :: rho
+    type(field_type), intent(inout) :: moist_dyn(num_moist_factors)
+
+    type(field_type), pointer :: chi(:) => null()
+    type(field_type), pointer :: panel_id => null()
+    type(field_type), pointer :: height_w3 => null()
+    type(field_type), pointer :: height_wth => null()
+
+    real(kind=r_def)    :: initial_time
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: element_order_h, element_order_v
+
+    if ( moisture_formulation == moisture_formulation_dry ) then
+      call set_bundle_scalar(0.0_r_def, mr, nummr)
+      call moist_dyn_factors_alg( moist_dyn, mr )
+    else
+      element_order_h = theta%get_element_order_h()
+      element_order_v = theta%get_element_order_v()
+
+      mesh_id = theta%get_mesh_id()
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+
+      call invoke( initial_mr_kernel_type( theta, exner, rho, mr, chi, &
+                                           panel_id, p_zero, rd, kappa ) )
+
+      call moist_dyn_factors_alg( moist_dyn, mr )
+
+      if ( (test /= test_grabowski_clark) .and. &
+           (test /= test_bryan_fritsch) ) then
+        ! Recompute hydrostatic balance following the addition of moisture
+        ! TODO: This should not be done here -- will be fixed by #2877
+        ! This should be done by separate routines from the driver level
+        if( element_order_h > 0 .or. element_order_v > 0 ) then
+          height_w3 => get_height_fe(W3, mesh_id)
+          height_wth => get_height_fe(Wtheta, mesh_id)
+        else
+          height_w3 => get_height_fv(W3, mesh_id)
+          height_wth => get_height_fv(Wtheta, mesh_id)
+        end if
+        initial_time = 0.0_r_def
+        call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
+                                                    height_wth, height_w3,   &
+                                                    chi, panel_id, gravity,  &
+                                                    p_zero, rd, cp, planet_radius ) )
+
+        call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+      end if
+    end if
+
+    nullify(chi, panel_id, height_w3, height_wth)
+
+  end subroutine init_mr_fields
+
+
+
+end module init_gungho_prognostics_alg_mod

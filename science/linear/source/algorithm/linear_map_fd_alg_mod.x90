@@ -1,0 +1,149 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Map the prognostic fields from the tangent linear start dump fields.
+!> @details The start dump has already been read from a file into fd_fields.
+!!          Here, the fd_fields are mapped to the prognostic fields.
+module linear_map_fd_alg_mod
+
+  use constants_mod,                   only: r_def
+  use log_mod,                         only: log_event,         &
+                                             LOG_LEVEL_INFO
+  use field_array_mod,                 only: field_array_type
+  use field_mod,                       only: field_type
+  use integer_field_mod,               only: integer_field_type
+  use field_collection_mod,            only: field_collection_type
+  use driver_modeldb_mod,              only: modeldb_type
+  use initialization_config_mod,       only: read_w2h_wind
+  use combine_w2_field_kernel_mod,     only: combine_w2_field_kernel_type
+  use map_fd_to_prognostics_alg_mod,   only: set_wind
+  use sci_field_minmax_alg_mod,        only: log_field_minmax
+  use sci_geometric_constants_mod,     only: get_face_selector_ew, &
+                                             get_face_selector_ns
+
+
+  implicit none
+
+  private
+  public :: linear_map_fd_to_prognostics
+
+contains
+
+  !> @brief Setting FE prognostic fields from start dump fields.
+  !> @details Most prognostic fields are a simple copy from fd_fields. But
+  !!    u (wind) combines the horizontal and vertical fields together, and
+  !!    moist_dyn_factors is updated using the mr fields. (Note that the input
+  !!    data is marked as finite-difference fields to be consistent with the
+  !!    nonlinear model. However, the input data has actually come from FE
+  !!    output).
+  !> @param[in,out] modeldb  The working data set for the model run
+  subroutine linear_map_fd_to_prognostics( modeldb )
+
+    use mr_indices_mod,                only : imr_v, imr_cl, imr_ci, imr_r, &
+                                              imr_s, imr_g
+    use tl_moist_dyn_factors_alg_mod,  only : tl_moist_dyn_factors_alg
+
+    implicit none
+
+    type( modeldb_type ), target, intent(inout) :: modeldb
+
+    ! FE Prognostic fields
+    type(field_collection_type), pointer :: prognostic_fields => null()
+    type(field_type),            pointer :: mr(:)             => null()
+    type(field_type),            pointer :: moist_dyn(:)      => null()
+    type( field_type ),          pointer :: theta             => null()
+    type( field_type ),          pointer :: rho               => null()
+    type( field_type ),          pointer :: u                 => null()
+    type( field_type ),          pointer :: exner             => null()
+
+    ! Fields from start-dump
+    type(field_collection_type), pointer :: fd_fields
+    type( field_type ),          pointer :: h_wind_in_w2h         => null()
+    type( field_type ),          pointer :: ew_wind_in_w3         => null()
+    type( field_type ),          pointer :: ns_wind_in_w3         => null()
+    type( field_type ),          pointer :: dry_rho_in_w3         => null()
+    type( field_type ),          pointer :: upward_wind_in_wtheta => null()
+    type( field_type ),          pointer :: theta_in_wtheta       => null()
+    type( field_type ),          pointer :: mv_in_wtheta          => null()
+    type( field_type ),          pointer :: mcl_in_wtheta         => null()
+    type( field_type ),          pointer :: mcf_in_wtheta         => null()
+    type( field_type ),          pointer :: mr_in_wtheta          => null()
+    type( field_type ),          pointer :: exner_in_w3           => null()
+
+    type(field_collection_type), pointer :: moisture_fields => null()
+    type(field_array_type),      pointer :: mr_array => null()
+    type(field_array_type),      pointer :: moist_dyn_array => null()
+    type(integer_field_type),    pointer :: face_selector_ew => null()
+    type(integer_field_type),    pointer :: face_selector_ns => null()
+
+    prognostic_fields => modeldb%fields%get_field_collection(&
+                                          "prognostic_fields")
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+    mr => mr_array%bundle
+    moist_dyn => moist_dyn_array%bundle
+    fd_fields => modeldb%fields%get_field_collection("fd_fields")
+
+    ! FD (source) fields
+    if ( read_w2h_wind ) then
+      call fd_fields%get_field('h_u', h_wind_in_w2h)
+    else
+      call fd_fields%get_field('ew_wind_in_w3', ew_wind_in_w3)
+      call fd_fields%get_field('ns_wind_in_w3', ns_wind_in_w3)
+    end if
+
+    call fd_fields%get_field('rho', dry_rho_in_w3)
+    call fd_fields%get_field('v_u', upward_wind_in_wtheta)
+    call fd_fields%get_field('theta', theta_in_wtheta)
+    call fd_fields%get_field('m_v', mv_in_wtheta)
+    call fd_fields%get_field('m_cl', mcl_in_wtheta)
+    call fd_fields%get_field('m_s', mcf_in_wtheta)
+    call fd_fields%get_field('m_r', mr_in_wtheta)
+    call fd_fields%get_field('exner', exner_in_w3)
+
+    ! Prognostic (target) fields
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('exner', exner)
+    call prognostic_fields%get_field('rho', rho)
+
+    call invoke( setval_x(theta, theta_in_wtheta),    &
+                 setval_x(rho, dry_rho_in_w3),        &
+                 setval_x(mr(imr_v), mv_in_wtheta),   &
+                 setval_x(mr(imr_cl), mcl_in_wtheta), &
+                 setval_x(mr(imr_s),  mcf_in_wtheta), &
+                 setval_x(mr(imr_r), mr_in_wtheta),   &
+                 setval_c(mr(imr_ci), 0.0_r_def),     &
+                 setval_c(mr(imr_g), 0.0_r_def),      &
+                 setval_x(exner, exner_in_w3))
+
+    if ( read_w2h_wind ) then
+      ! We read in the horizontal (normal to face) winds on the w2h points - without scaling
+      face_selector_ew => get_face_selector_ew(u%get_mesh_id())
+      face_selector_ns => get_face_selector_ns(u%get_mesh_id())
+      call invoke( combine_w2_field_kernel_type( u, h_wind_in_w2h,      &
+                                                 upward_wind_in_wtheta, &
+                                                 face_selector_ew,      &
+                                                 face_selector_ns ) )
+    else
+      ! We read in cell centred zonal/meridional winds
+      call set_wind( u, ew_wind_in_w3, ns_wind_in_w3, upward_wind_in_wtheta )
+    end if
+
+   call log_field_minmax( LOG_LEVEL_INFO, 'theta pert', theta )
+   call log_field_minmax( LOG_LEVEL_INFO, 'rho pert',   rho )
+   call log_field_minmax( LOG_LEVEL_INFO, 'exner pert', exner )
+   call log_field_minmax( LOG_LEVEL_INFO, 'u pert',     u )
+
+   ! Update factors for moist dynamics
+   call tl_moist_dyn_factors_alg( moist_dyn, mr )
+
+   call log_event( "Linear: Set prognostic fields from FD fields", LOG_LEVEL_INFO )
+
+  end subroutine linear_map_fd_to_prognostics
+
+end module linear_map_fd_alg_mod

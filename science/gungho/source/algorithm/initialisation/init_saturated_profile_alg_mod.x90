@@ -1,0 +1,307 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!
+!> @brief Compute theta and moisture mixing ratios for a saturated atmosphere.
+
+module init_saturated_profile_alg_mod
+
+use constants_mod,                   only: r_def, i_def
+use driver_water_constants_mod,      only: heat_capacity_h2o_vapour, &
+                                           heat_capacity_h2o
+use sci_field_bundle_builtins_mod,   only: set_bundle_scalar, clone_bundle
+use field_mod,                       only: field_type
+use formulation_config_mod,          only: moisture_formulation,     &
+                                           moisture_formulation_dry, &
+                                           theta_moist_source
+use function_space_mod,              only: function_space_type
+use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id
+use idealised_config_mod,            only: test, test_bryan_fritsch
+use init_gungho_prognostics_alg_mod, only: init_exner_field, &
+                                           init_rho_field,   &
+                                           init_mr_fields
+use initial_theta_kernel_mod,        only: initial_theta_kernel_type
+use log_mod,                         only: LOG_LEVEL_ERROR,  &
+                                           LOG_LEVEL_INFO,   &
+                                           log_event,        &
+                                           log_scratch_space
+use mesh_mod,                        only: mesh_type
+use moist_dyn_factors_alg_mod,       only: moist_dyn_factors_alg
+use moist_dyn_mod,                   only: num_moist_factors
+use mr_indices_mod,                  only: nummr, imr_v, imr_cl
+use norm_alg_mod,                    only: rel_l2_error_alg
+use physics_mappings_alg_mod,        only: map_physics_scalars
+use planet_config_mod,               only: rd, p_zero, kappa, cp, recip_epsilon
+use theta_e_kernel_mod,              only: theta_e_kernel_type
+use transport_config_mod,            only: theta_variable, &
+                                           theta_variable_moist
+
+implicit none
+
+private
+
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+public :: init_saturated_profile_alg
+
+contains
+
+!> @brief Compute theta and moisture mixing ratios for a saturated atmosphere.
+!> @details The initial theta and moisture mixing ratio fields are computed for
+!>          a saturated atmosphere, whose thermodynamics are specified in terms
+!>          of a wet equivalent potential temperature, and a total moisture
+!>          field. The atmosphere is saturated, so the water vapour field is set
+!>          to the saturation mixing ratio, and the remainder of the moisture is
+!>          cloud liquid.
+!>
+!>          The algebraic relationship between these variables is complex. To
+!>          compute our prognostic fields we use three nested loops, relying on
+!>          Picard iteration to convergence to the solution. The Exner and rho
+!>          fields are computed by taking hydrostatic balance.
+!>
+!> @param[in,out] theta       potential temperature field
+!> @param[in,out] mr          array of moisture mixing ratio fields
+!> @param[in,out] exner       Exner pressure field
+!> @param[in,out] rho         dry density field
+!> @param[in,out] moist_dyn   array of fields with moist dynamics factors
+subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
+
+  implicit none
+
+  ! Arguments
+  type(field_type), intent(inout) :: theta
+  type(field_type), intent(inout) :: mr(nummr)
+  type(field_type), intent(inout) :: exner
+  type(field_type), intent(inout) :: rho
+  type(field_type), intent(inout) :: moist_dyn(num_moist_factors)
+
+  ! Internal variables
+  type(field_type) :: specified_theta_e ! specified theta_e field
+  type(field_type) :: latest_theta_e    ! latest diagnosed theta_e field
+  type(field_type) :: latest_theta_d    ! latest guess for theta_d field
+  type(field_type) :: latest_exner      ! latest guess for exner field
+  type(field_type) :: exner_at_wt       ! Exner pressure converted to Wtheta
+  type(field_type) :: mr_t              ! specified total water mixing ratio
+  type(field_type) :: theta_pert        ! potential temperature perturbation
+
+  type(field_type), allocatable :: latest_mr(:)  ! latest guess for mr fields
+
+  type(field_type),          pointer :: chi(:) => null()
+  type(field_type),          pointer :: panel_id => null()
+  type(function_space_type), pointer :: wt_fs => null()
+
+  type(mesh_type), pointer :: mesh => null()
+
+  integer(kind=i_def) :: outer_count, theta_count, inner_count
+  real(kind=r_def)    :: initial_time, errornorm, one_minus_delta
+  real(kind=r_def)    :: cpv, cpl
+
+  ! These parameters are somewhat arbitrary and have been found by trial
+  ! and error. However it is not super-important to maximise efficiency
+  ! here as this is only used in the initialisation process for specific
+  ! idealised tests.
+  real(kind=r_def),    parameter :: delta = 0.5_r_def ! damping factor
+  real(kind=r_def),    parameter :: tol_outer = 1.0e-8_r_def
+  real(kind=r_def),    parameter :: tol_inner = 1.0e-8_r_def
+  integer(kind=i_def), parameter :: max_outer_iterations = 40
+  integer(kind=i_def), parameter :: max_theta_iterations = 3
+  integer(kind=i_def), parameter :: max_inner_iterations = 2
+
+  call log_event( "Gungho: Using saturated profile initialisation", LOG_LEVEL_INFO )
+
+  !----------------------------------------------------------------------------!
+  ! Initialise fields
+  !----------------------------------------------------------------------------!
+
+  initial_time = 0.0_r_def
+  one_minus_delta = 1.0_r_def - delta
+
+  mesh     => theta%get_mesh()
+  chi      => get_coordinates( mesh%get_id() )
+  panel_id => get_panel_id( mesh%get_id() )
+  wt_fs    => theta%get_function_space()
+
+  call specified_theta_e%initialise( vector_space = wt_fs )
+  call latest_theta_e%initialise( vector_space = wt_fs )
+  call latest_theta_d%initialise( vector_space = wt_fs )
+  call latest_exner%initialise( vector_space = exner%get_function_space() )
+  call exner_at_wt%initialise( vector_space = wt_fs )
+  call mr_t%initialise( vector_space = wt_fs )
+  call theta_pert%initialise( vector_space = wt_fs )
+
+  if (theta_moist_source .or. theta_variable == theta_variable_moist) then
+    cpv = heat_capacity_h2o_vapour
+    cpl = heat_capacity_h2o
+  else
+    ! If we aren't using consistent thermodynamics, the correct equivalent
+    ! potential temperature ignores the heat capacities of moisture species
+    cpv = 0.0_r_def
+    cpl = 0.0_r_def
+  end if
+
+  !----------------------------------------------------------------------------!
+  ! Specify background theta_e and mr_t fields
+  !----------------------------------------------------------------------------!
+
+  ! Set initial moisture fields to be zero
+  call set_bundle_scalar(0.0_r_def, mr, nummr)
+
+  select case( test )
+    case( test_bryan_fritsch )
+      ! First guess for theta
+      call invoke( setval_c(theta, 300.0_r_def ) )
+      ! Set total moisture
+      if ( moisture_formulation == moisture_formulation_dry ) then
+        call invoke( setval_c( mr_t, 0.0_r_def ), &
+                     setval_c( theta, 300.0_r_def ) )
+      else
+        call invoke( setval_c( mr_t, 0.02_r_def ), &
+                     setval_c( specified_theta_e, 320.0_r_def ), &
+                     setval_c( mr(imr_v), 0.02_r_def ), &
+                     setval_c( theta, 320.0_r_def ) )
+      end if
+
+    case default
+      call log_event( "Gungho: Your idealised test is not compatible " // &
+                      "with the saturated profile routine", LOG_LEVEL_ERROR )
+  end select
+
+  !----------------------------------------------------------------------------!
+  ! Do nested loops to compute background prognostic fields
+  !----------------------------------------------------------------------------!
+
+  ! Update moist dynamics factors
+  call moist_dyn_factors_alg( moist_dyn, mr )
+
+  if ( moisture_formulation /= moisture_formulation_dry ) then
+
+    allocate( latest_mr(nummr) )
+    call clone_bundle( mr, latest_mr, nummr )
+
+    ! Give first guess for Exner
+    call init_exner_field( exner, theta, moist_dyn, initial_time )
+
+    ! Outer loop -- compute exner from hydrostatic balance
+    do outer_count = 1, max_outer_iterations
+      ! Find exner and update best guess
+      call moist_dyn_factors_alg( moist_dyn, mr )
+      call init_exner_field( latest_exner, theta, moist_dyn, initial_time )
+      call invoke( inc_aX_plus_bY( one_minus_delta, exner, &
+                                   delta, latest_exner ) )
+
+      ! Convert exner to Wtheta
+      call map_physics_scalars( exner_at_wt, exner )
+
+      ! Compute best guess of theta_e
+      call invoke( theta_e_kernel_type( latest_theta_e, theta,                 &
+                                        exner_at_wt, mr(imr_v), mr(imr_cl),    &
+                                        cp, cpv, cpl, Rd, p_zero,              &
+                                        recip_epsilon ) )
+
+      ! Check tolerance and break if we are close enough
+      errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
+      write(log_scratch_space, '(A,I5,A,E32.24)') &
+        'Outer iteration: ', outer_count, ', Error-norm: ', errornorm
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      if (errornorm < tol_outer) then
+        exit
+      end if
+
+      ! Middle loop -- Picard iteration to find theta
+      do theta_count = 1, max_theta_iterations
+
+        ! Find theta and update best guess
+        call invoke( X_divideby_Y( latest_theta_d, specified_theta_e,          &
+                                                   latest_theta_e ),           &
+                     inc_X_times_Y( latest_theta_d, theta ),                   &
+                     inc_aX_plus_bY( one_minus_delta, theta,                   &
+                                     delta, latest_theta_d ),                  &
+                     theta_e_kernel_type( latest_theta_e, theta,               &
+                                          exner_at_wt, mr(imr_v), mr(imr_cl),  &
+                                          cp, cpv, cpl, Rd, p_zero,            &
+                                          recip_epsilon ) )
+
+        ! Check tolerance and break if we are close enough
+        errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
+        write(log_scratch_space, '(A,I5,A,E32.24)') &
+          'Middle iteration: ', theta_count, ', Error-norm: ', errornorm
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+        if (errornorm < tol_inner) then
+          exit
+        end if
+
+        ! Inner loop -- iterate to get water vapour saturation
+        do inner_count = 1, max_inner_iterations
+          ! Find moisture mixing ratios and update best guess
+          call init_mr_fields( latest_mr, theta, exner, rho, moist_dyn )
+          call invoke( inc_aX_plus_bY( one_minus_delta, mr(imr_v),             &
+                                       delta, latest_mr(imr_v) ),              &
+                       X_minus_Y( mr(imr_cl), mr_t, mr(imr_v) ),               &
+                       theta_e_kernel_type( latest_theta_e, theta,             &
+                                            exner_at_wt, mr(imr_v),            &
+                                            mr(imr_cl), cp, cpv, cpl, Rd,      &
+                                            p_zero, recip_epsilon ) )
+
+          ! Check tolerance and break if we are close enough
+          errornorm = rel_l2_error_alg( latest_theta_e, specified_theta_e )
+          write(log_scratch_space, '(A,I5,A,E32.24)') &
+            'Inner iteration: ', inner_count, ', Error-norm: ', errornorm
+          call log_event(log_scratch_space, LOG_LEVEL_INFO)
+          if (errornorm < tol_inner) then
+            exit
+          end if
+        end do ! inner loop
+      end do ! theta loop
+
+      ! Throw error if we don't converge
+      if (outer_count == max_outer_iterations) then
+        write(log_scratch_space, '(A,I5,A)') &
+        'Saturated balance solver has not converged after ', outer_count, ' iterations'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+    end do ! outer loop
+
+  end if ! moist formulation
+
+  ! Update moist dynamics factors and readjust to get hydrostatic balance again
+  call init_exner_field( exner, theta, moist_dyn, initial_time )
+
+  !----------------------------------------------------------------------------!
+  ! Apply perturbation to theta_e
+  !----------------------------------------------------------------------------!
+
+  call invoke( initial_theta_kernel_type( theta_pert, chi, panel_id ), &
+               inc_X_times_Y( theta, theta_pert ) )
+
+  ! Return to saturation
+  if ( moisture_formulation /= moisture_formulation_dry ) then
+    call init_mr_fields( mr, theta, exner, rho, moist_dyn )
+    call invoke( X_minus_Y( mr(imr_cl), mr_t, mr(imr_v) ) )
+    call moist_dyn_factors_alg( moist_dyn, mr )
+  end if
+
+  ! Finally find the dry density, presumably from equation of state
+  call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+
+  !----------------------------------------------------------------------------!
+  ! Finalise internal fields and pointers
+  !----------------------------------------------------------------------------!
+
+  call specified_theta_e%field_final()
+  call latest_theta_e%field_final()
+  call latest_theta_d%field_final()
+  call latest_exner%field_final()
+  call exner_at_wt%field_final()
+  call mr_t%field_final()
+  call theta_pert%field_final()
+  if (allocated(latest_mr)) deallocate(latest_mr)
+
+  nullify( wt_fs, chi, panel_id, mesh )
+
+end subroutine init_saturated_profile_alg
+
+end module init_saturated_profile_alg_mod

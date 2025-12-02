@@ -1,0 +1,222 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief   The tangent linear test for the vorticity advection
+!!         (Taylor remainder convergence).
+!>@details Test whether a section of tangent linear code is tangent linear
+!!         to the corresponding section of nonlinear code, for the
+!!         vorticity advection kernel, using the Taylor remainder convergence
+!!         test.
+module tl_test_vorticity_mod
+
+  use sci_assign_field_random_kernel_mod, &
+                                      only: assign_field_random_kernel_type
+  use constants_mod,                  only: i_def, r_def, str_def
+  use sci_fem_constants_mod,          only: get_qr_fe
+  use field_mod,                      only: field_type
+  use field_collection_mod,           only: field_collection_type
+  use function_space_collection_mod,  only: function_space_collection
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use finite_element_config_mod,      only: vorticity_in_w1
+  use fs_continuity_mod,              only: W1, W2
+  use sci_geometric_constants_mod,    only: get_coordinates, &
+                                            get_panel_id
+  use driver_modeldb_mod,             only: modeldb_type
+  use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_ERROR
+  use mesh_mod,                       only: mesh_type
+  use compute_vorticity_alg_mod,      only: compute_vorticity_alg
+  use vorticity_advection_kernel_mod, &
+                             only: vorticity_advection_kernel_type
+  use w2_vorticity_advection_kernel_mod, &
+                             only: w2_vorticity_advection_kernel_type
+  use tl_vorticity_advection_kernel_mod, &
+                             only: tl_vorticity_advection_kernel_type
+  use tl_test_convergence_rate_check,  only: convergence_rate_check
+
+  implicit none
+
+  private
+  public test_vorticity_advection
+
+  contains
+
+  !> @brief Test the tangent linear vorticity advection kernel.
+  !> @param[in] modeldb    The working data set for a model run
+  !> @param[in] mesh       The current 3d mesh
+  !> @param[in] twod_mesh  The current 2d mesh
+  subroutine test_vorticity_advection( modeldb, &
+                                       mesh,    &
+                                       twod_mesh )
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
+
+    type(modeldb_type), target, intent(in) :: modeldb
+
+    character(str_def) :: label = "vorticity_advection"
+
+    type(field_collection_type ), pointer :: prognostic_fields => null()
+    type(field_collection_type ), pointer :: ls_fields
+
+    type( quadrature_xyoz_type ), pointer :: qr => null()
+    type( field_type ),  pointer :: chi(:) => null()
+    type( field_type ),  pointer :: panel_id => null()
+
+    ! Input
+    type(field_type), pointer :: n_u => null()
+    type(field_type), pointer :: ls_u => null()
+    type(field_type) :: p_u
+
+    ! Intermediate
+    integer(i_def)   :: vorticity_fs
+    type(field_type) :: n_vorticity
+    type(field_type) :: p_vorticity
+    type(field_type) :: ls_vorticity
+
+    ! Output
+    type(field_type) :: n1_rhs_u
+    type(field_type) :: n2_rhs_u
+    type(field_type) :: p_rhs_u
+
+    ! Test
+    type(field_type) :: diff
+    type(field_type) :: random_u
+
+    real(r_def) :: norm_diff, norm_diff_prev
+    real(r_def) :: gamma
+
+    integer :: n
+
+    call log_event( "TL Test: " // trim(label), &
+                     LOG_LEVEL_INFO )
+
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    qr => get_qr_fe()
+
+    prognostic_fields => modeldb%fields%get_field_collection(&
+                                          "prognostic_fields")
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
+
+    ! Input
+    call prognostic_fields%get_field('u', n_u)
+    call ls_fields%get_field('ls_u', ls_u)
+    call p_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       W2) )
+
+    ! Intermediate
+    if ( vorticity_in_w1 ) then
+      vorticity_fs = W1
+    else
+      vorticity_fs = W2
+    end if
+    call n_vorticity%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       vorticity_fs) )
+    call p_vorticity%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       vorticity_fs) )
+    call ls_vorticity%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       vorticity_fs) )
+
+    ! Output
+    call n1_rhs_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       W2) )
+    call n2_rhs_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       W2) )
+    call p_rhs_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       W2) )
+
+    ! Test
+    call random_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       W2) )
+    call diff%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       W2) )
+
+    ! Intermediate lin state
+    call compute_vorticity_alg( ls_vorticity, ls_u, .false.)
+
+    ! Taylor Remainder Convergence Test
+
+    call invoke( setval_C( n1_rhs_u, 0.0_r_def ) )
+
+    if ( vorticity_in_w1 ) then
+      call invoke( vorticity_advection_kernel_type(n1_rhs_u,               &
+                                                   ls_u, ls_vorticity,     &
+                                                   chi, panel_id, qr) )
+    else
+      call invoke( w2_vorticity_advection_kernel_type(n1_rhs_u,            &
+                                                      ls_u, ls_vorticity,  &
+                                                      chi, panel_id, qr) )
+    end if
+
+    call invoke( assign_field_random_kernel_type( random_u, 1.0_r_def ) )
+
+    gamma = 1.e5_r_def
+    do n=1,2
+      gamma = gamma / 2.0_r_def
+
+      call invoke( setval_C( n2_rhs_u, 0.0_r_def ),   &
+                   setval_C( p_rhs_u, 0.0_r_def ),    &
+                   a_times_X( p_u, gamma, random_u ), &
+                   setval_X( n_u, ls_u ),            &
+                   inc_X_plus_Y( n_u, p_u ) )
+
+      call compute_vorticity_alg(n_vorticity, n_u, .false.)
+
+      if ( vorticity_in_w1 ) then
+        call invoke( vorticity_advection_kernel_type(n2_rhs_u,           &
+                                                     n_u, n_vorticity,   &
+                                                     chi, panel_id, qr) )
+      else
+        call invoke( w2_vorticity_advection_kernel_type(n2_rhs_u,        &
+                                                     n_u, n_vorticity,   &
+                                                     chi, panel_id, qr) )
+      end if
+
+      call compute_vorticity_alg(p_vorticity, p_u, .false.)
+      if ( vorticity_in_w1 ) then
+        call invoke( tl_vorticity_advection_kernel_type(p_rhs_u,         &
+                                                 p_u, p_vorticity,       &
+                                                 ls_u, ls_vorticity,     &
+                                                 chi, panel_id, qr) )
+      else
+        call log_event( "TL for w2 vorticity_advection not available", &
+                     LOG_LEVEL_ERROR )
+      end if
+
+      call invoke( X_minus_Y( diff, n2_rhs_u, n1_rhs_u ), &
+                   inc_X_minus_Y( diff, p_rhs_u ),        &
+                   X_innerproduct_X( norm_diff, diff ) )
+
+      norm_diff = sqrt(norm_diff)
+
+      write( log_scratch_space, '(A, E32.12, A, E32.12)' ) &
+             'gamma = ', gamma, ' norm = ', norm_diff
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      if (n == 2) then
+        call convergence_rate_check( norm_diff, norm_diff_prev, label )
+      end if
+
+      norm_diff_prev = norm_diff
+    end do
+
+  end subroutine test_vorticity_advection
+
+end module tl_test_vorticity_mod

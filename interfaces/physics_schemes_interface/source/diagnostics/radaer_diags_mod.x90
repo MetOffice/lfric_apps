@@ -1,0 +1,246 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Processes diagnostics for radaer diagnostics
+
+module radaer_main_diags_mod
+
+  use constants_mod,              only: l_def
+  use integer_field_mod,          only: integer_field_type
+  use field_mod,                  only: field_type
+  use io_config_mod,              only: subroutine_timers
+  use timer_mod,                  only: timer
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+  use mesh_mod,                   only: mesh_type
+
+  implicit none
+
+  private
+
+  public :: initialise_main_diags_for_radaer, output_main_diags_for_radaer
+
+  logical( l_def ) :: aod_ukca_ait_sol_flag, aaod_ukca_ait_sol_flag,           &
+                      aod_ukca_acc_sol_flag, aaod_ukca_acc_sol_flag,           &
+                      aod_ukca_cor_sol_flag, aaod_ukca_cor_sol_flag,           &
+                      aod_ukca_ait_ins_flag, aaod_ukca_ait_ins_flag,           &
+                      aod_ukca_acc_ins_flag, aaod_ukca_acc_ins_flag,           &
+                      aod_ukca_cor_ins_flag, aaod_ukca_cor_ins_flag
+
+contains
+
+  !> @brief Initialise fields for locally-computed radaer diagnostics
+  !> @param[inout] aod_ukca_ait_sol   Modal extinction aerosol opt depth []
+  !> @param[inout] aaod_ukca_ait_sol  Modal absorption aerosol opt depth []
+  !> @param[inout] aod_ukca_acc_sol   Modal extinction aerosol opt depth []
+  !> @param[inout] aaod_ukca_acc_sol  Modal absorption aerosol opt depth []
+  !> @param[inout] aod_ukca_cor_sol   Modal extinction aerosol opt depth []
+  !> @param[inout] aaod_ukca_cor_sol  Modal absorption aerosol opt depth []
+  !> @param[inout] aod_ukca_ait_ins   Modal extinction aerosol opt depth []
+  !> @param[inout] aaod_ukca_ait_ins  Modal absorption aerosol opt depth []
+  !> @param[inout] aod_ukca_acc_ins   Modal extinction aerosol opt depth []
+  !> @param[inout] aaod_ukca_acc_ins  Modal absorption aerosol opt depth []
+  !> @param[inout] aod_ukca_cor_ins   Modal extinction aerosol opt depth []
+  !> @param[inout] aaod_ukca_cor_ins  Modal absorption aerosol opt depth []
+  !> @param[in]    trop_level         Troposphere level
+
+  subroutine initialise_main_diags_for_radaer( aod_ukca_ait_sol,               &
+                                               aaod_ukca_ait_sol,              &
+                                               aod_ukca_acc_sol,               &
+                                               aaod_ukca_acc_sol,              &
+                                               aod_ukca_cor_sol,               &
+                                               aaod_ukca_cor_sol,              &
+                                               aod_ukca_ait_ins,               &
+                                               aaod_ukca_ait_ins,              &
+                                               aod_ukca_acc_ins,               &
+                                               aaod_ukca_acc_ins,              &
+                                               aod_ukca_cor_ins,               &
+                                               aaod_ukca_cor_ins,              &
+                                               trop_level )
+
+    implicit none
+
+    type( field_type ), intent(inout) :: aod_ukca_ait_sol
+    type( field_type ), intent(inout) :: aaod_ukca_ait_sol
+    type( field_type ), intent(inout) :: aod_ukca_acc_sol
+    type( field_type ), intent(inout) :: aaod_ukca_acc_sol
+    type( field_type ), intent(inout) :: aod_ukca_cor_sol
+    type( field_type ), intent(inout) :: aaod_ukca_cor_sol
+    type( field_type ), intent(inout) :: aod_ukca_ait_ins
+    type( field_type ), intent(inout) :: aaod_ukca_ait_ins
+    type( field_type ), intent(inout) :: aod_ukca_acc_ins
+    type( field_type ), intent(inout) :: aaod_ukca_acc_ins
+    type( field_type ), intent(inout) :: aod_ukca_cor_ins
+    type( field_type ), intent(inout) :: aaod_ukca_cor_ins
+    type( integer_field_type ), intent(in) :: trop_level
+
+    type(mesh_type), pointer :: mesh => null()
+
+
+    !----------------------------------------------------
+    ! End of declarations; start of subroutine execution
+    !----------------------------------------------------
+    if ( subroutine_timers ) call timer("radaer_diags")
+
+    ! Get 2D mesh from trop level field
+    mesh => trop_level%get_mesh()
+
+    aod_ukca_ait_sol_flag  = init_diag( aod_ukca_ait_sol,                      &
+                                       'aerosol__aod_ukca_ait_sol',            &
+                                        force_mesh = mesh)
+
+    aaod_ukca_ait_sol_flag = init_diag( aaod_ukca_ait_sol,                     &
+                                       'aerosol__aaod_ukca_ait_sol',           &
+                                        force_mesh = mesh)
+
+    aod_ukca_acc_sol_flag  = init_diag( aod_ukca_acc_sol,                      &
+                                       'aerosol__aod_ukca_acc_sol',            &
+                                        force_mesh = mesh)
+
+    aaod_ukca_acc_sol_flag = init_diag( aaod_ukca_acc_sol,                     &
+                                       'aerosol__aaod_ukca_acc_sol',           &
+                                        force_mesh = mesh)
+
+    aod_ukca_cor_sol_flag  = init_diag( aod_ukca_cor_sol,                      &
+                                       'aerosol__aod_ukca_cor_sol',            &
+                                        force_mesh = mesh)
+
+    aaod_ukca_cor_sol_flag = init_diag( aaod_ukca_cor_sol,                     &
+                                       'aerosol__aaod_ukca_cor_sol',           &
+                                        force_mesh = mesh)
+
+    aod_ukca_ait_ins_flag  = init_diag( aod_ukca_ait_ins,                      &
+                                       'aerosol__aod_ukca_ait_ins',            &
+                                        force_mesh = mesh)
+
+    aaod_ukca_ait_ins_flag = init_diag( aaod_ukca_ait_ins,                     &
+                                       'aerosol__aaod_ukca_ait_ins',           &
+                                        force_mesh = mesh)
+
+    aod_ukca_acc_ins_flag  = init_diag( aod_ukca_acc_ins,                      &
+                                       'aerosol__aod_ukca_acc_ins',            &
+                                        force_mesh = mesh)
+
+    aaod_ukca_acc_ins_flag = init_diag( aaod_ukca_acc_ins,                     &
+                                       'aerosol__aaod_ukca_acc_ins',           &
+                                        force_mesh = mesh)
+
+    aod_ukca_cor_ins_flag  = init_diag( aod_ukca_cor_ins,                      &
+                                       'aerosol__aod_ukca_cor_ins',            &
+                                        force_mesh = mesh)
+
+    aaod_ukca_cor_ins_flag = init_diag( aaod_ukca_cor_ins,                     &
+                                       'aerosol__aaod_ukca_cor_ins',           &
+                                        force_mesh = mesh)
+
+    if ( aod_ukca_ait_sol_flag ) then
+      call invoke(setval_c( aod_ukca_ait_sol, 0.0_r_def))
+    end if
+
+    if ( aaod_ukca_ait_sol_flag ) then
+      call invoke(setval_c( aaod_ukca_ait_sol, 0.0_r_def))
+    end if
+
+    if ( aod_ukca_acc_sol_flag ) then
+      call invoke(setval_c( aod_ukca_acc_sol, 0.0_r_def))
+    end if
+
+    if ( aaod_ukca_acc_sol_flag ) then
+      call invoke(setval_c( aaod_ukca_acc_sol, 0.0_r_def))
+    end if
+
+    if ( aod_ukca_cor_sol_flag ) then
+      call invoke(setval_c( aod_ukca_cor_sol, 0.0_r_def))
+    end if
+
+    if ( aaod_ukca_cor_sol_flag ) then
+      call invoke(setval_c( aaod_ukca_cor_sol, 0.0_r_def))
+    end if
+
+    if ( aod_ukca_ait_ins_flag ) then
+      call invoke(setval_c( aod_ukca_ait_ins, 0.0_r_def))
+    end if
+
+    if ( aaod_ukca_ait_ins_flag ) then
+      call invoke(setval_c( aaod_ukca_ait_ins, 0.0_r_def))
+    end if
+
+    if ( aod_ukca_acc_ins_flag ) then
+      call invoke(setval_c( aod_ukca_acc_ins, 0.0_r_def))
+    end if
+
+    if ( aaod_ukca_acc_ins_flag ) then
+      call invoke(setval_c( aaod_ukca_acc_ins, 0.0_r_def))
+    end if
+
+    if ( aod_ukca_cor_ins_flag ) then
+      call invoke(setval_c( aod_ukca_cor_ins, 0.0_r_def))
+    end if
+
+    if ( aaod_ukca_cor_ins_flag ) then
+      call invoke(setval_c( aaod_ukca_cor_ins, 0.0_r_def))
+    end if
+
+    if ( subroutine_timers ) call timer("radaer_diags")
+
+  end subroutine initialise_main_diags_for_radaer
+
+  !============================================================================
+
+  !> @brief Output main diagnostics from radaer scheme
+  !> @param[in] aod_ukca_ait_sol   Modal extinction aerosol opt depth []
+  !> @param[in] aaod_ukca_ait_sol  Modal absorption aerosol opt depth []
+  !> @param[in] aod_ukca_acc_sol   Modal extinction aerosol opt depth []
+  !> @param[in] aaod_ukca_acc_sol  Modal absorption aerosol opt depth []
+  !> @param[in] aod_ukca_cor_sol   Modal extinction aerosol opt depth []
+  !> @param[in] aaod_ukca_cor_sol  Modal absorption aerosol opt depth []
+  !> @param[in] aod_ukca_ait_ins   Modal extinction aerosol opt depth []
+  !> @param[in] aaod_ukca_ait_ins  Modal absorption aerosol opt depth []
+  !> @param[in] aod_ukca_acc_ins   Modal extinction aerosol opt depth []
+  !> @param[in] aaod_ukca_acc_ins  Modal absorption aerosol opt depth []
+  !> @param[in] aod_ukca_cor_ins   Modal extinction aerosol opt depth []
+  !> @param[in] aaod_ukca_cor_ins  Modal absorption aerosol opt depth []
+  subroutine output_main_diags_for_radaer( aod_ukca_ait_sol,                   &
+                                           aaod_ukca_ait_sol,                  &
+                                           aod_ukca_acc_sol,                   &
+                                           aaod_ukca_acc_sol,                  &
+                                           aod_ukca_cor_sol,                   &
+                                           aaod_ukca_cor_sol,                  &
+                                           aod_ukca_ait_ins,                   &
+                                           aaod_ukca_ait_ins,                  &
+                                           aod_ukca_acc_ins,                   &
+                                           aaod_ukca_acc_ins,                  &
+                                           aod_ukca_cor_ins,                   &
+                                           aaod_ukca_cor_ins )
+
+    ! 2D fields to output as diagnostics
+    type( field_type ), intent(in) :: aod_ukca_ait_sol, aaod_ukca_ait_sol,     &
+                                      aod_ukca_acc_sol, aaod_ukca_acc_sol,     &
+                                      aod_ukca_cor_sol, aaod_ukca_cor_sol,     &
+                                      aod_ukca_ait_ins, aaod_ukca_ait_ins,     &
+                                      aod_ukca_acc_ins, aaod_ukca_acc_ins,     &
+                                      aod_ukca_cor_ins, aaod_ukca_cor_ins
+
+    !----------------------------------------------------
+    ! End of declarations; start of subroutine execution
+    !----------------------------------------------------
+    if ( subroutine_timers ) call timer("radaer_diags")
+
+    if (aod_ukca_ait_sol_flag)  call  aod_ukca_ait_sol%write_field()
+    if (aaod_ukca_ait_sol_flag) call aaod_ukca_ait_sol%write_field()
+    if (aod_ukca_acc_sol_flag)  call  aod_ukca_acc_sol%write_field()
+    if (aaod_ukca_acc_sol_flag) call aaod_ukca_acc_sol%write_field()
+    if (aod_ukca_cor_sol_flag)  call  aod_ukca_cor_sol%write_field()
+    if (aaod_ukca_cor_sol_flag) call aaod_ukca_cor_sol%write_field()
+    if (aod_ukca_ait_ins_flag)  call  aod_ukca_ait_ins%write_field()
+    if (aaod_ukca_ait_ins_flag) call aaod_ukca_ait_ins%write_field()
+    if (aod_ukca_acc_ins_flag)  call  aod_ukca_acc_ins%write_field()
+    if (aaod_ukca_acc_ins_flag) call aaod_ukca_acc_ins%write_field()
+    if (aod_ukca_cor_ins_flag)  call  aod_ukca_cor_ins%write_field()
+    if (aaod_ukca_cor_ins_flag) call aaod_ukca_cor_ins%write_field()
+
+    if ( subroutine_timers ) call timer("radaer_diags")
+  end subroutine output_main_diags_for_radaer
+end module radaer_main_diags_mod

@@ -1,0 +1,183 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing handwritten adjoint test for adj_poly_adv_upd_lookup_kernel
+
+module adjt_poly_adv_upd_lookup_alg_mod
+
+  use r_tran_field_mod,              only : r_tran_field_type
+  use function_space_mod,            only : function_space_type
+  use function_space_collection_mod, only : function_space_collection
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, &
+                                            element_order_v
+  use integer_field_mod,             only : integer_field_type, &
+                                            integer_field_proxy_type
+  use fs_continuity_mod,             only : W2H, Wtheta
+  use constants_mod,                 only : i_def, r_def, r_tran, l_def
+  use log_mod,                       only : log_event, &
+                                            LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_INFO,  &
+                                            LOG_LEVEL_DEBUG, &
+                                            log_scratch_space
+  use adj_lookup_table_mod,          only : adj_lookup_table_type
+
+  implicit none
+
+  public :: adjt_poly_adv_upd_lookup_alg
+
+  contains
+
+  !============================================================================!
+  !> @brief Handwritten adjoint test for adj_poly_adv_upd_lookup_kernel
+  !> @param[in]   mesh    Model mesh
+  subroutine adjt_poly_adv_upd_lookup_alg( mesh )
+
+    use poly_adv_update_kernel_mod,          only: poly_adv_update_kernel_type
+    use invoke_adj_poly_adv_upd_lookup_mod,  only: invoke_adj_poly_adv_upd_lookup
+
+    use adj_lookup_table_generators_alg_mod, only : create_lookup_poly_adv_upd
+    use invoke_adj_poly_adv_upd_lookup_mod,  only : invoke_adj_poly_adv_upd_lookup
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer,               intent(in) :: mesh
+
+    ! Internal variables
+    ! Input setup variables
+    type(function_space_type), pointer :: vector_space_wt_md_ptr
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2h_ptr
+    integer(kind=i_def), parameter :: stencil_extent = 1_i_def
+    integer(kind=i_def), parameter :: ndata = 4_i_def
+
+    type(adj_lookup_table_type)          :: lookup_poly_adv_upd
+    type(integer_field_type),    pointer :: lookup_poly_adv_upd_field
+    type(integer_field_type),    pointer :: num_sets_poly_adv_upd_field
+
+    ! Arguments to kernels
+    type(r_tran_field_type) :: advective
+    type(r_tran_field_type) :: reconstruction
+    type(r_tran_field_type) :: dummy_md
+    type(r_tran_field_type) :: wind
+    type(r_tran_field_type) :: wind_dir
+
+    integer(i_def) :: nsets, nindices
+
+    ! Copies of input fields used in inner products
+    type(r_tran_field_type) :: advective_input
+    type(r_tran_field_type) :: reconstruction_input
+
+    ! Inner product variables
+    real(kind=r_def)             :: advective_inner_prod
+    real(kind=r_tran)            :: advective_sf
+    real(kind=r_def)             :: reconstruction_inner_prod
+    real(kind=r_tran)            :: reconstruction_sf
+    real(kind=r_tran)            :: inner1
+    real(kind=r_def)             :: advective_advective_input_inner_prod
+    real(kind=r_def)             :: reconstruction_reconstruction_input_inner_prod
+    real(kind=r_tran)            :: inner2
+    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+
+    ! Test variables
+    real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran)            :: machine_tol
+    real(kind=r_tran)            :: relative_diff
+
+    nullify( vector_space_w2h_ptr,   &
+             vector_space_wt_md_ptr, &
+             vector_space_wtheta_ptr, &
+             lookup_poly_adv_upd_field, &
+             num_sets_poly_adv_upd_field )
+
+    vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                             element_order_v, w2h)
+    vector_space_wt_md_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                               element_order_v, wtheta, ndata)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, wtheta)
+    call advective%initialise(vector_space=vector_space_wtheta_ptr, name='advective')
+    call reconstruction%initialise(vector_space=vector_space_wt_md_ptr, name='reconstruction', halo_depth=stencil_extent)
+    call reconstruction%copy_field_properties( dummy_md )
+    call wind%initialise(vector_space=vector_space_w2h_ptr, name='wind', halo_depth=stencil_extent)
+    call wind%copy_field_properties( wind_dir )
+    call advective_input%initialise(vector_space=vector_space_wtheta_ptr, name='advective_input')
+    call reconstruction_input%initialise(vector_space=vector_space_wt_md_ptr, name='reconstruction_input')
+
+    advective_inner_prod = 0.0_r_def
+    reconstruction_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random( advective ), &
+                 setval_x( advective_input, advective ), &
+                 setval_random( reconstruction ), &
+                 setval_x( reconstruction_input, reconstruction ), &
+                 setval_random( wind ), &
+                 setval_x( wind_dir, wind ), &
+                 poly_adv_update_kernel_type( advective, &
+                                              reconstruction, stencil_extent, &
+                                              wind, wind_dir, stencil_extent ), &
+                 x_innerproduct_x( advective_inner_prod, advective), &
+                 x_innerproduct_x( reconstruction_inner_prod, reconstruction) )
+
+    ! Determining scale factors
+    advective_sf = 1.0_r_tran/( real( advective_inner_prod, r_tran ) + eps )
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
+
+    inner1 = 0.0_r_tran
+    inner1 = inner1 + real( advective_inner_prod, r_tran )*advective_sf
+    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )*reconstruction_sf
+    write(log_scratch_space, *) "adjt_poly_adv_upd_lookup inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advective inner product = ", real( advective_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "reconstruction inner product = ", real( reconstruction_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( advective_sf, advective ), &
+                 inc_a_times_X( reconstruction_sf, reconstruction ) )
+
+    advective_advective_input_inner_prod = 0.0_r_def
+    reconstruction_reconstruction_input_inner_prod = 0.0_r_def
+
+    call create_lookup_poly_adv_upd( lookup_poly_adv_upd, advective, reconstruction, &
+                                     wind, stencil_extent )
+    lookup_poly_adv_upd_field => lookup_poly_adv_upd%get_lookup_field()
+    num_sets_poly_adv_upd_field => lookup_poly_adv_upd%get_set_count_field()
+    nindices = lookup_poly_adv_upd%get_nindices()
+    nsets = lookup_poly_adv_upd%get_nsets_max()
+
+    call invoke_adj_poly_adv_upd_lookup(advective, reconstruction, &
+                                        lookup_poly_adv_upd_field, num_sets_poly_adv_upd_field, &
+                                        wind, wind_dir, &
+                                        nsets, nindices, stencil_extent)
+
+    call invoke( x_innerproduct_y( advective_advective_input_inner_prod,                    &
+                                   advective,                                               &
+                                   advective_input ),                                       &
+                 x_innerproduct_y( reconstruction_reconstruction_input_inner_prod,          &
+                                   reconstruction,                                          &
+                                   reconstruction_input ) )
+
+    inner2 = 0.0_r_tran
+    inner2 = inner2 + real( advective_advective_input_inner_prod, r_tran )
+    inner2 = inner2 + real( reconstruction_reconstruction_input_inner_prod, r_tran )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED poly_adv_upd_lookup_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write(log_scratch_space, *) "FAILED poly_adv_upd_lookup_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine adjt_poly_adv_upd_lookup_alg
+
+end module adjt_poly_adv_upd_lookup_alg_mod

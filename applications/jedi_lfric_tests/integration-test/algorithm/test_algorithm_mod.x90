@@ -1,0 +1,104 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Drives the execution of the da dev algorithms tests
+module test_algorithm_mod
+
+  use constants_mod,                 only : i_def, r_def, str_def
+  use driver_fem_mod,                only : init_fem, final_fem
+  use field_mod,                     only : field_type, field_proxy_type
+  use fs_continuity_mod,             only : Wtheta
+  use function_space_collection_mod, only : function_space_collection
+  use function_space_mod,            only : function_space_type
+  use inventory_by_mesh_mod,         only : inventory_by_mesh_type
+  use log_mod,                       only : log_event, &
+                                            LOG_LEVEL_INFO
+  use mesh_mod,                      only : mesh_type
+  use mesh_collection_mod,           only : mesh_collection
+
+  implicit none
+
+  private
+  public test_algorithm_initialise, &
+         test_algorithm_finalise,   &
+         test_jedi_lfric_increment_alg
+
+  character(len=128)                     :: output
+
+  ! Coordinate field
+  type(inventory_by_mesh_type)           :: chi_inventory
+  type(inventory_by_mesh_type)           :: panel_id_inventory
+  type(function_space_type), pointer     :: wtheta_fs => null()
+  integer(i_def),   parameter            :: element_order_h = 0
+  integer(i_def),   parameter            :: element_order_v = 0
+
+contains
+
+  !> @brief     Initialise module.
+  !> @details   Initialises the fem & function space wtheta_fs
+  !> @param[in] mesh Mesh to be used
+  subroutine test_algorithm_initialise( mesh_name )
+
+    implicit none
+
+    character(str_def), intent(in) :: mesh_name
+    type(mesh_type),    pointer    :: mesh => null()
+
+    call init_fem( mesh_collection, chi_inventory, panel_id_inventory )
+    mesh => mesh_collection%get_mesh(mesh_name)
+    wtheta_fs => function_space_collection%get_fs( mesh,            &
+                                                   element_order_h, &
+                                                   element_order_v, &
+                                                   Wtheta )
+
+  end subroutine test_algorithm_initialise
+
+  !> @brief Finalises the fem & function space
+  subroutine test_algorithm_finalise()
+
+    implicit none
+
+    call final_fem()
+    nullify(wtheta_fs)
+
+  end subroutine test_algorithm_finalise
+
+  !> @brief     Tests jedi_lfric_increment_alg
+  !> @param[in] tolerance Tolerance
+  subroutine test_jedi_lfric_increment_alg( tolerance )
+
+    use jedi_lfric_increment_alg_mod, only : jedi_lfric_increment_alg
+
+    implicit none
+
+    real(r_def), intent(in) :: tolerance
+
+    type(field_type), target :: test_field
+    type(field_proxy_type)   :: field_proxy
+
+    ! Initialise test field and get proxy
+    call test_field%initialise( wtheta_fs, name='test_field' )
+    field_proxy = test_field%get_proxy()
+    ! Set first dof to nominal value
+    call invoke( setval_c(test_field, 1.0_r_def) )
+
+    call jedi_lfric_increment_alg(test_field)
+
+    write ( output, '("Returned Field Values =", ES15.8)' ) field_proxy%data(1)
+
+    ! Test if value is correct
+    if ( all( abs(field_proxy%data(:) - 2.0_r_def)  <= tolerance ) ) then
+      call log_event( 'test PASS', LOG_LEVEL_INFO )
+      call log_event( output, LOG_LEVEL_INFO )
+    else
+      call log_event( 'test FAIL', LOG_LEVEL_INFO )
+      call log_event( 'Expected Field Values = 2.00000000E+00', LOG_LEVEL_INFO )
+      call log_event( output, LOG_LEVEL_INFO )
+    end if
+
+  end subroutine test_jedi_lfric_increment_alg
+
+end module test_algorithm_mod

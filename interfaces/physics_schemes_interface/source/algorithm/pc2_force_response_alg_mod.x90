@@ -1,0 +1,122 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to PC2 homogeneous forcing
+
+module pc2_force_response_alg_mod
+
+   use constants_mod,        only: r_def
+   use field_mod,            only: field_type
+   use field_collection_mod, only: field_collection_type
+
+   implicit none
+
+   private
+   public pc2_force_response_alg
+
+contains
+  !>@brief Run PC2 homogeneous forcing to respond to forcing
+  !>@details PC2 homogeneous forcing calculates consistent updates to vapour,
+  !>         cloud condensate and fraction in response to temperature
+  !>         forcing.
+  !>         See UMDP30 for full scheme details.
+  !>@param[in]     mr_n           Start of timestep mixing ratios
+  !>@param[in]     theta          Potential temperature (theta) in wth space
+  !>@param[in]     derived_fields Group of derived fields
+  !>@param[in]     cloud_fields   Group of cloud fields
+  !>@param[in,out] dtheta_forcing Potential temperature forcing (not T)
+  !>@param[in,out] dmv_forcing    Vapour increment from external forcing
+  !>@param[in,out] dmcl_forcing   Liquid increment from external forcing
+  !>@param[in,out] dcfl_forcing   Cloud Liquid fraction increment
+  !>@param[in,out] dbcf_forcing   Cloud bulk fraction increment
+  !> @param[in]    dt             The model timestep length
+
+  subroutine pc2_force_response_alg( mr_n,           &
+                                     theta,          &
+                                     derived_fields, &
+                                     cloud_fields,   &
+                                     dtheta_forcing, &
+                                     dmv_forcing,    &
+                                     dmcl_forcing,   &
+                                     dcfl_forcing,   &
+                                     dbcf_forcing,   &
+                                     dt )
+
+    use pc2_homogeneous_kernel_mod, only: pc2_homogeneous_kernel_type
+    use mr_indices_mod,             only: imr_v, imr_cl, nummr
+
+    implicit none
+
+    type( field_type ), intent( in )    :: mr_n ( nummr )
+    type( field_type ), intent( in )    :: theta
+    type( field_type ), intent( inout ) :: dtheta_forcing
+    type( field_type ), intent( inout)  :: dmv_forcing
+    type( field_type ), intent( inout)  :: dmcl_forcing
+    type( field_type ), intent( out)    :: dcfl_forcing
+    type( field_type ), intent( out)    :: dbcf_forcing
+
+    type( field_collection_type ), intent(in) :: derived_fields, cloud_fields
+    real( kind=r_def ), intent( in )  :: dt
+
+    ! Local fields.
+    type( field_type ) :: dtheta_pc2_inc
+    type( field_type ) :: dmv_pc2_inc
+    type( field_type ) :: dmcl_pc2_inc
+    type( field_type ) :: dcfl_pc2_inc
+    type( field_type ) :: dbcf_pc2_inc
+
+    ! Temporary unpacked fields from collections
+    type( field_type ), pointer :: exner_in_wth
+    ! Dummy, as will be set to same as above
+    type( field_type ), pointer :: exner_copy_wth
+
+    ! For PC2
+    type( field_type ), pointer :: liquid_fraction
+    type( field_type ), pointer :: frozen_fraction
+    type( field_type ), pointer :: bulk_fraction
+
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('exner_in_wth', exner_copy_wth)
+    call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+    call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+    call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+
+    call dtheta_forcing%copy_field_properties(dcfl_forcing)
+    call dtheta_forcing%copy_field_properties(dbcf_forcing)
+
+    call dtheta_forcing%copy_field_properties(dtheta_pc2_inc)
+    call dtheta_forcing%copy_field_properties(dmv_pc2_inc)
+    call dtheta_forcing%copy_field_properties(dmcl_pc2_inc)
+    call dtheta_forcing%copy_field_properties(dcfl_pc2_inc)
+    call dtheta_forcing%copy_field_properties(dbcf_pc2_inc)
+
+    call invoke(pc2_homogeneous_kernel_type ( mr_n(imr_v),           &
+                                              mr_n(imr_cl),          &
+                                              liquid_fraction,       &
+                                              frozen_fraction,       &
+                                              bulk_fraction,         &
+                                              theta,                 &
+                                              exner_in_wth,          &
+                                              exner_copy_wth,        &
+                                              ! Forcings
+                                              dtheta_forcing,        &
+                                              dmv_forcing,           &
+                                              dmcl_forcing,          &
+                                              ! Response increments
+                                              dtheta_pc2_inc,        &
+                                              dmv_pc2_inc,           &
+                                              dmcl_pc2_inc,          &
+                                              dcfl_pc2_inc,          &
+                                              dbcf_pc2_inc,          &
+                                              dt ),                  &
+                inc_X_plus_Y(dtheta_forcing, dtheta_pc2_inc),        &
+                inc_X_plus_Y(dmv_forcing, dmv_pc2_inc),              &
+                inc_X_plus_Y(dmcl_forcing, dmcl_pc2_inc),            &
+                setval_X(dcfl_forcing, dcfl_pc2_inc),                &
+                setval_X(dbcf_forcing, dbcf_pc2_inc) )
+
+  end subroutine pc2_force_response_alg
+
+end module pc2_force_response_alg_mod

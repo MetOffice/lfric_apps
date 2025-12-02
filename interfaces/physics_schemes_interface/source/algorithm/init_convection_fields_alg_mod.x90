@@ -1,0 +1,114 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the convection fields
+module init_convection_fields_alg_mod
+
+  use constants_mod,                   only: r_def
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_convection_fields_alg
+
+contains
+
+  !> @brief   Initialises the convection fields
+  !> @details The convection fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case no restart file is used or the convection scheme is off.
+  !> @param[in,out] convection_fields Collection of fields for convection scheme
+  subroutine init_convection_fields_alg(convection_fields)
+
+    use cv_run_mod, only: l_conv_prog_precip, l_conv_prog_dtheta, l_conv_prog_dq
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(in) :: convection_fields
+
+    ! Convection increments
+    type( field_type ), pointer :: dt_conv   => null()
+    type( field_type ), pointer :: dmv_conv  => null()
+    type( field_type ), pointer :: dmcl_conv => null()
+    type( field_type ), pointer :: dms_conv
+    type( field_type ), pointer :: dcfl_conv => null()
+    type( field_type ), pointer :: dcff_conv => null()
+    type( field_type ), pointer :: dbcf_conv => null()
+    type( field_type ), pointer :: du_conv   => null()
+    type( field_type ), pointer :: dv_conv   => null()
+
+    ! Prognostic fields
+    type( field_type ), pointer :: conv_rain => null()
+    type( field_type ), pointer :: conv_snow => null()
+    type( field_type ), pointer :: cca_2d    => null()
+    type( field_type ), pointer :: conv_rain_3d => null()
+    type( field_type ), pointer :: conv_snow_3d => null()
+    type( field_type ), pointer :: dd_mf_cb  => null()
+    type( field_type ), pointer :: cca       => null()
+    type( field_type ), pointer :: ccw       => null()
+    type( field_type ), pointer :: conv_prog_dtheta => null()
+    type( field_type ), pointer :: conv_prog_dmv    => null()
+    type( field_type ), pointer :: conv_prog_precip => null()
+    type( field_type ), pointer :: massflux_up
+    type( field_type ), pointer :: massflux_down
+
+    call convection_fields%get_field('dt_conv', dt_conv)
+    call convection_fields%get_field('dmv_conv', dmv_conv)
+    call convection_fields%get_field('dmcl_conv', dmcl_conv)
+    call convection_fields%get_field('dms_conv', dms_conv)
+    call convection_fields%get_field('dcfl_conv', dcfl_conv)
+    call convection_fields%get_field('dcff_conv', dcff_conv)
+    call convection_fields%get_field('dbcf_conv', dbcf_conv)
+    call convection_fields%get_field('du_conv', du_conv)
+    call convection_fields%get_field('dv_conv', dv_conv)
+
+    call convection_fields%get_field('conv_rain', conv_rain)
+    call convection_fields%get_field('conv_snow', conv_snow)
+    call convection_fields%get_field('cca_2d', cca_2d)
+    call convection_fields%get_field('conv_rain_3d', conv_rain_3d)
+    call convection_fields%get_field('conv_snow_3d', conv_snow_3d)
+    call convection_fields%get_field('dd_mf_cb', dd_mf_cb)
+    call convection_fields%get_field('cca', cca)
+    call convection_fields%get_field('ccw', ccw)
+    call convection_fields%get_field('conv_prog_dtheta', conv_prog_dtheta)
+    call convection_fields%get_field('conv_prog_dmv', conv_prog_dmv)
+    call convection_fields%get_field('conv_prog_precip', conv_prog_precip)
+    call convection_fields%get_field('massflux_up', massflux_up)
+    call convection_fields%get_field('massflux_down', massflux_down)
+
+    ! Initialise increment fields to zero for use when the scheme is off
+    call invoke( setval_c(dt_conv,      0.0_r_def), &
+                 setval_c(dmv_conv,     0.0_r_def), &
+                 setval_c(dmcl_conv,    0.0_r_def), &
+                 setval_c(dms_conv,     0.0_r_def), &
+                 setval_c(dcfl_conv,    0.0_r_def), &
+                 setval_c(dcff_conv,    0.0_r_def), &
+                 setval_c(dbcf_conv,    0.0_r_def), &
+                 setval_c(du_conv,      0.0_r_def), &
+                 setval_c(dv_conv,      0.0_r_def), &
+                 ! Set prognostic fields to zero for use without restart file
+                 setval_c(conv_rain,    0.0_r_def), &
+                 setval_c(conv_snow,    0.0_r_def), &
+                 setval_c(conv_rain_3d, 0.0_r_def), &
+                 setval_c(conv_snow_3d, 0.0_r_def), &
+                 setval_c(cca_2d,       0.0_r_def), &
+                 setval_c(dd_mf_cb,     0.0_r_def), &
+                 setval_c(ccw,          0.0_r_def), &
+                 setval_c(cca,          0.0_r_def), &
+                 setval_c(massflux_up,  0.0_r_def), &
+                 setval_c(massflux_down, 0.0_r_def))
+
+    if (l_conv_prog_dtheta) call invoke(setval_c(conv_prog_dtheta, 0.0_r_def))
+    if (l_conv_prog_dq) call invoke(setval_c(conv_prog_dmv, 0.0_r_def))
+    if (l_conv_prog_precip) call invoke(setval_c(conv_prog_precip, 3.0e-4_r_def))
+
+  end subroutine init_convection_fields_alg
+
+end module init_convection_fields_alg_mod

@@ -1,0 +1,63 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief Processing of ancillary files
+module process_urban_alg_mod
+
+  use field_collection_mod, only : field_collection_type
+  use field_mod,            only : field_type
+
+  use section_choice_config_mod,  only: surface, surface_jules
+  use process_urban_kernel_mod,   only: process_urban_kernel_type
+  use jules_surface_config_mod,   only: l_urban2t
+
+  implicit none
+
+  private
+  public :: process_urban_alg
+
+contains
+
+  !> @details Processes ancils that don't match exactly what the model
+  !>          expects into the fields it does
+  !> @param[in] surface_fields   (in,out) Surface field collection to update
+  subroutine process_urban_alg(surface_fields)
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: surface_fields
+
+    type( field_type ), pointer :: urbwrr
+    type( field_type ), pointer :: urbhwr
+    type( field_type ), pointer :: urbhgt
+    type( field_type ), pointer :: urbztm
+    type( field_type ), pointer :: urbdisp
+    type( field_type ), pointer :: urbemisw
+    type( field_type ), pointer :: urbemisr
+    type( field_type ), pointer :: urbemisc
+
+    if (surface == surface_jules) then
+
+      if ( l_urban2t ) then
+        call surface_fields%get_field('urbwrr', urbwrr)
+        call surface_fields%get_field('urbhwr', urbhwr)
+        call surface_fields%get_field('urbhgt', urbhgt)
+        call surface_fields%get_field('urbztm', urbztm)
+        call surface_fields%get_field('urbdisp', urbdisp)
+        call surface_fields%get_field('urbemisw', urbemisw)
+        call surface_fields%get_field('urbemisr', urbemisr)
+        call surface_fields%get_field('urbemisc', urbemisc)
+
+      ! Urban fields (contained in surface fields)
+        call invoke(process_urban_kernel_type( urbwrr, urbhwr, urbhgt,         &
+                                               urbztm, urbdisp, urbemisw,      &
+                                               urbemisr, urbemisc ))
+      end if
+
+    end if
+
+  end subroutine process_urban_alg
+
+end module process_urban_alg_mod

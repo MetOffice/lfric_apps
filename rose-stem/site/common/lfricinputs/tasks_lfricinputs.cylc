@@ -1,0 +1,28 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/lfricinputs/tasks_lfricinputs.cylc") %}
+
+{% include 'site/common/lfricinputs/tasks_um2lfric.cylc' %}
+{% include 'site/common/lfricinputs/tasks_lfric2um.cylc' %}
+{% include 'site/common/lfricinputs/tasks_scintelapi.cylc' %}
+
+{% if task.startswith("build") %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% endif %}
+
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/lfricinputs"}) %}
+    {% if "app_name" not in task_dict %}
+        {% set app_name = task_ns.conf_name.split("-")[0] %}
+        {% do task_dict.update({"app_name": app_name}) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/lfricinputs/tasks_lfricinputs.cylc") %}

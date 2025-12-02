@@ -1,0 +1,225 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Test the skeb_vort_div kernel
+!>
+module skeb_vort_div_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+  use get_unit_test_m3x3_dofmap_mod, only : get_w2_m3x3_dofmap, &
+                                            get_w1_m3x3_dofmap, &
+                                            get_w3_m3x3_dofmap, &
+                                            get_wtheta_m3x3_dofmap, &
+                                            get_m3x3_stencil_dofmap_cross
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w1_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: skeb_vort_div_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type skeb_vort_div_test_type
+
+contains
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(skeb_vort_div_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(skeb_vort_div_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use skeb_vort_div_kernel_mod,   only : skeb_vort_div_code
+
+    implicit none
+
+    class(skeb_vort_div_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    ! Fields
+    real(r_def), allocatable :: dx_at_w2(:), answer_div(:), answer_vort(:), &
+         divergence(:), vorticity(:), u_n(:), wetrho_w3(:), wetrho_wth(:), &
+         w_in_wth(:), rdz_w3(:), panel_id(:)
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w2(:,:), map_w1(:,:), map_w3(:,:), &
+         map_pid(:,:), map_wth(:,:), map_pid_stencil(:,:,:), &
+         map_w2_stencil(:,:,:)
+
+    integer(i_def) :: k, df, cell
+
+    ! Sizes
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, ndf_w1, undf_w1, ndf_w3, undf_w3, &
+         undf_wth, ndf_wth, undf_pid, ndf_pid
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    ncells = 9
+
+    ! Set up 3d w2 field - need enough layers for ramping up and down
+    nlayers = 3
+    ndf_w2 = 6
+    undf_w2 = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+    call get_m3x3_stencil_dofmap_cross(map_w2_stencil, map_w2)
+
+    call get_w1_m3x3_q3x3x3_size( ndf_w1, undf_w1, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w1_m3x3_dofmap(map_w1)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_m3x3_dofmap(map_w3)
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wth, undf_wth, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_wtheta_m3x3_dofmap(map_wth)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  1 )
+    call get_w3_m3x3_dofmap(map_pid)
+    call get_m3x3_stencil_dofmap_cross(map_pid_stencil, map_pid)
+
+    ! Create the data
+    allocate(dx_at_w2(undf_w2))
+    allocate(answer_div(undf_w3))
+    allocate(answer_vort(undf_w1))
+    allocate(u_n(undf_w2))
+    allocate(vorticity(undf_w1))
+    allocate(divergence(undf_w3))
+    allocate(wetrho_w3(undf_w3))
+    allocate(wetrho_wth(undf_wth))
+    allocate(w_in_wth(undf_wth))
+    allocate(rdz_w3(undf_w3))
+    allocate(panel_id(undf_pid))
+
+    dx_at_w2 = 10.0_r_def
+    cell = 5
+    k=2
+
+    divergence = 0.0_r_def
+    vorticity = 0.0_r_def
+    wetrho_w3 = 1.0_r_def
+    wetrho_wth = 1.0_r_def
+    rdz_w3 = 0.1_r_def
+    panel_id = 1.0_r_def
+    u_n = 1.0_r_def
+    w_in_wth = 1.0_r_def
+
+    u_n(map_w2_stencil(1,1,cell)+k-1) = 10.0_r_def
+    u_n(map_w2_stencil(1,3,cell)+k-1) = 5.0_r_def
+    ! du/dy = (10-5)/10 = 0.5
+    u_n(map_w2_stencil(2,1,cell)+k-1) = -20.0_r_def
+    u_n(map_w2_stencil(2,2,cell)+k-1) = -10.0_r_def
+    ! dv/dx = (20-10)/10 = 1.0
+    ! n.b. beta = -y hence u_n values are negative
+    u_n(map_w2_stencil(3,5,cell)+k-1) = 10.0_r_def
+    u_n(map_w2_stencil(3,1,cell)+k-1) = 5.0_r_def
+    ! du/dy = (10-5)/10 = 0.5
+    u_n(map_w2_stencil(4,4,cell)+k-1) = -20.0_r_def
+    u_n(map_w2_stencil(4,1,cell)+k-1) = -10.0_r_def
+    ! dv/dx = (20-10)/10 = 1.0
+    ! n.b. beta = -y hence u_n values are negative
+
+    answer_vort = 0.0_r_def
+    ! dv/dx - du/dy = 1.0 - 0.5
+    answer_vort(map_w1(5,cell)+k-1) = 1.0_r_def - 0.5_r_def
+    answer_vort(map_w1(7,cell)+k-1) = 1.0_r_def - 0.5_r_def
+
+    w_in_wth(map_wth(1,cell)+k-1) = 2.0_r_def
+
+    answer_div = 0.0_r_def
+    answer_div(map_w3(1,cell)+k-1) = 0.1_r_def
+
+    call skeb_vort_div_code( nlayers,                  &
+                             vorticity,                &
+                             divergence,               &
+                             u_n, 5,                   &
+                             map_w2_stencil(:,:,cell), &
+                             dx_at_w2,                 &
+                             wetrho_w3,                &
+                             wetrho_wth,               &
+                             w_in_wth,                 &
+                             rdz_w3,                   &
+                             1, 3,                     &
+                             panel_id, 5,              &
+                             map_pid_stencil(:,:,cell),&
+                             ndf_w1,                   &
+                             undf_w1,                  &
+                             map_w1(:, cell),          &
+                             ndf_w3,                   &
+                             undf_w3,                  &
+                             map_w3(:, cell),          &
+                             ndf_w2,                   &
+                             undf_w2,                  &
+                             map_w2(:, cell),          &
+                             ndf_wth,                  &
+                             undf_wth,                 &
+                             map_wth(:, cell),         &
+                             ndf_pid,                  &
+                             undf_pid,                 &
+                             map_pid(:, cell)          &
+                             )
+
+    @assertEqual(answer_vort(:), vorticity(:), tol)
+    @assertEqual(answer_div(:), divergence(:), tol)
+
+    deallocate(answer_div)
+    deallocate(answer_vort)
+    deallocate(divergence)
+    deallocate(vorticity)
+    deallocate(dx_at_w2)
+    deallocate(u_n)
+    deallocate(wetrho_w3)
+    deallocate(wetrho_wth)
+    deallocate(w_in_wth)
+    deallocate(rdz_w3)
+    deallocate(panel_id)
+    deallocate(map_w1)
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(map_wth)
+    deallocate(map_pid)
+    deallocate(map_w2_stencil)
+    deallocate(map_pid_stencil)
+
+  end subroutine test_all
+
+end module skeb_vort_div_kernel_mod_test

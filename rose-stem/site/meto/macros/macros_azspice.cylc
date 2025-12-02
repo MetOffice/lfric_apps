@@ -1,0 +1,32 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/macros/macros_azspice.cylc") %}
+
+{# Macros here have largely been copied from the UM for now #}
+
+{% macro set_task_resources(mpi_ranks,
+                        memory,
+                        threads=1,
+                        xios_nodes=0,
+                        ocean_nodes=0,
+                        river_nodes=0,
+                        ranks_per_node=0,
+                        ranks_depth_pad=1) %}
+
+    {{ set_memory(memory) }}
+            --ntasks={{mpi_ranks|int + xios_nodes|int}}
+            --cpus-per-task={{threads|int}}
+
+{% endmacro %}
+
+
+{% macro set_memory(mem) %}
+    {% set value = mem[0]|int %}
+    {% set unit = mem[1] %}
+            --mem-per-cpu={{value}}{{unit[:1]}}
+{% endmacro %}
+
+{% do LOG.debug("Finished in site/meto/macros/macros_azspice.cylc") %}

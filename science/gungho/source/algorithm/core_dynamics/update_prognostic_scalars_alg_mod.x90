@@ -1,0 +1,103 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Update to the dynamics scalars based upon advection updates
+module update_prognostic_scalars_alg_mod
+
+  implicit none
+
+  private
+
+  public :: update_prognostic_scalars_alg
+contains
+
+  !> @details Compute the dynamics scalars (exner, rho, theta) based upon the
+  !>          the latest advection update
+  !> @param[in] state latest estimate for dynamics prognostics
+  !> @param[in] rhs_n    Timelevel n forcings
+  !> @param[in] rhs_adv  Advection forcings
+  !> @param[in] rhs_phys Fast physics forcings
+  !> @param[in] moist_dyn_gas_law Gas law component of moist dynamics
+  subroutine update_prognostic_scalars_alg(state, rhs_n, rhs_adv, rhs_phys, moist_dyn_gas_law)
+
+    use constants_mod,                only: i_def
+    use derived_config_mod,           only: bundle_size
+    use field_indices_mod,            only: igh_t, igh_d, igh_p
+    use field_mod,                    only: field_type
+    use formulation_config_mod,       only: eos_method,         &
+                                            eos_method_sampled, &
+                                            eos_method_projected
+    use fs_continuity_mod,            only: W3
+    use quadrature_xyoz_mod,          only: quadrature_xyoz_type
+    use operator_mod,                 only: operator_type
+    use sci_fem_constants_mod,        only: get_qr_fe, &
+                                            get_inverse_mass_matrix_fe
+    use sci_geometric_constants_mod,  only: get_coordinates, &
+                                            get_panel_id
+    use sci_mass_matrix_solver_alg_mod, &
+                                      only: mass_matrix_solver_alg
+    use project_eos_pressure_kernel_mod, &
+                                      only: project_eos_pressure_kernel_type
+    use sample_eos_pressure_kernel_mod,  &
+                                      only: sample_eos_pressure_kernel_type
+    use mesh_mod,                     only: mesh_type
+    use log_mod,                      only: log_event,         &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO
+
+    implicit none
+
+    type( field_type ), dimension(bundle_size), intent(inout) :: state
+    type( field_type ), dimension(bundle_size), intent(in)    :: rhs_n, rhs_adv, rhs_phys
+    type( field_type ),                         intent(in)    :: moist_dyn_gas_law
+
+    type( field_type )             :: dtheta
+    type( field_type ),    pointer :: panel_id => null()
+    type( field_type ),    pointer :: chi(:) => null()
+    type( operator_type ), pointer :: m3_inv => null()
+    type( quadrature_xyoz_type ), pointer :: qr => null()
+
+    type(mesh_type), pointer :: mesh => null()
+
+    mesh => state(igh_t)%get_mesh()
+
+    call dtheta%initialise( state(igh_t)%get_function_space() )
+
+    m3_inv  => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    qr => get_qr_fe()
+
+    ! rho^np1 and theta^np1 can be updated directly from advection terms
+    ! rho^np1   = rho^n   - dt*div(u*rho)
+    ! theta^np1 = theta^n - dt*u.grad(theta)
+    call invoke( X_plus_Y(state(igh_d), rhs_adv(igh_d), rhs_n(igh_d)), &
+                 X_plus_Y(dtheta,       rhs_adv(igh_t), rhs_n(igh_t)), &
+                 inc_X_plus_Y(dtheta, rhs_phys(igh_t)))
+    call mass_matrix_solver_alg(state(igh_t), dtheta)
+
+    select case(eos_method)
+      case(eos_method_sampled)
+        call invoke( name = "sample_eos_pressure",                                     &
+                       sample_eos_pressure_kernel_type(state(igh_p), state(igh_d),     &
+                                                       state(igh_t), moist_dyn_gas_law) )
+
+      case(eos_method_projected)
+        m3_inv  => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+        chi => get_coordinates(mesh%get_id())
+        panel_id => get_panel_id(mesh%get_id())
+        call invoke( name = "project_eos_pressure",                                    &
+                     project_eos_pressure_kernel_type(state(igh_p), state(igh_d),      &
+                                                      state(igh_t), moist_dyn_gas_law, &
+                                                      chi, panel_id, m3_inv, qr ) )
+      case default
+          call log_event( "Gungho: Unrecognised method to calculate pressure", LOG_LEVEL_ERROR )
+      end select
+
+    nullify( chi, m3_inv, panel_id, qr )
+  end subroutine update_prognostic_scalars_alg
+
+end module update_prognostic_scalars_alg_mod

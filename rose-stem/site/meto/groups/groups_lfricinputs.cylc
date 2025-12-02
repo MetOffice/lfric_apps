@@ -1,0 +1,342 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_lfricinputs.cylc") %}
+
+{# um2lfric Groups by Config #}
+{% do site_groups.update({
+    "um2lfric_azspice_aquaplanet": [
+        "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_aquaplanet": [
+         "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_fast-debug-64bit",
+         "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_basicgal": [
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_basicgal": [
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_nwp_gal9_C12": [
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C12L70_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_nwp_gal9_C12": [
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C12L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C12L70_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_nwp_gal9_C48": [
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_nwp_gal9_C48": [
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_nwp_gal9_C224": [
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_nwp_gal9": [
+        "um2lfric_azspice_nwp_gal9_C12",
+        "um2lfric_azspice_nwp_gal9_C48",
+    ],
+    "um2lfric_ex1a_nwp_gal9": [
+        "um2lfric_ex1a_nwp_gal9_C12",
+        "um2lfric_ex1a_nwp_gal9_C48",
+    ],
+
+    "um2lfric_azspice_protogal": [
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_protogal": [
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_protogal_chem": [
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_protogal_chem": [
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_aquaplanet_lam": [
+        "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_aquaplanet_lam": [
+        "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_aquaplanet_lbc": [
+        "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_aquaplanet_lbc": [
+        "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_falklands_lam": [
+        "lfricinputs_um2lfric-falklands_lam_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-falklands_lam_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_falklands_lam": [
+        "lfricinputs_um2lfric-falklands_lam_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-falklands_lam_ex1a_gnu_full-debug-64bit",
+    ],
+
+    "um2lfric_azspice_var_seukv_lam": [
+        "lfricinputs_um2lfric-var_seuk_lam_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-var_seuk_lam_azspice_gnu_full-debug-64bit",
+    ],
+    "um2lfric_ex1a_var_seukv_lam": [
+        "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_full-debug-64bit",
+    ],
+    }) %}
+
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "lfricinputs_azspice_developer": [
+        "um2lfric_azspice_developer",
+        "lfric2um_azspice_developer",
+        "scintelapi_azspice_developer",
+    ],
+    "lfricinputs_azspice": [
+        "lfricinputs_azspice_developer",
+        "um2lfric_azspice",
+        "lfric2um_azspice",
+        "scintelapi_azspice",
+    ],
+    "um2lfric_azspice_developer": [
+        "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_azspice_gnu_full-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_azspice_gnu_full-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lam_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lbc_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-falklands_lam_azspice_gnu_fast-debug-64bit",
+    ],
+    "um2lfric_azspice": [
+        "um2lfric_azspice_developer",
+        "um2lfric_azspice_aquaplanet",
+        "um2lfric_azspice_basicgal",
+        "um2lfric_azspice_nwp_gal9",
+        "um2lfric_azspice_protogal",
+        "um2lfric_azspice_protogal_chem",
+        "um2lfric_azspice_aquaplanet_lam",
+        "um2lfric_azspice_aquaplanet_lbc",
+        "um2lfric_azspice_falklands_lam",
+    ],
+    "lfric2um_azspice_developer": [
+        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_azspice_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-umlam-C48L70_N512L70_azspice_gnu_fast-debug-64bit",
+    ],
+    "lfric2um_azspice": [
+        "lfric2um_azspice_developer",
+        "lfricinputs_lfric2um-umlam-C48L70_N512L70_azspice_gnu_full-debug-64bit",
+    ],
+    "scintelapi_azspice_developer": [
+        "lfricinputs_scintelapi-basic-C48L38_C48L38_azspice_gnu_fast-debug-64bit",
+        "lfricinputs_scintelapi-basic-C48L38_C48L38_azspice_gnu_full-debug-64bit",
+        "lfricinputs_scintelapi-basicgal-C12L70-mixingratio_azspice_gnu_fast-debug-64bit",
+    ],
+    "scintelapi_azspice": [
+        "scintelapi_azspice_developer",
+        "lfricinputs_scintelapi-basicgal-C12L70-mixingratio_azspice_gnu_full-debug-64bit",
+    ],
+    }) %}
+
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "lfricinputs_ex1a_developer": [
+        "um2lfric_ex1a_developer",
+        "lfric2um_ex1a_developer",
+        "scintelapi_ex1a_developer",
+    ],
+    "lfricinputs_ex1a": [
+        "lfricinputs_ex1a_developer",
+        "um2lfric_ex1a",
+        "lfric2um_ex1a",
+        "scintelapi_ex1a",
+    ],
+    "lfricinputs_ex1a_weekly": [
+        "um2lfric_ex1a_weekly",
+        "lfric2um_ex1a_weekly",
+    ],
+    "um2lfric_ex1a_developer": [
+        "lfricinputs_um2lfric-falklands_lam_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_fast-debug-64bit",
+    ],
+    "um2lfric_ex1a": [
+        "um2lfric_ex1a_developer",
+        "um2lfric_ex1a_aquaplanet",
+        "um2lfric_ex1a_basicgal",
+        "um2lfric_ex1a_nwp_gal9",
+        "um2lfric_ex1a_protogal",
+        "um2lfric_ex1a_protogal_chem",
+        "um2lfric_ex1a_aquaplanet_lam",
+        "um2lfric_ex1a_aquaplanet_lbc",
+        "um2lfric_ex1a_falklands_lam",
+        "um2lfric_ex1a_var_seukv_lam",
+    ],
+    "um2lfric_ex1a_weekly": [
+        "um2lfric_ex1a_nwp_gal9_C224",
+    ],
+    "lfric2um_ex1a_developer": [
+        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_full-debug-64bit",
+    ],
+    "lfric2um_ex1a": [
+        "lfric2um_ex1a_developer",
+        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit",
+    ],
+    "lfric2um_ex1a_weekly": [
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
+    ],
+    "scintelapi_ex1a_developer": [
+        "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_scintelapi-basicgal-C12L70-mixingratio_ex1a_gnu_fast-debug-64bit",
+    ],
+    "scintelapi_ex1a": [
+        "scintelapi_ex1a_developer",
+        "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_scintelapi-basicgal-C12L70-mixingratio_ex1a_gnu_full-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "um2lfric_aquaplanet": [
+        "um2lfric_azspice_aquaplanet",
+        "um2lfric_ex1a_aquaplanet"
+    ],
+    "um2lfric_basicgal": [
+        "um2lfric_azspice_basicgal",
+        "um2lfric_ex1a_basicgal",
+    ],
+    "um2lfric_nwp_gal9_C12": [
+        "um2lfric_azspice_nwp_gal9_C12",
+        "um2lfric_ex1a_nwp_gal9_C12",
+    ],
+    "um2lfric_nwp_gal9_C48": [
+        "um2lfric_azspice_nwp_gal9_C48",
+        "um2lfric_ex1a_nwp_gal9_C48",
+    ],
+    "um2lfric_nwp_gal9": [
+        "um2lfric_nwp_gal9_C12",
+        "um2lfric_nwp_gal9_C48",
+    ],
+    "um2lfric_protogal": [
+        "um2lfric_azspice_protogal",
+        "um2lfric_ex1a_protogal",
+    ],
+    "um2lfric_protogal_chem": [
+        "um2lfric_azspice_protogal_chem",
+        "um2lfric_ex1a_protogal_chem",
+    ],
+    "um2lfric_aquaplanet_lam": [
+        "um2lfric_azspice_aquaplanet_lam",
+        "um2lfric_ex1a_aquaplanet_lam",
+    ],
+    "um2lfric_aquaplanet_lbc": [
+        "um2lfric_azspice_aquaplanet_lbc",
+        "um2lfric_ex1a_aquaplanet_lbc",
+    ],
+    "um2lfric_falklands_lam": [
+        "um2lfric_azspice_falklands_lam",
+        "um2lfric_ex1a_falklands_lam",
+    ],
+    "um2lfric_var_seukv_lam": [
+        "um2lfric_azspice_var_seukv_lam",
+        "um2lfric_ex1a_var_seukv_lam",
+    ],
+    "lfricinputs_developer": [
+        "scripts",
+        "lfricinputs_azspice_developer",
+        "lfricinputs_ex1a_developer",
+    ],
+    "lfricinputs": [
+        "lfricinputs_developer",
+        "lfricinputs_azspice",
+        "lfricinputs_ex1a",
+    ],
+    "lfricinputs_weekly": [
+        "lfricinputs_ex1a_weekly",
+    ],
+    "um2lfric_developer": [
+        "um2lfric_azspice_developer",
+        "um2lfric_ex1a_developer",
+    ],
+    "um2lfric": [
+        "um2lfric_developer",
+        "um2lfric_azspice",
+        "um2lfric_ex1a",
+    ],
+    "um2lfric_weekly": [
+        "um2lfric_ex1a_weekly",
+    ],
+    "lfric2um_developer": [
+        "lfric2um_azspice_developer",
+        "lfric2um_ex1a_developer",
+    ],
+    "lfric2um": [
+        "lfric2um_developer",
+        "lfric2um_azspice",
+        "lfric2um_ex1a",
+    ],
+    "lfric2um_weekly": [
+        "lfric2um_ex1a_weekly",
+    ],
+    "scintelapi_developer": [
+        "scintelapi_azspice_developer",
+        "scintelapi_ex1a_developer",
+    ],
+    "scintelapi": [
+        "scintelapi_developer",
+        "scintelapi_azspice",
+        "scintelapi_ex1a",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.lfricinputs_developer) %}
+{% do site_groups.all.extend(site_groups.lfricinputs) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.lfricinputs_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.lfricinputs_azspice) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.lfricinputs_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.lfricinputs_ex1a) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_lfricinputs.cylc") %}

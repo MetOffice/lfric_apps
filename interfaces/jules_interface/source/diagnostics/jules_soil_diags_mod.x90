@@ -1,0 +1,166 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for jules_extra_alg
+
+module jules_soil_diags_mod
+
+  use constants_mod,             only: l_def
+  use field_mod,                 only: field_type
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+  use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+  logical( l_def ) :: soil_moisture_content_flag
+  logical( l_def ) :: grid_canopy_water_flag
+  logical( l_def ) :: throughfall_flag
+  logical( l_def ) :: grid_throughfall_flag
+
+  public :: initialise_diags_for_jules_soil
+  public :: output_diags_for_jules_soil
+
+contains
+
+  !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     soil_moist_sat        Soil moisture content at saturation
+  !> @param[in]     tile_fraction         Fraction of surface tiles
+  !> @param[in,out] soil_moisture_content Soil moisture content
+  !> @param[in,out] grid_canopy_water     Grid canopy water
+  !> @param[in,out] throughfall           Throughfall on tiles
+  !> @param[in,out] grid_throughfall      Grid throughfall
+
+  subroutine initialise_diags_for_jules_soil(soil_moist_sat,             &
+                                         tile_fraction,                  &
+                                         soil_moisture_content,          &
+                                         grid_canopy_water,              &
+                                         throughfall,                    &
+                                         grid_throughfall)
+
+    implicit none
+
+    ! Fields passed in to copy properties from
+    type( field_type ), intent(in)    :: soil_moist_sat
+    type( field_type ), intent(in)    :: tile_fraction
+
+    ! Diagnostic fields to initialise
+    type( field_type ), intent(inout) :: soil_moisture_content
+    type( field_type ), intent(inout) :: grid_canopy_water
+    type( field_type ), intent(inout) :: throughfall
+    type( field_type ), intent(inout) :: grid_throughfall
+
+    if ( subroutine_timers ) call timer("jules_soil_diags")
+
+    ! 2D fields
+    soil_moisture_content_flag = init_diag(soil_moisture_content, 'soil__soil_moisture_content')
+    if (soil_moisture_content_flag) then
+      call invoke(setval_c(soil_moisture_content, 0.0_r_def))
+    end if
+    grid_canopy_water_flag = init_diag(grid_canopy_water, 'surface__grid_canopy_water')
+    grid_throughfall_flag = init_diag(grid_throughfall, 'surface__grid_throughfall')
+
+    ! surface tiled fields
+    throughfall_flag = init_diag(throughfall, 'surface__throughfall', &
+                                 activate = grid_throughfall_flag)
+    ! Initialise field to that sea and sea-ice tiles have zero values
+    if (throughfall_flag) call invoke(setval_c(throughfall, 0.0_r_def))
+
+    if ( subroutine_timers ) call timer("jules_soil_diags")
+
+  end subroutine initialise_diags_for_jules_soil
+
+  !> @brief Output diagnostics from jules_extra_alg
+  !> @param[in]     tile_fraction          Fraction of surface tiles
+  !> @param[in]     soil_moisture_content  Soil moisture content
+  !> @param[in]     canopy_water           Canopy water of surface tiles
+  !> @param[in]     soil_moisture          Moisture in soil layers
+  !> @param[in]     soil_temperature       Temperature of soil layers
+  !> @param[in]     unfrozen_soil_moisture Fraction of unfrozen soil moisture as fraction of saturation
+  !> @param[in]     frozen_soil_moisture   Fraction of frozen soil moisture as fraction of saturation
+  !> @param[in]     throughfall            Throughfall on tiles
+  !> @param[in]     surface_runoff         Surface runoff
+  !> @param[in]     sub_surface_runoff     Sub-surface runoff
+  !> @param[in]     water_table            Depth of water table
+  !> @param[in]     soil_moist_wilt        Soil moisture at wilting point
+  !> @param[in]     soil_moist_crit        Soil moisture at critical point
+  !> @param[in]     soil_moist_sat         Soil moisture at saturation
+  !> @param[in,out] grid_canopy_water      Grid canopy water
+  !> @param[in,out] grid_throughfall       Grid throughfall
+
+  subroutine output_diags_for_jules_soil(tile_fraction, soil_moisture_content, &
+                                     canopy_water, soil_moisture,              &
+                                     soil_temperature, unfrozen_soil_moisture, &
+                                     frozen_soil_moisture, throughfall,        &
+                                     surface_runoff, sub_surface_runoff,       &
+                                     water_table, soil_moist_wilt,             &
+                                     soil_moist_crit, soil_moist_sat,          &
+                                     grid_canopy_water,grid_throughfall)
+
+    use jules_control_init_mod, only : n_land_tile
+
+    implicit none
+
+    ! Prognostic fields to output
+    type( field_type ), intent(in)    :: tile_fraction, soil_moisture_content, &
+                                         canopy_water, soil_moisture,          &
+                                         soil_temperature,                     &
+                                         unfrozen_soil_moisture,               &
+                                         frozen_soil_moisture,                 &
+                                         water_table,                          &
+                                         soil_moist_wilt,                      &
+                                         soil_moist_crit,                      &
+                                         soil_moist_sat
+
+    ! Diagnostics computed within the kernel
+    type( field_type ), intent(in)    :: throughfall
+    type( field_type ), intent(in)    :: surface_runoff
+    type( field_type ), intent(in)    :: sub_surface_runoff
+
+    ! Diagnostics locally computed here from other fields
+    type( field_type ), intent(inout) :: grid_canopy_water
+    type( field_type ), intent(inout) :: grid_throughfall
+
+    if ( subroutine_timers ) call timer("jules_soil_diags")
+
+    ! Prognostic fields
+    call canopy_water%write_field('surface__canopy_water')
+    call soil_moisture%write_field('soil__soil_moisture')
+    call soil_temperature%write_field('soil__soil_temperature')
+    call unfrozen_soil_moisture%write_field('soil__unfrozen_soil_moisture')
+    call frozen_soil_moisture%write_field('soil__frozen_soil_moisture')
+    call water_table%write_field('soil__water_table')
+    call soil_moist_wilt%write_field('soil__soil_moist_wilt')
+    call soil_moist_crit%write_field('soil__soil_moist_crit')
+    call soil_moist_sat%write_field('soil__soil_moist_sat')
+
+    ! Diagnostics locally computed here from other fields
+    if (grid_canopy_water_flag) then
+      call invoke(weighted_ave_kernel_type(grid_canopy_water, canopy_water,    &
+                                            tile_fraction, 1, n_land_tile) )
+      call grid_canopy_water%write_field()
+    end if
+    if (grid_throughfall_flag) then
+      call invoke(weighted_ave_kernel_type(grid_throughfall, throughfall,      &
+                                            tile_fraction, 1, n_land_tile) )
+      call grid_throughfall%write_field()
+    end if
+
+    ! Diagnostics computed within the kernel
+    if (throughfall_flag) call throughfall%write_field()
+    if (soil_moisture_content_flag) call soil_moisture_content%write_field()
+
+    ! More prognostic fields
+    call surface_runoff%write_field('soil__surface_runoff')
+    call sub_surface_runoff%write_field('soil__sub_surface_runoff')
+
+    if ( subroutine_timers ) call timer("jules_soil_diags")
+
+  end subroutine output_diags_for_jules_soil
+end module jules_soil_diags_mod

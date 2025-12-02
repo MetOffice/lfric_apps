@@ -1,0 +1,98 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_lfric2lfric.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "lfric2lfric_azspice_developer": [
+        "lfric2lfric_ral_seuk-C32_lam_MG_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_ral3-seuk_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_azspice_canned",
+    ],
+    "lfric2lfric_azspice_extra": [
+        "lfric2lfric_ral3-uk_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_ral3-ukv_azspice_gnu_fast-debug-64bit",
+    ],
+    "lfric2lfric_azspice": [
+        "lfric2lfric_azspice_developer",
+        "lfric2lfric_azspice_extra",
+    ],
+    "lfric2lfric_azspice_canned": [
+        "lfric2lfric_canned_azspice_gnu_fast-debug-64bit",
+    ],
+    "lfric2lfric_azspice_build": [
+        "build_lfric2lfric_azspice_gnu_fast-debug-64bit",
+    ],
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "lfric2lfric_ex1a_developer": [
+        "lfric2lfric_ral_seuk-C32_lam_MG_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_ral3-seuk_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_ex1a_canned",
+    ],
+    "lfric2lfric_ex1a_extra": [
+        "lfric2lfric_ral3-uk_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_ral3-ukv_ex1a_cce_fast-debug-64bit",
+    ],
+    "lfric2lfric_ex1a": [
+        "lfric2lfric_ex1a_developer",
+        "lfric2lfric_ex1a_extra",
+    ],
+    "lfric2lfric_ex1a_build": [
+        "build_lfric2lfric_ex1a_cce_fast-debug-64bit",
+    ],
+    "lfric2lfric_ex1a_canned": [
+        "lfric2lfric_canned_ex1a_cce_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "lfric2lfric_developer": [
+        "lfric2lfric_azspice_developer",
+        "lfric2lfric_ex1a_developer",
+    ],
+    "lfric2lfric": [
+        "lfric2lfric_developer",
+        "lfric2lfric_azspice",
+        "lfric2lfric_ex1a",
+    ],
+    "lfric2lfric_build": [
+        "lfric2lfric_azspice_build",
+        "lfric2lfric_ex1a_build",
+    ],
+    "lfric2lfric_canned": [
+        "lfric2lfric_azspice_canned",
+        "lfric2lfric_ex1a_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.lfric2lfric_developer) %}
+{% do site_groups.all.extend(site_groups.lfric2lfric) %}
+{% do site_groups.build.extend(site_groups.lfric2lfric_build) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.lfric2lfric_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.lfric2lfric_azspice) %}
+{% do site_groups.azspice_build.extend(site_groups.lfric2lfric_azspice_build) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.lfric2lfric_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.lfric2lfric_ex1a) %}
+{% do site_groups.ex1a_build.extend(site_groups.lfric2lfric_ex1a_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_lfric2lfric.cylc") %}

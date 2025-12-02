@@ -1,0 +1,267 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/shallow_water/tasks_shallow_water.cylc") %}
+
+{# ##################### #}
+{# Developer Group Tasks #}
+{# ##################### #}
+
+{% if task_ns.conf_name == "galewsky-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky"],
+        "resolution": "C24",
+        "DT": 1800,
+        "tsteps": 288,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q 72:288 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "galewsky_vi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_vi"],
+        "resolution": "C24",
+        "DT": 1800,
+        "tsteps": 288,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 72:288 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "gaussian-BiP32x32-1x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["gaussian"],
+        "resolution": "BiP32x32-1x1",
+        "DT": 0.001,
+        "tsteps": 200,
+        "crun": 2,
+        "crun_compare": false,
+        "use_xios": false,
+        "plot_str":  "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR P:32:1 geopot 50:200 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "gaussian_vi-BiP32x32-1x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["gaussian_vi"],
+        "resolution": "BiP32x32-1x1",
+        "DT": 0.001,
+        "tsteps": 200,
+        "use_xios": false,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR P:32:1 geopot:tracer_const:tracer_pv:tracer_step 50:200 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "gaussian_ex-BiP32x32-1x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["gaussian_ex"],
+        "resolution": "BiP32x32-1x1",
+        "DT": 0.001,
+        "tsteps": 200,
+        "use_xios": false,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR P:32:1 geopot 50:200 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "thermal_vi-BiP32x32-1x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["thermal_vi"],
+        "resolution": "BiP32x32-1x1",
+        "DT": 0.001,
+        "tsteps": 200,
+        "use_xios": false,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR P:32:1 buoyancy:geopot 50:200 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "williamson2_vi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson2_vi"],
+        "resolution": "C24",
+        "DT": 1800,
+        "tsteps": 720,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot 360:720 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "williamson5_vi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson5_vi"],
+        "resolution": "C24",
+        "DT": 1800,
+        "tsteps": 720,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C geopot:tracer_const:tracer_pv:tracer_step 180:720 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "canned" %}
+
+    {% do task_dict.update({
+        "app_name": "canned_test",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "unit_tests" %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{# ################### #}
+{# Nightly Group Tasks #}
+{# ################### #}
+
+{% elif task_ns.conf_name == "galewsky_vi-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_vi"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 1152,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "kgo_checks": [],
+        "wallclock": 30,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "galewsky_vi_koren-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_vi_koren"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 1152,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "kgo_checks": [],
+        "wallclock": 30,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "galewsky_vi_ffsl-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_vi_ffsl"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 1152,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "kgo_checks": [],
+        "wallclock": 30,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "galewsky_vi_mono-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_vi_mono"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 1152,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "kgo_checks": [],
+        "wallclock": 30,
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "thermal-BiP32x32-1x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["thermal"],
+        "resolution": "BiP32x32-1x1",
+        "DT": 0.001,
+        "tsteps": 200,
+        "use_xios": false,
+        "kgo_checks": [],
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR P:32:1 buoyancy:geopot 50:200 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "vortex_plane-BiP64x64-1x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_plane"],
+        "resolution": "BiP64x64-1x1",
+        "DT": 0.002,
+        "tsteps": 2000,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "kgo_checks": [],
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR P:64:1 q 500:2000 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "vortex_plane_vi-BiP64x64-1x1" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_plane"],
+        "resolution": "BiP64x64-1x1",
+        "DT": 0.002,
+        "tsteps": 2000,
+        "mpi_parts": 6,
+        "use_xios": false,
+        "kgo_checks": [],
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR P:64:1 q 500:2000 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "williamson5-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson5"],
+        "resolution": "C24",
+        "DT": 1800,
+        "tsteps": 720,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "kgo_checks": [],
+        "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C geopot 180:720 $PLOT_DIR",
+    }) %}
+
+{# ############# #}
+{# General Tasks #}
+{# ############# #}
+
+{% elif task.startswith("build") %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% endif %}
+
+{% if not task_dict %}
+  {% include "site/common/shallow_water/tasks_shallow_water_swe_paper.cylc" %}
+{% endif %}
+
+{# Set default values for Shallow Water tasks #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/shallow_water"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "shallow_water"}) %}
+    {% endif %}
+    {% if "kgo_checks" not in task_dict %}
+        {% do task_dict.update({"kgo_checks": ["checksum"]}) %}
+    {% endif %}
+{% endif %}
+
+
+
+{% do LOG.debug("Finished in site/common/shallow_water/tasks_shallow_water.cylc") %}

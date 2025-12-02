@@ -1,0 +1,154 @@
+@@ -12,44 +12,47 @@
+     use adj_apply_mixed_lu_operator_kernel_mod, only : adj_apply_mixed_lu_operator_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : w2, w3, wtheta
+-    use operator_mod, only : operator_type
+-    use constants_mod, only : i_def, r_def
+-    use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
+-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
++    use r_solver_field_mod, only : r_solver_field_type
++    use r_solver_operator_mod, only : r_solver_operator_type
++    use constants_mod, only : i_def, r_def, r_solver
++    use setop_random_alg_mod, only : setop_random_alg
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
++    real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+     type(field_type), intent(in), optional :: panel_id
+     TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+     TYPE(function_space_type), POINTER :: vector_space_w3_ptr
+     TYPE(function_space_type), POINTER :: vector_space_wtheta_ptr
+-    type(field_type) :: lhs_u
+-    type(field_type) :: wind
+-    type(field_type) :: theta
+-    type(field_type) :: exner
+-    type(operator_type) :: mu_cd
+-    type(operator_type) :: p2theta
+-    type(operator_type) :: grad
+-    type(field_type) :: norm_u
+-    type(field_type) :: lhs_u_input
+-    type(field_type) :: wind_input
+-    type(field_type) :: theta_input
+-    type(field_type) :: exner_input
+-    type(field_type) :: norm_u_input
++    type(r_solver_field_type) :: lhs_u
++    type(r_solver_field_type) :: wind
++    type(r_solver_field_type) :: theta
++    type(r_solver_field_type) :: exner
++    type(r_solver_operator_type) :: mu_cd
++    type(r_solver_operator_type) :: p2theta
++    type(r_solver_operator_type) :: grad
++    type(r_solver_field_type) :: norm_u
++    type(r_solver_field_type) :: lhs_u_input
++    type(r_solver_field_type) :: wind_input
++    type(r_solver_field_type) :: theta_input
++    type(r_solver_field_type) :: exner_input
+     real(kind=r_def) :: lhs_u_inner_prod
+     real(kind=r_def) :: wind_inner_prod
+     real(kind=r_def) :: theta_inner_prod
+     real(kind=r_def) :: exner_inner_prod
+-    real(kind=r_def) :: norm_u_inner_prod
+-    real(kind=r_def) :: inner1
++    real(kind=r_def) :: lhs_u_sf
++    real(kind=r_def) :: wind_sf
++    real(kind=r_def) :: theta_sf
++    real(kind=r_def) :: exner_sf
++    real(kind=r_solver) :: inner1
+     real(kind=r_def) :: lhs_u_lhs_u_input_inner_prod
+     real(kind=r_def) :: wind_wind_input_inner_prod
+     real(kind=r_def) :: theta_theta_input_inner_prod
+     real(kind=r_def) :: exner_exner_input_inner_prod
+-    real(kind=r_def) :: norm_u_norm_u_input_inner_prod
+-    real(kind=r_def) :: inner2
+-    real(kind=r_def) :: MachineTol
+-    real(kind=r_def) :: relative_diff
++    real(kind=r_solver) :: inner2
++    real(kind=r_solver) :: MachineTol
++    real(kind=r_solver) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+     vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+@@ -66,42 +69,55 @@
+     call wind_input%initialise(vector_space=vector_space_w2_ptr, name='wind_input')
+     call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
+     call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
+-    call norm_u_input%initialise(vector_space=vector_space_w2_ptr, name='norm_u_input')
+-    lhs_u_inner_prod = 0.0_r_def
+-    wind_inner_prod = 0.0_r_def
+-    theta_inner_prod = 0.0_r_def
+-    exner_inner_prod = 0.0_r_def
+-    norm_u_inner_prod = 0.0_r_def
+-
++    lhs_u_inner_prod = 0.0_r_solver
++    wind_inner_prod = 0.0_r_solver
++    theta_inner_prod = 0.0_r_solver
++    exner_inner_prod = 0.0_r_solver
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(lhs_u), setval_x(lhs_u_input, lhs_u), setval_random(wind), setval_x(wind_input, wind), &
+-&setval_random(theta), setval_x(theta_input, theta), setval_random(exner), setval_x(exner_input, exner), setval_random(norm_u), &
+-&setval_x(norm_u_input, norm_u), setop_random_kernel_type(mu_cd), setop_random_kernel_type(p2theta), &
+-&setop_random_kernel_type(grad), apply_mixed_lu_operator_kernel_type(lhs_u, wind, theta, exner, mu_cd, p2theta, grad, norm_u), &
++&setval_random(theta), setval_x(theta_input, theta), setval_random(exner), setval_x(exner_input, exner), setval_random(norm_u))
++    call setop_random_alg(mu_cd)
++    call setop_random_alg(p2theta)
++    call setop_random_alg(grad)
++    call invoke(apply_mixed_lu_operator_kernel_type(lhs_u, wind, theta, exner, mu_cd, p2theta, grad, norm_u), &
+ &x_innerproduct_x(lhs_u_inner_prod, lhs_u), x_innerproduct_x(wind_inner_prod, wind), x_innerproduct_x(theta_inner_prod, theta), &
+-&x_innerproduct_x(exner_inner_prod, exner), x_innerproduct_x(norm_u_inner_prod, norm_u))
+-    inner1 = 0.0_r_def
+-    inner1 = inner1 + lhs_u_inner_prod
+-    inner1 = inner1 + wind_inner_prod
+-    inner1 = inner1 + theta_inner_prod
+-    inner1 = inner1 + exner_inner_prod
+-    inner1 = inner1 + norm_u_inner_prod
++&x_innerproduct_x(exner_inner_prod, exner))
++    write( log_scratch_space, * ) "adjt_apply_mixed_lu_operator inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "lhs_u inner product = ", lhs_u_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "wind inner product = ", wind_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "theta inner product = ", theta_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "exner inner product = ", exner_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    lhs_u_sf = 1.0_r_def / (lhs_u_inner_prod + eps)
++    wind_sf = 1.0_r_def / (wind_inner_prod + eps)
++    theta_sf = 1.0_r_def / (theta_inner_prod + eps)
++    exner_sf = 1.0_r_def / (exner_inner_prod + eps)
++    inner1 = 0.0_r_solver
++    inner1 = inner1 + real(lhs_u_inner_prod * lhs_u_sf, r_solver)
++    inner1 = inner1 + real(wind_inner_prod * wind_sf, r_solver)
++    inner1 = inner1 + real(theta_inner_prod * theta_sf, r_solver)
++    inner1 = inner1 + real(exner_inner_prod * exner_sf, r_solver)
++    call invoke( inc_a_times_X( lhs_u_sf, lhs_u ), &
++                 inc_a_times_X( wind_sf, wind ),   &
++                 inc_a_times_X( theta_sf, theta ), &
++                 inc_a_times_X( exner_sf, exner ) )
+     lhs_u_lhs_u_input_inner_prod = 0.0_r_def
+     wind_wind_input_inner_prod = 0.0_r_def
+     theta_theta_input_inner_prod = 0.0_r_def
+     exner_exner_input_inner_prod = 0.0_r_def
+-    norm_u_norm_u_input_inner_prod = 0.0_r_def
+     call invoke(adj_apply_mixed_lu_operator_kernel_type(lhs_u, wind, theta, exner, mu_cd, p2theta, grad, norm_u), &
+ &x_innerproduct_y(lhs_u_lhs_u_input_inner_prod, lhs_u, lhs_u_input), x_innerproduct_y(wind_wind_input_inner_prod, wind, &
+ &wind_input), x_innerproduct_y(theta_theta_input_inner_prod, theta, theta_input), x_innerproduct_y(exner_exner_input_inner_prod, &
+-&exner, exner_input), x_innerproduct_y(norm_u_norm_u_input_inner_prod, norm_u, norm_u_input))
+-    inner2 = 0.0_r_def
+-    inner2 = inner2 + lhs_u_lhs_u_input_inner_prod
+-    inner2 = inner2 + wind_wind_input_inner_prod
+-    inner2 = inner2 + theta_theta_input_inner_prod
+-    inner2 = inner2 + exner_exner_input_inner_prod
+-    inner2 = inner2 + norm_u_norm_u_input_inner_prod
+-
++&exner, exner_input))
++    inner2 = 0.0_r_solver
++    inner2 = inner2 + real(lhs_u_lhs_u_input_inner_prod, r_solver)
++    inner2 = inner2 + real(wind_wind_input_inner_prod, r_solver)
++    inner2 = inner2 + real(theta_theta_input_inner_prod, r_solver)
++    inner2 = inner2 + real(exner_exner_input_inner_prod, r_solver)
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

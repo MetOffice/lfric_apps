@@ -1,0 +1,145 @@
+!-----------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------
+!> @brief Test the jedi_lfric_field_meta_type implementation
+!
+!-------------------------------------------------------------------------------
+module jedi_lfric_field_meta_test
+
+  use constants_mod,             only : i_def, r_def, l_def, str_def
+  use jedi_lfric_field_meta_mod, only : jedi_lfric_field_meta_type
+
+  use funit
+
+  implicit none
+
+  private
+  public :: setUp, tearDown, test_field_meta_data
+
+  @testCase
+  type, public, extends(TestCase) :: jedi_lfric_field_meta_test_type
+
+    integer( kind=i_def )              :: nvars = 3_i_def
+    character( len=str_def )           :: variable_names(3)
+    integer( kind=i_def )              :: variable_function_spaces(3)
+    logical( kind=l_def )              :: variable_is_2d(3)
+    type( jedi_lfric_field_meta_type ) :: field_meta_data
+
+  contains
+    procedure :: setUp
+    procedure :: tearDown
+    procedure :: test_field_meta_data
+  end type jedi_lfric_field_meta_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp(this)
+
+    implicit none
+
+    class(jedi_lfric_field_meta_test_type), intent(inout) :: this
+
+    this%variable_names = (/"test_field_1", "test_field_2", "test_field_3"/)
+    this%variable_function_spaces = (/1 , 2, 3 /)
+    this%variable_is_2d = (/.false., .false., .true./)
+
+    call this%field_meta_data%initialise( this%variable_names,           &
+                                          this%variable_function_spaces, &
+                                          this%variable_is_2d )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown(this)
+
+    implicit none
+
+    class(jedi_lfric_field_meta_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_field_meta_data(this)
+
+    implicit none
+    ! Arguments
+    class(jedi_lfric_field_meta_test_type), intent(inout) :: this
+
+    ! Local
+    integer( kind=i_def )                 :: int_value
+    integer( kind=i_def )                 :: int_value_test
+    logical( kind=l_def )                 :: logical_value
+    logical( kind=l_def )                 :: logical_value_test
+    integer( kind=i_def )                 :: index
+    character( len=str_def )              :: variable_name
+    character( len=str_def )              :: variable_name_test
+    character( len=str_def ), allocatable :: variable_names_get(:)
+    type( jedi_lfric_field_meta_type )    :: field_meta_data
+    character( len=str_def )              :: test_variable_names(2)
+
+    ! Test get_n_variables
+    int_value = this%field_meta_data%get_n_variables()
+    int_value_test = this%nvars
+    @assertEqual(int_value_test, int_value)
+
+    ! Test get_variable_name
+    do index=1,this%nvars
+      variable_name = this%field_meta_data%get_variable_name(index)
+      variable_name_test = this%variable_names(index)
+      @assertEqual(variable_name_test, variable_name)
+    end do
+
+    ! Test get_variable_names
+    call this%field_meta_data%get_variable_names(variable_names_get)
+    do index=1,this%nvars
+      variable_name_test = this%variable_names(index)
+      @assertEqual(variable_name_test, variable_names_get(index))
+    end do
+
+    ! Test get_variable_function_space
+    do index=1,this%nvars
+      int_value = this%field_meta_data%get_variable_function_space(index)
+      int_value_test = this%variable_function_spaces(index)
+      @assertEqual(int_value_test, int_value)
+    end do
+
+    ! Test get_variable_is_2d
+    do index=1,this%nvars
+      logical_value = this%field_meta_data%get_variable_is_2d(index)
+      logical_value_test = this%variable_is_2d(index)
+      @assertTrue(logical_value.eqv.logical_value_test)
+    end do
+
+    ! Test check_variables_exist
+    ! All values do exist
+    test_variable_names = (/"test_field_1", "test_field_3"/)
+    logical_value = this%field_meta_data%check_variables_exist(test_variable_names)
+    @assertTrue(logical_value)
+    ! All values do not exist
+    test_variable_names = (/"test_field_1", "test_field_4"/)
+    logical_value = this%field_meta_data%check_variables_exist(test_variable_names)
+    @assertFalse(logical_value)
+
+    ! Test the copy method
+    field_meta_data = this%field_meta_data
+
+    ! Test get_n_variables with copied object
+    int_value = field_meta_data%get_n_variables()
+    int_value_test = this%nvars
+    @assertEqual(int_value_test, int_value)
+
+    ! Test get_variable_is_2d with copied object
+    do index=1,this%nvars
+      logical_value = field_meta_data%get_variable_is_2d(index)
+      logical_value_test = this%variable_is_2d(index)
+      @assertTrue(logical_value.eqv.logical_value_test)
+    end do
+
+    return
+  end subroutine test_field_meta_data
+
+end module jedi_lfric_field_meta_test

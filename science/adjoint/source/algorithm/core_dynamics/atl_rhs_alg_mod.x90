@@ -1,0 +1,306 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Wrapper algorithm to compute the adjoint of rhs of the prognostic
+!>        equations
+module atl_rhs_alg_mod
+
+  use constants_mod,                       only: r_def, i_def, l_def
+  use log_mod,                             only: log_event, &
+                                                 LOG_LEVEL_ERROR
+  use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+  use sci_geometric_constants_mod,         only: get_coordinates,     &
+                                                 get_panel_id
+  use sci_fem_constants_mod,               only: get_mass_matrix_fe, &
+                                                 get_inverse_mass_matrix_fe
+  use dycore_constants_mod,                only: get_coriolis,       &
+                                                 get_geopotential,   &
+                                                 get_w2_mass_matrix, &
+                                                 w2_damping_layer_matrix
+  use field_mod,                           only: field_type
+  use finite_element_config_mod,           only: element_order_h, element_order_v, &
+                                                 vorticity_in_w1
+  use formulation_config_mod,              only: rotating,             &
+                                                 si_momentum_equation, &
+                                                 vector_invariant,     &
+                                                 eos_method,           &
+                                                 eos_method_sampled,   &
+                                                 eos_method_projected
+  use model_clock_mod,                     only: model_clock_type
+  use planet_config_mod,                   only: cp, kappa, rd, p_zero
+  use atl_kinetic_energy_gradient_kernel_mod, &
+                                           only: atl_kinetic_energy_gradient_kernel_type
+  use adj_matrix_vector_kernel_mod,        only: adj_matrix_vector_kernel_type
+  use adj_dg_inc_matrix_vector_kernel_mod, only: adj_dg_inc_matrix_vector_kernel_type
+  use operator_mod,                        only: operator_type
+  use atl_hydrostatic_kernel_mod,          only: atl_hydrostatic_kernel_type
+  use atl_pressure_gradient_bd_kernel_mod, only: atl_pressure_gradient_bd_kernel_type
+  use quadrature_xyoz_mod,                 only: quadrature_xyoz_type
+  use quadrature_face_mod,                 only: quadrature_face_type
+  use quadrature_rule_gaussian_mod,        only: quadrature_rule_gaussian_type
+  use derived_config_mod,                  only: bundle_size
+  use field_indices_mod,                   only: igh_u, igh_t, igh_d, igh_p
+  use io_config_mod,                       only: subroutine_timers
+  use timer_mod,                           only: timer
+  use atl_rhs_project_eos_kernel_mod,      only: atl_rhs_project_eos_kernel_type
+  use atl_rhs_sample_eos_kernel_mod,       only: atl_rhs_sample_eos_kernel_type
+  use moist_dyn_mod,                       only: num_moist_factors, gas_law
+  use adj_dg_matrix_vector_kernel_mod,     only: adj_dg_matrix_vector_kernel_type
+  use reference_element_mod,               only: reference_element_type
+  use mesh_mod,                            only: mesh_type
+  use atl_vorticity_advection_kernel_mod,  only: atl_vorticity_advection_kernel_type
+  use compute_vorticity_alg_mod,           only: compute_vorticity_alg
+  use adj_compute_vorticity_alg_mod,       only: adj_compute_vorticity_alg
+  use fs_continuity_mod,                   only: W1, W2, W3, Wtheta
+  use function_space_collection_mod,       only: function_space_collection
+  use function_space_mod,                  only: function_space_type
+
+  implicit none
+
+  private
+  public :: atl_rhs_alg
+
+contains
+
+  !> @brief A wrapper algorithm for computing the adjoint rhs of the prognostic
+  !>        equations. Handwritten adjoint of tl_rhs_alg of tl_rhs_alg_mod.
+  !> @param[in,out] rhs The state vector to compute
+  !> @param[in]     alpha_dt The offcentering parameter times the timestep
+  !> @param[in]     base_state The model prognostic state to which increments are added
+  !> @param[in]     state The current model prognostic state
+  !> @param[in]     moist_dyn Factors relating to moist dynamics
+  !> @param[in]     compute_eos Flag to control computation of the equation of
+  !!                state
+  !> @param[in]     dlayer_rhs Use damping layer in rhs yes/no
+  !> @param[in]     model_clock Time in the model
+subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
+                       ls_state, ls_moist_dyn, compute_eos,                &
+                       dlayer_rhs, model_clock)
+
+    implicit none
+
+    real(kind=r_def),             intent(in)    :: alpha_dt
+    logical(kind=l_def),          intent(in)    :: dlayer_rhs
+
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type), target,     intent(inout) :: base_state(bundle_size)
+    type(field_type), target,     intent(inout) :: state(bundle_size)
+    type(field_type),             intent(inout) :: moist_dyn(num_moist_factors)
+    type(field_type), target,     intent(in)    :: ls_state(bundle_size)
+    type(field_type),             intent(in)    :: ls_moist_dyn(num_moist_factors)
+    type(field_type),             intent(inout) :: rhs(bundle_size)
+    logical(kind=l_def),          intent(in)    :: compute_eos
+    class(model_clock_type),      intent(in)    :: model_clock
+
+    type(operator_type), pointer :: mm_vel,    &
+                                    mm_wtheta, &
+                                    mm_w3_inv, &
+                                    coriolis
+    type(field_type), pointer :: chi(:),       &
+                                 panel_id,     &
+                                 geopotential, &
+                                 u,            &
+                                 theta,        &
+                                 rho,          &
+                                 u_base,       &
+                                 theta_base,   &
+                                 rho_base,     &
+                                 exner,        &
+                                 ls_u,         &
+                                 ls_theta,     &
+                                 ls_rho,       &
+                                 ls_exner
+
+
+    type(field_type)                       :: rhs_tmp, rhs_eos
+    type(field_type)                       :: vorticity, ls_vorticity
+    type(quadrature_xyoz_type)             :: qr, qr_exact
+    type(quadrature_face_type)             :: qrf
+    type(quadrature_rule_gaussian_type)    :: gaussian_quadrature
+    class(reference_element_type), pointer :: reference_element
+    type (mesh_type),              pointer :: mesh
+    integer(kind=i_def)                    :: vorticity_fs
+    type(field_type)                       :: exner_big_halo, &
+                                              ls_exner_big_halo
+
+    integer(kind=i_def), parameter :: exner_stencil_depth = 1
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(field_type) :: dummy_w3
+
+    if ( subroutine_timers ) call timer('atl_rhs_alg')
+
+    mesh => base_state(igh_u)%get_mesh()
+
+    geopotential => get_geopotential(mesh%get_id())
+    mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh%get_id())
+    chi          => get_coordinates(mesh%get_id())
+    panel_id     => get_panel_id(mesh%get_id())
+    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, w3 )
+    call dummy_w3%initialise( vector_space = vector_space_w3_ptr, name = 'dummy_w3' )
+
+    ! Using modified velocity mass matrix if using damping layer
+    if (dlayer_rhs) then
+      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh%get_id(), model_clock)
+    else
+      mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+    end if
+
+    u     => state(igh_u)
+    theta => state(igh_t)
+    rho   => state(igh_d)
+    exner => state(igh_p)
+
+    u_base     => base_state(igh_u)
+    theta_base => base_state(igh_t)
+    rho_base   => base_state(igh_d)
+
+    ls_u     => ls_state(igh_u)
+    ls_theta => ls_state(igh_t)
+    ls_rho   => ls_state(igh_d)
+    ls_exner => ls_state(igh_p)
+
+    if ( vorticity_in_w1 ) then
+      vorticity_fs = W1
+    else
+      vorticity_fs = W2
+    end if
+
+    call vorticity%initialise( vector_space =                                &
+                    function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                                      vorticity_fs) )
+    call ls_vorticity%initialise( vector_space =                             &
+                    function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                                     vorticity_fs) )
+    call compute_vorticity_alg(ls_vorticity, ls_u, .false.)
+
+    call rhs_tmp%initialise( vector_space=rhs(igh_u)%get_function_space() )
+    call rhs_eos%initialise( vector_space=rhs(igh_p)%get_function_space() )
+    qr       = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
+                                    element_order_v+2, gaussian_quadrature)
+    qr_exact = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
+                                    element_order_v+3, gaussian_quadrature)
+    mesh              => theta%get_mesh()
+    reference_element => mesh%get_reference_element()
+    qrf = quadrature_face_type(element_order_h+2, element_order_v+2, &
+                               .true., .false., reference_element,   &
+                               gaussian_quadrature)
+
+    call exner_big_halo%initialise( exner%get_function_space(), &
+                                    halo_depth = 2 )
+    call ls_exner_big_halo%initialise( ls_exner%get_function_space(), &
+                                       halo_depth = 2 )
+    call invoke( setval_c( exner_big_halo, 0.0_r_def ),  &
+                 setval_X( ls_exner_big_halo, ls_exner ) &
+               )
+
+    ! Start of adjoint
+    call invoke( name = "initialise_rhs_tmp", &
+                 setval_c( rhs_tmp,    0.0_r_def ), &
+                 setval_c( rhs_eos,    0.0_r_def ) )
+
+    if ( compute_eos ) then
+      select case ( eos_method )
+        case( eos_method_sampled )
+          call invoke( name = "atl_sample_rhs_eos",                                  &
+                       inc_X_plus_Y( rhs_eos, rhs(igh_p) ),                          &
+                       setval_c( rhs(igh_p), 0.0_r_def ),                            &
+                       atl_rhs_sample_eos_kernel_type( rhs_eos, exner, rho, theta,   &
+                                                       moist_dyn(gas_law), ls_exner, &
+                                                       ls_rho, ls_theta,             &
+                                                       ls_moist_dyn(gas_law),        &
+                                                       kappa, rd, p_zero )           &
+                     )
+
+        case( eos_method_projected )
+          call invoke( name = "atl_project_rhs_eos",                                           &
+                       adj_dg_matrix_vector_kernel_type( rhs(igh_p), rhs_eos, mm_w3_inv ),     &
+                       atl_rhs_project_eos_kernel_type( rhs_eos, exner, rho, theta,            &
+                                                        moist_dyn(gas_law), ls_exner, ls_rho,  &
+                                                        ls_theta, ls_moist_dyn(gas_law),       &
+                                                        chi, panel_id,                         &
+                                                        kappa, rd, p_zero, qr_exact )          &
+                     )
+        case default
+          call log_event( "Gungho: Unrecognised method to rhs_eos", LOG_LEVEL_ERROR )
+      end select
+    else
+      call invoke( setval_c( rhs(igh_p), 0.0_r_def ) )
+    end if
+
+    call invoke( name = "adj_compute_rhs_theta_and_rhs_rho",                               &
+    ! Compute rhs_rho
+                 inc_X_plus_Y( rho_base, rhs(igh_d) ),                                     &
+                 setval_c( rhs(igh_d), 0.0_r_def ),                                        &
+    ! Compute rhs_theta
+                 adj_dg_inc_matrix_vector_kernel_type( rhs(igh_t), theta_base, mm_wtheta ) &
+                )
+
+    call invoke( name = "adj_compute_rhs_u_evaluation",             &
+                 enforce_bc_kernel_type( rhs(igh_u) ),              &
+                 inc_X_plus_bY( rhs_tmp, alpha_dt, rhs(igh_u) )     &
+               )
+
+    if ( rotating ) then
+      coriolis => get_coriolis( mesh%get_id() )
+      call invoke( adj_matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )
+    end if
+
+    if ( si_momentum_equation ) then
+      ! Treat the momentum advection terms with the semi-implicit scheme
+      if ( vector_invariant ) then
+
+        if ( vorticity_in_w1 ) then
+          call invoke( atl_vorticity_advection_kernel_type( rhs_tmp, u, vorticity,  &
+                                                            ls_u, ls_vorticity,     &
+                                                            chi, panel_id, qr_exact ) )
+        else
+          call log_event( "ADJ for w2 vorticity_advection not available", &
+                          LOG_LEVEL_ERROR )
+        end if
+
+        ! Compute the adjoint of vorticity
+        call adj_compute_vorticity_alg(vorticity, u, .false.)
+
+        ! Compute adjoint of grad(K) + curl(u) x u
+        call invoke( atl_kinetic_energy_gradient_kernel_type( rhs_tmp, u, ls_u,  &
+                                                              chi, panel_id, qr ) )
+      else
+        call log_event( 'SI advective form not supported', LOG_LEVEL_ERROR )
+      end if
+    end if
+
+    ! Compute adjoint of rhs_u
+    call invoke( name = "adj_compute_rhs_u_setup",                                             &
+                 adj_matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ),                  &
+                 atl_hydrostatic_kernel_type( rhs_tmp, exner, theta, moist_dyn,                &
+                                              ls_exner, ls_theta, ls_moist_dyn,                &
+                                              cp, qr ),                                        &
+                 atl_pressure_gradient_bd_kernel_type( rhs_tmp, exner_stencil_depth,           &
+                                                       exner_big_halo,                         &
+                                                       dummy_w3, exner_stencil_depth,          &
+                                                       theta, moist_dyn,                       &
+                                                       ls_exner_big_halo, exner_stencil_depth, &
+                                                       ls_theta, exner_stencil_depth,          &
+                                                       ls_moist_dyn, exner_stencil_depth,      &
+                                                       cp, qrf ),                              &
+                inc_X_plus_Y( exner, exner_big_halo ),                                         &
+                setval_c( exner_big_halo, 0.0_r_def )                                          &
+               )
+
+    ! Finalise RHS u and theta fields
+    call invoke( name = "finalise_rhs_u_and_theta_fields", &
+                 setval_c( rhs_tmp,    0.0_r_def ),        &
+                 setval_c( rhs(igh_u), 0.0_r_def ),        &
+                 setval_c( rhs(igh_t), 0.0_r_def ) )
+    ! End of adjoint
+
+    if ( subroutine_timers ) call timer('atl_rhs_alg')
+
+  end subroutine atl_rhs_alg
+
+end module atl_rhs_alg_mod
+

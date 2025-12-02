@@ -1,0 +1,257 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!-----------------------------------------------------------------------------
+!> @brief Initialisation of density field for the transport miniapp.
+!> @details The initial density field can be generated either by sampling
+!>          or by projection.
+!-----------------------------------------------------------------------------
+
+module transport_init_fields_alg_mod
+
+  use constants_mod,                     only: r_def, i_def, radians_to_degrees
+  use domain_mod,                        only: domain_type
+  use divergence_alg_mod,                only: divergence_alg
+  use sci_enforce_lower_bound_kernel_mod, &
+                                         only: enforce_lower_bound_kernel_type
+  use sci_fem_constants_mod,             only: get_qr_fe
+  use finite_element_config_mod,         only: element_order_h, element_order_v
+  use field_mod,                         only: field_type
+  use sci_field_bundle_builtins_mod,     only: set_bundle_scalar
+  use field_parent_mod,                  only: write_interface
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use fs_continuity_mod,                 only: W2, W3, Wtheta
+  use sci_geometric_constants_mod,       only: get_coordinates,     &
+                                               get_panel_id
+  use init_gungho_prognostics_alg_mod,   only: init_u_field
+  use initial_tracer_field_sample_kernel_mod, &
+                                  only: initial_tracer_field_sample_kernel_type
+  use initial_pressure_config_mod,       only: method, method_sampled
+  use initial_rho_sample_kernel_mod,     only: initial_rho_sample_kernel_type
+  use initial_tracer_field_config_mod,   only: field_background
+  use initial_wind_config_mod,           only: profile, profile_four_part_sbr
+  use intermesh_mappings_alg_mod,        only: map_w2_intermesh
+  use io_config_mod,                     only: write_diag, use_xios_io
+  use lfric_xios_write_mod,              only: write_field_generic
+  use map_fd_to_prognostics_alg_mod,     only: set_wind
+  use mesh_mod,                          only: mesh_type
+  use mr_indices_mod,                    only: nummr, mr_names
+  use quadrature_xyoz_mod,               only: quadrature_xyoz_type
+  use set_rho_kernel_mod,                only: set_rho_kernel_type
+  use set_tracer_field_kernel_mod,       only: set_tracer_field_kernel_type
+
+  implicit none
+
+  private
+
+  public :: transport_init_fields_alg
+
+contains
+!-----------------------------------------------------------------------------
+!> @brief Initialisation of prognostic fields for the transport miniapp.
+!> @param[in]     mesh              Mesh to initialise variables on
+!> @param[in,out] wind              Transporting wind field
+!> @param[in,out] density           Density field (in W3)
+!> @param[in,out] theta             Theta field (in Wtheta)
+!> @param[in,out] tracer_con        Conservative tracer field (in W3)
+!> @param[in,out] tracer_adv        Advective tracer field (in W3)
+!> @param[in,out] constant          Constant tracer field (in W3)
+!> @param[in,out] mr                Moisture mixing ratio fields (in Wtheta)
+!> @param[in,out] w2_vector         A vector-valued field in W2
+!> @param[in]     aerosol_mesh      Coarse mesh to initialise variables on
+!> @param[in,out] aerosol_wind      Transporting wind field on the coarse mesh
+!> @param[in,out] w3_aerosol        Tracer in W3 on coarse mesh to transport advectively
+!> @param[in,out] wt_aerosol        Tracer in Wtheta on coarse mesh to transport advectively
+!> @param[in,out] divergence        Divergence field
+!-----------------------------------------------------------------------------
+subroutine transport_init_fields_alg( mesh,         &
+                                      wind,         &
+                                      density,      &
+                                      theta,        &
+                                      tracer_con,   &
+                                      tracer_adv,   &
+                                      constant,     &
+                                      mr,           &
+                                      w2_vector,    &
+                                      aerosol_mesh, &
+                                      aerosol_wind, &
+                                      w3_aerosol,   &
+                                      wt_aerosol,   &
+                                      divergence )
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: aerosol_mesh
+
+    type(field_type),     intent(inout) :: wind
+    type(field_type),     intent(inout) :: density
+    type(field_type),     intent(inout) :: theta
+    type(field_type),     intent(inout) :: tracer_con
+    type(field_type),     intent(inout) :: tracer_adv
+    type(field_type),     intent(inout) :: constant
+    type(field_type),     intent(inout) :: mr(nummr)
+    type(field_type),     intent(inout) :: w2_vector
+    type(field_type),     intent(inout) :: divergence
+    type(field_type),     intent(inout) :: w3_aerosol
+    type(field_type),     intent(inout) :: wt_aerosol
+    type(field_type),     intent(inout) :: aerosol_wind
+
+    ! Internal variables
+    real(kind=r_def), parameter         :: initial_time = 0.0_r_def
+    integer(kind=i_def)                 :: imr, const_flag, config_flag
+
+    type(domain_type) :: domain
+    real(kind=r_def)  :: domain_max_x
+
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(field_type),           pointer :: aerosol_chi(:) => null()
+    type(field_type),           pointer :: aerosol_panel_id => null()
+    type(field_type)                    :: zeros_w3, vert_w2
+    type(function_space_type),  pointer :: w2_fs => null()
+    type(function_space_type),  pointer :: w3_fs => null()
+    type(function_space_type),  pointer :: wt_fs => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+    type(function_space_type),  pointer :: w2_aerosol_fs => null()
+    type(function_space_type),  pointer :: w3_aerosol_fs => null()
+    type(function_space_type),  pointer :: wt_aerosol_fs => null()
+    procedure(write_interface), pointer :: tmp_write_ptr => null()
+
+    ! Set pointers
+    w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W2 )
+    w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W3 )
+    wt_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, Wtheta )
+    chi  => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    qr => get_qr_fe()
+    w2_aerosol_fs => function_space_collection%get_fs( aerosol_mesh, element_order_h, &
+                                                       element_order_v, W2 )
+    w3_aerosol_fs => function_space_collection%get_fs( aerosol_mesh, element_order_h, &
+                                                       element_order_v, W3 )
+    wt_aerosol_fs => function_space_collection%get_fs( aerosol_mesh, element_order_h, &
+                                                       element_order_v, Wtheta )
+    aerosol_chi  => get_coordinates(aerosol_mesh%get_id())
+    aerosol_panel_id => get_panel_id(aerosol_mesh%get_id())
+
+    domain = mesh%get_domain()
+    if ( domain%is_lonlat() ) then
+      domain_max_x = domain%maximum_lonlat(axis=1) * radians_to_degrees
+    else
+      domain_max_x = domain%maximum_xy(axis=1)
+    end if
+
+    ! Set constants
+    const_flag  = 1_i_def
+    config_flag = 0_i_def
+
+    ! Initialise field objects
+    call wind%initialise( name='u', vector_space=w2_fs )
+    call density%initialise( name='rho', vector_space=w3_fs )
+    call theta%initialise( name='theta', vector_space=wt_fs )
+    call tracer_con%initialise( name='tracer_con', vector_space=w3_fs )
+    call tracer_adv%initialise( name='tracer_adv', vector_space=w3_fs )
+    call constant%initialise( name='constant', vector_space=wt_fs )
+    call w2_vector%initialise( name='w2_vector', vector_space=w2_fs )
+    call divergence%initialise( name='divergence', vector_space=w3_fs )
+    do imr = 1, nummr
+      call mr(imr)%initialise( name=trim(mr_names(imr)), vector_space=wt_fs )
+    end do
+    call aerosol_wind%initialise( name='aerosol_wind', vector_space=w2_aerosol_fs )
+    call w3_aerosol%initialise( name='w3_aerosol', vector_space=w3_aerosol_fs )
+    call wt_aerosol%initialise( name='wt_aerosol', vector_space=wt_aerosol_fs )
+
+    ! ======================================================================== !
+    ! Set up field values from analytic initial conditions
+    ! ======================================================================== !
+
+    ! Read in rho and theta first
+    if ( method == method_sampled ) then
+      call invoke( initial_rho_sample_kernel_type(          density,    chi, panel_id, initial_time ),              &
+                   initial_tracer_field_sample_kernel_type( theta,      chi, panel_id, domain_max_x, config_flag ), &
+                   initial_tracer_field_sample_kernel_type( tracer_con, chi, panel_id, domain_max_x, config_flag ), &
+                   initial_tracer_field_sample_kernel_type( constant,   chi, panel_id, domain_max_x, const_flag ) )
+      ! Separate invoke for variables on coarser mesh
+      call invoke( initial_tracer_field_sample_kernel_type( w3_aerosol, aerosol_chi, aerosol_panel_id, &
+                                                            domain_max_x, config_flag), &
+                   initial_tracer_field_sample_kernel_type( wt_aerosol, aerosol_chi, aerosol_panel_id, &
+                                                            domain_max_x, config_flag) )
+     else
+      call invoke( set_rho_kernel_type(          density,    chi, panel_id, &
+                                                 initial_time, qr ),        &
+                   set_tracer_field_kernel_type( theta,      chi, panel_id, &
+                                                 domain_max_x,              &
+                                                 config_flag, qr ),         &
+                   set_tracer_field_kernel_type( tracer_con, chi, panel_id, &
+                                                 domain_max_x,              &
+                                                 config_flag, qr ),         &
+                   set_tracer_field_kernel_type( constant,   chi, panel_id, &
+                                                 domain_max_x,              &
+                                                 const_flag,  qr ) )
+      ! Separate invoke for variables on coarser mesh
+      call invoke( set_tracer_field_kernel_type( w3_aerosol, aerosol_chi, aerosol_panel_id, &
+                                                 domain_max_x, config_flag, qr ),           &
+                   set_tracer_field_kernel_type( wt_aerosol, aerosol_chi, aerosol_panel_id, &
+                                                 domain_max_x, config_flag, qr ) )
+    end if
+
+    ! Duplicate these values for tracer_adv and mixing ratio
+    ! Mixing ratios are set to zero for all but first value
+    call set_bundle_scalar( 0.0_r_def, mr, nummr )
+    call invoke( setval_X( tracer_adv, tracer_con ), &
+                 setval_X( mr(1), theta ),           &
+                 enforce_lower_bound_kernel_type(mr(1), 0.0_r_def) )
+
+    ! Set components of w2_vector to be theta/tracer values
+    ! In spherical geometries, this will be lon/lat/radial components
+    ! Special case for four-part SBR test
+    call vert_w2%initialise( vector_space=wt_fs )
+    if (profile == profile_four_part_sbr) then
+      call zeros_w3%initialise( vector_space=w3_fs )
+      call invoke( setval_c(zeros_w3, 0.0_r_def), &
+                   setval_c(vert_w2, 0.0_r_def) )
+      call set_wind( w2_vector, zeros_w3, tracer_adv, vert_w2 )
+    else
+      call invoke( X_minus_a(vert_w2, theta, field_background))
+      call set_wind( w2_vector, tracer_adv, tracer_adv, vert_w2 )
+    end if
+
+    ! Set winds and divergence
+    call init_u_field( wind, initial_time )
+    call divergence_alg( divergence, wind )
+    call map_w2_intermesh( aerosol_wind, wind )
+
+    ! ======================================================================== !
+    ! Set I/O behaviours for diagnostic output
+    ! ======================================================================== !
+    if ( write_diag .and. use_xios_io ) then
+       ! Fields that are output on the XIOS face domain
+       tmp_write_ptr => write_field_generic
+       call wind%set_write_behaviour( tmp_write_ptr )
+       call density%set_write_behaviour( tmp_write_ptr )
+       call theta%set_write_behaviour( tmp_write_ptr )
+       call tracer_con%set_write_behaviour( tmp_write_ptr )
+       call tracer_adv%set_write_behaviour( tmp_write_ptr )
+       call constant%set_write_behaviour( tmp_write_ptr )
+       call w2_vector%set_write_behaviour( tmp_write_ptr )
+       call mr(1)%set_write_behaviour( tmp_write_ptr )
+       call divergence%set_write_behaviour( tmp_write_ptr )
+       call aerosol_wind%set_write_behaviour( tmp_write_ptr )
+       call w3_aerosol%set_write_behaviour( tmp_write_ptr )
+       call wt_aerosol%set_write_behaviour( tmp_write_ptr )
+    end if
+
+    nullify( w2_fs, w3_fs, wt_fs, w2_aerosol_fs, w3_aerosol_fs, wt_aerosol_fs, &
+             chi, panel_id, aerosol_chi, aerosol_panel_id, qr, tmp_write_ptr )
+
+  end subroutine transport_init_fields_alg
+
+end module transport_init_fields_alg_mod

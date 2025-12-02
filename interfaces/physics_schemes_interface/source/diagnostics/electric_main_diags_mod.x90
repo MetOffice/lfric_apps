@@ -1,0 +1,105 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Processes diagnostics for electric diagnostics
+
+module electric_main_diags_mod
+
+  use constants_mod,              only: l_def
+  use field_mod,                  only: field_type
+  use io_config_mod,              only: subroutine_timers
+  use timer_mod,                  only: timer
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  public :: initialise_main_diags_for_electric, output_main_diags_for_electric
+
+  logical( l_def ) :: gwp_flag, tiwp_flag, total_fr_flag,                    &
+                      fr1_mc_flag, fr2_mc_flag, storm_field_flag
+
+contains
+
+  !> @brief Initialise fields for locally-computed electric diagnostics
+  !> @param[inout] gwp          Graupel Water Path [kg m-2]
+  !> @param[inout] tiwp         Total Ice Water Path [kg m-2]
+  !> @param[inout] total_fr     Total Flash Rate [s-1]
+  !> @param[inout] fr1_mc       Flash Rate due to upward graupel flux [s-1]
+  !> @param[inout] fr2_mc       Flash Rate due to total column ice [s-1]
+  !> @param[inout] storm_field  Binary flag for whether a storm is defined [1/0]
+  subroutine initialise_main_diags_for_electric(gwp, tiwp, total_fr,           &
+                                                fr1_mc, fr2_mc, storm_field )
+
+    implicit none
+
+    type( field_type ), intent(inout) :: gwp
+    type( field_type ), intent(inout) :: tiwp
+    type( field_type ), intent(inout) :: total_fr
+    type( field_type ), intent(inout) :: fr1_mc
+    type( field_type ), intent(inout) :: fr2_mc
+    type( field_type ), intent(inout) :: storm_field
+
+    !----------------------------------------------------
+    ! End of declarations; start of subroutine execution
+    !----------------------------------------------------
+    if ( subroutine_timers ) call timer("electric_diags")
+
+    gwp_flag         = init_diag(gwp, 'electric__gwp')
+    tiwp_flag        = init_diag(tiwp, 'electric__tiwp')
+    total_fr_flag    = init_diag(total_fr, 'electric__total_flash_rate')
+    fr1_mc_flag      = init_diag(fr1_mc, 'electric__graupel_flux_flash_rate')
+    fr2_mc_flag      = init_diag(fr2_mc, 'electric__total_column_ice_flash_rate')
+    storm_field_flag = init_diag(storm_field, 'electric__storm_field_indicator')
+
+    if ( subroutine_timers ) call timer("electric_diags")
+
+  end subroutine initialise_main_diags_for_electric
+
+  !============================================================================
+  !============================================================================
+
+
+  !> @brief Output main diagnostics from electric scheme
+  !> @param[in] gwp          Graupel Water Path [kg m-2]
+  !> @param[in] tiwp         Total Ice Water Path [kg m-2]
+  !> @param[in] total_fr     Total Flash Rate [s-1]
+  !> @param[in] num_flashes  Number of lightning flashes []
+  !> @param[in] fr1_mc       Flash Rate due to upward graupel flux [s-1]
+  !> @param[in] fr2_mc       Flash Rate due to total column ice [s-1]
+  !> @param[in] storm_field  Binary flag for whether a storm is defined [1/0]
+  subroutine output_main_diags_for_electric(gwp, tiwp, total_fr, num_flashes,  &
+                                            fr1_mc, fr2_mc, storm_field,       &
+                                            flash_potential )
+
+    implicit none
+
+    ! 2D fields to output as diagnostics
+    type( field_type ), intent(in) :: gwp, tiwp, total_fr, num_flashes,        &
+                                      fr1_mc, fr2_mc, storm_field
+
+    ! Prognostic field to be output
+    type( field_type), intent(in) :: flash_potential
+
+    !----------------------------------------------------
+    ! End of declarations; start of subroutine execution
+    !----------------------------------------------------
+    if ( subroutine_timers ) call timer("electric_diags")
+
+    call flash_potential%write_field('electric__flash_potential')
+    call num_flashes%write_field('electric__num_lightning_flashes')
+
+    if (gwp_flag) call gwp%write_field()
+    if (tiwp_flag) call tiwp%write_field()
+    if (total_fr_flag) call total_fr%write_field()
+    if (fr1_mc_flag) call fr1_mc%write_field()
+    if (fr2_mc_flag) call fr2_mc%write_field()
+    if (storm_field_flag) call storm_field%write_field()
+
+    if ( subroutine_timers ) call timer("electric_diags")
+  end subroutine output_main_diags_for_electric
+end module electric_main_diags_mod

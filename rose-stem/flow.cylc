@@ -1,0 +1,162 @@
+#!Jinja2
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% from "cylc.flow" import LOG %}
+{% from "utils" import get_site %}
+{% from "read_sources" import read_sources  %}
+
+{% if SITE is not defined  %}
+    {% set SITE = get_site() %}
+{% endif %}
+{% do LOG.info("Site: " + SITE) %}
+
+{% set SOURCE_DIRECTORY = ROSE_ORIG_HOST~":"~CYLC_WORKFLOW_SRC_DIR~"/.." %}
+{# Include log message for suite_report #}
+{% do LOG.info("LFRIC_APPS SOURCE CLONE="~SOURCE_DIRECTORY) %}
+
+{# Read in groups to run #}
+{% if group is defined %}
+    {% set RUN_NAMES = group %}
+{% elif g is defined %}
+    {% set RUN_NAMES = g %}
+{% else %}
+    {% set RUN_NAMES = ["developer"] %}
+{% endif %}
+{% do LOG.info("Running groups: "~RUN_NAMES|join('
+                   ')) %}
+
+{# Include the site variables file #}
+{# Contains some settings used for the workflow #}
+{% set site_vars = {} %}
+{% set kgo_vars = {} %}
+{% set default_directives = {} %}
+{% include "site/"~SITE~"/variables.cylc" %}
+{# Default the scripts platform to the first platform listed if not already given #}
+{% if "scripts_platform" not in site_vars %}
+    {% do site_vars.update({
+        "scripts_platform": site_vars["site_platforms"][0]
+    }) %}
+{% endif %}
+
+{# Import macros #}
+{# Need the above lists defined before we can import split_task_name #}
+{% from "templates/common_macros.cylc" import
+    set_add,
+    expand_task_list,
+    generate_script,
+    split_task_name
+    with context %}
+
+{# Load defined groups into dictionary #}
+{% set site_groups = {} %}
+{% include "site/"+SITE+"/groups.cylc" %}
+
+{# Read the sources of dependencies from the dependencies.yaml file #}
+{% set dependencies = read_sources(SOURCE_DIRECTORY, "lfric_apps", USE_HEADS) %}
+
+{# Generate list of tasks given by --group= #}
+{# Expand any groups included so list is only tasks #}
+{% set expanded_task_list = [] %}
+{{ expand_task_list(site_groups, RUN_NAMES, true, expanded_task_list) }}
+
+{# Generate a list of all scripts - used to determine if a task is a script #}
+{% set scripts_list = [] %}
+{{ expand_task_list(site_groups, ["scripts"], false, scripts_list) }}
+{% do set_add(scripts_list, "kgo_groups_checker") %}
+
+{# Load the task definitions for each application requested at current site #}
+{% set requested_tasks = {} %}
+{% set requested_applications = [] %}
+{% set requested_platforms = [] %}
+{% set first_parse = true %}
+{% for task in expanded_task_list %}
+    {% set task_dict = {} %}
+    {% include "templates/populate_task_definitions.cylc" %}
+{% endfor %}
+{% set first_parse = false %}
+
+[scheduler]
+    UTC mode = True
+    install = site/, templates/
+    [[events]]
+        mail events = stall timeout
+        abort on stall timeout = True
+        stall timeout = PT3H
+        shutdown handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+        stall handlers = "suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+
+# Check if running physics - don't extract these if not
+{% if "lfric_atm" in requested_applications
+      or "jules" in requested_applications
+      or "ngarch" in requested_applications
+      or "lfric_coupled" in requested_applications %}
+
+    {% do LOG.debug("Running Physics Schemes") %}
+
+{% else %}
+
+    {% do LOG.debug("Not Running Physics Schemes") %}
+
+    {% for item in ["casim",
+                    "jules",
+                    "ukca",
+                    "socrates",
+                    "socrates-spectral",
+                    "um_aux"] %}
+
+        {% do dependencies.pop(item, None) %}
+
+    {% endfor %}
+
+{% endif %}
+
+[scheduling]
+    [[graph]]
+{% set tasks_to_run = {} %}
+{% include "templates/graph/generate_graph.cylc" %}
+
+{# For tasks added during the graph generation, populate their definitions #}
+{# Don't do it if it's an export task, a script or already defined #}
+{% set tasks_to_run_list = tasks_to_run.keys() %}
+{% for task in tasks_to_run_list %}
+    {% set defined_dict = true %}
+    {% if not tasks_to_run[task] or
+            task.startswith("run_mesh") %}
+        {% set defined_dict = false %}
+    {% endif %}
+    {% if not defined_dict and
+            not task.startswith("export-") and
+            not task.startswith("remote-init") and
+            not task.startswith("housekeep") %}
+        {% set task_dict = tasks_to_run[task].copy() %}
+        {% include "templates/populate_task_definitions.cylc" %}
+        {% do tasks_to_run.update({task: task_dict}) %}
+    {% endif %}
+{% endfor %}
+
+[runtime]
+    [[root]]
+        env-script = "eval $(rose task-env)"
+        script = "rose task-run"
+
+        [[[environment]]]
+            SOURCE_ROOT    = $CYLC_WORKFLOW_SHARE_DIR/source
+            OUTPUT_ROOT    = $CYLC_WORKFLOW_SHARE_DIR/output
+            LAUNCH_SCRIPT  = $CYLC_WORKFLOW_RUN_DIR/site/{{SITE}}/common/bin
+
+        [[[events]]]
+            submission timeout = PT5H
+
+    [[LOCAL]]
+        platform = localhost
+
+{% include "site/"~SITE~"/suite_config.cylc" %}
+{% include "templates/runtime/set_task_families.cylc" %}
+{% for task in tasks_to_run %}
+    {% include "templates/runtime/generate_runtime.cylc" %}
+{% endfor %}
+
+{% do LOG.debug("End of flow.cylc") %}

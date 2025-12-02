@@ -1,0 +1,152 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Algorithm to perform map regridding
+module lfric2lfric_map_regrid_mod
+
+  ! lfric modules
+  use constants_mod,             only: i_def, r_def, l_def
+  use fs_continuity_mod,         only: W3, Wtheta
+  use function_space_mod,        only: function_space_type
+  use field_mod,                 only: field_type
+  use sci_mapping_constants_mod, only: get_intermesh_weights_w3_rdef
+  use mesh_collection_mod,       only: mesh_collection
+  use mesh_mod,                  only: mesh_type
+  use extrusion_mod,             only: TWOD
+  use log_mod,                   only: log_event, log_scratch_space, &
+                                       log_level_info
+
+  ! lfric2lfric modules
+  use lfric2lfric_face_conserv_c2f_kernel_mod, only:                          &
+                                   lfric2lfric_face_conserv_c2f_kernel_type
+  use lfric2lfric_face_noconserv_c2f_kernel_mod, only:                        &
+                                   lfric2lfric_face_noconserv_c2f_kernel_type
+  use lfric2lfric_face_conserv_f2c_kernel_mod, only:                          &
+                                   lfric2lfric_face_conserv_f2c_kernel_type
+  use lfric2lfric_face_noconserv_f2c_kernel_mod, only:                        &
+                                   lfric2lfric_face_noconserv_f2c_kernel_type
+
+
+  implicit none
+
+  private
+  public :: lfric2lfric_map_regrid
+
+contains
+
+  !> @brief Perform regridding of a field collection using the map information
+  !>        contained in a multigrid mesh file
+  !> @details Mapping can happen from a fine to a coarse grid and viceversa,
+  !>          and we need different kernels for each case.
+  !>          Different kernels are also called depending of the function space
+  !>          of the field to be processed.
+  !>          There are weights for each layer in the W3 function space,
+  !>          while in the Wtheta function space there is only one weight
+  !>          that is applied to all layers. 2D fields in the W3 function
+  !>          space need to use the Wtheta weights.
+  !>          Fields in the W2 function space are not processed and are
+  !>          filled with zeroes in the output. This happens because there
+  !>          is not a definitive format for the W2 function space yet.
+  !> @param[out] field_dst    Field in the destination mesh obtained
+  !>                          after regridding the field in the
+  !>                          source mesh
+  !> @param[in]  field_src    Field in the source mesh
+  subroutine lfric2lfric_map_regrid(field_dst, field_src)
+    ! Description:
+    !  Main processing field loop in lfric2lfric. Loops over requested fields,
+    !  reads field on all ranks, loops over levels, gather full level data
+    !  onto rank 0, perform regridding and write to disk.
+
+    implicit none
+
+    type(field_type), pointer,      intent(out) :: field_dst
+    type(field_type), pointer,      intent(in)  :: field_src
+
+    type(function_space_type),  pointer :: vector_space
+    type(field_type),           pointer :: weights
+    type(mesh_type),            pointer :: mesh_src
+    type(mesh_type),            pointer :: mesh_src_2d
+    type(mesh_type),            pointer :: mesh_dst
+    type(mesh_type),            pointer :: mesh_dst_2d
+    integer(kind=i_def)                 :: nlayers, fs
+    logical(kind=l_def)                 :: coarse_to_fine
+
+
+    nullify(vector_space)
+    nullify(weights)
+
+    call invoke(setval_c(field_dst, 0.0_r_def))
+
+    fs = field_src%which_function_space()
+
+    ! Find the meshes corresponding to the source and destination fields
+    mesh_dst    => field_dst%get_mesh()
+    mesh_dst_2d => mesh_collection%get_mesh(mesh_dst, TWOD)
+    mesh_src    => field_src%get_mesh()
+    mesh_src_2d => mesh_collection%get_mesh(mesh_src, TWOD)
+
+    if (mesh_src_2d%get_last_edge_cell() < &
+        mesh_dst_2d%get_last_edge_cell()) then
+      coarse_to_fine = .true.
+    else
+      coarse_to_fine = .false.
+    end if
+
+    select case (fs)
+      case (Wtheta)
+        if (coarse_to_fine) then
+          weights => get_intermesh_weights_w3_rdef(mesh_dst_2d, mesh_src_2d)
+          call invoke(name = "map_wtheta_c2f_kernel",                         &
+                    lfric2lfric_face_noconserv_c2f_kernel_type(field_dst,     &
+                                                 field_src, weights))
+        else
+          weights => get_intermesh_weights_w3_rdef(mesh_src_2d, mesh_dst_2d)
+          call invoke(name = "map_wtheta_f2c_kernel",                         &
+                    lfric2lfric_face_noconserv_f2c_kernel_type(field_dst,     &
+                                                 field_src, weights))
+        end if
+
+      case (W3)
+        ! Find number of layers
+        vector_space => field_src%get_function_space()
+        nlayers = vector_space%get_nlayers()
+
+        ! 2D fields use Wtheta weigthts
+        if (nlayers == 1) then
+          if (coarse_to_fine) then
+            weights => get_intermesh_weights_w3_rdef(mesh_dst, mesh_src)
+            call invoke(name = "map_w3_2d_c2f_kernel",                        &
+                      lfric2lfric_face_noconserv_c2f_kernel_type(field_dst,   &
+                                                   field_src, weights))
+          else
+            weights => get_intermesh_weights_w3_rdef(mesh_src, mesh_dst)
+            call invoke(name = "map_w3_2d_f2c_kernel",                        &
+                      lfric2lfric_face_noconserv_f2c_kernel_type(field_dst,   &
+                                                   field_src, weights))
+          end if
+        else
+          if (coarse_to_fine) then
+            weights => get_intermesh_weights_w3_rdef(mesh_dst, mesh_src)
+            call invoke(name = "map_w3_c2f_kernel",                           &
+                      lfric2lfric_face_conserv_c2f_kernel_type(field_dst,     &
+                                                   field_src, weights))
+          else
+            weights => get_intermesh_weights_w3_rdef(mesh_src, mesh_dst)
+            call invoke(name = "map_w3_f2c_kernel",                           &
+                      lfric2lfric_face_conserv_f2c_kernel_type(field_dst,     &
+                                                   field_src, weights))
+          end if
+        end if
+
+      case default
+        write(log_scratch_space, '(A)') "Function space W2 can not " //       &
+                                        "be processed yet, skipping field"
+        call log_event(log_scratch_space, log_level_info)
+
+    end select
+
+end subroutine lfric2lfric_map_regrid
+
+end module lfric2lfric_map_regrid_mod

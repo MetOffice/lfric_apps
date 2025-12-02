@@ -1,0 +1,105 @@
+&base_mesh
+f_lat_deg=45.0,
+file_prefix='mesh_C24',
+fplane=.false.,
+geometry='spherical',
+prepartitioned=.false.,
+prime_mesh_name='dynamics',
+topology='fully_periodic',
+/
+
+&extrusion
+domain_height=10000.0,
+method='uniform',
+number_of_layers=10,
+planet_radius=6371229.0,
+/
+
+&files
+checkpoint_stem_name='restartSolver',
+diag_stem_name='solver',
+
+/
+
+&finite_element
+cellshape='quadrilateral',
+element_order_h=0,
+element_order_v=0,
+rehabilitate=.true.,
+coord_order=1,
+coord_system='native',
+/
+
+&formulation
+  l_multigrid           = .false.
+  moisture_formulation  = 'dry'
+  rotating              = .false.
+  shallow               = .false.
+  use_physics           = .false.
+  use_wavedynamics      = .false.
+  dlayer_on             = .false.
+  dry_static_adjust     = .false.
+  exner_from_eos        = .false.
+  horizontal_physics_predictor   = .false.
+  horizontal_transport_predictor = .false.
+  init_exner_bt         = .false.
+  theta_moist_source    = .false.
+  si_momentum_equation  = .false.
+  vector_invariant      = .true.
+/
+
+&io
+checkpoint_frequency=9999,
+checkpoint_read=.false.,
+checkpoint_write=.false.,
+diagnostic_frequency=1,
+nodal_output_on_w3=.false.,
+subroutine_counters=.false.,
+subroutine_timers=.false.,
+use_xios_io=.false.,
+write_diag=.true.,
+write_dump=.false.,
+write_fluxes=.false.,
+write_minmax_tseries=.false.,
+/
+
+&logging
+run_log_level='info'
+/
+
+&time
+timestep_end='1',
+timestep_start='1',
+/
+
+&planet
+cp=1005.0,
+gravity=9.80665,
+omega=7.292116E-5,
+p_zero=100000.0,
+rd=287.05,
+scaling_factor=125.0,
+/
+
+&partitioning
+partitioner='cubedsphere',
+panel_decomposition='auto'
+/
+
+&solver
+fail_on_non_converged=.true.
+gcrk=4,
+maximum_iterations=199,
+method='bicgstab',
+monitor_convergence=.true.
+preconditioner='diagonal',
+tolerance=1.0e-6,
+/
+
+
+&mixing
+  viscosity = .false.
+  viscosity_mu = 0.0
+  smagorinsky = .false.
+  mix_factor = 0.0
+/

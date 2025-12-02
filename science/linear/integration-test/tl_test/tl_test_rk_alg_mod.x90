@@ -1,0 +1,316 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief   The tangent linear test for the runge kutta timestepping
+!!          (Taylor remainder convergence).
+!> @details Test whether a section of tangent linear code is tangent linear
+!!          to the corresponding section of nonlinear code, for the runge
+!!          kutta algorithm, using the Taylor remainder convergence test.
+module tl_test_rk_alg_mod
+
+  use sci_assign_field_random_kernel_mod, only: assign_field_random_kernel_type
+  use constants_mod,                  only: i_def, r_def, str_def
+  use field_array_mod,                only: field_array_type
+  use field_mod,                      only: field_type
+  use sci_field_bundle_builtins_mod,  only: clone_bundle
+  use field_collection_mod,           only: field_collection_type
+  use function_space_collection_mod,  only: function_space_collection
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use fs_continuity_mod,              only: W2, W3, Wtheta
+  use driver_modeldb_mod,             only: modeldb_type
+  use moist_dyn_mod,                  only: num_moist_factors
+  use mr_indices_mod,                 only: nummr
+  use timestepping_config_mod,        only: dt
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO
+  use mesh_mod,                       only: mesh_type
+  use tl_rk_alg_timestep_mod,         only: tl_rk_alg_init, &
+                                            tl_rk_alg_step, &
+                                            tl_rk_alg_final
+  use rk_alg_timestep_mod,            only: rk_timestep_type
+  use timestep_method_mod,            only: timestep_method_type
+  use tl_test_convergence_rate_check, only: convergence_rate_check
+
+  implicit none
+
+  private
+  public test_rk_alg
+
+  contains
+
+  !> @brief Test the tangent linear runge-kutta algorithm
+  !> @param[in] modeldb   The working data set for a model run
+  !> @param[in] mesh      The current 3d mesh
+  !>
+  subroutine test_rk_alg( modeldb, &
+                          mesh)
+
+    implicit none
+
+    type(mesh_type),    pointer, intent(in) :: mesh
+    type(modeldb_type), target,  intent(in) :: modeldb
+
+    character(str_def) :: label = "rk_alg"
+
+    class(timestep_method_type), pointer :: rk_timestep_method => null()
+
+    type(field_collection_type), pointer :: prognostic_fields => null()
+    type(field_collection_type), pointer :: ls_fields
+
+    type(field_type), pointer :: ls_u => null()
+    type(field_type), pointer :: ls_rho => null()
+    type(field_type), pointer :: ls_theta => null()
+    type(field_type), pointer :: ls_exner => null()
+    type(field_type), pointer :: ls_moist_dyn(:) => null()
+    type(field_type), pointer :: ls_mr(:) => null()
+
+    type(field_type), pointer :: u => null()
+    type(field_type), pointer :: rho => null()
+    type(field_type), pointer :: theta => null()
+    type(field_type), pointer :: exner => null()
+    type(field_type), pointer :: moist_dyn(:) => null()
+    type(field_type), pointer :: mr(:) => null()
+
+    type(field_type), dimension(num_moist_factors) :: p_moist_dyn
+    type(field_type), dimension(num_moist_factors) :: b_moist_dyn
+    type(field_type), dimension(num_moist_factors) :: r_moist_dyn
+    type(field_type), dimension(num_moist_factors) :: diff_moist_dyn
+    type(field_type), dimension(nummr) :: p_mr
+    type(field_type), dimension(nummr) :: b_mr
+    type(field_type) :: p_u, p_rho, p_theta, p_exner
+    type(field_type) :: b_u, b_rho, b_theta, b_exner
+    type(field_type) :: r_u, r_rho, r_theta, r_exner
+    type(field_type) :: diff_u, diff_rho, diff_theta, diff_exner
+
+    type(field_collection_type), pointer :: moisture_fields => null()
+    type(field_array_type), pointer      :: mr_array => null()
+    type(field_array_type), pointer      :: moist_dyn_array => null()
+    type(field_array_type), pointer      :: ls_mr_array => null()
+    type(field_array_type), pointer      :: ls_moist_dyn_array => null()
+
+    real(r_def) :: gamma_u, gamma_rho, gamma_exner, gamma_theta, gamma_moist_dyn
+    real(r_def) :: norm_u, norm_rho, norm_exner, norm_theta, norm_moist_dyn
+    real(r_def) :: norm_moist_dyn_tmp
+    real(r_def) :: norm_diff, norm_diff_prev
+
+    real(r_def), parameter :: tol = 1.e-1_r_def
+
+    integer :: n, i
+
+    call log_event( "TL Test: " // trim(label), &
+                     LOG_LEVEL_INFO )
+
+    prognostic_fields => modeldb%fields%get_field_collection( &
+                                           "prognostic_fields")
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+    mr => mr_array%bundle
+    moist_dyn => moist_dyn_array%bundle
+    call moisture_fields%get_field("ls_mr", ls_mr_array)
+    call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
+    ls_mr => ls_mr_array%bundle
+    ls_moist_dyn => ls_moist_dyn_array%bundle
+
+    ! Input
+    call ls_fields%get_field('ls_u', ls_u)
+    call ls_fields%get_field('ls_rho', ls_rho)
+    call ls_fields%get_field('ls_theta', ls_theta)
+    call ls_fields%get_field('ls_exner', ls_exner)
+
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('exner', exner)
+
+    call p_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call p_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call p_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call p_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+
+    call b_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call b_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call b_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call b_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+
+    call r_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call r_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call r_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call r_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+
+    call diff_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call diff_rho%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call diff_exner%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3) )
+    call diff_theta%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta) )
+
+    call clone_bundle(moist_dyn, p_moist_dyn, num_moist_factors)
+    call clone_bundle(moist_dyn, r_moist_dyn, num_moist_factors)
+    call clone_bundle(moist_dyn, b_moist_dyn, num_moist_factors)
+    call clone_bundle(moist_dyn, diff_moist_dyn, num_moist_factors)
+
+    call clone_bundle(mr, p_mr, nummr)
+    call clone_bundle(mr, b_mr, nummr)
+
+    call invoke( assign_field_random_kernel_type( r_u, 1.0_r_def ) ,     &
+                 assign_field_random_kernel_type( r_rho, 1.0_r_def ) ,   &
+                 assign_field_random_kernel_type( r_theta, 1.0_r_def ) , &
+                 assign_field_random_kernel_type( r_exner, 1.0_r_def ) )
+
+    do i = 1, num_moist_factors
+      call invoke( assign_field_random_kernel_type( r_moist_dyn(i), 1.0_r_def ) )
+    end do
+
+    ! Equalise prognostic variables for non-linear and linear state
+    call invoke( setval_X( u, ls_u ),                     &
+                 setval_X( theta, ls_theta ),             &
+                 setval_X( rho, ls_rho ),                 &
+                 setval_X( exner, ls_exner ) )
+
+    do i = 1, num_moist_factors
+      call invoke( setval_X( moist_dyn(i), ls_moist_dyn(i) ) )
+    end do
+
+    ! Set initial conditions equal to the linearisation state. This
+    ! will be used to calculate the evolved baseline b_x = N(ls_x)
+    allocate( rk_timestep_method, source=rk_timestep_type(modeldb) )
+    call rk_timestep_method%step( modeldb )
+    call rk_timestep_method%finalise()
+    deallocate( rk_timestep_method )
+
+    ! Save results from timestep execution
+    call invoke( setval_X( b_u, u ),                     &
+                 setval_X( b_theta, theta ),             &
+                 setval_X( b_rho, rho ),                 &
+                 setval_X( b_exner, exner ) )
+
+    do i = 1, num_moist_factors
+      call invoke( setval_X( b_moist_dyn(i), moist_dyn(i) ) )
+    end do
+
+    gamma_u = 1.e4_r_def
+    gamma_theta = 1.e2_r_def
+    gamma_rho = 1.e-1_r_def
+    gamma_exner = 1.e-1_r_def
+    gamma_moist_dyn = 1.e-1_r_def
+
+    do n=1,2
+      gamma_u = gamma_u / 2.0_r_def
+      gamma_theta = gamma_theta / 2.0_r_def
+      gamma_rho = gamma_rho / 2.0_r_def
+      gamma_exner = gamma_exner / 2.0_r_def
+      gamma_moist_dyn = gamma_moist_dyn / 2.0_r_def
+
+      ! Compute perturbation fields, and also add them to nonlinear fields
+      ! to set initial conditions equal to the perturbed linearisation
+      ! state. This will be used to calculate x=N(ls_x + gamma r_x)
+      call invoke( a_times_X( p_u, gamma_u, r_u ),              &
+                   a_times_X( p_theta, gamma_theta, r_theta ),  &
+                   a_times_X( p_rho, gamma_rho, r_rho ),        &
+                   a_times_X( p_exner, gamma_exner, r_exner ),  &
+                   setval_X( u, ls_u ),                     &
+                   setval_X( theta, ls_theta ),             &
+                   setval_X( rho, ls_rho ),                 &
+                   setval_X( exner, ls_exner ),             &
+                   inc_X_plus_Y( u, p_u ),                  &
+                   inc_X_plus_Y( theta, p_theta ),          &
+                   inc_X_plus_Y( rho, p_rho ),              &
+                   inc_X_plus_Y( exner, p_exner ) )
+
+      do i = 1, num_moist_factors
+        call invoke( &
+          a_times_X( p_moist_dyn(i), gamma_moist_dyn, r_moist_dyn(i) ), &
+          setval_X( moist_dyn(i), ls_moist_dyn(i) ),                       &
+          inc_X_plus_Y( moist_dyn(i), p_moist_dyn(i) ) )
+      end do
+
+      ! Evolve u, theta, rho, exner and moist_dyn with non-linear timestep
+      allocate( rk_timestep_method, source=rk_timestep_type(modeldb) )
+      call rk_timestep_method%step( modeldb )
+      call rk_timestep_method%finalise()
+      deallocate( rk_timestep_method )
+
+      ! Evolve the perturbation fields with the linear timestep. This
+      ! gives p_x=L(gamma r_x)
+      call tl_rk_alg_init(mesh, p_u, p_rho, p_theta, p_exner, &
+                          ls_u, ls_rho, ls_theta, ls_exner)
+
+      call tl_rk_alg_step( p_u, p_rho, p_theta, p_moist_dyn, p_exner, &
+                           p_mr, ls_u, ls_rho,                        &
+                           ls_theta, ls_moist_dyn, ls_exner, ls_mr,   &
+                           modeldb%clock )
+
+      call tl_rk_alg_final()
+
+      ! Analyse the results: calculate the differences diff_x = x -
+      ! b_x - p_x = N(ls_x + gamma_x) - N(ls_x) - L(gamma r_x)
+      call invoke( X_minus_Y( diff_u, u, b_u ),                      &
+                   inc_X_minus_Y( diff_u, p_u ),                     &
+                   X_innerproduct_X( norm_u, diff_u ) )
+      call invoke( X_minus_Y( diff_rho, rho, b_rho ),                &
+                   inc_X_minus_Y( diff_rho, p_rho ),                 &
+                   X_innerproduct_X( norm_rho, diff_rho ) )
+      call invoke( X_minus_Y( diff_exner, exner, b_exner ),          &
+                   inc_X_minus_Y( diff_exner, p_exner ),             &
+                   X_innerproduct_X( norm_exner, diff_exner ) )
+      call invoke( X_minus_Y( diff_theta, theta, b_theta ),          &
+                   inc_X_minus_Y( diff_theta, p_theta ),             &
+                   X_innerproduct_X( norm_theta, diff_theta ) )
+
+      norm_moist_dyn=0.0_r_def
+      do i = 1, num_moist_factors
+        call invoke( &
+          X_minus_Y( diff_moist_dyn(i), moist_dyn(i), b_moist_dyn(i) ),   &
+          inc_X_minus_Y( diff_moist_dyn(i), p_moist_dyn(i) ),             &
+          X_innerproduct_X( norm_moist_dyn_tmp, diff_moist_dyn(i) ) )
+          norm_moist_dyn = norm_moist_dyn + norm_moist_dyn_tmp
+      end do
+
+      write( log_scratch_space, &
+            '(A, E32.12, A, E32.12 )' ) &
+             ' norm_u = ' ,   norm_u,   &
+             ' norm_rho = ' , norm_rho
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space, &
+            '(A, E32.12, A, E32.12 )' )     &
+             ' norm_theta = ' , norm_theta, &
+             ' norm_moist_dyn = ' , norm_moist_dyn
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      norm_diff = norm_rho + norm_theta + norm_exner + norm_u + norm_moist_dyn
+      norm_diff = sqrt(norm_diff)
+
+      if (n == 2) then
+        ! Compare results from first and second iteration
+        call convergence_rate_check( norm_diff, norm_diff_prev, &
+                                     label, tol=tol )
+      end if
+
+      norm_diff_prev = norm_diff
+    end do
+
+  end subroutine test_rk_alg
+
+end module tl_test_rk_alg_mod

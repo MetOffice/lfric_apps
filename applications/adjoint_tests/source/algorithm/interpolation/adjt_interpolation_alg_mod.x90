@@ -1,0 +1,324 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint tests for the w3/wth to/from w2 interpolations
+module adjt_interpolation_alg_mod
+
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, &
+                                            element_order_v
+  use fs_continuity_mod,             only : w2, w3, wtheta
+  use constants_mod,                 only : i_def, r_def
+  use log_mod,                       only : log_event,         &
+                                            log_level_error,   &
+                                            log_level_debug,   &
+                                            log_level_info,    &
+                                            log_scratch_space
+
+  implicit none
+
+  private
+  public :: adjt_interp_w2_to_w3wth_alg
+  public :: adjt_interp_w3wth_to_w2_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for w2 to w3/wth interpolations
+  !> @param[in] mesh  A mesh object
+  subroutine adjt_interp_w2_to_w3wth_alg( mesh )
+
+    use interpolation_alg_mod,         only : interp_w2_to_w3wth_alg
+    use adj_interpolation_alg_mod,     only : adj_interp_w2_to_w3wth_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for forward and adjoint calls
+    type(field_type)                   :: u_in_w2
+    type(field_type)                   :: u_in_w3
+    type(field_type)                   :: v_in_w3
+    type(field_type)                   :: w_in_wth
+
+    ! Copies of input fields used in inner products
+    type(field_type)                   :: u_in_w2_inp
+    type(field_type)                   :: u_in_w3_inp
+    type(field_type)                   :: v_in_w3_inp
+    type(field_type)                   :: w_in_wth_inp
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)                   :: u2_inner_prod
+    real(kind=r_def)                   :: u3_inner_prod
+    real(kind=r_def)                   :: v3_inner_prod
+    real(kind=r_def)                   :: wt_inner_prod
+    real(kind=r_def)                   :: u2_sf
+    real(kind=r_def)                   :: u3_sf
+    real(kind=r_def)                   :: v3_sf
+    real(kind=r_def)                   :: wt_sf
+    real(kind=r_def)                   :: inner1
+    real(kind=r_def)                   :: u2_u2_inp_inner_prod
+    real(kind=r_def)                   :: u3_u3_inp_inner_prod
+    real(kind=r_def)                   :: v3_v3_inp_inner_prod
+    real(kind=r_def)                   :: wt_wt_inp_inner_prod
+    real(kind=r_def)                   :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def)                   :: machine_tolerance
+    real(kind=r_def)                   :: relative_diff
+    real(kind=r_def),        parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def),        parameter :: eps = 1e-30_r_def
+
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, w2)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, w3)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                                element_order_v, wtheta)
+    call u_in_w2%initialise(vector_space=vector_space_w2_ptr, name='u_in_w2')
+    call u_in_w3%initialise(vector_space=vector_space_w3_ptr, name='u_in_w3')
+    call v_in_w3%initialise(vector_space=vector_space_w3_ptr, name='v_in_w3')
+    call w_in_wth%initialise(vector_space=vector_space_wtheta_ptr, name='w_in_wth')
+    call u_in_w2_inp%initialise(vector_space=vector_space_w2_ptr, name='u_in_w2_inp')
+    call u_in_w3_inp%initialise(vector_space=vector_space_w3_ptr, name='u_in_w3_inp')
+    call v_in_w3_inp%initialise(vector_space=vector_space_w3_ptr, name='v_in_w3_inp')
+    call w_in_wth_inp%initialise(vector_space=vector_space_wtheta_ptr, name='w_in_wth_inp')
+
+    u2_inner_prod = 0.0_r_def
+    u3_inner_prod = 0.0_r_def
+    v3_inner_prod = 0.0_r_def
+    wt_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(u_in_w2), setval_x(u_in_w2_inp, u_in_w2), &
+                 setval_random(u_in_w3), setval_x(u_in_w3_inp, u_in_w3), &
+                 setval_random(v_in_w3), setval_x(v_in_w3_inp, v_in_w3), &
+                 setval_random(w_in_wth), setval_x(w_in_wth_inp, w_in_wth) )
+
+    call interp_w2_to_w3wth_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+
+    call invoke( x_innerproduct_x(u2_inner_prod, u_in_w2), &
+                 x_innerproduct_x(u3_inner_prod, u_in_w3), &
+                 x_innerproduct_x(v3_inner_prod, v_in_w3), &
+                 x_innerproduct_x(wt_inner_prod, w_in_wth) )
+
+    write(log_scratch_space, *) "adjt_interp_w2_to_w3wth inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "u_in_w2 inner product = ", u2_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "u_in_w3 inner product = ", u3_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "v_in_w3 inner product = ", v3_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "w_in_wth inner product = ", wt_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    u2_sf = 1.0_r_def / (u2_inner_prod + eps)
+    u3_sf = 1.0_r_def / (u3_inner_prod + eps)
+    v3_sf = 1.0_r_def / (v3_inner_prod + eps)
+    wt_sf = 1.0_r_def / (wt_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + u2_inner_prod * u2_sf
+    inner1 = inner1 + u3_inner_prod * u3_sf
+    inner1 = inner1 + v3_inner_prod * v3_sf
+    inner1 = inner1 + wt_inner_prod * wt_sf
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( u2_sf, u_in_w2 ), &
+                 inc_a_times_X( u3_sf, u_in_w3 ), &
+                 inc_a_times_X( v3_sf, v_in_w3 ), &
+                 inc_a_times_X( wt_sf, w_in_wth ) )
+
+    u2_u2_inp_inner_prod = 0.0_r_def
+    u3_u3_inp_inner_prod = 0.0_r_def
+    v3_v3_inp_inner_prod = 0.0_r_def
+    wt_wt_inp_inner_prod = 0.0_r_def
+
+    call adj_interp_w2_to_w3wth_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+
+    call invoke( x_innerproduct_y( u2_u2_inp_inner_prod, u_in_w2, u_in_w2_inp ), &
+                 x_innerproduct_y( u3_u3_inp_inner_prod, u_in_w3, u_in_w3_inp ), &
+                 x_innerproduct_y( v3_v3_inp_inner_prod, v_in_w3, v_in_w3_inp ), &
+                 x_innerproduct_y( wt_wt_inp_inner_prod, w_in_wth, w_in_wth_inp ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + u2_u2_inp_inner_prod
+    inner2 = inner2 + u3_u3_inp_inner_prod
+    inner2 = inner2 + v3_v3_inp_inner_prod
+    inner2 = inner2 + wt_wt_inp_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tolerance = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tolerance
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED interp_w2_to_w3wth:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_info)
+    else
+      write(log_scratch_space, *) "FAILED interp_w2_to_w3wth:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_error)
+    end if
+
+    nullify(vector_space_w2_ptr, vector_space_w3_ptr, vector_space_wtheta_ptr)
+
+  end subroutine adjt_interp_w2_to_w3wth_alg
+
+  !=============================================================================
+  !> @brief Adjoint test for w3/wth to w2 interpolations
+  !> @param[in] mesh  A mesh object
+  subroutine adjt_interp_w3wth_to_w2_alg( mesh )
+
+    use interpolation_alg_mod,         only : interp_w3wth_to_w2_alg
+    use adj_interpolation_alg_mod,     only : adj_interp_w3wth_to_w2_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for forward and adjoint calls
+    type(field_type)                   :: u_in_w2
+    type(field_type)                   :: u_in_w3
+    type(field_type)                   :: v_in_w3
+    type(field_type)                   :: w_in_wth
+
+    ! Copies of input fields used in inner products
+    type(field_type)                   :: u_in_w2_inp
+    type(field_type)                   :: u_in_w3_inp
+    type(field_type)                   :: v_in_w3_inp
+    type(field_type)                   :: w_in_wth_inp
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)                   :: u2_inner_prod
+    real(kind=r_def)                   :: u3_inner_prod
+    real(kind=r_def)                   :: v3_inner_prod
+    real(kind=r_def)                   :: wt_inner_prod
+    real(kind=r_def)                   :: u2_sf
+    real(kind=r_def)                   :: u3_sf
+    real(kind=r_def)                   :: v3_sf
+    real(kind=r_def)                   :: wt_sf
+    real(kind=r_def)                   :: inner1
+    real(kind=r_def)                   :: u2_u2_inp_inner_prod
+    real(kind=r_def)                   :: u3_u3_inp_inner_prod
+    real(kind=r_def)                   :: v3_v3_inp_inner_prod
+    real(kind=r_def)                   :: wt_wt_inp_inner_prod
+    real(kind=r_def)                   :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def)                   :: machine_tolerance
+    real(kind=r_def)                   :: relative_diff
+    real(kind=r_def),        parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def),        parameter :: eps = 1e-30_r_def
+
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, w2)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, w3)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                                element_order_v, wtheta)
+    call u_in_w2%initialise(vector_space=vector_space_w2_ptr, name='u_in_w2')
+    call u_in_w3%initialise(vector_space=vector_space_w3_ptr, name='u_in_w3')
+    call v_in_w3%initialise(vector_space=vector_space_w3_ptr, name='v_in_w3')
+    call w_in_wth%initialise(vector_space=vector_space_wtheta_ptr, name='w_in_wth')
+    call u_in_w2_inp%initialise(vector_space=vector_space_w2_ptr, name='u_in_w2_inp')
+    call u_in_w3_inp%initialise(vector_space=vector_space_w3_ptr, name='u_in_w3_inp')
+    call v_in_w3_inp%initialise(vector_space=vector_space_w3_ptr, name='v_in_w3_inp')
+    call w_in_wth_inp%initialise(vector_space=vector_space_wtheta_ptr, name='w_in_wth_inp')
+
+    u2_inner_prod = 0.0_r_def
+    u3_inner_prod = 0.0_r_def
+    v3_inner_prod = 0.0_r_def
+    wt_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(u_in_w2), setval_x(u_in_w2_inp, u_in_w2), &
+                 setval_random(u_in_w3), setval_x(u_in_w3_inp, u_in_w3), &
+                 setval_random(v_in_w3), setval_x(v_in_w3_inp, v_in_w3), &
+                 setval_random(w_in_wth), setval_x(w_in_wth_inp, w_in_wth) )
+
+    call interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+
+    call invoke( x_innerproduct_x(u2_inner_prod, u_in_w2), &
+                 x_innerproduct_x(u3_inner_prod, u_in_w3), &
+                 x_innerproduct_x(v3_inner_prod, v_in_w3), &
+                 x_innerproduct_x(wt_inner_prod, w_in_wth) )
+
+    write(log_scratch_space, *) "adjt_interp_w3wth_to_w2 inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "u_in_w2 inner product = ", u2_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "u_in_w3 inner product = ", u3_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "v_in_w3 inner product = ", v3_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write(log_scratch_space, *) "w_in_wth inner product = ", wt_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    u2_sf = 1.0_r_def / (u2_inner_prod + eps)
+    u3_sf = 1.0_r_def / (u3_inner_prod + eps)
+    v3_sf = 1.0_r_def / (v3_inner_prod + eps)
+    wt_sf = 1.0_r_def / (wt_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + u2_inner_prod * u2_sf
+    inner1 = inner1 + u3_inner_prod * u3_sf
+    inner1 = inner1 + v3_inner_prod * v3_sf
+    inner1 = inner1 + wt_inner_prod * wt_sf
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( u2_sf, u_in_w2 ), &
+                 inc_a_times_X( u3_sf, u_in_w3 ), &
+                 inc_a_times_X( v3_sf, v_in_w3 ), &
+                 inc_a_times_X( wt_sf, w_in_wth ) )
+
+    u2_u2_inp_inner_prod = 0.0_r_def
+    u3_u3_inp_inner_prod = 0.0_r_def
+    v3_v3_inp_inner_prod = 0.0_r_def
+    wt_wt_inp_inner_prod = 0.0_r_def
+
+    call adj_interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+
+    call invoke( x_innerproduct_y( u2_u2_inp_inner_prod, u_in_w2, u_in_w2_inp ), &
+                 x_innerproduct_y( u3_u3_inp_inner_prod, u_in_w3, u_in_w3_inp ), &
+                 x_innerproduct_y( v3_v3_inp_inner_prod, v_in_w3, v_in_w3_inp ), &
+                 x_innerproduct_y( wt_wt_inp_inner_prod, w_in_wth, w_in_wth_inp ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + u2_u2_inp_inner_prod
+    inner2 = inner2 + u3_u3_inp_inner_prod
+    inner2 = inner2 + v3_v3_inp_inner_prod
+    inner2 = inner2 + wt_wt_inp_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tolerance = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tolerance
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED interp_w3wth_to_w2:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_info)
+    else
+      write(log_scratch_space, *) "FAILED interp_w3wth_to_w2:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_error)
+    end if
+
+    nullify(vector_space_w2_ptr, vector_space_w3_ptr, vector_space_wtheta_ptr)
+
+  end subroutine adjt_interp_w3wth_to_w2_alg
+
+end module adjt_interpolation_alg_mod

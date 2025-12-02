@@ -1,0 +1,174 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Timestep module that runs only the boundary layer scheme
+module boundary_layer_timestep_mod
+
+  use constants_mod,                 only: i_def, r_def
+  use field_mod,                     only: field_type
+  use field_array_mod,               only: field_array_type
+  use sci_field_bundle_builtins_mod, only: clone_bundle, &
+                                           set_bundle_scalar
+  use field_collection_mod,          only: field_collection_type
+  use driver_modeldb_mod,            only: modeldb_type
+  use log_mod,                       only: log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_INFO,    &
+                                           LOG_LEVEL_ERROR,   &
+                                           LOG_LEVEL_TRACE
+  use mr_indices_mod,                only: nummr
+  use timestep_method_mod,           only: timestep_method_type
+  use timestepping_config_mod,       only: outer_iterations
+
+  use bl_exp_alg_mod,    only: bl_exp_alg
+  use bl_imp_alg_mod,    only: bl_imp_alg
+  use jules_exp_alg_mod, only: jules_exp_alg
+
+  implicit none
+
+  type, extends(timestep_method_type), public :: boundary_layer_timestep_type
+    private
+
+  contains
+    private
+
+    procedure, public  :: step     => boundary_layer_alg_step
+    procedure, public  :: finalise => boundary_layer_alg_final
+
+  end type boundary_layer_timestep_type
+
+contains
+
+  !> @brief Executes a timestep in which the boundary layer scheme is run.
+  !> @param [in]  modeldb  The structure that holds model state
+  subroutine boundary_layer_alg_step( self, modeldb )
+    implicit none
+
+    class( boundary_layer_timestep_type ), intent(inout) :: self
+    type( modeldb_type ), intent(in), target             :: modeldb
+
+    type( field_type ),       pointer :: u, theta, rho, exner, u_physics, &
+                                         u_star, theta_star, u_physics_star
+    type( field_type )                :: mr_n(nummr), mr_after_slow(nummr),  &
+                                         dmr_mphys(nummr), dtheta_bl, du_bl, &
+                                         surf_heat_flux, canopy_evap,        &
+                                         water_extraction, lake_evap,        &
+                                         theta_star_surf, qv_star_surf,      &
+                                         recip_l_mo_sea, rhostar,            &
+                                         h_blend_orog, t1_sd_2d, q1_sd_2d
+    type( field_array_type ), pointer :: mr
+
+    type(field_collection_type), pointer :: prognostic_fields,   &
+                                            moisture_fields,     &
+                                            microphysics_fields, &
+                                            derived_fields,      &
+                                            cloud_fields,        &
+                                            aerosol_fields,      &
+                                            radiation_fields,    &
+                                            orography_fields,    &
+                                            convection_fields,   &
+                                            surface_fields,      &
+                                            soil_fields,         &
+                                            snow_fields,         &
+                                            turbulence_fields
+
+    ! Unpack modeldb
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+    moisture_fields => modeldb%fields%get_field_collection( "moisture_fields" )
+    microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
+    derived_fields => modeldb%fields%get_field_collection("derived_fields")
+    cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+    aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+    radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
+    orography_fields => modeldb%fields%get_field_collection("orography_fields")
+    convection_fields => modeldb%fields%get_field_collection("convection_fields")
+    surface_fields => modeldb%fields%get_field_collection("surface_fields")
+    soil_fields => modeldb%fields%get_field_collection("soil_fields")
+    snow_fields => modeldb%fields%get_field_collection("snow_fields")
+    turbulence_fields => modeldb%fields%get_field_collection( "turbulence_fields" )
+
+    call moisture_fields%get_field( "mr", mr )
+    call clone_bundle( mr%bundle, mr_n, nummr )
+    call clone_bundle( mr%bundle, mr_after_slow, nummr )
+    call clone_bundle( mr%bundle, dmr_mphys, nummr )
+    call set_bundle_scalar( 0.0_r_def, mr_n, nummr )
+    call set_bundle_scalar( 0.0_r_def, mr_after_slow, nummr )
+    call set_bundle_scalar( 0.0_r_def, dmr_mphys, nummr )
+
+    call prognostic_fields%get_field( 'u', u )
+    call prognostic_fields%get_field( "theta", theta )
+    call prognostic_fields%get_field( "rho", rho )
+    call prognostic_fields%get_field( "exner", exner )
+    call derived_fields%get_field( "u_physics", u_physics )
+
+    ! Set up local fields
+    call u%copy_field_properties( du_bl )
+    call theta%copy_field_properties( dtheta_bl )
+
+    ! Set star fields to their non star counterparts
+    call derived_fields%get_field( "u_star", u_star )
+    call derived_fields%get_field( "theta_star", theta_star )
+
+    call invoke( setval_X( u_star, u ), &
+                 setval_X( theta_star, theta ))
+
+    ! JULES needs to run for bl_exp
+    call jules_exp_alg( modeldb, theta, mr_n,                               &
+                        derived_fields, radiation_fields,                   &
+                        orography_fields,                                   &
+                        turbulence_fields, convection_fields, cloud_fields, &
+                        surface_fields, soil_fields, snow_fields,           &
+                        aerosol_fields, recip_l_mo_sea, rhostar,            &
+                        h_blend_orog, t1_sd_2d, q1_sd_2d )
+
+    ! Call the algorithm
+    call log_event( "Running BOUNDARY LAYER EXP", LOG_LEVEL_INFO )
+    call bl_exp_alg( theta, rho, exner, mr_n,          &
+                     derived_fields,                   &
+                     radiation_fields,                 &
+                     microphysics_fields,              &
+                     dmr_mphys,                        &
+                     orography_fields,                 &
+                     turbulence_fields,                &
+                     convection_fields,                &
+                     cloud_fields,                     &
+                     surface_fields,                   &
+                     recip_l_mo_sea, rhostar,          &
+                     h_blend_orog, t1_sd_2d, q1_sd_2d, &
+                     modeldb%clock )
+
+    call log_event( "Running BOUNDARY LAYER IMP", LOG_LEVEL_INFO )
+    call bl_imp_alg( dtheta_bl, du_bl, mr_after_slow, &
+                     surf_heat_flux, canopy_evap,     &
+                     water_extraction, lake_evap,     &
+                     theta_star_surf,                 &
+                     qv_star_surf,                    &
+                     theta, exner, mr_n, rho,         &
+                     derived_fields,                  &
+                     radiation_fields,                &
+                     orography_fields,                &
+                     turbulence_fields,               &
+                     convection_fields,               &
+                     cloud_fields,                    &
+                     surface_fields,                  &
+                     soil_fields,                     &
+                     snow_fields,                     &
+                     microphysics_fields,             &
+                     aerosol_fields,                  &
+                     outer_iterations, modeldb%clock )
+
+    ! apply increment
+    call invoke( inc_X_plus_Y( u, du_bl ), inc_X_plus_Y( theta, dtheta_bl ) )
+
+    call log_event( "BOUNDARY LAYER completed", LOG_LEVEL_INFO )
+
+  end subroutine boundary_layer_alg_step
+
+  subroutine boundary_layer_alg_final( self )
+    implicit none
+    class( boundary_layer_timestep_type ), intent(inout) :: self
+  end subroutine boundary_layer_alg_final
+
+end module boundary_layer_timestep_mod

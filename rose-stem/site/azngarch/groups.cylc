@@ -1,0 +1,45 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/azngarch/groups.cylc") %}
+
+{%- do site_groups.update({
+    "scripts": [
+        "config_dump_checker",
+        "style_checker",
+        "extract_checker",
+        "site_validator",
+        "validate_rose_meta",
+        "rose-stem_lint_checker",
+        "global_variables_checker",
+        "python_unit_tests",
+        "local_build_test",
+        "test_launch-exe",
+        "macro_chains_checker",
+    ],
+    "azngarch_atm": [
+        "lfric_atm_nwp_sandbox"
+    ],
+    "lfric_atm_nwp_sandbox" : [],
+
+    "sandbox_developer": [],
+    "sandbox": ["sandbox_developer"],
+    "sandbox_build": [],
+
+    "developer" : [
+        "sandbox_developer",
+    ],
+    "all": [
+        "sandbox",
+    ],
+    "build": [
+        "sandbox_build",
+    ],
+    }) %}
+
+{% include "site/azngarch/groups/groups_gungho_model.cylc" %}
+{% include "site/azngarch/groups/groups_lfric_atm.cylc" %}
+
+{% do LOG.debug("Finished in site/azngarch/groups.cylc") %}

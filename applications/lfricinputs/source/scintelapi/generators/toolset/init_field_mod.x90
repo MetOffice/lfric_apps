@@ -1,0 +1,91 @@
+! *****************************COPYRIGHT*******************************
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file LICENCE
+! which you should have received as part of this distribution.
+! *****************************COPYRIGHT*******************************
+module init_field_mod
+!
+! This module contains a generator to initialise a field to a constant value.
+!
+
+use dependency_graph_mod, only: dependency_graph
+
+implicit none
+
+contains
+
+subroutine init_field(dep_graph)
+!
+! This generator sets the output field in the dependency graph to a constant
+!
+
+use gen_io_check_mod,       only: gen_io_check
+use field_mod,              only: field_type
+use log_mod,                only: log_event, log_scratch_space, LOG_LEVEL_ERROR
+use constants_def_mod,      only: genpar_len, rmdi, r_def
+
+implicit none
+
+!
+! Argument definitions:
+!
+! Dependency graph to be processed
+class(dependency_graph), intent(in out) :: dep_graph
+
+!
+! Local variables
+!
+! Init value of the field
+real(kind=r_def) :: init_val
+!
+! Parameter list
+character(len=genpar_len) :: parlist
+!
+! Error code for reading parameter list
+integer :: ioerr
+!
+! Field pointer to use
+type(field_type), pointer :: field
+
+!
+! Perform some initial input checks
+!
+call gen_io_check(                                                             &
+                  dep_graph=dep_graph,                                         &
+                  input_field_no=0,                                            &
+                  output_field_no=1,                                           &
+                  parameter_no=1                                               &
+                 )
+!
+! Done with initial input checks
+!
+
+! Read parameter list for user set init value
+parlist = dep_graph % genpar
+if (trim(parlist) == 'mdi') then
+
+  init_val = rmdi
+
+else
+
+  read(parlist,*,iostat=ioerr) init_val
+  if (ioerr /= 0 ) then
+    write(log_scratch_space,'(A)') 'Error occured when parsing parameter ' //  &
+                                   'list in routine INIT_FIELD. ' //           &
+                                   'Input should be "mdi", or a single ' //    &
+                                   'real or integer value.'
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
+
+end if
+
+! Set field values through a call to a Psyclone built-in kernel
+field => dep_graph % output_field(1) % field_ptr
+call invoke(setval_c(field, init_val))
+
+! Nullify field pointer
+nullify(field)
+
+end subroutine init_field
+
+end module init_field_mod

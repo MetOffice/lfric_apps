@@ -1,0 +1,151 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for adj_wt_advective_update_alg
+module adjt_wt_advective_update_alg_mod
+
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use mesh_mod,                            only : mesh_type
+  use model_clock_mod,                     only : model_clock_type
+  use function_space_collection_mod,       only : function_space_collection
+  use finite_element_config_mod,           only : element_order_h,             &
+                                                  element_order_v
+  use fs_continuity_mod,                   only : W2h, W2v, Wtheta
+  use constants_mod,                       only : i_def, r_def, l_def
+  use log_mod,                             only : log_event,       &
+                                                  LOG_LEVEL_ERROR, &
+                                                  LOG_LEVEL_INFO,  &
+                                                  LOG_LEVEL_DEBUG, &
+                                                  log_scratch_space
+  use transport_metadata_collection_mod,   only : transport_metadata_collection
+  use transport_metadata_mod,              only : transport_metadata_type
+
+  implicit none
+
+  private
+  public :: adjt_hori_wt_update_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for adj_hori_wt_update_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine adjt_hori_wt_update_alg( mesh, model_clock )
+
+    use wt_advective_update_alg_mod,     only : hori_wt_update_alg
+    use adj_wt_advective_update_alg_mod, only : adj_hori_wt_update_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Internal arguments for forward and adjoint
+    type(field_type)                       :: u_grad_f
+    type(field_type)                       :: field
+    type(field_type)                       :: ls_wind
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    ! Internal variables for initialising and saving input fields
+    type(function_space_type), pointer :: vector_space_w2h_ptr
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    integer(kind=i_def), parameter     :: stencil_extent = 1_i_def
+
+    ! Copies of input fields used in inner products
+    type(field_type)                   :: advective_input
+    type(field_type)                   :: field_input
+
+    ! Inner product variables
+    real(kind=r_def)            :: advective_inner_prod
+    real(kind=r_def)            :: advective_sf
+    real(kind=r_def)            :: field_inner_prod
+    real(kind=r_def)            :: field_sf
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: advective_advective_input_inner_prod
+    real(kind=r_def)            :: field_field_input_inner_prod
+    real(kind=r_def)            :: inner2
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    transport_metadata => transport_metadata_collection%get_transport_metadata('density')
+
+    vector_space_w2h_ptr => function_space_collection%get_fs(                &
+        mesh, element_order_h, element_order_v, w2h                          &
+    )
+    vector_space_wtheta_ptr => function_space_collection%get_fs(             &
+        mesh, element_order_h, element_order_v, wtheta                       &
+    )
+    call u_grad_f%initialise(vector_space=vector_space_wtheta_ptr, name='u_grad_f')
+    call field%initialise(vector_space=vector_space_wtheta_ptr, name='field')
+    call ls_wind%initialise(vector_space=vector_space_w2h_ptr, name='ls_wind')
+    call advective_input%initialise(vector_space=vector_space_wtheta_ptr, name='advective_input')
+    call field_input%initialise(vector_space=vector_space_wtheta_ptr, name='field_input')
+
+    advective_inner_prod = 0.0_r_def
+    field_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(u_grad_f),             &
+                 setval_x(advective_input, u_grad_f), &
+                 setval_random(field),                &
+                 setval_x(field_input, field),        &
+                 setval_random(ls_wind) )
+    call hori_wt_update_alg( u_grad_f, ls_wind, ls_wind, field, transport_metadata )
+    call invoke( x_innerproduct_x(advective_inner_prod, u_grad_f), &
+                 x_innerproduct_x(field_inner_prod, field) )
+
+    ! Determining scale factors
+    advective_sf = 1.0_r_def/(advective_inner_prod + eps)
+    field_sf = 1.0_r_def/(field_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + advective_inner_prod*advective_sf
+    inner1 = inner1 + field_inner_prod*field_sf
+    write(log_scratch_space, *) "adjt_hori_wt_update inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advective inner product = ", advective_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "field inner product = ", field_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( advective_sf, u_grad_f ), &
+                 inc_a_times_X( field_sf, field ) )
+
+    advective_advective_input_inner_prod = 0.0_r_def
+    field_field_input_inner_prod = 0.0_r_def
+
+    call adj_hori_wt_update_alg( u_grad_f, ls_wind, ls_wind, field, transport_metadata )
+    call invoke( x_innerproduct_y(advective_advective_input_inner_prod, u_grad_f, advective_input), &
+                 x_innerproduct_y(field_field_input_inner_prod, field, field_input) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + advective_advective_input_inner_prod
+    inner2 = inner2 + field_field_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED hori_wt_update_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, log_level_info )
+    else
+      write( log_scratch_space, * ) "FAILED hori_wt_update_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, log_level_error )
+    end if
+
+  end subroutine adjt_hori_wt_update_alg
+
+end module adjt_wt_advective_update_alg_mod

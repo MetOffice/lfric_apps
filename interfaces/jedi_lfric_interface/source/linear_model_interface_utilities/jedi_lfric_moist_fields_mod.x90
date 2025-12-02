@@ -1,0 +1,264 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief  Routines to initialise/update moisture fields in linear model.
+!>
+!>@detail The fields stored in the linear model prognostic and linear state
+!>        collections contains some fields that are not directly initialised
+!>        This includes all moist_dyn fields and the mixing ratios for ice
+!>        (m_ci) and graupel (m_g). This module includes routines to
+!>        initialise/update them.
+!>
+module jedi_lfric_moist_fields_mod
+
+  use atl_moist_dyn_factors_alg_mod, only: atl_moist_dyn_factors_alg
+  use constants_mod,                only: r_def
+  use field_mod,                    only: field_type
+  use field_array_mod,              only: field_array_type
+  use field_collection_mod,         only: field_collection_type
+  use mr_indices_mod,               only: nummr, imr_v, imr_cl, imr_r, &
+                                          imr_ci, imr_s, imr_g
+  use moist_dyn_mod,                only: num_moist_factors
+  use log_mod,                      only: log_event, log_scratch_space, &
+                                          LOG_LEVEL_DEBUG
+  use tl_moist_dyn_factors_alg_mod, only: tl_moist_dyn_factors_alg
+  use moist_dyn_factors_alg_mod,    only: moist_dyn_factors_alg
+
+  implicit none
+
+  private
+  public init_moist_fields, adj_init_moist_fields, &
+         copy_moist_fields_to_prognostic, copy_moist_fields_from_prognostic, &
+         zero_moist_fields, update_ls_moist_fields
+
+  contains
+
+  !> @brief   Initialise moist fields that are not propagated.
+  !> @param[in] moisture_fields Moisture field collection
+  subroutine init_moist_fields( moisture_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: moisture_fields
+
+    type( field_array_type ), pointer :: mr_array
+    type( field_array_type ), pointer :: moist_dyn_array
+    type( field_type ),       pointer :: mr(:)
+    type( field_type ),       pointer :: moist_dyn(:)
+
+    write( log_scratch_space, * ) "Name of moisture_fields collection: " , &
+                                  trim(moisture_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call moisture_fields%get_field( "mr", mr_array )
+    call moisture_fields%get_field( "moist_dyn", moist_dyn_array )
+    mr => mr_array%bundle
+    moist_dyn => moist_dyn_array%bundle
+
+    ! Graupel and cloud ice crystal fields are set to zero. The other moisture
+    ! fields are updated directly.
+    call invoke( setval_C(mr(imr_g), 0.0_r_def), &
+                 setval_C(mr(imr_ci), 0.0_r_def) )
+
+    ! Update the moist dynamics
+    call tl_moist_dyn_factors_alg( moist_dyn, mr )
+
+  end subroutine init_moist_fields
+
+  !> @brief   Adjoint of "initialise moist fields that are not propagated".
+  !> @param[in] moisture_fields Moisture field collection
+  subroutine adj_init_moist_fields( moisture_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: moisture_fields
+
+    type( field_array_type ), pointer :: mr_array
+    type( field_array_type ), pointer :: moist_dyn_array
+    type( field_type ),       pointer :: mr(:)
+    type( field_type ),       pointer :: moist_dyn(:)
+
+    write( log_scratch_space, * ) "Name of moisture_fields collection: " , &
+                                  trim(moisture_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call moisture_fields%get_field( "mr", mr_array )
+    call moisture_fields%get_field( "moist_dyn", moist_dyn_array )
+    mr => mr_array%bundle
+    moist_dyn => moist_dyn_array%bundle
+
+    call atl_moist_dyn_factors_alg( moist_dyn, mr )
+
+    call invoke( setval_C(mr(imr_ci), 0.0_r_def), &
+                 setval_C(mr(imr_g), 0.0_r_def) )
+
+  end subroutine adj_init_moist_fields
+
+  !> @brief   Update moist fields held in prognostic field collection
+  !> @param[in] moisture_fields   Moisture field collection
+  !> @param[in] prognostic_fields Prognostic field collection
+  subroutine copy_moist_fields_to_prognostic( moisture_fields, prognostic_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: moisture_fields
+    type( field_collection_type ), intent(in) :: prognostic_fields
+
+    type( field_array_type ), pointer :: mr_array
+    type( field_type ),       pointer :: mr(:)
+    type( field_type ),       pointer :: m_v, m_cl, m_r, m_s
+
+    write( log_scratch_space, * ) "Name of moisture_fields collection: " , &
+                                  trim(moisture_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    write( log_scratch_space, * ) "Name of prognostic_fields collection: " , &
+                                  trim(prognostic_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call moisture_fields%get_field( "mr", mr_array )
+    mr => mr_array%bundle
+    call prognostic_fields%get_field( "m_v", m_v )
+    call prognostic_fields%get_field( "m_cl", m_cl )
+    call prognostic_fields%get_field( "m_r", m_r )
+    call prognostic_fields%get_field( "m_s", m_s )
+
+    call invoke( setval_X( m_s, mr(imr_s) ),   &
+                 setval_X( m_r, mr(imr_r) ),   &
+                 setval_X( m_cl, mr(imr_cl) ), &
+                 setval_X( m_v, mr(imr_v) ) )
+
+  end subroutine copy_moist_fields_to_prognostic
+
+  !> @brief   Update moist fields held in moisture field collection
+  !> @param[in] moisture_fields   Moisture field collection
+  !> @param[in] prognostic_fields Prognostic field collection
+  subroutine copy_moist_fields_from_prognostic( moisture_fields, prognostic_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: moisture_fields
+    type( field_collection_type ), intent(in) :: prognostic_fields
+
+    type( field_array_type ), pointer :: mr_array
+    type( field_type ),       pointer :: mr(:)
+    type( field_type ),       pointer :: m_v, m_cl, m_r, m_s
+
+
+    write( log_scratch_space, * ) "Name of moisture_fields collection: " , &
+                                  trim(moisture_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    write( log_scratch_space, * ) "Name of prognostic_fields collection: " , &
+                                  trim(prognostic_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+
+    call moisture_fields%get_field( "mr", mr_array )
+    mr => mr_array%bundle
+    call prognostic_fields%get_field( "m_v", m_v )
+    call prognostic_fields%get_field( "m_cl", m_cl )
+    call prognostic_fields%get_field( "m_r", m_r )
+    call prognostic_fields%get_field( "m_s", m_s )
+
+    call invoke( setval_X( mr(imr_s), m_s ),   &
+                 setval_X( mr(imr_r), m_r ),   &
+                 setval_X( mr(imr_cl), m_cl ), &
+                 setval_X( mr(imr_v), m_v ) )
+
+  end subroutine copy_moist_fields_from_prognostic
+
+  !> @brief   Zero moist fields held in moisture field collection
+  !> @param[in] moisture_fields Moisture field collection
+  subroutine zero_moist_fields( moisture_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: moisture_fields
+
+    type( field_array_type ), pointer :: mr_array
+    type( field_array_type ), pointer :: moist_dyn_array
+    type( field_type ),       pointer :: mr(:)
+    type( field_type ),       pointer :: moist_dyn(:)
+
+    write( log_scratch_space, * ) "Name of moisture_fields collection: " , &
+                                  trim(moisture_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call moisture_fields%get_field( "mr", mr_array )
+    call moisture_fields%get_field( "moist_dyn", moist_dyn_array )
+    mr => mr_array%bundle
+    moist_dyn => moist_dyn_array%bundle
+
+    call invoke( setval_c( mr(imr_s), 0.0_r_def ),    &
+                 setval_c( mr(imr_r), 0.0_r_def ),    &
+                 setval_c( mr(imr_cl), 0.0_r_def ),   &
+                 setval_c( mr(imr_v), 0.0_r_def ),    &
+                 setval_C( mr(imr_g), 0.0_r_def ),    &
+                 setval_C( mr(imr_ci), 0.0_r_def ),   &
+                 setval_C( moist_dyn(1), 0.0_r_def ), &
+                 setval_C( moist_dyn(2), 0.0_r_def ), &
+                 setval_C( moist_dyn(3), 0.0_r_def ) )
+
+  end subroutine zero_moist_fields
+
+  !> @brief   Update passive linear state fields.
+  !> @details Update the linear state fields that are not stored in the
+  !>          trajectory. The trajectory is an object that stores a 4D
+  !>          set of linear state fields.
+  !>
+  !> @param[in] ls_fields       Linearisation states field collection
+  !> @param[in] moisture_fields Moisture field collection
+  subroutine update_ls_moist_fields( ls_fields, moisture_fields )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: ls_fields
+    type( field_collection_type ), intent(in) :: moisture_fields
+
+    ! Local
+    type( field_type ),       pointer :: ls_m_v
+    type( field_type ),       pointer :: ls_m_cl
+    type( field_type ),       pointer :: ls_m_r
+    type( field_type ),       pointer :: ls_m_s
+    type( field_array_type ), pointer :: ls_mr_array
+    type( field_array_type ), pointer :: ls_moist_dyn_array
+    type( field_type ),       pointer :: ls_mr(:)
+    type( field_type ),       pointer :: ls_moist_dyn(:)
+
+    write( log_scratch_space, * ) "Name of moisture_fields collection: " , &
+                                  trim(moisture_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    write( log_scratch_space, * ) "Name of ls_fields collection: " , &
+                                  trim(ls_fields%get_name())
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Get the ls moisture fields from the ls_fields and put them in the bundle
+    call ls_fields%get_field('ls_m_v', ls_m_v)
+    call ls_fields%get_field('ls_m_cl', ls_m_cl)
+    call ls_fields%get_field('ls_m_r', ls_m_r)
+    call ls_fields%get_field('ls_m_s', ls_m_s)
+
+    call moisture_fields%get_field( "ls_mr", ls_mr_array )
+    call moisture_fields%get_field( "ls_moist_dyn", ls_moist_dyn_array )
+    ls_mr => ls_mr_array%bundle
+    ls_moist_dyn => ls_moist_dyn_array%bundle
+
+    ! Graupel and cloud ice crystal fields are set to zero. The other moisture
+    ! fields are updated directly.
+    call invoke( setval_X( ls_mr(imr_v), ls_m_v ),    &
+                 setval_X( ls_mr(imr_cl), ls_m_cl ),  &
+                 setval_X( ls_mr(imr_r), ls_m_r ),    &
+                 setval_X( ls_mr(imr_s), ls_m_s ),    &
+                 setval_C( ls_mr(imr_g), 0.0_r_def ), &
+                 setval_C( ls_mr(imr_ci), 0.0_r_def ) )
+
+    ! All moist dynamics fields are recomputed from ls_mr
+    call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
+
+  end subroutine update_ls_moist_fields
+
+end module jedi_lfric_moist_fields_mod

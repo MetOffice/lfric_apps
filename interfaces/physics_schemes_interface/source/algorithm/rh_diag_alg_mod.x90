@@ -1,0 +1,120 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Holds code to calculate and output RH diagnostic
+
+module rh_diag_alg_mod
+
+  use field_mod,               only: field_type
+  use io_config_mod,           only: use_xios_io
+  use constants_mod,           only: r_def, l_def, i_def
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
+                                        diag_samp => diagnostic_to_be_sampled
+  use mr_indices_mod,          only : nummr, imr_v
+  use lfric_xios_diag_mod, only: get_axis_dimension, get_axis_values
+  use planet_config_mod, only: p_zero, kappa
+
+  implicit none
+  private
+
+  public :: rh_diag_alg
+
+contains
+
+  !> @details Output diagnostics of RH over water and ice
+  !> @param[in]  exner       exner pressure in wth space
+  !> @param[in]  theta       potential temperature
+  !> @param[in]  mr          Mixing ratios
+
+  subroutine rh_diag_alg(exner, theta, mr)
+
+    use msat_kernel_mod, only: msat_kernel_type
+    use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type, &
+                                    invoke_heaviside_kernel_type
+
+    implicit none
+
+    ! Arguments
+
+    type( field_type ), intent(in) :: exner
+    type( field_type ), intent(in) :: theta
+    type( field_type ), intent(in) :: mr(nummr)
+
+    ! Define RH field
+    type( field_type ) :: rh_water, rh_ice, msat_water, msat_ice, &
+         plev_rh_water, plev_rh_ice
+    logical(l_def) :: water_only, rh_water_flag, plev_rh_water_flag, &
+         rh_ice_flag, plev_rh_ice_flag, plev_rh_ice_clim_flag
+    integer(i_def) :: nplev
+    real(r_def), allocatable :: plevs(:)
+
+    nplev = get_axis_dimension('pressure_levels')
+    allocate(plevs(nplev))
+    plevs = get_axis_values('pressure_levels', nplev)
+
+    plev_rh_water_flag = init_diag(plev_rh_water, 'plev__rh_water')
+    rh_water_flag = init_diag(rh_water, 'processed__rh_water', activate=plev_rh_water_flag)
+    if ((rh_water_flag .or. plev_rh_water_flag) .and. use_xios_io) then
+
+      call rh_water%copy_field_properties(msat_water)
+
+      ! Calculate RH over water
+      water_only = .true.
+      call invoke(msat_kernel_type(msat_water, exner, theta, water_only), &
+                  X_divideby_Y(rh_water, mr(imr_v), msat_water),          &
+                  inc_a_times_X(100.0_r_def, rh_water) )
+
+      ! Output diagnostic
+      if (rh_water_flag) call rh_water%write_field()
+
+      ! Pressure level diagnostic
+      if (plev_rh_water_flag) then
+        call invoke_pres_interp_kernel_type(rh_water, exner, &
+                                            nplev, plevs, plev_rh_water, &
+                                            p_zero, kappa)
+        call plev_rh_water%write_field()
+      end if
+
+    end if
+
+    plev_rh_ice_clim_flag = diag_samp('plev__rh_ice_clim')
+    plev_rh_ice_flag = init_diag(plev_rh_ice, 'plev__rh_ice', activate=plev_rh_ice_clim_flag)
+    rh_ice_flag = init_diag(rh_ice, 'processed__rh_ice', activate=(plev_rh_ice_flag .or. plev_rh_ice_clim_flag))
+    if ((rh_ice_flag .or. plev_rh_ice_flag .or. plev_rh_ice_clim_flag) .and. use_xios_io) then
+
+      call rh_ice%copy_field_properties(msat_ice)
+
+      ! Calculate RH over ice
+      water_only = .false.
+      call invoke(msat_kernel_type(msat_ice, exner, theta, water_only), &
+                  X_divideby_Y(rh_ice, mr(imr_v), msat_ice),            &
+                  inc_a_times_X(100.0_r_def, rh_ice) )
+
+      ! Output diagnostic
+      if (rh_ice_flag) call rh_ice%write_field()
+
+      ! Pressure level diagnostic
+      if (plev_rh_ice_flag .or. plev_rh_ice_clim_flag) then
+        call invoke_pres_interp_kernel_type(rh_ice, exner, &
+                                            nplev, plevs, plev_rh_ice, &
+                                            p_zero, kappa)
+        if (plev_rh_ice_flag) call plev_rh_ice%write_field()
+
+        if (plev_rh_ice_clim_flag) then
+          call invoke_heaviside_kernel_type(exner,  &
+                                            nplev, plevs, plev_rh_ice, &
+                                            p_zero, kappa)
+          call plev_rh_ice%write_field('plev__rh_ice_clim')
+        end if
+
+      end if
+
+    end if
+
+    deallocate(plevs)
+
+  end subroutine rh_diag_alg
+
+end module rh_diag_alg_mod

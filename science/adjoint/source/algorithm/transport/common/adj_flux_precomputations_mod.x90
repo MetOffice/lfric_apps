@@ -1,0 +1,205 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Adjoint of needed flux_precomputation_type member functions.
+
+module adj_flux_precomputations_mod
+
+  use constants_mod,                only : r_tran, i_def
+  use r_tran_field_mod,             only : r_tran_field_type
+  use integer_field_mod,            only : integer_field_type
+  use mesh_mod,                     only : mesh_type
+  use flux_precomputations_alg_mod, only : flux_precomputations_type
+  use fs_continuity_mod,            only : W3
+  use log_mod,                      only : log_event,                         &
+                                           log_scratch_space,                 &
+                                           LOG_LEVEL_ERROR
+  use split_transport_utils_mod,    only : get_direction_w2_fs,               &
+                                           get_num_split_steps,               &
+                                           use_shifted_mesh
+  use transport_config_mod,         only : panel_edge_treatment,              &
+                                           panel_edge_treatment_extended_mesh
+  use transport_constants_mod,      only : get_detj_at_w3_r_tran
+  use extrusion_mod,                only : PRIME_EXTRUSION
+
+  implicit none
+
+  private
+  public :: adj_flux_precomputations_initialiser
+  public :: adj_initialise_step
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint of flux_precomputations_type initialisation.
+  !> @details Optional arguments are included here to mimic the interface used
+  !!          in the linear, specifically because there are certain parts of the
+  !!          logic that are non-linear whether or not a certain argument is present.
+  !!
+  !!          We include these arguments as optional despite them being mandatory
+  !!          just in case the linear interface is changed so that the adjoint tests
+  !!          will throw errors if the non-linear branches are executed.
+  !> @param[in,out]  flux_pc    The flux precomputations object to adjoint
+  !> @param[in,out]  ref_field  The reference field at the start of the transport step
+  !> @param[in]      flux       Reference flux
+  subroutine adj_flux_precomputations_initialiser( flux_pc,   &
+                                                   ref_field, &
+                                                   flux )
+    implicit none
+
+    ! Arguments
+    class(flux_precomputations_type),           intent(inout) :: flux_pc
+    type(r_tran_field_type), optional,          intent(inout) :: ref_field
+    type(r_tran_field_type), optional, target,  intent(in)    :: flux
+
+    ! Internal variables
+    type(mesh_type),                                  pointer :: mesh
+    integer(kind=i_def)                                       :: mesh_id
+    integer(kind=i_def)                                       :: fs_id
+    integer(kind=i_def)                                       :: num_meshes
+    type(r_tran_field_type),                          pointer :: fpc_ref_field
+    type(r_tran_field_type),                          pointer :: fpc_ref_mass
+    type(r_tran_field_type),                          pointer :: detj_w3
+    type(r_tran_field_type)                                   :: tmp_field
+
+    if (use_shifted_mesh()) then
+      call log_event("adj_flux_pc_init: shifted mesh computations not yet implemented.", LOG_LEVEL_ERROR)
+
+    else
+      num_meshes = 1
+
+    end if
+
+    if ( present(flux) ) then
+      call log_event("adj_flux_pc_init: adjoint of optional flux computations not yet implemented.", LOG_LEVEL_ERROR)
+    end if
+
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
+      call log_event("adj_flux_pc_init: adjoint of extended mesh computations not yet implemented.", LOG_LEVEL_ERROR)
+    else
+      mesh_id = flux_pc%get_mesh_id_from_idx( 1_i_def )
+      fpc_ref_field => flux_pc%get_ref_field( mesh_id, 1_i_def )
+      fpc_ref_mass => flux_pc%get_ref_mass( mesh_id, 1_i_def )
+      detj_w3 => get_detj_at_w3_r_tran( mesh_id )
+      call fpc_ref_mass%copy_field_properties( tmp_field )
+      call invoke( X_times_Y( tmp_field, detj_w3, fpc_ref_mass ), &
+                   inc_X_plus_Y( fpc_ref_field, tmp_field ),      &
+                   setval_c( fpc_ref_mass, 0.0_r_tran ) )
+    end if
+
+    if ( present(ref_field) ) then
+      mesh => ref_field%get_mesh()
+
+      if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
+        write(log_scratch_space, '(A)')                         &
+            'adj_flux_pc_init: the reference field ' //         &
+            'provided is not on a prime extrusion mesh'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Is the reference field in the correct space for this split step?
+      fs_id = ref_field%which_function_space()
+      if (fs_id /= W3) then
+        write(log_scratch_space, '(A,I8,A)')                    &
+            'adj_flux_pc_init: the reference field ' //         &
+            'provided is in space with ID ', fs_id, ' but should be in W3'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Set first reference field for this object ------------------------------
+      mesh_id = flux_pc%get_mesh_id_from_idx( 1_i_def )
+      if (mesh%get_id() /= mesh_id) then
+      call log_event(                                                          &
+          'adj_flux_pc_init: restricting ref_field to the appropriate ' //     &
+          'mesh is not yet implemented', LOG_LEVEL_ERROR                       &
+      )
+      else
+        ! Flux is already on the mesh for this precomputation object
+        fpc_ref_field => flux_pc%get_ref_field( mesh_id, 1_i_def )
+        call invoke( inc_X_plus_Y( ref_field, fpc_ref_field ), &
+                     setval_c( fpc_ref_field, 0.0_r_tran ) )
+      end if
+
+    else
+      call log_event("adj_flux_pc_init: ref_field must be present as logic for this branch is not linear.", LOG_LEVEL_ERROR)
+
+    end if
+
+  end subroutine adj_flux_precomputations_initialiser
+
+  !=============================================================================
+  !> @brief   Adjoint of flux_precomputations_type initialise_step method.
+  !> @param[in,out]  flux_pc   The flux precomputations object to adjoint
+  !> @param[in,out]  step      Timestep
+  !> @param[in]      ref_flux  Reference flux
+  subroutine adj_initialise_step( flux_pc, step, ref_flux )
+
+    implicit none
+
+    class(flux_precomputations_type), intent(inout) :: flux_pc
+    integer(kind=i_def),              intent(in)    :: step
+    type(r_tran_field_type),          intent(in)    :: ref_flux
+
+    ! Local variables
+    integer(kind=i_def)                :: splitting
+    integer(kind=i_def)                :: num_steps
+    integer(kind=i_def)                :: step_of_substep
+    integer(kind=i_def)                :: fs_id, correct_fs_id
+    integer(kind=i_def)                :: flux_pc_mesh_id
+    type(mesh_type),           pointer :: mesh
+    type(r_tran_field_type),   pointer :: ref_flux_pc
+
+    ! Checks ------------------------------------------------------------------
+    ! Is the reference flux is on a prime extrusion?
+    mesh => ref_flux%get_mesh()
+    flux_pc_mesh_id = flux_pc%get_mesh_id_from_idx(1)
+    if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
+      write(log_scratch_space, '(A,I8,A)')                                     &
+          'adj_initialise_step: the reference flux ' //                        &
+          'provided for step ', step, ' is not on a prime extrusion mesh'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Is the reference flux in the correct space for this split step?
+    splitting = flux_pc%get_splitting()
+    fs_id = ref_flux%which_function_space()
+    step_of_substep = MOD(step - 1, get_num_split_steps(splitting)) + 1
+    correct_fs_id = get_direction_w2_fs(splitting, step_of_substep)
+    if (fs_id /= correct_fs_id) then
+      write(log_scratch_space, '(A,I8,A,I8,A,I8)')                             &
+          'adj_initialise_step: the reference flux ' //                        &
+          'provided for step ', step, ' is in space with ID ', fs_id,          &
+          ' but the corresponding split step should be in the W2 space' //     &
+          'with ID: ', correct_fs_id
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Is the step number valid?
+    num_steps = flux_pc%get_num_steps()
+    if (step > num_steps .or. step < 1) then
+      write(log_scratch_space, '(A,I8,A,I8)')                                  &
+          'adj_initialise_step: the value of step: ', step,                    &
+          'is not valid. Should be between 1 and ', num_steps
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Set reference flux for this object ---------------------------------------
+    ref_flux_pc => flux_pc%get_ref_flux( flux_pc_mesh_id, step )
+    if (mesh%get_id() /= flux_pc_mesh_id) then
+      call log_event(                                                          &
+          'adj_initialise_step: restricting fluxes to the appropriate ' //     &
+          'mesh is not yet implemented', LOG_LEVEL_ERROR                       &
+      )
+
+    else
+      ! Flux is already on the mesh for this precomputation object
+      call invoke( inc_X_plus_Y( ref_flux, ref_flux_pc ), &
+                   setval_c( ref_flux_pc, 0.0_r_tran ) )
+    end if
+
+    end subroutine adj_initialise_step
+
+end module adj_flux_precomputations_mod

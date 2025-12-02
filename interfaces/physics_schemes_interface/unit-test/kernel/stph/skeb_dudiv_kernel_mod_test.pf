@@ -1,0 +1,178 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module skeb_dudiv_kernel_mod_test
+
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap,      &
+                                                  get_w2_m3x3_dofmap,      &
+                                                  get_wtheta_m3x3_dofmap,  &
+                                                  get_m3x3_stencil_dofmap_cross
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: skeb_dudiv_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type skeb_dudiv_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(skeb_dudiv_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(skeb_dudiv_test_type), intent(inout) :: this
+
+    ! Finalise namelists
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use skeb_dudiv_kernel_mod, only : skeb_dudiv_code
+
+    implicit none
+
+    class(skeb_dudiv_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w3, undf_w3, ndf_w2, undf_w2, ndf_2d, undf_2d
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_2d(:,:)
+    integer(i_def), allocatable :: stencil_map_w3(:,:,:)
+
+    real(r_def), allocatable :: du_div_w2(:)
+    real(r_def), allocatable :: psif_hat(:)
+    real(r_def), allocatable :: dx_at_w2(:)
+    real(r_def), allocatable :: latitude(:)
+    real(r_def), allocatable :: answer(:)
+
+    integer(i_def) :: icell, i, j, k, df
+
+    integer(i_def) :: cell
+
+    ! Variables for testing skeb_dudiv
+    ! Get sizes of everything
+    nlayers=3
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    ! Setup maps
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_w3, map_w3)
+
+    ! Set up 2d w2 field
+    nlayers = 1
+    ndf_2d = 6
+    undf_2d = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_2d, nlayers)
+
+    ! Set up 3d w2 field
+    nlayers = 3
+    ndf_w2 = 6
+    undf_w2 = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+
+    ! Create the data
+    allocate(dx_at_w2(undf_w2))
+    allocate(answer(undf_w2))
+    allocate(du_div_w2(undf_w2))
+    allocate(latitude(undf_2d))
+    allocate(psif_hat(undf_w3))
+
+    dx_at_w2 = 10.0_r_def
+    cell = 5
+    k=2
+    do df=1,2
+      latitude(map_2d(df,cell)) = 1.0_r_def
+    end do
+    do df=3,4
+      latitude(map_2d(df,cell)) = -1.0_r_def
+    end do
+    psif_hat(:) = 0.0_r_def
+    psif_hat(stencil_map_w3(1,1,cell)+k-1) = 10.0_r_def
+    psif_hat(stencil_map_w3(1,2,cell)+k-1) = 5.0_r_def
+    ! -dpsi/dx = -(10-5)/10 = -0.5
+    psif_hat(stencil_map_w3(1,3,cell)+k-1) = 15.0_r_def
+    ! -dpsi/dy = -(10-15)/10 = 0.5
+    psif_hat(stencil_map_w3(1,4,cell)+k-1) = -15.0_r_def
+    ! -dpsi/dx = -(-15-10)/10 = 2.5
+    psif_hat(stencil_map_w3(1,5,cell)+k-1) = -5.0_r_def
+    ! -dpsi/dy = -(-5-10)/10 = 1.5
+    du_div_w2 = 0.0_r_def
+
+    answer = 0.0_r_def
+    answer(map_w2(1,cell)+k-1) = -0.5_r_def
+    ! -dpsi/dx
+    answer(map_w2(2,cell)+k-1) = -0.5_r_def
+    ! -dpsi/dx * -1 because beta = -y hence need negative
+    answer(map_w2(3,cell)+k-1) = -2.5_r_def
+    ! -dpsi/dx * -1 because southern hemisphere
+    answer(map_w2(4,cell)+k-1) = 1.5_r_def
+    ! -dpsi/dx because -1 for southern hemisphere and -1 for beta cancel
+
+    ! Call the kernel
+    call skeb_dudiv_code( nlayers,                               &
+                          du_div_w2,                             &
+                          psif_hat,                              &
+                          5, stencil_map_w3(:,:,cell),           &
+                          dx_at_w2,                              &
+                          latitude,                              &
+                          2,2,                                   &
+                          ndf_w2, undf_w2, map_w2(:,cell),       &
+                          ndf_w3, undf_w3, map_w3(:,cell),       &
+                          ndf_2d, undf_2d, map_2d(:,cell)        &
+                                                          )
+
+    @assertEqual(answer(:), du_div_w2(:), tol)
+
+    deallocate(answer)
+    deallocate(stencil_map_w3)
+    deallocate(du_div_w2)
+    deallocate(latitude)
+    deallocate(dx_at_w2)
+    deallocate(psif_hat)
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(map_2d)
+
+  end subroutine test_all
+
+end module skeb_dudiv_kernel_mod_test

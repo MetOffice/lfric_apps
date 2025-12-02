@@ -1,0 +1,174 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the skeb_conv_disp kernel
+!>
+module skeb_conv_disp_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+  use get_unit_test_m3x3_dofmap_mod, only : get_w3_m3x3_dofmap, get_wtheta_m3x3_dofmap
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: skeb_conv_disp_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type skeb_conv_disp_test_type
+
+contains
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(skeb_conv_disp_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(skeb_conv_disp_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use skeb_conv_disp_kernel_mod,   only : skeb_conv_disp_code
+
+    implicit none
+
+    class(skeb_conv_disp_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    ! Fields
+    real(r_def), allocatable :: cdisp(:), rho(:), diff_flux(:), cape(:), height_wth(:)
+
+    ! scalars
+    integer(i_def) :: skeb_level_bottom, skeb_level_top
+    real(kind=r_def) :: gravity
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w3(:,:), map_2d(:,:), map_wth(:,:)
+
+    integer(i_def) :: k, cell
+
+    ! Sizes
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w3, undf_w3, ndf_2d, undf_2d, ndf_wth, undf_wth
+
+
+    ncells = 9
+
+    ! Set up 2d w3 field
+    nlayers = 1
+    ndf_2d = 1
+    undf_2d = 9*nlayers
+    call get_w3_m3x3_dofmap(map_2d, nlayers)
+
+    ! Set up 3d w3 field
+    nlayers = 3
+    ndf_w3 = 1
+    undf_w3 = 9*nlayers
+    call get_w3_m3x3_dofmap(map_w3, nlayers)
+
+    ! Set up 3d wt field
+    nlayers = 3
+    ndf_wth = 2
+    undf_wth = 9*(nlayers+1)
+    call get_wtheta_m3x3_dofmap(map_wth, nlayers)
+
+    ! Allocate fields
+    allocate(cdisp(undf_w3))
+    allocate(rho(undf_w3))
+    allocate(diff_flux(undf_wth))
+    allocate(height_wth(undf_wth))
+    allocate(cape(undf_2d))
+
+    ! Set up data
+    cdisp = 0.0_r_def
+    diff_flux = 0.0_r_def
+    height_wth = 0.0_r_def
+    do cell = 1,9
+      diff_flux(map_wth(1, cell)) = 0.0_r_def
+      do k = 0,2
+        ! Set some arbitrarily chosen fluxes: 1,2,3
+        ! (lowest level flux remains 0)
+        diff_flux(map_wth(1, cell) + k + 1 ) = real(k+1, r_def)
+        ! Set height: 10, 40, 90
+        height_wth(map_wth(1, cell) + k + 1 ) = ((k+1)**2 * 10_r_def)
+        ! Set density to 1
+        rho(map_w3(1, cell) + k ) = 1.0_r_def
+      end do
+    end do
+    cape=50.0_r_def
+
+    ! input scalars
+    skeb_level_bottom = 1
+    skeb_level_top = 2
+    gravity = 10.0_r_def
+
+    do cell = 1,9
+      call skeb_conv_disp_code( nlayers,            &
+                                cdisp,              &
+                                rho,                &
+                                diff_flux,          &
+                                cape,               &
+                                height_wth,         &
+                                skeb_level_bottom,  &
+                                skeb_level_top,     &
+                                gravity,            &
+                                ndf_w3,             &
+                                undf_w3,            &
+                                map_w3(:, cell),    &
+                                ndf_wth,            &
+                                undf_wth,           &
+                                map_wth(:, cell),   &
+                                ndf_2d,             &
+                                undf_2d,            &
+                                map_2d(:, cell)     &
+                                )
+    end do
+
+
+    do cell = 1, 9
+      ! check lowest level
+      k = 0
+      @assertEqual(cdisp((map_w3(1, cell) + k )), 0.25_r_def, tol )
+      ! check bottom level
+      k=1
+      @assertEqual(cdisp((map_w3(1, cell) + k )), 0.125_r_def, tol )
+      ! check top level unchanged
+      k=2
+      @assertEqual(cdisp((map_w3(1, cell) + k )), 0.0_r_def, tol )
+    end do
+
+    deallocate(cdisp)
+    deallocate(rho)
+    deallocate(diff_flux)
+    deallocate(cape)
+    deallocate(height_wth)
+    deallocate(map_w3)
+    deallocate(map_wth)
+    deallocate(map_2d)
+
+  end subroutine test_all
+
+end module skeb_conv_disp_kernel_mod_test

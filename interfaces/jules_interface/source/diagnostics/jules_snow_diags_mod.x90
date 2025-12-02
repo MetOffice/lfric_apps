@@ -1,0 +1,132 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for jules_extra_alg
+
+module jules_snow_diags_mod
+
+  use constants_mod,             only: l_def
+  use field_mod,                 only: field_type
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+  use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
+
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+  logical( l_def ) :: grid_snow_mass_flag
+  logical( l_def ) :: grid_snowmelt_flag
+
+  public :: initialise_diags_for_jules_snow
+  public :: output_diags_for_jules_snow
+
+contains
+
+  !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     soil_moist_sat     Soil moisture content at saturation
+  !> @param[in,out] grid_snow_mass     Grid snow mass
+  !> @param[in,out] grid_snowmelt      Grid snowmelt
+
+  subroutine initialise_diags_for_jules_snow(soil_moist_sat,                   &
+                                         grid_snow_mass, grid_snowmelt)
+
+    implicit none
+
+    ! Fields passed in to copy properties from
+    type( field_type ), intent(in)    :: soil_moist_sat
+
+    ! Diagnostic fields to initialise
+    type( field_type ), intent(inout) :: grid_snow_mass
+    type( field_type ), intent(inout) :: grid_snowmelt
+
+    if ( subroutine_timers ) call timer("jules_snow_diags")
+
+    ! 2D fields
+    grid_snow_mass_flag = init_diag(grid_snow_mass, 'snow__grid_snow_mass')
+    if (grid_snow_mass_flag) call invoke( setval_c(grid_snow_mass, 0.0_r_def) )
+    grid_snowmelt_flag = init_diag(grid_snowmelt, 'snow__grid_snowmelt')
+
+    if ( subroutine_timers ) call timer("jules_snow_diags")
+
+  end subroutine initialise_diags_for_jules_snow
+
+  !> @brief Output diagnostics from jules_extra_alg
+  !> @param[in]     tile_fraction            Fraction of surface tiles
+  !> @param[in]     tile_snow_mass           Snow mass on tiles
+  !> @param[in]     snowice_melt             Total snow and ice melt on tiles
+  !> @param[in]     snow_depth               Depth of snow on tiles
+  !> @param[in]     tile_snow_rgrain         Snow grain size on tiles
+  !> @param[in]     snowpack_density         Density of snow pack on tiles
+  !> @param[in]     snow_layer_temp          Temperature of snow layers on tiles
+  !> @param[in]     snow_layer_thickness     Thickness of snow layers on tiles
+  !> @param[in]     snow_layer_ice_mass      Mass of ice in snow layers on tiles
+  !> @param[in]     snow_layer_liq_mass      Mass of water in snow layers on tiles
+  !> @param[in]     snow_layer_rgrain        Snow grain size in snow layers on tiles
+  !> @param[in]     grid_snow_mass           Grid snow mass
+  !> @param[in,out] grid_snowmelt            Grid snowmelt
+
+  subroutine output_diags_for_jules_snow(tile_fraction, tile_snow_mass,        &
+                                     snowice_melt,                             &
+                                     snow_depth, tile_snow_rgrain,             &
+                                     snowpack_density, snow_layer_temp,        &
+                                     snow_layer_thickness, snow_layer_ice_mass,&
+                                     snow_layer_liq_mass, snow_layer_rgrain,   &
+                                     grid_snow_mass, grid_snowmelt)
+
+    use jules_control_init_mod, only : n_land_tile
+
+    implicit none
+
+    ! Prognostic fields to output
+    type( field_type ), intent(in)    :: tile_fraction, tile_snow_mass,        &
+                                         snowice_melt,                         &
+                                         snow_depth, tile_snow_rgrain,         &
+                                         snowpack_density, snow_layer_temp,    &
+                                         snow_layer_thickness,                 &
+                                         snow_layer_ice_mass,                  &
+                                         snow_layer_liq_mass,                  &
+                                         snow_layer_rgrain
+
+    ! Diagnostics computed within the kernel
+    type( field_type ), intent(in)    :: grid_snow_mass
+
+    ! Diagnostics locally computed here from other fields
+    type( field_type ), intent(inout) :: grid_snowmelt
+
+
+    if ( subroutine_timers ) call timer("jules_snow_diags")
+
+    ! Prognostic fields
+    call tile_snow_mass%write_field('snow__snow_mass')
+    call snowice_melt%write_field('snow__snowice_melt')
+    call snow_depth%write_field('snow__snow_depth')
+    call tile_snow_rgrain%write_field('snow__tile_snow_rgrain')
+    call snowpack_density%write_field('snow__snowpack_density')
+    call snow_layer_temp%write_field('snow__snow_layer_temp')
+    call snow_layer_thickness%write_field('snow__snow_layer_thickness')
+    call snow_layer_ice_mass%write_field('snow__snow_layer_ice_mass')
+    call snow_layer_liq_mass%write_field('snow__snow_layer_liq_mass')
+    call snow_layer_rgrain%write_field('snow__snow_layer_rgrain')
+
+    ! Diagnostics locally computed here from other fields
+    if (grid_snowmelt_flag) then
+      call invoke(weighted_ave_kernel_type(grid_snowmelt, snowice_melt,      &
+                                            tile_fraction, 1, n_land_tile) )
+      call grid_snowmelt%write_field()
+    end if
+
+    ! Diagnostics computed within the kernel
+    if (grid_snow_mass_flag) then
+      call grid_snow_mass%write_field()
+    end if
+
+    if ( subroutine_timers ) call timer("jules_snow_diags")
+
+  end subroutine output_diags_for_jules_snow
+end module jules_snow_diags_mod

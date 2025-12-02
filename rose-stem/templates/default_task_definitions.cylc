@@ -1,0 +1,237 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/default_task_definitions.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# ################## #}
+{# Directives Setting #}
+{# ################## #}
+
+{% include "templates/default_directives.cylc" %}
+
+{# ################ #}
+{# General Settings #}
+{# ################ #}
+
+{# Populate optional settings if not already defined #}
+{% if "DT" not in task_dict %}
+    {% do task_dict.update({"DT": 1}) %}
+{% endif %}
+
+{% if "publish" not in task_dict %}
+    {% do task_dict.update({"publish": false}) %}
+{% endif %}
+
+{% if "kgo_checks" not in task_dict %}
+    {% do task_dict.update({"kgo_checks": []}) %}
+{% endif %}
+
+{% if "threads" not in task_dict %}
+    {% do task_dict.update({"threads": 1}) %}
+{% endif %}
+
+{% if "mpi_parts" not in task_dict %}
+    {% do task_dict.update({"mpi_parts": 1}) %}
+{% endif %}
+
+{% if OVERRIDE_LOG_LEVEL %}
+    {% do task_dict.update({"log_level": OVERRIDE_LOG_LEVEL}) %}
+{% elif "log_level" not in task_dict %}
+    {% if "optlevel" in task_dict %}
+        {% if task_dict["optlevel"] == "fast-debug" %}
+            {% do task_dict.update({"log_level": "info"}) %}
+        {% elif task_dict["optlevel"] == "full-debug" %}
+            {% do task_dict.update({"log_level": "trace"}) %}
+        {% else %}
+            {% do task_dict.update({"log_level": "warning"}) %}
+        {% endif %}
+    {% else %}
+        {% do task_dict.update({"log_level": "info"}) %}
+    {% endif %}
+{% endif %}
+
+{% if "log_to_rank_zero_only" not in task_dict %}
+    {% do task_dict.update({"log_to_rank_zero_only": ".false."}) %}
+{% endif %}
+
+{% if "tsteps" not in task_dict %}
+    {% do task_dict.update({"tsteps": 1}) %}
+{% endif %}
+
+{% if "crun" not in task_dict %}
+    {% do task_dict.update({"crun": 0}) %}
+{% endif %}
+
+{% if "crun_compare" not in task_dict %}
+    {% if task_dict["crun"] > 1 %}
+        {% do task_dict.update({"crun_compare": true}) %}
+    {% else %}
+        {% do task_dict.update({"crun_compare": false}) %}
+    {% endif %}
+{% endif %}
+
+{% if "restart" not in task_dict %}
+    {% do task_dict.update({"restart": ""}) %}
+{% endif %}
+
+{% if "restart_no" not in task_dict %}
+    {% do task_dict.update({"restart_no": none}) %}
+{% endif %}
+
+{% if "restart_read" not in task_dict %}
+    {% do task_dict.update({"restart_read": ".false."}) %}
+{% endif %}
+
+{% if "restart_write" not in task_dict %}
+    {% do task_dict.update({"restart_write": ".false."}) %}
+{% endif %}
+
+{% if "init_tstep" not in task_dict %}
+    {% do task_dict.update({"init_tstep": 1}) %}
+{% endif %}
+
+{% if "last_tstep" not in task_dict %}
+    {% do task_dict.update({"last_tstep": task_dict["tsteps"]}) %}
+{% endif %}
+
+{% if "prev_task" not in task_dict %}
+    {% do task_dict.update({"prev_task": ""}) %}
+{% endif %}
+
+{% if "panel_decomp" not in task_dict %}
+    {% do task_dict.update({"panel_decomp": "auto"}) %}
+{% endif %}
+
+{% if "xproc" not in task_dict %}
+    {% do task_dict.update({"xproc": task_dict["mpi_parts"]}) %}
+{% endif %}
+
+{% if "yproc" not in task_dict %}
+    {% do task_dict.update({"yproc": 1}) %}
+{% endif %}
+
+{% if "custom_task" not in task_dict %}
+    {% do task_dict.update({"custom_task": false}) %}
+{% endif %}
+
+{% if "pre_process_macros" not in task_dict %}
+    {% do task_dict.update({"pre_process_macros": ""}) %}
+{% endif %}
+
+{% if "psyclone_transformation" not in task_dict %}
+    {% do task_dict.update({"psyclone_transformation": "default"}) %}
+{% endif %}
+
+{% if "example_dir" not in task_dict %}
+    {% do task_dict.update({"example_dir": "example"}) %}
+{% endif %}
+
+{% if "task_ranks_per_node" not in task_dict %}
+    {% do task_dict.update({"task_ranks_per_node": 0}) %}
+{% endif %}
+
+{% if "task_ranks_depth_pad" not in task_dict %}
+    {% do task_dict.update({"task_ranks_depth_pad": 1}) %}
+{% endif %}
+
+{% if "pert_compare" not in task_dict %}
+    {% do task_dict.update({"pert_compare": false}) %}
+{% endif %}
+
+{# Canned tests don't require resolution defining #}
+{# Enter a placeholder to prevent an Undefined Error #}
+{% if task_dict["app_name"] == "canned_test" %}
+    {% if "resolution" not in task_dict %}
+        {% do task_dict.update({"resolution": "dummy"}) %}
+    {% endif %}
+{% endif %}
+
+{% if "task_family" not in task_dict %}
+    {% if task.startswith("build") or task.startswith("fcm_make") %}
+        {% do task_dict.update({"task_family": "build"}) %}
+    {% else %}
+        {% do task_dict.update({"task_family": generated_task_name}) %}
+    {% endif %}
+{% endif %}
+
+
+{# ############# #}
+{# XIOS Settings #}
+{# ############# #}
+
+{% if "use_xios" not in task_dict %}
+    {% do task_dict.update({"use_xios": true}) %}
+{% endif %}
+
+{% if "xios_nodes" not in task_dict %}
+    {% do task_dict.update({"xios_nodes": 0}) %}
+{% endif %}
+
+{% if "mpi_parts_xios" not in task_dict %}
+    {% do task_dict.update({"mpi_parts_xios": 0}) %}
+{% endif %}
+
+{% if task_dict["use_xios"] %}
+    {% do task_dict.update({"use_xios_io": ".true."}) %}
+    {% do task_dict.update({"nodal_output_on_w3": ".false."}) %}
+    {% if task_dict["xios_nodes"] > 0 and task_dict["mpi_parts_xios"] > 0 %}
+        {% do task_dict.update({"xios_server_mode": true}) %}
+        {% do task_dict.update({"xios_server_ranks": task_dict["mpi_parts_xios"]}) %}
+    {% else %}
+        {% do task_dict.update({"xios_server_mode": false}) %}
+        {% do task_dict.update({"xios_server_ranks": 0}) %}
+    {% endif %}
+{% else %}
+    {% do task_dict.update({"use_xios_io": ".false."}) %}
+    {% do task_dict.update({"nodal_output_on_w3": ".true."}) %}
+    {% do task_dict.update({"xios_server_mode": false}) %}
+    {% do task_dict.update({"xios_server_ranks": 0}) %}
+{% endif %}
+
+
+{# If application is lfric_coupled read in default values specific to coupled runs #}
+{% if task_ns.application == "lfric_coupled" %}
+    {% include "templates/default_task_definitions_lfric_coupled.cylc" %}
+{% endif %}
+
+
+{# ############################ #}
+{# Default Inheritance Families #}
+{# ############################ #}
+
+{% if "run_families" not in task_dict %}
+    {% do task_dict.update({"run_families": [task_ns.platform|upper~"_RUN_"~task_ns.compiler|upper]}) %}
+{% endif %}
+
+{% if "build_families" not in task_dict %}
+    {% do task_dict.update({"build_families": [task_ns.platform|upper~"_BUILD_"~task_ns.compiler|upper]}) %}
+{% endif %}
+
+{% if "mesh_families" not in task_dict %}
+    {% do task_dict.update({"mesh_families": [task_ns.platform|upper~"_MESH_"~task_ns.compiler|upper]}) %}
+{% endif %}
+
+{% if "plot_families" not in task_dict %}
+    {% do task_dict.update({"plot_families": [task_ns.platform|upper~"_PLOT"]}) %}
+{% endif %}
+
+{% if "checksum_families" not in task_dict %}
+    {% do task_dict.update({"checksum_families": [task_ns.platform|upper~"_CHECK"]}) %}
+{% endif %}
+
+{% if "phystest_families" not in task_dict %}
+    {% do task_dict.update({"phystest_families": [task_ns.platform|upper~"_TECH"]}) %}
+{% endif %}
+
+{% if "techtests_families" not in task_dict %}
+    {% do task_dict.update({"techtests_families": [task_ns.platform|upper~"_TECH_TESTS_"~task_ns.compiler|upper]}) %}
+{% endif %}
+
+{% if "rose_ana_families" not in task_dict %}
+    {% do task_dict.update({"rose_ana_families": [task_ns.platform|upper~"_ROSE_ANA"]}) %}
+{% endif %}
+
+{% do LOG.debug("Finished in templates/default_task_definitions.cylc") %}

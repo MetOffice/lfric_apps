@@ -1,0 +1,170 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test kernel that populates the weights field with the blending weights
+!> obtained from the configuration.
+
+module set_blending_weights_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_set_blending_weights_kernel
+
+  @TestCase
+  type, extends(TestCase), public :: set_blending_weights_test_type
+    private
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncells
+    integer(kind=i_def) :: ndf3, undf3
+    integer(kind=i_def), allocatable :: map3(:,:)
+    real(kind=r_def),    allocatable :: onion_layers(:)
+    real(kind=r_def),    allocatable :: weights_field(:)
+    integer(kind=i_def)              :: depth
+    real(kind=r_def),    allocatable :: answer(:)
+  contains
+    procedure SetUp
+    procedure tearDown
+    procedure test_set_blending_weights_kernel
+  end type set_blending_weights_test_type
+
+  contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
+    use feign_config_mod,      only : feign_boundaries_config
+    use boundaries_config_mod, only : lbc_method_onion_layer,                  &
+                                      blend_frequency_inner,                   &
+                                      transport_overwrite_freq_none
+    implicit none
+
+    class(set_blending_weights_test_type), intent(inout) :: this
+
+    ! Quadrature (not used)
+    integer(kind=i_def) :: nqp_h, nqp_v
+
+    ! Dimensions (not used)
+    integer(kind=i_def) :: dim_space, dim_space_diff
+
+    ! Mesh
+    this%nlayers = 1
+
+    ! Setup W3 fields
+    call get_w3_m3x3_q3x3x3_size(this%ndf3, this%undf3, this%ncells, &
+                                 dim_space, dim_space_diff, &
+                                 nqp_h, nqp_v, &
+                                 this%nlayers)
+
+    allocate(this%map3(this%ndf3,this%ncells))
+    allocate(this%onion_layers(this%undf3))
+    allocate(this%weights_field(this%undf3))
+
+    call get_w3_m3x3_dofmap(this%map3, this%nlayers)
+
+    ! Set boundaries configuration
+    ! Only blending_weights is used
+    call feign_boundaries_config( blend_frequency=blend_frequency_inner,       &
+                                  blending_weights=[0.2_r_def, 0.1_r_def],     &
+                                  blending_weights_w2v=[0.2_r_def],            &
+                                  boundary_e=1,                                &
+                                  boundary_n=1,                                &
+                                  boundary_s=1,                                &
+                                  boundary_w=1,                                &
+                                  edge_cells_ew=1,                             &
+                                  edge_cells_ns=1,                             &
+                                  inner_width_ew=1,                            &
+                                  inner_width_ns=1,                            &
+                                  lbc_eos_height=100,                          &
+                                  lbc_method=lbc_method_onion_layer,           &
+                                  limited_area=.false.,                        &
+                                  normal_only=.true.,                          &
+                                  outer_width_ew=1,                            &
+                                  outer_width_ns=1,                            &
+                                  output_lbcs=.false.,                         &
+                                  rim_width_ew=1,                              &
+                                  rim_width_ns=1,                              &
+                                  solver_boundary_depth=1,                     &
+                                  transport_boundary_depth=6,                  &
+                                  transport_overwrite_freq=transport_overwrite_freq_none)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use boundaries_config_mod, only: boundaries_final
+    use configuration_mod,     only: final_configuration
+
+    implicit none
+
+    class(set_blending_weights_test_type), intent(inout) :: this
+
+    deallocate(this%map3)
+    deallocate(this%onion_layers)
+    deallocate(this%weights_field)
+
+    call boundaries_final()
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_set_blending_weights_kernel( this )
+
+    use set_blending_weights_kernel_mod, only : set_blending_weights_code
+
+    implicit none
+
+    class(set_blending_weights_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    integer(kind=r_def) :: cell, df
+
+    ! Set up input and output masks
+    this%weights_field(:) = -1.0_r_def
+    this%onion_layers(:) = 2.0_r_def
+    this%onion_layers(5) = 1.0_r_def
+    this%depth = 2_i_def
+
+    ! Define answer
+    ! 3x3 cell domain, central cell is cell id = 5
+    allocate(this%answer(this%undf3))
+
+    this%answer(:) = 0.2_r_def
+    this%answer(5) = 0.1_r_def
+
+    do cell=1,this%ncells
+      call set_blending_weights_code(this%nlayers,       &
+                                     this%weights_field, &
+                                     this%onion_layers,  &
+                                     this%depth,         &
+                                     this%ndf3,          &
+                                     this%undf3,         &
+                                     this%map3(:,cell),  &
+                                     this%ndf3,          &
+                                     this%undf3,         &
+                                     this%map3(:,cell)   &
+                                     )
+    end do
+
+    ! Checking all DoFs
+    do df = 1,this%undf3
+      @assertEqual(this%weights_field(df),this%answer(df), tol)
+    end do
+
+    deallocate(this%answer)
+
+  end subroutine test_set_blending_weights_kernel
+
+end module set_blending_weights_kernel_mod_test

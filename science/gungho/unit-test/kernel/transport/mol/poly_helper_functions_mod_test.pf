@@ -1,0 +1,105 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the helmper functions for the polynomial interpolation routines
+module poly_helper_functions_mod_test
+
+  use constants_mod, only: i_def, r_def, l_def
+  use funit
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: poly_helper_functions_test_type
+    private
+  contains
+    procedure setUp
+    procedure test_all
+    procedure tearDown
+  end type poly_helper_functions_test_type
+
+contains
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(poly_helper_functions_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use poly_helper_functions_mod, only: buildadvcoeff, &
+                                         local_distance_2d, &
+                                         local_distance_1d
+    implicit none
+
+    class(poly_helper_functions_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64bit tolerance
+
+    real(r_def), dimension(3) :: x0, x1, xn
+    real(r_def), dimension(2) :: s
+    real(r_def), dimension(2) :: answer, tst
+    real(r_def)               :: use_tol
+    logical(l_def)            :: spherical
+
+    real(r_def), parameter :: domain_x = 20.0_r_def
+    real(r_def), parameter :: domain_y = 20.0_r_def
+
+    x0 = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def /)
+    x1 = (/ 3.0_r_def, 4.0_r_def, 0.0_r_def /)
+    xn = (/ 0.0_r_def,-1.0_r_def, 0.0_r_def /)
+    answer = (/ 3.0_r_def, 4.0_r_def /)
+
+    spherical = .false.
+    if ( r_def == real64 ) then
+      use_tol = tol
+      s = local_distance_2d(x0, x1, xn, domain_x, domain_y, spherical)
+      @assertEqual(answer, s, use_tol)
+      s(1) = local_distance_1d(x0, x1, xn, domain_x, domain_y, spherical)
+      @assertEqual(answer(1), s(1), use_tol)
+    else
+      s = local_distance_2d(x0, x1, xn, domain_x, domain_y, spherical)
+      use_tol = 10.0_r_def*spacing( maxval(s) )
+      @assertEqual(answer, s, use_tol)
+      s(1) = local_distance_1d(x0, x1, xn, domain_x, domain_y, spherical)
+      use_tol = 10.0_r_def*spacing( s(1) )
+      @assertEqual(answer(1), s(1), use_tol)
+    end if
+
+    spherical = .true.
+    x0 = (/ 4.0_r_def, 3.0_r_def, 0.0_r_def /)
+    xn = (/ 0.0_r_def, 0.0_r_def, 1.0_r_def /)
+    answer = (/ asin(0.28_r_def), 0.0_r_def /)
+    if ( r_def == real64 ) then
+      use_tol = tol
+      s = local_distance_2d(x0, x1, xn, domain_x, domain_y, spherical)
+      @assertEqual(answer, s, use_tol)
+      s(1) = local_distance_1d(x0, x1, xn, domain_x, domain_y, spherical)
+      @assertEqual(answer(1), s(1), use_tol)
+    else
+      s = local_distance_2d(x0, x1, xn, domain_x, domain_y, spherical)
+      use_tol = 10.0_r_def*spacing( maxval(s) )
+      @assertEqual(answer, s, use_tol)
+      s(1) = local_distance_1d(x0, x1, xn, domain_x, domain_y, spherical)
+      use_tol = 10.0_r_def*spacing( s(1) )
+      @assertEqual(answer(1), s(1), use_tol)
+    end if
+  end subroutine test_all
+
+  subroutine tearDown( this )
+    implicit none
+
+    class(poly_helper_functions_test_type), intent(inout) :: this
+  end subroutine tearDown
+
+end module poly_helper_functions_mod_test

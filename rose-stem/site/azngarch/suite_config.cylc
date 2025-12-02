@@ -1,0 +1,22 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/azngarch/suite_config.cylc") %}
+
+    [[AZNGARCH_ORIG]]
+        pre-script = "umask 0022 ; module purge ; module use ~spackadmin/spack-0.22.2/modules/linux-ubuntu22.04-zen2 ; module load fcm/2021.05.0/gcc-14.2.0-t4rinp subversion/1.14.2/gcc-14.2.0-4zbbqs"
+        platform = sandbox
+
+{% include 'site/azngarch/common/suite_config_sandbox.cylc' %}
+
+
+{% if "lfricinputs" in requested_applications %}
+    {% include 'site/azngarch/common/suite_config_lfricinputs.cylc' %}
+{% endif %}
+{% if "lfric_coupled" in requested_applications %}
+    {% include 'site/azngarch/common/suite_config_lfric_coupled.cylc' %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/azngarch/suite_config.cylc") %}

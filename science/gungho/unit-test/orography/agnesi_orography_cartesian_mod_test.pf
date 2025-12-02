@@ -1,0 +1,216 @@
+!-----------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------
+!> @brief Test suite to verify calculation of Witch-of-Agnesi mountain orography
+!>        profile in Cartesian coordinates.
+!-------------------------------------------------------------------------------
+module agnesi_orography_cartesian_mod_test
+
+  use constants_mod,              only : i_def, r_def, l_def, str_def, str_max_filename
+  use global_mesh_mod,            only : global_mesh_type
+  use analytic_orography_mod,     only : orography_profile
+  use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+
+  use funit
+
+  implicit none
+
+  private
+  public :: setUp, tearDown, test_agnesi_orography_cartesian
+
+  @testCase
+  type, public, extends(TestCase) :: agnesi_orography_cartesian_test_type
+    real(r_def)         :: mountain_height
+    real(r_def)         :: half_width_x
+    real(r_def)         :: half_width_y
+    real(r_def)         :: x_centre
+    real(r_def)         :: y_centre
+    integer(kind=i_def) :: direction
+  contains
+    procedure     :: setUp
+    procedure     :: tearDown
+    procedure     :: test_agnesi_orography_cartesian
+  end type agnesi_orography_cartesian_test_type
+
+  character(str_def), parameter   :: mesh_name       = 'unit_test'
+  character(len=str_max_filename) :: file_prefix     = "data/mesh_BiP40x40-5x5"
+
+  real(r_def),        parameter   :: domain_bottom         = 0.0_r_def
+  real(r_def),        parameter   :: domain_top            = 1000.0_r_def
+  real(r_def),        parameter   :: surface_pressure      = 1000.0e2_r_def
+
+  integer(i_def),     parameter   :: nlayers               = 1_i_def
+  integer(i_def),     parameter   :: element_order_h       = 0_i_def
+  integer(i_def),     parameter   :: element_order_v       = 0_i_def
+  integer(i_def),     parameter   :: total_ranks           = 1_i_def
+  integer(i_def),     parameter   :: local_rank            = 0_i_def
+  integer(i_def),     parameter   :: xproc                 = 1_i_def
+  integer(i_def),     parameter   :: yproc                 = 1_i_def
+
+  logical(l_def),     parameter   :: generate_inner_halos = .true.
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp(this)
+
+    use agnesi_orography_cartesian_mod, only : agnesi_cartesian_type
+    use finite_element_config_mod,      only : cellshape_quadrilateral
+    use base_mesh_config_mod,           only : geometry_planar, &
+                                               topology_fully_periodic
+    use feign_config_mod,               only :                         &
+                                        feign_base_mesh_config,        &
+                                        feign_initial_pressure_config, &
+                                        feign_orography_agnesi_cartesian_config
+
+    use orography_agnesi_cartesian_config_mod, &
+                                        only : direction_x
+
+    use initial_pressure_config_mod,    only : method_balanced
+
+    implicit none
+
+    class(agnesi_orography_cartesian_test_type), intent(inout) :: this
+
+    ! Set mesh configuration
+    call feign_base_mesh_config(                                    &
+                         file_prefix     = file_prefix,             &
+                         prime_mesh_name = mesh_name,               &
+                         geometry        = geometry_planar,         &
+                         prepartitioned  = .false.,                 &
+                         topology        = topology_fully_periodic, &
+                         fplane          = .false.,                 &
+                         f_lat_deg       = 0.0_r_def )
+
+    call feign_initial_pressure_config( method           = method_balanced,   &
+                                        surface_pressure = surface_pressure )
+
+    ! Set Witch-of-Agnesi Cartesian configuration
+    this%mountain_height = 100.0_r_def
+    this%half_width_x    = 10.0_r_def
+    this%half_width_y    = 10.0_r_def
+    this%x_centre        = -10.0_r_def
+    this%y_centre        = 20.0_r_def
+    this%direction       = int(direction_x, i_def)
+    call feign_orography_agnesi_cartesian_config(      &
+               mountain_height = this%mountain_height, &
+               half_width_x    = this%half_width_x,    &
+               half_width_y    = this%half_width_y,    &
+               x_centre        = this%x_centre,        &
+               y_centre        = this%y_centre,        &
+               direction       = direction_x )
+
+    ! Initialise Witch-of-Agnesi Cartesian orography type
+    allocate( orography_profile,                                    &
+              source = agnesi_cartesian_type( this%mountain_height, &
+                                              this%half_width_x,    &
+                                              this%half_width_y,    &
+                                              this%x_centre,        &
+                                              this%y_centre,        &
+                                              this%direction ) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown(this)
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(agnesi_orography_cartesian_test_type), intent(inout) :: this
+
+    deallocate( orography_profile )
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_agnesi_orography_cartesian(this)
+
+    use local_mesh_mod,                        only : local_mesh_type
+    use mesh_mod,                              only : mesh_type
+    use panel_decomposition_mod,               only : custom_decomposition_type
+    use partition_mod,                         only : partition_type,        &
+                                                      partitioner_interface, &
+                                                      partitioner_planar
+    use extrusion_mod,                         only : uniform_extrusion_type, &
+                                                      PRIME_EXTRUSION
+    use domain_mod,                            only : domain_type
+    use orography_helper_functions_mod,        only : set_horizontal_domain_size
+
+    implicit none
+    ! Arguments
+    class(agnesi_orography_cartesian_test_type), intent(inout) :: this
+    ! Mesh, partition and domain size types
+    type(ugrid_mesh_data_type)                   :: ugrid_mesh_data
+    type(global_mesh_type),           pointer    :: global_mesh_ptr => null()
+    type(global_mesh_type),           target     :: global_mesh
+    type(mesh_type)                              :: mesh
+    type(domain_type)                            :: domain
+    type(custom_decomposition_type), allocatable :: decomposition
+    type(partition_type)                         :: partition
+    procedure(partitioner_interface), pointer    :: partitioner_ptr => null()
+    type(local_mesh_type),            pointer    :: local_mesh_ptr
+    type(local_mesh_type),            target     :: local_mesh
+    type(uniform_extrusion_type)                 :: extrusion
+
+    ! Test parameters
+    real(r_def), parameter :: tol = 1.0e-3_r_def
+    real(r_def)            :: vertex_coords_2d(3,1), chi_surf, chi_test
+    integer(i_def)         :: itest
+
+    ! Create global mesh
+    call ugrid_mesh_data%read_from_file(trim(file_prefix)//'.nc', mesh_name)
+    global_mesh = global_mesh_type( ugrid_mesh_data )
+    call ugrid_mesh_data%clear()
+    global_mesh_ptr => global_mesh
+
+    ! Assign partitioner
+    decomposition = custom_decomposition_type( xproc, yproc )
+    partitioner_ptr => partitioner_planar
+    partition = partition_type( global_mesh_ptr,       &
+                                partitioner_ptr,       &
+                                decomposition,         &
+                                1,                     &
+                                generate_inner_halos, &
+                                local_rank,            &
+                                total_ranks )
+    call local_mesh%initialise( global_mesh_ptr, partition )
+    call local_mesh%init_cell_owner()
+    local_mesh_ptr => local_mesh
+
+    extrusion = uniform_extrusion_type( domain_bottom, domain_top, nlayers, &
+                                        PRIME_EXTRUSION )
+
+    ! Construct a mesh which is uniform in vertical for purpose of the test
+    mesh = mesh_type( local_mesh_ptr, extrusion )
+
+    ! Get domain size required for the biperiodic coordinate transform
+    domain = mesh%get_domain()
+    call set_horizontal_domain_size( domain )
+
+    ! Calculate surface height for selected number of points
+    itest = local_mesh%get_lid_from_gid(659)
+    call local_mesh%get_vert_coords(local_mesh%get_vert_on_cell(1,itest),&
+                                    vertex_coords_2d(:,1))
+    chi_surf = orography_profile%analytic_orography(vertex_coords_2d(1,1), &
+                                                    vertex_coords_2d(2,1))
+    chi_test = this%mountain_height
+    @assertEqual( chi_surf, chi_test, tol )
+
+    itest = local_mesh%get_lid_from_gid(501)
+    call local_mesh%get_vert_coords(local_mesh%get_vert_on_cell(1,itest),&
+                                    vertex_coords_2d(:,1))
+    chi_surf = orography_profile%analytic_orography(vertex_coords_2d(1,1), &
+                                                    vertex_coords_2d(2,1))
+    chi_test = 50.0_r_def
+    @assertEqual( chi_surf, chi_test, tol )
+
+    return
+  end subroutine test_agnesi_orography_cartesian
+
+end module agnesi_orography_cartesian_mod_test

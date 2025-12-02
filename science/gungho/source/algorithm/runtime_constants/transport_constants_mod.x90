@@ -1,0 +1,2340 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides various runtime-constants for transport schemes.
+!!
+!> @details This module controls the set-up of various objects relating to
+!!          transport schemes. These objects are constant throughout a run,
+!!          and so can be pre-computed. Getters provide access to the objects.
+!-------------------------------------------------------------------------------
+
+module transport_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
+                                                r_tran, radians_to_degrees
+  use copy_field_alg_mod,                 only: copy_field
+  use domain_mod,                         only: domain_type
+  use extrusion_mod,                      only: TWOD
+  use sci_geometric_constants_mod,        only: get_coordinates,               &
+                                                get_panel_id,                  &
+                                                get_extended_coordinates,      &
+                                                get_height_fv,                 &
+                                                get_dz_w3
+  use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: W2, W2H, W2V, W3, Wtheta, Wchi
+  use function_space_collection_mod,      only: function_space_collection
+  use function_space_mod,                 only: function_space_type
+  use integer_field_mod,                  only: integer_field_type
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use inventory_by_local_mesh_mod,        only: inventory_by_local_mesh_type
+  use io_config_mod,                      only: subroutine_timers
+  use local_mesh_mod,                     only: local_mesh_type
+  use log_mod,                            only: log_event, log_scratch_space,  &
+                                                LOG_LEVEL_ERROR,               &
+                                                LOG_LEVEL_WARNING
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
+  use operator_mod,                       only: operator_type, &
+                                                r_tran_operator_type
+  use quadrature_edge_mod,                only: quadrature_edge_type
+  use quadrature_face_mod,                only: quadrature_face_type
+  use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
+  use quadrature_rule_gauss_lobatto_mod,  only: quadrature_rule_gauss_lobatto_type
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use reference_element_mod,              only: reference_element_type
+  use r_tran_field_mod,                   only: r_tran_field_type
+  use sci_field_minmax_alg_mod,           only: get_field_minmax
+  use timer_mod,                          only: timer
+
+  ! Kernels
+  use sci_operator_algebra_kernel_mod,    only: operator_setval_x_kernel_type
+  use sci_operator_x_times_y_kernel_mod,  only: operator_x_times_y_kernel_type
+  use panel_edge_support_mod,             only: FAR_AWAY
+
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  ! Stencil depth is set to some large number to ensure it contains
+  ! enough points for a centred interpolation. The deeper the halo
+  ! is the larger the stencil needs to be. A depth 6 stencil is
+  ! generally enough for cubic interpolation in a depth 4 halo
+  integer(kind=i_def), public, parameter :: ext_mesh_stencil_depth = 6
+
+  ! ========================================================================== !
+  ! Inventories for use in the rest of the model
+  ! ========================================================================== !
+  ! The Jacobian determinants (volume of cells for lowest-order)
+  type(inventory_by_mesh_type) :: detj_at_w3_r_tran_inventory
+  type(inventory_by_mesh_type) :: detj_at_w2_above_inventory
+  type(inventory_by_mesh_type) :: detj_at_w2_below_inventory
+
+  ! The vertical FFSL constants
+  type(inventory_by_mesh_type) :: third_dla_dz_inventory
+  type(inventory_by_mesh_type) :: third_dlb_dz_inventory
+  type(inventory_by_mesh_type) :: fourth_dl_dz_inventory
+
+  ! W3 mass matrix and its inverse
+  type(inventory_by_mesh_type), target :: mm_w3_r_tran_inventory
+  type(inventory_by_mesh_type), target :: mm_w3_inv_r_tran_inventory
+
+  ! Combined divergence and inverse mass matrix operators
+  type(inventory_by_mesh_type), target :: im3_div_r_tran_inventory
+  type(inventory_by_mesh_type), target :: im3_div_h_r_tran_inventory
+  type(inventory_by_mesh_type), target :: im3_div_v_r_tran_inventory
+
+  ! Relating to the extended mesh
+  type(inventory_by_local_mesh_type), target :: ext_mesh_weights_inventory
+  type(inventory_by_local_mesh_type), target :: ext_mesh_indices_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_dist_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_coords_x_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_coords_y_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_weights_x_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_weights_y_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_indices_x_inventory
+  type(inventory_by_local_mesh_type), target :: panel_edge_indices_y_inventory
+
+  ! Relating to redundant computations in transport
+  type(inventory_by_local_mesh_type), target :: halo_mask_x_inventory
+  type(inventory_by_local_mesh_type), target :: halo_mask_y_inventory
+
+  ! MoL coefficients
+  type(inventory_by_mesh_type) :: hori_wt_mol_coeffs_inventory
+  type(inventory_by_mesh_type) :: vert_wt_mol_coeffs_inventory
+  type(inventory_by_mesh_type) :: rev_vert_wt_mol_coeffs_inventory
+  type(inventory_by_mesh_type) :: hori_w3_mol_coeffs_inventory
+  type(inventory_by_mesh_type) :: vert_w3_mol_coeffs_inventory
+  type(inventory_by_mesh_type) :: rev_vert_w3_mol_coeffs_inventory
+
+  ! ========================================================================== !
+  ! Public functions for accessing the module contents
+  ! ========================================================================== !
+
+  public :: final_transport_constants
+  public :: get_directional_im3_div
+  public :: get_directional_im3_div_r_tran
+  public :: get_mass_matrix_r_tran
+  public :: get_inverse_mass_matrix_r_tran
+  public :: get_detj_at_w3_r_tran
+  public :: get_detj_at_w2_above
+  public :: get_detj_at_w2_below
+  public :: get_third_dla_dz
+  public :: get_third_dlb_dz
+  public :: get_fourth_dl_dz
+  public :: get_extended_mesh_weights
+  public :: get_extended_mesh_indices
+  public :: get_panel_edge_dist
+  public :: get_panel_edge_coords_x
+  public :: get_panel_edge_coords_y
+  public :: get_panel_edge_weights_x
+  public :: get_panel_edge_weights_y
+  public :: get_panel_edge_indices_x
+  public :: get_panel_edge_indices_y
+  public :: get_hori_w3_mol_coeffs
+  public :: get_vert_w3_mol_coeffs
+  public :: get_reversible_vert_w3_mol_coeffs
+  public :: get_hori_wt_mol_coeffs
+  public :: get_vert_wt_mol_coeffs
+  public :: get_reversible_vert_wt_mol_coeffs
+  public :: get_halo_mask_x
+  public :: get_halo_mask_y
+  public :: get_element_order_h_transport
+  public :: get_element_order_v_transport
+
+  ! Private routines for creating constants
+  private :: initialise_remap_on_extended_mesh
+  private :: compute_panel_edge_dists
+  private :: compute_panel_edge_coords
+  private :: compute_panel_edge_weights
+  private :: compute_halo_masks
+  private :: compute_third_dl_dz
+
+contains
+
+  ! ========================================================================== !
+  ! ROUTINES FOR CREATING CONSTANTS
+  ! ========================================================================== !
+  !> @brief Compute remap weights and indices to an extended cubed sphere mesh
+  !> @param[in] mesh Mesh object to compute remapping weights on
+  subroutine initialise_remap_on_extended_mesh(mesh)
+
+    use transport_config_mod, only: panel_edge_high_order
+    use psykal_lite_transport_mod, &
+        only: invoke_init_remap_on_extended_mesh_kernel_type
+
+    implicit none
+
+    type(mesh_type),        intent(in) :: mesh
+    type(mesh_type),           pointer :: twod_mesh
+    type(local_mesh_type),     pointer :: local_mesh
+    type(r_tran_field_type),   pointer :: remap_weights
+    type(integer_field_type),  pointer :: remap_indices
+    type(field_type),          pointer :: chi(:)
+    type(field_type),          pointer :: chi_ext(:)
+    type(field_type),          pointer :: panel_id
+    type(function_space_type), pointer :: w3_fs
+
+    logical(kind=l_def) :: linear_remap
+    integer(kind=i_def) :: ndata, halo_depth
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    if (.not. ext_mesh_weights_inventory%is_initialised()) then
+      call ext_mesh_weights_inventory%initialise(name="extended_mesh_weights")
+    end if
+    if (.not. ext_mesh_indices_inventory%is_initialised()) then
+      call ext_mesh_indices_inventory%initialise(name="extended_mesh_indices")
+    end if
+
+    linear_remap = (.not. panel_edge_high_order)
+
+    if ( linear_remap ) then
+      ndata = 2
+    else
+      ndata = 4
+    end if
+
+    ! Set up fields on 2D mesh in multidata W3 space
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+    w3_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, ndata)
+    halo_depth = twod_mesh%get_halo_depth()
+
+    ! Create fields in the inventories
+    call ext_mesh_weights_inventory%add_field(                                 &
+            remap_weights, w3_fs, local_mesh, halo_depth=halo_depth            &
+    )
+    call ext_mesh_indices_inventory%add_field(                                 &
+            remap_indices, w3_fs, local_mesh, halo_depth=halo_depth            &
+    )
+
+    ! Get pointers to coordinates
+    chi => get_coordinates(mesh%get_id())
+    chi_ext => get_extended_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+
+    ! Compute remap weights and indices
+    call invoke_init_remap_on_extended_mesh_kernel_type(                       &
+            remap_weights, remap_indices, chi_ext, chi,                        &
+            ext_mesh_stencil_depth, panel_id, ext_mesh_stencil_depth,          &
+            linear_remap, ndata                                                &
+    )
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine initialise_remap_on_extended_mesh
+
+  !> @brief Computes the panel edge mask fields, indicating cells neighbouring
+  !!        cubed-sphere panel edges
+  !> @param[in] mesh_id The ID of the mesh to compute the mask for
+  subroutine compute_panel_edge_dists(mesh_id)
+
+    use base_mesh_config_mod,        only: geometry,                           &
+                                           geometry_spherical,                 &
+                                           topology,                           &
+                                           topology_fully_periodic
+    use panel_edge_dist_kernel_mod,  only: panel_edge_dist_kernel_type
+    use sci_field_minmax_alg_mod,    only: get_local_field_minmax
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def)                   :: stencil_extent
+    integer(kind=i_def)                   :: depth
+    integer(kind=i_def)                   :: field_depth
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: twod_mesh
+    type(local_mesh_type),        pointer :: local_mesh
+    type(function_space_type),    pointer :: fs
+    type(integer_field_type),     pointer :: panel_edge_dist(:)
+    type(field_type),             pointer :: panel_id
+    integer(kind=i_def)                   :: ncolumns_1d
+    integer(kind=i_def),        parameter :: MINUS_FAR_AWAY = -FAR_AWAY
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    ! Initialise inventories if they haven't already been
+    if (.not. panel_edge_dist_inventory%is_initialised()) then
+      call panel_edge_dist_inventory%initialise(name="panel_edge_dist")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+    fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
+    panel_id => get_panel_id(mesh_id)
+    stencil_extent = mesh%get_halo_depth()
+    depth = stencil_extent
+    field_depth = mesh%get_halo_depth()
+
+    call panel_edge_dist_inventory%add_field_array(                            &
+        panel_edge_dist, fs, 4, local_mesh, halo_depth=field_depth             &
+    )
+
+    if (geometry == geometry_spherical .and. topology == topology_fully_periodic) then
+      ! Check if the mesh is too coarse for this stencil
+      ! If the stencil is too long for the mesh, it could overlap with
+      ! two panel edges, and will not give a sensible answer
+      ncolumns_1d = INT(                                                       &
+        SQRT(REAL(local_mesh%get_ncells_global_mesh(), r_tran) / 6.0_r_tran),  &
+      i_def)
+      if (ncolumns_1d < stencil_extent+1) then
+        write(log_scratch_space,'(A,I8,A,I8,A,I8)')                            &
+          'Halo depth ', stencil_extent, 'is too long for this mesh, ' //      &
+          'which has ', ncolumns_1d, 'cells along each panel edge. ' //        &
+          'Any calculations that need information about panel edges ' //       &
+          'may not be correct for depths greater than ', ncolumns_1d
+        call log_event(log_scratch_space, LOG_LEVEL_WARNING)
+        stencil_extent = ncolumns_1d
+      end if
+      call invoke( panel_edge_dist_kernel_type(panel_edge_dist,                &
+                                               panel_id,                       &
+                                               stencil_extent) )
+    else
+      ! There are no panel edges, so set the distances to be a large negative
+      ! number
+      call invoke( int_setval_c(panel_edge_dist(1), MINUS_FAR_AWAY),           &
+                   int_setval_c(panel_edge_dist(2), MINUS_FAR_AWAY),           &
+                   int_setval_c(panel_edge_dist(3), MINUS_FAR_AWAY),           &
+                   int_setval_c(panel_edge_dist(4), MINUS_FAR_AWAY) )
+    end if
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_panel_edge_dists
+
+  !> @brief Computes the coordinates of cubed-sphere panels, extended at the
+  !!        panel edges to cross into neighbouring panels
+  !> @param[in] mesh_id The ID of the mesh to compute the coordinates for
+  subroutine compute_panel_edge_coords(mesh_id)
+
+    use finite_element_config_mod,     only: coord_order
+    use panel_edge_coords_kernel_mod,  only: panel_edge_coords_kernel_type
+    use transport_config_mod,          only: ffsl_inner_order, ffsl_outer_order
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def)                   :: depth
+    integer(kind=i_def)                   :: field_depth
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: twod_mesh
+    type(local_mesh_type),        pointer :: local_mesh
+    type(function_space_type),    pointer :: fs
+    type(integer_field_type),     pointer :: panel_edge_dist(:)
+    type(field_type),             pointer :: panel_edge_coords_x(:)
+    type(field_type),             pointer :: panel_edge_coords_y(:)
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+
+    panel_edge_dist => get_panel_edge_dist(mesh_id)
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    ! Initialise inventories if they haven't already been
+    if (.not. panel_edge_coords_x_inventory%is_initialised()) then
+      call panel_edge_coords_x_inventory%initialise(name="panel_edge_coords_x")
+    end if
+    if (.not. panel_edge_coords_y_inventory%is_initialised()) then
+      call panel_edge_coords_y_inventory%initialise(name="panel_edge_coords_y")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+    fs => function_space_collection%get_fs(twod_mesh, coord_order, coord_order, Wchi)
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    field_depth = mesh%get_halo_depth()
+    depth = MAX(ffsl_inner_order, ffsl_outer_order)
+
+    call panel_edge_coords_x_inventory%add_field_array(                        &
+        panel_edge_coords_x, fs, 2, local_mesh, halo_depth=field_depth         &
+    )
+    call panel_edge_coords_y_inventory%add_field_array(                        &
+        panel_edge_coords_y, fs, 2, local_mesh, halo_depth=field_depth         &
+    )
+
+    call invoke( panel_edge_coords_kernel_type(panel_edge_coords_x,            &
+                                               panel_edge_coords_y,            &
+                                               chi, panel_id,                  &
+                                               panel_edge_dist,                &
+                                               depth, field_depth) )
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_panel_edge_coords
+
+  !> @brief Compute weights and indices for remapping fields to neighbouring
+  !!        panels at the edges of cubed-sphere mesh panels
+  !> @param[in] mesh_id  ID of mesh to compute weights and indices on
+  subroutine compute_panel_edge_weights(mesh_id)
+
+    use transport_config_mod,          only: ffsl_inner_order,                 &
+                                             ffsl_outer_order,                 &
+                                             panel_edge_high_order
+    use panel_edge_weights_kernel_mod, only: panel_edge_weights_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh
+    type(mesh_type),           pointer :: twod_mesh
+    type(local_mesh_type),     pointer :: local_mesh
+    type(r_tran_field_type),   pointer :: panel_edge_weights_x
+    type(r_tran_field_type),   pointer :: panel_edge_weights_y
+    type(integer_field_type),  pointer :: panel_edge_indices_x
+    type(integer_field_type),  pointer :: panel_edge_indices_y
+    type(integer_field_type),  pointer :: panel_edge_dist(:)
+    type(field_type),          pointer :: panel_edge_coords_x(:)
+    type(field_type),          pointer :: panel_edge_coords_y(:)
+    type(field_type),          pointer :: chi(:)
+    type(field_type),          pointer :: panel_id
+    type(function_space_type), pointer :: w3_fs
+
+    integer(kind=i_def) :: ndata, max_halo_depth, remap_depth, cross_depth
+
+    ! Get pointers to coordinates and masks for panel edges
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    panel_edge_dist => get_panel_edge_dist(mesh_id)
+    panel_edge_coords_x => get_panel_edge_coords_x(mesh_id)
+    panel_edge_coords_y => get_panel_edge_coords_y(mesh_id)
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    ! Set up fields on 2D mesh in multidata W3 space
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    ! Various depths are used in this algorithm:
+    ! - cross depth:    specifies the size of the stencil to use in remapping,
+    !                   which should increase with the horizontal order. If
+    !                   only going 1 or 2 cells onto the neighbouring panel,
+    !                   then a stencil extent of 3 or 4 should cover all
+    !                   overlapping cells
+    ! - remap_depth:    specifies to what halo depth the remapping is done,
+    !                   which is equal to the horizontal order. When the kernel
+    !                   is called at depths greater than this, nothing happens
+    ! - max_halo_depth: the full depth of halos, which is used to set the size
+    !                   of the weights. These are set to full size to match the
+    !                   transported fields, and the kernel is looped over to
+    !                   this depth, so the weights are set clean for this depth
+    max_halo_depth = mesh%get_halo_depth()
+    remap_depth = MAX(ffsl_inner_order, ffsl_outer_order)
+    if (panel_edge_high_order) then
+      cross_depth = MAX(ffsl_inner_order, ffsl_outer_order) + 2
+      ndata = 4  ! Need 4 points for cubic remapping
+    else
+      cross_depth = MAX(ffsl_inner_order, ffsl_outer_order)
+      ndata = 2  ! Need 2 points for linear remapping
+    end if
+
+    w3_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, ndata)
+
+    if (.not. panel_edge_weights_x_inventory%is_initialised()) then
+      call panel_edge_weights_x_inventory%initialise(name="panel_edge_weights_x")
+    end if
+    if (.not. panel_edge_weights_y_inventory%is_initialised()) then
+      call panel_edge_weights_y_inventory%initialise(name="panel_edge_weights_y")
+    end if
+    if (.not. panel_edge_indices_x_inventory%is_initialised()) then
+      call panel_edge_indices_x_inventory%initialise(name="panel_edge_indices_x")
+    end if
+    if (.not. panel_edge_indices_y_inventory%is_initialised()) then
+      call panel_edge_indices_y_inventory%initialise(name="panel_edge_indices_y")
+    end if
+
+    ! Create fields in the inventories
+    call panel_edge_weights_x_inventory%add_field(                             &
+            panel_edge_weights_x, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call panel_edge_weights_y_inventory%add_field(                             &
+            panel_edge_weights_y, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call panel_edge_indices_x_inventory%add_field(                             &
+            panel_edge_indices_x, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call panel_edge_indices_y_inventory%add_field(                             &
+            panel_edge_indices_y, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+
+    ! Compute remap weights and indices
+    call invoke( panel_edge_weights_kernel_type(                               &
+                                panel_edge_weights_x, panel_edge_weights_y,    &
+                                panel_edge_indices_x, panel_edge_indices_y,    &
+                                chi, cross_depth,                              &
+                                panel_edge_coords_x, panel_edge_coords_y,      &
+                                panel_id, cross_depth,                         &
+                                panel_edge_dist,                               &
+                                panel_edge_high_order,                         &
+                                remap_depth)                                   &
+    )
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_panel_edge_weights
+
+  !> @brief Compute masks for indicating which cells are in the X and Y halos
+  !> @param[in] mesh_id  ID of mesh to compute masks on
+  subroutine compute_halo_masks(mesh_id)
+
+    use halo_mask_kernel_mod,      only: halo_mask_kernel_type
+    use halo_mask_xy_kernel_mod,   only: halo_mask_xy_kernel_type
+    use psykal_lite_transport_mod, only: invoke_halo_mask_xy_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh
+    type(mesh_type),           pointer :: twod_mesh
+    type(local_mesh_type),     pointer :: local_mesh
+    type(integer_field_type)           :: halo_mask
+    type(integer_field_type),  pointer :: halo_mask_x
+    type(integer_field_type),  pointer :: halo_mask_y
+    type(function_space_type), pointer :: w3_fs
+
+    integer(kind=i_def) :: max_halo_depth, cross_depth
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    ! Set up fields on 2D mesh in multidata W3 space
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    max_halo_depth = mesh%get_halo_depth()
+    cross_depth = max_halo_depth + 1
+    w3_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
+
+    if (.not. halo_mask_x_inventory%is_initialised()) then
+      call halo_mask_x_inventory%initialise(name="halo_mask_x")
+    end if
+    if (.not. halo_mask_y_inventory%is_initialised()) then
+      call halo_mask_y_inventory%initialise(name="halo_mask_y")
+    end if
+
+    ! Create fields in the inventories
+    call halo_mask_x_inventory%add_field(                             &
+            halo_mask_x, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+    call halo_mask_y_inventory%add_field(                             &
+            halo_mask_y, w3_fs, local_mesh, halo_depth=max_halo_depth &
+    )
+
+    ! Create a mask which indicates *all* halo cells
+    call halo_mask%initialise(w3_fs, halo_depth=max_halo_depth)
+    call invoke( int_setval_c(halo_mask, 0),                                   &
+                 int_setval_c(halo_mask_x, 0),                                 &
+                 int_setval_c(halo_mask_y, 0),                                 &
+                 halo_mask_kernel_type(halo_mask, max_halo_depth) )
+    call invoke_halo_mask_xy_kernel_type(halo_mask_x, halo_mask_y, halo_mask,  &
+                                         cross_depth, max_halo_depth)
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_halo_masks
+
+  !> @brief Computes the two sets of coefficients for the third-order FFSL
+  !!        edge reconstruction
+  !> @param[in] mesh_id The ID of the mesh to compute the coefficients for
+  subroutine compute_third_dl_dz(mesh_id)
+
+    use ffsl_third_dldz_kernel_mod,    only: ffsl_third_dldz_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    type(r_tran_field_type),      pointer :: dla_dz(:)
+    type(r_tran_field_type),      pointer :: dlb_dz(:)
+    type(r_tran_field_type)               :: dz_w3_rtran
+    type(field_type),             pointer :: dz_w3_rdef
+    type(function_space_type),    pointer :: w3_fs
+
+    ! Check inventory is initialised
+    if (.not. third_dla_dz_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call third_dla_dz_inventory%initialise(name='third_dla_dz')
+    end if
+    ! Check inventory is initialised
+    if (.not. third_dlb_dz_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call third_dlb_dz_inventory%initialise(name='third_dlb_dz')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+    dz_w3_rdef => get_dz_w3(mesh_id)
+    call dz_w3_rtran%initialise( dz_w3_rdef%get_function_space() )
+    call copy_field(dz_w3_rdef, dz_w3_rtran)
+
+    call third_dla_dz_inventory%add_field_array(dla_dz, w3_fs, 3, mesh)
+    call third_dlb_dz_inventory%add_field_array(dlb_dz, w3_fs, 3, mesh)
+
+    call invoke( ffsl_third_dldz_kernel_type(dla_dz, dlb_dz, dz_w3_rtran) )
+
+    if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+  end subroutine compute_third_dl_dz
+
+  ! ========================================================================== !
+  ! GETTERS FOR R_TRAN FORMS OF GEOMETRIC OBJECTS
+  ! ========================================================================== !
+
+  !> @brief Returns the Det(J) values at W3 dof locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Det(J) field
+  function get_detj_at_w3_r_tran(mesh_id) result(detj_r_tran)
+
+    use sci_geometric_constants_mod,    only: get_detj_at_w3_fe, &
+                                              get_detj_at_w3_fv
+    use transport_config_mod,           only: panel_edge_treatment,            &
+                                              panel_edge_treatment_extended_mesh
+    use sci_calc_detj_at_w3_kernel_mod, only: calc_detj_at_w3_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    integer(kind=i_def)                   :: halo_depth
+    integer(kind=i_def)                   :: element_order_h, element_order_v
+    type(r_tran_field_type),      pointer :: detj_r_tran
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(field_type),             pointer :: detj_r_def
+    type(function_space_type),    pointer :: w3_fs
+
+    ! Check inventory is initialised
+    if (.not. detj_at_w3_r_tran_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call detj_at_w3_r_tran_inventory%initialise(name='detj_at_w3_r_tran')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = detj_at_w3_r_tran_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Get relevant element orders
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+        chi => get_extended_coordinates(mesh_id)
+      else
+        chi => get_coordinates(mesh_id)
+        if (element_order_h == 0 .and. element_order_v == 0) then
+          ! Get the finite volume det(J) field
+          detj_r_def => get_detj_at_w3_fv(mesh_id)
+        else
+          ! Get the finite element det(J) field
+          detj_r_def => get_detj_at_w3_fe(mesh_id)
+        end if
+      end if
+      panel_id => get_panel_id(mesh_id)
+
+      ! Create the object as it doesn't exist yet
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      w3_fs => function_space_collection%get_fs(mesh,                          &
+                                                element_order_h,               &
+                                                element_order_v,               &
+                                                W3)
+      halo_depth = mesh%get_halo_depth()
+      call detj_at_w3_r_tran_inventory%add_field(detj_r_tran, w3_fs, mesh,     &
+                                                 halo_depth=halo_depth)
+
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+      call invoke( calc_detj_at_w3_kernel_type(detj_r_tran, chi, panel_id,     &
+                                               halo_depth) )
+      else
+        call copy_field(detj_r_def, detj_r_tran)
+      end if
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Get existing constant
+    call detj_at_w3_r_tran_inventory%get_field(mesh, detj_r_tran)
+
+  end function get_detj_at_w3_r_tran
+
+  !> @brief Returns the Det(J) values at W2 dof locations using the cell above.
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Det(J) field
+  function get_detj_at_w2_above(mesh_id) result(detj_above)
+
+    use sci_geometric_constants_mod, only: get_detj_at_w2_fe, &
+                                           get_detj_at_w2_fv
+    use sci_calc_directional_detj_at_w2_kernel_mod, &
+                                     only: calc_directional_detj_at_w2_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(field_type),             pointer :: detj_above
+    type(field_type),             pointer :: detj_at_w2
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(function_space_type),    pointer :: w2_fs
+    integer(kind=i_def)                   :: detj_direction
+    integer(kind=i_def)                   :: element_order_h, &
+                                             element_order_v
+
+    ! Check inventory is initialised
+    if (.not. detj_at_w2_above_inventory%is_initialised()) then
+      call detj_at_w2_above_inventory%initialise(name='detj_at_w2_above')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = detj_at_w2_above_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Get relevant element orders
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        ! Get the finite volume det(J) field
+        detj_at_w2 => get_detj_at_w2_fv(mesh_id)
+      else
+        ! Get the finite element det(J) field
+        detj_at_w2 => get_detj_at_w2_fe(mesh_id)
+      end if
+
+      ! Create the object as it doesn't exist yet
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      detj_direction = 1
+      w2_fs => function_space_collection%get_fs(mesh,                          &
+                                                element_order_h,               &
+                                                element_order_v,               &
+                                                W2)
+      call detj_at_w2_above_inventory%add_field(detj_above, w2_fs, mesh)
+
+      call invoke( setval_X(detj_above, detj_at_w2),                           &
+                   calc_directional_detj_at_w2_kernel_type(detj_above,         &
+                                                           chi, panel_id,      &
+                                                           detj_direction) )
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Get existing constant
+    call detj_at_w2_above_inventory%get_field(mesh, detj_above)
+
+  end function get_detj_at_w2_above
+
+  !> @brief Returns the Det(J) values at W2 dof locations using the cell below.
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Det(J) field
+  function get_detj_at_w2_below(mesh_id) result(detj_below)
+
+    use sci_geometric_constants_mod, only: get_detj_at_w2_fe, &
+                                           get_detj_at_w2_fv
+    use sci_calc_directional_detj_at_w2_kernel_mod, &
+                                     only: calc_directional_detj_at_w2_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(field_type),             pointer :: detj_below
+    type(field_type),             pointer :: detj_at_w2
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(function_space_type),    pointer :: w2_fs
+    integer(kind=i_def)                   :: detj_direction
+    integer(kind=i_def)                   :: element_order_h, &
+                                             element_order_v
+
+    ! Check inventory is initialised
+    if (.not. detj_at_w2_below_inventory%is_initialised()) then
+      call detj_at_w2_below_inventory%initialise(name='detj_at_w2_above')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = detj_at_w2_below_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Get relevant element orders
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        ! Get the finite volume det(J) field
+        detj_at_w2 => get_detj_at_w2_fv(mesh_id)
+      else
+        ! Get the finite element det(J) field
+        detj_at_w2 => get_detj_at_w2_fe(mesh_id)
+      end if
+
+      ! Create the object as it doesn't exist yet
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      detj_direction = 0
+      w2_fs => function_space_collection%get_fs(mesh,                          &
+                                                element_order_h,               &
+                                                element_order_v,               &
+                                                W2)
+      call detj_at_w2_below_inventory%add_field(detj_below, w2_fs, mesh)
+
+      call invoke( setval_X(detj_below, detj_at_w2),                           &
+                   calc_directional_detj_at_w2_kernel_type(detj_below,         &
+                                                           chi, panel_id,      &
+                                                           detj_direction) )
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Get existing constant
+    call detj_at_w2_below_inventory%get_field(mesh, detj_below)
+
+  end function get_detj_at_w2_below
+
+  ! ========================================================================== !
+  ! GETTERS FOR VERTICAL FFSL CONSTANTS
+  ! ========================================================================== !
+
+  !> @brief Returns the coefficients for third-order edge above interpolation
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The required coefficients
+  function get_third_dla_dz(mesh_id) result(dla_dz)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(r_tran_field_type),      pointer :: dla_dz(:)
+
+    ! Check inventory is initialised
+    if (.not. third_dla_dz_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call third_dla_dz_inventory%initialise(name='third_dla_dz')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = third_dla_dz_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      call compute_third_dl_dz(mesh_id)
+    end if
+
+    ! Get existing constant
+    call third_dla_dz_inventory%get_field_array(mesh, dla_dz)
+
+  end function get_third_dla_dz
+
+  !> @brief Returns the coefficients for third-order edge above interpolation
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The required coefficients
+  function get_third_dlb_dz(mesh_id) result(dlb_dz)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(r_tran_field_type),      pointer :: dlb_dz(:)
+
+    ! Check inventory is initialised
+    if (.not. third_dlb_dz_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call third_dlb_dz_inventory%initialise(name='third_dlb_dz')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = third_dlb_dz_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      call compute_third_dl_dz(mesh_id)
+    end if
+
+    ! Get existing constant
+    call third_dlb_dz_inventory%get_field_array(mesh, dlb_dz)
+
+  end function get_third_dlb_dz
+
+  !> @brief Returns the constants for fourth-order edge interpolation
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The required constant
+  function get_fourth_dl_dz(mesh_id) result(dl_dz)
+
+    use ffsl_fourth_dldz_kernel_mod,    only: ffsl_fourth_dldz_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(r_tran_field_type),      pointer :: dl_dz(:)
+    type(r_tran_field_type)               :: dz_w3_rtran
+    type(field_type),             pointer :: dz_w3_rdef
+    type(function_space_type),    pointer :: w2v_fs
+
+    ! Check inventory is initialised
+    if (.not. fourth_dl_dz_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call fourth_dl_dz_inventory%initialise(name='fourth_dl_dz')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = fourth_dl_dz_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+
+      ! Create the object as it doesn't exist yet
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2v)
+
+      dz_w3_rdef => get_dz_w3(mesh_id)
+      call dz_w3_rtran%initialise( dz_w3_rdef%get_function_space() )
+      call copy_field(dz_w3_rdef, dz_w3_rtran)
+
+      call fourth_dl_dz_inventory%add_field_array(dl_dz, w2v_fs, 4, mesh)
+
+      call invoke( ffsl_fourth_dldz_kernel_type(dl_dz, dz_w3_rtran) )
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Get existing constant
+    call fourth_dl_dz_inventory%get_field_array(mesh, dl_dz)
+
+  end function get_fourth_dl_dz
+
+  ! ========================================================================== !
+  ! GETTERS FOR R_TRAN FORMS OF FINITE ELEMENT OPERATORS
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to a mass matrix
+  !> @param[in] space   The space of the desired mass matrix
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The mass matrix operator
+  function get_mass_matrix_r_tran(space, mesh_id) result(mm_r_tran)
+
+    use sci_fem_constants_mod, only: get_mass_matrix_fe, &
+                                     get_mass_matrix_fv
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(function_space_type),    pointer :: fs
+    type(operator_type),          pointer :: mm_r_def
+    type(r_tran_operator_type),   pointer :: mm_r_tran
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+    integer(kind=i_def)                   :: element_order_h, &
+                                             element_order_v
+
+    ! Point to appropriate inventory for this space
+    select case (space)
+      case (W3)
+        inventory => mm_w3_r_tran_inventory
+        inventory_name = 'mass_matrix_r_tran_w3'
+      case default
+        mm_r_tran => null()
+        call log_event( "r_tran mass matrix operator does not exist", LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Get relevant element orders
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+
+      ! Create constant if it doesn't already exist
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        mm_r_def => get_mass_matrix_fv(space, mesh_id)
+      else
+        mm_r_def => get_mass_matrix_fe(space, mesh_id)
+      end if
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      fs => function_space_collection%get_fs(mesh,                             &
+                                             element_order_h,                  &
+                                             element_order_v,                  &
+                                             space)
+      call inventory%add_operator(mm_r_tran, fs, fs, mesh)
+
+      call invoke( operator_setval_x_kernel_type(mm_r_tran, mm_r_def) )
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Return existing constant
+    call inventory%get_operator(mesh, mm_r_tran)
+
+  end function get_mass_matrix_r_tran
+
+  !> @brief Returns a pointer to the r_tran inverse mass matrix operator
+  !> @param[in] space   Enumerator for the function space of the operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The inverse mass matrix operator at r_tran precision
+  function get_inverse_mass_matrix_r_tran(space, mesh_id) result(mm_inv_r_tran)
+
+    use sci_fem_constants_mod, only: get_inverse_mass_matrix_fe, &
+                                     get_inverse_mass_matrix_fv
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(function_space_type),    pointer :: fs
+    type(operator_type),          pointer :: mm_inv_r_def
+    type(r_tran_operator_type),   pointer :: mm_inv_r_tran
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+    integer(kind=i_def)                   :: element_order_h, &
+                                             element_order_v
+
+    ! Point to appropriate inventory for this space
+    select case (space)
+      case (W3)
+        inventory => mm_w3_inv_r_tran_inventory
+        inventory_name = 'mm_w3_inv_r_tran'
+      case default
+        mm_inv_r_def => null()
+        call log_event( "Inverse r_tran mass matrix does not exist", LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Get relevant element orders
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+
+      ! Create constant if it doesn't already exist
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        mm_inv_r_def => get_inverse_mass_matrix_fv(space, mesh_id)
+      else
+        mm_inv_r_def => get_inverse_mass_matrix_fe(space, mesh_id)
+      end if
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      fs => function_space_collection%get_fs(mesh,                             &
+                                             element_order_h,                  &
+                                             element_order_v,                  &
+                                             space)
+      call inventory%add_operator(mm_inv_r_tran, fs, fs, mesh)
+
+      call invoke( operator_setval_x_kernel_type(mm_inv_r_tran, mm_inv_r_def) )
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Return existing constant
+    call inventory%get_operator(mesh, mm_inv_r_tran)
+
+  end function get_inverse_mass_matrix_r_tran
+
+  ! @TODO: this is only kept because the linear_model has not yet been
+  ! implemented with r_tran precision. As it depends on transport direction,
+  ! it must be in this module rather than fem_constants
+  !> @brief Points to the inv_m3 * div operator for a particular direction
+  !> @param[in] mesh_id   The ID of the mesh to get the object for
+  !> @param[in] direction The enumerator for the direction
+  !> @return The inv_m3 * div operator
+  function get_directional_im3_div(mesh_id, direction) result(div_op)
+
+    use sci_fem_constants_mod,          only: get_im3_div_fe, &
+                                              get_im3_div_fv
+    use transport_enumerated_types_mod, only: direction_3d
+
+    implicit none
+    integer(kind=i_def),   intent(in) :: mesh_id
+    integer(kind=i_def),   intent(in) :: direction
+    integer(kind=i_def)               :: element_order_h, &
+                                         element_order_v
+    type(operator_type),      pointer :: div_op
+
+    select case (direction)
+    case (direction_3d)
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        div_op => get_im3_div_fv(mesh_id)
+      else
+        div_op => get_im3_div_fe(mesh_id)
+      end if
+    case default
+      call log_event( "rdef im3_div operator only exists for 3D direction", LOG_LEVEL_ERROR )
+      stop
+    end select
+
+  end function get_directional_im3_div
+
+  !> @brief Returns a pointer to the inv_m3 * div operator for a particular direction
+  !> @param[in] mesh_id   The ID of the mesh to get the object for
+  !> @param[in] direction The enumerator for the direction
+  !> @return The inv_m3 * div operator
+  function get_directional_im3_div_r_tran(mesh_id, direction) result(im3_div_r_tran)
+
+    use sci_fem_constants_mod,          only: get_inverse_mass_matrix_fe, &
+                                              get_inverse_mass_matrix_fv, &
+                                              get_qr_fe,                  &
+                                              get_qr_fv
+    use sci_compute_div_operator_kernel_mod, &
+                                        only: compute_div_operator_kernel_type
+    use transport_enumerated_types_mod, only: direction_h, &
+                                              direction_v, &
+                                              direction_3d
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def),       intent(in) :: direction
+    type(mesh_type),              pointer :: mesh => null()
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+    logical(kind=l_def)                   :: constant_exists
+    type(r_tran_operator_type),   pointer :: im3_div_r_tran
+    type(operator_type)                   :: im3_div
+    type(operator_type),          pointer :: mm_w3_inv
+    type(operator_type)                   :: div
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(quadrature_xyoz_type),   pointer :: qr
+    type(function_space_type),    pointer :: w3_fs
+    type(function_space_type),    pointer :: w2_fs
+    integer(kind=i_def)                   :: fs_id
+    integer(kind=i_def)                   :: element_order_h, &
+                                             element_order_v
+
+    ! Point to appropriate inventory for this space
+    select case (direction)
+      case (direction_3d)
+        inventory => im3_div_r_tran_inventory
+        inventory_name = 'im3_div_r_tran'
+      case (direction_h)
+        inventory => im3_div_h_r_tran_inventory
+        inventory_name = 'im3_div_h_r_tran'
+      case (direction_v)
+        inventory => im3_div_v_r_tran_inventory
+        inventory_name = 'im3_div_v_r_tran'
+      case default
+        im3_div_r_tran => null()
+        call log_event( "Direction r_tran im3_div operator does not exist", LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      select case (direction)
+        case (direction_3d)
+          fs_id = W2
+        case (direction_h)
+          fs_id = W2H
+        case (direction_v)
+          fs_id = W2V
+      end select
+
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        qr => get_qr_fv()
+        mm_w3_inv => get_inverse_mass_matrix_fv(W3, mesh_id)
+      else
+        qr => get_qr_fe()
+        mm_w3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+      end if
+
+      w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                 element_order_v, fs_id )
+      w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                 element_order_v, W3 )
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+        call div%initialise( w3_fs, w2_fs )
+        call im3_div%initialise( w3_fs, w2_fs )
+        call inventory%add_operator(im3_div_r_tran, w3_fs, w2_fs, mesh)
+        call invoke( compute_div_operator_kernel_type(div, chi, panel_id, qr), &
+                     operator_x_times_y_kernel_type(im3_div, mm_w3_inv, div),  &
+                     operator_setval_x_kernel_type(im3_div_r_tran, im3_div) )
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    call inventory%get_operator(mesh, im3_div_r_tran)
+
+  end function get_directional_im3_div_r_tran
+
+  ! ========================================================================== !
+  ! GETTERS FOR EXTENDED MESH WEIGHTS
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to the extended mesh remap weights
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The weights for remapping on the extended mesh
+  function get_extended_mesh_weights(mesh_id) result(ext_mesh_weights)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(inventory_by_local_mesh_type), pointer :: inventory_local
+    type(r_tran_field_type),            pointer :: ext_mesh_weights
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    inventory_local => ext_mesh_weights_inventory
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory_local%is_initialised()) then
+      call initialise_remap_on_extended_mesh(mesh)
+    end if
+
+    constant_exists = inventory_local%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call initialise_remap_on_extended_mesh(mesh)
+    end if
+
+    ! Return existing constant
+    call inventory_local%get_field(local_mesh, ext_mesh_weights)
+
+  end function get_extended_mesh_weights
+
+  !> @brief Returns a pointer to the extended mesh remap indices
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The indices for remapping on the extended mesh
+  function get_extended_mesh_indices(mesh_id) result(ext_mesh_indices)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(inventory_by_local_mesh_type), pointer :: inventory_local
+    type(integer_field_type),           pointer :: ext_mesh_indices
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    inventory_local => ext_mesh_indices_inventory
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory_local%is_initialised()) then
+      call initialise_remap_on_extended_mesh(mesh)
+    end if
+
+    constant_exists = inventory_local%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call initialise_remap_on_extended_mesh(mesh)
+    end if
+
+    ! Return existing constant
+    call inventory_local%get_field(local_mesh, ext_mesh_indices)
+
+  end function get_extended_mesh_indices
+
+  !> @brief Returns a pointer to the mask for cells on cubed-sphere panel edges
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The mask for cells on cubed-sphere panel edges
+  function get_panel_edge_dist(mesh_id) result(panel_edge_dist)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: panel_edge_dist(:)
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_dist_inventory%is_initialised()) then
+      call panel_edge_dist_inventory%initialise(name="panel_edge_dist")
+    end if
+
+    constant_exists = panel_edge_dist_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_dists(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_dist_inventory%get_field_array(local_mesh, panel_edge_dist)
+
+  end function get_panel_edge_dist
+
+  !> @brief Returns a pointer to the "extended" panel coordinates for cells at
+  !!        the edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The coords for cells on cubed-sphere panel edges
+  function get_panel_edge_coords_x(mesh_id) result(panel_edge_coords)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(field_type),                   pointer :: panel_edge_coords(:)
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_coords_x_inventory%is_initialised()) then
+      call panel_edge_coords_x_inventory%initialise(name="panel_edge_coords_x")
+    end if
+
+    constant_exists = panel_edge_coords_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_coords(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_coords_x_inventory%get_field_array(local_mesh, panel_edge_coords)
+
+  end function get_panel_edge_coords_x
+
+  !> @brief Returns a pointer to the "extended" panel coordinates for cells at
+  !!        the edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The coords for cells on cubed-sphere panel edges
+  function get_panel_edge_coords_y(mesh_id) result(panel_edge_coords)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(field_type),                   pointer :: panel_edge_coords(:)
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_coords_y_inventory%is_initialised()) then
+      call panel_edge_coords_y_inventory%initialise(name="panel_edge_coords_y")
+    end if
+
+    constant_exists = panel_edge_coords_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_coords(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_coords_y_inventory%get_field_array(local_mesh, panel_edge_coords)
+
+  end function get_panel_edge_coords_y
+
+  !> @brief Returns a pointer to the weights for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Weights for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_weights_x(mesh_id) result(panel_edge_weights)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(r_tran_field_type),            pointer :: panel_edge_weights
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_weights_x_inventory%is_initialised()) then
+      call panel_edge_weights_x_inventory%initialise(name="panel_edge_weights_x")
+    end if
+
+    constant_exists = panel_edge_weights_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_weights_x_inventory%get_field(local_mesh, panel_edge_weights)
+
+  end function get_panel_edge_weights_x
+
+  !> @brief Returns a pointer to the weights for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Weights for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_weights_y(mesh_id) result(panel_edge_weights)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(r_tran_field_type),            pointer :: panel_edge_weights
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_weights_y_inventory%is_initialised()) then
+      call panel_edge_weights_y_inventory%initialise(name="panel_edge_weights_y")
+    end if
+
+    constant_exists = panel_edge_weights_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_weights_y_inventory%get_field(local_mesh, panel_edge_weights)
+
+  end function get_panel_edge_weights_y
+
+  !> @brief Returns a pointer to the indices for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Indices for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_indices_x(mesh_id) result(panel_edge_indices)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: panel_edge_indices
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_indices_x_inventory%is_initialised()) then
+      call panel_edge_indices_x_inventory%initialise(name="panel_edge_indices_x")
+    end if
+
+    constant_exists = panel_edge_indices_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_indices_x_inventory%get_field(local_mesh, panel_edge_indices)
+
+  end function get_panel_edge_indices_x
+
+  !> @brief Returns a pointer to the indices for remapping fields near the
+  !!        edges of cubed-sphere panels
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Indices for remapping fields neighbouring cubed-sphere panel edges
+  function get_panel_edge_indices_y(mesh_id) result(panel_edge_indices)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: panel_edge_indices
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. panel_edge_indices_y_inventory%is_initialised()) then
+      call panel_edge_indices_y_inventory%initialise(name="panel_edge_indices_y")
+    end if
+
+    constant_exists = panel_edge_indices_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_panel_edge_weights(mesh_id)
+    end if
+
+    ! Return existing constant
+    call panel_edge_indices_y_inventory%get_field(local_mesh, panel_edge_indices)
+
+  end function get_panel_edge_indices_y
+
+  ! ========================================================================== !
+  ! GETTERS FOR PERFORMING REDUNDANT COMPUTATIONS
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to the x-halo mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Mask indicating halo cells in the x direction
+  function get_halo_mask_x(mesh_id) result(halo_mask)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: halo_mask
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. halo_mask_x_inventory%is_initialised()) then
+      call halo_mask_x_inventory%initialise(name="halo_mask_x")
+    end if
+
+    constant_exists = halo_mask_x_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_halo_masks(mesh_id)
+    end if
+
+    ! Return existing constant
+    call halo_mask_x_inventory%get_field(local_mesh, halo_mask)
+
+  end function get_halo_mask_x
+
+  !> @brief Returns a pointer to the y-halo mask
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return Mask indicating halo cells in the y direction
+  function get_halo_mask_y(mesh_id) result(halo_mask)
+
+    implicit none
+
+    integer(kind=i_def),             intent(in) :: mesh_id
+    type(mesh_type),                    pointer :: mesh
+    type(local_mesh_type),              pointer :: local_mesh
+    type(integer_field_type),           pointer :: halo_mask
+    logical(kind=l_def)                         :: constant_exists
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. halo_mask_y_inventory%is_initialised()) then
+      call halo_mask_y_inventory%initialise(name="halo_mask_y")
+    end if
+
+    constant_exists = halo_mask_y_inventory%paired_object_exists(local_mesh%get_id())
+
+    if (.not. constant_exists) then
+      call compute_halo_masks(mesh_id)
+    end if
+
+    ! Return existing constant
+    call halo_mask_y_inventory%get_field(local_mesh, halo_mask)
+
+  end function get_halo_mask_y
+
+  ! ========================================================================== !
+  ! GETTERS FOR MOL COEFFICIENTS
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to the horizontal Wtheta MoL coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The horizontal Wtheta MoL coefficients field
+  function get_hori_w3_mol_coeffs(mesh_id) result(mol_coeffs)
+
+    use base_mesh_config_mod,       only: geometry, geometry_planar
+    use sci_fem_constants_mod,      only: get_mass_matrix_diagonal_fe, &
+                                          get_mass_matrix_diagonal_fv
+    use finite_element_config_mod,  only: coord_system, coord_system_xyz
+    use poly1d_flux_coeffs_kernel_mod, &
+                                    only: poly1d_flux_coeffs_kernel_type
+    use poly2d_flux_coeffs_kernel_mod, &
+                                    only: poly2d_flux_coeffs_kernel_type
+    use sci_compute_mass_matrix_kernel_w_scalar_mod, &
+                                    only: compute_mass_matrix_kernel_w_scalar_type
+    use sci_mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
+    use transport_config_mod,       only: panel_edge_treatment,                &
+                                          panel_edge_treatment_extended_mesh,  &
+                                          fv_horizontal_order,                 &
+                                          oned_reconstruction
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: mesh_id
+    type(mesh_type),            pointer :: mesh
+    type(mesh_type),            pointer :: twod_mesh
+    type(r_tran_field_type),    pointer :: mol_coeffs
+    type(operator_type)                 :: mm_w3
+    type(field_type),            target :: mm_w3_diag_tmp
+    type(field_type),           pointer :: mm_w3_diag
+    type(field_type),           pointer :: chi(:)
+    type(field_type),           pointer :: panel_id
+    type(function_space_type),  pointer :: multidata_fs
+    type(function_space_type),  pointer :: w3_fs
+    logical(kind=l_def)                 :: constant_exists
+    logical(kind=l_def)                 :: horizontal_faces
+    logical(kind=l_def)                 :: vertical_faces
+    logical(kind=l_def)                 :: extended_mesh
+    type(quadrature_rule_gaussian_type) :: gaussian_quadrature
+    type(quadrature_xyoz_type)          :: qr, qr_fem
+    type(quadrature_face_type)          :: qrf
+    type(domain_type)                   :: domain
+    real(kind=r_def)                    :: domain_size_x, domain_size_y
+    integer(kind=i_def)                 :: stencil_size
+    integer(kind=i_def)                 :: stencil_extent
+    integer(kind=i_def)                 :: ndata_h
+    integer(kind=i_def)                 :: nlayers
+    integer(kind=i_def)                 :: face_quad_order
+    integer(kind=i_def)                 :: nqp_xy, nqp_z, nqp_xyz
+    integer(kind=i_def)                 :: element_order_h, element_order_v
+    real(kind=r_def)                    :: transform_radius, chi3_max
+
+    class(reference_element_type), pointer :: reference_element
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. hori_w3_mol_coeffs_inventory%is_initialised()) then
+      call hori_w3_mol_coeffs_inventory%initialise(name="hori_w3_mol_coeffs")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = hori_w3_mol_coeffs_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+
+      ! Get the relevant element orders
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+
+      extended_mesh = (panel_edge_treatment == panel_edge_treatment_extended_mesh)
+
+      if (.not. (oned_reconstruction .and. extended_mesh)) then
+        ! @TODO #416: this should be done with detj_at_w3_r_tran
+        if (element_order_h == 0 .and. element_order_v == 0) then
+          mm_w3_diag => get_mass_matrix_diagonal_fv(W3, mesh_id)
+        else
+          mm_w3_diag => get_mass_matrix_diagonal_fe(W3, mesh_id)
+        end if
+
+      end if
+
+      chi => get_coordinates(mesh%get_id())
+      panel_id => get_panel_id(mesh%get_id())
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      reference_element => mesh%get_reference_element()
+
+      ! Compute stencil size ---------------------------------------------------
+      if (oned_reconstruction) then
+        stencil_size = fv_horizontal_order + 1
+      else if (mod(fv_horizontal_order, 2) == 0) then
+        stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
+      else
+        stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
+      end if
+
+      stencil_extent = fv_horizontal_order/2_i_def
+      ndata_h = 4*stencil_size
+
+      ! Set aspects of domain --------------------------------------------------
+      domain = mesh%get_domain()
+
+      if ( domain%is_lonlat() ) then
+        domain_size_x = radians_to_degrees * (                                 &
+                domain%maximum_lonlat(axis=1) - domain%minimum_lonlat(axis=1)  &
+        )
+        domain_size_y = radians_to_degrees * (                                 &
+                domain%maximum_lonlat(axis=2) - domain%minimum_lonlat(axis=2)  &
+        )
+      else
+        domain_size_x = domain%maximum_xy(axis=1) - domain%minimum_xy(axis=1)
+        domain_size_y = domain%maximum_xy(axis=2) - domain%minimum_xy(axis=2)
+      end if
+
+      if ( coord_system == coord_system_xyz .or. geometry == geometry_planar ) then
+        transform_radius = 0.0_r_def
+      else
+        ! Compute the smallest surface height of chi(3)
+        ! (this is only needed for spherically-based coordinates
+        ! Transform radius is minimum height + 1
+        call get_field_minmax(chi(3), transform_radius, chi3_max)
+        transform_radius = 1.0_r_def + abs(transform_radius)
+      end if
+
+      nlayers = mesh%get_nlayers()
+
+      ! Set aspects relating to quadrature -------------------------------------
+      nqp_xyz = fv_horizontal_order + 1_i_def
+      qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
+      if ( oned_reconstruction ) then
+        face_quad_order = 1_i_def
+      else
+        face_quad_order = fv_horizontal_order + 1_i_def
+      end if
+      ! Quadrature rule on lateral faces with 1 point in the vertical
+      nqp_xy = face_quad_order
+      nqp_z  = 1
+      horizontal_faces = .true.
+      vertical_faces = .false.
+      qrf = quadrature_face_type(                                              &
+              nqp_xy, nqp_z, horizontal_faces, vertical_faces,                 &
+              reference_element, gaussian_quadrature                           &
+      )
+
+      ! Compute diagonal mass matrix for extended mesh -------------------------
+      if ( oned_reconstruction .and. extended_mesh ) then
+        ! @TODO #416: using detj_at_w3_r_tran would avoid this but change KGOs
+        chi => get_extended_coordinates(mesh%get_id())
+        w3_fs => function_space_collection%get_fs( mesh, 0, 0, W3 )
+        call mm_w3%initialise( w3_fs, w3_fs )
+        call mm_w3_diag_tmp%initialise( w3_fs )
+        qr_fem = quadrature_xyoz_type(3, gaussian_quadrature)
+        call invoke( compute_mass_matrix_kernel_w_scalar_type(mm_w3,           &
+                                                              chi,             &
+                                                              panel_id,        &
+                                                              extended_mesh,   &
+                                                              qr_fem),         &
+                     setval_c(mm_w3_diag_tmp, 0.0_r_def),                      &
+                     mm_diagonal_kernel_type(mm_w3_diag_tmp, mm_w3) )
+        mm_w3_diag =>  mm_w3_diag_tmp
+      end if
+
+      ! Set up function space and coefficient field ----------------------------
+      twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+      multidata_fs => function_space_collection%get_fs(                        &
+              twod_mesh, get_element_order_h_transport(),                      &
+              get_element_order_v_transport(), W3, ndata_h,                    &
+              ndata_first=.false.                                              &
+      )
+      call hori_w3_mol_coeffs_inventory%add_field(                             &
+              mol_coeffs, multidata_fs, mesh                                   &
+      )
+
+      ! Compute MoL coefficients -----------------------------------------------
+      if ( oned_reconstruction ) then
+        call invoke( poly1d_flux_coeffs_kernel_type(mol_coeffs,                &
+                                                    mm_w3_diag,                &
+                                                    stencil_extent,            &
+                                                    chi,                       &
+                                                    stencil_extent,            &
+                                                    panel_id,                  &
+                                                    stencil_extent,            &
+                                                    ndata_h,                   &
+                                                    fv_horizontal_order,       &
+                                                    transform_radius,          &
+                                                    domain_size_x,             &
+                                                    domain_size_y,             &
+                                                    extended_mesh,             &
+                                                    nlayers,                   &
+                                                    qr, qrf) )
+      else
+        call invoke( poly2d_flux_coeffs_kernel_type(mol_coeffs,                &
+                                                    mm_w3_diag,                &
+                                                    stencil_extent,            &
+                                                    chi,                       &
+                                                    stencil_extent,            &
+                                                    panel_id,                  &
+                                                    stencil_extent,            &
+                                                    ndata_h,                   &
+                                                    fv_horizontal_order,       &
+                                                    stencil_size,              &
+                                                    transform_radius,          &
+                                                    domain_size_x,             &
+                                                    domain_size_y,             &
+                                                    nlayers,                   &
+                                                    qr, qrf) )
+      end if
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    end if
+
+    ! Return constant
+    call hori_w3_mol_coeffs_inventory%get_field(mesh, mol_coeffs)
+
+  end function get_hori_w3_mol_coeffs
+
+  !> @brief Returns a pointer to the vertical Whteta MoL coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical Wtheta MoL coefficient field
+  function get_vert_w3_mol_coeffs(mesh_id) result(mol_coeffs)
+
+    use poly1d_vert_flux_coeffs_kernel_mod, &
+                                    only: poly1d_vert_flux_coeffs_kernel_type
+    use transport_config_mod,       only: fv_vertical_order
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: mesh_id
+    type(mesh_type),            pointer :: mesh
+    type(r_tran_field_type),    pointer :: mol_coeffs
+    type(field_type),           pointer :: height
+    type(function_space_type),  pointer :: multidata_fs
+    integer(kind=i_def)                 :: ndata_v
+    integer(kind=i_def)                 :: nqp_xyz
+    logical(kind=l_def)                 :: constant_exists
+    type(quadrature_rule_gaussian_type) :: gaussian_quadrature
+    type(quadrature_xyoz_type)          :: qr
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. vert_w3_mol_coeffs_inventory%is_initialised()) then
+      call vert_w3_mol_coeffs_inventory%initialise(name="vert_wt_mol_coeffs")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = vert_w3_mol_coeffs_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      height => get_height_fv(Wtheta, mesh%get_id())
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      ndata_v = 2*(fv_vertical_order + 1)
+      nqp_xyz = fv_vertical_order + 1_i_def
+      qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
+
+      ! Set up function space
+      multidata_fs => function_space_collection%get_fs(                        &
+              mesh, 0, 0, Wtheta, ndata_v, ndata_first =.true.                 &
+      )
+      ! Create field object
+      call vert_w3_mol_coeffs_inventory%add_field(                             &
+              mol_coeffs, multidata_fs, mesh                                   &
+      )
+      ! Compute coefficients
+      call invoke( poly1d_vert_flux_coeffs_kernel_type(mol_coeffs,             &
+                                                       height,                 &
+                                                       ndata_v,                &
+                                                       fv_vertical_order,      &
+                                                       qr) )
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Return constant
+    call vert_w3_mol_coeffs_inventory%get_field(mesh, mol_coeffs)
+
+  end function get_vert_w3_mol_coeffs
+
+  !> @brief Returns a pointer to the reversible vertical Wtheta MoL coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical Wtheta MoL coefficient field
+  function get_reversible_vert_w3_mol_coeffs(mesh_id) result(mol_coeffs)
+
+    use poly1d_vert_flux_coeffs_kernel_mod, &
+                                    only: poly1d_vert_flux_coeffs_kernel_type
+    use transport_config_mod,       only: fv_vertical_order
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: mesh_id
+    type(mesh_type),            pointer :: mesh
+    type(r_tran_field_type),    pointer :: mol_coeffs
+    type(field_type),           pointer :: height
+    type(function_space_type),  pointer :: multidata_fs
+    integer(kind=i_def)                 :: ndata_v
+    integer(kind=i_def)                 :: vertical_order
+    integer(kind=i_def)                 :: nqp_xyz
+    logical(kind=l_def)                 :: constant_exists
+    type(quadrature_rule_gaussian_type) :: gaussian_quadrature
+    type(quadrature_xyoz_type)          :: qr
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. rev_vert_w3_mol_coeffs_inventory%is_initialised()) then
+      call rev_vert_w3_mol_coeffs_inventory%initialise(                        &
+              name="rev_vert_w3_mol_coeffs"                                    &
+      )
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = rev_vert_w3_mol_coeffs_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      height => get_height_fv(Wtheta, mesh%get_id())
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      vertical_order = fv_vertical_order - 1
+      ndata_v = fv_vertical_order
+      nqp_xyz = fv_vertical_order + 1_i_def
+      qr = quadrature_xyoz_type(nqp_xyz, gaussian_quadrature)
+      ! Set up function space
+      multidata_fs => function_space_collection%get_fs(                        &
+              mesh, 0, 0, Wtheta, ndata_v, ndata_first =.true.                 &
+      )
+      ! Create field object
+      call rev_vert_w3_mol_coeffs_inventory%add_field(                         &
+              mol_coeffs, multidata_fs, mesh                                   &
+      )
+      ! Compute coefficients
+      call invoke( poly1d_vert_flux_coeffs_kernel_type(mol_coeffs,             &
+                                                       height,                 &
+                                                       ndata_v,                &
+                                                       vertical_order,         &
+                                                       qr) )
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Return constant
+    call rev_vert_w3_mol_coeffs_inventory%get_field(mesh, mol_coeffs)
+
+  end function get_reversible_vert_w3_mol_coeffs
+
+  !> @brief Returns a pointer to the horizontal Wtheta MoL coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The horizontal Wtheta MoL coefficients field
+  function get_hori_wt_mol_coeffs(mesh_id) result(mol_coeffs)
+
+    use base_mesh_config_mod,       only: geometry, geometry_planar
+    use sci_fem_constants_mod,      only: get_mass_matrix_diagonal_fe, &
+                                          get_mass_matrix_diagonal_fv
+    use finite_element_config_mod,  only: coord_system, coord_system_xyz
+    use poly1d_advective_coeffs_kernel_mod, &
+                                    only: poly1d_advective_coeffs_kernel_type
+    use poly2d_advective_coeffs_kernel_mod, &
+                                    only: poly2d_advective_coeffs_kernel_type
+    use sci_compute_mass_matrix_kernel_w_scalar_mod, &
+                                    only: compute_mass_matrix_kernel_w_scalar_type
+    use sci_mm_diagonal_kernel_mod, only: mm_diagonal_kernel_type
+    use transport_config_mod,       only: panel_edge_treatment,                &
+                                          panel_edge_treatment_extended_mesh,  &
+                                          fv_horizontal_order,                 &
+                                          oned_reconstruction
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: mesh_id
+    type(mesh_type),            pointer :: mesh
+    type(mesh_type),            pointer :: twod_mesh
+    type(r_tran_field_type),    pointer :: mol_coeffs
+    type(operator_type)                 :: mm_wt
+    type(field_type),            target :: mm_wt_diag_tmp
+    type(field_type),           pointer :: mm_wt_diag
+    type(field_type),           pointer :: chi(:)
+    type(field_type),           pointer :: panel_id
+    type(function_space_type),  pointer :: multidata_fs
+    type(function_space_type),  pointer :: wt_fs
+    logical(kind=l_def)                 :: constant_exists
+    logical(kind=l_def)                 :: horizontal_edges
+    logical(kind=l_def)                 :: vertical_edges
+    logical(kind=l_def)                 :: extended_mesh
+    type(quadrature_rule_gaussian_type) :: gaussian_quadrature
+    type(quadrature_xyoz_type)          :: qr, qr_fem
+    type(quadrature_edge_type)          :: qre
+    type(domain_type)                   :: domain
+    real(kind=r_def)                    :: domain_size_x, domain_size_y
+    integer(kind=i_def)                 :: stencil_size
+    integer(kind=i_def)                 :: stencil_extent
+    integer(kind=i_def)                 :: ndata_h
+    integer(kind=i_def)                 :: nfaces_re_h
+    integer(kind=i_def)                 :: nlayers
+    integer(kind=i_def)                 :: edge_quad_order
+    integer(kind=i_def)                 :: nqp_xy, nqp_z, nqp_xyz
+    integer(kind=i_def)                 :: element_order_h, element_order_v
+    real(kind=r_def)                    :: transform_radius, chi3_max
+    type(quadrature_rule_gauss_lobatto_type) :: gauss_lobatto_quadrature
+    class(reference_element_type),   pointer :: reference_element
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. hori_wt_mol_coeffs_inventory%is_initialised()) then
+      call hori_wt_mol_coeffs_inventory%initialise(name="hori_wt_mol_coeffs")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = hori_wt_mol_coeffs_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+
+      ! Get the relevant element orders
+      element_order_h = get_element_order_h_transport()
+      element_order_v = get_element_order_v_transport()
+
+      extended_mesh = (panel_edge_treatment == panel_edge_treatment_extended_mesh)
+
+      if (.not. (oned_reconstruction .and. extended_mesh)) then
+        if (element_order_h == 0 .and. element_order_v == 0) then
+          mm_wt_diag => get_mass_matrix_diagonal_fv(Wtheta, mesh_id)
+        else
+          mm_wt_diag => get_mass_matrix_diagonal_fe(Wtheta, mesh_id)
+        end if
+      end if
+
+      chi => get_coordinates(mesh%get_id())
+      panel_id => get_panel_id(mesh%get_id())
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+      reference_element => mesh%get_reference_element()
+
+      ! Compute stencil size ---------------------------------------------------
+      if (oned_reconstruction) then
+        stencil_size = fv_horizontal_order + 1
+      else if (mod(fv_horizontal_order, 2) == 0) then
+        stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
+      else
+        stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
+      end if
+
+      stencil_extent = fv_horizontal_order/2_i_def
+      ndata_h = 4*stencil_size
+      nfaces_re_h = 4
+
+      ! Set aspects of domain --------------------------------------------------
+      domain = mesh%get_domain()
+
+      if ( domain%is_lonlat() ) then
+        domain_size_x = radians_to_degrees * (                                 &
+                domain%maximum_lonlat(axis=1) - domain%minimum_lonlat(axis=1)  &
+        )
+        domain_size_y = radians_to_degrees * (                                 &
+                domain%maximum_lonlat(axis=2) - domain%minimum_lonlat(axis=2)  &
+        )
+      else
+        domain_size_x = domain%maximum_xy(axis=1) - domain%minimum_xy(axis=1)
+        domain_size_y = domain%maximum_xy(axis=2) - domain%minimum_xy(axis=2)
+      end if
+
+      if ( coord_system == coord_system_xyz .or. geometry == geometry_planar ) then
+        transform_radius = 0.0_r_def
+      else
+        ! Compute the smallest surface height of chi(3)
+        ! (this is only needed for spherically-based coordinates
+        ! Transform radius is minimum height + 1
+        call get_field_minmax(chi(3), transform_radius, chi3_max)
+        transform_radius = 1.0_r_def + abs(transform_radius)
+      end if
+
+      nlayers = mesh%get_nlayers()
+
+      ! Set aspects relating to quadrature -------------------------------------
+      nqp_xy = fv_horizontal_order + 3_i_def
+      nqp_z  = 2_i_def
+      qr = quadrature_xyoz_type(nqp_xy, nqp_xy, nqp_z, &
+                                gauss_lobatto_quadrature)
+
+      if ( oned_reconstruction ) then
+        edge_quad_order = 1_i_def
+        else
+        edge_quad_order = fv_horizontal_order + 1_i_def
+      end if
+      ! Quadrature rule on edges
+      nqp_xyz = edge_quad_order
+      horizontal_edges = .true.
+      vertical_edges = .false.
+      qre = quadrature_edge_type(nqp_xyz, horizontal_edges, vertical_edges,  &
+                                 reference_element, gaussian_quadrature)
+
+      ! Compute diagonal mass matrix for extended mesh -------------------------
+      if (oned_reconstruction .and. extended_mesh) then
+        chi => get_extended_coordinates(mesh%get_id())
+        wt_fs => function_space_collection%get_fs( mesh, 0, 0, Wtheta )
+        call mm_wt%initialise( wt_fs, wt_fs )
+        call mm_wt_diag_tmp%initialise( wt_fs )
+        qr_fem = quadrature_xyoz_type(3, gaussian_quadrature)
+        call invoke( compute_mass_matrix_kernel_w_scalar_type(mm_wt,           &
+                                                              chi,             &
+                                                              panel_id,        &
+                                                              extended_mesh,   &
+                                                              qr_fem),         &
+                     setval_c(mm_wt_diag_tmp, 0.0_r_def),                      &
+                     mm_diagonal_kernel_type(mm_wt_diag_tmp, mm_wt) )
+        mm_wt_diag =>  mm_wt_diag_tmp
+      end if
+
+      ! Set up function space and coefficient field ----------------------------
+      twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+      multidata_fs => function_space_collection%get_fs(                        &
+              twod_mesh, get_element_order_h_transport(),                      &
+              get_element_order_v_transport(), W3, ndata_h,                    &
+              ndata_first=.false.                                              &
+      )
+      call hori_wt_mol_coeffs_inventory%add_field(                             &
+              mol_coeffs, multidata_fs, mesh                                   &
+      )
+
+      ! Compute MoL coefficients -----------------------------------------------
+      if ( oned_reconstruction ) then
+        call invoke( poly1d_advective_coeffs_kernel_type(                      &
+                                                    mol_coeffs,                &
+                                                    mm_wt_diag,                &
+                                                    stencil_extent,            &
+                                                    chi,                       &
+                                                    stencil_extent,            &
+                                                    panel_id,                  &
+                                                    stencil_extent,            &
+                                                    ndata_h,                   &
+                                                    fv_horizontal_order,       &
+                                                    nfaces_re_h,               &
+                                                    transform_radius,          &
+                                                    domain_size_x,             &
+                                                    domain_size_y,             &
+                                                    extended_mesh,             &
+                                                    nlayers,                   &
+                                                    qr, qre) )
+      else
+        call invoke( poly2d_advective_coeffs_kernel_type(                      &
+                                                    mol_coeffs,                &
+                                                    mm_wt_diag,                &
+                                                    stencil_extent,            &
+                                                    chi,                       &
+                                                    stencil_extent,            &
+                                                    panel_id,                  &
+                                                    stencil_extent,            &
+                                                    ndata_h,                   &
+                                                    fv_horizontal_order,       &
+                                                    nfaces_re_h,               &
+                                                    stencil_size,              &
+                                                    transform_radius,          &
+                                                    domain_size_x,             &
+                                                    domain_size_y,             &
+                                                    nlayers,                   &
+                                                    qr, qre) )
+      end if
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+
+    end if
+
+    ! Return constant
+    call hori_wt_mol_coeffs_inventory%get_field(mesh, mol_coeffs)
+
+  end function get_hori_wt_mol_coeffs
+
+  !> @brief Returns a pointer to the vertical Whteta MoL coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical Wtheta MoL coefficient field
+  function get_vert_wt_mol_coeffs(mesh_id) result(mol_coeffs)
+
+    use poly1d_vert_adv_coeffs_kernel_mod, &
+                                    only: poly1d_vert_adv_coeffs_kernel_type
+    use transport_config_mod,       only: fv_vertical_order
+
+    implicit none
+
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh
+    type(r_tran_field_type),   pointer :: mol_coeffs
+    type(field_type),          pointer :: height
+    type(function_space_type), pointer :: multidata_fs
+    integer(kind=i_def)                :: vertical_order
+    integer(kind=i_def)                :: ndata_v
+    logical(kind=l_def)                :: constant_exists
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. vert_wt_mol_coeffs_inventory%is_initialised()) then
+      call vert_wt_mol_coeffs_inventory%initialise(name="vert_wt_mol_coeffs")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = vert_wt_mol_coeffs_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      height => get_height_fv(Wtheta, mesh%get_id())
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      vertical_order = fv_vertical_order + 1
+      ndata_v = 2*(vertical_order + 1)
+      ! Set up function space
+      multidata_fs => function_space_collection%get_fs(                        &
+              mesh, 0, 0, Wtheta, ndata_v, ndata_first =.true.                 &
+      )
+      ! Create field object
+      call vert_wt_mol_coeffs_inventory%add_field(                             &
+              mol_coeffs, multidata_fs, mesh                                   &
+      )
+      ! Compute coefficients
+      call invoke( poly1d_vert_adv_coeffs_kernel_type(mol_coeffs,              &
+                                                      height,                  &
+                                                      ndata_v,                 &
+                                                      vertical_order) )
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Return constant
+    call vert_wt_mol_coeffs_inventory%get_field(mesh, mol_coeffs)
+
+  end function get_vert_wt_mol_coeffs
+
+  !> @brief Returns a pointer to the reversible vertical Wtheta MoL coefficients
+  !> @param[in] mesh_id the ID of the mesh to get the object for
+  !> @return The vertical Wtheta MoL coefficient field
+  function get_reversible_vert_wt_mol_coeffs(mesh_id) result(mol_coeffs)
+
+    use poly1d_vert_adv_coeffs_kernel_mod, &
+                                    only: poly1d_vert_adv_coeffs_kernel_type
+    use transport_config_mod,       only: fv_vertical_order
+
+    implicit none
+
+    integer(kind=i_def),    intent(in) :: mesh_id
+    type(mesh_type),           pointer :: mesh
+    type(r_tran_field_type),   pointer :: mol_coeffs
+    type(field_type),          pointer :: height
+    type(function_space_type), pointer :: multidata_fs
+    integer(kind=i_def)                :: ndata_v
+    logical(kind=l_def)                :: constant_exists
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. rev_vert_wt_mol_coeffs_inventory%is_initialised()) then
+      call rev_vert_wt_mol_coeffs_inventory%initialise(                        &
+              name="rev_vert_wt_mol_coeffs"                                    &
+      )
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = rev_vert_wt_mol_coeffs_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      height => get_height_fv(Wtheta, mesh%get_id())
+
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+      ndata_v = 2*(fv_vertical_order + 1)
+      ! Set up function space
+      multidata_fs => function_space_collection%get_fs(                        &
+              mesh, 0, 0, Wtheta, ndata_v, ndata_first =.true.                 &
+      )
+      ! Create field object
+      call rev_vert_wt_mol_coeffs_inventory%add_field(                         &
+              mol_coeffs, multidata_fs, mesh                                   &
+      )
+      ! Compute coefficients
+      call invoke( poly1d_vert_adv_coeffs_kernel_type(mol_coeffs,              &
+                                                      height,                  &
+                                                      ndata_v,                 &
+                                                      fv_vertical_order) )
+      if ( subroutine_timers ) call timer('runtime_constants.transport')
+    end if
+
+    ! Return constant
+    call rev_vert_wt_mol_coeffs_inventory%get_field(mesh, mol_coeffs)
+
+  end function get_reversible_vert_wt_mol_coeffs
+
+  !> @brief Returns the horizontal element order for initialisation of
+  !!        transport fields dependent on choice of operator
+  function get_element_order_h_transport() result(transport_element_order_h)
+    use finite_element_config_mod, only: element_order_h
+    use transport_config_mod,      only: operators, operators_fem
+
+    implicit none
+
+    integer(kind=i_def) :: transport_element_order_h
+
+    ! Select the element order based on the operator
+    select case (operators)
+      case (operators_fem)
+        transport_element_order_h = element_order_h
+      case default
+        transport_element_order_h = 0_i_def
+    end select
+
+  end function get_element_order_h_transport
+
+  !> @brief Returns the vertical element order for initialisation of
+  !!        transport fields dependent on choice of operator
+  function get_element_order_v_transport() result(transport_element_order_v)
+    use finite_element_config_mod, only: element_order_v
+    use transport_config_mod,      only: operators, operators_fem
+
+    implicit none
+
+    integer(kind=i_def) :: transport_element_order_v
+
+    select case (operators)
+      case (operators_fem)
+        transport_element_order_v = element_order_v
+      case default
+        transport_element_order_v = 0_i_def
+    end select
+
+  end function get_element_order_v_transport
+
+  ! ========================================================================== !
+  ! FINALISE
+  ! ========================================================================== !
+  !> @brief Explicitly reclaim memory from module scope variables
+  subroutine final_transport_constants()
+
+    implicit none
+
+    call detj_at_w2_above_inventory%clear()
+    call detj_at_w2_below_inventory%clear()
+    call im3_div_r_tran_inventory%clear()
+    call im3_div_v_r_tran_inventory%clear()
+    call im3_div_h_r_tran_inventory%clear()
+    call detj_at_w3_r_tran_inventory%clear()
+    call mm_w3_inv_r_tran_inventory%clear()
+    call mm_w3_r_tran_inventory%clear()
+    call ext_mesh_weights_inventory%clear()
+    call ext_mesh_indices_inventory%clear()
+    call panel_edge_dist_inventory%clear()
+    call panel_edge_coords_x_inventory%clear()
+    call panel_edge_coords_y_inventory%clear()
+    call panel_edge_weights_x_inventory%clear()
+    call panel_edge_weights_y_inventory%clear()
+    call panel_edge_indices_x_inventory%clear()
+    call panel_edge_indices_y_inventory%clear()
+    call halo_mask_x_inventory%clear()
+    call halo_mask_y_inventory%clear()
+    call hori_wt_mol_coeffs_inventory%clear()
+    call vert_wt_mol_coeffs_inventory%clear()
+    call rev_vert_wt_mol_coeffs_inventory%clear()
+    call hori_w3_mol_coeffs_inventory%clear()
+    call vert_w3_mol_coeffs_inventory%clear()
+    call rev_vert_w3_mol_coeffs_inventory%clear()
+    call third_dla_dz_inventory%clear()
+    call third_dlb_dz_inventory%clear()
+    call fourth_dl_dz_inventory%clear()
+
+  end subroutine final_transport_constants
+
+end module transport_constants_mod

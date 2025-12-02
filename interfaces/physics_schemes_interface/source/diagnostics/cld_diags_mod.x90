@@ -1,0 +1,372 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Set up fields for cloud diagnostics
+
+module cld_diags_mod
+  use clock_mod,               only: clock_type
+  use constants_mod,           only: l_def, i_def, r_def, str_def
+  use mr_indices_mod,          only: nummr, imr_cl, imr_ci, imr_r, imr_s
+  use mesh_mod,                only: mesh_type
+  use field_mod,               only: field_type
+  use field_parent_mod,        only: field_parent_type
+  use field_collection_mod,    only: field_collection_type
+  use field_collection_iterator_mod, &
+                               only: field_collection_iterator_type
+  use io_config_mod,           only: subroutine_timers
+  use timer_mod,               only: timer
+  use sci_geometric_constants_mod,   &
+                               only: get_height_fv
+  use cloud_config_mod,        only: filter_optical_depth, opt_depth_thresh
+  use fs_continuity_mod,       only: Wtheta, W3
+  use cld_diags_kernel_mod,    only: cld_diags_kernel_type
+  use icing_diags_kernel_mod,  only: icing_diags_kernel_type
+  use microphysics_config_mod, only: microphysics_casim
+
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
+                                         samp_diag => diagnostic_to_be_sampled
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+  logical( l_def ) :: sskew_bm_flag, svar_bm_flag, svar_tb_flag,               &
+                      cld_amount_max_flag,                                     &
+                      cld_amount_rnd_flag,                                     &
+                      cld_amount_maxrnd_flag,                                  &
+                      ceil_cld_amount_maxrnd_flag,                             &
+                      cld_base_altitude_flag,                                  &
+                      low_cld_base_altitude_flag,                              &
+                      very_low_cld_amount_flag,                                &
+                      low_cld_amount_flag,                                     &
+                      medium_cld_amount_flag,                                  &
+                      high_cld_amount_flag,                                    &
+                      very_high_cld_amount_flag,                               &
+                      combined_cld_amount_flag,                                &
+                      icing_sfip_li_bcf_flag,                                  &
+                      icing_sfip_lir_com_flag,                                 &
+                      cloud_fraction_below_1000feet_asl_flag
+
+  public :: initialise_diags_for_cld
+  public :: output_diags_for_cld
+
+contains
+
+  !> @brief Initialise fields for computing diagnostics
+  subroutine initialise_diags_for_cld( sskew_bm, svar_bm, svar_tb, call_b4_conv )
+
+    implicit none
+
+    ! Diagnostic fields to initialise
+    type( field_type ), intent(inout) :: sskew_bm, svar_bm, svar_tb
+    logical(l_def), intent(in) :: call_b4_conv
+
+    if ( subroutine_timers ) call timer("cld_diags")
+
+    if (call_b4_conv) then
+      ! No diagnostics output in mid-timestep call
+      sskew_bm_flag = init_diag(sskew_bm, 'cloud__sskew_bm', deactivate=.true.)
+      svar_bm_flag = init_diag(svar_bm, 'cloud__svar_bm', deactivate=.true.)
+      svar_tb_flag = init_diag(svar_tb, 'cloud__svar_tb', deactivate=.true.)
+    else
+      ! Output diagnostics based on xios requirements
+      sskew_bm_flag = init_diag(sskew_bm, 'cloud__sskew_bm')
+      svar_bm_flag = init_diag(svar_bm, 'cloud__svar_bm')
+      svar_tb_flag = init_diag(svar_tb, 'cloud__svar_tb')
+    end if
+
+    if ( subroutine_timers ) call timer("cld_diags")
+
+  end subroutine initialise_diags_for_cld
+
+  !> @brief Output diagnostics from cld_alg
+  subroutine output_diags_for_cld( sskew_bm, svar_bm, svar_tb, &
+                                   cloud_fields,               &
+                                   convection_fields,          &
+                                   derived_fields,             &
+                                   mr,                         &
+                                   theta,                      &
+                                   theta_inc,                  &
+                                   exner_wth )
+
+    implicit none
+
+    ! Diagnostics computed within the kernels
+    type( field_type ),            intent(in) :: sskew_bm, svar_bm, svar_tb
+
+    ! Variables the diagnostics are calculated from
+    type( field_collection_type ), intent(in) :: cloud_fields,                 &
+                                                 convection_fields,            &
+                                                 derived_fields
+    type( field_type ),            intent(in) :: mr ( nummr ),                 &
+                                                 theta,                        &
+                                                 theta_inc,                    &
+                                                 exner_wth
+
+    type( mesh_type ),  pointer :: mesh => null()
+
+    type( field_type ), pointer :: cf_bulk    => null()
+    type( field_type ), pointer :: cf_area    => null()
+    type( field_type ), pointer :: cf_frozen  => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: height_w3  => null()
+    type( field_type ), pointer :: cca        => null()
+    type( field_type ), pointer :: ccw        => null()
+    type( field_type ), pointer :: w_wind     => null()
+    type( field_type ), pointer :: rho_in_wth => null()
+
+    type( field_type ) :: cld_amount_max
+    type( field_type ) :: cld_amount_rnd
+    type( field_type ) :: cld_amount_maxrnd
+    type( field_type ) :: ceil_cld_amount_maxrnd
+    type( field_type ) :: cld_base_altitude
+    type( field_type ) :: low_cld_base_altitude
+    type( field_type ) :: very_low_cld_amount
+    type( field_type ) :: low_cld_amount
+    type( field_type ) :: medium_cld_amount
+    type( field_type ) :: high_cld_amount
+    type( field_type ) :: very_high_cld_amount
+    type( field_type ) :: combined_cld_amount
+    type( field_type ) :: icing_sfip_li_bcf
+    type( field_type ) :: icing_sfip_lir_com
+    type( field_type ) :: cloud_fraction_below_1000feet_asl
+    type( field_type ) :: ls_fraction
+    type( field_type ) :: theta_updated
+    type( field_type ) :: icing_condensate
+    type( field_type ) :: conv_cond
+    type( field_type ) :: mr_ice
+    ! Iterator for field collection
+    type(field_collection_iterator_type)  :: iterator
+    ! A pointer used for retrieving fields from collections
+    ! when iterating over them
+    class( field_parent_type ), pointer :: field_ptr  => null()
+    character(str_def) :: name
+    logical( l_def ) :: ignore
+
+    if ( subroutine_timers ) call timer("cld_diags")
+
+    ! 2D fields
+    cld_amount_max_flag = init_diag(cld_amount_max, 'cloud__cloud_amount_max')
+    cld_amount_rnd_flag = init_diag(cld_amount_rnd, 'cloud__cloud_amount_rnd')
+    cld_amount_maxrnd_flag = init_diag(cld_amount_maxrnd, 'cloud__cloud_amount_maxrnd')
+    ceil_cld_amount_maxrnd_flag = init_diag(ceil_cld_amount_maxrnd, 'cloud__ceilometer_cloud_amount_maxrnd')
+    cld_base_altitude_flag = init_diag(cld_base_altitude, 'cloud__cloud_base_altitude')
+    low_cld_base_altitude_flag = init_diag(low_cld_base_altitude, 'cloud__low_cloud_base_altitude')
+    very_low_cld_amount_flag = init_diag(very_low_cld_amount, 'cloud__very_low_type_cloud_amount')
+    low_cld_amount_flag = init_diag(low_cld_amount, 'cloud__low_type_cloud_amount')
+    medium_cld_amount_flag = init_diag(medium_cld_amount, 'cloud__medium_type_cloud_amount')
+    high_cld_amount_flag = init_diag(high_cld_amount, 'cloud__high_type_cloud_amount')
+    very_high_cld_amount_flag = init_diag(very_high_cld_amount, 'cloud__very_high_type_cloud_amount')
+    cloud_fraction_below_1000feet_asl_flag = init_diag(cloud_fraction_below_1000feet_asl, &
+      'cloud__cloud_fraction_below_1000feet_asl')
+
+    ! 3D fields
+    combined_cld_amount_flag = init_diag(combined_cld_amount, 'cloud__combined_cloud_amount')
+    icing_sfip_li_bcf_flag = init_diag(icing_sfip_li_bcf, 'cloud__icing_sfip_li_bcf')
+    icing_sfip_lir_com_flag = init_diag(icing_sfip_lir_com, 'cloud__icing_sfip_lir_com')
+
+    ! If any of these diagnostics are required, combined_cloud_amount is needed
+    if (cld_amount_max_flag         .or. &
+        cld_amount_rnd_flag         .or. &
+        cld_amount_maxrnd_flag      .or. &
+        ceil_cld_amount_maxrnd_flag .or. &
+        cld_base_altitude_flag      .or. &
+        low_cld_base_altitude_flag  .or. &
+        very_low_cld_amount_flag    .or. &
+        low_cld_amount_flag         .or. &
+        medium_cld_amount_flag      .or. &
+        high_cld_amount_flag        .or. &
+        very_high_cld_amount_flag   .or. &
+        cloud_fraction_below_1000feet_asl_flag .or. &
+        combined_cld_amount_flag    .or. &
+        icing_sfip_li_bcf_flag      .or. &
+        icing_sfip_lir_com_flag ) then
+
+      if (.not. combined_cld_amount_flag) ignore = &
+        init_diag(combined_cld_amount, 'cloud__combined_cloud_amount', activate=.true.)
+    end if
+
+    if (cld_amount_max_flag         .or. &
+        cld_amount_rnd_flag         .or. &
+        cld_amount_maxrnd_flag      .or. &
+        ceil_cld_amount_maxrnd_flag .or. &
+        cld_base_altitude_flag      .or. &
+        low_cld_base_altitude_flag  .or. &
+        very_low_cld_amount_flag    .or. &
+        low_cld_amount_flag         .or. &
+        medium_cld_amount_flag      .or. &
+        high_cld_amount_flag        .or. &
+        very_high_cld_amount_flag   .or. &
+        combined_cld_amount_flag    .or. &
+        icing_sfip_li_bcf_flag      .or. &
+        icing_sfip_lir_com_flag     .or. &
+        cloud_fraction_below_1000feet_asl_flag ) then
+
+        ! Calculate combined_cld_amount from cca and cf_area in a way that
+        ! means it cannot total more than 1.0, i.e.
+        ! comb = cca + ( (1-cca) * cf_area )
+        call convection_fields%get_field('cca', cca)
+        call cloud_fields%get_field('area_fraction', cf_area)
+
+        call cf_area%copy_field_properties(ls_fraction)
+
+        call invoke ( a_minus_X(ls_fraction, 1.0_r_def, cca), &
+                      inc_X_times_Y(ls_fraction, cf_area),    &
+                      ! Calculate combined_cld_amount.
+                      X_plus_Y(combined_cld_amount, ls_fraction, cca) )
+        call ls_fraction%field_final()
+
+        ! Calculate total ice field
+        call mr(imr_s)%copy_field_properties(mr_ice)
+        call invoke(setval_X(mr_ice, mr(imr_s)))
+        if (microphysics_casim) then
+          call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
+        end if
+
+      end if
+
+      if (cld_amount_max_flag         .or. &
+          cld_amount_rnd_flag         .or. &
+          cld_amount_maxrnd_flag      .or. &
+          ceil_cld_amount_maxrnd_flag .or. &
+          cld_base_altitude_flag      .or. &
+          low_cld_base_altitude_flag  .or. &
+          very_low_cld_amount_flag    .or. &
+          low_cld_amount_flag         .or. &
+          medium_cld_amount_flag      .or. &
+          high_cld_amount_flag        .or. &
+          very_high_cld_amount_flag   .or. &
+          cloud_fraction_below_1000feet_asl_flag ) then
+
+        mesh       => combined_cld_amount%get_mesh()
+        height_w3  => get_height_fv(W3, mesh%get_id())
+        height_wth => get_height_fv(Wtheta, mesh%get_id())
+        call derived_fields%get_field('rho_in_wth', rho_in_wth)
+        call cloud_fields%get_field('frozen_fraction', cf_frozen)
+
+        ! Calculate various diagnostics from the combined_cld_amount.
+        call invoke( cld_diags_kernel_type( combined_cld_amount,               &
+                                            cld_amount_max,                    &
+                                            cld_amount_rnd,                    &
+                                            cld_amount_maxrnd,                 &
+                                            ceil_cld_amount_maxrnd,            &
+                                            cld_base_altitude,                 &
+                                            low_cld_base_altitude,             &
+                                            very_low_cld_amount,               &
+                                            low_cld_amount,                    &
+                                            medium_cld_amount,                 &
+                                            high_cld_amount,                   &
+                                            very_high_cld_amount,              &
+                                            cloud_fraction_below_1000feet_asl, &
+                                            mr_ice,                            &
+                                            cf_frozen,                         &
+                                            height_wth,                        &
+                                            rho_in_wth,                        &
+                                            height_w3,                         &
+                                            opt_depth_thresh,                  &
+                                            filter_optical_depth ) )
+    end if
+
+    if ( icing_sfip_li_bcf_flag .or. icing_sfip_lir_com_flag ) then
+      ! Get fields for all aviation in-flight icing diagnostics
+
+      call derived_fields%get_field('w_in_wth', w_wind)
+
+      call theta%copy_field_properties(theta_updated)
+      call theta%copy_field_properties(icing_condensate)
+
+      call invoke( setval_X(theta_updated, theta),                             &
+                   inc_X_plus_Y( theta_updated, theta_inc ),                   &
+                   ! Having found the current value of theta
+                   X_plus_Y( icing_condensate, mr(imr_cl), mr_ice ) )
+                   ! add the cloud liquid and ice water contents together.
+
+      ! Need to know height to remove any spurious icing index in stratosphere
+      mesh => theta%get_mesh()
+      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+
+    end if
+
+    if ( icing_sfip_li_bcf_flag ) then
+
+      call cloud_fields%get_field('bulk_fraction', cf_bulk)
+
+      ! Calculate icing index using liq+ice and bulk fraction
+      call invoke( icing_diags_kernel_type( icing_sfip_li_bcf,                 &
+                                            theta_updated,                     &
+                                            exner_wth,                         &
+                                            cf_bulk,                           &
+                                            icing_condensate,                  &
+                                            w_wind,                            &
+                                            height_wth ) )
+    end if
+
+    if ( icing_sfip_lir_com_flag ) then
+      ! Get fields required to compute in-cloud convective condensate
+      call convection_fields%get_field('ccw', ccw)
+      call convection_fields%get_field('cca', cca)
+
+      call theta%copy_field_properties(conv_cond)
+
+      call invoke( inc_X_plus_Y( icing_condensate, mr(imr_r) ),                &
+                   ! Having added the rain water content to the liqq+ice
+                   ! now add the convective cloud water (ccw)
+                   ! multiplied by convective cloud amount (cca)
+                   X_times_Y( conv_cond, cca, ccw ),                           &
+                   inc_X_plus_Y( icing_condensate, conv_cond ),                &
+                   ! Calculate the icing index using liq+ice+rain+(cca*ccw) and
+                   ! combined cloud amount
+                   icing_diags_kernel_type( icing_sfip_lir_com,                &
+                                            theta_updated,                     &
+                                            exner_wth,                         &
+                                            combined_cld_amount,               &
+                                            icing_condensate,                  &
+                                            w_wind,                            &
+                                            height_wth ) )
+      call conv_cond%field_final()
+    end if
+
+    ! Write out the cloud fields collection as diagnostics
+    call iterator%initialise(cloud_fields)
+    do
+      if ( .not.iterator%has_next() ) exit
+      field_ptr => iterator%next()
+
+      select type(field_ptr)
+      type is (field_type)
+        name = trim(adjustl( field_ptr%get_name() ))
+        if (samp_diag('cloud__'//trim(name))) &
+             call field_ptr%write_field('cloud__'//trim(name))
+      end select
+    end do
+    field_ptr => null()
+
+    ! Write out the required diagnostics
+    if (sskew_bm_flag) call sskew_bm%write_field()
+    if (svar_bm_flag) call svar_bm%write_field()
+    if (svar_tb_flag) call svar_tb%write_field()
+    if (cld_amount_max_flag) call cld_amount_max%write_field()
+    if (cld_amount_rnd_flag) call cld_amount_rnd%write_field()
+    if (cld_amount_maxrnd_flag) call cld_amount_maxrnd%write_field()
+    if (ceil_cld_amount_maxrnd_flag) call ceil_cld_amount_maxrnd%write_field()
+    if (cld_base_altitude_flag) call cld_base_altitude%write_field()
+    if (low_cld_base_altitude_flag) call low_cld_base_altitude%write_field()
+    if (very_low_cld_amount_flag) call very_low_cld_amount%write_field()
+    if (low_cld_amount_flag) call low_cld_amount%write_field()
+    if (medium_cld_amount_flag) call medium_cld_amount%write_field()
+    if (high_cld_amount_flag) call high_cld_amount%write_field()
+    if (very_high_cld_amount_flag) call very_high_cld_amount%write_field()
+    if (combined_cld_amount_flag) call combined_cld_amount%write_field()
+    if (icing_sfip_li_bcf_flag) call icing_sfip_li_bcf%write_field()
+    if (icing_sfip_lir_com_flag) call icing_sfip_lir_com%write_field()
+    if (cloud_fraction_below_1000feet_asl_flag) call &
+       cloud_fraction_below_1000feet_asl%write_field()
+
+    if ( subroutine_timers ) call timer("cld_diags")
+
+  end subroutine output_diags_for_cld
+end module cld_diags_mod

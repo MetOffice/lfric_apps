@@ -1,0 +1,241 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Calculate advection tendencies arising from a specified vertical
+!>        velocity profile
+!> @details This is intended for use in cloud resolving model simulations in a
+!>          Cartesian domain.
+module vertadvect_forcing_alg_mod
+
+  use constants_mod,                 only: i_def, r_def, l_def
+  use field_mod,                     only: field_type
+  use finite_element_config_mod,     only: element_order_h, element_order_v
+  use fs_continuity_mod,             only: Wtheta, W3
+  use function_space_collection_mod, only: function_space_collection
+  use sci_geometric_constants_mod,   only: get_height_fv
+  use field_collection_mod,          only: field_collection_type
+  use map_fd_to_prognostics_alg_mod, only: set_wind
+  use mesh_mod,                      only: mesh_type
+  !> @todo Data passed to the kernel via module 'use' statements.
+  !>       When PSyclone supports passing of arrays into kernels (issue #1312),
+  !>       these data should be passed through the argument list of the invoke.
+  use profile_interp_kernel_mod,     only: profile_interp_kernel_type,         &
+                                           profile_size,                       &
+                                           profile_data,                       &
+                                           profile_heights
+  use prof_temporal_interp_mod,      only: prof_temporal_interp
+
+  implicit none
+
+  private
+  public :: vertadvect_forcing_alg
+
+contains
+
+  !> @brief Calculate advection tendencies arising from a specified vertical
+  !>        velocity profile
+  !> @param[in,out] field_increment vertical advection increment to theta
+  !> @param[in,out] field_increment vertical advection increment to vapour
+  !> @param[in,out] field_increment vertical advection increment to liquid
+  !> @param[in,out] vertical advection increment to wind
+  !> @param[in]     theta field to which vertical advection is applied
+  !> @param[in]     vapour field to which vertical advection is applied
+  !> @param[in]     rho Dry air density in same space as field
+  !> @param[in]     height Height of cell interfaces
+  !> @param[in]     twod_mesh Information about the horizontal mesh
+  !> @param[in]     dt timestep
+  !> @param[in]     time_now Current model time in seconds
+  subroutine vertadvect_forcing_alg( dtheta_forcing, dmv_forcing, dmcl_forcing,&
+                                     du_forcing, theta, mr, rho,               &
+                                     derived_fields,                           &
+                                     twod_mesh, dt, time_now )
+
+  use vertadvect_config_mod,   only: number_times, number_heights,             &
+                                     times, heights, profile_data_w
+  use vertadvect_kernel_mod,   only: vertadvect_kernel_type
+  use vertadv_wind_kernel_mod, only: vertadv_wind_kernel_type
+  use horiz_mean_alg_mod,      only: horiz_mean_alg
+  use mr_indices_mod,          only: nummr, imr_v, imr_cl
+
+  implicit none
+
+  type( field_type ), intent(inout)         :: dtheta_forcing, dmv_forcing,    &
+                                               dmcl_forcing, du_forcing
+  type( field_type ), intent(in)            :: theta, mr(nummr)
+  type( field_type ), intent(in)            :: rho
+  type( field_collection_type ), intent(in) :: derived_fields
+  type( mesh_type ), pointer, intent(in)    :: twod_mesh
+
+  real( kind=r_def ), intent(in)            :: dt, time_now
+
+  integer( kind=i_def )       :: mesh_id, nlayers
+  logical( kind=l_def )       :: profile_extrap
+
+  type( field_type )          :: dtheta_vertadv
+  type( field_type )          :: dmv_vertadv
+  type( field_type )          :: dmcl_vertadv
+  type( field_type )          :: du_vertadv
+  type( field_type )          :: field_mean
+  type( field_type )          :: w_rholev  ! vert adv velocity on rholevs
+  type( field_type )          :: w_thlev   ! vert adv velocity on theta levels
+  type( mesh_type ),  pointer :: mesh => null()
+  real( kind=r_def )          :: w_lsadv_now( number_heights )
+
+  type( field_type ), pointer :: height_wth => null()
+  type( field_type ), pointer :: height_w3 => null()
+  type( field_type ), pointer :: u_in_w3 => null()
+  type( field_type ), pointer :: v_in_w3 => null()
+
+  type( field_type ) :: du_in_w3, dv_in_w3, dw_in_wth
+
+  profile_extrap = .true.
+  mesh => theta%get_mesh()
+  nlayers = mesh%get_nlayers()
+
+  call dtheta_vertadv%initialise( vector_space = theta%get_function_space() )
+  call dmv_vertadv%initialise   ( vector_space = theta%get_function_space() )
+  call dmcl_vertadv%initialise  ( vector_space = theta%get_function_space() )
+  call field_mean%initialise    ( vector_space = theta%get_function_space() )
+
+  ! put w_rholev on rho levels, cell-faces for theta,
+  ! for standard 1st order upwind
+  call w_rholev%initialise      ( vector_space = rho%get_function_space() )
+
+  if ( number_times == 1 ) then
+    w_lsadv_now(:) = profile_data_w(:)
+  else
+    call prof_temporal_interp( time_now, number_heights, number_times, times,  &
+                               profile_data_w, w_lsadv_now )
+  end if
+
+  ! There's a choice to be made here. Either advect then average, or average
+  ! then advect. Choose the latter, replicating what's done in the UM and MONC.
+  mesh_id = theta%get_mesh_id()
+  height_wth => get_height_fv( Wtheta, mesh_id )
+
+  mesh_id = rho%get_mesh_id()
+  height_w3 => get_height_fv( W3, mesh_id )
+
+  ! Vertical advection of potential temperature
+  call horiz_mean_alg( field_mean, nlayers, twod_mesh, theta )
+  if ( number_heights == 1 ) then
+    call invoke( setval_c( w_rholev, w_lsadv_now(1) ),                         &
+                 vertadvect_kernel_type( dtheta_vertadv, field_mean, w_rholev, &
+                                         height_wth, dt ),                     &
+                 inc_X_plus_Y( dtheta_forcing, dtheta_vertadv ) )
+  else
+!> @todo Data passed to the kernel via module 'use' statements.
+!>       When PSyclone supports passing of arrays into kernels (issue #1312),
+!>       these data should be passed through the argument list of the invoke.
+    profile_size                    = number_heights
+    profile_data(1:profile_size)    = w_lsadv_now(1:profile_size)
+    profile_heights(1:profile_size) = heights(1:profile_size)
+    call invoke( profile_interp_kernel_type( w_rholev, height_w3,              &
+                                             profile_extrap),                  &
+                 vertadvect_kernel_type( dtheta_vertadv, field_mean, w_rholev, &
+                                             height_wth, dt ),                 &
+                 inc_X_plus_Y( dtheta_forcing, dtheta_vertadv ) )
+  end if
+
+  ! Vertical advection of water vapour
+  call horiz_mean_alg( field_mean, nlayers, twod_mesh, mr(imr_v) )
+  if ( number_heights == 1 ) then
+    call invoke( setval_c( w_rholev, w_lsadv_now(1) ),                         &
+                 vertadvect_kernel_type( dmv_vertadv, field_mean, w_rholev,    &
+                                         height_wth, dt ),                     &
+                 inc_X_plus_Y( dmv_forcing, dmv_vertadv ) )
+  else
+    profile_size                    = number_heights
+    profile_data(1:profile_size)    = w_lsadv_now(1:profile_size)
+    profile_heights(1:profile_size) = heights(1:profile_size)
+    call invoke( profile_interp_kernel_type( w_rholev, height_w3,              &
+                                             profile_extrap ),                 &
+                 vertadvect_kernel_type( dmv_vertadv, field_mean, w_rholev,    &
+                                             height_wth, dt ),                 &
+                 inc_X_plus_Y( dmv_forcing, dmv_vertadv ) )
+  end if
+
+  ! Vertical advection of cloud water
+  call horiz_mean_alg( field_mean, nlayers, twod_mesh, mr(imr_cl) )
+  if ( number_heights == 1 ) then
+    call invoke( setval_c( w_rholev, w_lsadv_now(1) ),                         &
+                 vertadvect_kernel_type( dmcl_vertadv, field_mean, w_rholev,   &
+                                         height_wth, dt ),                     &
+                 inc_X_plus_Y( dmcl_forcing, dmcl_vertadv )  )
+  else
+    profile_size                    = number_heights
+    profile_data(1:profile_size)    = w_lsadv_now(1:profile_size)
+    profile_heights(1:profile_size) = heights(1:profile_size)
+    call invoke( profile_interp_kernel_type( w_rholev, height_w3,              &
+                                             profile_extrap ),                 &
+                 vertadvect_kernel_type( dmcl_vertadv, field_mean, w_rholev,   &
+                                             height_wth, dt ),                 &
+                 inc_X_plus_Y( dmcl_forcing, dmcl_vertadv )  )
+  end if
+
+  mesh => du_forcing%get_mesh()
+
+  call field_mean%field_final()
+  call w_thlev%field_final()
+
+  call field_mean%initialise( vector_space = rho%get_function_space() )
+  call w_thlev%initialise( vector_space = theta%get_function_space() )
+
+  ! map physics predictors into required spaces
+  call derived_fields%get_field('u_in_w3', u_in_w3)
+  call derived_fields%get_field('v_in_w3', v_in_w3)
+
+  call du_in_w3%initialise( vector_space =                                     &
+      function_space_collection%get_fs( mesh, element_order_h,                 &
+                                        element_order_v, W3 ) )
+
+  call dv_in_w3%initialise( vector_space =                                     &
+      function_space_collection%get_fs( mesh, element_order_h,                 &
+                                        element_order_v, W3 ) )
+
+  call dw_in_wth%initialise( vector_space =                                    &
+      function_space_collection%get_fs( mesh, element_order_h,                 &
+                                        element_order_v, Wtheta ) )
+
+  call invoke( setval_c( du_in_w3, 0.0_r_def ),                                &
+               setval_c( dv_in_w3, 0.0_r_def ),                                &
+               setval_c( dw_in_wth, 0.0_r_def ) )
+
+  call horiz_mean_alg( field_mean, nlayers, twod_mesh, u_in_w3 )
+  if ( number_heights == 1 ) then
+    call invoke( setval_c( w_thlev, w_lsadv_now(1) ),                          &
+                 vertadv_wind_kernel_type( du_in_w3, field_mean, w_thlev,      &
+                                           height_w3, dt ) )
+  else
+    profile_size                    = number_heights
+    profile_data(1:profile_size)    = w_lsadv_now(1:profile_size)
+    profile_heights(1:profile_size) = heights(1:profile_size)
+    call invoke(                                                               &
+      profile_interp_kernel_type( w_thlev, height_wth, profile_extrap ),       &
+      vertadv_wind_kernel_type( du_in_w3, field_mean, w_thlev, height_w3, dt ) &
+                )
+  end if
+
+  call horiz_mean_alg( field_mean, nlayers, twod_mesh, v_in_w3 )
+  if ( number_heights == 1 ) then
+    call invoke( setval_c( w_thlev, w_lsadv_now(1) ),                          &
+                 vertadv_wind_kernel_type( dv_in_w3, field_mean, w_thlev,      &
+                                           height_w3, dt ) )
+  else
+    profile_size                    = number_heights
+    profile_data(1:profile_size)    = w_lsadv_now(1:profile_size)
+    profile_heights(1:profile_size) = heights(1:profile_size)
+    call invoke( profile_interp_kernel_type( w_thlev, height_wth,              &
+                                             profile_extrap ),                 &
+                 vertadv_wind_kernel_type( dv_in_w3, field_mean, w_thlev,      &
+                                             height_w3, dt ) )
+  end if
+
+  call du_vertadv%initialise( vector_space = du_forcing%get_function_space() )
+  call set_wind( du_vertadv, du_in_w3, dv_in_w3, dw_in_wth )
+  call invoke( inc_X_plus_Y( du_forcing, du_vertadv ) )
+
+  end subroutine vertadvect_forcing_alg
+end module vertadvect_forcing_alg_mod

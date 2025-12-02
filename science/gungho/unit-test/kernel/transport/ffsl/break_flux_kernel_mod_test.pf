@@ -1,0 +1,109 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel breaking a W2 x- and y-flux in to single W2b flux
+module break_flux_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+
+  implicit none
+
+  private
+  public :: break_flux_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: break_flux_test_type
+    private
+  contains
+
+    procedure test_all
+
+  end type break_flux_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use break_flux_kernel_mod, only : break_flux_code
+
+    implicit none
+
+    ! ------------------------------------------------------------------------ !
+    ! Declare variables
+    ! ------------------------------------------------------------------------ !
+
+    class(break_flux_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-12_r_def
+
+    ! Sizes
+    integer(kind=i_def), parameter :: nlayers  = 1
+    integer(kind=i_def), parameter :: ndf_w2b  = 4
+    integer(kind=i_def), parameter :: undf_w2b = 4*nlayers
+    integer(kind=i_def), parameter :: ndf_w2   = 4
+    integer(kind=i_def), parameter :: undf_w2  = 4*nlayers
+
+    ! Dofmaps
+    integer(kind=i_def), dimension(ndf_w2b) :: map_w2b
+    integer(kind=i_def), dimension(ndf_w2)  :: map_w2
+
+    ! Fields
+    real(kind=r_def), dimension(undf_w2b) :: flux
+    real(kind=r_def), dimension(undf_w2)  :: flux_x, flux_y
+
+    ! Counters
+    integer(kind=i_def) :: k
+
+    ! ------------------------------------------------------------------------ !
+    ! Set variables describing function spaces
+    ! ------------------------------------------------------------------------ !
+
+    ! Create the data
+    map_w2(:) = (/ 1, 2, 3, 4 /)
+    map_w2b = map_w2
+
+    ! ------------------------------------------------------------------------ !
+    ! Set values of input fields
+    ! ------------------------------------------------------------------------ !
+
+    ! Set W2 fields
+    flux_x = 0.0_r_def
+    flux_y = 0.0_r_def
+    do k = 0, nlayers - 1
+      flux_x(map_w2(1) + k ) = 1.0_r_def
+      flux_y(map_w2(2) + k ) = 2.0_r_def
+      flux_x(map_w2(3) + k ) = 3.0_r_def
+      flux_y(map_w2(4) + k ) = 4.0_r_def
+    end do
+
+    ! ------------------------------------------------------------------------ !
+    ! Run kernel
+    ! ------------------------------------------------------------------------ !
+
+    call break_flux_code( nlayers,   &
+                          flux,      &
+                          flux_x,    &
+                          flux_y,    &
+                          ndf_w2,    &
+                          undf_w2,   &
+                          map_w2,    &
+                          ndf_w2b,   &
+                          undf_w2b,  &
+                          map_w2b    &
+                        )
+
+    @assertEqual(flux(1), flux_x(1), tol)
+    @assertEqual(flux(2), flux_y(2), tol)
+    @assertEqual(flux(3), flux_x(3), tol)
+    @assertEqual(flux(4), flux_y(4), tol)
+
+  end subroutine test_all
+
+end module break_flux_kernel_mod_test

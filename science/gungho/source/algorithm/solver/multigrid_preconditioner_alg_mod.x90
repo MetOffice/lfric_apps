@@ -1,0 +1,445 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Preconditioner for the multigrid solver.
+!>
+module multigrid_preconditioner_alg_mod
+
+  use base_mesh_config_mod,    only: prime_mesh_name
+  use boundaries_config_mod,   only: limited_area
+  use constants_mod,           only: i_def, r_solver, l_def
+  use function_space_mod,      only: function_space_type
+  use function_space_chain_mod, &
+                               only: function_space_chain_type, &
+                                     multigrid_function_space_chain
+  use log_mod,                 only: log_event, &
+                                     LOG_LEVEL_INFO, &
+                                     LOG_LEVEL_ERROR, &
+                                     log_scratch_space
+  use r_solver_field_mod,      only: r_solver_field_type
+  use sci_abstract_field_operator_mod, &
+                               only: abstract_field_operator_type
+  use sci_r_solver_field_vector_mod, &
+                               only: r_solver_field_vector_type
+  use sci_hierarchical_linear_operator_mod, &
+                               only: abstract_hierarchical_linear_operator_type
+  use sci_hierarchical_preconditioner_mod, &
+                               only: abstract_hierarchical_preconditioner_type
+  use sci_preconditioner_mod,  only: abstract_preconditioner_type
+  use vector_mod,              only: abstract_vector_type
+
+  implicit none
+
+  private
+
+  type linear_operators_type
+     !> Wrapper type for storing the dynamically allocated operator and preconditioner
+     !> on each level of the multigrid hierarchy. The concrete types are deduced
+     !> from the type of the operator/preconditioner that is passed to the constructor
+     !> of the multigrid type.
+     class(abstract_hierarchical_linear_operator_type), allocatable :: H_operator
+     class(abstract_hierarchical_preconditioner_type),  allocatable :: Hz_preconditioner
+  end type linear_operators_type
+
+  type, public, extends(abstract_preconditioner_type) :: multigrid_preconditioner_type
+    private
+    !> Number of multigrid levels
+    integer(kind=i_def) :: n_level
+    !> relaxation parameter
+    real(kind=r_solver) :: rho_smooth
+    !> Function space ids
+    integer(kind=i_def), dimension(:), allocatable :: fs_id
+    !> Mesh ids
+    integer(kind=i_def), dimension(:), allocatable :: mesh_id
+    !> Solution on all levels
+    type(r_solver_field_vector_type), dimension(:), allocatable :: u_mg
+    !> Right hand side on all levels
+    type(r_solver_field_vector_type), dimension(:), allocatable :: b_mg
+    !> Residual on all levels
+    type(r_solver_field_vector_type), dimension(:), allocatable :: r_mg
+    !> Mask on all levels
+    type(r_solver_field_vector_type), dimension(:), allocatable :: mask_mg
+
+    !> Jacobi smoothing parameter, before
+    integer(kind=i_def) :: n_presmooth
+    !> Jacobi smoothing parameter, after
+    integer(kind=i_def) :: n_postsmooth
+    !> Jacobi smoothing parameter, for coarsest mesh
+    integer(kind=i_def) :: n_coarsesmooth
+    !> Helmholtz operator and precondition for tridiagonal solve on each multigrid level
+    type(linear_operators_type), allocatable, dimension(:) :: linear_operators
+  contains
+    !> Construct fields on all multigrid levels
+    procedure, private :: construct_multigrid_fields
+    !> Multigrid V-cycle
+    procedure, private :: vcycle
+    !> Apply smoother on one multigrid level
+    procedure, private :: smooth
+    procedure, public  :: apply => apply_multigrid_preconditioner
+    procedure, private :: apply_multigrid_preconditioner
+    final :: destroy_multigrid_preconditioner
+
+  end type multigrid_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface multigrid_preconditioner_type
+     module procedure multigrid_preconditioner_constructor
+  end interface multigrid_preconditioner_type
+
+contains
+  !> @brief Constructor for the multigrid preconditioner.
+  !>
+  !> @details Construct a new instance of the type by setting values of data members
+  !!          and calling the subroutine which constructs the multigrid fields,
+  !!          operators and preconditioners on all levels of the multigrid hierarchy.
+  !>
+  !> @param[in] p_fs Function space of the pressure field
+  !> @param[in] H_op Pressure operator on finest level
+  !> @param[in] Hz_prec Pressure preconditioner on finest level
+  !> @return self The constructed multigrid_preconditioner type
+  function multigrid_preconditioner_constructor(p_fs, &
+                                                H_op, &
+                                                Hz_prec) result(self)
+    use multigrid_config_mod, only : smooth_relaxation, &
+                                     n_presmooth,       &
+                                     n_postsmooth,      &
+                                     n_coarsesmooth,    &
+                                     multigrid_chain_nitems
+    implicit none
+    type(function_space_type), intent(in) :: p_fs
+    class(abstract_hierarchical_linear_operator_type) :: H_op
+    class(abstract_hierarchical_preconditioner_type) :: Hz_prec
+    type(multigrid_preconditioner_type) :: self
+
+    self%rho_smooth     = real(smooth_relaxation, r_solver)
+    self%n_presmooth    = n_presmooth
+    self%n_postsmooth   = n_postsmooth
+    self%n_coarsesmooth = n_coarsesmooth
+    self%n_level        = multigrid_chain_nitems
+
+    write(log_scratch_space,'(A,I0,A,":",F3.1,3(":",I0))') &
+         "Multigrid_preconditioner_constructor[",self%n_level,"]: setting smoothing parameters", &
+         self%rho_smooth, self%n_presmooth, self%n_postsmooth, self%n_coarsesmooth
+    call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+    ! Construct fields and operators on all multigrid levels
+    call self%construct_multigrid_fields(p_fs, H_op, Hz_prec)
+
+  end function multigrid_preconditioner_constructor
+
+  !> @brief Construct fields, operators and preconditioners on all multigrid levels.
+  !>
+  !> @details Allocate fields on all levels and construct coarse level operators
+  !!          and preconditioners are by calling the "coarsen" subroutines which
+  !!          guarantees that they are allocated with the correct concrete type.
+  !>
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
+  !> @param[in] p_fs Function space of pressure field
+  !> @param[in] H_operator_fine Pressure operator on finest level
+  !> @param[in] Hz_preconditioner_fine Pressure preconditioner on finest level
+  subroutine construct_multigrid_fields(self,                  &
+                                        p_fs,                  &
+                                        H_operator_fine,       &
+                                        Hz_preconditioner_fine )
+    use limited_area_constants_mod, only: get_mask_r_solver
+    use fs_continuity_mod,          only: W3
+
+    implicit none
+    class(multigrid_preconditioner_type),              intent(inout) :: self
+    type(function_space_type), target,                 intent(in)    :: p_fs
+    class(abstract_hierarchical_linear_operator_type), intent(in)    :: H_operator_fine
+    class(abstract_hierarchical_preconditioner_type),  intent(in)    :: Hz_preconditioner_fine
+    type(function_space_type), pointer :: fs => null()
+    integer(kind=i_def) :: fs_fine_id
+    integer(kind=i_def) :: level
+    type(r_solver_field_type), pointer :: mask => null(), &
+                                          mask_mg_ptr => null()
+
+    write(log_scratch_space,'(A,I1,A)') &
+         "construct_multigrid_preconditioner:make fields and operator on ", &
+         self%n_level," levels"
+    call log_event(log_scratch_space,LOG_LEVEL_INFO)
+
+    ! Extract ids
+    fs => p_fs
+    fs_fine_id = fs%get_id()
+
+    ! Point the function space chain to the current, fine level function space
+    call multigrid_function_space_chain%set_current(fs_fine_id)
+
+    ! Allocate memory on all multigrid levels
+    allocate( self%fs_id(self%n_level) )
+    allocate( self%mesh_id(self%n_level) )
+    allocate( self%u_mg( self%n_level ) )
+    allocate( self%b_mg( self%n_level ) )
+    allocate( self%r_mg( self%n_level ) )
+    allocate( self%linear_operators(self%n_level) )
+    allocate( self%mask_mg( self%n_level ) )
+
+    ! Set function space- and mesh ids as well as fields on all levels
+    self%fs_id(1) = fs_fine_id
+    ! Create operators on the finest level; the concrete types will be deduced from
+    ! the passed operator and preconditioner
+    allocate(self%linear_operators(1)%H_operator, &
+             source=H_operator_fine)
+    allocate(self%linear_operators(1)%Hz_preconditioner, &
+             source=Hz_preconditioner_fine)
+    do level = 1, self%n_level
+       self%fs_id(level) = fs%get_id()
+       self%mesh_id(level) = fs%get_mesh_id()
+       ! Construct fields on a particular level
+       self%u_mg(level) = r_solver_field_vector_type( 1 )
+       self%b_mg(level) = r_solver_field_vector_type( 1 )
+       self%r_mg(level) = r_solver_field_vector_type( 1 )
+       call self%u_mg(level)%initialise_field( 1, fs )
+       call self%b_mg(level)%initialise_field( 1, fs )
+       call self%r_mg(level)%initialise_field( 1, fs )
+       if (level > 1) then
+          ! Coarsen linear operator
+          call self%linear_operators(level-1)%H_operator%coarsen( &
+                  self%linear_operators(level)%H_operator )
+          ! Coarsen preconditioner
+          call self%linear_operators(level-1)%Hz_preconditioner%coarsen( &
+                  self%linear_operators(level)%Hz_preconditioner)
+       end if
+       if (limited_area) then
+         self%mask_mg(level) = r_solver_field_vector_type( 1 )
+         call self%mask_mg(level)%initialise_field( 1,fs )
+         mask => get_mask_r_solver( W3, self%mesh_id(level), prime_mesh_name )
+         mask_mg_ptr => self%mask_mg(level)%get_field_from_position(1)
+         call invoke( setval_X( mask_mg_ptr, mask ))
+       end if
+       ! If we are not yet on the coarsest level point the function space
+       ! chain to the function space on the next coarser level
+       if ( level < self%n_level ) &
+         fs => multigrid_function_space_chain%get_next()
+    end do
+  end subroutine construct_multigrid_fields
+
+  !> @brief Multigrid V-cycle.
+  !>
+  !> @details Recursive implementation of a multigrid V-cycle on the
+  !!          multigrid fields.
+  !>
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
+  !> @param[in] level Current multigrid level
+  !> @param[in] initial_solution_is_zero Can we implicitly assume that the
+  !!                                     solution is zero?
+  recursive subroutine vcycle(self,level,initial_solution_is_zero)
+
+    use sci_restrict_scalar_unweighted_kernel_mod, &
+                                    only: restrict_scalar_unweighted_kernel_type
+    use sci_prolong_scalar_unweighted_kernel_mod, &
+                                    only: prolong_scalar_unweighted_kernel_type
+    use sci_restrict_scalar_masked_kernel_mod, &
+                                    only: restrict_scalar_masked_kernel_type
+    use sci_prolong_scalar_masked_kernel_mod, &
+                                    only: prolong_scalar_masked_kernel_type
+
+    implicit none
+
+    class(multigrid_preconditioner_type), intent(inout) :: self
+    integer(kind=i_def),                  intent(in)    :: level
+    logical(kind=l_def),                  intent(in)    :: initial_solution_is_zero
+
+    type(r_solver_field_type), pointer :: rvec_mg => null(), &
+                                          bvec_mg => null(), &
+                                          uvec_mg => null(), &
+                                          bvec_mg_coarse => null(), &
+                                          uvec_mg_coarse => null(), &
+                                          mask => null()
+
+    ! Call smoother on coarsest level
+    if (level == self%n_level) then
+      call self%smooth(self%n_coarsesmooth,level,.true.)
+    else
+      ! Presmooth solution u^{(ell)}
+
+      call self%smooth(self%n_presmooth, level, initial_solution_is_zero)
+
+      ! Calculate residual r^{(ell)} = b^{(ell)} - H.u^{(ell)}
+      call self%linear_operators(level)%H_operator%apply(self%u_mg(level), &
+                                                         self%r_mg(level) )
+
+      rvec_mg => self%r_mg(level)%get_field_from_position(1)
+      bvec_mg => self%b_mg(level)%get_field_from_position(1)
+      bvec_mg_coarse => self%b_mg(level+1)%get_field_from_position(1)
+
+      call invoke( inc_aX_plus_y (-1.0_r_solver, rvec_mg, bvec_mg) )
+      ! Restrict b^{(ell+1)} = R r^{(ell)}
+      if (limited_area) then
+        mask => self%mask_mg(level)%get_field_from_position(1)
+        call invoke( name='masked_restriction',                         &
+                     restrict_scalar_masked_kernel_type(bvec_mg_coarse, &
+                                                        rvec_mg,        &
+                                                        mask ))
+      else
+        call invoke( name='unweighted_restriction',                     &
+                     restrict_scalar_unweighted_kernel_type(bvec_mg_coarse, rvec_mg) )
+
+      end if
+      ! Recursive call to V-cycle
+      call self%vcycle(level+1,.true.)
+
+      ! Prolong and add solution from coarser level
+      ! u^{(ell)} = u^{(ell)} + P u^{(ell+1)}
+      uvec_mg => self%u_mg(level)%get_field_from_position(1)
+      uvec_mg_coarse => self%u_mg(level+1)%get_field_from_position(1)
+      if (limited_area) then
+        mask => self%mask_mg(level)%get_field_from_position(1)
+        call invoke( name='masked_prolong',                            &
+                     prolong_scalar_masked_kernel_type(uvec_mg,        &
+                                                       uvec_mg_coarse, &
+                                                       mask ) )
+      else
+        call invoke( name='unweighted_prolong',                        &
+                     prolong_scalar_unweighted_kernel_type(uvec_mg, uvec_mg_coarse) )
+      endif
+      ! Postsmooth u^{(ell)}
+      call self%smooth(self%n_postsmooth, level, .false.)
+
+    end if
+
+    nullify( uvec_mg, bvec_mg, rvec_mg, bvec_mg_coarse, uvec_mg_coarse, mask )
+
+  end subroutine vcycle
+
+  !> @brief Over-ridden apply procedure for abstract_preconditioner type
+  !!        apply the preconditioner to x, store in y.
+  !>
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
+  !> @param[in] x abstract_vector_type
+  !> @param[in,out] y abstract_vector_type
+  subroutine apply_multigrid_preconditioner(self,x,y)
+    implicit none
+    class(multigrid_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),          intent(in)    :: x
+    class(abstract_vector_type),          intent(inout) :: y
+
+    type(r_solver_field_type), pointer :: x_vec => null(), &
+                                          y_vec => null(), &
+                                          bvec_mg => null(), &
+                                          uvec_mg => null()
+    select type(x)
+    type is(r_solver_field_vector_type)
+       select type(y)
+       type is(r_solver_field_vector_type)
+          ! Copy in RHS on finest level
+          x_vec => x%get_field_from_position(1)
+          bvec_mg => self%b_mg(1)%get_field_from_position(1)
+          call invoke(setval_X(bvec_mg, x_vec ))
+          ! Solve using a multigrid V-cycle
+          call self%vcycle(1, .true.)
+          ! Copy out solution on finest level
+          y_vec => y%get_field_from_position(1)
+          uvec_mg => self%u_mg(1)%get_field_from_position(1)
+          call invoke(setval_X(y_vec, uvec_mg ))
+       class default
+          write(log_scratch_space, '(A)') &
+                "multigrid_preconditioner_mod: incorrect vector_type argument y"
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+       end select
+    class default
+      write(log_scratch_space, '(A)') "multigrid_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    nullify( x_vec, y_vec )
+
+  end subroutine apply_multigrid_preconditioner
+
+  !> @brief Apply a number of Jacobi smoother iterations on a
+  !!        particular level.
+  !>
+  !> @details Calculate \f$ u^{(\ell)} \mapsto u^{(\ell)} + \rho H_z^{-1} (b^{(\ell)}-H u^{(\ell)}) \f$
+  !!          nsmooth times on a particular multigrid level. If the flag
+  !!          initial_solution_is_zero is set, set
+  !!          \f$ u^{(\ell)} \mapsto \rho H_z^{-1} b^{(\ell)}\f$ in the first
+  !!          iteration to save one operator application.
+  !>
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
+  !> @param[in] nsmooth Number of iterations
+  !> @param[in] level Multigrid level
+  !> @param[in] initial_solution_is_zero Can we implicitly assume that
+  !!                                     \f$ u^{(\ell)} \f$ is zero before
+  !!                                     the first iteration?
+  subroutine smooth(self,nsmooth,level,initial_solution_is_zero)
+    implicit none
+    class(multigrid_preconditioner_type), intent(inout) :: self
+    integer(kind=i_def), intent(in) :: nsmooth
+    integer(kind=i_def), intent(in) :: level
+    logical(kind=l_def), intent(in) :: initial_solution_is_zero
+    type(function_space_type), pointer :: fs => null()
+
+    type(r_solver_field_vector_type) :: res
+    type(r_solver_field_type), pointer :: uvec_mg => null(), &
+                                          rvec_mg => null(), &
+                                          bvec_mg => null()
+    real(kind=r_solver) :: const
+    integer(kind=i_def) :: i, i_first
+
+    ! Construct temporary fields (we probably do not want to construct them
+    ! in every smoother application in the future)
+    fs => self%u_mg(level)%vector(1)%get_function_space()
+    res = r_solver_field_vector_type( 1 )
+    call res%initialise_field( 1, fs )
+
+    if (initial_solution_is_zero) then
+       ! First iteration
+       call self%linear_operators(level)%Hz_preconditioner%apply(self%b_mg(level), &
+                                                                 self%r_mg(level))
+       const = self%rho_smooth
+       uvec_mg => self%u_mg(level)%get_field_from_position(1)
+       rvec_mg => self%r_mg(level)%get_field_from_position(1)
+       call invoke(a_times_X(uvec_mg, const, rvec_mg))
+       i_first = 2
+    else
+       i_first = 1
+    end if
+
+    ! Subsequent iterations
+    ! Jacobi smoother
+    const = -self%rho_smooth
+    do i = i_first, nsmooth
+       ! Calculate res = H.u^{(ell)} - b^{(ell)}
+       call self%linear_operators(level)%H_operator%apply(self%u_mg(level), res)
+       bvec_mg => self%b_mg(level)%get_field_from_position(1)
+       rvec_mg => res%get_field_from_position(1)
+       call invoke( inc_X_minus_Y (rvec_mg, bvec_mg))
+            ! Calculate r^{(ell)} = H_z^{-1}.(H.u^{(ell)} - b^{(ell)})
+       call self%linear_operators(level)%Hz_preconditioner%apply(res, self%r_mg(level))
+            ! Calculate u^{(ell)} = u^{(ell)} - rho*H_z^{-1}.(H.u^{(ell)} - b^{(ell)})
+       uvec_mg => self%u_mg(level)%get_field_from_position(1)
+       rvec_mg => self%r_mg(level)%get_field_from_position(1)
+       call invoke(inc_X_plus_bY (uvec_mg, const, rvec_mg) )
+    end do
+
+  end subroutine smooth
+
+  !> @brief Finalizer for the multigrid preconditioner.
+  !>
+  !> @param[in,out] self Instance of type multigrid_preconditioner_type
+  subroutine destroy_multigrid_preconditioner(self)
+    implicit none
+    type(multigrid_preconditioner_type), intent(inout) :: self
+    integer(kind=i_def) :: level
+
+    if (allocated(self%linear_operators)) then
+       do level = 1, self%n_level
+          deallocate(self%linear_operators(level)%H_operator)
+          deallocate(self%linear_operators(level)%Hz_preconditioner)
+       end do
+       deallocate(self%linear_operators)
+    end if
+    if (allocated(self%mesh_id)) deallocate(self%mesh_id)
+    if (allocated(self%fs_id))   deallocate(self%fs_id)
+    if (allocated(self%u_mg))    deallocate(self%u_mg)
+    if (allocated(self%b_mg))    deallocate(self%b_mg)
+    if (allocated(self%r_mg))    deallocate(self%r_mg)
+
+  end subroutine destroy_multigrid_preconditioner
+
+end module multigrid_preconditioner_alg_mod

@@ -1,0 +1,228 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Common routines for computing transport increments at the end of
+!!        the transport step, for tangent linear model.
+
+module tl_end_of_transport_step_alg_mod
+
+  use base_mesh_config_mod,           only: topology, topology_non_periodic
+  use boundaries_config_mod,          only: limited_area
+  use constants_mod,                  only: i_def, r_tran, l_def
+  use end_of_transport_step_alg_mod,  only: build_up_flux
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use flux_precomputations_alg_mod,   only: flux_precomputations_type
+  use fs_continuity_mod,              only: W2, W2H, W2V
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+  use io_config_mod,                  only: subroutine_timers
+  use log_mod,                        only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                       only: mesh_type
+  use mesh_collection_mod,            only: mesh_collection
+  use operator_mod,                   only: operator_type
+  use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+  use r_tran_field_mod,               only: r_tran_field_type
+  use r_tran_operator_mod,            only: r_tran_operator_type
+  use split_transport_utils_mod,      only: get_num_split_steps
+  use transport_config_mod,           only: dry_field_name
+  use transport_constants_mod,        only: get_directional_im3_div_r_tran
+  use transport_counter_mod,          only: transport_counter_type
+  use transport_enumerated_types_mod, only: direction_3d, &
+                                            direction_h,  &
+                                            direction_v
+  use transport_metadata_mod,         only: transport_metadata_type
+
+  implicit none
+
+  private
+
+  public  :: tl_end_of_advective_step_alg
+  public  :: tl_end_of_conservative_step_alg
+
+contains
+
+  !> @brief Common end-of-step code for T.L. advective transport schemes
+  !> @details Performs common routines at the end of transport steps (which may
+  !!          be the end of various split steps in a split horizontal-vertical
+  !!          scheme). These routines would be:
+  !!          - overwriting field data in the blending zone, if necessary
+  !!          - enforcing a minimum value for the field, if necessary
+  !!          However they are not yet implemented in the tangent linear app,
+  !!          so this routine is essentially a placeholder to mimic the code
+  !!          structure of the non-linear model.
+  !> @param[in,out] field_np1          Field at the end of the transport step
+  !!                                   to be computed.
+  !> @param[in]     field_in           Field at the beginning of this transport
+  !!                                   step.
+  !> @param[in]     transport_counter  Object storing transport counters
+  !> @param[in]     transport_metadata Contains the configuration options for
+  !!                                   transporting the field
+  subroutine tl_end_of_advective_step_alg(field_np1, field_in,                 &
+                                          transport_counter, transport_metadata)
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),       intent(inout) :: field_np1
+    type(r_tran_field_type),       intent(in)    :: field_in
+    type(transport_counter_type),  intent(in)    :: transport_counter
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    ! Enforce a min value if required
+    if ( transport_metadata%get_enforce_min_value() ) then
+      call log_event('T.L.: enforcing min value advective not ' // &
+                     'yet implemented', LOG_LEVEL_ERROR)
+    end if
+
+    ! At the end do the overwrite step for the blending zone
+    if ( limited_area .and. topology == topology_non_periodic ) then
+      call log_event('T.L.: LAM overwrite not yet implemented', LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine tl_end_of_advective_step_alg
+
+  !> @brief Common end-of-step code for T.L. conservative transport schemes
+  !> @details Performs common routines at the end of transport steps (which may
+  !!          be the end of various split steps in a split horizontal-vertical
+  !!          scheme). These routines would be:
+  !!          - overwriting field data in the blending zone, if necessary
+  !!          - enforcing a minimum value for the field, if necessary
+  !!          - saving any fields (such as mass fluxes) that may be used later
+  !!          However, some of these are not yet implemented in the tangent
+  !!          linear model.
+  !> @param[in,out] field_np1             Field at the end of the transport step
+  !!                                      to be computed.
+  !> @param[in]     field_in              Field at the beginning of this
+  !!                                      transport step
+  !> @param[in]     flux_ls_wind          The mass flux for this transport step,
+  !!                                      from transport by the linear wind
+  !> @param[in]     flux_pert_wind        The mass flux for this transport step,
+  !!                                      from transport by the perturbed wind
+  !> @param[in,out] flux_precomp_ls_wind  Object containing precomputations for
+  !!                                      transport, relating to the linear wind
+  !> @param[in,out] flux_precomp_pert_wind
+  !!                                      Object containing precomputations for
+  !!                                      transport, relating to perturbed wind
+  !> @param[in,out] transport_counter     Object storing transport counters and
+  !!                                      the fluxes to build up through each
+  !!                                      transport step
+  !> @param[in]     transport_metadata    Contains the configuration options for
+  !!                                      transporting the field
+  subroutine tl_end_of_conservative_step_alg(field_np1, field_in,              &
+                                             flux_ls_wind, flux_pert_wind,     &
+                                             flux_precomp_ls_wind,             &
+                                             flux_precomp_pert_wind,           &
+                                             transport_counter,                &
+                                             transport_metadata)
+
+    use transport_config_mod, only: cheap_update, dry_field_name
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),         intent(inout) :: field_np1
+    type(r_tran_field_type),         intent(in)    :: field_in
+    type(r_tran_field_type),         intent(in)    :: flux_pert_wind
+    type(r_tran_field_type),         intent(in)    :: flux_ls_wind
+    type(flux_precomputations_type), intent(inout) :: flux_precomp_ls_wind
+    type(flux_precomputations_type), intent(inout) :: flux_precomp_pert_wind
+    type(transport_counter_type),    intent(inout) :: transport_counter
+    type(transport_metadata_type),   intent(in)    :: transport_metadata
+
+    ! Internal variables
+    integer(kind=i_def)                   :: mesh_id, step
+    integer(kind=i_def)                   :: ref_step
+    type(mesh_type),              pointer :: mesh
+    type(r_tran_field_type)               :: increment
+    type(r_tran_field_type)               :: flux, sum_flux
+    type(r_tran_field_type),      pointer :: field_start
+    type(r_tran_operator_type),   pointer :: div
+    type(function_space_type),    pointer :: w2_fs
+    logical(kind=l_def)                   :: enforce_min_value
+    logical(kind=l_def)                   :: final_split_step
+    logical(kind=l_def)                   :: is_dry_field
+
+    ! Extract transport runtime
+    mesh => field_np1%get_mesh()
+    mesh_id = mesh%get_id()
+    enforce_min_value = transport_metadata%get_enforce_min_value()
+    is_dry_field = (trim(transport_metadata%get_name()) == trim(dry_field_name))
+
+    ! Determine whether this is the final split step
+    step = transport_counter%get_split_step_of_substep_counter()
+    final_split_step = ( step == get_num_split_steps(transport_metadata%get_splitting()) )
+
+    ! Combine fluxes from each part of the calculation
+    call flux%initialise( flux_ls_wind%get_function_space() )
+    call invoke( X_plus_Y(flux, flux_ls_wind, flux_pert_wind))
+    if (.not. final_split_step) call transport_counter%set_flux(flux)
+
+    ! ------------------------------------------------------------------------ !
+    ! Compute increment from all split steps
+    ! ------------------------------------------------------------------------ !
+
+    if ( final_split_step ) then
+
+      field_start => transport_counter%get_field_n()
+      div => get_directional_im3_div_r_tran(mesh_id, direction_3d)
+      w2_fs => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
+      call increment%initialise(field_np1%get_function_space())
+      call sum_flux%initialise(w2_fs)
+
+      ! Get final field at end of transport
+      ! First sum the fluxes from all previous steps
+      call build_up_flux(sum_flux, flux, transport_counter, transport_metadata)
+
+      ! ---------------------------------------------------------------------- !
+      ! Conservative clipping by limiting flux, if specified
+      ! ---------------------------------------------------------------------- !
+
+      if ( enforce_min_value ) then
+        call log_event('T.L.: conservative enforce min value not ' // &
+                        'yet implemented', LOG_LEVEL_ERROR)
+      else
+        ! Compute updated field using flux for whole transport step
+        ! dt is hidden inside flux
+        call invoke( dg_matrix_vector_kernel_type(increment, sum_flux, div), &
+                     X_minus_Y(field_np1, field_start, increment) )
+      end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Not final step
+    ! ------------------------------------------------------------------------ !
+    else
+      ! Enforce min value advective value here
+      if ( enforce_min_value ) then
+        call log_event('T.L.: conservative enforce min value not ' // &
+                        'yet implemented', LOG_LEVEL_ERROR)
+      end if
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Blending zone update
+    ! ------------------------------------------------------------------------ !
+    if ( limited_area .and. topology == topology_non_periodic ) then
+      call log_event('T.L.: conservative overwrite blending zone not ' // &
+                     'yet implemented', LOG_LEVEL_ERROR)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Store dry field details
+    ! ------------------------------------------------------------------------ !
+    ! Store flux in flux_precomputations for conservative tracer transport
+    ! if this is the underlying reference field
+    if ( is_dry_field ) then
+      ref_step = transport_counter%get_split_step_of_whole_step_counter()
+      call flux_precomp_ls_wind%initialise_step(ref_step, flux_ls_wind)
+      call flux_precomp_pert_wind%initialise_step(ref_step, flux_pert_wind)
+
+      if ( final_split_step .and. cheap_update ) then
+        call log_event('Cheap update not implement for T.L. model', LOG_LEVEL_ERROR)
+      end if
+    end if
+
+  end subroutine tl_end_of_conservative_step_alg
+
+end module tl_end_of_transport_step_alg_mod

@@ -1,0 +1,345 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Defines an object to control the counting of transport steps
+!> @details This module defines the transport_counter object, which counts steps
+!!          through the transport of a variable, and stores any fields that
+!!          need saving, such as the initial field or intermediate mass fluxes.
+
+module transport_counter_mod
+
+  use constants_mod,                  only: i_def, l_def, r_tran
+  use r_tran_field_mod,               only: r_tran_field_type
+  use split_transport_utils_mod,      only: get_num_split_steps
+  use transport_enumerated_types_mod, only: equation_form_conservative,        &
+                                            equation_form_consistent
+  use transport_metadata_mod,         only: transport_metadata_type
+
+  implicit none
+
+  private
+
+  ! Public types
+  type, public :: transport_counter_type
+
+    private
+
+    real(kind=r_tran)                    :: dt_substep
+    integer(kind=i_def)                  :: num_substeps
+    integer(kind=i_def)                  :: num_split_steps_per_substep
+    integer(kind=i_def)                  :: num_split_steps_per_whole_step
+    integer(kind=i_def)                  :: split_step_of_whole_step_counter
+    integer(kind=i_def)                  :: split_step_of_substep_counter
+    integer(kind=i_def)                  :: substep_counter
+    integer(kind=i_def)                  :: outer
+    type(r_tran_field_type),     pointer :: field_n => null()
+    type(r_tran_field_type), allocatable :: flux(:)
+
+    contains
+
+    procedure, public  :: initialise
+    procedure, public  :: get_field_n
+    procedure, public  :: set_field_n
+    procedure, public  :: get_flux
+    procedure, public  :: set_flux
+    procedure, public  :: get_split_step_of_substep_counter
+    procedure, public  :: get_split_step_of_whole_step_counter
+    procedure, public  :: get_substep_counter
+    procedure, public  :: get_num_substeps
+    procedure, public  :: get_num_split_steps_per_substep
+    procedure, public  :: get_dt_substep
+    procedure, public  :: get_outer_iteration
+    procedure, public  :: inc_split_step_counter
+    procedure, public  :: inc_substep_counter
+    procedure, public  :: apply_cheap_update
+    procedure, public  :: finalise
+    final              :: destroy_transport_counter
+
+  end type transport_counter_type
+
+contains
+
+  !> @brief Initialises the transport_counter object, allocating flux fields
+  !!        if necessary
+  !> @param[in] transport_metadata  Object containing metadata describing
+  !!                                the options for transporting a variable
+  !> @param[in] dt_substep          The time interval for a single substep
+  !> @param[in] num_substeps        The number of total transport substeps to be
+  !!                                performed
+  !> @param[in] outer               Optional, current iteration of the outer
+  !!                                loop of the semi-implicit time step
+  subroutine initialise(self, transport_metadata, dt_substep, num_substeps, outer)
+
+    implicit none
+
+    class(transport_counter_type), intent(inout) :: self
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    real(kind=r_tran),             intent(in)    :: dt_substep
+    integer(kind=i_def),           intent(in)    :: num_substeps
+    integer(kind=i_def), optional, intent(in)    :: outer
+
+    integer(kind=i_def) :: equation_form
+
+    self%dt_substep = dt_substep
+    self%num_substeps = num_substeps
+    self%num_split_steps_per_substep = get_num_split_steps(transport_metadata%get_splitting())
+    self%num_split_steps_per_whole_step = self%num_substeps * self%num_split_steps_per_substep
+
+    if (present(outer)) then
+      self%outer = outer
+    else
+      self%outer = 0
+    end if
+
+    ! Initialise step counters to 1
+    self%split_step_of_whole_step_counter = 1
+    self%split_step_of_substep_counter = 1
+    self%substep_counter = 1
+
+    if (allocated(self%flux)) deallocate(self%flux)
+
+    equation_form = transport_metadata%get_equation_form()
+
+    ! Allocate arrays for dry fields
+    if (equation_form == equation_form_conservative                            &
+        .or. equation_form == equation_form_consistent) then
+      allocate(self%flux(self%num_split_steps_per_substep-1))
+    end if
+
+  end subroutine initialise
+
+  !> Public finalise method for the transport_counter
+  subroutine finalise(self)
+
+    implicit none
+
+    class(transport_counter_type), intent(inout) :: self
+
+    if (allocated(self%flux)) deallocate(self%flux)
+    nullify(self%field_n)
+
+  end subroutine finalise
+
+  !> Finaliser for the transport_counter
+  subroutine destroy_transport_counter(self)
+
+    implicit none
+
+    type(transport_counter_type), intent(inout) :: self
+
+    call self%finalise()
+
+  end subroutine destroy_transport_counter
+
+! ============================================================================ !
+! SETTERS
+! ============================================================================ !
+
+  !> @brief Stores a field at the start of the transport step
+  !> @param[in] field_n   Field at start of transport step
+  subroutine set_field_n(self, field_n)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(inout) :: self
+    type(r_tran_field_type),       target, intent(in)    :: field_n
+
+    self%field_n => field_n
+
+  end subroutine set_field_n
+
+  !> @brief Sets fluxes for use in conservative transport
+  !> @param[in] flux      Mass flux for a particular split step
+  subroutine set_flux(self, flux)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(inout) :: self
+    type(r_tran_field_type),               intent(in)    :: flux
+
+    integer(kind=i_def) :: step
+
+    step = self%split_step_of_substep_counter
+
+    call flux%copy_field_properties(self%flux(step))
+    call invoke( setval_X(self%flux(step), flux) )
+
+  end subroutine set_flux
+
+! ============================================================================ !
+! GETTERS
+! ============================================================================ !
+
+  !> @brief Returns a pointer to the field stored at the start of the time step
+  !> @return The field at the start of the time step
+  function get_field_n(self) result(field_n)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    type(r_tran_field_type),               pointer    :: field_n
+
+    field_n => self%field_n
+
+  end function get_field_n
+
+
+  !> @brief Returns a pointer to a mass flux for a particular step
+  !> @param[in] step The step from which to return the mass flux
+  !> @return The mass flux for transport of the current variable
+  function get_flux(self, step) result(flux)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    integer(kind=i_def),                   intent(in) :: step
+    type(r_tran_field_type),               pointer    :: flux
+
+    flux => self%flux(step)
+
+  end function get_flux
+
+  !> @brief Returns the time duration of a transport substep, in seconds
+  !> @return The duration of a transport substep
+  function get_dt_substep(self) result(dt_substep)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    real(kind=r_tran)                                 :: dt_substep
+
+    dt_substep = self%dt_substep
+
+  end function get_dt_substep
+
+  !> @brief Returns the total number of substeps
+  !> @return The total number of substeps to be performed
+  function get_num_substeps(self) result(num_substeps)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    integer(kind=i_def)                               :: num_substeps
+
+    num_substeps = self%num_substeps
+
+  end function get_num_substeps
+
+  !> @brief Returns the total number of split steps per substep
+  !> @return The total number of split steps per substep to be performed
+  function get_num_split_steps_per_substep(self) result(num_split_steps_per_substep)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    integer(kind=i_def)                               :: num_split_steps_per_substep
+
+    num_split_steps_per_substep = self%num_split_steps_per_substep
+
+  end function get_num_split_steps_per_substep
+
+  !> @brief Returns the iteration of the semi-implicit outer loop
+  !> @return The iteration of the semi-implicit outer loop
+  function get_outer_iteration(self) result(outer)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    integer(kind=i_def)                               :: outer
+
+    outer = self%outer
+
+  end function get_outer_iteration
+
+  !> @brief Returns the counter of split transport steps for this substep
+  !> @return The counter of split transport steps within this substep, which
+  !!         runs from 1 to num_split_steps_per_substep
+  function get_split_step_of_substep_counter(self) result(step_counter)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    integer(kind=i_def)                               :: step_counter
+
+    step_counter = self%split_step_of_substep_counter
+
+  end function get_split_step_of_substep_counter
+
+  !> @brief Returns counter of split transport steps over whole transport step
+  !> @return The counter of split transport steps within the whole transport
+  !!         step, which runs from 1 to num_split_steps_per_substep*num_substeps
+  function get_split_step_of_whole_step_counter(self) result(step_counter)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    integer(kind=i_def)                               :: step_counter
+
+    step_counter = self%split_step_of_whole_step_counter
+
+  end function get_split_step_of_whole_step_counter
+
+  !> @brief Returns counter of transport substeps
+  !> @return The counter of transport substeps within the whole transport step
+  function get_substep_counter(self) result(step_counter)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    integer(kind=i_def)                               :: step_counter
+
+    step_counter = self%substep_counter
+
+  end function get_substep_counter
+
+  !> @brief Returns whether to apply the first-order "cheap" transport update
+  !> @return Whether the "cheap update" is going to be applied this step, by
+  !!         computing the wind using the difference in transporting winds from
+  !!         the previous time steps, instead of the whole transporting wind
+  function apply_cheap_update(self) result(cheap_update_flag)
+
+    use transport_config_mod,    only: cheap_update
+
+    implicit none
+
+    class(transport_counter_type), target, intent(in) :: self
+    logical(kind=l_def)                               :: cheap_update_flag
+
+    cheap_update_flag = (cheap_update .and. self%outer > 1 )
+
+  end function apply_cheap_update
+
+! ============================================================================ !
+! UTILITIES
+! ============================================================================ !
+
+  !> @brief Increments the counter of transport split steps
+  subroutine inc_split_step_counter(self)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(inout) :: self
+
+    self%split_step_of_substep_counter = self%split_step_of_substep_counter + 1
+    self%split_step_of_whole_step_counter = self%split_step_of_whole_step_counter + 1
+
+  end subroutine inc_split_step_counter
+
+  !> @brief Increments the counter of transport substeps
+  subroutine inc_substep_counter(self)
+
+    implicit none
+
+    class(transport_counter_type), target, intent(inout) :: self
+
+    self%substep_counter = self%substep_counter + 1
+
+    ! Reset split step counter for this substep
+    self%split_step_of_substep_counter = 1
+
+  end subroutine inc_substep_counter
+
+
+end module transport_counter_mod

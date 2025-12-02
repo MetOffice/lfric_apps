@@ -1,0 +1,28 @@
+@@ -120,6 +120,10 @@
+   real(kind=r_solver), dimension(ndf_wt) :: t_e
+   real(kind=r_solver), dimension(ndf_w3) :: p_e, lhs_e
+   real(kind=r_solver), dimension(ndf_w2) :: u_e
++  real(kind=r_solver), dimension(ndf_w3) :: m3e_pe, p3t_te, q32_ue
++  real(kind=r_solver), dimension(ndf_w3, ndf_w3) :: m3exner_at_cell
++  real(kind=r_solver), dimension(ndf_w3, ndf_w2) :: q32_at_cell
++  real(kind=r_solver), dimension(ndf_w3, ndf_wt) :: p3theta_at_cell
+ 
+   do k = 0, nlayers-1
+     do df = 1, ndf_wt
+@@ -135,9 +139,13 @@
+     ik = (cell-1)*nlayers + k + 1
+ 
+     ! LHS for this element
+-    lhs_e = matmul(m3exner(ik,:,:), p_e) &
+-          - matmul(p3theta(ik,:,:), t_e) &
+-          + matmul(q32(ik,:,:),     u_e)
++    m3exner_at_cell = m3exner(ik,:,:)
++    p3theta_at_cell = p3theta(ik,:,:)
++    q32_at_cell = q32(ik,:,:)
++    m3e_pe = matmul(m3exner_at_cell(:,:), p_e)
++    p3t_te = matmul(p3theta_at_cell(:,:), t_e)
++    q32_ue = matmul(q32_at_cell(:,:), u_e)
++    lhs_e = m3e_pe - p3t_te + q32_ue
+     do df = 1, ndf_w3
+       lhs_exner(map_w3(df)+k) = lhs_e(df)
+     end do

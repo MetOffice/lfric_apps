@@ -1,0 +1,881 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> @brief Algorithms to do field processing to produce generic and specific
+!>        diagnostics for different I/O methods
+module diagnostic_alg_mod
+
+  use constants_mod,                 only: i_def, r_def, l_def, str_max_filename
+  use finite_element_config_mod,     only: coord_system, coord_system_native
+  use base_mesh_config_mod,          only: geometry, &
+                                           geometry_spherical
+  use planet_config_mod,             only: cp
+  use mesh_mod,                      only: mesh_type
+  use function_space_collection_mod, only: function_space_collection
+  use fs_continuity_mod,             only: W1, W2, W3, Wtheta, W2H
+  use field_mod,                     only: field_type
+  use integer_field_mod,             only: integer_field_type
+  use operator_mod,                  only: operator_type
+  use sci_convert_cart2sphere_vector_kernel_mod, &
+                                     only: convert_cart2sphere_vector_kernel_type
+  use sci_nodal_xyz_coordinates_kernel_mod, &
+                                     only: nodal_xyz_coordinates_kernel_type
+  use sci_pointwise_convert_xyz2llr_kernel_mod, &
+                                     only: pointwise_convert_xyz2llr_kernel_type
+  use psykal_lite_mod,               only: invoke_compute_dof_level_kernel
+  use sci_geometric_constants_mod,   only: get_coordinates,      &
+                                           get_panel_id,         &
+                                           get_face_selector_ew, &
+                                           get_face_selector_ns
+  use norm_alg_mod,                  only: l2_norm_alg, rel_l2_error_alg
+  use sci_project_output_mod,        only: project_output
+  use log_mod,                       only: log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_INFO,    &
+                                           LOG_LEVEL_ERROR
+  use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+  public :: divergence_diagnostic_alg
+  public :: hydbal_diagnostic_alg
+  public :: scalar_nodal_diagnostic_alg
+  public :: vector_nodal_diagnostic_alg
+  public :: scalar_ugrid_diagnostic_alg
+  public :: vorticity_diagnostic_alg
+  public :: potential_vorticity_diagnostic_alg
+  public :: extract_w2h_diagnostic_alg
+  public :: column_total_diagnostics_alg
+  public :: calc_wbig_diagnostic_alg
+  public :: pressure_diag_alg
+
+contains
+
+  !> @details Calculates the l2 error norm for wind divergence
+  !> @param[in,out] divergence  Divergence field
+  !> @param[in,out] l2          l2 norm
+  !> @param[in] u               3D wind field
+  !> @param[in] mesh            Mesh
+  subroutine divergence_diagnostic_alg(divergence, l2, u, mesh)
+    use dg_matrix_vector_kernel_mod,  only: dg_matrix_vector_kernel_type
+    use sci_fem_constants_mod,        only: get_im3_div_fe, get_im3_div_fv
+    use constants_mod,                only: pi
+
+    implicit none
+    type(field_type), intent(inout) :: divergence
+    real(r_def), intent(inout)      :: l2
+    type(field_type), intent(in)    :: u
+    type(mesh_type),  intent(in), pointer :: mesh
+
+    type(operator_type), pointer :: div
+    integer(kind=i_def)          :: element_order_h
+    integer(kind=i_def)          :: element_order_v
+
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+
+    call divergence%initialise( vector_space =                                 &
+        function_space_collection%get_fs(mesh,                                 &
+                                         element_order_h,                      &
+                                         element_order_v,                      &
+                                         W3) )
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      ! Use finite element divergence operator
+      div => get_im3_div_fe(mesh%get_id())
+    else
+      ! Use finite volume divergence operator
+      div => get_im3_div_fv(mesh%get_id())
+    end if
+
+    ! Compute l2 norm of area integrated quantity
+    call invoke( dg_matrix_vector_kernel_type( divergence, u, div ) )
+    l2 = l2_norm_alg(divergence)
+
+  end subroutine divergence_diagnostic_alg
+
+!=============================================================================!
+  !> @details An algorithm for calculating the l2 error for the density field.
+  !>          It is capable of calculating the error at each timestep by using
+  !>          set_rho_alg algorithm which will return the analytic density value
+  !>          at each timestep.
+  !> @param[in,out] l2   l2 norm
+  !> @param[in] rho_num  Density
+  !> @param[in] timestep Timestep
+  !> @param[in] dt       The model timestep length
+  subroutine density_diagnostic_alg(l2, rho_num, timestep, dt)
+    use field_mod,                    only: field_type
+    use set_rho_alg_mod,              only: set_rho_alg
+
+    implicit none
+
+    real(r_def), intent(inout)   :: l2
+    type(field_type), intent(in) :: rho_num
+    integer(i_def),   intent(in) :: timestep
+    real(r_def),      intent(in) :: dt
+
+    type(field_type)             :: rho_analytic
+
+    call rho_analytic%initialise( vector_space = rho_num%get_function_space() )
+
+    call set_rho_alg( rho_analytic, timestep, dt )
+
+    l2 = rel_l2_error_alg(rho_num, rho_analytic)
+
+  end subroutine density_diagnostic_alg
+
+!=============================================================================!
+  !> @details An algorithm for calculating the l2 norm for the hydrostatic
+  !>          imbalance. It calculates the sum of pressure gradient and
+  !>          gravity term at each timestep using the hydrostatic kernel.
+  !> @param[in,out] l2        l2 norm
+  !> @param[in]     theta     Potential temperature
+  !> @param[in]     moist_dyn Moist dynamics factors
+  !> @param[in]     exner     Exner pressure
+  !> @param[in]     mesh      Mesh
+  subroutine hydbal_diagnostic_alg(l2, theta, moist_dyn, exner, mesh)
+    use field_mod,                   only: field_type
+    use quadrature_xyoz_mod,         only: quadrature_xyoz_type
+    use fs_continuity_mod,           only: W2V
+
+    use moist_dyn_mod,               only: num_moist_factors
+
+    ! PsyKAl PSYClone kernels
+    use sci_enforce_bc_kernel_mod,   only: enforce_bc_kernel_type
+    use hydrostatic_kernel_mod,      only: hydrostatic_kernel_type
+    use dycore_constants_mod,        only: get_geopotential
+    use sci_fem_constants_mod,       only: get_qr_fe, get_qr_fv
+
+
+    implicit none
+    real(r_def), intent(inout)            :: l2
+    type(field_type), intent(in)          :: theta
+    type(field_type), intent(in)          :: moist_dyn(num_moist_factors)
+    type(field_type), intent(in)          :: exner
+    type(mesh_type),  intent(in), pointer :: mesh
+
+    type(field_type), pointer    :: geopotential
+    type(field_type)             :: hyd_imbal
+
+    ! the quadrature object
+    type( quadrature_xyoz_type ), pointer :: qr
+
+    type(mesh_type), pointer :: theta_mesh
+
+    integer(kind=i_def) :: element_order_h
+    integer(kind=i_def) :: element_order_v
+
+    element_order_h = theta%get_element_order_h()
+    element_order_v = theta%get_element_order_v()
+
+    call hyd_imbal%initialise(                                          &
+      vector_space = function_space_collection%get_fs( mesh,            &
+                                                       element_order_h, &
+                                                       element_order_v, &
+                                                       W2V) )
+
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      ! Use finite element quadrature
+      qr => get_qr_fe()
+    else
+      ! Use finite volume quadrature
+      qr => get_qr_fv()
+    end if
+
+    ! Get geopotential field from runtime_constants
+    theta_mesh   => theta%get_mesh()
+    geopotential => get_geopotential(theta_mesh%get_id())
+
+    call invoke( setval_c(hyd_imbal, 0.0_r_def), &
+                 hydrostatic_kernel_type( hyd_imbal, exner, theta, moist_dyn, &
+                                          geopotential, cp, qr ),             &
+                 enforce_bc_kernel_type( hyd_imbal ) )
+
+    l2 = l2_norm_alg(hyd_imbal)
+
+  end subroutine hydbal_diagnostic_alg
+
+  !> @details Generic diagnostic processing for a scalar field to nodal format
+  !>          Allows optional projection to W3
+  !> @param[in,out] output_field      The output field. A 1-element array to satisfy project_output API
+  !> @param[in,out] nodal_coordinates Coordinates of the output field
+  !> @param[in,out] level             Levels of the output field
+  !> @param[in] field_name            Name of the field to be output
+  !> @param[in] field                 The input field
+  !> @param[in] mesh                  Mesh object
+  !> @param[in] W3_project            Logical to allow projection to W3
+  subroutine scalar_nodal_diagnostic_alg( output_field, nodal_coordinates, &
+                                          level, field_name, field, mesh,  &
+                                          W3_project )
+
+    implicit none
+
+    type(field_type), intent(inout) :: nodal_coordinates(3)
+    type(field_type), intent(inout) :: output_field(1)
+    type(field_type), intent(inout) :: level
+    character(len=*), intent(in)    :: field_name
+    type(field_type), intent(in)    :: field
+
+    type(mesh_type),  intent(in), pointer :: mesh
+
+    logical(l_def),   intent(in)    :: W3_project
+
+    ! Local variables
+    type(field_type), pointer       :: chi(:)
+    type(field_type), pointer       :: panel_id
+    integer(i_def)                  :: i
+
+    ! get chi field
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+
+    ! Check if projection required, setup output field and filename
+
+    if (W3_project) then
+
+      ! Projection to W3, but check if field is already W3
+
+      if (field%which_function_space() == W3) then
+
+        ! Already on W3, so log a warning but continue
+        write( log_scratch_space, '(A,A,A)' )  'Diagnostics: ', &
+                                  trim(field_name), &
+                                  ' already on W3, no projection applied'
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+        ! Setup output field the same as input
+        call field%copy_field_properties(output_field(1))
+        call invoke( setval_X(output_field(1), field) )
+
+      else
+
+        ! Project the field to the output field
+        call project_output( field, output_field, chi, panel_id, W3 )
+
+      end if
+
+    else
+
+      ! No projection required
+
+      ! Setup output field the same as input
+      call field%copy_field_properties(output_field(1))
+      call invoke( setval_X(output_field(1), field) )
+
+    end if
+
+    ! Create nodal coordinates and levels fields from the properties
+    ! of the output field
+    do i = 1,3
+      call output_field(1)%copy_field_properties(nodal_coordinates(i))
+    end do
+
+    call output_field(1)%copy_field_properties(level)
+
+    ! Convert field to physical nodal output & sample chi on nodal points
+    call invoke( nodal_xyz_coordinates_kernel_type(nodal_coordinates, chi, panel_id) )
+
+    ! If in spherical geometry,
+    ! convert the coordinate field to (longitude, latitude, radius)
+    if ( geometry == geometry_spherical ) then
+      call invoke( pointwise_convert_xyz2llr_kernel_type(nodal_coordinates) )
+    end if
+
+    ! Compute fractional level of every dof
+    call invoke_compute_dof_level_kernel(level)
+
+
+  end subroutine scalar_nodal_diagnostic_alg
+
+  !> @details Generic diagnostic processing for a vector field to nodal format
+  !> @param[in,out] output_field      The output field
+  !> @param[in,out] output_dim        Dimension of the output field
+  !> @param[in,out] nodal_coordinates Coordinates of the output field
+  !> @param[in,out] level             Levels of the output field
+  !> @param[in] field_name            Name of the field to be output
+  !> @param[in] field                 The input field
+  subroutine vector_nodal_diagnostic_alg(output_field, output_dim, &
+                                         nodal_coordinates, level, &
+                                         field_name, field)
+
+    use sci_convert_hdiv_field_kernel_mod, &
+                                          only: convert_hdiv_field_kernel_type
+    use sci_convert_hdiv_native_kernel_mod, &
+                                          only: convert_hdiv_native_kernel_type
+    use sci_convert_hcurl_field_kernel_mod, &
+                                          only: convert_hcurl_field_kernel_type
+    use sci_fem_constants_mod,            only: get_rmultiplicity_fe, &
+                                                get_rmultiplicity_fv
+
+    implicit none
+
+    integer(i_def), intent(inout)   :: output_dim
+    type(field_type), intent(inout) :: nodal_coordinates(3)
+    type(field_type), intent(inout) :: output_field(3)
+    type(field_type), intent(inout) :: level
+    character(len=*), intent(in)    :: field_name
+    type(field_type), intent(in)    :: field
+
+    ! Local variables
+    type(field_type), pointer       :: chi(:)
+    type(field_type), pointer       :: panel_id
+    integer(i_def)                  :: i
+    integer(i_def)                  :: output_fs
+    type(field_type), pointer       :: rmultiplicity
+    type(mesh_type),  pointer       :: mesh
+    logical(l_def)                  :: optimised_conversion
+
+    ! Get chi field
+    mesh     => field%get_mesh()
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+
+    ! Create nodal coordinates, nodal output and levels fields
+    ! from the properties of the input field
+
+    do i = 1,3
+      call field%copy_field_properties(nodal_coordinates(i))
+      call field%copy_field_properties(output_field(i))
+      call invoke( setval_c(output_field(i), 0.0_r_def) )
+    end do
+
+    call field%copy_field_properties(level)
+
+    ! Convert field to physical nodal output & sample chi on nodal points
+    call invoke( nodal_xyz_coordinates_kernel_type(nodal_coordinates, chi, panel_id) )
+
+    output_fs = field%which_function_space()
+
+    ! Apply Piola transform to get collocated components
+
+    if ( output_fs == W1 ) then
+      call invoke( convert_hcurl_field_kernel_type(output_field, field, chi, panel_id) )
+      output_dim = 3
+    else if ( output_fs == W2 ) then
+      optimised_conversion = (                                                 &
+        coord_system == coord_system_native                                    &
+        .and. field%get_element_order_h() == 0                                 &
+        .and. field%get_element_order_v() == 0                                 &
+      )
+      if (optimised_conversion) then
+        call invoke( convert_hdiv_native_kernel_type(output_field, field, chi, panel_id) )
+      else
+        call invoke( convert_hdiv_field_kernel_type(output_field, field, chi, panel_id) )
+      end if
+      output_dim = 3
+    else
+      ! If we didn't get a W1 or W2 field, just pass it through
+      write( log_scratch_space, '(A,A,A)' )  'Diagnostics: ', &
+                                 trim(field_name), &
+                                 ' not W1 or W2, no conversion applied'
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      call invoke( setval_X(output_field(1), field) )
+      output_dim = 1
+    end if
+
+    ! Scale by the reciprocal of multiplicity (number of shared dofs
+    ! in a cell
+    if ( output_fs == W1 .or. output_fs == W2 ) then
+      if ( field%get_element_order_h() > 0 .or. &
+           field%get_element_order_v() > 0 ) then
+        rmultiplicity => get_rmultiplicity_fe( output_fs, mesh%get_id() )
+      else
+        rmultiplicity => get_rmultiplicity_fv( output_fs, mesh%get_id() )
+      end if
+
+      do i = 1,output_dim
+        call invoke( inc_X_times_Y(output_field(i), rmultiplicity) )
+      end do
+    end if
+
+    ! Convert the vector spaces to standard SI units
+    ! (m/s) in orthogonal directions and, if in spherical geometry,
+    !  convert the coordinate field to (longitude, latitude, radius)
+    if ( geometry == geometry_spherical ) then
+      if ( output_fs == W1 .or. output_fs == W2) then
+        call invoke( convert_cart2sphere_vector_kernel_type(output_field, nodal_coordinates) )
+      end if
+      call invoke( pointwise_convert_xyz2llr_kernel_type(nodal_coordinates) )
+    end if
+
+    ! Compute fractional level of every dof
+    call invoke_compute_dof_level_kernel(level)
+
+  end subroutine vector_nodal_diagnostic_alg
+
+
+  !> @details Generic diagnostic processing for a scalar field output in ugrid format
+  !>          Allows optional projection to W3
+  !> @param[in,out] output_field      The output field
+  !> @param[in] field_name            The field name to use for output
+  !> @param[in] field                 The input field
+  !> @param[in] mesh                  Mesh
+  !> @param[in] W3_project            Logical to allow projection to W3
+  subroutine scalar_ugrid_diagnostic_alg( output_field, field_name, field, &
+                                          mesh, W3_project )
+
+    implicit none
+    type(field_type), intent(inout) :: output_field(1)
+    character(len=*), intent(in)    :: field_name
+    type(field_type), intent(in)    :: field
+    type(mesh_type),  intent(in), pointer :: mesh
+    logical(l_def),   intent(in)    :: W3_project
+
+    type(field_type), pointer :: chi(:)
+    type(field_type), pointer :: panel_id
+
+    nullify( chi, panel_id )
+
+    ! Check if projection required, setup output field and filename
+
+    if (W3_project) then
+
+      ! Projection to W3, but check if field is already W3
+
+      if (field%which_function_space() == W3) then
+
+        ! Already on W3, so log a warning but continue
+        write( log_scratch_space, '(A,A,A)' )  'Diagnostics: ', &
+                                  trim(field_name), &
+                                  ' already on W3, no projection applied'
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      else
+
+        ! Project the field to the output field
+        chi      => get_coordinates( mesh%get_id() )
+        panel_id => get_panel_id( mesh%get_id() )
+        call project_output( field, output_field, chi, panel_id, W3 )
+
+      end if
+
+    else
+
+      ! No projection required
+
+      ! Setup output field the same as input
+      call field%copy_field_properties(output_field(1))
+      call invoke( setval_X(output_field(1), field) )
+
+    end if
+
+  end subroutine scalar_ugrid_diagnostic_alg
+
+  !> @details Calculates the diagnostic vorticity from the wind
+  !> @param[out] vorticity  Vorticity ( curl(u) ) to compute
+  !> @param[in]  u          3D wind field
+  !> @param[in]  timestep   Model timestep number
+  subroutine vorticity_diagnostic_alg(vorticity, u)
+    use io_config_mod,                  only: use_xios_io
+    use compute_vorticity_alg_mod,      only: compute_vorticity_alg
+    use finite_element_config_mod,      only: vorticity_in_w1
+    use field_parent_mod,               only: write_interface
+    use lfric_xios_write_mod,           only: write_field_generic
+    implicit none
+
+    type(field_type), intent(out) :: vorticity
+    type(field_type), intent(in)  :: u
+
+    procedure(write_interface), pointer :: tmp_write_ptr
+    type(mesh_type), pointer            :: mesh
+    integer(kind=i_def)                 :: element_order_h
+    integer(kind=i_def)                 :: element_order_v
+
+    mesh => u%get_mesh()
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+    if ( vorticity_in_w1 ) then
+      call vorticity%initialise( vector_space = &
+          function_space_collection%get_fs(mesh, element_order_h, &
+                                           element_order_v, W1) )
+    else
+      call vorticity%initialise( vector_space = &
+          function_space_collection%get_fs(mesh, element_order_h, &
+                                           element_order_v, W2) )
+    end if
+    call compute_vorticity_alg(vorticity, u, .false.)
+
+    if ( use_xios_io ) then
+      tmp_write_ptr => write_field_generic
+      ! Vector fields that are projected to scalar components
+      call vorticity%set_write_behaviour(tmp_write_ptr)
+    end if
+
+  end subroutine vorticity_diagnostic_alg
+
+  !> @details Calculates the diagnostic potential vorticity from the wind
+  !> @param[in] potential_vorticity Potential Vorticity (curl(u) + 2*Omega) dot grad(theta)/rho
+  !> @param[in] u                   Wind
+  !> @param[in] theta               Potential temperature
+  !> @param[in] rho                 Density
+  !> @param[in] timestep            Model timestep number
+  subroutine potential_vorticity_diagnostic_alg(potential_vorticity, u, theta, rho)
+    use io_config_mod,                  only: use_xios_io
+    use compute_pv_alg_mod,             only: compute_pv_alg
+    use field_parent_mod,               only: write_interface
+    use lfric_xios_write_mod,           only: write_field_generic
+    implicit none
+
+    type(field_type), intent(out) :: potential_vorticity
+    type(field_type), intent(in)  :: u
+    type(field_type), intent(in)  :: theta
+    type(field_type), intent(in)  :: rho
+
+    procedure(write_interface), pointer :: tmp_write_ptr
+    type(mesh_type), pointer            :: mesh
+
+    mesh => theta%get_mesh()
+
+    call potential_vorticity%initialise( vector_space =                  &
+         function_space_collection%get_fs(mesh, u%get_element_order_h(), &
+                                          u%get_element_order_v(), W3) )
+    call compute_pv_alg(potential_vorticity, u, theta, rho)
+
+    if ( use_xios_io ) then
+      tmp_write_ptr => write_field_generic
+      ! Vector fields that are projected to scalar components
+      call potential_vorticity%set_write_behaviour(tmp_write_ptr)
+    end if
+
+  end subroutine potential_vorticity_diagnostic_alg
+
+  subroutine extract_w2h_diagnostic_alg( h_wind, v_wind, wind)
+    use split_w2_field_kernel_mod,        only: split_w2_field_kernel_type
+
+    implicit none
+
+    type(field_type), intent(inout)  :: h_wind, v_wind
+    type(field_type), intent(in)     :: wind
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+    integer(kind=i_def)               :: element_order_h
+    integer(kind=i_def)               :: element_order_v
+
+    element_order_h = wind%get_element_order_h()
+    element_order_v = wind%get_element_order_v()
+    call h_wind%initialise( vector_space =                                       &
+              function_space_collection%get_fs(wind%get_mesh(), element_order_h, &
+                                               element_order_v, W2H) )
+
+    call v_wind%initialise( vector_space =                                       &
+              function_space_collection%get_fs(wind%get_mesh(), element_order_h, &
+                                               element_order_v, Wtheta) )
+
+    face_selector_ew => get_face_selector_ew(wind%get_mesh_id())
+    face_selector_ns => get_face_selector_ns(wind%get_mesh_id())
+
+    call invoke( split_w2_field_kernel_type(h_wind, v_wind, wind, &
+                                            face_selector_ew,     &
+                                            face_selector_ns) )
+
+  end subroutine extract_w2h_diagnostic_alg
+
+!=============================================================================!
+  !> @brief Calculate column totals of dry and wet fields.
+  !> @details Calculates column totals for wet + dry air, dry air only and each
+  !!          of the different moisture spieces represented by LFRic.
+  !> @param[in] rho_field  3D dry density field
+  !> @param[in] mr         Bundle of moisture mixing ratios (nummr is index for speices X)
+  !> @param[in] derived_fields Contains u, v, w and theta fields mapped to W3 space
+  !> @param[in] exner_field 3D Exner pressure field
+  !> @param[in] mesh       The primary mesh
+  !> @param[in] twod_mesh  The 2D mesh
+
+  subroutine column_total_diagnostics_alg(rho_field, mr, derived_fields, exner_field, &
+                                          mesh, twod_mesh, temperature_correction_rate)
+
+    use compute_column_integral_kernel_mod, only: compute_column_integral_kernel_type
+    use extrusion_config_mod,               only: planet_radius
+    use sci_geometric_constants_mod,        only: get_height_fe, get_height_fv
+    use io_config_mod,                      only: write_diag, use_xios_io
+    use mr_indices_mod,                     only: nummr, mr_names
+    use function_space_mod,                 only: function_space_type
+    use physics_mappings_alg_mod,           only: map_physics_scalars
+    use planet_config_mod,                  only: cv, gravity
+    use field_collection_mod,               only: field_collection_type
+    use dycore_constants_mod,               only: get_geopotential
+
+    implicit none
+
+    type(field_collection_type), intent(in) :: derived_fields
+    type(field_type),  intent(in)    :: rho_field
+    type(field_type),  intent(in)    :: mr(nummr)
+    type(field_type),  intent(in)    :: exner_field
+    type(mesh_type),   intent(in), pointer :: mesh
+    type(mesh_type),   intent(in), pointer :: twod_mesh
+    real(kind=r_def),  intent(in)    :: temperature_correction_rate
+
+    ! Set up local fields
+    ! 3D fields
+    type( field_type ) :: mr_w3         ! mixing ratio of moist species
+    type( field_type ) :: rho_moist_X   ! moist mass per unit volume in cell (rho_field * mr_w3)
+    type( field_type ) :: air_temperature      ! air temperature on W3
+    type( field_type ) :: energy_field         ! energy field being calculated
+    type( field_type ) :: energy_term          ! energy term required for the calculation of an energy field
+
+    ! 2D fields
+    type( field_type ) :: tot_col_dry_air_mass      ! dry column mass
+    type( field_type ) :: tot_col_moist_mass(nummr) ! moist column mass total for species X
+    type( field_type ) :: tot_col_wetplusdry_mass   ! moist + dry mass column total
+    type( field_type ) :: tot_col_int_energy        ! dry column internal energy per unit area
+    type( field_type ) :: tot_col_pot_energy        ! dry column potential energy per unit area
+    type( field_type ) :: tot_col_pot_energy_gr     ! dry column potential energy per unit area from planet centre
+    type( field_type ) :: tot_col_uv_kinetic_energy ! column kinetic energy per unit area for U and V (horizontal)
+    type( field_type ) :: tot_col_w_kinetic_energy  ! column kinetic energy per unit area for W (vertical)
+    type( field_type ) :: tot_col_encorr            ! energy correction per unit area
+    type( field_type ) :: geopotential              ! geopotential from the planet centre
+
+    integer(kind=i_def)  :: i_mr
+    real(kind=r_def)     :: cvTdot
+    real(kind=r_def)     :: surface_geopotential
+
+    ! Set pointers
+    type( field_type ), pointer :: theta_in_w3
+    type( field_type ), pointer :: u_in_w3
+    type( field_type ), pointer :: v_in_w3
+    type( field_type ), pointer :: w_in_w3
+    type( field_type ), pointer :: normalised_geopotential
+    type( field_type ), pointer :: height_w3
+    type( field_type ), pointer :: height_wth
+    type(function_space_type), pointer :: w3_fs
+
+    logical :: dry_mass_flag, wet_mass_flag, encorr_flag, ignore, X_mass_flag
+
+    if ( rho_field%get_element_order_h() > 0 .or. &
+         rho_field%get_element_order_v() > 0 ) then
+      height_w3  => get_height_fe( W3, mesh%get_id() )
+      height_wth => get_height_fe( Wtheta, mesh%get_id() )
+    else
+      height_w3  => get_height_fv( W3, mesh%get_id() )
+      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    end if
+
+    w3_fs      => rho_field%get_function_space()
+
+    ! Set energy_term to have the same properties as height_w3
+    call height_w3%copy_field_properties(energy_term)
+    ! Set energy_field to have the same properties as height_w3
+    call height_w3%copy_field_properties(energy_field)
+
+    dry_mass_flag = init_diag(tot_col_dry_air_mass,'processed__tot_col_dry_air_mass')
+    wet_mass_flag = init_diag(tot_col_wetplusdry_mass,'processed__tot_col_wetplusdry_mass')
+    encorr_flag = init_diag(tot_col_encorr,'processed__tot_col_encorr')
+
+    if (encorr_flag .or. wet_mass_flag) then
+      if (.not. dry_mass_flag) ignore = init_diag(tot_col_dry_air_mass,'processed__tot_col_dry_air_mass', activate=.true.)
+    end if
+
+    if (dry_mass_flag .or. encorr_flag .or. wet_mass_flag) then
+      call invoke( compute_column_integral_kernel_type(rho_field,           &
+                                                     height_w3, height_wth, &
+                                                     tot_col_dry_air_mass,  &
+                                                     planet_radius))
+    end if
+
+    if (dry_mass_flag .and. use_xios_io) then
+      call tot_col_dry_air_mass%write_field()
+    end if
+
+    if (encorr_flag .and. use_xios_io) then
+      cvTdot = cv * temperature_correction_rate
+      call invoke(a_times_X(tot_col_encorr, cvTdot, tot_col_dry_air_mass))
+      call tot_col_encorr%write_field()
+    end if
+
+    if (wet_mass_flag) then
+      call invoke( setval_X(tot_col_wetplusdry_mass, tot_col_dry_air_mass))
+    end if
+
+    ! Initialise the moisture fields
+    call mr_w3%initialise( vector_space = w3_fs )
+    call rho_moist_X%initialise( vector_space = w3_fs )
+
+    do i_mr = 1, nummr
+
+      X_mass_flag = init_diag(tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)))
+      if (wet_mass_flag) then
+        if (.not. X_mass_flag) &
+             ignore = init_diag(tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)), activate=.true.)
+      end if
+
+      if (wet_mass_flag .or. X_mass_flag) then
+        ! Get mr field on w3
+        call map_physics_scalars(mr_w3, mr(i_mr))  ! argument order is target, source
+        call invoke( X_times_Y(rho_moist_X, rho_field, mr_w3) )
+        call invoke( compute_column_integral_kernel_type(rho_moist_X, height_w3,          &
+                                                    height_wth, tot_col_moist_mass(i_mr), &
+                                                    planet_radius) )
+      end if
+
+      if (X_mass_flag .and. use_xios_io) then
+        call tot_col_moist_mass(i_mr)%write_field()
+      end if
+
+      if (wet_mass_flag) then
+        ! Increment by each moisture species to get total wet + dry mass
+        call invoke( inc_X_plus_Y(tot_col_wetplusdry_mass, tot_col_moist_mass(i_mr)) )
+      end if
+
+    end do
+
+    if (wet_mass_flag .and. use_xios_io) then
+      call tot_col_wetplusdry_mass%write_field()
+    end if
+
+    if (init_diag(tot_col_int_energy,'processed__tot_col_int_energy') .and. use_xios_io) then
+
+      call derived_fields%get_field( 'theta_in_w3', theta_in_w3 )
+      ! Set up the air_temperature field then calculate it
+      call rho_field%copy_field_properties(air_temperature)
+      call invoke( X_times_Y(air_temperature, theta_in_w3, exner_field) )
+      ! Calculate cv * air_temperature * rho_field and run kernel for column
+      ! dry internal energy
+      call invoke( inc_aX_times_Y(cv, air_temperature, rho_field),                 &
+                   compute_column_integral_kernel_type(air_temperature, height_w3, &
+                                                   height_wth, tot_col_int_energy, &
+                                                   planet_radius) )
+      call tot_col_int_energy%write_field()
+
+    end if
+
+    if (init_diag(tot_col_pot_energy,'processed__tot_col_pot_energy') .and. use_xios_io) then
+
+      ! Set height field as energy_field then calculate column potential energy
+      call invoke( setval_X(energy_field, height_w3), &
+                   inc_aX_times_Y(gravity, energy_field, rho_field),             &
+                   compute_column_integral_kernel_type(energy_field, height_w3,  &
+                                                 height_wth, tot_col_pot_energy, &
+                                                 planet_radius) )
+      call tot_col_pot_energy%write_field()
+
+    end if
+
+    if (init_diag(tot_col_pot_energy_gr,'processed__tot_col_pot_energy_gr') .and. use_xios_io) then
+
+      ! Use geopotential to calculate potential energy from planet centre
+      ! This requires the normalised geopotential (zero at the surface)
+      ! and the surface geopotential
+      normalised_geopotential => get_geopotential( mesh%get_id() )
+      call geopotential%initialise( normalised_geopotential%get_function_space())
+      surface_geopotential = planet_radius*gravity
+      call invoke( a_plus_X(geopotential, surface_geopotential, normalised_geopotential), &
+                   setval_X(energy_field, geopotential),                                  &
+                   inc_X_times_Y(energy_field, rho_field),                                &
+                   compute_column_integral_kernel_type(energy_field, height_w3,           &
+                                                 height_wth, tot_col_pot_energy_gr,       &
+                                                 planet_radius) )
+      call tot_col_pot_energy_gr%write_field(tot_col_pot_energy_gr%get_name())
+
+    end if
+
+    if (init_diag(tot_col_uv_kinetic_energy,'processed__tot_col_uv_kinetic_energy') .and. use_xios_io) then
+
+      call derived_fields%get_field( 'u_in_w3', u_in_w3 )
+      call derived_fields%get_field( 'v_in_w3', v_in_w3 )
+      call invoke( setval_c(energy_field, 0.0_r_def),                                   &
+                   setval_X(energy_term, u_in_w3),                                      &
+                   inc_X_powint_n(energy_term, 2_i_def),                                &
+                   inc_X_plus_bY(energy_field, 0.5_r_def, energy_term),                 &
+                   setval_X(energy_term, v_in_w3),                                      &
+                   inc_X_powint_n(energy_term, 2_i_def),                                &
+                   inc_X_plus_bY(energy_field, 0.5_r_def, energy_term),                 &
+                   inc_X_times_Y(energy_field, rho_field),                              &
+                   compute_column_integral_kernel_type(energy_field, height_w3,         &
+                                                 height_wth, tot_col_uv_kinetic_energy, &
+                                                 planet_radius) )
+      call tot_col_uv_kinetic_energy%write_field(tot_col_uv_kinetic_energy%get_name())
+
+    end if
+
+    if (init_diag(tot_col_w_kinetic_energy,'processed__tot_col_w_kinetic_energy') .and. use_xios_io) then
+
+      call derived_fields%get_field( 'w_in_w3', w_in_w3 )
+      call invoke( setval_c(energy_field, 0.0_r_def),                                  &
+                   setval_X(energy_term, w_in_w3),                                     &
+                   inc_X_powint_n(energy_term, 2_i_def),                               &
+                   inc_X_plus_bY(energy_field, 0.5_r_def, energy_term),                &
+                   inc_X_times_Y(energy_field, rho_field),                             &
+                   compute_column_integral_kernel_type(energy_field, height_w3,        &
+                                                 height_wth, tot_col_w_kinetic_energy, &
+                                                 planet_radius) )
+      call tot_col_w_kinetic_energy%write_field(tot_col_w_kinetic_energy%get_name())
+
+    end if
+
+  end subroutine column_total_diagnostics_alg
+
+!=============================================================================!
+  !> @brief Calculates Wbig: set 3D field to 1 where vertical velocity exceeds
+  !!          1 m s-1 and output.
+  !> @details Wbig is given a value of 1 if the value of w (vertical velocity)
+  !!          at that location is larger than 1 m s-1, otherwise it is set to
+  !!          zero. The diagnostic's primary use is in long, climate runs where
+  !!          it is averaged in time to help indicate whether the model has any
+  !!          stability problems.
+  !> @param[in] w_in_wth  3D vertical velocity field seen by the model physics
+  !> @param[in] mesh      The primary mesh
+
+  subroutine calc_wbig_diagnostic_alg( w_in_wth, mesh )
+
+    use calc_wbig_kernel_mod,             only: calc_wbig_kernel_type
+    use io_config_mod,                    only: write_diag, use_xios_io
+    use lfric_xios_write_mod,             only: write_field_generic
+    use field_parent_mod,                 only: write_interface
+
+    implicit none
+
+    ! Set up necessary fields
+    type(field_type), intent(in)          :: w_in_wth
+    type(mesh_type),  intent(in), pointer :: mesh
+
+    type( field_type ) :: wbig
+
+    ! Create diagnostic if requested
+    if (init_diag(wbig, 'processed__wbig') .and. use_xios_io) then
+
+      call invoke( calc_wbig_kernel_type(w_in_wth, wbig) )
+      call wbig%write_field()
+
+    end if
+
+  end subroutine calc_wbig_diagnostic_alg
+!=============================================================================!
+  !> @brief Calculate the pressure from the exner function and output it as
+  !>        a diagnostic
+  !> @param[in] exner The exner function (Pa)
+  subroutine pressure_diag_alg(exner)
+
+    use planet_config_mod, only: p_zero, one_over_kappa
+    use io_config_mod,     only: use_xios_io
+
+    implicit none
+
+    type(field_type), intent(in) :: exner
+    type(field_type)             :: pressure
+    integer(i_def)               :: fs
+    logical                      :: pressure_flag
+
+    fs = exner%which_function_space()
+    if (fs == W3) then
+      pressure_flag = init_diag(pressure, 'processed__pressure_in_w3')
+    else if (fs == Wtheta) then
+      pressure_flag = init_diag(pressure, 'processed__pressure_in_wth')
+    end if
+
+    if (pressure_flag .and. use_xios_io) then
+
+      call invoke(setval_X(pressure, exner), &
+                  inc_X_powreal_a(pressure, one_over_kappa), &
+                  inc_a_times_X(p_zero, pressure))
+
+      call pressure%write_field()
+
+    end if
+
+  end subroutine pressure_diag_alg
+
+end module diagnostic_alg_mod

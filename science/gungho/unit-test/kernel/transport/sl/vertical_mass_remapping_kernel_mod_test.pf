@@ -1,0 +1,164 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+
+!> Test the vertical_mass_remapping_kernel.
+!>
+module vertical_mass_remapping_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, l_def, r_tran
+  use funit
+  use transport_enumerated_types_mod, only : monotone_none,                    &
+                                             monotone_strict,                  &
+                                             vertical_monotone_order_high
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: vertical_mass_remapping_test_type
+    private
+  contains
+   procedure test_all
+  end type vertical_mass_remapping_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env,      only : real64
+    use vertical_mass_remapping_kernel_mod, only : vertical_mass_remapping_code
+    use transport_config_mod,               only : slice_order_cubic
+
+    implicit none
+
+    class(vertical_mass_remapping_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran    ! r_tran 64bit tolerance
+    real(r_tran)            :: use_tol
+
+    integer(i_def), parameter :: nlayers = 10
+    integer(i_def), parameter :: ndf_w2v = 2
+    integer(i_def), parameter :: ndf_w3  = 1
+    integer(i_def), parameter :: undf_w3 = nlayers
+    integer(i_def), parameter :: undf_w2v = nlayers + 1
+
+    integer(i_def), dimension(ndf_w2v) :: map_w2v
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+    real(r_tran), dimension(undf_w2v)  :: dep_pts_z
+    real(r_tran), dimension(undf_w2v)  :: flux
+    real(r_tran), dimension(undf_w3)   :: mass_in, mass_in2, mass_out
+    real(r_tran), dimension(nlayers+1) :: zl, zld
+    real(r_tran), dimension(4)         :: cubic_param, cubic_integ
+    real(r_tran)    :: disp_const, xl, xr
+    integer(i_def)  :: df, i, remap_order
+    logical(l_def)  :: enforce_min_value
+    integer(i_def)  :: monotone, monotone_order
+
+    ! Create the dof map for any number of layers
+    map_w3(:) = 1
+    map_w2v(1) = 1
+    map_w2v(2) = 2
+
+    ! Set 6 parameters to define a unique global cubic function f(x)
+     cubic_param(:) = (/1.0_r_tran,  2.0_r_tran,  3.0_r_tran, 4.0_r_tran/)
+     cubic_integ(1) = 1.0_r_tran/4.0_r_tran
+     cubic_integ(2) = 1.0_r_tran/3.0_r_tran
+     cubic_integ(3) = 1.0_r_tran/2.0_r_tran
+     cubic_integ(4) = 1.0_r_tran
+
+    ! Set the cell boundaries zl and their departures zld
+
+    do i = 1, nlayers+1
+       zl(i)  = real(i-1_i_def,r_tran)
+    end do
+    disp_const = 0.5_r_tran
+    do i = 2, nlayers
+       zld(i) = zl(i) - disp_const
+    end do
+    zld(1) = zl(1)
+    zld(nlayers+1) = zl(nlayers+1)
+    dep_pts_z(:) =  disp_const
+
+    ! Compute the mass for the cells and the mass of lagangian cells
+
+    do i = 1, nlayers
+      xl = zl(i)
+      xr = zl(i+1)
+      mass_in(i) = cubic_integ(1) * cubic_param(1) * (xr**4 - xl**4) +  &
+                   cubic_integ(2) * cubic_param(2) * (xr**3 - xl**3) +  &
+                   cubic_integ(3) * cubic_param(3) * (xr**2 - xl**2) +  &
+                   cubic_integ(4) * cubic_param(4) * (xr    - xl   )
+      xl = zld(i)
+      xr = zld(i+1)
+      mass_out(i) = cubic_integ(1) * cubic_param(1) * (xr**4 - xl**4) +  &
+                    cubic_integ(2) * cubic_param(2) * (xr**3 - xl**3) +  &
+                    cubic_integ(3) * cubic_param(3) * (xr**2 - xl**2) +  &
+                    cubic_integ(4) * cubic_param(4) * (xr    - xl   )
+    end do
+
+
+    ! call mass remap with cubic-order
+
+    monotone = monotone_none
+    monotone_order = vertical_monotone_order_high
+    enforce_min_value = .false.
+    remap_order = slice_order_cubic
+    mass_in2(:) = mass_in(:)
+
+    call vertical_mass_remapping_code( nlayers,                    &
+                                       dep_pts_z,                  &
+                                       mass_in,                    &
+                                       flux,                       &
+                                       remap_order,                &
+                                       monotone,                   &
+                                       monotone_order,             &
+                                       enforce_min_value,          &
+                                       ndf_w2v, undf_w2v, map_w2v, &
+                                       ndf_w3, undf_w3, map_w3 )
+
+    if ( r_tran == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_tran*spacing(maxval(mass_in(:)))
+    end if
+    do i = 1,nlayers
+      @assertEqual(mass_out(i), mass_in(i) , use_tol)
+    end do
+
+    ! redo the test with monotone = monotone_strict
+
+    monotone = monotone_strict
+    monotone_order = vertical_monotone_order_high
+    enforce_min_value = .false.
+    remap_order = slice_order_cubic
+
+    call vertical_mass_remapping_code( nlayers,                    &
+                                       dep_pts_z,                  &
+                                       mass_in2,                   &
+                                       flux,                       &
+                                       remap_order,                &
+                                       monotone,                   &
+                                       monotone_order,             &
+                                       enforce_min_value,          &
+                                       ndf_w2v, undf_w2v, map_w2v, &
+                                       ndf_w3, undf_w3, map_w3  )
+
+    if ( r_tran == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_tran*spacing(maxval(mass_in2(:)))
+    end if
+    do i = 1,nlayers
+      @assertEqual(mass_out(i), mass_in2(i) , use_tol)
+    end do
+
+  end subroutine test_all
+
+end module vertical_mass_remapping_kernel_mod_test

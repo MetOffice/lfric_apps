@@ -1,0 +1,189 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the remapping of scalar fields on the cubed-sphere panel extension
+module init_remap_on_extended_mesh_kernel_mod_test
+
+  use constants_mod, only: l_def, i_def, r_def, pi
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: init_remap_on_extended_mesh_test_type
+    private
+  contains
+    procedure test_all
+  end type init_remap_on_extended_mesh_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use init_remap_on_extended_mesh_kernel_mod, only: init_remap_on_extended_mesh_code
+    use coord_transform_mod,               only: alphabetar2llr
+
+    implicit none
+
+    class(init_remap_on_extended_mesh_test_type), intent(inout) :: this
+
+    real(r_def), parameter    :: tol = 1.0e-5_r_def
+    real(r_def), dimension(4) :: answer
+
+    logical(l_def), parameter :: linear_remap = .false.
+    integer(i_def), parameter :: ndata = 4
+    integer(i_def), parameter :: nlayers = 1
+    integer(i_def), parameter :: ncells = 6
+    integer(i_def), parameter :: ndf_wr = 1
+    integer(i_def), parameter :: undf_wr = ncells*ndf_wr*ndata
+    integer(i_def), parameter :: ndf_wx = 1
+    integer(i_def), parameter :: undf_wx = ncells*ndf_wx*nlayers
+    integer(i_def), parameter :: ndf_pid = 1
+    integer(i_def), parameter :: undf_pid = 1 + ncells*ndf_pid*nlayers
+
+    integer(i_def), dimension(ndf_wr)  :: map_wr
+    integer(i_def), dimension(ndf_wx)  :: map_wx
+    integer(i_def), dimension(ndf_pid) :: map_pid
+
+    integer(i_def), dimension(4) :: stencil_size
+    integer(i_def), parameter    :: max_length = 3
+    integer(i_def), dimension(ndf_wx,  max_length, 4) :: wx_stencil
+    integer(i_def), dimension(ndf_pid, max_length, 4) :: pid_stencil
+
+
+    real(r_def), dimension(1, ndf_wx, ndf_wr) :: basis_wx
+
+
+    real(r_def),    dimension(undf_wr)  :: remap_weights
+    integer(i_def), dimension(undf_wr)  :: remap_indices
+    real(r_def),    dimension(undf_wx)  :: alpha_ext, beta_ext, height_ext
+    real(r_def),    dimension(undf_wx)  :: alpha, beta, height
+    real(r_def),    dimension(undf_pid) :: panel_id
+
+    real(r_def), parameter :: alpha0 = -pi/4.0_r_def
+    real(r_def), parameter :: beta0  = 0.3_r_def
+    real(r_def), parameter :: delta_alpha = 0.1_r_def
+    real(r_def), parameter :: delta_beta  = 0.1_r_def
+
+    ! Remap from panel 2 to panel 1
+    stencil_size(:) = 3
+    stencil_size(1) = 2
+    stencil_size(3) = 1
+
+    ! Stencil shape is:
+    !     | 6 |
+    !     | 4 |
+    ! | 2 | 1 |
+    !     | 3 |
+    !     | 5 |
+
+    map_wr(1) = 1
+
+    ! First entry of panel_id is assumed to be the owned panel
+    ! so the map points to the second entry
+    map_pid(1) = 2
+
+    pid_stencil(1,1,:) = map_pid(1)
+    pid_stencil(1,2,1) = 3
+    pid_stencil(1,2,2) = 4
+    pid_stencil(1,2,3) = -1
+    pid_stencil(1,2,4) = 5
+    pid_stencil(1,3,2) = 6
+    pid_stencil(1,3,4) = 7
+
+
+    panel_id(1) = 1.0_r_def
+    panel_id(2) = 2.0_r_def
+    panel_id(3) = 2.0_r_def
+    panel_id(4) = 2.0_r_def
+    panel_id(5) = 2.0_r_def
+    panel_id(6) = 2.0_r_def
+    panel_id(7) = 2.0_r_def
+
+    ! Coordinate arrays only include the centre point
+    map_wx(1) = 1
+    wx_stencil(1,1,:) = map_wx(1)
+    wx_stencil(1,2,1) = 2
+    wx_stencil(1,2,2) = 3
+    wx_stencil(1,2,3) = -1
+    wx_stencil(1,2,4) = 4
+    wx_stencil(1,3,2) = 5
+    wx_stencil(1,3,4) = 6
+
+
+    basis_wx(1,1,1) = 1.0_r_def
+
+    ! height fields unchanged by the remapping
+    height(:) = 1.0_r_def
+    height_ext(:) = 1.0_r_def
+
+    ! Original coordinates
+    ! Cell 2 on edge of panel 1
+    alpha(2) = -alpha0 + 0.5_r_def*delta_alpha
+    beta(2)  = beta0
+    ! All other cells are on the edge of panel 2
+    alpha(1) = alpha0 - 0.5_r_def*delta_alpha
+    beta(1)  = beta0
+
+    alpha(3) = alpha0 - 0.5_r_def*delta_alpha
+    beta(3)  = beta0 - delta_beta
+
+    alpha(4) = alpha0 - 0.5_r_def*delta_alpha
+    beta(4)  = beta0 + delta_beta
+
+    alpha(5) = alpha0 - 0.5_r_def*delta_alpha
+    beta(5)  = beta0 - 2.0_r_def*delta_beta
+
+    alpha(6) = alpha0 - 0.5_r_def*delta_alpha
+    beta(6)  = beta0 + 2.0_r_def*delta_beta
+
+
+
+    ! Extended coordinates, all points count as being on panel 1
+    alpha_ext(2) = alpha(2)
+    beta_ext(2)  = beta(2)
+
+    alpha_ext(1) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_ext(1)  = beta0
+
+    alpha_ext(3) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_ext(3)  = beta0 - delta_beta
+
+    alpha_ext(4) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_ext(4)  = beta0 + delta_beta
+
+    alpha_ext(5) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_ext(5)  = beta0 - 2.0_r_def*delta_beta
+
+    alpha_ext(6) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_ext(6)  = beta0 + 2.0_r_def*delta_beta
+
+    call init_remap_on_extended_mesh_code(nlayers,                          &
+                                     remap_weights,                         &
+                                     remap_indices,                         &
+                                     alpha_ext, beta_ext, height_ext,       &
+                                     alpha, beta, height,                   &
+                                     stencil_size, wx_stencil, max_length,  &
+                                     panel_id,                              &
+                                     stencil_size, pid_stencil, max_length, &
+                                     linear_remap, ndata,                   &
+                                     ndf_wr, undf_wr, map_wr,               &
+                                     ndf_wx, undf_wx, map_wx, basis_wx,     &
+                                     ndf_pid, undf_pid, map_pid             &
+                                    )
+
+    answer = (/ 0.782566370920890_r_def, 0.321149349290523_r_def, &
+               -6.030489992688191E-002_r_def, -4.341082028453138E-002_r_def /)
+    @assertEqual(answer, remap_weights(1:4), tol)
+    @assertEqual((/ 1, 4, 2, 5/), remap_indices(1:4))
+
+  end subroutine test_all
+
+end module init_remap_on_extended_mesh_kernel_mod_test

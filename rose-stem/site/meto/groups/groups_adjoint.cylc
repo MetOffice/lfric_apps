@@ -1,0 +1,66 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_adjoint.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "adjoint_azspice_developer": [
+        "adjoint_azspice_unit_tests"
+    ],
+    "adjoint_azspice": [
+        "adjoint_azspice_developer"
+    ],
+    "adjoint_azspice_unit_tests": [
+        "adjoint_unit_tests_azspice_gnu_64bit",
+    ]
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "adjoint_ex1a_developer": [
+        "adjoint_ex1a_unit_tests"
+    ],
+    "adjoint_ex1a": [
+        "adjoint_ex1a_developer"
+    ],
+    "adjoint_ex1a_unit_tests": [
+        "adjoint_unit_tests_ex1a_gnu_64bit",
+    ]
+    }) %}
+
+{% do site_groups.update({
+    "adjoint_developer": [
+        "scripts",
+        "adjoint_azspice_developer",
+        "adjoint_ex1a_developer",
+    ],
+    "adjoint": [
+        "adjoint_developer",
+        "adjoint_azspice",
+        "adjoint_ex1a",
+    ],
+    "adjoint_unit_tests": [
+        "adjoint_azspice_unit_tests",
+        "adjoint_ex1a_unit_tests",
+    ]
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.adjoint_developer) %}
+{% do site_groups.all.extend(site_groups.adjoint) %}
+{% do site_groups.unit_tests.extend(site_groups.adjoint_unit_tests) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.adjoint_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.adjoint_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.adjoint_azspice_unit_tests) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.adjoint_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.adjoint_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.adjoint_ex1a_unit_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_adjoint.cylc") %}

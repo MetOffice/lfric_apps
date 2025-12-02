@@ -1,0 +1,939 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief The tangent linear for the two time-level iterative
+!!       time-discretisation of the nonlinear 3D equations.
+module tl_si_timestep_alg_mod
+
+  use constants_mod,               only: i_def, r_def, l_def
+  use log_mod,                     only: log_event,         &
+                                         log_scratch_space, &
+                                         LOG_LEVEL_INFO,    &
+                                         LOG_LEVEL_ERROR
+  use driver_modeldb_mod,          only: modeldb_type
+  use namelist_mod,                only: namelist_type
+  use reference_element_mod,       only: T
+
+  ! Configuration options
+  use formulation_config_mod,      only: dlayer_on,                            &
+                                         moisture_formulation,                 &
+                                         moisture_formulation_dry,             &
+                                         use_physics,                          &
+                                         use_wavedynamics,                     &
+                                         si_momentum_equation,                 &
+                                         exner_from_eos
+
+  use io_config_mod,               only: subroutine_timers,                    &
+                                         write_conservation_diag
+  use linear_config_mod,           only: fixed_ls,                 &
+                                         l_stabilise_bl,           &
+                                         n_bl_levels_to_stabilise, &
+                                         max_bl_stabilisation
+  use mixed_solver_config_mod,     only: guess_np1,                            &
+                                         reference_reset_time
+  use timestepping_config_mod,     only: alpha,                                &
+                                         outer_iterations, inner_iterations,   &
+                                         spinup_alpha
+  use transport_config_mod,        only: use_density_predictor
+  use derived_config_mod,          only: bundle_size
+  use boundaries_config_mod,       only: limited_area
+  use sci_fem_constants_mod,       only: get_mass_matrix_fe,       &
+                                         get_qr_fe
+
+  use sci_field_bundle_builtins_mod,                        &
+                                   only: clone_bundle,      &
+                                         bundle_axpy,       &
+                                         add_bundle,        &
+                                         copy_bundle,       &
+                                         set_bundle_scalar, &
+                                         bundle_is_zero
+  use fs_continuity_mod,           only: Wtheta, W2
+
+  ! PsyKAl PSYClone kernels
+  use moist_dyn_factors_alg_mod,          only: moist_dyn_factors_alg
+  use tl_moist_dyn_factors_alg_mod,       only: tl_moist_dyn_factors_alg
+  use sci_set_any_dof_kernel_mod,         only: set_any_dof_kernel_type
+  use dg_inc_matrix_vector_kernel_mod,    only: dg_inc_matrix_vector_kernel_type
+  use stabilise_bl_u_kernel_mod,          only: stabilise_bl_u_kernel_type
+
+  ! Derived Types
+  use field_mod,                   only: field_type
+  use field_collection_mod,        only: field_collection_type
+  use mesh_mod,                    only: mesh_type
+  use quadrature_xyoz_mod,         only: quadrature_xyoz_type
+  use operator_mod,                only: operator_type
+
+  ! Algorithms
+  use sci_mass_matrix_solver_alg_mod,   &
+                                   only: mass_matrix_solver_alg
+  use rhs_alg_mod,                 only: rhs_alg
+  use tl_rhs_alg_mod,              only: tl_rhs_alg
+  use gungho_transport_control_alg_mod, &
+                                   only: gungho_transport_control_alg_init, &
+                                         gungho_transport_control_alg
+
+  use tl_transport_control_alg_mod, &
+                                   only: tl_transport_control_alg
+
+  use si_operators_alg_mod,        only: create_si_operators,  &
+                                         compute_si_operators, &
+                                         final_si_operators
+  use checks_and_balances_alg_mod, only: check_fields
+
+  use semi_implicit_solver_alg_mod,only: semi_implicit_solver_alg_init,       &
+                                         semi_implicit_solver_alg_step,       &
+                                         semi_implicit_solver_alg_final
+  use derive_exner_from_eos_alg_mod, &
+                                   only: derive_exner_from_eos
+  use tl_derive_exner_from_eos_alg_mod, &
+                                   only: tl_derive_exner_from_eos
+
+  use update_prognostic_scalars_alg_mod, &
+                                   only: update_prognostic_scalars_alg
+  use mixing_alg_mod,              only: mixing_alg
+
+  use map_physics_fields_alg_mod,  only: map_physics_fields_alg
+
+  ! Moisture species
+  use mr_indices_mod,              only: nummr, imr_v, imr_cl
+  use moist_dyn_mod,               only: num_moist_factors, gas_law
+
+  ! Field indices
+  use field_indices_mod,           only: igh_u, igh_t, igh_d, igh_p
+
+  ! Mixing settings
+  use mixing_config_mod,           only: smagorinsky
+
+  use timer_mod,                   only: timer
+
+  implicit none
+
+  private
+
+  logical(l_def) :: use_moisture
+
+  ! 'State' items private to the algorithm that need to be
+  !  created once but used every step
+
+  ! Perturbation
+  type( field_type ), allocatable :: state(:)
+  type( field_type ), allocatable :: state_initial(:)
+  type( field_type ), allocatable :: state_n(:)
+  type( field_type ), allocatable :: state_after_slow(:)
+  type( field_type ), allocatable :: advected_state(:)
+  type( field_type ), allocatable :: mr_n(:)
+  type( field_type ), allocatable :: mr_inc(:)
+  type( field_type ), allocatable :: mr_after_slow(:)
+  type( field_type ), allocatable :: rhs_n(:)
+  type( field_type ), allocatable :: rhs_np1(:)
+  type( field_type ), allocatable :: rhs_adv(:)
+
+  ! Linearisation state
+  type( field_type ), allocatable :: ls_state(:)
+  type( field_type ), allocatable :: ls_state_itns(:,:,:)
+  type( field_type ), allocatable :: ls_state_n(:)
+  type( field_type ), allocatable :: ls_state_after_slow(:)
+  type( field_type ), allocatable :: ls_advected_state(:)
+  type( field_type ), allocatable :: ls_mr_n(:)
+  type( field_type ), allocatable :: ls_mr_inc(:,:,:)
+  type( field_type ), allocatable :: ls_mr_after_slow(:)
+  type( field_type ), allocatable :: ls_rhs_n(:)
+  type( field_type ), allocatable :: ls_rhs_np1(:,:,:)
+  type( field_type ), allocatable :: ls_rhs_adv(:,:,:)
+  type( field_type ), allocatable :: ls_rhs_phys(:,:,:)
+  type( field_type ), allocatable :: ls_mr_itns(:,:,:)
+  type( field_type ), allocatable :: ls_moist_dyn_itns(:,:,:)
+  integer( i_def ) :: ls_outer_iterations, ls_inner_iterations
+
+  type( field_type ) :: theta_fv_inc ! theta fv transport increment to change to weak form
+
+  public  :: tl_semi_implicit_alg_init
+  public  :: tl_semi_implicit_alg_step
+  public  :: tl_semi_implicit_alg_final
+contains
+
+  !> @brief Initialisation procedure for the tangent linear timestepping
+  !>          algorithm
+  !> @param[in]     mesh      Mesh object on which the model runs
+  !> @param[in,out] u         Change in 3D wind field
+  !> @param[in,out] rho       Change in Density
+  !> @param[in,out] theta     Change in Potential temperature
+  !> @param[in,out] exner     Change in Exner pressure
+  !> @param[in,out] mr        Change in Mixing ratios
+  !> @param[in]     ls_u      Lin. state for 3D wind field
+  !> @param[in]     ls_rho    Lin. state for Density
+  !> @param[in]     ls_theta  Lin. state for Potential temperature
+  !> @param[in]     ls_exner  Lin. state for Exner pressure
+  !> @param[in]     ls_mr     Lin. state for Mixing ratios
+  !> @param[in]     ls_moist_dyn Lin. state for moist dynamical factors
+  subroutine tl_semi_implicit_alg_init( mesh, u, rho, theta, exner, mr,   &
+                                        ls_u, ls_rho, ls_theta, ls_exner, &
+                                        ls_mr, ls_moist_dyn, partial_init )
+
+    implicit none
+
+    ! Mesh
+    type(mesh_type),    intent( in ), pointer :: mesh
+
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: u, rho, theta, exner
+    type( field_type ), intent( inout ) :: mr(nummr)
+    type( field_type ), intent( inout ) :: ls_u, ls_rho, ls_theta, ls_exner
+    type( field_type ), intent( inout ) :: ls_mr(nummr)
+    type( field_type ), intent( inout ) :: ls_moist_dyn(num_moist_factors)
+
+    ! When atlt_si_timestep_alg_mod in adjoint_tests is run, this routine is called
+    ! but it has been already. Hence we have a switch to turn off aspects of the
+    ! initialisation that would result in attempts to allocate where memory is already
+    ! allocated, but leave on aspects that are still required
+    logical(kind=l_def), optional, intent ( in ) :: partial_init
+    logical(kind=l_def) :: full_init
+
+    integer(kind=i_def) :: outer, inner
+
+    use_moisture = ( moisture_formulation /= moisture_formulation_dry )
+    full_init = .true.
+    if (present(partial_init)) full_init = (.not. partial_init)
+
+    !--------------------------------------------------------------------
+    ! Allocate internal state field arrays
+    !--------------------------------------------------------------------
+
+    if (fixed_ls) then
+      ! The linearisation state is not evolved (a 0x0 looping)
+      ! but ls_outer_iterations and ls_inner_iterations are set to
+      ! 1 so that the arrays are defined.
+      ls_outer_iterations = 1_i_def
+      ls_inner_iterations = 1_i_def
+    else
+      ! The linearisation state is evolved, and the intermediate iterations
+      ! are used to calculate the evolution of the perturbation.
+      ls_outer_iterations = outer_iterations
+      ls_inner_iterations = inner_iterations
+    end if
+
+    if (full_init) then
+      allocate(state(bundle_size))
+      allocate(state_initial(bundle_size))
+      allocate(state_n(bundle_size))
+      allocate(state_after_slow(bundle_size))
+      allocate(advected_state(bundle_size))
+      allocate(rhs_n(bundle_size))
+      allocate(rhs_np1(bundle_size))
+      allocate(rhs_adv(bundle_size))
+      allocate(mr_n(nummr))
+      allocate(mr_after_slow(nummr))
+      allocate(mr_inc(nummr))
+
+      allocate(ls_state(bundle_size))
+      allocate(ls_state_n(bundle_size))
+      allocate(ls_state_after_slow(bundle_size))
+      allocate(ls_advected_state(bundle_size))
+      allocate(ls_rhs_n(bundle_size))
+      allocate(ls_mr_n(nummr))
+      allocate(ls_mr_after_slow(nummr))
+
+      allocate(ls_state_itns(bundle_size, &
+               ls_outer_iterations, ls_inner_iterations ))
+      allocate(ls_rhs_np1(bundle_size, &
+               ls_outer_iterations, ls_inner_iterations ))
+      allocate(ls_rhs_adv(bundle_size, &
+               ls_outer_iterations, ls_inner_iterations ))
+      allocate(ls_rhs_phys(bundle_size, &
+               ls_outer_iterations, ls_inner_iterations ))
+      allocate(ls_mr_inc(nummr, &
+               ls_outer_iterations, ls_inner_iterations ))
+      allocate(ls_mr_itns(nummr, &
+               ls_outer_iterations, ls_inner_iterations ))
+      allocate(ls_moist_dyn_itns(num_moist_factors, &
+               ls_outer_iterations, ls_inner_iterations ))
+    end if
+
+    !--------------------------------------------------------------------
+    ! Initialise internal state field objects
+    !--------------------------------------------------------------------
+
+    call u%copy_field_properties( state(igh_u) )
+    call theta%copy_field_properties( state(igh_t) )
+    call rho%copy_field_properties( state(igh_d) )
+    call exner%copy_field_properties( state(igh_p) )
+
+    call invoke( setval_X(state(igh_u), u), &
+                 setval_X(state(igh_t), theta), &
+                 setval_X(state(igh_d), rho), &
+                 setval_X(state(igh_p), exner) )
+
+    call clone_bundle(state, state_initial,    bundle_size)
+    call clone_bundle(state, state_n,          bundle_size)
+    call clone_bundle(state, state_after_slow, bundle_size)
+    call clone_bundle(state, advected_state,   bundle_size)
+    call clone_bundle(state, rhs_n,            bundle_size)
+    call clone_bundle(state, rhs_np1,          bundle_size)
+    call clone_bundle(state, rhs_adv,          bundle_size)
+
+    call clone_bundle(state, ls_state,            bundle_size)
+    call clone_bundle(state, ls_state_n,          bundle_size)
+    call clone_bundle(state, ls_state_after_slow, bundle_size)
+    call clone_bundle(state, ls_advected_state,   bundle_size)
+    call clone_bundle(state, ls_rhs_n,            bundle_size)
+
+    do outer = 1, ls_outer_iterations
+      do inner = 1, ls_inner_iterations
+        call clone_bundle(state, ls_state_itns(:, outer, inner), bundle_size)
+        call clone_bundle(state, ls_rhs_np1(:, outer, inner),    bundle_size)
+        call clone_bundle(state, ls_rhs_adv(:, outer, inner),    bundle_size)
+        call clone_bundle(state, ls_rhs_phys(:, outer, inner),   bundle_size)
+        call set_bundle_scalar(0.0_r_def, ls_rhs_phys(:, outer, inner),   bundle_size)
+      end do
+    end do
+
+    call ls_theta%copy_field_properties(theta_fv_inc)
+
+    call clone_bundle(mr, mr_n, nummr)
+    call clone_bundle(mr, mr_after_slow, nummr)
+
+    if (use_moisture) then
+      call clone_bundle(mr, mr_inc, nummr)
+    else
+      call set_bundle_scalar(0.0_r_def, mr_n, nummr)
+      call set_bundle_scalar(0.0_r_def, mr_after_slow, nummr)
+    end if
+
+    call clone_bundle(ls_mr, ls_mr_n, nummr)
+    call clone_bundle(ls_mr, ls_mr_after_slow, nummr)
+
+    do outer = 1,ls_outer_iterations
+      do inner = 1, ls_inner_iterations
+        call clone_bundle(ls_moist_dyn, ls_moist_dyn_itns(:, outer, inner), &
+                          num_moist_factors)
+        call clone_bundle(ls_mr, ls_mr_itns(:, outer, inner), nummr)
+        if (use_moisture) then
+          call clone_bundle(ls_mr, ls_mr_inc(:, outer, inner), nummr)
+        else
+        end if
+     end do
+    end do
+
+    if (.not. use_moisture) then
+      call set_bundle_scalar(0.0_r_def, ls_mr_n, nummr)
+      call set_bundle_scalar(0.0_r_def, ls_mr_after_slow, nummr)
+    end if
+
+    !--------------------------------------------------------------------
+    ! Operators for si solves
+    !--------------------------------------------------------------------
+    if (full_init) then
+      call create_si_operators( mesh )
+      call gungho_transport_control_alg_init( mesh )
+      call semi_implicit_solver_alg_init( state )
+    end if
+
+    call log_event( "semi_implicit_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
+
+  end subroutine tl_semi_implicit_alg_init
+
+  !> @brief   The tangent linear for the timestepping of the 3D nonlinear
+  !>          equations using an iterative process with inner and outer loops.
+  !> @param[in,out] modeldb                Structure containing the model state
+  !> @param[in,out] u                      3D wind field
+  !> @param[in,out] rho                    Density
+  !> @param[in,out] theta                  Potential temperature
+  !> @param[in,out] exner                  Exner pressure
+  !> @param[in,out] mr                     Mixing ratios
+  !> @param[in,out] moist_dyn              Factors for moist dynamics
+  !> @param[in]     ls_u                   3D wind field
+  !> @param[in]     ls_rho                 Density
+  !> @param[in]     ls_theta               Potential temperature
+  !> @param[in]     ls_exner               Exner pressure
+  !> @param[in]     ls_mr                  Mixing ratios
+  !> @param[in]     ls_moist_dyn           Factors for moist dynamics
+  !> @param[in]     derived_fields         Group of derived fields
+  !> @param[in]     mesh                   The current mesh
+  !> @param[in]     twod_mesh              The current 2d mesh
+  subroutine tl_semi_implicit_alg_step( modeldb, u, rho, theta, exner, mr, moist_dyn,          &
+                                        ls_u, ls_rho, ls_theta, ls_exner, ls_mr, ls_moist_dyn, &
+                                        derived_fields, mesh, twod_mesh )
+
+    implicit none
+
+    type(modeldb_type), target, intent(inout) :: modeldb
+
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: u, rho, theta, exner
+    type( field_type ), intent( inout ) :: mr(nummr)
+    type( field_type ), intent( inout ) :: moist_dyn(num_moist_factors)
+    ! Linearisation state
+    type( field_type ), intent( in ) :: ls_u, ls_rho, ls_theta, ls_exner
+    type( field_type ), intent( in ) :: ls_mr(nummr)
+    type( field_type ), intent( in ) :: ls_moist_dyn(num_moist_factors)
+    ! field groups
+    type( field_collection_type ), intent( inout ) :: derived_fields
+
+    type( mesh_type ), intent( in ), pointer :: mesh
+    type( mesh_type ), intent( in ), pointer :: twod_mesh
+
+    real( kind=r_def ) :: cast_dt
+
+    ! Quadrature object
+    type( quadrature_xyoz_type ), pointer :: qr => null()
+
+    type( operator_type ), pointer :: mm_wt  => null()
+    type( operator_type ), pointer :: mm_vel => null()
+
+    integer( kind=i_def ) :: outer, inner, reference_reset_freq
+    integer( kind=i_def ) :: ls_outer, ls_inner
+    integer( kind=i_def ) :: next_outer, next_inner
+    real( kind=r_def )    :: varalpha, varbeta ! alpha, beta weight to use
+                                               ! these may differ from input
+                                               ! values during the spinup period
+
+    ! Don't write moisture diagnostics in linear app
+    logical( kind=l_def ) :: write_moisture_diag = .false.
+
+    ! Configuration
+    type( namelist_type ), pointer :: mixed_solver_nml
+    real( kind=r_def )             :: mixed_solver_a_tol
+
+    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+
+    cast_dt = real(modeldb%clock%get_seconds_per_step(), r_def)
+
+    call log_event( "Tangent linear: semi implicit timestep", LOG_LEVEL_INFO )
+
+    qr => get_qr_fe()
+
+    mm_wt  => get_mass_matrix_fe(Wtheta, mesh%get_id())
+    mm_vel => get_mass_matrix_fe(W2,     mesh%get_id())
+
+    !--------------------------------------------------------------------
+    ! If off-centring is being spun up then modify the alpha value
+    !--------------------------------------------------------------------
+    if (spinup_alpha .and. modeldb%clock%is_spinning_up()) then
+      varalpha = 1.0_r_def
+    else
+      varalpha = alpha
+    end if
+    varbeta = 1.0_r_def - varalpha
+
+    !--------------------------------------------------------------------
+    ! Copy prognostic field data to state arrays
+    !--------------------------------------------------------------------
+    call invoke( name = "copy_init_fields_to_state", &
+                 setval_X(state(igh_u), u    ),      &
+                 setval_X(state(igh_t), theta),      &
+                 setval_X(state(igh_d), rho  ),      &
+                 setval_X(state(igh_p), exner) )
+
+!--------------------------------------------------------------------
+! Linearisation state
+!--------------------------------------------------------------------
+
+    !--------------------------------------------------------------------
+    ! Copy ls data to ls_state arrays
+    !--------------------------------------------------------------------
+
+    call invoke( name = "copy_lin_fields_to_ls_state", &
+                 setval_X(ls_state(igh_u), ls_u    ),  &
+                 setval_X(ls_state(igh_t), ls_theta),  &
+                 setval_X(ls_state(igh_d), ls_rho  ),  &
+                 setval_X(ls_state(igh_p), ls_exner) )
+
+    !--------------------------------------------------------------------
+    ! Update state_n and mr_n with start of timestep values
+    !--------------------------------------------------------------------
+
+    call copy_bundle(ls_mr, ls_mr_itns(:,1,1), nummr)
+
+    call copy_bundle(ls_moist_dyn, ls_moist_dyn_itns(:,1,1), num_moist_factors)
+
+    if (use_moisture) then
+      call copy_bundle(ls_mr, ls_mr_n(:), nummr)
+      call copy_bundle(ls_mr, ls_mr_after_slow(:), nummr)
+
+      call moist_dyn_factors_alg(ls_moist_dyn_itns(:, 1, 1), ls_mr_n(:) )
+    end if
+
+    call copy_bundle(ls_state, ls_state_itns(:, 1, 1), bundle_size)
+
+    call copy_bundle(ls_state, ls_state_n(:), bundle_size)
+
+    call copy_bundle(ls_state, ls_state_after_slow(:), bundle_size)
+
+    !--------------------------------------------------------------------
+    ! Compute the semi-implicit operators
+    !--------------------------------------------------------------------
+    ! Reset the reference state in the semi-implicit operators using the latest state guess.
+    ! This occurs every n timesteps, where n is calculated as reference_reset_time divided by dt.
+    ! The reference_reset_time is specified in the configuration namelist.
+    ! Note that this reset can only occur at most once per timestep.
+    reference_reset_freq = nint(reference_reset_time / cast_dt, i_def)
+    if ( mod(modeldb%clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) &
+      call compute_si_operators(ls_state(igh_t),          &
+                                ls_state(igh_d),          &
+                                ls_state(igh_p),          &
+                                modeldb%clock,            &
+                                ls_moist_dyn_itns(:,1,1))
+
+
+    !--------------------------------------------------------------------
+    ! Compute the time-level n dynamics terms
+    !--------------------------------------------------------------------
+    call copy_bundle(ls_state_after_slow, ls_advected_state,  bundle_size)
+
+    if ( .not. fixed_ls ) then
+
+    call rhs_alg( ls_rhs_n, varbeta*cast_dt, ls_state_after_slow, &
+                  ls_state_n, ls_moist_dyn_itns(:,1,1),           &
+                  compute_eos=.false., compute_rhs_t_d=.true.,    &
+                  dlayer_rhs=.false., model_clock=modeldb%clock )
+
+    if ( .not. si_momentum_equation ) then
+      ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
+      ! explicit advection
+      call mass_matrix_solver_alg(ls_advected_state(igh_u), ls_rhs_n(igh_u))
+    end if
+
+    !==========================================================================
+    ! Start the Outer (advection) loop
+    !==========================================================================
+    ls_outer_dynamics_loop: do outer = 1,ls_outer_iterations
+
+      call gungho_transport_control_alg(ls_rhs_adv(:, outer, 1),        &
+                                        ls_advected_state,              &
+                                        ls_state_itns(igh_u, outer, 1), &
+                                        ls_state_n(igh_u),              &
+                                        ls_mr_itns(:, outer, 1),        &
+                                        ls_mr_after_slow(:),            &
+                                        modeldb%clock, outer,           &
+                                        cheap_update = .false. )
+
+      ! Convert theta increment to weak form
+      call invoke( setval_X(theta_fv_inc, ls_rhs_adv(igh_t, outer, 1)),          &
+                   setval_c(ls_rhs_adv(igh_t, outer, 1), 0.0_r_def),             &
+                   dg_inc_matrix_vector_kernel_type(ls_rhs_adv(igh_t, outer, 1), &
+                                                    theta_fv_inc, mm_wt) )
+
+      if (use_wavedynamics) then
+
+        ! Use advective update to guess n+1 level scalar fields.
+        if ( guess_np1 ) then
+          ! Update factors for moist dynamics
+          if (use_moisture) then
+            call moist_dyn_factors_alg( ls_moist_dyn_itns(:, outer, 1), &
+                                        ls_mr_itns(:, outer, 1) )
+          end if
+          call update_prognostic_scalars_alg(        &
+                         ls_state_itns(:, outer, 1), &
+                         ls_rhs_n,                   &
+                         ls_rhs_adv(:, outer, 1),    &
+                         ls_rhs_phys(:, outer, 1),   &
+                         ls_moist_dyn_itns(gas_law, outer, 1) )
+        end if
+
+        !=====================================================================
+        ! Start the Inner (nonlinear, coriolis) loop
+        !=====================================================================
+        ls_inner_dynamics_loop: do inner = 1,ls_inner_iterations
+
+          write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
+                                                outer, inner
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+          ! Calculate the counters for the next iteration
+          if ( inner == inner_iterations ) then
+            next_inner = 1
+            next_outer = outer + 1
+          else
+            next_inner = inner + 1
+            next_outer = outer
+          end if
+
+          ! Only the intermediate iterations are required for the tangent linear
+          ! - and not the final iteration. So the final loop of the nonlinear is
+          ! not required.
+          if ( next_outer <= outer_iterations .and. &
+               next_inner <= inner_iterations ) then
+
+            !--------------------------------------------------------------------
+            ! Compute the time-level n+1 dynamics terms
+            !--------------------------------------------------------------------
+            call rhs_alg( ls_rhs_np1(:, outer, inner),        &
+                          -varalpha*cast_dt,                  &
+                          ls_state_itns(:, outer, inner),     &
+                          ls_state_itns(:, outer, inner),     &
+                          ls_moist_dyn_itns(:, outer, inner), &
+                          compute_eos=.true.,                 &
+                          compute_rhs_t_d=.true.,             &
+                          dlayer_rhs=dlayer_on,               &
+                          model_clock=modeldb%clock )
+
+            !--------------------------------------------------------------------
+            ! Compute the LAM LBCs and RHS
+            !--------------------------------------------------------------------
+            if ( limited_area ) then
+              call log_event( "No limited area for Tangent linear", LOG_LEVEL_ERROR )
+            end if
+
+            !--------------------------------------------------------------------
+            ! Compute the residuals
+            !
+            ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
+            ! (reuse rhs_np1 for rhs)
+            !--------------------------------------------------------------------
+            call bundle_axpy(-1.0_r_def,                   &
+                              ls_rhs_np1(:, outer, inner), &
+                              ls_rhs_n,                    &
+                              ls_rhs_np1(:, outer, inner), &
+                              bundle_size)
+            call add_bundle(ls_rhs_np1(:, outer, inner), &
+                            ls_rhs_adv(:, outer, inner), &
+                            ls_rhs_np1(:, outer, inner), &
+                            bundle_size)
+
+            if ( limited_area ) then
+              call log_event( "No limited area for Tangent linear", LOG_LEVEL_ERROR )
+            end if
+
+            ! Accelerators for inner loop convergence
+            if ( inner > 1 ) then
+              call invoke( setval_c(ls_rhs_np1(igh_d, outer, inner), 0.0_r_def), &
+                           setval_c(ls_rhs_np1(igh_t, outer, inner), 0.0_r_def) )
+            end if
+
+            !--------------------------------------------------------------------
+            ! Solve semi-implicit system: A*inc = rhs, and increment state by inc
+            !--------------------------------------------------------------------
+
+            ! First copy the intermediate ls_state values to the next iteration
+
+            call copy_bundle( ls_state_itns(:, outer, inner),               &
+                              ls_state_itns(:, next_outer, next_inner),     &
+                              bundle_size )
+            call copy_bundle( ls_rhs_np1(:, outer, inner),                  &
+                              ls_rhs_np1(:, next_outer, next_inner),        &
+                              bundle_size )
+            call copy_bundle( ls_rhs_adv(:, outer, inner),                  &
+                              ls_rhs_adv(:, next_outer, next_inner),        &
+                              bundle_size )
+
+            call copy_bundle( ls_moist_dyn_itns(:, outer, inner),           &
+                              ls_moist_dyn_itns(:, next_outer, next_inner), &
+                              num_moist_factors )
+            call copy_bundle( ls_mr_itns(:, outer, inner),                  &
+                              ls_mr_itns(:, next_outer, next_inner),        &
+                              nummr )
+            if (use_moisture) then
+              call copy_bundle( ls_mr_inc(:, outer, inner),                 &
+                                ls_mr_inc(:, next_outer, next_inner),       &
+                                nummr )
+            end if
+
+            call semi_implicit_solver_alg_step(                                &
+                           ls_state_itns(:, next_outer, next_inner),           &
+                           ls_rhs_np1(:, outer, inner),                        &
+                           ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
+                           ls_mr_itns(:, next_outer, next_inner),              &
+                           write_moisture_diag, first_iteration=(inner==1) )
+            ! If not already done update factors for moist dynamics
+            if ( .not. guess_np1 .and. use_moisture) then
+              call moist_dyn_factors_alg(                        &
+                   ls_moist_dyn_itns(:, next_outer, next_inner), &
+                   ls_mr_itns(:, next_outer, next_inner) )
+            end if
+            if (exner_from_eos) then
+              call derive_exner_from_eos( &
+                           ls_state_itns(:, next_outer, next_inner), &
+                           ls_moist_dyn_itns(gas_law, next_outer, next_inner) )
+            end if
+
+            !----------------------------------------------------------------
+            ! LAM Overwrite and Blend LBCs
+            !----------------------------------------------------------------
+            if ( limited_area ) then
+              call log_event( "No limited area for Tangent linear", LOG_LEVEL_ERROR )
+            endif
+
+          end if
+
+        end do ls_inner_dynamics_loop
+        !--------------------------------------------------------------------
+        ! End of Inner (nonlinear, coriolis) loop
+        !--------------------------------------------------------------------
+
+      end if ! use_wavedynamics
+
+    end do ls_outer_dynamics_loop
+    !--------------------------------------------------------------------
+    ! End of Outer (advection) loop
+    !--------------------------------------------------------------------
+    end if
+
+!--------------------------------------------------------------------
+! Perturbation
+!--------------------------------------------------------------------
+
+    ! Perform some checking on the fields.
+    call check_fields(state, cast_dt)
+
+    !--------------------------------------------------------------------
+    ! Update state_n and mr_n with start of timestep values
+    !--------------------------------------------------------------------
+    if (use_moisture) then
+      call copy_bundle(mr, mr_n, nummr)
+      call copy_bundle(mr, mr_after_slow, nummr)
+      call tl_moist_dyn_factors_alg(moist_dyn, mr_n)
+    end if
+    if (l_stabilise_bl) call copy_bundle(state, state_initial, bundle_size)
+    call copy_bundle(state, state_n, bundle_size)
+    call copy_bundle(state, state_after_slow, bundle_size)
+
+    !--------------------------------------------------------------------
+    ! Compute the time-level n dynamics terms
+    !--------------------------------------------------------------------
+    call tl_rhs_alg( rhs_n, varbeta*cast_dt, state_after_slow, state_n, &
+                     moist_dyn, ls_state_n, ls_moist_dyn_itns(:, 1,1),  &
+                     .false., .false., model_clock=modeldb%clock )
+
+    call copy_bundle(state_after_slow, advected_state,  bundle_size)
+    if ( .not. si_momentum_equation ) then
+      ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
+      ! explicit advection
+      call mass_matrix_solver_alg(advected_state(igh_u), rhs_n(igh_u))
+      if ( use_density_predictor ) then
+        call log_event('T.L. si timestep: transport with density predictor not yet implemented', &
+                       LOG_LEVEL_ERROR)
+      end if
+    end if
+
+    !==========================================================================
+    ! Start the Outer (advection) loop
+    !==========================================================================
+
+    outer_dynamics_loop: do outer = 1,outer_iterations
+
+      if (fixed_ls) then
+        ls_outer = 1
+      else
+        ls_outer = outer
+      end if
+
+      call tl_transport_control_alg(rhs_adv,                           &
+                                    advected_state,                    &
+                                    state(igh_u),                      &
+                                    state_n(igh_u),                    &
+                                    mr,                                &
+                                    mr_after_slow,                     &
+                                    ls_advected_state,                 &
+                                    ls_state_itns(igh_u, ls_outer, 1), &
+                                    ls_state_n(igh_u),                 &
+                                    ls_mr_after_slow,                  &
+                                    modeldb%clock,                     &
+                                    outer )
+
+      ! Convert theta increment to weak form
+      call invoke( setval_X(theta_fv_inc, rhs_adv(igh_t)),          &
+                   setval_c(rhs_adv(igh_t), 0.0_r_def),             &
+                   dg_inc_matrix_vector_kernel_type(rhs_adv(igh_t), &
+                                                    theta_fv_inc, mm_wt) )
+
+      if (use_wavedynamics) then
+
+        ! Use advective update to guess n+1 level scalar fieldsgv .
+        if ( guess_np1 ) &
+          call log_event( 'guess_np1 not available for tangent linear', LOG_LEVEL_ERROR )
+
+        !=======================================================================
+        ! Start the Inner (nonlinear, coriolis) loop
+        !=======================================================================
+        inner_dynamics_loop: do inner = 1,inner_iterations
+          write( log_scratch_space, '(A,2I3)' ) 'loop indices (o, i): ', &
+                                                outer, inner
+          call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+          if (fixed_ls) then
+             ls_inner = 1
+          else
+             ls_inner = inner
+          end if
+
+          !--------------------------------------------------------------------
+          ! Compute the time-level n+1 dynamics terms
+          !--------------------------------------------------------------------
+          call tl_rhs_alg(rhs_np1,                                  &
+                          -varalpha*cast_dt,                        &
+                          state,                                    &
+                          state,                                    &
+                          moist_dyn,                                &
+                          ls_state_itns(:, ls_outer, ls_inner),     &
+                          ls_moist_dyn_itns(:, ls_outer, ls_inner), &
+                          .true.,                                   &
+                          dlayer_on,                                &
+                          modeldb%clock)
+
+          !--------------------------------------------------------------------
+          ! Compute the LAM LBCs and RHS
+          !--------------------------------------------------------------------
+          if ( limited_area ) then
+            call log_event( "No limited area for Tangent linear", LOG_LEVEL_ERROR )
+          end if
+
+          !--------------------------------------------------------------------
+          ! Compute the residuals
+          !
+          ! Add on advective terms: rhs = rhs_n - rhs_np1 + rhs_adv
+          ! (reuse rhs_np1 for rhs)
+          !--------------------------------------------------------------------
+          call bundle_axpy(-1.0_r_def, rhs_np1, rhs_n, rhs_np1, bundle_size)
+          call add_bundle(rhs_np1, rhs_adv, rhs_np1, bundle_size)
+
+          if ( limited_area ) then
+            call log_event( "No limited area for Tangent linear", LOG_LEVEL_ERROR )
+          end if
+
+          ! Accelerators for inner loop convergence
+          if ( inner > 1 ) then
+            call invoke( setval_c(rhs_np1(igh_d), 0.0_r_def), &
+                         setval_c(rhs_np1(igh_t), 0.0_r_def) )
+          end if
+
+          !--------------------------------------------------------------------
+          ! Solve semi-implicit system: A*inc = rhs, and increment state by inc
+          !--------------------------------------------------------------------
+
+          mixed_solver_nml => modeldb%configuration%get_namelist('mixed_solver')
+          call mixed_solver_nml%get_value( 'mixed_solver_a_tol', &
+                                            mixed_solver_a_tol )
+
+          ! If rhs_np1 is zero, there is no need to call the SI solver
+          if ( .not. &
+               bundle_is_zero(mixed_solver_a_tol, rhs_np1, bundle_size) ) then
+            call semi_implicit_solver_alg_step( state, rhs_np1,      &
+                                                moist_dyn(gas_law),  &
+                                                mr,                  &
+                                                write_moisture_diag, &
+                                                first_iteration=(inner==1) )
+          end if
+
+          ! Update factors for moist dynamics
+          if (use_moisture) then
+            call tl_moist_dyn_factors_alg(moist_dyn, mr )
+          end if
+
+          if (exner_from_eos) then
+            call tl_derive_exner_from_eos( state,              &
+                                           moist_dyn(gas_law), &
+                                           ls_state,           &
+                                           ls_moist_dyn(gas_law) )
+          end if
+
+          !--------------------------------------------------------------------
+          ! LAM Overwrite and Blend LBCs
+          !--------------------------------------------------------------------
+          if ( limited_area ) then
+            call log_event( "No limited area for Tangent linear", LOG_LEVEL_ERROR )
+          endif
+
+        end do inner_dynamics_loop
+        !--------------------------------------------------------------------
+        ! End of Inner (nonlinear, coriolis) loop
+        !--------------------------------------------------------------------
+
+      end if ! use_wavedynamics
+
+    end do outer_dynamics_loop
+    !--------------------------------------------------------------------
+    ! End of Outer (advection) loop
+    !--------------------------------------------------------------------
+
+    !--------------------------------------------------------------------
+    ! Apply boundary layer (BL) stabilisation if required
+    !--------------------------------------------------------------------
+    if (l_stabilise_bl) then
+      ! Set u inside boundary layer to:
+      !   alpha * state_initial(igh_u) + (1 - alpha) * state(igh_u)
+      ! where alpha is a maximum of 1 at the model base and decreases
+      ! linearly to 0 at top of boundary layer
+      call invoke( setval_X( u, state(igh_u) ),                          &
+                   stabilise_bl_u_kernel_type( u, state_initial(igh_u),  &
+                                               state(igh_u),             &
+                                               n_bl_levels_to_stabilise, &
+                                               max_bl_stabilisation ),   &
+                   setval_X( state(igh_u), u ) )
+      end if
+
+    !--------------------------------------------------------------------
+    ! Apply mixing
+    !--------------------------------------------------------------------
+    call mixing_alg(mr, state(igh_t),                             &
+                    state(igh_u), derived_fields,                 &
+                    state(igh_d), cast_dt )
+
+    ! Update derived variables for time level n+1
+    if (use_moisture) then
+      call tl_moist_dyn_factors_alg(moist_dyn, mr)
+    end if
+    if (use_physics) then
+      call map_physics_fields_alg(state(igh_u), state(igh_p), &
+                                  state(igh_d), state(igh_t), &
+                                  moist_dyn, derived_fields)
+    end if
+
+    !--------------------------------------------------------------------
+    ! Update fields held in the driver layer
+    !--------------------------------------------------------------------
+    call invoke( setval_X(u, state(igh_u)), &
+                 setval_X(theta, state(igh_t)), &
+                 setval_X(rho,   state(igh_d)), &
+                 setval_X(exner, state(igh_p)) )
+
+    nullify( mm_wt, mm_vel, qr )
+
+    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+
+  end subroutine tl_semi_implicit_alg_step
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Release all claimed resources once completed.
+  subroutine tl_semi_implicit_alg_final()
+
+    implicit none
+
+    call semi_implicit_solver_alg_final()
+
+    call final_si_operators()
+
+    if (allocated(state))            deallocate(state)
+    if (allocated(state_initial))    deallocate(state_initial)
+    if (allocated(state_n))          deallocate(state_n)
+    if (allocated(state_after_slow)) deallocate(state_after_slow)
+    if (allocated(advected_state))   deallocate(advected_state)
+    if (allocated(rhs_n))            deallocate(rhs_n)
+    if (allocated(rhs_np1))          deallocate(rhs_np1)
+    if (allocated(rhs_adv))          deallocate(rhs_adv)
+    if (allocated(mr_n))             deallocate(mr_n)
+    if (allocated(mr_after_slow))    deallocate(mr_after_slow)
+    if (allocated(mr_inc))           deallocate(mr_inc)
+
+    if (allocated(ls_state))            deallocate(ls_state)
+    if (allocated(ls_state_itns))       deallocate(ls_state_itns)
+    if (allocated(ls_state_n))          deallocate(ls_state_n)
+    if (allocated(ls_state_after_slow)) deallocate(ls_state_after_slow)
+    if (allocated(ls_advected_state))   deallocate(ls_advected_state)
+    if (allocated(ls_rhs_n))            deallocate(ls_rhs_n)
+    if (allocated(ls_rhs_np1))          deallocate(ls_rhs_np1)
+    if (allocated(ls_rhs_adv))          deallocate(ls_rhs_adv)
+    if (allocated(ls_rhs_phys))         deallocate(ls_rhs_phys)
+    if (allocated(ls_mr_n))             deallocate(ls_mr_n)
+    if (allocated(ls_mr_after_slow))    deallocate(ls_mr_after_slow)
+    if (allocated(ls_mr_inc))           deallocate(ls_mr_inc)
+    if (allocated(ls_mr_itns))          deallocate(ls_mr_itns)
+    if (allocated(ls_moist_dyn_itns))   deallocate(ls_moist_dyn_itns)
+
+    return
+  end subroutine tl_semi_implicit_alg_final
+
+end module tl_si_timestep_alg_mod

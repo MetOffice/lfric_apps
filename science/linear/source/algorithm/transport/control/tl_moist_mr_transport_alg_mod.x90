@@ -1,0 +1,113 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Routine for tangent linear transport of the moisture mixing ratios.
+
+module tl_moist_mr_transport_alg_mod
+
+  use constants_mod,                  only: i_def, r_def
+  use sci_enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
+  use field_mod,                      only: field_type
+  use io_config_mod,                  only: subroutine_timers
+  use log_mod,                        only: log_event,       &
+                                            LOG_LEVEL_ERROR
+  use mr_indices_mod,                 only: nummr
+  use timer_mod,                      only: timer
+  use tl_transport_controller_mod,    only: tl_transport_controller_type
+  use transport_enumerated_types_mod, only: equation_form_advective, &
+                                            equation_form_conservative
+  use tl_transport_field_mod,         only: tl_transport_field
+  use transport_metadata_mod,         only: transport_metadata_type
+
+  implicit none
+
+  private
+
+  public :: tl_moist_mr_transport_alg
+
+contains
+
+  !> @brief Central routine for tangent linear transport of moisture fields.
+  !> @details Performs a whole transport time step for moisture mixing ratios,
+  !!          in the tangent linear model, with different routines called
+  !!          depending on the form of the transport equation being used. If
+  !!          transport equation is conservative, then transforms mixing ratios
+  !!          to densities on the shifted mesh before transporting these.
+  !> @param[in,out] mr_out     ACTIVE  Perturbation to moisture mixing ratios
+  !> @param[in]     mr_in      ACTIVE  Input perturbation state for moisture
+  !> @param[in]     ls_mr_in   PASSIVE Lin. state for moisture mixing ratios
+  !> @param[in]     nummr_to_transport Number of moisture species to transport
+  !> @param[in,out] tl_transport_controller
+  !!                           Object controlling transport
+  !> @param[in,out] transport_metadata
+  !!                           Contains the configuration options for
+  !!                           transporting these fields
+  subroutine tl_moist_mr_transport_alg(mr_out, mr_in, ls_mr_in,                &
+                                       nummr_to_transport,                     &
+                                       tl_transport_controller,                &
+                                       transport_metadata)
+
+    implicit none
+
+    ! Arguments
+    type(field_type),                   intent(inout) :: mr_out(nummr)
+    type(field_type),                   intent(in)    :: mr_in(nummr)
+    type(field_type),                   intent(in)    :: ls_mr_in(nummr)
+    integer(kind=i_def),                intent(in)    :: nummr_to_transport
+    type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
+    type(transport_metadata_type),      intent(inout) :: transport_metadata
+
+    ! Internal variables
+    integer(kind=i_def) :: imr
+
+    if ( subroutine_timers ) call timer('tl moist mixing ratio transport')
+
+    ! Choose form of transport equation
+    select case ( transport_metadata%get_equation_form() )
+
+    ! ------------------------------------------------------------------------ !
+    ! Advective form of transport equation
+    ! ------------------------------------------------------------------------ !
+    case ( equation_form_advective )
+
+      ! Simply transport all the mixing ratio fields as they are in Wtheta
+
+      do imr = 1, nummr_to_transport
+        call tl_transport_field(                                               &
+                mr_out(imr), mr_in(imr), ls_mr_in(imr),                        &
+                tl_transport_controller, transport_metadata                    &
+        )
+      end do
+
+    ! ------------------------------------------------------------------------ !
+    ! Conservative form of transport equation
+    ! ------------------------------------------------------------------------ !
+    case ( equation_form_conservative )
+      call log_event('Conservative moisture transport equation not ' // &
+                     'yet implemented', LOG_LEVEL_ERROR)
+
+    ! ------------------------------------------------------------------------ !
+    ! Default form of transport equation
+    ! ------------------------------------------------------------------------ !
+    case default
+      call log_event('Form of moisture transport equation either not ' // &
+                     'compatible or not implemented', LOG_LEVEL_ERROR)
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Copy non-transported fields over
+    ! ------------------------------------------------------------------------ !
+
+    do imr = nummr_to_transport + 1, nummr
+      call mr_in(imr)%copy_field_properties(mr_out(imr))
+      call invoke( setval_X(mr_out(imr), mr_in(imr)) )
+    end do
+
+    if ( subroutine_timers ) call timer('tl moist mixing ratio transport')
+
+  end subroutine tl_moist_mr_transport_alg
+
+end module tl_moist_mr_transport_alg_mod

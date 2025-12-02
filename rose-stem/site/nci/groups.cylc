@@ -1,0 +1,66 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/nci/groups.cylc") %}
+
+{%- do site_groups.update({
+    "nightly_gadi_developer" : [
+        "gungho_model_gadi_developer",
+        "lfric_atm_gadi_developer",
+        "lfricinputs_gadi_developer",
+        "lfric2lfric_gadi_developer",
+    ],
+    "developer" : [
+        "gadi_developer",
+        "scripts",
+    ],
+    "all": [
+        "gadi",
+    ],
+    "scripts": [
+        "config_dump_checker",
+        "style_checker",
+        "extract_checker",
+        "site_validator",
+        "validate_rose_meta",
+        "rose-stem_lint_checker",
+        "global_variables_checker",
+        "python_unit_tests",
+        "local_build_test",
+    ],
+    "build": [
+        "gadi_build",
+    ],
+    "unit_tests": [
+        "gadi_unit_tests",
+    ],
+    "integration_tests": [
+        "gadi_integration_tests",
+    ],
+    "gadi_developer": [],
+    "gadi": ["gadi_developer"],
+    "gadi_build": [],
+    "gadi_unit_tests": [],
+    "gadi_integration_tests": [],
+    }) %}
+
+{% include "site/nci/groups/groups_adjoint_tests.cylc" %}
+{% include "site/nci/groups/groups_gravity_wave.cylc" %}
+{% include "site/nci/groups/groups_gungho.cylc" %}
+{% include "site/nci/groups/groups_gungho_model.cylc" %}
+{% include "site/nci/groups/groups_jedi_lfric_interface.cylc" %}
+{% include "site/nci/groups/groups_jedi_lfric_tests.cylc" %}
+{% include "site/nci/groups/groups_lfricinputs.cylc" %}
+{% include "site/nci/groups/groups_lfric2lfric.cylc" %}
+{% include "site/nci/groups/groups_lfric_atm.cylc" %}
+{% include "site/nci/groups/groups_linear.cylc" %}
+{% include "site/nci/groups/groups_linear_model.cylc" %}
+{% include "site/nci/groups/groups_shallow_water.cylc" %}
+{% include "site/nci/groups/groups_socrates_interface.cylc" %}
+{% include "site/nci/groups/groups_solver.cylc" %}
+{% include "site/nci/groups/groups_transport.cylc" %}
+{% include "site/nci/groups/groups_physics_schemes_interface.cylc" %}
+
+{% do LOG.debug("Finished in site/nci/groups.cylc") %}

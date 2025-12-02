@@ -1,0 +1,214 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module panel_edge_dist_kernel_mod_test
+
+  use funit
+  use constants_mod,          only : i_def, r_def
+  use panel_edge_support_mod, only : FAR_AWAY
+
+  implicit none
+
+  private
+  public :: panel_edge_dist_test_type , test_all
+
+  @TestCase
+  type, extends(TestCase) :: panel_edge_dist_test_type
+    private
+  contains
+    procedure test_all
+  end type panel_edge_dist_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use panel_edge_dist_kernel_mod,    only: panel_edge_dist_code
+    use get_unit_test_m3x3_dofmap_mod, only: get_m3x3_stencil_dofmap_cross, &
+                                             get_w3_m3x3_dofmap
+
+    implicit none
+
+    class(panel_edge_dist_test_type), intent(inout) :: this
+
+    integer(kind=i_def)              :: nlayers
+    integer(kind=i_def)              :: cell
+    integer(kind=i_def)              :: ndf_w3
+    integer(kind=i_def)              :: undf_w3
+    integer(kind=i_def)              :: max_stencil_size
+    integer(kind=i_def)              :: cross_stencil_sizes(4)
+    integer(kind=i_def), allocatable :: map_w3(:,:)
+    integer(kind=i_def), allocatable :: cross1d_stencil_map(:,:,:)
+    integer(kind=i_def), allocatable :: cross2d_stencil_map(:,:,:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_W(:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_E(:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_S(:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_N(:)
+    real(kind=r_def),    allocatable :: panel_id(:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_W_answer(:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_E_answer(:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_S_answer(:)
+    integer(kind=i_def), allocatable :: panel_edges_dist_N_answer(:)
+
+    ! Set integer values to describe mesh (single layer, 3x3 columns)
+    nlayers = 1
+    undf_w3 = 9
+    ndf_w3 = 1
+    cell = 5
+    max_stencil_size = 2
+
+    ! Canned field has extent of 1
+    cross_stencil_sizes(:) = 2
+
+    allocate(panel_edges_dist_W(undf_w3))
+    allocate(panel_edges_dist_E(undf_w3))
+    allocate(panel_edges_dist_S(undf_w3))
+    allocate(panel_edges_dist_N(undf_w3))
+    allocate(panel_id(undf_w3))
+
+    allocate(panel_edges_dist_W_answer(undf_w3))
+    allocate(panel_edges_dist_E_answer(undf_w3))
+    allocate(panel_edges_dist_S_answer(undf_w3))
+    allocate(panel_edges_dist_N_answer(undf_w3))
+
+    allocate(cross2d_stencil_map(1,2,4))
+
+    ! Make canned maps
+    call get_w3_m3x3_dofmap(map_w3, nlayers)
+    call get_m3x3_stencil_dofmap_cross(cross1d_stencil_map, map_w3)
+
+    ! Need to rearrange the 1D cross stencil into a 2D stencil for cell 5
+    cross2d_stencil_map(1,1,:) = 5
+    cross2d_stencil_map(1,2,1) = cross1d_stencil_map(1,2,cell)
+    cross2d_stencil_map(1,2,2) = cross1d_stencil_map(1,3,cell)
+    cross2d_stencil_map(1,2,3) = cross1d_stencil_map(1,4,cell)
+    cross2d_stencil_map(1,2,4) = cross1d_stencil_map(1,5,cell)
+
+    ! Test 1 -------------------------------------------------------------------
+    ! No panel edges nearby: nothing should happen
+    panel_edges_dist_W(:) = -FAR_AWAY
+    panel_edges_dist_E(:) = -FAR_AWAY
+    panel_edges_dist_S(:) = -FAR_AWAY
+    panel_edges_dist_N(:) = -FAR_AWAY
+    panel_edges_dist_W_answer = panel_edges_dist_W
+    panel_edges_dist_E_answer = panel_edges_dist_E
+    panel_edges_dist_S_answer = panel_edges_dist_S
+    panel_edges_dist_N_answer = panel_edges_dist_N
+    panel_id(:) = 1.0_r_def
+
+    call panel_edge_dist_code( nlayers,                          &
+                               panel_edges_dist_W,               &
+                               panel_edges_dist_E,               &
+                               panel_edges_dist_S,               &
+                               panel_edges_dist_N,               &
+                               panel_id,                         &
+                               cross_stencil_sizes,              &
+                               max_stencil_size,                 &
+                               cross2d_stencil_map,              &
+                               ndf_w3,                           &
+                               undf_w3,                          &
+                               map_w3(:,cell),                   &
+                               ndf_w3,                           &
+                               undf_w3,                          &
+                               map_w3(:,cell) )
+
+    ! Check values!
+    @assertEqual( panel_edges_dist_W_answer, panel_edges_dist_W )
+    @assertEqual( panel_edges_dist_E_answer, panel_edges_dist_E )
+    @assertEqual( panel_edges_dist_S_answer, panel_edges_dist_S )
+    @assertEqual( panel_edges_dist_N_answer, panel_edges_dist_N )
+
+    ! Test 2 -------------------------------------------------------------------
+    ! Cell is by y panel edge
+    panel_edges_dist_W(:) = -FAR_AWAY
+    panel_edges_dist_E(:) = -FAR_AWAY
+    panel_edges_dist_S(:) = -FAR_AWAY
+    panel_edges_dist_N(:) = -FAR_AWAY
+    panel_edges_dist_W_answer = panel_edges_dist_W
+    panel_edges_dist_E_answer = panel_edges_dist_E
+    panel_edges_dist_S_answer = panel_edges_dist_S
+    panel_edges_dist_N_answer = panel_edges_dist_N
+    panel_edges_dist_S_answer(5) = 1
+    panel_id(:) = 3.0_r_def
+    panel_id(2) = 4.0_r_def
+
+    call panel_edge_dist_code( nlayers,                          &
+                               panel_edges_dist_W,               &
+                               panel_edges_dist_E,               &
+                               panel_edges_dist_S,               &
+                               panel_edges_dist_N,               &
+                               panel_id,                         &
+                               cross_stencil_sizes,              &
+                               max_stencil_size,                 &
+                               cross2d_stencil_map,              &
+                               ndf_w3,                           &
+                               undf_w3,                          &
+                               map_w3(:,cell),                   &
+                               ndf_w3,                           &
+                               undf_w3,                          &
+                               map_w3(:,cell) )
+
+    ! Check values!
+    @assertEqual( panel_edges_dist_W_answer, panel_edges_dist_W )
+    @assertEqual( panel_edges_dist_E_answer, panel_edges_dist_E )
+    @assertEqual( panel_edges_dist_S_answer, panel_edges_dist_S )
+    @assertEqual( panel_edges_dist_N_answer, panel_edges_dist_N )
+
+    ! Test 3 -------------------------------------------------------------------
+    ! Cell is by x panel edge
+    panel_edges_dist_W(:) = -FAR_AWAY
+    panel_edges_dist_E(:) = -FAR_AWAY
+    panel_edges_dist_S(:) = -FAR_AWAY
+    panel_edges_dist_N(:) = -FAR_AWAY
+    panel_edges_dist_W_answer = panel_edges_dist_W
+    panel_edges_dist_E_answer = panel_edges_dist_E
+    panel_edges_dist_S_answer = panel_edges_dist_S
+    panel_edges_dist_N_answer = panel_edges_dist_N
+    panel_edges_dist_E_answer(5) = 1
+    panel_id(:) = 1.0_r_def
+    panel_id(6) = 2.0_r_def
+
+    call panel_edge_dist_code( nlayers,                          &
+                               panel_edges_dist_W,               &
+                               panel_edges_dist_E,               &
+                               panel_edges_dist_S,               &
+                               panel_edges_dist_N,               &
+                               panel_id,                         &
+                               cross_stencil_sizes,              &
+                               max_stencil_size,                 &
+                               cross2d_stencil_map,              &
+                               ndf_w3,                           &
+                               undf_w3,                          &
+                               map_w3(:,cell),                   &
+                               ndf_w3,                           &
+                               undf_w3,                          &
+                               map_w3(:,cell) )
+
+    ! Check values!
+    @assertEqual( panel_edges_dist_W_answer, panel_edges_dist_W )
+    @assertEqual( panel_edges_dist_E_answer, panel_edges_dist_E )
+    @assertEqual( panel_edges_dist_S_answer, panel_edges_dist_S )
+    @assertEqual( panel_edges_dist_N_answer, panel_edges_dist_N )
+
+    deallocate(map_w3)
+    deallocate(cross1d_stencil_map)
+    deallocate(panel_edges_dist_W)
+    deallocate(panel_edges_dist_E)
+    deallocate(panel_edges_dist_S)
+    deallocate(panel_edges_dist_N)
+    deallocate(panel_id)
+    deallocate(panel_edges_dist_W_answer)
+    deallocate(panel_edges_dist_E_answer)
+    deallocate(panel_edges_dist_S_answer)
+    deallocate(panel_edges_dist_N_answer)
+    deallocate(cross2d_stencil_map)
+
+  end subroutine test_all
+
+end module panel_edge_dist_kernel_mod_test

@@ -1,0 +1,70 @@
+<!-- Main grid definitions -->
+<!-- TODO : #325 Define fields to initialise for lfric2lfric miniapp -->
+<grid_definition>
+  <grid id="node_grid">
+    <domain domain_ref="node"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+  </grid>
+  <grid id="half_level_face_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_half_levels"/>
+  </grid>
+  <grid id="full_level_face_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+  </grid>
+  <grid id="full_level_face_grid_sw_bands">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="sw_bands"/>
+  </grid>
+  <grid id="full_level_face_grid_lw_bands">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="lw_bands"/>
+  </grid>
+  <grid id="half_level_edge_grid">
+    <domain domain_ref="edge"/>
+    <axis axis_ref="vert_axis_half_levels"/>
+  </grid>
+  <grid id="aero_mode_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="aero_modes"/>
+  </grid>
+  <grid id="sw_aero_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="sw_bands_aero_modes"/>
+  </grid>
+  <grid id="lw_aero_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="lw_bands_aero_modes"/>
+  </grid>
+  <grid id="3D_monthly_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="monthly_axis"/>
+  </grid>
+  <grid id="pft_monthly_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="monthly_axis"/>
+    <axis axis_ref="plant_func_types"/>
+  </grid>
+  <grid id="full_level_face_time_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="lbc_axis"/>
+  </grid>
+  <grid id="half_level_face_time_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_half_levels"/>
+    <axis axis_ref="lbc_axis"/>
+  </grid>
+  <grid id="half_level_edge_time_grid">
+    <domain domain_ref="edge"/>
+    <axis axis_ref="vert_axis_half_levels"/>
+    <axis axis_ref="lbc_axis"/>
+  </grid>
+</grid_definition>

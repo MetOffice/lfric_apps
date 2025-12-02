@@ -1,0 +1,176 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for interpolation of input profiles onto computational grid
+!>
+module profile_interp_kernel_mod_test
+
+use constants_mod,                 only: i_def, r_def, l_def
+
+use, intrinsic :: iso_fortran_env, only: real64
+use profile_interp_kernel_mod,     only: profile_size,   &
+                                         profile_data,   &
+                                         profile_heights
+use funit
+
+implicit none
+
+private
+public :: profile_interp_test_type, test_all
+
+@TestCase
+type, extends(TestCase) :: profile_interp_test_type
+  private
+contains
+  procedure setUp
+  procedure tearDown
+  procedure test_all
+end type profile_interp_test_type
+
+! Define a geometrically stretched grid of 30 layers on a 40km deep domain
+integer(i_def), parameter :: nlayers       = 30_i_def
+integer(i_def), parameter :: ndf_wt        = 2_i_def
+integer(i_def), parameter :: undf_wt       = nlayers + 1_i_def
+real(r_def),    parameter :: height_domain = 40.0e3_r_def
+real(r_def),    parameter :: stretch       = 1.03_r_def
+
+integer(i_def), allocatable :: map_wt(:)
+real(r_def),    allocatable :: theta(:)
+real(r_def),    allocatable :: height_wt(:)
+
+contains
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(profile_interp_test_type), intent(inout) :: this
+
+    real(r_def)    :: delta
+
+    integer(i_def) :: k
+
+    ! Input profile of potential temperature:
+    !   a) constant extrapolation from 500m to lower boundary
+    !   b) linear increase from 280K at 500m to 300K at 4km
+    !   c) jump from 300K to 305K at 4km
+    !   d) linear increase from 305K at 4km to 400K at 40km
+    !
+    !       z
+    !       ^
+    !  40km |                        /
+    !       |                       /
+    !       |                      /
+    !       |                     /
+    !       |                    /
+    !   4km |           /       /
+    !       |          /
+    !       |         /
+    !       |        /
+    !       |       /
+    !  500m |      |
+    !       |      |
+    !       |      |
+    !       |      |
+    !       ----------------------------------------> theta
+    !              |     |     |       |
+    !            280    300   305      400
+
+    profile_size = 4
+
+    profile_data(1:4) = (/ 280.0_r_def,   &
+                           300.0_r_def,   &
+                           305.0_r_def,   &
+                           400.0_r_def /)
+
+    profile_heights(1:4) = (/ 500.0_r_def,   &
+                              4.0e3_r_def,   &
+                              4.0e3_r_def,   &
+                             40.0e3_r_def /)
+
+    ! Single column onto which above profile is to be interpolated
+    allocate( map_wt(ndf_wt) )
+    allocate( theta(undf_wt) )
+    allocate( height_wt(undf_wt) )
+
+    ! Create the model grid
+    map_wt(:) = (/ 1_i_def, 2_i_def /)
+    delta = 1.0_r_def
+    height_wt(map_wt(1)) = 0.0_r_def
+
+    do k = 1, nlayers
+      height_wt(map_wt(1) + k) = height_wt(map_wt(1) + k-1) + delta
+      delta = delta * stretch
+    end do
+
+    height_wt(:) = height_domain *  height_wt(:) /                 &
+                                    height_wt(map_wt(1) + nlayers)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(profile_interp_test_type), intent(inout) :: this
+
+    deallocate( map_wt )
+    deallocate( theta )
+    deallocate( height_wt )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use profile_interp_kernel_mod, only: profile_interp_code
+
+    implicit none
+
+    class(profile_interp_test_type), intent(inout) :: this
+
+    integer(i_def)            :: k, kp
+    real(r_def)               :: target_value, xi
+    real(r_def), parameter    :: tol = 1.0e-9_r_def
+    real(r_def)               :: use_tol
+    logical(l_def), parameter :: profile_extrap = .true.
+
+    ! Interpolate input profile onto model grid
+    call profile_interp_code( nlayers,        &
+                              theta,          &
+                              height_wt,      &
+                              profile_extrap, &
+                              ndf_wt,         &
+                              undf_wt,        &
+                              map_wt )
+
+    ! Check the interpolated profile
+    do k = 0, nlayers
+      kp = map_wt(1) + k
+      if (height_wt(kp) <= profile_heights(1)) then
+        target_value = profile_data(1)
+      else if (height_wt(kp) <= profile_heights(2)) then
+        xi = (height_wt(kp) - profile_heights(1)) / &
+             (profile_heights(2) - profile_heights(1))
+        target_value = profile_data(1) + (profile_data(2) - profile_data(1)) * xi
+      else
+        xi = (height_wt(kp) - profile_heights(3)) / &
+             (profile_heights(4) - profile_heights(3))
+        target_value = profile_data(3) + (profile_data(4) - profile_data(3)) * xi
+      end if
+
+      if (r_def == real64) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def*spacing(target_value)
+      end if
+      @assertEqual(target_value, theta(kp), use_tol)
+    end do
+
+  end subroutine test_all
+
+end module profile_interp_kernel_mod_test

@@ -1,0 +1,245 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Contains routine for tangent linear transport of the wind field.
+
+module tl_wind_transport_alg_mod
+
+  use constants_mod,                  only: i_def, r_def
+  use sci_dg_convert_hdiv_field_kernel_mod, &
+                                      only: dg_convert_hdiv_field_kernel_type
+  use sci_enforce_bc_kernel_mod,      only: enforce_bc_kernel_type
+  use sci_fem_constants_mod,          only: get_mass_matrix_fe,         &
+                                            get_rmultiplicity_fe,       &
+                                            get_inverse_mass_matrix_fe
+  use field_mod,                      only: field_type
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use formulation_config_mod,         only: si_momentum_equation
+  use fs_continuity_mod,              only: W2, W3, W2broken
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+  use sci_geometric_constants_mod,    only: get_coordinates, get_panel_id
+  use io_config_mod,                  only: subroutine_timers
+  use log_mod,                        only: log_event, &
+                                            LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_INFO
+  use sci_mapping_constants_mod,      only: get_project_xdot_to_w2,  &
+                                            get_project_ydot_to_w2,  &
+                                            get_project_zdot_to_w2
+  use mesh_mod,                       only: mesh_type
+  use operator_mod,                   only: operator_type
+  use timer_mod,                      only: timer
+  use transport_config_mod,           only: broken_w2_projection
+  use tl_transport_controller_mod,    only: tl_transport_controller_type
+  use tl_transport_field_mod,         only: tl_transport_field
+  use transport_enumerated_types_mod, only: equation_form_advective
+  use transport_metadata_mod,         only: transport_metadata_type
+  use sci_field_minmax_alg_mod,       only: log_field_minmax
+
+  implicit none
+
+  private
+
+  public :: tl_wind_transport_alg
+
+contains
+
+  !=============================================================================
+  !> @brief Central routine for tangent linear transport of the wind field.
+  !> @details Performs a whole transport time step for the perturbation part of
+  !!          the wind field, with different routines called depending on the
+  !!          form of the transport equation being used.
+  !> @param[in,out] rhs_u      ACTIVE  Right-hand-side for weak wind transport
+  !!                                   equation. In other words, the advective
+  !!                                   increment to the wind multiplied by the
+  !!                                   W2 mass matrix.
+  !> @param[in]     wind_n     ACTIVE  Wind field at start of transport step
+  !> @param[in]     ls_wind_n  PASSIVE Wind field at start of transport step
+  !> @param[in,out] tl_transport_controller
+  !!                           Object controlling transport
+  !> @param[in]     transport_metadata Contains the configuration options for
+  !!                                   transporting these fields
+  subroutine tl_wind_transport_alg(rhs_u, wind_n, ls_wind_n,                   &
+                                   tl_transport_controller,                    &
+                                   transport_metadata)
+
+    use dg_matrix_vector_kernel_mod,     only: dg_matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
+    use matrix_vector_kernel_mod,        only: matrix_vector_kernel_type
+    use sci_average_w2b_to_w2_kernel_mod, only: average_w2b_to_w2_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(field_type),                   intent(inout) :: rhs_u
+    type(field_type),                   intent(in)    :: wind_n
+    type(field_type),                   intent(in)    :: ls_wind_n
+    type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
+    type(transport_metadata_type),      intent(inout) :: transport_metadata
+
+    ! Internal variables
+    integer(kind=i_def)                 :: dir
+    type(mesh_type),           pointer  :: mesh
+    type(field_type)                    :: u_w3_n(3), u_w3_inc(3)
+    type(field_type)                    :: u_w3_np1(3), ls_u_w3_n(3)
+    type(field_type)                    :: u_w2_inc, u_w2b_inc, rhs_u_broken
+    type(field_type),           pointer :: chi(:)
+    type(field_type),           pointer :: panel_id
+    type(field_type),           pointer :: rmultiplicity_w2
+    type(operator_type),        pointer :: mm_w2
+    type(operator_type),        pointer :: mm_w2b_inv
+    type(operator_type),        pointer :: project_xdot_to_w2
+    type(operator_type),        pointer :: project_ydot_to_w2
+    type(operator_type),        pointer :: project_zdot_to_w2
+    type(function_space_type),  pointer :: w3_fs
+    type(function_space_type),  pointer :: w2_fs
+    type(function_space_type),  pointer :: w2b_fs
+
+    if ( subroutine_timers ) call timer('tl wind transport')
+
+    ! ------------------------------------------------------------------------ !
+    ! Semi-implicit formulation
+    ! ------------------------------------------------------------------------ !
+    if ( si_momentum_equation ) then
+      ! Transport terms are handled by the semi-implicit scheme
+      ! so the increment is zero
+      call invoke( setval_c(rhs_u, 0.0_r_def) )
+
+    else
+      ! Transport the wind. First choose form of transport equation
+      select case ( transport_metadata%get_equation_form() )
+
+      ! ---------------------------------------------------------------------- !
+      ! Advective form of transport equation
+      ! ---------------------------------------------------------------------- !
+      case ( equation_form_advective )
+
+        ! Compute u in physical space and advect components in geocentric
+        ! Cartesian coordinates and then map back to computational form
+
+        mesh => wind_n%get_mesh()
+        w3_fs => function_space_collection%get_fs( mesh, element_order_h,      &
+                                                   element_order_v, W3 )
+        w2_fs => function_space_collection%get_fs( mesh, element_order_h,      &
+                                                   element_order_v, W2 )
+        w2b_fs => function_space_collection%get_fs( mesh, element_order_h,     &
+                                                   element_order_v, W2broken )
+        chi => get_coordinates(mesh%get_id())
+        panel_id => get_panel_id(mesh%get_id())
+        mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
+        mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
+        rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
+        project_xdot_to_w2 => get_project_xdot_to_w2(mesh%get_id())
+        project_ydot_to_w2 => get_project_ydot_to_w2(mesh%get_id())
+        project_zdot_to_w2 => get_project_zdot_to_w2(mesh%get_id())
+
+        ! -------------------------------------------------------------------- !
+        ! Split wind into components in W3
+        ! -------------------------------------------------------------------- !
+
+        do dir = 1,3
+          call u_w3_n(dir)%initialise( w3_fs )
+          call u_w3_inc(dir)%initialise( w3_fs )
+          call u_w3_np1(dir)%initialise( w3_fs )
+          call ls_u_w3_n(dir)%initialise( w3_fs )
+        end do
+        call log_field_minmax( LOG_LEVEL_INFO, 'advected u', wind_n )
+        ! Linear part
+        ! TODO: add optimised conversions to W3 components
+        call invoke( setval_c(ls_u_w3_n(1), 0.0_r_def),                        &
+                     setval_c(ls_u_w3_n(2), 0.0_r_def),                        &
+                     setval_c(ls_u_w3_n(3), 0.0_r_def),                        &
+                     dg_convert_hdiv_field_kernel_type(ls_u_w3_n, ls_wind_n,   &
+                                                    chi, panel_id),            &
+        ! Perturbation part
+                     setval_c(u_w3_n(1), 0.0_r_def),                           &
+                     setval_c(u_w3_n(2), 0.0_r_def),                           &
+                     setval_c(u_w3_n(3), 0.0_r_def),                           &
+                     dg_convert_hdiv_field_kernel_type(u_w3_n, wind_n,         &
+                                                    chi, panel_id) )
+        call log_field_minmax( LOG_LEVEL_INFO, 'xdot', u_w3_n(1) )
+        call log_field_minmax( LOG_LEVEL_INFO, 'ydot', u_w3_n(2) )
+        call log_field_minmax( LOG_LEVEL_INFO, 'zdot', u_w3_n(3) )
+
+        ! -------------------------------------------------------------------- !
+        ! Transport wind components in W3
+        ! -------------------------------------------------------------------- !
+
+        do dir = 1,3
+          call tl_transport_field(                                             &
+                  u_w3_np1(dir), u_w3_n(dir), ls_u_w3_n(dir),                  &
+                  tl_transport_controller, transport_metadata                  &
+          )
+        end do
+
+        ! -------------------------------------------------------------------- !
+        ! Return from components to full wind field in W2
+        ! -------------------------------------------------------------------- !
+
+        ! Either Galerkin project in W2broken
+        if (broken_w2_projection) then
+          ! Galerkin projection into W2broken, then restore continuity
+          call rhs_u_broken%initialise( w2b_fs )
+          call u_w2b_inc%initialise( w2b_fs )
+          call u_w2_inc%initialise( w2_fs )
+
+          call invoke( name="perform_broken_projection_for_wind_inc",          &
+                       X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),       &
+                       X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),       &
+                       X_minus_Y( u_w3_inc(3), u_w3_np1(3), u_w3_n(3) ),       &
+                       setval_c(rhs_u_broken, 0.0_r_def),                      &
+                       setval_c(rhs_u, 0.0_r_def),                             &
+                       setval_c(u_w2_inc, 0.0_r_def),                          &
+                       dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
+                                                        u_w3_inc(1),           &
+                                                        project_xdot_to_w2),   &
+                       dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
+                                                        u_w3_inc(2),           &
+                                                        project_ydot_to_w2),   &
+                       dg_inc_matrix_vector_kernel_type(rhs_u_broken,          &
+                                                        u_w3_inc(3),           &
+                                                        project_zdot_to_w2),   &
+                       dg_matrix_vector_kernel_type(u_w2b_inc, rhs_u_broken,   &
+                                                    mm_w2b_inv),               &
+                       average_w2b_to_w2_kernel_type(u_w2_inc, u_w2b_inc,      &
+                                                     rmultiplicity_w2),        &
+                       matrix_vector_kernel_type(rhs_u, u_w2_inc, mm_w2),      &
+                       enforce_bc_kernel_type(rhs_u) )
+
+        else
+          ! Assemble right-hand side for Galerkin projection into W2
+          call invoke( name="perform_galerkin_projection_for_wind_inc",        &
+                       X_minus_Y( u_w3_inc(1), u_w3_np1(1), u_w3_n(1) ),       &
+                       X_minus_Y( u_w3_inc(2), u_w3_np1(2), u_w3_n(2) ),       &
+                       X_minus_Y( u_w3_inc(3), u_w3_np1(3), u_w3_n(3) ),       &
+                       setval_c(rhs_u, 0.0_r_def),                             &
+                       matrix_vector_kernel_type(rhs_u, u_w3_inc(1),           &
+                                                 project_xdot_to_w2),          &
+                       matrix_vector_kernel_type(rhs_u, u_w3_inc(2),           &
+                                                 project_ydot_to_w2),          &
+                       matrix_vector_kernel_type(rhs_u, u_w3_inc(3),           &
+                                                 project_zdot_to_w2),          &
+                       enforce_bc_kernel_type(rhs_u) )
+        end if
+
+      ! ---------------------------------------------------------------------- !
+      ! Default form of transport equation
+      ! ---------------------------------------------------------------------- !
+      case default
+        call log_event(                                                        &
+                'Form of wind transport equation either not compatible ' //    &
+                'with wind transport or not implemented',                      &
+                LOG_LEVEL_ERROR                                                &
+        )
+
+      end select
+
+    end if ! si_momentum_equation
+
+    if ( subroutine_timers ) call timer('tl wind transport')
+
+  end subroutine tl_wind_transport_alg
+
+end module tl_wind_transport_alg_mod

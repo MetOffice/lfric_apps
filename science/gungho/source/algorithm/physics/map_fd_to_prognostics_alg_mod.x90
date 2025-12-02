@@ -1,0 +1,522 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Set prognostic fields from FD start dump
+module map_fd_to_prognostics_alg_mod
+
+  use constants_mod,                   only: r_def, i_def, l_def
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO,    &
+                                             LOG_LEVEL_DEBUG,   &
+                                             LOG_LEVEL_TRACE
+  use namelist_collection_mod,         only: namelist_collection_type
+  use namelist_mod,                    only: namelist_type
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use integer_field_mod,               only: integer_field_type
+  use field_collection_mod,            only: field_collection_type
+  use mesh_mod,                        only: mesh_type
+  use operator_mod,                    only: operator_type
+  use function_space_mod,              only: function_space_type
+  use function_space_collection_mod,   only: function_space_collection
+
+  use quadrature_xyoz_mod,             only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
+  use sci_fem_constants_mod,           only: get_rmultiplicity_fv
+  use sci_geometric_constants_mod,     only: get_height_fv,        &
+                                             get_coordinates,      &
+                                             get_panel_id,         &
+                                             get_da_at_w2,         &
+                                             get_face_selector_ew, &
+                                             get_face_selector_ns
+  use sci_mapping_constants_mod,       only: get_u_lon_map,        &
+                                             get_u_lat_map,        &
+                                             get_u_up_map,         &
+                                             get_u_lon_sample,     &
+                                             get_u_lat_sample,     &
+                                             get_u_up_sample,      &
+                                             get_w3_to_w2_displacement
+  use dycore_constants_mod,            only: get_vert_coriolis,    &
+                                             get_geopotential
+  use fs_continuity_mod,               only: W3, W2, W2broken, Wtheta
+  use sci_sort_ref_kernel_mod,         only: sort_ref_kernel_type
+  use timer_mod,                       only: timer
+  use combine_w2_field_kernel_mod,     only: combine_w2_field_kernel_type
+  use idealised_config_mod,            only: perturb_init,     &
+                                             perturb_magnitude
+  use random_perturb_field_alg_mod,    only: random_perturb_field
+    use mr_indices_mod,                only: imr_v, imr_cl, imr_ci, imr_r, &
+                                             imr_s, imr_g
+  use moist_dyn_mod,                   only: num_moist_factors, gas_law
+  use moist_dyn_factors_alg_mod,       only: moist_dyn_factors_alg
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry,           &
+                                       geometry_spherical, &
+                                       topology,           &
+                                       topology_fully_periodic
+  use formulation_config_mod,    only: rotating, shallow
+  use finite_element_config_mod, only: coord_system, coord_system_native
+  use io_config_mod,             only: subroutine_timers
+  use physics_config_mod,        only: sample_physics_winds, &
+                                       sample_physics_winds_correction
+  use planet_config_mod,         only: gravity, p_zero, kappa, rd, cp
+
+  implicit none
+
+  private
+  public :: map_fd_to_prognostics, hydrostatic_balance, set_wind
+
+contains
+
+  !> @details Setting FE prognostic fields from FD fields
+  !> @param[in]     configuration      The application configuration object
+  !> @param[in,out] prognostic_fields  Collection of prognostic fields
+  !> @param[in,out] mr                 Array of moisture mixing ratios
+  !> @param[in,out] fd_fields          Collection of input Finite Difference
+  !>                                   fields
+  subroutine map_fd_to_prognostics(configuration, prognostic_fields, mr, &
+                                   moist_dyn, fd_fields)
+
+    implicit none
+
+    ! FE Prognostic fields
+    type(namelist_collection_type), intent(in)      :: configuration
+    type(field_collection_type),    intent( inout ) :: prognostic_fields
+    type(field_type),               intent( inout ) :: mr(:)
+    type(field_type),               intent( inout ) :: moist_dyn(num_moist_factors)
+
+    type( field_collection_type),   intent( inout ) :: fd_fields
+
+    ! Local dereferenced fields
+    type( field_type ), pointer :: theta
+    type( field_type ), pointer :: rho
+    type( field_type ), pointer :: u
+    type( field_type ), pointer :: exner
+
+    ! FD  fields
+    type( field_type ), pointer :: h_wind_in_w2h
+    type( field_type ), pointer :: ew_wind_in_w3
+    type( field_type ), pointer :: ns_wind_in_w3
+    type( field_type ), pointer :: dry_rho_in_w3
+    type( field_type ), pointer :: upward_wind_in_wtheta
+    type( field_type ), pointer :: theta_in_wtheta
+    type( field_type ), pointer :: mv_in_wtheta
+    type( field_type ), pointer :: mcl_in_wtheta
+    type( field_type ), pointer :: mcf_in_wtheta
+    type( field_type ), pointer :: mr_in_wtheta
+    type( field_type ), pointer :: dA
+    integer(i_def)              :: mesh_id
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    integer(i_def)               :: model_eos_height
+    logical(l_def)               :: read_w2h_wind
+    type(namelist_type), pointer :: initialization_nml
+
+    initialization_nml => configuration%get_namelist('initialization')
+    call initialization_nml%get_value( 'model_eos_height', model_eos_height )
+    call initialization_nml%get_value( 'read_w2h_wind', read_w2h_wind )
+    nullify( initialization_nml )
+
+    ! FD (source) fields
+    if ( read_w2h_wind ) then
+      call fd_fields%get_field('h_wind', h_wind_in_w2h)
+    else
+      call fd_fields%get_field('ew_wind_in_w3', ew_wind_in_w3)
+      call fd_fields%get_field('ns_wind_in_w3', ns_wind_in_w3)
+    end if
+
+    call fd_fields%get_field('dry_rho_in_w3', dry_rho_in_w3)
+    call fd_fields%get_field('upward_wind_in_wtheta', upward_wind_in_wtheta)
+    call fd_fields%get_field('theta_in_wtheta', theta_in_wtheta)
+    call fd_fields%get_field('mv_in_wtheta', mv_in_wtheta)
+    call fd_fields%get_field('mcl_in_wtheta', mcl_in_wtheta)
+    call fd_fields%get_field('mcf_in_wtheta', mcf_in_wtheta)
+    call fd_fields%get_field('mr_in_wtheta', mr_in_wtheta)
+
+    ! Prognostic (target) fields
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('exner', exner)
+    call prognostic_fields%get_field('rho', rho)
+
+    ! Some variables should coming in from the restart file, but currently
+    ! they are not output by UM2LFRIC and are set to zero or a default value
+    ! This will need to be reviewed if this becomes a checkpoint-restart
+    ! routine and/or um2lfric is updated for GAL physics
+    call invoke( setval_x(theta, theta_in_wtheta),    &
+                 setval_x(rho, dry_rho_in_w3),        &
+                 setval_x(mr(imr_v), mv_in_wtheta),   &
+                 setval_x(mr(imr_cl), mcl_in_wtheta), &
+                 setval_x(mr(imr_s), mcf_in_wtheta),  &
+                 setval_x(mr(imr_r), mr_in_wtheta),   &
+                 setval_c(mr(imr_ci), 0.0_r_def),     &
+                 setval_c(mr(imr_g), 0.0_r_def),      &
+                 setval_c(exner, 0.0_r_def),          &
+                 setval_c(upward_wind_in_wtheta, 0.0_r_def))
+
+    if ( read_w2h_wind )then
+      ! We read in the horizontal (normal to face) winds on the w2h points
+      mesh_id = u%get_mesh_id()
+      dA => get_da_at_w2(mesh_id)
+      face_selector_ew => get_face_selector_ew(mesh_id)
+      face_selector_ns => get_face_selector_ns(mesh_id)
+
+      call invoke( combine_w2_field_kernel_type(u, h_wind_in_w2h,              &
+                                                upward_wind_in_wtheta,         &
+                                                face_selector_ew,              &
+                                                face_selector_ns),             &
+                   inc_X_times_Y(u, dA) )
+    else
+     ! We read in cell centred zonal/meridional winds
+      call set_wind( u, ew_wind_in_w3, ns_wind_in_w3, upward_wind_in_wtheta )
+    end if
+
+    ! Update factors for moist dynamics
+    call moist_dyn_factors_alg( moist_dyn, mr )
+    ! Remove any static instability
+    call invoke( sort_ref_kernel_type(theta) )
+    ! Initialize hydrostatically balanced exner field
+    call hydrostatic_balance( exner, rho, theta, u, moist_dyn, &
+                              model_eos_height )
+
+    if ( perturb_init ) then
+      call log_event( "Gungho: Applying initial perturbation to theta",         &
+                      LOG_LEVEL_INFO )
+      call random_perturb_field( theta, perturb_magnitude )
+    end if
+
+    ! Free up any prognostics not required
+    if ( read_w2h_wind ) then
+      call fd_fields%remove_field("h_wind")
+    else
+      call fd_fields%remove_field("ew_wind_in_w3")
+      call fd_fields%remove_field("ns_wind_in_w3")
+    end if
+    call fd_fields%remove_field("dry_rho_in_w3")
+    call fd_fields%remove_field("upward_wind_in_wtheta")
+    call fd_fields%remove_field("theta_in_wtheta")
+    call fd_fields%remove_field("mv_in_wtheta")
+    call fd_fields%remove_field("mcl_in_wtheta")
+    call fd_fields%remove_field("mcf_in_wtheta")
+    call fd_fields%remove_field("mr_in_wtheta")
+
+    call log_event( "Gungho: Set prognostic fields from FD fields", LOG_LEVEL_INFO )
+
+  end subroutine map_fd_to_prognostics
+
+  !> @param[in,out] u Wind (FE)
+  !> @param[in] u_lon Zonal Wind (FD)
+  !> @param[in] u_lat Meridional Wind (FD)
+  !> @param[in] u_up Upward Wind (FD)
+  subroutine set_wind(u, u_lon, u_lat, u_up)
+
+    use sci_convert_phys_to_hdiv_kernel_mod, &
+                                         only: convert_phys_to_hdiv_kernel_type
+    use dg_matrix_vector_kernel_mod,     only: dg_matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
+    use sci_enforce_bc_kernel_mod,       only: enforce_bc_kernel_type
+    use sci_mass_matrix_solver_alg_mod,  only: mass_matrix_solver_alg
+    use matrix_vector_kernel_mod,        only: matrix_vector_kernel_type
+    use sci_average_w2b_to_w2_kernel_mod, &
+                                         only: average_w2b_to_w2_kernel_type
+    use sci_w3_to_w2_average_kernel_mod, only: w3_to_w2_average_kernel_type
+    use sci_w3_to_w2_correction_kernel_mod, &
+                                         only: w3_to_w2_correction_kernel_type
+
+    implicit none
+
+    type( field_type ),  intent( inout ) :: u
+    type( field_type ),  intent( in )    :: u_lat, u_lon, u_up
+
+    type( field_type )                   :: r_u
+    type( field_type )                   :: u_broken
+    type( field_type )                   :: u_lat_w2, u_lon_w2, u_up_w2
+    type( field_type ),          pointer :: rmultiplicity_w2
+    type( field_type ),          pointer :: displacement
+    type( field_type ),          pointer :: chi(:)
+    type( field_type ),          pointer :: panel_id
+    type( operator_type ),       pointer :: u_lon_map
+    type( operator_type ),       pointer :: u_lat_map
+    type( operator_type ),       pointer :: u_up_map
+    type( function_space_type ), pointer :: w2b_fs
+
+    type( mesh_type ), pointer :: mesh
+
+    if ( subroutine_timers ) call timer("set_wind")
+
+    mesh => u%get_mesh()
+
+    if (sample_physics_winds .and. sample_physics_winds_correction) then
+
+      chi => get_coordinates(mesh%get_id())
+      rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
+      panel_id => get_panel_id(mesh%get_id())
+      call u_lon_w2%initialise( u%get_function_space() )
+      call u_lat_w2%initialise( u%get_function_space() )
+      call u_up_w2%initialise( u%get_function_space() )
+
+      call invoke( setval_c(u_lon_w2, 0.0_r_def),                              &
+                   setval_c(u_lat_w2, 0.0_r_def),                              &
+                   setval_c(u_up_w2, 0.0_r_def),                               &
+                   w3_to_w2_average_kernel_type(u_lon_w2, u_lon,               &
+                                                rmultiplicity_w2),             &
+                   w3_to_w2_average_kernel_type(u_lat_w2, u_lat,               &
+                                                rmultiplicity_w2),             &
+                   w3_to_w2_average_kernel_type(u_up_w2, u_up,                 &
+                                                rmultiplicity_w2) )
+
+      ! Apply correction
+      if (geometry == geometry_spherical .and. topology == topology_fully_periodic) then
+        displacement => get_w3_to_w2_displacement(mesh%get_id())
+        ! Correct horizontal winds
+        ! Vertical wind not needed for horizontal W2 DoFs, so don't correct
+        call invoke( w3_to_w2_correction_kernel_type(u_lon_w2, u_lon, 1,       &
+                                                     displacement,             &
+                                                     panel_id, 1),             &
+                     w3_to_w2_correction_kernel_type(u_lat_w2, u_lat, 1,       &
+                                                     displacement,             &
+                                                     panel_id, 1) )
+      end if
+
+      ! Convert from physical wind components into computational wind
+      call invoke( convert_phys_to_hdiv_kernel_type(u, u_lon_w2, u_lat_w2,     &
+                                                    u_up_w2, chi, panel_id,    &
+                                                    geometry) )
+
+    else if (sample_physics_winds) then
+
+      w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2broken)
+      rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
+      u_lon_map => get_u_lon_sample(mesh%get_id())
+      u_lat_map => get_u_lat_sample(mesh%get_id())
+      u_up_map  => get_u_up_sample(mesh%get_id())
+
+      call u_broken%initialise( w2b_fs )
+
+      call invoke( name="sample_physics_winds_in_w2",                            &
+                   setval_c(u, 0.0_r_def),                                       &
+                   dg_matrix_vector_kernel_type(u_broken, u_lon, u_lon_map),     &
+                   dg_inc_matrix_vector_kernel_type(u_broken, u_lat, u_lat_map), &
+                   dg_inc_matrix_vector_kernel_type(u_broken, u_up, u_up_map),   &
+                   average_w2b_to_w2_kernel_type(u, u_broken, rmultiplicity_w2) )
+
+    else
+
+      call u%copy_field_properties(r_u)
+
+      u_lon_map => get_u_lon_map( mesh%get_id() )
+      u_lat_map => get_u_lat_map( mesh%get_id() )
+      u_up_map  => get_u_up_map( mesh%get_id() )
+
+      call invoke( name="galerkin_projection_from_lonlatr",          &
+                   setval_c( u,   0.0_r_def ),                       &
+                   setval_c( r_u, 0.0_r_def ),                       &
+                   matrix_vector_kernel_type(r_u, u_lon, u_lon_map), &
+                   matrix_vector_kernel_type(r_u, u_lat, u_lat_map), &
+                   matrix_vector_kernel_type(r_u, u_up, u_up_map),   &
+                   enforce_bc_kernel_type( r_u ) )
+      call mass_matrix_solver_alg(u, r_u)
+    end if
+
+    if ( subroutine_timers ) call timer("set_wind")
+
+  end subroutine set_wind
+
+  !> @param[in,out] exner Exner pressure
+  !> @param[in] rho       Dry density
+  !> @param[in] theta     Theta
+  !> @param[in] u         Wind
+  !> @param[in] moist_dyn Moisture arrays for dynamics
+  !> @param[in] lbc_mask  Optional LBC mask
+  subroutine hydrostatic_balance(exner, rho, theta, u, moist_dyn, &
+                                 eos_height, lbc_mask)
+    use dg_inc_matrix_vector_kernel_mod, &
+                                       only : dg_inc_matrix_vector_kernel_type
+    use sci_enforce_bc_kernel_mod,     only : enforce_bc_kernel_type
+    use hydrostatic_coriolis_kernel_mod, &
+                                       only : hydrostatic_coriolis_kernel_type
+    use hydro_shallow_to_deep_kernel_mod, &
+                                       only : hydro_shallow_to_deep_kernel_type
+    use moist_dyn_mod,                 only : num_moist_factors
+    use matrix_vector_kernel_mod,      only : matrix_vector_kernel_type
+    use sci_nodal_xyz_coordinates_kernel_mod, &
+                                       only : nodal_xyz_coordinates_kernel_type
+    use sci_mass_matrix_solver_alg_mod, &
+                                       only : mass_matrix_solver_alg
+    use sample_eos_pressure_kernel_mod,  &
+                                       only : sample_eos_pressure_kernel_type
+    use sample_eos_rho_kernel_mod,     only : sample_eos_rho_kernel_type
+    use sci_sample_w3_to_wtheta_kernel_mod, &
+                                       only : sample_w3_to_wtheta_kernel_type
+    use sci_convert_cart2sphere_vector_kernel_mod, &
+                                        only: convert_cart2sphere_vector_kernel_type
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: exner
+    type( field_type ), intent( inout ) :: theta, rho, u
+    type( field_type ), intent( in )    :: moist_dyn(num_moist_factors)
+    integer(i_def),     intent( in )    :: eos_height
+    type( field_type ), intent( in ), optional, target :: lbc_mask
+
+    type(field_type )              :: c_vert_term, r_c
+    type(field_type )              :: exner_in_wth
+    type(field_type )              :: temperature
+    type(field_type),      pointer :: geopotential
+    type(field_type),      pointer :: chi(:)
+    type(field_type),      pointer :: panel_id
+    type(field_type),      pointer :: height_w3
+    type(field_type),      pointer :: height_wth
+    type(operator_type),   pointer :: vert_coriolis
+    type(mesh_type),       pointer :: mesh
+    type(field_type),      pointer :: mask
+    type(field_type),      target  :: dummy_mask
+    integer(i_def)                 :: eos_level
+
+    nullify(geopotential, chi, panel_id, height_w3, &
+            height_wth, vert_coriolis, mesh, mask )
+
+    mesh => exner%get_mesh()
+    height_w3 => get_height_fv( W3, mesh%get_id() )
+    height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    geopotential => get_geopotential( mesh%get_id() )
+
+    ! If lbc_mask wasn't supplied, create a dummy mask
+    if (present(lbc_mask)) then
+      mask => lbc_mask
+    else
+      call dummy_mask%initialise( vector_space = exner%get_function_space() )
+      call invoke( setval_c(dummy_mask, 1.0_r_def) )
+      mask => dummy_mask
+    end if
+
+    chi           => get_coordinates( mesh%get_id() )
+    panel_id      => get_panel_id( mesh%get_id() )
+    vert_coriolis => get_vert_coriolis( mesh%get_id() )
+
+    ! Create intermediate fields.
+    call theta%copy_field_properties(c_vert_term)
+    call invoke( setval_c(c_vert_term, 0.0_r_def) )
+
+    ! Compute contribution of Coriolis force to vertical balance
+    if ( associated(vert_coriolis) ) then
+
+      call r_c%initialise( theta%get_function_space() )
+
+      ! Apply Coriolis mass matrix, and solve for vertical term in Wtheta
+      call invoke( setval_c(r_c, 0.0_r_def),                                   &
+                   dg_inc_matrix_vector_kernel_type(r_c, u, vert_coriolis),    &
+                   enforce_bc_kernel_type(r_c) )
+      call mass_matrix_solver_alg(c_vert_term, r_c, bc_flag=.true.)
+      ! Enforce that result is zero at domain bottom and top
+      call invoke( enforce_bc_kernel_type(c_vert_term) )
+    end if ! associated(vert_coriolis)
+
+    ! Get the index of the level closest to the height, ignoring the top eta
+    ! level as eos_level is to be used for a W3 space rather than Wtheta
+    eos_level = get_nearest_level( mesh, eos_height )
+    if ( eos_level == (mesh%get_nlayers() + 1) ) eos_level = eos_level - 1
+
+    if (shallow) then
+      ! Initialize the vertical profile by starting with the equation of state at
+      ! eos_level, and then integrating from this level to the top and the bottom
+      ! using hydrostatic balance with Coriolis terms.
+      call invoke( hydrostatic_coriolis_kernel_type( exner, rho, theta,       &
+                                                     c_vert_term,             &
+                                                     moist_dyn, geopotential, &
+                                                     height_w3, mask,         &
+                                                     p_zero, kappa,           &
+                                                     rd, cp,                  &
+                                                     eos_level ) )
+   else
+      ! Initialize the vertical profile of exner pressure by initializing
+      ! with the equation of state, and then integrating from eos_level to
+      ! the surface using hydrostatic balance with Coriolis terms and
+      ! absolute temperature and constant gravity, followed by integrating
+      ! from the surface to the top with the model geopotential, followed
+      ! by rederiving potential temperature (theta) and density (rho).
+      call theta%copy_field_properties(exner_in_wth)
+      call theta%copy_field_properties(temperature)
+      call invoke( &
+             ! Compute exner from EoS
+             sample_eos_pressure_kernel_type( exner, rho,                    &
+                                              theta, moist_dyn(gas_law) ),   &
+
+             ! Compute exner in Wtheta (required to calculate T)
+             sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,           &
+                                              height_wth, height_w3 ),       &
+
+             ! Compute absolute temperature T = theta * exner
+             X_times_Y( temperature, exner_in_wth, theta),                   &
+
+             ! Rebalance exner in vertical, using hydrostatic balance.
+             ! This integrates down using g (shallow) from eos_level and
+             ! then integrates up using phi (deep).
+             hydro_shallow_to_deep_kernel_type( exner, temperature,          &
+                                                c_vert_term,                 &
+                                                moist_dyn, geopotential,     &
+                                                height_w3, height_wth,       &
+                                                mask, gravity,               &
+                                                cp, eos_level ),             &
+
+             ! Recompute exner in Wtheta (required to calculate theta)
+             sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,           &
+                                              height_wth, height_w3 ),       &
+
+             ! Recompute potential temperature, theta = T /exner
+             X_divideby_Y( theta, temperature, exner_in_wth ),               &
+
+             ! Recompute density using the equation of state
+             sample_eos_rho_kernel_type(rho, exner, theta,                   &
+                                        moist_dyn(gas_law),                  &
+                                        kappa, rd, p_zero)                   &
+             )
+
+    end if
+
+    nullify( mesh )
+
+  end subroutine hydrostatic_balance
+
+  !> @brief Returns the index of the vertical level closest to the input height
+  !> @details Find the index of the vertical layer that is closest to a given
+  !!          height that is specified as an integer percentage of the total height.
+  !> @param[in] mesh   The mesh from which to obtain the eta vertical levels
+  !> @param[in] height The height at which to apply the equation of state,
+  !>                   specified as a percentage of the total height of the
+  !>                   domain
+  !> @return    level  Index of vertical level nearest to specified [%] height.
+  function get_nearest_level(mesh, height) result(level)
+
+    type( mesh_type ), intent( in ) :: mesh
+    integer(i_def),    intent( in ) :: height
+    integer(i_def)                  :: level
+    real(r_def),        allocatable :: levels(:), abs_levels(:)
+    integer(i_def)                  :: eta_level_number
+
+    eta_level_number = mesh%get_nlayers() + 1
+    allocate( levels( eta_level_number ) )
+    allocate( abs_levels( eta_level_number ) )
+
+    call mesh%get_eta( levels )
+
+    ! Find the index of the eta height level that is closest to the height
+    ! (given as a percentage)
+    abs_levels = abs( levels - ( 0.01_r_def * height ) )
+    level = minloc( abs_levels, dim = 1 )
+
+    deallocate( levels, abs_levels )
+
+    return
+
+  end function get_nearest_level
+
+end module map_fd_to_prognostics_alg_mod

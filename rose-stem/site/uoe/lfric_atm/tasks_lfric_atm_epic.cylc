@@ -1,0 +1,16 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/uoe/lfric_atm/tasks_lfric_atm_epic.cylc") %}
+
+{% if task_ns.conf_name == "thai_ben1-C48_MG" %}
+
+    {% do task_dict.update({
+        "kgo_checks": [],
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finised in site/uoe/lfric_atm/tasks_lfric_atm_epic.cylc") %}

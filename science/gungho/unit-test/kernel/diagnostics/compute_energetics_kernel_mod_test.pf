@@ -1,0 +1,316 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the energetics (potential, internal, moist internal) diagnostics
+!> kernel
+!>
+module compute_energetics_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use driver_water_constants_mod,  only : Lv => latent_heat_h2o_condensation, &
+                                          Lf => latent_heat_h2o_fusion
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w2_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                  get_w2_m3x3_dofmap, &
+                                                  get_w3_m3x3_dofmap
+  use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_diff_basis, &
+                                                  get_w0_q3x3x3_basis, &
+                                                  get_w2_q3x3x3_basis, &
+                                                  get_w3_q3x3x3_basis
+  use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                                  get_gaussian_q3x3x3_quadrature_weights_z
+  use funit
+
+  implicit none
+
+  private
+  public :: compute_energetics_kernel_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: compute_energetics_kernel_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type compute_energetics_kernel_test_type
+
+  integer(i_def), parameter :: element_order_h = 0
+  integer(i_def), parameter :: element_order_v = 0
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: scaling  = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_finite_element_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(compute_energetics_kernel_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(compute_energetics_kernel_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this)
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use compute_energetics_kernel_mod, only : compute_energetics_code
+
+    implicit none
+
+    class(compute_energetics_kernel_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def   ! r_def 64bit
+    real(r_def), parameter :: dx = 4.0_r_def, &
+                              dy = 3.0_r_def, &
+                              dz = 2.0_r_def
+
+    real(r_def) :: use_tol
+
+    integer(i_def) :: nlayers, ncells, cell, icell
+    integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2
+    integer(i_def) :: ndf_pid, undf_pid, ndf_w3, undf_w3
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def) :: i, j, k
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+    real(r_def), allocatable :: diff_basis_w0(:,:,:,:)
+    real(r_def), allocatable :: basis_w0(:,:,:,:)
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+    real(r_def), allocatable :: basis_w3(:,:,:,:)
+    real(r_def), allocatable :: wh(:), wv(:)
+
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+    real(r_def), allocatable :: u(:)
+    real(r_def), allocatable :: rho(:)
+    real(r_def), allocatable :: exner(:)
+    real(r_def), allocatable :: theta(:)
+    real(r_def), allocatable :: mr_v(:), mr_cl(:), mr_r(:)
+    real(r_def), allocatable :: mr_ci(:), mr_s(:), mr_g(:)
+    real(r_def), allocatable :: kinetic_uv(:), kinetic_w(:), &
+                                potential(:), internal(:),   &
+                                moist_int(:)
+    real(r_def), allocatable :: phi(:)
+
+    real(kind=r_def) :: p, t, m
+    real(r_def) :: cv, chi3_av, phi0
+
+    nlayers=3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, 1 )
+
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_w3_m3x3_dofmap(map_pid, 1)
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+    call get_w0_q3x3x3_basis(basis_w0)
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_w3_q3x3x3_basis(basis_w3)
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+    allocate(panel_id(undf_pid))
+
+    panel_id(:) = 1.0_r_def
+
+    allocate(phi(undf_w3))
+    icell = 1
+    do j = 1,3
+      do i = 1,3
+        do k = 0,3
+          chi1(map_w0(1,icell)+k) = real(i-1)*dx
+          chi2(map_w0(1,icell)+k) = real(j-1)*dy
+          chi3(map_w0(1,icell)+k) = real(k)*dz
+        end do
+        do k = 1,3
+          chi3_av = 0.5_r_def*( chi3(map_w0(1,icell)+k-1) &
+                              + chi3(map_w0(1,icell)+k) )
+          phi(map_w3(1,icell)+k-1) = gravity*chi3_av
+        end do
+        icell = icell + 1
+      end do
+    end do
+
+    ! Create the data
+    allocate(u(undf_w2))
+    allocate(rho(undf_w3))
+    allocate(exner(undf_w3))
+    allocate(theta(undf_w0))
+    allocate(mr_v(undf_w0), mr_cl(undf_w0), mr_r(undf_w0))
+    allocate(mr_ci(undf_w0), mr_s(undf_w0), mr_g(undf_w0))
+    allocate(kinetic_uv(undf_w3), kinetic_w(undf_w3))
+    allocate(potential(undf_w3), internal(undf_w3), moist_int(undf_w3))
+    u(:) = 0.0_r_def
+    rho(:) = 1.0_r_def
+    exner(:) = 0.8_r_def
+    theta(:) = 300.0_r_def
+    mr_v(:) = 0.01_r_def
+    mr_cl(:) = 0.005_r_def
+    mr_r(:) = 0.003_r_def
+    mr_ci(:) = 0.01_r_def
+    mr_s(:) = 0.002_r_def
+    mr_g(:) = 0.001_r_def
+    kinetic_uv(:) = 0.0_r_def
+    kinetic_w(:) = 0.0_r_def
+    potential(:) = 0.0_r_def
+    internal(:) = 0.0_r_def
+    moist_int(:) = 0.0_r_def
+
+    cv = cp - rd
+    phi0 = 19.0_r_def
+
+    cell = 1
+    call compute_energetics_code(                                &
+                                 nlayers,                        &
+                                 kinetic_uv, kinetic_w,          &
+                                 potential, internal, moist_int, &
+                                 u,                              &
+                                 rho,                            &
+                                 exner,                          &
+                                 theta,                          &
+                                 mr_v, mr_cl, mr_r,              &
+                                 mr_ci, mr_s, mr_g,              &
+                                 phi,                            &
+                                 phi0,                           &
+                                 chi1,                           &
+                                 chi2,                           &
+                                 chi3,                           &
+                                 panel_id,                       &
+                                 cv,                             &
+                                 ndf_w3, undf_w3,                &
+                                 map_w3(:,cell), basis_w3,       &
+                                 ndf_w2, undf_w2,                &
+                                 map_w2(:,cell), basis_w2,       &
+                                 ndf_w0, undf_w0,                &
+                                 map_w0(:,cell), basis_w0,       &
+                                 ndf_w0, undf_w0,                &
+                                 map_w0(:,cell),                 &
+                                 basis_w0, diff_basis_w0,        &
+                                 ndf_pid, undf_pid,              &
+                                 map_pid(:,cell),                &
+                                 nqp_h, nqp_v, wh, wv            &
+                                 )
+
+    ! Potential energy
+    p = rho(1)*( phi0 + gravity*0.5_r_def*dz )*dx*dy*dz
+    ! Internal energy
+    t = rho(1)*( cv*theta(1)*exner(1) )*dx*dy*dz
+    ! Latent heat of water
+    m = -rho(1)*( Lv * (mr_cl(1) + mr_r(1)) + &
+                  (Lv + Lf) * (mr_ci(1) + mr_s(1) + mr_g(1)) )*dx*dy*dz
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( potential(map_w3(1, cell)) )
+    endif
+    @assertEqual(p, potential(map_w3(1, cell)), use_tol)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( internal(map_w3(1, cell)) )
+    endif
+    @assertEqual(t, internal(map_w3(1, cell)), use_tol)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( moist_int(map_w3(1, cell)) )
+    endif
+    @assertEqual(m, moist_int(map_w3(1, cell)), use_tol)
+
+    deallocate(map_w0)
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(map_pid)
+    deallocate(diff_basis_w0)
+    deallocate(basis_w0)
+    deallocate(basis_w2)
+    deallocate(basis_w3)
+    deallocate(wh)
+    deallocate(wv)
+
+    deallocate(chi1)
+    deallocate(chi2)
+    deallocate(chi3)
+    deallocate(panel_id)
+    deallocate(u)
+    deallocate(rho)
+    deallocate(exner)
+    deallocate(theta)
+    deallocate(mr_v, mr_cl, mr_r)
+    deallocate(mr_ci, mr_s, mr_g)
+    deallocate(kinetic_uv, kinetic_w, potential, internal, moist_int)
+    deallocate(phi)
+
+  end subroutine test_all
+
+end module compute_energetics_kernel_mod_test

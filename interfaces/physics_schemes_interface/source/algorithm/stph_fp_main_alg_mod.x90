@@ -1,0 +1,210 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Interface to the forcing pattern generation
+
+module stph_fp_main_alg_mod
+
+    use constants_mod,       only: r_def, i_def, str_def, pi
+    use extrusion_mod,       only: TWOD
+    use field_mod,           only: field_type
+    use fs_continuity_mod,   only: W3
+    use mesh_mod,            only: mesh_type
+    use mesh_collection_mod, only: mesh_collection
+    use io_config_mod,       only: subroutine_timers
+    use timer_mod,           only: timer
+    use level_heights_mod,    only: eta_theta_levels
+    use extrusion_config_mod, only: domain_height
+
+    implicit none
+
+    private
+
+    public stph_fp_main_alg
+
+ contains
+  !>@brief Run the Stochastic Forcing pattern code
+  !>@details This code creates the forcing pattern for stochastic physics schemes.
+  !>         The forcing pattern comes from the spherical harmonic spectral transformation
+  !>         of spectral coefficients, which are updated every timestep
+  !>         following a first auto-regressive process.  Note that in order to have
+  !>         reproduciblility in the generation of random numbers, a random seed
+  !>         must be appropriately set before this code is run (the random seed should be
+  !>         set once on the first time-step and is used by all subsequent calls to
+  !>         random_number in the code).
+  !>
+  !>         Steps:
+  !>            1) Apply the First Auto-regressive process (1AR). NOT THERE YET!!
+  !>            2) Apply the spect_2_cubedsphere transformation:
+  !>               Does meshes and run the get_longitude and get_Pnm_star operators,
+  !>               the latter contains the Legendre Polynomials for the spectral
+  !>               transformation. Then it calls the kernel
+  !>               spectral_2_cs_kernel_mod to perform the the spectral
+  !>               to cubed-sphere transformation.
+
+  !>@param[in]         level_bottom            Bottom level of the stochastic scheme
+  !>@param[in]         level_top               Top level of the stochastic scheme
+  !>@param[in]         wavenumber_min          Minimum wavenumber applied to build the FP
+  !>@param[in]         wavenumber_max          Maximum wavenumber applied to build the FP
+  !>@param[in]         spectral_dim            Dimension of spectral coeffients arrays
+  !>@param[in]         alpha                   exp. decorrelation time for stoch physics
+  !>@param[in]         power_law               Spectral power law
+  !>@param[in,out]     spectral_coeffc         Real Spectral coefficients
+  !>@param[in,out]     spectral_coeffs         Imaginary Spectral coefficients
+  !>@param[i,out]      fp                      Forcing pattern
+
+  subroutine stph_fp_main_alg(level_bottom, level_top,          &
+                              wavenumber_min, wavenumber_max,   &
+                              spectral_dim, alpha, power_law,   &
+                              spectral_coeffc, spectral_coeffs, &
+                              fp)
+
+  ! TO DO after PSyclone ticket 1312
+  ! at https://github.com/stfc/PSyclone/issues/1312
+  ! Uncomment line below, the kernel employing the ARRAYS, and remove
+  ! the next line ("use psykal_lite_phys_mod, ...")
+
+  ! use spectral_2_cs_kernel_mod, only: spectral_2_cs_kernel_type
+
+  use psykal_lite_phys_mod, only: invoke_spectral_2_cs_kernel_type
+
+  ! Get operators
+  use sci_geometric_constants_mod, only: get_longitude_fv
+  use physics_constants_mod,       only: get_Pnm_star
+
+  implicit none
+
+  !!!! Arguments
+  ! Scalars with scheme levels, wavenumbers and spectral dimensions
+  integer(kind=i_def), intent(in) :: level_bottom, level_top,          &
+                                     wavenumber_min, wavenumber_max,   &
+                                     spectral_dim
+
+  ! spectral coefficients power law and decorrelation
+  real(kind=r_def), intent(in) :: alpha
+  real(kind=r_def), intent(in) :: power_law(spectral_dim)
+
+  ! spectral coefficients arrays
+  real(kind=r_def), intent(inout) :: spectral_coeffc(spectral_dim)
+  real(kind=r_def), intent(inout) :: spectral_coeffs(spectral_dim)
+
+  ! LFRIC fields
+  type( field_type ), intent(inout) :: fp
+
+  !!!! Internal variables
+  ! Operators for longitude, height and Pnm_star
+  type( field_type ), pointer :: longitude => null()
+  type( field_type ), pointer :: Pnm_star => null()
+
+  ! random numbers fields
+  real(kind=r_def) :: random_numbers_cos(spectral_dim)
+  real(kind=r_def) :: random_numbers_sin(spectral_dim)
+
+  real(kind=r_def) :: my_coeff_rad
+  real(kind=r_def) :: my_phi_stph
+  real(kind=r_def) :: my_phishft_stph
+  real(kind=r_def) :: coeffc_phase(level_top, spectral_dim)
+  real(kind=r_def) :: coeffs_phase(level_top, spectral_dim)
+  real(kind=r_def) :: kr
+
+  ! meshes
+  type( mesh_type ),  pointer :: mesh => null()
+  type( mesh_type ),  pointer :: twod_mesh => null()
+
+  integer(i_def)     :: fs_id
+  ! iterators in for loops
+  integer(kind=i_def) :: n, m, n_row, k
+  if ( subroutine_timers ) call timer("stph_fp_main_alg")
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  1)  Apply the First Auto-regressive process (1AR) !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Get new set of random numbers
+  call random_number(random_numbers_cos)
+  call random_number(random_numbers_sin)
+
+  ! 1st Auto-regressive process to update spectral coefficients
+  ! Substract 1/2 to the random numbers to have a mean of 0.0
+  do n = 1, spectral_dim
+    spectral_coeffc(n) = (1-alpha)*spectral_coeffc(n) &
+         + sqrt(alpha)*power_law(n)*(random_numbers_cos(n)-0.5_r_def)
+    spectral_coeffs(n) = (1-alpha)*spectral_coeffs(n) &
+         + sqrt(alpha)*power_law(n)*(random_numbers_sin(n)-0.5_r_def)
+  end do
+
+  ! Initialize n_row to wavenumber_min-1
+  n_row = 0
+  do n = 1,wavenumber_min-1
+    n_row = n_row + n
+  end do
+  ! Apply vertical scaling for each spectral coeff.
+  do n = wavenumber_min, wavenumber_max
+    n_row = n_row + n
+    do m = 0, n
+      ! Modulus of coefficeints
+      my_coeff_rad = SQRT(spectral_coeffc(n_row+m)**2 + &
+                          spectral_coeffs(n_row+m)**2)
+      ! Determine angle from sin and cos wave components (single step)
+      my_phi_stph = ATAN2(spectral_coeffs(n_row+m), &
+                          spectral_coeffc(n_row+m))
+      ! Max shift ranges from 0 <-> pi  for wavenos 1 <-> wavenumber_max
+      my_phishft_stph = (wavenumber_max - max(n,m)) * pi / (wavenumber_max-1)
+
+      do k = level_bottom, level_top
+
+          ! Apply vertical scaling Level 1 = no change -> 12km Level = max change (=pi)
+          kr = (domain_height*eta_theta_levels(k))/12.0e3_r_def
+
+          ! Create coeff with phase shift
+          coeffc_phase(k, n_row+m) = my_coeff_rad * cos(my_phi_stph +    &
+                                                        kr * my_phishft_stph)
+          coeffs_phase(k, n_row+m) = my_coeff_rad * sin(my_phi_stph +    &
+                                                        kr * my_phishft_stph)
+
+        end do
+
+    end do
+  end do
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  2)  Apply the spect_2_cubedsphere transformation !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ ! Create 2D mesh from the FP field
+  mesh => fp%get_mesh()
+  twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+  ! Get longitude
+  longitude => get_longitude_fv(W3, twod_mesh%get_id())
+
+  ! Get Matrix of Legendre Polynomials (scaled) Pnm_star
+  Pnm_star => get_Pnm_star(twod_mesh%get_id())
+
+  ! TO DO after PSyclone ticket 1312
+  ! at https://github.com/stfc/PSyclone/issues/1312
+  ! Uncomment lines below (invoke to spectral_2_cs_kernel_type), an remove
+  ! call to invoke_spectral_2_cs_kernel_type
+
+  ! call invoke(spectral_2_cs_kernel_type(fp, longitude,    &
+  !                                       Pnm_star,         &
+  !                                       coeffc_phase,     &
+  !                                       coeffs_phase,     &
+  !                                       level_bottom,     &
+  !                                       level_top,        &
+  !                                       wavenumber_min,   &
+  !                                       wavenumber_max,   &
+  !                                       ))
+
+  call invoke_spectral_2_cs_kernel_type(fp, longitude, pnm_star,          &
+                                        coeffc_phase, coeffs_phase,       &
+                                        level_bottom, level_top,          &
+                                        wavenumber_min, wavenumber_max)
+
+  if ( subroutine_timers ) call timer("stph_fp_main_alg")
+
+  end subroutine stph_fp_main_alg
+
+end module stph_fp_main_alg_mod

@@ -1,0 +1,185 @@
+!------------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief  Test the zero_field_collection subroutine
+!!
+module zero_field_collection_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use field_collection_mod,          only : field_collection_type
+  use field_mod,                     only : field_type, &
+                                            field_proxy_type
+  use fs_continuity_mod,             only : W3
+  use function_space_mod,            only : function_space_type
+  use function_space_collection_mod, only : function_space_collection_type, &
+                                            function_space_collection
+  use halo_routing_collection_mod,   only : halo_routing_collection_type, &
+                                            halo_routing_collection
+  use integer_field_mod,             only : integer_field_type, &
+                                            integer_field_proxy_type
+  use local_mesh_mod,                only : local_mesh_type
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
+  use zero_field_collection_mod,     only : zero_field_collection
+
+  use funit
+
+  implicit none
+
+  private
+  public :: test_zero_field_collection
+
+  @TestCase
+  type, extends(TestCase), public :: zero_field_collection_test_type
+    private
+    type(local_mesh_type)              :: unit_test_local_mesh
+    type(function_space_type), pointer :: w3_fs => null()
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure get_local_mesh_ptr
+  end type zero_field_collection_test_type
+
+  integer(i_def), parameter    :: element_order_h = 0
+  integer(i_def), parameter    :: element_order_v = 0
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use mesh_mod, only : mesh_type, PLANE_BI_PERIODIC
+
+    implicit none
+
+    class(zero_field_collection_test_type), intent(inout) :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr => null()
+    type(mesh_type) :: unit_test_mesh
+    integer(i_def)  :: mesh_id
+
+    type(mesh_type), pointer :: mesh => null()
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+    ! Create top level halo_routing collection
+    halo_routing_collection = halo_routing_collection_type()
+
+    call this%unit_test_local_mesh%initialise()
+    unit_test_local_mesh_ptr => this%get_local_mesh_ptr()
+
+    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
+    unit_test_mesh = mesh_type( PLANE_BI_PERIODIC, unit_test_local_mesh_ptr )
+    mesh_id =  mesh_collection%add_new_mesh( unit_test_mesh )
+    mesh    => mesh_collection%get_mesh( mesh_id )
+
+    this%w3_fs => function_space_collection%get_fs( mesh,            &
+                                                    element_order_h, &
+                                                    element_order_v, &
+                                                    W3 )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(zero_field_collection_test_type), intent(inout) :: this
+
+    call function_space_collection%clear()
+    call mesh_collection%clear()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function get_local_mesh_ptr( this ) result(unit_test_local_mesh_ptr)
+
+    implicit none
+
+    class(zero_field_collection_test_type), intent(inout), target :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+
+    unit_test_local_mesh_ptr => this%unit_test_local_mesh
+
+  end function get_local_mesh_ptr
+
+  !> Test for zero_field_collection
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_zero_field_collection( context )
+
+    implicit none
+
+    class(zero_field_collection_test_type), intent(inout) :: context
+    type(field_collection_type)                     :: fields
+
+    type(field_type), target                        :: test_field
+    type(integer_field_type), target                :: int_test_field
+
+    type(field_proxy_type)                          :: field_proxy
+    type(field_proxy_type)                          :: returned_field_proxy
+    type(integer_field_proxy_type)                  :: int_field_proxy
+    type(integer_field_proxy_type)                  :: int_returned_field_proxy
+
+    type(field_type), pointer                       :: returned_field
+    type(integer_field_type), pointer               :: int_returned_field
+
+    ! Nullify field pointers
+    nullify(returned_field, int_returned_field)
+
+    ! Initialise a real test field and get proxy
+    call test_field%initialise( context%w3_fs, name='test_field' )
+    field_proxy = test_field%get_proxy()
+
+    ! Initialise an integer test field and get proxy
+    call int_test_field%initialise( context%w3_fs, name='int_test_field' )
+    int_field_proxy = int_test_field%get_proxy()
+
+    ! Set first dof to nominal value
+    field_proxy%data(1) = 1.0_r_def
+    int_field_proxy%data(1) = 1_i_def
+
+    ! Initialise fields
+    call fields%initialise(name = 'fields', table_len=2)
+
+    ! Add real and integer fields test fields to the fields collection
+    call fields%add_field(test_field)
+    call fields%add_field(int_test_field)
+
+    ! Test name and first dof of test_field
+    call fields%get_field("test_field", returned_field)
+    @assertEqual("test_field", returned_field%get_name())
+    returned_field_proxy = returned_field%get_proxy()
+    @assertEqual(1.0_r_def, returned_field_proxy%data(1))
+
+    ! Test name and first dof of int_test_field
+    call fields%get_field("int_test_field", int_returned_field)
+    @assertEqual("int_test_field", int_returned_field%get_name())
+    int_returned_field_proxy = int_returned_field%get_proxy()
+    @assertEqual(1_i_def, int_returned_field_proxy%data(1))
+
+    ! Zero the fields in the fields field collection
+    call zero_field_collection( fields )
+
+    ! Test name and first dof of test_field - after zeroing
+    call fields%get_field("test_field", returned_field)
+    @assertEqual("test_field", returned_field%get_name())
+    returned_field_proxy = returned_field%get_proxy()
+    @assertEqual(0.0_r_def, returned_field_proxy%data(1))
+
+    ! Test name and first dof of int_test_field - after zeroing
+    call fields%get_field("int_test_field", int_returned_field)
+    @assertEqual("int_test_field", int_returned_field%get_name())
+    int_returned_field_proxy = int_returned_field%get_proxy()
+    @assertEqual(0_i_def, int_returned_field_proxy%data(1))
+
+  end subroutine test_zero_field_collection
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+end module zero_field_collection_mod_test

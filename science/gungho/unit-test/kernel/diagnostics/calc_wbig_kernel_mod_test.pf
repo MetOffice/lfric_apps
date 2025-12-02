@@ -1,0 +1,70 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Tests the wbig kernel
+module calc_wbig_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: calc_wbig_test_type
+    private
+  contains
+    procedure test_all
+  end type calc_wbig_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use calc_wbig_kernel_mod, only : calc_wbig_code
+
+    implicit none
+
+    class(calc_wbig_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 5_i_def
+
+    integer(kind=i_def), parameter             :: ndf = 1_i_def
+    integer(kind=i_def), parameter             :: undf_wth = 6_i_def
+    integer(kind=i_def), dimension(ndf)        :: map_wth
+    real(kind=r_def),    dimension(undf_wth)   :: w_phys, wbig, answer
+
+    integer(kind=i_def) :: i, k
+
+    map_wth = 1_i_def
+
+    do k = 0, nlayers
+        w_phys(map_wth(1) + k) = real(k, r_def)*0.5_r_def
+    end do
+
+    answer(map_wth(1) + 0_i_def) = 0.0_r_def
+    answer(map_wth(1) + 1_i_def) = 0.0_r_def
+    answer(map_wth(1) + 2_i_def) = 0.0_r_def
+    answer(map_wth(1) + 3_i_def) = 1.0_r_def
+    answer(map_wth(1) + 4_i_def) = 1.0_r_def
+    answer(map_wth(1) + 5_i_def) = 1.0_r_def
+
+    call calc_wbig_code( nlayers, w_phys, wbig,       &
+                           ndf, undf_wth, map_wth )
+
+    do k = 0, nlayers
+      @assertEqual(answer(map_wth(1) + k), wbig(map_wth(1) + k), tol)
+    end do
+
+  end subroutine test_all
+
+end module calc_wbig_kernel_mod_test

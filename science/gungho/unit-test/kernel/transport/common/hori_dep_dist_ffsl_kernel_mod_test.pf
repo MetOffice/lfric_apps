@@ -1,0 +1,307 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module hori_dep_dist_ffsl_kernel_mod_test
+
+  use funit
+  use constants_mod,      only : i_def, r_tran, l_def
+
+  implicit none
+
+  private
+  public :: hori_dep_dist_ffsl_test_type , test_all
+
+  @TestCase
+  type, extends(TestCase) :: hori_dep_dist_ffsl_test_type
+    private
+  contains
+    procedure test_all
+  end type hori_dep_dist_ffsl_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use hori_dep_dist_ffsl_kernel_mod, only : hori_dep_dist_ffsl_code
+
+    implicit none
+
+    class(hori_dep_dist_ffsl_test_type), intent(inout) :: this
+
+    real(kind=r_tran),   parameter   :: tol = 1.0e-6_r_tran
+    real(kind=r_tran),   parameter   :: area = 4000.0_r_tran
+
+    integer(kind=i_def)              :: nlayers, ncells, cell
+    integer(kind=i_def)              :: stencil_extent, max_stencil_size
+    integer(kind=i_def)              :: ndf_w2h, ndf_w3, k
+    integer(kind=i_def)              :: undf_w2h, undf_w3, undf_w2x, undf_w2y
+    integer(kind=i_def)              :: ndf_depk, undf_depk, ndep
+    logical(kind=l_def)              :: cap_dep_points
+    integer(kind=i_def), allocatable :: map_w2h(:,:)
+    integer(kind=i_def), allocatable :: map_w3(:,:)
+    integer(kind=i_def), allocatable :: map_depk(:,:)
+    integer(kind=i_def), allocatable :: stencil_sizes(:,:)
+    integer(kind=i_def), allocatable :: stencil_max(:)
+    integer(kind=i_def), allocatable :: stencil_map(:,:,:,:)
+    integer(kind=i_def), allocatable :: face_selector_ew(:)
+    integer(kind=i_def), allocatable :: face_selector_ns(:)
+    integer(kind=i_def), allocatable :: error_flag(:)
+    integer(kind=i_def), allocatable :: dep_lowest_k(:)
+    integer(kind=i_def), allocatable :: dep_highest_k(:)
+    real(kind=r_tran),   allocatable :: rho_d(:)
+    real(kind=r_tran),   allocatable :: dry_flux(:)
+    real(kind=r_tran),   allocatable :: x_w2x(:)
+    real(kind=r_tran),   allocatable :: y_w2y(:)
+    real(kind=r_tran),   allocatable :: detj_at_w3_x(:)
+    real(kind=r_tran),   allocatable :: detj_at_w3_y(:)
+    real(kind=r_tran),   allocatable :: dry_mass_for_x(:)
+    real(kind=r_tran),   allocatable :: dry_mass_for_y(:)
+    real(kind=r_tran),   allocatable :: dep_pts(:)
+    real(kind=r_tran),   allocatable :: frac_dry_flux(:)
+    real(kind=r_tran),   allocatable :: true_dep_pts_answer(:)
+    real(kind=r_tran),   allocatable :: true_frac_flux_answer(:)
+    integer(kind=i_def), allocatable :: dep_lowest_k_answer(:)
+    integer(kind=i_def), allocatable :: dep_highest_k_answer(:)
+
+    ! Set integer values to describe mesh (single layer)
+    nlayers = 1
+    stencil_extent = 3
+    ncells = 15
+    undf_w2h = (ncells + 1) + 2*ncells
+    ndf_w2h = 4
+    undf_w3 = ncells
+    ndf_w3 = 1
+    undf_w2x = ncells + 1
+    undf_w2y = ncells + 1
+    ndf_depk = 4
+    undf_depk = ((ncells + 1) + 2*ncells)*(2*stencil_extent+1)
+    ndep = 2*stencil_extent + 1
+    max_stencil_size = stencil_extent + 1
+    cap_dep_points = .false.
+
+    allocate(map_w2h(ndf_w2h,ncells))
+    allocate(map_w3(ndf_w3,ncells))
+    allocate(map_depk(ndf_depk,ncells))
+    allocate(stencil_sizes(4,ncells))
+    allocate(stencil_max(ncells))
+    allocate(stencil_map(ndf_w3,max_stencil_size,4,ncells))
+    allocate(rho_d(undf_w3))
+    allocate(dry_flux(undf_w2h))
+    allocate(dry_mass_for_x(undf_w3))
+    allocate(dry_mass_for_y(undf_w3))
+    allocate(x_w2x(undf_w2x))
+    allocate(detj_at_w3_x(undf_w3))
+    allocate(detj_at_w3_y(undf_w3))
+    allocate(dep_pts(undf_w2h))
+    allocate(frac_dry_flux(undf_w2h))
+    allocate(true_dep_pts_answer(undf_w2h))
+    allocate(true_frac_flux_answer(undf_w2h))
+    allocate(face_selector_ew(undf_w3))
+    allocate(face_selector_ns(undf_w3))
+    allocate(error_flag(undf_w3))
+    allocate(dep_lowest_k(undf_depk))
+    allocate(dep_highest_k(undf_depk))
+    allocate(dep_lowest_k_answer(undf_depk))
+    allocate(dep_highest_k_answer(undf_depk))
+
+    ! DoF maps
+    map_w3 = reshape((/ 1, 2, 3, 4, 5, 6, 7, 8, &
+                        9, 10, 11, 12, 13, 14, 15 /), [ndf_w3, ncells])
+    map_w2h = reshape((/  1,  2,  3,  4,  3,  5,  6,  7,  6,  8,  9, 10,       &
+                          9, 11, 12, 13, 12, 14, 15, 16, 15, 17, 18, 19,       &
+                         18, 20, 21, 22, 21, 23, 24, 25, 24, 26, 27, 28,       &
+                         27, 29, 30, 31, 30, 32, 33, 34, 33, 35, 36, 37,       &
+                         36, 38, 39, 40, 39, 41, 42, 43, 42, 44, 45, 46 /), [ndf_w2h, ncells])
+    map_depk(:,:) = 7*map_w2h(:,:) - 6
+    stencil_max(:) = max_stencil_size
+    stencil_sizes = reshape(                                                   &
+        (/ 1, 1, 4, 4,   2, 2, 4, 4,   3, 3, 4, 4,   4, 4, 4, 4,               &
+           4, 4, 4, 4,   4, 4, 4, 4,   4, 4, 4, 4,   4, 4, 4, 4,               &
+           4, 4, 4, 4,   4, 4, 4, 4,   4, 4, 4, 4,                             &
+           4, 4, 4, 4,   4, 4, 3, 3,   4, 4, 2, 2,   4, 4, 1, 1 /), [4,ncells])
+    stencil_map = reshape( (/                                                  &
+           1, 0, 0, 0,   1, 0, 0, 0,   1, 2, 3, 4,   1, 2, 3, 4,               &
+           2, 1, 0, 0,   2, 1, 0, 0,   2, 3, 4, 5,   2, 3, 4, 5,               &
+           3, 2, 1, 0,   3, 2, 1, 0,   3, 4, 5, 6,   3, 4, 5, 6,               &
+           4, 3, 2, 1,   4, 3, 2, 1,   4, 5, 6, 7,   4, 5, 6, 7,               &
+           5, 4, 3, 2,   5, 4, 3, 2,   5, 6, 7, 8,   5, 6, 7, 8,               &
+           6, 5, 4, 3,   6, 5, 4, 3,   6, 7, 8, 9,   6, 7, 8, 9,               &
+           7, 6, 5, 4,   7, 6, 5, 4,   7, 8, 9, 10,  7, 8, 9, 10,              &
+           8, 7, 6, 5,   8, 7, 6, 5,   8, 9, 10, 11,  8, 9, 10, 11,            &
+           9, 8, 7, 6,   9, 8, 7, 6,   9, 10, 11, 12,  9, 10, 11, 12,          &
+          10, 9, 8, 7,   10, 9, 8, 7,   10, 11, 12, 13, 10, 11, 12, 13,        &
+          11, 10, 9, 8,   11, 10, 9, 8,   11, 12, 13, 14, 11, 12, 13, 14,      &
+          12, 11, 10, 9,   12, 11, 10, 9,   12, 13, 14, 15, 12, 13, 14, 15,    &
+          13, 12, 11, 10,   13, 12, 11, 10,   13, 14, 15, 0,   13, 14, 15, 0,  &
+          14, 13, 12, 11,   14, 13, 12, 11,   14, 15, 0, 0,   14, 15, 0, 0,    &
+          15, 14, 13, 12,   15, 14, 13, 12,   15, 0, 0, 0,   15, 0, 0, 0 /),   &
+          [ndf_w3,max_stencil_size,4,ncells]                                   &
+    )
+
+    ! Set up non-uniform grid
+    x_w2x = (/ -3.0_r_tran, -2.0_r_tran, -1.0_r_tran,                      &
+               0.0_r_tran, 50.0_r_tran, 160.0_r_tran, 320.0_r_tran,        &
+               600.0_r_tran, 1000.0_r_tran, 1500.0_r_tran, 2000.0_r_tran,  &
+               2750.0_r_tran, 3000.0_r_tran,                               &
+               3001.0_r_tran, 3003.0_r_tran, 3005.0_r_tran /)
+    y_w2y = (/ -3.0_r_tran, -2.0_r_tran, -1.0_r_tran,                      &
+               0.0_r_tran, 50.0_r_tran, 160.0_r_tran, 320.0_r_tran,        &
+               600.0_r_tran, 1000.0_r_tran, 1500.0_r_tran, 2000.0_r_tran,  &
+               2750.0_r_tran, 3000.0_r_tran,                               &
+               3001.0_r_tran, 3003.0_r_tran, 3005.0_r_tran /)
+    rho_d = (/ 2.5_r_tran, 2.5_r_tran, 2.5_r_tran,                         &
+               2.0_r_tran, 1.5_r_tran, 1.1_r_tran, 1.2_r_tran, 1.0_r_tran, &
+               0.8_r_tran, 0.8_r_tran, 0.5_r_tran, 0.2_r_tran,             &
+               0.19_r_tran, 0.19_r_Tran, 0.19_r_Tran /)
+    ! Computed by considering the mass flow to match the departure points
+    dry_flux = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran,          &
+                  0.0_r_tran, 0.0_r_tran, 0.0_r_tran,                      &
+                  0.0_r_tran, 0.0_r_tran, 0.0_r_tran,                      &
+                  0.0_r_tran, 320000.0_r_tran, 0.0_r_tran,                 &
+                  -320000.0_r_tran, 740000.0_r_tran, 0.0_r_tran,           &
+                  -740000.0_r_tran, 281600.0_r_tran, 0.0_r_tran,           &
+                  -281600.0_r_tran, -800000.0_r_tran, 0.0_r_tran,          &
+                  800000.0_r_tran, -1920000.0_r_tran, 0.0_r_tran,          &
+                  1920000.0_r_tran, -3120000.0_r_tran, 0.0_r_tran,         &
+                  3120000.0_r_tran, -1600000.0_r_tran, 0.0_r_tran,         &
+                  1600000.0_r_tran, -120000.0_r_tran, 0.0_r_tran,          &
+                  0.0_r_tran, 0.0_r_tran, 0.0_r_tran,                      &
+                  0.0_r_tran, 0.0_r_tran, 0.0_r_tran,                      &
+                  0.0_r_tran, 0.0_r_tran, 0.0_r_tran,                      &
+                  0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+
+    ! Calculate this as area*height_difference
+    do k = 1, undf_w3
+      detj_at_w3_x(k) = area*(x_w2x(k+1) - x_w2x(k))
+      dry_mass_for_x(k) = rho_d(k)*detj_at_w3_x(k)
+      detj_at_w3_y(k) = area*(y_w2y(k+1) - y_w2y(k))
+      dry_mass_for_y(k) = rho_d(k)*detj_at_w3_y(k)
+    end do
+
+    face_selector_ew(:) = 1
+    face_selector_ns(:) = 1
+    error_flag(:) = 0
+
+    true_dep_pts_answer = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran,   &
+                             0.0_r_tran, 0.0_r_tran, 0.0_r_tran,               &
+                             0.0_r_tran, 0.0_r_tran, 0.0_r_tran,               &
+                             0.0_r_tran, 0.8_r_tran, 0.0_r_tran,               &
+                             -0.8_r_tran, 1.2_r_tran, 0.0_r_tran,              &
+                             -1.2_r_tran, 0.4_r_tran, 0.0_r_tran,              &
+                             -0.4_r_tran, -0.5_r_tran, 0.0_r_tran,             &
+                             0.5_r_tran, -1.2_r_tran, 0.0_r_tran,              &
+                             1.2_r_tran, -2.1_r_tran, 0.0_r_tran,              &
+                             2.1_r_tran, -1.5_r_tran, 0.0_r_tran,              &
+                             1.5_r_tran, -0.6_r_tran, 0.0_r_tran,              &
+                             0.0_r_tran, 0.0_r_tran, 0.0_r_tran,               &
+                             0.0_r_tran, 0.0_r_tran, 0.0_r_tran,               &
+                             0.0_r_tran, 0.0_r_tran, 0.0_r_tran,               &
+                             0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    true_frac_flux_answer = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, &
+                               0.0_r_tran, 0.0_r_tran, 0.0_r_tran,             &
+                               0.0_r_tran, 0.0_r_tran, 0.0_r_tran,             &
+                               0.0_r_tran, 320000.0_r_tran, 0.0_r_tran,        &
+                               -320000.0_r_tran, 80000.0_r_tran, 0.0_r_tran,   &
+                               -80000.0_r_tran, 281600.0_r_tran, 0.0_r_tran,   &
+                               -281600.0_r_tran, -800000.0_r_tran, 0.0_r_tran, &
+                               800000.0_r_tran, -320000.0_r_tran, 0.0_r_tran,  &
+                               320000.0_r_tran, -20000.0_r_tran, 0.0_r_tran,   &
+                               20000.0_r_tran, -100000.0_r_tran, 0.0_r_tran,   &
+                               100000.0_r_tran, -120000.0_r_tran, 0.0_r_tran,  &
+                               0.0_r_tran, 0.0_r_tran, 0.0_r_tran,             &
+                               0.0_r_tran, 0.0_r_tran, 0.0_r_tran,             &
+                               0.0_r_tran, 0.0_r_tran, 0.0_r_tran,             &
+                               0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    dep_lowest_k_answer(:) = 0
+    dep_highest_k_answer(:) = -1
+    dep_highest_k_answer(101) = 0
+    dep_highest_k_answer(115) = 0
+    dep_highest_k_answer(165) = 0
+    dep_highest_k_answer(179) = 0
+    dep_highest_k_answer(186) = 0
+    dep_highest_k_answer(187) = 0
+    dep_highest_k_answer(200) = 0
+    dep_highest_k_answer(201) = 0
+    dep_highest_k_answer(207) = 0
+    dep_highest_k_answer(221) = 0
+
+
+    ! Set initial values of output fields to be zero
+    dep_pts(:) = 0.0_r_tran
+    frac_dry_flux(:) = 0.0_r_tran
+    dep_lowest_k(:) = 0
+    dep_highest_k(:) = -1
+
+    do cell = 1, ncells
+      call hori_dep_dist_ffsl_code( nlayers,                 &
+                                    dep_pts,                 &
+                                    frac_dry_flux,           &
+                                    dry_flux,                &
+                                    dry_mass_for_x,          &
+                                    stencil_sizes(:,cell),   &
+                                    stencil_max(cell),       &
+                                    stencil_map(:,:,:,cell), &
+                                    dry_mass_for_y,          &
+                                    stencil_sizes(:,cell),   &
+                                    stencil_max(cell),       &
+                                    stencil_map(:,:,:,cell), &
+                                    dep_lowest_k,            &
+                                    dep_highest_k,           &
+                                    face_selector_ew,        &
+                                    face_selector_ns,        &
+                                    error_flag,              &
+                                    ndep,                    &
+                                    cap_dep_points,          &
+                                    ndf_w2h,                 &
+                                    undf_w2h,                &
+                                    map_w2h(:,cell),         &
+                                    ndf_w3,                  &
+                                    undf_w3,                 &
+                                    map_w3(:,cell),          &
+                                    ndf_depk,                &
+                                    undf_depk,               &
+                                    map_depk(:,cell),        &
+                                    ndf_w3,                  &
+                                    undf_w3,                 &
+                                    map_w3(:,cell) )
+    end do
+
+    @assertEqual( dep_pts, true_dep_pts_answer, tol )
+    @assertEqual( frac_dry_flux, true_frac_flux_answer, tol )
+    @assertEqual( dep_lowest_k, dep_lowest_k_answer )
+    @assertEqual( dep_highest_k, dep_highest_k_answer )
+
+    deallocate(map_w2h)
+    deallocate(map_w3)
+    deallocate(map_depk)
+    deallocate(stencil_map)
+    deallocate(stencil_sizes)
+    deallocate(stencil_max)
+    deallocate(frac_dry_flux)
+    deallocate(dep_pts)
+    deallocate(x_w2x)
+    deallocate(detj_at_w3_x)
+    deallocate(detj_at_w3_y)
+    deallocate(dry_mass_for_x)
+    deallocate(dry_mass_for_y)
+    deallocate(rho_d)
+    deallocate(dry_flux)
+    deallocate(true_dep_pts_answer)
+    deallocate(true_frac_flux_answer)
+    deallocate(face_selector_ew)
+    deallocate(face_selector_ns)
+    deallocate(error_flag)
+    deallocate(dep_lowest_k)
+    deallocate(dep_highest_k)
+    deallocate(dep_lowest_k_answer)
+    deallocate(dep_highest_k_answer)
+
+  end subroutine test_all
+
+end module hori_dep_dist_ffsl_kernel_mod_test

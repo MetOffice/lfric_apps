@@ -1,0 +1,251 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Barebones algorithm to help the development of miniapps
+module solver_miniapp_alg_mod
+
+  use constants_mod,                  only : i_def,r_def
+  use log_mod,                        only : log_event,         &
+                                             LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
+                                             log_scratch_space
+  use field_mod,                      only : field_type
+  use finite_element_config_mod,      only : nqp_h_exact, nqp_v_exact
+  use fs_continuity_mod,              only : W2
+  use function_space_collection_mod,  only : function_space_collection
+  use operator_mod,                   only : operator_type
+  use matrix_vector_kernel_mod,       only : matrix_vector_kernel_type
+  use quadrature_xyoz_mod,            only : quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,   only : quadrature_rule_gaussian_type
+  use sci_field_vector_mod,           only : field_vector_type
+  use sci_dense_operator_alg_mod,     only : dense_operator_type
+  use sci_diagonal_preconditioner_alg_mod, &
+                                      only : diagonal_preconditioner_type
+  use sci_iterative_solver_mod,       only : abstract_iterative_solver_type, &
+                                             conjugate_gradient_type,        &
+                                             bicgstab_type,                  &
+                                             gmres_type,                     &
+                                             jacobi_type,                    &
+                                             gcr_type,                       &
+                                             fgmres_type,                    &
+                                             precondition_only_type
+  use sci_linear_operator_mod,        only : abstract_linear_operator_type
+  use sci_preconditioner_mod,         only : abstract_preconditioner_type
+  use solver_config_mod,              only : method, tolerance, maximum_iterations, preconditioner, &
+                                             method, method_cg, method_bicgstab, &
+                                             method_gmres, method_jacobi,        &
+                                             method_gcr, method_fgmres,          &
+                                             method_prec_only,                   &
+                                             preconditioner_diagonal,            &
+                                             gcrk,                               &
+                                             fail_on_non_converged,              &
+                                             monitor_convergence,                &
+                                             jacobi_relaxation
+
+  implicit none
+
+  private
+
+  public :: solver_miniapp_alg
+
+contains
+
+  !> @details Constructs the linear_operator, preconditioner and solver from the
+  !!          condiguration information
+  !> @param[inout] prec the precondtioner object
+  !> @param[inout] op the linear operator object
+  !> @param[inout] solver the solver object
+  !> @param[inout] fv_1  A prognostic field vector object
+  !> @param[in] chi the coordinate field
+  !> @param[in] panel_id 2D field giving the panel ID for cubed sphere panels
+  subroutine init_solver( prec, op, solver, fv_1, chi, panel_id )
+    implicit none
+    class( abstract_preconditioner_type ),  allocatable, intent(inout) :: prec
+    class( abstract_linear_operator_type ), allocatable, intent(inout) :: op
+    class( abstract_iterative_solver_type), allocatable, intent(inout) :: solver
+    type( field_type ),                    dimension(3), intent( in )  :: chi
+    type( field_type ),                                  intent( in )  :: panel_id
+    type( field_vector_type ), intent(inout) :: fv_1
+
+    ! locals
+    ! quadrature object
+    type(quadrature_xyoz_type)            :: qr
+    type( quadrature_rule_gaussian_type ) :: quadrature_rule
+    ! Coordinate fields
+    type( field_vector_type)    :: diag
+
+    write(log_scratch_space,'(A)') "solver_miniapp_alg:Initialising solver ..."
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    qr = quadrature_xyoz_type(nqp_h_exact, nqp_h_exact, nqp_v_exact, &
+                              quadrature_rule)
+
+    select case ( preconditioner )
+    case ( preconditioner_diagonal )
+       allocate( diagonal_preconditioner_type :: prec)
+       allocate( dense_operator_type :: op )
+
+       call log_event("preconditioner set to diagonal, computing the dense operator", LOG_LEVEL_INFO)
+       ! make the operator first, there is only one ...
+       ! need to select type because the compiler doesn't know we have just assigned its type.
+       select type( op )
+       type is ( dense_operator_type)
+          op = dense_operator_type( fv_1, qr, chi, panel_id )
+          ! don't forget to call the (copy) constructor on diag
+          diag=fv_1
+          call op%extract_diagonal(diag)
+       class default
+          ! catch the type error
+          call log_event("solver_miniapp_alg: linear_op type failure: shoud be dense operator ",LOG_LEVEL_ERROR)
+       end select
+
+       ! make the preconditioner
+       ! need to select type because the compiler doesn't know we have just assigned its type.
+       select type( prec )
+       type is ( diagonal_preconditioner_type )
+          prec = diagonal_preconditioner_type(diag)
+       class default
+          ! catch the type error
+          call log_event("solver_miniapp_alg: preconditioner type failure: shoud be diagonal preconditioner ",LOG_LEVEL_ERROR)
+       end select
+
+    case default
+       write(log_scratch_space,'(A, I0)') "solver_miniapp_alg: preconditioner choice not supported, exiting, ", preconditioner
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    select case ( method )
+    case( method_cg )
+
+       call log_event("setting solver to CG", LOG_LEVEL_INFO)
+       allocate( conjugate_gradient_type :: solver )
+       select type( solver )
+       type is ( conjugate_gradient_type )
+          solver = conjugate_gradient_type( op, prec, tolerance, tolerance, maximum_iterations, &
+                                            monitor_convergence, fail_on_non_converged )
+
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be Conjugate Gradient",LOG_LEVEL_ERROR)
+       end select
+    case( method_bicgstab )
+       call log_event("setting solver to BiCGstab", LOG_LEVEL_INFO )
+       allocate( bicgstab_type :: solver )
+       select type( solver )
+       type is ( bicgstab_type )
+          solver = bicgstab_type( op, prec, tolerance, tolerance, maximum_iterations, &
+                                  monitor_convergence, fail_on_non_converged )
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be BiCGstab",LOG_LEVEL_ERROR)
+       end select
+    case( method_gmres )
+       call log_event("setting solver to GMRES", LOG_LEVEL_INFO )
+       allocate( gmres_type :: solver )
+       select type( solver )
+       type is ( gmres_type )
+          solver = gmres_type( op, prec, gcrk, tolerance, tolerance, maximum_iterations, &
+                               monitor_convergence, fail_on_non_converged )
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be GMRES",LOG_LEVEL_ERROR)
+       end select
+    case( method_jacobi )
+       call log_event("setting solver to Jacobi", LOG_LEVEL_INFO)
+       allocate( jacobi_type :: solver )
+       select type( solver )
+       type is ( jacobi_type )
+          solver = jacobi_type( op, prec, tolerance, tolerance, maximum_iterations, &
+                                monitor_convergence, fail_on_non_converged, &
+                                jacobi_relaxation )
+
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be Jacobi",LOG_LEVEL_ERROR)
+       end select
+    case( method_gcr )
+       call log_event("setting solver to GCR", LOG_LEVEL_INFO)
+       allocate( gcr_type :: solver )
+       select type( solver )
+       type is ( gcr_type )
+          solver = gcr_type( op, prec, gcrk, tolerance, tolerance, &
+                             maximum_iterations, &
+                             monitor_convergence, fail_on_non_converged )
+       class default
+          ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be GCR",LOG_LEVEL_ERROR)
+       end select
+    case( method_fgmres )
+       call log_event("setting solver to FGMRES", LOG_LEVEL_INFO )
+       allocate( fgmres_type :: solver )
+       select type( solver )
+       type is ( fgmres_type )
+          solver = fgmres_type( op, prec, gcrk, tolerance, tolerance, maximum_iterations, &
+                                monitor_convergence, fail_on_non_converged )
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be FGMRES",LOG_LEVEL_ERROR)
+       end select
+    case( method_prec_only )
+       call log_event("setting solver to precondition only", LOG_LEVEL_INFO )
+       allocate( precondition_only_type :: solver )
+       select type( solver )
+       type is ( precondition_only_type )
+          solver = precondition_only_type( op, prec, monitor_convergence )
+       class default
+         ! Catch type error
+          call log_event("solver_miniapp_alg: solver type failure: Should be FGMRES",LOG_LEVEL_ERROR)
+       end select
+    case default
+       write(log_scratch_space,'(A, I0)') "solver_miniapp_alg: solver choice not supported, exiting: ", method
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    write(log_scratch_space,'(A)') "solver_miniapp_alg: solver initialised ..."
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+  end subroutine init_solver
+
+  !> @details An algorithm for developing miniapps
+  !> @param[inout] fv_1  A prognostic field vector object
+  subroutine solver_miniapp_alg(fv_1, chi, panel_id)
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_vector_type ),        intent( inout ) :: fv_1
+    type( field_type ), dimension(3), intent( in )    :: chi
+    type( field_type ),               intent( in )    :: panel_id
+
+    type( field_vector_type )   :: rhs, ans
+
+    class( abstract_preconditioner_type ),  allocatable :: prec
+    class( abstract_linear_operator_type ), allocatable :: op
+    class( abstract_iterative_solver_type), allocatable :: solver
+
+    call log_event( "solver miniapp: running algorithm", LOG_LEVEL_INFO )
+    call init_solver( prec, op, solver, fv_1, chi, panel_id )
+
+    ! !choose a RHS use the copy constructor
+    rhs = fv_1
+    write(log_scratch_space, '(A,E16.8)') "apply the operator: ",rhs%norm()
+    call log_event( log_scratch_space, LOG_LEVEL_INFO)
+
+    call op%apply(fv_1, rhs)
+
+    ans = fv_1 ! copy constructor
+    call ans%set_scalar(0.0_r_def)
+    call solver%apply(ans,rhs)
+    ! write out the answer
+    write(log_scratch_space,'(A,E16.8,A,E16.8)') "solved=", ans%norm(), " initial=", fv_1%norm()
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+
+    ! cp ans to fv_1 to pass pack for check sums.
+    fv_1 = ans
+    call log_event( "solver miniapp: finished algorithm", LOG_LEVEL_INFO )
+
+  end subroutine solver_miniapp_alg
+
+end module solver_miniapp_alg_mod

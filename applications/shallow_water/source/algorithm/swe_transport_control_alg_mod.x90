@@ -1,0 +1,534 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module controlling the transport of the shallow water miniapp's
+!!        prognostic variables.
+
+module swe_transport_control_alg_mod
+
+  use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
+  use constants_mod,                     only: i_def, r_def, l_def, r_tran
+  use derived_config_mod,                only: bundle_size
+  use sci_enforce_bc_kernel_mod,         only: enforce_bc_kernel_type
+  use flux_precomputations_alg_mod,      only: flux_precomputations_type
+  use field_mod,                         only: field_type
+  use field_indices_mod,                 only: isw_u, isw_g, isw_b, isw_q
+  use finite_element_config_mod,         only: element_order_h, &
+                                               element_order_v, &
+                                               nqp_h_exact,     &
+                                               nqp_v_exact
+  use fs_continuity_mod,                 only: W1, W3, W2v
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use sci_geometric_constants_mod,       only: get_coordinates,      &
+                                               get_panel_id
+  use integer_field_mod,                 only: integer_field_type
+  use log_mod,                           only: log_event,       &
+                                               LOG_LEVEL_ERROR, &
+                                               LOG_LEVEL_INFO,  &
+                                               log_scratch_space
+  use matrix_vector_kernel_mod,          only: matrix_vector_kernel_type
+  use mesh_mod,                          only: mesh_type
+  use mesh_collection_mod,               only: mesh_collection
+  use model_clock_mod,                   only: model_clock_type
+  use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
+  use quadrature_xyoz_mod,               only: quadrature_xyoz_type
+  use sci_field_vector_mod,              only: field_vector_type
+  use shallow_water_settings_config_mod, only: thermal_swe,            &
+                                               momentum_form,          &
+                                               momentum_form_momentum, &
+                                               momentum_form_vector_invariant
+  use transport_config_mod,              only: cheap_update
+  use transport_controller_mod,          only: transport_controller_type
+  use transport_metadata_mod,            only: transport_metadata_type
+  use transport_metadata_collection_mod, only: transport_metadata_collection_type
+  use vorticity_advection_kernel_mod,    only: vorticity_advection_kernel_type
+
+  implicit none
+
+  private
+
+  type(transport_metadata_collection_type) :: transport_metadata_collection
+
+  ! Contained suroutines
+  public :: swe_transport_control_alg_init
+  public :: swe_transport_control_alg_step
+  public :: swe_tracer_transport_alg
+  public :: swe_transport_control_alg_final
+
+contains
+
+  !=============================================================================
+  !> @brief Create all the initialisation structures required for transport in
+  !!        the shallow water model.
+  !> @params[in] mesh_id   The ID of the mesh to initialise on
+  subroutine swe_transport_control_alg_init(mesh)
+
+    use transport_config_mod,         only: profile_size,            &
+                                            field_names,             &
+                                            equation_form,           &
+                                            scheme,                  &
+                                            splitting,               &
+                                            horizontal_method,       &
+                                            vertical_method,         &
+                                            enforce_min_value,       &
+                                            min_value,               &
+                                            log_space,               &
+                                            reversible,              &
+                                            horizontal_monotone,     &
+                                            vertical_monotone,       &
+                                            vertical_monotone_order, &
+                                            special_edges_monotone,  &
+                                            ffsl_splitting,          &
+                                            ffsl_vertical_order
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    integer(kind=i_def)           :: config
+    type(transport_metadata_type) :: transport_metadata
+
+    ! Set up metadata field collection
+    transport_metadata_collection = transport_metadata_collection_type()
+
+    ! Set up configs using namelist entries
+    do config = 1, profile_size
+
+      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+      transport_metadata = transport_metadata_type( field_names(config),             &
+                                                    equation_form(config),           &
+                                                    splitting(config),               &
+                                                    scheme(config),                  &
+                                                    horizontal_method(config),       &
+                                                    vertical_method(config),         &
+                                                    horizontal_monotone(config),     &
+                                                    vertical_monotone(config),       &
+                                                    vertical_monotone_order(config), &
+                                                    special_edges_monotone(config),  &
+                                                    enforce_min_value(config),       &
+                                                    min_value(config),               &
+                                                    log_space(config),               &
+                                                    reversible(config),              &
+                                                    ffsl_splitting(config),          &
+                                                    ffsl_vertical_order(config) )
+
+      call transport_metadata_collection%set_transport_metadata(transport_metadata)
+
+    end do
+
+  end subroutine swe_transport_control_alg_init
+
+
+  !=============================================================================
+  !> @brief Advection of prognostic variables for the shallow water miniapp.
+  !> @param[in,out] advection_inc   Advection increment of the shallow water
+  !!                                prognostics [u, geopot, buoyancy, q]
+  !> @param[in]     advected_fields Fields to advect: [u, geopot, buoyancy, q]
+  !> @param[in]     state_n         Fields at time n
+  !> @param[in]     state_np1       Estimate of fields at time n+1
+  !> @param[in]     model_clock     Time within the model
+  !> @param[in]     outer           Outer (advection) iteration number
+  !> @param[in]     wind_prev       (Optional) Estimate of end of timestep wind
+  !!                                from previous outer iteration
+  subroutine swe_transport_control_alg_step( advection_inc,   &
+                                             advected_fields, &
+                                             state_n,         &
+                                             state_np1,       &
+                                             model_clock,     &
+                                             outer,           &
+                                             wind_prev )
+
+    use sci_fem_constants_mod,           only: get_mass_matrix_fe
+    use operator_mod,                    only: operator_type
+    use transport_field_mod,             only: transport_field
+    use wind_transport_alg_mod,          only: wind_transport_alg
+    use io_config_mod,                   only: subroutine_timers
+    use timer_mod,                       only: timer
+
+    implicit none
+
+    ! Arguments
+    type(field_vector_type),         intent(inout) :: advection_inc
+    type(field_vector_type), target, intent(in)    :: advected_fields
+    type(field_vector_type), target, intent(in)    :: state_np1
+    type(field_vector_type), target, intent(in)    :: state_n
+    class(model_clock_type),         intent(in)    :: model_clock
+    integer(kind=i_def),             intent(in)    :: outer
+    type(field_type),                intent(in), optional :: wind_prev
+
+    ! Fields from advected_fields, state_n and state_np1 vector
+    type(field_type), pointer :: wind_np1 => null(), &
+                                 wind_n   => null(), &
+                                 wind     => null(), &
+                                 geopot   => null(), &
+                                 buoyancy => null(), &
+                                 q        => null()
+
+    ! Fields updated during transport (but not used in model update)
+    type(field_type) :: geopot_np1
+    type(field_type) :: q_np1
+    type(field_type) :: buoyancy_np1
+    type(field_vector_type) :: prev_inc
+
+    ! Function space
+    type(function_space_type), pointer :: w1_fs
+    type(function_space_type), pointer :: w2v_fs
+
+    ! Internal variables
+    logical(kind=l_def) :: cheap_update_step
+    type(transport_controller_type)          :: transport_controller
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(flux_precomputations_type), pointer :: flux_precomputations
+
+    ! Internal variables
+    type(field_type), pointer :: q_mass_flux
+    type(field_type) :: buoy_inc,     &
+                        constant_one, &
+                        q_geopot,     &
+                        wind_for_adv
+
+    ! Coordinates, Panel ID, and Mass Matrix
+    type(field_type),    pointer :: chi(:)
+    type(field_type),    pointer :: panel_id
+    type(operator_type), pointer :: mm_wb
+
+    ! Quadrature
+    type(quadrature_xyoz_type)          :: qr
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+
+    if ( subroutine_timers ) call timer('swe_transport_control_alg_step')
+
+    ! ------------------------------------------------------------------------ !
+    ! Pre-transport initialisation tasks
+    ! ------------------------------------------------------------------------ !
+
+    ! Get individual advected, state_n and state_np1 fields
+    wind     => advected_fields%vector(isw_u)
+    q        => advected_fields%vector(isw_q)
+    buoyancy => advected_fields%vector(isw_b)
+    geopot   => advected_fields%vector(isw_g)
+    wind_np1 => state_np1%vector(isw_u)
+    wind_n   => state_n%vector(isw_u)
+
+    ! Determine aspects relating to cheap update steps -------------------------
+    ! Check whether it is a cheap update step
+    cheap_update_step = (cheap_update .and. outer > 1)
+
+    call wind_for_adv%initialise( wind_n%get_function_space() )
+    if (cheap_update .AND. outer > 2 .AND. present(wind_prev) ) then
+      ! Use previous wind in the advecting wind calculation
+      call invoke( setval_X(wind_for_adv, wind_prev) )
+    else
+      ! Use wind_n in the advecting wind calculation
+      call invoke( setval_X(wind_for_adv, wind_n) )
+    end if
+
+    prev_inc = field_vector_type(bundle_size)
+    prev_inc = advection_inc
+
+    ! Create transport_controller object (advecting wind etc)
+    call transport_controller%initialise(                                      &
+            model_clock, q, wind_for_adv, wind_np1,                            &
+            outer=outer, cheap_update_step=cheap_update_step                   &
+    )
+
+    ! Initialise geopotential variables
+    call geopot_np1%initialise(vector_space = geopot%get_function_space())
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport of prognostic variables
+    ! ------------------------------------------------------------------------ !
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport geopotential
+    call log_event( "Transporting geopotential...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('geopot')
+    call transport_field(                                                      &
+            geopot_np1, geopot, transport_controller, transport_metadata       &
+    )
+    call invoke( X_minus_Y( advection_inc%vector(isw_g), geopot_np1, &
+                            geopot ) )
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport buoyancy
+    if ( thermal_swe ) then
+
+      ! Initialise updated buoyancy
+      call buoyancy_np1%initialise(vector_space = buoyancy%get_function_space())
+
+      call log_event( "Transporting buoyancy...", LOG_LEVEL_INFO)
+      transport_metadata => transport_metadata_collection%get_transport_metadata('buoyancy')
+      call transport_field(                                                    &
+              buoyancy_np1, buoyancy, transport_controller, transport_metadata &
+      )
+      call invoke( X_minus_Y( advection_inc%vector(isw_b), buoyancy_np1, &
+                              buoyancy ) )
+      ! The increment is now pointwise. Depending upon the temporal discretisation
+      ! this may need converting into weak form by multiplying by the mass matrix
+      mm_wb => get_mass_matrix_fe(W3, buoyancy%get_mesh_id() )
+      call buoy_inc%initialise( vector_space = &
+                                buoyancy_np1%get_function_space() )
+      call invoke( setval_X(buoy_inc, advection_inc%vector(isw_b)),       &
+                   setval_c(advection_inc%vector(isw_b), 0.0_r_def),      &
+                   matrix_vector_kernel_type(advection_inc%vector(isw_b), &
+                                             buoy_inc, mm_wb) )
+
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport wind field
+
+    ! Vector invariant or momentum form of the momentum equations determines
+    ! advection terms for wind
+
+    select case (momentum_form)
+
+    case(momentum_form_vector_invariant)
+
+      ! If vector invariant form, calculate the PV mass flux, Q=q*geopot*u
+      ! and use this in the momentum equations.
+      call log_event( "Transporting PV...", LOG_LEVEL_INFO)
+
+      ! Initialise PV variables
+      call q_geopot%initialise(vector_space = q%get_function_space())
+      call q_np1%initialise(vector_space = q%get_function_space())
+
+      ! Initialise vorticity advection function spaces and quadrature
+      w1_fs    => function_space_collection%get_fs( geopot%get_mesh(), &
+                                                    element_order_h,   &
+                                                    element_order_v, W1 )
+      w2v_fs   => function_space_collection%get_fs( geopot%get_mesh(), &
+                                                    element_order_h,   &
+                                                    element_order_v, W2v )
+      chi      => get_coordinates(geopot%get_mesh_id())
+      panel_id => get_panel_id(geopot%get_mesh_id())
+      qr = quadrature_xyoz_type(nqp_h_exact, nqp_h_exact, nqp_v_exact, &
+                                quadrature_rule)
+
+      ! Calculate q*phi
+      call invoke( X_times_Y(q_geopot,q,geopot) )
+      transport_metadata => transport_metadata_collection%get_transport_metadata('q')
+      call transport_field(                                                    &
+              q_np1, q_geopot, transport_controller, transport_metadata        &
+      )
+
+      flux_precomputations => transport_controller%get_flux_precomputations()
+      q_mass_flux => flux_precomputations%get_total_ref_flux()
+
+      ! If vector_invariant form, use the PV mass flux for the velocity advection
+      ! Mass flux already includes dt
+      call constant_one%initialise( vector_space = w1_fs )
+      call invoke( setval_c(constant_one, 1.0_r_def),                                &
+                   setval_c(advection_inc%vector(isw_u), 0.0_r_def),                 &
+                   vorticity_advection_kernel_type(advection_inc%vector(isw_u),      &
+                                                   q_mass_flux,                      &
+                                                   constant_one, chi, panel_id, qr), &
+                   enforce_bc_kernel_type(advection_inc%vector(isw_u)) )
+
+    case(momentum_form_momentum)
+
+      call log_event( "Transporting wind...", LOG_LEVEL_INFO)
+      transport_metadata => transport_metadata_collection%get_transport_metadata('wind')
+      call wind_transport_alg(                                                 &
+              advection_inc%vector(isw_u), wind,                               &
+              transport_controller, transport_metadata                         &
+      )
+      ! We don't change advection_inc%vector(isw_u) as wind_transport_alg
+      ! already returns weak increment
+
+    case default
+        call log_event('Unrecognised form of momentum equations', &
+                        LOG_LEVEL_ERROR)
+
+    end select    ! momentum_form
+
+    ! If cheap update we need to add the previous iteration state increments
+    if ( cheap_update .AND. outer > 1) then
+      ! Add the previous iteration state increments for geopotential, u and buoyancy
+      ! On the second outer iteration we have
+      ! advection_inc = dt increment(field,(wind_np1-wind_n)/2)
+      ! prev_inc      = dt increment(field,(wind_n)/2)
+      ! We set
+      ! advection_inc = advection_inc + prev_inc = dt increment(field,(wind_np1+wind_n)/2)
+      ! This carries forward for further outer iterations
+      call invoke( inc_X_plus_Y(advection_inc%vector(isw_g),prev_inc%vector(isw_g)), &
+                   inc_X_plus_Y(advection_inc%vector(isw_u),prev_inc%vector(isw_u)) )
+      if (thermal_swe) then
+        call invoke( inc_X_plus_Y(advection_inc%vector(isw_b),prev_inc%vector(isw_b)) )
+      end if
+    end if
+
+    call transport_controller%finalise()
+
+    if ( subroutine_timers ) call timer('swe_transport_control_alg_step')
+
+  end subroutine swe_transport_control_alg_step
+
+
+  !=============================================================================
+  !> @brief Advection of tracer variables for the shallow water miniapp.
+  !> @param[in,out] tracer_const    Constant tracer to be transported
+  !> @param[in,out] tracer_pv       PV tracer to be transported
+  !> @param[in,out] tracer_step     Step function tracer to be transported
+  !> @param[in]     mass_n          Mass field at time n for conservative transport
+  !> @param[in]     mass_np1        Mass field at time n+1 for conservative transport
+  !> @param[in]     wind_n          Wind field at time n
+  !> @param[in]     wind_np1        Wind field at time n+1
+  !> @param[in]     model_clock     Time within the model
+
+  subroutine swe_tracer_transport_alg( tracer_const, &
+                                       tracer_pv,    &
+                                       tracer_step,  &
+                                       mass_n,       &
+                                       mass_np1,     &
+                                       wind_n,       &
+                                       wind_np1,     &
+                                       model_clock )
+
+    use transport_field_mod,             only: transport_field
+    use io_config_mod,                   only: subroutine_timers
+    use timer_mod,                       only: timer
+    use transport_enumerated_types_mod,  only: equation_form_conservative, &
+                                               equation_form_advective,    &
+                                               equation_form_consistent
+
+    implicit none
+
+    ! Arguments
+    type(field_type),        intent(inout) :: tracer_const
+    type(field_type),        intent(inout) :: tracer_pv
+    type(field_type),        intent(inout) :: tracer_step
+    type(field_type),        intent(in)    :: mass_np1
+    type(field_type),        intent(in)    :: mass_n
+    type(field_type),        intent(in)    :: wind_np1
+    type(field_type),        intent(in)    :: wind_n
+    class(model_clock_type), intent(in)    :: model_clock
+
+    ! Fields updated during transport
+    type(field_type) :: tracer_np1
+    type(field_type) :: tracer_n
+
+    ! Transport metadata
+    type(transport_controller_type)        :: transport_controller
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    ! Parameters for transport runtime
+    integer(i_def), parameter :: outer = 1
+    logical(l_def), parameter :: cheap_update_flag = .false.
+
+    if ( subroutine_timers ) call timer('swe_transport_control_alg_step')
+
+    ! Initialise the main transport controller ---------------------------------
+    call transport_controller%initialise(model_clock, mass_n, wind_n, wind_np1)
+
+    ! Initialise transported variables
+    call tracer_np1%initialise(vector_space = tracer_const%get_function_space())
+    call tracer_n%initialise(vector_space = tracer_const%get_function_space())
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport tracer_const
+    call log_event( "Transporting constant tracer...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('tracer_const')
+    ! Form of transport equation
+    select case ( transport_metadata%get_equation_form() )
+    case ( equation_form_conservative )
+      call invoke( X_times_Y(tracer_n, tracer_const, mass_n) )
+    case ( equation_form_advective )
+      call invoke( setval_X(tracer_n, tracer_const) )
+    case ( equation_form_consistent )
+      call log_event('Consistent tracer transport not available in shallow water miniapp', &
+                      LOG_LEVEL_ERROR)
+    case default
+        call log_event('Unrecognised constant tracer transport equation', &
+                        LOG_LEVEL_ERROR)
+    end select
+    ! Transport field
+    call transport_field(                                                      &
+            tracer_np1, tracer_n, transport_controller, transport_metadata     &
+    )
+    ! Divide by mass if conservative
+    if (transport_metadata%get_equation_form() == equation_form_conservative) then
+      call invoke( inc_X_divideby_Y(tracer_np1, mass_np1))
+    end if
+    call invoke( setval_X(tracer_const, tracer_np1 ) )
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport tracer_pv
+    call log_event( "Transporting tracer PV...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('tracer_pv')
+    ! Form of transport equation
+    select case ( transport_metadata%get_equation_form() )
+    case ( equation_form_conservative )
+      call invoke( X_times_Y(tracer_n, tracer_pv, mass_n) )
+    case ( equation_form_advective )
+      call invoke( setval_X(tracer_n, tracer_pv) )
+    case ( equation_form_consistent )
+      call log_event('Consistent tracer transport not available in shallow water miniapp', &
+                      LOG_LEVEL_ERROR)
+    case default
+        call log_event('Unrecognised PV tracer transport equation', &
+                        LOG_LEVEL_ERROR)
+    end select
+    ! Transport field
+    call transport_field(                                                      &
+            tracer_np1, tracer_n, transport_controller, transport_metadata     &
+    )
+    ! Divide by mass if conservative
+    if (transport_metadata%get_equation_form() == equation_form_conservative) then
+      call invoke( inc_X_divideby_Y(tracer_np1, mass_np1))
+    end if
+    call invoke( setval_X(tracer_pv, tracer_np1 ) )
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport tracer_step
+    call log_event( "Transporting step function tracer...", LOG_LEVEL_INFO)
+    transport_metadata => transport_metadata_collection%get_transport_metadata('tracer_step')
+    ! Form of transport equation
+    select case ( transport_metadata%get_equation_form() )
+    case ( equation_form_conservative )
+      call invoke( X_times_Y(tracer_n, tracer_step, mass_n) )
+    case ( equation_form_advective )
+      call invoke( setval_X(tracer_n, tracer_step) )
+    case ( equation_form_consistent )
+      call log_event('Consistent tracer transport not available in shallow water miniapp', &
+                      LOG_LEVEL_ERROR)
+    case default
+        call log_event('Unrecognised step tracer transport equation', &
+                        LOG_LEVEL_ERROR)
+    end select
+    ! Transport field
+    call transport_field(                                                      &
+            tracer_np1, tracer_n, transport_controller, transport_metadata     &
+    )
+    ! Divide by mass if conservative
+    if (transport_metadata%get_equation_form() == equation_form_conservative) then
+      call invoke( inc_X_divideby_Y(tracer_np1, mass_np1))
+    end if
+    call invoke( setval_X(tracer_step, tracer_np1 ) )
+
+    call transport_controller%finalise()
+
+    if ( subroutine_timers ) call timer('swe_tracer_transport_alg')
+
+  end subroutine swe_tracer_transport_alg
+
+
+  !=============================================================================
+  !> @brief Calls finalising routines for shallow water transport.
+  subroutine swe_transport_control_alg_final()
+
+    use split_transport_utils_mod,        only: finalise_split_transport_utils
+
+    implicit none
+
+    call finalise_split_transport_utils()
+
+  end subroutine swe_transport_control_alg_final
+
+
+end module swe_transport_control_alg_mod

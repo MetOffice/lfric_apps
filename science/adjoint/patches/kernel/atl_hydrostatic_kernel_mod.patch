@@ -1,0 +1,43 @@
+@@ -1,11 +1,11 @@
+-module adj_hydrostatic_kernel_mod
++module atl_hydrostatic_kernel_mod
+   use argument_mod, only : any_w2, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, gh_field, gh_inc, &
+ &gh_quadrature_xyoz, gh_read, gh_readwrite, gh_real, gh_scalar
+   use constants_mod, only : r_def
+   use fs_continuity_mod, only : w3, wtheta
+   use kernel_mod, only : kernel_type
+   implicit none
+-  type, public, extends(kernel_type) :: adj_hydrostatic_kernel_type
++  type, public, extends(kernel_type) :: atl_hydrostatic_kernel_type
+   type(ARG_TYPE) :: META_ARGS(8) = (/ &
+     arg_type(gh_field, gh_real, gh_read, any_w2), &
+     arg_type(gh_field, gh_real, gh_readwrite, w3), &
+@@ -22,15 +22,15 @@
+   INTEGER :: GH_SHAPE = gh_quadrature_xyoz
+   INTEGER :: OPERATES_ON = cell_column
+   CONTAINS
+-    PROCEDURE, NOPASS :: adj_hydrostatic_code
+-END TYPE adj_hydrostatic_kernel_type
++    PROCEDURE, NOPASS :: atl_hydrostatic_code
++END TYPE atl_hydrostatic_kernel_type
+ 
+   private
+ 
+-  public :: adj_hydrostatic_code
++  public :: atl_hydrostatic_code
+ 
+   contains
+-  subroutine adj_hydrostatic_code(nlayers, r_u, exner, theta, moist_dyn_gas, moist_dyn_tot, moist_dyn_fac, ls_exner, ls_theta, &
++  subroutine atl_hydrostatic_code(nlayers, r_u, exner, theta, moist_dyn_gas, moist_dyn_tot, moist_dyn_fac, ls_exner, ls_theta, &
+ &ls_moist_dyn_gas, ls_moist_dyn_tot, ls_moist_dyn_fac, cp, ndf_w2, undf_w2, map_w2, w2_basis, w2_diff_basis, ndf_w3, undf_w3, &
+ &map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis, wt_diff_basis, nqp_h, nqp_v, wqp_h, wqp_v)
+     integer, intent(in) :: nlayers
+@@ -162,6 +162,6 @@
+       enddo
+     enddo
+ 
+-  end subroutine adj_hydrostatic_code
++  end subroutine atl_hydrostatic_code
+ 
+-end module adj_hydrostatic_kernel_mod
++end module atl_hydrostatic_kernel_mod

@@ -1,0 +1,133 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Computes total mass of each moisture species and for dry mass.
+
+module moisture_conservation_alg_mod
+
+  use compute_total_mass_alg_mod,      only: compute_total_mass_alg
+  use constants_mod,                   only: r_def, i_def, l_def
+  use energy_correction_config_mod,    only: integral_method_fe
+  use extrusion_mod,                   only: SHIFTED
+  use function_space_collection_mod,   only: function_space_collection
+  use field_mod,                       only: field_type
+  use fs_continuity_mod,               only: W3
+  use function_space_mod,              only: function_space_type
+  use intermesh_mappings_alg_mod,      only: obtain_shifted_rho
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO
+  use mesh_collection_mod,             only: mesh_collection
+  use mesh_mod,                        only: mesh_type
+  use mr_indices_mod,                  only: nummr
+  use quadrature_xyoz_mod,             only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
+  use sci_geometric_constants_mod,     only: get_coordinates, &
+                                             get_panel_id
+  use io_config_mod,                   only: subroutine_timers
+  use timer_mod,                       only: timer
+
+  implicit none
+
+  private
+
+  public :: moisture_conservation_alg
+
+contains
+  !> @brief This subroutine computes the global dry mass and the global masses
+  !> of each of the moisture species.
+  !> @details For dry mass, computes \int rho_d * dx, where rho_d is dry density.
+  !> For the mass of each moisture species, computes \int rho_d * m_X * dx, where
+  !> m_X is the mixing ratio of the X-th moisture species.
+  !> The total mass of moist air is the sum of all of these (dry + all moisture species).
+  !> This routine is intended to be used at multiple points in the time-step.
+  !> @param[in] rho_d Density field
+  !> @param[in] mr Bundle of moisture mixing ratios
+  !> @param[in] stage A string describing the point in time-step
+  subroutine moisture_conservation_alg( rho_d,        &
+                                        mr,           &
+                                        stage         &
+                                      )
+
+    implicit none
+
+    type(field_type),      intent( in ) :: rho_d
+    type(field_type),      intent( in ) :: mr(nummr)
+    character(len=*),      intent( in ) :: stage
+    ! Local variables
+    type(quadrature_xyoz_type)          :: qr
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+    type(field_type),           pointer :: chi(:) => null() ! Coordinates
+    type(field_type),           pointer :: chi_shifted(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(function_space_type),  pointer :: w3_fs => null()
+    type(function_space_type),  pointer :: w3_sh_fs => null()
+
+    ! Fields and values
+    type(field_type)                    :: rho_X_shifted
+    type(field_type)                    :: rho_d_shifted
+    real(kind=r_def)                    :: total_dry
+    real(kind=r_def)                    :: total_water_all(nummr)
+    integer(kind=i_def)                 :: i_mr, shifted_mesh_id
+    integer(kind=i_def)                 :: element_order_h, element_order_v
+    integer(kind=i_def)                 :: nqp_h_exact, nqp_v_exact
+
+    type(mesh_type), pointer :: mesh => null()
+    type(mesh_type), pointer :: shifted_mesh => null()
+
+    if ( subroutine_timers ) call timer('moisture_conservation_alg')
+
+    element_order_h = rho_d%get_element_order_h()
+    element_order_v = rho_d%get_element_order_v()
+    nqp_h_exact = element_order_h + 3
+    nqp_v_exact = element_order_v + 3
+
+    ! Get a quadrature rule
+    qr = quadrature_xyoz_type(nqp_h_exact, nqp_h_exact, nqp_v_exact, &
+                              quadrature_rule)
+
+    mesh => rho_d%get_mesh()
+    w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W3 )
+
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+
+    ! Compute mass of dry air
+    call compute_total_mass_alg(total_dry, rho_d, mesh, &
+                                method=integral_method_fe)
+
+    ! Initialise fields for masses of water species in W3
+    shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+    shifted_mesh_id = shifted_mesh%get_id()
+    chi_shifted => get_coordinates(shifted_mesh_id)
+    w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, 0, W3 )
+    call rho_X_shifted%initialise( vector_space = w3_sh_fs )
+
+    call obtain_shifted_rho(rho_d_shifted, rho_d)
+    do i_mr = 1, nummr
+      call invoke( X_times_Y(rho_X_shifted, mr(i_mr), rho_d_shifted) )
+      call compute_total_mass_alg(total_water_all(i_mr), rho_X_shifted, &
+                                  shifted_mesh, method=integral_method_fe)
+    end do
+
+    ! Output diagnostic values to log
+    write( log_scratch_space, '(2A,E32.12)' ) &
+      'Conservation: dry mass, ', stage, total_dry
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    do i_mr = 1, nummr
+      write( log_scratch_space, '(A,I3,2A,E32.12)' )              &
+        'Conservation: mass of water species', i_mr, ', ', stage, &
+        total_water_all(i_mr)
+        call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    end do
+
+
+    nullify( chi, panel_id, w3_fs, w3_fs, mesh, shifted_mesh, chi_shifted )
+    if ( subroutine_timers ) call timer('moisture_conservation_alg')
+
+  end subroutine moisture_conservation_alg
+
+end module moisture_conservation_alg_mod

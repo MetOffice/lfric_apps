@@ -1,0 +1,238 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!>@brief Contains code for Smagorinsky diffusion calculation
+module smagorinsky_alg_mod
+
+  use constants_mod,            only: i_def, r_def
+  use field_mod,                only: field_type
+  use field_collection_mod,     only: field_collection_type
+  use mr_indices_mod,           only: nummr, imr_v, imr_cl
+
+  use formulation_config_mod,    only: moisture_formulation,    &
+                                       moisture_formulation_dry
+  use section_choice_config_mod, only: boundary_layer,     &
+                                       boundary_layer_um
+  use mixing_config_mod,         only: mix_factor, smag_l_calc, &
+                                       smag_l_calc_use_geo
+
+  use tracer_smagorinsky_diff_kernel_mod, only: tracer_smagorinsky_diff_kernel_type
+  use momentum_smagorinsky_kernel_mod,    only: momentum_smagorinsky_kernel_type
+
+  use log_mod,                   only: log_event,         &
+                                       LOG_LEVEL_INFO
+  use mesh_mod,                  only: mesh_type
+  use io_config_mod,             only: subroutine_timers, &
+                                       write_conservation_diag
+  use timer_mod,                 only: timer
+  use moisture_conservation_alg_mod,   &
+                                 only: moisture_conservation_alg
+  use sci_geometric_constants_mod,     &
+                                 only: get_height_fv, get_panel_id, &
+                                       get_delta_at_wtheta, get_dx_at_w2, &
+                                       get_dz_at_wtheta
+  use fs_continuity_mod,         only: W1, W2
+
+  implicit none
+
+  private
+
+  public :: smagorinsky_alg
+
+contains
+
+  !> @brief Diffuse prognostic fields using Smagorinsky coefficients
+  !> @details Either uses Smagorinsky diffusion coefficients calculated
+  !>          in the UM boundary-layer scheme or those calculate locally
+  !>          to diffuse quantities in the horizontal
+  !> @param[in,out] dtheta_io      Potential temperature increment to update
+  !> @param[in,out] du_io          3D wind increment to update
+  !> @param[in,out] mr             mixing ratios
+  !> @param[in]     theta          Potential temperature
+  !> @param[in]     u              3D wind field
+  !> @param[in]     derived_fields Group of derived fields
+  !> @param[in]     rho            Density
+  !> @param[in]     dt             The model timestep length
+subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
+                           derived_fields, rho, dt )
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent(inout) :: du_io, dtheta_io
+    type( field_type ), intent(inout) :: mr ( nummr )
+
+    type( field_collection_type ), intent(in) :: derived_fields
+
+    type( field_type ), intent(in) :: rho, theta, u
+    real( r_def ),      intent(in) :: dt
+
+    ! Increments on state fields
+    type( field_type ) :: du, dtheta
+
+    type( field_type ), pointer :: shear => null()
+    type( field_type ), pointer :: visc_h
+    type( field_type ), pointer :: visc_m
+    type( field_type ), pointer :: height_w2 => null()
+    type( field_type ), pointer :: height_w1 => null()
+    type( field_type ), pointer :: delta => null()
+    type( field_type ), pointer :: dz_wth => null()
+    type( field_type ), pointer :: dx_at_w2 => null()
+    type( field_type ), pointer :: panel_id => null()
+    type( field_type ) :: dmr_v, dmr_cl
+
+    type( mesh_type ), pointer :: mesh => null()
+
+    ! Stencil depth for the Smagorinsky diffusion kernel
+    integer(kind=i_def), parameter :: smag_stencil_depth = 1
+
+    logical :: use_moisture
+    real( r_def ) :: one_third
+
+    if ( subroutine_timers ) call timer("smagorinsky_alg")
+
+    call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_INFO )
+
+    use_moisture = ( moisture_formulation /= moisture_formulation_dry )
+
+    mesh => theta%get_mesh()
+
+    call du%initialise( u%get_function_space() )
+    call invoke(setval_c(du,0.0_r_def))
+    call dtheta%initialise( theta%get_function_space() )
+    call derived_fields%get_field('visc_h', visc_h)
+    call derived_fields%get_field('visc_m', visc_m)
+
+    height_w1 => get_height_fv(W1, mesh%get_id())
+    height_w2 => get_height_fv(W2, mesh%get_id())
+
+    dx_at_w2 => get_dx_at_w2(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+
+    if ( boundary_layer == boundary_layer_um ) then
+
+      ! Use stability-dependent diffusion coefficient from UM BL scheme
+      ! This will be the blended BL-Smag coefficient if mixing_option='blending'
+      ! Vertical mixing is done by the BL scheme
+      call log_event( 'Using stability-dependent Smagorinsky coefficient', LOG_LEVEL_INFO )
+
+      ! Potential temperature:
+      call invoke( tracer_smagorinsky_diff_kernel_type( dtheta,               &
+                                                        theta,                &
+                                                        smag_stencil_depth,   &
+                                                        visc_h,               &
+                                                        dx_at_w2 ) )
+
+      if ( use_moisture ) then
+        ! Water vapour and cloud liquid:
+        call dtheta%copy_field_properties(dmr_v)
+        call dtheta%copy_field_properties(dmr_cl)
+        call invoke( tracer_smagorinsky_diff_kernel_type( dmr_v,              &
+                                                          mr(imr_v),          &
+                                                          smag_stencil_depth, &
+                                                          visc_h,             &
+                                                          dx_at_w2 ),         &
+                     tracer_smagorinsky_diff_kernel_type( dmr_cl,             &
+                                                          mr(imr_cl),         &
+                                                          smag_stencil_depth, &
+                                                          visc_h,             &
+                                                          dx_at_w2 ) )
+      end if
+
+      ! Momentum:
+      call invoke(momentum_smagorinsky_kernel_type( du,                    &
+                                                     u,                    &
+                                                     smag_stencil_depth,   &
+                                                     dx_at_w2,             &
+                                                     smag_stencil_depth,   &
+                                                     height_w2,            &
+                                                     height_w1,            &
+                                                     visc_m,               &
+                                                     smag_stencil_depth,   &
+                                                     panel_id,             &
+                                                     smag_stencil_depth) )
+
+    else ! Without UM BL scheme
+
+      call log_event( 'Using pure Smagorinsky coefficient', LOG_LEVEL_INFO )
+      ! Calculate visc_h and visc_m as (mix_factor * delta)**2 * shear
+      call derived_fields%get_field('shear', shear)
+      ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
+      ! in lfric core as the mininum of the cell horizontal edge lengths
+      delta => get_delta_at_wtheta(mesh%get_id())
+
+      if (smag_l_calc == smag_l_calc_use_geo) then
+        ! Use geometric mean mixing length
+        dz_wth => get_dz_at_wtheta(mesh%get_id())
+
+        one_third = 1.0_r_def / 3.0_r_def
+        call invoke( inc_X_powint_n( delta, 2 ),                              &
+                     inc_X_times_Y( delta, dz_wth ),                          &
+                     inc_X_powreal_a( delta, one_third ) )
+      end if
+      ! Potential temperature:
+      call invoke( a_times_X( visc_h, mix_factor, delta ),                    &
+                   inc_X_powint_n( visc_h, 2 ),                               &
+                   inc_X_times_Y( visc_h, shear ),                            &
+                   tracer_smagorinsky_diff_kernel_type( dtheta,               &
+                                                        theta,                &
+                                                        smag_stencil_depth,   &
+                                                        visc_h,               &
+                                                        dx_at_w2 ) )
+
+      if (use_moisture) then
+        ! Water vapour and cloud liquid:
+        call dtheta%copy_field_properties(dmr_v)
+        call dtheta%copy_field_properties(dmr_cl)
+        call invoke( tracer_smagorinsky_diff_kernel_type( dmr_v,              &
+                                                          mr(imr_v),          &
+                                                          smag_stencil_depth, &
+                                                          visc_h,             &
+                                                          dx_at_w2 ),         &
+                     tracer_smagorinsky_diff_kernel_type( dmr_cl,             &
+                                                          mr(imr_cl),         &
+                                                          smag_stencil_depth, &
+                                                          visc_h,             &
+                                                          dx_at_w2 ) )
+      end if
+
+      ! Momentum:
+      call invoke( a_times_X( visc_m, mix_factor, delta ),                    &
+                   inc_X_powint_n( visc_m, 2 ),                               &
+                   inc_X_times_Y( visc_m, shear ),                            &
+                   momentum_smagorinsky_kernel_type( du,                      &
+                                                     u,                       &
+                                                     smag_stencil_depth,      &
+                                                     dx_at_w2,                &
+                                                     smag_stencil_depth,      &
+                                                     height_w2,               &
+                                                     height_w1,               &
+                                                     visc_m,                  &
+                                                     smag_stencil_depth,      &
+                                                     panel_id,                &
+                                                     smag_stencil_depth) )
+
+    end if ! With or without BL scheme
+
+    if (use_moisture) then
+      call invoke( inc_X_plus_bY( mr(imr_v), dt, dmr_v ),    &
+                   inc_X_plus_bY( mr(imr_cl), dt, dmr_cl ) )
+    end if
+
+    ! Apply increments from Smagorinsky mixing
+    call invoke( inc_X_plus_bY( dtheta_io, dt, dtheta ),      &
+                 inc_X_plus_bY( du_io,     dt, du ) )
+
+    if (write_conservation_diag .and. use_moisture) &
+      call moisture_conservation_alg( rho, mr, 'After mixing' )
+
+    nullify( height_w1, height_w2 )
+
+    if ( subroutine_timers ) call timer("smagorinsky_alg")
+
+  end subroutine smagorinsky_alg
+
+end module smagorinsky_alg_mod

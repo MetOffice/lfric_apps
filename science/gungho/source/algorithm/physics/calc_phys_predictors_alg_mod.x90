@@ -1,0 +1,144 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!>@brief Calculate predictors required by fast physics
+module calc_phys_predictors_alg_mod
+
+  use constants_mod,            only: r_def
+  use field_mod,                only: field_type
+  use field_collection_mod,     only: field_collection_type
+  use derived_config_mod,       only: bundle_size
+  use model_clock_mod,          only: model_clock_type
+  use field_indices_mod,        only: igh_u, igh_t
+  use formulation_config_mod,   only: horizontal_physics_predictor, &
+                                      use_wavedynamics
+
+  use physics_mappings_alg_mod, only: map_physics_winds
+  use sci_mass_matrix_solver_alg_mod, &
+                                only: mass_matrix_solver_alg
+  use sci_hori_mass_matrix_solver_alg_mod, &
+                                only: hori_mass_matrix_solver_alg
+
+  use io_config_mod,            only: subroutine_timers
+  use timer_mod,                only: timer
+
+  use limited_area_lbc_alg_mod, only: overwrite_blending_zone
+  use boundaries_config_mod,    only: limited_area, transport_boundary_depth
+  use base_mesh_config_mod,     only: topology, topology_non_periodic
+
+  implicit none
+
+  private
+
+  public :: calc_phys_predictors_alg
+
+contains
+
+  !> @brief Calculate the latest estimate of theta and winds for use
+  !>        by the fast physics (convection and boundary layer)
+  !> @param[in,out] derived_fields   Group of derived fields
+  !> @param[in]     rhs_np1          State vector to compute
+  !> @param[in]     rhs_adv          State vector after advection
+  !> @param[in]     rhs_n            State vector at time n
+  !> @param[in]     state            Current prognostic state
+  !> @param[in]     state_after_slow State after slow physics
+  !> @param[in]     lbc_fields       Group of lateral boundary fields
+  !> @param[in]     clock            The model clock
+
+subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
+                                     rhs_n, state, state_after_slow,   &
+                                     lbc_fields, model_clock )
+
+    implicit none
+    ! Prognostic fields
+    type( field_collection_type ), intent(inout) :: derived_fields
+
+    type( field_collection_type ), intent(in)    :: lbc_fields
+
+    type( field_type ), intent(inout) :: rhs_np1(bundle_size)
+
+    type( field_type ), intent(in)    :: state(bundle_size)
+    type( field_type ), intent(in)    :: state_after_slow(bundle_size)
+    type( field_type ), intent(in)    :: rhs_adv(bundle_size)
+    type( field_type ), intent(in)    :: rhs_n(bundle_size)
+
+    class(model_clock_type), intent(in) :: model_clock
+
+    type( field_type ), pointer :: theta_star => null()
+    type( field_type ), pointer :: u_star => null()
+    type( field_type ), pointer :: u_in_w3_star => null()
+    type( field_type ), pointer :: v_in_w3_star => null()
+
+    type( field_type ), pointer :: lbc_u => null()
+    type( field_type ), pointer :: lbc_theta => null()
+
+    type( field_type ) :: du, dtheta, rhsu_np1, w_in_w3_star
+
+    if ( subroutine_timers ) call timer("calc_phys_predictors")
+
+    call derived_fields%get_field('theta_star', theta_star)
+    call derived_fields%get_field('u_star', u_star)
+
+    if (use_wavedynamics) then
+
+      ! theta_star can be directly guessed from advection terms
+      call dtheta%initialise( rhs_adv(igh_t)%get_function_space() )
+      call invoke( X_plus_Y(dtheta, rhs_adv(igh_t), rhs_n(igh_t)) )
+      call mass_matrix_solver_alg(theta_star, dtheta)
+      call dtheta%field_final()
+
+      ! Compute u_star = u_np1 + M^-1(-rhs_np1 + rhs_n + rhs_a)
+      call du%initialise( rhs_adv(igh_u)%get_function_space() )
+      call rhsu_np1%initialise( rhs_adv(igh_u)%get_function_space() )
+      call invoke( setval_c(du, 0.0_r_def),                                      &
+                   aX_plus_Y(rhsu_np1,-1.0_r_def, rhs_np1(igh_u), rhs_n(igh_u)), &
+                   inc_X_plus_Y(rhsu_np1, rhs_adv(igh_u)) )
+      if ( horizontal_physics_predictor ) then
+        call hori_mass_matrix_solver_alg(du, rhsu_np1)
+      else
+        call mass_matrix_solver_alg(du, rhsu_np1 )
+      end if
+      call invoke( X_plus_Y(u_star, du, state(igh_u)) )
+      call rhsu_np1%field_final()
+      call du%field_final()
+
+      if ( limited_area .and. topology == topology_non_periodic ) then
+
+        ! After advection, values in the lateral boundary rim are overwritten
+        ! by the LBC data, to a depth given by transport_boundary_depth. This
+        ! affects the rhs_a term, but not the rhs_np1 term and this inconsistency
+        ! can give nonphysical values of u_star. Therefore the resulting
+        ! u_star needs to overwritten by the LBC data, to ensure that 'sensible'
+        ! values are used by the physics schemes.
+
+        call lbc_fields%get_field( 'lbc_u',     lbc_u )
+        call lbc_fields%get_field( 'lbc_theta', lbc_theta )
+
+        call overwrite_blending_zone( &
+                 u_star, lbc_u, depth = transport_boundary_depth )
+        call overwrite_blending_zone( &
+                 theta_star, lbc_theta, depth = transport_boundary_depth )
+
+      end if
+    else
+      ! predictors are just the current state
+      call invoke( setval_X(theta_star, state_after_slow(igh_t)), &
+                   setval_X(u_star, state_after_slow(igh_u) ))
+    end if !use_wavedynamics
+
+    ! map physics predictors into required spaces
+    call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
+    call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
+    call u_in_w3_star%copy_field_properties(w_in_w3_star)
+    call map_physics_winds(u_in_w3_star, v_in_w3_star, w_in_w3_star, &
+                           u_star)
+    call w_in_w3_star%field_final()
+
+    if ( subroutine_timers ) call timer("calc_phys_predictors")
+
+  end subroutine calc_phys_predictors_alg
+
+end module calc_phys_predictors_alg_mod

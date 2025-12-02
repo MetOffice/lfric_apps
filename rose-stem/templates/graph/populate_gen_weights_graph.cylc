@@ -1,0 +1,96 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/populate_gen_weights_graph.cylc") %}
+
+
+{% set generate_weights_task = "generate_weights_"~
+                                task_ns.application~"_"~
+                                task_ns.conf_name~"_"~
+                                site_vars["scripts_platform"]~"_"~
+                                "weightgen_script" %}
+{% if generate_weights_task not in tasks_to_run %}
+    {% do tasks_to_run.update({generate_weights_task: task_values}) %}
+{% endif %}
+
+{% set export_weights_task = "export-weights_"~task_ns.platform %}
+{% if export_weights_task not in tasks_to_run %}
+    {% do tasks_to_run.update({export_weights_task: {} }) %}
+{% endif %}
+
+{# It is assumed the weights are exported to the scripts platform #}
+{# Ensure this is the case #}
+{% if task_ns.platform != site_vars["scripts_platform"] %}
+    {% set export_weights_wplatform = "export-weights_"~site_vars["scripts_platform"] %}
+    {% if export_weights_wplatform not in tasks_to_run %}
+        {% do tasks_to_run.update({export_weights_wplatform: {} }) %}
+    {% endif %}
+{% endif %}
+
+{# Set export source task for weights platform #}
+{% set export_task_weights_platform = "export-source => export-source_"~site_vars["scripts_platform"] %}
+{% if "export-source" not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source": {} }) %}
+{% endif %}
+{% if "export-source_"~site_vars["scripts_platform"] not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source_"~site_vars["scripts_platform"]: {} }) %}
+{% endif %}
+
+{# Set mesh build for weights platform #}
+{% set mesh_build_weights_platform = "build_mesh_"~
+                                      site_vars["scripts_platform"]~"_"~
+                                      site_vars["mesh_build"][site_vars["scripts_platform"]] %}
+{% if mesh_build_weights_platform not in tasks_to_run %}
+    {% do tasks_to_run.update({mesh_build_weights_platform: {} }) %}
+{% endif %}
+
+{# Set mesh generate task for weights platform #}
+{% set mesh_run_weights_platform = "run_mesh_"~
+                                    task_values["resolution"]~"_"~
+                                    site_vars["scripts_platform"]~"_"~
+                                    site_vars["mesh_build"][site_vars["scripts_platform"]] %}
+{% if mesh_run_weights_platform not in tasks_to_run %}
+    {% do tasks_to_run.update({mesh_run_weights_platform: {} }) %}
+{% endif %}
+
+{% do graph_sections.append([
+    export_task_weights_platform, mesh_build_weights_platform
+    ]) %}
+
+{% do graph_sections.append([
+    mesh_build_weights_platform, mesh_run_weights_platform
+    ]) %}
+{% do graph_sections.append([
+    mesh_run_weights_platform, generate_weights_task~"?"
+    ]) %}
+
+{% do graph_sections.append([
+    generate_weights_task~":finish", export_weights_task
+    ]) %}
+
+{# If not on the weights platform, make the export_weights task #}
+{# depend on the export_weights for the script_platform starting #}
+{% if task_ns.platform != site_vars["scripts_platform"] %}
+    {% set platform_scripts_export = [
+        "export-weights_"~site_vars["scripts_platform"]~":start",
+        export_weights_task
+        ] %}
+    {% if platform_scripts_export not in graph_sections %}
+        {% do graph_sections.append(platform_scripts_export) %}
+    {% endif %}
+{% endif %}
+
+{# An application run task depends on both the export_weights #}
+{# task and the generate_weights task. export_weights runs even  #}
+{# if generate_weights task fails but the application run task needs #}
+{# it to succeed. #}
+{% do graph_sections.append([
+    export_weights_task, application_run_task
+    ]) %}
+{% do graph_sections.append([
+    generate_weights_task~"?", application_run_task
+    ]) %}
+
+{% do LOG.debug("Finished in templates/graph/populate_gen_weights_graph.cylc") %}

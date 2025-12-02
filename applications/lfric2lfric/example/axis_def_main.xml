@@ -1,0 +1,22 @@
+<!-- Main axis definitions -->
+<!-- TODO : #325 Define fields to initialise for lfric2lfric miniapp -->
+<axis_definition>
+  <axis id="vert_axis_half_levels" name="half_levels"/>
+  <axis id="vert_axis_full_levels" name="full_levels"/>
+  <axis id="radiation_levels" name="radiation_levels"/>
+  <axis id="horizon_angles" name="horizon_angles" n_glo="16"/>
+  <axis id="horizon_aspects" name="horizon_aspects" n_glo="16"/>
+  <axis id="aero_modes" name="aero_modes" n_glo="6"/>
+  <axis id="sw_bands_aero_modes" name="sw_bands_aero_modes" n_glo="36"/>
+  <axis id="lw_bands_aero_modes" name="lw_bands_aero_modes" n_glo="54"/>
+  <axis id="sw_bands" name="sw_bands" n_glo="6"/>
+  <axis id="lw_bands" name="lw_bands" n_glo="9"/>
+  <axis id="dust_divisions" name="dust_divisions" n_glo="6"/>
+  <axis id="soil_levels" name="soil_levels" n_glo="4"/>
+  <axis id="plant_func_types" name="plant_func_types" n_glo="5"/>
+  <axis id="sea_ice_categories" name="sea_ice_categories" n_glo="1"/>
+  <axis id="bl_types" name="bl_types" n_glo="7"/>
+  <axis id="entrainment_levels" name="entrainment_levels" n_glo="3"/>
+  <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
+  <axis id="lbc_axis" name="lbc_axis" n_glo="7"/>
+</axis_definition>

@@ -1,0 +1,8 @@
+<!-- Aerosol ancillary grid definitions - on coarse mesh-->
+<grid_definition>
+   <grid id="variable_3D_monthly_grid">
+    <domain domain_ref="multigrid_l2_face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+    <axis axis_ref="monthly_climatology"/>
+  </grid>
+</grid_definition>

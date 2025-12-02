@@ -1,0 +1,143 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the weighted q2t matrix
+!>
+module eliminated_theta_q2t_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: eliminated_theta_q2t_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type eliminated_theta_q2t_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(eliminated_theta_q2t_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(eliminated_theta_q2t_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_all( this )
+
+    use eliminated_theta_q2t_kernel_mod, only : eliminated_theta_q2t_code
+
+    implicit none
+
+    class(eliminated_theta_q2t_test_type), intent(inout) :: this
+
+    real(kind=r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    ! Mesh
+    integer(kind=i_def), parameter :: ncell   = 1
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: cell    = 1
+
+    ! Array sizes
+    integer(kind=i_def), parameter :: ndf_w2 = 4_i_def
+    integer(kind=i_def), parameter :: ndf_wt = 2_i_def
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2
+    integer(kind=i_def), parameter :: undf_wt = ndf_wt
+    ! Operators to test
+    real(kind=r_solver), dimension(ncell,ndf_w2,ndf_wt) :: q2t
+    ! Maps
+    integer(kind=i_def), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), dimension(ndf_wt) :: map_wt
+    ! Basis arrays
+    real(kind=r_def), dimension(3,ndf_w2) :: basis_w2
+    real(kind=r_def), dimension(1,ndf_wt) :: basis_wt
+    real(kind=r_def), dimension(3,ndf_wt) :: diff_basis_wt
+    ! Quadrature
+    integer(kind=i_def), parameter   :: nqp = 1_i_def
+    real(kind=r_def), dimension(nqp) :: wgt
+    ! Fields
+    real(kind=r_solver), dimension(ndf_w2) :: norm_u
+    real(kind=r_solver), dimension(ndf_wt) :: exner
+    ! Scalars
+    real(kind=r_solver)                    :: const
+
+    integer(kind=i_def) :: i, df1, df2
+    real(kind=r_solver), dimension(ndf_w2, ndf_wt) :: answer
+
+    do i = 1,ndf_w2
+      map_w2(i) = int(i,i_def)
+    end do
+    do i = 1,ndf_wt
+      map_wt(i) = int(i,i_def)
+    end do
+
+    ! Quadrature
+    wgt(1) = 1.0_r_def
+
+    ! Basis functions
+    basis_w2(:,1) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    basis_w2(:,2) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    basis_w2(:,3) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+    basis_w2(:,4) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+
+    basis_wt(:,:) =  0.5_r_def
+
+    diff_basis_wt(:,1) =  (/ 0.0_r_def, 0.0_r_def, -1.0_r_def /)
+    diff_basis_wt(:,2) =  (/ 0.0_r_def, 0.0_r_def,  1.0_r_def /)
+
+    ! Fields
+    exner = (/ 1.0_r_solver, 0.95_r_solver /)
+    norm_u = (/ 2.0_r_solver, 0.5_r_solver, 3.0_r_solver, 6.3_r_solver /)
+    const = 17.0_r_solver
+
+    call eliminated_theta_q2t_code(cell,                    &
+                                   nlayers,                 &
+                                   ncell,                   &
+                                   q2t,                     &
+                                   norm_u,                  &
+                                   exner,                   &
+                                   const,                   &
+                                   ndf_w2, undf_w2, map_w2, &
+                                   basis_w2,                &
+                                   ndf_wt, undf_wt, map_wt, &
+                                   basis_wt, diff_basis_wt, &
+                                   nqp, nqp, wgt, wgt)
+
+    ! q2t = - norm_u * const * < basis_w2, (k*dexner/dz)*basis_wt >
+    ! This is only non-zero for vertical components of W2 ( df1 = 3,4)
+    answer = 0.0_r_solver
+    do df2 = 1,ndf_wt
+      do df1 = 3,ndf_w2
+        answer(df1,df2) = -0.25_r_solver * const * norm_u(df1) * (exner(2)-exner(1))
+      end do
+    end do
+    @assertEqual(answer, q2t(1,:,:), tol)
+
+  end subroutine test_all
+
+end module eliminated_theta_q2t_kernel_mod_test

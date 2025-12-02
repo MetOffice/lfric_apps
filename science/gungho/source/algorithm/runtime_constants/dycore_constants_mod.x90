@@ -1,0 +1,480 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides various runtime-constants for the dynamical core.
+!!
+!> @details This module controls the set-up of various objects relating to basic
+!!          parts of the dynamical core, such as the Coriolis operator. These
+!!          objects are constant throughout a run, and so can be pre-computed.
+!!          Getters provide access to the objects.
+!-------------------------------------------------------------------------------
+
+module dycore_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
+                                                r_second, EPS
+  use sci_geometric_constants_mod,        only: get_coordinates,               &
+                                                get_panel_id
+  use sci_fem_constants_mod,              only: get_qr_fe
+  use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: W2, W3, Wtheta
+  use function_space_collection_mod,      only: function_space_collection
+  use function_space_mod,                 only: function_space_type
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use io_config_mod,                      only: subroutine_timers
+  use log_mod,                            only: log_event, LOG_LEVEL_ERROR
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
+  use model_clock_mod,                    only: model_clock_type
+  use operator_mod,                       only: operator_type
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use timer_mod,                          only: timer
+
+  ! Configuration
+  use finite_element_config_mod,          only: element_order_h, &
+                                                element_order_v
+
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  real(kind=r_second) :: dt_stored = 0.0_r_second
+
+  ! ========================================================================== !
+  ! Inventories for use in the rest of the model
+  ! ========================================================================== !
+
+  type(inventory_by_mesh_type)         :: geopotential_inventory
+  type(inventory_by_mesh_type)         :: coriolis_inventory
+  type(inventory_by_mesh_type)         :: vert_coriolis_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_si_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_lagged_inventory
+
+  ! ========================================================================== !
+  ! Public enumerated types for selecting W2 mass matrices
+  ! ========================================================================== !
+
+  integer(kind=i_def), parameter, public :: w2_damping_layer_matrix  = 2370
+  integer(kind=i_def), parameter, public :: w2_lagged_damping_layer_matrix = 4374
+  integer(kind=i_def), parameter, public :: w2_si_matrix = 891
+
+  ! ========================================================================== !
+  ! Public functions for accessing the module contents
+  ! ========================================================================== !
+
+  public :: final_dycore_constants
+  public :: get_coriolis
+  public :: get_vert_coriolis
+  public :: get_geopotential
+  public :: get_w2_mass_matrix
+
+contains
+
+  ! ========================================================================== !
+  ! GETTERS
+  ! ========================================================================== !
+
+  !> @brief Returns the Coriolis operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Coriolis operator
+  function get_coriolis(mesh_id) result(coriolis)
+
+    use base_mesh_config_mod,    only: f_lat
+    use compute_coriolis_matrix_kernel_mod, &
+                                 only: compute_coriolis_matrix_kernel_type
+    use planet_config_mod,       only: scaled_omega
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(operator_type),          pointer :: coriolis
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(quadrature_xyoz_type),   pointer :: qr
+    type(function_space_type),    pointer :: w2_fs
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. coriolis_inventory%is_initialised()) then
+      call coriolis_inventory%initialise(name="coriolis")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = coriolis_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      w2_fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                                element_order_v, W2)
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      qr => get_qr_fe()
+
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+
+      call coriolis_inventory%add_operator(coriolis, w2_fs, w2_fs, mesh)
+
+      call invoke( compute_coriolis_matrix_kernel_type(coriolis,               &
+                                                       chi, panel_id,          &
+                                                       scaled_omega,           &
+                                                       f_lat, qr) )
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+    end if
+
+    ! Return constant
+    call coriolis_inventory%get_operator(mesh, coriolis)
+
+  end function get_coriolis
+
+  !> @brief Returns the vertical Coriolis operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Coriolis operator
+  function get_vert_coriolis(mesh_id) result(vert_coriolis)
+
+    use base_mesh_config_mod,    only: f_lat
+    use compute_vert_coriolis_matrix_kernel_mod, &
+                                 only: compute_vert_coriolis_matrix_kernel_type
+    use planet_config_mod,       only: scaled_omega
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(operator_type),          pointer :: vert_coriolis
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(quadrature_xyoz_type),   pointer :: qr
+    type(function_space_type),    pointer :: w2_fs
+    type(function_space_type),    pointer :: wt_fs
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. vert_coriolis_inventory%is_initialised()) then
+      call vert_coriolis_inventory%initialise(name="vert_coriolis")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = vert_coriolis_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      ! As this operator is used for initialisation, it always uses lowest-order
+      w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
+      wt_fs => function_space_collection%get_fs(mesh, 0, 0, Wtheta)
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      qr => get_qr_fe()
+
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+
+      call vert_coriolis_inventory%add_operator(vert_coriolis, wt_fs, w2_fs, mesh)
+
+      call invoke( compute_vert_coriolis_matrix_kernel_type(vert_coriolis,     &
+                                                            chi, panel_id,     &
+                                                            scaled_omega,      &
+                                                            f_lat, qr) )
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+    end if
+
+    ! Return constant
+    call vert_coriolis_inventory%get_operator(mesh, vert_coriolis)
+
+  end function get_vert_coriolis
+
+  !> @brief Returns a pointer to the geopotential field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The geopotential field
+  function get_geopotential(mesh_id) result(geopotential)
+
+    use base_mesh_config_mod,            only: geometry
+    use compute_geopotential_kernel_mod, only: compute_geopotential_kernel_type
+    use finite_element_config_mod,       only: rehabilitate, coord_system
+    use formulation_config_mod,          only: shallow
+    use planet_config_mod,               only: scaled_radius, gravity
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(field_type),             pointer :: geopotential
+    type(field_type),             pointer :: chi(:)
+    type(function_space_type),    pointer :: w3_fs
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. geopotential_inventory%is_initialised()) then
+      call geopotential_inventory%initialise(name="geopotential")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = geopotential_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      w3_fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                                element_order_v, W3)
+      chi => get_coordinates(mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+
+      call geopotential_inventory%add_field(geopotential, w3_fs, mesh)
+
+      if ( rehabilitate ) then
+        call invoke( compute_geopotential_kernel_type(geopotential,            &
+                                                      chi,                     &
+                                                      gravity,                 &
+                                                      scaled_radius,           &
+                                                      coord_system,            &
+                                                      shallow,                 &
+                                                      geometry) )
+      else
+        call log_event( "Geopotential computation needs modifying "// &
+                        "for standard W3 mapping", LOG_LEVEL_ERROR )
+      end if
+      if ( subroutine_timers ) call timer('runtime_constants.dycore')
+    end if
+
+    ! Return constant
+    call geopotential_inventory%get_field(mesh, geopotential)
+
+  end function get_geopotential
+
+  !> @brief Returns a pointer to a generalised W2 mass matrix operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] model_clock The model clock object
+  !!            @TODO #490:
+  !!            NB: This is currently an optional argument as it is not possible
+  !!            to pass it from all parts of the model (in particular from the
+  !!            apply method in the mixed operator)
+  !> @return A generalised W2 mass matrix operator for the dynamical core
+  function get_w2_mass_matrix(w2_op_name, mesh_id, model_clock) result(dynamics_mm_w2)
+
+    use compute_dl_matrix_kernel_mod, only: compute_dl_matrix_kernel_type
+    use damping_layer_config_mod,     only: dl_base, dl_str
+    use extrusion_config_mod,         only: domain_height, planet_radius
+    use sci_fem_constants_mod,        only: get_mass_matrix_fe
+    use formulation_config_mod,       only: dlayer_on, rotating, lagged_orog
+    use lagged_orog_operator_kernel_mod, &
+                                      only: lagged_orog_operator_kernel_type
+    use sci_operator_algebra_kernel_mod, &
+                                      only: operator_setval_c_kernel_type,     &
+                                            operator_setval_x_kernel_type,     &
+                                            operator_x_plus_ay_kernel_type
+    use timestepping_config_mod,      only: tau_u
+
+    implicit none
+
+    integer(kind=i_def),               intent(in) :: w2_op_name
+    integer(kind=i_def),               intent(in) :: mesh_id
+    class(model_clock_type), optional, intent(in) :: model_clock
+    type(mesh_type),                      pointer :: mesh
+    logical(kind=l_def)                           :: constant_exists
+    type(function_space_type),            pointer :: fs
+    type(inventory_by_mesh_type),         pointer :: inventory
+    type(operator_type),                  pointer :: dynamics_mm_w2
+    type(operator_type),                   target :: mm_w2_tmp
+    type(operator_type),                   target :: mm_w2_tmp2
+    type(operator_type),                  pointer :: mm_w2_dl
+    type(operator_type),                  pointer :: mm_w2_dl_lagged
+    type(operator_type),                  pointer :: mm_w2_si
+    type(operator_type),                  pointer :: mm_w2
+    type(field_type),                     pointer :: chi(:)
+    type(field_type),                     pointer :: panel_id
+    type(quadrature_xyoz_type),           pointer :: qr
+    real(kind=r_def)                              :: const
+    real(kind=r_second)                           :: dt
+    type(operator_type),                  pointer :: coriolis
+
+    ! Check inventories are initialised
+    if (.not. mm_w2_si_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call mm_w2_si_inventory%initialise(name='mm_w2_si')
+      call mm_w2_dl_inventory%initialise(name='mm_w2_dl')
+      call mm_w2_dl_lagged_inventory%initialise(name='mm_w2_dl_lagged')
+      if (present(model_clock)) then
+        dt_stored = model_clock%get_seconds_per_step()
+      end if
+    end if
+
+    ! Check this constant is still valid -- is the model time step the same?
+    ! Can only do this if model_clock is present
+    if (present(model_clock)) then
+      dt = model_clock%get_seconds_per_step()
+      if (real(abs(dt - dt_stored), r_def) > EPS) then
+        call log_event(                                                        &
+                'Unable to get w2_mass_matix as the time step has changed ' // &
+                'and it is no longer valid',                                   &
+                LOG_LEVEL_ERROR                                                &
+        )
+      end if
+    end if
+
+    ! Determine which inventory to point to
+    select case (w2_op_name)
+      case(w2_damping_layer_matrix)
+        inventory => mm_w2_dl_inventory
+      case(w2_lagged_damping_layer_matrix)
+        ! @TODO #416: this should be an inventory of r_solver operators
+        ! as the r_def operators are not used anywhere
+        inventory => mm_w2_dl_lagged_inventory
+      case(w2_si_matrix)
+        inventory => mm_w2_si_inventory
+      case default
+        dynamics_mm_w2 => null()
+        call log_event('Dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create the relevant W2 mass matrices
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, W2)
+
+      ! Each matrix is built on a previous matrix. Generally either all three
+      ! matrices are needed, or only the S.I. matrix (the final in the chain)
+      ! Therefore if this is a call to get the S.I. matrix and the others do not
+      ! already exist, do not store the other matrices
+
+      ! ====================================================================== !
+      ! DAMPING LAYER MATRIX
+      ! ====================================================================== !
+      if (mm_w2_dl_inventory%paired_object_exists(mesh_id)) then
+        ! Get existing matrix
+        call mm_w2_dl_inventory%get_operator(mesh, mm_w2_dl)
+      else
+        ! We are going to need to create this matrix
+        if (w2_op_name == w2_damping_layer_matrix) then
+          ! This is our target matrix, so store it
+          call mm_w2_dl_inventory%add_operator(mm_w2_dl, fs, fs, mesh)
+        else
+          ! Assume that this matrix is only used to create another, so
+          ! make a temporary matrix
+          call mm_w2_tmp%initialise( fs, fs )
+          mm_w2_dl => mm_w2_tmp
+        end if
+
+        ! Create damping layer mass matrix -------------------------------------
+        if (dlayer_on) then
+          chi => get_coordinates(mesh_id)
+          panel_id => get_panel_id(mesh_id)
+          qr => get_qr_fe()
+
+          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+          call invoke( name = "compute_damping_layer_mass_matrix",             &
+                       compute_dl_matrix_kernel_type(mm_w2_dl, chi, panel_id,  &
+                                                     dl_base, dl_str,          &
+                                                     domain_height,            &
+                                                     planet_radius,            &
+                                                     element_order_h,          &
+                                                     element_order_v,          &
+                                                     dt_stored,                &
+                                                     qr) )
+          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+        else
+          ! No damping layer, just copy the W2 mass matrix on this level
+          mm_w2 => get_mass_matrix_fe(W2, mesh_id)
+          call invoke( operator_setval_x_kernel_type(mm_w2_dl, mm_w2) )
+        end if
+      end if
+
+      ! ====================================================================== !
+      ! LAGGED OROGRAPHY MATRIX
+      ! ====================================================================== !
+      ! @TODO: logic here is probably not optimal
+      if (w2_op_name /= w2_damping_layer_matrix) then
+        if (mm_w2_dl_lagged_inventory%paired_object_exists(mesh_id)) then
+          ! Get existing matrix
+          call mm_w2_dl_lagged_inventory%get_operator(mesh, mm_w2_dl_lagged)
+        else
+          ! We are going to need to create this matrix
+          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+
+          if (w2_op_name == w2_lagged_damping_layer_matrix) then
+            ! This is our target matrix, so store it
+            call mm_w2_dl_lagged_inventory%add_operator(mm_w2_dl_lagged, fs, fs, mesh)
+          else
+            ! Assume that this matrix is only used to create another, so
+            ! make a temporary matrix
+            call mm_w2_tmp2%initialise( fs, fs )
+            mm_w2_dl_lagged => mm_w2_tmp2
+          end if
+
+          ! Create damping layer mass matrix -----------------------------------
+          if ( lagged_orog ) then
+            ! Create the LHS mass matrices that don't include the correlations
+            ! between the horizontal and vertical.
+            call invoke( name = "compute_lagged_damping_layer_mass_matrix",    &
+                         lagged_orog_operator_kernel_type(mm_w2_dl_lagged,     &
+                                                          mm_w2_dl) )
+
+          else
+            ! No lagged orography, just copy the W2 mass matrix on this level
+            call invoke( operator_setval_x_kernel_type(mm_w2_dl_lagged, mm_w2_dl) )
+          end if
+          if ( subroutine_timers ) call timer('runtime_constants.dycore')
+        end if
+      end if
+
+      ! ====================================================================== !
+      ! S.I. MATRIX
+      ! ====================================================================== !
+      if (w2_op_name == w2_si_matrix) then
+        if ( subroutine_timers ) call timer('runtime_constants.dycore')
+        call mm_w2_si_inventory%add_operator(mm_w2_si, fs, fs, mesh)
+
+        if ( rotating ) then
+          const = tau_u * real(dt_stored, r_def)
+        else
+          const = 0.0_r_def
+        end if
+        coriolis => get_coriolis(mesh_id)
+
+        ! Compute the si W2 mass matrix: mm_w2_si = mm_w2 + damping_layer +
+        ! coriolis
+        ! If there is no damping layer, coriolis or lagged orography then the
+        ! relevant matrix components take their natural value so we can still
+        ! use the relevant operators
+        call invoke( name = "set_w2_si_mass_matrix_with_damping_layer",        &
+                     operator_x_plus_ay_kernel_type(mm_w2_si, mm_w2_dl_lagged, &
+                                                    const, coriolis) )
+
+        if ( subroutine_timers ) call timer('runtime_constants.dycore')
+      end if
+    end if
+
+    ! Return existing constant
+    call inventory%get_operator(mesh, dynamics_mm_w2)
+
+  end function get_w2_mass_matrix
+
+  ! ========================================================================== !
+  ! FINALISE
+  ! ========================================================================== !
+  !> @brief Explicitly reclaim memory from module scope variables
+  subroutine final_dycore_constants()
+
+    implicit none
+
+    call geopotential_inventory%clear()
+    call vert_coriolis_inventory%clear()
+    call coriolis_inventory%clear()
+    call mm_w2_dl_inventory%clear()
+    call mm_w2_dl_lagged_inventory%clear()
+    call mm_w2_si_inventory%clear()
+    dt_stored = 0.0_r_second
+
+  end subroutine final_dycore_constants
+
+end module dycore_constants_mod

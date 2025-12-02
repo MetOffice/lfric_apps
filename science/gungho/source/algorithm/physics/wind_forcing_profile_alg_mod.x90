@@ -1,0 +1,179 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!
+!> @brief Apply wind tendency forcing to the horizontal wind component fields
+module wind_forcing_profile_alg_mod
+
+  use constants_mod,                 only: i_def, r_def, l_def
+  use kernel_mod,                    only: kernel_type
+  use field_mod,                     only: field_type
+  use fs_continuity_mod,             only: Wtheta, W3
+  use function_space_collection_mod, only: function_space_collection
+  use sci_geometric_constants_mod,   only: get_height_fv
+  use log_mod,                       only: log_event, LOG_LEVEL_ERROR
+  use map_fd_to_prognostics_alg_mod, only: set_wind
+  use mesh_mod,                      only: mesh_type
+  use planet_config_mod,             only: kappa, p_zero
+  use timestepping_config_mod,       only: dt
+
+  implicit none
+
+  private
+
+  !-------------------------------------------------------------------------------
+  ! Contained functions/subroutines
+  !-------------------------------------------------------------------------------
+  public wind_forcing_profile_alg
+contains
+
+  !> @details For use in idealised modelling. Applies tendency
+  !>          forcing to the horizontal wind components. The forcing is
+  !>          specified as a vertical profile of acceleration (m/s/s) in
+  !>          the wind_forcing namelist. The vertical coordinate of the
+  !>          input profile may be either height, in metres, or pressure in
+  !>          Pascals. Linear interpolation is used to map the input profile
+  !>          onto finite element nodal points in Wtheta.
+  !>          Profiles may be specified at multiple times, with linear
+  !>          interpolation used to evaluate the forcing profile at the
+  !>          current model time.
+  !> @param[in,out] du        Forcing increment for wind field (m/s)
+  !> @param[in]     exner     Exner field
+  !> @param[in]     time_now  Current model time (s)
+  subroutine wind_forcing_profile_alg( du, exner, time_now )
+
+    use wind_forcing_config_mod, only: number_times,       &
+                                       number_heights,     &
+                                       profile_data_u,     &
+                                       profile_data_v,     &
+                                       heights,            &
+                                       times,              &
+                                       coordinate,         &
+                                       coordinate_height,  &
+                                       coordinate_pressure
+
+    !> @todo Data passed to the kernel via module 'use' statements.
+    !>       When PSyclone supports passing of arrays into kernels (issue #1312),
+    !>       these data should be passed through the argument list of the invoke.
+    use profile_interp_kernel_mod, only: profile_interp_kernel_type, &
+                                         profile_size,               &
+                                         profile_data,               &
+                                         profile_heights
+    use prof_temporal_interp_mod,  only: prof_temporal_interp
+
+    implicit none
+
+    ! Arguments
+    type( field_type ), intent( inout )      :: du
+    type( field_type ), intent( in ), target :: exner
+    real( kind=r_def ), intent( in )         :: time_now
+
+    ! Local variables
+    real( kind=r_def )    :: dt_rdef
+    real( kind=r_def )    :: u_forcing_now( number_heights )
+    real( kind=r_def )    :: v_forcing_now( number_heights )
+    integer( kind=i_def ) :: mesh_id, k
+    logical( kind=l_def ) :: pressure_coord, profile_extrap
+    type( field_type )    :: du_in_w3
+    type( field_type )    :: dv_in_w3
+    type( field_type )    :: dw_in_wth
+
+    type( mesh_type ),  pointer :: mesh
+    type( field_type ), pointer :: height_w3
+
+    ! dt is r_second, and must be needs casting to r_def in invokes
+    dt_rdef = real( dt, kind=r_def )
+
+    mesh => du%get_mesh()
+
+    call du_in_w3%initialise( vector_space = &
+                function_space_collection%get_fs( mesh, 0, 0, W3 ) )
+
+    call dv_in_w3%initialise( vector_space = &
+                function_space_collection%get_fs( mesh, 0, 0, W3 ) )
+
+    call dw_in_wth%initialise( vector_space = &
+                function_space_collection%get_fs( mesh, 0, 0, Wtheta ) )
+
+    ! Forcing of vertical wind not yet implemented
+    call invoke( setval_c( dw_in_wth, 0.0_r_def ) )
+
+    if ( number_times == 1 ) then
+      u_forcing_now(:) = profile_data_u(:)
+      v_forcing_now(:) = profile_data_v(:)
+    else
+      call prof_temporal_interp( time_now, number_heights, &
+                                 number_times, times,      &
+                                 profile_data_u, u_forcing_now )
+
+      call prof_temporal_interp( time_now, number_heights, &
+                                 number_times, times,      &
+                                 profile_data_v, v_forcing_now )
+    end if
+
+    if (number_heights == 1) then
+      call invoke( setval_c(du_in_w3, u_forcing_now(1)), &
+                   setval_c(dv_in_w3, v_forcing_now(1)), &
+                   inc_a_times_X( dt_rdef, du_in_w3 ),   &
+                   inc_a_times_X( dt_rdef, dv_in_w3 ) )
+    else
+
+      select case( coordinate )
+        case( coordinate_pressure )
+          height_w3 => exner
+          pressure_coord = .true.
+        case( coordinate_height )
+          mesh_id = du_in_w3%get_mesh_id()
+          height_w3 => get_height_fv( W3, mesh_id )
+          pressure_coord = .false.
+        case default
+          call log_event( 'Unknown coordinate', LOG_LEVEL_ERROR )
+      end select
+
+    !> @todo Data passed to the kernel via module 'use' statements.
+    !>       When PSyclone supports passing of arrays into kernels (issue #1312),
+    !>       these data should be passed through the argument list of the invoke.
+      profile_size    = number_heights
+      profile_heights( 1:profile_size) = heights(1:profile_size )
+      ! Extend forcing beyond range of specified heights - particularly
+      ! useful when pressure coordinates are used.
+      profile_extrap = .true.
+
+      if ( pressure_coord ) then
+        ! Interpolation is linear in exner
+        do k = 1, number_heights
+          profile_heights( k ) = ( profile_heights(k) / p_zero ) ** kappa
+        end do
+      end if
+
+      ! u-component of wind
+      profile_data( 1:profile_size ) = u_forcing_now( 1:profile_size )
+      if ( profile_size == 1 ) then
+        call invoke( setval_c( du_in_w3, profile_data(1) ) )
+      else
+        call invoke( profile_interp_kernel_type( du_in_w3, height_w3, &
+                                                 profile_extrap ) )
+      end if
+      call invoke( inc_a_times_X(dt_rdef, du_in_w3) )
+
+      ! v-component of wind
+      profile_data( 1:profile_size ) = v_forcing_now( 1:profile_size )
+      if ( profile_size == 1 ) then
+        call invoke( setval_c( dv_in_w3, profile_data(1) ) )
+      else
+        call invoke( profile_interp_kernel_type( dv_in_w3, height_w3, &
+                                                 profile_extrap ) )
+      end if
+      call invoke( inc_a_times_X(dt_rdef, dv_in_w3) )
+
+      nullify( height_w3, mesh )
+
+    end if
+
+    call set_wind( du, du_in_w3, dv_in_w3, dw_in_wth )
+
+  end subroutine wind_forcing_profile_alg
+
+end module wind_forcing_profile_alg_mod

@@ -1,0 +1,108 @@
+@@ -9,12 +9,12 @@
+     use mesh_mod, only : mesh_type
+     use function_space_collection_mod, only : function_space_collection
+     use tl_moist_dyn_mass_kernel_mod, only : tl_moist_dyn_mass_kernel_type
+-    use adj_moist_dyn_mass_kernel_mod, only : adj_moist_dyn_mass_kernel_type
++    use atl_moist_dyn_mass_kernel_mod, only : atl_moist_dyn_mass_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : wtheta
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -26,12 +26,15 @@
+     type(field_type), dimension(6) :: mr_ci_input
+     real(kind=r_def) :: moist_dyn_tot_inner_prod
+     real(kind=r_def), dimension(6) :: mr_ci_inner_prod
++    real(kind=r_def) :: moist_dyn_tot_sf
++    real(kind=r_def), dimension(6) :: mr_ci_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: moist_dyn_tot_moist_dyn_tot_input_inner_prod
+     real(kind=r_def), dimension(6) :: mr_ci_mr_ci_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_wtheta_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,wtheta)
+     call moist_dyn_tot%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_tot')
+@@ -55,7 +58,6 @@
+     mr_ci_inner_prod(4_i_def) = 0.0_r_def
+     mr_ci_inner_prod(5_i_def) = 0.0_r_def
+     mr_ci_inner_prod(6_i_def) = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(moist_dyn_tot), setval_x(moist_dyn_tot_input, moist_dyn_tot), setval_random(mr_ci(1_i_def)), &
+ &setval_x(mr_ci_input(1_i_def), mr_ci(1_i_def)), setval_random(mr_ci(2_i_def)), setval_x(mr_ci_input(2_i_def), mr_ci(2_i_def)), &
+@@ -66,14 +68,44 @@
+ &x_innerproduct_x(mr_ci_inner_prod(2_i_def), mr_ci(2_i_def)), x_innerproduct_x(mr_ci_inner_prod(3_i_def), mr_ci(3_i_def)), &
+ &x_innerproduct_x(mr_ci_inner_prod(4_i_def), mr_ci(4_i_def)), x_innerproduct_x(mr_ci_inner_prod(5_i_def), mr_ci(5_i_def)), &
+ &x_innerproduct_x(mr_ci_inner_prod(6_i_def), mr_ci(6_i_def)))
++    write( log_scratch_space, * ) "atlt_moist_dyn_mass inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "moist_dyn_tot inner product = ", moist_dyn_tot_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "mr_ci(1_i_def) inner product = ", mr_ci_inner_prod(1_i_def)
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "mr_ci(2_i_def) inner product = ", mr_ci_inner_prod(2_i_def)
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "mr_ci(3_i_def) inner product = ", mr_ci_inner_prod(3_i_def)
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "mr_ci(4_i_def) inner product = ", mr_ci_inner_prod(4_i_def)
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "mr_ci(5_i_def) inner product = ", mr_ci_inner_prod(5_i_def)
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "mr_ci(6_i_def) inner product = ", mr_ci_inner_prod(6_i_def)
++    call log_event( log_scratch_space, log_level_debug )
++    moist_dyn_tot_sf = 1.0_r_def / (moist_dyn_tot_inner_prod + eps)
++    mr_ci_sf(1_i_def) = 1.0_r_def / (mr_ci_inner_prod(1_i_def) + eps)
++    mr_ci_sf(2_i_def) = 1.0_r_def / (mr_ci_inner_prod(2_i_def) + eps)
++    mr_ci_sf(3_i_def) = 1.0_r_def / (mr_ci_inner_prod(3_i_def) + eps)
++    mr_ci_sf(4_i_def) = 1.0_r_def / (mr_ci_inner_prod(4_i_def) + eps)
++    mr_ci_sf(5_i_def) = 1.0_r_def / (mr_ci_inner_prod(5_i_def) + eps)
++    mr_ci_sf(6_i_def) = 1.0_r_def / (mr_ci_inner_prod(6_i_def) + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + moist_dyn_tot_inner_prod
+-    inner1 = inner1 + mr_ci_inner_prod(1_i_def)
+-    inner1 = inner1 + mr_ci_inner_prod(2_i_def)
+-    inner1 = inner1 + mr_ci_inner_prod(3_i_def)
+-    inner1 = inner1 + mr_ci_inner_prod(4_i_def)
+-    inner1 = inner1 + mr_ci_inner_prod(5_i_def)
+-    inner1 = inner1 + mr_ci_inner_prod(6_i_def)
++    inner1 = inner1 + moist_dyn_tot_inner_prod * moist_dyn_tot_sf
++    inner1 = inner1 + mr_ci_inner_prod(1_i_def) * mr_ci_sf(1_i_def)
++    inner1 = inner1 + mr_ci_inner_prod(2_i_def) * mr_ci_sf(2_i_def)
++    inner1 = inner1 + mr_ci_inner_prod(3_i_def) * mr_ci_sf(3_i_def)
++    inner1 = inner1 + mr_ci_inner_prod(4_i_def) * mr_ci_sf(4_i_def)
++    inner1 = inner1 + mr_ci_inner_prod(5_i_def) * mr_ci_sf(5_i_def)
++    inner1 = inner1 + mr_ci_inner_prod(6_i_def) * mr_ci_sf(6_i_def)
++    call invoke( inc_a_times_X( moist_dyn_tot_sf, moist_dyn_tot ),   &
++                 inc_a_times_X( mr_ci_sf(1_i_def), mr_ci(1_i_def) ), &
++                 inc_a_times_X( mr_ci_sf(2_i_def), mr_ci(2_i_def) ), &
++                 inc_a_times_X( mr_ci_sf(3_i_def), mr_ci(3_i_def) ), &
++                 inc_a_times_X( mr_ci_sf(4_i_def), mr_ci(4_i_def) ), &
++                 inc_a_times_X( mr_ci_sf(5_i_def), mr_ci(5_i_def) ), &
++                 inc_a_times_X( mr_ci_sf(6_i_def), mr_ci(6_i_def) ) )
+     moist_dyn_tot_moist_dyn_tot_input_inner_prod = 0.0_r_def
+     mr_ci_mr_ci_input_inner_prod(1_i_def) = 0.0_r_def
+     mr_ci_mr_ci_input_inner_prod(2_i_def) = 0.0_r_def
+@@ -81,7 +113,7 @@
+     mr_ci_mr_ci_input_inner_prod(4_i_def) = 0.0_r_def
+     mr_ci_mr_ci_input_inner_prod(5_i_def) = 0.0_r_def
+     mr_ci_mr_ci_input_inner_prod(6_i_def) = 0.0_r_def
+-    call invoke(adj_moist_dyn_mass_kernel_type(moist_dyn_tot, mr_ci), &
++    call invoke(atl_moist_dyn_mass_kernel_type(moist_dyn_tot, mr_ci), &
+ &x_innerproduct_y(moist_dyn_tot_moist_dyn_tot_input_inner_prod, moist_dyn_tot, moist_dyn_tot_input), &
+ &x_innerproduct_y(mr_ci_mr_ci_input_inner_prod(1_i_def), mr_ci(1_i_def), mr_ci_input(1_i_def)), &
+ &x_innerproduct_y(mr_ci_mr_ci_input_inner_prod(2_i_def), mr_ci(2_i_def), mr_ci_input(2_i_def)), &
+@@ -97,7 +129,6 @@
+     inner2 = inner2 + mr_ci_mr_ci_input_inner_prod(4_i_def)
+     inner2 = inner2 + mr_ci_mr_ci_input_inner_prod(5_i_def)
+     inner2 = inner2 + mr_ci_mr_ci_input_inner_prod(6_i_def)
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

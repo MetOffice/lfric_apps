@@ -1,0 +1,132 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/azngarch/common/suite_config_sandbox.cylc") %}
+
+{% set azng_base = 'umask 0022 ; '~
+                   'module purge ; '~
+                   'module use ~spackadmin/spack-0.22.2/modules/linux-ubuntu22.04-zen2 ; '
+                   'module load fcm/2021.05.0/gcc-14.2.0-t4rinp py-psyclone/3.1.0/gcc-14.2.0-je7t5s rose-picker/2.0.0/gcc-12.2.0-jcztbm subversion/1.14.2/gcc-14.2.0-4zbbqs xxdiff/2023-01-10/gcc-14.2.0-ainget py-jinja2/3.1.2/gcc-14.2.0-nogypf ; ' %}
+
+{% set azng_compiler_gnu = 'source /shared/home/spackadmin/bin/prg_gcc-14.2.0-offload-psy-3.0  || true' %}
+{% set azng_compiler_nvidia = 'source /shared/home/spackadmin/bin/prg_nvhpc-24.11.3-psy-3.1 || true' %}
+
+{% set azng_run = 'ulimit -s unlimited' %}
+{# see if we need this at some point #}
+
+    [[SANDBOX_BASE]]
+        platform = sandbox
+        {{ generate_script("pre-script", [azng_base]) }}
+        [[[environment]]]
+            SITE = AZNGARCH
+            BUILD_ROOT = ${CYLC_TASK_WORK_DIR}/${CYLC_WORKFLOW_NAME_BASE}_${USER}
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 120
+            NUMA_REGIONS_PER_NODE = 8
+
+    [[SANDBOX_SLURM]]
+        inherit = SANDBOX_BASE
+        platform = sandbox
+        [[[environment]]]
+            ROSE_LAUNCHER = srun
+
+    [[SANDBOX_SERIAL_QUEUE]]
+        inherit = SANDBOX_SLURM
+        [[[directives]]]
+            --partition=hbv3
+            --qos=serial
+            --time=04:00:00
+
+    [[SANDBOX_STANDARD_QUEUE]]
+        inherit = SANDBOX_SLURM
+        [[[directives]]]
+            --partition=hbv3
+            --qos=standard
+            --time=01:00:00
+
+    [[SANDBOX_SHORT_QUEUE]]
+        inherit = SANDBOX_SLURM
+        [[[directives]]]
+            --partition=hbv3
+            --time=00:20:00
+
+    [[SANDBOX_BUILD]]
+        inherit=SANDBOX_SERIAL_QUEUE
+        [[[environment]]]
+            PSYCLONE_TRANSFORMATION="azngarch-sandbox"
+        [[[directives]]]
+             --ntasks=4
+
+    [[SANDBOX_GNU]]
+        [[[environment]]]
+             COMPILER = 'gnu'
+
+    [[SANDBOX_NVIDIA]]
+        [[[environment]]]
+             COMPILER = 'nvidia'
+
+    [[SANDBOX_BUILD_GNU]]
+        inherit = SANDBOX_BUILD, SANDBOX_GNU
+        {{ generate_script("pre-script", [azng_base, azng_compiler_gnu])}}
+
+    [[SANDBOX_BUILD_NVIDIA]]
+        inherit = SANDBOX_BUILD, SANDBOX_NVIDIA
+        {{ generate_script("pre-script", [azng_base, azng_compiler_nvidia])}}
+
+    [[SANDBOX_RUN]]
+        inherit = SANDBOX_STANDARD_QUEUE
+        [[[environment]]]
+            BIG_DATA_DIR   = '/data/users/lfricadmin/data'
+            SMALL_DATA_DIR = '/data/users/lfricadmin/data'
+            TARGET_PLATFORM = 'sandbox'
+            OMP_PLACES = cores
+            OMP_PROC_BIND = close
+            RUN_METHOD = srun
+
+    [[SANDBOX_MESH]]
+        {{ generate_script("pre-script", [azng_base, azng_compiler_gnu])}}
+        inherit = SANDBOX_SHORT_QUEUE
+        [[[directives]]]
+            --time=00:10:00
+
+    [[SANDBOX_MESH_GNU]]
+        {{ generate_script("pre-script", [azng_base, azng_compiler_gnu])}}
+        inherit = SANDBOX_MESH, SANDBOX_GNU
+        [[[environment]]]
+            ROSE_APP_COMMAND_KEY = mpiexec
+
+    [[SANDBOX_EXPORT-SOURCE]]
+        inherit = SANDBOX_BASE
+        [[[environment]]]
+            hostname = s1-login-1
+            PLATFORM_SYNC = true
+
+    [[SANDBOX_RUN_GNU]]
+       {{ generate_script("pre-script", [azng_base, azng_compiler_gnu])}}
+       inherit = SANDBOX_RUN, SANDBOX_GNU
+
+    [[SANDBOX_RUN_NVIDIA]]
+        {{ generate_script("pre-script", [azng_base, azng_compiler_nvidia])}}
+        inherit = SANDBOX_RUN, SANDBOX_NVIDIA
+        [[[directives]]]
+            --partition=hbv3
+
+    [[SANDBOX_TECH_BASE]]
+        inherit = SANDBOX_SHORT_QUEUE
+        [[[directives]]]
+            --nodes=1
+            --ntasks-per-node=1
+            --cpus-per-task=1
+            --time=0:20:0
+
+    [[SANDBOX_PLOT]]
+        inherit = SANDBOX_TECH_BASE
+
+    [[SANDBOX_CHECK]]
+        inherit = SANDBOX_BASE
+
+    [[SANDBOX_HOUSEKEEPING]]
+
+{% do LOG.debug("Finished in site/azngarch/common/suite_config_sandbox.cylc") %}

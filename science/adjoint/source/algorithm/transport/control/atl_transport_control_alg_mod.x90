@@ -1,0 +1,322 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module controlling the tangent linear transport.
+
+module atl_transport_control_alg_mod
+
+  use constants_mod,                     only: i_def, r_def, r_tran, l_def
+  use field_mod,                         only: field_type
+  use r_tran_field_mod,                  only: r_tran_field_type
+  use formulation_config_mod,            only: moisture_formulation,    &
+                                               moisture_formulation_dry
+  use log_mod,                           only: log_event,      &
+                                               LOG_LEVEL_INFO, &
+                                               LOG_LEVEL_ERROR
+  use mesh_mod,                          only: mesh_type
+  use model_clock_mod,                   only: model_clock_type
+  use transport_config_mod,              only: cheap_update
+  use tl_transport_controller_mod,       only: tl_transport_controller_type
+  use transport_controller_mod,          only: transport_controller_type
+  use flux_precomputations_alg_mod,      only: flux_precomputations_type
+  use wind_precomputations_alg_mod,      only: wind_precomputations_type
+  use transport_metadata_mod,            only: transport_metadata_type
+  use transport_metadata_collection_mod, only: transport_metadata_collection
+
+  implicit none
+
+  private
+
+  ! Set number of mixing ratio species to transport
+  ! Only transport first four species of moisture (and not graupel or snow)
+  integer(kind=i_def), parameter :: nummr_to_transport = 4
+
+  ! Contained suroutines
+  private :: init_zero_flux_pc
+  public  :: atl_transport_control_alg
+
+contains
+
+  !=============================================================================
+  !> @brief Adjoint of advection of prognostic variables for the tangent linear model.
+  !> @param[in,out] advection_inc      ACTIVE Advection increment of the dynamics
+  !!                                   prognostics [u, rho, theta, exner]
+  !> @param[in,out] advected_fields    ACTIVE Fields to advect: [u, rho, theta, exner]
+  !> @param[in,out] wind_np1           ACTIVE End of timestep wind field
+  !> @param[in,out] wind_n             ACTIVE Start of timestep wind field
+  !> @param[in,out] mr_out             ACTIVE Moisture fields after transport
+  !> @param[in,out] mr_in              ACTIVE Moisture fields before transport
+  !> @param[in]     ls_advected_fields PASSIVE Fields to advect: [u, rho, theta, exner]
+  !> @param[in]     ls_wind_np1        PASSIVE End of timestep wind field
+  !> @param[in]     ls_wind_n          PASSIVE Start of timestep wind field
+  !> @param[in]     ls_mr_in           PASSIVE Moisture fields before transport
+  !> @param[in]     model_clock        Time within the model
+  !> @param[in]     outer              Outer (advection) iteration number
+  !>
+  subroutine atl_transport_control_alg(advection_inc, advected_fields,          &
+                                       wind_np1, wind_n, mr_out, mr_in,         &
+                                       ls_advected_fields,                      &
+                                       ls_wind_np1, ls_wind_n, ls_mr_in,        &
+                                       model_clock, outer )
+
+    use derived_config_mod,               only: bundle_size
+    use sci_field_bundle_builtins_mod,    only: clone_bundle, set_bundle_scalar
+    use field_indices_mod,                only: igh_u, igh_t, igh_d, igh_p
+    use fs_continuity_mod,                only: Wtheta
+    use mr_indices_mod,                   only: nummr
+    use operator_mod,                     only: operator_type
+    use atl_moist_mr_transport_alg_mod,   only: atl_moist_mr_transport_alg
+    use atl_theta_transport_alg_mod,      only: atl_theta_transport_alg
+    use atl_transport_field_mod,          only: atl_transport_field
+    use atl_wind_transport_alg_mod,       only: atl_wind_transport_alg
+    use adj_flux_precomputations_mod,     only: adj_flux_precomputations_initialiser
+    use adj_wind_precomputations_alg_mod, only: adj_wind_precomputations_initialiser
+    use atl_transport_controller_mod,     only: atl_transport_controller_initialiser
+    use io_config_mod,                    only: subroutine_timers
+    use timer_mod,                        only: timer
+
+    implicit none
+
+    ! Arguments
+    type(field_type),            intent(inout) :: advection_inc(bundle_size)
+    type(field_type),            intent(inout) :: advected_fields(bundle_size)
+    type(field_type),            intent(inout) :: wind_np1
+    type(field_type),            intent(inout) :: wind_n
+    type(field_type),            intent(in)    :: ls_wind_np1
+    type(field_type),            intent(in)    :: ls_wind_n
+    type(field_type),            intent(inout) :: mr_out(nummr)
+    type(field_type),            intent(inout) :: mr_in(nummr)
+    type(field_type),            intent(in)    :: ls_advected_fields(bundle_size)
+    type(field_type),            intent(in)    :: ls_mr_in(nummr)
+    class(model_clock_type),     intent(in)    :: model_clock
+    integer(kind=i_def),         intent(in)    :: outer
+
+    ! Internal variables
+    type(field_type)                           :: fields_np1(bundle_size)
+    logical(kind=l_def)                        :: cheap_update_step
+    type(field_type)                           :: zero_adv_fields
+    type(field_type)                           :: zero_wind_n
+    type(field_type)                           :: zero_wind_np1
+    type(transport_metadata_type),     pointer :: transport_metadata
+    type(mesh_type),                   pointer :: mesh
+    type(tl_transport_controller_type)         :: tl_transport_controller
+    type(transport_controller_type),   pointer :: pert_wind_ls_rho_controller
+    type(wind_precomputations_type),   pointer :: pert_wind_ls_rho_wind_pc
+    type(r_tran_field_type),           pointer :: transporting_wind
+    type(r_tran_field_type),           pointer :: wind_n_rtran
+    type(r_tran_field_type),           pointer :: wind_np1_rtran
+    type(transport_controller_type),   pointer :: ls_wind_pert_rho_controller
+    type(flux_precomputations_type),   pointer :: ls_wind_pert_rho_flux_pc
+    type(r_tran_field_type),           pointer :: ref_field_rtran
+
+    if ( subroutine_timers ) call timer('atl_transport_control')
+
+    ! ========================================================================= !
+    ! Pre-transport initialisation tasks
+    ! ========================================================================= !
+
+    ! Initialise fields
+    call clone_bundle(advected_fields, fields_np1, bundle_size)
+    call set_bundle_scalar(0.0_r_def, fields_np1, bundle_size)
+
+    cheap_update_step = .false.
+    if (cheap_update) then
+      call log_event(                                                           &
+              "Transport cheap update not available for TLM", LOG_LEVEL_ERROR   &
+      )
+    end if
+
+    ! Initialise the transport controllers --------------------------------------
+    call advected_fields(igh_d)%copy_field_properties( zero_adv_fields )
+    call wind_n%copy_field_properties( zero_wind_n )
+    call wind_np1%copy_field_properties( zero_wind_np1 )
+
+    call invoke( setval_c( zero_adv_fields, 0.0_r_def ),                        &
+                 setval_c( zero_wind_n, 0.0_r_def ),                            &
+                 setval_c( zero_wind_np1, 0.0_r_def ) )
+
+    call tl_transport_controller%initialise(                                    &
+            model_clock, zero_adv_fields, ls_advected_fields(igh_d),            &
+            zero_wind_n, zero_wind_np1, ls_wind_n, ls_wind_np1,                 &
+            outer=outer, cheap_update_step=cheap_update_step                    &
+    )
+
+    ls_wind_pert_rho_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
+    pert_wind_ls_rho_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    mesh => advected_fields(igh_d)%get_mesh()
+
+    ! ========================================================================= !
+    ! TRANSPORT OF PROGNOSTICS
+    ! ========================================================================= !
+
+    ! ------------------------------------------------------------------------- !
+    ! Transport potential temperature (must be after moisture)
+    ! NB: moisture not passed through as theta_vd transport not yet implemented
+    ! Note: theta increment is pointwise
+    call log_event( "Transporting potential temperature...", LOG_LEVEL_INFO)
+    transport_metadata =>                                                       &
+        transport_metadata_collection%get_transport_metadata('potential_temperature')
+
+    call init_zero_flux_pc( ls_wind_pert_rho_controller,                        &
+                            transport_metadata,                                 &
+                            mesh )
+    call init_zero_flux_pc( pert_wind_ls_rho_controller,                        &
+                            transport_metadata,                                 &
+                            mesh )
+
+    call atl_theta_transport_alg(                                               &
+            fields_np1(igh_t), advection_inc(igh_t), advected_fields(igh_t),    &
+            ls_advected_fields(igh_t), tl_transport_controller,                 &
+            transport_metadata                                                  &
+    )
+
+    ! ------------------------------------------------------------------------- !
+    ! Transport moisture mixing ratio fields
+    if ( moisture_formulation /= moisture_formulation_dry ) then
+      call log_event(                                                           &
+              "Transporting moisture mixing ratio fields...", LOG_LEVEL_INFO    &
+      )
+      transport_metadata =>                                                     &
+          transport_metadata_collection%get_transport_metadata('moisture')
+
+      call init_zero_flux_pc( ls_wind_pert_rho_controller,                      &
+                              transport_metadata,                               &
+                              mesh )
+      call init_zero_flux_pc( pert_wind_ls_rho_controller,                      &
+                              transport_metadata,                               &
+                              mesh )
+
+      call atl_moist_mr_transport_alg(                                          &
+              mr_out, mr_in, ls_mr_in, nummr_to_transport,                      &
+              tl_transport_controller, transport_metadata                       &
+      )
+    end if
+
+    ! ------------------------------------------------------------------------- !
+    ! Don't transport Exner pressure
+    call invoke( setval_c(advection_inc(igh_p), 0.0_r_def) )
+
+    ! ------------------------------------------------------------------------- !
+    ! Transport wind field
+    call log_event( "Transporting wind...", LOG_LEVEL_INFO)
+    transport_metadata =>                                                       &
+        transport_metadata_collection%get_transport_metadata('wind')
+
+    call init_zero_flux_pc( ls_wind_pert_rho_controller,                        &
+                            transport_metadata,                                 &
+                            mesh )
+    call init_zero_flux_pc( pert_wind_ls_rho_controller,                        &
+                            transport_metadata,                                 &
+                            mesh )
+
+    call atl_wind_transport_alg(                                                &
+            advection_inc(igh_u), advected_fields(igh_u),                       &
+            ls_advected_fields(igh_u), tl_transport_controller,                 &
+            transport_metadata                                                  &
+    )
+    ! We don't change advection_inc(igh_u) as tl_wind_transport_alg
+    ! already returns weak increment
+
+    call invoke( inc_X_plus_Y( fields_np1(igh_d), advection_inc(igh_d) ),       &
+                 inc_X_minus_Y( advected_fields(igh_d), advection_inc(igh_d) ), &
+                 setval_c( advection_inc(igh_d), 0.0_r_def ) )
+
+    ! ------------------------------------------------------------------------- !
+    ! Transport dry density
+    call log_event( "Transporting density...", LOG_LEVEL_INFO)
+    transport_metadata =>                                                       &
+        transport_metadata_collection%get_transport_metadata('density')
+
+    call init_zero_flux_pc( ls_wind_pert_rho_controller,                        &
+                            transport_metadata,                                 &
+                            mesh )
+    call init_zero_flux_pc( pert_wind_ls_rho_controller,                        &
+                            transport_metadata,                                 &
+                            mesh )
+
+    call atl_transport_field(                                                   &
+            fields_np1(igh_d), advected_fields(igh_d),                          &
+            ls_advected_fields(igh_d), tl_transport_controller,                 &
+            transport_metadata                                                  &
+    )
+
+    ! The precomputation initialisation routines are initially called on
+    ! the first call to tl_transport_field in the linear from the getter routines,
+    ! and then never called again. In principle, they could have been initialised
+    ! before the first tl_transport_field without affecting the calculation, so we
+    ! treat it as if that was the case and call them here.
+    pert_wind_ls_rho_wind_pc => pert_wind_ls_rho_controller%get_wind_precomputations()
+    transporting_wind => pert_wind_ls_rho_controller%get_transporting_wind()
+    wind_n_rtran => pert_wind_ls_rho_controller%get_wind_npdt( 0_i_def )
+    wind_np1_rtran => pert_wind_ls_rho_controller%get_wind_npdt( 1_i_def )
+
+    call adj_wind_precomputations_initialiser( pert_wind_ls_rho_wind_pc,        &
+                                               transporting_wind,               &
+                                               wind_n_rtran,                    &
+                                               wind_np1_rtran )
+
+    ls_wind_pert_rho_flux_pc => ls_wind_pert_rho_controller%get_flux_precomputations()
+    ref_field_rtran => ls_wind_pert_rho_controller%get_ref_field()
+
+    call adj_flux_precomputations_initialiser( ls_wind_pert_rho_flux_pc,        &
+                                               ref_field_rtran )
+
+    call atl_transport_controller_initialiser( tl_transport_controller,         &
+                                               model_clock,                     &
+                                               advected_fields(igh_d),          &
+                                               wind_n,                          &
+                                               wind_np1 )
+
+    call tl_transport_controller%finalise()
+
+    if ( subroutine_timers ) call timer('atl_transport_control')
+
+  end subroutine atl_transport_control_alg
+
+  !=============================================================================
+  !> @brief Helper routine to initialise the flux precomputations objects
+  !> @param[in,out] transport_controller  The transport controller object
+  !> @param[in]     transport_metadata    The transport metadata
+  !> @param[in]     mesh                  The mesh
+  subroutine init_zero_flux_pc( transport_controller, &
+                                transport_metadata,   &
+                                mesh )
+
+    use split_transport_utils_mod,       only: get_splitting_direction
+    use transport_metadata_mod,          only: transport_metadata_type
+
+    implicit none
+
+    ! Arguments
+    type(transport_controller_type), pointer, intent(inout) :: transport_controller
+    type(transport_metadata_type),      pointer, intent(in) :: transport_metadata
+    type(mesh_type),                    pointer, intent(in) :: mesh
+
+    ! Internal variables
+    type(flux_precomputations_type),                pointer :: flux_pc
+    type(wind_precomputations_type),                pointer :: wind_pc
+    type(r_tran_field_type)                                 :: zero_flux
+    integer(kind=i_def)                                     :: step
+    integer(kind=i_def)                                     :: num_steps
+    integer(kind=i_def)                                     :: splitting
+    integer(kind=i_def)                                     :: direction
+    type(r_tran_field_type),                        pointer :: advecting_wind
+
+    splitting = transport_metadata%get_splitting()
+    flux_pc => transport_controller%get_flux_precomputations()
+    wind_pc => transport_controller%get_wind_precomputations()
+    num_steps = flux_pc%get_num_steps()
+
+    do step = 1, num_steps
+      direction = get_splitting_direction( splitting, step )
+      advecting_wind => wind_pc%get_wind( mesh%get_id(), direction )
+      call zero_flux%initialise( advecting_wind%get_function_space() )
+      call invoke( setval_c( zero_flux, 0.0_r_tran ) )
+      call flux_pc%initialise_step( step, zero_flux )
+    end do
+
+  end subroutine init_zero_flux_pc
+
+end module atl_transport_control_alg_mod

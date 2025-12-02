@@ -1,0 +1,109 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Integrate total energy evaluated at W3 locations
+module update_energy_correction_alg_mod
+
+  use constants_mod,                 only: r_def, i_def, pi
+  use energy_correction_config_mod,  only: encorr_usage,      &
+                                           encorr_usage_diag, &
+                                           reset_hours
+  use extrusion_config_mod,          only: planet_radius
+  use field_mod,                     only: field_type
+  use function_space_mod,            only: function_space_type
+  use log_mod,                       only: log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_DEBUG,   &
+                                           LOG_LEVEL_INFO
+  use mesh_mod,                      only: mesh_type
+  use sci_geometric_constants_mod,   only: get_da_msl_proj
+  use planet_config_mod,             only: cv
+
+  implicit none
+
+  private
+  public :: update_energy_correction_alg
+
+contains
+
+  subroutine update_energy_correction_alg( temperature_correction_rate, &
+                                           accumulated_fluxes,          &
+                                           total_dry_mass,              &
+                                           dt, mesh, twod_mesh,         &
+                                           total_energy,                &
+                                           total_energy_previous )
+
+    implicit none
+
+    real( kind=r_def ), intent(inout) :: temperature_correction_rate
+    type( field_type ), intent(in)    :: accumulated_fluxes
+    real( kind=r_def ), intent(in)    :: total_dry_mass, dt
+
+    type( mesh_type ), intent(in), pointer :: mesh
+    type( mesh_type ), intent(in), pointer :: twod_mesh
+
+    real( kind=r_def ), intent(inout) :: total_energy
+    real( kind=r_def ), intent(inout) :: total_energy_previous
+
+    type( field_type ),          pointer :: dA => null()
+    type( function_space_type ), pointer :: fs_2d => null()
+
+    real( kind=r_def ) :: surf_heat, area
+    real( kind=r_def ) :: correction_period
+    real( kind=r_def ) :: energy_corr_previous
+    real( kind=r_def ) :: energy_change
+    real( kind=r_def ) :: energy_discrepancy
+    real( kind=r_def ) :: net_energy_source
+
+    area = 4.0_r_def * pi * planet_radius ** 2_i_def
+    correction_period = reset_hours * 3600.0_r_def
+
+    fs_2d => accumulated_fluxes%get_function_space()
+    dA    => get_da_msl_proj(twod_mesh%get_id())
+
+
+    call invoke( inc_aX_times_Y(dt, accumulated_fluxes, dA),                    &
+                 sum_X(net_energy_source, accumulated_fluxes) )
+
+    ! Total energy correction during previous correction period
+    if ( encorr_usage == encorr_usage_diag ) then
+      energy_corr_previous = 0.0_r_def
+    else
+      energy_corr_previous = cv * total_dry_mass *                           &
+                             temperature_correction_rate * correction_period
+    end if
+
+    energy_change = total_energy - total_energy_previous
+    energy_discrepancy = energy_change - ( net_energy_source + energy_corr_previous )
+
+    surf_heat = energy_discrepancy / ( correction_period * area )
+
+    temperature_correction_rate = -energy_discrepancy /                        &
+                                   ( cv * total_dry_mass * correction_period )
+
+    write(log_scratch_space, '(''total_dry_mass = '', e30.22)') total_dry_mass
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+    write(log_scratch_space, '(''energy_discrepancy = '', e30.22)') &
+                                 energy_discrepancy
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+    write(log_scratch_space, '(''total_energy = '', e30.22)') total_energy
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+    write(log_scratch_space, '(''net_energy_source = '', e30.22)') &
+                                 net_energy_source
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+    write(log_scratch_space, '(''surf_heat = '', e30.22)') surf_heat
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    call invoke( setval_c(accumulated_fluxes, 0.0_r_def) )
+
+    total_energy_previous = total_energy
+
+  end subroutine update_energy_correction_alg
+
+end module update_energy_correction_alg_mod

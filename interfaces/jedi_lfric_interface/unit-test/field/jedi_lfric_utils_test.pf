@@ -1,0 +1,175 @@
+!------------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief  Test the jedi_lfric_utils_mod subroutines
+!!
+module jedi_lfric_utils_test
+
+  use constants_mod,                 only : i_def, l_def, str_def
+  use field_collection_mod,          only : field_collection_type
+  use field_mod,                     only : field_type
+  use fs_continuity_mod,             only : W3, Wtheta
+  use function_space_collection_mod, only : function_space_collection_type, &
+                                            function_space_collection
+  use halo_routing_collection_mod,   only : halo_routing_collection_type, &
+                                            halo_routing_collection
+  use local_mesh_mod,                only : local_mesh_type
+  use mesh_mod,                      only : mesh_type
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
+  use jedi_lfric_utils_mod,              only : add_real_field, &
+                                                get_model_field
+  use extrusion_mod,                 only : TWOD
+
+  use funit
+
+  implicit none
+
+  private
+  public :: test_jedi_lfric_utils
+
+  @TestCase
+  type, extends(TestCase), public :: jedi_lfric_utils_test_type
+    private
+    type(local_mesh_type)              :: unit_test_local_mesh
+    type(mesh_type),           pointer :: mesh => null(), twod_mesh => null()
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure get_local_mesh_ptr
+    procedure test_jedi_lfric_utils
+  end type jedi_lfric_utils_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use mesh_mod, only : mesh_type, PLANE_BI_PERIODIC, PLANE_TWOD_BI_PERIODIC
+
+    implicit none
+
+    class(jedi_lfric_utils_test_type), intent(inout) :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr => null()
+    type(mesh_type) :: unit_test_mesh, unit_test_mesh_2d
+    integer(i_def)  :: mesh_id
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+    ! Create top level halo_routing collection
+    halo_routing_collection = halo_routing_collection_type()
+
+    call this%unit_test_local_mesh%initialise()
+    unit_test_local_mesh_ptr => this%get_local_mesh_ptr()
+
+    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
+    unit_test_mesh = mesh_type( PLANE_BI_PERIODIC, unit_test_local_mesh_ptr )
+    mesh_id        = mesh_collection%add_new_mesh( unit_test_mesh )
+    this%mesh     => mesh_collection%get_mesh( mesh_id )
+
+    ! Create the 2D mesh
+    unit_test_mesh_2d = mesh_type( PLANE_TWOD_BI_PERIODIC, unit_test_local_mesh_ptr )
+    mesh_id           = mesh_collection%add_new_mesh( unit_test_mesh_2d )
+    this%twod_mesh   => mesh_collection%get_mesh_variant( this%mesh, TWOD )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(jedi_lfric_utils_test_type), intent(inout) :: this
+
+    call function_space_collection%clear()
+    call mesh_collection%clear()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function get_local_mesh_ptr( this ) result(unit_test_local_mesh_ptr)
+
+    implicit none
+
+    class(jedi_lfric_utils_test_type), intent(inout), target :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+
+    unit_test_local_mesh_ptr => this%unit_test_local_mesh
+
+  end function get_local_mesh_ptr
+
+  !> Test for jedi_lfric_utils subroutines
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_jedi_lfric_utils( this )
+
+    implicit none
+
+    class(jedi_lfric_utils_test_type), intent(inout) :: this
+
+    ! Local
+    type( field_collection_type )    :: io_collection
+    type(mesh_type), pointer         :: mesh
+    type(field_type), pointer        :: field_ptr
+    integer( kind=i_def ), parameter :: nvars = 3_i_def
+    character( len=str_def )         :: variable_names(nvars)
+    character( len=str_def )         :: field_name
+    integer( kind=i_def )            :: variable_function_spaces(nvars)
+    logical( kind=l_def )            :: variable_is_2d(nvars)
+    logical( kind=l_def )            :: has_field
+    integer( kind=i_def )            :: collection_length
+    integer( kind=i_def )            :: i
+    integer( kind=i_def )            :: function_space
+
+    ! Define the field information
+    variable_names = (/"field1", "field2", "field3"/)
+    variable_function_spaces = (/W3 , Wtheta, W3/)
+    variable_is_2d = (/.false., .false., .true./)
+
+    ! Setup the io_collection
+    call io_collection%initialise(name = 'io_collection', table_len=100)
+
+    ! 1. Use add_real_field to add a field to the collection
+    do i=1,nvars
+      if (variable_is_2d(i)) then
+        mesh => this%twod_mesh
+      else
+        mesh => this%mesh
+      end if
+      call add_real_field( io_collection, mesh,        &
+                           variable_function_spaces(i), &
+                           variable_names(i) )
+    end do
+
+    ! There should be 3 fields in the collection
+    collection_length = io_collection%get_length()
+    @assertEqual(3_i_def, collection_length)
+
+    ! All fields should be present
+    do i=1,nvars
+      has_field = io_collection%field_exists(variable_names(i))
+      @assertTrue( has_field )
+    end do
+
+    ! 2. Test the getter method with the fields added in the previous step
+    do i=1,nvars
+      call get_model_field( variable_names(i), io_collection, field_ptr )
+
+      function_space = field_ptr%which_function_space()
+      @assertEqual(function_space, variable_function_spaces(i))
+
+      field_name = field_ptr%get_name()
+      @assertEqual( field_name, variable_names(i) )
+    end do
+
+  end subroutine test_jedi_lfric_utils
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+end module jedi_lfric_utils_test

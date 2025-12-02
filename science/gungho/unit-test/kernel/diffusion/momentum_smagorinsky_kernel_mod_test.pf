@@ -1,0 +1,226 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the Smagorinsky diffusion calculation for the wind field
+!>
+module momentum_smagorinsky_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size,     &
+                                                  get_w1_m3x3_q3x3x3_size,     &
+                                                  get_wtheta_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,          &
+                                                  get_w1_m3x3_dofmap,          &
+                                                  get_wtheta_m3x3_dofmap,      &
+                                                  get_w3_m3x3_dofmap,          &
+                                                  get_m3x3_stencil_dofmap_cross
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: momentum_smagorinsky_test_type
+    private
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type momentum_smagorinsky_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(momentum_smagorinsky_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(momentum_smagorinsky_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use momentum_smagorinsky_kernel_mod, only : momentum_smagorinsky_code
+
+    implicit none
+
+    class(momentum_smagorinsky_test_type), intent(inout) :: this
+
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, &
+                      ndf_w1, undf_w1, ndf_wt, undf_wt, ndf_pid, undf_pid
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: true_map_w2(:,:)
+    integer(i_def), allocatable :: map_w1(:,:)
+    integer(i_def), allocatable :: map_wt(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+    integer(i_def), allocatable :: stencil_map_w2(:,:,:)
+    integer(i_def), allocatable :: true_stencil_map_w2(:,:,:)
+    integer(i_def), allocatable :: stencil_map_w1(:,:,:)
+    integer(i_def), allocatable :: stencil_map_wt(:,:,:)
+    integer(i_def), allocatable :: stencil_map_pid(:,:,:)
+
+    real(r_def), allocatable :: u(:), dx_at_w2(:)
+    real(r_def), allocatable :: u_inc(:)
+    real(r_def), allocatable :: height_w1(:)
+    real(r_def), allocatable :: height_w2(:)
+    real(r_def), allocatable :: visc_m(:)
+    real(r_def), allocatable :: panel_id(:)
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: dx = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    real(r_def) :: answer
+
+    integer(i_def) :: icell, i, j, k, df
+    integer(i_def) :: cell
+    cell = 5
+
+    ! Variables for testing momentum_smagorinsky
+    ! Get sizes of everything
+    nlayers=3
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w1_m3x3_q3x3x3_size( ndf_w1, undf_w1, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,   &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v,              &
+                                      nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells,     &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v,              &
+                                      1 )
+
+    ! Setup maps
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_w2, map_w2)
+    call get_w2_m3x3_dofmap(true_map_w2)
+    call get_m3x3_stencil_dofmap_cross(true_stencil_map_w2, true_map_w2)
+    call get_w1_m3x3_dofmap(map_w1)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_w1, map_w1)
+    call get_wtheta_m3x3_dofmap(map_wt)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_wt, map_wt)
+    call get_w3_m3x3_dofmap(map_pid,1)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_pid, map_pid)
+
+    ! Compute coordinates
+    allocate(height_w1(undf_w1))
+    allocate(height_w2(undf_w2))
+    icell = 1
+    do j = 1,3
+      do i = 1,3
+        do k = 0,3
+          do df=1,4
+            height_w1(map_w1(df,icell)+k) = real(k,r_def)*dz
+          end do
+        end do
+        do k = 0,2
+          do df=1,4
+            height_w2(map_w2(df,icell)+k) = (real(k,r_def)+0.5_r_def)*dz
+          end do
+        end do
+        icell = icell + 1
+      end do
+    end do
+
+    ! Create the data
+    allocate(u(undf_w2))
+    allocate(dx_at_w2(undf_w2))
+    allocate(u_inc(undf_w2))
+    allocate(visc_m(undf_wt))
+    allocate(panel_id(undf_pid))
+    u(:) = 1.0_r_def
+    u_inc(:) = 0.0_r_def
+    visc_m(:) = 1.0_r_def
+    dx_at_w2(:) = dx
+    panel_id = 1.0_r_def
+
+    ! Create non-uniform wind to generate some diffusion
+    u(stencil_map_w2(2,1,cell)+1) = 2.0_r_def
+    u(stencil_map_w2(3,1,cell)+1) = 2.0_r_def
+
+    ! Force data to cross a panel boundary
+    panel_id(stencil_map_pid(1,3,cell)) = 6.0_r_def
+    ! Correct stencil map on new panel for clockwise rotation
+    stencil_map_w2(1,3,cell)=true_stencil_map_w2(4,3,cell)
+    stencil_map_w2(2,3,cell)=true_stencil_map_w2(1,3,cell)
+    stencil_map_w2(3,3,cell)=true_stencil_map_w2(2,3,cell)
+    stencil_map_w2(4,3,cell)=true_stencil_map_w2(3,3,cell)
+    ! Correct winds on new panel for flipping of parallel vectors
+    u(true_stencil_map_w2(1,3,cell)+0) = -1.0_r_def
+    u(true_stencil_map_w2(3,3,cell)+0) = -1.0_r_def
+    u(true_stencil_map_w2(1,3,cell)+1) = -1.0_r_def
+    u(true_stencil_map_w2(3,3,cell)+1) = -1.0_r_def
+    u(true_stencil_map_w2(1,3,cell)+2) = -1.0_r_def
+    u(true_stencil_map_w2(3,3,cell)+2) = -1.0_r_def
+
+    ! Call the kernel
+    call momentum_smagorinsky_code( nlayers,                          &
+                                    u_inc,                            &
+                                    u,                                &
+                                    5, stencil_map_w2(:,:,cell),      &
+                                    dx_at_w2,                         &
+                                    5, stencil_map_w2(:,:,cell),      &
+                                    height_w2,                        &
+                                    height_w1,                        &
+                                    visc_m,                           &
+                                    5, stencil_map_wt(:,:,cell),      &
+                                    panel_id,                         &
+                                    5, stencil_map_pid(:,:,cell),     &
+                                    ndf_w2, undf_w2, map_w2(:,cell),  &
+                                    ndf_w1, undf_w1, map_w1(:,cell),  &
+                                    ndf_wt, undf_wt, map_wt(:,cell),  &
+                                    ndf_pid, undf_pid, map_pid(:,cell)&
+                                   )
+
+    answer = -0.4e-5_r_def
+    @assertEqual(answer, u_inc(map_w2(2,cell)+1 ), tol)
+    @assertEqual(answer, u_inc(map_w2(3,cell)+1 ), tol)
+
+    deallocate(map_w2)
+    deallocate(stencil_map_w2)
+    deallocate(true_map_w2)
+    deallocate(true_stencil_map_w2)
+    deallocate(map_w1)
+    deallocate(stencil_map_w1)
+    deallocate(map_wt)
+    deallocate(stencil_map_wt)
+    deallocate(u)
+    deallocate(u_inc)
+    deallocate(visc_m)
+    deallocate(dx_at_w2)
+    deallocate(height_w1)
+    deallocate(height_w2)
+    deallocate(panel_id)
+
+  end subroutine test_all
+
+end module momentum_smagorinsky_kernel_mod_test

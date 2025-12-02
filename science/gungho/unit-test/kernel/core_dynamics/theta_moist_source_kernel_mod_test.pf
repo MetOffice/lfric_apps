@@ -1,0 +1,132 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the theta_moist_source_kernel
+module theta_moist_source_kernel_mod_test
+
+  use, intrinsic :: iso_fortran_env,       only : real64
+  use constants_mod,                       only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: theta_moist_source_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: theta_moist_source_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type theta_moist_source_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(theta_moist_source_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(theta_moist_source_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use theta_moist_source_kernel_mod, only : theta_moist_source_code
+
+   implicit none
+
+    class(theta_moist_source_test_type), intent(inout) :: this
+
+    real(kind=r_def),      parameter :: cpd = 1000.0_r_def
+    real(kind=r_def),      parameter :: Rd = 200.0_r_def
+    real(kind=r_def),      parameter :: dt = 100.0_r_def
+    real(kind=r_def),      parameter :: tol = 0.01_r_def
+    real(kind=r_def)                 :: use_tol
+    integer(kind=i_def),   parameter :: undf_wt = 3
+    integer(kind=i_def)              :: df
+
+    ! Fields
+    real(kind=r_def),    allocatable :: div_u(:)
+    real(kind=r_def),    allocatable :: theta(:)
+    real(kind=r_def),    allocatable :: mr_v(:)
+    real(kind=r_def),    allocatable :: mr_cl(:)
+    real(kind=r_def),    allocatable :: mr_ci(:)
+    real(kind=r_def),    allocatable :: mr_r(:)
+    real(kind=r_def),    allocatable :: mr_s(:)
+    real(kind=r_def),    allocatable :: mr_g(:)
+    real(kind=r_def),    allocatable :: answer(:)
+
+
+    ! Create the data
+    allocate( mr_v( undf_wt ) )
+    allocate( mr_cl( undf_wt ) )
+    allocate( mr_ci( undf_wt ) )
+    allocate( mr_r( undf_wt ) )
+    allocate( mr_s( undf_wt ) )
+    allocate( mr_g( undf_wt ) )
+    allocate( div_u( undf_wt ) )
+    allocate( theta( undf_wt ) )
+    allocate( answer( undf_wt ) )
+
+    theta(:) = 300.0_r_def
+    mr_v(:) = 0.02_r_def
+    mr_cl(:) = 0.01_r_def
+    mr_ci(:) = 0.001_r_def
+    mr_r(:) = 0.0_r_def
+    mr_s(:) = 0.0_r_def
+    mr_g(:) = 0.0_r_def
+    div_u(:) = -0.0001_r_def
+    answer(:) = 299.976_r_def
+
+    do df = 1, undf_wt
+      call theta_moist_source_code( theta(df),         &
+                                    div_u(df),         &
+                                    mr_v(df),          &
+                                    mr_cl(df),         &
+                                    mr_r(df),          &
+                                    mr_ci(df),         &
+                                    mr_s(df),          &
+                                    mr_g(df),          &
+                                    dt,                &
+                                    cpd,               &
+                                    Rd )
+    end do
+
+    if ( r_def == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_def*spacing( maxval(answer) )
+    end if
+
+    @assertEqual(answer, theta, use_tol)
+
+    deallocate( answer )
+    deallocate( theta )
+    deallocate( mr_v )
+    deallocate( mr_cl )
+    deallocate( mr_ci )
+    deallocate( mr_r )
+    deallocate( mr_s )
+    deallocate( mr_g )
+    deallocate( div_u )
+
+  end subroutine test_all
+
+end module theta_moist_source_kernel_mod_test

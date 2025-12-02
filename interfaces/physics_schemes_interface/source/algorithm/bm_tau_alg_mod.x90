@@ -1,0 +1,109 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the calculation of the bimodal cloud scheme time scales
+
+module bm_tau_alg_mod
+
+  use constants_mod,                 only: i_def
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use mr_indices_mod,                only: nummr, imr_v, imr_cl, imr_ci, imr_s
+  use io_config_mod,                 only: subroutine_timers
+  use timer_mod,                     only: timer
+  use mesh_mod,                      only: mesh_type
+  use um_sizes_init_mod,             only: um_sizes_init
+
+  implicit none
+
+  private
+  public bm_tau_alg
+
+contains
+
+  !>@brief Calculate various time scales for the bimodal cloud scheme
+  !>@details The calculation of time sales:
+  !>         calculates decorrelation, homogenisation and phase-relaxation
+  !>         time scales for use in the variance calculation in the bimodal
+  !>         cloud scheme, as described in UMDP39
+  !>@param[in]     mr_n              (in)     Mixing ratios, in theta space
+  !>@param[in]     theta             (in)     theta in its native space
+  !>@param[in]     derived_fields    (in)     Group of derived fields
+  !>@param[in]     turbulence_fields (in)     Fields for turbulence scheme
+  !>@param[in]     cloud_fields      (in,out) Fields for cloud scheme
+  !>@param[in]     microphysics_fields (in)   Fields for mphys scheme
+  subroutine bm_tau_alg(mr_n, theta, derived_fields, turbulence_fields,   &
+                     cloud_fields, microphysics_fields)
+
+    use bm_tau_kernel_mod, only: bm_tau_kernel_type
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
+
+    type( field_type ), intent(in) :: mr_n(nummr)
+
+    ! Convention for variables below is to omit their function space
+    ! in their name if they are in native space. However, variable name
+    ! states when in timestep variable is valid.
+    type( field_type ), intent( in )    :: theta            ! Current value wth
+
+    type( field_type ), pointer :: exner_in_wth  => null()
+    type( field_type ), pointer :: rho_in_wth => null()
+    type( field_type ), pointer :: wetrho_in_wth => null()
+
+    type( field_type ), pointer :: cf_fro  => null()
+
+    type( field_type ), pointer :: mix_len_bm => null()
+    type( field_type ), pointer :: lmix_bl => null()
+    type( field_type ), pointer :: wvar => null()
+    type( field_type ), pointer :: tau_dec_bm => null()
+    type( field_type ), pointer :: tau_hom_bm => null()
+    type( field_type ), pointer :: tau_mph_bm => null()
+    type( field_type ), pointer :: ns_mphys   => null()
+    type( field_type ), pointer :: ni_mphys   => null()
+
+    type( mesh_type ),  pointer :: mesh => null()
+    integer( kind=i_def ) :: ncells
+
+    if ( subroutine_timers ) call timer('bm_tau_alg')
+
+    call cloud_fields%get_field('frozen_fraction', cf_fro)
+    call cloud_fields%get_field('tau_dec_bm', tau_dec_bm)
+    call cloud_fields%get_field('tau_hom_bm', tau_hom_bm)
+    call cloud_fields%get_field('tau_mph_bm', tau_mph_bm)
+
+    call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
+    call turbulence_fields%get_field('lmix_bl', lmix_bl)
+    call turbulence_fields%get_field('wvar', wvar)
+
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
+
+    mesh => theta%get_mesh()
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init(ncells)
+
+    call microphysics_fields%get_field('ns_mphys', ns_mphys)
+    call microphysics_fields%get_field('ni_mphys', ni_mphys)
+
+    call invoke( bm_tau_kernel_type( mr_n(imr_v), theta, exner_in_wth,         &
+                                     mr_n(imr_ci), mr_n(imr_s), ns_mphys,      &
+                                     ni_mphys, cf_fro,                         &
+                                     wvar, mix_len_bm, lmix_bl,                &
+                                     rho_in_wth, wetrho_in_wth,                &
+                                     tau_dec_bm, tau_hom_bm, tau_mph_bm)  )
+
+    call um_sizes_init(1_i_def)
+
+    if ( subroutine_timers ) call timer('bm_tau_alg')
+
+  end subroutine bm_tau_alg
+
+end module bm_tau_alg_mod

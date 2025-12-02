@@ -1,0 +1,60 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module to convert wet density increment to dry density increment and add
+!>        it to the prognostic density rho.
+
+module dry_rho_alg_mod
+
+  use constants_mod,               only: r_def, i_def
+  use extrusion_config_mod,        only: planet_radius
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: W3
+  use sci_geometric_constants_mod, only: get_height_fv
+
+  implicit none
+
+  public  :: dry_rho
+
+contains
+
+  !> @brief Converts wet density increment to dry density increment and adds
+  !>        it to the prognostic density rho.
+  !> @param[in,out] rho            Air density
+  !> @param[in]     rho_r2_tot_inc Wet air density total increment
+  !> @param[in]     one_minus_qs   One minus total water content
+  subroutine dry_rho( rho, rho_r2_tot_inc, one_minus_qs )
+
+    implicit none
+
+    ! Arguments
+    type( field_type ), intent(inout) :: rho
+    type( field_type ), intent(in)    :: rho_r2_tot_inc
+    type( field_type ), intent(in)    :: one_minus_qs
+
+    ! Internal variables
+    type( field_type ), pointer :: height_w3   => null()
+    type( field_type )          :: radius_w3
+    type( field_type )          :: wetrho_inc
+    type( field_type )          :: rho_inc
+    integer( kind=i_def )       :: mesh_id
+
+    mesh_id     =  rho%get_mesh_id()
+    height_w3   => get_height_fv( W3, mesh_id )
+    call rho_r2_tot_inc % copy_field_properties( wetrho_inc )
+    call rho % copy_field_properties( rho_inc )
+    call height_w3 % copy_field_properties( radius_w3 )
+    call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ),       &
+                 X_divideby_Y( wetrho_inc, rho_r2_tot_inc, radius_w3 ), &
+                 inc_X_divideby_Y( wetrho_inc, radius_w3 ),             &
+                 X_times_Y( rho_inc, wetrho_inc, one_minus_qs ),        &
+                 inc_X_plus_Y( rho, rho_inc ) )
+
+    nullify( height_w3 )
+
+  end subroutine dry_rho
+
+end module dry_rho_alg_mod

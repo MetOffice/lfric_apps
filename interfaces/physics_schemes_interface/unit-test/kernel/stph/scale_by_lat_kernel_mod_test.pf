@@ -1,0 +1,124 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the scale_by_lat kernel
+!>
+module scale_by_lat_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+  use get_unit_test_m3x3_dofmap_mod, only : get_w2_m3x3_dofmap
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: scale_by_lat_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type scale_by_lat_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(scale_by_lat_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(scale_by_lat_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use scale_by_lat_kernel_mod,   only : scale_by_lat_code
+
+    implicit none
+
+    class(scale_by_lat_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    ! Fields
+    real(r_def), allocatable :: field_in(:), field_out(:), latitude(:)
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w2(:,:), map_w2_2d(:,:)
+
+    integer(i_def) :: cell
+
+    ! Sizes
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, ndf_w2_2d, undf_w2_2d
+
+    ncells = 9
+
+    ! Set up 2d w2 field
+    nlayers = 1
+    ndf_w2_2d = 6
+    undf_w2_2d = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_w2_2d, nlayers)
+
+    ! Set up 3d w2 field
+    nlayers = 3
+    ndf_w2 = 6
+    undf_w2 = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+
+
+    ! Allocate fields
+    allocate(field_in(undf_w2))
+    allocate(field_out(undf_w2))
+    allocate(latitude(undf_w2_2d))
+
+
+    latitude(:)=1.0_r_def
+    latitude(2)=-1.0_r_def
+    field_in(:)=1.0_r_def
+
+    do cell = 1,9
+    call scale_by_lat_code( nlayers,               &
+                            field_out,             &
+                            field_in,              &
+                            latitude,              &
+                            ndf_w2,                &
+                            undf_w2,               &
+                            map_w2(:, cell),       &
+                            ndf_w2_2d,             &
+                            undf_w2_2d,            &
+                            map_w2_2d(:, cell)     &
+                                )
+    end do
+
+    field_in(:)=-1.0_r_def
+    field_in(4:6)=1.0_r_def
+    @assertEqual(field_out(:), field_in(:), tol )
+
+    deallocate(field_in)
+    deallocate(field_out)
+    deallocate(latitude)
+    deallocate(map_w2)
+    deallocate(map_w2_2d)
+
+  end subroutine test_all
+
+end module scale_by_lat_kernel_mod_test

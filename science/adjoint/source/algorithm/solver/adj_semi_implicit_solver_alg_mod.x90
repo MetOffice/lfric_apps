@@ -1,0 +1,603 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Adjoint of semi_implicit_solver_alg_mod
+
+module adj_semi_implicit_solver_alg_mod
+
+  use constants_mod,                          only: i_def, r_def, l_def, r_solver
+  use log_mod,                                only: log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+  use mixed_solver_config_mod,                only: split_w, mixed_solver_a_tol, &
+                                                    eliminate_variables, eliminate_variables_analytic
+  use field_mod,                              only: field_type
+  use integer_field_mod,                      only: integer_field_type
+  use r_solver_field_mod,                     only: r_solver_field_type
+  use sci_r_solver_field_vector_mod,          only: r_solver_field_vector_type
+  use mesh_mod,                               only: mesh_type
+  use derived_config_mod,                     only: bundle_size
+  use field_indices_mod,                      only: isol_p, isol_u, isol_w, isol_uv, &
+                                                    igh_p, igh_t, igh_d, igh_u
+  use sci_geometric_constants_mod,            only: get_face_selector_ew, get_face_selector_ns
+  use adj_mixed_operator_alg_mod,             only: adj_mixed_operator_type
+  use adj_mixed_schur_preconditioner_alg_mod, only: adj_mixed_schur_preconditioner_type
+  use adj_pressure_precon_alg_mod,            only: adj_pressure_preconditioner_type
+  use pressure_operator_alg_mod,              only: pressure_operator_type
+  use adj_pressure_operator_alg_mod,          only: adj_pressure_operator_type
+  use sci_null_preconditioner_alg_mod,        only: null_preconditioner_type
+  use sci_preconditioner_mod,                 only: abstract_preconditioner_type
+  use sci_iterative_solver_mod,               only: abstract_iterative_solver_type, &
+                                                    bicgstab_type, block_gcr_type
+  use split_w2_field_kernel_mod,              only: split_w2_field_kernel_type
+  use combine_w2_field_kernel_mod,            only: combine_w2_field_kernel_type
+  use io_config_mod,                          only: subroutine_timers
+  use timer_mod,                              only: timer
+  use finite_element_config_mod,              only: element_order_h, element_order_v
+  use copy_field_alg_mod,                     only: copy_field
+  use function_space_collection_mod,          only: function_space_collection
+  use fs_continuity_mod,                      only: W2, Wtheta, W2v, W2h
+  use mixed_solver_config_mod,                only: si_maximum_iterations,                         &
+                                                    si_tolerance,                                  &
+                                                    si_method,                                     &
+                                                    mixed_gcrk => gcrk,                            &
+                                                    si_method_block_gcr,                           &
+                                                    si_preconditioner,                             &
+                                                    si_preconditioner_pressure,                    &
+                                                    si_preconditioner_none,                        &
+                                                    si_monitor_convergence => monitor_convergence, &
+                                                    si_fail_on_non_converged => fail_on_non_converged
+  use helmholtz_solver_config_mod,            only: si_pressure_maximum_iterations,                         &
+                                                    si_pressure_tolerance,                                  &
+                                                    si_pressure_a_tol,                                      &
+                                                    helmholtz_method => method,                             &
+                                                    method_bicgstab,                                        &
+                                                    si_pressure_monitor_convergence => monitor_convergence, &
+                                                    si_pressure_fail_on_non_converged => fail_on_non_converged
+
+  implicit none
+
+  private
+
+  type, public :: adj_semi_implicit_solver_type
+    private
+    type(adj_pressure_operator_type)                   :: adj_pressure_operator
+    class(abstract_preconditioner_type),   allocatable :: adj_pressure_preconditioner
+    class(abstract_iterative_solver_type), allocatable :: adj_pressure_solver
+    class(abstract_preconditioner_type),   allocatable :: adj_mixed_preconditioner
+    class(abstract_iterative_solver_type), allocatable :: adj_mixed_solver
+    type(adj_mixed_operator_type)                      :: adj_mixed_operator
+    contains
+    procedure, public  :: initialise
+    procedure, public  :: step
+    procedure, public  :: finalise
+  end type adj_semi_implicit_solver_type
+
+  public  :: create_adj_pressure_preconditioner
+  public  :: create_adj_pressure_solver
+  public  :: create_adj_mixed_preconditioner
+  public  :: create_adj_mixed_solver
+  public  :: construct_solver_state
+  private :: deconstruct_solver_state
+
+contains
+
+  !> @brief Create adjoint operator and preconditioner for (Helmholtz) pressure problem
+  !> @details Called by init method of this module, but also by
+  !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
+  !> @param[out] pressure_operator_out       Output (Helmholtz) pressure operator
+  !> @param[out] pressure_preconditioner_out Output (Helmholtz) pressure preconditioner
+  subroutine create_adj_pressure_preconditioner( adj_pressure_operator_out, adj_pressure_preconditioner_out )
+
+    use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
+                                             preconditioner_none,                        &
+                                             preconditioner_tridiagonal
+
+    implicit none
+
+    ! Output adjoint operator and preconditioner for (Helmholtz) pressure problem
+    type(adj_pressure_operator_type),                 intent(out) :: adj_pressure_operator_out
+    class(abstract_preconditioner_type), allocatable, intent(out) :: adj_pressure_preconditioner_out
+
+    adj_pressure_operator_out = adj_pressure_operator_type(level=1_i_def)
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_pressure_preconditioner: starting", LOG_LEVEL_INFO )
+
+    ! Allocate pressure preconditioner of correct type
+    select case(helmholtz_preconditioner)
+      case(PRECONDITIONER_NONE)
+        allocate( adj_pressure_preconditioner_out, &
+                  source = null_preconditioner_type() )
+      case(PRECONDITIONER_TRIDIAGONAL)
+        allocate( adj_pressure_preconditioner_out, &
+                  source = adj_pressure_preconditioner_type(level=1_i_def) )
+      case default
+        call log_event( "Invalid pressure preconditioner specified for adjoint", LOG_LEVEL_ERROR )
+    end select
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_pressure_preconditioner: done", LOG_LEVEL_INFO )
+
+  end subroutine create_adj_pressure_preconditioner
+
+  !> @brief Create adjoint iterative solver for (Helmholtz) pressure problem
+  !> @details Called by init method of this module, but also by
+  !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
+  !> @param[in]  adj_pressure_operator_in       Input adjoint (Helmholtz) pressure operator
+  !> @param[in]  adj_pressure_preconditioner_in Input adjoint (Helmholtz) pressure preconditioner
+  !> @param[out] adj_pressure_solver_out        Output adjoint (Helmholtz) pressure solver
+  subroutine create_adj_pressure_solver( adj_pressure_operator_in, adj_pressure_preconditioner_in, adj_pressure_solver_out )
+
+    implicit none
+
+    ! Input operator and adjoint preconditioner for (Helmholtz) pressure problem
+    type(adj_pressure_operator_type),                 intent(in) :: adj_pressure_operator_in
+    class(abstract_preconditioner_type), allocatable, intent(in) :: adj_pressure_preconditioner_in
+
+    ! Output adjoint iterative solver for (Helmholtz) pressure problem
+    class(abstract_iterative_solver_type), allocatable, intent(out) :: adj_pressure_solver_out
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_pressure_solver: starting", LOG_LEVEL_INFO )
+
+    select case(helmholtz_method)
+      case (METHOD_BICGSTAB)
+        allocate ( adj_pressure_solver_out,                                 &
+                   source = bicgstab_type( adj_pressure_operator_in,        &
+                                           adj_pressure_preconditioner_in,  &
+                                           si_pressure_tolerance,           &
+                                           si_pressure_a_tol,               &
+                                           si_pressure_maximum_iterations,  &
+                                           si_pressure_monitor_convergence, &
+                                           si_pressure_fail_on_non_converged ) )
+      case default
+        call log_event( "Invalid pressure solver specified for adjoint", LOG_LEVEL_ERROR )
+    end select
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_pressure_solver: done", LOG_LEVEL_INFO )
+
+  end subroutine create_adj_pressure_solver
+
+  !> @brief Create adjoint preconditioner for mixed problem
+  !> @details Called by init method of this module, but also by
+  !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
+  !> @param[in]  state                        Prognostic state for the adjoint solver
+  !> @param[in]  adj_pressure_solver_in       Input adjoint (Helmholtz) pressure solver
+  !> @param[out] adj_mixed_preconditioner_out Output adjoint mixed preconditioner
+  subroutine create_adj_mixed_preconditioner( state, adj_pressure_solver_in, adj_mixed_preconditioner_out )
+
+    implicit none
+
+    ! Prognostic fields
+    type(field_type), dimension(bundle_size), intent(in) :: state
+
+    ! Input iterative solver for (Helmholtz) pressure problem
+    class(abstract_iterative_solver_type), allocatable, intent(in) :: adj_pressure_solver_in
+
+    ! Output adjoint preconditioner for mixed problem
+    class(abstract_preconditioner_type), allocatable, intent(out) :: adj_mixed_preconditioner_out
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_mixed_preconditioner: starting", LOG_LEVEL_INFO )
+
+    select case(si_preconditioner)
+      case(SI_PRECONDITIONER_PRESSURE)
+        allocate ( adj_mixed_preconditioner_out,                                                     &
+                   source = adj_mixed_schur_preconditioner_type( state(igh_u)%get_mesh(),            &
+                                                                 state(igh_u)%get_element_order_h(), &
+                                                                 state(igh_u)%get_element_order_v(), &
+                                                                 adj_pressure_solver_in ) )
+      case(SI_PRECONDITIONER_NONE)
+        allocate ( adj_mixed_preconditioner_out, &
+                   source = null_preconditioner_type() )
+      case default
+        call log_event( "Invalid mixed preconditioner specified for adjoint", LOG_LEVEL_ERROR )
+    end select
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_mixed_preconditioner: done", LOG_LEVEL_INFO )
+
+  end subroutine create_adj_mixed_preconditioner
+
+  !> @brief Create adjoint operator and iterative solver for mixed problem
+  !> @details Called by init method of this module, but also by adjt_mixed_solver_alg_mod
+  !> @param[in]     adj_mixed_preconditioner_in Input adjoint mixed preconditioner
+  !> @param[in,out] adj_mixed_operator_out      Output adjoint mixed operator (not explicitly set, so must be inout)
+  !> @param[out]    adj_mixed_solver_out        Output adjoint mixed solver
+  subroutine create_adj_mixed_solver( adj_mixed_preconditioner_in, adj_mixed_operator_out, adj_mixed_solver_out )
+
+    implicit none
+
+    ! Input adjoint preconditioner for mixed problem
+    class(abstract_preconditioner_type), allocatable, intent(in) :: adj_mixed_preconditioner_in
+
+    ! Output adjoint operator and iterative solver for mixed problem
+    type(adj_mixed_operator_type),                      intent(inout) :: adj_mixed_operator_out
+    class(abstract_iterative_solver_type), allocatable, intent(out)   :: adj_mixed_solver_out
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_mixed_solver: starting", LOG_LEVEL_INFO )
+
+    select case(si_method)
+      case(SI_METHOD_BLOCK_GCR)
+        allocate ( adj_mixed_solver_out,                                   &
+                   source = block_gcr_type( adj_mixed_operator_out,        &
+                                            adj_mixed_preconditioner_in,   &
+                                            mixed_gcrk,                    &
+                                            si_tolerance,                  &
+                                            mixed_solver_a_tol,            &
+                                            si_maximum_iterations,         &
+                                            si_monitor_convergence,        &
+                                            si_fail_on_non_converged ) )
+      case default
+        call log_event( "Invalid mixed solver specified for adjoint", LOG_LEVEL_ERROR )
+    end select
+
+    call log_event( "adj_semi_implicit_solver_type%create_adj_mixed_solver: done", LOG_LEVEL_INFO )
+
+  end subroutine create_adj_mixed_solver
+
+  !> @brief Initialisation procedure for the adjoint semi-implicit solver
+  !> @param[in] state Prognostic state for the solver
+  subroutine initialise( self, state )
+
+    implicit none
+
+    ! Arguments
+    class(adj_semi_implicit_solver_type),     intent(inout) :: self
+    type(field_type), dimension(bundle_size), intent(in)    :: state
+
+    self%adj_pressure_operator = adj_pressure_operator_type(level=1_i_def)
+    call create_adj_pressure_preconditioner( self%adj_pressure_operator, self%adj_pressure_preconditioner )
+    call create_adj_pressure_solver( self%adj_pressure_operator, self%adj_pressure_preconditioner, self%adj_pressure_solver )
+    call create_adj_mixed_preconditioner( state, self%adj_pressure_solver, self%adj_mixed_preconditioner )
+    call create_adj_mixed_solver( self%adj_mixed_preconditioner, self%adj_mixed_operator, self%adj_mixed_solver )
+
+    call log_event( "adj_semi_implicit_solver_type%initialise: Initialised adjoint semi-implicit solver", LOG_LEVEL_INFO )
+
+  end subroutine initialise
+
+  !> @brief Tidy up adjoint semi-implicit solver algorithm module.
+  subroutine finalise(self)
+
+    implicit none
+
+    ! Arguments
+    class(adj_semi_implicit_solver_type), intent(inout) :: self
+
+    if (allocated(self%adj_mixed_preconditioner)) deallocate(self%adj_mixed_preconditioner)
+    if (allocated(self%adj_mixed_solver)) deallocate(self%adj_mixed_solver)
+    if (allocated(self%adj_pressure_solver)) deallocate(self%adj_pressure_solver)
+    if (allocated(self%adj_pressure_preconditioner)) deallocate(self%adj_pressure_preconditioner)
+
+  end subroutine finalise
+
+  !> @brief Algorithm for timestepping the semi-implicit equations (adjoint)
+  !> @param[in,out] state               Prognostic model state
+  !> @param[in,out] rhs                 Residuals
+  !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics
+  !!                                    factors
+  !> @param[in]     mr                  Mixing ratio array
+  !> @param[in]     write_moisture_diag Flag to control output of moisture
+  !!                                    conservation diagnostics
+  !> @param[in]     first_iteration     Flag for first inner iteration
+  subroutine step( self, state, rhs, moist_dyn_gas_law, mr, write_moisture_diag, first_iteration )
+
+    use solver_constants_mod,                only: get_normalisation_r_solver, get_im3_div_r_solver, get_normalisation
+    use mr_indices_mod,                      only: nummr
+    use si_operators_alg_mod,                only: get_m3_rho_star, get_rho_at_u, &
+                                                   get_p2theta, get_p3theta, get_ptheta2
+    use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
+    use adj_matrix_vector_kernel_mod,        only: adj_matrix_vector_kernel_type
+    use dg_matrix_vector_kernel_mod,         only: dg_matrix_vector_kernel_type
+    use adj_dg_matrix_vector_kernel_mod,     only: adj_dg_matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod,     only: dg_inc_matrix_vector_kernel_type
+    use adj_dg_inc_matrix_vector_kernel_mod, only: adj_dg_inc_matrix_vector_kernel_type
+    use operator_mod,                        only: operator_type, r_solver_operator_type
+    use timestepping_config_mod,             only: dt, tau_r
+    use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+    use sci_psykal_light_mod,                only: invoke_inc_rdefX_plus_rsolverY
+
+    implicit none
+
+    ! Arguments
+    class(adj_semi_implicit_solver_type),     intent(inout) :: self
+    type(field_type), dimension(bundle_size), intent(inout) :: state, rhs
+    type(field_type),                         intent(in)    :: moist_dyn_gas_law
+    type(field_type), dimension(nummr),       intent(in)    :: mr
+    logical(kind=l_def),                      intent(in)    :: write_moisture_diag, first_iteration
+
+    ! Local variables
+    type(field_type), pointer                         :: t_normalisation, u_normalisation
+    type(r_solver_field_vector_type)                  :: vector_inc, vector_rhs
+    type(r_solver_field_type), dimension(bundle_size) :: rhs_rsol, inc_rsol
+    type(r_solver_field_type)                         :: div_u, rhs_tmp, f_star,       &
+                                                         inc_uvw_rsol, inc_theta_rsol, &
+                                                         inc_rho_rsol, inc_exner_rsol, &
+                                                         inc_uv_rsol, inc_w_rsol
+    type(r_solver_field_type), pointer                :: rho_at_u, m2_diag, mt_lumped_inv
+    type(r_solver_operator_type), pointer             :: div, m3_rho_star, &
+                                                         p3theta, p2theta, ptheta2
+    real(kind=r_solver)                               :: tau_r_dt
+    integer(kind=i_def)                               :: mesh_id
+    type(integer_field_type), pointer                 :: face_selector_ew, face_selector_ns
+    type(mesh_type), pointer                          :: mesh
+    integer(kind=i_def)                               :: p_h, p_v
+
+    if (subroutine_timers) call timer('adj_semi_implicit_solver_type%step')
+
+    ! Input fields are r_def fields so preliminary work uses field_types
+
+    mesh_id = state(igh_p)%get_mesh_id()
+
+    if (write_moisture_diag) then
+      call log_event( "adj_semi_implicit_solver_type%step: write_moisture_diag not coded", LOG_LEVEL_ERROR )
+      ! Best guess for the prognostic fields state can be calculated as:
+      ! state_best_guess = rhs_n - rhs_np1 + state + rhs_adv + rhs_phys
+      ! where fortunately all of the above except "state" is already in "rhs_np1"
+    end if
+
+    ! Normalise theta & u residual
+    t_normalisation => get_normalisation( Wtheta, mesh_id )
+    u_normalisation => get_normalisation( W2, mesh_id )
+
+    call rhs_rsol(igh_u)%initialise(rhs(igh_u)%get_function_space())
+    call rhs_rsol(igh_t)%initialise(rhs(igh_t)%get_function_space())
+    call rhs_rsol(igh_d)%initialise(rhs(igh_d)%get_function_space())
+    call rhs_rsol(igh_p)%initialise(rhs(igh_p)%get_function_space())
+
+    call invoke( setval_c( rhs_rsol(igh_u), 0.0_r_solver ), &
+                 setval_c( rhs_rsol(igh_t), 0.0_r_solver ), &
+                 setval_c( rhs_rsol(igh_d), 0.0_r_solver ), &
+                 setval_c( rhs_rsol(igh_p), 0.0_r_solver ) )
+
+    call inc_rsol(igh_u)%initialise(rhs(igh_u)%get_function_space())
+    call inc_rsol(igh_t)%initialise(rhs(igh_t)%get_function_space())
+    call inc_rsol(igh_d)%initialise(rhs(igh_d)%get_function_space())
+    call inc_rsol(igh_p)%initialise(rhs(igh_p)%get_function_space())
+
+    call inc_uvw_rsol%initialise(rhs(igh_u)%get_function_space())
+    call inc_theta_rsol%initialise(rhs(igh_t)%get_function_space())
+    call inc_rho_rsol%initialise(rhs(igh_d)%get_function_space())
+    call inc_exner_rsol%initialise(rhs(igh_p)%get_function_space())
+
+    ! Write moisture diag (removed)
+
+    ! Finally we need to add r_solver increments to the r_def state field
+
+    call copy_field( state(igh_u), inc_uvw_rsol )
+    call copy_field( state(igh_p), inc_exner_rsol )
+    call copy_field( state(igh_t), inc_theta_rsol )
+    call copy_field( state(igh_d), inc_rho_rsol )
+
+    call rhs_tmp%initialise(vector_space=rhs_rsol(igh_t)%get_function_space())
+    call invoke( name="adj_si_solver_1",                          &
+                 setval_c( rhs_rsol(igh_t), 0.0_r_solver ),       &
+                 setval_c( rhs_tmp, 0.0_r_solver ),               &
+                 inc_X_plus_Y( rhs_rsol(igh_t), inc_theta_rsol ), &
+                 inc_X_minus_Y( rhs_tmp, inc_theta_rsol ) )
+
+    ! Compute theta increment since solver does not provide one
+    ptheta2 => get_ptheta2()
+    mt_lumped_inv => get_normalisation_r_solver( Wtheta, mesh_id )
+
+    if (eliminate_variables == eliminate_variables_analytic) then
+      call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
+    else
+      call invoke(inc_X_times_Y( rhs_tmp, mt_lumped_inv ))
+    end if
+
+    call invoke( name="adj_si_solver_2",                                                 &
+                 adj_dg_inc_matrix_vector_kernel_type( rhs_tmp, inc_uvw_rsol, ptheta2 ), &
+                 setval_c( rhs_tmp, 0.0_r_solver ) )
+
+    ! Get the theta and rho increments
+
+    ! Compute rho increment since solver does not provide one
+    div => get_im3_div_r_solver(mesh_id)
+    rho_at_u => get_rho_at_u()
+    tau_r_dt = real( -tau_r * dt, kind=r_solver )
+    call div_u%initialise(vector_space=rhs_rsol(igh_p)%get_function_space())
+    call f_star%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
+
+    call invoke( name="adj_si_solver_3",                                  &
+                 a_times_x( div_u, tau_r_dt, inc_rho_rsol ),              &
+                 setval_x( rhs_rsol(igh_d), inc_rho_rsol ),               &
+                 setval_c( f_star, 0.0_r_solver ),                        &
+                 adj_dg_matrix_vector_kernel_type( div_u, f_star, div ),  &
+                 inc_x_times_y( f_star, rho_at_u ),                       &
+                 inc_x_plus_y( inc_uvw_rsol, f_star ) )
+
+    ! Get the velocity increments and if necessary combine them
+    if (split_w) then
+
+      face_selector_ew => get_face_selector_ew(mesh_id)
+      face_selector_ns => get_face_selector_ns(mesh_id)
+
+      p_h = inc_rsol(igh_u)%get_element_order_h()
+      p_v = inc_rsol(igh_u)%get_element_order_v()
+      mesh => inc_rsol(igh_u)%get_mesh()
+
+      call inc_uv_rsol%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2h ))
+      call inc_w_rsol%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2v ))
+      call invoke( name="adj_si_solver_4",                                            &
+                   setval_c( inc_uv_rsol, 0.0_r_solver ),                             &
+                   setval_c( inc_w_rsol, 0.0_r_solver ),                              &
+                   split_w2_field_kernel_type( inc_uv_rsol, inc_w_rsol, inc_uvw_rsol, &
+                                               face_selector_ew, face_selector_ns ),  &
+                   enforce_bc_kernel_type(inc_w_rsol) )
+
+    else
+      call log_event( "adj_semi_implicit_solver_type%step: .not. split_w not coded", LOG_LEVEL_ERROR )
+    end if
+
+    call construct_solver_state( vector_rhs, inc_rsol, import_fields=.false. )
+    call construct_solver_state( vector_inc, inc_rsol, import_fields=.false. )
+
+    call vector_rhs%import_field( inc_w_rsol, isol_w )
+    call vector_rhs%import_field( inc_uv_rsol, isol_uv )
+    call vector_rhs%import_field( inc_exner_rsol, isol_p )
+
+    ! Solve the semi-implicit operator
+    if (subroutine_timers) call timer('adj_mixed_solver')
+    call vector_inc%set_scalar(0.0_r_def)
+    call self%adj_mixed_solver%apply( vector_inc, vector_rhs )
+    if (subroutine_timers) call timer('adj_mixed_solver')
+
+    call deconstruct_solver_state( vector_inc, rhs_rsol )
+    ! vector_inc(uv,w,p) IN, rhs_rsol(u,p) OUT, rhs_rsol(d,t) unaffected
+
+    if (first_iteration) then
+      ! Modify RHS due to elimination of rho and theta only for inner iteration 1
+      ! (for other values rhs_rho = rhs_theta = 0 and so nothing needs to be done)
+      m3_rho_star => get_m3_rho_star()
+      ! Elimination of rho
+      ! Set rhs_p = rhs_p + M_{3,rho} * rhs_rho
+
+      ! Elimination of theta
+      if (eliminate_variables == eliminate_variables_analytic) then
+        call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
+      else
+        p3theta => get_p3theta()
+        m2_diag => get_normalisation_r_solver( W2, mesh_id )
+        ! Set rhs_p = rhs_p + P_{3,theta} * rhs_theta
+        ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
+        call rhs_tmp%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
+        p2theta => get_p2theta()
+        call invoke( name="adj_si_solver_5",                                             &
+                     setval_c( rhs_tmp, 0.0_r_solver ),                                  &
+                     enforce_bc_kernel_type(rhs_rsol(igh_u)),                            &
+                     inc_X_plus_Y( rhs_tmp, rhs_rsol(igh_u) ),                           &
+                     inc_X_times_Y( rhs_tmp, m2_diag ),                                  &
+                     adj_matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
+                     setval_c( rhs_tmp, 0.0_r_solver ),                                  &
+                     adj_dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), p3theta ) )
+      end if
+
+      call invoke( name="adj_si_solver_6", &
+                   adj_dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_d), m3_rho_star ) )
+    end if
+
+    ! Now we copy data to r_solver fields and proceed with everything of kind r_solver
+
+    call invoke_inc_rdefX_plus_rsolverY( rhs(igh_u), rhs_rsol(igh_u) )
+    call invoke_inc_rdefX_plus_rsolverY( rhs(igh_p), rhs_rsol(igh_p) )
+    call invoke_inc_rdefX_plus_rsolverY( rhs(igh_t), rhs_rsol(igh_t) )
+    call invoke_inc_rdefX_plus_rsolverY( rhs(igh_d), rhs_rsol(igh_d) )
+    call invoke(setval_c( rhs_rsol(igh_u), 0.0_r_solver ))
+
+    if (eliminate_variables == eliminate_variables_analytic) then
+      call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
+    else
+      call invoke(inc_X_times_Y( rhs(igh_t), t_normalisation ))
+    end if
+
+    call invoke(inc_X_times_Y( rhs(igh_u), u_normalisation ))
+
+    if (subroutine_timers) call timer( 'adj_semi_implicit_solver_type%step' )
+
+  end subroutine step
+
+  !> @brief Construct field vector state from field bundle
+  !> @param[in,out] vector_state  Field vector to create
+  !> @param[in]     bundle_state  Field bundle to copy
+  !> @param[in]     import fields Import (copy) data from field_bundle
+  subroutine construct_solver_state( vector_state, bundle_state, import_fields )
+
+    implicit none
+
+    ! Arguments
+    type(r_solver_field_vector_type),                  intent(inout) :: vector_state
+    type(r_solver_field_type), dimension(bundle_size), intent(in)    :: bundle_state
+    logical(kind=l_def),                               intent(in)    :: import_fields
+
+    ! Local variables
+    type(r_solver_field_type)         :: uv, w
+    type(mesh_type), pointer          :: mesh
+    type(integer_field_type), pointer :: face_selector_ew, face_selector_ns
+    integer(kind=i_def)               :: p_h, p_v, state_size
+
+    state_size = 2 ! Default UV + P fields
+    if (split_w) state_size = state_size + 1 ! Additional W field
+
+    vector_state = r_solver_field_vector_type(state_size)
+
+    ! Wind fields
+    if (split_w) then
+      p_h = bundle_state(igh_u)%get_element_order_h()
+      p_v = bundle_state(igh_u)%get_element_order_v()
+      mesh => bundle_state(igh_u)%get_mesh()
+      face_selector_ew => get_face_selector_ew(mesh%get_id())
+      face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+      call uv%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2h ))
+      call w%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2v ))
+      if (import_fields) then
+        call invoke( setval_c( uv, 0.0_r_solver ), &
+                     setval_c( w, 0.0_r_solver ),  &
+                     split_w2_field_kernel_type( uv, w, bundle_state(igh_u), face_selector_ew, face_selector_ns ) )
+        call vector_state%import_field( uv, isol_uv )
+        call vector_state%import_field( w, isol_w )
+      else
+        call vector_state%initialise_field( isol_uv, uv%get_function_space() )
+        call vector_state%initialise_field( isol_w, w%get_function_space() )
+      end if
+    else
+      if (import_fields) then
+        call vector_state%import_field( bundle_state(igh_u), isol_u )
+      else
+        call vector_state%initialise_field( isol_u, bundle_state(igh_u)%get_function_space() )
+      end if
+    end if
+
+    ! Pressure fields
+    if (import_fields) then
+      call vector_state%import_field( bundle_state(igh_p), isol_p )
+    else
+      call vector_state%initialise_field( isol_p, bundle_state(igh_p)%get_function_space() )
+    end if
+
+  end subroutine construct_solver_state
+
+  !> @brief Construct a field bundle out of a field vector state
+  !> @param[in]     vector_state  Field vector to copy
+  !> @param[in,out] bundle_state  Field bundle to create
+  subroutine deconstruct_solver_state( vector_state, bundle_state )
+
+    implicit none
+
+    ! Arguments
+    type(r_solver_field_vector_type),                  intent(in)    :: vector_state
+    type(r_solver_field_type), dimension(bundle_size), intent(inout) :: bundle_state
+
+    ! Local variables
+    type(r_solver_field_type)         :: uv, w,uvw,state_p
+    type(mesh_type), pointer          :: mesh
+    type(integer_field_type), pointer :: face_selector_ew, face_selector_ns
+    integer(kind=i_def)               :: p_h, p_v
+
+    if (.not. split_w) then
+      call log_event( "adj_semi_implicit_solver_alg_mod deconstruct_solver_state: .not. split_w not coded", LOG_LEVEL_ERROR )
+    end if
+
+    p_h = bundle_state(igh_u)%get_element_order_h()
+    p_v = bundle_state(igh_u)%get_element_order_v()
+    mesh => bundle_state(igh_u)%get_mesh()
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+    call uv%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2h ))
+    call w%initialise(function_space_collection%get_fs( mesh, p_h, p_v, W2v ))
+
+    call state_p%initialise(vector_space=bundle_state(igh_p)%get_function_space())
+
+    call vector_state%export_field( uv, isol_uv )
+    call vector_state%export_field( w, isol_w )
+
+    call uvw%initialise(bundle_state(igh_u)%get_function_space())
+
+    call invoke( combine_w2_field_kernel_type( uvw, uv, w, face_selector_ew, face_selector_ns ), &
+                 inc_x_plus_y( bundle_state(igh_u), uvw ) )
+
+    call vector_state%export_field( state_p, isol_p )
+
+    call invoke(inc_x_plus_y( bundle_state(igh_p), state_p ))
+
+  end subroutine deconstruct_solver_state
+
+end module adj_semi_implicit_solver_alg_mod

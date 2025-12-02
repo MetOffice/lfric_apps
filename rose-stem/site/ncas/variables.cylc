@@ -1,0 +1,30 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/ncas/variables.cylc") %}
+
+{% do site_vars.update({"known_applications": ["lfric_atm",
+                                               "mesh"]}) %}
+
+{% do site_vars.update({"site_platforms": ["ex"]}) %}
+
+{% do site_vars.update({"scripts_platform": "ex"}) %}
+
+{% do site_vars.update({"mesh_build": {"ex": "gnu_fast-debug-64bit"} }) %}
+
+{% do site_vars.update({"lfricinputs_kgo_base": "$UMDIR/standard_jobs/lfricinputs/kgo"}) %}
+
+{% if HPC_QUEUE is defined %}
+    {% do site_vars.update({"hpc_queue": HPC_QUEUE}) %}
+{% else %}
+    {% do site_vars.update({"hpc_queue": "standard"}) %}
+{% endif %}
+
+{# Set fixed release version the KGO corresponds to #}
+{% set BASE = "vn1.0" %}
+
+{% include "site/ncas/common/default_directives.cylc" %}
+
+{% do LOG.debug("Finished in site/ncas/variables.cylc") %}

@@ -1,0 +1,264 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module initial_u_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w2_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                  get_w2_m3x3_dofmap, &
+                                                  get_w3_m3x3_dofmap
+
+  use get_unit_test_q3x3x3_quadrature_mod,             &
+     only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+            get_gaussian_q3x3x3_quadrature_weights_z
+
+  use get_unit_test_q3x3x3_basis_mod, only: get_w0_q3x3x3_basis,            &
+                                            get_w0_q3x3x3_diff_basis,       &
+                                            get_w2_q3x3x3_basis
+
+  use get_unit_test_3x3x3_chi_mod,    only : get_w0_3x3x3_field
+  use funit
+
+  implicit none
+
+  private
+  public :: initial_u_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: initial_u_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type initial_u_test_type
+
+  integer(i_def), parameter :: element_order_h = 0
+  integer(i_def), parameter :: element_order_v = 0
+
+  real(r_def), parameter :: u0             = 0.0_r_def
+  real(r_def), parameter :: v0             = 0.0_r_def
+  real(r_def), parameter :: sbr_angle_lat  = 0.0_r_def
+  real(r_def), parameter :: sbr_angle_lon  = 0.0_r_def
+  real(r_def), parameter :: wind_time_period = 10.0_r_def
+  real(r_def), parameter :: nl_constant = 1.0_r_def
+  real(r_def), parameter :: shear = 1.0_r_def
+  real(r_def), parameter :: wavelength = 1.0_r_def
+  real(r_def), parameter :: profile_data_u(1) = (/ 0.0_r_def /)
+  real(r_def), parameter :: profile_data_v(1) = (/ 0.0_r_def /)
+  real(r_def), parameter :: profile_data_w(1) = (/ 0.0_r_def /)
+  real(r_def), parameter :: profile_heights_uv(1) = (/ 0.0_r_def /)
+  real(r_def), parameter :: profile_heights_w(1)  = (/ 0.0_r_def /)
+
+  integer(i_def), parameter :: profile_size_uv = 1
+  integer(i_def), parameter :: profile_size_w  = 1
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_planar, &
+                                          topology_fully_periodic
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_finite_element_config, &
+                                          feign_base_mesh_config, &
+                                          feign_initial_wind_config
+    use initial_wind_config_mod,   only : profile_none
+
+    implicit none
+
+    class(initial_u_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_planar,         &
+                                 prepartitioned=.false.,           &
+                                 topology=topology_fully_periodic, &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call feign_initial_wind_config(                 &
+             nl_constant=nl_constant,               &
+             profile=profile_none,                  &
+             profile_data_u=profile_data_u,         &
+             profile_data_v=profile_data_v,         &
+             profile_data_w=profile_data_w,         &
+             profile_heights_uv=profile_heights_uv, &
+             profile_heights_w=profile_heights_w,   &
+             profile_size_uv=profile_size_uv,       &
+             profile_size_w=profile_size_w,         &
+             sbr_angle_lat=sbr_angle_lat,           &
+             sbr_angle_lon=sbr_angle_lon,           &
+             smp_init_wind=.false.,                 &
+             u0=u0, v0=v0,                          &
+             shear=shear,                           &
+             wavelength=wavelength,                 &
+             wind_time_period=wind_time_period )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(initial_u_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use initial_u_kernel_mod, only : initial_u_code
+
+   implicit none
+
+    class(initial_u_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def
+    real(r_def), parameter :: dy = 1000.0_r_def
+    real(r_def), parameter :: dz = 2000.0_r_def
+
+    real(r_def), parameter :: initial_time = 0.0_r_def
+
+    ! Fields
+    real(r_def), allocatable :: r_u(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+
+    real(kind=r_def) :: answer
+    real(kind=r_def) :: domain_max_x = 18000.00_r_def
+    real(kind=r_def) :: domain_max_y = 6000.00_r_def
+
+    integer :: i, j, k, cell
+
+    integer(i_def)              :: nlayers, ncells, nqp_h, nqp_v
+    integer(i_def)              :: ndf_w0, ndf_w2, ndf_w3
+    integer(i_def)              :: dim_space, dim_space_diff
+    integer(i_def)              :: undf_w0, undf_w2, undf_w3
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+
+    ! Basis functions
+    real(r_def),    allocatable :: basis_w0(:,:,:,:)
+    real(r_def),    allocatable :: basis_w2(:,:,:,:)
+    real(r_def),    allocatable :: diff_basis_w0(:,:,:,:)
+
+    ! Weights
+    real(r_def),    allocatable :: wh(:)
+    real(r_def),    allocatable :: wv(:)
+
+    nlayers = 3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_w3_m3x3_dofmap(map_w3)
+
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ! Get canned basis functions
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_w0_q3x3x3_basis(basis_w0)
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+
+    ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+    allocate(panel_id(undf_w3))
+
+    panel_id(:) = 1.0_r_def
+    call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                            map_w0, nlayers)
+    cell = 1
+
+    ! Create the data
+    allocate( r_u( undf_w2 ) )
+    r_u(:) = 0.0_r_def
+
+    call initial_u_code( nlayers,                         &
+                         r_u,                             &
+                         chi1,                            &
+                         chi2,                            &
+                         chi3,                            &
+                         panel_id,                        &
+                         initial_time,                    &
+                         domain_max_x,                    &
+                         domain_max_y,                    &
+                         ndf_w2, undf_w2,                 &
+                         map_w2(:, cell), basis_w2,       &
+                         ndf_w0, undf_w0,                 &
+                         map_w0(:, cell),                 &
+                         basis_w0, diff_basis_w0,         &
+                         ndf_w3, undf_w3, map_w3,         &
+                         nqp_h, nqp_v, wh, wv             &
+                         )
+
+    ! Simple test, if u, F, xi = 0 check data is in hydrostatic balance
+    answer = 0.0_r_def
+    do k = 0,2
+      @assertEqual(answer, r_u(map_w2(5, cell)+k), tol)
+      @assertEqual(answer, r_u(map_w2(6, cell)+k), tol)
+    end do
+
+    deallocate( r_u )
+    deallocate( chi1 )
+    deallocate( chi2 )
+    deallocate( chi3 )
+    deallocate( panel_id )
+    deallocate( map_w0 )
+    deallocate( map_w2 )
+    deallocate( map_w3 )
+    deallocate( basis_w0 )
+    deallocate( basis_w2 )
+    deallocate( diff_basis_w0 )
+    deallocate( wh )
+    deallocate( wv )
+
+  end subroutine test_all
+
+end module initial_u_kernel_mod_test

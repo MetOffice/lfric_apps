@@ -1,0 +1,8 @@
+<!-- Main variable definitions -->
+<variable_definition>
+  <!-- DT is the length of the timestep in seconds and is set by the model. 
+       It is used to recale some of the diagnostic fields -->
+  <variable id="DT" type="double">
+    0.0
+  </variable>
+</variable_definition>

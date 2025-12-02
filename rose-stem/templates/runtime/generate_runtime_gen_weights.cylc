@@ -1,0 +1,58 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_gen_weights.cylc") %}
+
+{# Generate Weights tasks are assumed to run on the Scripts Platform - Spice for meto #}
+
+    {# Family for all gen weights tasks for grouping in gui #}
+    [[GENERATE_WEIGHTS]]
+
+
+    [[{{task}}]]
+        inherit = GENERATE_WEIGHTS, \
+                  {{site_vars["scripts_platform"]|upper}}_WEIGHTS
+{% if task_ns.application == "lfric2lfric" %}
+        script = rose task-run --app-key=generate_weights -O lfric2lfric
+{% else %}
+        script = rose task-run --app-key=generate_weights
+{% endif %}
+        [[[environment]]]
+            MPIRUN_N_JOBS = {{task_values["gen_weights_tasks"]}}
+            INTERPOLATION_DIRECTION = {{task_values["app_name"]}}
+            LFRIC_MESH_FILE = {{mesh_dir}}/{{task_values["resolution"]}}/mesh_{{task_values["resolution"]}}.nc
+            LFRIC_MESH_NAME = {{task_values["mesh_name"]|default("")}}
+    {% if task_ns.application == "lfric2lfric" %}
+            DST_GRID_PATH = {{mesh_dir}}/{{task_values["dst_mesh"]}}/mesh_{{task_values["dst_mesh"]}}.nc
+            DST_GRID_TYPE = {{task_values["dst_type"]}}
+            DST_MESH_NAME = {{task_values["dst_name"]}}
+            SRC_GRID_PATH = {{mesh_dir}}/{{task_values["src_mesh"]}}/mesh_{{task_values["src_mesh"]}}.nc
+            SRC_GRID_TYPE = {{task_values["src_type"]}}
+            SRC_MESH_NAME = {{task_values["src_name"]}}
+    {% elif task_values["app_name"] == "um2lfric" %}
+            WEIGHT_GEN_OPTION = {{task_values["weight_gen_option"]}}
+            UM_START_DUMP = {{task_values["source_dump"]}}
+            VARRES_FILE = {{task_values["var_res_src"]}}
+            NLIST_FILE = {{task_values["namelist_src"]}}
+            UM_GRID_RESOLUTION =
+            GRID_TYPE_UM = {{task_values["source_grid_type"]}}
+            GRID_TYPE_LFRIC = {{task_values["target_grid_type"]}}
+    {% elif task_values["app_name"] == "lfric2um" %}
+            WEIGHT_GEN_OPTION = specified-resolution
+            UM_START_DUMP =
+            VARRES_FILE =
+            UM_GRID_RESOLUTION = {{task_values["target_grid_res"]|replace("N", "")}}
+            NLIST_FILE = {{task_values["namelist_src"]}}
+            GRID_TYPE_UM = {{task_values["target_grid_type"]}}
+            GRID_TYPE_LFRIC = {{task_values["source_grid_type"]}}
+    {% endif %}
+        [[[directives]]]
+            {{ set_task_resources(
+                task_values["gen_weights_tasks"],
+                task_values["gen_weights_memory"]
+                )}}
+
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_gen_weights.cylc") %}

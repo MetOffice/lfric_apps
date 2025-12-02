@@ -1,0 +1,40 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Add a random perturbation to a field during initialisation
+!> @details Call the kernel random_perturb_field_kernel_type to add a
+!! perturbation from the Gaussian distribution to each field value of the
+!! supplied field.
+module random_perturb_field_alg_mod
+
+  use constants_mod,                   only: i_def
+  use field_mod,                       only: field_type
+  use random_perturb_field_kernel_mod, only: random_perturb_field_kernel_type
+
+
+
+  implicit none
+
+  private
+  public :: random_perturb_field
+
+contains
+
+  !> @brief An algorithm for adding a random perturbation to a field
+  !> @param[in,out]  field
+  !> @param[in]      perturb_magnitude
+  subroutine random_perturb_field( field, perturb_magnitude )
+
+    implicit none
+
+    type( field_type ),    intent( inout )      :: field
+    integer( kind=i_def ), intent( in )         :: perturb_magnitude
+
+    call invoke(random_perturb_field_kernel_type(field, perturb_magnitude))
+
+  end subroutine random_perturb_field
+
+end module random_perturb_field_alg_mod

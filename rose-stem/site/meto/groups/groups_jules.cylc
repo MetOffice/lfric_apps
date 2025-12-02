@@ -1,0 +1,69 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_jules.cylc") %}
+
+{# ###################################################################### #}
+{# Azspice Test Groups #}
+{# ###################################################################### #}
+{% do site_groups.update({
+    "jules_azspice_developer": [
+        "jules_dice2-BiP2x2-50000x50000_azspice_gnu_fast-debug-64bit",
+        "jules_canned_azspice_gnu_fast-debug-64bit",
+    ],
+    "jules_azspice": [
+        "jules_azspice_developer",
+    ],
+    "jules_azspice_unit_tests": [
+        "jules_unit_tests_azspice_gnu_64bit",
+    ],
+    "jules_azspice_canned": [
+        "jules_canned_azspice_gnu_fast-debug-64bit",
+    ],
+    "jules_azspice_build": [
+        "build_jules_azspice_gnu_fast-debug-64bit",
+        "build_jules_azspice_gnu_full-debug-64bit",
+    ],
+    }) %}
+
+{# ###################################################################### #}
+{# Platform Generic Groups #}
+{# ###################################################################### #}
+{% do site_groups.update({
+    "jules_developer": [
+        "scripts",
+        "jules_azspice_developer",
+    ],
+    "jules": [
+        "jules_azspice_developer",
+    ],
+    "jules_unit_tests": [
+        "jules_azspice_unit_tests",
+    ],
+    "jules_canned": [
+        "jules_azspice_canned",
+    ],
+    "jules_build": [
+        "jules_azspice_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.jules_developer) %}
+{% do site_groups.all.extend(site_groups.jules) %}
+{# % do site_groups.unit_tests.extend(site_groups.jules_unit_tests) % #}
+{% do site_groups.build.extend(site_groups.jules_build) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.jules_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.jules_azspice) %}
+{# % do site_groups.azspice_unit_tests.extend(site_groups.jules_azspice_unit_tests) % #}
+{% do site_groups.azspice_build.extend(site_groups.jules_azspice_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_jules.cylc") %}
+
+
+
+

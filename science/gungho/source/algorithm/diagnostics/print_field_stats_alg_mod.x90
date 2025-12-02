@@ -1,0 +1,449 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief Print some useful statistics about a field
+
+module print_field_stats_alg_mod
+
+  use field_mod,                only: field_type
+  use r_tran_field_mod,         only: r_tran_field_type
+  use mesh_mod,                 only: mesh_type
+  use constants_mod,            only: r_def, str_def, i_def, rmdi,             &
+                                      radians_to_degrees, r_tran, l_def
+  use log_mod,                  only: log_event, log_at_level, log_scratch_space
+  use base_mesh_config_mod,     only: prime_mesh_name
+  use mesh_collection_mod,      only: mesh_collection
+  use fs_continuity_mod,        only: W3, Wtheta, W2H, W2V
+  use sci_geometric_constants_mod,    &
+                                only: get_latitude_fe, get_latitude_fv,        &
+                                      get_longitude_fe, get_longitude_fv,      &
+                                      get_height_fe, get_height_fv
+  use field_stats_kernel_mod,   only: field_stats_kernel_type
+  use extrusion_mod,            only: TWOD
+  use sci_field_minmax_alg_mod, only: get_field_minmax
+
+implicit none
+
+private
+
+public  :: print_field_stats_alg
+public  :: print_field_stats_alg_rtran
+private :: post_print_field_stats_alg
+
+contains
+
+! TODO: Ideally here we would have an interface for r_single and r_double fields
+! However PSyclone does not support these fields yet, so specific named field
+! types (such as r_tran_field_type) must be used instead. To save having many
+! different implementations, we just implement r_def and r_tran precisions for
+! now, but these can be switched to r_single and r_double once PSyclone Issue
+! #3170 is resolved.
+! Note that an interface cannot be used for r_def and r_tran precision,
+! implementations, as for some compilation options these may be the same,
+! and the compiler cannot to resolve the interface.
+
+!> @details Print the max and min of the input field. If these values exceed
+!!          some user defined max and min values, then print additional
+!!          information regarding the location of the max and min values
+!!          (latitude, longitude, height). If no user input is provided,
+!!          the location information will always be printed.
+!> @param[in] field             Field to print info about
+!> @param[in] level_of_logging  Compile-time logging level for output, to be
+!!                              compared to the current runtime logging level
+!> @param[in] printmin          User defined min to print info below
+!> @param[in] printmax          User defined max to print info above
+!> @param[in] name              Name of the field to appear in print messages
+subroutine print_field_stats_alg(field_rdef, level_of_logging,                 &
+                                 printmin, printmax, name)
+
+  implicit none
+
+  type(field_type),              intent(in) :: field_rdef
+  integer(kind=i_def),           intent(in) :: level_of_logging
+  real(kind=r_def),    optional, intent(in) :: printmin, printmax
+  character(len=*),    optional, intent(in) :: name
+
+  integer(kind=i_def)       :: fs_id
+  integer(kind=i_def)       :: elt_order_h, elt_order_v
+  real(kind=r_def)          :: fmin_rdef, fmax_rdef
+  real(kind=r_def)          :: minvalue_rdef, maxvalue_rdef
+  logical(kind=l_def)       :: to_print_all_stats, supported_fs
+  character(len=str_def)    :: field_name
+  type(field_type)          :: max_lev, min_lev, max_count, min_count
+  type(field_type)          :: max_lat, min_lat, max_lon, min_lon
+  type(field_type)          :: max_height, min_height
+  type(field_type)          :: max_excess_count, min_excess_count
+  type(mesh_type),  pointer :: mesh
+  type(field_type), pointer :: latitude
+  type(field_type), pointer :: longitude
+  type(field_type), pointer :: height
+
+  ! Do nothing unless the requested logging level is active
+  if (log_at_level(level_of_logging)) then
+
+    field_name = field_rdef%get_name()
+    minvalue_rdef = rmdi
+    maxvalue_rdef = -rmdi
+
+    if (present(name)) field_name = name
+    if (present(printmin)) minvalue_rdef = printmin
+    if (present(printmax)) maxvalue_rdef = printmax
+
+    ! Log min/max
+    call get_field_minmax(field_rdef, fmin_rdef, fmax_rdef)
+    write(log_scratch_space,'(A,A,A,F16.8,A,F16.8)') &
+         'Field Min/max ',trim(field_name),' = ',fmin_rdef,' ',fmax_rdef
+    call log_event(log_scratch_space, level_of_logging)
+
+    fs_id = field_rdef%which_function_space()
+    ! Have stats been implemented for the function space of this field?
+    supported_fs = (                                                           &
+      fs_id == Wtheta .or. fs_id == W3 .or. fs_id == W2H .or. fs_id == W2V     &
+    )
+
+    if (.not. supported_fs) then
+      write(log_scratch_space, '(A)')                                          &
+        'Cannot print stats for field ' // trim(field_name) //                 &
+        ' as only W3, Wtheta, W2H and W2V fields are currently supported.'
+      call log_event(log_scratch_space, level_of_logging)
+    end if
+
+    ! Should we log more detailed stats?
+    to_print_all_stats = (                                                     &
+      ! Do the min or max exceed the user defined thresholds?
+      (fmin_rdef <= minvalue_rdef .or. fmax_rdef >= maxvalue_rdef)             &
+      .and. supported_fs                                                       &
+    )
+
+    if (to_print_all_stats) then
+      mesh => field_rdef%get_mesh()
+      elt_order_h = field_rdef%get_element_order_h()
+      elt_order_v = field_rdef%get_element_order_v()
+
+      call pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
+                                     latitude, longitude, height,              &
+                                     max_lev, min_lev,                         &
+                                     max_excess_count, min_excess_count,       &
+                                     max_count, min_count,                     &
+                                     max_lat, min_lat,                         &
+                                     max_lon, min_lon,                         &
+                                     max_height, min_height                    )
+
+      call invoke( field_stats_kernel_type(field_rdef, height,                 &
+                                           fmax_rdef, fmin_rdef,               &
+                                           maxvalue_rdef, minvalue_rdef,       &
+                                           latitude, longitude, max_lev,       &
+                                           min_lev, max_excess_count,          &
+                                           min_excess_count, max_count,        &
+                                           min_count, max_lat, min_lat,        &
+                                           max_lon, min_lon, max_height,       &
+                                           min_height) )
+
+      call post_print_field_stats_alg(max_lev, min_lev,                        &
+                                      max_excess_count, min_excess_count,      &
+                                      max_count, min_count,                    &
+                                      max_lat, min_lat,                        &
+                                      max_lon, min_lon,                        &
+                                      max_height, min_height,                  &
+                                      level_of_logging)
+
+    end if  ! Threshold has been exceeded
+  end if
+
+end subroutine print_field_stats_alg
+
+subroutine print_field_stats_alg_rtran(field_rtran, level_of_logging,          &
+                                       printmin_rtran, printmax_rtran, name)
+
+  implicit none
+
+  type(r_tran_field_type),       intent(in) :: field_rtran
+  integer(kind=i_def),           intent(in) :: level_of_logging
+  real(kind=r_tran),   optional, intent(in) :: printmin_rtran, printmax_rtran
+  character(len=*),    optional, intent(in) :: name
+
+  integer(kind=i_def)       :: fs_id
+  integer(kind=i_def)       :: elt_order_h, elt_order_v
+  real(kind=r_tran)         :: fmin_rtran, fmax_rtran
+  real(kind=r_tran)         :: minvalue_rtran, maxvalue_rtran
+  logical(kind=l_def)       :: to_print_all_stats, supported_fs
+  character(len=str_def)    :: field_name
+  type(field_type)          :: max_lev, min_lev, max_count, min_count
+  type(field_type)          :: max_lat, min_lat, max_lon, min_lon
+  type(field_type)          :: max_height, min_height
+  type(field_type)          :: max_excess_count, min_excess_count
+  type(mesh_type),  pointer :: mesh
+  type(field_type), pointer :: latitude
+  type(field_type), pointer :: longitude
+  type(field_type), pointer :: height
+
+  ! Do nothing unless the requested logging level is active
+  if (log_at_level(level_of_logging)) then
+
+    field_name = field_rtran%get_name()
+    minvalue_rtran = rmdi
+    maxvalue_rtran = -rmdi
+
+    if (present(name)) field_name = name
+    if (present(printmin_rtran)) minvalue_rtran = printmin_rtran
+    if (present(printmax_rtran)) maxvalue_rtran = printmax_rtran
+
+    ! Log min/max
+    call get_field_minmax(field_rtran, fmin_rtran, fmax_rtran)
+    write(log_scratch_space,'(A,A,A,F16.8,A,F16.8)') &
+         'Field Min/max ',trim(field_name),' = ',fmin_rtran,' ',fmax_rtran
+    call log_event(log_scratch_space, level_of_logging)
+
+    fs_id = field_rtran%which_function_space()
+    ! Have stats been implemented for the function space of this field?
+    supported_fs = (                                                           &
+      fs_id == Wtheta .or. fs_id == W3 .or. fs_id == W2H .or. fs_id == W2V     &
+    )
+
+    if (.not. supported_fs) then
+      write(log_scratch_space, '(A)')                                          &
+        'Cannot print stats for field ' // trim(field_name) //                 &
+        ' as only W3, Wtheta, W2H and W2V fields are currently supported.'
+      call log_event(log_scratch_space, level_of_logging)
+    end if
+
+    ! Should we log more detailed stats?
+    to_print_all_stats = (                                                     &
+      ! Do the min or max exceed the user defined thresholds?
+      (fmin_rtran <= minvalue_rtran .or. fmax_rtran >= maxvalue_rtran)         &
+      .and. supported_fs                                                       &
+    )
+
+    if (to_print_all_stats) then
+      mesh => field_rtran%get_mesh()
+      elt_order_h = field_rtran%get_element_order_h()
+      elt_order_v = field_rtran%get_element_order_v()
+
+      call pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
+                                     latitude, longitude, height,              &
+                                     max_lev, min_lev,                         &
+                                     max_excess_count, min_excess_count,       &
+                                     max_count, min_count,                     &
+                                     max_lat, min_lat,                         &
+                                     max_lon, min_lon,                         &
+                                     max_height, min_height                    )
+
+      call invoke( field_stats_kernel_type(field_rtran, height,                &
+                                           fmax_rtran, fmin_rtran,             &
+                                           maxvalue_rtran, minvalue_rtran,     &
+                                           latitude, longitude, max_lev,       &
+                                           min_lev, max_excess_count,          &
+                                           min_excess_count, max_count,        &
+                                           min_count, max_lat, min_lat,        &
+                                           max_lon, min_lon, max_height,       &
+                                           min_height) )
+
+      call post_print_field_stats_alg(max_lev, min_lev,                        &
+                                      max_excess_count, min_excess_count,      &
+                                      max_count, min_count,                    &
+                                      max_lat, min_lat,                        &
+                                      max_lon, min_lon,                        &
+                                      max_height, min_height,                  &
+                                      level_of_logging)
+
+    end if  ! Threshold has been exceeded
+  end if
+
+end subroutine print_field_stats_alg_rtran
+
+!> @brief Steps to be taken before calling the field stats kernel. Designed to
+!!        be shared between different precision implementations of the algorithm
+!!        to print field stats.
+!> @param[in]     mesh               Mesh the field being logged is defined on
+!> @param[in]     fs_id              Function space ID of the field being logged
+!> @param[in]     elt_order_h        Element order in horizontal direction
+!> @param[in]     elt_order_v        Element order in vertical direction
+!> @param[in,out] latitude           Field containing latitude values
+!> @param[in,out] longitude          Field containing longitude values
+!> @param[in,out] height             Field containing height values
+!> @param[in,out] max_lev            2D field containing level of max value
+!> @param[in,out] min_lev            2D field containing level of min value
+!> @param[in,out] max_excess_count   2D field containing count of values above
+!!                                   specified threshold
+!> @param[in,out] min_excess_count   2D field containing count of values below
+!!                                   specified threshold
+!> @param[in,out] max_count          2D field containing count of max values
+!> @param[in,out] min_count          2D field containing count of min values
+!> @param[in,out] max_lat            2D field containing latitude of max value
+!> @param[in,out] min_lat            2D field containing latitude of min value
+!> @param[in,out] max_lon            2D field containing longitude of max value
+!> @param[in,out] min_lon            2D field containing longitude of min value
+!> @param[in,out] max_height         2D field containing height of max value
+!> @param[in,out] min_height         2D field containing height of min value
+subroutine pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
+                                     latitude, longitude, height,              &
+                                     max_lev, min_lev,                         &
+                                     max_excess_count, min_excess_count,       &
+                                     max_count, min_count,                     &
+                                     max_lat, min_lat,                         &
+                                     max_lon, min_lon,                         &
+                                     max_height, min_height                    )
+
+  implicit none
+
+  ! Arguments
+  type(mesh_type),  pointer, intent(in)    :: mesh
+  integer(kind=i_def),       intent(in)    :: fs_id
+  integer(kind=i_def),       intent(in)    :: elt_order_h, elt_order_v
+  type(field_type), pointer, intent(inout) :: latitude, longitude, height
+  type(field_type),          intent(inout) :: max_lev, min_lev
+  type(field_type),          intent(inout) :: max_count, min_count
+  type(field_type),          intent(inout) :: max_lat, min_lat
+  type(field_type),          intent(inout) :: max_lon, min_lon
+  type(field_type),          intent(inout) :: max_height, min_height
+  type(field_type),          intent(inout) :: max_excess_count, min_excess_count
+
+  ! Local variables
+  type(mesh_type),  pointer :: twod_mesh
+  integer(kind=i_def)       :: mesh_id, twod_mesh_id
+  integer(kind=i_def)       :: fs_2d, fs_3d
+
+  ! Ensure coordinate fields have correct function space for the field being
+  ! logged
+  twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+  mesh_id = mesh%get_id()
+  twod_mesh_id = twod_mesh%get_id()
+
+  fs_2d = fs_id
+  fs_3d = fs_id
+
+  ! W2V fields are equivalent to Wtheta fields
+  if (fs_id == W2V) fs_3d = Wtheta
+  ! Wtheta fields have the same horizontal structure as W3 fields
+  if (fs_3d == Wtheta) fs_2d = W3
+
+  ! Get fields relating to coordinates to print out location
+  if (elt_order_h > 0 .or. elt_order_v > 0) then
+    latitude  => get_latitude_fe(fs_2d, twod_mesh_id)
+    longitude => get_longitude_fe(fs_2d, twod_mesh_id)
+    height => get_height_fe(fs_3d, mesh_id)
+  else
+    latitude  => get_latitude_fv(fs_2d, twod_mesh_id)
+    longitude => get_longitude_fv(fs_2d, twod_mesh_id)
+    height => get_height_fv(fs_3d, mesh_id)
+  end if
+
+  ! Initialise 2D fields by copying function space from latitude field
+  call latitude%copy_field_properties(max_lev)
+  call latitude%copy_field_properties(min_lev)
+  call latitude%copy_field_properties(max_excess_count)
+  call latitude%copy_field_properties(min_excess_count)
+  call latitude%copy_field_properties(max_count)
+  call latitude%copy_field_properties(min_count)
+  call latitude%copy_field_properties(max_lat)
+  call latitude%copy_field_properties(min_lat)
+  call latitude%copy_field_properties(max_lon)
+  call latitude%copy_field_properties(min_lon)
+  call latitude%copy_field_properties(max_height)
+  call latitude%copy_field_properties(min_height)
+
+  ! Set all 2D fields to zero
+  call invoke( setval_c(max_lev,          0.0_r_def),                          &
+               setval_c(min_lev,          0.0_r_def),                          &
+               setval_c(max_count,        0.0_r_def),                          &
+               setval_c(min_count,        0.0_r_def),                          &
+               setval_c(max_excess_count, 0.0_r_def),                          &
+               setval_c(min_excess_count, 0.0_r_def),                          &
+               setval_c(max_lat,          0.0_r_def),                          &
+               setval_c(min_lat,          0.0_r_def),                          &
+               setval_c(max_lon,          0.0_r_def),                          &
+               setval_c(min_lon,          0.0_r_def),                          &
+               setval_c(max_height,       0.0_r_def),                          &
+               setval_c(min_height,       0.0_r_def) )
+
+end subroutine pre_print_field_stats_alg
+
+!> @brief Post process and print the results from the field stats kernel
+!> @param[in] max_lev            2D field containing level of max value
+!> @param[in] min_lev            2D field containing level of min value
+!> @param[in] max_excess_count   2D field containing count of values above
+!!                               specified threshold
+!> @param[in] min_excess_count   2D field containing count of values below
+!!                               specified threshold
+!> @param[in] max_count          2D field containing count of max values
+!> @param[in] min_count          2D field containing count of min values
+!> @param[in] max_lat            2D field containing latitude of max value
+!> @param[in] min_lat            2D field containing latitude of min value
+!> @param[in] max_lon            2D field containing longitude of max value
+!> @param[in] min_lon            2D field containing longitude of min value
+!> @param[in] max_height         2D field containing height of max value
+!> @param[in] min_height         2D field containing height of min value
+!> @param[in] level_of_logging   Logging level for output
+subroutine post_print_field_stats_alg(max_lev, min_lev,                        &
+                                      max_excess_count, min_excess_count,      &
+                                      max_count, min_count,                    &
+                                      max_lat, min_lat,                        &
+                                      max_lon, min_lon,                        &
+                                      max_height, min_height,                  &
+                                      level_of_logging)
+
+  implicit none
+
+  type(field_type),    intent(in) :: max_lev, min_lev, max_count, min_count
+  type(field_type),    intent(in) :: max_lat, min_lat, max_lon, min_lon
+  type(field_type),    intent(in) :: max_height, min_height
+  type(field_type),    intent(in) :: max_excess_count, min_excess_count
+  integer(kind=i_def), intent(in) :: level_of_logging
+
+  real(kind=r_def) :: gmax_lev, gmin_lev, gmax_count, gmin_count
+  real(kind=r_def) :: gmax_lat, gmin_lat, gmax_lon, gmin_lon
+  real(kind=r_def) :: gmax_height, gmin_height
+  real(kind=r_def) :: gmax_excess_count, gmin_excess_count
+
+  call invoke( sum_X(gmax_lev,          max_lev),                              &
+               sum_X(gmin_lev,          min_lev),                              &
+               sum_X(gmax_excess_count, max_excess_count),                     &
+               sum_X(gmin_excess_count, min_excess_count),                     &
+               sum_X(gmax_count,        max_count),                            &
+               sum_X(gmin_count,        min_count),                            &
+               sum_X(gmax_lat,          max_lat),                              &
+               sum_X(gmin_lat,          min_lat),                              &
+               sum_X(gmax_lon,          max_lon),                              &
+               sum_X(gmin_lon,          min_lon),                              &
+               sum_X(gmax_height,       max_height),                           &
+               sum_X(gmin_height,       min_height) )
+
+  write(log_scratch_space,'(A,I16,A,I16)') &
+  '   excess count = ',int(gmin_excess_count),' ',int(gmax_excess_count)
+  call log_event( log_scratch_space, level_of_logging )
+
+  write(log_scratch_space,'(A,I16,A,I16)') &
+  '   degeneracy = ',int(gmin_count),' ',int(gmax_count)
+  call log_event( log_scratch_space, level_of_logging )
+
+  ! Avoid divide by zero errors
+  if (int(gmin_count, i_def) == 0_i_def) then
+    gmin_count = 1.0_r_def
+  end if
+  if (int(gmax_count, i_def) == 0_i_def) then
+    gmax_count = 1.0_r_def
+  end if
+
+  write(log_scratch_space,'(A,I16,A,I16)') &
+  '     at level = ', int(gmin_lev/gmin_count),' ', int(gmax_lev/gmax_count)
+  call log_event( log_scratch_space, level_of_logging )
+
+  write(log_scratch_space,'(A,ES16.8E2,A,ES16.8E2)') &
+  '    at height = ', gmin_height/gmin_count,' ',gmax_height/gmax_count
+  call log_event( log_scratch_space, level_of_logging )
+
+  write(log_scratch_space,'(A,F16.8,A,F16.8)') &
+  '  at latitude = ', radians_to_degrees*gmin_lat/gmin_count, ' ',             &
+                      radians_to_degrees*gmax_lat/gmax_count
+  call log_event( log_scratch_space, level_of_logging )
+
+  write(log_scratch_space,'(A,F16.8,A,F16.8)') &
+  ' at longitude = ', radians_to_degrees*gmin_lon/gmin_count, ' ',             &
+                      radians_to_degrees*gmax_lon/gmax_count
+  call log_event( log_scratch_space, level_of_logging )
+
+end subroutine post_print_field_stats_alg
+
+end module print_field_stats_alg_mod

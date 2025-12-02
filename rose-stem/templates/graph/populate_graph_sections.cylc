@@ -1,0 +1,289 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/populate_graph_sections.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# Define the graph for this task, including defining any auxillary tasks #}
+
+{# ################## #}
+{# Set Default Values #}
+{# ################## #}
+
+{# publish #}
+{% set publish = task_values["publish"] %}
+
+{# kgo settings #}
+{% if "checksum" in task_values["kgo_checks"] %}
+    {% set checksum_kgo = true %}
+{% else %}
+    {% set checksum_kgo = false %}
+{% endif %}
+{% if "fields" in task_values["kgo_checks"] %}
+    {% set fields_kgo = true %}
+{% else %}
+    {% set fields_kgo = false %}
+{% endif %}
+
+{# plot settings #}
+{% if "plot_str" in task_values and task_values["plot_str"]|length > 0 %}
+    {% set plot = true %}
+{% else %}
+    {% set plot = false %}
+{% endif %}
+
+{# memory plot EX settings #}
+{% if "memory_plot_ex" in task_values and task_values["memory_plot_ex"] and task_ns.platform == "ex1a" %}
+    {% set memory_plot_ex = true %}
+{% else %}
+    {% set memory_plot_ex = false %}
+{% endif %}
+
+{# phystest settings #}
+{% if "phystest_str" in task_values %}
+    {% set phystest = true %}
+{% else %}
+    {% set phystest = false %}
+{% endif %}
+
+{# If the task has a restart and has set crun_compare=false, there is no #}
+{# nrun-crun comparison to be made, so don't run the nrun test #}
+{% set running_nrun = true %}
+{% if task_values["crun"] > 1 and not task_values["crun_compare"] %}
+    {% set running_nrun = false %}
+{% endif %}
+
+{# ######################################### #}
+{# Set Task Names for any that need defining #}
+{# ######################################### #}
+
+{# Set export source task - always needed #}
+{% set export_task = "export-source => export-source_"~task_ns.platform %}
+{% if "export-source" not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source": {} }) %}
+{% endif %}
+{% if "export-source_"~task_ns.platform not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source_"~task_ns.platform: {} }) %}
+{% endif %}
+
+{# Define empty task strings #}
+{# These will be populated if the task is required #}
+{% set mesh_build_task = "" %}
+{% set application_build_task = "" %}
+{% set mesh_run_task = "" %}
+{% set application_run_task = "" %}
+
+{# Do we need to build the mesh? #}
+{# Do this for everything except non-mesh build tasks and canned tests #}
+{% if not (task.startswith("build") and task_ns.application != "mesh") and
+      task_values["app_name"] != "canned_test" %}
+    {% set mesh_build_task = "build_mesh_"~
+                             task_ns.platform~"_"~
+                             site_vars["mesh_build"][task_ns.platform] %}
+{# If the task is the mesh build task then use the task dictionary #}
+{# Otherwise use an empty dict to be populated later #}
+    {% if mesh_build_task not in tasks_to_run %}
+        {% if task.startswith("build") and task_ns.application == "mesh" %}
+            {% do tasks_to_run.update({mesh_build_task: task_values}) %}
+        {% else %}
+            {% do tasks_to_run.update({mesh_build_task: {} }) %}
+        {% endif %}
+    {% endif %}
+{% endif %}
+
+{# Do we need to build an application? #}
+{# mesh builds covered above and everything else needs a build #}
+{% if task_ns.application != "mesh" %}
+    {% set application_build_task = "build_"~
+                                    task_ns.application~"_"~
+                                    task_ns.platform~"_"~
+                                    task_values["build_conf"] %}
+{# If the task is the application build task then use the task dictionary #}
+{# Otherwise use an empty dict to be populated later #}
+    {% if application_build_task not in tasks_to_run %}
+        {% if task.startswith("build") %}
+            {% do tasks_to_run.update({application_build_task: task_values}) %}
+        {% else %}
+            {% do tasks_to_run.update({application_build_task: {} }) %}
+        {% endif %}
+    {% endif %}
+{% endif %}
+
+{# Do we need to run the mesh? #}
+{# Any run task will need mesh unless it is a canned test #}
+{% if task.startswith("run") and task_values["app_name"] != "canned_test" %}
+    {% set mesh_run_task = "run_mesh_"~
+                           task_values["resolution"]~"_"~
+                           task_ns.platform~"_"~
+                           site_vars["mesh_build"][task_ns.platform] %}
+{# If the task is the mesh run task then use the task dictionary #}
+{# Otherwise use an empty dict to be populated later #}
+    {% if mesh_run_task not in tasks_to_run %}
+        {% if task_ns.application == "mesh" %}
+            {% do tasks_to_run.update({mesh_run_task: task_values}) %}
+        {% else %}
+            {% set mesh_dict = {} %}
+            {% if "mpi_parts" in task_values %}
+                {% do mesh_dict.update({"mpi_parts": task_values["mpi_parts"]}) %}
+            {% endif %}
+            {% do tasks_to_run.update({mesh_run_task: mesh_dict}) %}
+        {% endif %}
+    {% endif %}
+{% endif %}
+
+{# Do we need to run an application? #}
+{# Mesh run tasks covered above #}
+{% if task.startswith("run") and task_ns.application != "mesh" %}
+    {% set application_run_task = task %}
+    {% if running_nrun %}
+        {% if application_run_task not in tasks_to_run %}
+            {% do tasks_to_run.update({application_run_task: task_values}) %}
+        {% endif %}
+    {% endif %}
+{% endif %}
+
+{# Do we need to run an perftools export? #}
+{# Checks the task name is a run and not a mesh, and the compiler contains perftools #}
+{% set perftools = false %}
+{% if task.startswith("run") and task_ns.application != "mesh" %}
+    {% if "perftools" in task_ns.compiler %}
+       {% set perftools = true %}
+       {% set app_perftools_export_task = "perftools-export_"~
+                                            task_ns.application~"_"~
+                                            task_ns.conf_name~"_"~
+                                            task_ns.platform~"_"~
+                                            task_ns.compiler~"_"~
+                                            task_ns.extras %}
+    {% endif %}
+{% endif %}
+
+{# ################################### #}
+{# Create the graph - only for 1 cycle #}
+{# ################################### #}
+
+{% if mesh_build_task %}
+    {% do graph_sections.append([
+        export_task,
+        mesh_build_task]) %}
+{% endif %}
+
+{% if application_build_task %}
+    {% do graph_sections.append([
+        export_task,
+        application_build_task]) %}
+{% endif %}
+
+{% if mesh_run_task %}
+    {% do graph_sections.append([
+        mesh_build_task,
+        mesh_run_task]) %}
+{% endif %}
+
+{# If running the nrun task, define application, plot, check and phystest #}
+{% if running_nrun and task.startswith("run") %}
+    {% if application_run_task %}
+        {% do graph_sections.append([
+            application_build_task,
+            application_run_task]) %}
+        {% if mesh_run_task %}
+            {% do graph_sections.append([
+                mesh_run_task,
+                application_run_task]) %}
+        {% endif %}
+    {% endif %}
+{#Maybe emulate one of these for the perftools? We could do the whole thing this way round#}
+{#but that would require a slight rewrite of the build susystem checks#}
+{#but thats doable - always ref the same thing#}
+    {% if checksum_kgo %}
+        {% set checksum_task = "check_"~
+                               task_ns.application~"_"~
+                               task_ns.conf_name~"_"~
+                               task_ns.platform~"_"~
+                               task_ns.compiler~"_"~
+                               task_ns.extras %}
+        {% if checksum_task not in tasks_to_run %}
+            {% do tasks_to_run.update({checksum_task: task_values }) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task,
+            checksum_task~"?"]) %}
+    {% endif %}
+
+    {% if plot %}
+        {% set plot_task = "plot_"~
+                           task_ns.application~"_"~
+                           task_ns.conf_name~"_"~
+                           task_ns.platform~"_"~
+                           task_ns.compiler~"_"~
+                           task_ns.extras %}
+        {% if plot_task not in tasks_to_run %}
+            {% do tasks_to_run.update({plot_task: task_values}) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task,
+            plot_task]) %}
+    {% endif %}
+
+    {% if memory_plot_ex %}
+        {% set memory_plot_ex_task = "memory_plot_ex_"~
+                                     task_ns.application~"_"~
+                                     task_ns.conf_name~"_"~
+                                     task_ns.platform~"_"~
+                                     task_ns.compiler~"_"~
+                                     task_ns.extras %}
+        {% set memory_values = task_values.copy() %}
+        {% do memory_values.update({"application_run_task": application_run_task}) %}
+        {% if memory_plot_ex_task not in tasks_to_run %}
+            {% do tasks_to_run.update({memory_plot_ex_task: memory_values}) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task,
+            memory_plot_ex_task]) %}
+    {% endif %}
+
+    {% if phystest %}
+        {% set phystest_task = "phystest_"~
+                               task_ns.application~"_"~
+                               task_ns.conf_name~"_"~
+                               task_ns.platform~"_"~
+                               task_ns.compiler~"_"~
+                               task_ns.extras %}
+        {% if phystest_task not in tasks_to_run %}
+            {% do tasks_to_run.update({phystest_task: task_values}) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task,
+            phystest_task]) %}
+    {% endif %}
+
+    {% if perftools %}
+        {% if app_perftools_export_task not in tasks_to_run %}
+            {% do tasks_to_run.update({app_perftools_export_task: task_values}) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task,
+            app_perftools_export_task]) %}
+    {% endif %}
+{% endif %}
+
+{# lfric_coupled graphs require fcm_make tasks before the application run #}
+{% if task_ns.application == "lfric_coupled" %}
+    {% include "templates/graph/populate_graph_lfric_coupled.cylc" %}
+{% endif %}
+
+{# lfric2lfric graphs require generate_weights tasks before the application run #}
+{% if task_ns.application == "lfric2lfric" and task_ns.conf_name.startswith("oasis") %}
+    {% include "templates/graph/populate_gen_weights_graph.cylc" %}
+{% endif %}
+
+{% if task_values["crun"] > 1 %}
+    {% include "templates/graph/populate_crun_graph.cylc" %}
+{% endif %}
+
+{% if task_values["pert_compare"] %}
+    {% include "templates/graph/populate_pert_compare_graph.cylc" %}
+{% endif %}
+
+{% do LOG.debug("Finished in templates/graph/populate_graph_sections.cylc") %}

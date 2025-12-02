@@ -1,0 +1,162 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module momentum_viscosity_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
+
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,      &
+                                                  get_m3x3_stencil_dofmap_cross
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: momentum_viscosity_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type momentum_viscosity_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use feign_config_mod,          only : feign_finite_element_config
+    use mixing_config_mod,         only : method_3d_smag
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+
+    implicit none
+
+    class(momentum_viscosity_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(      &
+        cellshape=cellshape_quadrilateral, &
+        coord_order=0_i_def,               &
+        coord_system=coord_system_xyz,     &
+        element_order_h=0_i_def,           &
+        element_order_v=0_i_def,           &
+        rehabilitate=.true.,               &
+        vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use sci_chi_transform_mod,    only: final_chi_transforms
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(momentum_viscosity_test_type), intent(inout) :: this
+
+    ! Finalise namelists
+    call final_chi_transforms()
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use momentum_viscosity_kernel_mod, only : momentum_viscosity_code
+
+    implicit none
+
+    class(momentum_viscosity_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+    real(r_def), parameter :: viscosity_mu  = 10.0_r_def
+
+    real(r_def) :: answer
+
+    integer(i_def) :: i, j, k, df, icell
+
+    ! Variables for testing momentum_viscosity
+    integer(i_def) :: nlayers, ncells, cell
+    integer(i_def) :: ndf_w2, undf_w2
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: stencil_map_w2(:,:,:)
+
+    real(r_def), allocatable :: u(:), dx_at_w2(:)
+    real(r_def), allocatable :: u_inc(:)
+
+    nlayers = 3
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_w2, map_w2)
+
+    ! Compute coordinates
+    allocate(dx_at_w2(undf_w2))
+    icell = 1
+    do j = 1,3
+      do i = 1,3
+        dx_at_w2(map_w2(1,icell):map_w2(1,icell)+2) = dx
+        dx_at_w2(map_w2(2,icell):map_w2(2,icell)+2) = dy
+        dx_at_w2(map_w2(3,icell):map_w2(3,icell)+2) = dx
+        dx_at_w2(map_w2(4,icell):map_w2(4,icell)+2) = dy
+        dx_at_w2(map_w2(5,icell):map_w2(5,icell)+2) = dz
+        dx_at_w2(map_w2(6,icell):map_w2(6,icell)+2) = dz
+        icell = icell+1
+      end do
+    end do
+
+    ! Create the data
+    allocate(u(undf_w2))
+    u(:) = 12.0_r_def
+    allocate(u_inc(undf_w2))
+    u_inc(:) = 0.0_r_def
+
+    cell = 5
+    call momentum_viscosity_code( &
+                                 nlayers, &
+                                 u_inc, &
+                                 u, &
+                                 5, stencil_map_w2(:,:,cell), &
+                                 dx_at_w2, &
+                                 5, stencil_map_w2(:,:,cell), &
+                                 viscosity_mu, &
+                                 ndf_w2, undf_w2, &
+                                 map_w2(:,cell) &
+                                )
+
+    answer = 0.0_r_def
+    do df = 1, ndf_w2
+      @assertEqual(answer, u_inc(map_w2(df,cell) ), tol)
+    end do
+
+    deallocate(u)
+    deallocate(u_inc)
+    deallocate(map_w2)
+    deallocate(stencil_map_w2)
+    deallocate(dx_at_w2)
+
+  end subroutine test_all
+
+end module momentum_viscosity_kernel_mod_test

@@ -1,0 +1,55 @@
+<file_definition>
+	
+  <!-- Diagnostic output file for jedi_lfric_tests and linear_model application runs -->
+  <file id="ls_and_jedi_trajectory" name="ls_and_jedi_trajectory" output_freq="1h" time_counter_name="time" time_counter="exclusive" split_freq="7h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="1h" prec="4">
+      <field field_ref="aerosol__cloud_drop_no_conc" />
+      <field field_ref="aerosol__acc_ins_du" />
+      <field field_ref="aerosol__cor_ins_du" />
+      <field field_ref="aerosol__n_acc_ins" />
+      <field field_ref="aerosol__n_cor_ins" />
+      <field field_ref="cloud__bulk_fraction" />
+      <field field_ref="cloud__cloud_amount_maxrnd" />
+      <field field_ref="cloud__cloud_base_altitude" />
+      <field field_ref="cloud__frozen_fraction" />
+      <field field_ref="cloud__liquid_fraction" />
+      <field field_ref="cloud__low_cloud_base_altitude" />
+      <field field_ref="cloud__low_type_cloud_amount" />
+      <field field_ref="cloud__medium_type_cloud_amount" />
+      <field field_ref="convection__dth_conv_noshal" />
+      <field field_ref="convection__dmv_conv_noshal" />
+      <field field_ref="convection__massflux_up_cmpta" />
+      <field field_ref="exner" />
+      <field field_ref="exner_in_wth" />
+      <field field_ref="height_w3" />
+      <field field_ref="height_wth" />
+      <field field_ref="m_s" />
+      <field field_ref="m_cl" />
+      <field field_ref="m_r" />
+      <field field_ref="m_v" />
+      <field field_ref="orography" />
+      <field field_ref="processed__pmsl" />
+      <field field_ref="processed__pstar" />
+      <field field_ref="processed__pressure_in_w3" />
+      <field field_ref="processed__pressure_in_wth" />
+      <field field_ref="rho" />
+      <field field_ref="surface__grid_surface_temperature" />
+      <field field_ref="surface__rh1p5m" />
+      <field field_ref="surface__sea_ice_fraction" />
+      <field field_ref="surface__t1p5m" />
+      <field field_ref="surface__tile_fraction" />
+      <field field_ref="surface__land_fraction" />
+      <field field_ref="surface__u10m" />
+      <field field_ref="surface__ustar" />
+      <field field_ref="surface__v10m" />
+      <field field_ref="surface__visibility_no_precip" />
+      <field field_ref="theta" />
+      <field field_ref="turbulence__oblen" />
+      <field field_ref="turbulence__zh" />
+      <field field_ref="u_in_w3" />
+      <field field_ref="v_in_w3" />
+      <field field_ref="w_in_wth" />
+    </field_group>
+  </file>
+
+</file_definition>

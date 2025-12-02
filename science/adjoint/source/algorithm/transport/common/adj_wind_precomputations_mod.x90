@@ -1,0 +1,126 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Adjoint of the wind precomputation object routines
+module adj_wind_precomputations_alg_mod
+
+  use adj_split_w2_field_kernel_mod,  only : adj_split_w2_field_kernel_type
+  use constants_mod,                  only : i_def, r_tran
+  use integer_field_mod,              only : integer_field_type
+  use log_mod,                        only : log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                       only : mesh_type
+  use mesh_collection_mod,            only : mesh_collection
+  use r_tran_field_mod,               only : r_tran_field_type
+  use sci_geometric_constants_mod,    only : get_face_selector_ew,              &
+                                             get_face_selector_ns
+  use split_transport_utils_mod,      only : use_shifted_mesh
+  use transport_enumerated_types_mod, only : direction_h,                       &
+                                             direction_v,                       &
+                                             direction_3d
+  use wind_precomputations_alg_mod,   only : wind_precomputations_type
+
+  implicit none
+
+  private
+
+  public :: adj_wind_precomputations_initialiser
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint of wind precomputations initialisation routine
+  !> @param[in,out] wind_pc  The wind precomputations object
+  !> @param[in,out] transporting_wind  The 3D transporting wind field
+  !> @param[in,out] wind_n             Optional, wind field at start of current time
+  !!                                   step, used for computing departure points
+  !> @param[in,out] wind_np1           Optional, latest estimate of wind field at
+  !!                                   end of current time step, used for computing
+  !!                                   departure points
+  subroutine adj_wind_precomputations_initialiser( wind_pc,           &
+                                                   transporting_wind, &
+                                                   wind_n,            &
+                                                   wind_np1 )
+
+    implicit none
+
+    ! Arguments
+    class(wind_precomputations_type),  intent(inout) :: wind_pc
+    type(r_tran_field_type),           intent(inout) :: transporting_wind
+    type(r_tran_field_type), optional, intent(inout) :: wind_n
+    type(r_tran_field_type), optional, intent(inout) :: wind_np1
+
+    ! Internal variables
+    type(mesh_type),                         pointer :: mesh
+    integer(kind=i_def)                              :: i
+    integer(kind=i_def)                              :: num_meshes
+    integer(kind=i_def)                              :: mesh_id
+    type(r_tran_field_type),                 pointer :: wind_pc_n
+    type(r_tran_field_type),                 pointer :: wind_pc_np1
+    type(r_tran_field_type),                 pointer :: wind_pc_h
+    type(r_tran_field_type),                 pointer :: wind_pc_v
+    type(r_tran_field_type),                 pointer :: wind_pc_3d
+    type(integer_field_type),                pointer :: face_selector_ew
+    type(integer_field_type),                pointer :: face_selector_ns
+
+    ! ------------------------------------------------------------------------ !
+    ! Set mesh IDs and indices
+    ! ------------------------------------------------------------------------ !
+
+    if (use_shifted_mesh()) then
+      call log_event("adj_wind_pc_init: shifted mesh computations not yet implemented.", LOG_LEVEL_ERROR)
+
+    else
+      num_meshes = 1
+
+    end if
+
+    ! Store end-of-time step wind (if provided, otherwise use 3D wind)
+    mesh_id = wind_pc%get_mesh_id_from_idx(1_i_def)
+    wind_pc_np1 => wind_pc%get_wind_npdt( mesh_id, 1_i_def )
+    if (present(wind_np1)) then
+      call invoke( inc_X_plus_Y( wind_np1, wind_pc_np1 ), &
+                   setval_c( wind_pc_np1, 0.0_r_tran ) )
+    else
+      wind_pc_3d => wind_pc%get_wind( mesh_id, direction_3d )
+      call invoke( inc_X_plus_Y( wind_pc_3d, wind_pc_np1 ), &
+                   setval_c( wind_pc_np1, 0.0_r_tran ) )
+    end if
+
+    ! Store start-of-time step wind (if provided, otherwise use 3D wind)
+    wind_pc_n => wind_pc%get_wind_npdt( mesh_id, 0_i_def )
+    if (present(wind_n)) then
+      call invoke( inc_X_plus_Y( wind_n, wind_pc_n ), &
+                   setval_c( wind_pc_n, 0.0_r_tran ) )
+    else
+      wind_pc_3d => wind_pc%get_wind( mesh_id, direction_3d )
+      call invoke( inc_X_plus_Y( wind_pc_3d, wind_pc_n ), &
+                   setval_c( wind_pc_n, 0.0_r_tran ) )
+    end if
+
+    ! Split the wind into horizontal and vertical components
+    do i = num_meshes, 1, -1
+      mesh_id = wind_pc%get_mesh_id_from_idx(i)
+      mesh => mesh_collection%get_mesh(mesh_id)
+      face_selector_ew => get_face_selector_ew(mesh_id)
+      face_selector_ns => get_face_selector_ns(mesh_id)
+
+      wind_pc_h => wind_pc%get_wind( mesh_id, direction_h )
+      wind_pc_v => wind_pc%get_wind( mesh_id, direction_v )
+      wind_pc_3d => wind_pc%get_wind( mesh_id, direction_3d )
+      call invoke( adj_split_w2_field_kernel_type( wind_pc_h,                       &
+                                                   wind_pc_v,                       &
+                                                   wind_pc_3d,                      &
+                                                   face_selector_ew,                &
+                                                   face_selector_ns ) )
+    end do
+
+    mesh_id = wind_pc%get_mesh_id_from_idx(1_i_def)
+    wind_pc_3d => wind_pc%get_wind( mesh_id, direction_3d )
+    call invoke( inc_X_plus_Y( transporting_wind, wind_pc_3d ), &
+                 setval_c( wind_pc_3d, 0.0_r_tran ) )
+
+  end subroutine adj_wind_precomputations_initialiser
+
+end module adj_wind_precomputations_alg_mod

@@ -1,0 +1,75 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/populate_graph_scripts.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# Define the graph for any script tasks #}
+
+{# Set export source task #}
+{% set export_task = "export-source => export-source_"~site_vars["scripts_platform"] %}
+{% if "export-source" not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source": {} }) %}
+{% endif %}
+{% if "export-source_"~site_vars["scripts_platform"] not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source_"~site_vars["scripts_platform"]: {} }) %}
+{% endif %}
+
+{% if "extract_checker" in task %}
+
+    {# For the extract checker need to make sure an lfric_atm #}
+    {# intel, fast-debug, 64 bit build will occur #}
+    {% set lfric_atm = namespace(build_task="") %}
+    {% for t in expanded_task_list %}
+        {% if not lfric_atm.build_task %}
+            {% if "lfric_atm" in t and
+                  site_vars["scripts_platform"] in t and
+                  "intel" in t and
+                  "fast-debug" in t and
+                  "64bit" in t %}
+                {% set lfric_atm.build_task = "build_lfric_atm_"~
+                                              site_vars["scripts_platform"]~
+                                              "_intel_fast-debug-64bit" %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% if lfric_atm.build_task %}
+        {% do graph_sections.append([
+            lfric_atm.build_task,
+            task
+            ]) %}
+        {% set task_values = requested_tasks[task] %}
+        {% if task not in tasks_to_run %}
+            {% do tasks_to_run.update({task: task_values}) %}
+        {% endif %}
+    {% endif %}
+
+{% else %}
+    {# All other scripts have the same simple graph. These are: #}
+    {# * config_dump_checker #}
+    {# * style_checker #}
+    {# * site_validator #}
+    {# * rose-stem_lint_checker #}
+    {# * validate_rose_meta #}
+    {# * global_variables_checker #}
+    {# * python_unit_tests #}
+    {# * local_build_test #}
+    {# * test_launch-exe #}
+    {# * macro_chains_checker #}
+
+    {% do graph_sections.append([
+        export_task,
+        task
+        ]) %}
+
+    {% set task_values = requested_tasks[task] %}
+    {% if task not in tasks_to_run %}
+        {% do tasks_to_run.update({task: task_values}) %}
+    {% endif %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in templates/graph/populate_graph_scripts.cylc") %}

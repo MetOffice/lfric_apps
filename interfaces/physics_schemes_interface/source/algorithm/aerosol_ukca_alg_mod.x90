@@ -1,0 +1,1663 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the UKCA GLOMAP-mode aerosol scheme
+
+module aerosol_ukca_alg_mod
+
+  use mesh_mod, only: mesh_type
+  use model_clock_mod, only: model_clock_type
+
+  implicit none
+
+  private
+  public aerosol_ukca_alg
+
+contains
+
+  !>@brief Runs the UKCA GLOMAP-mode aerosol scheme
+  !>@details The UKCA GLOMAP-mode aerosol scheme is run with aerosol pre-cursor
+  !>         species provided by UKCA's Offline Oxidants chemistry scheme
+  !>         to calculate cloud droplet number concentration (CDNC) and the
+  !>         aerosol fields required by RADAER
+  !>@param[in] chemistry_fields      Fields for UKCA chemistry schemes
+  !>@param[in] aerosol_fields        Fields for GLOMAP aerosol scheme
+  !>@param[in] radiation_fields      Fields for radiation scheme
+  !>@param[in] derived_fields        Fields derived from the state
+  !>@param[in] microphysics_fields   Fields for microphysics scheme
+  !>@param[in] turbulence_fields     Fields for turbulence scheme
+  !>@param[in] convection_fields     Fields for convection scheme
+  !>@param[in] cloud_fields          Fields for cloud scheme
+  !>@param[in] surface_fields        Fields for surface scheme
+  !>@param[in] soil_fields           Fields for soil hydrology scheme
+  !>@param[in] state                 Dynamics state
+  !>@param[in] mr                    Mixing ratios
+  !>@param[in] model_clock           Time in model
+
+  subroutine aerosol_ukca_alg( chemistry_fields,                               &
+                               aerosol_fields,                                 &
+                               radiation_fields,                               &
+                               derived_fields,                                 &
+                               microphysics_fields,                            &
+                               turbulence_fields,                              &
+                               convection_fields,                              &
+                               cloud_fields,                                   &
+                               surface_fields,                                 &
+                               soil_fields,                                    &
+                               state,                                          &
+                               mr,                                             &
+                               model_clock )
+
+    use field_mod,                     only: field_type
+    use integer_field_mod,             only: integer_field_type
+    use field_collection_mod,          only: field_collection_type
+    use fs_continuity_mod,             only: W3, Wtheta
+    use function_space_collection_mod, only: function_space_collection
+    use function_space_mod,            only: function_space_type
+    use multidata_field_dimensions_mod, only :                                 &
+        get_ndata_val => get_multidata_field_dimension
+    use mesh_collection_mod,           only: mesh_collection
+    use extrusion_mod,                 only: SHIFTED
+    use field_indices_mod,             only: igh_t, igh_p
+    use mr_indices_mod,                only: imr_v, imr_cl, imr_ci, imr_s
+    use constants_mod,                 only: i_def, l_def
+    use sci_geometric_constants_mod,   only: get_latitude_fv,                  &
+                                             get_longitude_fv,                 &
+                                             get_height_fv, get_da_msl_proj,   &
+                                             get_detj_at_w3_fv
+    use physics_constants_mod,         only: get_rdz_w3
+    use aerosol_ukca_kernel_mod,       only: aerosol_ukca_kernel_type
+
+    use io_config_mod,                 only: subroutine_timers, use_xios_io,   &
+                                             write_diag
+    use xios,                          only: xios_date, xios_get_current_date, &
+                                             xios_date_get_day_of_year
+    use timer_mod,                     only: timer
+    use log_mod,                       only: log_event, LOG_LEVEL_DEBUG
+
+    use chemistry_config_mod,          only: chem_scheme,                      &
+                                             chem_scheme_strattrop,            &
+                                             chem_scheme_strat_test,           &
+                                             chem_timestep,                    &
+                                             photol_scheme, photol_scheme_off, &
+                                             photol_scheme_prescribed,         &
+                                             photol_scheme_fastjx    
+
+    use sci_field_minmax_alg_mod,      only: log_field_minmax
+    use microphysics_config_mod,       only: microphysics_casim
+    use ukca_scalar_gas_init_mod,      only: atmospheric_ccl4,                 &
+                                             atmospheric_cfc113,               &
+                                             atmospheric_cfc114,               &
+                                             atmospheric_cfc115,               &
+                                             atmospheric_cfc11,                &
+                                             atmospheric_cfc12,                &
+                                             atmospheric_ch2br2,               &
+                                             atmospheric_chbr3,                &
+                                             atmospheric_ch4,                  &
+                                             atmospheric_co2,                  &
+                                             atmospheric_csul,                 &
+                                             atmospheric_h1202,                &
+                                             atmospheric_h1211,                &
+                                             atmospheric_h1301,                &
+                                             atmospheric_h2,                   &
+                                             atmospheric_h2402,                &
+                                             atmospheric_hfc125,               &
+                                             atmospheric_hfc134a,              &
+                                             atmospheric_hcfc141b,             &
+                                             atmospheric_hcfc142b,             &
+                                             atmospheric_hcfc22,               &
+                                             atmospheric_mebr,                 &
+                                             atmospheric_meccl3,               &
+                                             atmospheric_mecl,                 &
+                                             atmospheric_n2,                   &
+                                             atmospheric_n2o,                  &
+                                             atmospheric_o2
+
+    use um_sizes_init_mod,             only: um_sizes_init
+    use um_ukca_init_mod,              only: n_phot_spc, ratj_varnames
+    use ukca_photol_param_mod,         only: jppj, jrate_fac, jp_names
+  
+    use pseudo_photol_kernel_mod,      only: pseudo_photol_kernel_type
+    use map_pseudophotol_kernel_mod,   only: map_pseudophotol_kernel_type
+    use calc_albedo_kernel_mod,        only: calc_albedo_kernel_type
+    use photol_kernel_mod,             only: photol_kernel_type
+    use msat_kernel_mod,               only: msat_kernel_type
+    use photol_diags_kernel_mod,       only: photol_diags_kernel_type
+
+    implicit none
+
+    ! -- Arguments --
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: radiation_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(in) :: convection_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_collection_type ), intent(in) :: surface_fields
+    type( field_collection_type ), intent(in) :: soil_fields
+    type( field_collection_type ), intent(in) :: chemistry_fields
+    type( field_collection_type ), intent(in) :: aerosol_fields
+    type( field_type ), intent(in) :: state(:)
+    type( field_type ), intent(in) :: mr(:)
+    class(model_clock_type), intent(in) :: model_clock
+
+    ! -- Local variables --
+
+    ! Temporary unpacked fields from collections
+
+    type( mesh_type ),  pointer :: mesh
+    type( mesh_type ),  pointer :: shifted_mesh
+    type( function_space_type ), pointer :: vector_space
+
+    type( field_type ), pointer :: latitude_w3
+    type( field_type ), pointer :: longitude_w3
+    type( field_type ), pointer :: height_w3
+    type( field_type ), pointer :: height_wth
+    type( field_type ), pointer :: rdz_w3
+    type( field_type ), pointer :: cell_area
+    type( field_type ), pointer :: detj_shifted
+
+    ! Radiation fields
+    type( field_type ), pointer :: sin_stellar_declination_rts
+    type( field_type ), pointer :: stellar_eqn_of_time_rts
+
+    type( field_type ), pointer :: sw_up_tile
+    type( field_type ), pointer :: sw_down_surf
+  
+    ! Microphysics fields
+    type( field_type ), pointer :: ls_rain_3d
+    type( field_type ), pointer :: ls_snow_3d
+    type( field_type ), pointer :: autoconv
+    type( field_type ), pointer :: accretion
+    type( field_type ), pointer :: rim_cry
+    type( field_type ), pointer :: rim_agg
+
+    ! Turbulence fields
+    type( field_type ), pointer :: tke_bl
+    type( field_type ), pointer :: zh
+    type( field_type ), pointer :: rhokh_bl
+    type( field_type ), pointer :: dtrdz_tq_bl
+    type( field_type ), pointer :: zhsc
+    type( integer_field_type ), pointer :: level_ent
+    type( integer_field_type ), pointer :: level_ent_dsc
+    type( field_type ), pointer :: ent_we_lim
+    type( field_type ), pointer :: ent_t_frac
+    type( field_type ), pointer :: ent_zrzi
+    type( field_type ), pointer :: ent_we_lim_dsc
+    type( field_type ), pointer :: ent_t_frac_dsc
+    type( field_type ), pointer :: ent_zrzi_dsc
+
+    ! Convection fields
+    type( field_type ), pointer :: conv_rain_3d
+    type( field_type ), pointer :: conv_snow_3d
+    type( field_type ), pointer :: cv_base
+    type( field_type ), pointer :: cv_top
+    type( field_type ), pointer :: cca
+
+    ! Cloud fields
+    type( field_type ), pointer :: bulk_fraction
+    type( field_type ), pointer :: liquid_fraction
+    type( field_type ), pointer :: area_fraction
+
+    ! Surface fields
+    type( field_type ), pointer :: tile_fraction
+    type( field_type ), pointer :: tile_temperature
+    type( field_type ), pointer :: tile_heat_flux
+    type( field_type ), pointer :: gc_tile
+    type( field_type ), pointer :: leaf_area_index
+    type( field_type ), pointer :: canopy_height
+    type( field_type ), pointer :: z0m
+    type( field_type ), pointer :: ustar
+    type( field_type ), pointer :: wspd10m
+    type( field_type ), pointer :: chloro_sea
+    type( field_type ), pointer :: urbztm
+
+    ! Soil fields
+    type( field_type ), pointer :: soil_moisture
+    type( field_type ), pointer :: soil_roughness
+
+    ! Chemistry fields
+    type( field_type ), pointer :: o3p
+    type( field_type ), pointer :: o1d
+    type( field_type ), pointer :: o3
+    type( field_type ), pointer :: n
+    type( field_type ), pointer :: no
+    type( field_type ), pointer :: no3
+    type( field_type ), pointer :: lumped_n
+    type( field_type ), pointer :: no2
+    type( field_type ), pointer :: n2o5
+    type( field_type ), pointer :: ho2no2
+    type( field_type ), pointer :: hono2
+    type( field_type ), pointer :: h2o2
+    type( field_type ), pointer :: ch4
+    type( field_type ), pointer :: co
+    type( field_type ), pointer :: hcho
+    type( field_type ), pointer :: meoo
+    type( field_type ), pointer :: meooh
+    type( field_type ), pointer :: h
+    type( field_type ), pointer :: oh
+    type( field_type ), pointer :: ho2
+    type( field_type ), pointer :: cl
+    type( field_type ), pointer :: cl2o2
+    type( field_type ), pointer :: clo
+    type( field_type ), pointer :: oclo
+    type( field_type ), pointer :: br
+    type( field_type ), pointer :: lumped_br
+    type( field_type ), pointer :: bro
+    type( field_type ), pointer :: brcl
+    type( field_type ), pointer :: brono2
+    type( field_type ), pointer :: n2o
+    type( field_type ), pointer :: lumped_cl
+    type( field_type ), pointer :: hcl
+    type( field_type ), pointer :: hocl
+    type( field_type ), pointer :: hbr
+    type( field_type ), pointer :: hobr
+    type( field_type ), pointer :: clono2
+    type( field_type ), pointer :: cfcl3
+    type( field_type ), pointer :: cf2cl2
+    type( field_type ), pointer :: mebr
+    type( field_type ), pointer :: hono
+    type( field_type ), pointer :: c2h6
+    type( field_type ), pointer :: etoo
+    type( field_type ), pointer :: etooh
+    type( field_type ), pointer :: mecho
+    type( field_type ), pointer :: meco3
+    type( field_type ), pointer :: pan
+    type( field_type ), pointer :: c3h8
+    type( field_type ), pointer :: n_proo
+    type( field_type ), pointer :: i_proo
+    type( field_type ), pointer :: n_prooh
+    type( field_type ), pointer :: i_prooh
+    type( field_type ), pointer :: etcho
+    type( field_type ), pointer :: etco3
+    type( field_type ), pointer :: me2co
+    type( field_type ), pointer :: mecoch2oo
+    type( field_type ), pointer :: mecoch2ooh
+    type( field_type ), pointer :: ppan
+    type( field_type ), pointer :: meono2
+    type( field_type ), pointer :: c5h8
+    type( field_type ), pointer :: iso2
+    type( field_type ), pointer :: isooh
+    type( field_type ), pointer :: ison
+    type( field_type ), pointer :: macr
+    type( field_type ), pointer :: macro2
+    type( field_type ), pointer :: macrooh
+    type( field_type ), pointer :: mpan
+    type( field_type ), pointer :: hacet
+    type( field_type ), pointer :: mgly
+    type( field_type ), pointer :: nald
+    type( field_type ), pointer :: hcooh
+    type( field_type ), pointer :: meco3h
+    type( field_type ), pointer :: meco2h
+    type( field_type ), pointer :: h2
+    type( field_type ), pointer :: meoh
+    type( field_type ), pointer :: msa
+    type( field_type ), pointer :: nh3
+    type( field_type ), pointer :: cs2
+    type( field_type ), pointer :: csul
+    type( field_type ), pointer :: h2s
+    type( field_type ), pointer :: so3
+    type( field_type ), pointer :: passive_o3
+    type( field_type ), pointer :: age_of_air
+
+    ! Aerochem fields
+    type( field_type ), pointer :: h2o2_limit
+    type( field_type ), pointer :: dms
+    type( field_type ), pointer :: so2
+    type( field_type ), pointer :: h2so4
+    type( field_type ), pointer :: dmso
+    type( field_type ), pointer :: monoterpene
+    type( field_type ), pointer :: secondary_organic
+
+    ! Aerosol fields
+    type( field_type ), pointer :: n_nuc_sol
+    type( field_type ), pointer :: nuc_sol_su
+    type( field_type ), pointer :: nuc_sol_om
+    type( field_type ), pointer :: n_ait_sol
+    type( field_type ), pointer :: ait_sol_su
+    type( field_type ), pointer :: ait_sol_bc
+    type( field_type ), pointer :: ait_sol_om
+    type( field_type ), pointer :: n_acc_sol
+    type( field_type ), pointer :: acc_sol_su
+    type( field_type ), pointer :: acc_sol_bc
+    type( field_type ), pointer :: acc_sol_om
+    type( field_type ), pointer :: acc_sol_ss
+    type( field_type ), pointer :: n_cor_sol
+    type( field_type ), pointer :: cor_sol_su
+    type( field_type ), pointer :: cor_sol_bc
+    type( field_type ), pointer :: cor_sol_om
+    type( field_type ), pointer :: cor_sol_ss
+    type( field_type ), pointer :: n_ait_ins
+    type( field_type ), pointer :: ait_ins_bc
+    type( field_type ), pointer :: ait_ins_om
+    type( field_type ), pointer :: n_acc_ins
+    type( field_type ), pointer :: acc_ins_du
+    type( field_type ), pointer :: n_cor_ins
+    type( field_type ), pointer :: cor_ins_du
+    type( field_type ), pointer :: cloud_drop_no_conc
+    type( field_type ), pointer :: drydp_ait_sol
+    type( field_type ), pointer :: drydp_acc_sol
+    type( field_type ), pointer :: drydp_cor_sol
+    type( field_type ), pointer :: drydp_ait_ins
+    type( field_type ), pointer :: drydp_acc_ins
+    type( field_type ), pointer :: drydp_cor_ins
+    type( field_type ), pointer :: wetdp_ait_sol
+    type( field_type ), pointer :: wetdp_acc_sol
+    type( field_type ), pointer :: wetdp_cor_sol
+    type( field_type ), pointer :: rhopar_ait_sol
+    type( field_type ), pointer :: rhopar_acc_sol
+    type( field_type ), pointer :: rhopar_cor_sol
+    type( field_type ), pointer :: rhopar_ait_ins
+    type( field_type ), pointer :: rhopar_acc_ins
+    type( field_type ), pointer :: rhopar_cor_ins
+    type( field_type ), pointer :: pvol_wat_ait_sol
+    type( field_type ), pointer :: pvol_wat_acc_sol
+    type( field_type ), pointer :: pvol_wat_cor_sol
+    type( field_type ), pointer :: pvol_su_ait_sol
+    type( field_type ), pointer :: pvol_bc_ait_sol
+    type( field_type ), pointer :: pvol_om_ait_sol
+    type( field_type ), pointer :: pvol_su_acc_sol
+    type( field_type ), pointer :: pvol_bc_acc_sol
+    type( field_type ), pointer :: pvol_om_acc_sol
+    type( field_type ), pointer :: pvol_ss_acc_sol
+    type( field_type ), pointer :: pvol_su_cor_sol
+    type( field_type ), pointer :: pvol_bc_cor_sol
+    type( field_type ), pointer :: pvol_om_cor_sol
+    type( field_type ), pointer :: pvol_ss_cor_sol
+    type( field_type ), pointer :: pvol_bc_ait_ins
+    type( field_type ), pointer :: pvol_om_ait_ins
+    type( field_type ), pointer :: pvol_du_acc_ins
+    type( field_type ), pointer :: pvol_du_cor_ins
+
+    type( field_type ), pointer :: dms_conc_ocean
+    type( field_type ), pointer :: surf_wetness
+
+    ! Chemistry emissions
+    type( field_type ), pointer :: emiss_c2h6
+    type( field_type ), pointer :: emiss_c3h8
+    type( field_type ), pointer :: emiss_c5h8
+    type( field_type ), pointer :: emiss_ch4
+    type( field_type ), pointer :: emiss_co
+    type( field_type ), pointer :: emiss_hcho
+    type( field_type ), pointer :: emiss_me2co
+    type( field_type ), pointer :: emiss_mecho
+    type( field_type ), pointer :: emiss_meoh
+    type( field_type ), pointer :: emiss_nh3
+    type( field_type ), pointer :: emiss_no
+    type( field_type ), pointer :: emiss_no_aircrft
+
+    ! Aerosol emissions
+    type( field_type ), pointer :: dust_flux
+    type( field_type ), pointer :: emiss_bc_biofuel
+    type( field_type ), pointer :: emiss_bc_biomass_high
+    type( field_type ), pointer :: emiss_bc_biomass_low
+    type( field_type ), pointer :: emiss_bc_fossil
+    type( field_type ), pointer :: emiss_dms_land
+    type( field_type ), pointer :: emiss_monoterp
+    type( field_type ), pointer :: emiss_om_biofuel
+    type( field_type ), pointer :: emiss_om_biomass_high
+    type( field_type ), pointer :: emiss_om_biomass_low
+    type( field_type ), pointer :: emiss_om_fossil
+    type( field_type ), pointer :: emiss_so2_high
+    type( field_type ), pointer :: emiss_so2_low
+    type( field_type ), pointer :: emiss_bc_biomass
+    type( field_type ), pointer :: emiss_om_biomass
+    type( field_type ), pointer :: emiss_so2_nat
+
+    ! Fields used only in photolysis, but currently listed as
+    ! 'required' environment fields in UKCA when chem_scheme=strattrop
+    type( field_type ) :: conv_cloud_lwp
+    type( field_type ) :: surf_albedo
+
+    ! For relative humidity calculation
+    type( field_type ) :: msat
+    type( field_type ) :: rel_humid_frac
+    ! Calculate humidity for only water where temp < 0.0
+    logical(l_def), parameter :: water_only = .true.
+
+    ! Photolysis rates array and sample output fields
+    type( field_type ) :: photol_rates
+    type( field_type ) :: photol_rate_jo1d
+    type( field_type ) :: photol_rate_jno2
+    type( field_type ) :: photol_rate_profile
+
+    ! Other Photolysis driving fields - pre-set currently
+    type( field_type ) :: sulp_accum
+    type( field_type ) :: sulp_aitken
+    type( field_type ) :: aod_sulp_accum
+    type( field_type ) :: aod_sulp_aitken
+    
+    ! Photolysis rates from Socrates - expected to be linked with
+    ! photolysis_rates_rts field, which is currently a diagnostic
+    type( field_type ) :: photol_rates_rts_jo2
+    type( field_type ) :: photol_rates_rts_jo2b
+
+    ! Derived fields (to be derived from current state after modification
+    ! during the timestep)
+    type( field_type ), pointer :: exner_in_wth ! Exner pressure in Wtheta
+    type( field_type ), pointer :: w_in_wth     ! Vertical component of winds
+    type( field_type ), pointer :: wetrho_in_w3 ! Wet density in W3
+    type( field_type ), pointer :: wetrho_in_wth ! Wet density in WTHETA
+
+
+    ! Time variables
+    ! Note: Time at previous step is not required by UKCA on the first time
+    ! step (at least for GA) and is initialised to an arbitrary value
+    integer(i_def) :: current_time_year
+    integer(i_def) :: current_time_month
+    integer(i_def) :: current_time_day
+    integer(i_def) :: current_time_hour
+    integer(i_def) :: current_time_minute
+    integer(i_def) :: current_time_second
+    integer(i_def) :: current_time_daynum
+    integer(i_def), save :: previous_time_year = 0
+    integer(i_def), save :: previous_time_month = 0
+    integer(i_def), save :: previous_time_day = 0
+    integer(i_def), save :: previous_time_hour = 0
+    integer(i_def), save :: previous_time_minute = 0
+    integer(i_def), save :: previous_time_second = 0
+    integer(i_def), save :: previous_time_daynum = 0
+    type( xios_date ) :: datetime
+
+    integer( kind=i_def ) :: ncells
+    integer( kind=i_def)  :: jp1, jp2  ! Indices for photolysis fields
+
+    type( field_type ) :: mr_ice
+
+    if ( subroutine_timers ) call timer('aerosol_ukca_alg')
+
+    call log_event( 'Running UKCA aerosol', LOG_LEVEL_DEBUG )
+
+    ! Nullify pointers declared above
+    nullify(mesh)
+    nullify(shifted_mesh)
+    nullify(vector_space)
+    nullify(latitude_w3)
+    nullify(longitude_w3)
+    nullify(height_w3)
+    nullify(height_wth)
+    nullify(rdz_w3)
+    nullify(cell_area)
+    nullify(detj_shifted)
+    nullify(sin_stellar_declination_rts)
+    nullify(stellar_eqn_of_time_rts)
+    nullify(sw_up_tile)
+    nullify(sw_down_surf)
+    nullify(ls_rain_3d)
+    nullify(ls_snow_3d)
+    nullify(autoconv)
+    nullify(accretion)
+    nullify(rim_cry)
+    nullify(rim_agg)
+    nullify(tke_bl)
+    nullify(zh)
+    nullify(rhokh_bl)
+    nullify(dtrdz_tq_bl)
+    nullify(zhsc)
+    nullify(level_ent)
+    nullify(level_ent_dsc)
+    nullify(ent_we_lim)
+    nullify(ent_t_frac)
+    nullify(ent_zrzi)
+    nullify(ent_we_lim_dsc)
+    nullify(ent_t_frac_dsc)
+    nullify(ent_zrzi_dsc)
+    nullify(conv_rain_3d)
+    nullify(conv_snow_3d)
+    nullify(cv_base)
+    nullify(cv_top)
+    nullify(cca)
+    nullify(bulk_fraction)
+    nullify(liquid_fraction)
+    nullify(area_fraction)
+    nullify(tile_fraction)
+    nullify(tile_temperature)
+    nullify(tile_heat_flux)
+    nullify(gc_tile)
+    nullify(leaf_area_index)
+    nullify(canopy_height)
+    nullify(z0m)
+    nullify(ustar)
+    nullify(wspd10m)
+    nullify(chloro_sea)
+    nullify(urbztm)
+    nullify(soil_moisture)
+    nullify(soil_roughness)
+    nullify(o3p)
+    nullify(o1d)
+    nullify(o3)
+    nullify(n)
+    nullify(no)
+    nullify(no3)
+    nullify(lumped_n)
+    nullify(no2)
+    nullify(n2o5)
+    nullify(ho2no2)
+    nullify(hono2)
+    nullify(h2o2)
+    nullify(ch4)
+    nullify(co)
+    nullify(hcho)
+    nullify(meoo)
+    nullify(meooh)
+    nullify(h)
+    nullify(oh)
+    nullify(ho2)
+    nullify(cl)
+    nullify(cl2o2)
+    nullify(clo)
+    nullify(oclo)
+    nullify(br)
+    nullify(lumped_br)
+    nullify(bro)
+    nullify(brcl)
+    nullify(brono2)
+    nullify(n2o)
+    nullify(lumped_cl)
+    nullify(hcl)
+    nullify(hocl)
+    nullify(hbr)
+    nullify(hobr)
+    nullify(clono2)
+    nullify(cfcl3)
+    nullify(cf2cl2)
+    nullify(mebr)
+    nullify(hono)
+    nullify(c2h6)
+    nullify(etoo)
+    nullify(etooh)
+    nullify(mecho)
+    nullify(meco3)
+    nullify(pan)
+    nullify(c3h8)
+    nullify(n_proo)
+    nullify(i_proo)
+    nullify(n_prooh)
+    nullify(i_prooh)
+    nullify(etcho)
+    nullify(etco3)
+    nullify(me2co)
+    nullify(mecoch2oo)
+    nullify(mecoch2ooh)
+    nullify(ppan)
+    nullify(meono2)
+    nullify(c5h8)
+    nullify(iso2)
+    nullify(isooh)
+    nullify(ison)
+    nullify(macr)
+    nullify(macro2)
+    nullify(macrooh)
+    nullify(mpan)
+    nullify(hacet)
+    nullify(mgly)
+    nullify(nald)
+    nullify(hcooh)
+    nullify(meco3h)
+    nullify(meco2h)
+    nullify(h2)
+    nullify(meoh)
+    nullify(msa)
+    nullify(nh3)
+    nullify(cs2)
+    nullify(csul)
+    nullify(h2s)
+    nullify(so3)
+    nullify(passive_o3)
+    nullify(age_of_air)
+    nullify(h2o2_limit)
+    nullify(dms)
+    nullify(so2)
+    nullify(h2so4)
+    nullify(dmso)
+    nullify(monoterpene)
+    nullify(secondary_organic)
+    nullify(n_nuc_sol)
+    nullify(nuc_sol_su)
+    nullify(nuc_sol_om)
+    nullify(n_ait_sol)
+    nullify(ait_sol_su)
+    nullify(ait_sol_bc)
+    nullify(ait_sol_om)
+    nullify(n_acc_sol)
+    nullify(acc_sol_su)
+    nullify(acc_sol_bc)
+    nullify(acc_sol_om)
+    nullify(acc_sol_ss)
+    nullify(n_cor_sol)
+    nullify(cor_sol_su)
+    nullify(cor_sol_bc)
+    nullify(cor_sol_om)
+    nullify(cor_sol_ss)
+    nullify(n_ait_ins)
+    nullify(ait_ins_bc)
+    nullify(ait_ins_om)
+    nullify(n_acc_ins)
+    nullify(acc_ins_du)
+    nullify(n_cor_ins)
+    nullify(cor_ins_du)
+    nullify(cloud_drop_no_conc)
+    nullify(drydp_ait_sol)
+    nullify(drydp_acc_sol)
+    nullify(drydp_cor_sol)
+    nullify(drydp_ait_ins)
+    nullify(drydp_acc_ins)
+    nullify(drydp_cor_ins)
+    nullify(wetdp_ait_sol)
+    nullify(wetdp_acc_sol)
+    nullify(wetdp_cor_sol)
+    nullify(rhopar_ait_sol)
+    nullify(rhopar_acc_sol)
+    nullify(rhopar_cor_sol)
+    nullify(rhopar_ait_ins)
+    nullify(rhopar_acc_ins)
+    nullify(rhopar_cor_ins)
+    nullify(pvol_wat_ait_sol)
+    nullify(pvol_wat_acc_sol)
+    nullify(pvol_wat_cor_sol)
+    nullify(pvol_su_ait_sol)
+    nullify(pvol_bc_ait_sol)
+    nullify(pvol_om_ait_sol)
+    nullify(pvol_su_acc_sol)
+    nullify(pvol_bc_acc_sol)
+    nullify(pvol_om_acc_sol)
+    nullify(pvol_ss_acc_sol)
+    nullify(pvol_su_cor_sol)
+    nullify(pvol_bc_cor_sol)
+    nullify(pvol_om_cor_sol)
+    nullify(pvol_ss_cor_sol)
+    nullify(pvol_bc_ait_ins)
+    nullify(pvol_om_ait_ins)
+    nullify(pvol_du_acc_ins)
+    nullify(pvol_du_cor_ins)
+    nullify(dms_conc_ocean)
+    nullify(surf_wetness)
+    nullify(emiss_c2h6)
+    nullify(emiss_c3h8)
+    nullify(emiss_c5h8)
+    nullify(emiss_ch4)
+    nullify(emiss_co)
+    nullify(emiss_hcho)
+    nullify(emiss_me2co)
+    nullify(emiss_mecho)
+    nullify(emiss_meoh)
+    nullify(emiss_nh3)
+    nullify(emiss_no)
+    nullify(emiss_no_aircrft)
+    nullify(dust_flux)
+    nullify(emiss_bc_biofuel)
+    nullify(emiss_bc_biomass_high)
+    nullify(emiss_bc_biomass_low)
+    nullify(emiss_bc_fossil)
+    nullify(emiss_dms_land)
+    nullify(emiss_monoterp)
+    nullify(emiss_om_biofuel)
+    nullify(emiss_om_biomass_high)
+    nullify(emiss_om_biomass_low)
+    nullify(emiss_om_fossil)
+    nullify(emiss_so2_high)
+    nullify(emiss_so2_low)
+    nullify(emiss_bc_biomass)
+    nullify(emiss_om_biomass)
+    nullify(emiss_so2_nat)
+
+    ! Set time variables for UKCA
+    call xios_get_current_date(datetime)
+    current_time_year = int( datetime%year, i_def )
+    current_time_month = int( datetime%month, i_def )
+    current_time_day = int( datetime%day, i_def )
+    current_time_hour = int( datetime%hour, i_def )
+    current_time_minute = int( datetime%minute, i_def )
+    current_time_second = int( datetime%second, i_def )
+    current_time_daynum = int( xios_date_get_day_of_year(datetime), i_def ) + 1
+
+    ! Get fields derived from current state
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('w_in_wth', w_in_wth)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+    call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+
+    ! Unpack other fields
+    call radiation_fields%get_field('sin_stellar_declination_rts',             &
+                                     sin_stellar_declination_rts)
+    call radiation_fields%get_field('stellar_eqn_of_time_rts',                 &
+                                     stellar_eqn_of_time_rts)
+    call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+    call radiation_fields%get_field('sw_down_surf', sw_down_surf)
+
+    call microphysics_fields%get_field('ls_rain_3d', ls_rain_3d)
+    call microphysics_fields%get_field('ls_snow_3d', ls_snow_3d)
+    call microphysics_fields%get_field('autoconv', autoconv)
+    call microphysics_fields%get_field('accretion', accretion)
+    call microphysics_fields%get_field('rim_cry', rim_cry)
+    call microphysics_fields%get_field('rim_agg', rim_agg)
+
+    call turbulence_fields%get_field('tke_bl', tke_bl)
+    call turbulence_fields%get_field('zh', zh)
+    call turbulence_fields%get_field('rhokh_bl', rhokh_bl)
+    call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
+    call turbulence_fields%get_field('zhsc', zhsc)
+    call turbulence_fields%get_field('level_ent', level_ent)
+    call turbulence_fields%get_field('level_ent_dsc', level_ent_dsc)
+    call turbulence_fields%get_field('ent_we_lim', ent_we_lim)
+    call turbulence_fields%get_field('ent_t_frac', ent_t_frac)
+    call turbulence_fields%get_field('ent_zrzi', ent_zrzi)
+    call turbulence_fields%get_field('ent_we_lim_dsc', ent_we_lim_dsc)
+    call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
+    call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
+
+    call convection_fields%get_field('conv_rain_3d', conv_rain_3d)
+    call convection_fields%get_field('conv_snow_3d', conv_snow_3d)
+    call convection_fields%get_field('cca', cca)
+    call convection_fields%get_field('cv_base', cv_base)
+    call convection_fields%get_field('cv_top', cv_top)
+
+    call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+    call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+    call cloud_fields%get_field('area_fraction', area_fraction)
+
+    call surface_fields%get_field('tile_fraction', tile_fraction)
+    call surface_fields%get_field('tile_temperature', tile_temperature)
+    call surface_fields%get_field('tile_heat_flux', tile_heat_flux)
+    call surface_fields%get_field('gc_tile', gc_tile)
+    call surface_fields%get_field('leaf_area_index', leaf_area_index)
+    call surface_fields%get_field('canopy_height', canopy_height)
+    call surface_fields%get_field('z0m', z0m)
+    call surface_fields%get_field('ustar', ustar)
+    call surface_fields%get_field('wspd10m', wspd10m)
+    call surface_fields%get_field('chloro_sea', chloro_sea)
+
+    call soil_fields%get_field('soil_moisture', soil_moisture)
+    call soil_fields%get_field('soil_roughness', soil_roughness)
+    call surface_fields%get_field('urbztm', urbztm)
+
+    ! Chemistry fields
+    call chemistry_fields%get_field('o3p',o3p)
+    call chemistry_fields%get_field('o1d',o1d)
+    call chemistry_fields%get_field('o3', o3)
+    call chemistry_fields%get_field('n',n)
+    call chemistry_fields%get_field('no',no)
+    call chemistry_fields%get_field('no3',no3)
+    call chemistry_fields%get_field('lumped_n',lumped_n)
+    call chemistry_fields%get_field('no2',no2)
+    call chemistry_fields%get_field('n2o5',n2o5)
+    call chemistry_fields%get_field('ho2no2',ho2no2)
+    call chemistry_fields%get_field('hono2',hono2)
+    call chemistry_fields%get_field('h2o2', h2o2)
+    call chemistry_fields%get_field('ch4',ch4)
+    call chemistry_fields%get_field('co',co)
+    call chemistry_fields%get_field('hcho',hcho)
+    call chemistry_fields%get_field('meoo',meoo)
+    call chemistry_fields%get_field('meooh',meooh)
+    call chemistry_fields%get_field('h',h)
+    call chemistry_fields%get_field('oh', oh)
+    call chemistry_fields%get_field('ho2', ho2)
+    call chemistry_fields%get_field('cl',cl)
+    call chemistry_fields%get_field('cl2o2',cl2o2)
+    call chemistry_fields%get_field('clo',clo)
+    call chemistry_fields%get_field('oclo',oclo)
+    call chemistry_fields%get_field('br',br)
+    call chemistry_fields%get_field('lumped_br',lumped_br)
+    call chemistry_fields%get_field('bro',bro)
+    call chemistry_fields%get_field('brcl',brcl)
+    call chemistry_fields%get_field('brono2',brono2)
+    call chemistry_fields%get_field('n2o',n2o)
+    call chemistry_fields%get_field('lumped_cl',lumped_cl)
+    call chemistry_fields%get_field('hcl',hcl)
+    call chemistry_fields%get_field('hocl',hocl)
+    call chemistry_fields%get_field('hbr',hbr)
+    call chemistry_fields%get_field('hobr',hobr)
+    call chemistry_fields%get_field('clono2',clono2)
+    call chemistry_fields%get_field('cfcl3',cfcl3)
+    call chemistry_fields%get_field('cf2cl2',cf2cl2)
+    call chemistry_fields%get_field('mebr',mebr)
+    call chemistry_fields%get_field('hono',hono)
+    call chemistry_fields%get_field('c2h6',c2h6)
+    call chemistry_fields%get_field('etoo',etoo)
+    call chemistry_fields%get_field('etooh',etooh)
+    call chemistry_fields%get_field('mecho',mecho)
+    call chemistry_fields%get_field('meco3',meco3)
+    call chemistry_fields%get_field('pan',pan)
+    call chemistry_fields%get_field('c3h8',c3h8)
+    call chemistry_fields%get_field('n_proo',n_proo)
+    call chemistry_fields%get_field('i_proo',i_proo)
+    call chemistry_fields%get_field('n_prooh',n_prooh)
+    call chemistry_fields%get_field('i_prooh',i_prooh)
+    call chemistry_fields%get_field('etcho',etcho)
+    call chemistry_fields%get_field('etco3',etco3)
+    call chemistry_fields%get_field('me2co',me2co)
+    call chemistry_fields%get_field('mecoch2oo',mecoch2oo)
+    call chemistry_fields%get_field('mecoch2ooh',mecoch2ooh)
+    call chemistry_fields%get_field('ppan',ppan)
+    call chemistry_fields%get_field('meono2',meono2)
+    call chemistry_fields%get_field('c5h8',c5h8)
+    call chemistry_fields%get_field('iso2',iso2)
+    call chemistry_fields%get_field('isooh',isooh)
+    call chemistry_fields%get_field('ison',ison)
+    call chemistry_fields%get_field('macr',macr)
+    call chemistry_fields%get_field('macro2',macro2)
+    call chemistry_fields%get_field('macrooh',macrooh)
+    call chemistry_fields%get_field('mpan',mpan)
+    call chemistry_fields%get_field('hacet',hacet)
+    call chemistry_fields%get_field('mgly',mgly)
+    call chemistry_fields%get_field('nald',nald)
+    call chemistry_fields%get_field('hcooh',hcooh)
+    call chemistry_fields%get_field('meco3h',meco3h)
+    call chemistry_fields%get_field('meco2h',meco2h)
+    call chemistry_fields%get_field('h2',h2)
+    call chemistry_fields%get_field('meoh',meoh)
+    call chemistry_fields%get_field('msa',msa)
+    call chemistry_fields%get_field('nh3',nh3)
+    call chemistry_fields%get_field('cs2',cs2)
+    call chemistry_fields%get_field('csul',csul)
+    call chemistry_fields%get_field('h2s',h2s)
+    call chemistry_fields%get_field('so3',so3)
+    call chemistry_fields%get_field('passive_o3',passive_o3)
+    call chemistry_fields%get_field('age_of_air',age_of_air)
+
+    ! Aerochem fields
+    call chemistry_fields%get_field('h2o2_limit', h2o2_limit)
+    call chemistry_fields%get_field('dms', dms)
+    call chemistry_fields%get_field('so2', so2)
+    call chemistry_fields%get_field('h2so4', h2so4)
+    call chemistry_fields%get_field('dmso', dmso)
+    call chemistry_fields%get_field('monoterpene', monoterpene)
+    call chemistry_fields%get_field('secondary_organic', secondary_organic)
+
+    ! Aerosol fields
+    call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)
+    call aerosol_fields%get_field('nuc_sol_su', nuc_sol_su)
+    call aerosol_fields%get_field('nuc_sol_om', nuc_sol_om)
+    call aerosol_fields%get_field('n_ait_sol', n_ait_sol)
+    call aerosol_fields%get_field('ait_sol_su', ait_sol_su)
+    call aerosol_fields%get_field('ait_sol_bc', ait_sol_bc)
+    call aerosol_fields%get_field('ait_sol_om', ait_sol_om)
+    call aerosol_fields%get_field('n_acc_sol', n_acc_sol)
+    call aerosol_fields%get_field('acc_sol_su', acc_sol_su)
+    call aerosol_fields%get_field('acc_sol_bc', acc_sol_bc)
+    call aerosol_fields%get_field('acc_sol_om', acc_sol_om)
+    call aerosol_fields%get_field('acc_sol_ss', acc_sol_ss)
+    call aerosol_fields%get_field('n_cor_sol', n_cor_sol)
+    call aerosol_fields%get_field('cor_sol_su', cor_sol_su)
+    call aerosol_fields%get_field('cor_sol_bc', cor_sol_bc)
+    call aerosol_fields%get_field('cor_sol_om', cor_sol_om)
+    call aerosol_fields%get_field('cor_sol_ss', cor_sol_ss)
+    call aerosol_fields%get_field('n_ait_ins', n_ait_ins)
+    call aerosol_fields%get_field('ait_ins_bc', ait_ins_bc)
+    call aerosol_fields%get_field('ait_ins_om', ait_ins_om)
+    call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+    call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+    call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+    call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+
+    call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc)
+    call aerosol_fields%get_field('drydp_ait_sol', drydp_ait_sol)
+    call aerosol_fields%get_field('drydp_acc_sol', drydp_acc_sol)
+    call aerosol_fields%get_field('drydp_cor_sol', drydp_cor_sol)
+    call aerosol_fields%get_field('drydp_ait_ins', drydp_ait_ins)
+    call aerosol_fields%get_field('drydp_acc_ins', drydp_acc_ins)
+    call aerosol_fields%get_field('drydp_cor_ins', drydp_cor_ins)
+    call aerosol_fields%get_field('wetdp_ait_sol', wetdp_ait_sol)
+    call aerosol_fields%get_field('wetdp_acc_sol', wetdp_acc_sol)
+    call aerosol_fields%get_field('wetdp_cor_sol', wetdp_cor_sol)
+    call aerosol_fields%get_field('rhopar_ait_sol', rhopar_ait_sol)
+    call aerosol_fields%get_field('rhopar_acc_sol', rhopar_acc_sol)
+    call aerosol_fields%get_field('rhopar_cor_sol', rhopar_cor_sol)
+    call aerosol_fields%get_field('rhopar_ait_ins', rhopar_ait_ins)
+    call aerosol_fields%get_field('rhopar_acc_ins', rhopar_acc_ins)
+    call aerosol_fields%get_field('rhopar_cor_ins', rhopar_cor_ins)
+    call aerosol_fields%get_field('pvol_wat_ait_sol', pvol_wat_ait_sol)
+    call aerosol_fields%get_field('pvol_wat_acc_sol', pvol_wat_acc_sol)
+    call aerosol_fields%get_field('pvol_wat_cor_sol', pvol_wat_cor_sol)
+    call aerosol_fields%get_field('pvol_su_ait_sol', pvol_su_ait_sol)
+    call aerosol_fields%get_field('pvol_bc_ait_sol', pvol_bc_ait_sol)
+    call aerosol_fields%get_field('pvol_om_ait_sol', pvol_om_ait_sol)
+    call aerosol_fields%get_field('pvol_su_acc_sol', pvol_su_acc_sol)
+    call aerosol_fields%get_field('pvol_bc_acc_sol', pvol_bc_acc_sol)
+    call aerosol_fields%get_field('pvol_om_acc_sol', pvol_om_acc_sol)
+    call aerosol_fields%get_field('pvol_ss_acc_sol', pvol_ss_acc_sol)
+    call aerosol_fields%get_field('pvol_su_cor_sol', pvol_su_cor_sol)
+    call aerosol_fields%get_field('pvol_bc_cor_sol', pvol_bc_cor_sol)
+    call aerosol_fields%get_field('pvol_om_cor_sol', pvol_om_cor_sol)
+    call aerosol_fields%get_field('pvol_ss_cor_sol', pvol_ss_cor_sol)
+    call aerosol_fields%get_field('pvol_bc_ait_ins', pvol_bc_ait_ins)
+    call aerosol_fields%get_field('pvol_om_ait_ins', pvol_om_ait_ins)
+    call aerosol_fields%get_field('pvol_du_acc_ins', pvol_du_acc_ins)
+    call aerosol_fields%get_field('pvol_du_cor_ins', pvol_du_cor_ins)
+
+    call aerosol_fields%get_field('dms_conc_ocean', dms_conc_ocean)
+    call aerosol_fields%get_field('surf_wetness', surf_wetness)
+    call aerosol_fields%get_field('dust_flux', dust_flux)
+
+    ! Chemistry emissions
+    ! 2-D emissions
+    call chemistry_fields%get_field('emiss_c2h6',emiss_c2h6)
+    call chemistry_fields%get_field('emiss_c3h8',emiss_c3h8)
+    call chemistry_fields%get_field('emiss_c5h8',emiss_c5h8)
+    call chemistry_fields%get_field('emiss_ch4',emiss_ch4)
+    call chemistry_fields%get_field('emiss_co',emiss_co)
+    call chemistry_fields%get_field('emiss_hcho',emiss_hcho)
+    call chemistry_fields%get_field('emiss_me2co',emiss_me2co)
+    call chemistry_fields%get_field('emiss_mecho',emiss_mecho)
+    call chemistry_fields%get_field('emiss_meoh',emiss_meoh)
+    call chemistry_fields%get_field('emiss_nh3',emiss_nh3)
+    call chemistry_fields%get_field('emiss_no',emiss_no)
+    ! 3-D emissions
+    call chemistry_fields%get_field('emiss_no_aircrft',emiss_no_aircrft)
+
+    ! Aerosol emissions
+    ! 2-D emissions
+    call aerosol_fields%get_field('emiss_bc_biofuel', emiss_bc_biofuel)
+    call aerosol_fields%get_field('emiss_bc_biomass_high', emiss_bc_biomass_high)
+    call aerosol_fields%get_field('emiss_bc_biomass_low', emiss_bc_biomass_low)
+    call aerosol_fields%get_field('emiss_bc_fossil', emiss_bc_fossil)
+    call aerosol_fields%get_field('emiss_dms_land', emiss_dms_land)
+    call aerosol_fields%get_field('emiss_monoterp', emiss_monoterp)
+    call aerosol_fields%get_field('emiss_om_biofuel', emiss_om_biofuel)
+    call aerosol_fields%get_field('emiss_om_biomass_high', emiss_om_biomass_high)
+    call aerosol_fields%get_field('emiss_om_biomass_low', emiss_om_biomass_low)
+    call aerosol_fields%get_field('emiss_om_fossil', emiss_om_fossil)
+    call aerosol_fields%get_field('emiss_so2_high', emiss_so2_high)
+    call aerosol_fields%get_field('emiss_so2_low', emiss_so2_low)
+    ! 3-D emissions
+    call aerosol_fields%get_field('emiss_bc_biomass', emiss_bc_biomass)
+    call aerosol_fields%get_field('emiss_om_biomass', emiss_om_biomass)
+    call aerosol_fields%get_field('emiss_so2_nat', emiss_so2_nat)
+
+    ! Get location, level heights, cell area and volume data
+
+    mesh => sin_stellar_declination_rts%get_mesh()   ! 2-D mesh
+    latitude_w3  => get_latitude_fv(W3, mesh%get_id())
+    longitude_w3 => get_longitude_fv(W3, mesh%get_id())
+    cell_area => get_da_msl_proj(mesh%get_id())
+
+    mesh => state(igh_t)%get_mesh()                  ! 3-D mesh
+    height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    height_w3 => get_height_fv( W3, mesh%get_id() )
+    rdz_w3    => get_rdz_w3( mesh%get_id() )
+
+
+    ! Get detj on shifted W3 grid (to use as grid_volume)
+    shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+    detj_shifted => get_detj_at_w3_fv(shifted_mesh%get_id())
+
+    ! The call to um_sizes_init is required to ensure that the parent
+    ! callback routine bl_tracer_mix passed to UKCA is compatible with
+    ! row_length in the UKCA configuration.
+    ! This is because bl_tracer_mix calls tr_mix which is dependent on the
+    ! variable pdims defined in UM module atm_fields_bounds_mod that is
+    ! affected by row_length.
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init( ncells )
+
+    ! Calculate total ice field
+    call mr(imr_s)%copy_field_properties(mr_ice)
+    call invoke(setval_X(mr_ice, mr(imr_s)))
+    if (microphysics_casim) then
+      call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
+    end if
+    
+    ! Fields needed by UKCA and Photolysis
+    call zh%copy_field_properties(conv_cloud_lwp)
+    call zh%copy_field_properties(surf_albedo)
+
+    call invoke( setval_c(conv_cloud_lwp, 0.0_r_def),                          &
+                       setval_c(surf_albedo, 0.0_r_def) )
+  
+    ! Multi-dimensional field: photol_rates
+    vector_space=>function_space_collection%get_fs(mesh,0,0,Wtheta,            &
+                   get_ndata_val('photol_species') )
+
+    call photol_rates%initialise(vector_space)
+    call invoke( setval_c(photol_rates,    0.0_r_def) )
+
+    if ( chem_scheme == chem_scheme_strattrop .and.                            &
+         photol_scheme /= photol_scheme_off ) then
+      ! Photolysis currently linked to Strattrop      
+
+      ! Sample Rates to output; wtheta grid
+      call ls_rain_3d%copy_field_properties(photol_rate_jo1d)
+      call ls_rain_3d%copy_field_properties(photol_rate_jno2)
+
+      call invoke( setval_c(photol_rate_jo1d,  0.0_r_def),                     &
+                   setval_c(photol_rate_jno2,  0.0_r_def) )
+      
+      ! Only call photolysis if this is a chemistry timestep as photol rates
+      ! are only used by chemistry
+      if (mod( model_clock%get_step(),                                         &
+            chem_timestep/int(model_clock%get_seconds_per_step()) ) == 0) then
+
+        if ( subroutine_timers ) call timer('ukca_photolysis_alg')
+        ! FastJX scheme
+        if (photol_scheme == photol_scheme_fastjx )  then
+
+          ! Allocate and initialise required fields
+          ! sulp_accum, sulp_aitken and aod preset to values same as UM.
+          call ls_rain_3d%copy_field_properties(sulp_accum)
+          call ls_rain_3d%copy_field_properties(sulp_aitken)
+          call ls_rain_3d%copy_field_properties(aod_sulp_accum)
+          call ls_rain_3d%copy_field_properties(aod_sulp_aitken)
+          call ls_rain_3d%copy_field_properties(photol_rates_rts_jo2)
+          call ls_rain_3d%copy_field_properties(photol_rates_rts_jo2b)
+          
+          call invoke ( setval_c(sulp_accum,     1.0e-25_r_def),                &
+                        setval_c(sulp_aitken,    1.0e-25_r_def),                &
+                        setval_c(aod_sulp_accum, 1.0e3_r_def),                  &
+                        setval_c(aod_sulp_aitken, 1.0e3_r_def),                 &
+                        setval_c(photol_rates_rts_jo2,  0.0_r_def),             &
+                        setval_c(photol_rates_rts_jo2b, 0.0_r_def) )
+
+          ! Calculate Relative humidity (as fraction: 0.0-1.0)    
+          call mr(imr_v)%copy_field_properties(msat)
+          call mr(imr_v)%copy_field_properties(rel_humid_frac)
+          call invoke( setval_c(msat,             0.0_r_def),                  &
+                       setval_c(rel_humid_frac,   0.0_r_def),                  &
+                       msat_kernel_type(msat, exner_in_wth,                    &
+                                        state(igh_t), water_only),             &
+                       X_divideby_Y(rel_humid_frac, mr(imr_v), msat),          &
+                       inc_max_aX(0.0_r_def, rel_humid_frac),                  &
+                       inc_min_aX(1.0_r_def, rel_humid_frac) )
+
+          ! Derive required inputs, surface albedo first 
+          call invoke ( calc_albedo_kernel_type ( surf_albedo,                 &
+                                            sw_down_surf,                      &
+                                            tile_fraction,                     &
+                                            sw_up_tile),                       &
+                        photol_kernel_type ( photol_rates,                     &
+                                            current_time_year,                 &
+                                            current_time_month,                &
+                                            current_time_day,                  &
+                                            current_time_hour,                 &
+                                            current_time_minute,               &
+                                            current_time_second,               &
+                                            current_time_daynum,               &
+                                            previous_time_hour,                &
+                                            previous_time_minute,              &
+                                            previous_time_second,              &
+                                            o3,                                &
+                                            state(igh_t),                      &
+                                            exner_in_wth,                      &
+                                            height_wth,                        &
+                                            mr(imr_cl),                        &
+                                            mr_ice,                            &
+                                            rel_humid_frac,                    &
+                                            cca,                               &
+                                            area_fraction,                     &
+                                            sulp_accum,                        &
+                                            sulp_aitken,                       &
+                                            aod_sulp_accum,                    &
+                                            aod_sulp_aitken,                   &
+                                            photol_rates_rts_jo2,              &
+                                            photol_rates_rts_jo2b,             &
+                                            height_w3,                         &
+                                            state(igh_p),                      &
+                                            tile_fraction,                     &
+                                            latitude_w3,                       &
+                                            longitude_w3,                      &
+                                            sin_stellar_declination_rts,       &
+                                            stellar_eqn_of_time_rts,           &
+                                            conv_cloud_lwp,                    &
+                                            surf_albedo,                       &
+                                            cv_base,                           &
+                                            cv_top ) )
+
+            ! Extract sample rates from full array for verification
+            ! Currently only rates for O1D and NO2 output, so ignore others
+            do jp1 = 1, n_phot_spc
+              select case(trim(ratj_varnames(jp1)))
+              case ('jo3a')
+                !  jO(1D)         
+                call invoke (  photol_diags_kernel_type(photol_rate_jo1d,      &
+                                                        jp1,                   &
+                                                        photol_rates) )
+              case ('jno2')
+                !  jNO2
+                call invoke (  photol_diags_kernel_type(photol_rate_jno2,      &
+                                                        jp1,                   &
+                                                        photol_rates) )
+              end select
+            end do
+  
+        end if  ! Fast-JX
+      
+        ! Specified photolysis rates - based on location and local time
+        if ( photol_scheme == photol_scheme_prescribed ) then
+          call ls_rain_3d%copy_field_properties(photol_rate_profile)
+
+          call invoke ( pseudo_photol_kernel_type ( photol_rate_profile,       &
+                                                    current_time_hour,         &
+                                                    current_time_minute,       &
+                                                    latitude_w3,               &
+                                                    longitude_w3 ) )
+
+          ! Expand the single base rate profile to all the photolytic species
+          ! (num=jppj) involved in this chemistry scheme by scaling the values
+          ! using a species-specific jrate_fac, derived from a sample UM run.
+          loop_1 : do jp2 = 1, n_phot_spc
+            loop_2 : do jp1 = 1, jppj
+              if ( ratj_varnames(jp2) == trim(jp_names(jp1)) ) then
+                 call invoke ( map_pseudophotol_kernel_type( photol_rates,     &
+                                                        photol_rate_profile,   &
+                                                        jp2,                   &
+                                                        jrate_fac(jp1) ) )
+                 exit loop_2
+              end if
+            end do loop_2
+          end do loop_1
+
+        end if  ! photol_scheme = fastjx/ prescribed
+
+        if ( subroutine_timers ) call timer('ukca_photolysis_alg')
+        
+      end if  ! Chem timestep
+    
+    end if  ! Chem/ photolysis schemes
+
+    ! Do UKCA time step
+
+    if ( subroutine_timers ) call timer('ukca_chemistry_alg')
+    call invoke(aerosol_ukca_kernel_type( o3p,                                 &
+                                          o1d,                                 &
+                                          o3,                                  &
+                                          n,                                   &
+                                          no,                                  &
+                                          no3,                                 &
+                                          lumped_n,                            &
+                                          no2,                                 &
+                                          n2o5,                                &
+                                          ho2no2,                              &
+                                          hono2,                               &
+                                          h2o2,                                &
+                                          ch4,                                 &
+                                          co,                                  &
+                                          hcho,                                &
+                                          meoo,                                &
+                                          meooh,                               &
+                                          h,                                   &
+                                          oh,                                  &
+                                          ho2,                                 &
+                                          cl,                                  &
+                                          cl2o2,                               &
+                                          clo,                                 &
+                                          oclo,                                &
+                                          br,                                  &
+                                          lumped_br,                           &
+                                          bro,                                 &
+                                          brcl,                                &
+                                          brono2,                              &
+                                          n2o,                                 &
+                                          lumped_cl,                           &
+                                          hcl,                                 &
+                                          hocl,                                &
+                                          hbr,                                 &
+                                          hobr,                                &
+                                          clono2,                              &
+                                          cfcl3,                               &
+                                          cf2cl2,                              &
+                                          mebr,                                &
+                                          hono,                                &
+                                          c2h6,                                &
+                                          etoo,                                &
+                                          etooh,                               &
+                                          mecho,                               &
+                                          meco3,                               &
+                                          pan,                                 &
+                                          c3h8,                                &
+                                          n_proo,                              &
+                                          i_proo,                              &
+                                          n_prooh,                             &
+                                          i_prooh,                             &
+                                          etcho,                               &
+                                          etco3,                               &
+                                          me2co,                               &
+                                          mecoch2oo,                           &
+                                          mecoch2ooh,                          &
+                                          ppan,                                &
+                                          meono2,                              &
+                                          c5h8,                                &
+                                          iso2,                                &
+                                          isooh,                               &
+                                          ison,                                &
+                                          macr,                                &
+                                          macro2,                              &
+                                          macrooh,                             &
+                                          mpan,                                &
+                                          hacet,                               &
+                                          mgly,                                &
+                                          nald,                                &
+                                          hcooh,                               &
+                                          meco3h,                              &
+                                          meco2h,                              &
+                                          h2,                                  &
+                                          meoh,                                &
+                                          msa,                                 &
+                                          nh3,                                 &
+                                          cs2,                                 &
+                                          csul,                                &
+                                          h2s,                                 &
+                                          so3,                                 &
+                                          passive_o3,                          &
+                                          age_of_air,                          &
+                                          dms,                                 &
+                                          so2,                                 &
+                                          h2so4,                               &
+                                          dmso,                                &
+                                          monoterpene,                         &
+                                          secondary_organic,                   &
+                                          n_nuc_sol,                           &
+                                          nuc_sol_su,                          &
+                                          nuc_sol_om,                          &
+                                          n_ait_sol,                           &
+                                          ait_sol_su,                          &
+                                          ait_sol_bc,                          &
+                                          ait_sol_om,                          &
+                                          n_acc_sol,                           &
+                                          acc_sol_su,                          &
+                                          acc_sol_bc,                          &
+                                          acc_sol_om,                          &
+                                          acc_sol_ss,                          &
+                                          n_cor_sol,                           &
+                                          cor_sol_su,                          &
+                                          cor_sol_bc,                          &
+                                          cor_sol_om,                          &
+                                          cor_sol_ss,                          &
+                                          n_ait_ins,                           &
+                                          ait_ins_bc,                          &
+                                          ait_ins_om,                          &
+                                          n_acc_ins,                           &
+                                          acc_ins_du,                          &
+                                          n_cor_ins,                           &
+                                          cor_ins_du,                          &
+                                          cloud_drop_no_conc,                  &
+                                          drydp_ait_sol,                       &
+                                          drydp_acc_sol,                       &
+                                          drydp_cor_sol,                       &
+                                          drydp_ait_ins,                       &
+                                          drydp_acc_ins,                       &
+                                          drydp_cor_ins,                       &
+                                          wetdp_ait_sol,                       &
+                                          wetdp_acc_sol,                       &
+                                          wetdp_cor_sol,                       &
+                                          rhopar_ait_sol,                      &
+                                          rhopar_acc_sol,                      &
+                                          rhopar_cor_sol,                      &
+                                          rhopar_ait_ins,                      &
+                                          rhopar_acc_ins,                      &
+                                          rhopar_cor_ins,                      &
+                                          pvol_wat_ait_sol,                    &
+                                          pvol_wat_acc_sol,                    &
+                                          pvol_wat_cor_sol,                    &
+                                          pvol_su_ait_sol,                     &
+                                          pvol_bc_ait_sol,                     &
+                                          pvol_om_ait_sol,                     &
+                                          pvol_su_acc_sol,                     &
+                                          pvol_bc_acc_sol,                     &
+                                          pvol_om_acc_sol,                     &
+                                          pvol_ss_acc_sol,                     &
+                                          pvol_su_cor_sol,                     &
+                                          pvol_bc_cor_sol,                     &
+                                          pvol_om_cor_sol,                     &
+                                          pvol_ss_cor_sol,                     &
+                                          pvol_bc_ait_ins,                     &
+                                          pvol_om_ait_ins,                     &
+                                          pvol_du_acc_ins,                     &
+                                          pvol_du_cor_ins,                     &
+                                          model_clock%get_step(),              &
+                                          current_time_year,                   &
+                                          current_time_month,                  &
+                                          current_time_day,                    &
+                                          current_time_hour,                   &
+                                          current_time_minute,                 &
+                                          current_time_second,                 &
+                                          current_time_daynum,                 &
+                                          previous_time_year,                  &
+                                          previous_time_month,                 &
+                                          previous_time_day,                   &
+                                          previous_time_hour,                  &
+                                          previous_time_minute,                &
+                                          previous_time_second,                &
+                                          previous_time_daynum,                &
+                                          atmospheric_ccl4,                    &
+                                          atmospheric_cfc113,                  &
+                                          atmospheric_cfc114,                  &
+                                          atmospheric_cfc115,                  &
+                                          atmospheric_cfc11,                   &
+                                          atmospheric_cfc12,                   &
+                                          atmospheric_ch2br2,                  &
+                                          atmospheric_chbr3,                   &
+                                          atmospheric_ch4,                     &
+                                          atmospheric_co2,                     &
+                                          atmospheric_csul,                    &
+                                          atmospheric_h1202,                   &
+                                          atmospheric_h1211,                   &
+                                          atmospheric_h1301,                   &
+                                          atmospheric_h2,                      &
+                                          atmospheric_h2402,                   &
+                                          atmospheric_hfc125,                  &
+                                          atmospheric_hfc134a,                 &
+                                          atmospheric_hcfc141b,                &
+                                          atmospheric_hcfc142b,                &
+                                          atmospheric_hcfc22,                  &
+                                          atmospheric_mebr,                    &
+                                          atmospheric_meccl3,                  &
+                                          atmospheric_mecl,                    &
+                                          atmospheric_n2,                      &
+                                          atmospheric_n2o,                     &
+                                          atmospheric_o2,                      &
+                                          state(igh_t),                        &
+                                          state(igh_p),                        &
+                                          exner_in_wth,                        &
+                                          w_in_wth,                            &
+                                          mr(imr_v),                           &
+                                          mr(imr_cl),                          &
+                                          mr_ice,                              &
+                                          height_w3,                           &
+                                          wetrho_in_wth,                       &
+                                          detj_shifted,                        &
+                                          height_wth,                          &
+                                          ls_rain_3d,                          &
+                                          ls_snow_3d,                          &
+                                          autoconv,                            &
+                                          accretion,                           &
+                                          rim_cry,                             &
+                                          rim_agg,                             &
+                                          tke_bl,                              &
+                                          conv_rain_3d,                        &
+                                          conv_snow_3d,                        &
+                                          cca,                                 &
+                                          area_fraction,                       &
+                                          bulk_fraction,                       &
+                                          liquid_fraction,                     &
+                                          tile_fraction,                       &
+                                          tile_temperature,                    &
+                                          tile_heat_flux,                      &
+                                          gc_tile,                             &
+                                          leaf_area_index,                     &
+                                          canopy_height,                       &
+                                          soil_moisture,                       &
+                                          latitude_w3,                         &
+                                          longitude_w3,                        &
+                                          cell_area,                           &
+                                          sin_stellar_declination_rts,         &
+                                          stellar_eqn_of_time_rts,             &
+                                          soil_roughness,                      &
+                                          z0m,                                 &
+                                          urbztm,                              &
+                                          ustar,                               &
+                                          wspd10m,                             &
+                                          chloro_sea,                          &
+                                          zh,                                  &
+                                          wetrho_in_w3,                        &
+                                          rhokh_bl,                            &
+                                          rdz_w3,                              &
+                                          dtrdz_tq_bl,                         &
+                                          zhsc,                                &
+                                          conv_cloud_lwp,                      &
+                                          surf_albedo,                         &
+                                          cv_base,                             &
+                                          cv_top,                              &
+                                          level_ent,                           &
+                                          level_ent_dsc,                       &
+                                          ent_we_lim,                          &
+                                          ent_t_frac,                          &
+                                          ent_zrzi,                            &
+                                          ent_we_lim_dsc,                      &
+                                          ent_t_frac_dsc,                      &
+                                          ent_zrzi_dsc,                        &
+                                          h2o2_limit,                          &
+                                          dms_conc_ocean,                      &
+                                          dust_flux,                           &
+                                          surf_wetness,                        &
+                                          emiss_c2h6,                          &
+                                          emiss_c3h8,                          &
+                                          emiss_c5h8,                          &
+                                          emiss_ch4,                           &
+                                          emiss_co,                            &
+                                          emiss_hcho,                          &
+                                          emiss_me2co,                         &
+                                          emiss_mecho,                         &
+                                          emiss_meoh,                          &
+                                          emiss_nh3,                           &
+                                          emiss_no,                            &
+                                          emiss_bc_biofuel,                    &
+                                          emiss_bc_biomass_high,               &
+                                          emiss_bc_biomass_low,                &
+                                          emiss_bc_fossil,                     &
+                                          emiss_dms_land,                      &
+                                          emiss_monoterp,                      &
+                                          emiss_om_biofuel,                    &
+                                          emiss_om_biomass_high,               &
+                                          emiss_om_biomass_low,                &
+                                          emiss_om_fossil,                     &
+                                          emiss_so2_high,                      &
+                                          emiss_so2_low,                       &
+                                          emiss_no_aircrft,                    &
+                                          emiss_bc_biomass,                    &
+                                          emiss_om_biomass,                    &
+                                          emiss_so2_nat,                       &
+                                          photol_rates  ))
+
+    if ( subroutine_timers ) call timer('ukca_chemistry_alg')
+    call um_sizes_init(1_i_def)
+
+    ! Save time for reference at next step
+    previous_time_year = current_time_year
+    previous_time_month = current_time_month
+    previous_time_day = current_time_day
+    previous_time_hour = current_time_hour
+    previous_time_minute = current_time_minute
+    previous_time_second = current_time_second
+    previous_time_daynum = current_time_daynum
+
+    if ( chem_scheme == chem_scheme_strat_test ) then
+      call log_field_minmax( LOG_LEVEL_DEBUG, ' O3 Aft Chem ', o3 )
+      call log_field_minmax( LOG_LEVEL_DEBUG, ' CH4 Aft Chem ', ch4 )
+    end if
+
+    if ( write_diag .and. use_xios_io ) then
+      ! Diagnostic output
+
+      ! Chemistry diagnostics
+      if ( chem_scheme == chem_scheme_strattrop .or.                           &
+           chem_scheme == chem_scheme_strat_test ) then
+
+        call o3p%write_field('chemistry__o3p')
+        call o1d%write_field('chemistry__o1d')
+        call o3%write_field('chemistry__o3')
+        call n%write_field('chemistry__n')
+        call no%write_field('chemistry__no')
+        call no3%write_field('chemistry__no3')
+        call lumped_n%write_field('chemistry__lumped_n')
+        call no2%write_field('chemistry__no2')
+        call n2o5%write_field('chemistry__n2o5')
+        call ho2no2%write_field('chemistry__ho2no2')
+        call hono2%write_field('chemistry__hono2')
+        call h2o2%write_field('chemistry__h2o2')
+        call ch4%write_field('chemistry__ch4')
+        call co%write_field('chemistry__co')
+        call hcho%write_field('chemistry__hcho')
+        call meoo%write_field('chemistry__meoo')
+        call meooh%write_field('chemistry__meooh')
+        call h%write_field('chemistry__h')
+        call oh%write_field('chemistry__oh')
+        call ho2%write_field('chemistry__ho2')
+        call cl%write_field('chemistry__cl')
+        call cl2o2%write_field('chemistry__cl2o2')
+        call clo%write_field('chemistry__clo')
+        call oclo%write_field('chemistry__oclo')
+        call br%write_field('chemistry__br')
+        call lumped_br%write_field('chemistry__lumped_br')
+        call bro%write_field('chemistry__bro')
+        call brcl%write_field('chemistry__brcl')
+        call brono2%write_field('chemistry__brono2')
+        call n2o%write_field('chemistry__n2o')
+        call lumped_cl%write_field('chemistry__lumped_cl')
+        call hcl%write_field('chemistry__hcl')
+        call hocl%write_field('chemistry__hocl')
+        call hbr%write_field('chemistry__hbr')
+        call hobr%write_field('chemistry__hobr')
+        call clono2%write_field('chemistry__clono2')
+        call cfcl3%write_field('chemistry__cfcl3')
+        call cf2cl2%write_field('chemistry__cf2cl2')
+        call mebr%write_field('chemistry__mebr')
+        call hono%write_field('chemistry__hono')
+        call c2h6%write_field('chemistry__c2h6')
+        call etoo%write_field('chemistry__etoo')
+        call etooh%write_field('chemistry__etooh')
+        call mecho%write_field('chemistry__mecho')
+        call meco3%write_field('chemistry__meco3')
+        call pan%write_field('chemistry__pan')
+        call c3h8%write_field('chemistry__c3h8')
+        call n_proo%write_field('chemistry__n_proo')
+        call i_proo%write_field('chemistry__i_proo')
+        call n_prooh%write_field('chemistry__n_prooh')
+        call i_prooh%write_field('chemistry__i_prooh')
+        call etcho%write_field('chemistry__etcho')
+        call etco3%write_field('chemistry__etco3')
+        call me2co%write_field('chemistry__me2co')
+        call mecoch2oo%write_field('chemistry__mecoch2oo')
+        call mecoch2ooh%write_field('chemistry__mecoch2ooh')
+        call ppan%write_field('chemistry__ppan')
+        call meono2%write_field('chemistry__meono2')
+        call c5h8%write_field('chemistry__c5h8')
+        call iso2%write_field('chemistry__iso2')
+        call isooh%write_field('chemistry__isooh')
+        call ison%write_field('chemistry__ison')
+        call macr%write_field('chemistry__macr')
+        call macro2%write_field('chemistry__macro2')
+        call macrooh%write_field('chemistry__macrooh')
+        call mpan%write_field('chemistry__mpan')
+        call hacet%write_field('chemistry__hacet')
+        call mgly%write_field('chemistry__mgly')
+        call nald%write_field('chemistry__nald')
+        call hcooh%write_field('chemistry__hcooh')
+        call meco3h%write_field('chemistry__meco3h')
+        call meco2h%write_field('chemistry__meco2h')
+        call h2%write_field('chemistry__h2')
+        call meoh%write_field('chemistry__meoh')
+        call msa%write_field('chemistry__msa')
+        call nh3%write_field('chemistry__nh3')
+        call cs2%write_field('chemistry__cs2')
+        call csul%write_field('chemistry__csul')
+        call h2s%write_field('chemistry__h2s')
+        call so3%write_field('chemistry__so3')
+        call passive_o3%write_field('chemistry__passive_o3')
+        call age_of_air%write_field('chemistry__age_of_air')
+
+        call emiss_c2h6%write_field('chemistry__emiss_c2h6')
+        call emiss_c3h8%write_field('chemistry__emiss_c3h8')
+        call emiss_c5h8%write_field('chemistry__emiss_c5h8')
+        call emiss_ch4%write_field('chemistry__emiss_ch4')
+        call emiss_co%write_field('chemistry__emiss_co')
+        call emiss_hcho%write_field('chemistry__emiss_hcho')
+        call emiss_me2co%write_field('chemistry__emiss_me2co')
+        call emiss_mecho%write_field('chemistry__emiss_mecho')
+        call emiss_meoh%write_field('chemistry__emiss_meoh')
+        call emiss_nh3%write_field('chemistry__emiss_nh3')
+        call emiss_no%write_field('chemistry__emiss_no')
+        call emiss_no_aircrft%write_field('chemistry__emiss_no_aircrft')
+
+        if (photol_scheme /= photol_scheme_off )  then
+          call photol_rate_jo1d%write_field('chemistry__photol_rate_jo1d')
+          call photol_rate_jno2%write_field('chemistry__photol_rate_jno2')
+        end if  
+      end if    ! chem_scheme_strattrop
+
+      call dms%write_field('chemistry__dms')
+      call so2%write_field('chemistry__so2')
+      call h2so4%write_field('chemistry__h2so4')
+      call dmso%write_field('chemistry__dmso')
+      call monoterpene%write_field('chemistry__monoterpene')
+      call secondary_organic%write_field('chemistry__secondary_organic')
+      call n_nuc_sol%write_field('aerosol__n_nuc_sol')
+      call nuc_sol_su%write_field('aerosol__nuc_sol_su')
+      call nuc_sol_om%write_field('aerosol__nuc_sol_om')
+      call n_ait_sol%write_field('aerosol__n_ait_sol')
+      call ait_sol_su%write_field('aerosol__ait_sol_su')
+      call ait_sol_bc%write_field('aerosol__ait_sol_bc')
+      call ait_sol_om%write_field('aerosol__ait_sol_om')
+      call n_acc_sol%write_field('aerosol__n_acc_sol')
+      call acc_sol_su%write_field('aerosol__acc_sol_su')
+      call acc_sol_bc%write_field('aerosol__acc_sol_bc')
+      call acc_sol_om%write_field('aerosol__acc_sol_om')
+      call acc_sol_ss%write_field('aerosol__acc_sol_ss')
+      call n_cor_sol%write_field('aerosol__n_cor_sol')
+      call cor_sol_su%write_field('aerosol__cor_sol_su')
+      call cor_sol_bc%write_field('aerosol__cor_sol_bc')
+      call cor_sol_om%write_field('aerosol__cor_sol_om')
+      call cor_sol_ss%write_field('aerosol__cor_sol_ss')
+      call n_ait_ins%write_field('aerosol__n_ait_ins')
+      call ait_ins_bc%write_field('aerosol__ait_ins_bc')
+      call ait_ins_om%write_field('aerosol__ait_ins_om')
+      call n_acc_ins%write_field('aerosol__n_acc_ins')
+      call acc_ins_du%write_field('aerosol__acc_ins_du')
+      call n_cor_ins%write_field('aerosol__n_cor_ins')
+      call cor_ins_du%write_field('aerosol__cor_ins_du')
+      call drydp_ait_sol%write_field('aerosol__drydp_ait_sol')
+      call drydp_acc_sol%write_field('aerosol__drydp_acc_sol')
+      call drydp_cor_sol%write_field('aerosol__drydp_cor_sol')
+      call drydp_ait_ins%write_field('aerosol__drydp_ait_ins')
+      call drydp_acc_ins%write_field('aerosol__drydp_acc_ins')
+      call drydp_cor_ins%write_field('aerosol__drydp_cor_ins')
+      call wetdp_ait_sol%write_field('aerosol__wetdp_ait_sol')
+      call wetdp_acc_sol%write_field('aerosol__wetdp_acc_sol')
+      call wetdp_cor_sol%write_field('aerosol__wetdp_cor_sol')
+      call rhopar_ait_sol%write_field('aerosol__rhopar_ait_sol')
+      call rhopar_acc_sol%write_field('aerosol__rhopar_acc_sol')
+      call rhopar_cor_sol%write_field('aerosol__rhopar_cor_sol')
+      call rhopar_ait_ins%write_field('aerosol__rhopar_ait_ins')
+      call rhopar_acc_ins%write_field('aerosol__rhopar_acc_ins')
+      call rhopar_cor_ins%write_field('aerosol__rhopar_cor_ins')
+      call pvol_wat_ait_sol%write_field('aerosol__pvol_wat_ait_sol')
+      call pvol_wat_acc_sol%write_field('aerosol__pvol_wat_acc_sol')
+      call pvol_wat_cor_sol%write_field('aerosol__pvol_wat_cor_sol')
+      call pvol_su_ait_sol%write_field('aerosol__pvol_su_ait_sol')
+      call pvol_bc_ait_sol%write_field('aerosol__pvol_bc_ait_sol')
+      call pvol_om_ait_sol%write_field('aerosol__pvol_om_ait_sol')
+      call cloud_drop_no_conc%write_field('aerosol__cloud_drop_no_conc')
+      call drydp_ait_sol%write_field('aerosol__drydp_ait_sol')
+      call drydp_acc_sol%write_field('aerosol__drydp_acc_sol')
+      call drydp_cor_sol%write_field('aerosol__drydp_cor_sol')
+      call drydp_ait_ins%write_field('aerosol__drydp_ait_ins')
+      call drydp_acc_ins%write_field('aerosol__drydp_acc_ins')
+      call drydp_cor_ins%write_field('aerosol__drydp_cor_ins')
+      call wetdp_ait_sol%write_field('aerosol__wetdp_ait_sol')
+      call wetdp_acc_sol%write_field('aerosol__wetdp_acc_sol')
+      call wetdp_cor_sol%write_field('aerosol__wetdp_cor_sol')
+      call rhopar_ait_sol%write_field('aerosol__rhopar_ait_sol')
+      call rhopar_acc_sol%write_field('aerosol__rhopar_acc_sol')
+      call rhopar_cor_sol%write_field('aerosol__rhopar_cor_sol')
+      call rhopar_ait_ins%write_field('aerosol__rhopar_ait_ins')
+      call rhopar_acc_ins%write_field('aerosol__rhopar_acc_ins')
+      call rhopar_cor_ins%write_field('aerosol__rhopar_cor_ins')
+      call pvol_wat_ait_sol%write_field('aerosol__pvol_wat_ait_sol')
+      call pvol_wat_acc_sol%write_field('aerosol__pvol_wat_acc_sol')
+      call pvol_wat_cor_sol%write_field('aerosol__pvol_wat_cor_sol')
+      call pvol_su_ait_sol%write_field('aerosol__pvol_su_ait_sol')
+      call pvol_bc_ait_sol%write_field('aerosol__pvol_bc_ait_sol')
+      call pvol_om_ait_sol%write_field('aerosol__pvol_om_ait_sol')
+      call pvol_su_acc_sol%write_field('aerosol__pvol_su_acc_sol')
+      call pvol_bc_acc_sol%write_field('aerosol__pvol_bc_acc_sol')
+      call pvol_om_acc_sol%write_field('aerosol__pvol_om_acc_sol')
+      call pvol_ss_acc_sol%write_field('aerosol__pvol_ss_acc_sol')
+      call pvol_su_cor_sol%write_field('aerosol__pvol_su_cor_sol')
+      call pvol_bc_cor_sol%write_field('aerosol__pvol_bc_cor_sol')
+      call pvol_om_cor_sol%write_field('aerosol__pvol_om_cor_sol')
+      call pvol_ss_cor_sol%write_field('aerosol__pvol_ss_cor_sol')
+      call pvol_bc_ait_ins%write_field('aerosol__pvol_bc_ait_ins')
+      call pvol_om_ait_ins%write_field('aerosol__pvol_om_ait_ins')
+      call pvol_du_acc_ins%write_field('aerosol__pvol_du_acc_ins')
+      call pvol_du_cor_ins%write_field('aerosol__pvol_du_cor_ins')
+
+    end if      ! write diag
+
+    nullify( mesh )
+
+    if ( subroutine_timers ) call timer('aerosol_ukca_alg')
+
+  end subroutine aerosol_ukca_alg
+
+end module aerosol_ukca_alg_mod

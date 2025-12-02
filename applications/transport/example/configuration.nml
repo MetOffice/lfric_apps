@@ -1,0 +1,208 @@
+&base_mesh
+f_lat_deg=45.0,
+file_prefix='mesh_C32',
+fplane=.false.,
+geometry='spherical',
+prepartitioned=.false.,
+prime_mesh_name='dynamics',
+topology='fully_periodic',
+/
+&boundaries
+limited_area=.false.,
+transport_overwrite_freq='final'
+/
+&energy_correction
+encorr_usage='none',
+integral_method='fe',
+reset_hours=24,
+/
+&extrusion
+domain_height=10.0,
+method='uniform',
+number_of_layers=10,
+planet_radius=6371229.0e-3
+/
+&files
+diag_stem_name            = 'diagTransport'
+checkpoint_stem_name      = 'restartTransport'
+/
+&finite_element
+cellshape='quadrilateral',
+element_order_h=0,
+element_order_v=0,
+rehabilitate=.true.,
+coord_order=1,
+coord_system='native'
+vorticity_in_w1=.true.,
+/
+&initial_temperature
+bvf_square=0.0001,
+pert_width_scaling=1.0,
+/
+&initial_wind
+profile='solid_body_rotation',
+sbr_angle_lat=0.25,
+sbr_angle_lon=0.0,
+smp_init_wind=.false.,
+u0=38.61073731e-3,
+v0=0.0,
+/
+&io
+  use_xios_io             = .true.
+  write_conservation_diag = .false.
+  diag_active_files       = 'lfric_diag'
+  diag_always_on_sampling = .false.
+  write_diag              = .true.
+  write_dump              = .true.
+  write_fluxes            = .false.
+  diagnostic_frequency    = 32
+  nodal_output_on_w3      = .false.
+  subroutine_timers       = .true.
+  subroutine_counters     = .false.
+  checkpoint_read         = .false.
+  checkpoint_write        = .false.
+  file_convention         = 'UGRID'
+/
+&logging
+  run_log_level='info'
+/
+
+&time
+calendar = 'timestep'
+timestep_start = '1'
+timestep_end = '5'
+calendar_type='gregorian'
+calendar_start='2016-01-01 15:00:00'
+calendar_origin='2016-01-01 15:00:00'
+/
+&initial_density
+r1=0.343611696486384,
+r2=0.343611696486384,
+density_background=0.1,
+density_max=1.0,
+x1=0.0,
+x2=0.0,
+y1=0.0,
+y2=0.0,
+/
+&initial_tracer_field
+r1=0.343611696486384,
+r2=0.343611696486384,
+field_background=0.1,
+field_max=1.0,
+x1=0.0,
+x2=0.0,
+y1=0.0,
+y2=0.0,
+/
+&transport
+adjust_theta=.false.
+adjust_theta_above=0.0
+adjust_vhv_wind=.false.
+broken_w2_projection=.false.
+calculate_detj='upwind'
+cap_density_predictor = 0.01
+cfl_mol_1d_stab = 1.5,
+cfl_mol_2d_stab = 1.5,
+cfl_mol_3d_stab = 1.5,
+cheap_update=.false.,
+consistent_metric  = .false.,
+dep_pt_stencil_extent=1,
+dry_field_name='rho'
+enforce_min_value=9*.false.
+equation_form=1,2,1,2,1,3,2,3,3
+ffsl_inner_order = 0
+ffsl_outer_order = 1
+ffsl_splitting=9*1
+ffsl_unity_3d=.false.
+ffsl_vertical_order=9*2
+field_names='rho','theta','tracer_con','tracer_adv','constant','mr','w2_vector', 'w3_coarse', 'wt_coarse'
+fv_horizontal_order = 2,
+fv_vertical_order = 2,
+horizontal_method=9*2
+horizontal_monotone=1,5,1,5,5,5,1,5,5
+max_vert_cfl_calc='dep_point'
+min_value=9*0.0
+log_space=9*.false.
+min_val_abs_tol=-1.0e-12
+min_val_max_iterations=10
+min_val_method='iterative'
+oned_reconstruction = .false.,
+operators = 'fv',
+panel_edge_high_order=.true.,
+panel_edge_treatment='remapping'
+profile_size=9,
+reversible=9*.false.
+runge_kutta_method='ssp3',
+scheme=9*3
+si_outer_transport='none',
+slice_order='cubic',
+splitting=9*2
+special_edges_monotone=9*1
+substep_transport='off'
+theta_dispersion_correction=.false.
+theta_variable='dry'
+use_density_predictor=.false.,
+vertical_method=9*0
+vertical_monotone=9*1
+vertical_monotone_order=9*3
+vertical_sl_order='cubic',
+wind_mono_top=.false.
+wind_mono_top_depth=5
+/
+&planet
+cp=1005.0
+gravity=9.80665
+omega=7.292116E-5
+p_zero=100000.0
+rd=287.05
+scaling_factor=1.0
+/
+&idealised
+perturb_init=.false.
+test='cosine_hill',
+/
+&formulation
+horizontal_physics_predictor=.false.
+horizontal_transport_predictor=.false.
+use_multires_coupling=.false.
+/
+&departure_points
+horizontal_limit='cap',
+horizontal_method='euler',
+share_stencil_extent=.true.
+vertical_method='trapezoidal',
+vertical_limit='exponential',
+vertical_sorting=.false.
+n_dep_pt_iterations=1,
+/
+&solver
+fail_on_non_converged=.true.
+gcrk=1,
+maximum_iterations=399,
+method='gcr',
+monitor_convergence=.true.
+preconditioner='diagonal',
+tolerance=1.0e-6,
+/
+&timestepping
+alpha=0.5,
+dt=4050.0,
+inner_iterations=2,
+method='rk',
+outer_iterations=2,
+runge_kutta_method='forward_euler',
+/
+&partitioning
+partitioner='cubedsphere',
+panel_decomposition='auto',
+/
+&section_choice
+aerosol='none',
+boundary_layer='none',
+cloud='none',
+convection='none',
+microphysics='none',
+radiation='none'
+stochastic_physics='none'
+/

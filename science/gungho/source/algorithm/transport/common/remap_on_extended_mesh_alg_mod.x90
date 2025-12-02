@@ -1,0 +1,112 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Remap a field from the standard cubed sphere mesh into one
+!!        where the panels have been extended
+module remap_on_extended_mesh_alg_mod
+
+  use constants_mod,                 only: i_def, l_def, r_tran
+  use r_tran_field_mod,              only: r_tran_field_type
+  use field_mod,                     only: field_type
+  use integer_field_mod,             only: integer_field_type
+  use mesh_mod,                      only: mesh_type
+  use psykal_lite_transport_mod,     only: invoke_remap_on_extended_mesh_kernel_type
+  use io_config_mod,                 only: subroutine_timers
+  use timer_mod,                     only: timer
+  use function_space_mod,            only: function_space_type
+  use check_configuration_mod,       only: get_required_stencil_depth
+  use transport_constants_mod,       only: get_extended_mesh_weights, &
+                                           get_extended_mesh_indices, &
+                                           ext_mesh_stencil_depth
+  use sci_geometric_constants_mod,   only: get_panel_id
+
+  implicit none
+
+  private
+
+  public :: remap_on_extended_mesh
+
+contains
+
+  !> @brief Remap a field to remap_field on an extended cubed sphere mesh
+  !> @param[in,out] remap_field      Field on extended cubed sphere mesh
+  !> @param[in]     field            Field on standard cubed sphere mesh
+  !> @param[in]     remap_weights    Interpolation weights for remapping
+  !> @param[in]     remap_indices    Index of interpolation points used for remapping
+  !> @param[in]     monotone         Force the extended field to be monotone
+  !> @param[in]     enforce_minvalue Enforce a minimum value of the extended field
+  !> @param[in]     minvalue         Minimum value to set the field to
+  !> @param[in]     depth_in         Halo depth to remap field to
+  subroutine remap_on_extended_mesh(remap_field, field, &
+                                    monotone,           &
+                                    enforce_minvalue,   &
+                                    minvalue,           &
+                                    depth_in)
+
+    implicit none
+
+    type(r_tran_field_type),  intent(inout) :: remap_field
+    type(r_tran_field_type),  intent(in)    :: field
+    logical(kind=l_def),      intent(in)    :: monotone
+    logical(kind=l_def),      intent(in)    :: enforce_minvalue
+    real(kind=r_tran),        intent(in)    :: minvalue
+    integer(kind=i_def),      intent(in)    :: depth_in
+
+    type(mesh_type),           pointer :: mesh
+    type(field_type),          pointer :: panel_id
+    type(function_space_type), pointer :: fs
+    type(r_tran_field_type),   pointer :: remap_weights
+    type(integer_field_type),  pointer :: remap_indices
+
+    integer(kind=i_def) :: ndata
+    integer(kind=i_def) :: depth
+    type(r_tran_field_type) :: field_to_remap
+
+
+    if ( subroutine_timers ) call timer('transport.remap_extended_mesh')
+
+    mesh => field%get_mesh()
+    panel_id => get_panel_id(mesh%get_id())
+    remap_weights => get_extended_mesh_weights(mesh%get_id())
+    remap_indices => get_extended_mesh_indices(mesh%get_id())
+    fs => remap_weights%get_function_space()
+    ndata = fs%get_ndata()
+
+    ! Ensure remapping depth is not larger than the halo depth
+    depth = min( depth_in, get_required_stencil_depth() )
+    ! Both the field to be remapped and the remapped field need to be
+    ! created with the full size halo. For the field to be remapped
+    ! this is due to the interpolation parallel to a panel boundary
+    ! potentially needing many points in order to compute the correct
+    ! stencil. For the remapped field the need to use the full halo
+    ! depth is due to the possibility of it being needed to a larger
+    ! halo depth (than that expected by the depth_in arguement)
+    ! in the computation of departure points for the consistent scheme.
+    call remap_field%initialise( field%get_function_space(), &
+                                 halo_depth = mesh%get_halo_depth() )
+    call field_to_remap%initialise( field%get_function_space(), &
+                                    halo_depth = mesh%get_halo_depth() )
+    call invoke( setval_x( remap_field, field ), &
+                 setval_x( field_to_remap, field) )
+    call invoke_remap_on_extended_mesh_kernel_type(                 &
+                                           remap_field,             &
+                                           field_to_remap,          &
+                                           ext_mesh_stencil_depth,  &
+                                           remap_weights,           &
+                                           remap_indices,           &
+                                           panel_id,                &
+                                           ndata,                   &
+                                           monotone,                &
+                                           enforce_minvalue,        &
+                                           minvalue,                &
+                                           depth )
+    nullify(mesh, fs, panel_id)
+
+    if ( subroutine_timers ) call timer('transport.remap_extended_mesh')
+
+  end subroutine remap_on_extended_mesh
+
+end module remap_on_extended_mesh_alg_mod

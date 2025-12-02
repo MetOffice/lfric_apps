@@ -1,0 +1,79 @@
+<file_definition>
+
+  <!-- T+0ish fields -->
+  <file id="lfric_ver_tp0" name="lfric_ver_tp0" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="once" freq_op="1ts" prec="4">
+      <field field_ref="orography"/>
+      <field field_ref="processed__pmsl"/>
+      <field field_ref="surface__land_fraction"/>
+      <field field_ref="surface__sea_ice_fraction"/>
+      <field field_ref="surface__u10m"/>
+      <field field_ref="surface__v10m"/>
+      <field field_ref="surface__wspd10m"/>
+      <field field_ref="surface__t1p5m"/>
+      <field field_ref="surface__q1p5m"/>
+      <field field_ref="surface__rh1p5m"/>
+      <field field_ref="surface__fog_fraction"/>
+      <field field_ref="surface__visibility_no_precip"/>
+      <field field_ref="surface__visibility_with_precip"/>
+      <field field_ref="surface__grid_surface_temperature"/>
+      <field field_ref="cloud__cloud_amount_maxrnd"/>
+      <field field_ref="cloud__ceilometer_cloud_amount_maxrnd"/>
+      <field field_ref="cloud__low_type_cloud_amount"/>
+      <field field_ref="cloud__medium_type_cloud_amount"/>
+      <field field_ref="cloud__high_type_cloud_amount"/>
+      <field field_ref="cloud__cloud_base_altitude"/>
+      <field field_ref="plev__temp"/>
+      <field field_ref="plev__rh_ice"/>
+      <field field_ref="plev__rh_water"/>
+      <field field_ref="plev__geopot"/>
+      <field field_ref="plev__u"/>
+      <field field_ref="plev__v"/>
+      <field field_ref="plev__w"/>
+      <field field_ref="plev__xi3"/>
+    </field_group>
+  </file>
+
+  <!-- Verification fields - 6 hourly - instant (can be used for diagnostics) -->
+  <file id="lfric_ver" name="lfric_ver" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="6h" prec="4">
+      <field field_ref="orography"/>
+      <field field_ref="processed__pmsl"/>
+      <field field_ref="surface__land_fraction"/>
+      <field field_ref="surface__sea_ice_fraction"/>
+      <field field_ref="surface__u10m"/>
+      <field field_ref="surface__v10m"/>
+      <field field_ref="surface__wspd10m"/>
+      <field field_ref="surface__t1p5m"/>
+      <field field_ref="surface__q1p5m"/>
+      <field field_ref="surface__rh1p5m"/>
+      <field field_ref="surface__fog_fraction"/>
+      <field field_ref="surface__visibility_no_precip"/>
+      <field field_ref="surface__visibility_with_precip"/>
+      <field field_ref="surface__grid_surface_temperature"/>
+      <field field_ref="cloud__cloud_amount_maxrnd"/>
+      <field field_ref="cloud__ceilometer_cloud_amount_maxrnd"/>
+      <field field_ref="cloud__low_type_cloud_amount"/>
+      <field field_ref="cloud__medium_type_cloud_amount"/>
+      <field field_ref="cloud__high_type_cloud_amount"/>
+      <field field_ref="cloud__cloud_base_altitude"/>
+      <field field_ref="plev__temp"/>
+      <field field_ref="plev__rh_ice"/>
+      <field field_ref="plev__rh_water"/>
+      <field field_ref="plev__geopot"/>
+      <field field_ref="plev__u"/>
+      <field field_ref="plev__v"/>
+      <field field_ref="plev__w"/>
+      <field field_ref="plev__xi3"/>
+    </field_group>
+    <!-- Is cumulative accumulation a thing? -->
+    <field_group operation="accumulate" freq_op="1ts" prec="4">
+      <field field_ref="processed__total_prec_acc"/>
+      <field field_ref="microphysics__ls_rain_acc"/>
+      <field field_ref="microphysics__ls_snow_acc"/>
+      <field field_ref="convection__conv_rain_acc"/>
+      <field field_ref="convection__conv_snow_acc"/>
+    </field_group>
+  </file>
+
+</file_definition>

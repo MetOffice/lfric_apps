@@ -1,0 +1,287 @@
+!------------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief  Test the linear_state_trajectory subroutine
+!!
+module linear_state_trajectory_test
+
+  use constants_mod,                 only : i_def, str_def, r_def
+  use field_collection_mod,          only : field_collection_type
+  use field_mod,                     only : field_type, field_proxy_type
+  use fs_continuity_mod,             only : W3, Wtheta
+  use function_space_collection_mod, only : function_space_collection_type, &
+                                            function_space_collection
+  use halo_routing_collection_mod,   only : halo_routing_collection_type, &
+                                            halo_routing_collection
+  use local_mesh_mod,                only : local_mesh_type
+  use mesh_mod,                      only : mesh_type
+  use mesh_collection_mod,           only : mesh_collection_type, &
+                                            mesh_collection
+  use linear_state_trajectory_mod,   only : linear_state_trajectory_type
+  use jedi_lfric_datetime_mod,       only : jedi_datetime_type
+  use jedi_lfric_duration_mod,       only : jedi_duration_type
+
+  use funit
+
+  implicit none
+
+  private
+  public :: test_linear_state_trajectory
+
+  @TestCase
+  type, extends(TestCase), public :: linear_state_trajectory_test_type
+    private
+    type(local_mesh_type)         :: unit_test_local_mesh
+    type(mesh_type),      pointer :: mesh => null()
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure get_local_mesh_ptr
+    procedure create_real_collection
+    procedure test_linear_state_trajectory
+  end type linear_state_trajectory_test_type
+
+  integer(i_def), parameter    :: element_order_h = 0
+  integer(i_def), parameter    :: element_order_v = 0
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use mesh_mod, only : mesh_type, PLANE_BI_PERIODIC
+
+    implicit none
+
+    class(linear_state_trajectory_test_type), intent(inout) :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr => null()
+    type(mesh_type) :: unit_test_mesh
+    integer(i_def)  :: mesh_id
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+    ! Create top level halo_routing collection
+    halo_routing_collection = halo_routing_collection_type()
+
+    call this%unit_test_local_mesh%initialise()
+    unit_test_local_mesh_ptr => this%get_local_mesh_ptr()
+
+    ! Dummy mesh mod has 9 cells, 3 layers and is uniform in vertical
+    unit_test_mesh = mesh_type( PLANE_BI_PERIODIC, unit_test_local_mesh_ptr )
+    mesh_id        = mesh_collection%add_new_mesh( unit_test_mesh )
+    this%mesh     => mesh_collection%get_mesh( mesh_id )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(linear_state_trajectory_test_type), intent(inout) :: this
+
+    call function_space_collection%clear()
+    call mesh_collection%clear()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function get_local_mesh_ptr( this ) result(unit_test_local_mesh_ptr)
+
+    implicit none
+
+    class(linear_state_trajectory_test_type), intent(inout), target :: this
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+
+    unit_test_local_mesh_ptr => this%unit_test_local_mesh
+
+  end function get_local_mesh_ptr
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine create_real_collection( this, field_collection,   &
+                                     variable_names,           &
+                                     variable_function_spaces, &
+                                     variable_initial_value,   &
+                                     field_collection_name )
+
+    implicit none
+
+    class(linear_state_trajectory_test_type), intent(in) :: this
+    type( field_collection_type ),  intent(out) :: field_collection
+    character( len=str_def ),       intent(in) :: variable_names(:)
+    integer( kind=i_def ),          intent(in) :: variable_function_spaces(:)
+    real( kind=r_def ),             intent(in) :: variable_initial_value(:)
+    character( len=* ),             intent(in) :: field_collection_name
+
+    ! Local
+    type( mesh_type ), pointer      :: mesh
+    type( field_type ), allocatable :: field
+    type( field_proxy_type )        :: field_proxy
+    integer                         :: i
+
+    ! Setup the field_collection
+    call field_collection%initialise( &
+             name = trim(field_collection_name), table_len=100)
+
+    ! Create and add the fields defined in the list of variable names
+    mesh => this%mesh
+    do i=1,size(variable_function_spaces)
+
+      allocate(field)
+
+      call field%initialise( &
+             vector_space = function_space_collection%get_fs             &
+                    ( mesh, element_order_h, element_order_v,            &
+                      variable_function_spaces(i)), &
+             name = variable_names(i) )
+
+      field_proxy = field%get_proxy()
+      field_proxy%data = variable_initial_value(i)
+
+      call field_collection%add_field( field )
+
+      deallocate( field )
+
+    end do
+
+  end subroutine create_real_collection
+
+  !> Test for the linear_state_trajectory_type
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_linear_state_trajectory( this )
+
+    implicit none
+
+    class(linear_state_trajectory_test_type), intent(inout) :: this
+
+    ! Local
+    type( jedi_datetime_type )             :: start_datetime
+    type( jedi_datetime_type )             :: current_datetime
+    type( jedi_datetime_type )             :: test_datetime
+    type( jedi_duration_type )             :: forecast_length
+    type( jedi_duration_type )             :: time_step
+    type( linear_state_trajectory_type )   :: linear_state_trajectory
+    type( field_collection_type )          :: linear_state_collection
+    type( field_type ), pointer            :: field_ptr
+    type( field_proxy_type )               :: field_proxy
+    integer( kind=i_def ), parameter       :: nvars = 3_i_def
+    integer( kind=i_def ), parameter       :: ntimes = 3_i_def
+    integer( kind=i_def )                  :: ivar
+    integer( kind=i_def )                  :: itime
+    character( len=str_def )               :: variable_names(nvars)
+    character( len=str_def )               :: ls_variable_names(nvars)
+    integer( kind=i_def )                  :: variable_function_spaces(nvars)
+    real( kind=r_def )                     :: variable_initial_value(nvars, ntimes)
+    real( kind=r_def )                     :: expected_value(nvars)
+
+    ! Define the field information
+    variable_names = (/"field1", "field2", "field3"/)
+    variable_function_spaces = (/W3 , Wtheta, W3/)
+
+    ! Define the time step and forecast length duration and start datetime
+    call time_step%init('P0DT0H30M0S')
+    call forecast_length%init('P0DT1H0M0S')
+    call start_datetime%init('2023-05-04T09:00:00Z')
+
+    ! Define initial values for the fields
+    variable_initial_value(:,1) = (/0.0_r_def, -1.0_r_def, 2.0_r_def/)
+    variable_initial_value(:,2) = (/3.0_r_def, 10.0_r_def, 5.0_r_def/)
+    variable_initial_value(:,3) = (/0.5_r_def, -6.0_r_def, 9.0_r_def/)
+
+    ! Create a linear state object
+    call linear_state_trajectory%initialise( forecast_length, time_step )
+
+    ! Create the linear states and initialise the values using variable_initial_value
+    current_datetime = start_datetime
+    do itime=1,ntimes
+      ! Create next linear state collection and initialise with known values
+      call this%create_real_collection( linear_state_collection,         &
+                                        variable_names,                  &
+                                        variable_function_spaces,        &
+                                        variable_initial_value(:,itime), &
+                                        "linear_state_fields" )
+      ! Add the collection to the trajectory (prepends fieldnames with "ls_")
+      call linear_state_trajectory%add_linear_state( current_datetime, linear_state_collection )
+
+      ! Move time on by one time step
+      current_datetime = current_datetime + time_step
+    end do
+
+    ! Prepend "ls_" because this is prepended to the trajectory collection copied into the linear
+    ! model in add_linear_state method
+    do ivar=1,nvars
+      ls_variable_names(ivar) = "ls_"//trim(variable_names(ivar))
+    end do
+
+    ! Create collection to update from the trajectory
+    call this%create_real_collection( linear_state_collection,         &
+                                      ls_variable_names,               &
+                                      variable_function_spaces,        &
+                                      variable_initial_value(:,itime), &
+                                      "linear_state_fields" )
+
+    ! Update the linear state collections and compare with expected values
+
+    ! 1. Start datetime
+    call test_datetime%init( '2023-05-04T09:00:00Z' )
+    expected_value = (/0.0_r_def, -1.0_r_def, 2.0_r_def/)
+    call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
+    do ivar=1,nvars
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
+      field_proxy = field_ptr%get_proxy()
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
+
+    ! 2. Start plus 0.5 time step
+    call test_datetime%init( '2023-05-04T09:15:00Z' )
+    expected_value = (/1.5_r_def, 4.5_r_def, 3.5_r_def/)
+    call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
+    do ivar=1,nvars
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
+      field_proxy = field_ptr%get_proxy()
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
+
+    ! 3. Start plus 1 time step
+    call test_datetime%init( '2023-05-04T09:30:00Z' )
+    expected_value = (/3.0_r_def, 10.0_r_def, 5.0_r_def/)
+    call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
+    do ivar=1,nvars
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
+      field_proxy = field_ptr%get_proxy()
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
+
+    ! 4. Start plus 1.5 time step
+    call test_datetime%init( '2023-05-04T09:45:00Z' )
+    expected_value = (/1.75_r_def, 2.0_r_def, 7.0_r_def/)
+
+    call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
+    do ivar=1,nvars
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
+      field_proxy = field_ptr%get_proxy()
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
+
+    ! 5. Last datetime
+    call test_datetime%init( '2023-05-04T10:00:00Z' )
+    expected_value = (/0.5_r_def, -6.0_r_def, 9.0_r_def/)
+    call linear_state_trajectory%get_linear_state( test_datetime, linear_state_collection )
+    do ivar=1,nvars
+      call linear_state_collection%get_field(ls_variable_names(ivar), field_ptr)
+      field_proxy = field_ptr%get_proxy()
+      @assertEqual(expected_value(ivar), field_proxy%data(1))
+    end do
+
+  end subroutine test_linear_state_trajectory
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+end module linear_state_trajectory_test

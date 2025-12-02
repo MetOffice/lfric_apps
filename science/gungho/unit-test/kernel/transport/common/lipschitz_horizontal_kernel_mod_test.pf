@@ -1,0 +1,82 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the horizontal Lipschitz calculation
+
+module lipschitz_horizontal_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: lipschitz_horizontal_test_type
+    private
+  contains
+    procedure test_all
+  end type lipschitz_horizontal_test_type
+
+contains
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use lipschitz_horizontal_kernel_mod, only: lipschitz_horizontal_code
+
+    implicit none
+
+    class(lipschitz_horizontal_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran
+
+    ! DOF and stencil parameters
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ncells = 3
+    integer(kind=i_def), parameter :: ndf_w2 = 4
+    integer(kind=i_def), parameter :: undf_w2 = 10
+    integer(kind=i_def)            :: cell
+
+    ! Maps
+    integer(kind=i_def), dimension(ndf_w2,ncells) :: map_w2
+
+    ! Fields
+    real(kind=r_tran),   dimension(undf_w2) :: dep_dist_xy
+    real(kind=r_tran),   dimension(undf_w2) :: lipschitz
+    real(kind=r_tran),   dimension(undf_w2) :: answer
+
+    ! Set up maps
+    map_w2 = reshape( [1, 2, 3, 4, &
+                       3, 5, 6, 7, &
+                       6, 8, 9, 10], [ndf_w2, ncells] )
+
+    dep_dist_xy(:) = (/ -0.4_r_tran, -1.3_r_tran, 0.6_r_tran, -2.5_r_tran,  &
+                         0.6_r_tran, 1.8_r_tran, 0.61_r_tran,               &
+                         0.1_r_tran, 0.7_r_tran, -0.1_r_tran /)
+    answer(:) = (/ 1.0_r_tran, 0.0_r_tran, 1.0_r_tran, 1.2_r_tran,  &
+                   -0.01_r_tran, 1.2_r_tran, 0.0_r_tran,            &
+                   0.2_r_tran, -1.1_r_tran, 0.2_r_tran  /)
+
+    lipschitz(:) = 0.0_r_tran
+
+    do cell = 1, ncells
+      call lipschitz_horizontal_code( nlayers,          &
+                                      lipschitz,        &
+                                      dep_dist_xy,      &
+                                      ndf_w2,           &
+                                      undf_w2,          &
+                                      map_w2(:,cell) )
+    end do
+
+    @assertEqual(answer, lipschitz, tol)
+
+  end subroutine test_all
+
+end module lipschitz_horizontal_kernel_mod_test

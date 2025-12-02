@@ -1,0 +1,269 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Computes the adjoint flux F and tangent linear advective inc
+
+module atl_advective_and_flux_alg_mod
+
+  use constants_mod,                       only: i_def, l_def, r_def
+  use field_mod,                           only: field_type
+  use log_mod,                             only: log_event, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+  use sci_field_minmax_alg_mod,            only: log_field_minmax
+  use operator_mod,                        only: operator_type
+  use reconstruct_w3_field_alg_mod,        only: reconstruct_w3_field_alg
+  use atl_reconstruct_w3_field_alg_mod,    only: atl_reconstruct_w3_field_alg
+  use atl_wt_advective_update_alg_mod,     only: atl_wt_advective_update_alg
+  use transport_enumerated_types_mod,      only: direction_3d,                 &
+                                                 direction_h,                  &
+                                                 direction_v,                  &
+                                                 monotone_clipping
+  use transport_metadata_mod,              only: transport_metadata_type
+  use w3h_advective_update_kernel_mod,     only: w3h_advective_update_kernel_type
+  use w3v_advective_update_kernel_mod,     only: w3v_advective_update_kernel_type
+  use horizontal_mass_flux_kernel_mod,     only: horizontal_mass_flux_kernel_type
+  use vertical_mass_flux_kernel_mod,       only: vertical_mass_flux_kernel_type
+  use atl_w3h_advective_update_kernel_mod, only: atl_w3h_advective_update_kernel_type
+  use invoke_adj_w3h_adv_upd_lookup_mod,   only: invoke_adj_w3h_adv_upd_lookup_kernel_type
+  use adj_lookup_table_generators_alg_mod, only: create_lookup_w3h_adv_upd
+  use adj_lookup_table_mod,                only: adj_lookup_table_type
+  use integer_field_mod,                   only: integer_field_type
+  use atl_w3v_advective_update_kernel_mod, only: atl_w3v_advective_update_kernel_type
+  use adj_w3v_advective_update_kernel_mod, only: adj_w3v_advective_update_kernel_type
+  use atl_horizontal_mass_flux_kernel_mod, only: atl_horizontal_mass_flux_kernel_type
+  use adj_horizontal_mass_flux_kernel_mod, only: adj_horizontal_mass_flux_kernel_type
+  use atl_vertical_mass_flux_kernel_mod,   only: atl_vertical_mass_flux_kernel_type
+  use adj_vertical_mass_flux_kernel_mod,   only: adj_vertical_mass_flux_kernel_type
+  use mesh_mod,                            only: mesh_type
+  use sci_fem_constants_mod,               only: get_inverse_mass_matrix_fe
+  use function_space_collection_mod,       only: function_space_collection
+  use function_space_mod,                  only: function_space_type
+  use fs_continuity_mod,                   only: W3, Wtheta
+  use finite_element_config_mod,           only: element_order_h, element_order_v
+
+  implicit none
+
+  private
+
+  public :: atl_advective_and_flux_alg
+
+contains
+
+  !============================================================================!
+  !> @brief Computes the tangent linear flux F and advective increment
+  !> @details Compute the tangent linear mass flux and advective increment
+  !> @param[in,out] mass_flux_1         ACTIVE: mass flux to compute from
+  !!                                    linear wind and perturbation field
+  !> @param[in,out] mass_flux_2         ACTIVE: mass flux to compute from
+  !!                                    perturbation wind and linear field
+  !> @param[in,out] adv_inc             ACTIVE: advective increment to compute
+  !> @param[in,out] density             ACTIVE: W3 field to transport
+  !> @param[in,out] wind                ACTIVE: transporting wind field
+  !> @param[in]     ls_density          PASSIVE: linearisation transported field
+  !> @param[in]     ls_wind             PASSIVE: linearisation transporting wind
+  !> @param[in]     direction           Direction of the transport
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  !> @param[in]     dt                  Advection time step
+  !> @param[in]     do_flux             Flag to compute mass_flux = wind*density
+  !> @param[in]     do_advective        Flag to compute adv_inc = wind.grad(density)
+  subroutine atl_advective_and_flux_alg( mass_flux_1, mass_flux_2, adv_inc,  &
+                                         density, wind, ls_density, ls_wind, &
+                                         direction, transport_metadata,      &
+                                         final_rk_stage, dt,                 &
+                                         do_flux, do_advective )
+
+    implicit none
+
+    type(field_type),              intent(inout) :: mass_flux_1, mass_flux_2
+    type(field_type),              intent(inout) :: density, wind
+    type(field_type),              intent(in)    :: ls_density, ls_wind
+    type(field_type),              intent(inout) :: adv_inc
+    integer(kind=i_def),           intent(in)    :: direction
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+    real(kind=r_def),              intent(in)    :: dt
+    logical(kind=l_def),           intent(in)    :: do_flux
+    logical(kind=l_def),           intent(in)    :: do_advective
+
+    ! Internal variables
+    type(field_type)             :: adv_inc_1, adv_inc_2
+    type(field_type)             :: reversed_ls_wind
+    type(mesh_type),     pointer :: mesh
+    integer(kind=i_def)                :: ndata
+    type(function_space_type), pointer :: recon_fs
+    type(field_type)                   :: reconstruction_field, &
+                                          ls_reconstruction_field, &
+                                          ls_reconstruction_field_big_halo, &
+                                          ls_wind_big_halo
+    logical(kind=l_def)                :: do_horizontal
+    logical(kind=l_def)                :: do_vertical
+    type(operator_type), pointer       :: m3_inv
+    integer(kind=i_def), parameter     :: stencil_depth = 1
+
+    type(adj_lookup_table_type)        :: lookup_w3h
+    type(integer_field_type),  pointer :: lookup_w3h_field
+    type(integer_field_type),  pointer :: set_count_w3h_field
+    integer(kind=i_def)                :: nsets
+    integer(kind=i_def)                :: nindices
+
+    nullify(mesh, recon_fs, m3_inv, lookup_w3h_field, set_count_w3h_field)
+
+    mesh => density%get_mesh()
+
+    ! Apply monotonicity (as if this is a full timestep)
+    if ( (transport_metadata%get_horizontal_monotone() == monotone_clipping) .OR. &
+         (transport_metadata%get_vertical_monotone()   == monotone_clipping) ) then
+      call log_event( "ADJ: monotonicity not available", LOG_LEVEL_ERROR )
+    end if
+
+
+    ! ADJOINT START
+
+    ! Apply monotonicity (as if this is a full timestep)
+    if ( (transport_metadata%get_horizontal_monotone() == monotone_clipping) .OR. &
+         (transport_metadata%get_vertical_monotone()   == monotone_clipping) ) then
+      call log_event( "TL: monotonicity not available", LOG_LEVEL_ERROR )
+    end if
+
+    select case ( density%which_function_space() )
+      case ( W3 )
+
+        ! Reconstruct W3 variable on a W3 multidata field
+        ! each W3 point contains 2, 4 or 6 values.
+        ! For vertical only reconstructions these are the (Bottom, Top) faces
+        ! which is the same order as a W2v field
+        ! For horizontal only reconstructions these are the (West, South, East,
+        ! North) faces  which is the same order as a W2h field
+        ! For 3D reconstructions these are the (West, South, East,
+        ! North, Bottom, Top) faces which is the same order as a W2 field
+        select case ( direction )
+          case ( direction_3d )
+            ndata = 6
+            do_horizontal = .true.
+            do_vertical   = .true.
+          case ( direction_h )
+            ndata = 4
+            do_horizontal = .true.
+            do_vertical   = .false.
+          case ( direction_v )
+            ndata = 2
+            do_horizontal = .false.
+            do_vertical   = .true.
+          case default
+            call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
+        end select
+
+        recon_fs => function_space_collection%get_fs(                          &
+            mesh, element_order_h, element_order_v, W3, ndata,                 &
+            ndata_first=.false.                                                &
+        )
+        call reconstruction_field%initialise( vector_space=recon_fs )
+        call ls_reconstruction_field%initialise( vector_space=recon_fs )
+        call invoke( setval_c( reconstruction_field, 0.0_r_def ) )
+
+        ! Reconstruct W3 variables in multidata fields
+        call reconstruct_w3_field_alg( ls_reconstruction_field, ls_density,  &
+                                       direction, transport_metadata, final_rk_stage )
+
+        ! Compute the advective update m3_inv * u.grad(density)
+        if ( do_advective ) then
+          call adv_inc_1%initialise( density%get_function_space() )
+          call adv_inc_2%initialise( density%get_function_space() )
+
+          m3_inv => get_inverse_mass_matrix_fe( W3, density%get_mesh_id() )
+
+          ! Obtain final increment by combining these two:
+          ! df' = ls_u.grad(f') + u'.grad(ls_f) )
+          call invoke( setval_X( adv_inc_1, adv_inc ), &
+                       setval_X( adv_inc_2, adv_inc ), &
+                       setval_c( adv_inc, 0.0_r_def ) )
+
+          ! Different advective update kernel dependent on direction
+          if ( do_vertical ) then
+            call invoke( atl_w3v_advective_update_kernel_type( adv_inc_2, ls_reconstruction_field, &
+                                                               ls_wind, wind, m3_inv ),            &
+                         adj_w3v_advective_update_kernel_type( adv_inc_1, reconstruction_field,    &
+                                                               ls_wind, m3_inv ) )
+          end if
+
+          if ( do_horizontal ) then
+            ! Need bigger halos due to atl_w3h being a stencil operation with GH_INC.
+            call ls_reconstruction_field_big_halo%initialise( ls_reconstruction_field%get_function_space(), &
+                                                              halo_depth=stencil_depth + 1_i_def )
+            call ls_wind_big_halo%initialise( ls_wind%get_function_space(), &
+                                                halo_depth=stencil_depth + 1_i_def )
+            call invoke( setval_X( ls_reconstruction_field_big_halo, ls_reconstruction_field ),  &
+                         setval_X( ls_wind_big_halo, ls_wind ),                                  &
+                         atl_w3h_advective_update_kernel_type( adv_inc_2,                        &
+                                                               ls_reconstruction_field_big_halo, &
+                                                               stencil_depth,                    &
+                                                               ls_wind_big_halo,                 &
+                                                               stencil_depth,                    &
+                                                               wind,                             &
+                                                               m3_inv ) )
+
+            ! Lookup table adjoint solution. Creation of lookup table is essentially
+            ! a dry-run of the TL code.
+            call create_lookup_w3h_adv_upd( lookup_w3h, adv_inc_1, reconstruction_field, &
+                                            wind, m3_inv, stencil_depth )
+            lookup_w3h_field => lookup_w3h%get_lookup_field()
+            set_count_w3h_field => lookup_w3h%get_set_count_field()
+            nindices = lookup_w3h%get_nindices()
+            nsets = lookup_w3h%get_nsets_max()
+            call invoke_adj_w3h_adv_upd_lookup_kernel_type( adv_inc_1, reconstruction_field, &
+                                                            lookup_w3h_field, set_count_w3h_field, &
+                                                            ls_wind, stencil_depth, m3_inv, &
+                                                            nsets, nindices )
+          end if
+
+        end if
+
+        if ( do_flux ) then
+          ! Obtain mass flux F = rho * u_ls + rho_ls * u
+
+          if ( do_vertical ) then
+            call invoke( atl_vertical_mass_flux_kernel_type( mass_flux_2, ls_wind, wind,  &
+                                                             ls_reconstruction_field ),   &
+                         adj_vertical_mass_flux_kernel_type( mass_flux_1, ls_wind,        &
+                                                             reconstruction_field ) )
+          end if
+
+          if ( do_horizontal ) then
+            call reversed_ls_wind%initialise( ls_wind%get_function_space() )
+            call invoke( a_times_X( reversed_ls_wind, -1.0_r_def, ls_wind ),                        &
+                         inc_a_times_X( 0.5_r_def, mass_flux_2 ),                                   &
+                         atl_horizontal_mass_flux_kernel_type( mass_flux_2, reversed_ls_wind, wind, &
+                                                               ls_reconstruction_field ),           &
+                         atl_horizontal_mass_flux_kernel_type( mass_flux_2, ls_wind, wind,          &
+                                                               ls_reconstruction_field ),           &
+                         adj_horizontal_mass_flux_kernel_type( mass_flux_1, ls_wind,                &
+                                                               reconstruction_field ),              &
+                         setval_c( mass_flux_2, 0.0_r_def ),                                        &
+                         setval_c( mass_flux_1, 0.0_r_def )  )
+          end if
+
+        end if
+
+        call atl_reconstruct_w3_field_alg( reconstruction_field, density, ls_density, &
+                                           direction, transport_metadata, final_rk_stage )
+
+      case ( Wtheta )
+        if ( do_flux ) then
+          call log_event( 'Wtheta flux is undefined', LOG_LEVEL_ERROR )
+        end if
+
+        if ( do_advective ) then
+          call atl_wt_advective_update_alg( adv_inc, density, wind, ls_density, ls_wind, &
+                                            dt, direction, transport_metadata, final_rk_stage )
+        end if
+
+      case default
+        call log_event( "Transport increments only valid for W3 & Wtheta spaces", LOG_LEVEL_ERROR )
+
+    end select
+
+  end subroutine atl_advective_and_flux_alg
+
+end module atl_advective_and_flux_alg_mod

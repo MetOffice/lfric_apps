@@ -1,0 +1,249 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Test the W2 mass matrix computation
+!>
+module compute_coriolis_matrix_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, PI
+  use get_unit_test_m3x3_dofmap_mod, &
+    only : get_w0_m3x3_dofmap, get_w2_m3x3_dofmap, get_w3_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod,                   &
+    only : get_w0_m3x3_q3x3x3_size, get_w2_m3x3_q3x3x3_size, &
+           get_w3_m3x3_q3x3x3_size
+  use get_unit_test_q3x3x3_basis_mod, &
+    only : get_w0_q3x3x3_basis, get_w0_q3x3x3_diff_basis, get_w2_q3x3x3_basis
+  use get_unit_test_q3x3x3_quadrature_mod,            &
+    only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+           get_gaussian_q3x3x3_quadrature_weights_z
+  use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: compute_coriolis_matrix_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type compute_coriolis_matrix_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_planar, &
+                                          topology_fully_periodic
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use formulation_config_mod,    only : eos_method_sampled,      &
+                                          moisture_formulation_dry
+    use feign_config_mod,          only : feign_base_mesh_config, &
+                                          feign_finite_element_config, &
+                                          feign_formulation_config, &
+                                          feign_planet_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(compute_coriolis_matrix_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_planar,         &
+                                 prepartitioned=.false.,           &
+                                 topology=topology_fully_periodic, &
+                                 fplane=.true.,                    &
+                                 f_lat_deg=45.0_r_def )
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             vorticity_in_w1=.false. )
+
+    call feign_formulation_config( dlayer_on=.false.,               &
+                                   dry_static_adjust=.false.,       &
+                                   exner_from_eos=.false.,          &
+                                   eos_method=eos_method_sampled,   &
+                                   init_exner_bt=.false.,           &
+                                   l_multigrid=.false.,             &
+                                   lagged_orog=.false.,             &
+                                   rotating=.true.,                 &
+                                   shallow=.false.,                 &
+                                   moisture_formulation =           &
+                                   moisture_formulation_dry,        &
+                                   moisture_in_solver=.true.,       &
+                                   p2theta_vert=.true.,             &
+                                   theta_moist_source=.false.,      &
+                                   use_physics=.false.,             &
+                                   use_wavedynamics=.false.,        &
+                                   use_multires_coupling=.false.,   &
+                                   si_momentum_equation=.true.,     &
+                                   horizontal_physics_predictor=.false.,   &
+                                   horizontal_transport_predictor=.false., &
+                                   vector_invariant=.true.)
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(compute_coriolis_matrix_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use compute_coriolis_matrix_kernel_mod, only : compute_coriolis_matrix_code
+
+    implicit none
+
+    class(compute_coriolis_matrix_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def
+    real(r_def), parameter :: dy = 1000.0_r_def
+    real(r_def), parameter :: dz = 2000.0_r_def
+    real(r_def), parameter :: scaled_omega=7.292116E-5_r_def
+    real(r_def), parameter :: f_lat_rad=(PI/4.0_r_def)*(PI/180.0_r_def)
+    integer(i_def), parameter :: nlayers = 5
+
+    integer(i_def) :: i, j, k, cell
+
+    ! Required for calling mass matrix kernel
+    integer(i_def) :: unused
+    integer(i_def) :: ndf_w2
+    integer(i_def) :: ndf_w0, undf_w0
+    integer(i_def) :: ndf_w3, undf_w3
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: ncells, ncell_3d
+
+    real(r_def),    allocatable :: chi1_data(:), chi2_data(:), chi3_data(:)
+    real(r_def),    allocatable :: panel_id(:)
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    real(r_def),    allocatable :: w0_diff_basis(:,:,:,:)
+    real(r_def),    allocatable :: w0_basis(:,:,:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    real(r_def),    allocatable :: w2_basis(:,:,:,:)
+    real(r_def),    allocatable :: wh(:), wv(:)
+    real(r_def),    allocatable :: local_stencil(:,:,:)
+
+    real(r_def) :: answer(6,6)
+
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
+                                  unused, unused, &
+                                  nqp_h, nqp_v, nlayers )
+    call get_w0_m3x3_dofmap( map_w0, nlayers )
+    call get_w0_q3x3x3_basis( w0_basis )
+    call get_w0_q3x3x3_diff_basis( w0_diff_basis )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, unused, unused, unused, unused, &
+                                  unused, unused, nlayers )
+    call get_w2_m3x3_dofmap( map_w2, nlayers )
+    call get_w2_q3x3x3_basis( w2_basis )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, unused, unused, unused, &
+                                  unused, unused, nlayers )
+    call get_w3_m3x3_dofmap( map_w3, nlayers )
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ! Compute coordinates
+    allocate(chi1_data(undf_w0))
+    allocate(chi2_data(undf_w0))
+    allocate(chi3_data(undf_w0))
+    allocate(panel_id(undf_w3))
+
+    panel_id(:) = 1.0_r_def
+
+    call get_w0_3x3x3_field(chi1_data, chi2_data, chi3_data, dx, &
+                            dy, dz, map_w0, nlayers)
+
+    ! Test mass matrix kernel
+    cell = 1
+    ncell_3d = ncells * nlayers
+    allocate( local_stencil(ncell_3d, ndf_w2, ndf_w2) )
+    local_stencil(:,:,:) = 0.0_r_def
+    call compute_coriolis_matrix_code( cell,          &
+                                       nlayers,       &
+                                       ncell_3d,      &
+                                       local_stencil, &
+                                       chi1_data,     &
+                                       chi2_data,     &
+                                       chi3_data,     &
+                                       panel_id,      &
+                                       scaled_omega,  &
+                                       f_lat_rad,     &
+                                       ndf_w2,        &
+                                       w2_basis,      &
+                                       ndf_w0,        &
+                                       undf_w0,       &
+                                       map_w0,        &
+                                       w0_basis,      &
+                                       w0_diff_basis, &
+                                       ndf_w3,        &
+                                       undf_w3,       &
+                                       map_w3,        &
+                                       nqp_h,         &
+                                       nqp_v,         &
+                                       wh,            &
+                                       wv )
+    call coriolis_matrix_w2(answer)
+    ! Normalise by 1/average edge length
+    answer(:,:) = answer(:,:) * ( dx + dy + dz ) / 3.0_r_def
+    local_stencil(1, :, :) = local_stencil(1, :, :) &
+                             * (dx + dy + dz) / 3.0_r_def
+
+    @assertEqual( answer, local_stencil(1, :, :), tol )
+
+    deallocate( local_stencil )
+    deallocate( chi3_data, chi2_data, chi1_data, panel_id )
+    deallocate( wv, wh )
+    deallocate( w2_basis, map_w2 )
+    deallocate( w0_diff_basis, w0_basis, map_w0 )
+    deallocate( map_w3 )
+
+  end subroutine test_all
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine coriolis_matrix_w2( mm )
+
+    implicit none
+
+    real(kind=r_def), dimension(6,6), intent(out) :: mm
+
+    mm = reshape( [ &
+  0.000000000000000E+000_r_def,  2.498890612217043E-010_r_def,  0.000000000000000E+000_r_def,  2.498890612217044E-010_r_def,  3.645715452095383E-008_r_def,  3.645715452095383E-008_r_def, &
+ -2.498890612217043E-010_r_def,  0.000000000000000E+000_r_def, -2.498890612217046E-010_r_def,  0.000000000000000E+000_r_def,  0.000000000000000E-000_r_def, -0.000000000000000E-000_r_def, &
+  0.000000000000000E+000_r_def,  2.498890612217046E-010_r_def,  0.000000000000000E+000_r_def,  2.498890612217045E-010_r_def,  3.645715452095383E-008_r_def,  3.645715452095383E-008_r_def, &
+ -2.498890612217044E-010_r_def,  0.000000000000000E+000_r_def, -2.498890612217045E-010_r_def,  0.000000000000000E+000_r_def,  0.000000000000000E-000_r_def,  0.000000000000000E-000_r_def, &
+ -3.645715452095383E-008_r_def,  0.000000000000000E-000_r_def, -3.645715452095383E-008_r_def,  0.000000000000000E-000_r_def,  0.000000000000000E-000_r_def,  0.000000000000000E-000_r_def, &
+ -3.645715452095382E-008_r_def,  0.000000000000000E-000_r_def, -3.645715452095383E-008_r_def,  0.000000000000000E-000_r_def,  0.000000000000000E-000_r_def,  0.000000000000000E-000_r_def  &
+    ], shape(mm) )
+
+  end subroutine coriolis_matrix_w2
+
+end module compute_coriolis_matrix_kernel_mod_test

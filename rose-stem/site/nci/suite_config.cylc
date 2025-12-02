@@ -1,0 +1,12 @@
+{% do LOG.debug("Entered nci/suite_config.cylc") %}
+
+    [[NCI_ORIG]]
+        platform = localhost
+
+{% include 'site/nci/common/suite_config_gadi.cylc' %}
+
+{% if "lfricinputs" in requested_applications %}
+    {% include 'site/'~SITE~'/common/suite_config_lfricinputs.cylc' %}
+{% endif %}
+
+{% do LOG.debug("Finished in nci/suite_config.cylc") %}

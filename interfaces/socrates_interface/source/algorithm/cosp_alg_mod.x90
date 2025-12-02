@@ -1,0 +1,239 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Run the CFMIP Observation Simulator Package (COSP)
+
+module cosp_alg_mod
+
+use constants_mod,           only: r_def
+use field_collection_mod,    only: field_collection_type
+use field_mod,               only: field_type
+use fs_continuity_mod,       only: W3, Wtheta
+use sci_geometric_constants_mod,   &
+                             only: get_height_fv
+use integer_field_mod,       only: integer_field_type
+use io_config_mod,           only: write_diag, use_xios_io, subroutine_timers
+use mesh_mod,                only: mesh_type
+use mphys_inputs_mod,        only: x1r, x2r
+use mphys_psd_mod,           only: x1g, x2g, x4g
+use microphysics_config_mod, only: microphysics_casim
+use mr_indices_mod,          only: nummr, imr_v, imr_cl, imr_s, imr_ci
+use planet_config_mod,       only: p_zero, kappa
+use timer_mod,               only: timer
+use log_mod,                 only: log_event, LOG_LEVEL_INFO
+
+use cosp_config_mod, only: n_subcol_gen
+use cosp_diags_mod,  only: initialise_diags_for_cosp, output_diags_for_cosp
+use cosp_kernel_mod, only: cosp_kernel_type
+
+implicit none
+private
+public :: cosp_alg
+
+contains
+
+!> @param[in]     pressure_in_wth          Pressure field in wth space
+!> @param[in]     temperature_in_wth       Temperature field in wth space
+!> @param[in]     exner                    Exner pressure in w3 space
+!> @param[in]     mr                       Mixing ratios
+!> @param[in]     derived_fields           Derived fields
+!> @param[in]     radiation_fields         Fields for radiation scheme
+!> @param[in]     cloud_fields             Fields for cloud scheme
+!> @param[in]     aerosol_fields           Fields for aerosol scheme
+!> @param[in]     convection_fields        Fields for convection scheme
+!> @param[in]     microphysics_fields      Fields for microphysics scheme
+!> @param[in]     rand_seed                Random seed field for cloud generator
+!> @param[in]     n_cloud_layer            Number of cloud layers
+!> @param[in]     radiative_cloud_fraction Large scale cloud fraction
+!> @param[in]     radiative_conv_fraction  Convective cloud fraction
+!> @param[in]     conv_liquid_fraction     Convective liquid cloud fraction
+!> @param[in]     conv_frozen_fraction     Convective frozen cloud fraction
+!> @param[in]     conv_liquid_mmr          Convective liquid gridbox MMR
+!> @param[in]     conv_frozen_mmr          Convective frozen gridbox MMR
+!> @param[in]     conv_frozen_number       Convective frozen number conc
+subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
+                    derived_fields, radiation_fields, cloud_fields, &
+                    aerosol_fields, convection_fields, microphysics_fields, &
+                    rand_seed, n_cloud_layer, &
+                    radiative_cloud_fraction, radiative_conv_fraction, &
+                    conv_liquid_fraction, conv_frozen_fraction, &
+                    conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number)
+
+  implicit none
+
+  ! Dummy variables
+  type( field_type ), intent(in) :: pressure_in_wth
+  type( field_type ), intent(in) :: temperature_in_wth
+  type( field_type ), intent(in) :: exner
+  type( field_type ), intent(in) :: mr(nummr)
+  type( field_collection_type ), intent(in) :: derived_fields
+  type( field_collection_type ), intent(in) :: radiation_fields
+  type( field_collection_type ), intent(in) :: cloud_fields
+  type( field_collection_type ), intent(in) :: aerosol_fields
+  type( field_collection_type ), intent(in) :: convection_fields
+  type( field_collection_type ), intent(in) :: microphysics_fields
+  type( integer_field_type ), intent(in) :: rand_seed
+  type( integer_field_type ), intent(in) :: n_cloud_layer
+  type( field_type ), intent(in) :: radiative_cloud_fraction
+  type( field_type ), intent(in) :: radiative_conv_fraction
+  type( field_type ), intent(in) :: conv_liquid_fraction
+  type( field_type ), intent(in) :: conv_frozen_fraction
+  type( field_type ), intent(in) :: conv_liquid_mmr
+  type( field_type ), intent(in) :: conv_frozen_mmr
+  type( field_type ), intent(in) :: conv_frozen_number
+
+  ! Local variables
+  type(mesh_type), pointer :: mesh => null()
+  type( field_type ) :: pressure_in_w3, mr_ice, n_ice
+  real( r_def ) :: inv_kappa
+  real( r_def ) :: cosp_x1r, cosp_x2r, cosp_x1g, cosp_x2g, cosp_x4g
+
+  ! Unpacked fields from collections
+  type( field_type ), pointer :: rho_in_wth          => null()
+  type( field_type ), pointer :: lit_fraction        => null()
+  type( field_type ), pointer :: liquid_fraction     => null()
+  type( field_type ), pointer :: frozen_fraction     => null()
+  type( field_type ), pointer :: sigma_ml
+  type( field_type ), pointer :: sigma_mi
+  type( field_type ), pointer :: cloud_drop_no_conc  => null()
+  type( field_type ), pointer :: ls_rain_3d          => null()
+  type( field_type ), pointer :: ni_mphys
+  type( field_type ), pointer :: ns_mphys
+  type( field_type ), pointer :: conv_rain_3d        => null()
+  type( field_type ), pointer :: conv_snow_3d        => null()
+  type( field_type ), pointer :: height_w3           => null()
+  type( field_type ), pointer :: height_wth          => null()
+
+  ! Local diagnostics
+  type( field_type ) :: &
+    sunlit_mask, &
+    isccp_ctp_tau, &
+    calipso_total_backscatter, &
+    calipso_low_cloud, calipso_low_cloud_mask, &
+    calipso_mid_cloud, calipso_mid_cloud_mask, &
+    calipso_high_cloud, calipso_high_cloud_mask, &
+    calipso_cfad_sr_40_lvls, &
+    calipso_cf_40_lvls_liq, &
+    calipso_cf_40_lvls_ice, &
+    calipso_cf_40_lvls_undet, &
+    calipso_cf_40_lvls_mask, &
+    cloud_thermal_absorptivity, cloud_solar_extinction
+
+
+  call log_event( 'slow_physics: Running COSP', LOG_LEVEL_INFO )
+
+  ! Unpack fields from collections
+  call derived_fields%get_field('rho_in_wth', rho_in_wth)
+
+  call radiation_fields%get_field('lit_fraction', lit_fraction)
+
+  call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+  call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+  call cloud_fields%get_field('sigma_ml', sigma_ml)
+  call cloud_fields%get_field('sigma_mi', sigma_mi)
+
+  call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc)
+
+  call microphysics_fields%get_field('ls_rain_3d', ls_rain_3d)
+  call microphysics_fields%get_field('ni_mphys', ni_mphys)
+  call microphysics_fields%get_field('ns_mphys', ns_mphys)
+
+  call convection_fields%get_field('conv_rain_3d', conv_rain_3d)
+  call convection_fields%get_field('conv_snow_3d', conv_snow_3d)
+
+  ! Set height on W3 and Wtheta levels
+  mesh => exner%get_mesh()
+  height_wth => get_height_fv( Wtheta, mesh%get_id() )
+  height_w3  => get_height_fv( W3, mesh%get_id() )
+
+  ! Set pressure on W3 levels
+  call exner%copy_field_properties(pressure_in_w3)
+  inv_kappa = 1.0_r_def/kappa
+  call invoke( &
+    setval_X(pressure_in_w3, exner), &
+    inc_X_powreal_a(pressure_in_w3, inv_kappa), &
+    inc_a_times_X(p_zero, pressure_in_w3) )
+
+  ! Set total ice mass and number fields
+  call mr(imr_s)%copy_field_properties(mr_ice)
+  call ni_mphys%copy_field_properties(n_ice)
+  call invoke( setval_X(mr_ice, mr(imr_s)) )
+  if (microphysics_casim) then
+    call invoke( inc_X_plus_Y(mr_ice, mr(imr_ci)), &
+                     setval_X(n_ice, ni_mphys), &
+                 inc_X_plus_Y(n_ice, ns_mphys) )
+  end if
+
+  ! Set microphysics fields
+  cosp_x1r = real(x1r, r_def)
+  cosp_x2r = real(x2r, r_def)
+  cosp_x1g = real(x1g, r_def)
+  cosp_x2g = real(x2g, r_def)
+  cosp_x4g = real(x4g, r_def)
+
+  ! Initialise the cosp diagnostics
+  call initialise_diags_for_cosp( &
+    sunlit_mask, &
+    isccp_ctp_tau, &
+    calipso_total_backscatter, &
+    calipso_low_cloud, calipso_low_cloud_mask, &
+    calipso_mid_cloud, calipso_mid_cloud_mask, &
+    calipso_high_cloud, calipso_high_cloud_mask, &
+    calipso_cfad_sr_40_lvls, &
+    calipso_cf_40_lvls_liq, &
+    calipso_cf_40_lvls_ice, &
+    calipso_cf_40_lvls_undet, &
+    calipso_cf_40_lvls_mask, &
+    cloud_thermal_absorptivity, cloud_solar_extinction)
+
+  ! Run COSP
+  if ( subroutine_timers ) call timer("cosp")
+  call invoke( cosp_kernel_type( &
+    pressure_in_wth, temperature_in_wth, rho_in_wth, height_wth, &
+    pressure_in_w3, height_w3, &
+    mr(imr_v), mr(imr_cl), mr_ice, n_ice, &
+    radiative_cloud_fraction, &
+    liquid_fraction, frozen_fraction, &
+    radiative_conv_fraction, &
+    conv_liquid_fraction, conv_frozen_fraction, &
+    conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number, &
+    sigma_ml, sigma_mi, cloud_drop_no_conc, &
+    ls_rain_3d, conv_rain_3d, conv_snow_3d, &
+    lit_fraction, rand_seed, n_cloud_layer, &
+    n_subcol_gen, &
+    cosp_x1r, cosp_x2r, cosp_x1g, cosp_x2g, cosp_x4g, &
+    sunlit_mask, &
+    isccp_ctp_tau, &
+    calipso_low_cloud, calipso_low_cloud_mask, &
+    calipso_mid_cloud, calipso_mid_cloud_mask, &
+    calipso_high_cloud, calipso_high_cloud_mask, &
+    calipso_cf_40_lvls_liq, &
+    calipso_cf_40_lvls_ice, &
+    calipso_cf_40_lvls_undet, &
+    calipso_cf_40_lvls_mask, &
+    calipso_total_backscatter, &
+    calipso_cfad_sr_40_lvls, &
+    cloud_thermal_absorptivity, cloud_solar_extinction ) )
+  if ( subroutine_timers ) call timer("cosp")
+
+  ! Output diagnostics
+  if (write_diag .and. use_xios_io) then
+    call output_diags_for_cosp( &
+      sunlit_mask, &
+      isccp_ctp_tau, &
+      calipso_total_backscatter, &
+      calipso_low_cloud, calipso_low_cloud_mask, &
+      calipso_mid_cloud, calipso_mid_cloud_mask, &
+      calipso_high_cloud, calipso_high_cloud_mask, &
+      calipso_cfad_sr_40_lvls, &
+      calipso_cf_40_lvls_liq, &
+      calipso_cf_40_lvls_ice, &
+      calipso_cf_40_lvls_undet, &
+      calipso_cf_40_lvls_mask, &
+      cloud_thermal_absorptivity, cloud_solar_extinction )
+  end if
+
+end subroutine cosp_alg
+end module cosp_alg_mod

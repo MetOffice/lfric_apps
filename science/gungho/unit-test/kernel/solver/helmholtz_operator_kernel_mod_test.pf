@@ -1,0 +1,430 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the application of the Helmholtz operator
+module helmholtz_operator_kernel_mod_test
+
+  use constants_mod, only: i_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_full_operator, &
+            test_lam
+
+  @TestCase
+  type, extends(TestCase), public :: helmholtz_operator_test_type
+    private
+    ! Maps
+    integer(kind=i_def), allocatable :: map_w3(:)
+    integer(kind=i_def), allocatable :: map_wt(:)
+    integer(kind=i_def), allocatable :: map_w2(:)
+    integer(kind=i_def), allocatable :: smap_w2(:,:,:)
+    integer(kind=i_def), allocatable :: smap_sizes(:)
+
+    ! Fields
+    real(kind=r_solver), allocatable :: hb_lumped_inv(:), u_normalisation(:), w2_mask(:)
+    real(kind=r_solver), allocatable :: t_norm(:)
+    real(kind=r_solver), allocatable :: helm_c(:),                                  &
+                                        helm_n(:), helm_e(:), helm_s(:), helm_w(:), &
+                                        helm_u(:), helm_d(:), helm_uu(:), helm_dd(:)
+
+    ! Operators
+    real(kind=r_solver), allocatable :: div_star(:,:,:)
+    real(kind=r_solver), allocatable :: compound_div(:,:,:)
+    real(kind=r_solver), allocatable :: p3theta(:,:,:)
+    real(kind=r_solver), allocatable :: ptheta2v(:,:,:)
+    real(kind=r_solver), allocatable :: m3_exner_star(:,:,:)
+
+    integer(kind=i_def), allocatable :: cell_map(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_full_operator
+  end type helmholtz_operator_test_type
+
+   real(kind=r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 5
+    integer(kind=i_def), parameter :: nfaces = 4
+    integer(kind=i_def), parameter :: max_length = 2
+
+   ! Spaces
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: ndf_w2 = 6
+    integer(kind=i_def), parameter :: ndf_wt = 2
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers
+    integer(kind=i_def), parameter :: undf_wt = ndf_w2*nlayers + 1
+    integer(kind=i_def), parameter :: undf_w2 = ((ndf_w2-1)*nlayers+1)
+
+    ! Number of dofs in a single column: 4*nlayers horizontal dofs
+    ! and (nlayers + 1) vertical dofs
+    integer(kind=i_def), parameter :: ndofs_col = 5*nlayers+1
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(helmholtz_operator_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: df
+
+
+    allocate(this%map_w3(ndf_w3))
+    allocate(this%map_wt(ndf_wt))
+    allocate(this%map_w2(ndf_w2))
+    allocate(this%smap_w2(ndf_w2, max_length, 4))
+    allocate(this%smap_sizes(4))
+
+    allocate(this%hb_lumped_inv(undf_w2))
+    allocate(this%u_normalisation(undf_w2))
+    allocate(this%w2_mask(undf_w2))
+    allocate(this%t_norm(undf_wt))
+    allocate(this%helm_c(undf_w3))
+    allocate(this%helm_n(undf_w3))
+    allocate(this%helm_e(undf_w3))
+    allocate(this%helm_s(undf_w3))
+    allocate(this%helm_w(undf_w3))
+    allocate(this%helm_u(undf_w3))
+    allocate(this%helm_d(undf_w3))
+    allocate(this%helm_uu(undf_w3))
+    allocate(this%helm_dd(undf_w3))
+
+    this%map_w3 = (/ 1_i_def /)
+    this%map_wt = (/ 1_i_def, 2_i_def /)
+
+    do df = 1, nfaces
+      this%map_w2(df) = 1_i_def + (df-1)*nlayers
+    end do
+    this%map_w2(5) = 1_i_def + 4*nlayers
+    this%map_w2(6) = this%map_w2(5) + 1_i_def
+
+    this%smap_w2(:,1,1) = this%map_w2
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(helmholtz_operator_test_type), intent(inout) :: this
+
+    deallocate(this%map_w3)
+    deallocate(this%map_wt)
+    deallocate(this%map_w2)
+    deallocate(this%smap_w2)
+    deallocate(this%smap_sizes)
+
+    deallocate(this%hb_lumped_inv)
+    deallocate(this%u_normalisation)
+    deallocate(this%w2_mask)
+    deallocate(this%t_norm)
+    deallocate(this%helm_c)
+    deallocate(this%helm_n)
+    deallocate(this%helm_e)
+    deallocate(this%helm_s)
+    deallocate(this%helm_w)
+    deallocate(this%helm_u)
+    deallocate(this%helm_d)
+    deallocate(this%helm_uu)
+    deallocate(this%helm_dd)
+
+    deallocate(this%div_star)
+    deallocate(this%compound_div)
+    deallocate(this%p3theta)
+    deallocate(this%ptheta2v)
+    deallocate(this%m3_exner_star)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_full_operator( this )
+
+    use helmholtz_operator_kernel_mod, only: helmholtz_operator_code
+
+    implicit none
+
+    class(helmholtz_operator_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: df, k
+    real(kind=r_solver) :: answer
+
+    integer(kind=i_def), parameter :: stencil_size = 5
+    integer(kind=i_def), parameter :: ncell = stencil_size*nlayers
+
+    this%smap_sizes(:) = 2
+
+    allocate(this%div_star(ncell, ndf_w2, ndf_w3))
+    allocate(this%compound_div(ncell, ndf_w3, ndf_w2))
+    allocate(this%p3theta(ncell, ndf_w3, ndf_wt))
+    allocate(this%ptheta2v(ncell, ndf_wt, ndf_w2))
+    allocate(this%m3_exner_star(ncell, ndf_w3, ndf_w3))
+
+    allocate(this%cell_map(stencil_size))
+
+    ! Maps in neighbour cells
+    ! Default all dofs to point to a dof in array bounds
+    this%smap_w2(:,2,1) = 1
+    this%smap_w2(:,2,2) = 1
+    this%smap_w2(:,2,3) = 1
+    this%smap_w2(:,2,4) = 1
+    ! Now make sure one dof matches up with central stencil
+    ! East cell
+    this%smap_w2(3,2,1) = this%smap_w2(1,1,1)
+    ! South cell
+    this%smap_w2(4,2,2) = this%smap_w2(2,1,1)
+    ! West cell
+    this%smap_w2(1,2,3) = this%smap_w2(3,1,1)
+    ! North cell
+    this%smap_w2(2,2,4) = this%smap_w2(4,1,1)
+
+    do df = 1, stencil_size
+      this%cell_map(df) = df
+    end do
+
+    ! Set up the fields
+    this%hb_lumped_inv = 0.1_r_solver
+    this%u_normalisation = 10.0_r_solver
+    this%t_norm = 10.0_r_solver
+    this%w2_mask = 1.0_r_solver
+
+    ! Set up the operators
+    ! Very simple test, set the operators and fields to constants
+    this%div_star = 1.0_r_solver
+    this%ptheta2v = 0.1_r_solver
+    this%compound_div = 1.0_r_solver
+    this%m3_exner_star = 1.0_r_solver
+    this%p3theta = 1.0_r_solver
+
+    ! Compute Helmholtz operator
+    call helmholtz_operator_code(stencil_size,         &
+                                 this%cell_map,        &
+                                 nlayers,              &
+                                 this%helm_c,          &
+                                 this%helm_n,          &
+                                 this%helm_e,          &
+                                 this%helm_s,          &
+                                 this%helm_w,          &
+                                 this%helm_u,          &
+                                 this%helm_uu,         &
+                                 this%helm_d,          &
+                                 this%helm_dd,         &
+                                 this%hb_lumped_inv,   &
+                                 this%smap_sizes,      &
+                                 max_length,           &
+                                 this%smap_w2,         &
+                                 this%u_normalisation, &
+                                 ncell,                &
+                                 this%div_star,        &
+                                 this%t_norm,          &
+                                 ncell,                &
+                                 this%ptheta2v,        &
+                                 ncell,                &
+                                 this%compound_div,    &
+                                 ncell,                &
+                                 this%m3_exner_star,   &
+                                 ncell,                &
+                                 this%p3theta,         &
+                                 this%w2_mask,         &
+                                 ndf_w3,               &
+                                 undf_w3,              &
+                                 this%map_w3,          &
+                                 ndf_w2,               &
+                                 undf_w2,              &
+                                 this%map_w2,          &
+                                 ndf_wt,               &
+                                 undf_wt,              &
+                                 this%map_wt)
+
+    ! In terms of the kernel operators we have
+    ! A = -u_normalisation*w2_mask*hb_lumped_inv*div_star = -1
+    ! B = t_norm*ptheta2v                 =  1
+    ! EC = - compound_div                 = -1
+    ! D = - p3theta                       = -1
+    ! F = m3_exner_star                   =  1
+    ! and the resulting Helmholtz operators are then
+    ! helm_c = F + 6*EC*A + 6*D*B*A = 13
+    ! helm_e,helm_s,helm_w,helm_n = EC*A = 1
+    ! helm_uu, helm_dd = D*B*A = 1
+    ! helm_u, helm_d = EC*A + 4*D*B*A = 5
+
+    ! Layer 3:
+    k = 2
+
+    answer = 13.0_r_solver
+    @assertEqual(answer, this%helm_c(this%map_w3(1)+k), tol)
+
+    answer = 1.0_r_solver
+    @assertEqual(answer, this%helm_n(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_e(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_s(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_w(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_uu(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_dd(this%map_w3(1)+k), tol)
+
+    answer = 5.0_r_solver
+    @assertEqual(answer, this%helm_u(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_d(this%map_w3(1)+k), tol)
+
+  end subroutine test_full_operator
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_lam( this )
+
+    use helmholtz_operator_kernel_mod, only: helmholtz_operator_code
+
+    implicit none
+
+    class(helmholtz_operator_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: df, k, j, i
+    real(kind=r_solver) :: answer
+    real(kind=r_solver) :: mdi = 1000.0_r_solver
+
+    integer(kind=i_def), parameter :: stencil_size = 4
+    integer(kind=i_def), parameter :: ncell = stencil_size*nlayers
+
+    allocate(this%div_star(ncell, ndf_w2, ndf_w3))
+    allocate(this%compound_div(ncell, ndf_w3, ndf_w2))
+    allocate(this%p3theta(ncell, ndf_w3, ndf_wt))
+    allocate(this%ptheta2v(ncell, ndf_wt, ndf_w2))
+    allocate(this%m3_exner_star(ncell, ndf_w3, ndf_w3))
+
+    allocate(this%cell_map(stencil_size))
+
+    ! A cell on the Eastern edge
+    ! Branches are ordered 1,2,3,4 corresponding to W,S,E,N
+    this%smap_sizes(1) = 2
+    this%smap_sizes(2) = 2
+    this%smap_sizes(3) = 1
+    this%smap_sizes(4) = 2
+
+    ! Maps in neighbour cells
+    ! Default all dofs to point to a dof in array bounds, except
+    ! for the branch on the mesh edge which points to mdi.
+    this%smap_w2(:,2,1) = 1
+    this%smap_w2(:,2,2) = 1
+    this%smap_w2(:,2,3) = mdi
+    this%smap_w2(:,2,4) = 1
+    ! Now make sure one dof matches up with central stencil
+    ! East cell
+    this%smap_w2(3,2,1) = this%smap_w2(1,1,1)
+    ! South cell
+    this%smap_w2(4,2,2) = this%smap_w2(2,1,1)
+    ! West cell
+    this%smap_w2(1,2,3) = mdi
+    ! North cell
+    this%smap_w2(2,2,4) = this%smap_w2(4,1,1)
+
+    do df = 1, stencil_size
+      this%cell_map(df) = df
+    end do
+
+    ! Set up the fields
+    this%hb_lumped_inv = 0.1_r_solver
+    this%u_normalisation = 10.0_r_solver
+    this%t_norm = 10.0_r_solver
+    this%w2_mask = 1.0_r_solver
+
+    ! Set up the operators
+    ! Very simple test, set the operators and fields to constants
+    this%div_star = 1.0_r_solver
+    this%ptheta2v = 0.1_r_solver
+    this%compound_div = 1.0_r_solver
+    this%m3_exner_star = 1.0_r_solver
+    this%p3theta = 1.0_r_solver
+
+    ! Compute Helmholtz operator
+    call helmholtz_operator_code(stencil_size,         &
+                                 this%cell_map,        &
+                                 nlayers,              &
+                                 this%helm_c,          &
+                                 this%helm_n,          &
+                                 this%helm_e,          &
+                                 this%helm_s,          &
+                                 this%helm_w,          &
+                                 this%helm_u,          &
+                                 this%helm_uu,         &
+                                 this%helm_d,          &
+                                 this%helm_dd,         &
+                                 this%hb_lumped_inv,   &
+                                 this%smap_sizes,      &
+                                 max_length,           &
+                                 this%smap_w2,         &
+                                 this%u_normalisation, &
+                                 ncell,                &
+                                 this%div_star,        &
+                                 this%t_norm,          &
+                                 ncell,                &
+                                 this%ptheta2v,        &
+                                 ncell,                &
+                                 this%compound_div,    &
+                                 ncell,                &
+                                 this%m3_exner_star,   &
+                                 ncell,                &
+                                 this%p3theta,         &
+                                 this%w2_mask,         &
+                                 ndf_w3,               &
+                                 undf_w3,              &
+                                 this%map_w3,          &
+                                 ndf_w2,               &
+                                 undf_w2,              &
+                                 this%map_w2,          &
+                                 ndf_wt,               &
+                                 undf_wt,              &
+                                 this%map_wt)
+
+    ! As for a cell not on the edge of the domain
+    !
+    ! A = -u_normalisation*w2_mask*hb_lumped_inv*div_star = -1
+    ! B = t_norm*ptheta2v                 =  1
+    ! EC = - compound_div                 = -1
+    ! D = - p3theta                       = -1
+    ! F = m3_exner_star                   =  1
+    ! and the resulting Helmholtz operators are then
+    ! helm_c = F + 6*EC*A + 6*D*B*A = 13
+    ! helm_n, helm_s, helm_w = EC*A = 1
+    ! helm_uu, helm_dd = D*B*A = 1
+    ! helm_u, helm_d = EC*A + 4*D*B*A = 5
+
+    ! As the cell is on the Eastern edge of the domain
+    !
+    ! helm_e = 0
+
+    ! Layer 3:
+    k = 2
+
+    answer = 13.0_r_solver
+    @assertEqual(answer, this%helm_c(this%map_w3(1)+k), tol)
+
+    answer = 0.0_r_solver
+    @assertEqual(answer, this%helm_e(this%map_w3(1)+k), tol)
+
+    answer = 1.0_r_solver
+    @assertEqual(answer, this%helm_n(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_s(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_w(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_uu(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_dd(this%map_w3(1)+k), tol)
+
+    answer = 5.0_r_solver
+    @assertEqual(answer, this%helm_u(this%map_w3(1)+k), tol)
+    @assertEqual(answer, this%helm_d(this%map_w3(1)+k), tol)
+
+  end subroutine test_lam
+
+end module helmholtz_operator_kernel_mod_test

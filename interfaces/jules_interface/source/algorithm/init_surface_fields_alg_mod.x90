@@ -1,0 +1,222 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the surface fields
+module init_surface_fields_alg_mod
+
+  use constants_mod,                   only: r_def, i_def, rmdi
+
+  ! Derived Types
+  use field_mod,                 only: field_type
+  use integer_field_mod,         only: integer_field_type
+  use field_collection_mod,      only: field_collection_type
+  use c_kappai,                  only: kappai, de
+
+  use initialization_config_mod, only: init_option, init_option_analytic, &
+                                       ancil_option, ancil_option_none
+  use specified_surface_config_mod, only: internal_flux_method, &
+                                       internal_flux_method_uniform, &
+                                       internal_flux_value, &
+                                       surf_temp_forcing, &
+                                       surf_temp_forcing_int_flux
+  use jules_surface_config_mod,       only : l_urban2t
+
+  implicit none
+
+  private
+  public :: init_surface_fields_alg
+
+contains
+
+  !> @brief   Initialises the surface fields
+  !> @details The surface fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case no restart file is used.
+  !> @param[in,out] surface_fields Collection of fields for surface scheme
+  subroutine init_surface_fields_alg(surface_fields)
+
+    use initial_surface_kernel_mod, only: initial_surface_kernel_type
+    use process_urban_kernel_mod,   only: process_urban_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(inout) :: surface_fields
+
+    ! Prognostic fields
+    type( field_type ), pointer :: z0msea              => null()
+
+    ! Ancillary fields
+    type( field_type ), pointer :: chloro_sea          => null()
+    type( field_type ), pointer :: sea_ice_thickness   => null()
+    type( field_type ), pointer :: sea_ice_temperature => null()
+    type( field_type ), pointer :: urbwrr              => null()
+    type( field_type ), pointer :: urbhwr              => null()
+    type( field_type ), pointer :: urbhgt              => null()
+    type( field_type ), pointer :: urbztm              => null()
+    type( field_type ), pointer :: urbdisp             => null()
+    type( field_type ), pointer :: urbalbwl            => null()
+    type( field_type ), pointer :: urbalbrd            => null()
+    type( field_type ), pointer :: urbemisr            => null()
+    type( field_type ), pointer :: urbemisw            => null()
+    type( field_type ), pointer :: urbemisc
+    type( field_type ), pointer :: internal_flux       => null()
+
+    ! Diagnostic fields
+    type( field_type ), pointer :: tau_ssi_w2          => null()
+
+    ! Prognostic fields
+    type( field_type ), pointer :: tile_fraction       => null()
+    type( field_type ), pointer :: leaf_area_index     => null()
+    type( field_type ), pointer :: canopy_height       => null()
+    type( field_type ), pointer :: net_prim_prod
+    type( field_type ), pointer :: tile_temperature    => null()
+    type( field_type ), pointer :: tile_lw_grey_albedo => null()
+    type( field_type ), pointer :: tile_heat_flux      => null()
+    type( field_type ), pointer :: tile_moisture_flux  => null()
+    type( field_type ), pointer :: screen_temperature  => null()
+    type( field_type ), pointer :: time_since_transition => null()
+    type( field_type ), pointer :: gc_tile             => null()
+    type( field_type ), pointer :: surface_conductance => null()
+    type( field_type ), pointer :: canopy_water        => null()
+    type( field_type ), pointer :: snowice_sublimation
+    type( field_type ), pointer :: snowice_melt
+    type( field_type ), pointer :: z0m_tile
+    type( field_type ), pointer :: sea_ice_conductivity => null()
+    type( field_type ), pointer :: melt_pond_fraction  => null()
+    type( field_type ), pointer :: melt_pond_depth     => null()
+    type( field_type ), pointer :: surf_ht_flux        => null()
+    type( field_type ), pointer :: sea_u_current       => null()
+    type( field_type ), pointer :: sea_v_current       => null()
+    type( field_type ), pointer :: sea_current_w2      => null()
+    type( field_type ), pointer :: wspd10m             => null()
+    type( integer_field_type ), pointer :: ocn_cpl_point  => null()
+
+    ! Local variables
+    real(kind=r_def)            :: default_conductivity
+
+    default_conductivity = 2.0_r_def * kappai / de
+
+    call surface_fields%get_field('chloro_sea', chloro_sea)
+    call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
+    call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
+    call surface_fields%get_field('tau_ssi_w2', tau_ssi_w2)
+    call surface_fields%get_field('tile_fraction', tile_fraction)
+    call surface_fields%get_field('leaf_area_index', leaf_area_index)
+    call surface_fields%get_field('canopy_height', canopy_height)
+    call surface_fields%get_field('net_prim_prod', net_prim_prod)
+    call surface_fields%get_field('tile_temperature', tile_temperature)
+    call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
+    call surface_fields%get_field('tile_heat_flux', tile_heat_flux)
+    call surface_fields%get_field('tile_moisture_flux', tile_moisture_flux)
+    call surface_fields%get_field('screen_temperature', screen_temperature)
+    call surface_fields%get_field('time_since_transition', time_since_transition)
+    call surface_fields%get_field('gc_tile', gc_tile)
+    call surface_fields%get_field('surface_conductance', surface_conductance)
+    call surface_fields%get_field('canopy_water', canopy_water)
+    call surface_fields%get_field('snowice_sublimation', snowice_sublimation)
+    call surface_fields%get_field('snowice_melt', snowice_melt)
+    call surface_fields%get_field('z0m_tile', z0m_tile)
+    call surface_fields%get_field('sea_ice_conductivity', sea_ice_conductivity)
+    call surface_fields%get_field('melt_pond_fraction', melt_pond_fraction)
+    call surface_fields%get_field('melt_pond_depth', melt_pond_depth)
+    call surface_fields%get_field('surf_ht_flux', surf_ht_flux)
+    call surface_fields%get_field('sea_u_current',sea_u_current)
+    call surface_fields%get_field('sea_v_current',sea_v_current)
+    call surface_fields%get_field('sea_current_w2',sea_current_w2)
+    call surface_fields%get_field('ocn_cpl_point',ocn_cpl_point)
+    call surface_fields%get_field('wspd10m', wspd10m)
+
+    call invoke(                                                              &
+                 ! Need initialising for aquaplanet
+                 setval_c(chloro_sea,          5.0e-7_r_def),                 &
+                 setval_c(sea_ice_thickness,   1.0_r_def),                    &
+                 setval_c(sea_ice_temperature, 260.0_r_def),                  &
+                 ! Diagnostics
+                 setval_c(tau_ssi_w2,          0.0_r_def),                    &
+                 ! Land prognostics need initialising
+                 setval_c(gc_tile,             0.0_r_def),                    &
+                 setval_c(surface_conductance, 0.01_r_def),                   &
+                 setval_c(canopy_water,        0.0_r_def),                    &
+                 setval_c(snowice_sublimation, 0.0_r_def),                    &
+                 setval_c(snowice_melt,        0.0_r_def),                    &
+                 setval_c(z0m_tile,            0.0_r_def),                    &
+                 setval_c(tile_heat_flux,      0.0_r_def),                    &
+                 setval_c(tile_moisture_flux,  0.0_r_def),                    &
+                 setval_c(net_prim_prod,       0.0_r_def),                    &
+                 ! These need initialising to rmdi as code checks against this
+                 setval_c(screen_temperature,  rmdi),                         &
+                 setval_c(time_since_transition, rmdi),                       &
+                 ! Initialise fields which vary with surface tile
+                 initial_surface_kernel_type( tile_fraction, leaf_area_index, &
+                                             canopy_height, tile_temperature, &
+                                             tile_lw_grey_albedo ),           &
+                 ! Sea ice conductivity will use either this fixed value or
+                 ! it will get overwritten by the coupler
+                 setval_c(sea_ice_conductivity, default_conductivity ),       &
+                 ! Initialise melt ponds to zero
+                 setval_c(melt_pond_fraction, 0.0_r_def ),                    &
+                 setval_c(melt_pond_depth, 0.0_r_def ),                       &
+                 setval_c(surf_ht_flux, 0.0_r_def),                           &
+                 ! Initialise sea surface current components to zero
+                 setval_c(sea_u_current, 0.0_r_def ),                         &
+                 setval_c(sea_v_current, 0.0_r_def ),                         &
+                 setval_c(sea_current_w2, 0.0_r_def ),                        &
+                 int_setval_c(ocn_cpl_point, 0_i_def ),                       &
+                 ! Set 10m wind speed to zero
+                 setval_c(wspd10m, 0.0_r_def) )
+
+    if (l_urban2t) then
+      call surface_fields%get_field('urbalbwl', urbalbwl)
+      call surface_fields%get_field('urbalbrd', urbalbrd)
+      call surface_fields%get_field('urbemisw', urbemisw)
+      call surface_fields%get_field('urbemisr', urbemisr)
+      call invoke(setval_c(urbalbwl,            0.375_r_def),                  &
+                  setval_c(urbalbrd,            0.08_r_def),                   &
+                  setval_c(urbemisw,            0.875_r_def),                  &
+                  setval_c(urbemisr,            0.95_r_def) )
+    end if
+
+    if (init_option == init_option_analytic .or. &
+         ancil_option == ancil_option_none) then
+
+      call surface_fields%get_field('z0msea', z0msea)
+      call invoke( setval_c(z0msea,              1.5e-4_r_def) )
+                 ! Set sea surface prognostics when no um2lfric dump
+
+      if (l_urban2t) then
+        call surface_fields%get_field('urbwrr', urbwrr)
+        call surface_fields%get_field('urbhwr', urbhwr)
+        call surface_fields%get_field('urbhgt', urbhgt)
+        call surface_fields%get_field('urbztm', urbztm)
+        call surface_fields%get_field('urbdisp', urbdisp)
+        call surface_fields%get_field('urbemisc', urbemisc)
+
+        call invoke(                                                          &
+                 ! Ancillary fields for use if no ancil read
+                 setval_c(urbwrr,              0.5_r_def),                    &
+                 setval_c(urbhwr,              1.0_r_def),                    &
+                 setval_c(urbhgt,              10.0_r_def),                   &
+                 ! Calculated urban areodynamic fields
+                 process_urban_kernel_type( urbwrr, urbhwr, urbhgt,           &
+                                            urbztm, urbdisp, urbemisw,        &
+                                            urbemisr, urbemisc ) )
+      end if
+
+    end if
+
+    if ( surf_temp_forcing == surf_temp_forcing_int_flux ) then
+      call surface_fields%get_field('internal_flux', internal_flux)
+      if ( internal_flux_method == internal_flux_method_uniform ) then
+        call invoke( setval_c(internal_flux, internal_flux_value) )
+      else
+        ! Set to zero here and populated with values from ancil later
+        call invoke( setval_c(internal_flux, 0.0_r_def) )
+      end if
+    end if
+
+  end subroutine init_surface_fields_alg
+
+end module init_surface_fields_alg_mod

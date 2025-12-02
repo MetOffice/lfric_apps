@@ -1,0 +1,139 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/common/suite_config_azspice.cylc") %}
+
+{% set azspice_base = 'umask 0022 ; '~
+                      'module purge ; '~
+                      'module use /home/users/lfricadmin/lmod ; ' %}
+
+{% set azspice_compiler_gnu = 'module load lfric/vn3.0' %}
+
+{% set azspice_coupled_gnu = 'module load xios/2701-oasis ; '~
+                             'module load oasis' %}
+
+{% set azspice_run = 'ulimit -s unlimited' %}
+
+{% set azspice_scitools = 'module load scitools/production-os47-1' %}
+
+{% set azspice_tech = 'module load lfric/vn3.0' %}
+
+    [[AZSPICE_BASE]]
+        platform = spice
+        [[[environment]]]
+            BUILD_ROOT = ${TMPDIR}
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 1
+            NUMA_REGIONS_PER_NODE = 0
+            ROSE_LAUNCHER = mpiexec
+
+    [[AZSPICE_BUILD]]
+        [[[environment]]]
+            USE_VERNIER=yes
+            USE_TIMING_WRAPPER=yes
+        [[[directives]]]
+            --gres=tmp:1024
+            --export=NONE
+
+    [[AZSPICE_RUN]]
+        [[[environment]]]
+            ROSE_LAUNCHER_ULIMIT_OPTS = -s unlimited
+            BIG_DATA_DIR = '/data/users/lfricadmin/data'
+            TARGET_PLATFORM = 'meto-azspice'
+            RUN_METHOD = mpiexec
+        [[[directives]]]
+            --export=NONE
+
+    [[AZSPICE_GNU]]
+        [[[environment]]]
+            COMPILER = 'gnu'
+
+    [[AZSPICE_BUILD_GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu]) }}
+
+    [[AZSPICE_BUILD_COUPLED_GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base,
+                                          azspice_compiler_gnu,
+                                          azspice_coupled_gnu]) }}
+
+    [[AZSPICE_RUN_GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_RUN,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu, azspice_run]) }}
+
+    [[AZSPICE_MESH]]
+        inherit=AZSPICE_BASE
+        [[[directives]]]
+            --export=NONE
+
+    [[AZSPICE_MESH_GNU]]
+        inherit=AZSPICE_GNU,AZSPICE_MESH
+        {{ generate_script("pre-script", [azspice_base,
+                                          azspice_compiler_gnu]) }}
+
+    [[AZSPICE_TECH_BASE]]
+        inherit=AZSPICE_BASE
+        [[[directives]]]
+            --export=NONE
+
+    [[AZSPICE_TECH_TESTS]]
+        inherit=AZSPICE_TECH_BASE
+
+    [[AZSPICE_TECH_TESTS_GNU]]
+        inherit=AZSPICE_TECH_TESTS,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu]) }}
+
+    [[AZSPICE_TECH]]
+        inherit=AZSPICE_TECH_BASE
+        {{ generate_script("pre-script", [azspice_base, azspice_scitools, azspice_tech]) }}
+
+    [[AZSPICE_PLOT]]
+        inherit=AZSPICE_TECH_BASE
+        {{ generate_script("pre-script", [azspice_scitools]) }}
+
+    [[AZSPICE_CHECK]]
+        inherit=AZSPICE_TECH
+
+    [[AZSPICE_SCRIPTS]]
+        inherit=AZSPICE_TECH
+
+    [[AZSPICE_WEIGHTS]]
+        inherit = AZSPICE_BASE
+        pre-script = """
+                     module purge
+                     module load csc/2025.3.20
+                     module load gcc/12.2.0
+                     module load mpich/4.2.3
+                     module load esmf/8.7.0
+                     module load scitools/production-os46-3
+                     module load um_tools/2025.10.1/openmp
+                     module list 2>&1
+                     """
+
+    [[AZSPICE_ROSE_ANA]]
+        inherit = AZSPICE_BASE
+        pre-script = """
+                     module purge
+                     module load scitools/production-os47-1
+                     module load um_tools/2025.10.1/openmp
+                     module load csc/2025.3.20
+                     module load gcc/12.2.0
+                     module load mpich/4.2.3
+                     module load nccmp/1.9.1.0
+                     export ROSE_PYTHONPATH="$PYTHONPATH"
+                     module list 2>&1
+                     """
+
+    [[AZSPICE_EXPORT-SOURCE]]
+        inherit=METO_ORIG
+        [[[environment]]]
+            hostname = {{ ROSE_ORIG_HOST }}
+            PLATFORM_SYNC = false
+
+    [[AZSPICE_HOUSEKEEPING]]
+        inherit=AZSPICE_TECH_BASE
+
+{% do LOG.debug("Finished in meto/common/suite_config_azspice.cylc") %}

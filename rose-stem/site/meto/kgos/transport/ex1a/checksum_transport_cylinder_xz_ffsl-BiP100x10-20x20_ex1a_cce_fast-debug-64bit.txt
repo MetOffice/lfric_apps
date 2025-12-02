@@ -1,0 +1,10 @@
+Inner product checksum rho = 41186A085C7F886E
+Inner product checksum u = 421E51A61F11862E
+Inner product checksum theta = 411DF65CBD0F5934
+Inner product checksum tracer = 411DCA168563EABC
+Inner product checksum mr1 = 411DF61E66FA65C0
+Inner product checksum mr2 =                0
+Inner product checksum mr3 =                0
+Inner product checksum mr4 =                0
+Inner product checksum mr5 =                0
+Inner product checksum mr6 =                0

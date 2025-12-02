@@ -1,0 +1,42 @@
+@@ -1,19 +1,19 @@
+-module adj_combine_multidata_field_kernel_mod
++module adj_sci_combine_multidata_field_kernel_mod
+   use argument_mod, only : any_space_1, any_space_2, any_space_3, arg_type, cell_column, gh_field, gh_integer, gh_logical, &
+-&gh_read, gh_real, gh_scalar, gh_write
++&gh_read, gh_real, gh_scalar, gh_readinc, gh_inc
+   use constants_mod, only : i_def, l_def, r_double, r_single
+   use kernel_mod, only : kernel_type
+   implicit none
+-  interface combine_multidata_field_code
++  interface adj_combine_multidata_field_code
+     module procedure :: adj_combine_multidata_field_code_r_single, adj_combine_multidata_field_code_r_double
+-  end interface combine_multidata_field_code
++  end interface adj_combine_multidata_field_code
+   type, public, extends(kernel_type) :: adj_combine_multidata_field_kernel_type
+   type(ARG_TYPE) :: META_ARGS(7) = (/ &
+-    arg_type(gh_field, gh_real, gh_write, any_space_1), &
++    arg_type(gh_field, gh_real, gh_readinc, any_space_1), &
+     arg_type(gh_scalar, gh_integer, gh_read), &
+-    arg_type(gh_field, gh_real, gh_read, any_space_2), &
++    arg_type(gh_field, gh_real, gh_inc, any_space_2), &
+     arg_type(gh_scalar, gh_integer, gh_read), &
+-    arg_type(gh_field, gh_real, gh_read, any_space_3), &
++    arg_type(gh_field, gh_real, gh_inc, any_space_3), &
+     arg_type(gh_scalar, gh_integer, gh_read), &
+     arg_type(gh_scalar, gh_logical, gh_read)/)
+   INTEGER :: OPERATES_ON = cell_column
+@@ -21,7 +21,7 @@
+ 
+   private
+ 
+-  public :: combine_multidata_field_code
++  public :: adj_combine_multidata_field_code
+ 
+   contains
+   subroutine adj_combine_multidata_field_code_r_single(nlayers, field_out, n, field1_in, n1, field2_in, n2, ndata_first, ndf, &
+@@ -133,4 +133,4 @@
+ 
+   end subroutine adj_combine_multidata_field_code_r_double
+ 
+-end module adj_combine_multidata_field_kernel_mod
++end module adj_sci_combine_multidata_field_kernel_mod

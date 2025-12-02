@@ -1,0 +1,462 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides various runtime-constants for physics schemes.
+!!
+!> @details This module controls the set-up of various objects relating to
+!!          physics schemes. These objects are constant throughout a run,
+!!          and so can be pre-computed. Getters provide access to the objects.
+!-------------------------------------------------------------------------------
+
+module physics_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
+                                                r_second, EPS
+  use extrusion_mod,                      only: TWOD, PRIME_EXTRUSION
+  use sci_geometric_constants_mod,        only: get_coordinates,               &
+                                                get_panel_id,                  &
+                                                get_extended_coordinates
+  use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: W1, W2, W3, Wtheta
+  use function_space_collection_mod,      only: function_space_collection
+  use function_space_mod,                 only: function_space_type
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use inventory_by_local_mesh_mod,        only: inventory_by_local_mesh_type
+  use io_config_mod,                      only: subroutine_timers
+  use local_mesh_mod,                     only: local_mesh_type
+  use log_mod,                            only: log_event, LOG_LEVEL_ERROR
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
+  use model_clock_mod,                    only: model_clock_type
+  use timer_mod,                          only: timer
+
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  real(kind=r_def) :: dt_stored = 0.0_r_def
+
+  ! ========================================================================== !
+  ! Inventories for use in the rest of the model
+  ! ========================================================================== !
+  ! Geometric entities used for schemes to describe mixing and diffusion
+  type(inventory_by_mesh_type) :: dtrdz_fd2_inventory
+  type(inventory_by_mesh_type) :: dtrdz_wth_inventory
+  type(inventory_by_mesh_type) :: rdz_fd1_inventory
+  type(inventory_by_mesh_type) :: rdz_w3_inventory
+  type(inventory_by_mesh_type) :: max_diff_wtheta_inventory
+
+#ifdef UM_PHYSICS
+  ! Spherical harmonics, used by stochastic physics
+  type(inventory_by_local_mesh_type) :: Pnm_star_inventory
+#endif
+
+  ! ========================================================================== !
+  ! Public functions for accessing the module contents
+  ! ========================================================================== !
+
+  public :: final_physics_constants
+  public :: get_dtrdz_fd2
+  public :: get_dtrdz_wth
+  public :: get_rdz_fd1
+  public :: get_rdz_w3
+  public :: get_max_diff
+#ifdef UM_PHYSICS
+  public :: get_Pnm_star
+#endif
+
+  ! Private routines for creating constants
+  private :: create_mixing_geometries
+
+contains
+
+  ! ========================================================================== !
+  ! ROUTNIES FOR CREATING CONSTANTS TOGETHER
+  ! ========================================================================== !
+
+  !> @brief Create geometric fields used in physics schemes
+  !> @param[in] mesh   The mesh to compute the operators for
+  subroutine create_mixing_geometries(mesh)
+
+    use sci_geometric_constants_mod,   only: get_height_fv, get_delta_at_wtheta
+    use sci_calc_dz_centre_kernel_mod, only: calc_dz_centre_kernel_type
+    use sci_calc_dz_face_kernel_mod,   only: calc_dz_face_kernel_type
+    use extrusion_config_mod,          only: planet_radius
+    use field_parent_mod,              only: write_interface
+    use lfric_xios_write_mod,          only: write_field_generic
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+    integer(kind=i_def)                  :: mesh_id
+    type(function_space_type),   pointer :: w1_k0_fs
+    type(function_space_type),   pointer :: w2_k0_fs
+    type(function_space_type),   pointer :: w3_k0_fs
+    type(function_space_type),   pointer :: wtheta_k0_fs
+    type(field_type)                     :: r_squared_w2
+    type(field_type)                     :: r_squared_wth
+    type(field_type),            pointer :: dtrdz_fd2
+    type(field_type),            pointer :: dtrdz_wth
+    type(field_type),            pointer :: rdz_fd1
+    type(field_type),            pointer :: rdz_w3
+    type(field_type),            pointer :: max_diff_wtheta
+    type(field_type),            pointer :: height_w1
+    type(field_type),            pointer :: height_w2
+    type(field_type),            pointer :: height_w3
+    type(field_type),            pointer :: height_wth
+    type(field_type),            pointer :: delta_at_wtheta
+    real(kind=r_def)                     :: diffusion_const
+    procedure(write_interface),  pointer :: write_behaviour
+
+    ! Parameters of the cells
+    integer(i_def), parameter :: n_faces = 4_i_def
+    integer(i_def), parameter :: n_centres = 1_i_def
+    logical(l_def), parameter :: inc_surf = .true.
+    logical(l_def), parameter :: ign_surf = .false.
+
+    mesh_id = mesh%get_id()
+
+    height_w1 => get_height_fv(W1, mesh_id)
+    height_w2 => get_height_fv(W2, mesh_id)
+    height_w3 => get_height_fv(W3, mesh_id)
+    height_wth => get_height_fv(Wtheta, mesh_id)
+    delta_at_wtheta => get_delta_at_wtheta(mesh_id)
+
+    if ( subroutine_timers ) call timer('runtime_constants.physics')
+
+    if (.not. dtrdz_fd2_inventory%is_initialised()) then
+      call dtrdz_fd2_inventory%initialise(name='dtrdz_fd2')
+    end if
+    if (.not. dtrdz_wth_inventory%is_initialised()) then
+      call dtrdz_wth_inventory%initialise(name='dtrdz_wth')
+    end if
+    if (.not. rdz_fd1_inventory%is_initialised()) then
+      call rdz_fd1_inventory%initialise(name='rdz_fd1')
+    end if
+    if (.not. rdz_w3_inventory%is_initialised()) then
+      call rdz_w3_inventory%initialise(name='rdz_w3')
+    end if
+    if (.not. max_diff_wtheta_inventory%is_initialised()) then
+      call max_diff_wtheta_inventory%initialise(name='max_diff_wtheta')
+    end if
+
+    w1_k0_fs => function_space_collection%get_fs( mesh, 0, 0, W1 )
+    w2_k0_fs => function_space_collection%get_fs( mesh, 0, 0, W2 )
+    w3_k0_fs => function_space_collection%get_fs( mesh, 0, 0, W3 )
+    wtheta_k0_fs => function_space_collection%get_fs( mesh, 0, 0, Wtheta )
+
+    ! Calculate maximum diffusion coefficient allowed in this run for
+    ! stability based on UMDP 28 equation 32: max_diff = dx^2/(8*dt)
+    diffusion_const = 0.125_r_def / dt_stored
+
+    call r_squared_w2%initialise( vector_space = w2_k0_fs )
+    call r_squared_wth%initialise( vector_space = wtheta_k0_fs )
+
+    ! Initialise constants
+    call max_diff_wtheta_inventory%add_field(max_diff_wtheta, wtheta_k0_fs, mesh)
+    call dtrdz_fd2_inventory%add_field(dtrdz_fd2, w2_k0_fs, mesh)
+    call dtrdz_wth_inventory%add_field(dtrdz_wth, wtheta_k0_fs, mesh)
+    call rdz_fd1_inventory%add_field(rdz_fd1, w1_k0_fs, mesh)
+    call rdz_w3_inventory%add_field(rdz_w3, w3_k0_fs, mesh)
+
+    ! Allow outputting of rdz_w3
+    write_behaviour => write_field_generic
+    call rdz_w3%set_write_behaviour(write_behaviour)
+
+    call invoke(                                                               &
+                 ! Calculate r
+                 a_plus_X(r_squared_w2, planet_radius, height_w2),             &
+                 ! Calculate r^2
+                 inc_X_powint_n(r_squared_w2, 2_i_def),                        &
+                 ! Calculate dz at location of lowest order W2 dofs
+                 setval_c(dtrdz_fd2, 1.0_r_def),                               &
+                 calc_dz_centre_kernel_type(dtrdz_fd2, height_w1, n_faces),    &
+                 ! Calculate r^2 * dz_at_fd2
+                 inc_X_times_Y(dtrdz_fd2, r_squared_w2),                       &
+                 ! Calculate dt / (r^2 * dz_at_fd2 )
+                 inc_a_divideby_X(dt_stored, dtrdz_fd2),                       &
+                 ! Calculate r
+                 a_plus_X(r_squared_wth, planet_radius, height_wth),           &
+                 ! Calculate r^2
+                 inc_X_powint_n(r_squared_wth, 2_i_def),                       &
+                 ! Calculate dz_at_wtheta
+                 calc_dz_face_kernel_type(dtrdz_wth, height_w3,                &
+                                          height_wth, n_centres, inc_surf),    &
+                 ! Calculate r^2 * dz_at_wth
+                 inc_X_times_Y(dtrdz_wth, r_squared_wth),                      &
+                 ! Calculate dt / (r^2 * dz_at_wth )
+                 inc_a_divideby_X(dt_stored, dtrdz_wth),                       &
+                 ! Calculate dz at location of lowest order W1 dofs
+                 setval_c(rdz_fd1, 1.0_r_def),                                 &
+                 calc_dz_face_kernel_type(rdz_fd1, height_w2, height_w1,       &
+                                          n_faces, ign_surf),                  &
+                 ! Calculate 1/dz_at_fd1
+                 inc_X_powint_n(rdz_fd1, (-1_i_def)),                          &
+                 ! Calculate 1/dz at w3 locations
+                 calc_dz_centre_kernel_type(rdz_w3, height_wth, n_centres),    &
+                 inc_X_powint_n(rdz_w3, (-1_i_def)),                           &
+                 ! Calculate_max_diffusion
+                 setval_X(max_diff_wtheta, delta_at_wtheta ),                  &
+                 inc_X_powint_n(max_diff_wtheta, 2_i_def),                     &
+                 inc_a_times_X(diffusion_const, max_diff_wtheta) )
+
+    if ( subroutine_timers ) call timer('runtime_constants.physics')
+
+  end subroutine create_mixing_geometries
+
+  ! ========================================================================== !
+  ! GETTERS
+  ! ========================================================================== !
+
+  !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
+  !> @param[in] mesh_id  The ID of the mesh to get the object for
+  !> @param[in] model_clock  The model clock object
+  !> @return The dtrdz_fd2 field
+  function get_dtrdz_fd2(mesh_id, model_clock) result(dtrdz)
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: mesh_id
+    class(model_clock_type), intent(in) :: model_clock
+    type(mesh_type),            pointer :: mesh
+    type(field_type),           pointer :: dtrdz
+    logical(kind=l_def)                 :: constant_exists
+    real(kind=r_def)                    :: dt
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. dtrdz_fd2_inventory%is_initialised()) then
+      call dtrdz_fd2_inventory%initialise(name="dtrdz_fd2")
+      dt_stored = real(model_clock%get_seconds_per_step(), r_def)
+    end if
+
+    ! Check this constant is still valid -- is the model time step the same?
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+    if (abs(dt - dt_stored) > EPS) then
+      call log_event(                                                          &
+                'Unable to get dtrdz_fd2 as the time step has changed ' //     &
+                'and it is no longer valid',                                   &
+                LOG_LEVEL_ERROR                                                &
+      )
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = dtrdz_fd2_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) call create_mixing_geometries(mesh)
+
+    call dtrdz_fd2_inventory%get_field(mesh, dtrdz)
+
+  end function get_dtrdz_fd2
+
+  !> @brief Returns the dt/(r^2 dz) values at lowest-order W2 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] model_clock  The model clock object
+  !> @return The dtrdz_wth field
+  function get_dtrdz_wth(mesh_id, model_clock) result(dtrdz)
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: mesh_id
+    class(model_clock_type), intent(in) :: model_clock
+    type(mesh_type),            pointer :: mesh
+    type(field_type),           pointer :: dtrdz
+    logical(kind=l_def)                 :: constant_exists
+    real(kind=r_def)                    :: dt
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. dtrdz_wth_inventory%is_initialised()) then
+      call dtrdz_wth_inventory%initialise(name="dtrdz_wth")
+      dt_stored = real(model_clock%get_seconds_per_step(), r_def)
+    end if
+
+    ! Check this constant is still valid -- is the model time step the same?
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+    if (abs(dt - dt_stored) > EPS) then
+      call log_event(                                                          &
+                'Unable to get dtrdz_wth as the time step has changed ' //     &
+                'and it is no longer valid',                                   &
+                LOG_LEVEL_ERROR                                                &
+      )
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = dtrdz_wth_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) call create_mixing_geometries(mesh)
+
+    call dtrdz_wth_inventory%get_field(mesh, dtrdz)
+
+  end function get_dtrdz_wth
+
+  !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The rdz_fd1 field
+  function get_rdz_fd1(mesh_id) result(rdz)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh
+    type(field_type),       pointer :: rdz
+    logical(kind=l_def)             :: constant_exists
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. rdz_fd1_inventory%is_initialised()) then
+      call rdz_fd1_inventory%initialise(name="rdz_fd1")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = rdz_fd1_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) call create_mixing_geometries(mesh)
+
+    call rdz_fd1_inventory%get_field(mesh, rdz)
+
+  end function get_rdz_fd1
+
+  !> @brief Returns the 1/dz values at lowest-order W1 DoF locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The rdz_w3 field
+  function get_rdz_w3(mesh_id) result(rdz)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: mesh_id
+    type(mesh_type),        pointer :: mesh
+    type(field_type),       pointer :: rdz
+    logical(kind=l_def)             :: constant_exists
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. rdz_w3_inventory%is_initialised()) then
+      call rdz_w3_inventory%initialise(name="rdz_w3")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = rdz_w3_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) call create_mixing_geometries(mesh)
+
+    call rdz_w3_inventory%get_field(mesh, rdz)
+
+  end function get_rdz_w3
+
+  !> @brief Returns the max Smagorinsky diffusion allowed in this run at Wtheta
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] model_clock  The model clock object
+  !> @return The max_diff_wtheta field
+  function get_max_diff(mesh_id, model_clock) result(max_diff_smag)
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: mesh_id
+    class(model_clock_type), intent(in) :: model_clock
+    type(mesh_type),            pointer :: mesh
+    type(field_type),           pointer :: max_diff_smag
+    logical(kind=l_def)                 :: constant_exists
+    real(kind=r_def)                    :: dt
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. max_diff_wtheta_inventory%is_initialised()) then
+      call max_diff_wtheta_inventory%initialise(name="max_diff_wtheta")
+      dt_stored = real(model_clock%get_seconds_per_step(), r_def)
+    end if
+
+    ! Check this constant is still valid -- is the model time step the same?
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+    if (abs(dt - dt_stored) > EPS) then
+      call log_event(                                                          &
+                'Unable to get max_diff as the time step has changed ' //      &
+                'and it is no longer valid',                                   &
+                LOG_LEVEL_ERROR                                                &
+      )
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = max_diff_wtheta_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) call create_mixing_geometries(mesh)
+
+    call max_diff_wtheta_inventory%get_field(mesh, max_diff_smag)
+
+  end function get_max_diff
+
+#ifdef UM_PHYSICS
+  !> @brief Returns the Legendre Polynomials times the SH amplitude
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Pnm_max field
+  function get_Pnm_star(mesh_id) result(Pnm_star)
+
+    use sci_geometric_constants_mod,   only: get_latitude_fv
+    use get_Pnm_star_kernel_mod,       only: get_Pnm_star_kernel_type
+    use stochastic_physics_config_mod, only: stph_spectral_dim, stph_n_max
+
+    implicit none
+
+    integer(kind=i_def),    intent(in) :: mesh_id
+    integer(kind=i_def)                :: local_mesh_id
+    type(field_type),          pointer :: Pnm_star
+    type(field_type),          pointer :: latitude
+    type(mesh_type),           pointer :: mesh
+    type(local_mesh_type),     pointer :: local_mesh
+    type(mesh_type),           pointer :: twod_mesh
+    type(function_space_type), pointer :: fs
+    logical(kind=l_def)                :: constant_exists
+
+    ! Check inventory is initialised
+    if (.not. Pnm_star_inventory%is_initialised()) then
+      call Pnm_star_inventory%initialise(name='Pnm_star')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    local_mesh_id = local_mesh%get_id()
+    constant_exists = Pnm_star_inventory%paired_object_exists(local_mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+      latitude => get_latitude_fv(W3, mesh_id)
+      fs => function_space_collection%get_fs(twod_mesh, 0, 0, W3, stph_spectral_dim)
+
+      if ( subroutine_timers ) call timer('runtime_constants.physics')
+
+      call Pnm_star_inventory%add_field(Pnm_star, fs, local_mesh)
+
+      call invoke( setval_c(Pnm_star, 0.0_r_def),                              &
+                   get_Pnm_star_kernel_type(Pnm_star, latitude, stph_n_max) )
+
+      if ( subroutine_timers ) call timer('runtime_constants.physics')
+    end if
+
+    call Pnm_star_inventory%get_field(local_mesh, Pnm_star)
+
+  end function get_Pnm_star
+#endif
+
+  ! ========================================================================== !
+  ! FINALISE
+  ! ========================================================================== !
+  !> @brief Explicitly reclaim memory from module scope variables
+  subroutine final_physics_constants()
+
+    implicit none
+
+    call dtrdz_fd2_inventory%clear()
+    call dtrdz_wth_inventory%clear()
+    call rdz_fd1_inventory%clear()
+    call rdz_w3_inventory%clear()
+    call max_diff_wtheta_inventory%clear()
+#ifdef UM_PHYSICS
+    call Pnm_star_inventory%clear()
+#endif
+
+  end subroutine final_physics_constants
+
+end module physics_constants_mod

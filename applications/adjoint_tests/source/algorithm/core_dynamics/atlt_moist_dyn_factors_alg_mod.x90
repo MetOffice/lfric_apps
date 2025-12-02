@@ -1,0 +1,182 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_moist_dyn_factors_alg
+module atlt_moist_dyn_factors_alg_mod
+
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use moist_dyn_mod,                       only : num_moist_factors
+  use mr_indices_mod,                      only : nummr
+  use finite_element_config_mod,           only : element_order_h, element_order_v
+  use fs_continuity_mod,                   only : Wtheta
+  use function_space_collection_mod,       only : function_space_collection
+
+  implicit none
+
+  public
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for atl_moist_dyn_factors_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !> Determined by testing the equality of inner products < Mx, Mx > and < AMx, x >,
+  !> where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  subroutine atlt_moist_dyn_factors_alg( mesh )
+
+    use tl_moist_dyn_factors_alg_mod,        only : tl_moist_dyn_factors_alg
+    use atl_moist_dyn_factors_alg_mod,       only : atl_moist_dyn_factors_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and atl calls
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type)    :: moist_dyn(num_moist_factors)
+    type(field_type)    :: mr(nummr)
+
+    ! Copies of input fields used in inner products
+    type(field_type)    :: moist_dyn_input(num_moist_factors)
+    type(field_type)    :: mr_input(nummr)
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+
+    ! Inner products
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: moist_dyn_inner_prod(num_moist_factors)
+    real(kind=r_def) :: mr_inner_prod(nummr)
+    real(kind=r_def) :: moist_dyn_sf(num_moist_factors)
+    real(kind=r_def) :: mr_sf(nummr)
+    real(kind=r_def) :: inner2
+    real(kind=r_def) :: moist_dyn_moist_dyn_input_inner_prod(num_moist_factors)
+    real(kind=r_def) :: mr_mr_input_inner_prod(nummr)
+
+    ! For indexing of field bundles
+    integer(kind=i_def) :: moist_idx
+    integer(kind=i_def) :: mr_idx
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Initialising fields
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+
+    do moist_idx = 1, num_moist_factors
+      call moist_dyn(moist_idx)%initialise( vector_space = vector_space_wtheta_ptr )
+      call moist_dyn(moist_idx)%copy_field_properties( moist_dyn_input(moist_idx) )
+    end do
+
+    do mr_idx = 1, nummr
+      call mr(mr_idx)%initialise( vector_space = vector_space_wtheta_ptr )
+      call mr(mr_idx)%copy_field_properties( mr_input(mr_idx) )
+    end do
+
+    moist_dyn_inner_prod(:) = 0.0_r_def
+    mr_inner_prod(:) = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+
+    ! Initialise values of moist_dyn fields
+    do moist_idx = 1, num_moist_factors
+      call invoke( setval_random( moist_dyn(moist_idx) ), &
+                   setval_x( moist_dyn_input(moist_idx), moist_dyn(moist_idx) ) )
+    end do
+
+    do mr_idx = 1, nummr
+      call invoke( setval_random( mr(mr_idx) ), &
+                   setval_x( mr_input(mr_idx), mr(mr_idx) ) )
+    end do
+
+    ! Tangent linear
+    call tl_moist_dyn_factors_alg( moist_dyn, mr )
+
+    ! < Mx, Mx >
+    do moist_idx = 1, num_moist_factors
+      call invoke( x_innerproduct_x( moist_dyn_inner_prod(moist_idx), moist_dyn(moist_idx) ) )
+    end do
+
+    do mr_idx = 1, nummr
+      call invoke( x_innerproduct_x( mr_inner_prod(mr_idx), mr(mr_idx) ) )
+    end do
+
+    inner1 = 0.0_r_def
+    write(log_scratch_space, *) "atlt_moist_dyn_factors inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    do moist_idx = 1, num_moist_factors
+      write(log_scratch_space, *) "moist_dyn(idx = ", moist_idx, ") inner product = ", &
+                                  moist_dyn_inner_prod(moist_idx)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      moist_dyn_sf(moist_idx) = 1.0_r_def / (moist_dyn_inner_prod(moist_idx) + eps)
+      inner1 = inner1 + moist_dyn_inner_prod(moist_idx) * moist_dyn_sf(moist_idx)
+      call invoke(inc_a_times_X( moist_dyn_sf(moist_idx), moist_dyn(moist_idx) ))
+    end do
+
+    do mr_idx = 1, nummr
+      write(log_scratch_space, *) "mr(idx = ", mr_idx, ") inner product = ", mr_inner_prod(mr_idx)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      mr_sf(mr_idx) = 1.0_r_def / (mr_inner_prod(mr_idx) + eps)
+      inner1 = inner1 + mr_inner_prod(mr_idx) * mr_sf(mr_idx)
+      call invoke(inc_a_times_X( mr_sf(mr_idx), mr(mr_idx) ))
+    end do
+
+    ! Adjoint alg call and inner products
+    moist_dyn_moist_dyn_input_inner_prod(:) = 0.0_r_def
+    mr_mr_input_inner_prod(:) = 0.0_r_def
+
+    ! Adjoint
+    call atl_moist_dyn_factors_alg( moist_dyn, mr )
+
+    ! < AMx, x >
+    do moist_idx = 1, num_moist_factors
+      call invoke( x_innerproduct_y( moist_dyn_moist_dyn_input_inner_prod(moist_idx), &
+                                     moist_dyn(moist_idx),                            &
+                                     moist_dyn_input(moist_idx) ) )
+    end do
+
+    do mr_idx = 1, nummr
+      call invoke( x_innerproduct_y( mr_mr_input_inner_prod(mr_idx), &
+                                     mr(mr_idx),                     &
+                                     mr_input(mr_idx) ) )
+    end do
+
+    inner2 = 0.0_r_def
+    do moist_idx = 1, num_moist_factors
+      inner2 = inner2 + moist_dyn_moist_dyn_input_inner_prod(moist_idx)
+    end do
+
+    do mr_idx = 1, nummr
+      inner2 = inner2 + mr_mr_input_inner_prod(mr_idx)
+    end do
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_moist_dyn_factors_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_moist_dyn_factors_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_moist_dyn_factors_alg
+
+end module atlt_moist_dyn_factors_alg_mod

@@ -1,0 +1,167 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module gungho_extrusion_mod_test
+
+  use constants_mod,           only : i_def, r_def
+  use extrusion_mod,           only : extrusion_type, prime_extrusion
+  use gungho_extrusion_mod,    only : create_extrusion
+
+  use funit
+
+  implicit none
+
+  private
+  public test_planar, test_spherical, test_dcmip, test_shifted_dcmip
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_planar()
+
+    use base_mesh_config_mod, only : geometry_planar
+    use extrusion_config_mod, only : method_uniform
+
+    implicit none
+
+    class(extrusion_type), allocatable :: unit_under_test
+
+    real(r_def), parameter :: planet_radius = 637100.0_r_def
+    real(r_def), parameter :: scaling_factor = 0.5_r_def
+    real(r_def), parameter :: scaled_radius = scaling_factor * planet_radius
+
+    allocate( unit_under_test, source=create_extrusion(                &
+                                           method = method_uniform,    &
+                                           geometry = geometry_planar, &
+                                           number_of_layers = 7_i_def, &
+                                           domain_height = 13.5_r_def, &
+                                           scaled_radius = scaled_radius ) )
+
+    @assertEqual( 'uniform',  trim( identify_extrusion( unit_under_test ) ) )
+    @assertEqual( 0.0_r_def,  unit_under_test%get_atmosphere_bottom() )
+    @assertEqual( 13.5_r_def, unit_under_test%get_atmosphere_top() )
+    @assertEqual( 7_i_def,    unit_under_test%get_number_of_layers() )
+
+    deallocate( unit_under_test )
+
+  end subroutine test_planar
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_spherical()
+
+    use base_mesh_config_mod, only : geometry_spherical
+    use extrusion_config_mod, only : method_geometric
+
+    implicit none
+
+    class(extrusion_type), allocatable :: unit_under_test
+
+    real(r_def), parameter :: planet_radius = 637100.0_r_def
+    real(r_def), parameter :: scaling_factor = 2.0_r_def
+    real(r_def), parameter :: scaled_radius = planet_radius / scaling_factor
+    real(r_def), parameter :: tolerance = 1.0e-5_r_def
+
+    allocate( unit_under_test, source=create_extrusion(                    &
+                                           method = method_geometric,      &
+                                           geometry = geometry_spherical,  &
+                                           number_of_layers = 7_i_def,     &
+                                           domain_height = 600000.0_r_def, &
+                                           scaled_radius = scaled_radius ) )
+
+    @assertEqual( 'geometric',    trim( identify_extrusion( unit_under_test ) ) )
+    @assertEqual( 318550.0_r_def, unit_under_test%get_atmosphere_bottom(), tolerance )
+    @assertEqual( 600000.0_r_def, unit_under_test%get_atmosphere_top(), tolerance )
+    @assertEqual( 7_i_def,        unit_under_test%get_number_of_layers() )
+
+    deallocate( unit_under_test )
+
+  end subroutine test_spherical
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_dcmip()
+
+    use gungho_extrusion_mod, only : dcmip_extrusion_type
+
+    implicit none
+
+    integer(i_def), parameter :: layers = 5
+    real(r_def),    parameter :: expected(0:layers) &
+                                 = [0.0_r_def,   0.088_r_def, 0.281_r_def, &
+                                    0.510_r_def, 0.752_r_def, 1.0_r_def]
+    real(r_def),    parameter :: tolerance = 0.001_r_def
+
+    type(dcmip_extrusion_type) :: unit_under_test
+    real(r_def)                :: eta(0:layers)
+
+    unit_under_test = dcmip_extrusion_type( 1.0_r_def, 2.0_r_def, layers, &
+                                            prime_extrusion )
+
+    call unit_under_test%extrude( eta )
+    @assertEqual( expected, eta, tolerance )
+
+  end subroutine test_dcmip
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_shifted_dcmip()
+
+    use gungho_extrusion_mod, only : dcmip_extrusion_type
+    use extrusion_mod,        only : shifted_extrusion_type
+
+    implicit none
+
+    integer(i_def), parameter :: layers = 5
+    real(r_def),    parameter :: expected(0:layers+1) &
+                                 = [0.0_r_def, 0.044_r_def,  0.1845_r_def,   &
+                                    0.3955_r_def, 0.631_r_def, 0.876_r_def, 1.0_r_def]
+    real(r_def),    parameter :: tolerance = 0.001_r_def
+
+    type(dcmip_extrusion_type)   :: base_extrusion
+    type(shifted_extrusion_type) :: unit_under_test
+    real(r_def)                  :: eta(0:layers+1)
+
+    base_extrusion = dcmip_extrusion_type( 1.0_r_def, 2.0_r_def, layers, &
+                                           prime_extrusion )
+    unit_under_test = shifted_extrusion_type( base_extrusion )
+
+    call unit_under_test%extrude( eta )
+    @assertEqual( expected, eta, tolerance )
+
+  end subroutine test_shifted_dcmip
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  function identify_extrusion( extrusion ) result(id)
+
+    use extrusion_mod,        only : uniform_extrusion_type,   &
+                                     quadratic_extrusion_type, &
+                                     geometric_extrusion_type
+    use gungho_extrusion_mod, only : dcmip_extrusion_type
+
+    implicit none
+
+    class(extrusion_type), intent(in) :: extrusion
+    character(9) :: id
+
+    id = 'unknown  '
+
+    select type (extrusion)
+      type is (uniform_extrusion_type)
+        id = 'uniform'
+      type is (quadratic_extrusion_type)
+        id = 'quadratic'
+      type is (geometric_extrusion_type)
+        id = 'geometric'
+      type is (dcmip_extrusion_type)
+        id = 'dcmip'
+    end select
+
+  end function identify_extrusion
+
+end module gungho_extrusion_mod_test

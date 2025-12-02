@@ -1,0 +1,96 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Apply level1 temperature increments to land surface temperature flds
+!> @details Increments to level 1 temperature, resulting from the IAU, are
+!>          applied to soil temperature, snow temperature and skin temperature,
+!>          dependent on certain conditions.
+
+module level_one_temp_alg_mod
+
+  use constants_mod,                 only: r_def, i_def
+  use driver_water_constants_mod,    only: T_freeze_h2o
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use integer_field_mod,             only: integer_field_type
+  use jules_control_init_mod,        only: n_land_tile
+  use jules_physics_init_mod,        only: snow_lev_tile
+  use jules_snow_mod,                only: nsmax
+  use jules_surface_types_mod,       only: lake
+  use level_one_temp_inc_kernel_mod, only: level_one_temp_inc_kernel_type
+  use nlsizes_namelist_mod,          only: sm_levels
+
+  implicit none
+
+  private
+  public :: level_one_temp_alg
+
+  contains
+
+  !> @brief   Apply level1 temperature increments to land surface temp flds
+  !> @details Calculates increments to level 1 temperature resulting from IAU
+  !>          updates and applies them to surface, soil, and snow temperature
+  !>          within certain constraints
+  !> @param[in]      temperature         The temperature field after iau update
+  !> @param[in]      temperature_earlier The temperature field before iau update
+  !> @param[in,out]  surface_fields      The collection of surface fields
+  !> @param[in,out]  soil_fields         The collection of soil fields
+  !> @param[in,out]  snow_fields         The collection of snow fields
+  subroutine level_one_temp_alg ( temperature, temperature_earlier, &
+                                  surface_fields, soil_fields, snow_fields )
+
+    implicit none
+
+    type( field_type ),            intent(in)       :: temperature
+    type( field_type ),            intent(in)       :: temperature_earlier
+    type( field_collection_type ), intent(inout)    :: surface_fields
+    type( field_collection_type ), intent(inout)    :: soil_fields
+    type( field_collection_type ), intent(inout)    :: snow_fields
+
+
+    ! prognostic fields needed
+    type( field_type ), pointer :: soil_temperature
+    type( field_type ), pointer :: snow_layer_temp
+    type( field_type ), pointer :: tile_temperature
+    type( field_type ), pointer :: snow_depth
+    type( integer_field_type ), pointer :: n_snow_layers
+    type( field_type ), pointer :: tile_fraction
+
+
+    ! local field
+    type(field_type)            :: temperature_inc
+
+    ! Get fields needed
+    call soil_fields % get_field( 'soil_temperature', soil_temperature )
+    call snow_fields % get_field( 'snow_layer_temp', snow_layer_temp )
+    call surface_fields % get_field( 'tile_temperature', tile_temperature )
+    call snow_fields % get_field( 'snow_depth', snow_depth )
+    call snow_fields % get_field( 'n_snow_layers', n_snow_layers )
+    call surface_fields % get_field( 'tile_fraction', tile_fraction )
+
+    ! Create local field to hold temperature increment values
+    call temperature % copy_field_properties( temperature_inc )
+
+    ! Calculate temperature increments
+    ! Update surface temperature fields with level1 temperature increments
+    call invoke( X_minus_Y( temperature_inc, temperature, temperature_earlier ), &
+                 level_one_temp_inc_kernel_type ( temperature_inc,  &
+                                                  soil_temperature, &
+                                                  tile_fraction,    &
+                                                  snow_depth,       &
+                                                  n_snow_layers,    &
+                                                  tile_temperature, &
+                                                  snow_layer_temp,  &
+                                                  n_land_tile,      &
+                                                  snow_lev_tile,    &
+                                                  sm_levels,        &
+                                                  nsmax,            &
+                                                  lake,             &
+                                                  T_freeze_h2o ) )
+
+  end subroutine level_one_temp_alg
+
+end module level_one_temp_alg_mod

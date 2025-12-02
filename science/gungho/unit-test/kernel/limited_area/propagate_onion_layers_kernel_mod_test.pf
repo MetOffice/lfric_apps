@@ -1,0 +1,137 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test kernel that increments an onion_layer mask resulting in a deeper mask.
+
+module propagate_onion_layers_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_propagate_onion_layers_kernel
+
+  @TestCase
+  type, extends(TestCase), public :: propagate_onion_layers_test_type
+    private
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncells
+    integer(kind=i_def) :: ndf3, undf3
+    integer(kind=i_def), allocatable :: map3(:,:)
+    integer(kind=i_def), allocatable :: stencil_map3(:,:,:)
+    integer(kind=i_def)              :: stencil_size
+    real(kind=r_def),    allocatable :: onion_layers(:)
+    real(kind=r_def),    allocatable :: propagated_onion_layers(:)
+    real(kind=r_def)                 :: threshold
+    real(kind=r_def)                 :: on_or_off
+    real(kind=r_def),    allocatable :: answer(:)
+  contains
+    procedure SetUp
+    procedure tearDown
+    procedure test_propagate_onion_layers_kernel
+  end type propagate_onion_layers_test_type
+
+  contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap, &
+                                                    get_m3x3_stencil_dofmap_cross
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
+    implicit none
+
+    class(propagate_onion_layers_test_type), intent(inout) :: this
+
+    ! Quadrature (not used)
+    integer(kind=i_def) :: nqp_h, nqp_v
+
+    ! Dimensions (not used)
+    integer(kind=i_def) :: dim_space, dim_space_diff
+
+    ! Mesh
+    this%nlayers = 1
+
+    ! Setup W3 fields
+    call get_w3_m3x3_q3x3x3_size(this%ndf3, this%undf3, this%ncells, &
+                                 dim_space, dim_space_diff, &
+                                 nqp_h, nqp_v, &
+                                 this%nlayers)
+
+    allocate(this%map3(this%ndf3,this%ncells))
+    allocate(this%onion_layers(this%undf3))
+    allocate(this%propagated_onion_layers(this%undf3))
+
+    call get_w3_m3x3_dofmap(this%map3, this%nlayers)
+    call get_m3x3_stencil_dofmap_cross(this%stencil_map3, this%map3)
+
+    this%stencil_size=size(this%stencil_map3, dim=2)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(propagate_onion_layers_test_type), intent(inout) :: this
+
+    deallocate(this%map3)
+    deallocate(this%onion_layers)
+    deallocate(this%propagated_onion_layers)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_propagate_onion_layers_kernel( this )
+
+    use propagate_onion_layers_kernel_mod, only : propagate_onion_layers_code
+
+    implicit none
+
+    class(propagate_onion_layers_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    integer(kind=r_def) :: cell, df
+
+    ! Set up input and output masks
+    this%propagated_onion_layers(:) = 0.0_r_def
+    this%onion_layers(:) = 2.0_r_def
+    this%onion_layers(5) = 1.0_r_def
+
+    ! Define answer
+    ! 3x3 cell domain, central cell is cell id = 5
+    allocate(this%answer(this%undf3))
+
+    this%answer(:) = 3.0_r_def
+    this%answer(5) = 2.0_r_def
+
+    do cell=1,this%ncells
+      call propagate_onion_layers_code(this%nlayers,                 &
+                                       this%propagated_onion_layers, &
+                                       this%onion_layers,            &
+                                       this%stencil_size,            &
+                                       this%stencil_map3(:,:,cell),  &
+                                       this%ndf3,                    &
+                                       this%undf3,                   &
+                                       this%map3(:,cell)             &
+                                       )
+    end do
+
+    ! Checking all DoFs
+    do df = 1,this%undf3
+      @assertEqual(this%propagated_onion_layers(df),this%answer(df), tol)
+    end do
+
+    deallocate(this%answer)
+
+  end subroutine test_propagate_onion_layers_kernel
+
+end module propagate_onion_layers_kernel_mod_test

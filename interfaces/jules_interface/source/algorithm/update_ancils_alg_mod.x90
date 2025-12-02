@@ -1,0 +1,124 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief Processing of ancillary files
+module update_ancils_alg_mod
+
+  use clock_mod,            only : clock_type
+  use constants_mod,        only : str_def
+  use field_collection_mod, only : field_collection_type
+  use field_mod,            only : field_type
+  use fs_continuity_mod,    only : W3
+  use mesh_mod,             only : mesh_type
+
+  use section_choice_config_mod,   only: surface, surface_jules
+  use process_ssi_kernel_mod,      only: process_ssi_kernel_type
+  use log_mod,                     only: LOG_LEVEL_INFO
+  use jules_control_init_mod,      only: first_sea_tile, n_sea_tile
+  use sci_multi_insert_kernel_mod, only: multi_insert_kernel_type
+  use lfric_xios_time_axis_mod,    only: time_axis_type
+  use linked_list_mod,             only: linked_list_type, &
+                                         linked_list_item_type
+  use sci_geometric_constants_mod, only: get_latitude_fv
+  use jules_sea_seaice_config_mod, only: amip_ice_thick
+  use derived_config_mod,          only: l_couple_sea_ice, l_couple_ocean
+
+  implicit none
+
+  private
+  public :: update_ancils_alg
+
+contains
+
+  !> @details Derive ancillary fields required by the model from ancillary
+  !>          fields that are read from file
+  !> @param[in] time_axis_list (in)     List of time axes
+  !> @param[in] clock          (in)     The clock object
+  !> @param[in] ancil_fields   (in)     Ancil fields read in
+  !> @param[in] surface_fields (in,out) Surface field collection to update
+  subroutine update_ancils_alg(time_axis_list, clock, ancil_fields, &
+                               surface_fields)
+
+    implicit none
+
+    type(linked_list_type),        intent(in) :: time_axis_list
+    class(clock_type),             intent(in) :: clock
+    type( field_collection_type ), intent(in) :: ancil_fields
+    type( field_collection_type ), intent(in) :: surface_fields
+
+    type( field_type ), pointer :: sea_ice_fraction   => null()
+    type( field_type ), pointer :: sea_ice_thickness  => null()
+    type( field_type ), pointer :: tile_fraction      => null()
+
+    type( field_type ), pointer :: tstar_sea        => null()
+    type( field_type ), pointer :: tile_temperature => null()
+
+    type( mesh_type ),  pointer :: twod_mesh => null()
+    type( field_type ), pointer :: latitude  => null()
+
+    ! Pointer to linked list - used for looping through the list
+    type(linked_list_item_type), pointer :: loop => null()
+    type(time_axis_type),        pointer :: time_axis => null()
+    character(str_def)                   :: axis_name
+
+    if (surface == surface_jules) then
+      call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
+      call surface_fields%get_field('tile_fraction', tile_fraction)     
+      call surface_fields%get_field('tile_temperature', tile_temperature)
+
+      ! Get the data from ancil_fields (if applicable for your model)
+      if (.not. l_couple_sea_ice) then
+        call ancil_fields%get_field('sea_ice_fraction', sea_ice_fraction)
+      end if
+      if (.not. l_couple_ocean) then
+        call ancil_fields%get_field('tstar_sea', tstar_sea)
+      end if
+
+      twod_mesh => sea_ice_thickness%get_mesh()
+      latitude => get_latitude_fv( W3, twod_mesh%get_id() )
+
+      ! Start at the head of the time_axis linked list
+      loop => time_axis_list%get_head()
+      do
+        ! If list is empty or we're at the end of list, exit
+        if ( .not. associated(loop) ) then
+          exit
+        end if
+
+        ! Select the time_axis_type to get at the information in the list payload
+        select type( list_item => loop%payload )
+        type is (time_axis_type)
+          time_axis => list_item
+
+          ! Update fields if required
+          if ( time_axis%populate_fields() ) then
+
+            axis_name = trim(time_axis%get_name())
+
+            if (axis_name == 'sea_ice_time' .and. .not. l_couple_sea_ice) then
+              call invoke(process_ssi_kernel_type( sea_ice_fraction,        &
+                                                   sea_ice_thickness,       &
+                                                   tile_fraction, latitude, &
+                                                   amip_ice_thick,          &
+                                                   l_couple_sea_ice))
+            else if (axis_name == 'sst_time' .and. .not. l_couple_ocean) then
+              call invoke(multi_insert_kernel_type(tile_temperature,         &
+                                                   tstar_sea, first_sea_tile,&
+                                                   n_sea_tile ) )
+            end if
+
+          end if
+
+        end select
+
+        loop => loop%next
+
+      end do
+
+    end if
+
+  end subroutine update_ancils_alg
+
+end module update_ancils_alg_mod

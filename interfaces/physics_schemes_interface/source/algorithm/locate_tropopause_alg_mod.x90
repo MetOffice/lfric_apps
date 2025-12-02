@@ -1,0 +1,70 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+! @brief Locate tropopause level
+
+module locate_tropopause_alg_mod
+
+use constants_mod,                 only: i_def
+use field_mod,                     only: field_type
+use integer_field_mod,             only: integer_field_type
+use fs_continuity_mod,             only: W3, Wtheta
+use function_space_collection_mod, only: function_space_collection
+use function_space_mod,            only: function_space_type
+use io_config_mod,                 only: write_diag, use_xios_io
+use lfric_xios_write_mod,          only: write_field_generic
+use mesh_mod,                      only: mesh_type
+use field_parent_mod,              only: write_interface
+use sci_geometric_constants_mod,   only: get_height_fv
+use locate_tropopause_kernel_mod,  only: locate_tropopause_kernel_type
+use io_config_mod,                 only: subroutine_timers
+use timer_mod,                     only: timer
+
+implicit none
+private
+public :: locate_tropopause_alg
+
+contains
+
+! @param[in,out] trop_level             Level of tropopause
+! @param[in]     theta                  Potential temperature
+! @param[in]     exner_in_wth           Exner pressure on wth space
+! @param[in]     twod_mesh              Current 2d mesh
+
+subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
+
+  implicit none
+
+  type( integer_field_type ), intent(inout) :: trop_level
+  type( field_type ), intent(in)    :: theta, exner_in_wth
+  type( mesh_type ),  intent(in), pointer :: twod_mesh
+
+  ! Local fields
+  type( field_type ),         pointer :: height_wth => null()
+  type(function_space_type),  pointer :: vector_space => null()
+  procedure(write_interface), pointer :: write_diag_behaviour => null()
+
+  if ( subroutine_timers ) call timer("locate_tropopause_alg")
+
+  height_wth => get_height_fv(Wtheta, theta%get_mesh_id())
+
+  vector_space=>function_space_collection%get_fs(twod_mesh, 0, 0, W3)
+  call trop_level%initialise(vector_space)
+
+  call invoke( locate_tropopause_kernel_type( theta, exner_in_wth, &
+                                              height_wth, trop_level ) )
+
+  if ( subroutine_timers ) call timer("locate_tropopause_alg")
+
+  if (write_diag .and. use_xios_io) then
+    if ( subroutine_timers ) call timer("locate_tropopause_xios")
+    write_diag_behaviour => write_field_generic
+    call trop_level%set_write_behaviour(write_diag_behaviour)
+    call trop_level%write_field('processed__trop_level')
+    if ( subroutine_timers ) call timer("locate_tropopause_xios")
+  end if
+
+end subroutine locate_tropopause_alg
+end module locate_tropopause_alg_mod

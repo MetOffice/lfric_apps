@@ -1,0 +1,76 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Update the tile temperature on sea tiles with IAU sst increments.
+!> @details Increments to sea surface temperature are
+!>          added to prognostic surface temperature field.
+module update_iau_sst_alg_mod
+
+  use constants_mod,               only: r_def, l_def
+  use derived_config_mod,          only: l_esm_couple
+  use esm_couple_config_mod,       only: l_esm_couple_test
+  use field_mod,                   only: field_type
+  use field_collection_mod,        only: field_collection_type
+  use jules_control_init_mod,      only: first_sea_tile, n_sea_tile
+  use sci_multi_insert_kernel_mod, only: multi_insert_kernel_type
+
+  implicit none
+
+  private
+  public :: update_iau_sst_alg
+
+  contains
+
+  !> @brief   Update the surface temperature field with IAU sst increments
+  !> @details Inputs are increments of sea surface temperature. 
+  !>          These are applied to the sea tile of the full prognostic tile
+  !>          temperature field.
+  !> @param[in]     iau_sst_fields The collection of iau sst fields
+  !> @param[in,out] surface_fields The collection of surface fields
+  subroutine update_iau_sst_alg ( iau_sst_fields, surface_fields )
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent(in)    :: iau_sst_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+
+    ! prognostic fields needed for sst iau
+    type( field_type ), pointer :: tile_temperature
+    type( field_type ), pointer :: sea_surf_temp_pert
+
+    ! increments coming from the sst read file
+    type( field_type ), pointer :: tstar_sea_inc
+
+    ! local field
+    type( field_type ) :: tile_temp_inc 
+
+    ! get fields needed for sst IAU
+    call surface_fields%get_field( 'tile_temperature', tile_temperature )
+    call surface_fields%get_field( 'sea_surf_temp_pert', sea_surf_temp_pert )
+
+    ! get fields needed for sst IAU incs
+    call iau_sst_fields%get_field( 'tstar_sea_inc', tstar_sea_inc ) 
+
+    if ( l_esm_couple .or. l_esm_couple_test) then
+      call invoke( setval_X( sea_surf_temp_pert, tstar_sea_inc ) )
+    end if
+
+    !create local field to hold incs in appropriate part of multi-data inc field
+    call tile_temperature%copy_field_properties( tile_temp_inc )
+
+    call invoke ( setval_c( tile_temp_inc, 0.0_r_def ),     &
+                  multi_insert_kernel_type( tile_temp_inc,  &
+                                            tstar_sea_inc,  &
+                                            first_sea_tile, &
+                                            n_sea_tile ),   &
+                  inc_X_plus_Y( tile_temperature, tile_temp_inc ))
+
+    nullify( tile_temperature, tstar_sea_inc )
+
+  end subroutine update_iau_sst_alg
+
+end module update_iau_sst_alg_mod

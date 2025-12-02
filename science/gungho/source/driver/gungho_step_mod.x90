@@ -1,0 +1,226 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Steps the gungho app through one timestep
+
+!> @details Handles the stepping (for a single timestep) of the
+!>          gungho app
+
+module gungho_step_mod
+
+  use conservation_algorithm_mod,     only : conservation_algorithm
+  use constants_mod,                  only : i_def, r_def, l_def
+  use energy_correction_config_mod,   only : encorr_usage,      &
+                                             encorr_usage_none, &
+                                             reset_hours
+  use field_array_mod,                only : field_array_type
+  use field_collection_mod,           only : field_collection_type
+  use field_mod,                      only : field_type
+  use io_value_mod,                   only : io_value_type, &
+                                             get_io_value
+  use formulation_config_mod,         only : use_physics,             &
+                                             moisture_formulation,    &
+                                             moisture_formulation_dry
+  use driver_modeldb_mod,             only : modeldb_type
+  use sci_geometric_constants_mod,    only : get_da_at_w2
+  use io_config_mod,                  only : write_conservation_diag, &
+                                             write_minmax_tseries
+  use log_mod,                        only : log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_DEBUG,   &
+                                             LOG_LEVEL_ERROR,   &
+                                             LOG_LEVEL_INFO,    &
+                                             LOG_LEVEL_TRACE
+
+  use mesh_mod,                       only : mesh_type
+  use minmax_tseries_mod,             only : minmax_tseries
+  use model_clock_mod,                only : model_clock_type
+  use mr_indices_mod,                 only : nummr
+  use section_choice_config_mod,      only : cloud, cloud_um
+  use sum_fluxes_alg_mod,             only : sum_fluxes_alg
+  use moisture_conservation_alg_mod,  only : moisture_conservation_alg
+  use moisture_fluxes_alg_mod,        only : moisture_fluxes_alg
+  use timestep_method_mod,        only : timestep_method_type, &
+                                         get_timestep_method_from_collection
+  use rk_alg_timestep_mod,        only : rk_timestep_type
+  use semi_implicit_timestep_alg_mod, &
+                                  only : semi_implicit_timestep_type
+  use timestepping_config_mod,        only : method, &
+                                             method_semi_implicit, &
+                                             method_rk,            &
+                                             method_no_timestepping
+  use update_energy_correction_alg_mod, &
+                                  only : update_energy_correction_alg
+  use compute_total_energy_alg_mod,   only : compute_total_energy_alg
+  use compute_total_mass_alg_mod,     only : compute_total_mass_alg
+  use sci_field_minmax_alg_mod,       only : log_field_minmax
+
+  implicit none
+
+  private
+  public gungho_step
+
+  contains
+
+  !> @brief Steps the gungho app through one timestep
+  !> @param[in] mesh      The primary mesh
+  !> @param[in] twod_mesh The two-dimensional mesh
+  !> @param[inout] modeldb The working data set for the model run
+  !> @param[in] model_clock The model clock object
+  subroutine gungho_step( mesh,       &
+                          twod_mesh,  &
+                          modeldb, &
+                          model_clock )
+
+    implicit none
+
+    type(mesh_type), intent(in), pointer    :: mesh
+    type(mesh_type), intent(in), pointer    :: twod_mesh
+    type(modeldb_type), intent(inout),target:: modeldb
+    class(model_clock_type), intent(in)     :: model_clock
+
+    type( field_collection_type ), pointer :: prognostic_fields => null()
+    type( field_collection_type ), pointer :: moisture_fields => null()
+    type( field_array_type ),      pointer :: mr_array
+    type( field_type ),            pointer :: mr(:) => null()
+    type( field_collection_type ), pointer :: derived_fields
+    type( field_collection_type ), pointer :: radiation_fields
+    type( field_collection_type ), pointer :: microphysics_fields
+    type( field_collection_type ), pointer :: turbulence_fields
+    type( field_collection_type ), pointer :: convection_fields
+
+    type( field_type), pointer :: theta => null()
+    type( field_type), pointer :: u => null()
+    type( field_type), pointer :: rho => null()
+    type( field_type), pointer :: exner => null()
+    type( field_type), pointer :: dA => null()  ! Areas of faces
+    type( field_type), pointer :: accumulated_fluxes => null()
+
+    type( io_value_type ), pointer :: temp_corr_io_value
+
+
+    class(timestep_method_type), pointer :: timestep_method => null()
+
+    real(r_def), pointer :: total_dry_mass
+    real(r_def), pointer :: total_energy
+    real(r_def), pointer :: total_energy_previous
+
+    real( r_def )    :: dt
+    logical( l_def ) :: use_moisture
+
+    write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
+    call log_event( log_scratch_space, LOG_LEVEL_TRACE )
+    write( log_scratch_space, &
+           '(A,I0)' ) 'Start of timestep ', model_clock%get_step()
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+    call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
+    call modeldb%values%get_value( 'total_energy', total_energy )
+    call modeldb%values%get_value( 'total_energy_previous', &
+                                   total_energy_previous )
+
+    use_moisture = ( moisture_formulation /= moisture_formulation_dry )
+
+    ! Get pointers to field collections for use downstream
+    prognostic_fields => modeldb%fields%get_field_collection( &
+                                                         "prognostic_fields")
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    mr => mr_array%bundle
+    derived_fields => modeldb%fields%get_field_collection( &
+                                                         "derived_fields")
+    radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
+    microphysics_fields => modeldb%fields%get_field_collection( &
+                                                         "microphysics_fields")
+    turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
+    convection_fields => modeldb%fields%get_field_collection("convection_fields")
+
+    ! Get pointers to fields in the prognostic/diagnostic field collections
+    ! for use downstream
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('exner', exner)
+
+    ! Get timestep parameters from clock
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+
+    ! Obtain the chosen timestep method (typically, Runge-Kutta or
+    ! semi-implicit) and run the timestep
+    timestep_method => get_timestep_method_from_collection( &
+                              modeldb%values, 'timestep_method')
+    call timestep_method%step( modeldb )
+
+    if ( encorr_usage /= encorr_usage_none ) then
+      call derived_fields%get_field('accumulated_fluxes', accumulated_fluxes)
+      call sum_fluxes_alg( accumulated_fluxes, &
+                           radiation_fields,   &
+                           turbulence_fields,  &
+                           convection_fields,  &
+                           microphysics_fields )
+      if ( mod( nint( dt * model_clock%get_step() ), &
+                3600_i_def * reset_hours ) == 0 ) then
+
+        call compute_total_mass_alg( total_dry_mass, rho, mesh )
+        call compute_total_energy_alg( total_energy,                      &
+                                       derived_fields, &
+                                       u, theta, exner, rho, mr,          &
+                                       mesh, twod_mesh )
+
+        call update_energy_correction_alg(                  &
+                               temp_corr_io_value%data(1),  &
+                               accumulated_fluxes,          &
+                               total_dry_mass, dt,          &
+                               mesh, twod_mesh,             &
+                               total_energy,                &
+                               total_energy_previous )
+
+      end if
+
+    end if
+
+    if ( write_conservation_diag ) then
+
+      write( log_scratch_space, &
+             '("fd total_mass = ", E32.24)') total_dry_mass
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+      call conservation_algorithm( rho,              &
+                                   u,                &
+                                   theta,            &
+                                   mr,               &
+                                   exner )
+      if ( use_moisture ) then
+        call moisture_conservation_alg( rho,              &
+                                        mr,               &
+                                        'After timestep' )
+        if ( use_physics .and. cloud == cloud_um ) then
+          dA => get_dA_at_w2(mesh%get_id())
+          call moisture_fluxes_alg( microphysics_fields, &
+                                    convection_fields,   &
+                                    turbulence_fields,   &
+                                    dA,                  &
+                                    dt )
+        end if
+      end if
+
+      if (write_minmax_tseries) call minmax_tseries(u, 'u', mesh)
+
+      call log_field_minmax( LOG_LEVEL_INFO, ' u', u )
+      call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )
+
+    end if
+
+    write( log_scratch_space, &
+           '(A,I0)' ) 'End of timestep ', model_clock%get_step()
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+  end subroutine gungho_step
+
+end module gungho_step_mod

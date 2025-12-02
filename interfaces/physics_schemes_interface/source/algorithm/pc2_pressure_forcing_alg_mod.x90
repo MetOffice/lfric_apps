@@ -1,0 +1,143 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the PC2 cloud scheme
+
+module pc2_pressure_forcing_alg_mod
+
+   use constants_mod,        only: r_def, str_def
+   use field_mod,            only: field_type
+   use field_collection_mod, only: field_collection_type
+   use io_config_mod,        only: write_diag, use_xios_io
+
+   implicit none
+
+   private
+   public pc2_pressure_forcing_alg
+
+contains
+  !>@brief Run pc2_pressure_forcing process
+  !>@details PC2 pressure forcing
+  !>         1) Exner function after slow and exner function now
+  !>            get passed down to calculate a pressure difference within the kernel.
+  !>         2) Fields do not get updated. Increments are passed back out.
+  !>         See UMDP30 for full scheme details.
+  !>@param[in,out] mr                   (in,out) Current mixing ratios
+  !>@param[in]     theta                (in)     Current potential temperature
+  !>@param[in]     exner_wth            (in)     Current exner function in wth
+  !>@param[in]     cloud_fields         (in,out) Group of cloud fields
+  !>@param[in,out] dtheta_pc2_inc       (in,out) Potential temperature response
+  !>@param[in]     dt                   (in)     The model timestep length
+  !>@param[in]     name_ext             (in)     Name for diagnostics
+  subroutine pc2_pressure_forcing_alg( mr,                   &
+                                       theta,                &
+                                       exner_wth,            &
+                                       cloud_fields,         &
+                                       dtheta_pc2_inc, dt, name_ext )
+
+    use pc2_homogeneous_kernel_mod, only: pc2_homogeneous_kernel_type
+    use mr_indices_mod,             only: imr_v, imr_cl, nummr
+    use io_config_mod,              only: subroutine_timers
+    use timer_mod,                  only: timer
+
+    implicit none
+
+    type( field_type ), intent( in )    :: theta
+    type( field_type ), intent( inout ) :: mr ( nummr )
+    type( field_type ), intent( in )    :: exner_wth
+    real( kind=r_def ), intent( in )    :: dt
+
+    type( field_collection_type ), intent(in) :: cloud_fields
+
+    character(str_def), intent(in) :: name_ext
+
+    type( field_type ), intent( inout ) :: dtheta_pc2_inc
+    type( field_type )                  :: dmv_pc2_inc
+    type( field_type )                  :: dmcl_pc2_inc
+    type( field_type )                  :: dcfl_pc2_inc
+    type( field_type )                  :: dbcf_pc2_inc
+
+    ! Define multiple fields that get filled with zeros
+    ! as they are associated with zero forcing when this algorithm
+    ! calls pc2_homogeneous_kernel_type
+    type( field_type ) :: dtheta_forcing, dmv_forcing, dmcl_forcing
+
+    ! For PC2
+    type( field_type ), pointer :: liquid_fraction      => null()
+    type( field_type ), pointer :: frozen_fraction      => null()
+    type( field_type ), pointer :: bulk_fraction        => null()
+    type( field_type ), pointer :: exner_after_slow_wth => null()
+
+    if ( subroutine_timers ) call timer("pc2_pressure_forcing_alg")
+
+    ! Unpack fields
+    call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+    call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+    call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+    call cloud_fields%get_field('departure_exner_wth', exner_after_slow_wth)
+
+    call theta%copy_field_properties(dtheta_forcing)
+    call theta%copy_field_properties(dmv_forcing)
+    call theta%copy_field_properties(dmcl_forcing)
+
+    call theta%copy_field_properties(dtheta_pc2_inc)
+    call theta%copy_field_properties(dmv_pc2_inc)
+    call theta%copy_field_properties(dmcl_pc2_inc)
+    call theta%copy_field_properties(dcfl_pc2_inc)
+    call theta%copy_field_properties(dbcf_pc2_inc)
+
+    call invoke( name="update_within_pc2_pressure_forcing",          &
+                                                                     !
+                 setval_c(dtheta_forcing, 0.0_r_def),                &
+                 setval_c(dmv_forcing,    0.0_r_def),                &
+                 setval_c(dmcl_forcing,   0.0_r_def),                &
+                                                                     !
+                 pc2_homogeneous_kernel_type( mr(imr_v),             &
+                                              mr(imr_cl),            &
+                                              liquid_fraction,       &
+                                              frozen_fraction,       &
+                                              bulk_fraction,         &
+                                              theta,                 &
+                                              exner_wth,             &
+                                              exner_after_slow_wth,  &
+                                                ! Forcings
+                                              dtheta_forcing,        &
+                                              dmv_forcing,           &
+                                              dmcl_forcing,          &
+                                                ! Response increments
+                                              dtheta_pc2_inc,        &
+                                              dmv_pc2_inc,           &
+                                              dmcl_pc2_inc,          &
+                                              dcfl_pc2_inc,          &
+                                              dbcf_pc2_inc,          &
+                                              dt ),                  &
+                                                                     !
+     ! N.B. all fields that need to get updated are being updated apart from
+     ! theta (where we pass an increment back up instead).
+     ! So we update the water vapour, liquid water content,
+     ! liquid cloud fraction and bulk cloud fraction.
+     ! Ice water content and frozen fraction increments do not get produced by
+     ! homogeneous forcing process so no need to increment those fields.
+                                                                     !
+                        inc_X_plus_Y(mr(imr_v),       dmv_pc2_inc),  &
+                        inc_X_plus_Y(mr(imr_cl),      dmcl_pc2_inc), &
+                        inc_X_plus_Y(liquid_fraction, dcfl_pc2_inc), &
+                        inc_X_plus_Y(bulk_fraction,   dbcf_pc2_inc)  )
+
+    if ( subroutine_timers ) call timer("pc2_pressure_forcing_alg")
+
+    if ( write_diag .and. use_xios_io ) then
+      if ( subroutine_timers ) call timer("pc2_pressure_forcing_xios")
+      call dtheta_pc2_inc%write_field('cloud__dtheta_pc2_pressure_change'//trim(name_ext))
+      call dmv_pc2_inc%write_field('cloud__dmv_pc2_pressure_change'//trim(name_ext))
+      call dmcl_pc2_inc%write_field('cloud__dmcl_pc2_pressure_change'//trim(name_ext))
+      call dcfl_pc2_inc%write_field('cloud__dcfl_pc2_pressure_change'//trim(name_ext))
+      call dbcf_pc2_inc%write_field('cloud__dbcf_pc2_pressure_change'//trim(name_ext))
+      if ( subroutine_timers ) call timer("pc2_pressure_forcing_xios")
+    end if
+
+  end subroutine pc2_pressure_forcing_alg
+
+end module pc2_pressure_forcing_alg_mod

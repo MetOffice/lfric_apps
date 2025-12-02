@@ -1,0 +1,377 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for tl_semi_implicit_alg_step
+
+module atlt_si_timestep_alg_mod
+
+  use r_tran_field_mod,                        only: r_tran_field_type
+  use function_space_mod,                      only: function_space_type
+  use function_space_collection_mod,           only: function_space_collection
+  use constants_mod,                           only: i_def, r_def, l_def, r_solver
+  use log_mod,                                 only: log_event,         &
+                                                     log_scratch_space, &
+                                                     LOG_LEVEL_INFO,    &
+                                                     LOG_LEVEL_DEBUG,   &
+                                                     LOG_LEVEL_ERROR
+  use finite_element_config_mod,               only: element_order_h, element_order_v
+  use reference_element_mod,                   only: T
+  use formulation_config_mod,                  only: moisture_formulation, &
+                                                     moisture_formulation_dry
+  use io_config_mod,                           only: subroutine_timers
+  use derived_config_mod,                      only: bundle_size
+  use fs_continuity_mod,                       only: Wtheta, W2, W3
+  use moist_dyn_factors_alg_mod,               only: moist_dyn_factors_alg
+  use field_mod,                               only: field_type
+  use field_collection_mod,                    only: field_collection_type
+  use mesh_mod,                                only: mesh_type
+  use mr_indices_mod,                          only: nummr
+  use moist_dyn_mod,                           only: num_moist_factors, gas_law
+  use field_indices_mod,                       only: igh_u, igh_t, igh_d, igh_p
+  use timer_mod,                               only: timer
+  use tl_si_timestep_alg_mod,                  only: tl_semi_implicit_alg_init, &
+                                                     tl_semi_implicit_alg_step, &
+                                                     tl_semi_implicit_alg_final
+  use atl_si_timestep_alg_mod,                 only: atl_si_timestep_type
+  use driver_modeldb_mod,                      only: modeldb_type
+  use si_operators_alg_mod,                    only: compute_si_operators
+  use sci_enforce_bc_kernel_mod,               only: enforce_bc_kernel_type
+  use initial_theta_ref_kernel_mod,            only: initial_theta_ref_kernel_type
+  use init_gungho_prognostics_alg_mod,         only: init_u_field,     &
+                                                     init_exner_field, &
+                                                     init_rho_field,   &
+                                                     init_mr_fields
+  use field_array_mod,                         only: field_array_type
+  use sci_geometric_constants_mod,             only: get_coordinates, &
+                                                     get_panel_id
+  use idealised_config_mod,                    only: test
+  use sci_field_bundle_builtins_mod,           only: set_bundle_scalar
+  use check_configuration_mod,                 only: check_any_shifted
+  use timestepping_config_mod,                 only: dt
+
+  implicit none
+
+  private
+
+  public  :: atlt_si_timestep_alg
+
+contains
+
+  !> @brief Adjoint test for tl_semi_implicit_alg_step
+  !> @param[in,out] modeldb       Structure containing the model state
+  !> @param[in]     mesh          The model mesh
+  !> @param[in]     twod_mesh     Horizontal mesh information
+  !> @param[in]     num_steps     Number of timesteps
+  subroutine atlt_si_timestep_alg( modeldb, mesh, twod_mesh, num_steps )
+
+    implicit none
+
+    type(modeldb_type), target,     intent(inout) :: modeldb
+    type(mesh_type), pointer,       intent(in)    :: mesh
+    type(mesh_type), pointer,       intent(in)    :: twod_mesh
+    integer(kind=i_def),            intent(in)    :: num_steps
+
+    ! Prognostic fields
+    type(field_type)                               :: u, rho, theta, exner, &
+                                                      u_in, rho_in, theta_in, exner_in
+    type(field_type), dimension(nummr)             :: mr, mr_input
+    type(field_type), dimension(num_moist_factors) :: moist_dyn, moist_dyn_input
+    type(field_collection_type), pointer           :: derived_fields
+
+    ! LS
+    type(field_type)                     :: ls_rdef(bundle_size)
+    type(field_type),            pointer :: ls_u
+    type(field_type),            pointer :: ls_rho
+    type(field_type),            pointer :: ls_theta
+    type(field_type),            pointer :: ls_exner
+    type(field_type),            pointer :: ls_mr(:)
+    type(field_type),            pointer :: ls_moist_dyn(:)
+    type(field_collection_type), pointer :: ls_fields
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_array_type),      pointer :: ls_mr_array
+    type(field_array_type),      pointer :: ls_moist_dyn_array
+
+    ! Variables for initialisation etc.
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(field_type),          pointer :: chi(:)
+    type(field_type),          pointer :: panel_id
+    real(kind=r_def)                   :: initial_time
+    integer(kind=i_def)                :: i
+    type(atl_si_timestep_type)         :: atl_si_timestep
+
+    ! Inner product test variables
+    real(kind=r_def) :: u_inner_prod, rho_inner_prod, theta_inner_prod, exner_inner_prod, &
+                        mr_inner_prod(nummr), moist_dyn_inner_prod(num_moist_factors)
+    real(kind=r_def) :: u_sf, rho_sf, theta_sf, exner_sf, &
+                        mr_sf(nummr), moist_dyn_sf(num_moist_factors)
+    real(kind=r_def) :: u_u_inp_inner_prod, rho_rho_inp_inner_prod, theta_theta_inp_inner_prod, exner_exner_inp_inner_prod, &
+                        mr_mr_inp_inner_prod(nummr), moist_dyn_moist_dyn_inp_inner_prod(num_moist_factors)
+    real(kind=r_def) :: inner1, inner2
+    real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
+    real(kind=r_def) :: machine_tol, machine_tol_r_solver
+    real(kind=r_def) :: relative_diff, relative_diff_r_solver
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    if (subroutine_timers) call timer('atlt_si_timestep_alg')
+
+    ! --------------------------------------------------------------------------
+    ! Setup
+    ! --------------------------------------------------------------------------
+
+    derived_fields => modeldb%fields%get_field_collection("derived_fields")
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    ls_fields => modeldb%fields%get_field_collection("prognostic_fields")
+
+    call ls_fields%get_field( 'ls_theta', ls_theta )
+    call ls_fields%get_field( 'ls_u', ls_u )
+    call ls_fields%get_field( 'ls_rho', ls_rho )
+    call ls_fields%get_field( 'ls_exner', ls_exner )
+
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field( "ls_mr", ls_mr_array )
+    call moisture_fields%get_field( "ls_moist_dyn", ls_moist_dyn_array )
+    ls_mr => ls_mr_array%bundle
+    ls_moist_dyn => ls_moist_dyn_array%bundle
+
+    ! Define reference field
+    initial_time = 0.0_r_def
+    call init_u_field( ls_u, initial_time )
+    call set_bundle_scalar( 0.0_r_def, ls_mr, nummr )
+
+    chi => get_coordinates(ls_theta%get_mesh_id())
+    panel_id => get_panel_id(ls_theta%get_mesh_id())
+
+    call invoke(initial_theta_ref_kernel_type( ls_theta, chi, panel_id, test ))
+
+    call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
+    call init_exner_field( ls_exner, ls_theta, ls_moist_dyn, initial_time )
+    call init_rho_field( ls_rho, ls_theta, ls_exner, ls_moist_dyn, initial_time )
+    call init_mr_fields( ls_mr, ls_theta, ls_exner, ls_rho, ls_moist_dyn )
+
+    call invoke( enforce_bc_kernel_type(ls_u) )
+
+    call ls_u%copy_field_properties(ls_rdef(igh_u))
+    call ls_theta%copy_field_properties(ls_rdef(igh_t))
+    call ls_rho%copy_field_properties(ls_rdef(igh_d))
+    call ls_exner%copy_field_properties(ls_rdef(igh_p))
+
+    call invoke( setval_x(ls_rdef(igh_u), ls_u),     &
+                 setval_x(ls_rdef(igh_t), ls_theta), &
+                 setval_x(ls_rdef(igh_p), ls_exner), &
+                 setval_x(ls_rdef(igh_d), ls_rho) )
+    ! End LS
+
+    ! Set up moist_dyn & mr
+
+    do i = 1, num_moist_factors
+      call moist_dyn(i)%initialise(vector_space=vector_space_wtheta_ptr)
+      call moist_dyn(i)%copy_field_properties(moist_dyn_input(i))
+    end do
+
+    do i = 1, nummr
+      call mr(i)%initialise(vector_space=vector_space_wtheta_ptr)
+      call mr(i)%copy_field_properties(mr_input(i))
+    end do
+
+    ! End set up moist_dyn_gas_law & mr
+
+    ! Perturbation
+    call u%initialise(vector_space=vector_space_w2_ptr)
+    call theta%initialise(vector_space=vector_space_wtheta_ptr)
+    call rho%initialise(vector_space=vector_space_w3_ptr)
+    call exner%initialise(vector_space=vector_space_w3_ptr)
+
+    call u%copy_field_properties(u_in)
+    call theta%copy_field_properties(theta_in)
+    call rho%copy_field_properties(rho_in)
+    call exner%copy_field_properties(exner_in)
+
+    call invoke( setval_random(u),     &
+                 setval_random(theta), &
+                 setval_random(exner), &
+                 setval_random(rho),   &
+                 enforce_bc_kernel_type(u) )
+
+    if (moisture_formulation == moisture_formulation_dry) then
+      do i = 1, num_moist_factors
+        call invoke( setval_c( moist_dyn(i), 0.0_r_def ), &
+                     setval_x( moist_dyn_input(i), moist_dyn(i) ) )
+      end do
+    else
+      do i = 1, num_moist_factors
+        call invoke( setval_random(moist_dyn(i)), &
+                     setval_x( moist_dyn_input(i), moist_dyn(i) ) )
+      end do
+    end if
+
+    do i = 1, nummr
+      call invoke( setval_random(mr(i)), &
+                   setval_x( mr_input(i), mr(i) ) )
+    end do
+
+    call invoke( setval_x( u_in, u ),         &
+                 setval_x( theta_in, theta ), &
+                 setval_x( exner_in, exner ), &
+                 setval_x( rho_in, rho ) )
+
+    ! --------------------------------------------------------------------------
+    ! Perform semi-implicit timestep (i.e., forward code)
+    ! --------------------------------------------------------------------------
+
+    call tl_semi_implicit_alg_init( mesh, u, rho, theta, exner, mr,   &
+                                    ls_u, ls_rho, ls_theta, ls_exner, &
+                                    ls_mr, ls_moist_dyn, (num_steps == 1) )
+
+    call compute_si_operators( ls_rdef(igh_t), ls_rdef(igh_d), ls_rdef(igh_p), &
+                               modeldb%clock, ls_moist_dyn )
+
+    do i = 1, num_steps
+      call tl_semi_implicit_alg_step( modeldb, u, rho, theta, exner, mr, moist_dyn,          &
+                                      ls_u, ls_rho, ls_theta, ls_exner, ls_mr, ls_moist_dyn, &
+                                      derived_fields, mesh, twod_mesh)
+    end do
+
+    ! --------------------------------------------------------------------------
+    ! Compute <Mx,Mx>
+    ! --------------------------------------------------------------------------
+
+    call invoke( X_innerproduct_X( u_inner_prod, u ),         &
+                 X_innerproduct_X( rho_inner_prod, rho ),     &
+                 X_innerproduct_X( theta_inner_prod, theta ), &
+                 X_innerproduct_X( exner_inner_prod, exner ) )
+    do i = 1, nummr
+      call invoke( X_innerproduct_X( mr_inner_prod(i), mr(i) ) )
+    end do
+    do i = 1, num_moist_factors
+      call invoke( X_innerproduct_X( moist_dyn_inner_prod(i), moist_dyn(i) ) )
+    end do
+
+    write(log_scratch_space, *) "atlt_si_timestep (num_steps =", num_steps, ") inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "u inner product = ", u_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "rho inner product = ", rho_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "theta inner product = ", theta_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "exner inner product = ", exner_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    do i = 1, nummr
+      write(log_scratch_space, *) "mr(", i, ") inner product = ", mr_inner_prod(i)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end do
+    do i = 1, num_moist_factors
+      write(log_scratch_space, *) "moist_dyn(", i, ") inner product = ", moist_dyn_inner_prod(i)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end do
+
+    ! Scaling factors are scaled up a bit to avoid numerical issues
+    u_sf = 1.0E4_r_def / (u_inner_prod + eps)
+    rho_sf = 1.0E4_r_def / (rho_inner_prod + eps)
+    theta_sf = 1.0E4_r_def / (theta_inner_prod + eps)
+    exner_sf = 1.0E4_r_def / (exner_inner_prod + eps)
+    do i = 1, nummr
+      mr_sf(i) = 1.0E4_r_def / (mr_inner_prod(i) + eps)
+    end do
+    do i = 1, num_moist_factors
+      moist_dyn_sf(i) = 1.0E4_r_def / (moist_dyn_inner_prod(i) + eps)
+    end do
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + u_inner_prod * u_sf
+    inner1 = inner1 + rho_inner_prod * rho_sf
+    inner1 = inner1 + theta_inner_prod * theta_sf
+    inner1 = inner1 + exner_inner_prod * exner_sf
+    do i = 1, nummr
+      inner1 = inner1 + mr_inner_prod(i) * mr_sf(i)
+    end do
+    do i = 1, num_moist_factors
+      inner1 = inner1 + moist_dyn_inner_prod(i) * moist_dyn_sf(i)
+    end do
+
+    call invoke( inc_a_times_X( u_sf, u ),         &
+                 inc_a_times_X( rho_sf, rho ),     &
+                 inc_a_times_X( theta_sf, theta ), &
+                 inc_a_times_X( exner_sf, exner ) )
+    do i = 1, nummr
+      call invoke( inc_a_times_X( mr_sf(i), mr(i) ) )
+    end do
+    do i = 1, num_moist_factors
+      call invoke( inc_a_times_X( moist_dyn_sf(i), moist_dyn(i) ) )
+    end do
+
+    ! --------------------------------------------------------------------------
+    ! Adjoint code
+    ! --------------------------------------------------------------------------
+
+    call atl_si_timestep%initialise( u, rho, theta, exner, mr, &
+                                     ls_theta, ls_exner, ls_mr, ls_moist_dyn )
+
+    do i = 1, num_steps
+      call atl_si_timestep%step( modeldb, u, rho, theta, exner, mr, moist_dyn, &
+                                 ls_u, ls_rho, ls_theta, ls_exner, ls_mr, ls_moist_dyn )
+    end do
+
+    ! --------------------------------------------------------------------------
+    ! Compute <AMx,x>
+    ! --------------------------------------------------------------------------
+
+    call invoke( X_innerproduct_Y( u_u_inp_inner_prod, u_in, u ),                 &
+                 X_innerproduct_Y( rho_rho_inp_inner_prod, rho_in, rho ),         &
+                 X_innerproduct_Y( theta_theta_inp_inner_prod, theta_in, theta ), &
+                 X_innerproduct_Y( exner_exner_inp_inner_prod, exner_in, exner ) )
+    do i = 1, nummr
+      call invoke( X_innerproduct_Y( mr_mr_inp_inner_prod(i), mr_input(i), mr(i) ) )
+    end do
+    do i = 1, num_moist_factors
+      call invoke( X_innerproduct_Y( moist_dyn_moist_dyn_inp_inner_prod(i), moist_dyn_input(i), moist_dyn(i) ) )
+    end do
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + u_u_inp_inner_prod
+    inner2 = inner2 + rho_rho_inp_inner_prod
+    inner2 = inner2 + theta_theta_inp_inner_prod
+    inner2 = inner2 + exner_exner_inp_inner_prod
+    do i = 1, nummr
+      inner2 = inner2 + mr_mr_inp_inner_prod(i)
+    end do
+    do i = 1, num_moist_factors
+      inner2 = inner2 + moist_dyn_moist_dyn_inp_inner_prod(i)
+    end do
+
+    ! Test the inner-product values for equality
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    machine_tol_r_solver = spacing( real( max( abs( inner1 ), abs( inner2 ) ), r_solver) )
+    relative_diff_r_solver = abs( inner1 - inner2 ) / machine_tol_r_solver
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_semi_implicit_alg_step (num_steps =", num_steps, "):", &
+        inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    elseif  ( relative_diff_r_solver < overall_tolerance ) then
+      write( log_scratch_space, * ) &
+        "PASSED (WITH PRECISION R_SOLVER BUT NOT R_DEF) tl_semi_implicit_alg_step (num_steps =", num_steps, "):", &
+        inner1, inner2, relative_diff_r_solver
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_semi_implicit_alg_step (num_steps =", num_steps, "):", &
+        inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    call tl_semi_implicit_alg_final()
+    call atl_si_timestep%finalise()
+
+    if (subroutine_timers) call timer('atlt_si_timestep_alg')
+
+  end subroutine atlt_si_timestep_alg
+
+end module atlt_si_timestep_alg_mod

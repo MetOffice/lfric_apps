@@ -1,0 +1,159 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test calculation the CFL number - lowest order only
+!>
+module cfl_kernel_mod_test
+
+  use constants_mod,                 only: i_def, r_def, r_second
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap
+
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: cfl_test_type
+    private
+  contains
+    procedure setup
+    procedure tearDown
+    procedure test_all
+  end type cfl_test_type
+
+  real(r_def), parameter :: DT = 600.0_r_def
+  real(r_def), parameter :: DX = 1000.0_r_def
+  real(r_def), parameter :: DZ = 100.0_r_def
+  real(r_def), parameter :: U0 = 1.0_r_def
+  real(r_def), parameter :: UFAST = 10.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,          only : feign_timestepping_config, &
+                                          feign_checks_config
+
+    use timestepping_config_mod,   only : method_semi_implicit, &
+                                          runge_kutta_method_ssp3
+    implicit none
+
+    class(cfl_test_type), intent(inout) :: this
+
+    call feign_timestepping_config(                                   &
+             method=method_semi_implicit,                             &
+             dt=real(DT, r_second), alpha=0.5_r_def, tau_u=0.5_r_def, &
+             tau_t=0.5_r_def, tau_r=0.5_r_def,                        &
+             outer_iterations=1_i_def, inner_iterations=1_i_def,      &
+             runge_kutta_method=runge_kutta_method_ssp3,              &
+             spinup_period=0.0_r_second, spinup_alpha=.false.)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(cfl_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use cfl_kernel_mod, only: cfl_code
+    implicit none
+
+    class(cfl_test_type), intent(inout) :: this
+
+    real(r_def) :: tol ! Tolerance to default precision
+    real(r_def) :: answer
+
+    ! Fields
+    real(r_def), allocatable :: wind(:)
+    real(r_def), allocatable :: cflx(:), cfly(:), cflz(:)
+    real(r_def), allocatable :: dJ_on_w2(:)
+
+    integer(i_def) :: cell
+
+    ! Sizes
+    integer(i_def)          :: nlayers, ncells, nqp_h, nqp_v
+    integer(i_def)          :: ndf_w2, undf_w2
+    integer(i_def)          :: dim_space, dim_space_diff
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    nlayers = 3
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,     &
+                                  dim_space, dim_space_diff,   &
+                                  nqp_h, nqp_v,                &
+                                  nlayers )
+    call get_w2_m3x3_dofmap(map_w2)
+
+    ! Only test interior cell 5
+    cell = 5
+    ! Create the data, including large magnitude winds
+    allocate( wind( undf_w2 ) )
+    allocate( cflx( undf_w2 ) )
+    allocate( cfly( undf_w2 ) )
+    allocate( cflz( undf_w2 ) )
+    allocate( dJ_on_w2( undf_w2 ) )
+
+    wind(:) = U0*DX*DZ
+    ! Large vertical wind
+    wind(map_w2(6, cell)) =  UFAST*DX*DX
+    ! Large and negative horizonal wind
+    wind(map_w2(1, cell)) =  -UFAST*DX*DZ
+
+    ! Get detJ values
+    dJ_on_w2(:) = DX*DX*DZ
+
+    call cfl_code( nlayers,         &
+                   cflx,            &
+                   cfly,            &
+                   cflz,            &
+                   wind,            &
+                   dJ_on_w2,        &
+                   ndf_w2, undf_w2, &
+                   map_w2(:,cell),  &
+                   DT &
+                  )
+
+
+    ! The answer returns the CFL. If the kernel is correct, then
+    ! this should be
+    ! = -UFAST*DT/DX on 'x' dofs and
+    ! = +UFAST*DT/DZ on 'z' dofs
+    answer = cflx(map_w2(1, cell))
+    tol = 10.0_r_def*spacing(UFAST*DT/DX)
+    @assertEqual( answer, -UFAST*DT/DX, tol)
+
+    answer = cflz(map_w2(6,cell))
+    tol = 10.0_r_def*spacing(UFAST*DT/DZ)
+    @assertEqual( answer, UFAST*DT/DZ, tol)
+
+    deallocate(wind)
+    deallocate(cflx)
+    deallocate(cfly)
+    deallocate(cflz)
+    deallocate(dJ_on_w2)
+    deallocate(map_w2)
+
+  end subroutine test_all
+
+end module cfl_kernel_mod_test

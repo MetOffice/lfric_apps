@@ -1,0 +1,223 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for mixed_operator_alg_mod
+
+module adjt_mixed_operator_alg_mod
+
+  use constants_mod,                    only: i_def, r_def, l_def, r_solver
+  use log_mod,                          only: log_event,         &
+                                              log_scratch_space, &
+                                              LOG_LEVEL_DEBUG,   &
+                                              LOG_LEVEL_INFO,    &
+                                              LOG_LEVEL_ERROR
+  use field_mod,                        only: field_type
+  use integer_field_mod,                only: integer_field_type
+  use r_solver_field_mod,               only: r_solver_field_type
+  use sci_r_solver_field_vector_mod,    only: r_solver_field_vector_type
+  use mesh_mod,                         only: mesh_type
+  use derived_config_mod,               only: bundle_size
+  use field_indices_mod,                only: isol_p, isol_u, isol_w, isol_uv, &
+                                              igh_p, igh_t, igh_d,             &
+                                              igh_u, igh_w, igh_uv
+  use sci_geometric_constants_mod,      only: get_face_selector_ew, &
+                                              get_face_selector_ns
+  use mixed_operator_alg_mod,           only: mixed_operator_type
+  use adj_mixed_operator_alg_mod,       only: adj_mixed_operator_type
+  use adj_semi_implicit_solver_alg_mod, only: construct_solver_state
+  use io_config_mod,                    only: subroutine_timers
+  use timer_mod,                        only: timer
+  use finite_element_config_mod,        only: element_order_h, element_order_v
+  use function_space_collection_mod,    only: function_space_collection
+  use moist_dyn_mod,                    only: num_moist_factors
+  use copy_field_alg_mod,               only: copy_field
+  use fs_continuity_mod,                only: W2, W3, Wtheta
+  use si_operators_alg_mod,             only: compute_si_operators
+  use sci_enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
+  use model_clock_mod,                  only: model_clock_type
+  use function_space_mod,               only: function_space_type
+
+  implicit none
+
+  private
+
+  public :: adjt_mixed_operator_alg
+
+contains
+
+  !> @brief Adjoint test for mixed_operator_alg_mod
+  !> @details The operator and its adjoint are applied to one argument with
+  !!          the result stored in the other, so we use three vectors to save on
+  !!          variables. This differs from other adjoint tests as most adjoint
+  !!          routines would increment one argument and set the other to zero.
+  !> @param[in] mesh        The model mesh
+  !> @param[in] model_clock The model clock
+  subroutine adjt_mixed_operator_alg( mesh, model_clock )
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Prognostic fields
+    type(field_type)                 :: rhs(bundle_size)
+    type(field_type)                 :: moist_dyn(num_moist_factors)
+    type(r_solver_field_vector_type) :: vector_x, vector_mx, vector_amx
+    type(r_solver_field_type)        :: rhs_rsol(bundle_size)
+
+    ! Variables for initialisation etc.
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(mixed_operator_type)          :: mixed_op
+    type(adj_mixed_operator_type)      :: adj_mixed_op
+    integer(kind=i_def) :: idx
+
+    ! Inner product test variables
+    real(kind=r_def) :: p_inner_prod, uv_inner_prod, w_inner_prod
+    real(kind=r_def) :: p_sf, uv_sf, w_sf
+    real(kind=r_def) :: p_p_inp_inner_prod, uv_uv_inp_inner_prod, w_w_inp_inner_prod
+    real(kind=r_def) :: inner1, inner2
+    real(kind=r_def) :: machine_tol, machine_tol_r_solver
+    real(kind=r_def) :: relative_diff, relative_diff_r_solver
+    real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    if (subroutine_timers) call timer('adjt_mixed_operator_alg')
+
+    ! --------------------------------------------------------------------------
+    ! Setup
+    ! --------------------------------------------------------------------------
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    call rhs(igh_u)%initialise(vector_space=vector_space_w2_ptr)
+    call rhs(igh_t)%initialise(vector_space=vector_space_wtheta_ptr)
+    call rhs(igh_d)%initialise(vector_space=vector_space_w3_ptr)
+    call rhs(igh_p)%initialise(vector_space=vector_space_w3_ptr)
+
+    do idx = 1, num_moist_factors
+      call moist_dyn(idx)%initialise(vector_space=vector_space_wtheta_ptr)
+    end do
+
+    call invoke( setval_random(rhs(igh_u)), &
+                 setval_random(rhs(igh_t)), &
+                 setval_random(rhs(igh_p)), &
+                 setval_random(rhs(igh_d)) )
+
+    do idx = 1, num_moist_factors
+      call invoke(setval_random(moist_dyn(idx)))
+    end do
+
+    call compute_si_operators( rhs(igh_t), rhs(igh_d), rhs(igh_p), &
+                               model_clock, moist_dyn )
+
+    ! Input fields are r_def fields so preliminary work uses field_types
+
+    ! Copy data to r_solver fields and proceed with everything of kind r_solver
+    call rhs(igh_u)%copy_field_properties(rhs_rsol(igh_u))
+    call rhs(igh_t)%copy_field_properties(rhs_rsol(igh_t))
+    call rhs(igh_d)%copy_field_properties(rhs_rsol(igh_d))
+    call rhs(igh_p)%copy_field_properties(rhs_rsol(igh_p))
+    ! This is required to put sensible data in the halo so there is something
+    ! for enforce_bc_kernel to work with
+
+    call invoke( enforce_bc_kernel_type(rhs(igh_u)) ) ! Needed for adjoint test
+
+    call copy_field( rhs(igh_u), rhs_rsol(igh_u) )
+    call copy_field( rhs(igh_t), rhs_rsol(igh_t) )
+    call copy_field( rhs(igh_d), rhs_rsol(igh_d) )
+    call copy_field( rhs(igh_p), rhs_rsol(igh_p) )
+
+    ! --------------------------------------------------------------------------
+    ! Solve the semi-implicit operator (i.e., forward code)
+    ! --------------------------------------------------------------------------
+
+    ! Create field vectors out of field arrays
+    call construct_solver_state( vector_x, rhs_rsol, import_fields=.true. )
+    call construct_solver_state( vector_mx, rhs_rsol, import_fields=.false. )
+    call construct_solver_state( vector_amx, rhs_rsol, import_fields=.false. )
+
+    mixed_op = mixed_operator_type()
+
+    call vector_mx%set_scalar(0.0_r_def)
+    call vector_amx%set_scalar(0.0_r_def)
+    call mixed_op%apply( vector_x, vector_mx )
+
+    ! --------------------------------------------------------------------------
+    ! Compute <Mx,Mx>
+    ! --------------------------------------------------------------------------
+
+    call invoke( X_innerproduct_X( p_inner_prod, vector_mx%vector(isol_p) ),   &
+                 X_innerproduct_X( uv_inner_prod, vector_mx%vector(isol_uv) ), &
+                 X_innerproduct_X( w_inner_prod, vector_mx%vector(isol_w) ) )
+
+    write( log_scratch_space, * ) "adjt_mixed_operator inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "p inner product = ", p_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "uv inner product = ", uv_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "w inner product = ", w_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    p_sf = 1.0_r_def / (p_inner_prod + eps)
+    uv_sf = 1.0_r_def / (uv_inner_prod + eps)
+    w_sf = 1.0_r_def / (w_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + p_inner_prod * p_sf
+    inner1 = inner1 + uv_inner_prod * uv_sf
+    inner1 = inner1 + w_inner_prod * w_sf
+
+    call invoke( inc_a_times_X( p_sf, vector_mx%vector(isol_p) ),   &
+                 inc_a_times_X( uv_sf, vector_mx%vector(isol_uv) ), &
+                 inc_a_times_X( w_sf, vector_mx%vector(isol_w) ) )
+
+    ! --------------------------------------------------------------------------
+    ! Adjoint code
+    ! --------------------------------------------------------------------------
+
+    adj_mixed_op = adj_mixed_operator_type()
+
+    call adj_mixed_op%apply( vector_mx, vector_amx )
+
+    ! --------------------------------------------------------------------------
+    ! Compute <AMx,x>
+    ! --------------------------------------------------------------------------
+
+    call invoke( X_innerproduct_Y( p_p_inp_inner_prod, vector_amx%vector(isol_p), vector_x%vector(isol_p) ),     &
+                 X_innerproduct_Y( uv_uv_inp_inner_prod, vector_amx%vector(isol_uv), vector_x%vector(isol_uv) ), &
+                 X_innerproduct_Y( w_w_inp_inner_prod, vector_amx%vector(isol_w), vector_x%vector(isol_w) ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + p_p_inp_inner_prod
+    inner2 = inner2 + uv_uv_inp_inner_prod
+    inner2 = inner2 + w_w_inp_inner_prod
+
+    ! Test the inner-product values for equality
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    machine_tol_r_solver = spacing( real( max( abs( inner1 ), abs( inner2 ) ), r_solver) )
+    relative_diff_r_solver = abs( inner1 - inner2 ) / machine_tol_r_solver
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED mixed_operator_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    elseif ( relative_diff_r_solver < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED (WITH PRECISION R_SOLVER BUT NOT R_DEF) mixed_operator_alg:", &
+      inner1, inner2, relative_diff_r_solver
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED mixed_operator_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    if (subroutine_timers) call timer('adjt_mixed_operator_alg')
+
+  end subroutine adjt_mixed_operator_alg
+
+end module adjt_mixed_operator_alg_mod

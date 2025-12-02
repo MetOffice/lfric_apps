@@ -1,0 +1,126 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!>@brief Initialisation of prognostic fields for the gravity wave equations
+module gw_init_fields_alg_mod
+
+  use log_mod,                           only: log_event,         &
+                                               log_scratch_space, &
+                                               LOG_LEVEL_INFO,    &
+                                               LOG_LEVEL_TRACE,   &
+                                               LOG_LEVEL_ERROR
+  use constants_mod,                     only: r_def, i_def, &
+                                               radians_to_degrees
+
+  use sci_mass_matrix_solver_alg_mod,    only: mass_matrix_solver_alg
+  use sci_geometric_constants_mod,       only: get_coordinates, &
+                                               get_panel_id
+
+  ! Configuration options
+  use finite_element_config_mod,         only: element_order_h, element_order_v
+  use io_mod,                            only: ts_fname
+
+  ! PsyKAl PSYClone kernels
+  use initial_u_kernel_mod,              only: initial_u_kernel_type
+  use sci_compute_mass_matrix_kernel_w2_mod, only: compute_mass_matrix_kernel_w2_type
+  use initial_buoyancy_kernel_mod,       only: initial_buoyancy_kernel_type
+
+  ! Derived Types
+  use domain_mod,                        only: domain_type
+  use function_space_collection_mod,     only: function_space_collection
+  use function_space_mod,                only: function_space_type
+  use field_mod,                         only: field_type
+  use field_collection_mod,              only: field_collection_type
+  use mesh_mod,                          only: mesh_type
+  use quadrature_xyoz_mod,               only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,      only: quadrature_rule_gaussian_type
+
+  ! Handles
+  use fs_continuity_mod,                 only: W0, W2, W3, Wtheta
+
+  implicit none
+
+  private
+  public :: gw_init_fields_alg
+
+contains
+  !> @details An algorithm for initialising prognostic fields for
+  !>          all solvers.
+  !> @param[inout] prognostics  The prognostic variables
+  !>                            (wind buoyancy and pressure)
+  subroutine gw_init_fields_alg( wind, pressure, buoyancy )
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent(inout)           :: wind
+    type( field_type ), intent(inout)           :: pressure
+    type( field_type ), intent(inout)           :: buoyancy
+
+    type( quadrature_xyoz_type )          :: qr
+    type( quadrature_rule_gaussian_type ) :: quadrature_rule
+    type( field_type )                    :: r_u
+
+    ! Coordinate fields
+    type( field_type ), pointer :: chi(:)   => null()
+    type( field_type ), pointer :: panel_id => null()
+    type( mesh_type ),  pointer :: mesh     => null()
+
+    type( domain_type ) :: domain
+
+    real(kind=r_def), parameter        :: initial_time = 0.0_r_def
+    integer(kind=i_def)                :: mesh_id
+
+    real(kind=r_def) :: domain_max_x
+    real(kind=r_def) :: domain_max_y
+
+    ! Get references out of the prognostic collection for the prognostic
+    ! variables
+
+    mesh     => wind%get_mesh()
+    mesh_id  =  mesh%get_id()
+    chi      => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+
+    domain = mesh%get_domain()
+    qr     = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
+                                  element_order_v+3, quadrature_rule)
+
+    !=== Initialise global prognostic fields ==================================!
+
+    call log_event( 'gravity_wave: Initialising prognostic fields', LOG_LEVEL_INFO )
+
+    if ( domain%is_lonlat() ) then
+      domain_max_x = domain%maximum_lonlat(axis=1) * radians_to_degrees
+      domain_max_y = domain%maximum_lonlat(axis=2) * radians_to_degrees
+    else
+      domain_max_x = domain%maximum_xy(axis=1)
+      domain_max_y = domain%maximum_xy(axis=2)
+    end if
+
+    call invoke( initial_buoyancy_kernel_type(buoyancy, chi, panel_id) )
+    ! Initialise U and p according to formulation
+    call r_u % initialise( vector_space = wind%get_function_space() )
+    call invoke( name = 'initialise_u_and_p',     &
+                 setval_c( wind,     0.0_r_def ), &
+                 setval_c( r_u,      0.0_r_def ), &
+                 setval_c( pressure, 0.0_r_def ), &
+                 initial_u_kernel_type( r_u, chi, panel_id, initial_time, &
+                                        domain_max_x, domain_max_y,       &
+                                        qr ) )
+    call mass_matrix_solver_alg(wind, r_u)
+
+    call log_event( 'gravity_wave: Initialised prognostic fields', LOG_LEVEL_INFO )
+
+    !==========================================================================!
+
+    mesh     => null()
+    chi      => null()
+    panel_id => null()
+
+  end subroutine gw_init_fields_alg
+
+end module gw_init_fields_alg_mod

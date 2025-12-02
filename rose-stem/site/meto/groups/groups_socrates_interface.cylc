@@ -1,0 +1,66 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_socrates_interface.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "socrates_interface_azspice_developer": [
+    ],
+    "socrates_interface_azspice": [
+        "socrates_interface_azspice_unit_tests",
+        "socrates_interface_azspice_developer",
+    ],
+    "socrates_interface_azspice_unit_tests": [
+        "socrates_interface_unit_tests_azspice_gnu_64bit",
+    ],
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "socrates_interface_ex1a_developer": [
+    ],
+    "socrates_interface_ex1a": [
+        "socrates_interface_ex1a_unit_tests",
+        "socrates_interface_ex1a_developer",
+    ],
+    "socrates_interface_ex1a_unit_tests": [
+        "socrates_interface_unit_tests_ex1a_gnu_64bit",
+    ],
+    }) %}
+
+{% do site_groups.update({
+    "socrates_interface_developer": [
+        "scripts",
+        "socrates_interface_azspice_developer",
+        "socrates_interface_ex1a_developer",
+    ],
+    "socrates_interface": [
+        "socrates_interface_developer",
+        "socrates_interface_azspice",
+        "socrates_interface_ex1a",
+    ],
+    "socrates_interface_unit_tests": [
+        "socrates_interface_azspice_unit_tests",
+        "socrates_interface_ex1a_unit_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.socrates_interface_developer) %}
+{% do site_groups.all.extend(site_groups.socrates_interface) %}
+{% do site_groups.unit_tests.extend(site_groups.socrates_interface_unit_tests) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.socrates_interface_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.socrates_interface_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.socrates_interface_azspice_unit_tests) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.socrates_interface_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.socrates_interface_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.socrates_interface_ex1a_unit_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_socrates_interface.cylc") %}

@@ -1,0 +1,328 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Calculate diagnostics on pressure levels.
+
+module pres_lev_diags_alg_mod
+
+  use field_mod,               only: field_type
+  use field_collection_mod,    only: field_collection_type
+  use io_config_mod,           only: write_diag, use_xios_io,subroutine_timers
+  use timer_mod,               only: timer
+  use constants_mod,           only: r_def, i_def, l_def, str_def
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
+                                        diag_samp => diagnostic_to_be_sampled
+  use lfric_xios_diag_mod, only: get_axis_dimension, get_axis_values
+  use sci_geometric_constants_mod,   &
+                               only: get_height_fv
+  use fs_continuity_mod,       only: W3, WTheta
+  use mr_indices_mod,          only: nummr, imr_v
+  use moist_dyn_mod,           only: num_moist_factors, total_mass
+  use planet_config_mod,       only: p_zero, kappa, gravity, cp
+  use planet_constants_mod,    only: ex_power
+
+  implicit none
+  private
+
+  public :: pres_lev_diags_alg, pres_lev_field_alg
+
+contains
+
+  !> @brief   Calculate main diagnostics on pressure levels.
+  !> @details Calculate diagnostics on pressure levels via linear interpolation
+  !!          between nearest model level values. Extrapolation is done where
+  !!          the pressure level is above the model top or below the surface.
+  !!          Bespoke extrapolation methods are used for temperature and
+  !!          geopotential height.
+  !!          Diagnostics can also be filtered by the Heaviside function
+  !!          for climate averaging.
+  !> @param[in]  derived_fields  Group of derived fields
+  !> @param[in]  theta_wth       Potential temperature
+  !> @param[in]  exner_w3        Exner pressure
+  !> @param[in]  mr              Mixing ratio bundle
+  !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
+  subroutine pres_lev_diags_alg(derived_fields, theta_wth, exner_w3, &
+                                mr, moist_dyn)
+
+    use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type,  &
+                                    invoke_heaviside_kernel_type,    &
+                                    invoke_geo_on_pres_kernel_type,  &
+                                    invoke_temp_on_pres_kernel_type, &
+                                    invoke_thetaw_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_type ), intent(in) :: theta_wth, exner_w3
+    type( field_type ), intent(in) :: mr(nummr)
+    type( field_type ), intent(in) :: moist_dyn(num_moist_factors)
+    ! Internal variables
+    type( field_type ), pointer     :: exner_wth
+    type( field_type ), pointer     :: u_in_w3
+    type( field_type ), pointer     :: v_in_w3
+    type( field_type ), pointer     :: w_in_wth
+    type( field_type ), pointer     :: wetrho_in_wth
+    type( field_type ), pointer     :: height_w3
+    type( field_type ), pointer     :: height_wth
+
+    ! Define fields
+    type( field_type ) :: plev_heaviside, plev_temp, plev_u, plev_v, &
+         plev_w, plev_geopot, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
+         plev_thetaw, plev_temp_save
+    integer(i_def) :: nplev
+    real(r_def) :: minus_g
+    real(r_def), allocatable :: plevs(:)
+
+    logical(l_def) :: plev_heaviside_flag, plev_temp_flag,             &
+         plev_temp_clim_flag,                                          &
+         plev_u_flag, plev_u_clim_flag, plev_v_flag, plev_v_clim_flag, &
+         plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
+         plev_mv_clim_flag, plev_qv_clim_flag,                         &
+         plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+
+    if ( subroutine_timers ) call timer('pres_lev_diags_alg')
+
+    nplev = get_axis_dimension('pressure_levels')
+    allocate(plevs(nplev))
+    plevs = get_axis_values('pressure_levels',nplev)
+    call derived_fields%get_field('exner_in_wth', exner_wth)
+    height_wth => get_height_fv(WTheta, exner_w3%get_mesh_id())
+
+    ! Heaviside function
+    plev_heaviside_flag = init_diag(plev_heaviside, 'plev__heaviside')
+    if (plev_heaviside_flag .and. use_xios_io) then
+
+      ! Can't group these because PSyclone will take nlayers from plev_heaviside
+      ! rather than exner_wth - see https://github.com/stfc/PSyclone/issues/2636
+      call invoke(setval_c(plev_heaviside, 1.0_r_def))
+      call invoke_heaviside_kernel_type(exner_wth,                    &
+                                        nplev, plevs, plev_heaviside, &
+                                        p_zero, kappa)
+      call plev_heaviside%write_field()
+
+    end if
+
+    ! Setup thetaw array and flag
+    plev_thetaw_flag = init_diag(plev_thetaw, 'plev__thetaw')
+
+    ! Temperature on pressure levels
+    plev_temp_clim_flag = diag_samp('plev__temp_clim')
+    plev_temp_flag = init_diag(plev_temp, 'plev__temp', &
+         activate=(plev_temp_clim_flag .or. plev_thetaw_flag))
+    if ((plev_temp_flag .or. plev_temp_clim_flag .or. plev_thetaw_flag) &
+         .and. use_xios_io) then
+
+      call theta_wth%copy_field_properties(temp)
+      call invoke(X_times_Y(temp, theta_wth, exner_wth))
+      call invoke_temp_on_pres_kernel_type(temp, exner_wth, height_wth, &
+                                           nplev, plevs, plev_temp,     &
+                                           p_zero, kappa, ex_power)
+      if (plev_temp_flag) call plev_temp%write_field()
+
+      ! Save temperature for use later
+      if (plev_thetaw_flag) then
+        call plev_temp%copy_field_properties(plev_temp_save)
+        call invoke(setval_X(plev_temp_save, plev_temp))
+      end if
+
+      if (plev_temp_clim_flag) then
+        call invoke_heaviside_kernel_type(exner_wth,               &
+                                          nplev, plevs, plev_temp, &
+                                          p_zero, kappa)
+        call plev_temp%write_field('plev__temp_clim')
+      end if
+
+    end if
+
+    ! Zonal wind on pressure levels
+    plev_u_clim_flag = diag_samp('plev__u_clim')
+    plev_u_flag = init_diag(plev_u, 'plev__u', activate=plev_u_clim_flag)
+    if ((plev_u_flag .or. plev_u_clim_flag) .and. use_xios_io) then
+
+      call derived_fields%get_field('u_in_w3', u_in_w3)
+      call invoke_pres_interp_kernel_type(u_in_w3, exner_w3,    &
+                                          nplev, plevs, plev_u, &
+                                          p_zero, kappa)
+      if (plev_u_flag) call plev_u%write_field()
+
+      if (plev_u_clim_flag) then
+        call invoke_heaviside_kernel_type(exner_wth,            &
+                                          nplev, plevs, plev_u, &
+                                          p_zero, kappa)
+        call plev_u%write_field('plev__u_clim')
+      end if
+
+    end if
+
+    ! Meridional wind on pressure levels
+    plev_v_clim_flag = diag_samp('plev__v_clim')
+    plev_v_flag = init_diag(plev_v, 'plev__v', activate=plev_v_clim_flag)
+    if ((plev_v_flag .or. plev_v_clim_flag) .and. use_xios_io) then
+
+      call derived_fields%get_field('v_in_w3', v_in_w3)
+      call invoke_pres_interp_kernel_type(v_in_w3, exner_w3,    &
+                                          nplev, plevs, plev_v, &
+                                          p_zero, kappa)
+      if (plev_v_flag) call plev_v%write_field()
+
+      if (plev_v_clim_flag) then
+        call invoke_heaviside_kernel_type(exner_wth,            &
+                                          nplev, plevs, plev_v, &
+                                          p_zero, kappa)
+        call plev_v%write_field('plev__v_clim')
+      end if
+
+    end if
+
+    ! Vertical wind on pressure levels
+    plev_w_clim_flag = diag_samp('plev__w_clim')
+    plev_w_flag = init_diag(plev_w, 'plev__w', activate=plev_w_clim_flag)
+    if ((plev_w_flag .or. plev_w_clim_flag) .and. use_xios_io) then
+
+      call derived_fields%get_field('w_in_wth', w_in_wth)
+      call invoke_pres_interp_kernel_type(w_in_wth, exner_wth,  &
+                                          nplev, plevs, plev_w, &
+                                          p_zero, kappa)
+      if (plev_w_flag) call plev_w%write_field()
+
+      if (plev_w_clim_flag) then
+        call invoke_heaviside_kernel_type(exner_wth,            &
+                                          nplev, plevs, plev_w, &
+                                          p_zero, kappa)
+        call plev_w%write_field('plev__w_clim')
+      end if
+
+    end if
+
+    ! Omega on pressure levels
+    plev_omega_clim_flag = init_diag(plev_omega, 'plev__omega_clim')
+    if (plev_omega_clim_flag .and. use_xios_io) then
+
+      call derived_fields%get_field('w_in_wth', w_in_wth)
+      call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+      call w_in_wth%copy_field_properties(omega)
+      minus_g = -gravity
+      call invoke(X_times_Y(omega, w_in_wth, wetrho_in_wth),        &
+                  inc_a_times_X(minus_g, omega))
+      call invoke_pres_interp_kernel_type(omega, exner_wth,         &
+                                          nplev, plevs, plev_omega, &
+                                          p_zero, kappa)
+      call invoke_heaviside_kernel_type(exner_wth,                  &
+                                        nplev, plevs, plev_omega,   &
+                                        p_zero, kappa)
+      call plev_omega%write_field()
+    end if
+
+    ! Vapour mixing ratio on pressure levels
+    plev_mv_clim_flag = init_diag(plev_mv, 'plev__mv_clim')
+    if (plev_mv_clim_flag .and. use_xios_io) then
+
+      call invoke_pres_interp_kernel_type(mr(imr_v), exner_wth,   &
+                                          nplev, plevs, plev_mv,  &
+                                          p_zero, kappa)
+      call invoke_heaviside_kernel_type(exner_wth,                &
+                                        nplev, plevs, plev_mv,    &
+                                        p_zero, kappa)
+      call plev_mv%write_field()
+    end if
+
+    ! Vapour specific humidity on pressure levels
+    plev_qv_clim_flag = init_diag(plev_qv, 'plev__qv_clim', activate=plev_thetaw_flag)
+    if ((plev_qv_clim_flag .or. plev_thetaw_flag) .and. use_xios_io) then
+
+      call exner_wth%copy_field_properties(qv)
+      call invoke(X_divideby_Y(qv, mr(imr_v), moist_dyn(total_mass)))
+      call invoke_pres_interp_kernel_type(qv, exner_wth,              &
+                                          nplev, plevs, plev_qv,      &
+                                          p_zero, kappa)
+
+      ! Thetaw on pressure levels - done here before heaviside funciton is
+      ! applied to plev_qv
+      if (plev_thetaw_flag) then
+        call invoke_thetaw_kernel_type(plev_thetaw, plev_temp, plev_qv, nplev, &
+                                       plevs)
+        call plev_thetaw%write_field()
+      end if
+
+      if (plev_qv_clim_flag) then
+        call invoke_heaviside_kernel_type(exner_wth,             &
+                                          nplev, plevs, plev_qv, &
+                                          p_zero, kappa)
+        call plev_qv%write_field()
+      end if
+    end if
+
+    ! Geopotential height on pressure levels
+    plev_geopot_clim_flag = diag_samp('plev__geopot_clim')
+    plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', activate=plev_geopot_clim_flag)
+    if ((plev_geopot_flag .or. plev_geopot_clim_flag) .and. use_xios_io) then
+
+      height_w3 => get_height_fv(W3, exner_w3%get_mesh_id())
+      call invoke_geo_on_pres_kernel_type(height_w3, exner_w3, theta_wth, &
+                                          height_wth, exner_wth,          &
+                                          nplev, plevs, plev_geopot,      &
+                                          p_zero, kappa, cp, gravity,     &
+                                          ex_power)
+      if (plev_geopot_flag) call plev_geopot%write_field()
+
+      if (plev_geopot_clim_flag) then
+        call invoke_heaviside_kernel_type(exner_wth,                 &
+                                          nplev, plevs, plev_geopot, &
+                                          p_zero, kappa)
+        call plev_geopot%write_field('plev__geopot_clim')
+      end if
+
+    end if
+
+    deallocate(plevs)
+
+    if ( subroutine_timers ) call timer('pres_lev_diags_alg')
+
+  end subroutine pres_lev_diags_alg
+
+  !> @brief   Calculate a field diagnostic on pressure levels.
+  !> @details Calculate a field on pressure levels as a
+  !!          diagnostic by linear interpolation of the field.
+  !> @param[in]  field       Field on model levles
+  !> @param[in]  exner       Exner pressure
+  !> @param[in]  plev_field  Field on Pressure levels
+  !> @param[in]  xi3_axis    Field is output on bespoke xi3 axis instead of
+  !>                         standard pressure level axis
+  subroutine pres_lev_field_alg(field, exner, plev_field, xi3_axis)
+
+    use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type
+
+    implicit none
+
+    type(field_type), intent(in) :: field, exner
+    type(field_type), intent(inout) :: plev_field
+    logical(l_def), intent(in) :: xi3_axis
+
+    integer(i_def) :: nplev
+    real(r_def), allocatable :: plevs(:)
+
+    character(str_def) :: axis_name
+
+    if (xi3_axis) then
+      axis_name = 'pressure_levels_xi3'
+    else
+      axis_name = 'pressure_levels'
+    end if
+
+    nplev = get_axis_dimension(trim(axis_name))
+    allocate(plevs(nplev))
+    plevs = get_axis_values(trim(axis_name),nplev)
+
+    call invoke_pres_interp_kernel_type(field, exner,             &
+                                        nplev, plevs, plev_field, &
+                                        p_zero, kappa)
+    call plev_field%write_field()
+
+    deallocate(plevs)
+
+  end subroutine pres_lev_field_alg
+
+end module pres_lev_diags_alg_mod

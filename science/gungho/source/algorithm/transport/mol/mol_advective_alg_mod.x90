@@ -1,0 +1,184 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Contains routine for advecting (advection-form) fields using MOL.
+
+module mol_advective_alg_mod
+
+  ! Infrastructure
+  use constants_mod,                  only: r_def, i_def, l_def, r_tran
+  use mesh_mod,                       only: mesh_type
+  use r_tran_field_mod,               only: r_tran_field_type
+  use timer_mod,                      only: timer
+
+  ! Algorithms and transport code
+  use advective_and_flux_alg_mod,     only: advective_and_flux_alg
+  use end_of_transport_step_alg_mod,  only: end_of_advective_step_alg
+  use limited_area_lbc_alg_mod,       only: overwrite_blending_zone_rtran
+  use runge_kutta_init_mod,           only: get_rk_transport_weights
+  use split_transport_utils_mod,      only: get_splitting_direction
+  use transport_controller_mod,       only: transport_controller_type
+  use transport_counter_mod,          only: transport_counter_type
+  use transport_metadata_mod,         only: transport_metadata_type
+  use wind_precomputations_alg_mod,   only: wind_precomputations_type
+
+  ! Configuration
+  use base_mesh_config_mod,           only: topology, topology_non_periodic
+  use boundaries_config_mod,          only: limited_area, transport_boundary_depth
+  use io_config_mod,                  only: subroutine_timers
+  use transport_config_mod,           only: runge_kutta_method
+
+  implicit none
+
+  public  :: mol_advective_alg
+
+contains
+
+  !> @brief Advecting a field with the MOL scheme.
+  !> @details Performs a whole time step advection, i.e., solving the advection
+  !!          (non-conservative) equation with the specified options
+  !!          in the transport_metadata.
+  !> @param[in,out] field_np1   Field at the end of the time step
+  !> @param[in]     field       Field at the start of the transport step
+  !> @param[in,out] transport_controller
+  !!                            Object containing metadata and precomputations
+  !!                            for controlling the transport of the field
+  subroutine mol_advective_alg( field_np1, field, transport_controller )
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),         intent(inout) :: field_np1
+    type(r_tran_field_type),         intent(in)    :: field
+    type(transport_controller_type), intent(inout) :: transport_controller
+
+    ! Internal variables
+    integer(kind=i_def)                      :: mesh_id
+    integer(kind=i_def)                      :: number_substeps
+    integer(kind=i_def)                      :: stage, s, direction
+    integer(kind=i_def)                      :: nstage, substeps
+    integer(kind=i_def)                      :: step
+    integer(kind=i_def)                      :: splitting
+    real(kind=r_tran)                        :: dt_mol_substep
+    logical(kind=l_def)                      :: final_rk_stage
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: advecting_wind
+    type(r_tran_field_type)                  :: rhs, field_n
+    type(r_tran_field_type)                  :: rhs_field
+    type(r_tran_field_type)                  :: dummy
+    type(r_tran_field_type),     allocatable :: rk_field(:)
+    real(kind=r_tran),           allocatable :: rk_weights(:,:)
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: wind_precomputations
+
+
+    if ( subroutine_timers ) call timer('transport.mol_advective')
+
+    ! ------------------------------------------------------------------------ !
+    ! Extract pre-existing objects and initialise temporary fields
+    ! ------------------------------------------------------------------------ !
+
+    mesh_id = field%get_mesh_id()
+    mesh => field%get_mesh()
+
+    wind_precomputations => transport_controller%get_wind_precomputations()
+    transport_counter => transport_controller%get_transport_counter()
+    transport_metadata => transport_controller%get_transport_metadata()
+
+    step = transport_counter%get_split_step_of_substep_counter()
+    splitting = transport_metadata%get_splitting()
+    direction = get_splitting_direction(splitting, step)
+    number_substeps = wind_precomputations%get_number_mol_substeps(            &
+        mesh_id, direction, splitting, step                                    &
+    )
+    dt_mol_substep = wind_precomputations%get_dt_mol_substep(                  &
+        mesh_id, direction, splitting, step                                    &
+    )
+    advecting_wind => wind_precomputations%get_wind(mesh_id, direction)
+
+    call rhs%initialise(field%get_function_space())
+    call field_n%initialise(field%get_function_space())
+
+    call field%copy_field_properties(field_np1)
+    call invoke( setval_X(field_np1, field) )
+
+    call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
+    allocate( rk_field(nstage) )
+
+    do stage = 1, nstage
+      call rk_field(stage)%initialise( field%get_function_space() )
+    end do
+    call rhs_field%initialise( field%get_function_space() )
+
+    ! Perform the number of rk-stages and substeps required
+    substep_loop: do substeps = 1, number_substeps
+
+      ! Reset field_n ready for the this substep
+      call field_np1%copy_field_properties(field_n)
+      call invoke( setval_X(field_n, field_np1) )
+
+      stage_loop: do stage = 1, nstage
+
+        final_rk_stage = ( stage == nstage )
+
+        ! Compute the field for this stage:
+        ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
+        call invoke( setval_X( rk_field(stage), field_np1 ), &
+                     setval_c( rhs_field, 0.0_r_tran ) )
+        do s = 1, stage
+          call invoke( inc_X_plus_bY( rhs_field, rk_weights(stage,s), rk_field(s) ) )
+        end do
+
+        ! Compute update: rhs = u.grad(rhs_field)
+        call advective_and_flux_alg(dummy, rhs, rhs_field, field_n,     &
+                                    advecting_wind, direction,          &
+                                    transport_metadata, final_rk_stage, &
+                                    dt_mol_substep, .false., .true. )
+
+        ! Update field: f = f^n - dt*rhs
+        call invoke( X_minus_bY(field_np1, field_n, dt_mol_substep, rhs) )
+
+        if ( limited_area .and. topology == topology_non_periodic ) then
+          ! This code is required while LAMs loop over cells right up to
+          ! the edge of a limited area domain.  It can be removed if
+          ! we only loop over columns in the interior domain.
+
+          ! Don't update the field near the edge of the domain. A depth of 1 is chosen
+          ! here to avoid problems right at the lateral boundary edge,
+          ! but ticket #3112 will investigate further options.
+          call overwrite_blending_zone_rtran(field_np1, field_n, depth=1)
+        end if
+
+      end do stage_loop
+
+      if ( limited_area .and. topology == topology_non_periodic ) then
+        ! This code is required while LAMs loop over cells right up to
+        ! the edge of a limited area domain.  It can be removed if
+        ! we only loop over columns in the interior domain. This call may not
+        ! be required in the substep loop.
+
+        ! Don't update the field near the edge of the domain. A configurable depth of using
+        ! the transport_boundary_depth is chosen here.  This will depend
+        ! on the number of RK stages and spatial reconstruction order.
+        ! Ticket #3112 will investigate further options.
+        call overwrite_blending_zone_rtran(field_np1, field, depth=transport_boundary_depth)
+      end if
+
+    end do substep_loop
+
+    ! End of step: if necessary enforce min val and overwrite in blending zone
+    call end_of_advective_step_alg(                                            &
+            field_np1, field_n, transport_counter, transport_metadata          &
+    )
+
+    if ( allocated( rk_field ) ) deallocate( rk_field )
+    if ( allocated( rk_weights ) ) deallocate( rk_weights )
+
+    if ( subroutine_timers ) call timer('transport.mol_advective')
+
+  end subroutine mol_advective_alg
+
+end module mol_advective_alg_mod

@@ -1,0 +1,238 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_wind_transport_alg
+module atlt_wind_transport_alg_mod
+
+  use r_tran_field_mod,                    only : r_tran_field_type
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use model_clock_mod,                     only : model_clock_type
+  use finite_element_config_mod,           only : element_order_h, &
+                                                  element_order_v
+  use fs_continuity_mod,                   only : W2
+  use function_space_collection_mod,       only : function_space_collection
+  use transport_metadata_collection_mod,   only : transport_metadata_collection
+  use transport_metadata_mod,              only : transport_metadata_type
+  use tl_transport_controller_mod,         only : tl_transport_controller_type
+  use transport_controller_mod,            only : transport_controller_type
+  use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
+  use inner_from_controller_rdef_alg_mod,  only : flux_pc_ref_flux_prod_rdef,     &
+                                                  flux_pc_ref_flux_inp_prod_rdef, &
+                                                  wind_pc_dir_prod_rdef,          &
+                                                  wind_pc_dir_inp_prod_rdef
+  use init_from_controller_alg_mod,        only : init_flux_pc_fieldvals, &
+                                                  init_wind_pc_fieldvals
+  use transport_enumerated_types_mod,      only : direction_3d, &
+                                                  direction_h,  &
+                                                  direction_v
+
+  implicit none
+
+  private
+  public :: atlt_wind_transport_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_wind_transport_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine atlt_wind_transport_alg( mesh, model_clock )
+
+    use tl_wind_transport_alg_mod,          only : tl_wind_transport_alg
+    use atl_wind_transport_alg_mod,         only : atl_wind_transport_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(field_type)                       :: rhs_u
+    type(field_type)                       :: wind_n
+    type(field_type)                       :: ls_wind_n
+    type(tl_transport_controller_type)     :: tl_transport_controller
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    ! Copies of input fields used in inner products
+    type(field_type)                       :: rhs_u_inp
+    type(field_type)                       :: wind_n_inp
+
+    ! Variables used to handle calculations for fields stored in tl_transport_controller
+    integer(kind=i_def)                                :: mesh_id
+    type(transport_controller_type),           pointer :: pert_transport_controller
+    type(transport_controller_type),           pointer :: ls_transport_controller
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_pert_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_2_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
+    type(r_tran_field_type)                            :: wind_pc_h_inp
+    type(r_tran_field_type)                            :: wind_pc_v_inp
+    type(r_tran_field_type)                            :: wind_pc_3d_inp
+    type(field_type)                                   :: dummy
+    type(function_space_type),                 pointer :: dummy_vs
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: rhs_u_inner_prod
+    real(kind=r_def)            :: rhs_u_sf
+    real(kind=r_def)            :: wind_n_inner_prod
+    real(kind=r_def)            :: wind_n_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: ru_ru_inp_inner_prod
+    real(kind=r_def)            :: wn_wn_inp_inner_prod
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def) :: machine_tol
+    real(kind=r_def) :: relative_diff
+
+    mesh_id = mesh%get_id()
+    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs, 'wind' )
+    ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
+    pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+
+    ! Initialising fields
+    call init_flux_pc_fieldvals( mesh,                     &
+                                 1_i_def,                  &
+                                 fpc_ls_wind_ref_flux_inp, &
+                                 dummy_ref_field_1_inp,    &
+                                 dummy_ref_mass_1_inp,     &
+                                 ls_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                       &
+                                 1_i_def,                    &
+                                 fpc_pert_wind_ref_flux_inp, &
+                                 dummy_ref_field_2_inp,      &
+                                 dummy_ref_mass_2_inp,       &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_h_inp,            &
+                                 direction_h,              &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_v_inp,            &
+                                 direction_v,              &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_3d_inp,           &
+                                 direction_3d,             &
+                                 pert_transport_controller )
+
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+    call rhs_u%initialise( vector_space = vector_space_w2_ptr )
+    call wind_n%initialise( vector_space = vector_space_w2_ptr )
+    call ls_wind_n%initialise( vector_space = vector_space_w2_ptr )
+
+    call rhs_u%copy_field_properties( rhs_u_inp )
+    call wind_n%copy_field_properties( wind_n_inp )
+
+    rhs_u_inner_prod = 0.0_r_def
+    wind_n_inner_prod = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( setval_random( rhs_u ),         &
+                 setval_x( rhs_u_inp, rhs_u ),   &
+                 setval_random( wind_n ),        &
+                 setval_x( wind_n_inp, wind_n ), &
+                 setval_random( ls_wind_n ),     &
+                 inc_a_times_X( 1.0E12_r_def, ls_wind_n ) ) ! Inflate LS wind to avoid numerical issues
+
+
+    ! Tangent linear
+    call tl_wind_transport_alg( rhs_u, wind_n, ls_wind_n, &
+                                tl_transport_controller, transport_metadata )
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( rhs_u_inner_prod, rhs_u ), &
+                 x_innerproduct_x( wind_n_inner_prod, wind_n ) )
+
+    ! Determining scale factors
+    rhs_u_sf = 1.0_r_def/(rhs_u_inner_prod + eps)
+    wind_n_sf = 1.0_r_def/(wind_n_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + rhs_u_inner_prod*rhs_u_sf
+    inner1 = inner1 + wind_n_inner_prod*wind_n_sf
+    write(log_scratch_space, *) "atlt_wind_transport inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "rhs_u inner product = ", rhs_u_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind_n inner product = ", wind_n_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    call flux_pc_ref_flux_prod_rdef( inner1, ls_transport_controller, 1_i_def )
+    call flux_pc_ref_flux_prod_rdef( inner1, pert_transport_controller, 1_i_def )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_h )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_v )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_3d )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( rhs_u_sf, rhs_u ), &
+                 inc_a_times_X( wind_n_sf, wind_n ) )
+
+    ! Adjoint alg call and inner products
+    ru_ru_inp_inner_prod = 0.0_r_def
+    wn_wn_inp_inner_prod = 0.0_r_def
+
+    ! Adjoint
+    call atl_wind_transport_alg( rhs_u, wind_n, ls_wind_n, &
+                                 tl_transport_controller, transport_metadata )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( ru_ru_inp_inner_prod, &
+                                   rhs_u,                &
+                                   rhs_u_inp ),          &
+                 x_innerproduct_y( wn_wn_inp_inner_prod, &
+                                   wind_n,               &
+                                   wind_n_inp ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + ru_ru_inp_inner_prod
+    inner2 = inner2 + wn_wn_inp_inner_prod
+    call flux_pc_ref_flux_inp_prod_rdef( inner2, ls_transport_controller, 1_i_def, fpc_ls_wind_ref_flux_inp  )
+    call flux_pc_ref_flux_inp_prod_rdef( inner2, pert_transport_controller, 1_i_def, fpc_pert_wind_ref_flux_inp  )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_h, wind_pc_h_inp )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_v, wind_pc_v_inp )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_3d, wind_pc_3d_inp )
+
+    call tl_transport_controller%finalise()
+    if ( allocated(fpc_ls_wind_ref_flux_inp) )   deallocate( fpc_ls_wind_ref_flux_inp )
+    if ( allocated(fpc_pert_wind_ref_flux_inp) ) deallocate( fpc_pert_wind_ref_flux_inp )
+    if ( allocated(dummy_ref_field_1_inp) )      deallocate( dummy_ref_field_1_inp )
+    if ( allocated(dummy_ref_mass_1_inp) )       deallocate( dummy_ref_mass_1_inp )
+    if ( allocated(dummy_ref_field_2_inp) )      deallocate( dummy_ref_field_2_inp )
+    if ( allocated(dummy_ref_mass_2_inp) )       deallocate( dummy_ref_mass_2_inp )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_wind_transport:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_wind_transport:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_wind_transport_alg
+
+end module atlt_wind_transport_alg_mod

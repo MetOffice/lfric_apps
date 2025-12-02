@@ -1,0 +1,90 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Derive exner from the equation of state.
+!> @details This step is usually applied after the solver.
+module derive_exner_from_eos_alg_mod
+
+  use constants_mod,                      only: i_def
+  use field_mod,                          only: field_type
+  use derived_config_mod,                 only: bundle_size
+  use field_indices_mod,                  only: igh_p, igh_d, igh_t
+  use io_config_mod,                      only: subroutine_timers
+  use timer_mod,                          only: timer
+  use log_mod,                            only: log_event, &
+                                                LOG_LEVEL_ERROR
+
+  implicit none
+
+  private
+  public :: derive_exner_from_eos
+
+contains
+
+  !> @brief An algorithm for specifying exner from the equation of state
+  !> @param[inout] state               Prognostic model state
+  !> @param[in]    moist_dyn_gas_law   Gas law component of moist dynamics factors
+  subroutine derive_exner_from_eos( state, moist_dyn_gas_law )
+
+    use operator_mod,                  only: operator_type
+    use sci_geometric_constants_mod,   only: get_coordinates, &
+                                             get_panel_id
+    use sci_fem_constants_mod,         only: get_inverse_mass_matrix_fe, &
+                                             get_qr_fe
+    use fs_continuity_mod,             only: W3
+    use mesh_mod,                      only: mesh_type
+    use quadrature_xyoz_mod,           only: quadrature_xyoz_type
+    use formulation_config_mod,        only: eos_method,         &
+                                             eos_method_sampled, &
+                                             eos_method_projected
+    use project_eos_pressure_kernel_mod, &
+                                       only: project_eos_pressure_kernel_type
+    use sample_eos_pressure_kernel_mod, &
+                                       only: sample_eos_pressure_kernel_type
+
+    implicit none
+
+    type( field_type ), dimension(bundle_size), intent( inout ) :: state
+    type( field_type ),                         intent( in )    :: moist_dyn_gas_law
+
+    type( field_type ),           pointer :: chi(:) => null()
+    type( field_type ),           pointer :: panel_id => null()
+    type( operator_type ),        pointer :: m3_inv => null()
+    type( quadrature_xyoz_type ), pointer :: qr => null()
+
+    type( mesh_type ), pointer :: mesh => null()
+
+    if ( subroutine_timers ) call timer('exner_from_eos')
+
+    mesh => state(igh_p)%get_mesh()
+
+    m3_inv   => get_inverse_mass_matrix_fe( W3, mesh%get_id() )
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+    qr       => get_qr_fe()
+
+    select case(eos_method)
+    case(eos_method_sampled)
+      call invoke( sample_eos_pressure_kernel_type( state(igh_p), state(igh_d), &
+                                                    state(igh_t),               &
+                                                    moist_dyn_gas_law ) )
+    case(eos_method_projected)
+      call invoke( project_eos_pressure_kernel_type( state(igh_p), state(igh_d), &
+                                                     state(igh_t),               &
+                                                     moist_dyn_gas_law, chi,     &
+                                                     panel_id, m3_inv, qr ) )
+    case default
+      call log_event( "Gungho: Unrecognised method to calculate pressure", LOG_LEVEL_ERROR )
+    end select
+
+    nullify( m3_inv, chi, mesh, &
+             panel_id, qr )
+
+    if ( subroutine_timers ) call timer('exner_from_eos')
+
+  end subroutine derive_exner_from_eos
+
+end module derive_exner_from_eos_alg_mod

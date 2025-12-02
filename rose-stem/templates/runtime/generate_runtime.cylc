@@ -1,0 +1,121 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# Create runtime sections for all tasks #}
+
+{% set task_values = tasks_to_run[task] %}
+
+{% if task.startswith("export-") or
+      task.startswith("housekeep") or
+      task.startswith("remote-init") %}
+
+    {% include "templates/runtime/generate_runtime_control.cylc" %}
+
+{% elif task in scripts_list %}
+
+    {% include "templates/runtime/generate_runtime_scripts.cylc" %}
+
+{% else %}
+    {% set task_ns = namespace(application="",
+                               conf_name="",
+                               platform="",
+                               compiler="",
+                               extras="") %}
+    {{ split_task_name(task, task_ns) }}
+
+    {% set task_family = task_values["task_family"] %}
+
+    {% set build_segment = task_ns.application %}
+    {% if task_ns.application == "lfricinputs" %}
+        {% set build_segment = task_values["app_name"] %}
+    {% endif %}
+    {% set build_segment = build_segment~"/"~task_values["build_conf"] %}
+
+    {# Set directories for this task #}
+    {% set destination_dir = "$OUTPUT_ROOT" %}
+    {% set checkpoint_dir = "$CYLC_WORKFLOW_SHARE_DIR/data" %}
+    {% set bin_dir = destination_dir~"/bin/"~build_segment %}
+    {% set lib_dir = destination_dir~"/lib/"~build_segment %}
+    {% set mod_dir = destination_dir~"/mod/"~build_segment %}
+    {% if task_ns.conf_name == "canned" %}
+        {% set mesh_dir = "$CYLC_TASK_WORK_DIR" %}
+    {% else %}
+        {% set mesh_dir = destination_dir~
+                          "/meshes" %}
+    {% endif %}
+    {% set task_output_dir = destination_dir~"/"~
+                             task_ns.application~"/"~
+                             task_family %}
+    {% if task_values["restart_no"] is not none %}
+        {% set task_output_dir = task_output_dir~
+                                 "-crun"~task_values["restart_no"] %}
+    {% endif %}
+    {% if "pert_off" in task %}
+        {% set task_output_dir = task_output_dir~"_pert_off" %}
+    {% endif %}
+    {% set working_dir = "$BUILD_ROOT/$CYLC_WORKFLOW_ID/"~build_segment%}
+
+    {# Import macros to set custom directive values for this platform #}
+    {% from "site/"~SITE~"/macros/macros_"~task_ns.platform~".cylc" import
+        set_task_resources,
+        with context %}
+
+    {% if task_values["custom_task"] %}
+
+        {% include "site/"~SITE~"/custom_tasks/generate_runtime_custom.cylc" ignore missing %}
+
+    {% elif "unit_tests" in task or "integration_tests" in task %}
+
+        {% include "templates/runtime/generate_runtime_technical-tests.cylc" %}
+
+    {% elif "generate_weights" in task %}
+
+        {% include "templates/runtime/generate_runtime_gen_weights.cylc" %}
+
+    {% elif task.startswith("build") %}
+
+        {% include "templates/runtime/generate_runtime_build.cylc" %}
+
+    {% elif task_ns.application == "mesh" %}
+
+        {% include "templates/runtime/generate_runtime_mesh.cylc" %}
+
+    {# If this becomes complex have the opportunity to split by application here #}
+    {% elif task.startswith("run") %}
+
+        {% include "templates/runtime/generate_runtime_application.cylc" %}
+
+    {# fcm_make tasks for lfric_coupled are dealt with here #}
+    {% elif task_ns.application == "lfric_coupled" and task.startswith("fcm_make") %}
+
+        {% include "templates/runtime/generate_runtime_lfric_coupled.cylc" %}
+
+    {# plotting tasks #}
+    {% elif task.startswith("plot") or task.startswith("memory_plot") %}
+
+        {% include "templates/runtime/generate_runtime_plot.cylc" %}
+
+    {# check tasks #}
+    {% elif task.startswith("check") or
+            task.startswith("rose_ana") or
+            task.startswith("pert_compare") or
+            task.startswith("phystest") %}
+
+        {% include "templates/runtime/generate_runtime_check.cylc" %}
+
+    {# Everything else - perftools #}
+    {% else %}
+
+        {% include "templates/runtime/generate_runtime_other.cylc" %}
+
+    {% endif %}
+
+{% endif %}
+
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime.cylc") %}

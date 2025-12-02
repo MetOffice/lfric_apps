@@ -1,0 +1,69 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+! @brief Stratospheric aerosol climatology
+
+module strat_aerosol_alg_mod
+
+use constants_mod,            only: l_def
+use field_mod,                only: field_type
+use integer_field_mod,        only: integer_field_type
+use field_collection_mod,     only: field_collection_type
+use strat_aerosol_kernel_mod, only: strat_aerosol_kernel_type
+use io_config_mod,            only: subroutine_timers
+use timer_mod,                only: timer
+use function_space_mod,       only: function_space_type
+use function_space_collection_mod, &
+                              only: function_space_collection
+use mesh_mod,                 only: mesh_type
+use multires_coupling_config_mod, &
+                              only: lowest_order_aero_flag, &
+                                    coarse_rad_aerosol
+use fs_continuity_mod,        only: Wtheta
+use intermesh_mappings_alg_mod, &
+                              only: map_scalar_intermesh
+implicit none
+private
+public :: strat_aerosol_alg
+
+contains
+
+! @param[in,out] aerosol_fields         Fields for aerosol scheme
+! @param[in]     trop_level             Level of tropopause
+! @param[in]     exner                  Exner pressure on w3 space
+
+subroutine strat_aerosol_alg( aerosol_fields, trop_level, exner )
+
+  implicit none
+
+  type( field_collection_type ), intent(inout) :: aerosol_fields
+  type( integer_field_type ),    intent(in)    :: trop_level
+  type( field_type ),            intent(in)    :: exner
+
+  ! Unpacked fields from collections
+  type( field_type ), pointer :: sulphuric => null()
+  type( field_type )          :: sulphuric_aero
+  type(function_space_type), pointer :: wth_aero     => null()
+  type(mesh_type),           pointer :: aerosol_mesh => null()
+
+  if ( subroutine_timers ) call timer("strat_aerosol_alg")
+
+  if (coarse_rad_aerosol) then
+    ! Initialise potentially coarse aerosol field
+    aerosol_mesh => exner%get_mesh()
+    wth_aero => function_space_collection%get_fs( aerosol_mesh, 0, 0, WTHETA )
+    call sulphuric_aero%initialise(vector_space = wth_aero)
+    call aerosol_fields%get_field('sulphuric', sulphuric)
+    call invoke( strat_aerosol_kernel_type( sulphuric_aero, trop_level, exner ) )
+    call map_scalar_intermesh(sulphuric, sulphuric_aero, lowest_order_flag=lowest_order_aero_flag)
+  else
+    call aerosol_fields%get_field('sulphuric', sulphuric)
+    call invoke( strat_aerosol_kernel_type( sulphuric, trop_level, exner ) )
+  end if
+
+  if ( subroutine_timers ) call timer("strat_aerosol_alg")
+
+end subroutine strat_aerosol_alg
+end module strat_aerosol_alg_mod

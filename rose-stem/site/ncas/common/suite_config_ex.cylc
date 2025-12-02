@@ -1,0 +1,107 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/ncas/common/suite_config_ex.cylc") %}
+
+{% set ex_base = 'umask 0022 ; '~
+                   'source . ; ' %}
+
+{% set ex_compiler_gnu = 'module load spack_gnu' %}
+{# see if we need this at some point #}
+
+    [[EX_BASE]]
+        platform = archer2_bg
+        [[[environment]]]
+            BUILD_ROOT = ${CYLC_TASK_WORK_DIR}/${CYLC_WORKFLOW_NAME_BASE}_${USER}
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 128
+            NUMA_REGIONS_PER_NODE = 8
+            LUSTRE_FILESYSTEM = true
+
+    [[EX_SLURM]]
+        inherit = EX_BASE
+        platform = archer2
+        [[[environment]]]
+            ROSE_LAUNCHER = srun
+        [[[directives]]]
+            --account={{ HPC_ACCOUNT }}
+            --chdir=/work/n02/n02/{{ HPC_USERNAME }}
+
+    [[EX_BUILD]]
+        [[[environment]]]
+            PSYCLONE_TRANSFORMATION="meto-ex1a"
+
+    [[EX_GNU]]
+        pre-script = """
+                     umask 0022
+                     module use /work/y07/shared/lfric/software/spack/lfric-spack/modules
+                     module load PrgEnv-gnu
+                     module load lfric-spack
+                     spack load lfric-apps@2.2%gcc shumlib@13.9+openmp%gcc
+                     """
+        [[[environment]]]
+             COMPILER = 'gnu'
+
+    [[EX_CCE]]
+        pre-script = """
+                     umask 0022
+                     module use /work/y07/shared/lfric/software/spack/lfric-spack/modules
+                     module load PrgEnv-cray
+                     module load lfric-spack
+                     spack load lfric-apps@2.2%cce shumlib@13.9+openmp%cce
+                     """
+        [[[environment]]]
+             COMPILER = 'cce'
+
+    [[EX_BUILD_GNU]]
+        inherit = EX_SLURM, EX_BUILD, EX_GNU
+
+    [[EX_BUILD_CCE]]
+        inherit = EX_SLURM, EX_BUILD, EX_CCE
+
+    [[EX_RUN]]
+        [[[environment]]]
+            BIG_DATA_DIR   = '/work/y07/shared/lfric/data/'
+            SMALL_DATA_DIR = '/work/y07/shared/lfric/data/'
+            TARGET_PLATFORM = 'ncas-ex'
+            RUN_METHOD = srun
+
+    [[EX_MESH]]
+        inherit = EX_SLURM
+
+    [[EX_MESH_GNU]]
+        inherit = EX_MESH, EX_GNU
+        [[[environment]]]
+            ROSE_APP_COMMAND_KEY = srun
+
+    [[EX_MESH_CCE]]
+        inherit = EX_MESH, EX_CCE
+        [[[environment]]]
+            ROSE_APP_COMMAND_KEY = srun
+
+    [[EX_EXPORT-SOURCE]]
+        inherit = NCAS_ORIG
+        [[[environment]]]
+            hostname = $(rose host-select "archer2")
+            PLATFORM_SYNC = true
+
+    [[EX_RUN_GNU]]
+       inherit = EX_SLURM, EX_RUN, EX_GNU
+
+    [[EX_RUN_CCE]]
+       inherit = EX_SLURM, EX_RUN, EX_CCE
+
+    [[EX_TECH_BASE]]
+        inherit = EX_SLURM
+
+    [[EX_PLOT]]
+        inherit = EX_TECH_BASE
+
+    [[EX_CHECK]]
+        inherit = EX_BASE
+
+    [[EX_HOUSEKEEPING]]
+
+{% do LOG.debug("Finished in site/mcas/common/suite_config_ex.cylc") %}

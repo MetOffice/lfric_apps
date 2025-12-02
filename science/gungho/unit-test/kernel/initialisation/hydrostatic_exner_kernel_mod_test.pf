@@ -1,0 +1,388 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the pressure initialization computation
+!>
+module hydrostatic_exner_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_basis
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap,      &
+                                                  get_w3_m3x3_dofmap,      &
+                                                  get_wtheta_m3x3_dofmap
+  use formulation_config_mod,              only : init_exner_bt
+  use funit
+
+  implicit none
+
+  private
+  public :: hydrostatic_exner_test_type, test_bottom_up, test_top_down
+
+  @TestCase
+  type, extends(TestCase) :: hydrostatic_exner_test_type
+    private
+      integer(i_def) :: ndf_w0, undf_w0, ndf_w3, undf_w3, ndf_wt, undf_wt
+      integer(i_def), allocatable     :: map_w0(:,:), map_w3(:,:), map_wt(:,:)
+      real(r_def), allocatable :: basis_w0(:,:,:,:)
+      real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+      real(r_def), allocatable :: exner_data(:)
+      real(r_def), allocatable :: theta_data(:)
+      real(r_def), allocatable :: moist_dyn_data(:,:)
+      real(r_def), allocatable :: height_wt_data(:)
+      real(r_def), allocatable :: height_w3_data(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_bottom_up
+    procedure test_top_down
+  end type hydrostatic_exner_test_type
+
+  real(r_def), parameter :: bvf_square = 0.0001_r_def
+  real(r_def), parameter :: theta_surf = 300.0_r_def
+  real(r_def), parameter :: pert_centre = 120.0_r_def
+  real(r_def), parameter :: pert_width_scaling = 1.0_r_def
+  integer(i_def),                                                  &
+               parameter :: profile_size       = 4
+  real(r_def), parameter :: profile_data(4)    = (/ 280.0_r_def,   &
+                                                    300.0_r_def,   &
+                                                    305.0_r_def,   &
+                                                    400.0_r_def /)
+  real(r_def), parameter :: profile_heights(4) = (/ 500.0_r_def,   &
+                                                    4.0e3_r_def,   &
+                                                    4.0e3_r_def,   &
+                                                    40.0e3_r_def /)
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: planet_radius = 6000000.0_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_planar, &
+                                          topology_fully_periodic
+    use extrusion_config_mod,    only : method_uniform, &
+                                        stretching_method_linear
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_base_mesh_config,           &
+                                          feign_extrusion_config,           &
+                                          feign_finite_element_config,      &
+                                          feign_initial_temperature_config, &
+                                          feign_planet_config,              &
+                                          feign_idealised_config,           &
+                                          feign_initial_density_config
+    use idealised_config_mod,      only : test_gravity_wave
+    use initial_temperature_config_mod, &
+                                   only : perturb_none
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(hydrostatic_exner_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    integer(i_def) :: ncells, icell
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: nlayers, i, j, k
+
+    call feign_base_mesh_config                  &
+             ( file_prefix='foo',                &
+               prime_mesh_name='unit_test',      &
+               geometry=geometry_planar,         &
+               prepartitioned=.false.,           &
+               topology=topology_fully_periodic, &
+               fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( planet_radius=planet_radius,                &
+                                 domain_height=10.0_r_def,                   &
+                                 method=method_uniform,                      &
+                                 number_of_layers=2_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_finite_element_config(      &
+        cellshape=cellshape_quadrilateral, &
+        coord_order=0_i_def,               &
+        coord_system=coord_system_xyz,     &
+        element_order_h=0_i_def,           &
+        element_order_v=0_i_def,           &
+        rehabilitate=.true.,               &
+        vorticity_in_w1=.false. )
+
+    call feign_initial_temperature_config( bvf_square=bvf_square,                 &
+                                           theta_surf=theta_surf,                 &
+                                           pert_centre=pert_centre,               &
+                                           pert_width_scaling=pert_width_scaling, &
+                                           perturb=perturb_none,                  &
+                                           profile_size=profile_size,             &
+                                           profile_data=profile_data,             &
+                                           profile_heights=profile_heights )
+
+    call feign_planet_config( gravity=gravity, omega=8.0E-5_r_def, &
+                              rd=rd, cp=cp, p_zero=p_zero,         &
+                              scaling_factor=1.0_r_def )
+
+    call feign_initial_density_config( density_background=0.0_r_def,        &
+                                       density_max=1.0_r_def,               &
+                                       r1=0.0_r_def, x1=0.0_r_def,          &
+                                       y1=0.0_r_def, z1=0.0_r_def,          &
+                                       r2=0.0_r_def, x2=0.0_r_def,          &
+                                       y2=0.0_r_def, z2=0.0_r_def)
+
+    call feign_idealised_config( test=test_gravity_wave, f_lon_deg=0.0_r_def, &
+                                 perturb_init=.false., perturb_magnitude=0,   &
+                                 perturb_seed=0 )
+
+    call init_chi_transforms()
+
+    nlayers=3
+    call get_w0_m3x3_q3x3x3_size( this%ndf_w0, this%undf_w0, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w0_q3x3x3_basis(this%basis_w0)
+    call get_w0_m3x3_dofmap(this%map_w0)
+
+    call get_w3_m3x3_q3x3x3_size( this%ndf_w3, this%undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_m3x3_dofmap(this%map_w3)
+
+    call get_wtheta_m3x3_q3x3x3_size( this%ndf_wt, this%undf_wt, ncells, &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, &
+                                      nlayers )
+    call get_wtheta_m3x3_dofmap(this%map_wt)
+
+    ! Compute coordinates
+    allocate(this%chi1(this%undf_w0))
+    allocate(this%chi2(this%undf_w0))
+    allocate(this%chi3(this%undf_w0))
+    allocate(this%panel_id(this%undf_w3))
+    icell = 1
+    do j = 1,3
+      do i = 1,3
+        do k = 0,3
+          this%chi1(this%map_w0(1,icell)+k) = real(i-1)*dx
+          this%chi2(this%map_w0(1,icell)+k) = real(j-1)*dy
+          this%chi3(this%map_w0(1,icell)+k) = real(k)*dz
+        end do
+        icell = icell + 1
+      end do
+    end do
+
+    this%panel_id(:) = 1.0_r_def
+
+    ! Create the data
+    allocate(this%exner_data(this%undf_w3))
+    allocate(this%theta_data(this%undf_wt))
+    allocate(this%moist_dyn_data(this%undf_wt, 3))
+    allocate(this%height_wt_data(this%undf_wt))
+    allocate(this%height_w3_data(this%undf_w3))
+    this%exner_data(:) = 0.0_r_def
+    this%theta_data(:) = 300.0_r_def
+    this%moist_dyn_data(:,:) = 1.0_r_def
+    this%height_wt_data(:)   = 0.0_r_def
+    this%height_w3_data(:)   = 1000.0_r_def
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(hydrostatic_exner_test_type), intent(inout) :: this
+
+    deallocate(this%basis_w0)
+    deallocate(this%map_w0)
+    deallocate(this%map_w3)
+    deallocate(this%map_wt)
+    deallocate(this%chi1)
+    deallocate(this%chi2)
+    deallocate(this%chi3)
+    deallocate(this%panel_id)
+    deallocate(this%exner_data)
+    deallocate(this%theta_data)
+    deallocate(this%moist_dyn_data)
+    deallocate(this%height_wt_data)
+    deallocate(this%height_w3_data)
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_bottom_up( this )
+
+    use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code
+    use formulation_config_mod,       only : eos_method_sampled,           &
+                                             moisture_formulation_dry
+    use feign_config_mod,             only : feign_formulation_config,     &
+                                             feign_initial_pressure_config
+    use initial_pressure_config_mod,  only : method_balanced
+
+
+    implicit none
+
+    class(hydrostatic_exner_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+
+    integer(i_def) :: nlayers, cell, k
+    real(r_def) :: answer
+
+    call feign_formulation_config(l_multigrid=.false.,                      &
+                                  lagged_orog=.false.,                      &
+                                  rotating=.false.,                         &
+                                  moisture_formulation =                    &
+                                  moisture_formulation_dry,                 &
+                                  moisture_in_solver=.true.,                &
+                                  p2theta_vert=.true.,                      &
+                                  shallow=.true., use_physics=.false.,      &
+                                  theta_moist_source=.false.,               &
+                                  use_wavedynamics=.true.,                  &
+                                  use_multires_coupling=.false.,            &
+                                  dry_static_adjust=.false.,                &
+                                  dlayer_on=.false.,                        &
+                                  exner_from_eos=.true.,                    &
+                                  eos_method=eos_method_sampled,            &
+                                  init_exner_bt        = .true.,            &
+                                  si_momentum_equation=.true.,              &
+                                  horizontal_physics_predictor=.false.,     &
+                                  horizontal_transport_predictor=.false.,   &
+                                  vector_invariant=.true.)
+
+    call feign_initial_pressure_config( method=method_balanced,             &
+                                        surface_pressure=1000.0e2_r_def)
+
+    nlayers=3
+    cell=1
+    call hydrostatic_exner_code( nlayers,                             &
+                                 this%exner_data,                     &
+                                 this%theta_data,                     &
+                                 this%moist_dyn_data(:,1),            &
+                                 this%moist_dyn_data(:,2),            &
+                                 this%moist_dyn_data(:,3),            &
+                                 this%height_wt_data,                 &
+                                 this%height_w3_data,                 &
+                                 this%chi1,                           &
+                                 this%chi2,                           &
+                                 this%chi3,                           &
+                                 this%panel_id,                       &
+                                 gravity, p_zero, rd, cp,             &
+                                 planet_radius,                       &
+                                 this%ndf_w3, this%undf_w3,           &
+                                 this%map_w3(:,cell),                 &
+                                 this%ndf_wt, this%undf_wt,           &
+                                 this%map_wt(:,cell),                 &
+                                 this%ndf_w0, this%undf_w0,           &
+                                 this%map_w0(:,cell), this%basis_w0,  &
+                                 this%ndf_w3, this%undf_w3,           &
+                                 this%map_w3(:,cell)                  &
+                                 )
+    k = 1
+    answer = 0.9591617_r_def
+    @assertEqual(answer, this%exner_data(this%map_w3(1, cell)+k), tol)
+
+  end subroutine test_bottom_up
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_top_down( this )
+
+    use hydrostatic_exner_kernel_mod, only : hydrostatic_exner_code
+    use feign_config_mod,             only : feign_formulation_config,     &
+                                             feign_initial_pressure_config
+    use formulation_config_mod,       only : eos_method_sampled,           &
+                                             moisture_formulation_dry
+    use initial_pressure_config_mod,  only : method_balanced
+
+    implicit none
+
+    class(hydrostatic_exner_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+
+    integer(i_def) :: nlayers, cell, k
+    real(r_def) :: answer
+
+    call feign_formulation_config(rotating=.false.,                          &
+                                  l_multigrid=.false.,                       &
+                                  lagged_orog=.false.,                       &
+                                  moisture_formulation =                     &
+                                  moisture_formulation_dry,                  &
+                                  moisture_in_solver=.true.,                 &
+                                  theta_moist_source=.false.,                &
+                                  p2theta_vert=.true.,                       &
+                                  shallow=.true., use_physics=.false.,       &
+                                  use_wavedynamics=.true.,                   &
+                                  use_multires_coupling=.false.,             &
+                                  dry_static_adjust=.false.,                 &
+                                  dlayer_on=.false.,                         &
+                                  exner_from_eos=.true.,                     &
+                                  eos_method=eos_method_sampled,             &
+                                  init_exner_bt        = .false.,            &
+                                  si_momentum_equation=.true.,               &
+                                  horizontal_physics_predictor=.false.,      &
+                                  horizontal_transport_predictor=.false.,    &
+                                  vector_invariant=.true.)
+
+
+    call feign_initial_pressure_config( method=method_balanced,             &
+                                        surface_pressure=1000.0e2_r_def)
+
+    nlayers=3
+    cell=1
+    call hydrostatic_exner_code( nlayers,                             &
+                                 this%exner_data,                     &
+                                 this%theta_data,                     &
+                                 this%moist_dyn_data(:,1),            &
+                                 this%moist_dyn_data(:,2),            &
+                                 this%moist_dyn_data(:,3),            &
+                                 this%height_wt_data,                 &
+                                 this%height_w3_data,                 &
+                                 this%chi1,                           &
+                                 this%chi2,                           &
+                                 this%chi3,                           &
+                                 this%panel_id,                       &
+                                 gravity, p_zero, rd, cp,             &
+                                 planet_radius,                       &
+                                 this%ndf_w3, this%undf_w3,           &
+                                 this%map_w3(:,cell),                 &
+                                 this%ndf_wt, this%undf_wt,           &
+                                 this%map_wt(:,cell),                 &
+                                 this%ndf_w0, this%undf_w0,           &
+                                 this%map_w0(:,cell), this%basis_w0,  &
+                                 this%ndf_w3, this%undf_w3,           &
+                                 this%map_w3(:,cell)                  &
+                                 )
+    k = 1
+    answer = 0.8287541_r_def
+    @assertEqual(this%exner_data(this%map_w3(1, cell)+k), answer, tol)
+
+  end subroutine test_top_down
+
+end module hydrostatic_exner_kernel_mod_test

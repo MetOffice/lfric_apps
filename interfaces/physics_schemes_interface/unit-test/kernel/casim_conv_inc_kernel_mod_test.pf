@@ -1,0 +1,117 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the casim conv inc kernel
+!>
+module casim_conv_inc_kernel_mod_test
+
+  use funit
+  use constants_mod,                 only : r_def, i_def
+
+  implicit none
+
+  private
+  public :: test_casim_conv_inc
+
+  @TestCase
+  type, extends(TestCase), public  :: casim_conv_inc_test_type
+    private
+    real(kind=r_def), allocatable :: answer_mci(:), answer_ms(:), &
+                                     m_ci(:), m_s(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_casim_conv_inc
+  end type casim_conv_inc_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+  implicit none
+
+  class(casim_conv_inc_test_type), intent(inout) :: this
+
+  integer(kind=i_def) :: undf_wth
+
+  undf_wth = 3_i_def
+
+  allocate( this%answer_mci(undf_wth) )
+  allocate( this%answer_ms(undf_wth) )
+  allocate( this%m_ci(undf_wth) )
+  allocate( this%m_s(undf_wth) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+  implicit none
+
+  class(casim_conv_inc_test_type), intent(inout) :: this
+
+  deallocate ( this%answer_mci, this%answer_ms, this%m_ci, this%m_s)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_casim_conv_inc( this )
+
+  use casim_conv_inc_kernel_mod, only : casim_conv_inc_code
+
+  implicit none
+
+  class(casim_conv_inc_test_type), intent(inout) :: this
+
+  real(kind=r_def), parameter   :: tol = 1.0e-14_r_def
+
+  ! Argument list variables for casim_conv_inc_code
+  integer(kind=i_def), allocatable :: map_wth(:)
+  integer(kind=i_def)              :: nlayers
+  integer(kind=i_def)              :: ndf_wth
+  integer(kind=i_def)              :: undf_wth
+  real(kind=r_def)                 :: dt
+
+  nlayers  = 2_i_def
+  ndf_wth  = 2_i_def
+  undf_wth = 3_i_def
+
+  allocate(map_wth(ndf_wth))
+  map_wth(:)  = 1_i_def
+
+  ! Set initial fields
+  this%m_ci(1) = 0.0_r_def
+  this%m_ci(2) = 1.0e-3_r_def
+  this%m_ci(3) = -1.0e-3_r_def
+  this%m_s(1) = 0.0_r_def
+  this%m_s(2) = 1.0e-3_r_def
+  this%m_s(3) = 2.0e-3_r_def
+
+  ! Set correct answer
+  this%answer_mci(1) = 0.0_r_def
+  this%answer_mci(2) = 1.0e-3_r_def
+  this%answer_mci(3) = 0.0_r_def
+  this%answer_ms(1) = 0.0_r_def
+  this%answer_ms(2) = 1.0e-3_r_def
+  this%answer_ms(3) = 1.0e-3_r_def
+
+  call casim_conv_inc_code( nlayers,       &
+                            this%m_ci(:),  &
+                            this%m_s(:),   &
+                            ndf_wth,       &
+                            undf_wth,      &
+                            map_wth )
+
+  @assertEqual(this%answer_mci(:), this%m_ci(:), tol )
+  @assertEqual(this%answer_ms(:), this%m_s(:), tol )
+
+  deallocate( map_wth )
+
+  end subroutine test_casim_conv_inc
+
+end module casim_conv_inc_kernel_mod_test

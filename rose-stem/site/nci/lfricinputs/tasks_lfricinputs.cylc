@@ -1,0 +1,58 @@
+{% do LOG.debug("Entered site/nci/lfricinputs/tasks_lfricinputs.cylc") %}
+
+{% if task_ns.conf_name == "um2lfric-aquaplanet-N48L38_C48L38" %}
+
+    {% do task_dict.update({
+        "memory": [8, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "um2lfric-basicgal-N96L70_C12L70" %}
+
+    {% do task_dict.update({
+        "memory": [8, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "um2lfric-protogal_chem-N96L70_C12L70" %}
+
+    {% do task_dict.update({
+        "memory": [8, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "um2lfric-protogal-N96L70_C12L70" %}
+
+    {% do task_dict.update({
+        "memory": [8, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "um2lfric-aquaplanet_lam" %}
+
+    {% do task_dict.update({
+        "mpi_parts": 18,
+        "memory": [72, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "um2lfric-aquaplanet_lbc" %}
+
+    {% do task_dict.update({
+        "mpi_parts": 18,
+        "memory": [72, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "um2lfric-falklands_lam" %}
+
+    {% do task_dict.update({
+        "mpi_parts": 18,
+        "memory": [72, "GB"]
+    }) %}
+
+{% endif %}
+
+{% if task_dict %}
+    {% do task_dict.update({
+        "build_families": ["GADI_BUILD_"~task_ns.compiler|upper],
+        "run_families": ["LFRICINPUTS_BASE", "NCI_GADI_NORMAL_QUEUE", "NCI_GADI_RUN_TASKS", "GADI_LFRICINPUTS"],
+        "rose_ana_families": ["LFRICINPUTS_BASE", "NCI_GADI_1_TASKS", "GADI_LFRICINPUTS", "ROSE_ANA_GADI"]
+    }) %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/nci/lfricinputs/tasks_lfricinputs.cylc") %}

@@ -1,0 +1,264 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the computation of 2d flux coefficients
+module poly2d_flux_coeffs_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def, r_tran
+  use funit
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: poly2d_flux_coeffs_test_type
+    private
+  contains
+    procedure setUp
+    procedure test_all
+    procedure tearDown
+  end type poly2d_flux_coeffs_test_type
+
+contains
+
+  subroutine setUp( this )
+    use feign_config_mod,          only: feign_base_mesh_config, &
+                                         feign_finite_element_config
+    use base_mesh_config_mod,      only: geometry_planar,    &
+                                         topology_fully_periodic
+    use finite_element_config_mod, only: coord_system_xyz, &
+                                         cellshape_quadrilateral
+    use sci_chi_transform_mod,     only: init_chi_transforms
+
+    implicit none
+    class(poly2d_flux_coeffs_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( file_prefix='foo',                   &
+                                 prime_mesh_name='unit_test',         &
+                                 geometry=geometry_planar,            &
+                                 prepartitioned=.false.,              &
+                                 topology=topology_fully_periodic,    &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+    call  feign_finite_element_config( cellshape = cellshape_quadrilateral, &
+                                       coord_order = 1, &
+                                       coord_system = coord_system_xyz, &
+                                       element_order_h = 0, &
+                                       element_order_v = 0, &
+                                       rehabilitate = .true., &
+                                       vorticity_in_w1 = .true. )
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use poly2d_flux_coeffs_kernel_mod, only: poly2d_flux_coeffs_code
+
+    implicit none
+
+    class(poly2d_flux_coeffs_test_type), intent(inout) :: this
+
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran   ! precision with 32-bit r_def
+    real(r_tran), dimension(9) :: answer, tstv
+    real(r_tran)               :: tst, use_tol
+
+    integer(i_def), parameter :: nlayers = 1
+    integer(i_def), parameter :: stencil_size = 9
+    integer(i_def), parameter :: nfaces = 4
+    integer(i_def), parameter :: ndata = stencil_size*nfaces
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: ndf_wx = 8
+    integer(i_def), parameter :: ndf_c  = 1
+    integer(i_def), parameter :: ndf_pid = 1
+    integer(i_def), parameter :: order = 2
+    integer(i_def), parameter :: nqp = 3
+    integer(i_def), parameter :: nqp_h = nqp**2
+    integer(i_def), parameter :: nqp_v = 1
+    integer(i_def), parameter :: nqp_e = 1
+    integer(i_def), parameter :: undf_w3 = nlayers*stencil_size
+    integer(i_def), parameter :: undf_c  = nlayers*ndata
+    integer(i_def), parameter :: undf_pid = stencil_size
+    integer(i_def), parameter :: undf_wx = ndf_wx*nlayers*stencil_size
+    integer(i_def), dimension(ndf_w3,stencil_size)  :: smap_w3
+    integer(i_def), dimension(ndf_wx,stencil_size)  :: smap_wx
+    integer(i_def), dimension(ndf_pid,stencil_size) :: smap_pid
+    integer(i_def), dimension(ndf_c)                :: map_c
+
+    real(r_def), dimension(ndf_wx,nqp_h,nqp_v) :: basis_wx
+    real(r_def), dimension(ndf_wx,nqp_e,4) :: face_basis_wx
+    real(r_def), dimension(nqp_h)            :: wqp_h
+    real(r_def), dimension(nqp_v), parameter :: wqp_v = (/ 1.0_r_def /)
+    real(r_def), dimension(nqp_e,nfaces), parameter :: wqp_e = 1.0_r_def
+
+    real(r_tran), dimension(undf_c)   :: coeff
+    real(r_def), dimension(undf_w3)  :: mdw3
+    real(r_def), dimension(undf_wx)  :: x, y, z
+    real(r_def), dimension(undf_pid) :: panel_id
+
+    real(r_def), parameter :: domain_x = 20.0_r_def
+    real(r_def), parameter :: domain_y = 20.0_r_def
+
+    real(r_def), parameter :: dx = 2.0_r_def
+    real(r_def), parameter :: dy = 3.0_r_def
+    real(r_def), parameter :: dz = 4.0_r_def
+    real(r_def), parameter :: dv = dx*dy*dz
+    real(r_def), parameter :: h0 = 0.0_r_def
+    real(r_def), dimension(stencil_size) :: stencil_dx, stencil_dy
+    real(r_def), dimension(3) :: xq, wqp
+
+    integer(i_def) :: k, df, s, i, j, ij
+
+    xq(:) = 0.5_r_def + 0.5_r_def*(/ -sqrt(3.0_r_def/5.0_r_def), 0.0_r_def, sqrt(3.0_r_def/5.0_r_def) /)
+    wqp(:) = (/5.0_r_def, 8.0_r_def, 5.0_r_def/)/18.0_r_def
+    do j = 1,nqp
+      do i = 1,nqp
+        ij = i+(j-1)*nqp
+        wqp_h(ij) = wqp(i)*wqp(j)
+      end do
+    end do
+
+    panel_id(:) = 1.0_r_def
+
+    do s = 1,stencil_size
+      smap_pid(1,s) = s
+      smap_w3(1,s) = 1 + (s-1)*nlayers
+      do df = 1, ndf_wx
+        smap_wx(df,s) = 1 + (df-1)*nlayers + (s-1)*nlayers*ndf_wx
+      end do
+    end do
+
+    map_c(1) = 1
+
+    stencil_dx = (/ 0.0_r_def, -dx, 0.0_r_def, dx, 0.0_r_def, -dx, dx, dx, -dx /)
+    stencil_dy = (/ 0.0_r_def, 0.0_r_def, -dy, 0.0_r_def, dy, -dy, -dy, dy, dy /)
+
+    do k = 0,nlayers-1
+      x(smap_wx(1,1)+k) = 0.0_r_def
+      x(smap_wx(2,1)+k) = dx
+      x(smap_wx(3,1)+k) = 0.0_r_def
+      x(smap_wx(4,1)+k) = dx
+      y(smap_wx(1,1)+k) = 0.0_r_def
+      y(smap_wx(2,1)+k) = 0.0_r_def
+      y(smap_wx(3,1)+k) = dy
+      y(smap_wx(4,1)+k) = dy
+      z(smap_wx(1,1)+k) = k*dz
+      z(smap_wx(2,1)+k) = k*dz
+      z(smap_wx(3,1)+k) = k*dz
+      z(smap_wx(4,1)+k) = k*dz
+      do df = 1,4
+        x(smap_wx(4+df,1)+k) = x(smap_wx(df,1)+k)
+        y(smap_wx(4+df,1)+k) = y(smap_wx(df,1)+k)
+        z(smap_wx(4+df,1)+k) = z(smap_wx(df,1)+k) + dz
+      end do
+      do i = 2, stencil_size
+        do df = 1,8
+          x(smap_wx(df,i)+k) = x(smap_wx(df,1)+k) + stencil_dx(i)
+          y(smap_wx(df,i)+k) = y(smap_wx(df,1)+k) + stencil_dy(i)
+          z(smap_wx(df,i)+k) = z(smap_wx(df,1)+k)
+         end do
+      end do
+    end do
+
+    mdw3(:) = dv
+
+    do j = 1,nqp
+      do i = 1,nqp
+        ij = i+(j-1)*nqp
+        basis_wx(1,ij,1) = (1.0_r_def - xq(i))*(1.0_r_def - xq(j))
+        basis_wx(2,ij,1) =              xq(i) *(1.0_r_def - xq(j))
+        basis_wx(3,ij,1) = (1.0_r_def - xq(i))*             xq(j)
+        basis_wx(4,ij,1) =              xq(i) *             xq(j)
+        basis_wx(5,ij,1) = (1.0_r_def - xq(i))*(1.0_r_def - xq(j))
+        basis_wx(6,ij,1) =              xq(i) *(1.0_r_def - xq(j))
+        basis_wx(7,ij,1) = (1.0_r_def - xq(i))*             xq(j)
+        basis_wx(8,ij,1) =              xq(i) *             xq(j)
+      end do
+    end do
+    basis_wx(:,:,:) = basis_wx(:,:,:)*0.5_r_def
+
+    face_basis_wx = 0.0_r_def
+    face_basis_wx(1,1,1) = 0.25_r_def
+    face_basis_wx(1,1,2) = 0.25_r_def
+    face_basis_wx(2,1,2) = 0.25_r_def
+    face_basis_wx(2,1,3) = 0.25_r_def
+    face_basis_wx(3,1,1) = 0.25_r_def
+    face_basis_wx(3,1,4) = 0.25_r_def
+    face_basis_wx(4,1,3) = 0.25_r_def
+    face_basis_wx(4,1,4) = 0.25_r_def
+    do df = 1,4
+      face_basis_wx(4+df,1,:) = face_basis_wx(df,1,:)
+    end do
+
+    coeff = 0.0_r_tran
+
+    call poly2d_flux_coeffs_code(nlayers,                   &
+                                 coeff,                     &
+                                 mdw3,                      &
+                                 stencil_size,              &
+                                 smap_w3,                   &
+                                 x, y, z,                   &
+                                 stencil_size,              &
+                                 smap_wx,                   &
+                                 panel_id,                  &
+                                 stencil_size,              &
+                                 smap_pid,                  &
+                                 ndata,                     &
+                                 order,                     &
+                                 stencil_size,              &
+                                 h0,                        &
+                                 domain_x,                  &
+                                 domain_y,                  &
+                                 nlayers,                   &
+                                 ndf_c,                     &
+                                 undf_c,                    &
+                                 map_c,                     &
+                                 ndf_w3,                    &
+                                 undf_w3,                   &
+                                 smap_w3(:,1),              &
+                                 ndf_wx,                    &
+                                 undf_wx,                   &
+                                 smap_wx(:,1),              &
+                                 basis_wx,                  &
+                                 face_basis_wx,             &
+                                 ndf_pid, undf_pid,         &
+                                 smap_pid(:,1),             &
+                                 nqp_h, nqp_v, wqp_h, wqp_v,&
+                                 nfaces, nqp_e, wqp_e )
+
+    answer = (/ 0.95_r_tran, 0.15_r_tran, -5.833333333333340E-002_r_tran, &
+               -1.666666666666665E-002_r_tran, -5.833333333333340E-002_r_tran, 9.166666666666659E-002_r_tran, &
+               -7.5E-002_r_tran, -7.5E-002_r_tran, 9.166666666666659E-002_r_tran /)
+
+    use_tol = tol
+    @assertEqual(answer, coeff(1:9), use_tol)
+
+    ! Check summation over y direction equals known quadratic in x intepolation
+    ! weights
+    use_tol = tol
+    @assertEqual( 2.0_r_tran/6.0_r_tran, coeff(2)+coeff(6)+coeff(9), use_tol)
+    @assertEqual( 5.0_r_tran/6.0_r_tran, coeff(1)+coeff(3)+coeff(5), use_tol)
+    @assertEqual( -1.0_r_tran/6.0_r_tran, coeff(4)+coeff(7)+coeff(8), use_tol)
+
+  end subroutine test_all
+
+  subroutine tearDown( this )
+
+    use configuration_mod,   only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
+
+    implicit none
+
+    class(poly2d_flux_coeffs_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+end module poly2d_flux_coeffs_kernel_mod_test

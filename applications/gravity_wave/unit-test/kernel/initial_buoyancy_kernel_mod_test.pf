@@ -1,0 +1,201 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the initial buoyancy computation
+!>
+module initial_buoyancy_kernel_mod_test
+
+  use constants_mod,              only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use base_mesh_config_mod,      only : geometry_planar,    &
+                                          topology_fully_periodic
+    use extrusion_config_mod,    only : method_uniform, &
+                                        stretching_method_linear
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_base_mesh_config,           &
+                                          feign_extrusion_config,           &
+                                          feign_finite_element_config,      &
+                                          feign_idealised_config,           &
+                                          feign_initial_density_config,     &
+                                          feign_initial_temperature_config, &
+                                          feign_planet_config
+    use idealised_config_mod,      only : test_gravity_wave
+
+    implicit none
+
+    integer :: i
+
+    call feign_base_mesh_config( file_prefix='foo',                   &
+                                 prime_mesh_name='unit_test',         &
+                                 geometry=geometry_planar,            &
+                                 prepartitioned=.false.,              &
+                                 topology=topology_fully_periodic,    &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( method=method_uniform,                      &
+                                 planet_radius=6371229.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 number_of_layers=5_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=10.0_r_def,               &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call feign_idealised_config( test=test_gravity_wave, f_lon_deg=0.0_r_def, &
+                                 perturb_init=.false., perturb_magnitude=0,   &
+                                 perturb_seed=0 )
+
+    call feign_planet_config( gravity=9.80665_r_def, &
+                              omega=8.0E-5_r_def,    &
+                              rd=287.05_r_def,       &
+                              cp=1005.0_r_def,       &
+                              p_zero=100000.0_r_def, &
+                              scaling_factor=1.0_r_def )
+
+    call init_chi_transforms()
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use initial_buoyancy_kernel_mod,         only: initial_buoyancy_code
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w0_m3x3_q3x3x3_size, &
+                                                   get_wtheta_m3x3_q3x3x3_size
+    use get_unit_test_m3x3_dofmap_mod,       only: get_w0_m3x3_dofmap, &
+                                                   get_w3_m3x3_dofmap, &
+                                                   get_wtheta_m3x3_dofmap
+    use get_unit_test_3x3x3_chi_mod,         only: get_w0_3x3x3_field
+    use get_unit_test_wthetanodal_basis_mod, only: get_w0_wthetanodal_basis
+
+    implicit none
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 2000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    real(r_def) :: answer
+    integer(i_def) :: nlayers, cell
+
+    integer(i_def) :: ndf_w0, ndf_wt, ndf_pid
+    integer(i_def) :: undf_w0, undf_wt, undf_pid
+
+    ! Dummy variable for passing into multi-getter routines where item is not
+    ! needed
+    integer(i_def) :: unused
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_wt(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+
+    real(r_def), allocatable :: chi_data(:,:)
+    real(r_def), allocatable :: buoyancy_data(:)
+    real(r_def), allocatable :: panel_id(:)
+
+    real(r_def), allocatable :: basis_w0(:,:,:)
+
+    nlayers=3
+
+    ! Get sizes
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, unused, &
+                                      unused, unused,          &
+                                      unused, unused,          &
+                                      nlayers )
+
+
+    ndf_pid = 1
+    undf_pid = 9
+
+    ! Get dofmaps
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_wtheta_m3x3_dofmap(map_wt)
+    call get_w3_m3x3_dofmap(map_pid, 1)
+    call get_w0_wthetanodal_basis(basis_w0)
+
+    ! Create the data arrays
+    allocate(chi_data(undf_w0,3))
+    allocate(buoyancy_data(undf_wt))
+    allocate(panel_id(undf_pid))
+
+    panel_id(:) = 1.0_r_def
+
+    call get_w0_3x3x3_field(chi_data(:,1), chi_data(:,2), chi_data(:,3), &
+                            dx, dy, dz, map_w0, nlayers)
+    cell = 1
+
+    call initial_buoyancy_code( nlayers,                  &
+                                buoyancy_data,            &
+                                chi_data(:,1),            &
+                                chi_data(:,2),            &
+                                chi_data(:,3),            &
+                                panel_id,                 &
+                                ndf_wt, undf_wt,          &
+                                map_wt(:,cell),           &
+                                ndf_w0, undf_w0,          &
+                                map_w0(:,cell), basis_w0, &
+                                ndf_pid, undf_pid,        &
+                                map_pid(:,cell)           &
+                              )
+
+    answer = 0.6812726E-03_r_def
+    @assertEqual(answer, buoyancy_data(3), tol)
+
+    deallocate(map_w0)
+    deallocate(map_wt)
+    deallocate(map_pid)
+    deallocate(basis_w0)
+    deallocate(chi_data)
+    deallocate(panel_id)
+    deallocate(buoyancy_data)
+
+
+  end subroutine test_all
+
+end module initial_buoyancy_kernel_mod_test

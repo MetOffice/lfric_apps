@@ -1,0 +1,47 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_coupled_interface.cylc") %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "coupled_interface_ex1a_developer": [
+        "coupled_interface_ex1a_unit_tests",
+    ],
+    "coupled_interface_ex1a": [
+        "coupled_interface_ex1a_developer",
+    ],
+    "coupled_interface_ex1a_unit_tests": [
+        "coupled_interface_unit_tests_ex1a_gnu_64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "coupled_interface_developer": [
+        "scripts",
+        "coupled_interface_ex1a_developer",
+        "coupled_interface_unit_tests",
+    ],
+    "coupled_interface": [
+        "coupled_interface_developer",
+        "coupled_interface_ex1a",
+    ],
+    "coupled_interface_unit_tests": [
+        "coupled_interface_ex1a_unit_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.coupled_interface_developer) %}
+{% do site_groups.all.extend(site_groups.coupled_interface) %}
+{% do site_groups.unit_tests.extend(site_groups.coupled_interface_unit_tests) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.coupled_interface_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.coupled_interface_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.coupled_interface_ex1a_unit_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_coupled_interface.cylc") %}

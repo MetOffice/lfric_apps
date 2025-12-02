@@ -1,0 +1,222 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the weighted W2 mass matrix obtained by eliminating theta
+module eliminated_theta_q22_kernel_mod_test
+
+  use, intrinsic :: iso_fortran_env, only : real64
+  use constants_mod, only : i_def, r_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: eliminated_theta_q22_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type eliminated_theta_q22_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_finite_element_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(eliminated_theta_q22_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             coord_system=coord_system_xyz,     &
+             vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(eliminated_theta_q22_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use eliminated_theta_q22_kernel_mod, only : eliminated_theta_q22_code
+
+    implicit none
+
+    class(eliminated_theta_q22_test_type), intent(inout) :: this
+
+    real(kind=r_solver), parameter :: tol = 1.0e-12_r_solver
+    real(r_solver)                 :: use_tol
+
+    ! Mesh
+    integer(kind=i_def), parameter :: ncell   = 1
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: cell    = 1
+
+    ! Array sizes
+    integer(kind=i_def), parameter :: ndf_w2 = 4_i_def
+    integer(kind=i_def), parameter :: ndf_wt = 2_i_def
+    integer(kind=i_def), parameter :: ndf_wx = 8_i_def
+    integer(kind=i_def), parameter :: ndf_p  = 1_i_def
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2
+    integer(kind=i_def), parameter :: undf_wt = ndf_wt
+    integer(kind=i_def), parameter :: undf_wx = ndf_wx
+    integer(kind=i_def), parameter :: undf_p  = ndf_p
+    ! Operators to test
+    real(kind=r_solver), dimension(ncell,ndf_w2,ndf_w2) :: q22
+    ! Maps
+    integer(kind=i_def), dimension(ndf_wx) :: map_wx
+    integer(kind=i_def), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), dimension(ndf_wt) :: map_wt
+    integer(kind=i_def), dimension(ndf_p)  :: map_p
+    ! Basis arrays
+    real(kind=r_def), dimension(3,ndf_w2) :: basis_w2
+    real(kind=r_def), dimension(3,ndf_wt) :: diff_basis_wt
+    real(kind=r_def), dimension(1,ndf_wx) :: basis_wx
+    real(kind=r_def), dimension(3,ndf_wx) :: diff_basis_wx
+    ! Quadrature
+    integer(kind=i_def), parameter   :: nqp = 1_i_def
+    real(kind=r_def), dimension(nqp) :: wgt
+    ! Fields
+    real(kind=r_solver), dimension(ndf_w2) :: norm_u
+    real(kind=r_solver), dimension(ndf_wt) :: exner, theta
+    real(kind=r_def), dimension(ndf_p)  :: panel_id
+    ! Coordinate fields
+    real(kind=r_def), dimension(ndf_wx) :: x, y, z
+    real(kind=r_def)                    :: dx, dy, dz, zero, detj
+    ! Scalars
+    real(kind=r_solver)                    :: const
+
+    integer(kind=i_def) :: i, df1, df2
+
+    real(kind=r_solver), dimension(ndf_w2, ndf_w2) :: answer
+
+    ! Set cell coordinates
+    dx = 2.0_r_def
+    dy = 3.0_r_def
+    dz = 4.0_r_def
+    zero = 0.0_r_def
+    x = (/ zero, dx,   dx,   zero, zero, dx,   dx, zero /)
+    y = (/ zero, zero, dy,   dy,   zero, zero, dy, dy /)
+    z = (/ zero, zero, zero, zero, dz,   dz,   dz, dz /)
+
+    do i = 1,ndf_wx
+      map_wx(i) = int(i,i_def)
+    end do
+    do i = 1,ndf_w2
+      map_w2(i) = int(i,i_def)
+    end do
+    do i = 1,ndf_wt
+      map_wt(i) = int(i,i_def)
+    end do
+    do i = 1,ndf_p
+      map_p(i) = int(i,i_def)
+    end do
+
+    ! Quadrature
+    wgt(:) = 1.0_r_def
+
+    ! Basis functions
+    basis_w2(:,1) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    basis_w2(:,2) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    basis_w2(:,3) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+    basis_w2(:,4) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+
+    diff_basis_wt(:,1) =  (/ 0.0_r_def, 0.0_r_def, -1.0_r_def /)
+    diff_basis_wt(:,2) =  (/ 0.0_r_def, 0.0_r_def,  1.0_r_def /)
+
+    ! Coordinate basis
+    diff_basis_wx(:,1) = (/ -1.0_r_def, -1.0_r_def, -1.0_r_def /)
+    diff_basis_wx(:,2) = (/  1.0_r_def, -1.0_r_def, -1.0_r_def /)
+    diff_basis_wx(:,3) = (/  1.0_r_def,  1.0_r_def, -1.0_r_def /)
+    diff_basis_wx(:,4) = (/ -1.0_r_def,  1.0_r_def, -1.0_r_def /)
+    diff_basis_wx(:,5) = (/ -1.0_r_def, -1.0_r_def,  1.0_r_def /)
+    diff_basis_wx(:,6) = (/  1.0_r_def, -1.0_r_def,  1.0_r_def /)
+    diff_basis_wx(:,7) = (/  1.0_r_def,  1.0_r_def,  1.0_r_def /)
+    diff_basis_wx(:,8) = (/ -1.0_r_def,  1.0_r_def,  1.0_r_def /)
+    diff_basis_wx= 0.25_r_def*diff_basis_wx
+    basis_wx(:,:) = 0.125_r_def
+
+    ! Fields
+    panel_id = (/ 1.0_r_def /)
+    theta = (/ 300.0_r_solver, 310.0_r_solver /)
+    exner = (/ 1.0_r_solver, 0.95_r_solver /)
+    norm_u = (/ 2.0_r_solver, 0.5_r_solver, 3.0_r_solver, 6.3_r_solver /)
+    const = 17.0_r_solver
+
+    call eliminated_theta_q22_code(cell,                    &
+                                   nlayers,                 &
+                                   ncell,                   &
+                                   q22,                     &
+                                   theta,                   &
+                                   exner,                   &
+                                   norm_u,                  &
+                                   x, y, z,                 &
+                                   panel_id,                &
+                                   const,                   &
+                                   ndf_w2, undf_w2, map_w2, &
+                                   basis_w2,                &
+                                   ndf_wt, undf_wt, map_wt, &
+                                   diff_basis_wt,           &
+                                   ndf_wx, undf_wx, map_wx, &
+                                   basis_wx, diff_basis_wx, &
+                                   ndf_p, undf_p, map_p,    &
+                                   nqp, nqp, wgt, wgt)
+
+    ! Q22 = norm_u * const * < basis_w2, (dtheta/dz * k.basis_w2)*(k*dexner/dz)/detJ >
+    ! Q22 is only non-zero for vertical dofs (=3,4) so we only need to compute
+    ! the answer for these
+    detj = dx*dy*dz
+    answer = 0.0_r_solver
+    do df2 = 3,4
+      do df1 = 3,4
+        answer(df1,df2) = 0.25_r_solver * const * norm_u(df1) * &
+                          (exner(2)-exner(1))*(theta(2)-theta(1))/real(detj, r_solver)
+      end do
+    end do
+
+    ! Choose tolerance according to r_solver
+    if ( r_solver == real64 ) then
+      use_tol = tol
+    else
+      use_tol = max( 1.0E-7_r_solver, 10.0_r_solver*spacing( maxval( q22(1,:,:) ) ) )
+    end if
+
+    @assertEqual(answer, q22(1,:,:), use_tol)
+
+  end subroutine test_all
+
+end module eliminated_theta_q22_kernel_mod_test

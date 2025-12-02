@@ -1,0 +1,397 @@
+<field_definition>
+<field_group id="lfric_dictionary" operation="instant" prec="8">
+  <!-- gungho fields -->
+  <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+  <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+  <field id="exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+  <field id="h_u" name="h_u" long_name="Horizontal flux" unit="m-1 s-1" grid_ref="half_level_edge_grid" />
+  <field id="v_u" name="v_u" long_name="Vertical flux " unit="m-1 s-1" grid_ref="full_level_face_grid" />
+  <field id="m_v" name="m_v" long_name="m_v" standard_name="humidity_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="m_cl" name="m_cl" long_name="m_cl" standard_name="cloud_liquid_water_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="m_r" name="m_r" long_name="m_r" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="m_ci" name="m_ci" long_name="m_ci" standard_name="cloud_ice_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="m_s" name="m_s" long_name="m_s" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="m_g" name="m_g" long_name="m_g" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="ageofair" name="ageofair" long_name="ageofair" unit="s" grid_ref="half_level_face_grid" />
+  <field id="theta_ref" name="theta_ref" long_name="air_potential_temperature_ref" standard_name="air_potential_temperature_ref" unit="K" grid_ref="full_level_face_grid" />
+  <field id="rho_ref" name="rho_ref" long_name="air_density_ref" standard_name="air_density_ref" unit="kg m-3" grid_ref="half_level_face_grid" />
+  <field id="exner_ref" name="exner_ref" long_name="exner_pressure_ref" unit="1" grid_ref="half_level_face_grid" />
+  <field id="moist_dyn_gas_law_ref" name="moist_dyn_gas_law_ref" long_name="moist_dyn_gas_law_ref" unit="1" grid_ref="full_level_face_grid" />
+  <field id="moist_dyn_total_mass_ref" name="moist_dyn_total_mass_ref" long_name="moist_dyn_total_mass_ref" unit="1" grid_ref="full_level_face_grid" />
+  <field id="moist_dyn_water_ref" name="moist_dyn_water_ref" long_name="moist_dyn_water_ref" unit="1" grid_ref="full_level_face_grid" />
+  <!-- LBC fields-->
+  <field id="lbc_theta" name="lbc_theta" long_name="lbc_air_potential_temperature" standard_name="lbc_air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+  <field id="lbc_rho" name="lbc_rho" long_name="lbc_air_density" standard_name="lbc_air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
+  <field id="lbc_exner" name="lbc_exner" long_name="lbc_exner_pressure" unit="1" grid_ref="half_level_face_grid" />
+  <!-- field id="lbc_u" name="lbc_u" long_name="lbc_U" unit="m s-1" domain_ref="checkpoint_W2" enabled=".FALSE." /-->
+  <field id="lbc_h_u" name="lbc_h_u" long_name="Horizontal flux" unit="m-1 s-1" grid_ref="half_level_edge_grid" />
+  <field id="lbc_v_u" name="lbc_v_u" long_name="Vertical flux " unit="m-1 s-1" grid_ref="full_level_face_grid" />
+  <!-- field id="boundary_u_diff" name="boundary_u_diff" long_name="boundary_U_diff" unit="m s-1" domain_ref="checkpoint_W2" /-->
+  <field id="boundary_h_u_diff" name="boundary_h_u_diff" long_name="boundary_h_u_diff" unit="m s-1" grid_ref="half_level_edge_grid" />
+  <field id="boundary_v_u_diff" name="boundary_v_u_diff" long_name="boundary_v_u_diff" unit="m s-1" grid_ref="full_level_face_grid" />
+  <!-- field id="boundary_u_driving" name="boundary_u_driving" long_name="boundary_U_driving" unit="m s-1" domain_ref="checkpoint_W2" /-->
+  <field id="boundary_h_u_driving" name="boundary_h_u_driving" long_name="boundary_h_u_driving" unit="m s-1" grid_ref="half_level_edge_grid" />
+  <field id="boundary_v_u_driving" name="boundary_v_u_driving" long_name="boundary_v_u_driving" unit="m s-1" grid_ref="full_level_face_grid" />
+  <field id="lbc_m_v" name="lbc_m_v" long_name="lbc_m_v" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lbc_m_cl" name="lbc_m_cl" long_name="lbc_m_cl" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lbc_m_r" name="lbc_m_r" long_name="lbc_m_r" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lbc_m_ci" name="lbc_m_ci" long_name="lbc_m_ci" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lbc_m_s" name="lbc_m_s" long_name="lbc_m_s" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lbc_m_g" name="lbc_m_g" long_name="lbc_m_g" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <!-- chemistry fields -->
+  <field id="emiss_c2h6" name="emissions_C2H6" long_name="C2H6 surf emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_c3h8" name="emissions_C3H8" long_name="C3H8 surf emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_c5h8" name="emissions_C5H8" long_name="Biogenic surface C5H8 emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_ch4" name="emissions_CH4" long_name="CH4 surf emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_co" name="emissions_CO" long_name="CO surf emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_hcho" name="emissions_HCHO" long_name="HCHO surf emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_me2co" name="emissions_Me2CO" long_name="Me2CO surf emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_mecho" name="emissions_MeCHO" long_name="MeCHO surf emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_nh3" name="emissions_NH3" long_name="ammonia gas emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_no" name="emissions_NO" long_name="NOx surface emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_meoh" name="emissions_MeOH" long_name="Biogenic surface methanol (CH3OH) emissions" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_no_aircrft" name="emissions_NO_aircrft" long_name="NOx aircraft emissions" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
+  <field id="o3p" name="o3p" long_name="mass_fraction_of_oxygen_ground_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="o1d" name="o1d" long_name="mass_fraction_of_oxygen_excited_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="o3" name="o3" long_name="mass_fraction_of_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="n" name="n" long_name="mass_fraction_of_nitrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="no" name="no" long_name="mass_fraction_of_nitric_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="no3" name="no3" long_name="mass_fraction_of_nitrate_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lumped_n" name="lumped_n" long_name="mass_fraction_of_lumped_n_as_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="no2" name="no2" long_name="mass_fraction_of_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="n2o5" name="n2o5" long_name="mass_fraction_of_dinitrogen_pentoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="ho2no2" name="ho2no2" long_name="mass_fraction_of_peroxynitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hono2" name="hono2" long_name="mass_fraction_of_nitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="h2o2" name="h2o2" long_name="mass_fraction_of_hydrogen_peroxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="ch4" name="ch4" long_name="mass_fraction_of_methane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="co" name="co" long_name="mass_fraction_of_carbon_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hcho" name="hcho" long_name="mass_fraction_of_formaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="meoo" name="meoo" long_name="mass_fraction_of_methyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="meooh" name="meooh" long_name="mass_fraction_of_methyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="h" name="h" long_name="mass_fraction_of_hydrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="oh" name="oh" long_name="mass_fraction_of_hydroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="ho2" name="ho2" long_name="mass_fraction_of_hydroxy_peroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="cl" name="cl" long_name="mass_fraction_of_chloride_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="cl2o2" name="cl2o2" long_name="mass_fraction_of_chlorine_monoxide_dimer_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="clo" name="clo" long_name="mass_fraction_of_chlorine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="oclo" name="oclo" long_name="mass_fraction_of_chlorine_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="br" name="br" long_name="mass_fraction_of_bromine_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lumped_br" name="lumped_br" long_name="mass_fraction_of_lumped_br_as_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="bro" name="bro" long_name="mass_fraction_of_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="brcl" name="brcl" long_name="mass_fraction_of_bromine_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="brono2" name="brono2" long_name="mass_fraction_of_bromine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="n2o" name="n2o" long_name="mass_fraction_of_nitrous_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="lumped_cl" name="lumped_cl" long_name="mass_fraction_of_lumped_cl_as_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hcl" name="hcl" long_name="mass_fraction_of_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hocl" name="hocl" long_name="mass_fraction_of_hydrochlorous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hbr" name="hbr" long_name="mass_fraction_of_hydrogen_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hobr" name="hobr" long_name="mass_fraction_of_hydrobromous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="clono2" name="clono2" long_name="mass_fraction_of_chlorine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="cfcl3" name="cfcl3" long_name="mass_fraction_of_cfc11_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="cf2cl2" name="cf2cl2" long_name="mass_fraction_of_cfc12_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="mebr" name="mebr" long_name="mass_fraction_of_methyl_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hono" name="hono" long_name="mass_fraction_of_nitrous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="c2h6" name="c2h6" long_name="mass_fraction_of_ethane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="etoo" name="etoo" long_name="mass_fraction_of_ethyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="etooh" name="etooh" long_name="mass_fraction_of_ethyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="mecho" name="mecho" long_name="mass_fraction_of_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="meco3" name="meco3" long_name="mass_fraction_of_peroxy_acetic_acide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="pan" name="pan" long_name="mass_fraction_of_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="c3h8" name="c3h8" long_name="mass_fraction_of_propane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="n_proo" name="n_proo" long_name="mass_fraction_of_n-propyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="i_proo" name="i_proo" long_name="mass_fraction_of_i-propyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="n_prooh" name="n_prooh" long_name="mass_fraction_of_n-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="i_prooh" name="i_prooh" long_name="mass_fraction_of_i-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="etcho" name="etcho" long_name="mass_fraction_of_propionaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="etco3" name="etco3" long_name="mass_fraction_of_ethyl_carbonate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="me2co" name="me2co" long_name="mass_fraction_of_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="mecoch2oo" name="mecoch2oo" long_name="mass_fraction_of_acetone_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="mecoch2ooh" name="mecoch2ooh" long_name="mass_fraction_of_acetone_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="ppan" name="ppan" long_name="mass_fraction_of_peroxypropionyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="meono2" name="meono2" long_name="mass_fraction_of_methyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="c5h8" name="c5h8" long_name="mass_fraction_of_isoprene_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="iso2" name="iso2" long_name="mass_fraction_of_isoprene_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="isooh" name="isooh" long_name="mass_fraction_of_isoprene_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="ison" name="ison" long_name="mass_fraction_of_isoprene_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="macr" name="macr" long_name="mass_fraction_of_methacrolein_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="macro2" name="macro2" long_name="mass_fraction_of_lumped_mvk_macr_hydroperoxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="macrooh" name="macrooh" long_name="mass_fraction_of_lumped_mvk_macr_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="mpan" name="mpan" long_name="mass_fraction_of_methacryolyl_peroxynitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hacet" name="hacet" long_name="mass_fraction_of_hydroxy_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="mgly" name="mgly" long_name="mass_fraction_of_methylglyoxal_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="nald" name="nald" long_name="mass_fraction_of_nitroxy_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hcooh" name="hcooh" long_name="mass_fraction_of_formic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="meco3h" name="meco3h" long_name="mass_fraction_of_peroxy_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="meco2h" name="meco2h" long_name="mass_fraction_of_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="h2" name="h2" long_name="mass_fraction_of_hydrogen_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="meoh" name="meoh" long_name="mass_fraction_of_methanol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="msa" name="msa" long_name="mass_fraction_of_methyl_sulphonic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="nh3" name="nh3" long_name="mass_fraction_of_ammonia_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="cs2" name="cs2" long_name="mass_fraction_of_carbon_disulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="csul" name="csul" long_name="mass_fraction_of_carbonyl_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="h2s" name="h2s" long_name="mass_fraction_of_hydrogen_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="so3" name="so3" long_name="mass_fraction_of_sulphur_trioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="passive_o3" name="passive_o3" long_name="mass_fraction_of_passive_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="age_of_air" name="age_of_air" long_name="mass_fraction_of_age_of_air_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="dms" name="dms" long_name="mass_fraction_of_dimethyl_sulfide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="so2" name="so2" long_name="mass_fraction_of_sulfur_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="h2so4" name="h2so4" long_name="mass_fraction_of_sulfuric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="dmso" name="dmso" long_name="mass_fraction_of_dimethyl_sulfoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="monoterpene" name="monoterpene" long_name="mass_fraction_of_monoterpene_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="secondary_organic" name="secondary_organic" long_name="mass_fraction_of_secondary_organic_aerosols_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="h2o2_limit" name="h2o2_limit" long_name="Upper_limit_for_mass_fraction_of_hydrogen_peroxide_in_air" unit="1" grid_ref="full_level_face_grid" />
+  <field id="co2" name="co2" long_name="mass_fraction_of_carbon_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="h2o" name="h2o" long_name="mass_fraction_of_water_vapour_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="hcn" name="hcn" long_name="mass_fraction_of_hydrogen_cyanide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="he" name="he" long_name="mass_fraction_of_helium_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="n2" name="n2" long_name="mass_fraction_of_nitrogen_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="o2" name="o2" long_name="mass_fraction_of_oxygen_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="cs" name="cs" long_name="mass_fraction_of_cesium_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="k" name="k" long_name="mass_fraction_of_potassium_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="li" name="li" long_name="mass_fraction_of_lithium_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="na" name="na" long_name="mass_fraction_of_sodium_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="rb" name="rb" long_name="mass_fraction_of_rubidium_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="tio" name="tio" long_name="mass_fraction_of_titanium_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="vo" name="vo" long_name="mass_fraction_of_vanadium_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="photol_rates" name="photol_rates" long_name="photolysis_rates" unit="s-1" operation="once" grid_ref="full_level_face_grid_photol_species" />
+  <!-- aerosol fields -->
+  <field id="emiss_bc_biofuel" name="emiss_bc_biofuel" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_biofuel_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_bc_fossil" name="emiss_bc_fossil" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_fossil_fuel_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_dms_land" name="emiss_dms_land" long_name="tendency_of_atmosphere_mass_content_of_dimethyl_sulfate_due_to_emission_from_land_sources" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="dms_conc_ocean" name="dms_conc_ocean" long_name="mole_concentration_of_dimethyl_sulfide_in_sea_water" unit="mol m-3" domain_ref="face" />
+  <field id="emiss_monoterp" name="emiss_monoterp" long_name="tendency_of_atmosphere_mass_content_of_monoterpenes_due_to_emission" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_om_biofuel" name="emiss_om_biofuel" long_name="tendency_of_atmosphere_mass_content_of_particulate_organic_matter_dry_aerosol_expressed_as_carbon_due_to_emission_from_biofuel_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_om_fossil" name="emiss_om_fossil" long_name="tendency_of_atmosphere_mass_content_of_particulate_organic_matter_dry_aerosol_expressed_as_carbon_due_to_emission_from_fossil_fuel_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_so2_low" name="emiss_so2_low" long_name="tendency_of_atmosphere_mass_content_of_sulfur_dioxide_expressed_as_sulfur_due_to_emission_from_low_level_sources" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_so2_high" name="emiss_so2_high" long_name="tendency_of_atmosphere_mass_content_of_sulfur_dioxide_expressed_as_sulfur_due_to_emission_from_high_level_sources" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_bc_biomass" name="emiss_bc_biomass" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_emission_from_biomass_burning" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
+  <field id="emiss_bc_biomass_high" name="emiss_bc_biomass_high" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_high_level_emission_from_biomass_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_bc_biomass_low" name="emiss_bc_biomass_low" long_name="tendency_of_atmosphere_mass_content_of_black_carbon_dry_aerosol_due_to_low_level_emission_from_biomass_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_om_biomass" name="emiss_om_biomass" long_name="tendency_of_atmosphere_mass_content_of_particulate_organic_matter_dry_aerosol_expressed_as_carbon_due_to_emission_from_biomass_burning" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
+  <field id="emiss_om_biomass_high" name="emiss_om_biomass_high" long_name="tendency_of_atmosphere_mass_content_of_particulate_organic_matter_dry_aerosol_expressed_as_carbon_due_to_high_level_emission_from_biomass_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_om_biomass_low" name="emiss_om_biomass_low" long_name="tendency_of_atmosphere_mass_content_of_particulate_organic_matter_dry_aerosol_expressed_as_carbon_due_to_low_level_emission_from_biomass_burning" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="emiss_so2_nat" name="emiss_so2_nat" long_name="tendency_of_atmosphere_mass_content_of_sulfur_dioxide_expressed_as_sulfur_from_natural_sources" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
+  <field id="soil_clay" name="soil_clay" long_name="volume_fraction_of_clay_in_soil" unit="1" domain_ref="face" />
+  <field id="soil_sand" name="soil_sand" long_name="volume_fraction_of_sand_in_soil" unit="1" domain_ref="face" />
+  <field id="surf_wetness" name="surf_wetness" long_name="surface_wetness" unit="1" domain_ref="face" />
+  <field id="dust_mrel" name="dust_mrel" long_name="mass_fraction_of_dust_in_size_bins" unit="1" domain_ref="face" axis_ref="dust_divisions" />
+  <field id="n_nuc_sol" name="n_nuc_sol" long_name="nucleation_soluble_mode_number" unit="1" grid_ref="var_full_face_grid" />
+  <field id="nuc_sol_su" name="nuc_sol_su" long_name="nucleation_soluble_mode_h2so4_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="nuc_sol_om" name="nuc_sol_om" long_name="nucleation_soluble_mode_organic_matter_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="n_ait_sol" name="n_ait_sol" long_name="aitken_soluble_mode_number" unit="1" grid_ref="var_full_face_grid" />
+  <field id="ait_sol_su" name="ait_sol_su" long_name="aitken_soluble_mode_h2so4_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="ait_sol_bc" name="ait_sol_bc" long_name="aitken_soluble_mode_black_carbon_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="ait_sol_om" name="ait_sol_om" long_name="aitken_soluble_mode_organic_matter_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="n_acc_sol" name="n_acc_sol" long_name="accumulation_soluble_mode_number" unit="1" grid_ref="var_full_face_grid" />
+  <field id="acc_sol_su" name="acc_sol_su" long_name="accumulation_soluble_mode_h2so4_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="acc_sol_bc" name="acc_sol_bc" long_name="accumulation_soluble_mode_black_carbon_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="acc_sol_om" name="acc_sol_om" long_name="accumulation_soluble_mode_organic_matter_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="acc_sol_ss" name="acc_sol_ss" long_name="accumulation_soluble_mode_sea_salt_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="n_cor_sol" name="n_cor_sol" long_name="coarse_soluble_mode_number" unit="1" grid_ref="var_full_face_grid" />
+  <field id="cor_sol_su" name="cor_sol_su" long_name="coarse_soluble_mode_h2so4_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="cor_sol_bc" name="cor_sol_bc" long_name="coarse_soluble_mode_black_carbon_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="cor_sol_om" name="cor_sol_om" long_name="coarse_soluble_mode_organic_matter_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="cor_sol_ss" name="cor_sol_ss" long_name="coarse_soluble_mode_sea_salt_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="n_ait_ins" name="n_ait_ins" long_name="aitken_insoluble_mode_number" unit="1" grid_ref="var_full_face_grid" />
+  <field id="ait_ins_bc" name="ait_ins_bc" long_name="aitken_insoluble_mode_black_carbon_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="ait_ins_om" name="ait_ins_om" long_name="aitken_insoluble_mode_organic_matter_mmr" unit="kg kg-1" grid_ref="var_full_face_grid" />
+  <field id="n_acc_ins" name="n_acc_ins" long_name="accumulation_insoluble_mode_number" unit="1" grid_ref="full_level_face_grid" />
+  <field id="acc_ins_du" name="acc_ins_du" long_name="accumulation_insoluble_mode_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="n_cor_ins" name="n_cor_ins" long_name="coarse_insoluble_mode_number" unit="1" grid_ref="full_level_face_grid" />
+  <field id="cor_ins_du" name="cor_ins_du" long_name="coarse_insoluble_mode_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="cloud_drop_no_conc" name="cloud_drop_no_conc" long_name="cloud_droplet_number_concentration" unit="m-3" grid_ref="full_level_face_grid" />
+  <field id="drydp_ait_sol" name="drydp_ait_sol" long_name="dry_modal_diameter_of_aitken_soluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="drydp_acc_sol" name="drydp_acc_sol" long_name="dry_modal_diameter_of_accumulation_soluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="drydp_cor_sol" name="drydp_cor_sol" long_name="dry_modal_diameter_of_coarse_soluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="drydp_ait_ins" name="drydp_ait_ins" long_name="dry_modal_diameter_of_aitken_insoluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="drydp_acc_ins" name="drydp_acc_ins" long_name="dry_modal_diameter_of_accumulation_insoluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="drydp_cor_ins" name="drydp_cor_ins" long_name="dry_modal_diameter_of_coarse_insoluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="wetdp_ait_sol" name="wetdp_ait_sol" long_name="wet_modal_diameter_of_aitken_soluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="wetdp_acc_sol" name="wetdp_acc_sol" long_name="wet_modal_diameter_of_accumulation_soluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="wetdp_cor_sol" name="wetdp_cor_sol" long_name="wet_modal_diameter_of_coarse_soluble_mode" unit="m" grid_ref="var_full_face_grid" />
+  <field id="rhopar_ait_sol" name="rhopar_ait_sol" long_name="particle_density_of_aitken_soluble_mode" unit="kg m-3" grid_ref="var_full_face_grid" />
+  <field id="rhopar_acc_sol" name="rhopar_acc_sol" long_name="particle_density_of_accumulation_soluble_mode" unit="kg m-3" grid_ref="var_full_face_grid" />
+  <field id="rhopar_cor_sol" name="rhopar_cor_sol" long_name="particle_density_of_coarse_soluble_mode" unit="kg m-3" grid_ref="var_full_face_grid" />
+  <field id="rhopar_ait_ins" name="rhopar_ait_ins" long_name="particle_density_of_aitken_insoluble_mode" unit="kg m-3" grid_ref="var_full_face_grid" />
+  <field id="rhopar_acc_ins" name="rhopar_acc_ins" long_name="particle_density_of_accumulation_insoluble_mode" unit="kg m-3" grid_ref="var_full_face_grid" />
+  <field id="rhopar_cor_ins" name="rhopar_cor_ins" long_name="particle_density_of_coarse_insoluble_mode" unit="kg m-3" grid_ref="var_full_face_grid" />
+  <field id="pvol_wat_ait_sol" name="pvol_wat_ait_sol" long_name="partial_volume_of_water_in_aitken_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_wat_acc_sol" name="pvol_wat_acc_sol" long_name="partial_volume_of_water_in_accumulation_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_wat_cor_sol" name="pvol_wat_cor_sol" long_name="partial_volume_of_water_in_coarse_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_su_ait_sol" name="pvol_su_ait_sol" long_name="partial_volume_of_h2so4_in_aitken_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_bc_ait_sol" name="pvol_bc_ait_sol" long_name="partial_volume_of_black_carbon_in_aitken_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_om_ait_sol" name="pvol_om_ait_sol" long_name="partial_volume_of_organic_matter_in_aitken_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_su_acc_sol" name="pvol_su_acc_sol" long_name="partial_volume_of_h2so4_in_accumulation_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_bc_acc_sol" name="pvol_bc_acc_sol" long_name="partial_volume_of_black_carbon_in_accumulation_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_om_acc_sol" name="pvol_om_acc_sol" long_name="partial_volume_of_organic_matter_in_accumulation_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_ss_acc_sol" name="pvol_ss_acc_sol" long_name="partial_volume_of_sea_salt_in_accumulation_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_su_cor_sol" name="pvol_su_cor_sol" long_name="partial_volume_of_h2so4_in_coarse_soluble_mode_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_bc_cor_sol" name="pvol_bc_cor_sol" long_name="partial_volume_of_black_carbon_in_coarse_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_om_cor_sol" name="pvol_om_cor_sol" long_name="partial_volume_of_organic_matter_in_coarse_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_ss_cor_sol" name="pvol_ss_cor_sol" long_name="partial_volume_of_sea_salt_in_coarse_soluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_bc_ait_ins" name="pvol_bc_ait_ins" long_name="partial_volume_of_black_carbon_in_aitken_insoluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_om_ait_ins" name="pvol_om_ait_ins" long_name="partial_volume_of_organic_matter_in_aitken_insoluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_du_acc_ins" name="pvol_du_acc_ins" long_name="partial_volume_of_dust_in_accumulation_insoluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="pvol_du_cor_ins" name="pvol_du_cor_ins" long_name="partial_volume_of_dust_in_coarse_insoluble_mode" unit="m3" grid_ref="var_full_face_grid" />
+  <field id="murk" name="murk" long_name="simple_single_species_aerosol_murk" unit="microg kg-1" grid_ref="full_level_face_grid" />
+  <!-- Easy Aerosol fields -->
+  <field id="easy_asymmetry_sw" name="easy_asymmetry_sw" long_name="asymmetry parameter of EasyAerosol" unit="1" grid_ref="full_level_face_grid_sw_bands" />
+  <field id="easy_asymmetry_lw" name="easy_asymmetry_lw" long_name="asymmetry parameter of EasyAerosol" unit="1" grid_ref="full_level_face_grid_lw_bands" />
+  <field id="easy_absorption_sw" name="easy_absorption_sw" long_name="absorption coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_sw_bands" />
+  <field id="easy_absorption_lw" name="easy_absorption_lw" long_name="absorption coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_lw_bands" />
+  <field id="easy_extinction_sw" name="easy_extinction_sw" long_name="extinction coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_sw_bands" />
+  <field id="easy_extinction_lw" name="easy_extinction_lw" long_name="extinction coefficient of EasyAerosol" unit="m-1" grid_ref="full_level_face_grid_lw_bands" />
+  <!-- cloud fields -->
+  <field id="area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <field id="frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <field id="liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <field id="bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <!-- convection fields -->
+  <field id="cca" name="cca" long_name="convective_cloud_amount" unit="1" grid_ref="full_level_face_grid" />
+  <field id="ccw" name="ccw" long_name="convective_cloud_water" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="conv_rain" name="conv_rain" long_name="surface_convective_rainfall_rate" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="conv_snow" name="conv_snow" long_name="surface_convective_snowfall_rate" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="dd_mf_cb" name="dd_mf_cb" long_name="downdraft_massflux_at_cloud_base" unit="Pa s-1" domain_ref="face" />
+  <field id="conv_prog_dtheta" name="conv_prog_dtheta" long_name="convective_prognostic_dtheta" unit="K" grid_ref="full_level_face_grid" />
+  <field id="conv_prog_dmv" name="conv_prog_dmv" long_name="convective_prognostic_dmv" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="conv_prog_precip" name="conv_prog_precip" long_name="convective_prognostic_precipitation" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
+  <field id="cv_base" name="cv_base" long_name="model_level_number_at_conv_cloud_base" unit="1" domain_ref="face" />
+  <field id="cv_top" name="cv_top" long_name="model_level_number_at_conv_cloud_top" unit="1" domain_ref="face" />
+  <!-- electric fields -->
+  <field id="flash_potential" name="flash_potential" long_name="lightning_flash_potential" unit="1" domain_ref="face" />
+  <!-- microphysics fields -->
+  <field id="precfrac" name="precfrac" long_name="precipitation_fraction" unit="1" grid_ref="full_level_face_grid" />
+  <!-- casim microphysics fields -->
+  <field id="nl_mphys" name="nl_mphys" long_name="number_concentration_of_cloud_droplets_after_microphysics" unit="kg-1" grid_ref="full_level_face_grid" />
+  <field id="nr_mphys" name="nr_mphys" long_name="number_concentration_of_rain_after_microphysics" unit="kg-1" grid_ref="full_level_face_grid" />
+  <field id="ni_mphys" name="ni_mphys" long_name="number_concentration_of_cloud_ice_after_microphysics" unit="kg-1" grid_ref="full_level_face_grid" />
+  <field id="ns_mphys" name="ns_mphys" long_name="number_concentration_of_snow_after_microphysics" unit="kg-1" grid_ref="full_level_face_grid" />
+  <field id="ng_mphys" name="ng_mphys" long_name="number_concentration_of_graupel_after_microphysics" unit="kg-1" grid_ref="full_level_face_grid" />
+  <!-- turbulence fields -->
+  <field id="zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" />
+  <field id="wvar" name="wvar" long_name="vertical_velocity_variance" unit="m2 s-2" grid_ref="full_level_face_grid" />
+  <!-- surface fields -->
+  <field id="z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" />
+  <field id="surface_conductance" name="surface_conductance" long_name="surface_conductance" unit="m s-1" domain_ref="face" />
+  <field id="chloro_sea" name="chloro_sea" long_name="sea_chlorophyll_content" unit="kg m-3" domain_ref="face" />
+  <field id="leaf_area_index" name="leaf_area_index" long_name="leaf_area_index_of_vegetated_tiles" unit="1" domain_ref="face" axis_ref="plant_func_types" />
+  <field id="canopy_height" name="canopy_height" long_name="canopy_height_of_vegetated_tiles" unit="m" domain_ref="face" axis_ref="plant_func_types" />
+  <field id="tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="tile_lw_grey_albedo" name="tile_lw_grey_albedo" long_name="surface_tile_lw_grey_albedo" unit="1" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="screen_temperature" name="screen_temperature" long_name="screen_temperature_on_tiles" unit="K" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="time_since_transition" name="time_since_transition" long_name="time_since_decoupled_screen_transition" unit="s" domain_ref="face" />
+  <field id="canopy_water" name="canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="urbwrr" name="urbwrr" long_name="Urban width repeating ratio" unit="1" domain_ref="face" />
+  <field id="urbhwr" name="urbhwr" long_name="Urban height-to-width ratio" unit="1" domain_ref="face" />
+  <field id="urbhgt" name="urbhgt" long_name="Urban building height" unit="m" domain_ref="face" />
+  <field id="albedo_obs_scaling" name="albedo_obs_scaling" long_name="albedo_obs_scaling" unit="1" domain_ref="face" axis_ref="land_tile_rad_band" />
+  <field id="sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
+  <field id="sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" domain_ref="face" axis_ref="sea_ice_categories" />
+  <field id="sea_surf_temp_pert" name="sea_surf_temp_pert" long_name="sea_surface_temperature_perturbation" unit="K" domain_ref="face" />
+  <field id="internal_flux" name="internal_flux" long_name="internal_flux" unit="W m-2" domain_ref="face" />
+  <!-- orography fields -->
+  <field id="sd_orog" name="sd_orog" long_name="standard_deviation_of_orography"  unit="m" domain_ref="face" />
+  <field id="grad_xx_orog" name="grad_xx_orog" long_name="orographic_gradient_XX_component"  unit="1" domain_ref="face" />
+  <field id="grad_xy_orog" name="grad_xy_orog" long_name="orographic_gradient_XY_component"  unit="1" domain_ref="face" />
+  <field id="grad_yy_orog" name="grad_yy_orog" long_name="orographic_gradient_YY_component"  unit="1" domain_ref="face" />
+  <field id="peak_to_trough_orog" name="peak_to_trough_orog" long_name="half_of_peak_to_trough_ht_of_orog"  unit="m" domain_ref="face" />
+  <field id="silhouette_area_orog" name="silhouette_area_orog" long_name="silhouette_orographic_roughness"  unit="m" domain_ref="face" />
+  <!-- radiation fields -->
+  <field id="albedo_obs_vis" name="albedo_obs_vis" long_name="observed_visible_albedo" unit="1" domain_ref="face" />
+  <field id="albedo_obs_nir" name="albedo_obs_nir" long_name="observed_near-infrared_albedo" unit="1" domain_ref="face" />
+  <field id="ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" />
+  <field id="lw_down_surf_rts" name="lw_down_surf_rts" long_name="surface_downward_longwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_down_surf_rts" name="sw_down_surf_rts" long_name="surface_downward_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_direct_surf_rts" name="sw_direct_surf_rts" long_name="surface_direct_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_down_blue_surf_rts" name="sw_down_blue_surf_rts" long_name="surface_downward_0-690nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_direct_blue_surf_rts" name="sw_direct_blue_surf_rts" long_name="surface_direct_0-690nm_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="lw_up_tile_rts" name="lw_up_tile_rts" long_name="surface_upward_longwave_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="sw_up_tile_rts" name="sw_up_tile_rts" long_name="surface_upward_shortwave_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="sw_up_blue_tile_rts" name="sw_up_blue_tile_rts" long_name="surface_upward_0-690nm_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="lw_up_surf_rts" name="lw_up_surf_rts" long_name="surface_upward_longwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_up_surf_rts" name="sw_up_surf_rts" long_name="surface_upward_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="lw_up_toa_rts" name="lw_up_toa_rts" long_name="toa_upward_longwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_up_toa_rts" name="sw_up_toa_rts" long_name="toa_upward_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_direct_toa_rts" name="sw_direct_toa_rts" long_name="toa_direct_shortwave_flux_radiative_timestep" unit="W m-2" domain_ref="face" />
+  <field id="sw_heating_rate_rts" name="sw_heating_rate_rts" long_name="shortwave_heating_rate_radiative_timestep" unit="K s-1" grid_ref="full_level_face_grid" />
+  <field id="lw_heating_rate_rts" name="lw_heating_rate_rts" long_name="longwave_heating_rate_radiative_timestep" unit="K s-1" grid_ref="full_level_face_grid" />
+  <field id="cos_zenith_angle_rts" name="cos_zenith_angle_rts" long_name="cosine_of_the_solar_zenith_angle_radiative_timestep" unit="1" domain_ref="face" />
+  <field id="lit_fraction_rts" name="lit_fraction_rts" long_name="sunlit_fraction_of_the_timestep_radiative_timestep" unit="1" domain_ref="face" />
+  <field id="stellar_irradiance_rts" name="stellar_irradiance_rts" long_name="stellar_irradiance_radiative_timestep" unit="1" domain_ref="face" />
+  <field id="sin_stellar_declination_rts" name="sin_stellar_declination_rts" long_name="sin_stellar_declination_radiative_timestep" unit="1" domain_ref="face" />
+  <field id="stellar_eqn_of_time_rts" name="stellar_eqn_of_time_rts" long_name="stellar_equation_of_time_radiative_timestep" unit="1" domain_ref="face" />
+  <field id="orographic_correction_rts" name="orographic_correction_rts" long_name="orographic_correction_radiative_timestep" unit="1" domain_ref="face" />
+  <field id="slope_angle" name="slope_angle" long_name="surface_slope_elevation_angle" unit="radian" domain_ref="face" />
+  <field id="slope_aspect" name="slope_aspect" long_name="surface_slope_azimuth_angle" unit="radian" domain_ref="face" />
+  <field id="skyview" name="skyview" long_name="skyview_factor" unit="1" domain_ref="face" />
+  <field id="horizon_angle" name="horizon_angle" long_name="horizon_zenith_angle" unit="radian" domain_ref="face" axis_ref="horizon_angles" />
+  <field id="horizon_aspect" name="horizon_aspect" long_name="horizon_azimuth_angle" unit="radian" domain_ref="face" axis_ref="horizon_aspects" />
+  <!-- radiation fields for increment timestepping -->
+  <field id="lw_down_surf_rtsi" name="lw_down_surf_rtsi" long_name="surface_downward_longwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_down_surf_rtsi" name="sw_down_surf_rtsi" long_name="surface_downward_shortwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_direct_surf_rtsi" name="sw_direct_surf_rtsi" long_name="surface_direct_shortwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_down_blue_surf_rtsi" name="sw_down_blue_surf_rtsi" long_name="surface_downward_0-690nm_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_direct_blue_surf_rtsi" name="sw_direct_blue_surf_rtsi" long_name="surface_direct_0-690nm_flux" unit="W m-2" domain_ref="face" />
+  <field id="lw_up_tile_rtsi" name="lw_up_tile_rtsi" long_name="surface_upward_longwave_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="sw_up_tile_rtsi" name="sw_up_tile_rtsi" long_name="surface_upward_shortwave_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="sw_up_blue_tile_rtsi" name="sw_up_blue_tile_rtsi" long_name="surface_upward_0-690nm_flux_on_tiles" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="lw_up_surf_rtsi" name="lw_up_surf_rtsi" long_name="surface_upward_longwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_up_surf_rtsi" name="sw_up_surf_rtsi" long_name="surface_upward_shortwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="lw_up_toa_rtsi" name="lw_up_toa_rtsi" long_name="toa_upward_longwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_up_toa_rtsi" name="sw_up_toa_rtsi" long_name="toa_upward_shortwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_direct_toa_rtsi" name="sw_direct_toa_rtsi" long_name="toa_direct_shortwave_flux" unit="W m-2" domain_ref="face" />
+  <field id="sw_heating_rate_rtsi" name="sw_heating_rate_rtsi" long_name="shortwave_heating_rate" unit="K s-1" grid_ref="full_level_face_grid" />
+  <field id="lw_heating_rate_rtsi" name="lw_heating_rate_rtsi" long_name="longwave_heating_rate" unit="K s-1" grid_ref="full_level_face_grid" />
+  <!-- radiation fields from radaer -->
+  <field id="aer_mix_ratio" name="aer_mix_ratio" long_name="aerosol_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid_aero_modes" />
+  <field id="aer_sw_absorption" name="aer_sw_absorption" long_name="aer_sw_absorption" unit="1" grid_ref="full_level_face_grid_sw_bands_aero_modes" />
+  <field id="aer_sw_scattering" name="aer_sw_scattering" long_name="aer_sw_scattering" unit="1" grid_ref="full_level_face_grid_sw_bands_aero_modes" />
+  <field id="aer_sw_asymmetry" name="aer_sw_asymmetry" long_name="aer_sw_asymmetry" unit="1" grid_ref="full_level_face_grid_sw_bands_aero_modes" />
+  <field id="aer_lw_absorption" name="aer_lw_absorption" long_name="aer_lw_absorption" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" />
+  <field id="aer_lw_scattering" name="aer_lw_scattering" long_name="aer_lw_scattering" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" />
+  <field id="aer_lw_asymmetry" name="aer_lw_asymmetry" long_name="aer_lw_asymmetry" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" />
+  <!-- stochastic fields --> 
+  <field id="blpert_rand_fld" name="blpert_rand_fld" long_name="blpert_random_number" unit="1" domain_ref="face" />
+  <field id="blpert_flag" name="blpert_flag" long_name="blpert_perturbed_flag" unit="1" domain_ref="face" />
+  <field id="random_seed" name="random_seed" long_name="random_seed_for_stochastic_physics" unit="1" grid_ref="random_seed_grid" />
+  <!-- snow fields -->
+  <field id="tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="n_snow_layers" name="n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="snow_depth" name="snow_depth" long_name="snow_depth_on_tiles" unit="m" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="snowpack_density" name="snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="snow_under_canopy" name="snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" domain_ref="face" axis_ref="surface_tiles" />
+  <field id="snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" domain_ref="face" axis_ref="snow_layers_and_tiles" />
+  <field id="snow_layer_ice_mass" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="snow_layers_and_tiles" />
+  <field id="snow_layer_liq_mass" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="snow_layers_and_tiles" />
+  <field id="snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" axis_ref="snow_layers_and_tiles" />
+  <field id="snow_layer_rgrain" name="snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" axis_ref="snow_layers_and_tiles" />
+  <field id="snow_soot" name="snow_soot" long_name="snow_soot_content" unit="kg kg-1" domain_ref="face" />
+  <!-- soil fields -->
+  <field id="soil_albedo" name="soil_albedo" long_name="soil_albedo" unit="1" domain_ref="face" />
+  <field id="soil_roughness" name="soil_roughness" long_name="soil_surface_roughness_length" unit="m" domain_ref="face" />
+  <field id="soil_thermal_cond" name="soil_thermal_cond" long_name="thermal_conductivity_of_soil" unit="W m-1 K-1" domain_ref="face" />
+  <field id="mean_topog_index" name="mean_topog_index" long_name="mean_topographic_index" unit="1" domain_ref="face" />
+  <field id="a_sat_frac" name="a_sat_frac" long_name="saturated_fraction_a_parameter" unit="1" domain_ref="face" />
+  <field id="c_sat_frac" name="c_sat_frac" long_name="saturated_fraction_c_parameter" unit="1" domain_ref="face" />
+  <field id="a_wet_frac" name="a_wet_frac" long_name="wet_fraction_a_parameter" unit="1" domain_ref="face" />
+  <field id="c_wet_frac" name="c_wet_frac" long_name="wet_fraction_c_parameter" unit="1" domain_ref="face" />
+  <field id="soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" />
+  <field id="water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" />
+  <field id="wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" domain_ref="face" />
+  <field id="soil_moist_wilt" name="soil_moist_wilt" long_name="soil_moisture_at_wilting_point" unit="m3 m-3" domain_ref="face" />
+  <field id="soil_moist_crit" name="soil_moist_crit" long_name="soil_moisture_at_critical_point" unit="m3 m-3" domain_ref="face" />
+  <field id="soil_moist_sat" name="soil_moist_sat" long_name="soil_moisture_at_saturation" unit="m3 m-3" domain_ref="face" />
+  <field id="soil_cond_sat" name="soil_cond_sat" long_name="soil_conductivity_at_saturation" unit="kg m-2 s-1" domain_ref="face" />
+  <field id="soil_thermal_cap" name="soil_thermal_cap" long_name="soil_thermal_capacity" unit="J K-1 m-3" domain_ref="face" />
+  <field id="soil_suction_sat" name="soil_suction_sat" long_name="soil_suction_at_saturation" unit="1" domain_ref="face" />
+  <field id="clapp_horn_b" name="clapp_horn_b" long_name="exponent_for_soil_moisture_functions" unit="1" domain_ref="face" />
+  <field id="soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" domain_ref="face" axis_ref="soil_levels" />
+  <field id="soil_moisture" name="soil_moisture" long_name="mass_content_of_water_in_soil_layer" unit="kg kg-1" domain_ref="face" axis_ref="soil_levels" />
+  <field id="unfrozen_soil_moisture" name="unfrozen_soil_moisture" long_name="mass_fraction_of_unfrozen_water_in_saturated_soil_moisture" unit="1" domain_ref="face" axis_ref="soil_levels" />
+  <field id="frozen_soil_moisture" name="frozen_soil_moisture" long_name="mass_fraction_of_frozen_water_in_saturated_soil_moisture" unit="1" domain_ref="face" axis_ref="soil_levels" />
+  <!-- energy correction -->
+  <field id="temperature_correction_rate" name="temperature_correction_rate" long_name="temperature_rate_for_energy_correction" unit="K s-1" axis_ref="scalar_axis" />
+</field_group>
+</field_definition>

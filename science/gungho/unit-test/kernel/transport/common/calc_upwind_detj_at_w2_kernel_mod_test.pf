@@ -1,0 +1,192 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the Det(J) at W2 computation
+!>
+module calc_upwind_detj_at_w2_kernel_mod_test
+
+    use constants_mod,                 only : i_def, r_tran
+    use funit
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: calc_upwind_detj_at_w2_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type calc_upwind_detj_at_w2_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use formulation_config_mod,    only : eos_method_sampled,      &
+                                          moisture_formulation_dry
+    use feign_config_mod,          only : feign_finite_element_config, &
+                                          feign_formulation_config
+
+    implicit none
+
+    class(calc_upwind_detj_at_w2_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call feign_formulation_config( dlayer_on=.false.,               &
+                                   dry_static_adjust=.false.,       &
+                                   exner_from_eos=.false.,          &
+                                   eos_method=eos_method_sampled,   &
+                                   init_exner_bt=.false.,           &
+                                   l_multigrid=.false.,             &
+                                   lagged_orog=.false.,             &
+                                   rotating=.true.,                 &
+                                   shallow=.false.,                 &
+                                   moisture_formulation =           &
+                                   moisture_formulation_dry,        &
+                                   moisture_in_solver=.true.,       &
+                                   p2theta_vert=.true.,             &
+                                   theta_moist_source=.false.,      &
+                                   use_physics=.false.,             &
+                                   use_wavedynamics=.false.,        &
+                                   use_multires_coupling=.false.,   &
+                                   si_momentum_equation=.true.,     &
+                                   horizontal_physics_predictor=.false.,   &
+                                   horizontal_transport_predictor=.false., &
+                                   vector_invariant=.false.)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(calc_upwind_detj_at_w2_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use calc_upwind_detj_at_w2_kernel_mod, only : calc_upwind_detj_at_w2_code
+
+    implicit none
+
+    class(calc_upwind_detj_at_w2_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran
+
+    ! Fields
+    real(kind=r_tran), allocatable :: detj_w2_p(:)
+    real(kind=r_tran), allocatable :: detj_w2_above(:)
+    real(kind=r_tran), allocatable :: detj_w2_below(:)
+    real(kind=r_tran), allocatable :: pos_wind(:)
+    real(kind=r_tran), allocatable :: neg_wind(:)
+
+    integer(kind=i_def) :: cell
+
+    ! Dofmaps
+    integer(kind=i_def), allocatable :: map_w2(:,:)
+
+    ! Sizes
+    integer(kind=i_def) :: nlayers, ncells
+    integer(kind=i_def) :: ndf_w2, undf_w2
+    integer(kind=i_def) :: nqp_h, nqp_v
+    integer(kind=i_def) :: dim_space, dim_space_diff
+
+
+    nlayers = 3_i_def
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+
+    call get_w2_m3x3_dofmap(map_w2)
+
+    allocate(detj_w2_p(undf_w2))
+    allocate(detj_w2_above(undf_w2))
+    allocate(detj_w2_below(undf_w2))
+    allocate(pos_wind(undf_w2))
+    allocate(neg_wind(undf_w2))
+
+    ! Initialise the data
+    detj_w2_p(:) = 0.0_r_tran
+    detj_w2_above(:) = 275.0_r_tran
+    detj_w2_below(:) = 150.0_r_tran
+    pos_wind(:) = 1.0_r_tran
+    neg_wind(:) = -1.0_r_tran
+
+    cell = 1
+
+    ! For pos_wind the value of detj_w2_below should be set at dof 6 in layer 1
+    ! with no update in the bottom level or for horizontal dofs
+
+    call calc_upwind_detj_at_w2_code( nlayers,       &
+                                      detj_w2_p,     &
+                                      detj_w2_above, &
+                                      detj_w2_below, &
+                                      pos_wind,      &
+                                      ndf_w2,        &
+                                      undf_w2,       &
+                                      map_w2         &
+                                      )
+
+    @assertEqual(150.0_r_tran, detj_w2_p(map_w2(6,cell)+1), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(6,cell)+0), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(1,cell)+1), tol)
+
+    ! For neg_wind the value of detj_w2_above should be set at dof 6 in layer 1
+    ! with no update in the bottom level or for horizontal dofs
+
+    call calc_upwind_detj_at_w2_code( nlayers,       &
+                                      detj_w2_p,     &
+                                      detj_w2_above, &
+                                      detj_w2_below, &
+                                      neg_wind,      &
+                                      ndf_w2,        &
+                                      undf_w2,       &
+                                      map_w2         &
+                                      )
+
+    @assertEqual(275.0_r_tran, detj_w2_p(map_w2(6,cell)+1), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(6,cell)+0), tol)
+    @assertEqual(0.0_r_tran, detj_w2_p(map_w2(1,cell)+1), tol)
+
+    deallocate(detj_w2_p)
+    deallocate(detj_w2_above)
+    deallocate(detj_w2_below)
+    deallocate(pos_wind)
+    deallocate(neg_wind)
+    deallocate(map_w2)
+
+  end subroutine test_all
+
+end module calc_upwind_detj_at_w2_kernel_mod_test

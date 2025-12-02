@@ -1,0 +1,30 @@
+@@ -1,23 +1,23 @@
+ module adj_dg_inc_matrix_vector_kernel_mod
+   use argument_mod, only : any_discontinuous_space_1, any_space_1, arg_type, cell_column, gh_field, gh_operator, gh_read, &
+-&gh_readwrite, gh_real
++&gh_real, gh_inc
+   use constants_mod, only : i_def, r_double, r_single
+   use kernel_mod, only : kernel_type
+   implicit none
+-  interface dg_inc_matrix_vector_code
++  interface adj_dg_inc_matrix_vector_code
+     module procedure :: adj_dg_inc_matrix_vector_code_r_single, adj_dg_inc_matrix_vector_code_r_double
+-  end interface dg_inc_matrix_vector_code
++  end interface adj_dg_inc_matrix_vector_code
+   type, public, extends(kernel_type) :: adj_dg_inc_matrix_vector_kernel_type
+   type(ARG_TYPE) :: META_ARGS(3) = (/ &
+-    arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_1), &
+-    arg_type(gh_field, gh_real, gh_read, any_space_1), &
++    arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1), &
++    arg_type(gh_field, gh_real, gh_inc, any_space_1), &
+     arg_type(gh_operator, gh_real, gh_read, any_discontinuous_space_1, any_space_1)/)
+   INTEGER :: OPERATES_ON = cell_column
+ END TYPE adj_dg_inc_matrix_vector_kernel_type
+ 
+   private
+ 
+-  public :: dg_inc_matrix_vector_code
++  public :: adj_dg_inc_matrix_vector_code
+ 
+   contains
+   subroutine adj_dg_inc_matrix_vector_code_r_single(cell, nlayers, lhs, x, ncell_3d, matrix, ndf1, undf1, map1, ndf2, undf2, map2)

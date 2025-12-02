@@ -1,0 +1,126 @@
+@@ -11,10 +11,13 @@
+     use combine_w2_field_kernel_mod, only : combine_w2_field_kernel_type
+     use adj_combine_w2_field_kernel_mod, only : adj_combine_w2_field_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+-    use fs_continuity_mod, only : w2h, w2v, w3
++    use fs_continuity_mod, only : w2h, w2v, w3, w2
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
++    use sci_geometric_constants_mod,       only: get_face_selector_ew, &
++                                                 get_face_selector_ns
++    use integer_field_mod,                 only: integer_field_type
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -25,27 +28,26 @@
+     type(field_type) :: uvw
+     type(field_type) :: uv
+     type(field_type) :: w
+-    type(field_type) :: face_selector_ew
+-    type(field_type) :: face_selector_ns
++    type(integer_field_type), pointer :: face_selector_ew
++    type(integer_field_type), pointer :: face_selector_ns
+     type(field_type) :: uvw_input
+     type(field_type) :: uv_input
+     type(field_type) :: w_input
+-    type(field_type) :: face_selector_ew_input
+-    type(field_type) :: face_selector_ns_input
+     real(kind=r_def) :: uvw_inner_prod
+     real(kind=r_def) :: uv_inner_prod
+     real(kind=r_def) :: w_inner_prod
+-    real(kind=r_def) :: face_selector_ew_inner_prod
+-    real(kind=r_def) :: face_selector_ns_inner_prod
++    real(kind=r_def) :: uvw_sf
++    real(kind=r_def) :: uv_sf
++    real(kind=r_def) :: w_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: uvw_uvw_input_inner_prod
+     real(kind=r_def) :: uv_uv_input_inner_prod
+     real(kind=r_def) :: w_w_input_inner_prod
+-    real(kind=r_def) :: face_selector_ew_face_selector_ew_input_inner_prod
+-    real(kind=r_def) :: face_selector_ns_face_selector_ns_input_inner_prod
++    TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w2h_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2h)
+     vector_space_w2v_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2v)
+@@ -53,49 +55,49 @@
+     call uvw%initialise(vector_space=vector_space_w3_ptr, name='uvw')
+     call uv%initialise(vector_space=vector_space_w2h_ptr, name='uv')
+     call w%initialise(vector_space=vector_space_w2v_ptr, name='w')
+-    call face_selector_ew%initialise(vector_space=vector_space_w3_ptr, name='face_selector_ew')
+-    call face_selector_ns%initialise(vector_space=vector_space_w3_ptr, name='face_selector_ns')
+-    call uvw_input%initialise(vector_space=vector_space_w3_ptr, name='uvw_input')
++    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, w2)
++    call uvw%initialise(vector_space=vector_space_w2_ptr, name='uvw')
++    call uvw_input%initialise(vector_space=vector_space_w2_ptr, name='uvw_input')
+     call uv_input%initialise(vector_space=vector_space_w2h_ptr, name='uv_input')
+     call w_input%initialise(vector_space=vector_space_w2v_ptr, name='w_input')
+-    call face_selector_ew_input%initialise(vector_space=vector_space_w3_ptr, name='face_selector_ew_input')
+-    call face_selector_ns_input%initialise(vector_space=vector_space_w3_ptr, name='face_selector_ns_input')
+     uvw_inner_prod = 0.0_r_def
+     uv_inner_prod = 0.0_r_def
+     w_inner_prod = 0.0_r_def
+-    face_selector_ew_inner_prod = 0.0_r_def
+-    face_selector_ns_inner_prod = 0.0_r_def
+-
++    face_selector_ew => get_face_selector_ew(mesh%get_id())
++    face_selector_ns => get_face_selector_ns(mesh%get_id())
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(uvw), setval_x(uvw_input, uvw), setval_random(uv), setval_x(uv_input, uv), setval_random(w), &
+-&setval_x(w_input, w), setval_random(face_selector_ew), setval_x(face_selector_ew_input, face_selector_ew), &
+-&setval_random(face_selector_ns), setval_x(face_selector_ns_input, face_selector_ns), combine_w2_field_kernel_type(uvw, uv, w, &
++&setval_x(w_input, w), combine_w2_field_kernel_type(uvw, uv, w, &
+ &face_selector_ew, face_selector_ns), x_innerproduct_x(uvw_inner_prod, uvw), x_innerproduct_x(uv_inner_prod, uv), &
+-&x_innerproduct_x(w_inner_prod, w), x_innerproduct_x(face_selector_ew_inner_prod, face_selector_ew), &
+-&x_innerproduct_x(face_selector_ns_inner_prod, face_selector_ns))
++&x_innerproduct_x(w_inner_prod, w))
++    write( log_scratch_space, * ) "adjt_combine_w2_field_alg inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "uvw inner product = ", uvw_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "uv inner product = ", uv_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "w inner product = ", w_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    uvw_sf = 1.0_r_def / (uvw_inner_prod + eps)
++    uv_sf = 1.0_r_def / (uv_inner_prod + eps)
++    w_sf = 1.0_r_def / (w_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + uvw_inner_prod
+-    inner1 = inner1 + uv_inner_prod
+-    inner1 = inner1 + w_inner_prod
+-    inner1 = inner1 + face_selector_ew_inner_prod
+-    inner1 = inner1 + face_selector_ns_inner_prod
++    inner1 = inner1 + uvw_inner_prod * uvw_sf
++    inner1 = inner1 + uv_inner_prod * uv_sf
++    inner1 = inner1 + w_inner_prod * w_sf
++    call invoke( inc_a_times_X( uvw_sf, uvw ), &
++                 inc_a_times_X( uv_sf, uv ),   &
++                 inc_a_times_X( w_sf, w ) )
+     uvw_uvw_input_inner_prod = 0.0_r_def
+     uv_uv_input_inner_prod = 0.0_r_def
+     w_w_input_inner_prod = 0.0_r_def
+-    face_selector_ew_face_selector_ew_input_inner_prod = 0.0_r_def
+-    face_selector_ns_face_selector_ns_input_inner_prod = 0.0_r_def
+     call invoke(adj_combine_w2_field_kernel_type(uvw, uv, w, face_selector_ew, face_selector_ns), &
+ &x_innerproduct_y(uvw_uvw_input_inner_prod, uvw, uvw_input), x_innerproduct_y(uv_uv_input_inner_prod, uv, uv_input), &
+-&x_innerproduct_y(w_w_input_inner_prod, w, w_input), x_innerproduct_y(face_selector_ew_face_selector_ew_input_inner_prod, &
+-&face_selector_ew, face_selector_ew_input), x_innerproduct_y(face_selector_ns_face_selector_ns_input_inner_prod, face_selector_ns, &
+-&face_selector_ns_input))
++&x_innerproduct_y(w_w_input_inner_prod, w, w_input))
+     inner2 = 0.0_r_def
+     inner2 = inner2 + uvw_uvw_input_inner_prod
+     inner2 = inner2 + uv_uv_input_inner_prod
+     inner2 = inner2 + w_w_input_inner_prod
+-    inner2 = inner2 + face_selector_ew_face_selector_ew_input_inner_prod
+-    inner2 = inner2 + face_selector_ns_face_selector_ns_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

@@ -1,0 +1,260 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_advective_and_flux_alg
+module atlt_advective_and_flux_alg_mod
+
+  use r_tran_field_mod,                    only : r_tran_field_type
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def, l_def
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use model_clock_mod,                     only : model_clock_type
+  use finite_element_config_mod,           only : element_order_h,             &
+                                                  element_order_v
+  use fs_continuity_mod,                   only : W2, W3
+  use function_space_collection_mod,       only : function_space_collection
+  use transport_metadata_collection_mod,   only : transport_metadata_collection
+  use transport_metadata_mod,              only : transport_metadata_type
+  use transport_enumerated_types_mod,      only : direction_3d
+
+  implicit none
+
+  private
+  public :: atlt_advective_and_flux_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_advective_and_flux_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine atlt_advective_and_flux_alg( mesh, model_clock )
+
+    use atl_advective_and_flux_alg_mod,      only : atl_advective_and_flux_alg
+    use tl_advective_and_flux_alg_mod,       only : tl_advective_and_flux_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(field_type)                       :: mass_flux_1
+    type(field_type)                       :: mass_flux_2
+    type(field_type)                       :: adv_inc
+    type(field_type)                       :: density
+    type(field_type)                       :: wind
+    type(field_type)                       :: ls_density
+    type(field_type)                       :: ls_wind
+    integer(kind=i_def)                    :: direction
+    type(transport_metadata_type), pointer :: transport_metadata
+    logical(kind=l_def)                    :: final_rk_stage
+    real(kind=r_def)                       :: dt
+    logical(kind=l_def)                    :: do_flux
+    logical(kind=l_def)                    :: do_advective
+
+    ! Copies of input fields used in inner products
+    type(field_type)        :: mass_flux_1_input
+    type(field_type)        :: mass_flux_2_input
+    type(field_type)        :: adv_inc_input
+    type(field_type)        :: density_input
+    type(field_type)        :: wind_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: mass_flux_1_inner_prod
+    real(kind=r_def)            :: mass_flux_1_sf
+    real(kind=r_def)            :: mass_flux_2_inner_prod
+    real(kind=r_def)            :: mass_flux_2_sf
+    real(kind=r_def)            :: adv_inc_inner_prod
+    real(kind=r_def)            :: adv_inc_sf
+    real(kind=r_def)            :: density_inner_prod
+    real(kind=r_def)            :: density_sf
+    real(kind=r_def)            :: wind_inner_prod
+    real(kind=r_def)            :: wind_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: mass_flux_1_mass_flux_1_input_inner_prod
+    real(kind=r_def)            :: mass_flux_2_mass_flux_2_input_inner_prod
+    real(kind=r_def)            :: adv_inc_adv_inc_input_inner_prod
+    real(kind=r_def)            :: density_density_input_inner_prod
+    real(kind=r_def)            :: wind_wind_input_inner_prod
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    direction = direction_3d
+    transport_metadata => transport_metadata_collection%get_transport_metadata('density')
+    final_rk_stage = .true.
+
+    ! Determining time constants
+    dt  = real(model_clock%get_seconds_per_step(), r_def)
+    if ( dt <= 0.0_r_def ) then
+      write( log_scratch_space, * ) "dt cannot be leq 0, found dt = ", dt
+      call log_event( log_scratch_space, log_level_error )
+    end if
+
+    do_flux = .true.
+    do_advective = .true.
+
+    ! Initialising fields
+    vector_space_w3_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W3                           &
+    )
+    vector_space_w2_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W2                           &
+    )
+
+    call mass_flux_1%initialise( vector_space = vector_space_w2_ptr )
+    call mass_flux_2%initialise( vector_space = vector_space_w2_ptr )
+    call adv_inc%initialise( vector_space = vector_space_w3_ptr )
+    call density%initialise( vector_space = vector_space_w3_ptr )
+    call wind%initialise( vector_space = vector_space_w2_ptr )
+
+    call ls_density%initialise( vector_space = vector_space_w3_ptr )
+    call ls_wind%initialise( vector_space = vector_space_w2_ptr )
+
+    call mass_flux_1_input%initialise( vector_space = vector_space_w2_ptr )
+    call mass_flux_2_input%initialise( vector_space = vector_space_w2_ptr )
+    call adv_inc_input%initialise( vector_space = vector_space_w3_ptr )
+    call density_input%initialise( vector_space = vector_space_w3_ptr )
+    call wind_input%initialise( vector_space = vector_space_w2_ptr )
+
+    mass_flux_1_inner_prod = 0.0_r_def
+    mass_flux_2_inner_prod = 0.0_r_def
+    adv_inc_inner_prod = 0.0_r_def
+    density_inner_prod = 0.0_r_def
+    wind_inner_prod = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( setval_random( mass_flux_1 ),               &
+                 setval_x( mass_flux_1_input, mass_flux_1 ), &
+                 setval_random( mass_flux_2 ),               &
+                 setval_x( mass_flux_2_input, mass_flux_2 ), &
+                 setval_random( adv_inc ),                   &
+                 setval_x( adv_inc_input, adv_inc ),         &
+                 setval_random( density ),                   &
+                 setval_x( density_input, density ),         &
+                 setval_random( wind ),                      &
+                 setval_x( wind_input, wind ),               &
+                 setval_random( ls_density ),                &
+                 setval_random( ls_wind ) )
+
+    ! Tangent linear
+    call tl_advective_and_flux_alg( mass_flux_1, mass_flux_2, adv_inc,  &
+                                    density, wind, ls_density, ls_wind, &
+                                    direction, transport_metadata,      &
+                                    final_rk_stage, dt,                 &
+                                    do_flux, do_advective )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( mass_flux_1_inner_prod, mass_flux_1 ), &
+                 x_innerproduct_x( mass_flux_2_inner_prod, mass_flux_2 ), &
+                 x_innerproduct_x( adv_inc_inner_prod, adv_inc ),         &
+                 x_innerproduct_x( density_inner_prod, density ),         &
+                 x_innerproduct_x( wind_inner_prod, wind ) )
+
+    ! Determining scale factors
+    mass_flux_1_sf = 1.0_r_def/(mass_flux_1_inner_prod + eps)
+    mass_flux_2_sf = 1.0_r_def/(mass_flux_2_inner_prod + eps)
+    adv_inc_sf = 1.0_r_def/(adv_inc_inner_prod + eps)
+    density_sf = 1.0_r_def/(density_inner_prod + eps)
+    wind_sf = 1.0_r_def/(wind_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + mass_flux_1_inner_prod*mass_flux_1_sf
+    inner1 = inner1 + mass_flux_2_inner_prod*mass_flux_2_sf
+    inner1 = inner1 + adv_inc_inner_prod*adv_inc_sf
+    inner1 = inner1 + density_inner_prod*density_sf
+    inner1 = inner1 + wind_inner_prod*wind_sf
+    write(log_scratch_space, *) "atlt_advective_and_flux inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "mass_flux_1 inner product = ", mass_flux_1_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "mass_flux_2 inner product = ", mass_flux_2_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "adv_inc inner product = ", adv_inc_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "density inner product = ", density_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind inner product = ", wind_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( mass_flux_1_sf, mass_flux_1 ), &
+                 inc_a_times_X( mass_flux_2_sf, mass_flux_2 ), &
+                 inc_a_times_X( adv_inc_sf, adv_inc ),         &
+                 inc_a_times_X( density_sf, density ),         &
+                 inc_a_times_X( wind_sf, wind ) )
+
+    ! Adjoint alg call and inner products
+    mass_flux_1_mass_flux_1_input_inner_prod = 0.0_r_def
+    mass_flux_2_mass_flux_2_input_inner_prod = 0.0_r_def
+    adv_inc_adv_inc_input_inner_prod = 0.0_r_def
+    density_density_input_inner_prod = 0.0_r_def
+    wind_wind_input_inner_prod = 0.0_r_def
+
+    ! Adjoint
+    call atl_advective_and_flux_alg( mass_flux_1, mass_flux_2, adv_inc,  &
+                                     density, wind, ls_density, ls_wind, &
+                                     direction, transport_metadata,      &
+                                     final_rk_stage, dt,                 &
+                                     do_flux, do_advective )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( mass_flux_1_mass_flux_1_input_inner_prod, &
+                                   mass_flux_1,                              &
+                                   mass_flux_1_input ),                      &
+                 x_innerproduct_y( mass_flux_2_mass_flux_2_input_inner_prod, &
+                                   mass_flux_2,                              &
+                                   mass_flux_2_input ),                      &
+                 x_innerproduct_y( adv_inc_adv_inc_input_inner_prod,         &
+                                   adv_inc,                                  &
+                                   adv_inc_input ),                          &
+                 x_innerproduct_y( density_density_input_inner_prod,         &
+                                   density,                                  &
+                                   density_input ),                          &
+                 x_innerproduct_y( wind_wind_input_inner_prod,               &
+                                   wind,                                     &
+                                   wind_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + mass_flux_1_mass_flux_1_input_inner_prod
+    inner2 = inner2 + mass_flux_2_mass_flux_2_input_inner_prod
+    inner2 = inner2 + adv_inc_adv_inc_input_inner_prod
+    inner2 = inner2 + density_density_input_inner_prod
+    inner2 = inner2 + wind_wind_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_advective_and_flux:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_advective_and_flux:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_advective_and_flux_alg
+
+end module atlt_advective_and_flux_alg_mod
+

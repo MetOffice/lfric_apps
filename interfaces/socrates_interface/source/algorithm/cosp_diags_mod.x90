@@ -1,0 +1,290 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for cosp_alg
+
+module cosp_diags_mod
+
+  use constants_mod,       only: l_def
+  use cosp_config_mod,     only: l_cosp
+  use field_mod,           only: field_type
+  use io_config_mod,       only: subroutine_timers
+  use log_mod,             only: log_event, LOG_LEVEL_INFO
+  use timer_mod,           only: timer
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
+                                        diagnostic_to_be_sampled
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+  logical( l_def ) :: sunlit_mask_flag
+  logical( l_def ) :: isccp_ctp_tau_flag
+  logical( l_def ) :: calipso_total_backscatter_flag
+  logical( l_def ) :: calipso_low_cloud_flag, calipso_low_cloud_mask_flag
+  logical( l_def ) :: calipso_mid_cloud_flag, calipso_mid_cloud_mask_flag
+  logical( l_def ) :: calipso_high_cloud_flag, calipso_high_cloud_mask_flag
+  logical( l_def ) :: calipso_cfad_sr_40_lvls_flag
+  logical( l_def ) :: calipso_cf_40_lvls_liq_flag
+  logical( l_def ) :: calipso_cf_40_lvls_ice_flag
+  logical( l_def ) :: calipso_cf_40_lvls_undet_flag
+  logical( l_def ) :: calipso_cf_40_lvls_mask_flag
+  logical( l_def ) :: cloud_thermal_absorptivity_flag
+  logical( l_def ) :: cloud_solar_extinction_flag
+
+  public :: cosp_diags_this_tstep
+  public :: initialise_diags_for_cosp
+  public :: output_diags_for_cosp
+
+!! Primary:
+!! 2321 COSP: MASK FOR CALIPSO LOW-LEVEL CF
+!! 2322 COSP: MASK FOR CALIPSO MID-LEVEL CF
+!! 2323 COSP: MASK FOR CALIPSO HIGH-LEVEL CF
+!! 2325 COSP: MASK FOR CALIPSO CF ON 40 LVLS
+!! 2330 COSP: ISCCP/MISR/MODIS CLOUD WEIGHTS = sunlit mask 1 or 0
+!! 2337 COSP: ISCCP CTP-TAU HISTOGRAM
+!! 2341 COSP: CALIPSO TOTAL BACKSCATTER
+!! 2344 COSP: CALIPSO LOW-LEVEL CLOUD
+!! 2345 COSP: CALIPSO MID-LEVEL CLOUD
+!! 2346 COSP: CALIPSO HIGH-LEVEL CLOUD
+!! 2370 COSP: CALIPSO CFAD SR 40 CSAT LEVELS
+!! 2473 COSP: CALIPSO CF 40 LVLS (LIQ)
+!! 2474 COSP: CALIPSO CF 40 LVLS (ICE)
+!! 2475 COSP: CALIPSO CF 40 LVLS (UNDET)
+!!
+!! Secondary:
+!! 2326 COSP: MASK FOR 2.358
+!! 2327 COSP: MASK FOR 2.359
+!! 2331 COSP: ISCCP WEIGHTED CLOUD ALBEDO
+!! 2333 COSP: ISCCP WEIGHTED CLOUT TOP PRES.
+!! 2334 COSP: ISCCP TOTAL CLOUD AREA
+!! 2340 COSP: CALIPSO MOLECULAR BACKSCATTER
+!! 2353 COSP: GBX-MEAN CSAT Ze MDL LEVELS
+!! 2354 COSP: GBX-MEAN CSAT Ze 40 LEVELS
+!! 2355 COSP: GBX-MEAN CALIPSO ATB MDL LVLS
+!! 2356 COSP: GBX-MEAN CALIPSO ATB 40 LVLS
+!! 2357 COSP: CALIPSO MOLECULAR ATB 40 LVLS
+!! 2358 COSP: CALIPSO/CLOUDSAT CLOUD MDL LEV
+!! 2359 COSP: CALIPSO/CLOUDSAT CLOUD 40 LEV
+!! 2371 COSP: CALIPSO CLOUD AREA 40 CSAT LEVELS
+!! 2372 COSP: COUDSAT CFAD Ze 40 CSAT LVLS
+
+contains
+
+!> @brief Return true if any COSP diagnostics are to be sampled
+function cosp_diags_this_tstep() result(cosp_this_tstep)
+  implicit none
+  logical(l_def) :: cosp_this_tstep
+  cosp_this_tstep = l_cosp .and. ( &
+    diagnostic_to_be_sampled('cosp__sunlit_mask') .or. &
+    diagnostic_to_be_sampled('cosp__isccp_ctp_tau') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_total_backscatter') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_low_cloud') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_low_cloud_mask') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_mid_cloud') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_mid_cloud_mask') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_high_cloud') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_high_cloud_mask') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_cfad_sr_40_lvls') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_cf_40_lvls_liq') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_cf_40_lvls_ice') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_cf_40_lvls_undet') .or. &
+    diagnostic_to_be_sampled('cosp__calipso_cf_40_lvls_mask') .or. &
+    diagnostic_to_be_sampled('cosp__cloud_thermal_absorptivity') .or. &
+    diagnostic_to_be_sampled('cosp__cloud_solar_extinction') )
+end function cosp_diags_this_tstep
+
+!> @brief Initialise fields for locally-computed diagnostics
+!> @param[inout] sunlit_mask                   ISCCP/MISR/MODIS CLOUD WEIGHTS
+!> @param[inout] isccp_ctp_tau                 ISCCP CTP-TAU HISTOGRAM
+!> @param[inout] calipso_total_backscatter     CALIPSO TOTAL BACKSCATTER
+!> @param[inout] calipso_low_cloud             CALIPSO LOW-LEVEL CLOUD
+!> @param[inout] calipso_low_cloud_mask        MASK FOR CALIPSO LOW-LEVEL CF
+!> @param[inout] calipso_mid_cloud             CALIPSO MID-LEVEL CLOUD
+!> @param[inout] calipso_mid_cloud_mask        MASK FOR CALIPSO MID-LEVEL CF
+!> @param[inout] calipso_high_cloud            CALIPSO HIGH-LEVEL CLOUD
+!> @param[inout] calipso_high_cloud_mask       MASK FOR CALIPSO HIGH-LEVEL CF
+!> @param[inout] calipso_cfad_sr_40_lvls       CALIPSO CFAD SR 40 CSAT LEVELS
+!> @param[inout] calipso_cf_40_lvls_liq        CALIPSO CF 40 LVLS (LIQ)
+!> @param[inout] calipso_cf_40_lvls_ice        CALIPSO CF 40 LVLS (ICE)
+!> @param[inout] calipso_cf_40_lvls_undet      CALIPSO CF 40 LVLS (UNDET)
+!> @param[inout] calipso_cf_40_lvls_mask       MASK FOR CALIPSO CF 40 LVLS
+!> @param[inout] cloud_thermal_absorptivity
+!> @param[inout] cloud_solar_extinction
+subroutine initialise_diags_for_cosp( &
+  sunlit_mask, &
+  isccp_ctp_tau, &
+  calipso_total_backscatter, &
+  calipso_low_cloud, calipso_low_cloud_mask, &
+  calipso_mid_cloud, calipso_mid_cloud_mask, &
+  calipso_high_cloud, calipso_high_cloud_mask, &
+  calipso_cfad_sr_40_lvls, &
+  calipso_cf_40_lvls_liq, &
+  calipso_cf_40_lvls_ice, &
+  calipso_cf_40_lvls_undet, &
+  calipso_cf_40_lvls_mask, &
+  cloud_thermal_absorptivity, cloud_solar_extinction )
+
+  implicit none
+
+  ! Diagnostic fields to initialise
+  type( field_type ), intent(inout) :: &
+    sunlit_mask, &
+    isccp_ctp_tau, &
+    calipso_total_backscatter, &
+    calipso_low_cloud, calipso_low_cloud_mask, &
+    calipso_mid_cloud, calipso_mid_cloud_mask, &
+    calipso_high_cloud, calipso_high_cloud_mask, &
+    calipso_cfad_sr_40_lvls, &
+    calipso_cf_40_lvls_liq, &
+    calipso_cf_40_lvls_ice, &
+    calipso_cf_40_lvls_undet, &
+    calipso_cf_40_lvls_mask, &
+    cloud_thermal_absorptivity, cloud_solar_extinction
+
+  if ( subroutine_timers ) call timer("cosp_diags")
+
+  sunlit_mask_flag                   = init_diag( sunlit_mask, &
+                                           'cosp__sunlit_mask' )
+  isccp_ctp_tau_flag                 = init_diag( isccp_ctp_tau, &
+                                           'cosp__isccp_ctp_tau' )
+  calipso_total_backscatter_flag     = init_diag( calipso_total_backscatter, &
+                                           'cosp__calipso_total_backscatter' )
+  calipso_low_cloud_flag             = init_diag( calipso_low_cloud, &
+                                           'cosp__calipso_low_cloud' )
+  calipso_low_cloud_mask_flag        = init_diag( calipso_low_cloud_mask, &
+                                           'cosp__calipso_low_cloud_mask' )
+  calipso_mid_cloud_flag             = init_diag( calipso_mid_cloud, &
+                                           'cosp__calipso_mid_cloud' )
+  calipso_mid_cloud_mask_flag        = init_diag( calipso_mid_cloud_mask, &
+                                           'cosp__calipso_mid_cloud_mask' )
+  calipso_high_cloud_flag            = init_diag( calipso_high_cloud, &
+                                           'cosp__calipso_high_cloud' )
+  calipso_high_cloud_mask_flag       = init_diag( calipso_high_cloud_mask, &
+                                           'cosp__calipso_high_cloud_mask' )
+  calipso_cfad_sr_40_lvls_flag       = init_diag( calipso_cfad_sr_40_lvls, &
+                                           'cosp__calipso_cfad_sr_40_lvls' )
+  calipso_cf_40_lvls_liq_flag        = init_diag( calipso_cf_40_lvls_liq, &
+                                           'cosp__calipso_cf_40_lvls_liq' )
+  calipso_cf_40_lvls_ice_flag        = init_diag( calipso_cf_40_lvls_ice, &
+                                           'cosp__calipso_cf_40_lvls_ice' )
+  calipso_cf_40_lvls_undet_flag      = init_diag( calipso_cf_40_lvls_undet, &
+                                           'cosp__calipso_cf_40_lvls_undet' )
+  calipso_cf_40_lvls_mask_flag       = init_diag( calipso_cf_40_lvls_mask, &
+                                           'cosp__calipso_cf_40_lvls_mask' )
+  cloud_thermal_absorptivity_flag    = init_diag( cloud_thermal_absorptivity, &
+                                           'cosp__cloud_thermal_absorptivity' )
+  cloud_solar_extinction_flag        = init_diag( cloud_solar_extinction, &
+                                           'cosp__cloud_solar_extinction' )
+
+  if ( subroutine_timers ) call timer("cosp_diags")
+
+end subroutine initialise_diags_for_cosp
+
+!> @brief Output diagnostics from cosp_alg
+!> @param[in] sunlit_mask                   ISCCP/MISR/MODIS CLOUD WEIGHTS
+!> @param[in] isccp_ctp_tau                 ISCCP CTP-TAU HISTOGRAM
+!> @param[in] calipso_total_backscatter     CALIPSO TOTAL BACKSCATTER
+!> @param[in] calipso_low_cloud             CALIPSO LOW-LEVEL CLOUD
+!> @param[in] calipso_low_cloud_mask        MASK FOR CALIPSO LOW-LEVEL CF
+!> @param[in] calipso_mid_cloud             CALIPSO MID-LEVEL CLOUD
+!> @param[in] calipso_mid_cloud_mask        MASK FOR CALIPSO MID-LEVEL CF
+!> @param[in] calipso_high_cloud            CALIPSO HIGH-LEVEL CLOUD
+!> @param[in] calipso_high_cloud_mask       MASK FOR CALIPSO HIGH-LEVEL CF
+!> @param[in] calipso_cfad_sr_40_lvls       CALIPSO CFAD SR 40 CSAT LEVELS
+!> @param[in] calipso_cf_40_lvls_liq        CALIPSO CF 40 LVLS (LIQ)
+!> @param[in] calipso_cf_40_lvls_ice        CALIPSO CF 40 LVLS (ICE)
+!> @param[in] calipso_cf_40_lvls_undet      CALIPSO CF 40 LVLS (UNDET)
+!> @param[in] calipso_cf_40_lvls_mask       MASK FOR CALIPSO CF 40 LVLS
+!> @param[in] cloud_thermal_absorptivity
+!> @param[in] cloud_solar_extinction
+subroutine output_diags_for_cosp( &
+  sunlit_mask, &
+  isccp_ctp_tau, &
+  calipso_total_backscatter, &
+  calipso_low_cloud, calipso_low_cloud_mask, &
+  calipso_mid_cloud, calipso_mid_cloud_mask, &
+  calipso_high_cloud, calipso_high_cloud_mask, &
+  calipso_cfad_sr_40_lvls, &
+  calipso_cf_40_lvls_liq, &
+  calipso_cf_40_lvls_ice, &
+  calipso_cf_40_lvls_undet, &
+  calipso_cf_40_lvls_mask, &
+  cloud_thermal_absorptivity, cloud_solar_extinction )
+
+  implicit none
+
+  ! Diagnostics computed within the kernels
+  type( field_type ), intent(in) :: &
+    sunlit_mask, &
+    isccp_ctp_tau, &
+    calipso_total_backscatter, &
+    calipso_low_cloud, calipso_low_cloud_mask, &
+    calipso_mid_cloud, calipso_mid_cloud_mask, &
+    calipso_high_cloud, calipso_high_cloud_mask, &
+    calipso_cfad_sr_40_lvls, &
+    calipso_cf_40_lvls_liq, &
+    calipso_cf_40_lvls_ice, &
+    calipso_cf_40_lvls_undet, &
+    calipso_cf_40_lvls_mask, &
+    cloud_thermal_absorptivity, cloud_solar_extinction
+
+  if ( subroutine_timers ) call timer("cosp_diags")
+
+  ! Diagnostics computed within the kernels
+  if (sunlit_mask_flag) call &
+      sunlit_mask%write_field( &
+      sunlit_mask%get_name() )
+  if (isccp_ctp_tau_flag) call &
+      isccp_ctp_tau%write_field( &
+      isccp_ctp_tau%get_name() )
+  if (calipso_total_backscatter_flag) call &
+      calipso_total_backscatter%write_field( &
+      calipso_total_backscatter%get_name() )
+  if (calipso_low_cloud_flag) call &
+      calipso_low_cloud%write_field( &
+      calipso_low_cloud%get_name() )
+  if (calipso_low_cloud_mask_flag) call &
+      calipso_low_cloud_mask%write_field( &
+      calipso_low_cloud_mask%get_name() )
+  if (calipso_mid_cloud_flag) call &
+      calipso_mid_cloud%write_field( &
+      calipso_mid_cloud%get_name() )
+  if (calipso_mid_cloud_mask_flag) call &
+      calipso_mid_cloud_mask%write_field( &
+      calipso_mid_cloud_mask%get_name() )
+  if (calipso_high_cloud_flag) call &
+      calipso_high_cloud%write_field( &
+      calipso_high_cloud%get_name() )
+  if (calipso_high_cloud_mask_flag) call &
+      calipso_high_cloud_mask%write_field( &
+      calipso_high_cloud_mask%get_name() )
+  if (calipso_cfad_sr_40_lvls_flag) call &
+      calipso_cfad_sr_40_lvls%write_field( &
+      calipso_cfad_sr_40_lvls%get_name() )
+  if (calipso_cf_40_lvls_liq_flag) call &
+      calipso_cf_40_lvls_liq%write_field( &
+      calipso_cf_40_lvls_liq%get_name() )
+  if (calipso_cf_40_lvls_ice_flag) call &
+      calipso_cf_40_lvls_ice%write_field( &
+      calipso_cf_40_lvls_ice%get_name() )
+  if (calipso_cf_40_lvls_undet_flag) call &
+      calipso_cf_40_lvls_undet%write_field( &
+      calipso_cf_40_lvls_undet%get_name() )
+  if (calipso_cf_40_lvls_mask_flag) call &
+      calipso_cf_40_lvls_mask%write_field( &
+      calipso_cf_40_lvls_mask%get_name() )
+  if (cloud_thermal_absorptivity_flag) call &
+      cloud_thermal_absorptivity%write_field( &
+      cloud_thermal_absorptivity%get_name() )
+  if (cloud_solar_extinction_flag) call &
+      cloud_solar_extinction%write_field( &
+      cloud_solar_extinction%get_name() )
+
+  if ( subroutine_timers ) call timer("cosp_diags")
+
+end subroutine output_diags_for_cosp
+end module cosp_diags_mod

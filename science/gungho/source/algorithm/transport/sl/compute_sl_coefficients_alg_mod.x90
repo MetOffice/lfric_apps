@@ -1,0 +1,118 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Algorithms for computing the semi-Lagrangian interpolation coefficients.
+!> @details Contains algorithms to compute cubic and quintic interpolation coefficients
+!!          for vertical semi-Lagrangian advective transport.
+
+module compute_sl_coefficients_alg_mod
+
+  ! Constants and types
+  use constants_mod,                            only: i_def, l_def
+  use r_tran_field_mod,                         only: r_tran_field_type
+  use copy_field_alg_mod,                       only: copy_field
+  use field_mod,                                only: field_type
+  use integer_field_mod,                        only: integer_field_type
+  use function_space_mod,                       only: function_space_type
+  use sci_geometric_constants_mod,              only: get_height_fv
+  use mesh_mod,                                 only: mesh_type
+  use fs_continuity_mod,                        only: Wtheta
+
+  ! Kernels
+  use compute_vertical_linear_coef_kernel_mod,  only: compute_vertical_linear_coef_kernel_type
+  use compute_vertical_cubic_coef_kernel_mod,   only: compute_vertical_cubic_coef_kernel_type
+  use compute_vertical_quintic_coef_kernel_mod, only: compute_vertical_quintic_coef_kernel_type
+
+  implicit none
+
+  private
+  public :: compute_sl_coefficients_alg
+
+contains
+
+  !===========================================================================!
+  !> @brief   Compute the interpolation coefficients for vertical
+  !!          semi-Lagrangian transport.
+  !> @details Algorithm to compute the interpolation coefficients and the grid
+  !!          point indices of the interpolation points for vertical semi-
+  !!          Lagrangian advective transport. The coefficients are stored as
+  !!          W3/Wtheta fields.
+  !> @param[in,out] coeffs      The interpolation coefficients
+  !> @param[in,out] sl_indices  The indices of cells to use in interpolation
+  !> @param[in]     dep_dist    The vertical departure distances
+  !> @param[in]     order       The order of the interpolation
+  subroutine compute_sl_coefficients_alg( coeffs, sl_indices, dep_dist, order )
+
+    use transport_config_mod, only: vertical_sl_order_cubic,                   &
+                                    vertical_sl_order_quintic,                 &
+                                    vertical_sl_order_cubic_hermite,           &
+                                    vertical_sl_order_linear
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),  intent(inout) :: coeffs(:)
+    type(integer_field_type), intent(inout) :: sl_indices(:)
+    type(r_tran_field_type),  intent(in)    :: dep_dist
+    integer(kind=i_def),      intent(in)    :: order
+
+    ! Pointers
+    type(mesh_type),  pointer :: mesh
+    type(field_type), pointer :: height_rdef
+
+    ! Internal variables
+    type(r_tran_field_type) :: height
+    logical(kind=l_def)     :: hermite
+
+    ! Get height at r_tran precision
+    mesh => coeffs(1)%get_mesh()
+    height_rdef => get_height_fv( Wtheta, mesh%get_id() )
+    call height%initialise( vector_space = height_rdef%get_function_space() )
+    call copy_field( height_rdef, height )
+
+    select case (order)
+    case (vertical_sl_order_cubic)
+      hermite = .false.
+      hermite = .true.
+      call invoke ( name='sl_cubic_coeff',                                     &
+                    compute_vertical_cubic_coef_kernel_type(                   &
+                        dep_dist, height,                                      &
+                        coeffs(1), coeffs(2),                                  &
+                        coeffs(3), coeffs(4),                                  &
+                        sl_indices(1), sl_indices(2),                          &
+                        sl_indices(3), sl_indices(4),                          &
+                        hermite )                                              &
+      )
+    case (vertical_sl_order_quintic)
+      call invoke ( name='sl_quintic_coeff',                                   &
+                    compute_vertical_quintic_coef_kernel_type(                 &
+                        dep_dist, height,                                      &
+                        coeffs(1), coeffs(2), coeffs(3),                       &
+                        coeffs(4), coeffs(5), coeffs(6),                       &
+                        sl_indices(1), sl_indices(2), sl_indices(3),           &
+                        sl_indices(4), sl_indices(5), sl_indices(6) )          &
+      )
+    case (vertical_sl_order_cubic_hermite)
+      hermite = .true.
+      call invoke ( name='sl_cubic_herm_coeff',                                &
+                    compute_vertical_cubic_coef_kernel_type(                   &
+                        dep_dist, height,                                      &
+                        coeffs(1), coeffs(2),                                  &
+                        coeffs(3), coeffs(4),                                  &
+                        sl_indices(1), sl_indices(2),                          &
+                        sl_indices(3), sl_indices(4),                          &
+                        hermite )                                              &
+      )
+    case (vertical_sl_order_linear)
+      call invoke ( name='sl_linear_coeff',                                    &
+                    compute_vertical_linear_coef_kernel_type(                  &
+                        dep_dist, height, coeffs(1), coeffs(2) )               &
+      )
+    end select
+
+  end subroutine compute_sl_coefficients_alg
+
+end module compute_sl_coefficients_alg_mod

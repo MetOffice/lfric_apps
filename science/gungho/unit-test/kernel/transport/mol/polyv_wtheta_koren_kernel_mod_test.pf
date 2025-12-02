@@ -1,0 +1,297 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the wtheta_adv_inc computation using the Koren scheme
+module polyv_wtheta_koren_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, l_def, EPS, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: polyv_wtheta_koren_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type polyv_wtheta_koren_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,     only: feign_transport_config
+    use transport_config_mod, only: operators_fv,                  &
+                                    runge_kutta_method_ssp2,       &
+                                    slice_order_cubic,             &
+                                    si_outer_transport_none,       &
+                                    vertical_sl_order_quintic,     &
+                                    max_vert_cfl_calc_uniform,     &
+                                    theta_variable_dry,            &
+                                    substep_transport_off,         &
+                                    min_val_method_iterative,      &
+                                    calculate_detj_upwind,         &
+                                    panel_edge_treatment_none
+    implicit none
+
+    class(polyv_wtheta_koren_test_type), intent(inout) :: this
+
+    call feign_transport_config( operators = operators_fv,                                 &
+                                 runge_kutta_method = runge_kutta_method_ssp2,             &
+                                 fv_vertical_order = 2,                                    &
+                                 fv_horizontal_order = 2,                                  &
+                                 broken_w2_projection = .false.,                           &
+                                 consistent_metric  = .false.,                             &
+                                 substep_transport = substep_transport_off,                &
+                                 theta_dispersion_correction  = .false.,                   &
+                                 oned_reconstruction = .false.,                            &
+                                 cfl_mol_1d_stab = 1.0_r_def,                              &
+                                 cfl_mol_2d_stab = 1.0_r_def,                              &
+                                 cfl_mol_3d_stab = 1.0_r_def,                              &
+                                 cheap_update = .false.,                                   &
+                                 slice_order = slice_order_cubic,                          &
+                                 vertical_sl_order = vertical_sl_order_quintic,            &
+                                 si_outer_transport = si_outer_transport_none,             &
+                                 theta_variable=theta_variable_dry,                        &
+                                 calculate_detj = calculate_detj_upwind,                   &
+                                 dep_pt_stencil_extent = 2,                                &
+                                 ffsl_inner_order = 0,                                     &
+                                 ffsl_outer_order = 1,                                     &
+                                 ffsl_vertical_order = (/ 1, 1, 1 /),                      &
+                                 ffsl_unity_3d = .true.,                                   &
+                                 use_density_predictor = .false.,                          &
+                                 cap_density_predictor = 0.001_r_def,                      &
+                                 adjust_theta = .false.,                                   &
+                                 adjust_theta_above = 0.0_r_def,                           &
+                                 adjust_vhv_wind=.false.,                                  &
+                                 min_val_abs_tol = -1.0e-12_r_def,                         &
+                                 min_val_max_iterations = 100,                             &
+                                 wind_mono_top = .false.,                                  &
+                                 wind_mono_top_depth = 0,                                  &
+                                 min_val_method = min_val_method_iterative,                &
+                                 dry_field_name='tracer',                                  &
+                                 profile_size = 1,                                         &
+                                 field_names = (/'tracer'/),                               &
+                                 equation_form = (/1/),                                    &
+                                 scheme = (/1/),                                           &
+                                 splitting = (/1/),                                        &
+                                 horizontal_method = (/1/),                                &
+                                 vertical_method = (/1/),                                  &
+                                 horizontal_monotone = (/1/),                              &
+                                 vertical_monotone = (/1/),                                &
+                                 vertical_monotone_order = (/1/),                          &
+                                 log_space = (/.false./),                                  &
+                                 reversible = (/.false./),                                 &
+                                 enforce_min_value = (/.false./),                          &
+                                 min_value = (/0.0_r_def/),                                &
+                                 ffsl_splitting = (/ 1 /),                                 &
+                                 max_vert_cfl_calc = max_vert_cfl_calc_uniform,            &
+                                 transport_ageofair=.false.,                               &
+                                 ageofair_reset_level = 10,                                &
+                                 panel_edge_treatment = panel_edge_treatment_none,         &
+                                 panel_edge_high_order = .false.,                          &
+                                 special_edges_monotone = (/1/)                            &
+                                 )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(polyv_wtheta_koren_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use polyv_wtheta_koren_kernel_mod, only: polyv_wtheta_koren_code
+    implicit none
+
+    class(polyv_wtheta_koren_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64bit
+    real(r_tran)            :: tst, use_tol
+
+    integer(i_def), parameter :: nlayers = 10
+    integer(i_def), parameter :: nfaces_v = 2
+    integer(i_def), parameter :: nfaces_h = 4
+    integer(i_def), parameter :: mol_order = 2
+    integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+    integer(i_def), parameter :: ndf_wt = 2
+    integer(i_def), parameter :: ndf_c  = 2
+    integer(i_def), parameter :: undf_wt = nlayers+1
+    integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
+
+    integer(i_def), dimension(ndf_wt) :: map_wt
+
+    real(r_tran), dimension(undf_wt) :: adv_inc
+    real(r_tran), dimension(undf_wt) :: wind
+    real(r_tran), dimension(undf_wt) :: density
+    real(r_tran), dimension(undf_wt) :: adv_inc_answer1, adv_inc_answer2
+    real(r_tran), dimension(undf_wt) :: zw_height
+
+    integer(i_def) :: df, k, p1, p2, p3
+    logical(l_def) :: logspace, reversible
+    real(r_tran)    :: const, r, val_u, val_d
+    real(r_tran), dimension(3) :: kw=(/-1.0_r_tran,5.0_r_tran,2.0_r_tran/)/6.0_r_tran
+
+    map_wt(:) = (/ 1, 2 /)
+
+    wind(:) = 1.0_r_tran
+
+   ! The density is constructed with constant r=slope ratio
+    r = 0.5_r_tran
+    const = 1.0_r_tran
+    density(1) = const
+    density(2) = 1.2_r_tran*const
+    do k = 3,nlayers+1
+      density(k) = density(k-1)+r*(density(k-1)-density(k-2))
+    end do
+    do k=1, nlayers+1
+      zw_height(k) = real(k-1, r_tran)
+    end do
+    ! Since r=0.5 => phi=(1+2r)/3, the Koren scheme reduces to a
+    ! quadratic scheme with the weights {-1/6, 5/6, 2/6}
+    adv_inc_answer1(:) = 0.0_r_tran
+    adv_inc_answer2(:) = 0.0_r_tran
+    do k = 2,nlayers
+      p3 = k + 1
+      p2 = k
+      p1 = k-1
+      val_u = kw(1)*density(p1)+kw(2)*density(p2)+kw(3)*density(p3)
+      p3 = p3 - 1
+      p2 = p2 - 1
+      p1 = max(1, p1-1)
+      val_d = kw(1)*density(p1)+kw(2)*density(p2)+kw(3)*density(p3)
+      if ( k==2 ) then
+        r = 2.0_r_tran*density(1) - density(2)
+        val_d = kw(1)*r+kw(2)*density(1)+kw(3)*density(2)
+      end if
+      adv_inc_answer1(k) = val_u - val_d
+      adv_inc_answer2(k) = exp(val_u) - exp(val_d)
+    end do
+
+    ! Test subroutine with logspace = .false.
+    logspace = .false.
+    reversible =.false.
+    adv_inc = 0.0_r_tran
+    call polyv_wtheta_koren_code( nlayers,              &
+                                  adv_inc,              &
+                                  wind,                 &
+                                  density,              &
+                                  zw_height,            &
+                                  reversible,           &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt,               &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing(maxval(adv_inc_answer1(2:nlayers)))
+    end if
+    do k = 1, undf_wt
+      @assertEqual(adv_inc_answer1(k), adv_inc(k), use_tol)
+    end do
+
+    ! Test subroutine with logspace = .true.
+    logspace = .true.
+    density(:) = exp(density(:))
+
+    ! Correct adv_inc_answer2(2) due to the assumption at the boundaries
+    ! inside the kernel polyv_wtheta_koren_code. The boundary assumption
+    ! is applied to density and not log(density) when logspace=T
+    val_u = kw(1)*log(density(1))+kw(2)*log(density(2))+kw(3)*log(density(3))
+    r = 2.0_r_tran*density(1) - density(2)
+    val_d = kw(1)*log(r)+kw(2)*log(density(1))+kw(3)*log(density(2))
+    adv_inc_answer2(2) = exp(val_u) - exp(val_d)
+
+    adv_inc = 0.0_r_tran
+    call polyv_wtheta_koren_code( nlayers,              &
+                                  adv_inc,              &
+                                  wind,                 &
+                                  density,              &
+                                  zw_height,            &
+                                  reversible,           &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt,               &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing(maxval(adv_inc_answer2(2:nlayers)))
+    end if
+    do k = 1, undf_wt
+      @assertEqual(adv_inc_answer2(k), adv_inc(k), use_tol)
+    end do
+
+    ! ------------------------------------------------------------------------ !
+    ! Test that zero values don't cause blow up
+    ! ------------------------------------------------------------------------ !
+
+    ! Do reconstruction with zero density
+    density(:) = 0.0_r_tran
+    adv_inc(:) = 0.0_r_tran
+    call polyv_wtheta_koren_code( nlayers,              &
+                                  adv_inc,              &
+                                  wind,                 &
+                                  density,              &
+                                  zw_height,            &
+                                  reversible,           &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt,               &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
+
+    ! Now do reconstruction with tiny density as a control
+    density(:) = EPS
+    adv_inc_answer2(:) = 0.0_r_tran
+    call polyv_wtheta_koren_code( nlayers,              &
+                                  adv_inc_answer2,      &
+                                  wind,                 &
+                                  density,              &
+                                  zw_height,            &
+                                  reversible,           &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt,               &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  map_wt                )
+
+    @assertEqual(adv_inc_answer2, adv_inc, use_tol)
+
+  end subroutine test_all
+
+end module polyv_wtheta_koren_kernel_mod_test

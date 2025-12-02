@@ -1,0 +1,46 @@
+#!/usr/bin/env sh
+###############################################################################
+# (c) Crown copyright 2017-2024 Met Office. All rights reserved.              #
+# The file LICENCE, distributed with this code, contains details of the terms #
+# under which the code may be used.                                           #
+###############################################################################
+#
+# Normally this would be performed by the build system but the Inputs project
+# doesn't have one.
+#
+# This stage can't be generic because a template may produce multiple source
+# files and there is no way to know how that will happen and what the result
+# will be called from information in the repository. Beyond the build system of
+# course.
+###############################################################################
+
+set -e -u  # Stop on errors # Error on unset variables
+
+# Filenames
+#
+TEMPLATERATOR=$LFRIC_CORE_DIR/infrastructure/build/tools/Templaterator
+
+WORKING_DIR=$CYLC_SUITE_SHARE_DIR/$BUILD_NAME/extract/lfric_core
+
+# Different precision fields
+#
+FIELD_TEMPLATE=$LFRIC_CORE_DIR/infrastructure/source/field/field_mod.t90
+
+$TEMPLATERATOR $FIELD_TEMPLATE -o $WORKING_DIR/field_real32_mod.f90 -s type=real -s kind=real32
+$TEMPLATERATOR $FIELD_TEMPLATE -o $WORKING_DIR/field_real64_mod.f90 -s type=real -s kind=real64
+$TEMPLATERATOR $FIELD_TEMPLATE -o $WORKING_DIR/field_int32_mod.f90 -s type=integer -s kind=int32
+
+# Different precision operators
+#
+OPERATOR_TEMPLATE=$LFRIC_CORE_DIR/infrastructure/source/operator/operator_mod.t90
+
+$TEMPLATERATOR $OPERATOR_TEMPLATE -o $WORKING_DIR/operator_real32_mod.f90 -s type=real -s kind=real32
+$TEMPLATERATOR $OPERATOR_TEMPLATE -o $WORKING_DIR/operator_real64_mod.f90 -s type=real -s kind=real64
+
+# Different precision scalars
+#
+SCALAR_TEMPLATE=$LFRIC_CORE_DIR/infrastructure/source/scalar/scalar_mod.t90
+
+$TEMPLATERATOR $SCALAR_TEMPLATE -o $WORKING_DIR/scalar_real32_mod.f90 -s type=real -s kind=real32
+$TEMPLATERATOR $SCALAR_TEMPLATE -o $WORKING_DIR/scalar_real64_mod.f90 -s type=real -s kind=real64
+$TEMPLATERATOR $SCALAR_TEMPLATE -o $WORKING_DIR/scalar_int32_mod.f90 -s type=integer -s kind=int32

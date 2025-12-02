@@ -1,0 +1,259 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the W3 mass matrix computation
+!>
+module weighted_m3_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: weighted_m3_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type weighted_m3_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_finite_element_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(weighted_m3_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(weighted_m3_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use weighted_m3_kernel_mod, &
+                             only: weighted_m3_code
+
+    use get_unit_test_m3x3_dofmap_mod,                 &
+                             only: get_w0_m3x3_dofmap, &
+                                   get_w3_m3x3_dofmap
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod,                &
+                             only: get_w0_m3x3_q3x3x3_size, &
+                                   get_w3_m3x3_q3x3x3_size
+
+    use get_unit_test_q3x3x3_basis_mod,                      &
+                             only: get_w0_q3x3x3_diff_basis, &
+                                   get_w0_q3x3x3_basis,      &
+                                   get_w3_q3x3x3_basis
+
+    use get_unit_test_q3x3x3_quadrature_mod,                                  &
+                             only: get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                   get_gaussian_q3x3x3_quadrature_weights_z
+
+    use get_unit_test_3x3x3_chi_mod, &
+                             only: get_w0_3x3x3_field
+
+    implicit none
+
+    class(weighted_m3_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    real(kind=r_def) :: answer
+
+    integer(i_def) :: i, j, k, cell
+    integer(i_def) :: ndf_chi, undf_chi
+    integer(i_def) :: ndf_mass_matrix, undf_mass_matrix
+
+
+    integer(i_def), allocatable :: map_chi(:,:)
+    integer(i_def), allocatable :: map_mass_matrix(:,:)
+
+    real(r_def), allocatable :: diff_basis_chi(:,:,:,:)
+    real(r_def), allocatable :: basis_chi(:,:,:,:)
+    real(r_def), allocatable :: basis_mass_matrix(:,:,:,:)
+
+    real(r_def), allocatable :: rho_data(:)
+    real(r_def), allocatable :: local_stencil(:,:,:)
+
+    integer(i_def) :: ndf_w0, undf_w0
+    integer(i_def) :: ndf_w3, undf_w3
+    integer(i_def) :: ndf_pid, undf_pid
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: ncells, nlayers, ncells_3d
+    integer(i_def) :: dim_space, dim_space_diff
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+
+    real(r_def), allocatable :: chi_data(:,:)
+    real(r_def), allocatable :: panel_id(:)
+    real(r_def), allocatable :: basis_w0(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_w0(:,:,:,:)
+    real(r_def), allocatable :: basis_w3(:,:,:,:)
+    real(r_def), allocatable :: wh(:)
+    real(r_def), allocatable :: wv(:)
+
+    !=====================================
+    ! Get infrastructure support data
+    !=====================================
+    nlayers = 3
+
+    ! Get sizes
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, 1 )
+
+    ! Get maps
+    call get_w0_m3x3_dofmap( map_w0 )
+    call get_w3_m3x3_dofmap( map_w3 )
+    call get_w3_m3x3_dofmap( map_pid, 1 )
+
+    ! Get basis functions
+    call get_w0_q3x3x3_diff_basis( diff_basis_w0 )
+    call get_w0_q3x3x3_basis( basis_w0 )
+    call get_w3_q3x3x3_basis( basis_w3 )
+
+    ! Get weights
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ! Compute coordinates
+    allocate(chi_data(3,undf_w0))
+    allocate(panel_id(ncells))
+
+    panel_id(:) = 1.0_r_def
+    call get_w0_3x3x3_field(chi_data(1,:), chi_data(2,:), chi_data(3,:), &
+                            dx, dy, dz, map_w0)
+
+    ncells_3d = ncells * nlayers
+
+    !=====================================
+    ! Assign data for testing
+    !=====================================
+    ndf_chi          = ndf_w0
+    undf_chi         = undf_w0
+    ndf_mass_matrix  = ndf_w3
+    undf_mass_matrix = undf_w3
+
+    allocate( map_chi,           source=map_w0 )
+    allocate( map_mass_matrix,   source=map_w3 )
+    allocate( basis_mass_matrix, source=basis_w3 )
+    allocate( basis_chi,    source=basis_w0 )
+    allocate( diff_basis_chi,    source=diff_basis_w0 )
+
+    allocate( local_stencil( ncells_3d, ndf_w3, ndf_w3 ) )
+    allocate( rho_data(undf_w3) )
+
+    rho_data(:) = 1.0_r_def
+    local_stencil(:,:,:) = 0.0_r_def
+
+    !=====================================
+    ! Apply test on interior cell 1
+    !=====================================
+    cell = 1
+    call weighted_m3_code( cell,                    &
+                           nlayers,                 &
+                           ncells_3d,               &
+                           local_stencil,           &
+                           rho_data,                &
+                           chi_data(1,:),           &
+                           chi_data(2,:),           &
+                           chi_data(3,:),           &
+                           panel_id,                &
+                           1.0_r_def,               &
+                           ndf_mass_matrix,         &
+                           undf_mass_matrix,        &
+                           map_mass_matrix(:,cell), &
+                           basis_mass_matrix,       &
+                           ndf_chi,                 &
+                           undf_chi,                &
+                           map_chi(:,cell),         &
+                           basis_chi,               &
+                           diff_basis_chi,          &
+                           ndf_pid,                 &
+                           undf_pid,                &
+                           map_pid,                 &
+                           nqp_h,                   &
+                           nqp_v,                   &
+                           wh,                      &
+                           wv                       &
+                           )
+
+    answer = 1.0_r_def/rho_data(1)
+    @assertEqual(answer, local_stencil(1, 1, 1 )/(dx*dy*dz), tol)
+
+    deallocate( rho_data )
+    deallocate( map_chi )
+    deallocate( map_mass_matrix )
+    deallocate( local_stencil )
+    deallocate( basis_chi )
+    deallocate( diff_basis_chi )
+    deallocate( basis_mass_matrix )
+
+    deallocate( chi_data )
+    deallocate( panel_id )
+    deallocate( map_w0 )
+    deallocate( map_w3 )
+    deallocate( map_pid )
+    deallocate( diff_basis_w0 )
+    deallocate( basis_w0 )
+    deallocate( basis_w3 )
+    deallocate( wh )
+    deallocate( wv )
+
+  end subroutine test_all
+
+end module weighted_m3_kernel_mod_test

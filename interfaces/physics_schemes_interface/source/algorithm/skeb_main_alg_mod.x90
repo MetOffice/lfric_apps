@@ -1,0 +1,694 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Interface to the Stochastic Kinetic Energy Backscatter (SKEB)
+
+module skeb_main_alg_mod
+    ! Use intrinsic data types and spaces
+    use constants_mod,           only: r_def, i_def, l_def, pi
+    use fs_continuity_mod,       only: W1, Wtheta, W2, W2H, W3
+    use extrusion_mod,           only: TWOD
+    ! USE types
+    use clock_mod,               only: clock_type
+    use field_mod,               only: field_type
+    use field_collection_mod,    only: field_collection_type
+    use function_space_mod,      only: function_space_type
+    use mesh_mod,                only: mesh_type
+    use operator_mod,            only: operator_type
+    ! use collections
+    use function_space_collection_mod, only: function_space_collection
+    use mesh_collection_mod,           only: mesh_collection
+    ! xios output and timers
+    use io_config_mod, only: write_diag, use_xios_io, subroutine_timers
+    use timer_mod,     only: timer
+    ! initialise diagnostics
+    use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
+    ! configs
+    use um_domain_init_mod,            only: level2km, model_wavenumber_max
+    use planet_config_mod,             only: gravity
+    use sci_geometric_constants_mod,   only: get_da_at_w2, get_panel_id, &
+                                             get_height_fv
+    use sci_set_any_dof_kernel_mod,    only: set_any_dof_kernel_type
+    use reference_element_mod,         only: T
+
+    implicit none
+
+    private
+
+    ! Logical controlling whether spectral coeffs need calculating
+    logical(kind=l_def), save :: initialize_skeb_spectral_coeffs = .true.
+    logical(kind=l_def ) :: du_rot_skeb_flag
+    logical(kind=l_def ) :: dv_rot_skeb_flag
+    logical(kind=l_def ) :: du_div_skeb_flag
+    logical(kind=l_def ) :: dv_div_skeb_flag
+    logical(kind=l_def ) :: du_tot_skeb_flag
+    logical(kind=l_def ) :: dv_tot_skeb_flag
+    logical(kind=l_def ) :: norm_xi_flag, norm_div_flag
+    logical(kind=l_def ) :: ignore
+
+    ! parameters for the power law
+    ! Power of -1.54 based on practice at ECMWF
+    ! e.g.: chi=n^^(2p+1); p = -1.27 => 2p+1 = -1.54
+    real(kind=r_def), parameter :: P = -1.27_r_def
+    real(kind=r_def), parameter :: TWOP_P1 = 2.0_r_def*P + 1.0_r_def
+    real(kind=r_def), parameter :: FOUR_ON_VAR = 48.0_r_def
+
+    public skeb_main_alg
+
+ contains
+  !>@brief Run the Stochastic Kinetic Energy Backscatter (SKEB)
+  !>@details The SKEB scheme creates stochastic perturbations
+  !>         for the horizontal wind based on the projection of
+  !>         a flow-independent stochastic forcing pattern
+  !>         onto an estimate of the dissipation made by
+  !>         convection and numerical dynamical core.
+  !>         The resulting field is smooted via 1-2-1 filter and
+  !>         applied to the streamfunction and the velocity potential.
+  !>         Both, are then derived to obtain the rotational and
+  !>         divergent wind increments respectively. Then added up
+  !>         and tampered in the lower and upper levels.
+  !>
+  !>         Steps:
+  !>         1)  Create Forcing Pattern
+  !>                1.a compute power law
+  !>                1.b Call stph_fp_main to create SKEB forcing pattern
+  !>         2) Compute convective dissipation
+  !>            2.a Compute net massflux
+  !>            2.b call convective dissipation kernel
+  !>            2.c modulate the convective dissipation to model resolution
+  !>         3) Compute Numerical Dissipation
+  !>         4) Create Psif_hat and apply 1-2-1 smoothing
+  !>         5) Compute rotational increments
+  !>         6) Compute divergence wind increments, scale with the cosine latitude.
+  !>         7) Sum up wind increments and apply 1-2-1 filter and vertical tampering
+  !>         8) Add wind increments to the flow and diagnostics
+  !>
+  !>         See UMD81 for full scheme details
+  !>@param[in]         du_stph            Stochastic Physics increments for winds
+  !>@param[in]         rho                Density on W3
+  !>@param[in]         u                  prognostic winds in W2
+  !>@param[in]         convection_fields  Fields from convection scheme
+  !>@param[in]         clock              Model time information
+
+  subroutine skeb_main_alg(du_stph, rho, u, convection_fields, derived_fields, clock)
+
+  ! SKEB namelist options
+  use stochastic_physics_config_mod,  only:                                         &
+                                            ! Convective dissipation
+                                            skeb_convective_dissipation,            &
+                                            skeb_convective_dissipation_factor,     &
+                                            skeb_convective_dissipation_modulation, &
+                                            ! numerical dissipation
+                                            skeb_numerical_dissipation,             &
+                                            skeb_numerical_dissipation_fd,          &
+                                            skeb_numerical_dissipation_fe,          &
+                                            skeb_numerical_dissipation_factor,      &
+                                            ! Backscatter ration and 1-2-1 iter
+                                            skeb_br, skeb_n_smoothing_iters,        &
+                                            ! Add increments
+                                            skeb_add_increments,                    &
+                                            skeb_rot_du, skeb_rot_du_fe,            &
+                                            skeb_div_du, skeb_div_du_fe,            &
+                                            ! SKEB levels
+                                            skeb_level_bottom,                      &
+                                            skeb_level_bottom_cap,                  &
+                                            skeb_level_top,                         &
+                                            ! SKEB wavenumbers for the forcing pattern
+                                            stph_n_min,                             &
+                                            stph_n_max,                             &
+                                            stph_spectral_dim,                      &
+                                            ! power law
+                                            skeb_total_backscatter,                 &
+                                            skeb_decorrelation_time
+
+  ! SKEB algorithm for numerical dissipation
+  use skeb_ndisp_alg_mod, only: skeb_ndisp_alg
+
+  ! Algorithm to create SKEB forcing pattern
+  use stph_fp_main_alg_mod, only: stph_fp_main_alg
+
+  ! Kernel to do SKEB convective dissipation and low and high level
+  ! tamperingorders
+  use skeb_conv_disp_kernel_mod, only: skeb_conv_disp_kernel_type
+  use skeb_vort_div_kernel_mod, only: skeb_vort_div_kernel_type
+  use skeb_biharm_diss_kernel_mod, only: skeb_biharm_diss_kernel_type
+  use skeb_dudiv_kernel_mod, only: skeb_dudiv_kernel_type
+  use skeb_durot_kernel_mod, only: skeb_durot_kernel_type
+  use skeb_levels_cap_kernel_mod, only: skeb_levels_cap_kernel_type
+
+  ! Kernel to scale the divergent components by latitude
+  use scale_by_lat_kernel_mod, only: scale_by_lat_kernel_type
+
+  ! Geometric operators to get latitude in W2
+  use sci_geometric_constants_mod, only: get_latitude_fv
+
+  ! operators to derive rotational and divergent components
+  ! from psif_hat
+  use sci_fem_constants_mod,         only: get_div,            &
+                                           get_rmultiplicity_fv
+  use sci_mapping_constants_mod,     only: get_project_r_dot_to_w1
+
+  ! Get the verical grid spacing for W3 fields
+  use sci_geometric_constants_mod,   only: get_dx_at_w2
+  use physics_constants_mod,         only: get_rdz_w3
+
+  ! algorithms to derive the rotational and divergent wind increments
+  use sci_mass_matrix_solver_alg_mod,     only: mass_matrix_solver_alg
+
+  ! Kernels to derive the rotational and divergent wind increments
+  use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+  use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+  use strong_curl_kernel_mod,             only: strong_curl_kernel_type
+  use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
+
+  ! Kernels for 1-2-1 Filtering W3 <-> W1V
+  use sci_w3_to_w1_average_kernel_mod, only: w3_to_w1_average_kernel_type
+  use sci_w1_to_w3_average_kernel_mod, only: w1_to_w3_average_kernel_type
+
+  ! Kernel 1-2-1 filter in w2 (wind) space
+  use w2_filter_alg_mod,             only: w2_filter_alg
+
+  ! extract u and v from SKEB winds for diagnostics
+  use physics_mappings_alg_mod,      only: map_physics_winds
+
+  ! Physical constants
+  use planet_constants_mod, only: planet_radius
+
+  use sci_enforce_upper_bound_kernel_mod, only: enforce_upper_bound_kernel_type
+  use enforce_crit_kernel_mod, only: enforce_crit_kernel_type
+
+  implicit none
+  !!!! Arguments
+  ! SKEB increments to the flow
+  type( field_type ), intent( inout ) :: du_stph
+
+  ! SKEB prognostics
+  type( field_type ), intent(in) :: rho
+  type( field_type ), intent(in) :: u
+
+  ! Collections
+  type( field_collection_type ), intent(in) :: convection_fields
+  type( field_collection_type ), intent(in) :: derived_fields
+
+  ! classes
+  class(clock_type), intent(in)   :: clock
+
+  !!!! Internal variables
+  !! From Collections:
+
+  ! internal fields from convection collection
+  type( field_type ), pointer :: cape                 => null()
+  type( field_type ), pointer :: massflux_up          => null()
+  type( field_type ), pointer :: massflux_down        => null()
+
+  type( field_type ), pointer :: u_phys => null()
+  type( field_type ), pointer :: w_in_wth => null()
+  type( field_type ), pointer :: wetrho_w3 => null()
+  type( field_type ), pointer :: wetrho_wth => null()
+
+  ! latitude for velocity potential
+  type( field_type ), pointer :: latitude => null()
+
+  ! Vertical spacing for W3
+  type( field_type ), pointer :: rdz_w3 => null()
+  type( field_type ), pointer :: dx_at_w2 => null()
+  type( field_type ), pointer :: panel_id => null()
+  type( field_type ), pointer :: height_wth => null()
+
+  ! Inverse multiplicity to w1 for 1-2-1 Filter
+  type( field_type ), pointer :: rmultiplicity_w1     => null()
+
+  !!  Operators
+
+  type(operator_type), pointer :: project_w3_to_w1 => null()
+  type(operator_type), pointer :: div => null()
+
+  !!  Function space types and meshes
+
+  ! Set up W1 vector space
+  type(function_space_type), pointer :: w1_fs => null()
+  type(function_space_type), pointer :: w2h_fs => null()
+  type(function_space_type), pointer :: w2_fs => null()
+
+  ! Meshes for w2, w3 and 2D over W3
+  type(mesh_type), pointer :: mesh_2d    => null()
+  type(mesh_type), pointer :: mesh    => null()
+
+  ! Face area
+  type( field_type ), pointer :: dA => null()
+
+  !!  Internal fields
+
+  ! Mass-flux difference (up-down)
+  type( field_type ) :: massflux_diff
+
+  ! SKEB forcing
+  type( field_type ) :: du_skeb
+
+  ! SKEB forcing pattern
+  type( field_type ) :: fp_skeb
+
+  ! Fields for dissipation
+  type( field_type ) :: vorticity, divergence
+  type( field_type ) :: norm_xi, norm_div
+  type( field_type ) :: ndisp
+  type( field_type ) :: cdisp
+  type( field_type ) :: total_disp, total_disp_temp
+
+  ! streamfuncion and velocity potential forcing field
+  type( field_type ) :: psif_hat
+  type( field_type ) :: r_psif_hat
+  type( field_type ) :: psif_hat_w1
+  type( field_type ) :: du_rot_w2, du_div_w2, r_du_div_w2
+  ! rotational and divergent forcing wind components
+  type( field_type ) :: du_rot_skeb, dv_rot_skeb, dw_rot_skeb
+  type( field_type ) :: du_div_skeb, dv_div_skeb, dw_div_skeb
+  type( field_type ) :: du_tot_skeb, dv_tot_skeb, dw_tot_skeb
+
+  !w1 intermediate field for 1-2-1 filtering
+  type( field_type ) :: field_w1
+
+  !w2 intermediate field for scaling by cos(lat)
+  type( field_type ) :: field_w2
+
+  ! Spectral coefficients
+  real(kind=r_def), allocatable, save :: skeb_spectral_coeffc(:)
+  real(kind=r_def), allocatable, save :: skeb_spectral_coeffs(:)
+  real(kind=r_def), allocatable, save :: skeb_power_law(:)
+
+  ! time decorrelation parameter
+  real(kind=r_def), save :: skeb_alpha
+
+  ! Convective resolution factor to modulate conv mask
+  real(kind=r_def) :: convective_resolution_factor
+
+  ! scaling total dissipation by br/total_backscatter
+  real(kind=r_def) :: factor_psif, max_backscatter, crit_backscatter
+  ! parameters for the power law and decorrelation time alpha
+  real(kind=r_def) :: gamma, dt, spl_coeff
+
+  ! mesh_id
+  integer(kind=i_def) :: mesh_id
+
+  ! Iterators in for loops
+  integer(i_def) :: m, n, n_row, stencil_extent
+
+  !!!!!!!!!! END OF VARIABLE DEFINITION, START OF CODE !!!!!!!!!!
+  if ( subroutine_timers ) call timer("skeb_main_alg")
+
+  ! create dissipation functions and psif_hat
+  call rho%copy_field_properties(ndisp)
+  call rho%copy_field_properties(cdisp)
+  call rho%copy_field_properties(total_disp)
+  call rho%copy_field_properties(psif_hat)
+  call rho%copy_field_properties(fp_skeb)
+
+   ! Create mesh
+  mesh => rho%get_mesh()
+  w1_fs => function_space_collection%get_fs( mesh, 0, 0, W1 )
+
+  ! Initialize variables to 0.0 [NEEDED??]
+  call invoke( setval_c(ndisp, 0.0_r_def),      &
+               setval_c(cdisp, 0.0_r_def),      &
+               setval_c(total_disp, 0.0_r_def), &
+               setval_c(psif_hat, 0.0_r_def),   &
+               setval_c(fp_skeb, 0.0_r_def) )
+
+  dt = real(clock%get_seconds_per_step(), r_def)
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  1)  Create Forcing Pattern  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! Initialize spectral coefficients for the forcing pattern
+  if (initialize_skeb_spectral_coeffs) then
+
+    !allocate spectral coefficients and power law
+    allocate(skeb_spectral_coeffc(stph_spectral_dim))
+    allocate(skeb_spectral_coeffs(stph_spectral_dim))
+    allocate(skeb_power_law(stph_spectral_dim))
+
+    ! set them to zero (invokes don't work for non-fields types)
+    skeb_spectral_coeffc = 0.0_r_def
+    skeb_spectral_coeffs = 0.0_r_def
+    skeb_power_law = 0.0_r_def
+
+    !!!!!! 1.a compute power law
+
+    ! compute alpha for temporal decorrelation
+    skeb_alpha=1-exp(-dt/skeb_decorrelation_time)
+
+    ! This power law is what Glenn Shutts observed in the CRM simulations
+    ! (see Berner et al., 2009: J. Atmos. Sci, pp 603-626)
+    gamma = 0.0_r_def
+    do n = stph_n_min, stph_n_max
+      gamma = gamma + (n+1)*(2*n+1)*n**(TWOP_P1)
+    end do
+    gamma = gamma/skeb_alpha
+
+    ! Below we calculate the power law which is given as
+    ! g(n) = spl_coeff * n^p
+    ! where
+    ! spl_coeff = SQRT([4 * Pi * a^2 * skeb_total_backscatter]/[dt * var * gamma])
+    ! var is the variance of random numbers [-0.5; 0.5] = 1/12
+    ! tested by 1000 cases of random arrays of size = 1e9
+    ! note: (4/var) is pre-calculated as FOUR_ON_VAR = 48
+
+    ! Set n_row as the summatory of n
+    n_row = 0
+    ! add up those scales below the minimum wavenumber to the
+    ! row iterator
+    do n = 1, stph_n_min-1
+      n_row = n_row + n
+    end do
+
+    ! Build power law
+    spl_coeff = planet_radius * sqrt(FOUR_ON_VAR*pi*skeb_total_backscatter/  &
+                  (dt*gamma))
+    do n = stph_n_min, stph_n_max
+      n_row = n_row + n
+      do m = 0, n
+        skeb_power_law(n_row + m) = spl_coeff * n**P
+      end do
+    end do
+    initialize_skeb_spectral_coeffs = .false.
+  end if
+
+  !!!!!! 1.b call stph_fp_main to create forcing pattern for SKEB
+  call stph_fp_main_alg(skeb_level_bottom-1_i_def, skeb_level_top-1_i_def, &
+                        stph_n_min, stph_n_max, stph_spectral_dim,         &
+                        skeb_alpha, skeb_power_law,                        &
+                        skeb_spectral_coeffc, skeb_spectral_coeffs,        &
+                        fp_skeb)
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  2) Compute convective dissipation  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  call derived_fields%get_field('wetrho_in_w3', wetrho_w3)
+  mesh_id = wetrho_w3%get_mesh_id()
+  rdz_w3 => get_rdz_w3(mesh_id)
+  dx_at_w2 => get_dx_at_w2(mesh_id)
+
+  if (skeb_convective_dissipation) then
+
+    !!! 2.a Compute net massflux
+
+    ! Extract CAPE
+    call convection_fields%get_field('cape_diluted', cape)
+    ! Extract convection up and down massfluxes
+    call convection_fields%get_field('massflux_up', massflux_up )
+    call convection_fields%get_field('massflux_down', massflux_down)
+    ! Compute massflux vertical difference
+    call massflux_up%copy_field_properties(massflux_diff)
+    call invoke( X_minus_Y(massflux_diff, massflux_up, massflux_down) )
+
+    !!! 2.b call convective dissipation kernel
+    ! Call kernel to compute the convective dissipation, get dz at W3 points
+    height_wth => get_height_fv(Wtheta, mesh_id)
+
+    call invoke(skeb_conv_disp_kernel_type(cdisp, wetrho_w3, massflux_diff,     &
+                                           cape, height_wth, skeb_level_bottom, &
+                                           skeb_level_top, gravity ) )
+
+    !!! 2.c modulate the convective dissipation to resolution
+    if (skeb_convective_dissipation_modulation) then
+      convective_resolution_factor=SQRT(216.0_r_def/model_wavenumber_max)
+      call invoke( inc_a_times_X(convective_resolution_factor, cdisp) )
+    end if
+
+    ! Add to total dissipation
+    call invoke( inc_X_plus_bY(total_disp, skeb_convective_dissipation_factor, &
+                               cdisp) )
+
+  end if
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  3)  Compute Numerical Dissipation  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  if (skeb_numerical_dissipation == skeb_numerical_dissipation_fe) then
+
+    ! Call algorithm
+    call skeb_ndisp_alg(u,ndisp)
+
+  else if (skeb_numerical_dissipation == skeb_numerical_dissipation_fd) then
+
+    call rho%copy_field_properties(divergence)
+    call vorticity%initialise(w1_fs)
+    norm_xi_flag = init_diag(norm_xi, 'stochastic__norm_xi')
+    norm_div_flag = init_diag(norm_div, 'stochastic__norm_div')
+
+    call invoke( setval_c(divergence, 0.0_r_def),     &
+                 setval_c(vorticity,  0.0_r_def) )
+
+    call derived_fields%get_field('wetrho_in_wth', wetrho_wth)
+    call derived_fields%get_field('w_in_wth', w_in_wth)
+    call derived_fields%get_field('u_physics', u_phys)
+
+    panel_id => get_panel_id(mesh_id)
+    stencil_extent = 1_i_def
+
+    call invoke( skeb_vort_div_kernel_type(vorticity, divergence, u_phys,        &
+                                           stencil_extent, dx_at_w2, wetrho_w3,  &
+                                           wetrho_wth, w_in_wth, rdz_w3,         &
+                                           skeb_level_bottom, skeb_level_top,    &
+                                           panel_id, stencil_extent),            &
+                 skeb_biharm_diss_kernel_type(ndisp, vorticity, divergence,      &
+                                              stencil_extent, dx_at_w2,          &
+                                              skeb_level_bottom, skeb_level_top, &
+                                              dt, norm_xi, norm_div) )
+
+    if (write_diag .and. use_xios_io) then
+      if (norm_div_flag) &
+           call norm_div%write_field(norm_div%get_name())
+      if (norm_xi_flag) &
+           call norm_xi%write_field(norm_xi%get_name())
+    end if
+
+  end if
+
+  ! Add to total dissipation
+  call invoke( inc_X_plus_bY(total_disp, skeb_numerical_dissipation_factor, ndisp) )
+
+  ! Cap total_disp
+  crit_backscatter = 1.0e4_r_def*skeb_total_backscatter
+  call total_disp%copy_field_serial(total_disp_temp)
+  stencil_extent = 1_i_def
+  call invoke( enforce_crit_kernel_type(total_disp, total_disp_temp,      &
+                                        stencil_extent, crit_backscatter, &
+                                        0.0_r_def, level2km) )
+  max_backscatter = 1.0e3_r_def*skeb_total_backscatter
+  crit_backscatter = 1.0e3_r_def*skeb_total_backscatter
+  call invoke( enforce_upper_bound_kernel_type(total_disp, crit_backscatter, &
+                                               max_backscatter) )
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  4) Create Psif_hat and apply 1-2-1 smoothing !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  if (skeb_n_smoothing_iters>0) then
+    call field_w1%initialise(w1_fs)
+    rmultiplicity_w1 => get_rmultiplicity_fv( W1, mesh%get_id()) ! 1/multiplicity of w1
+    do n = 1, skeb_n_smoothing_iters
+      ! Do filtering for psif_hat (using the an intermediate field in W1V)
+      ! 1-2-1 filter consist of 4 invokes:
+      ! 1st sets w1 field to 0.0
+      ! 2nd does w3 -> w1 1-2-1 filter
+      ! 3rd sets w3 field to 0.0
+      ! 4th does w1 -> w3 1-2-1 filter
+      call invoke( setval_c(field_w1, 0.0_r_def),                      &
+                   w3_to_w1_average_kernel_type(field_w1, total_disp,  &
+                                                rmultiplicity_w1),     &
+                   setval_c(total_disp, 0.0_r_def),                    &
+                   w1_to_w3_average_kernel_type(total_disp, field_w1) )
+    end do
+  end if ! End loop over skeb_n_smoothing_iters
+
+  ! Create psif_hat:
+  ! FACTOR_PSIF = FP * sqrt(br*total_disp/total_backscatter)
+  factor_psif = skeb_br / skeb_total_backscatter
+  call invoke( a_times_X(psif_hat, factor_psif, total_disp), &
+               inc_X_powreal_a(psif_hat, 0.5_r_def),         &
+               inc_X_times_Y(psif_hat, fp_skeb) )
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  5) Compute rotational wimd increments !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! create vector spaces in W2
+  w2h_fs => function_space_collection%get_fs( mesh, 0, 0, W2H )
+  w2_fs => function_space_collection%get_fs( mesh, 0, 0, W2 )
+
+  ! Create wind forcing and set to 0.0
+  call u%copy_field_properties(du_skeb)
+  call du_div_w2%initialise( vector_space = w2_fs  )
+  call du_rot_w2%initialise( vector_space = w2_fs  )
+  call du_div_w2%copy_field_properties(field_w2)
+
+  call invoke( setval_c(du_skeb, 0.0_r_def),   &
+               setval_c(du_rot_w2, 0.0_r_def), &
+               setval_c(du_div_w2, 0.0_r_def) )
+
+  dA => get_da_at_w2(mesh_id)
+
+  if (skeb_rot_du == skeb_rot_du_fe) then
+
+    ! Initialise Operators
+    project_w3_to_w1 => get_project_r_dot_to_w1(mesh%get_id())
+
+    ! Project k*psif_hat to W1V and take strong curl
+    call psif_hat_w1%initialise( vector_space = w1_fs)
+    call r_psif_hat%initialise( vector_space = w1_fs)
+    call invoke( setval_c(psif_hat_w1, 0.0_r_def), &
+                 setval_c(r_psif_hat, 0.0_r_def) )
+
+    ! Project to W1V (W1 with zero horizontal components, and integrate
+    ! quadrature points
+    call invoke( matrix_vector_kernel_type(r_psif_hat, psif_hat, project_w3_to_w1) )
+
+    call mass_matrix_solver_alg(psif_hat_w1, r_psif_hat)
+
+    ! Take strong curl of F hat on W1 space, extract horizontal components
+    call invoke ( strong_curl_kernel_type(du_rot_w2, psif_hat_w1), &
+    ! Multiply by -1 so increments are right sign for streamfunction
+                  inc_a_times_X(-1.0_r_def, du_rot_w2) )
+
+  else
+
+    ! Average w3 field into w1, calculate du_rot and multiply by dA
+    call invoke( setval_c(field_w1, 0.0_r_def),                             &
+                 w3_to_w1_average_kernel_type(field_w1, psif_hat,           &
+                                              rmultiplicity_w1),            &
+                 skeb_durot_kernel_type(du_rot_w2, field_w1, dx_at_w2,      &
+                                        skeb_level_bottom, skeb_level_top), &
+                 inc_x_times_y(du_rot_w2, dA) )
+
+  end if
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  6)  Compute divergence wind increments !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  mesh_2d => mesh_collection%get_mesh( mesh, TWOD )
+  latitude  => get_latitude_fv(W2, mesh_2d%get_id())
+
+  if (skeb_div_du == skeb_div_du_fe) then
+
+    div => get_div(mesh%get_id())
+    call r_du_div_w2%initialise( vector_space = w2_fs  )
+
+  ! Take weak grad of W3 field in W2H
+    call invoke ( setval_c(r_du_div_w2, 0.0_r_def),                                &
+                  transpose_matrix_vector_kernel_type(r_du_div_w2, psif_hat, div), &
+                  inc_a_times_X(-1.0_r_def, r_du_div_w2),                          &
+                  enforce_bc_kernel_type(r_du_div_w2),                             &
+                  ! Enforce 2D divergence
+                  set_any_dof_kernel_type(r_du_div_w2, T, 0.0_r_def) )
+
+    ! Integrate quadrature points
+    call mass_matrix_solver_alg(du_div_w2, r_du_div_w2)
+
+    ! Scale by -1 in the Northerm hemisphere
+    ! This first creates a temporary copy of the field
+    ! so that the kernel is not applied twice per shared dof.
+    call invoke( setval_x(field_w2, du_div_w2),  &
+                 scale_by_lat_kernel_type(du_div_w2,field_w2,latitude) )
+
+
+  else
+
+    ! calculate divergence increment and multiply by dA
+    stencil_extent = 1_i_def
+    call invoke( skeb_dudiv_kernel_type(du_div_w2, psif_hat, stencil_extent,   &
+                                        dx_at_w2, latitude, skeb_level_bottom, &
+                                        skeb_level_top),                       &
+                 inc_x_times_y(du_div_w2, dA) )
+
+  end if
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  7) Sum up wind increments and apply 1-2-1 filter and vertical tapering  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! Scale by dt
+  call invoke( inc_a_times_X(dt, du_div_w2), &
+               inc_a_times_X(dt, du_rot_w2), &
+               !  Apply vertical tapering for SKEB wind increments
+               setval_x(field_w2, du_rot_w2),                           &
+               skeb_levels_cap_kernel_type( du_rot_w2, field_w2,        &
+                                            skeb_level_bottom_cap,      &
+                                            skeb_level_top, level2km ), &
+               setval_x(field_w2, du_div_w2),                           &
+               skeb_levels_cap_kernel_type( du_div_w2, field_w2,        &
+                                            skeb_level_bottom_cap,      &
+                                            skeb_level_top, level2km ), &
+               ! Sum up winds from rotational divergent component to du_skeb
+               inc_X_plus_Y(du_skeb, du_rot_w2), &
+               inc_X_plus_Y(du_skeb, du_div_w2) )
+
+  ! Apply 1-2-1 smoothing for u,v SKEB wind increments
+  call w2_filter_alg(du_skeb)
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  8) Add wind increments to the flow and diagnostics !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! Add increments to winds
+  if (skeb_add_increments) then
+    call invoke( inc_X_plus_Y(du_stph, du_skeb) )
+  end if
+
+  ! Add diagnostics to iodef
+  if (write_diag .and. use_xios_io) then
+    call fp_skeb%write_field('stochastic__fp_skeb')
+    call ndisp%write_field('stochastic__ndisp')
+    call cdisp%write_field('stochastic__cdisp')
+    call psif_hat%write_field('stochastic__psif_hat')
+
+    ! Add SKEB rotational winds
+    du_rot_skeb_flag = init_diag(du_rot_skeb, 'stochastic__du_rot_skeb')
+    dv_rot_skeb_flag = init_diag(dv_rot_skeb, 'stochastic__dv_rot_skeb')
+    if (du_rot_skeb_flag .or. dv_rot_skeb_flag) then
+      if (.not. du_rot_skeb_flag) ignore=init_diag(du_rot_skeb, 'stochastic__du_rot_skeb', activate=.true.)
+      if (.not. dv_rot_skeb_flag) ignore=init_diag(dv_rot_skeb, 'stochastic__dv_rot_skeb', activate=.true.)
+      ! dw_rot is zero by default, it does not have a xios diagnostic needed
+      call du_rot_skeb%copy_field_properties(dw_rot_skeb)
+      call map_physics_winds(du_rot_skeb, dv_rot_skeb, dw_rot_skeb, du_rot_w2)
+      if (du_rot_skeb_flag) call du_rot_skeb%write_field('stochastic__du_rot_skeb')
+      if (dv_rot_skeb_flag) call dv_rot_skeb%write_field('stochastic__dv_rot_skeb')
+    end if
+
+    ! Add SKEB divergent winds
+    du_div_skeb_flag = init_diag(du_div_skeb, 'stochastic__du_div_skeb')
+    dv_div_skeb_flag = init_diag(dv_div_skeb, 'stochastic__dv_div_skeb')
+    if (du_div_skeb_flag .or. dv_div_skeb_flag) then
+      if (.not. du_div_skeb_flag) ignore=init_diag(du_div_skeb, 'stochastic__du_div_skeb', activate=.true.)
+      if (.not. dv_div_skeb_flag) ignore=init_diag(dv_div_skeb, 'stochastic__dv_div_skeb', activate=.true.)
+      ! dw_div is zero by default, no diagnostic needed
+      call du_div_skeb%copy_field_properties(dw_div_skeb)
+      call map_physics_winds(du_div_skeb, dv_div_skeb, dw_div_skeb, du_div_w2)
+      if (du_div_skeb_flag) call du_div_skeb%write_field('stochastic__du_div_skeb')
+      if (dv_div_skeb_flag) call dv_div_skeb%write_field('stochastic__dv_div_skeb')
+    end if
+
+    ! Add SKEB total winds
+    du_tot_skeb_flag = init_diag(du_tot_skeb, 'stochastic__du_tot_skeb')
+    dv_tot_skeb_flag = init_diag(dv_tot_skeb, 'stochastic__dv_tot_skeb')
+    if (du_tot_skeb_flag .or. dv_tot_skeb_flag) then
+      if (.not. du_tot_skeb_flag) ignore=init_diag(du_tot_skeb, 'stochastic__du_tot_skeb', activate=.true.)
+      if (.not. dv_tot_skeb_flag) ignore=init_diag(dv_tot_skeb, 'stochastic__dv_tot_skeb', activate=.true.)
+      ! dw_tot is zero by default, no diagnostic needed
+      call du_tot_skeb%copy_field_properties(dw_tot_skeb)
+      call map_physics_winds(du_tot_skeb, dv_tot_skeb, dw_tot_skeb, du_skeb)
+      if (du_tot_skeb_flag) call du_tot_skeb%write_field('stochastic__du_tot_skeb')
+      if (dv_tot_skeb_flag) call dv_tot_skeb%write_field('stochastic__dv_tot_skeb')
+    end if
+
+  end if ! end if write_diags and use_xios
+
+
+  if ( subroutine_timers ) call timer("skeb_main_alg")
+
+  end subroutine skeb_main_alg
+end module skeb_main_alg_mod

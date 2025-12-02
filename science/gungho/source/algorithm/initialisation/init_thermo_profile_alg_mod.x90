@@ -1,0 +1,111 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!
+!> @brief Interpolate theta profile, specified in namelist data, onto model
+!>        data points
+
+module init_thermo_profile_alg_mod
+
+use constants_mod,               only: r_def, i_def, l_def, rmdi
+use kernel_mod,                  only: kernel_type
+use field_mod,                   only: field_type
+use formulation_config_mod,      only: moisture_formulation,    &
+                                       moisture_formulation_dry
+use fs_continuity_mod,           only: Wtheta
+use sci_geometric_constants_mod, only: get_height_fe,   &
+                                       get_height_fv,   &
+                                       get_coordinates, &
+                                       get_panel_id
+
+implicit none
+
+private
+
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+public init_thermo_profile_alg
+contains
+
+subroutine init_thermo_profile_alg( theta, mr_v )
+
+use initial_temperature_config_mod, only: temp_prof_size    => profile_size,    &
+                                          temp_prof_data    => profile_data,    &
+                                          temp_prof_heights => profile_heights, &
+                                          perturb,                              &
+                                          perturb_random
+
+use initial_vapour_config_mod,      only: vapour_prof_size    => profile_size,   &
+                                          vapour_prof_data    => profile_data,   &
+                                          vapour_prof_heights => profile_heights
+
+!> @todo Data passed to the kernel via module 'use' statements.
+!>       When PSyclone supports passing of arrays into kernels (issue #1312),
+!>       these data should be passed through the argument list of the invoke.
+use profile_interp_kernel_mod,      only: profile_interp_kernel_type, &
+                                          profile_size,               &
+                                          profile_data,               &
+                                          profile_heights
+
+use sci_random_perturb_kernel_mod,  only: random_perturb_kernel_type
+
+implicit none
+
+! Arguments
+type(field_type),           intent(inout) :: theta
+type(field_type), optional, intent(inout) :: mr_v
+! Not needed when formulation is dry
+
+integer(kind=i_def) :: mesh_id
+logical(kind=l_def) :: profile_extrap
+type(field_type), pointer :: chi(:) => null()
+type(field_type), pointer :: panel_id => null()
+
+type( field_type ), pointer :: height_wth => null()
+
+mesh_id = theta%get_mesh_id()
+chi => get_coordinates(mesh_id)
+panel_id => get_panel_id(mesh_id)
+if ( theta%get_element_order_h() > 0 .or. theta%get_element_order_v() > 0 ) then
+  height_wth => get_height_fe(Wtheta, mesh_id)
+else
+  height_wth => get_height_fv(Wtheta, mesh_id)
+end if
+profile_extrap = .true.
+
+profile_size    = temp_prof_size
+profile_data(1:profile_size)    = temp_prof_data(1:profile_size)
+profile_heights(1:profile_size) = temp_prof_heights(1:profile_size)
+if ( profile_size == 1) then
+  call invoke( setval_c( theta, profile_data(1) ) )
+else
+  call invoke( setval_c( theta, rmdi ),                       &
+               profile_interp_kernel_type( theta, height_wth, &
+                                           profile_extrap ) )
+end if
+
+if ( moisture_formulation /= moisture_formulation_dry ) then
+  profile_size    = vapour_prof_size
+  profile_data(1:profile_size)    = vapour_prof_data(1:profile_size)
+  profile_heights(1:profile_size) = vapour_prof_heights(1:profile_size)
+  if ( profile_size == 1) then
+    call invoke( setval_c( mr_v, profile_data(1) ) )
+  else
+    call invoke( setval_c( mr_v, rmdi ),                        &
+                 profile_interp_kernel_type( mr_v, height_wth,  &
+                                             profile_extrap ) )
+  end if
+end if
+
+! Add a perturbation to potential temperature
+select case(perturb)
+case(perturb_random)
+  call invoke( random_perturb_kernel_type( theta, height_wth ) )
+end select
+
+end subroutine init_thermo_profile_alg
+
+end module init_thermo_profile_alg_mod

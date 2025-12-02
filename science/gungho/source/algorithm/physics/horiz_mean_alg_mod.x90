@@ -1,0 +1,78 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Calculate mean of a 3D field on each level
+!> @details Takes a field as inpt and returns another field which contains
+!>          the horizontal mean of the input field on each layer of the grid.
+!>          A field is returned rather than a single column of data, to
+!>          facilitate subsequent computations involving fields.
+module horiz_mean_alg_mod
+
+  use constants_mod,                 only: i_def, r_def
+  use field_mod,                     only: field_type
+  use fs_continuity_mod,             only: W3, Wtheta
+  use function_space_collection_mod, only: function_space_collection
+  use local_mesh_mod,                only: local_mesh_type
+  use mesh_mod,                      only: mesh_type
+
+  implicit none
+
+  private
+  public :: horiz_mean_alg
+
+contains
+
+  !> @brief Algorithm for calculating mean of a field in each layer of the grid
+  !> @param[in,out] horiz_mean Field containing mean of input field in each layer
+  !> @param[in]     nlayers Number of layers in the grid
+  !> @param[in]     twod_mesh Horizontal mesh information
+  !> @param[in]     field Input field whose layer mean is to be calculated
+  subroutine horiz_mean_alg( horiz_mean, nlayers, twod_mesh, field )
+
+  use extract_2d_field_kernel_mod,     only: extract_2d_field_kernel_type
+  use set_field_to_profile_kernel_mod, only: set_field_to_profile_kernel_type
+
+  implicit none
+
+  type( field_type ),      intent(inout)  :: horiz_mean
+  integer( kind = i_def ), intent(in)     :: nlayers
+  type( mesh_type ), pointer, intent(in)  :: twod_mesh
+  type( field_type ),      intent(in)     :: field
+
+  integer( kind=i_def ) :: k
+  integer( kind=i_def ) :: mesh_size, n_vert_dofs
+  real( kind=r_def )    :: layer_mean
+  type( field_type )    :: twod_field
+
+  type(local_mesh_type),   pointer :: local_mesh => null()
+
+  select case( field%which_function_space() )
+  case(W3)
+    n_vert_dofs = nlayers
+  case(Wtheta)
+    n_vert_dofs = nlayers + 1
+  case default
+  end select
+
+  call twod_field%initialise( &
+         vector_space =       &
+         function_space_collection%get_fs( twod_mesh, 0, 0, W3 ) )
+
+  local_mesh => twod_mesh%get_local_mesh()
+
+  mesh_size = local_mesh%get_ncells_global_mesh()
+
+  do k = 0, n_vert_dofs - 1
+    call invoke( extract_2d_field_kernel_type( twod_field, field, k ), &
+                 sum_X( layer_mean, twod_field ) )
+
+    layer_mean = layer_mean / real(mesh_size, r_def)
+
+    call invoke( set_field_to_profile_kernel_type( horiz_mean, k, layer_mean ) )
+
+  end do
+
+  end subroutine horiz_mean_alg
+end module horiz_mean_alg_mod

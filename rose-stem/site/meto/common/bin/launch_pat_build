@@ -1,0 +1,25 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2019 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+
+set -e
+
+EXEC_NAME="$1"
+
+echo "Running Pat build script"
+
+#This is where the gungho exe is
+EXEC_PATH="${BIN_DIR}/${EXEC_NAME}"
+echo "${EXEC_PATH}"
+
+PAT_LIBS=
+
+#Make sure we are in the location, otherwise the exe we wll end up with the exe in the wrong place
+cd "${BIN_DIR}"
+rm -f "${EXEC_NAME}+pat"
+
+#build into exisiting exe with craypat
+#EXs
+pat_build "${EXEC_NAME}"

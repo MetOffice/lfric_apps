@@ -1,0 +1,99 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the vertical mass flux computation
+module tl_vertical_mass_flux_kernel_mod_test
+
+  use, intrinsic :: iso_fortran_env, only : real64, real32
+  use constants_mod,                 only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: tl_vertical_mass_flux_test_type
+    private
+  contains
+    procedure test_all
+  end type tl_vertical_mass_flux_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use tl_vertical_mass_flux_kernel_mod, only : tl_vertical_mass_flux_code
+
+    implicit none
+
+    class(tl_vertical_mass_flux_test_type), intent(inout) :: this
+
+    real(kind=r_def) :: tol
+    real(kind=r_def) :: answer
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 2
+
+    ! Vector Space
+    integer(kind=i_def), parameter          :: ndf_wv  = 2_i_def
+    integer(kind=i_def), parameter          :: undf_wv = nlayers + 1
+    integer(kind=i_def), dimension(ndf_wv)  :: map_wv
+    real(kind=r_def),    dimension(undf_wv) :: ls_wind
+    real(kind=r_def),    dimension(undf_wv) :: wind
+    real(kind=r_def),    dimension(undf_wv) :: mass_flux
+
+    ! Multidata Space
+    integer(kind=i_def), parameter          :: ndf_md  = 1_i_def
+    integer(kind=i_def), parameter          :: undf_md = 2_i_def*nlayers
+    integer(kind=i_def), dimension(ndf_md)  :: map_md
+    real(kind=r_def),    dimension(undf_md) :: reconstruction
+
+    integer(kind=i_def) :: k, df
+
+    map_md = (/ 1 /)
+    map_wv(1) = 1
+    map_wv(2) = 2
+
+    ! Set some values for the initial field
+    do k = 0,nlayers - 1
+      ls_wind(map_wv(1)+k) = real(k,r_def)
+      ls_wind(map_wv(2)+k) = real(k+1,r_def)
+      reconstruction(map_md(1)+k) = 21.0_r_def + 3.52_r_def*real(k,r_def)
+      reconstruction(map_md(1)+k+nlayers) = 21.0_r_def + 3.52_r_def*real(k+1,r_def)
+    end do
+
+    wind = -0.5_r_def*ls_wind
+
+    mass_flux = 0.0_r_def
+
+    call tl_vertical_mass_flux_code(nlayers,                 &
+                                    mass_flux,               &
+                                    ls_wind,                 &
+                                    wind,                    &
+                                    reconstruction,          &
+                                    ndf_wv, undf_wv, map_wv, &
+                                    ndf_md, undf_md, map_md  &
+                                   )
+
+    select case(r_def)
+    case(real64)
+      tol = 1.0e-9_r_def
+    case(real32)
+      tol = 1.0e-6_r_def
+    case default
+      @assertFail("r_def precision not implemented")
+    end select
+
+    do k = 0,nlayers-1
+      answer = - 0.5_r_def*real(k,r_def)*(21.0_r_def + 3.52_r_def*real(k,r_def))
+      @assertEqual(answer, mass_flux(map_wv(1)+k), tol)
+    end do
+
+  end subroutine test_all
+
+end module tl_vertical_mass_flux_kernel_mod_test

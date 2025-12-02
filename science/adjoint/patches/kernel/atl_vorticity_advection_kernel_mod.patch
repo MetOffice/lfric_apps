@@ -1,0 +1,60 @@
+@@ -1,34 +1,34 @@
+-module adj_vorticity_advection_kernel_mod
++module atl_vorticity_advection_kernel_mod
+   use kernel_mod, only : kernel_type
+   use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
+ &gh_field, gh_inc, gh_quadrature_xyoz, gh_read, gh_real
+   use constants_mod, only : i_def, r_def
+-  use fs_continuity_mod, only : w1, w2, wchi
++  use fs_continuity_mod, only : w1, w2
+   use cross_product_mod, only : cross_product
+   implicit none
+-  type, public, extends(kernel_type) :: adj_vorticity_advection_kernel_type
++  type, public, extends(kernel_type) :: atl_vorticity_advection_kernel_type
+   type(ARG_TYPE) :: META_ARGS(7) = (/ &
+     arg_type(gh_field, gh_real, gh_read, w2), &
+     arg_type(gh_field, gh_real, gh_inc, w2), &
+     arg_type(gh_field, gh_real, gh_inc, w1), &
+     arg_type(gh_field, gh_real, gh_read, w2), &
+     arg_type(gh_field, gh_real, gh_read, w1), &
+-    arg_type(gh_field*3, gh_real, gh_read, wchi), &
++    arg_type(gh_field*3, gh_real, gh_read, any_space_9), &
+     arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_3)/)
+   type(FUNC_TYPE) :: META_FUNCS(3) = (/ &
+     func_type(w2, gh_basis), &
+     func_type(w1, gh_basis), &
+-    func_type(wchi, gh_basis, gh_diff_basis)/)
++    func_type(any_space_9, gh_basis, gh_diff_basis)/)
+   INTEGER :: GH_SHAPE = gh_quadrature_xyoz
+   INTEGER :: OPERATES_ON = cell_column
+   CONTAINS
+-    PROCEDURE, NOPASS :: adj_vorticity_advection_code
+-END TYPE adj_vorticity_advection_kernel_type
++    PROCEDURE, NOPASS :: atl_vorticity_advection_code
++END TYPE atl_vorticity_advection_kernel_type
+ 
+   public
+ 
+   contains
+-  subroutine adj_vorticity_advection_code(nlayers, r_u, wind, vorticity, ls_wind, ls_vorticity, chi_1, chi_2, chi_3, panel_id, &
++  subroutine atl_vorticity_advection_code(nlayers, r_u, wind, vorticity, ls_wind, ls_vorticity, chi_1, chi_2, chi_3, panel_id, &
+ &ndf_w2, undf_w2, map_w2, w2_basis, ndf_w1, undf_w1, map_w1, w1_basis, ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, &
+ &ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
+     use sci_coordinate_jacobian_mod, only : pointwise_coordinate_jacobian, pointwise_coordinate_jacobian_inverse
+@@ -86,7 +86,6 @@
+     real(kind=r_def), dimension(3) :: mul2
+     real(kind=r_def), dimension(3) :: cross_product1
+     real(kind=r_def), dimension(3) :: cross_product2
+-    integer :: i
+     real(kind=r_def) :: res_dot_product
+     integer :: idx
+     integer :: idx_1
+@@ -207,6 +206,6 @@
+       enddo
+     enddo
+ 
+-  end subroutine adj_vorticity_advection_code
++  end subroutine atl_vorticity_advection_code
+ 
+-end module adj_vorticity_advection_kernel_mod
++end module atl_vorticity_advection_kernel_mod

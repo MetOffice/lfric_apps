@@ -1,0 +1,126 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief Initialisation of prognostic fields
+module init_physics_prognostics_alg_mod
+
+  use field_collection_mod,             only : field_collection_type
+#ifdef UM_PHYSICS
+  use init_radiation_fields_alg_mod,    only : init_radiation_fields_alg
+  use init_microphysics_fields_alg_mod, only : init_microphysics_fields_alg
+  use init_electric_fields_alg_mod,     only : init_electric_fields_alg
+  use init_orography_fields_alg_mod,    only : init_orography_fields_alg
+  use init_turbulence_fields_alg_mod,   only : init_turbulence_fields_alg
+  use init_convection_fields_alg_mod,   only : init_convection_fields_alg
+  use init_cloud_fields_alg_mod,        only : init_cloud_fields_alg
+  use init_surface_fields_alg_mod,      only : init_surface_fields_alg
+  use init_soil_fields_alg_mod,         only : init_soil_fields_alg
+  use init_snow_fields_alg_mod,         only : init_snow_fields_alg
+  use init_chemistry_fields_alg_mod,    only : init_chemistry_fields_alg
+  use init_aerosol_fields_alg_mod,      only : init_aerosol_fields_alg
+  use init_stph_fields_alg_mod,         only : init_stph_fields_alg
+
+  use section_choice_config_mod, only: surface, surface_jules, &
+                                       aerosol, aerosol_um,    &
+                                       electric, electric_um
+
+  use aerosol_config_mod,        only: glomap_mode,               &
+                                       glomap_mode_dust_and_clim, &
+                                       glomap_mode_ukca
+  use chemistry_config_mod,      only: chem_scheme, chem_scheme_flexchem
+#endif
+  use log_mod,                        only : log_event,         &
+                                             LOG_LEVEL_INFO
+
+  implicit none
+
+  private
+  public :: init_physics_prognostics_alg
+
+contains
+
+  !>@brief Initialisation of physics prognostic fields
+  !> @param[in,out] radition_fields Collection of fields for radiation scheme
+  !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
+  !> @param[in,out] orography_fields Collection of fields for orog drag scheme
+  !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
+  !> @param[in,out] convection_fields Collection of fields for convection scheme
+  !> @param[in,out] cloud_fields Collection of fields for cloud scheme
+  !> @param[in,out] surface_fields Collection of fields for surface scheme
+  !> @param[in,out] soil_fields Collection of fields for soil hydrology scheme
+  !> @param[in,out] snow_fields Collection of fields for snow scheme
+  !> @param[in,out] chemistry_fields Collection of fields for chemistry scheme
+  !> @param[in,out] aerosol_fields Collection of fields for aerosol scheme
+  !> @param[in,out] stph_fields Collection of fields for stochastic physics
+  subroutine init_physics_prognostics_alg( radiation_fields,                   &
+                                           microphysics_fields,                &
+                                           electric_fields,                    &
+                                           orography_fields,                   &
+                                           turbulence_fields,                  &
+                                           convection_fields,                  &
+                                           cloud_fields,                       &
+                                           surface_fields,                     &
+                                           soil_fields,                        &
+                                           snow_fields,                        &
+                                           chemistry_fields,                   &
+                                           aerosol_fields,                     &
+                                           stph_fields)
+
+    implicit none
+
+    ! Collections of fields
+    type(field_collection_type), intent(inout) :: radiation_fields
+    type(field_collection_type), intent(inout) :: microphysics_fields
+    type(field_collection_type), intent(inout) :: electric_fields
+    type(field_collection_type), intent(inout) :: orography_fields
+    type(field_collection_type), intent(inout) :: turbulence_fields
+    type(field_collection_type), intent(inout) :: convection_fields
+    type(field_collection_type), intent(inout) :: cloud_fields
+    type(field_collection_type), intent(inout) :: surface_fields
+    type(field_collection_type), intent(inout) :: soil_fields
+    type(field_collection_type), intent(inout) :: snow_fields
+    type(field_collection_type), intent(inout) :: chemistry_fields
+    type(field_collection_type), intent(inout) :: aerosol_fields
+    type(field_collection_type), intent(inout) :: stph_fields
+
+#ifdef UM_PHYSICS
+
+    ! Only actually initialise the fields if we're using the external code
+    ! Most things need calling regardless of whether the scheme is on,
+    ! because we initialise fields used by other schemes if the scheme
+    ! is off. Jules however can only be initialised if it is switched on
+    ! as it uses things from the surface namelist which is not read if
+    ! it is switched off.
+    call init_radiation_fields_alg(radiation_fields)
+    call init_microphysics_fields_alg(microphysics_fields)
+    if (electric == electric_um) then
+      call init_electric_fields_alg(electric_fields)
+    end if
+    call init_orography_fields_alg(orography_fields)
+    call init_turbulence_fields_alg(turbulence_fields)
+    call init_convection_fields_alg(convection_fields)
+    call init_cloud_fields_alg(cloud_fields)
+    call init_surface_fields_alg(surface_fields)
+    if (surface == surface_jules) then
+      call init_soil_fields_alg(soil_fields)
+      call init_snow_fields_alg(snow_fields)
+    end if
+    if ( ( aerosol == aerosol_um .and.          &
+         ( glomap_mode == glomap_mode_ukca .or. &
+           glomap_mode == glomap_mode_dust_and_clim ) ) .or. &
+         ( chem_scheme == chem_scheme_flexchem ) ) then
+      call init_chemistry_fields_alg(chemistry_fields)
+    end if
+    call init_aerosol_fields_alg(aerosol_fields)
+
+    call init_stph_fields_alg(stph_fields)
+
+    call log_event( 'Physics field collections initialised', LOG_LEVEL_INFO )
+
+#endif
+
+  end subroutine init_physics_prognostics_alg
+
+end module init_physics_prognostics_alg_mod

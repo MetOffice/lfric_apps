@@ -1,0 +1,110 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Tests the kernel which finds max/min information about a field
+module field_stats_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: field_stats_test_type
+    private
+  contains
+    procedure test_all
+  end type field_stats_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use field_stats_kernel_mod, only : field_stats_code
+
+    implicit none
+
+    class(field_stats_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 3_i_def
+
+    integer(kind=i_def), parameter             :: ndf = 1_i_def
+    integer(kind=i_def), parameter             :: undf_3d = 3_i_def
+    integer(kind=i_def), parameter             :: undf_2d = 1_i_def
+    integer(kind=i_def), dimension(ndf)        :: map_3d, map_2d
+    real(kind=r_def),    dimension(undf_3d)    :: field, height
+    real(kind=r_def),    dimension(undf_2d)    :: latitude, longitude,    &
+                                                  max_lev, min_lev,       &
+                                                  max_count, min_count,   &
+                                                  max_tcount, min_tcount, &
+                                                  max_lat, min_lat,       &
+                                                  max_lon, min_lon,       &
+                                                  max_height, min_height, &
+                                                  ans_max_lev, ans_min_lev,    &
+                                                  ans_max_tcount,              &
+                                                  ans_min_tcount,&
+                                                  ans_max_count, ans_min_count,&
+                                                  ans_max_lat, ans_min_lat,    &
+                                                  ans_max_lon, ans_min_lon,    &
+                                                  ans_max_height, ans_min_height
+    real(kind=r_def) :: fmax, fmin
+
+    integer(kind=i_def) :: i, k
+
+    map_3d = 1_i_def
+    map_2d = 1_i_def
+    latitude = 10.0_r_def
+    longitude = 5.0_r_def
+
+    fmin = 5.0_r_def
+    fmax = 7.0_r_def
+
+    do k = 0, nlayers-1
+        field(map_3d(1) + k) = real(k, r_def)+5.0_r_def
+        height(map_3d(1) + k) = real(k, r_def)+1.0_r_def
+    end do
+
+    call field_stats_code( nlayers, field, height, fmax, fmin, fmax, fmin,     &
+                           latitude, longitude, max_lev, min_lev, max_tcount,  &
+                           min_tcount, max_count, min_count, max_lat, min_lat, &
+                           max_lon, min_lon, max_height, min_height,           &
+                           ndf, undf_3d, map_3d, ndf, undf_2d, map_2d )
+
+    ans_max_lev = 2.0_r_def
+    ans_min_lev = 0.0_r_def
+    ans_max_tcount = 1.0_r_def
+    ans_min_tcount = 1.0_r_def
+    ans_max_count = 1.0_r_def
+    ans_min_count = 1.0_r_def
+    ans_max_lat = 10.0_r_def
+    ans_min_lat = 10.0_r_def
+    ans_max_lon = 5.0_r_def
+    ans_min_lon = 5.0_r_def
+    ans_max_height = 3.0_r_def
+    ans_min_height = 1.0_r_def
+    @assertEqual(ans_max_lev,max_lev,tol)
+    @assertEqual(ans_min_lev,min_lev,tol)
+    @assertEqual(ans_max_tcount,max_tcount,tol)
+    @assertEqual(ans_min_tcount,min_tcount,tol)
+    @assertEqual(ans_max_count,max_count,tol)
+    @assertEqual(ans_min_count,min_count,tol)
+    @assertEqual(ans_max_lat,max_lat,tol)
+    @assertEqual(ans_min_lat,min_lat,tol)
+    @assertEqual(ans_max_lon,max_lon,tol)
+    @assertEqual(ans_min_lon,min_lon,tol)
+    @assertEqual(ans_max_height,max_height,tol)
+    @assertEqual(ans_min_height,min_height,tol)
+
+  end subroutine test_all
+
+end module field_stats_kernel_mod_test

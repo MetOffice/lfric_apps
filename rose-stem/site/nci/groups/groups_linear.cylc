@@ -1,0 +1,57 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_linear.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "linear_gadi_developer": [
+        "linear_gadi_unit_tests",
+        "linear_gadi_integration_tests",
+    ],
+    "linear_gadi": [
+        "linear_gadi_developer",
+    ],
+    "linear_gadi_unit_tests": [
+        "linear_unit_tests_gadi_intel_64bit",
+    ],
+    "linear_gadi_integration_tests": [
+        "linear_integration_tests_gadi_intel_64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "linear_developer": [
+        "scripts",
+        "linear_gadi_developer",
+        "linear_unit_tests",
+        "linear_integration_tests",
+    ],
+    "linear": [
+        "linear_developer",
+        "linear_gadi",
+    ],
+    "linear_unit_tests": [
+        "linear_gadi_unit_tests",
+    ],
+    "linear_integration_tests": [
+        "linear_gadi_integration_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.linear_developer) %}
+{% do site_groups.all.extend(site_groups.linear) %}
+{% do site_groups.unit_tests.extend(site_groups.linear_unit_tests) %}
+{% do site_groups.integration_tests.extend(site_groups.linear_integration_tests) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.linear_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.linear_gadi) %}
+{% do site_groups.gadi_unit_tests.extend(site_groups.linear_gadi_unit_tests) %}
+{% do site_groups.gadi_integration_tests.extend(site_groups.linear_gadi_integration_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_linear.cylc") %}

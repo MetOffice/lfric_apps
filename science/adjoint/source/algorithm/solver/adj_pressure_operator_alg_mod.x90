@@ -1,0 +1,196 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Adjoint of pressure_operator_alg_mod
+
+module adj_pressure_operator_alg_mod
+
+  use sci_hierarchical_linear_operator_mod,            only: abstract_hierarchical_linear_operator_type
+  use vector_mod,                                      only: abstract_vector_type
+  use r_solver_field_mod,                              only: r_solver_field_type
+  use sci_r_solver_field_vector_mod,                   only: r_solver_field_vector_type
+  use constants_mod,                                   only: i_def, l_def, r_solver
+  use log_mod,                                         only: log_event,         &
+                                                             LOG_LEVEL_ERROR,   &
+                                                             LOG_LEVEL_DEBUG
+  use boundaries_config_mod,                           only: limited_area
+  use base_mesh_config_mod,                            only: topology, topology_non_periodic
+
+  use invoke_adj_a_h_o_lookup_kernel_mod,              only: invoke_adj_a_h_o_lookup_kernel
+  use adj_lookup_table_generators_alg_mod,             only: create_lookup_apply_helmholtz_op
+  use adj_lookup_table_mod,                            only: adj_lookup_table_type
+  use integer_field_mod,                               only: integer_field_type
+
+  use finite_element_config_mod,                       only: element_order_h, element_order_v
+  use io_config_mod,                                   only: subroutine_timers
+  use timer_mod,                                       only: timer
+  use si_operators_alg_mod,                            only: get_helmholtz_operator
+
+  implicit none
+
+  private
+
+  type, public, extends(abstract_hierarchical_linear_operator_type) :: adj_pressure_operator_type
+  private
+     integer(kind=i_def) :: level
+     contains
+     procedure, public  :: apply => apply_adj_pressure_operator
+     procedure, private :: apply_adj_pressure_operator
+     procedure, public  :: adj_pressure_operator_assign
+     procedure, public  :: coarsen => coarsen_adj_pressure_operator
+     procedure, private :: coarsen_adj_pressure_operator
+     final              :: destroy_adj_pressure_operator
+     generic            :: assignment(=) => adj_pressure_operator_assign
+  end type adj_pressure_operator_type
+
+  interface adj_pressure_operator_type
+    module procedure adj_pressure_operator_constructor
+  end interface
+
+contains
+
+  !> @brief Construct new instance of type.
+  !> @param[in] level The mesh level the space is on
+  function adj_pressure_operator_constructor(level) result(self)
+
+    implicit none
+
+    integer(kind=i_def), intent(in)  :: level
+    type(adj_pressure_operator_type) :: self
+
+    call log_event( 'Constructing adjoint pressure_operator...', LOG_LEVEL_DEBUG )
+
+    ! Temporaries required in operator application
+    self%level = level
+
+    call log_event( 'done', LOG_LEVEL_DEBUG )
+
+  end function adj_pressure_operator_constructor
+
+  !> @brief Performs a deep copy between adj_pressure_operator_type pairs
+  !> @param[out] dest   adj_pressure_operator_type lhs
+  !> @param[in]  source adj_pressure_operator_type rhs
+  subroutine adj_pressure_operator_assign( dest, source )
+
+    implicit none
+
+    class(adj_pressure_operator_type), intent(in)  :: source
+    class(adj_pressure_operator_type), intent(out) :: dest
+
+    ! Deep copy of the contents of the adj_pressure_operator_type
+    dest%level = source%level
+
+  end subroutine adj_pressure_operator_assign
+
+  !> @brief Apply adjoint Helmholtz operator
+  !> @param[in]     x Field to apply operator to
+  !> @param[in,out] y Resulting field
+  subroutine apply_adj_pressure_operator( self, x, y )
+
+    implicit none
+
+    class(adj_pressure_operator_type), intent(inout) :: self
+    class(abstract_vector_type),       intent(in)    :: x
+    class(abstract_vector_type),       intent(inout) :: y
+
+    type(r_solver_field_type),      pointer :: Helmholtz_operator(:)
+    type(r_solver_field_type),      pointer :: x_vec, y_vec
+
+    real(kind=r_solver), parameter :: one = 1.0_r_solver
+    integer(kind=i_def), parameter :: stencil_extent = 1_i_def
+    integer(kind=i_def)            :: mesh_id
+    logical(kind=l_def)            :: lam_mesh
+
+    ! Lookup table
+    type(adj_lookup_table_type)       :: lookup
+    type(integer_field_type), pointer :: lookup_field
+    type(integer_field_type), pointer :: set_counts_field
+    integer(kind=i_def)               :: nindices
+
+    nullify( Helmholtz_operator, x_vec, y_vec, lookup_field, set_counts_field )
+
+    if (subroutine_timers) call timer('adj helmholtz lhs')
+
+    select type (x)
+    type is (r_solver_field_vector_type)
+      mesh_id = x%vector(1)%get_mesh_id()
+
+      select type (y)
+      type is (r_solver_field_vector_type)
+
+        ! Compute M3*p + H[ D{\theta*}*p ]
+        x_vec => x%get_field_from_position(1)
+        y_vec => y%get_field_from_position(1)
+
+        if (limited_area) then
+          call log_event( "apply_adj_pressure_operator: limited_area not coded", LOG_LEVEL_ERROR )
+        end if
+
+        if (element_order_h == 0 .and. element_order_v == 0) then
+          Helmholtz_operator => get_helmholtz_operator(self%level)
+          lam_mesh = .false.
+          if (limited_area .and. topology==topology_non_periodic) lam_mesh=.true.
+
+          call invoke( name="adj_apply_h_zeroing", &
+                       setval_c( y_vec, 0.0_r_solver ) )
+
+          ! Run adj_apply_helmholtz_operator kernel.
+          ! Generate adjoint lookup table for stencil operation. Dry run of the TL code, horizontal only.
+          call create_lookup_apply_helmholtz_op( lookup, x_vec )
+          lookup_field => lookup%get_lookup_field()
+          set_counts_field => lookup%get_set_count_field()
+          nindices = lookup%get_nindices()
+
+          call invoke_adj_a_h_o_lookup_kernel( x_vec,              &
+                                               y_vec,              &
+                                               Helmholtz_operator, &
+                                               lookup_field,       &
+                                               set_counts_field,   &
+                                               stencil_extent,     &
+                                               nindices,           &
+                                               lam_mesh )
+        else
+          call log_event( "apply_adj_pressure_operator: element_orders /= 0 not coded", LOG_LEVEL_ERROR )
+        end if
+
+        if (subroutine_timers) call timer('adj helmholtz lhs')
+
+      class default
+        call log_event( "adj_pressure_operator_alg_mod: incorrect vector_type argument y", LOG_LEVEL_ERROR )
+      end select
+
+    class default
+      call log_event( "adj_pressure_operator_alg_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
+    end select
+
+    call log_event( "apply_adj_pressure_operator: end", LOG_LEVEL_DEBUG )
+
+  end subroutine apply_adj_pressure_operator
+
+  !> @brief Return coarsened operator on next level of multigrid hierarchy
+  !>@param[in]     fs_coarse       Coarse level function space
+  !>@param[in,out] coarse_operator Coarsened version of the operator
+  subroutine coarsen_adj_pressure_operator( self, coarse_operator )
+
+    implicit none
+
+    class(adj_pressure_operator_type), intent(in) :: self
+    class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
+
+    allocate( coarse_operator, &
+              source = adj_pressure_operator_type(self%level + 1) )
+
+  end subroutine coarsen_adj_pressure_operator
+
+  !> @brief Finalizer
+  subroutine destroy_adj_pressure_operator(self)
+
+    implicit none
+
+    type(adj_pressure_operator_type), intent(inout) :: self
+
+  end subroutine destroy_adj_pressure_operator
+
+end module adj_pressure_operator_alg_mod

@@ -1,0 +1,92 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Save and output cloud fields for increment diagnostics
+module cld_incs_mod
+
+  use constants_mod,             only: str_def, r_def
+  use field_collection_mod,      only: field_collection_type
+  use field_mod,                 only: field_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
+                                        samp_diag => diagnostic_to_be_sampled
+
+  implicit none
+
+contains
+
+  !> @param[in,out] cloud_fields Fields for cloud scheme
+  !> @param[out]    dcfl_x       Liquid fraction at current point
+  !> @param[out]    dcff_x       Frozen fraction at current point
+  !> @param[out]    dbcf_x       Bulk fraction at current point
+  !> @param[in]     section      Name of the diagnostic group
+  !> @param[in]     suffix       Suffix in name of the individual diagnostic
+  subroutine cld_incs_init(cloud_fields, dcfl_x, dcff_x, dbcf_x, section, suffix)
+
+    implicit none
+
+    character(str_def), intent(in) :: section, suffix
+    type( field_collection_type ), intent(inout) :: cloud_fields
+    type(field_type), intent(out) :: dbcf_x, dcfl_x, dcff_x
+
+    type( field_type ), pointer :: liquid_fraction
+    type( field_type ), pointer :: frozen_fraction
+    type( field_type ), pointer :: bulk_fraction
+
+    if (init_diag(dcfl_x, trim(section)//'__dcfl_'//trim(suffix))) then
+      call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+      call invoke(a_times_X(dcfl_x, -1.0_r_def, liquid_fraction))
+    end if
+
+    if (init_diag(dcff_x, trim(section)//'__dcff_'//trim(suffix))) then
+      call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+      call invoke(a_times_X(dcff_x, -1.0_r_def, frozen_fraction))
+    end if
+
+    if (init_diag(dbcf_x, trim(section)//'__dbcf_'//trim(suffix))) then
+      call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+      call invoke(a_times_X(dbcf_x, -1.0_r_def, bulk_fraction))
+    end if
+
+  end subroutine cld_incs_init
+
+  !> @param[in,out] cloud_fields Fields for cloud scheme
+  !> @param[out]    dcfl_x       Liquid fraction at current point
+  !> @param[out]    dcff_x       Frozen fraction at current point
+  !> @param[out]    dbcf_x       Bulk fraction at current point
+  !> @param[in]     section      Name of the diagnostic group
+  !> @param[in]     suffix       Suffix in name of the individual diagnostic
+  subroutine cld_incs_output(cloud_fields, dcfl_x, dcff_x, dbcf_x, section, suffix)
+
+    implicit none
+
+    character(str_def), intent(in) :: section, suffix
+    type( field_collection_type ), intent(inout) :: cloud_fields
+    type(field_type), intent(inout) :: dbcf_x, dcfl_x, dcff_x
+
+    type( field_type ), pointer :: liquid_fraction
+    type( field_type ), pointer :: frozen_fraction
+    type( field_type ), pointer :: bulk_fraction
+
+    if (samp_diag(trim(section)//'__dcfl_'//trim(suffix))) then
+      call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+      call invoke(inc_X_plus_Y(dcfl_x, liquid_fraction))
+      call dcfl_x%write_field()
+    end if
+
+    if (samp_diag(trim(section)//'__dcff_'//trim(suffix))) then
+      call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+      call invoke(inc_X_plus_Y(dcff_x, frozen_fraction))
+      call dcff_x%write_field()
+    end if
+
+    if (samp_diag(trim(section)//'__dbcf_'//trim(suffix))) then
+      call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+      call invoke(inc_X_plus_Y(dbcf_x, bulk_fraction))
+      call dbcf_x%write_field()
+    end if
+
+  end subroutine cld_incs_output
+
+end module cld_incs_mod

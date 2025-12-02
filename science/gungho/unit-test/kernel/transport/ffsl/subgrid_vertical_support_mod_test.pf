@@ -1,0 +1,491 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Test the vertical reconstruction functions used for FFSL transport
+
+module subgrid_vertical_support_mod_test
+
+  use constants_mod,                  only: i_def, l_def, r_tran
+
+  implicit none
+
+contains
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine second_order_vertical_edge_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_vertical_support_mod,   only: second_order_vertical_edge
+
+    implicit none
+
+    real(kind=r_tran)   :: rho(1:2), dz(1:2), edge_value, tol
+    real(kind=r_tran)   :: answer(1:3)
+    integer(kind=i_def) :: edge_to_do
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Test on uniform grid
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 1.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 3.0_r_tran
+
+    answer(1) = 0.0_r_tran
+    answer(2) = 2.0_r_tran
+    answer(3) = 4.0_r_tran
+
+    ! Loop over all edges on the rho stencil
+    do edge_to_do = 0, 2
+
+      call second_order_vertical_edge(rho, dz,    &
+                                      edge_to_do, &
+                                      edge_value)
+
+      @assertEqual(answer(edge_to_do+1), edge_value, tol)
+
+    end do
+
+    ! Test on non-uniform grid
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 2.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 4.0_r_tran
+
+    answer(1) = 0.0_r_tran
+    answer(2) = 2.0_r_tran
+    answer(3) = 6.0_r_tran
+
+    ! Loop over all edges on the rho stencil
+    do edge_to_do = 0, 2
+
+      edge_value = 0.0_r_tran
+      call second_order_vertical_edge(rho, dz,    &
+                                      edge_to_do, &
+                                      edge_value)
+
+      @assertEqual(answer(edge_to_do+1), edge_value, tol)
+
+    end do
+
+  end subroutine second_order_vertical_edge_test
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine third_order_vertical_edge_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_vertical_support_mod,   only: third_order_vertical_edge
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 3
+    logical(kind=l_def), parameter :: log_space = .false.
+    real(kind=r_tran),   parameter :: sixth = 1.0_r_tran/6.0_r_tran
+    real(kind=r_tran),   parameter :: third  = 1.0_r_tran/3.0_r_tran
+    real(kind=r_tran),   parameter :: twelfth = 1.0_r_tran/12.0_r_tran
+
+    real(kind=r_tran)   :: rho(nlayers), dz(nlayers), tol
+    real(kind=r_tran)   :: edge_below(nlayers), edge_above(nlayers)
+    real(kind=r_tran)   :: answer_below(nlayers), answer_above(nlayers)
+    real(kind=r_tran)   :: dla_dz_1(nlayers), dla_dz_2(nlayers), dla_dz_3(nlayers)
+    real(kind=r_tran)   :: dlb_dz_1(nlayers), dlb_dz_2(nlayers), dlb_dz_3(nlayers)
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Test on uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 1.0_r_tran
+    dz(3)  = 1.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 2.0_r_tran
+    rho(3) = 3.0_r_tran
+
+    answer_below(1) = 0.5_r_tran
+    answer_below(2) = 1.5_r_tran
+    answer_below(3) = 2.5_r_tran
+    answer_above(1) = 1.5_r_tran
+    answer_above(2) = 2.5_r_tran
+    answer_above(3) = 3.5_r_tran
+
+    dla_dz_1 = (/ -0.5_r_tran,  -1.0_r_tran,  1.5_r_tran /)
+    dla_dz_2 = (/ 1.0_r_tran,  0.5_r_tran,  -3.0_r_tran /)
+    dla_dz_3 = (/ -sixth,  third,  2.0_r_tran-sixth /)
+    dlb_dz_1 = (/ 3.0_r_tran,  -0.5_r_tran,  -1.0_r_tran /)
+    dlb_dz_2 = (/ -1.5_r_tran,  1.0_r_tran,  0.5_r_tran /)
+    dlb_dz_3 = (/ third,  -sixth,  third /)
+
+    call third_order_vertical_edge(                                            &
+            rho, dla_dz_1, dla_dz_2, dla_dz_3, dlb_dz_1, dlb_dz_2, dlb_dz_3,   &
+            dz, edge_above, edge_below, log_space, nlayers                     &
+    )
+
+    @assertEqual(answer_above, edge_above, tol)
+    @assertEqual(answer_below, edge_below, tol)
+
+    ! Test on non-uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 2.0_r_tran
+    dz(3)  = 2.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 4.0_r_tran
+    rho(3) = 8.0_r_tran
+
+    answer_below(1) = 0.0_r_tran
+    answer_below(2) = 2.0_r_tran
+    answer_below(3) = 6.0_r_tran
+    answer_above(1) = 2.0_r_tran
+    answer_above(2) = 6.0_r_tran
+    answer_above(3) = 10.0_r_tran
+
+    dla_dz_1 = (/ 0.25_r_tran, -0.75_r_tran, 1.25_r_tran /)
+    dla_dz_2 = (/ third, third, -2.0_r_tran+third /)
+    dla_dz_3 = (/ -0.05_r_tran, 0.15_r_tran, 0.95_r_tran /)
+    dlb_dz_1 = (/ 1.875_r_tran, 0.25_r_tran, -0.75_r_tran /)
+    dlb_dz_2 = (/ -third-twelfth, third, third /)
+    dlb_dz_3 = (/ 0.075_r_tran, -0.05_r_tran, 0.15_r_tran /)
+
+    call third_order_vertical_edge(                                            &
+            rho, dla_dz_1, dla_dz_2, dla_dz_3, dlb_dz_1, dlb_dz_2, dlb_dz_3,   &
+            dz, edge_above, edge_below, log_space, nlayers                     &
+    )
+
+    @assertEqual(answer_above, edge_above, tol)
+    @assertEqual(answer_below, edge_below, tol)
+
+    ! Test on non-uniform grid with non-linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 2.0_r_tran
+    dz(3)  = 3.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 16.0_r_tran
+    rho(3) = 81.0_r_tran
+
+    answer_below(1) = 0.0_r_tran
+    answer_below(2) = 10.0_r_tran/3.0_r_tran
+    answer_below(3) = 34.0_r_tran
+    answer_above(1) = 10.0_r_tran/3.0_r_tran
+    answer_above(2) = 34.0_r_tran
+    answer_above(3) = 140.0_r_tran
+
+    dla_dz_1 = (/ 0.3_r_tran, -0.9_r_tran, 1.8_r_tran /)
+    dla_dz_2 = (/ 5.0_r_tran/18.0_r_tran, 0.5_r_tran, -2.0_r_tran+third /)
+    dla_dz_3 = (/ -1.0_r_tran/45.0_r_tran, 1.0_r_tran/15.0_r_tran, 0.7_r_tran /)
+    dlb_dz_1 = (/ 1.8_r_tran, 0.3_r_tran, -0.9_r_tran /)
+    dlb_dz_2 = (/ -third, 5.0_r_tran/18.0_r_tran, 0.5_r_tran /)
+    dlb_dz_3 = (/ 1.0_r_tran/30.0_r_tran, -1.0_r_tran/45.0_r_tran, 1.0_r_tran/15.0_r_tran /)
+
+    call third_order_vertical_edge(                                            &
+            rho, dla_dz_1, dla_dz_2, dla_dz_3, dlb_dz_1, dlb_dz_2, dlb_dz_3,   &
+            dz, edge_above, edge_below, log_space, nlayers                     &
+    )
+
+    @assertEqual(answer_above, edge_above, tol)
+    @assertEqual(answer_below, edge_below, tol)
+
+  end subroutine third_order_vertical_edge_test
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine fourth_order_vertical_edge_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_vertical_support_mod,   only: fourth_order_vertical_edge
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 4
+    logical(kind=l_def), parameter :: log_space = .false.
+    real(kind=r_tran),   parameter :: sixth = 1.0_r_tran/6.0_r_tran
+    real(kind=r_tran),   parameter :: third  = 1.0_r_tran/3.0_r_tran
+    real(kind=r_tran),   parameter :: twelfth = 1.0_r_tran/12.0_r_tran
+    real(kind=r_tran),   parameter :: ninth = 1.0_r_tran/9.0_r_tran
+    real(kind=r_tran),   parameter :: fifteenth = 1.0_r_tran/15.0_r_tran
+    real(kind=r_tran),   parameter :: eleventh = 1.0_r_tran/11.0_r_tran
+
+    real(kind=r_tran)   :: rho(nlayers), dz(nlayers), tol
+    real(kind=r_tran)   :: edge_value(nlayers+1), answer(nlayers+1)
+    real(kind=r_tran)   :: dl_dz_1(nlayers+1), dl_dz_2(nlayers+1)
+    real(kind=r_tran)   :: dl_dz_3(nlayers+1), dl_dz_4(nlayers+1)
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Test on uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 1.0_r_tran
+    dz(3)  = 1.0_r_tran
+    dz(4)  = 1.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 2.0_r_tran
+    rho(3) = 3.0_r_tran
+    rho(4) = 4.0_r_tran
+
+    answer(1) = 0.5_r_tran
+    answer(2) = 1.5_r_tran
+    answer(3) = 2.5_r_tran
+    answer(4) = 3.5_r_tran
+    answer(5) = 4.5_r_tran
+
+    dl_dz_1 = (/ 4.0_r_tran, -1.0_r_tran+sixth, -2.0_r_tran*third, 0.5_r_tran, -1.0_r_tran-third /)
+    dl_dz_2 = (/ -3.0_r_tran, 1.5_r_tran, 0.0_r_tran, -1.5_r_tran, 3.0_r_tran /)
+    dl_dz_3 = (/ 1.0_r_tran+third, -0.5_r_tran, 2.0_r_tran*third, 1.0_r_tran-sixth, -4.0_r_tran /)
+    dl_dz_4 = (/ -0.25_r_tran, twelfth, -twelfth, 0.25_r_tran, 2.0_r_tran+twelfth /)
+
+    call fourth_order_vertical_edge(                                           &
+            rho, dl_dz_1, dl_dz_2, dl_dz_3, dl_dz_4, dz, edge_value,           &
+            log_space, nlayers                                                 &
+    )
+
+    @assertEqual(answer, edge_value, tol)
+
+    ! Test on non-uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 2.0_r_tran
+    dz(3)  = 2.0_r_tran
+    dz(4)  = 1.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 4.0_r_tran
+    rho(3) = 8.0_r_tran
+    rho(4) = 11.0_r_tran
+
+    answer(1) = 0.0_r_tran
+    answer(2) = 2.0_r_tran
+    answer(3) = 6.0_r_tran
+    answer(4) = 10.0_r_tran
+    answer(5) = 12.0_r_tran
+
+    dl_dz_1 = (/ 2.25_r_tran, 0.05_r_tran, -0.45_r_tran, 0.25_r_tran, -0.45_r_tran /)
+    dl_dz_2 = (/ -1.0_r_tran+sixth, 5.0_r_tran*ninth, 0.0_r_tran, -5.0_r_tran*ninth, 1.0_r_tran-sixth /)
+    dl_dz_3 = (/ 0.45_r_tran, -0.25_r_tran, 0.45_r_tran, -0.05_r_tran, -2.25_r_tran /)
+    dl_dz_4 = (/ -sixth, 4.0_r_tran/45.0_r_tran, -2.0_r_tran*fifteenth, 4.0_r_tran*ninth, 1.7_r_tran /)
+
+    call fourth_order_vertical_edge(                                           &
+            rho, dl_dz_1, dl_dz_2, dl_dz_3, dl_dz_4, dz, edge_value,           &
+            log_space, nlayers                                                 &
+    )
+
+    @assertEqual(answer, edge_value, tol)
+
+    ! Test on non-uniform grid with non-linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 2.0_r_tran
+    dz(3)  = 2.0_r_tran
+    dz(4)  = 1.0_r_tran
+    rho(1) = 1.0_r_tran
+    rho(2) = 16.0_r_tran
+    rho(3) = 64.0_r_tran
+    rho(4) = 121.0_r_tran
+
+    answer(1) = 0.2_r_tran
+    answer(2) = 3.2_r_tran
+    answer(3) = 34.4_r_tran
+    answer(4) = 99.2_r_tran
+    answer(5) = 144.2_r_tran
+
+    dl_dz_1 = (/ 2.25_r_tran, 0.05_r_tran, -0.45_r_tran, 0.25_r_tran, -0.45_r_tran /)
+    dl_dz_2 = (/ -1.0_r_tran+sixth, 5.0_r_tran*ninth, 0.0_r_tran, -5.0_r_tran*ninth, 1.0_r_tran-sixth /)
+    dl_dz_3 = (/ 0.45_r_tran, -0.25_r_tran, 0.45_r_tran, -0.05_r_tran, -2.25_r_tran /)
+    dl_dz_4 = (/ -sixth, 4.0_r_tran/45.0_r_tran, -2.0_r_tran*fifteenth, 4.0_r_tran*ninth, 1.7_r_tran /)
+
+    call fourth_order_vertical_edge(                                           &
+            rho, dl_dz_1, dl_dz_2, dl_dz_3, dl_dz_4, dz, edge_value,           &
+            log_space, nlayers                                                 &
+    )
+
+    @assertEqual(answer, edge_value, tol)
+
+  end subroutine fourth_order_vertical_edge_test
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine third_precompute_height_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_vertical_support_mod,   only: third_precompute_height
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 3
+
+    real(kind=r_tran), parameter :: sixth = 1.0_r_tran/6.0_r_tran
+    real(kind=r_tran), parameter :: third  = 1.0_r_tran/3.0_r_tran
+    real(kind=r_tran), parameter :: twelfth = 1.0_r_tran/12.0_r_tran
+
+    real(kind=r_tran)   :: dz(nlayers), tol
+    real(kind=r_tran)   :: answer_below_1(nlayers), answer_above_1(nlayers)
+    real(kind=r_tran)   :: answer_below_2(nlayers), answer_above_2(nlayers)
+    real(kind=r_tran)   :: answer_below_3(nlayers), answer_above_3(nlayers)
+    real(kind=r_tran)   :: dla_dz_1(nlayers), dla_dz_2(nlayers), dla_dz_3(nlayers)
+    real(kind=r_tran)   :: dlb_dz_1(nlayers), dlb_dz_2(nlayers), dlb_dz_3(nlayers)
+    integer(kind=i_def) :: k
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Test on uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 1.0_r_tran
+    dz(3)  = 1.0_r_tran
+
+    answer_above_1 = (/ -0.5_r_tran,  -1.0_r_tran,  1.5_r_tran /)
+    answer_above_2 = (/ 1.0_r_tran,  0.5_r_tran,  -3.0_r_tran /)
+    answer_above_3 = (/ -sixth,  third,  2.0_r_tran-sixth /)
+    answer_below_1 = (/ 3.0_r_tran,  -0.5_r_tran,  -1.0_r_tran /)
+    answer_below_2 = (/ -1.5_r_tran,  1.0_r_tran,  0.5_r_tran /)
+    answer_below_3 = (/ third,  -sixth,  third /)
+
+    do k = 1, 3
+      ! Calculate coefficients for interpolation
+      call third_precompute_height(                                            &
+              dla_dz_1(k), dla_dz_2(k), dla_dz_3(k),                           &
+              dlb_dz_1(k), dlb_dz_2(k), dlb_dz_3(k),                           &
+              dz, k                                                            &
+      )
+    end do
+
+    @assertEqual(answer_above_1, dla_dz_1, tol)
+    @assertEqual(answer_below_1, dlb_dz_1, tol)
+    @assertEqual(answer_above_2, dla_dz_2, tol)
+    @assertEqual(answer_below_2, dlb_dz_2, tol)
+    @assertEqual(answer_above_3, dla_dz_3, tol)
+    @assertEqual(answer_below_3, dlb_dz_3, tol)
+
+    ! Test on non-uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 2.0_r_tran
+    dz(3)  = 3.0_r_tran
+
+    answer_above_1 = (/ 0.3_r_tran, -0.9_r_tran, 1.8_r_tran /)
+    answer_above_2 = (/ 5.0_r_tran/18.0_r_tran, 0.5_r_tran, -2.0_r_tran+third /)
+    answer_above_3 = (/ -1.0_r_tran/45.0_r_tran, 1.0_r_tran/15.0_r_tran, 0.7_r_tran /)
+    answer_below_1 = (/ 1.8_r_tran, 0.3_r_tran, -0.9_r_tran /)
+    answer_below_2 = (/ -third, 5.0_r_tran/18.0_r_tran, 0.5_r_tran /)
+    answer_below_3 = (/ 1.0_r_tran/30.0_r_tran, -1.0_r_tran/45.0_r_tran, 1.0_r_tran/15.0_r_tran /)
+
+    do k = 1, 3
+      ! Calculate coefficients for interpolation
+      call third_precompute_height(                                            &
+              dla_dz_1(k), dla_dz_2(k), dla_dz_3(k),                           &
+              dlb_dz_1(k), dlb_dz_2(k), dlb_dz_3(k),                           &
+              dz, k                                                            &
+      )
+    end do
+
+    @assertEqual(answer_above_1, dla_dz_1, tol)
+    @assertEqual(answer_below_1, dlb_dz_1, tol)
+    @assertEqual(answer_above_2, dla_dz_2, tol)
+    @assertEqual(answer_below_2, dlb_dz_2, tol)
+    @assertEqual(answer_above_3, dla_dz_3, tol)
+    @assertEqual(answer_below_3, dlb_dz_3, tol)
+
+  end subroutine third_precompute_height_test
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine fourth_precompute_height_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use subgrid_vertical_support_mod,   only: fourth_precompute_height
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 4
+
+    real(kind=r_tran), parameter :: sixth = 1.0_r_tran/6.0_r_tran
+    real(kind=r_tran), parameter :: third  = 1.0_r_tran/3.0_r_tran
+    real(kind=r_tran), parameter :: twelfth = 1.0_r_tran/12.0_r_tran
+    real(kind=r_tran), parameter :: ninth = 1.0_r_tran/9.0_r_tran
+    real(kind=r_tran), parameter :: fifteenth = 1.0_r_tran/15.0_r_tran
+    real(kind=r_tran), parameter :: eleventh = 1.0_r_tran/11.0_r_tran
+
+    real(kind=r_tran)   :: dz(nlayers), tol
+    real(kind=r_tran)   :: answer_1(nlayers+1), answer_2(nlayers+1)
+    real(kind=r_tran)   :: answer_3(nlayers+1), answer_4(nlayers+1)
+    real(kind=r_tran)   :: dl_dz_1(nlayers+1), dl_dz_2(nlayers+1)
+    real(kind=r_tran)   :: dl_dz_3(nlayers+1), dl_dz_4(nlayers+1)
+    integer(kind=i_def) :: k
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Test on uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 1.0_r_tran
+    dz(3)  = 1.0_r_tran
+    dz(4)  = 1.0_r_tran
+
+    answer_1 = (/ 4.0_r_tran, -1.0_r_tran+sixth, -2.0_r_tran*third, 0.5_r_tran, -1.0_r_tran-third /)
+    answer_2 = (/ -3.0_r_tran, 1.5_r_tran, 0.0_r_tran, -1.5_r_tran, 3.0_r_tran /)
+    answer_3 = (/ 1.0_r_tran+third, -0.5_r_tran, 2.0_r_tran*third, 1.0_r_tran-sixth, -4.0_r_tran /)
+    answer_4 = (/ -0.25_r_tran, twelfth, -twelfth, 0.25_r_tran, 2.0_r_tran+twelfth /)
+
+    do k = 0, 4
+      ! Compute interpolation coefficients
+      call fourth_precompute_height(                                           &
+              dl_dz_1(k+1), dl_dz_2(k+1), dl_dz_3(k+1), dl_dz_4(k+1), dz, k    &
+      )
+    end do
+
+    @assertEqual(answer_1, dl_dz_1, tol)
+    @assertEqual(answer_2, dl_dz_2, tol)
+    @assertEqual(answer_3, dl_dz_3, tol)
+    @assertEqual(answer_4, dl_dz_4, tol)
+
+    ! Test on non-uniform grid with linear function
+    dz(1)  = 1.0_r_tran
+    dz(2)  = 2.0_r_tran
+    dz(3)  = 2.0_r_tran
+    dz(4)  = 1.0_r_tran
+
+    answer_1 = (/ 2.25_r_tran, 0.05_r_tran, -0.45_r_tran, 0.25_r_tran, -0.45_r_tran /)
+    answer_2 = (/ -1.0_r_tran+sixth, 5.0_r_tran*ninth, 0.0_r_tran, -5.0_r_tran*ninth, 1.0_r_tran-sixth /)
+    answer_3 = (/ 0.45_r_tran, -0.25_r_tran, 0.45_r_tran, -0.05_r_tran, -2.25_r_tran /)
+    answer_4 = (/ -sixth, 4.0_r_tran/45.0_r_tran, -2.0_r_tran*fifteenth, 4.0_r_tran*ninth, 1.7_r_tran /)
+
+    do k = 0, 4
+      ! Compute interpolation coefficients
+      call fourth_precompute_height(                                           &
+              dl_dz_1(k+1), dl_dz_2(k+1), dl_dz_3(k+1), dl_dz_4(k+1), dz, k    &
+      )
+    end do
+
+    @assertEqual(answer_1, dl_dz_1, tol)
+    @assertEqual(answer_2, dl_dz_2, tol)
+    @assertEqual(answer_3, dl_dz_3, tol)
+    @assertEqual(answer_4, dl_dz_4, tol)
+
+  end subroutine fourth_precompute_height_test
+
+end module subgrid_vertical_support_mod_test

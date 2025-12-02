@@ -1,0 +1,132 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!
+!> @brief Apply temperature tendency forcing to the potential temperature field
+module temp_tend_profile_alg_mod
+
+use constants_mod,               only: i_def, l_def, r_def
+use kernel_mod,                  only: kernel_type
+use field_mod,                   only: field_type
+use fs_continuity_mod,           only: Wtheta
+use sci_geometric_constants_mod, only: get_height_fv
+use log_mod,                     only: log_event, LOG_LEVEL_ERROR
+use planet_config_mod,           only: kappa, p_zero
+use timestepping_config_mod,     only: dt
+
+implicit none
+
+private
+
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+public temp_tend_profile_alg
+contains
+
+!> @details For use in idealised modelling. Applies temperature tendency
+!>          forcing to the potential temperature field. The forcing is
+!>          specified as a profile of absolute temperature tendency (K/s) in
+!>          the external_forcing namelist. The vertical coordinate of the
+!>          input profile may be either height, in metres, or pressure in
+!>          Pascals. Linear interpolation is used to map the input profile
+!>          onto finite element nodal points in Wtheta.
+!> @param[in,out] dtheta Forcing increment for potential temperature (K)
+!> @param[in]     exner_in_wth Exner field mapped into Wtheta space
+!> @param[in]     time_now Current model time in seconds
+subroutine temp_tend_profile_alg( dtheta, exner_in_wth, time_now )
+
+use temp_tend_data_config_mod, only: coordinate,                     &
+                                     coordinate_height,              &
+                                     coordinate_pressure,            &
+                                     heights,                        &
+                                     number_heights,                 &
+                                     number_times,                   &
+                                     temp_tend_data => profile_data, &
+                                     times
+
+!> @todo Data passed to the kernel via module 'use' statements.
+!>       When PSyclone supports passing of arrays into kernels (issue #1312),
+!>       these data should be passed through the argument list of the invoke.
+use profile_interp_kernel_mod,      only: profile_interp_kernel_type, &
+                                          profile_size,               &
+                                          profile_data,               &
+                                          profile_heights
+use prof_temporal_interp_mod,       only: prof_temporal_interp
+
+implicit none
+
+! Arguments
+type(field_type), intent(inout)      :: dtheta
+type(field_type), intent(in), target :: exner_in_wth
+real(kind=r_def), intent(in)         :: time_now
+
+! Local variables
+real(kind=r_def)    :: dt_rdef
+real(kind=r_def)    :: temp_tend_now( number_heights )
+integer(kind=i_def) :: mesh_id, k
+logical(kind=l_def) :: pressure_coord, profile_extrap
+
+type( field_type ), pointer :: height_wth => null()
+
+! dt is r_second, and must be needs casting to r_def in invokes
+dt_rdef = real( dt, kind=r_def)
+
+if ( number_times == 1 ) then
+  temp_tend_now(:) = temp_tend_data(:)
+else
+  call prof_temporal_interp( time_now, number_heights, &
+                             number_times, times,      &
+                             temp_tend_data, temp_tend_now )
+end if
+
+if ( number_heights == 1 ) then
+  call invoke( setval_c( dtheta, temp_tend_now(1) ), &
+               inc_a_times_X( dt_rdef, dtheta ),     &
+               inc_X_divideby_Y( dtheta, exner_in_wth ) )
+else
+
+  select case( coordinate )
+    case( coordinate_pressure )
+      height_wth => exner_in_wth
+      pressure_coord = .true.
+    case( coordinate_height )
+      mesh_id = dtheta%get_mesh_id()
+      height_wth => get_height_fv( Wtheta, mesh_id )
+      pressure_coord = .false.
+    case default
+      call log_event( 'Unknown coordinate', LOG_LEVEL_ERROR )
+  end select
+
+!> @todo Data passed to the kernel via module 'use' statements.
+!>       When PSyclone supports passing of arrays into kernels (issue #1312),
+!>       these data should be passed through the argument list of the invoke.
+  profile_size    = number_heights
+  profile_data(1:profile_size)    = temp_tend_now(1:profile_size)
+  profile_heights(1:profile_size) = heights(1:profile_size)
+
+  if ( pressure_coord ) then
+    ! Interpolation is linear in exner
+    do k = 1, number_heights
+      profile_heights(k) = ( profile_heights(k) / p_zero ) ** kappa
+    end do
+  end if
+  if ( profile_size == 1 ) then
+    call invoke( setval_c( dtheta, profile_data(1) ) )
+  else
+    ! Extend forcing beyond range of specified heights - particularly
+    ! useful when pressure coordinates are used.
+    profile_extrap = .true.
+    call invoke( setval_c( dtheta, 0.0_r_def ),                  &
+                 profile_interp_kernel_type( dtheta, height_wth, &
+                                             profile_extrap ) )
+  end if
+  call invoke( inc_a_times_X(dt_rdef, dtheta), &
+               inc_X_divideby_Y(dtheta, exner_in_wth) )
+end if
+
+end subroutine temp_tend_profile_alg
+
+end module temp_tend_profile_alg_mod

@@ -1,0 +1,82 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_linear.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "linear_azspice_developer": [
+        "linear_azspice_unit_tests",
+        "linear_azspice_integration_tests",
+    ],
+    "linear_azspice": [
+        "linear_azspice_developer",
+    ],
+    "linear_azspice_unit_tests": [
+        "linear_unit_tests_azspice_gnu_64bit",
+    ],
+    "linear_azspice_integration_tests": [
+        "linear_integration_tests_azspice_gnu_64bit",
+    ],
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "linear_ex1a_developer": [
+        "linear_ex1a_unit_tests",
+        "linear_ex1a_integration_tests",
+    ],
+    "linear_ex1a": [
+        "linear_ex1a_developer",
+    ],
+    "linear_ex1a_unit_tests": [
+        "linear_unit_tests_ex1a_gnu_64bit",
+    ],
+    "linear_ex1a_integration_tests": [
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "linear_developer": [
+        "scripts",
+        "linear_azspice_developer",
+        "linear_ex1a_developer",
+        "linear_integration_tests",
+    ],
+    "linear": [
+        "linear_developer",
+        "linear_azspice",
+        "linear_ex1a",
+    ],
+    "linear_unit_tests": [
+        "linear_azspice_unit_tests",
+        "linear_ex1a_unit_tests",
+    ],
+    "linear_integration_tests": [
+        "linear_azspice_integration_tests",
+        "linear_ex1a_integration_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.linear_developer) %}
+{% do site_groups.all.extend(site_groups.linear) %}
+{% do site_groups.unit_tests.extend(site_groups.linear_unit_tests) %}
+{% do site_groups.integration_tests.extend(site_groups.linear_integration_tests) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.linear_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.linear_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.linear_azspice_unit_tests) %}
+{% do site_groups.azspice_integration_tests.extend(site_groups.linear_azspice_integration_tests) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.linear_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.linear_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.linear_ex1a_unit_tests) %}
+{% do site_groups.ex1a_integration_tests.extend(site_groups.linear_ex1a_integration_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_linear.cylc") %}

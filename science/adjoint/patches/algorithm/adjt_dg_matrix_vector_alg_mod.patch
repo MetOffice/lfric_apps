@@ -1,0 +1,65 @@
+@@ -14,8 +14,8 @@
+     use fs_continuity_mod, only : w0, w3
+     use operator_mod, only : operator_type
+     use constants_mod, only : i_def, r_def
+-    use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use setop_random_alg_mod, only : setop_random_alg
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -29,12 +29,15 @@
+     type(field_type) :: x_input
+     real(kind=r_def) :: lhs_inner_prod
+     real(kind=r_def) :: x_inner_prod
++    real(kind=r_def) :: lhs_sf
++    real(kind=r_def) :: x_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: lhs_lhs_input_inner_prod
+     real(kind=r_def) :: x_x_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
+     vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+@@ -45,14 +48,24 @@
+     call x_input%initialise(vector_space=vector_space_w0_ptr, name='x_input')
+     lhs_inner_prod = 0.0_r_def
+     x_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+-    call invoke(setval_random(lhs), setval_x(lhs_input, lhs), setval_random(x), setval_x(x_input, x), &
+-&setop_random_kernel_type(matrix), dg_matrix_vector_kernel_type(lhs, x, matrix), x_innerproduct_x(lhs_inner_prod, lhs), &
++    call invoke(setval_random(lhs), setval_x(lhs_input, lhs), setval_random(x), setval_x(x_input, x))
++    call setop_random_alg(matrix)
++    call invoke(dg_matrix_vector_kernel_type(lhs, x, matrix), x_innerproduct_x(lhs_inner_prod, lhs), &
+ &x_innerproduct_x(x_inner_prod, x))
++    write( log_scratch_space, * ) "adjt_dg_matrix_vector_alg inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "lhs inner product = ", lhs_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "x inner product = ", x_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    lhs_sf = 1.0_r_def / (lhs_inner_prod + eps)
++    x_sf = 1.0_r_def / (x_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + lhs_inner_prod
+-    inner1 = inner1 + x_inner_prod
++    inner1 = inner1 + lhs_inner_prod * lhs_sf
++    inner1 = inner1 + x_inner_prod * x_sf
++    call invoke( inc_a_times_X( lhs_sf, lhs ), &
++                 inc_a_times_X( x_sf, x ) )
+     lhs_lhs_input_inner_prod = 0.0_r_def
+     x_x_input_inner_prod = 0.0_r_def
+     call invoke(adj_dg_matrix_vector_kernel_type(lhs, x, matrix), x_innerproduct_y(lhs_lhs_input_inner_prod, lhs, lhs_input), &
+@@ -60,7 +73,6 @@
+     inner2 = 0.0_r_def
+     inner2 = inner2 + lhs_lhs_input_inner_prod
+     inner2 = inner2 + x_x_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

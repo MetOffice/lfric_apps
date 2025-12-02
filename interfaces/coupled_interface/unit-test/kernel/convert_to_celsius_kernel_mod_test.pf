@@ -1,0 +1,92 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Tests the kelvin to celcius kernel
+!>
+module convert_to_celsius_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: convert_to_celsius_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type convert_to_celsius_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use convert_to_celsius_kernel_mod, only : convert_to_celsius_code
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w3_m3x3_q3x3x3_size
+    use get_unit_test_m3x3_dofmap_mod,       only: get_w3_m3x3_dofmap
+
+    implicit none
+
+    class(convert_to_celsius_kernel_test_type), intent(inout) :: this
+    real(r_def), parameter :: tol=1.0e-5_r_def
+
+    integer(i_def) :: nlayers, ndata, cell, ncells
+    integer(i_def) :: ndf_w3, undf_w3
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w3(:,:)
+
+    real(r_def), allocatable :: kelvin_data(:)
+    real(r_def), allocatable :: celsius_data(:)
+    real(r_def) :: answer
+
+    integer(i_def) :: i
+
+    ! Get infrastructure support data
+    !=====================================
+    nlayers = 3
+    ndata = 1
+
+    ! Get sizes
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+    ! Get maps
+    call get_w3_m3x3_dofmap( map_w3 )
+
+    !=====================================
+    ! Assign data for testing
+
+    allocate(kelvin_data(undf_w3))
+    allocate(celsius_data(undf_w3))
+
+    do i = 1, undf_w3
+      kelvin_data(:) = 300.0_r_def
+    end do
+
+    cell = 5
+
+    call convert_to_celsius_code( nlayers,                   &
+                                  celsius_data, kelvin_data, &
+                                  ndata,                     &
+                                  ndf_w3, undf_w3, map_w3(:,cell) )
+
+    answer = 26.85_r_def
+    @assertEqual( answer, celsius_data(map_w3(1,cell)), tol )
+
+    deallocate( kelvin_data )
+    deallocate( celsius_data )
+    deallocate( map_w3 )
+
+  end subroutine test_all
+
+end module convert_to_celsius_kernel_mod_test

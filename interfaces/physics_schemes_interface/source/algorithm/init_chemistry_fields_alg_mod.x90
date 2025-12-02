@@ -1,0 +1,393 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the UKCA chemistry fields
+module init_chemistry_fields_alg_mod
+
+  use constants_mod,                   only: r_def
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_chemistry_fields_alg
+
+contains
+
+  !> @brief   Initialises the chemistry fields
+  !> @details The chemistry fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case no restart file is used.
+  !> @param[in,out] chemistry_fields   chemistry related fields
+  subroutine init_chemistry_fields_alg(chemistry_fields)
+
+    use aerosol_config_mod, only: glomap_mode,               &
+                                  glomap_mode_dust_and_clim, &
+                                  glomap_mode_ukca
+    use chemistry_config_mod, only: chem_scheme,             &
+                                    chem_scheme_offline_ox,  &
+                                    chem_scheme_strattrop,   &
+                                    chem_scheme_strat_test,  &
+                                    chem_scheme_flexchem
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent( in ) :: chemistry_fields
+
+    ! Ancillary/Prognostic fields
+
+    type( field_type ), pointer :: o3p => null()
+    type( field_type ), pointer :: o1d => null()
+    type( field_type ), pointer :: o3 => null()
+    type( field_type ), pointer :: n => null()
+    type( field_type ), pointer :: no => null()
+    type( field_type ), pointer :: no3 => null()
+    type( field_type ), pointer :: lumped_n => null()
+    type( field_type ), pointer :: no2 => null()
+    type( field_type ), pointer :: n2o5 => null()
+    type( field_type ), pointer :: ho2no2 => null()
+    type( field_type ), pointer :: hono2 => null()
+    type( field_type ), pointer :: h2o2 => null()
+    type( field_type ), pointer :: ch4 => null()
+    type( field_type ), pointer :: co => null()
+    type( field_type ), pointer :: hcho => null()
+    type( field_type ), pointer :: meoo => null()
+    type( field_type ), pointer :: meooh => null()
+    type( field_type ), pointer :: h => null()
+    type( field_type ), pointer :: oh => null()
+    type( field_type ), pointer :: ho2 => null()
+    type( field_type ), pointer :: cl => null()
+    type( field_type ), pointer :: cl2o2 => null()
+    type( field_type ), pointer :: clo => null()
+    type( field_type ), pointer :: oclo => null()
+    type( field_type ), pointer :: br => null()
+    type( field_type ), pointer :: lumped_br => null()
+    type( field_type ), pointer :: bro => null()
+    type( field_type ), pointer :: brcl => null()
+    type( field_type ), pointer :: brono2 => null()
+    type( field_type ), pointer :: n2o => null()
+    type( field_type ), pointer :: lumped_cl => null()
+    type( field_type ), pointer :: hcl => null()
+    type( field_type ), pointer :: hocl => null()
+    type( field_type ), pointer :: hbr => null()
+    type( field_type ), pointer :: hobr => null()
+    type( field_type ), pointer :: clono2 => null()
+    type( field_type ), pointer :: cfcl3 => null()
+    type( field_type ), pointer :: cf2cl2 => null()
+    type( field_type ), pointer :: mebr => null()
+    type( field_type ), pointer :: hono => null()
+    type( field_type ), pointer :: c2h6 => null()
+    type( field_type ), pointer :: etoo => null()
+    type( field_type ), pointer :: etooh => null()
+    type( field_type ), pointer :: mecho => null()
+    type( field_type ), pointer :: meco3 => null()
+    type( field_type ), pointer :: pan => null()
+    type( field_type ), pointer :: c3h8 => null()
+    type( field_type ), pointer :: n_proo => null()
+    type( field_type ), pointer :: i_proo => null()
+    type( field_type ), pointer :: n_prooh => null()
+    type( field_type ), pointer :: i_prooh => null()
+    type( field_type ), pointer :: etcho => null()
+    type( field_type ), pointer :: etco3 => null()
+    type( field_type ), pointer :: me2co => null()
+    type( field_type ), pointer :: mecoch2oo => null()
+    type( field_type ), pointer :: mecoch2ooh => null()
+    type( field_type ), pointer :: ppan => null()
+    type( field_type ), pointer :: meono2 => null()
+    type( field_type ), pointer :: c5h8 => null()
+    type( field_type ), pointer :: iso2 => null()
+    type( field_type ), pointer :: isooh => null()
+    type( field_type ), pointer :: ison => null()
+    type( field_type ), pointer :: macr => null()
+    type( field_type ), pointer :: macro2 => null()
+    type( field_type ), pointer :: macrooh => null()
+    type( field_type ), pointer :: mpan => null()
+    type( field_type ), pointer :: hacet => null()
+    type( field_type ), pointer :: mgly => null()
+    type( field_type ), pointer :: nald => null()
+    type( field_type ), pointer :: hcooh => null()
+    type( field_type ), pointer :: meco3h => null()
+    type( field_type ), pointer :: meco2h => null()
+    type( field_type ), pointer :: h2 => null()
+    type( field_type ), pointer :: meoh => null()
+    type( field_type ), pointer :: msa => null()
+    type( field_type ), pointer :: nh3 => null()
+    type( field_type ), pointer :: cs2 => null()
+    type( field_type ), pointer :: csul => null()
+    type( field_type ), pointer :: h2s => null()
+    type( field_type ), pointer :: so3 => null()
+    type( field_type ), pointer :: passive_o3 => null()
+    type( field_type ), pointer :: age_of_air => null()
+    type( field_type ), pointer :: h2o2_limit => null()
+    type( field_type ), pointer :: dms => null()
+    type( field_type ), pointer :: so2 => null()
+    type( field_type ), pointer :: h2so4 => null()
+    type( field_type ), pointer :: dmso => null()
+    type( field_type ), pointer :: monoterpene => null()
+    type( field_type ), pointer :: secondary_organic => null()
+    type( field_type ), pointer :: co2 => null()
+    type( field_type ), pointer :: hcn => null()
+    type( field_type ), pointer :: he => null()
+    type( field_type ), pointer :: n2 => null()
+    type( field_type ), pointer :: o2 => null()
+    type( field_type ), pointer :: h2o => null()
+    type( field_type ), pointer :: cs => null()
+    type( field_type ), pointer :: k => null()
+    type( field_type ), pointer :: li => null()
+    type( field_type ), pointer :: na => null()
+    type( field_type ), pointer :: rb => null()
+    type( field_type ), pointer :: tio => null()
+    type( field_type ), pointer :: vo => null()
+
+    call chemistry_fields%get_field('o3p',o3p)
+    call chemistry_fields%get_field('o1d',o1d)
+    call chemistry_fields%get_field('o3', o3)
+    call chemistry_fields%get_field('n',n)
+    call chemistry_fields%get_field('no',no)
+    call chemistry_fields%get_field('no3', no3)
+    call chemistry_fields%get_field('lumped_n',lumped_n)
+    call chemistry_fields%get_field('no2',no2)
+    call chemistry_fields%get_field('n2o5',n2o5)
+    call chemistry_fields%get_field('ho2no2',ho2no2)
+    call chemistry_fields%get_field('hono2',hono2)
+    call chemistry_fields%get_field('h2o2', h2o2)
+    call chemistry_fields%get_field('ch4',ch4)
+    call chemistry_fields%get_field('co',co)
+    call chemistry_fields%get_field('hcho',hcho)
+    call chemistry_fields%get_field('meoo',meoo)
+    call chemistry_fields%get_field('meooh',meooh)
+    call chemistry_fields%get_field('h',h)
+    call chemistry_fields%get_field('oh', oh)
+    call chemistry_fields%get_field('ho2', ho2)
+    call chemistry_fields%get_field('cl',cl)
+    call chemistry_fields%get_field('cl2o2',cl2o2)
+    call chemistry_fields%get_field('clo',clo)
+    call chemistry_fields%get_field('oclo',oclo)
+    call chemistry_fields%get_field('br',br)
+    call chemistry_fields%get_field('lumped_br',lumped_br)
+    call chemistry_fields%get_field('bro',bro)
+    call chemistry_fields%get_field('brcl',brcl)
+    call chemistry_fields%get_field('brono2',brono2)
+    call chemistry_fields%get_field('n2o',n2o)
+    call chemistry_fields%get_field('lumped_cl',lumped_cl)
+    call chemistry_fields%get_field('hcl',hcl)
+    call chemistry_fields%get_field('hocl',hocl)
+    call chemistry_fields%get_field('hbr',hbr)
+    call chemistry_fields%get_field('hobr',hobr)
+    call chemistry_fields%get_field('clono2',clono2)
+    call chemistry_fields%get_field('cfcl3',cfcl3)
+    call chemistry_fields%get_field('cf2cl2',cf2cl2)
+    call chemistry_fields%get_field('mebr',mebr)
+    call chemistry_fields%get_field('hono',hono)
+    call chemistry_fields%get_field('c2h6',c2h6)
+    call chemistry_fields%get_field('etoo',etoo)
+    call chemistry_fields%get_field('etooh',etooh)
+    call chemistry_fields%get_field('mecho',mecho)
+    call chemistry_fields%get_field('meco3',meco3)
+    call chemistry_fields%get_field('pan',pan)
+    call chemistry_fields%get_field('c3h8',c3h8)
+    call chemistry_fields%get_field('n_proo',n_proo)
+    call chemistry_fields%get_field('i_proo',i_proo)
+    call chemistry_fields%get_field('n_prooh',n_prooh)
+    call chemistry_fields%get_field('i_prooh',i_prooh)
+    call chemistry_fields%get_field('etcho',etcho)
+    call chemistry_fields%get_field('etco3',etco3)
+    call chemistry_fields%get_field('me2co',me2co)
+    call chemistry_fields%get_field('mecoch2oo',mecoch2oo)
+    call chemistry_fields%get_field('mecoch2ooh',mecoch2ooh)
+    call chemistry_fields%get_field('ppan',ppan)
+    call chemistry_fields%get_field('meono2',meono2)
+    call chemistry_fields%get_field('c5h8',c5h8)
+    call chemistry_fields%get_field('iso2',iso2)
+    call chemistry_fields%get_field('isooh',isooh)
+    call chemistry_fields%get_field('ison',ison)
+    call chemistry_fields%get_field('macr',macr)
+    call chemistry_fields%get_field('macro2',macro2)
+    call chemistry_fields%get_field('macrooh',macrooh)
+    call chemistry_fields%get_field('mpan',mpan)
+    call chemistry_fields%get_field('hacet',hacet)
+    call chemistry_fields%get_field('mgly',mgly)
+    call chemistry_fields%get_field('nald',nald)
+    call chemistry_fields%get_field('hcooh',hcooh)
+    call chemistry_fields%get_field('meco3h',meco3h)
+    call chemistry_fields%get_field('meco2h',meco2h)
+    call chemistry_fields%get_field('h2',h2)
+    call chemistry_fields%get_field('meoh',meoh)
+    call chemistry_fields%get_field('msa',msa)
+    call chemistry_fields%get_field('nh3',nh3)
+    call chemistry_fields%get_field('cs2',cs2)
+    call chemistry_fields%get_field('csul',csul)
+    call chemistry_fields%get_field('h2s',h2s)
+    call chemistry_fields%get_field('so3',so3)
+    call chemistry_fields%get_field('passive_o3',passive_o3)
+    call chemistry_fields%get_field('age_of_air',age_of_air)
+    call chemistry_fields%get_field('dms', dms)
+    call chemistry_fields%get_field('so2', so2)
+    call chemistry_fields%get_field('h2so4', h2so4)
+    call chemistry_fields%get_field('dmso', dmso)
+    call chemistry_fields%get_field('monoterpene', monoterpene)
+    call chemistry_fields%get_field('secondary_organic', secondary_organic)
+    call chemistry_fields%get_field('co2', co2)
+    call chemistry_fields%get_field('hcn', hcn)
+    call chemistry_fields%get_field('he', he)
+    call chemistry_fields%get_field('n2', n2)
+    call chemistry_fields%get_field('o2', o2)
+    call chemistry_fields%get_field('h2o', h2o)
+    call chemistry_fields%get_field('cs', cs)
+    call chemistry_fields%get_field('k', k)
+    call chemistry_fields%get_field('li', li)
+    call chemistry_fields%get_field('na', na)
+    call chemistry_fields%get_field('rb', rb)
+    call chemistry_fields%get_field('tio', tio)
+    call chemistry_fields%get_field('vo', vo)
+    if ( glomap_mode == glomap_mode_ukca ) then
+      ! Upper limit for H2O2 (ancillary field) only active for glomap_mode and
+      !  checkpointed for offline oxidants, never advected
+      call chemistry_fields%get_field('h2o2_limit', h2o2_limit)
+    end if
+
+    ! Flexible/idealised chemistry scheme
+    ! (These gases are also can be used as 3D fields in radiation.)
+    if ( chem_scheme == chem_scheme_flexchem ) then
+      call invoke ( setval_c(ch4, 0.0_r_def), &
+                    setval_c(co,  0.0_r_def), &
+                    setval_c(h2o, 0.0_r_def), &
+                    setval_c(co2, 0.0_r_def), &
+                    setval_c(h2,  0.0_r_def), &
+                    setval_c(hcn, 0.0_r_def), &
+                    setval_c(he,  0.0_r_def), &
+                    setval_c(n2,  0.0_r_def), &
+                    setval_c(n2o, 0.0_r_def), &
+                    setval_c(nh3, 0.0_r_def), &
+                    setval_c(o2,  0.0_r_def), &
+                    setval_c(o3,  0.0_r_def), &
+                    setval_c(cs,  0.0_r_def), &
+                    setval_c(k,   0.0_r_def), &
+                    setval_c(li,  0.0_r_def), &
+                    setval_c(na,  0.0_r_def), &
+                    setval_c(rb,  0.0_r_def), &
+                    setval_c(tio, 0.0_r_def), &
+                    setval_c(vo,  0.0_r_def), &
+                    setval_c(so2, 0.0_r_def) )
+    end if
+
+    ! Set UKCA chemistry fields to fixed values for use in SCM testing
+    ! or when no values are provided by the initial dump (or by ancil files
+    ! in the case of offline oxidants fields o3, no3, oh, ho2 and h2o2_limit).
+
+    ! Fields active in full chemistry scheme
+    if ( chem_scheme == chem_scheme_strattrop  .or.  &
+         chem_scheme == chem_scheme_strat_test ) then
+      call invoke( setval_c( o3p,             1.0e-15_r_def ),                 &
+                 setval_c( o1d,               1.0e-15_r_def ),                 &
+                 setval_c( n,                 1.0e-15_r_def ),                 &
+                 setval_c( no,                1.0e-15_r_def ),                 &
+                 setval_c( lumped_n,          1.0e-15_r_def ),                 &
+                 setval_c( no2,               1.0e-15_r_def ),                 &
+                 setval_c( n2o5,              1.0e-15_r_def ),                 &
+                 setval_c( ho2no2,            1.0e-15_r_def ),                 &
+                 setval_c( hono2,             1.0e-15_r_def ),                 &
+                 setval_c( ch4,               1.0e-15_r_def ),                 &
+                 setval_c( co,                1.0e-15_r_def ),                 &
+                 setval_c( hcho,              1.0e-15_r_def ),                 &
+                 setval_c( meoo,              1.0e-15_r_def ),                 &
+                 setval_c( meooh,             1.0e-15_r_def ),                 &
+                 setval_c( h,                 1.0e-15_r_def ),                 &
+                 setval_c( cl,                1.0e-15_r_def ),                 &
+                 setval_c( cl2o2,             1.0e-15_r_def ),                 &
+                 setval_c( clo,               1.0e-15_r_def ),                 &
+                 setval_c( oclo,              1.0e-15_r_def ),                 &
+                 setval_c( br,                1.0e-15_r_def ),                 &
+                 setval_c( lumped_br,         1.0e-15_r_def ),                 &
+                 setval_c( bro,               1.0e-15_r_def ),                 &
+                 setval_c( brcl,              1.0e-15_r_def ),                 &
+                 setval_c( brono2,            1.0e-15_r_def ),                 &
+                 setval_c( n2o,               1.0e-15_r_def ),                 &
+                 setval_c( lumped_cl,         1.0e-15_r_def ),                 &
+                 setval_c( hcl,               1.0e-15_r_def ),                 &
+                 setval_c( hocl,              1.0e-15_r_def ),                 &
+                 setval_c( hbr,               1.0e-15_r_def ),                 &
+                 setval_c( hobr,              1.0e-15_r_def ),                 &
+                 setval_c( clono2,            1.0e-15_r_def ),                 &
+                 setval_c( cfcl3,             1.0e-15_r_def ),                 &
+                 setval_c( cf2cl2,            1.0e-15_r_def ),                 &
+                 setval_c( mebr,              1.0e-15_r_def ),                 &
+                 setval_c( hono,              1.0e-15_r_def ),                 &
+                 setval_c( c2h6,              1.0e-15_r_def ),                 &
+                 setval_c( etoo,              1.0e-15_r_def ),                 &
+                 setval_c( etooh,             1.0e-15_r_def ),                 &
+                 setval_c( mecho,             1.0e-15_r_def ),                 &
+                 setval_c( meco3,             1.0e-15_r_def ),                 &
+                 setval_c( pan,               1.0e-15_r_def ),                 &
+                 setval_c( c3h8,              1.0e-15_r_def ),                 &
+                 setval_c( n_proo,            1.0e-15_r_def ),                 &
+                 setval_c( i_proo,            1.0e-15_r_def ),                 &
+                 setval_c( n_prooh,           1.0e-15_r_def ),                 &
+                 setval_c( i_prooh,           1.0e-15_r_def ),                 &
+                 setval_c( etcho,             1.0e-15_r_def ),                 &
+                 setval_c( etco3,             1.0e-15_r_def ),                 &
+                 setval_c( me2co,             1.0e-15_r_def ),                 &
+                 setval_c( mecoch2oo,         1.0e-15_r_def ),                 &
+                 setval_c( mecoch2ooh,        1.0e-15_r_def ),                 &
+                 setval_c( ppan,              1.0e-15_r_def ),                 &
+                 setval_c( meono2,            1.0e-15_r_def ),                 &
+                 setval_c( c5h8,              1.0e-15_r_def ),                 &
+                 setval_c( iso2,              1.0e-15_r_def ),                 &
+                 setval_c( isooh,             1.0e-15_r_def ),                 &
+                 setval_c( ison,              1.0e-15_r_def ),                 &
+                 setval_c( macr,              1.0e-15_r_def ),                 &
+                 setval_c( macro2,            1.0e-15_r_def ),                 &
+                 setval_c( macrooh,           1.0e-15_r_def ),                 &
+                 setval_c( mpan,              1.0e-15_r_def ),                 &
+                 setval_c( hacet,             1.0e-15_r_def ),                 &
+                 setval_c( mgly,              1.0e-15_r_def ),                 &
+                 setval_c( nald,              1.0e-15_r_def ),                 &
+                 setval_c( hcooh,             1.0e-15_r_def ),                 &
+                 setval_c( meco3h,            1.0e-15_r_def ),                 &
+                 setval_c( meco2h,            1.0e-15_r_def ),                 &
+                 setval_c( h2,                1.0e-15_r_def ),                 &
+                 setval_c( meoh,              1.0e-15_r_def ),                 &
+                 setval_c( msa,               1.0e-15_r_def ),                 &
+                 setval_c( nh3,               1.0e-15_r_def ),                 &
+                 setval_c( cs2,               1.0e-15_r_def ),                 &
+                 setval_c( csul,              1.0e-15_r_def ),                 &
+                 setval_c( h2s,               1.0e-15_r_def ),                 &
+                 setval_c( so3,               1.0e-15_r_def ),                 &
+                 setval_c( passive_o3,        1.0e-15_r_def ),                 &
+                 setval_c( age_of_air,            0.0_r_def ) )
+    end if ! strattrop
+
+    ! Fields active in offline oxidant or strattrop schemes
+    if ( chem_scheme == chem_scheme_strattrop   .or.  &
+         chem_scheme == chem_scheme_offline_ox  .or.  &
+         chem_scheme == chem_scheme_strat_test ) then
+      call invoke ( setval_c( o3,             1.0e-15_r_def ),                 &
+                    setval_c( no3,            1.0e-15_r_def ),                 &
+                    setval_c( h2o2,               0.0_r_def ),                 &
+                    setval_c( oh,             1.0e-15_r_def ),                 &
+                    setval_c( ho2,            1.0e-15_r_def ) )
+    end if
+
+    ! Fields only required for aerosol chemistry (glomap_ukca)
+    if ( glomap_mode == glomap_mode_ukca ) then
+      call invoke ( setval_c( h2o2_limit,     9.0e-15_r_def ),                 &
+                    setval_c( dms,                0.0_r_def ),                 &
+                    setval_c( so2,                0.0_r_def ),                 &
+                    setval_c( h2so4,              0.0_r_def ),                 &
+                    setval_c( dmso,               0.0_r_def ),                 &
+                    setval_c( monoterpene,        0.0_r_def ),                 &
+                    setval_c( secondary_organic,  0.0_r_def ) )
+    end if
+
+  end subroutine init_chemistry_fields_alg
+
+end module init_chemistry_fields_alg_mod
+
+
+

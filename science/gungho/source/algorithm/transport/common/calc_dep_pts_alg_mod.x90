@@ -1,0 +1,634 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Algorithms for calculating departure points used by FFSL/SL transport.
+!> @details Departure points for the cell edges are calculated using departure
+!!          winds. These are computed by dividing the computational winds by
+!!          Det(J) at cell edges. These algorithms compute the departure points,
+!!          (in 3D, in the horizontal, or in the vertical)
+!!          and the choice of Det(J) calculation (upwinded or averaged).
+!!          This is used by the flux form semi-Lagrangian (FFSL) and the
+!!          vertical semi-Lagrangian (SL) transport schemes.
+
+module calc_dep_pts_alg_mod
+
+  ! Infrastructure
+  use constants_mod,                     only: i_def, r_tran, l_def
+  use field_mod,                         only: field_type
+  use fs_continuity_mod,                 only: W2, W2H
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use integer_field_mod,                 only: integer_field_type
+  use lfric_mpi_mod,                     only: global_mpi
+  use log_mod,                           only: log_event,               &
+                                               LOG_LEVEL_DEBUG,         &
+                                               LOG_LEVEL_ERROR
+  use mesh_mod,                          only: mesh_type
+  use r_tran_field_mod,                  only: r_tran_field_type
+  use timer_mod,                         only: timer
+
+  ! Configs
+  use departure_points_config_mod,       only: horizontal_method,              &
+                                               horizontal_method_euler,        &
+                                               horizontal_method_timeaverage,  &
+                                               horizontal_method_trapezoidal,  &
+                                               horizontal_method_midpoint,     &
+                                               horizontal_method_ffsl,         &
+                                               n_dep_pt_iterations,            &
+                                               vertical_method,                &
+                                               horizontal_limit,               &
+                                               horizontal_limit_cap,           &
+                                               vertical_method_euler,          &
+                                               vertical_method_midpoint,       &
+                                               vertical_method_timeaverage,    &
+                                               vertical_method_trapezoidal,    &
+                                               vertical_limit,                 &
+                                               vertical_limit_boundary,        &
+                                               vertical_limit_exponential,     &
+                                               vertical_sorting
+  use io_config_mod,                     only: subroutine_timers
+  use transport_config_mod,              only: dep_pt_stencil_extent,   &
+                                               calculate_detj,          &
+                                               calculate_detj_averaged, &
+                                               calculate_detj_upwind
+
+  ! Other algorithms
+  use sci_field_minmax_alg_mod,          only: log_field_minmax,               &
+                                               get_field_minmax
+  use copy_field_alg_mod,                only: copy_field
+
+  ! Kernels
+  use calc_departure_wind_kernel_mod,    only: calc_departure_wind_kernel_type
+  use calc_upwind_detj_at_w2_kernel_mod, only: calc_upwind_detj_at_w2_kernel_type
+  use calc_vert_dep_wind_kernel_mod,     only: calc_vert_dep_wind_kernel_type
+  use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
+  use sci_extract_uv_kernel_mod,         only: extract_uv_kernel_type
+  use sci_extract_w_kernel_mod,          only: extract_w_kernel_type
+  use fractional_horizontal_wind_kernel_mod, &
+                                         only: fractional_horizontal_wind_kernel_type
+  use fractional_vertical_wind_kernel_mod, &
+                                         only: fractional_vertical_wind_kernel_type
+  use hori_dep_dist_eulerian_kernel_mod, only: hori_dep_dist_eulerian_kernel_type
+  use hori_dep_dist_midpoint_kernel_mod, only: hori_dep_dist_midpoint_kernel_type
+  use hori_dep_dist_trapezoidal_kernel_mod, &
+                                         only: hori_dep_dist_trapezoidal_kernel_type
+  use hori_dep_dist_ffsl_kernel_mod,     only: hori_dep_dist_ffsl_kernel_type
+  use hori_dep_dist_ffsl_sphere_kernel_mod, &
+                                         only: hori_dep_dist_ffsl_sphere_kernel_type
+  use vert_dep_dist_boundary_kernel_mod, only: vert_dep_dist_boundary_kernel_type
+  use vert_dep_dist_ffsl_kernel_mod,     only: vert_dep_dist_ffsl_kernel_type
+  use vert_dep_dist_exponential_kernel_mod, &
+                                         only: vert_dep_dist_exponential_kernel_type
+  use vert_dep_dist_lagrangian_kernel_mod, &
+                                         only: vert_dep_dist_lagrangian_kernel_type
+  use vert_deppt_sorting_kernel_mod,     only: vert_deppt_sorting_kernel_type
+
+  ! Pointers to existing objects
+  use transport_constants_mod,           only: get_detj_at_w2_above,           &
+                                               get_detj_at_w2_below,           &
+                                               get_detj_at_w3_r_tran,          &
+                                               get_panel_edge_dist
+  use sci_geometric_constants_mod,       only: get_height_fv,                  &
+                                               get_face_selector_ew,           &
+                                               get_face_selector_ns,           &
+                                               get_detj_at_w2_fe,              &
+                                               get_detj_at_w2_fv,              &
+                                               get_panel_id
+
+  implicit none
+
+  private
+  public :: calc_hori_dep_pts
+  public :: calc_ffsl_hori_dep_pts
+  public :: calc_vert_dep_pts
+  public :: select_detj_at_w2
+
+contains
+
+
+  !===========================================================================!
+  !> @brief   An algorithm for calculating two dimensional horizontal departure points.
+  !> @details The algorithm calculates the departure points for the cell edges.
+  !!          The departure points are calculated in the x and y direction
+  !!          together as 1D calculations.
+  !!          This is used by the dimensionally-split swept-area approach of
+  !!          the flux form semi-Lagrangian (FFSL) scheme.
+  !!
+  !> @param[in,out] dep_dist     Departure points in the horizontal, a W2h field
+  !> @param[in,out] frac_wind    The part of the horizontal wind corresponding
+  !!                             to the fractional part of the Courant number.
+  !!                             It is a W2h field
+  !> @param[in]     wind_n       Wind field at timestep n
+  !> @param[in]     wind_np1     Wind field at timestep n+1
+  !> @param[in]     dt           The model timestep length
+  subroutine calc_hori_dep_pts( dep_dist,           &
+                                frac_wind,          &
+                                dep_lowest_k,       &
+                                dep_highest_k,      &
+                                wind_n,             &
+                                wind_np1,           &
+                                dt )
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),  intent(inout) :: dep_dist
+    type(r_tran_field_type),  intent(inout) :: frac_wind
+    type(integer_field_type), intent(inout) :: dep_lowest_k
+    type(integer_field_type), intent(inout) :: dep_highest_k
+    type(r_tran_field_type),  intent(in)    :: wind_n
+    type(r_tran_field_type),  intent(in)    :: wind_np1
+    real(kind=r_tran),        intent(in)    :: dt
+
+    ! Pointers and variables
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(r_tran_field_type),   pointer :: detj_at_w3
+    type(r_tran_field_type),   pointer :: detj_at_w3_copy
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    type(mesh_type),           pointer :: mesh
+
+    ! Internal variables
+    real(kind=r_tran)       :: max_hori_dep, min_hori_dep
+    logical(kind=l_def)     :: cap_dep_points
+    type(r_tran_field_type) :: wind_adv
+    type(r_tran_field_type) :: dep_wind
+    type(r_tran_field_type) :: dep_wind_np1
+
+    if ( subroutine_timers ) call timer( 'transport.hori_dep_pts' )
+
+    ! Get function space, mesh, and Det(J) at W3
+    w2_fs  => wind_n%get_function_space()
+    w2h_fs => dep_dist%get_function_space()
+    mesh   => wind_n%get_mesh()
+    detj_at_w3 => get_detj_at_w3_r_tran(mesh%get_id())
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+    call wind_adv%initialise( vector_space = w2_fs )
+    call dep_wind%initialise( vector_space = w2h_fs )
+
+    if (horizontal_method /= horizontal_method_ffsl) then
+      ! Initialise variables and set them to zero
+      call dep_wind_np1%initialise( vector_space = w2h_fs )
+      call invoke( setval_c(dep_dist, 0.0_r_tran),     &
+                   setval_c(wind_adv, 0.0_r_tran),     &
+                   setval_c(dep_wind_np1, 0.0_r_tran), &
+                   setval_c(dep_wind, 0.0_r_tran) )
+    end if
+
+    ! Calculate the departure points based on Eulerian or Lagrangian approach
+    select case ( horizontal_method )
+
+      ! Lagrangian approaches --------------------------------------------------
+      case ( horizontal_method_trapezoidal )
+        call invoke( calc_departure_wind_kernel_type(dep_wind, wind_n,         &
+                                                     detj_at_w3, 1),           &
+                     calc_departure_wind_kernel_type(dep_wind_np1, wind_np1,   &
+                                                     detj_at_w3, 1),           &
+                     hori_dep_dist_trapezoidal_kernel_type(                    &
+                                                        dep_dist,              &
+                                                        dep_wind,              &
+                                                        dep_pt_stencil_extent, &
+                                                        dep_wind_np1,          &
+                                                        n_dep_pt_iterations,   &
+                                                        dt),                   &
+                     setval_c(frac_wind, 0.0_r_tran),                          &
+                     fractional_horizontal_wind_kernel_type(                   &
+                                                        frac_wind,             &
+                                                        dep_dist,              &
+                                                        detj_at_w3, 1,         &
+                                                        face_selector_ew,      &
+                                                        face_selector_ns) )
+      case ( horizontal_method_midpoint )
+        call invoke( calc_departure_wind_kernel_type(dep_wind, wind_n,         &
+                                                     detj_at_w3, 1),           &
+                     hori_dep_dist_midpoint_kernel_type(dep_dist,              &
+                                                        dep_wind,              &
+                                                        dep_pt_stencil_extent, &
+                                                        n_dep_pt_iterations,   &
+                                                        dt),                   &
+                     setval_c(frac_wind, 0.0_r_tran),                          &
+                     fractional_horizontal_wind_kernel_type(                   &
+                                                        frac_wind,             &
+                                                        dep_dist,              &
+                                                        detj_at_w3, 1,         &
+                                                        face_selector_ew,      &
+                                                        face_selector_ns) )
+
+      ! Eulerian approaches ----------------------------------------------------
+      case ( horizontal_method_euler, horizontal_method_timeaverage )
+        ! Set the advecting wind based on the departure point method
+        if ( horizontal_method == horizontal_method_euler ) then
+          call invoke( setval_X(wind_adv, wind_np1) )
+        else
+          call invoke( aX_plus_bY(wind_adv, 0.5_r_tran, wind_n,                &
+                                            0.5_r_tran, wind_np1) )
+        end if
+
+        call invoke( calc_departure_wind_kernel_type(dep_wind, wind_adv,       &
+                                                     detj_at_w3, 1),           &
+                     hori_dep_dist_eulerian_kernel_type(dep_dist,              &
+                                                        dep_wind,              &
+                                                        dt),                   &
+                     setval_c(frac_wind, 0.0_r_tran),                          &
+                     fractional_horizontal_wind_kernel_type(                   &
+                                                        frac_wind,             &
+                                                        dep_dist,              &
+                                                        detj_at_w3, 1,         &
+                                                        face_selector_ew,      &
+                                                        face_selector_ns) )
+
+        if ( horizontal_limit == horizontal_limit_cap ) then
+          ! Cap the horizontal departure points to lie within the stencil extent
+          max_hori_dep = real(dep_pt_stencil_extent, r_tran)
+          min_hori_dep = -max_hori_dep
+          call invoke( inc_max_aX(min_hori_dep, dep_dist), &
+                       inc_min_aX(max_hori_dep, dep_dist) )
+        end if
+
+      case ( horizontal_method_ffsl )
+        ! Use time-averaged wind
+        cap_dep_points = (horizontal_limit == horizontal_limit_cap)
+        face_selector_ew => get_face_selector_ew(mesh%get_id())
+        face_selector_ns => get_face_selector_ns(mesh%get_id())
+        ! Require copy of detj as Psyclone doesn't allow the same field to be
+        ! used twice as a kernel input argument
+        detj_at_w3_copy => get_detj_at_w3_r_tran(mesh%get_id())
+        call invoke( aX_plus_bY(wind_adv, 0.5_r_tran, wind_n,                  &
+                                          0.5_r_tran, wind_np1),               &
+                     extract_uv_kernel_type(dep_wind, wind_adv,                &
+                                            face_selector_ew,                  &
+                                            face_selector_ns),                 &
+                     inc_a_times_X(dt, dep_wind) )
+
+        call calc_ffsl_hori_dep_pts(dep_dist, frac_wind,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    dep_wind, detj_at_w3, detj_at_w3_copy,     &
+                                    dep_pt_stencil_extent)
+
+      case default
+        call log_event( "Gungho: Invalid departure point method", LOG_LEVEL_ERROR )
+
+    end select
+
+    call log_field_minmax( LOG_LEVEL_DEBUG, "dep_dist", dep_dist )
+
+    nullify( w2_fs, w2h_fs, mesh, detj_at_w3, face_selector_ew, face_selector_ns )
+
+    if ( subroutine_timers ) call timer( 'transport.hori_dep_pts' )
+
+  end subroutine calc_hori_dep_pts
+
+  !> @brief Calculates the horizontal FFSL departure points
+  !> @details Calculates horizontal departure points using the 'FFSL' method,
+  !!          of stepping through cells until the volume swept is equal to the
+  !!          velocity flux. This routine also computes the component of the
+  !!          horizontal wind associated with the fractional Courant number,
+  !!          and the maximum stencil extent.
+  !> @param[in,out] dep_dist           W2H field containing departure distances
+  !> @param[in,out] frac_wind          W2H field containing the part of the wind
+  !!                                   or mass flux associated with the
+  !!                                   fractional Courant number
+  !> @param[in,out] max_stencil_extent The maximum stencil extent associated
+  !!                                   with this set of departure points
+  !> @param[in,out] dep_lowest_k       2D multidata field located at W2H points,
+  !!                                   giving the lowest k index of departure
+  !!                                   points for different columns.
+  !> @param[in,out] dep_highest_k      2D multidata field located at W2H points,
+  !!                                   giving the lowest k index of departure
+  !!                                   points for different columns.
+  !> @param[in]     wind               The horizontal wind or mass flux to
+  !!                                   compute the departure points for
+  !> @param[in]     detj_for_x         The volume or mass of cells used for
+  !!                                   computing the x-part of the dep points
+  !> @param[in]     detj_for_y         The volume or mass of cells used for
+  !!                                   computing the y-part of the dep points
+  !> @param[in]     stencil_extent     The stencil extent to use for the
+  !!                                   departure point calculation
+  subroutine calc_ffsl_hori_dep_pts(dep_dist, frac_wind,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    wind, detj_for_x, detj_for_y,              &
+                                    stencil_extent)
+
+    use base_mesh_config_mod, only: geometry, geometry_spherical,              &
+                                    topology, topology_fully_periodic
+
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),  intent(inout) :: dep_dist
+    type(r_tran_field_type),  intent(inout) :: frac_wind
+    type(integer_field_type), intent(inout) :: dep_lowest_k
+    type(integer_field_type), intent(inout) :: dep_highest_k
+    type(r_tran_field_type),     intent(in) :: wind
+    type(r_tran_field_type),     intent(in) :: detj_for_x
+    type(r_tran_field_type),     intent(in) :: detj_for_y
+    integer(kind=i_def),         intent(in) :: stencil_extent
+
+    ! Internal variables
+    type(mesh_type),           pointer :: mesh
+    type(field_type),          pointer :: panel_id
+    type(integer_field_type),  pointer :: panel_edge_dist(:)
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    type(integer_field_type)           :: error_flag_field
+    type(function_space_type), pointer :: ndepk_fs
+    integer(kind=i_def)                :: error_flag_min, error_flag_max
+    integer(kind=i_def)                :: ndep
+    logical(kind=l_def)                :: cap_dep_points
+    logical(kind=l_def)                :: is_cubed_sphere
+
+    mesh => wind%get_mesh()
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+    call error_flag_field%initialise( face_selector_ew%get_function_space() )
+
+    ndepk_fs => dep_lowest_k%get_function_space()
+    ndep = ndepk_fs%get_ndata()
+    cap_dep_points = (horizontal_limit == horizontal_limit_cap)
+
+    is_cubed_sphere = (                                                        &
+      geometry == geometry_spherical .and. topology == topology_fully_periodic &
+    )
+
+    if (is_cubed_sphere) then
+      panel_id => get_panel_id(mesh%get_id())
+      panel_edge_dist => get_panel_edge_dist(mesh%get_id())
+      call invoke( setval_c(frac_wind, 0.0_r_tran),                            &
+                   setval_c(dep_dist, 0.0_r_tran),                             &
+                   int_setval_c(error_flag_field, 0_i_def),                    &
+                   int_setval_c(dep_lowest_k, 0_i_def),                        &
+                   int_setval_c(dep_highest_k, -1_i_def),                      &
+                   hori_dep_dist_ffsl_sphere_kernel_type(                      &
+                                                  dep_dist,                    &
+                                                  frac_wind,                   &
+                                                  wind,                        &
+                                                  detj_for_x,                  &
+                                                  stencil_extent,              &
+                                                  detj_for_y,                  &
+                                                  stencil_extent,              &
+                                                  dep_lowest_k,                &
+                                                  dep_highest_k,               &
+                                                  panel_id,                    &
+                                                  panel_edge_dist,             &
+                                                  face_selector_ew,            &
+                                                  face_selector_ns,            &
+                                                  error_flag_field,            &
+                                                  ndep,                        &
+                                                  cap_dep_points) )
+    else
+      call invoke( setval_c(frac_wind, 0.0_r_tran),                            &
+                   setval_c(dep_dist, 0.0_r_tran),                             &
+                   int_setval_c(error_flag_field, 0_i_def),                    &
+                   int_setval_c(dep_lowest_k, 0_i_def),                        &
+                   int_setval_c(dep_highest_k, -1_i_def),                      &
+                   hori_dep_dist_ffsl_kernel_type(dep_dist,                    &
+                                                  frac_wind,                   &
+                                                  wind,                        &
+                                                  detj_for_x,                  &
+                                                  stencil_extent,              &
+                                                  detj_for_y,                  &
+                                                  stencil_extent,              &
+                                                  dep_lowest_k,                &
+                                                  dep_highest_k,               &
+                                                  face_selector_ew,            &
+                                                  face_selector_ns,            &
+                                                  error_flag_field,            &
+                                                  ndep,                        &
+                                                  cap_dep_points) )
+    end if
+
+    ! Check error flag field, if departure points aren't capped
+    if (.not. cap_dep_points) then
+      call get_field_minmax(error_flag_field, error_flag_min, error_flag_max)
+      if (error_flag_max > 0) then
+        call log_event(                                                        &
+            'Departure points have exceeded the stencil extent, and it is no ' &
+            // 'longer possible to transport fields stably. Either: '          &
+            // '(a) increase the maximum stencil extent, '                     &
+            //' (b) set the horizontal departure points to be capped, or '     &
+            // '(c) use a smaller time step.',                                 &
+            LOG_LEVEL_ERROR                                                    &
+        )
+      end if
+    end if
+
+  end subroutine calc_ffsl_hori_dep_pts
+
+
+  !===========================================================================!
+  !> @brief   An algorithm for calculating vertical departure points.
+  !> @details The algorithm calculates the departure points for the cell edges.
+  !!          The departure points are calculated in the z direction.
+  !!          This is used by the dimensionally-split swept-area approach of
+  !!          the flux form semi-Lagrangian (FFSL) scheme as well as the
+  !!          vertical semi-Lagrangian and SLICE schemes.
+  !!
+  !> @param[in,out] dep_dist_z        Departure points in z direction, a W2v field
+  !> @param[in,out] frac_vert_wind    The part of the vertical wind related to
+  !!                                  the fractional part of the Courant number
+  !> @param[in,out] cfl               Vertical CFL from departure points
+  !> @param[in]     wind_n            Wind field at timestep n
+  !> @param[in]     wind_np1          Wind field at timestep n+1
+  !> @param[in]     dt                The model timestep length
+  !> @param[in]     compute_cfl       Whether to compute the vertical Courant
+  !!                                  number from departure points
+  subroutine calc_vert_dep_pts( dep_dist_z,       &
+                                frac_vert_wind,   &
+                                cfl,              &
+                                wind_n,           &
+                                wind_np1,         &
+                                dt,               &
+                                compute_cfl )
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type), intent(inout) :: dep_dist_z
+    type(r_tran_field_type), intent(inout) :: frac_vert_wind
+    type(r_tran_field_type), intent(inout) :: cfl
+    type(r_tran_field_type), intent(in)    :: wind_n
+    type(r_tran_field_type), intent(in)    :: wind_np1
+    real(kind=r_tran),       intent(in)    :: dt
+    logical(kind=l_def),     intent(in)    :: compute_cfl
+
+    ! Variables
+    type(r_tran_field_type) :: dep_wind_n, dep_wind_np1
+
+    ! Height and volume
+    type(r_tran_field_type),  pointer :: detj_at_w3
+    type(field_type),         pointer :: height_w2_rdef
+    type(r_tran_field_type)           :: height_w2
+    type(r_tran_field_type)           :: vert_wind
+    type(r_tran_field_type)           :: vert_wind_np1
+
+    ! Function space and mesh
+    type(function_space_type), pointer :: w2v_fs
+    type(mesh_type),           pointer :: mesh
+
+    real(kind=r_tran)                    :: half
+
+    if ( subroutine_timers ) call timer( 'transport.vert_dep_pts' )
+
+    ! Get function spaces
+    mesh  => wind_n%get_mesh()
+    w2v_fs => dep_dist_z%get_function_space()
+
+    ! Get Det(J) at W3
+    detj_at_w3 => get_detj_at_w3_r_tran(mesh%get_id())
+
+    ! ======================================================================== !
+    select case (vertical_method)
+    ! FFSL-style Eulerian departure points -------------------------------------
+    case (vertical_method_euler, vertical_method_timeaverage)
+      ! Calculate input wind, depending on method ------------------------------
+      call vert_wind%initialise( w2v_fs )
+      if (vertical_method == vertical_method_euler) then
+        call invoke( extract_w_kernel_type(vert_wind, wind_n) )
+
+      else if (vertical_method == vertical_method_timeaverage) then
+        half = 0.5_r_tran
+        call vert_wind_np1%initialise( w2v_fs )
+        call invoke( extract_w_kernel_type(vert_wind, wind_n),                 &
+                     extract_w_kernel_type(vert_wind_np1, wind_np1),           &
+                     inc_X_plus_Y(vert_wind, vert_wind_np1),                   &
+                     inc_a_times_X(half, vert_wind) )
+      end if
+
+      ! Calculate departure points ---------------------------------------------
+      call invoke( inc_a_times_X(dt, vert_wind),                               &
+                   vert_dep_dist_ffsl_kernel_type(dep_dist_z,                  &
+                                                  frac_vert_wind,              &
+                                                  vert_wind,                   &
+                                                  detj_at_w3) )
+      if (compute_cfl) then
+        call invoke( setval_X(cfl, dep_dist_z) )
+      end if
+
+      ! If specified, cap and sort departure distances
+      select case (vertical_limit)
+      case (vertical_limit_boundary)
+        call invoke( name='boundary_cap_vert_deppts',                          &
+                     vert_dep_dist_boundary_kernel_type(dep_dist_z) )
+      case (vertical_limit_exponential)
+        call invoke( name='exponential_cap_vert_deppts',                       &
+                     vert_dep_dist_exponential_kernel_type(dep_dist_z) )
+      end select
+      if (vertical_sorting) then
+        call invoke( vert_deppt_sorting_kernel_type(dep_dist_z))
+      end if
+
+    ! SL-style Lagrangian departure points -------------------------------------
+    case (vertical_method_midpoint, vertical_method_trapezoidal)
+      ! Get cell height
+      height_w2_rdef => get_height_fv(W2, mesh%get_id())
+      call height_w2%initialise(vector_space = height_w2_rdef%get_function_space() )
+      call copy_field(height_w2_rdef, height_w2 )
+
+      ! Initialise departure wind function space
+      call dep_wind_n%initialise( vector_space = w2v_fs )
+      call dep_wind_np1%initialise( vector_space = w2v_fs )
+
+      ! Calculate the departure winds by dividing the wind by upwind Det(J)
+      call invoke( setval_c(dep_dist_z, 0.0_r_tran ),                          &
+                   setval_c(cfl, 0.0_r_tran ),                                 &
+                   calc_vert_dep_wind_kernel_type(dep_wind_n, wind_n,          &
+                                                  detj_at_w3),                 &
+                   calc_vert_dep_wind_kernel_type(dep_wind_np1, wind_np1,      &
+                                                  detj_at_w3),                 &
+                   vert_dep_dist_lagrangian_kernel_type(dep_dist_z,            &
+                                                        cfl,                   &
+                                                        dep_wind_n,            &
+                                                        dep_wind_np1,          &
+                                                        height_w2,             &
+                                                        n_dep_pt_iterations,   &
+                                                        vertical_method,       &
+                                                        vertical_limit, dt),   &
+                   fractional_vertical_wind_kernel_type(frac_vert_wind,        &
+                                                        dep_dist_z,            &
+                                                        detj_at_w3) )
+
+    case default
+      call log_event('Vertical departure point method not recognised', LOG_LEVEL_ERROR)
+    end select
+
+    if ( subroutine_timers ) call timer( 'transport.vert_dep_pts' )
+
+  end subroutine calc_vert_dep_pts
+
+
+  !===========================================================================!
+  !> @brief   Select either averaged or upwind Det(J) at vertical W2 dofs.
+  !> @details Det(J) at vertical W2 dofs can be calculated using either an
+  !!          average from the cells either side or from the upwind cell.
+  !!
+  !> @param[in]     advecting_wind  Advecting wind to determine upwind direction
+  !> @param[in,out] detj_at_w2      Det(J) at W2 dofs
+  subroutine select_detj_at_w2( advecting_wind, detj_at_w2 )
+
+    implicit none
+
+    type( r_tran_field_type ), intent(in)    :: advecting_wind
+    type( r_tran_field_type ), intent(inout) :: detj_at_w2
+
+    ! Det(J) at W2 fields
+    type( field_type ), pointer :: detj_at_w2_ave_rdef   => null()
+    type( field_type ), pointer :: detj_at_w2_above  => null()
+    type( field_type ), pointer :: detj_at_w2_below  => null()
+
+    ! Mesh ID variable
+    integer( kind=i_def ) :: mesh_id
+
+    ! Element orders
+    integer( kind=i_def ) :: element_order_h
+    integer( kind=i_def ) :: element_order_v
+
+    ! Get Mesh ID
+    mesh_id = advecting_wind%get_mesh_id()
+
+    ! Get element orders
+    element_order_h = advecting_wind%get_element_order_h()
+    element_order_v = advecting_wind%get_element_order_v()
+
+    ! Get Det(J) at W2 using averaged Det(J)
+    if (element_order_h == 0 .and. element_order_v == 0) then
+      ! Lowest order elements, use finite volume
+      detj_at_w2_ave_rdef  => get_detj_at_w2_fv(mesh_id)
+    else
+      ! Higher order elements, use finite element
+      detj_at_w2_ave_rdef  => get_detj_at_w2_fe(mesh_id)
+    end if
+
+    ! Set detj_at_w2 to use average Det(J) of neighbouring cells
+    call copy_field( detj_at_w2_ave_rdef, detj_at_w2 )
+
+    select case (calculate_detj)
+
+      case (calculate_detj_averaged)
+        ! detj already contains the averaged detj so do nothing
+      case (calculate_detj_upwind)
+        ! Get Det(J) at W2 from cells above and below respectively
+        detj_at_w2_above => get_detj_at_w2_above(mesh_id)
+        detj_at_w2_below => get_detj_at_w2_below(mesh_id)
+
+        ! Update vertical parts of detj_at_w2 to use upwind Det(J)
+        call invoke( calc_upwind_detj_at_w2_kernel_type(detj_at_w2 ,      &
+                                                        detj_at_w2_above, &
+                                                        detj_at_w2_below, &
+                                                        advecting_wind) )
+
+      case default
+          call log_event( "Gungho: Invalid Det(J) calculation method", LOG_LEVEL_ERROR )
+    end select
+
+    nullify( detj_at_w2_ave_rdef )
+
+  end subroutine select_detj_at_w2
+
+end module calc_dep_pts_alg_mod

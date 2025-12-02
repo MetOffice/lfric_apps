@@ -1,0 +1,144 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Test the skeb_durot kernel
+!>
+module skeb_durot_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+  use get_unit_test_m3x3_dofmap_mod, only : get_w2_m3x3_dofmap, get_w1_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w1_m3x3_q3x3x3_size
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: skeb_durot_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type skeb_durot_test_type
+
+contains
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(skeb_durot_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(skeb_durot_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use skeb_durot_kernel_mod,   only : skeb_durot_code
+
+    implicit none
+
+    class(skeb_durot_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    ! Fields
+    real(r_def), allocatable :: du_rot_w2(:), psif_hat(:), dx_at_w2(:), answer(:)
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w2(:,:), map_w1(:,:)
+
+    integer(i_def) :: k, df, cell
+
+    ! Sizes
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, ndf_w1, undf_w1
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    ncells = 9
+
+    ! Set up 3d w2 field - need enough layers for ramping up and down
+    nlayers = 3
+    ndf_w2 = 6
+    undf_w2 = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+
+    call get_w1_m3x3_q3x3x3_size( ndf_w1, undf_w1, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w1_m3x3_dofmap(map_w1)
+
+    ! Create the data
+    allocate(dx_at_w2(undf_w2))
+    allocate(answer(undf_w2))
+    allocate(du_rot_w2(undf_w2))
+    allocate(psif_hat(undf_w1))
+
+    dx_at_w2 = 10.0_r_def
+    cell = 5
+    k=2
+
+    du_rot_w2 = 0.0_r_def
+    psif_hat(:) = 0.0_r_def
+    psif_hat(map_w1(5,cell)+k-1) = 10.0_r_def
+    psif_hat(map_w1(6,cell)+k-1) = 5.0_r_def
+    ! dpsi/dx = (5-10)/10 = -0.5
+    psif_hat(map_w1(7,cell)+k-1) = 15.0_r_def
+    psif_hat(map_w1(8,cell)+k-1) = 20.0_r_def
+    ! dpsi/dx = (15-20)/10 = -0.5
+    ! dpsi/dy = (20-10)/10 = 1.0
+    ! dpsi/dy = (15-5)/10 = 1.0
+
+    answer = 0.0_r_def
+    answer(map_w2(1,cell)+k-1) = -1.0_r_def
+    ! -dpsi/dy
+    answer(map_w2(2,cell)+k-1) = 0.5_r_def
+    ! dpsi/dx * -1 because beta=-y hence need negative wind
+    answer(map_w2(3,cell)+k-1) = -1.0_r_def
+    ! -dpsi/dy
+    answer(map_w2(4,cell)+k-1) = 0.5_r_def
+    ! dpsi/dx * -1 because beta=-y hence need negative wind
+
+    call skeb_durot_code( nlayers,            &
+                          du_rot_w2,          &
+                          psif_hat,           &
+                          dx_at_w2,           &
+                          2, 2,               &
+                          ndf_w2,             &
+                          undf_w2,            &
+                          map_w2(:, cell),    &
+                          ndf_w1,             &
+                          undf_w1,            &
+                          map_w1(:, cell)     &
+                          )
+
+    @assertEqual(answer(:), du_rot_w2(:), tol)
+
+    deallocate(answer)
+    deallocate(du_rot_w2)
+    deallocate(dx_at_w2)
+    deallocate(psif_hat)
+    deallocate(map_w1)
+    deallocate(map_w2)
+
+  end subroutine test_all
+
+end module skeb_durot_kernel_mod_test

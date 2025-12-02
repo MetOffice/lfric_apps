@@ -1,0 +1,158 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Holds code to calculate PMSL
+
+module pmsl_alg_mod
+
+  use field_mod,               only: field_type
+  use field_collection_mod,    only: field_collection_type
+  use io_config_mod,           only: write_diag, use_xios_io,subroutine_timers
+  use timer_mod,               only: timer
+  use extrusion_config_mod,    only: number_of_layers, domain_height
+  use constants_mod,           only: r_def, i_def
+  use level_heights_mod,       only: eta_theta_levels
+  use sci_geometric_constants_mod,   &
+                               only: get_height_fv, get_panel_id, get_dx_at_w2
+  use fs_continuity_mod,       only: Wtheta, W3
+  use function_space_collection_mod, only: function_space_collection
+  use mesh_mod,                only: mesh_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+  use planet_constants_mod, only: recip_kappa_def
+  use planet_config_mod, only: p_zero
+  use um_domain_init_mod, only: n_iter_pmsl
+
+  implicit none
+  private
+
+  public :: pmsl_alg
+
+contains
+
+  !> @brief Calculate pressure at mean sea level
+  !> @details Basic formation is based on the old UM diagnostic which is
+  !>          described in UM Documentation Paper 80.
+  !>          https://code.metoffice.gov.uk/doc/um/latest/papers/umdp_080.pdf
+  !>          Initial version just calculates PMSL with no smoothing over
+  !>          high ground. The UM diagnostic included smoothing of the field
+  !>          for orography over 500m. This will be added later.
+  !> @param[in]  exner_w3        exner pressure in w3 space
+  !> @param[in]  derived_fields  Group of derived fields
+  !> @param[in]  theta_wth       potential temperature
+  !> @param[in]  twod_mesh       Current 2d mesh
+
+  subroutine pmsl_alg(exner_w3, derived_fields, theta_wth, twod_mesh)
+
+    use pmsl_kernel_mod, only: pmsl_kernel_type
+    use pmsl_fgeo_kernel_mod, only: pmsl_fgeo_kernel_type
+    use pmsl_ffunc_kernel_mod, only: pmsl_ffunc_kernel_type
+    use pmsl_solve_kernel_mod, only: pmsl_solve_kernel_type
+
+    implicit none
+
+    ! Arguments
+
+    type( field_type ), intent(in)            :: exner_w3
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_type ), intent(in)            :: theta_wth
+    type( mesh_type ),  intent(in), pointer   :: twod_mesh
+
+    ! Define PMSL field
+    type( field_type ) :: pmsl, pmsl_unsmooth, t_at_mean_sea_level
+    type( field_type ) :: f_vg, f_ug, exner_m, f_func, exner_sm
+
+    ! Internal variables
+
+    type( field_type ), pointer     :: exner_wth  => null()
+    type( field_type ), pointer     :: height_w3 => null()
+    type( field_type ), pointer     :: height_wth => null()
+    type( field_type ), pointer     :: dx_at_w2 => null()
+    type( field_type ), pointer     :: panel_id => null()
+
+    integer(kind=i_def) :: k, levelupper, n
+
+    logical :: pmsl_flag, pmsl_unsmooth_flag
+
+    ! Height of upper level above ground
+    ! Settting to same value as used in UM code
+
+    real(kind=r_def), parameter :: upperheight=2000.0_r_def
+    integer(kind=i_def), parameter :: sten_size = 1
+
+    if ( subroutine_timers ) call timer('pmsl_alg')
+
+    pmsl_flag = init_diag(pmsl, 'processed__pmsl')
+    pmsl_unsmooth_flag = init_diag(pmsl_unsmooth, 'processed__pmsl_unsmooth', &
+                                   activate = pmsl_flag)
+
+    if ((pmsl_flag .or. pmsl_unsmooth_flag) .and. use_xios_io) then
+
+      ! Unpack fields
+      call derived_fields%get_field('exner_in_wth', exner_wth)
+      height_w3       => get_height_fv(W3, exner_w3%get_mesh_id())
+      height_wth      => get_height_fv(Wtheta, theta_wth%get_mesh_id())
+
+      ! Find level above boundary layer to use in PMSL calculation
+      ! domain_height is the top model height and is the same everywhere
+      do k = 1, number_of_layers
+        levelupper = k
+        if (domain_height * eta_theta_levels(k) > upperheight) exit
+      end do
+
+      call pmsl_unsmooth%copy_field_properties(t_at_mean_sea_level)
+
+      ! Call kernel to calculate unsmoothed PMSL
+      call invoke(pmsl_kernel_type(exner_w3, exner_wth, theta_wth, &
+                  height_w3, height_wth, levelupper, pmsl_unsmooth,&
+                  t_at_mean_sea_level))
+
+      ! Output diagnostic
+      if (pmsl_unsmooth_flag) call pmsl_unsmooth%write_field()
+
+    end if
+
+    if (pmsl_flag .and. use_xios_io) then
+
+      ! Calculate the geostrohpic forcing functions used for the smoothed PMSL
+      call pmsl%copy_field_properties(f_vg)
+      call pmsl%copy_field_properties(f_ug)
+      call pmsl%copy_field_properties(exner_m)
+      call pmsl%copy_field_properties(f_func)
+      call pmsl%copy_field_properties(exner_sm)
+      dx_at_w2 => get_dx_at_w2(theta_wth%get_mesh_id())
+      panel_id => get_panel_id(theta_wth%get_mesh_id())
+
+      ! Calculate geostrophic winds and forcing function
+      call invoke(pmsl_fgeo_kernel_type(exner_wth, sten_size, theta_wth,       &
+                                        height_wth, sten_size, pmsl_unsmooth,  &
+                                        t_at_mean_sea_level, dx_at_w2,         &
+                                        f_vg, f_ug, exner_m),                  &
+                  pmsl_ffunc_kernel_type(dx_at_w2, f_vg, sten_size,            &
+                                         f_ug, sten_size, panel_id, sten_size, &
+                                         f_func) )
+
+      do n = 1, n_iter_pmsl
+        ! Solve for new PMSL value
+        call invoke(pmsl_solve_kernel_type(dx_at_w2, f_func, exner_m, &
+                                           sten_size, height_wth, exner_sm) )
+
+        ! Set old value to new value
+        call invoke(setval_X(exner_m, exner_sm))
+      end do
+
+      ! Convert exner to PMSL
+      call invoke(inc_X_powreal_a(exner_m, recip_kappa_def), &
+                  a_times_X(pmsl, p_zero, exner_m) )
+
+      ! Output diagnostic
+      call pmsl%write_field()
+
+    end if
+
+    if ( subroutine_timers ) call timer('pmsl_alg')
+
+  end subroutine pmsl_alg
+
+end module pmsl_alg_mod

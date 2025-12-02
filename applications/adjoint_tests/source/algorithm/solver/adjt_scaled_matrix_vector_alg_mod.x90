@@ -1,0 +1,163 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+! @todo Causes failure of later test (mixed_schur_preconditioner); not calling until resolved (#616).
+
+!> @brief Module containing adjoint test for scaled_matrix_vector_kernel
+module adjt_scaled_matrix_vector_alg_mod
+
+  use constants_mod,                 only: i_def, r_def, l_def, r_solver
+  use field_mod,                     only: field_type
+  use finite_element_config_mod,     only: element_order_h, element_order_v
+  use fs_continuity_mod,             only: W2, W3, Wtheta
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
+  use log_mod,                       only: log_event, log_scratch_space, &
+                                           LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
+  use mesh_mod,                      only: mesh_type
+  use model_clock_mod,               only: model_clock_type
+  use moist_dyn_mod,                 only: num_moist_factors
+  use operator_mod,                  only: r_solver_operator_type
+  use r_solver_field_mod,            only: r_solver_field_type
+  use sci_r_solver_field_vector_mod, only: r_solver_field_vector_type
+  use si_operators_alg_mod,          only: compute_si_operators, get_div_star, get_Hb_lumped_inv
+  use solver_constants_mod,          only: get_normalisation_r_solver
+
+  implicit none
+
+  private
+  public  :: adjt_scaled_matrix_vector_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for scaled_matrix_vector_kernel_type
+  !> @details The  kernel and its adjoint are applied to one argument with
+  !!          the result stored in the other, so we use three vectors to save on
+  !!          variables. This differs from other adjoint tests as most adjoint
+  !!          routines would increment one argument and set the other to zero.
+  !> @param[in] mesh The model mesh
+  !> @param[in] model_clock The model clock
+  subroutine adjt_scaled_matrix_vector_alg( mesh, model_clock )
+
+    use scaled_matrix_vector_kernel_mod,     only: scaled_matrix_vector_kernel_type
+    use adj_scaled_matrix_vector_kernel_mod, only: adj_scaled_matrix_vector_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Randomised prognostics to initialise SI operators
+    type(field_type) :: init_op_t, init_op_d, init_op_p, init_op_moist_dyn(num_moist_factors)
+    integer(kind=i_def) :: idx
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Vectors
+    type(r_solver_field_type)             :: vector_x, vector_mx, vector_amx
+    type(r_solver_field_type),    pointer :: u_normalisation, Hb_lumped_inv
+    type(r_solver_operator_type), pointer :: div_star
+
+    ! Inner products
+    real(kind=r_def) :: vector_inner_prod
+    real(kind=r_def) :: vector_sf
+    real(kind=r_def) :: vector_vector_inp_inner_prod
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def)            :: machine_tolerance
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Setup
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    call init_op_t%initialise(vector_space=vector_space_wtheta_ptr)
+    call init_op_d%initialise(vector_space=vector_space_w3_ptr)
+    call init_op_p%initialise(vector_space=vector_space_w3_ptr)
+
+    do idx = 1, num_moist_factors
+      call init_op_moist_dyn(idx)%initialise(vector_space=vector_space_wtheta_ptr)
+    end do
+
+    call invoke( setval_random(init_op_t), &
+                 setval_random(init_op_p), &
+                 setval_random(init_op_d) )
+
+    do idx = 1, num_moist_factors
+      call invoke(setval_random(init_op_moist_dyn(idx)))
+    end do
+
+    call compute_si_operators( init_op_t, init_op_d, init_op_p, model_clock, init_op_moist_dyn )
+
+    call vector_x%initialise(vector_space_w3_ptr)
+    call vector_mx%initialise(vector_space_w2_ptr)
+    call vector_x%copy_field_properties(vector_amx)
+
+    u_normalisation => get_normalisation_r_solver( W2, vector_mx%get_mesh_id() )
+    div_star        => get_div_star()
+    Hb_lumped_inv   => get_Hb_lumped_inv()
+
+    call invoke( setval_random(vector_x),                                                                           &
+                 setval_c( vector_mx, 0.0_r_solver ),                                                               &
+                 setval_c( vector_amx, 0.0_r_solver ),                                                              &
+
+    ! Tangent linear (Mx)
+
+                 scaled_matrix_vector_kernel_type( vector_mx, vector_x, div_star, u_normalisation, Hb_lumped_inv ), &
+
+    ! <Mx,Mx>
+
+                 x_innerproduct_x( vector_inner_prod, vector_mx ) )
+
+    write(log_scratch_space, *) "adjt_scaled_matrix_vector inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "vector inner product = ", vector_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    vector_sf = 1.0_r_def / (vector_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + vector_inner_prod * vector_sf
+
+    call invoke( inc_a_times_X( vector_sf, vector_mx ),                                                        &
+
+    ! Adjoint (AMx)
+
+                 adj_scaled_matrix_vector_kernel_type( vector_mx, vector_amx, div_star, u_normalisation, Hb_lumped_inv ), &
+
+    ! <AMx,x>
+
+                 x_innerproduct_y( vector_vector_inp_inner_prod, vector_amx, vector_x ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + vector_vector_inp_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+
+    machine_tolerance = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tolerance
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED scaled_matrix_vector:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED scaled_matrix_vector:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine adjt_scaled_matrix_vector_alg
+
+end module adjt_scaled_matrix_vector_alg_mod

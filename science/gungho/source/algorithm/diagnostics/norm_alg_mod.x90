@@ -1,0 +1,488 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Algorithms to compute statistics, norms and error measures of fields.
+! TODO #3059: add integration testing for these routines
+module norm_alg_mod
+
+  use constants_mod,                    only: r_def, l_def, EPS
+  use sci_fem_constants_mod,            only: get_mass_matrix_fe, &
+                                              get_mass_matrix_fv
+  use field_mod,                        only: field_type
+  use log_mod,                          only: log_event,         &
+                                              log_scratch_space, &
+                                              LOG_LEVEL_ERROR,   &
+                                              LOG_LEVEL_INFO
+  use matrix_vector_kernel_mod,         only: matrix_vector_kernel_type
+  use operator_mod,                     only: operator_type
+
+  implicit none
+
+  private
+
+  public :: l2_norm_alg
+  public :: abs_l2_error_alg
+  public :: rel_l2_error_alg
+  public :: volume_normalisation_alg
+  public :: mean_alg
+  public :: variance_alg
+  public :: covariance_alg
+  public :: bias_alg
+  public :: root_mean_square_alg
+  public :: root_mean_square_error_alg
+  public :: dissipation_error_alg
+  public :: dispersion_error_alg
+
+contains
+
+  !> @brief Computes the L2-norm of a field.
+  !> @details Calculate the L2-norm of a field \f$ f \f$, via
+  !>          \f$ \sqrt{ \int (f \cdot f) dV } \f$.
+  !> @param[in] field    Field for which L2-norm is computed
+  !> @return The L2-norm
+  function l2_norm_alg(field) result(l2_norm)
+
+    implicit none
+
+    type(field_type),              intent(in) :: field
+    real(kind=r_def)                          :: l2_norm
+    type(operator_type),              pointer :: mass_matrix => null()
+    type(field_type)                          :: rhs_field
+
+    ! Initialise RHS field and get mass matrix
+    call rhs_field%initialise(vector_space = field%get_function_space())
+
+    if (field%get_element_order_h() == 0 .and. field%get_element_order_v() == 0) then
+      mass_matrix => get_mass_matrix_fv(field%which_function_space(), &
+                                        field%get_mesh_id())
+    else
+      mass_matrix => get_mass_matrix_fe(field%which_function_space(), &
+                                        field%get_mesh_id())
+    end if
+
+    call invoke( name = "l2_norm_calculation",                             &
+                 setval_c(rhs_field, 0.0_r_def),                           &
+                 matrix_vector_kernel_type(rhs_field, field, mass_matrix), &
+                 X_innerproduct_Y(l2_norm, rhs_field, field) )
+
+    ! Return square root of what we have calculated
+    l2_norm = sqrt(l2_norm)
+
+    nullify(mass_matrix)
+
+  end function l2_norm_alg
+
+
+  !> @brief Computes the absolute L2 error norm between two fields.
+  !> @details Calculate the L2-norm of the difference of fields \f$ f \f$ and
+  !>          \f$ g \f$ as \f$ \sqrt{\int (f - g) \cdot (f - g) dV } \f$
+  !> @param[in] field                 Field of interest
+  !> @param[in] true_field            True field to compare actual field against
+  !> @return The absolute L2 error norm
+  function abs_l2_error_alg(field, true_field) result(abs_l2_error)
+
+    implicit none
+
+    type(field_type),              intent(in) :: field, true_field
+    type(operator_type),              pointer :: mass_matrix => null()
+    type(field_type)                          :: rhs_field
+    type(field_type)                          :: diff_field
+    real(kind=r_def)                          :: abs_l2_error
+
+    ! Check that fields are in the same mesh and function space
+    if ((field%get_mesh_id() /= true_field%get_mesh_id()) .or. &
+        (field%which_function_space() /= true_field%which_function_space())) then
+      write(log_scratch_space,'(A)') &
+        'For absolute L2 error, both fields must be in same function space on same mesh'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Initialise difference field, RHS field and get mass matrix
+    call diff_field%initialise(vector_space = field%get_function_space())
+    call rhs_field%initialise(vector_space = field%get_function_space())
+    if (field%get_element_order_h() == 0 .and. field%get_element_order_v() == 0) then
+      mass_matrix => get_mass_matrix_fv(field%which_function_space(), &
+                                        field%get_mesh_id())
+    else
+      mass_matrix => get_mass_matrix_fe(field%which_function_space(), &
+                                        field%get_mesh_id())
+    end if
+
+    ! Could call l2_norm_alg here but instead optimise by having single invoke
+    call invoke( name = "abs_l2_error_calculation",                             &
+                 X_minus_Y(diff_field, field, true_field),                      &
+                 setval_c(rhs_field, 0.0_r_def),                                &
+                 matrix_vector_kernel_type(rhs_field, diff_field, mass_matrix), &
+                 X_innerproduct_Y(abs_l2_error, rhs_field, diff_field) )
+
+    ! Return square root of what we have calculated
+    abs_l2_error = sqrt(abs_l2_error)
+
+  end function abs_l2_error_alg
+
+
+  !> @brief Computes the relative L2 error norm between two fields.
+  !> @details Calculate the L2-norm of the difference of two fields \f$ f \f$
+  !>          and \f$ g \f$ as
+  !>          \f$ \sqrt{\int (f - g) \cdot (f - g) dV / \int (g \cdot g) dV} \f$
+  !> @param[in] field                 Field of interest
+  !> @param[in] true_field            True field to compare actual field against
+  !> @return The relative L2 error norm
+  function rel_l2_error_alg(field, true_field) result(rel_l2_error)
+
+    implicit none
+
+    type(field_type),              intent(in) :: field, true_field
+    type(operator_type),              pointer :: mass_matrix => null()
+    type(field_type)                          :: rhs_field
+    type(field_type)                          :: diff_field
+    real(kind=r_def)                          :: rel_l2_error, denom
+
+    ! Check that fields are in the same mesh and function space
+    if ((field%get_mesh_id() /= true_field%get_mesh_id()) .or. &
+        (field%which_function_space() /= true_field%which_function_space())) then
+      write(log_scratch_space,'(A)') &
+        'For relative L2 error, both fields must be in same function space on same mesh'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Initialise difference field, RHS field and get mass matrix
+    call diff_field%initialise(vector_space = field%get_function_space())
+    call rhs_field%initialise(vector_space = field%get_function_space())
+
+    if (field%get_element_order_h() == 0 .and. field%get_element_order_v() == 0) then
+      mass_matrix => get_mass_matrix_fv(field%which_function_space(), &
+                                        field%get_mesh_id())
+    else
+      mass_matrix => get_mass_matrix_fe(field%which_function_space(), &
+                                        field%get_mesh_id())
+    end if
+
+    ! No need to take square root as this has already happened
+    rel_l2_error = abs_l2_error_alg(field, true_field)
+    denom = l2_norm_alg(true_field)
+
+    ! Could call other algs here but instead optimise by having single invoke
+    call invoke( name = "rel_l2_error_calculation",                             &
+                 ! Calculate relative L2 error first (the numerator)
+                 X_minus_Y(diff_field, field, true_field),                      &
+                 setval_c(rhs_field, 0.0_r_def),                                &
+                 matrix_vector_kernel_type(rhs_field, diff_field, mass_matrix), &
+                 X_innerproduct_Y(rel_l2_error, rhs_field, diff_field),         &
+                 ! Second calculate L2 norm of true field (the denominator)
+                 setval_c(rhs_field, 0.0_r_def),                                &
+                 matrix_vector_kernel_type(rhs_field, true_field, mass_matrix), &
+                 X_innerproduct_Y(denom, rhs_field, true_field) )
+
+    if (denom > EPS) then
+      rel_l2_error = rel_l2_error / denom
+    else
+      write(log_scratch_space, '(A)') &
+        'Cannot compute relative L2 error when the true field is zero, ' // &
+        'returning absolute L2 error instead'
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
+
+    ! Return square root of what we have calculated
+    rel_l2_error = sqrt(rel_l2_error)
+
+  end function rel_l2_error_alg
+
+
+  !> @brief Computes volume normalisation factor in a given function space
+  !> @details Calculates a volume-based normalisation from:
+  !>          \f$ \int (I \cdot I) dV \f$
+  !>          where \f$ I \f$ is a field in the function space of the given
+  !>          field but whose coefficients are all 1. Thus this sums up all the
+  !>          elements of the mass matrix. For scalar fields (e.g. in W3)
+  !>          this will return the volume of the domain, but note that this is
+  !>          not the case for W1 or W2 fields.
+  !> @param[in] field  Field in whose function space to compute the volume
+  !> @return The volume of the domain
+  function volume_normalisation_alg(field) result(volume)
+
+    implicit none
+
+    type(field_type),    intent(in) :: field
+    type(field_type)                :: ones_field
+    real(kind=r_def)                :: sqrt_volume, volume
+
+    call ones_field%initialise(vector_space = field%get_function_space())
+    call invoke( setval_c(ones_field, 1.0_r_def) )
+
+    sqrt_volume = l2_norm_alg(ones_field)
+    volume = sqrt_volume**2.0_r_def
+
+  end function volume_normalisation_alg
+
+
+  !> @brief Computes the mean value of a field.
+  !> @details Calculates the mean value of a field \f$ f \f$ by computing:
+  !>          \f$ \bar{f} = \int (I \cdot f) dV / \int (I \cdot I) dV \f$
+  !>          where \f$ I \f$ is a field in the same function space as \f$ f \f$
+  !>          whose coefficients are all 1.
+  !> @param[in] field  Field for which to compute the mean
+  !> @return The mean value of the field
+  function mean_alg(field) result(mean)
+
+    implicit none
+
+    type(field_type),    intent(in) :: field
+    type(operator_type),    pointer :: mass_matrix => null()
+    type(field_type)                :: rhs_field, ones_field
+    real(kind=r_def)                :: mean, volume
+
+    call ones_field%initialise(vector_space = field%get_function_space())
+    call rhs_field%initialise(vector_space = field%get_function_space())
+    if (field%get_element_order_h() == 0 .and. field%get_element_order_v() == 0) then
+      mass_matrix => get_mass_matrix_fv(field%which_function_space(), &
+                                        field%get_mesh_id())
+    else
+      mass_matrix => get_mass_matrix_fe(field%which_function_space(), &
+                                        field%get_mesh_id())
+    end if
+
+    ! First calculate \int \inner(ones, field)*dV
+    call invoke( name = "mean_calculation",                                &
+                 setval_c(ones_field, 1.0_r_def),                          &
+                 setval_c(rhs_field, 0.0_r_def),                           &
+                 matrix_vector_kernel_type(rhs_field, field, mass_matrix), &
+                 X_innerproduct_Y(mean, rhs_field, ones_field) )
+
+    ! Divide by volume to get mean
+    volume = volume_normalisation_alg(field)
+    mean = mean / volume
+
+    nullify(mass_matrix)
+
+  end function mean_alg
+
+
+  !> @brief Computes the variance of a field.
+  !> @details Calculates the variance of a field \f$ f \f$ by computing:
+  !>          \f$ \sigma^2(f) = \int (f-\bar{f})\cdot(f-\bar{f})dV / V \f$
+  !>          where \f$ \bar{f} \f$ is the mean of \f$ f \f$ and \f$ V \f$ is
+  !>          the volume normalisation. This is thus the mean-square error of
+  !>          the field.
+  !> @param[in] field  Field for which to compute the variance
+  !> @return The variance of the field
+  function variance_alg(field) result(variance)
+
+    implicit none
+
+    type(field_type),    intent(in) :: field
+    type(field_type)                :: mean_field
+    real(kind=r_def)                :: mean, std_dev, variance
+
+    ! Make mean field
+    mean = mean_alg(field)
+    call mean_field%initialise(vector_space = field%get_function_space())
+    call invoke( setval_c(mean_field, mean) )
+
+    std_dev = root_mean_square_error_alg(field, mean_field)
+    variance = std_dev**2.0_r_def
+
+  end function variance_alg
+
+
+  !> @brief Computes the covariance of two fields.
+  !> @details Calculates the covariance of two fields \f$ f \f$ and \f$ g \f$ as
+  !>          \f$ \int (f - \bar{f})\cdot(g - \bar{g})dV / V \f$ where
+  !>          \f$ \bar{f} \f$ and \f$ \bar{g} \f$ are mean fields and \f$ V \f$
+  !>          is the volume normalisation.
+  !> @param[in] field_1  First field to use to calculate covariance
+  !> @param[in] field_2  Second field to use to calculate covariance
+  !> @return The covariance of the field
+  function covariance_alg(field_1, field_2) result(covariance)
+
+    implicit none
+
+    type(field_type),    intent(in) :: field_1, field_2
+    type(operator_type),    pointer :: mass_matrix => null()
+    type(field_type)                :: mean_field_1, mean_field_2
+    type(field_type)                :: diff_field_1, diff_field_2
+    type(field_type)                :: rhs_field
+    real(kind=r_def)                :: covariance, volume, mean_1, mean_2
+
+    ! Check function spaces are the same
+    if ((field_1%get_mesh_id() /= field_2%get_mesh_id()) .or. &
+        (field_1%which_function_space() /= field_2%which_function_space())) then
+      write(log_scratch_space,'(A)') &
+        'For covariance, both fields must be in same function space on same mesh'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Find means
+    mean_1 = mean_alg(field_1)
+    mean_2 = mean_alg(field_2)
+
+    ! Initialise fields
+    call mean_field_1%initialise(vector_space = field_1%get_function_space())
+    call mean_field_2%initialise(vector_space = field_2%get_function_space())
+    call diff_field_1%initialise(vector_space = field_1%get_function_space())
+    call diff_field_2%initialise(vector_space = field_2%get_function_space())
+    call rhs_field%initialise(vector_space = field_1%get_function_space())
+
+    if (field_1%get_element_order_h() == 0 .and. &
+        field_1%get_element_order_v() == 0) then
+      mass_matrix => get_mass_matrix_fv(field_1%which_function_space(), &
+                                        field_1%get_mesh_id())
+    else
+      mass_matrix => get_mass_matrix_fe(field_1%which_function_space(), &
+                                        field_1%get_mesh_id())
+    end if
+
+    call invoke( name = "covariance_calculation",                      &
+                 ! Set constant fields
+                 setval_c(rhs_field, 0.0_r_def),                       &
+                 setval_c(mean_field_1, mean_1),                       &
+                 setval_c(mean_field_2, mean_2),                       &
+                 ! Calculate difference fields
+                 X_minus_Y(diff_field_1, field_1, mean_field_1),       &
+                 X_minus_Y(diff_field_2, field_2, mean_field_2),       &
+                 ! Take inner product of difference fields and integrate
+                 matrix_vector_kernel_type(rhs_field, diff_field_1,    &
+                                                      mass_matrix),    &
+                 X_innerproduct_Y(covariance, rhs_field, diff_field_2) )
+
+    ! Divide by volume to get covariance
+    volume = volume_normalisation_alg(field_1)
+    covariance = covariance / volume
+
+    nullify(mass_matrix)
+
+  end function covariance_alg
+
+
+  !> @brief Computes the bias of a field relative to some other field.
+  !> @details Calculates the bias of a field \f$ f \f$ relative to a true field
+  !>          \f$ f_T \f$ by computing \f$ \bar{f} - \bar{f}_T \f$
+  !> @param[in] field       Field for which to compute the bias
+  !> @param[in] true_field  The true field to compare against
+  !> @return The bias statistic
+  function bias_alg(field, true_field) result(bias)
+
+    implicit none
+
+    type(field_type), intent(in) :: field, true_field
+    real(kind=r_def)             :: bias, mean_of_field, mean_true
+
+    ! Make mean fields
+    mean_of_field = mean_alg(field)
+    mean_true = mean_alg(true_field)
+
+    bias = mean_of_field - mean_true
+
+  end function bias_alg
+
+
+  !> @brief Computes the root-mean-square of a field
+  !> @details Calculate the root-mean-square of a field \f$ f \f$ from
+  !>          \f$ \sqrt{ \int (f \cdot f)dV / V } \f$
+  !>          It is the L2-norm of \f$ f \f$, normalised by the volume \f$ V \f$.
+  !> @param[in] field   The field to compute the root-mean-square for
+  !> @return The root-mean-square statistic
+  function root_mean_square_alg(field) result(rms)
+
+    implicit none
+
+    type(field_type), intent(in) :: field
+    real(kind=r_def)             :: rms, volume
+
+    ! Divide by sqrt(volume) to get rms
+    rms = l2_norm_alg(field)
+    volume = volume_normalisation_alg(field)
+    rms = rms / sqrt(volume)
+
+  end function root_mean_square_alg
+
+
+  !> @brief Computes the root-mean-square-error of a field
+  !> @details Calculate the root-mean-square-error of \f$ f \f$ relative to
+  !>          \f$ g \f$ from \f$ \sqrt{\int (f - g)\cdot(f - g) dV / V} \f$.
+  !>          It is the L2 error of \f$ f \f$ against \f$ g \f$, normalised by
+  !>          the domain volume \f$ V \f$.
+  !> @param[in] field        The field to compute the root-mean-square for
+  !> @param[in] true_field   The true field to compare against
+  !> @return The root-mean-square statistic
+  function root_mean_square_error_alg(field, true_field) result(rmse)
+
+    implicit none
+
+    type(field_type), intent(in) :: field, true_field
+    real(kind=r_def)             :: rmse, volume
+
+    ! Divide by sqrt(volume) to get rms
+    rmse = abs_l2_error_alg(field, true_field)
+    volume = volume_normalisation_alg(field)
+    rmse = rmse / sqrt(volume)
+
+  end function root_mean_square_error_alg
+
+
+  !> @brief Computes the L2 dissipation error norm between two fields.
+  !> @details Calculate the dissipation error between two fields \f$ f \f$ and
+  !>          \f$ g \f$, as:
+  !>          \f$ \sqrt{[\sigma(f)-\sigma(g)]^2 + [\mathrm{bias}(f,g)]^2} \f$
+  !>          where \f$ \sigma \f$ is the square root of the variance.
+  !>          This forms a component of the root-mean-square-error along with
+  !>          the dispersion error. See for instance, Takacs (1985).
+  !> @param[in] field                 Actual field of interest
+  !> @param[in] true_field            True field to compare actual field against
+  !> @return The dissipation error
+  function dissipation_error_alg(field, true_field) result(dissipation_error)
+
+    implicit none
+
+    type(field_type), intent(in) :: field, true_field
+    real(kind=r_def)             :: dissipation_error
+    real(kind=r_def)             :: bias, var_actual, var_true
+
+    ! Compute statistics
+    var_actual = variance_alg(field)
+    var_true = variance_alg(true_field)
+    bias = bias_alg(field, true_field)
+
+    ! Compute dissipation error
+    dissipation_error = sqrt(bias**2.0_r_def + &
+                             (sqrt(var_actual) - sqrt(var_true))**2.0_r_def)
+
+  end function dissipation_error_alg
+
+
+  !> @brief Computes the L2 dispersion error norm between two fields.
+  !> @details Calculate the dispersion error between two fields \f$ f \f$ and
+  !>          \f$ g \f$, as:
+  !>          \f$ \sqrt{2[\sigma(f)\sigma(g) - \mathrm{covariance}(f,g)]} \f$
+  !>          where \f$ \sigma \f$ is the square root of the variance.
+  !>          This forms a component of the root-mean-square-error along with
+  !>          the dispersion error. See for instance, Takacs (1985).
+  !> @param[in] field                 Actual field of interest
+  !> @param[in] true_field            True field to compare actual field against
+  !> @return The dispersion error
+  function dispersion_error_alg(field, true_field) result(dispersion_error)
+
+    implicit none
+
+    type(field_type), intent(in) :: field, true_field
+    real(kind=r_def)             :: dispersion_error
+    real(kind=r_def)             :: cov, var_actual, var_true
+
+    ! Compute statistics
+    var_actual = variance_alg(field)
+    var_true = variance_alg(true_field)
+    cov = covariance_alg(field, true_field)
+
+    dispersion_error = 2.0_r_def*(sqrt(var_actual*var_true) - cov)
+    ! Take square root and take care of sign
+    if (dispersion_error < 0.0_r_def) then
+      dispersion_error = -sqrt(-dispersion_error)
+    else
+      dispersion_error = sqrt(dispersion_error)
+    end if
+
+  end function dispersion_error_alg
+
+end module norm_alg_mod

@@ -1,0 +1,421 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module for controlling 1D vertical FFSL steps.
+!> @details Solves the 1D transport equation using the flux-form semi-Lagrangian
+!!         (FFSL) transport scheme for vertical transport.
+module ffsl_vert_alg_mod
+
+  ! Constants and types
+  use constants_mod,                    only: r_tran, i_def, l_def
+  use field_mod,                        only: field_type
+  use fs_continuity_mod,                only: W2V
+  use function_space_mod,               only: function_space_type
+  use function_space_collection_mod,    only: function_space_collection
+  use sci_geometric_constants_mod,      only: get_dz_w3
+  use log_mod,                          only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                         only: mesh_type
+  use r_tran_field_mod,                 only: r_tran_field_type
+  use timer_mod,                        only: timer
+
+  ! Transport control
+  use flux_precomputations_alg_mod,     only: flux_precomputations_type
+  use transport_constants_mod,          only: get_detj_at_w3_r_tran,           &
+                                              get_third_dla_dz,                &
+                                              get_third_dlb_dz,                &
+                                              get_fourth_dl_dz
+  use transport_controller_mod,         only: transport_controller_type
+  use transport_counter_mod,            only: transport_counter_type
+  use transport_enumerated_types_mod,   only: equation_form_consistent,        &
+                                              monotone_none,                   &
+                                              monotone_relaxed
+  use transport_metadata_mod,           only: transport_metadata_type
+  use wind_precomputations_alg_mod,     only: wind_precomputations_type
+
+  ! Algorithms
+  use copy_field_alg_mod,               only: copy_field
+  use ffsl_advective_updates_alg_mod,   only: swift_inner_update_tracer,       &
+                                              ffsl_advective_increment
+
+  ! Kernels
+  use ffsl_flux_z_constant_kernel_mod,  only: ffsl_flux_z_constant_kernel_type
+  use ffsl_flux_z_nirvana_kernel_mod,   only: ffsl_flux_z_nirvana_kernel_type
+  use ffsl_flux_z_ppm_kernel_mod,       only: ffsl_flux_z_ppm_kernel_type
+  use ffsl_flux_z_rev_nirvana_kernel_mod,                                      &
+                                        only: ffsl_flux_z_rev_nirvana_kernel_type
+  use fv_difference_z_kernel_mod,       only: fv_difference_z_kernel_type
+  use fv_divergence_z_kernel_mod,       only: fv_divergence_z_kernel_type
+
+  ! Configuration options
+  use io_config_mod,                    only: subroutine_timers
+  use transport_config_mod,             only: ffsl_unity_3d,                   &
+                                              wind_mono_top,                   &
+                                              wind_mono_top_depth
+
+  implicit none
+
+  private
+
+  public :: ffsl_vert_transport_alg
+  public :: ffsl_1d_vert_flux_alg
+
+contains
+
+
+  !> @brief Algorithm for a step of 1D vertical FFSL transport.
+  !> @details Solves the 1D transport equation, in either advective or
+  !!          conservative form. If needed, the mass flux or field increment
+  !!          will be returned.
+  !> @param[in,out] mass_flux          Mass flux used to transport the field.
+  !> @param[in,out] increment          Increment for the field change over the
+  !!                                   time step (per unit time). Only used when
+  !!                                   specified through the optional argument
+  !> @param[in,out] field_np1          The updated advected field from the time
+  !!                                   step. Only used when specified through
+  !!                                   the optional logical argument.
+  !> @param[in]     field_n            Field at the start of the transport step
+  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  !> @param[in]     order              The reconstruction order to pass to
+  !!                                   the underlying vertical flux algorithm
+  !> @param[in]     compute_adv_inc    Optional argument as to whether advective
+  !!                                   increment should be computed
+  !> @param[in]     compute_field_np1  Optional argument as to whether advected
+  !!                                   field should be computed
+  subroutine ffsl_vert_transport_alg( mass_flux, increment,                    &
+                                      field_np1, field_n, step_dt,             &
+                                      transport_controller, order,             &
+                                      compute_adv_inc, compute_field_np1 )
+
+    implicit none
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: mass_flux
+    type(r_tran_field_type),         intent(inout) :: increment
+    type(r_tran_field_type),         intent(inout) :: field_np1
+    type(r_tran_field_type),         intent(in)    :: field_n
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+    integer(kind=i_def),             intent(in)    :: order
+    logical(kind=l_def),   optional, intent(in)    :: compute_adv_inc
+    logical(kind=l_def),   optional, intent(in)    :: compute_field_np1
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: wind_precomputations
+    type(flux_precomputations_type), pointer :: ffsl_precomputations
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: adv_one
+    type(r_tran_field_type),         pointer :: detj_at_w3
+    type(r_tran_field_type),         pointer :: dry_mass_n
+    type(r_tran_field_type),         pointer :: dry_mass_np1
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+
+    ! Transport options
+    logical(kind=l_def) :: to_compute_adv_inc
+    logical(kind=l_def) :: to_compute_field_np1
+    integer(kind=i_def) :: equation_form
+    integer(kind=i_def) :: splitting
+
+    ! Subroutine name for timer
+    character(*), parameter :: routine_name = 'transport.ffsl_vertical'
+
+    ! Useful constants
+    integer(kind=i_def) :: mesh_id, step
+    real(kind=r_tran)   :: one_over_dt
+
+    if ( subroutine_timers ) call timer(routine_name)
+
+    transport_counter => transport_controller%get_transport_counter()
+    transport_metadata => transport_controller%get_transport_metadata()
+
+    if (present(compute_adv_inc)) then
+      to_compute_adv_inc = compute_adv_inc
+    else
+      to_compute_adv_inc = .true.
+    end if
+
+    if (present(compute_field_np1)) then
+      to_compute_field_np1 = compute_field_np1
+    else
+      to_compute_field_np1 = .true.
+    end if
+
+    ! Vertical FFSL ------------------------------------------------------------
+    call ffsl_1d_vert_flux_alg(                                                &
+            mass_flux, field_n, step_dt, transport_controller, order           &
+    )
+
+    splitting = transport_metadata%get_splitting()
+    equation_form = transport_metadata%get_equation_form()
+
+    ! Compute advected field, if required --------------------------------------
+    if (to_compute_adv_inc .or. to_compute_field_np1) then
+      ! Get pre-computed objects
+      mesh_id = field_n%get_mesh_id()
+      mesh => field_n%get_mesh()
+      field_fs => field_n%get_function_space()
+      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      one_over_dt = 1.0_r_tran / step_dt
+
+      call increment%initialise( vector_space = field_fs )
+
+      if (equation_form == equation_form_consistent) then
+        ffsl_precomputations => transport_controller%get_flux_precomputations()
+        step = transport_counter%get_split_step_of_whole_step_counter()
+      else if (ffsl_unity_3d) then
+        ffsl_precomputations => transport_controller%get_ffsl_precomputations()
+        step = transport_counter%get_split_step_of_substep_counter()
+      else
+        wind_precomputations => transport_controller%get_wind_precomputations()
+        step = transport_counter%get_split_step_of_substep_counter()
+      end if
+
+      if (ffsl_unity_3d .or. equation_form == equation_form_consistent) then
+        dry_mass_n => ffsl_precomputations%get_ref_mass(mesh_id, step)
+        dry_mass_np1 => ffsl_precomputations%get_ref_mass(mesh_id, step+1)
+
+        call invoke( fv_difference_z_kernel_type(increment, mass_flux) )
+
+        call swift_inner_update_tracer(field_np1, field_n,                     &
+                                       dry_mass_np1, dry_mass_n,               &
+                                       increment, step_dt)
+
+        if (to_compute_adv_inc) then
+          ! Increment is really a negative increment, so subtract field_np1
+          call invoke( X_minus_Y(increment, field_n, field_np1),               &
+                       inc_a_times_X(one_over_dt, increment) )
+        end if
+
+      else
+        adv_one => wind_precomputations%get_adv_unity_z(mesh_id, splitting, step)
+
+        call invoke( fv_divergence_z_kernel_type(increment, mass_flux, detj_at_w3) )
+        ! Get the advective increment from these conservative increments
+        call ffsl_advective_increment(increment, field_n, step_dt, adv_one)
+
+        if (to_compute_field_np1) call invoke( X_minus_bY(field_np1, field_n,  &
+                                                          step_dt, increment) )
+      end if
+    end if
+
+    if ( subroutine_timers ) call timer(routine_name)
+
+  end subroutine ffsl_vert_transport_alg
+
+  !----------------------------------------------------------------------------
+  !> @brief   Computes the mass flux associated with a vertical FFSL step.
+  !> @details Performs a conservative flux calculation using vertical FFSL.
+  !> @param[in,out] mass_flux          Mass flux used to transport the field.
+  !> @param[in]     field_n            Field at the start of the transport step
+  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  !> @param[in]     order              The reconstruction order to use
+  subroutine ffsl_1d_vert_flux_alg( mass_flux, field_n, step_dt,               &
+                                    transport_controller, order )
+
+    implicit none
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: mass_flux
+    type(r_tran_field_type),         intent(in)    :: field_n
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+    integer(kind=i_def),             intent(in)    :: order
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: wind_precomputations
+    type(flux_precomputations_type), pointer :: ffsl_precomputations
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: dep_pts_z
+    type(r_tran_field_type),         pointer :: frac_wind_or_flux
+    type(r_tran_field_type),         pointer :: detj_at_w3
+    type(r_tran_field_type),         pointer :: dl_dz(:)
+    type(r_tran_field_type),         pointer :: dla_dz(:)
+    type(r_tran_field_type),         pointer :: dlb_dz(:)
+    type(field_type),                pointer :: dz_w3_rdef
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2v_fs
+
+    ! Transport options
+    logical(kind=l_def) :: log_space
+    integer(kind=i_def) :: monotone
+    logical(kind=l_def) :: reversible
+    integer(kind=i_def) :: equation_form
+    integer(kind=i_def) :: splitting
+    logical(kind=l_def) :: first_order_cheap_update
+
+    ! Internal fields
+    type(r_tran_field_type) :: dz_w3
+
+    ! Useful constants
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: step
+    real(kind=r_tran)   :: min_val
+    integer(kind=i_def) :: vertical_order
+    integer(kind=i_def) :: monotone_above
+    integer(kind=i_def) :: nlayers
+
+    ! Get pre-computed objects and set pointers --------------------------------
+    mesh_id = field_n%get_mesh_id()
+    mesh => field_n%get_mesh()
+    transport_counter => transport_controller%get_transport_counter()
+    transport_metadata => transport_controller%get_transport_metadata()
+
+    ! Function spaces
+    field_fs => field_n%get_function_space()
+    w2v_fs => function_space_collection%get_fs( mesh, 0, 0, W2V )
+
+    ! Get options
+    monotone = transport_metadata%get_vertical_monotone()
+    log_space = transport_metadata%get_log_space()
+    reversible = transport_metadata%get_reversible()
+    equation_form = transport_metadata%get_equation_form()
+    splitting = transport_metadata%get_splitting()
+    first_order_cheap_update = transport_controller%get_cheap_update_step()
+
+    ! The minimum value is required for the quasi-monotone limiter, if
+    ! it is not set we assume positivity.
+    ! If other monotonicity is required then min_val is unused
+    if (transport_metadata%get_enforce_min_value()) then
+      min_val = transport_metadata%get_min_value()
+    else
+      min_val = 0.0_r_tran
+    end if
+
+    if (first_order_cheap_update) then
+      ! Use first order transport
+      vertical_order = 0_i_def
+    else
+      ! Use full order transport
+      vertical_order = order
+    end if
+
+    call mass_flux%initialise( vector_space = w2v_fs )
+
+    ! Point to appropriate pre-computed fields ---------------------------------
+    if (equation_form == equation_form_consistent) then
+      ffsl_precomputations => transport_controller%get_flux_precomputations()
+      step = transport_counter%get_split_step_of_whole_step_counter()
+    else if (ffsl_unity_3d) then
+      ffsl_precomputations => transport_controller%get_ffsl_precomputations()
+      step = transport_counter%get_split_step_of_substep_counter()
+    else
+      wind_precomputations => transport_controller%get_wind_precomputations()
+      step = transport_counter%get_split_step_of_substep_counter()
+    end if
+
+    if (equation_form == equation_form_consistent .or. ffsl_unity_3d) then
+      dep_pts_z => ffsl_precomputations%get_dep_dist(mesh_id, step)
+      frac_wind_or_flux => ffsl_precomputations%get_frac_flux(mesh_id, step)
+      detj_at_w3 => ffsl_precomputations%get_ref_mass(mesh_id, step)
+    else
+      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      dep_pts_z => wind_precomputations%get_dep_dist_z(                        &
+          mesh_id, splitting, step                                             &
+      )
+      frac_wind_or_flux => wind_precomputations%get_frac_wind_z(               &
+          mesh_id, splitting, step                                             &
+      )
+    end if
+
+    if ( vertical_order /= 0 ) then
+      ! Get objects only needed for high order flux
+      dz_w3_rdef => get_dz_w3(mesh_id)
+      call dz_w3%initialise( vector_space = field_fs )
+      call copy_field(dz_w3_rdef, dz_w3)
+    end if
+
+    ! Compute fluxes -----------------------------------------------------------
+    select case ( vertical_order )
+    case ( 0 )
+      ! Constant reconstruction
+      call invoke( ffsl_flux_z_constant_kernel_type(mass_flux,                 &
+                                                    frac_wind_or_flux,         &
+                                                    dep_pts_z,                 &
+                                                    field_n,                   &
+                                                    detj_at_w3,                &
+                                                    step_dt) )
+    case ( 1 )
+      ! Nirvana reconstruction
+      if (reversible) then
+        call invoke( ffsl_flux_z_rev_nirvana_kernel_type(mass_flux,            &
+                                                         frac_wind_or_flux,    &
+                                                         dep_pts_z,            &
+                                                         field_n,              &
+                                                         dz_w3,                &
+                                                         detj_at_w3,           &
+                                                         step_dt,              &
+                                                         monotone,             &
+                                                         min_val,              &
+                                                         log_space) )
+
+      else
+        ! Potentially apply monotonicity to vertical wind transport at model top
+        if (trim(transport_metadata%get_name()) == 'wind' .and. wind_mono_top  &
+            .and. monotone == monotone_none) then
+          monotone = monotone_relaxed
+          nlayers = mesh%get_nlayers()
+          monotone_above = MIN(nlayers-1, MAX(1, nlayers-wind_mono_top_depth))
+
+        else
+          ! Either not monotone at all, or monotone throughout the domain
+          ! Either way, set to perform monotonicity  at and above layer 1
+          monotone_above = 1
+        end if
+
+        dla_dz => get_third_dla_dz(mesh_id)
+        dlb_dz => get_third_dlb_dz(mesh_id)
+        call invoke( ffsl_flux_z_nirvana_kernel_type(mass_flux,                &
+                                                     frac_wind_or_flux,        &
+                                                     dep_pts_z,                &
+                                                     field_n,                  &
+                                                     dla_dz,                   &
+                                                     dlb_dz,                   &
+                                                     dz_w3,                    &
+                                                     detj_at_w3,               &
+                                                     step_dt,                  &
+                                                     monotone,                 &
+                                                     min_val,                  &
+                                                     log_space,                &
+                                                     monotone_above) )
+
+      end if
+
+    case ( 2 )
+      ! PPM reconstruction
+      dl_dz => get_fourth_dl_dz(mesh_id)
+      call invoke( ffsl_flux_z_ppm_kernel_type(mass_flux,                      &
+                                               frac_wind_or_flux,              &
+                                               dep_pts_z,                      &
+                                               field_n,                        &
+                                               dl_dz,                          &
+                                               dz_w3,                          &
+                                               detj_at_w3,                     &
+                                               step_dt,                        &
+                                               monotone,                       &
+                                               min_val,                        &
+                                               log_space) )
+
+    case default
+      call log_event( "ffsl_1d_vert_flux_alg: order not implemented", LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine ffsl_1d_vert_flux_alg
+
+end module ffsl_vert_alg_mod

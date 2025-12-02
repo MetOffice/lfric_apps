@@ -1,0 +1,44 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/populate_pert_compare_graph.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# Name the pert off task #}
+{% set pert_off_task = application_run_task~"_pert_off" %}
+
+{# Take a copy of the task definition and remove the perturb optional config #}
+{% set pert_off_values = task_values.copy() %}
+{% set opt_confs = pert_off_values["opt_confs"].copy() %}
+{% do opt_confs.remove("perturb") %}
+{% do pert_off_values.update({"opt_confs": opt_confs}) %}
+
+{# Record New task in tasks_to_run and in graph #}
+{% do tasks_to_run.update({pert_off_task: pert_off_values}) %}
+
+{% do graph_sections.append([
+    application_build_task,
+    pert_off_task
+    ]) %}
+{% do graph_sections.append([
+    mesh_run_task,
+    pert_off_task
+    ]) %}
+
+
+{# Setup Perturbation Comparison Test #}
+{% set pert_compare_task = "pert_compare_"~task_values["task_family"] %}
+{% set pert_compare_values = pert_off_values.copy() %}
+{% do tasks_to_run.update({pert_compare_task: pert_compare_values}) %}
+{% do graph_sections.append([
+    application_run_task,
+    pert_compare_task
+    ]) %}
+{% do graph_sections.append([
+    pert_off_task,
+    pert_compare_task
+    ]) %}
+
+{% do LOG.debug("Finished in templates/graph/populate_pert_compare_graph.cylc") %}

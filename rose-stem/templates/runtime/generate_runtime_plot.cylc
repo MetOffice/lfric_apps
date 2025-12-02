@@ -1,0 +1,55 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_plot.cylc") %}
+
+{# Generate runtime sections for plotting tasks #}
+
+{# Set the family inheritance for this task #}
+{% set inherit = namespace(str="") %}
+{% set inherit.str = task_family|upper %}
+
+{% if task.startswith("plot") %}
+{# Plotting Tasks #}
+
+    {% for family in task_values["plot_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = 'rose task-run --app-key=plot'
+        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
+        [[[environment]]]
+            NODAL_DATA_DIR = {{task_output_dir}}/results
+            PLOT_DIR       = {{task_output_dir}}/plots
+            PLOT_CONFIG    = {{task_values["plot_str"]}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% elif task.startswith("memory_plot_ex") %}
+
+    {% for family in task_values["plot_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    {% set log_dir = "$CYLC_WORKFLOW_RUN_DIR/log/job/1/"~
+                     task_values["application_run_task"]~
+                     "/NN" %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = 'rose task-run --app-key=memory_profile'
+        [[[environment]]]
+            PLOT_DIR = {{task_output_dir}}/plots
+            TASK_LOG_DIR = {{log_dir}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% endif %}
+
+
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_plot.cylc") %}

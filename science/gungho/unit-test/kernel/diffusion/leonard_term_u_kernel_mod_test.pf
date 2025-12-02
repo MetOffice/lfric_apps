@@ -1,0 +1,237 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module leonard_term_u_kernel_mod_test
+
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size, &
+                                                  get_w1_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,      &
+                                                  get_w1_m3x3_dofmap,      &
+                                                  get_wtheta_m3x3_dofmap,  &
+                                                  get_w3_m3x3_dofmap,      &
+                                                  get_m3x3_stencil_dofmap_region
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: leonard_term_u_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type leonard_term_u_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(leonard_term_u_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(leonard_term_u_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use leonard_term_u_kernel_mod, only : leonard_term_u_code
+
+    implicit none
+
+    class(leonard_term_u_test_type), intent(inout) :: this
+
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, ndf_wt, undf_wt, ndf_w1, undf_w1, &
+                      ndf_pid, undf_pid
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: true_map_w2(:,:)
+    integer(i_def), allocatable :: map_wt(:,:)
+    integer(i_def), allocatable :: map_w1(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+    integer(i_def), allocatable :: stencil_map_w2(:,:,:)
+    integer(i_def), allocatable :: true_stencil_map_w2(:,:,:)
+    integer(i_def), allocatable :: stencil_map_wt(:,:,:)
+    integer(i_def), allocatable :: stencil_map_pid(:,:,:)
+
+    real(r_def), allocatable :: u_inc(:)
+    real(r_def), allocatable :: u(:)
+    real(r_def), allocatable :: w(:)
+    real(r_def), allocatable :: w_inc(:)
+    real(r_def), allocatable :: dtrdz(:)
+    real(r_def), allocatable :: rho(:)
+    real(r_def), allocatable :: height_w1(:)
+    real(r_def), allocatable :: height_w2(:)
+    real(r_def), allocatable :: panel_id(:)
+
+    real(r_def), parameter :: planet_radius = 86_r_def
+    real(r_def), parameter :: leonard_kl = 1.0_r_def
+    real(r_def), parameter :: dt = 100.0_r_def
+    real(r_def), parameter :: tol = 1.0e-10_r_def
+    real(r_def), parameter :: dz = 10.0_r_def
+    real(r_def) :: answer
+
+    integer(i_def) :: icell, i, j, k, df
+
+    integer(i_def) :: cell
+
+
+    ! Variables for testing leonard_term_u
+    ! Get sizes of everything
+    nlayers=3
+    call get_w1_m3x3_q3x3x3_size( ndf_w1, undf_w1, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,   &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v,              &
+                                      nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells,     &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v,              &
+                                      1 )
+
+    ! Setup maps
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_m3x3_stencil_dofmap_region(stencil_map_w2, map_w2)
+    call get_w2_m3x3_dofmap(true_map_w2)
+    call get_m3x3_stencil_dofmap_region(true_stencil_map_w2, true_map_w2)
+    call get_wtheta_m3x3_dofmap(map_wt)
+    call get_m3x3_stencil_dofmap_region(stencil_map_wt, map_wt)
+    call get_w1_m3x3_dofmap(map_w1)
+    call get_w3_m3x3_dofmap(map_pid,1)
+    call get_m3x3_stencil_dofmap_region(stencil_map_pid, map_pid)
+
+    ! Compute coordinates
+    allocate(height_w1(undf_w1))
+    allocate(height_w2(undf_w2))
+    icell = 1
+    do j = 1,3
+      do i = 1,3
+        do k = 0,3
+          do df= 1,4
+            height_w1(map_w1(df,icell)+k) = real(k,r_def)*dz
+          end do
+        end do
+        do k = 0,2
+          do df= 1,4
+            height_w2(map_w2(df,icell)+k) = (real(k,r_def)+0.5_r_def)*dz
+          end do
+        end do
+        icell = icell + 1
+      end do
+    end do
+
+    ! Create the data
+    allocate(u_inc(undf_w2))
+    allocate(u(undf_w2))
+    allocate(w(undf_wt))
+    allocate(w_inc(undf_wt))
+    allocate(dtrdz(undf_w2))
+    allocate(rho(undf_w2))
+    allocate(panel_id(undf_pid))
+
+    u_inc(:) = 0.0_r_def
+    u(:) = 1.0_r_def
+    w(:) = 1.0_r_def
+    w_inc(:) = 0.0_r_def
+    dtrdz(:) = 0.001_r_def
+    rho(:) = 1.0_r_def
+    panel_id = 2.0_r_def
+
+    cell = 5
+    k = 1
+    w(stencil_map_wt(1,1,cell)+k) = 2.0_r_def
+    u(stencil_map_w2(3,1,cell)+k) = 2.0_r_def
+
+    ! Force data to cross a panel boundary
+    panel_id(stencil_map_pid(1,5:7,cell)) = 3.0_r_def
+    ! Correct stencil map on new panel for anti-clockwise rotation
+    stencil_map_w2(1,5:7,cell)=true_stencil_map_w2(2,5:7,cell)
+    stencil_map_w2(2,5:7,cell)=true_stencil_map_w2(3,5:7,cell)
+    stencil_map_w2(3,5:7,cell)=true_stencil_map_w2(4,5:7,cell)
+    stencil_map_w2(4,5:7,cell)=true_stencil_map_w2(1,5:7,cell)
+    ! Correct winds on new panel for flipping of parallel vectors
+    u(true_stencil_map_w2(2,5:7,cell)+0) = -1.0_r_def
+    u(true_stencil_map_w2(4,5:7,cell)+0) = -1.0_r_def
+    u(true_stencil_map_w2(2,5:7,cell)+1) = -1.0_r_def
+    u(true_stencil_map_w2(4,5:7,cell)+1) = -1.0_r_def
+    u(true_stencil_map_w2(2,5:7,cell)+2) = -1.0_r_def
+    u(true_stencil_map_w2(4,5:7,cell)+2) = -1.0_r_def
+
+    ! Call the kernel
+    call leonard_term_u_code( nlayers,                               &
+                              u_inc,                                 &
+                              u,                                     &
+                              9, stencil_map_w2(:,:,cell),           &
+                              w,                                     &
+                              9, stencil_map_wt(:,:,cell),           &
+                              w_inc,                                 &
+                              dtrdz,                                 &
+                              height_w1,                             &
+                              height_w2,                             &
+                              rho,                                   &
+                              panel_id,                              &
+                              9, stencil_map_pid(:,:,cell),          &
+                              planet_radius,                         &
+                              leonard_kl,                            &
+                              dt, nlayers,                           &
+                              ndf_w2, undf_w2, map_w2(:,cell),       &
+                              ndf_wt, undf_wt, map_wt(:,cell),       &
+                              ndf_w1, undf_w1, map_w1(:,cell),       &
+                              ndf_pid, undf_pid, map_pid(:,cell)     &
+                             )
+
+     answer = 0.1152_r_def
+     @assertEqual(answer, u_inc(map_w2(1,cell) + k), tol)
+
+     deallocate(map_w2)
+     deallocate(stencil_map_w2)
+     deallocate(true_map_w2)
+     deallocate(true_stencil_map_w2)
+     deallocate(map_wt)
+     deallocate(stencil_map_wt)
+     deallocate(map_w1)
+     deallocate(height_w1)
+     deallocate(height_w2)
+     deallocate(u)
+     deallocate(u_inc)
+     deallocate(w)
+     deallocate(w_inc)
+     deallocate(dtrdz)
+     deallocate(rho)
+     deallocate(panel_id)
+
+  end subroutine test_all
+
+end module leonard_term_u_kernel_mod_test

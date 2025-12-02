@@ -1,0 +1,53 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/populate_graph_technical-tests.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# Define the graph for integration/unit tests #}
+
+{% set task_ns = namespace(application="",
+                            conf_name="",
+                            platform="",
+                            compiler="",
+                            extras="") %}
+{{ split_task_name(task, task_ns) }}
+{% set task_values = requested_tasks[task] %}
+
+{# Set export source task - always needed #}
+{% set export_task = "export-source => export-source_"~task_ns.platform %}
+{% if "export-source" not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source": {} }) %}
+{% endif %}
+{% if "export-source_"~task_ns.platform not in tasks_to_run %}
+    {% do tasks_to_run.update({"export-source_"~task_ns.platform: {} }) %}
+{% endif %}
+
+{# Build task is always required #}
+{% set build_tech_test = "build_"~
+                         task_ns.application~"_"~
+                         task_ns.conf_name~"_"~
+                         task_ns.platform~"_"~
+                         task_values["build_conf"] %}
+{% if build_tech_test not in tasks_to_run %}
+    {% do tasks_to_run.update({build_tech_test: {} }) %}
+{% endif %}
+{% do graph_sections.append([
+    export_task,
+    build_tech_test]) %}
+
+{# Can request only the build task - here the task will start with build #}
+{# If that's not the case set the run task #}
+{% if not task.startswith("build") %}
+    {% set run_tech_test = task %}
+    {% if run_tech_test not in tasks_to_run %}
+        {% do tasks_to_run.update({run_tech_test: task_values}) %}
+    {% endif %}
+    {% do graph_sections.append([
+        build_tech_test,
+        run_tech_test]) %}
+{% endif %}
+
+{% do LOG.debug("Finished in templates/graph/populate_graph_technical-tests.cylc") %}

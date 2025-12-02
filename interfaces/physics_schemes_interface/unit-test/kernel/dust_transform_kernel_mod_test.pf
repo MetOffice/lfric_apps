@@ -1,0 +1,125 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test dust_transform_kernel
+!>
+module dust_transform_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_dust_transform
+
+  @TestCase
+  type, extends(TestCase), public :: dust_transform_test_type
+    private
+  contains
+    procedure setup
+    procedure tearDown
+    procedure test_dust_transform
+  end type dust_transform_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(dust_transform_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(dust_transform_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_dust_transform( this )
+
+    use dust_transform_kernel_mod, only : dust_transform_code
+
+    implicit none
+
+    class(dust_transform_test_type), intent(inout) :: this
+
+    ! Tolerances for the 4 output variable checks
+    real(kind=r_def), parameter :: tol1  = 1.0e-20_r_def
+    real(kind=r_def), parameter :: tol2  = 1.0e-13_r_def
+    real(kind=r_def), parameter :: tol3  = 1.0e-21_r_def
+    real(kind=r_def), parameter :: tol4  = 1.0e-11_r_def
+
+    ! Scalar constants needed for the conversion
+    real(kind=r_def), parameter :: rhop = 2.65e+3_r_def  ! Density of a dust particle (quartz)
+    real(kind=r_def), parameter :: rgas = 287.05_r_def   ! Specific gas constant J/kg/K
+
+    ! Mesh is a single column with 2 layers (and so 3 Wtheta points)
+    integer(i_def), parameter :: nlayers = 2_i_def
+    integer(i_def), parameter :: ndf_wtheta = 2_i_def
+    integer(i_def), parameter :: undf_wtheta = nlayers + 1_i_def
+
+    integer(i_def) :: map_wtheta(ndf_wtheta)
+    real(r_def)    :: dust1_mmr(undf_wtheta)
+    real(r_def)    :: dust2_mmr(undf_wtheta)
+    real(r_def)    :: n_acc_ins(undf_wtheta)
+    real(r_def)    :: acc_ins_du(undf_wtheta)
+    real(r_def)    :: n_cor_ins(undf_wtheta)
+    real(r_def)    :: cor_ins_du(undf_wtheta)
+    real(r_def)    :: answer_n_acc_ins(undf_wtheta)
+    real(r_def)    :: answer_acc_ins_du(undf_wtheta)
+    real(r_def)    :: answer_n_cor_ins(undf_wtheta)
+    real(r_def)    :: answer_cor_ins_du(undf_wtheta)
+
+    ! ------------------------------------------------------------------------ !
+    ! Set up field and dofmap arrays
+    ! ------------------------------------------------------------------------ !
+
+    map_wtheta = (/ 1_i_def, 2_i_def /)
+
+    ! Some input um dust1 and dust2 mass concentration values with realistic
+    ! values, ensuring dust2 > dust1
+    dust1_mmr(:) = (/ 2.5e-7_r_def, 1.1e-7_r_def, 5.0e-7_r_def /)
+    dust2_mmr(:) = (/ 5.0e-7_r_def, 2.0e-7_r_def, 6.0e-7_r_def /)
+
+    ! Expected output lfric dust fields
+    answer_n_acc_ins = (/ 9.68666e-18_r_def, 4.26213e-18_r_def, 1.93733e-17_r_def /)
+    answer_acc_ins_du = (/ 4.73732e-08_r_def, 2.08442e-08_r_def, 9.47464e-08_r_def /)
+    answer_n_cor_ins = (/ 1.17606e-18_r_def, 5.12953e-19_r_def, 2.26186e-18_r_def /)
+    answer_cor_ins_du = (/ 8.80142e-07_r_def, 3.63230e-07_r_def, 1.27964e-06_r_def /)
+
+    ! ------------------------------------------------------------------------ !
+    ! Run kernel and check output fields
+    ! ------------------------------------------------------------------------ !
+
+    call dust_transform_code( nlayers,     &
+                              n_acc_ins,   &
+                              acc_ins_du,  &
+                              n_cor_ins,   &
+                              cor_ins_du,  &
+                              dust1_mmr,   &
+                              dust2_mmr,   &
+                              rhop,        &
+                              rgas,        &
+                              ndf_wtheta,  &
+                              undf_wtheta, &
+                              map_wtheta )
+
+    @assertEqual( n_acc_ins, answer_n_acc_ins, tol1 )
+    @assertEqual( acc_ins_du, answer_acc_ins_du, tol2 )
+    @assertEqual( n_cor_ins, answer_n_cor_ins, tol3 )
+    @assertEqual( cor_ins_du, answer_cor_ins_du, tol4 )
+
+  end subroutine test_dust_transform
+
+end module dust_transform_kernel_mod_test

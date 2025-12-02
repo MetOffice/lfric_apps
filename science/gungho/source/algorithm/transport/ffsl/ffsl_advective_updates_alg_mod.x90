@@ -1,0 +1,124 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module for holding routines used for advective updates in the
+!!        ffsl scheme
+
+module ffsl_advective_updates_alg_mod
+
+  use constants_mod,    only: r_tran
+  use r_tran_field_mod, only: r_tran_field_type
+
+  implicit none
+
+  private
+  public :: swift_outer_update_tracer
+  public :: swift_inner_update_tracer
+  public :: ffsl_advective_increment
+
+contains
+
+  !----------------------------------------------------------------------------
+  !> @brief Compute the outer advective update of a tracer from the SWIFT
+  !!        splitting
+  !> @param[in,out]  field_np1    Updated tracer field
+  !> @param[in]      field_x      Field after x sweep
+  !> @param[in]      field_y      Field after y sweep
+  !> @param[in]      dry_mass_np1 Dry mass at time level n+1
+  !> @param[in]      dry_mass_x   Dry mass after x sweep
+  !> @param[in]      dry_mass_y   Dry mass after y sweep
+  !> @param[in]      increment_x  Increment to tracer from x sweep
+  !> @param[in]      increment_y  Increment to tracer from y sweep
+  !> @param[in]      dt           Timestep used in the transport scheme
+  !----------------------------------------------------------------------------
+  subroutine swift_outer_update_tracer(field_np1, field_x, field_y,       &
+                                       dry_mass_np1, dry_mass_x,          &
+                                       dry_mass_y, increment_x,           &
+                                       increment_y, dt)
+
+    use swift_outer_update_kernel_mod, only: swift_outer_update_kernel_type
+
+    implicit none
+
+    real(kind=r_tran),       intent(in)    :: dt
+    type(r_tran_field_type), intent(inout) :: field_np1
+    type(r_tran_field_type), intent(in)    :: field_x, field_y
+    type(r_tran_field_type), intent(in)    :: dry_mass_np1, dry_mass_x, dry_mass_y
+    type(r_tran_field_type), intent(in)    :: increment_x, increment_y
+
+    call invoke( swift_outer_update_kernel_type(field_np1,    &
+                                                field_x,      &
+                                                dry_mass_x,   &
+                                                field_y,      &
+                                                dry_mass_y,   &
+                                                dt,           &
+                                                increment_x,  &
+                                                increment_y,  &
+                                                dry_mass_np1) )
+
+  end subroutine swift_outer_update_tracer
+
+  !----------------------------------------------------------------------------
+  !> @brief Compute the inner advective update of a tracer from the SWIFT
+  !!        splitting
+  !> @param[in,out]  field_np1    Updated tracer field
+  !> @param[in]      field_n      Field at start of timestep
+  !> @param[in]      dry_mass_np1 Dry mass at time level n+1
+  !> @param[in]      dry_mass_n   Dry mass at start of timestep
+  !> @param[in]      increment    Increment from the conservative sweep
+  !> @param[in]      dt           Timestep used in the transport scheme
+  !----------------------------------------------------------------------------
+  subroutine swift_inner_update_tracer(field_np1, field_n,                &
+                                       dry_mass_np1, dry_mass_n,          &
+                                       increment, dt)
+
+    use swift_inner_update_kernel_mod, only: swift_inner_update_kernel_type
+
+    implicit none
+
+    real(kind=r_tran),       intent(in)    :: dt
+    type(r_tran_field_type), intent(inout) :: field_np1
+    type(r_tran_field_type), intent(in)    :: field_n
+    type(r_tran_field_type), intent(in)    :: dry_mass_np1, dry_mass_n
+    type(r_tran_field_type), intent(in)    :: increment
+
+    call invoke( swift_inner_update_kernel_type(field_np1,    &
+                                                field_n,      &
+                                                dry_mass_np1, &
+                                                dry_mass_n,   &
+                                                increment,    &
+                                                dt ) )
+
+  end subroutine swift_inner_update_tracer
+
+  !----------------------------------------------------------------------------
+  !> @brief Compute the inner advective update of a tracer
+  !> @param[in,out]  increment    Advective updata to the tracer field
+  !> @param[in]      field        Initial field
+  !> @param[in]      dt           Timestep used in the transport scheme
+  !> @param[in]      adv_one      Transported unity field
+  !----------------------------------------------------------------------------
+  subroutine ffsl_advective_increment(increment, field, dt, adv_one)
+
+    use ffsl_advective_increment_kernel_mod, only: ffsl_advective_increment_kernel_type
+
+    implicit none
+
+    type(r_tran_field_type), intent(inout) :: increment
+    type(r_tran_field_type), intent(in)    :: field
+    real(kind=r_tran),       intent(in)    :: dt
+    type(r_tran_field_type), intent(in)    :: adv_one
+
+    real(kind=r_tran) :: one_over_dt
+
+    one_over_dt = 1.0_r_tran / dt
+
+    call invoke( ffsl_advective_increment_kernel_type(increment, field, &
+                                                      one_over_dt, adv_one) )
+
+  end subroutine ffsl_advective_increment
+
+end module ffsl_advective_updates_alg_mod
+

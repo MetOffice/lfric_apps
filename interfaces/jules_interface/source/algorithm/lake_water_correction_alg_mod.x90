@@ -1,0 +1,209 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Lake water evaporation correction. This takes account of lake water
+!> @brief evaporation by reducing soil moisture globally.
+
+module lake_water_correction_alg_mod
+
+  use constants_mod,              only: l_def, r_def
+  use field_mod,                  only: field_type, field_proxy_type
+  use mesh_mod,                   only: mesh_type
+  use surface_config_mod,         only: check_soilm_negatives
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+  public lake_water_correction
+
+contains
+
+  !> @brief Lake water evaporation correction.
+  !> @details Lakes offer an infinate source of water as they never lose water.
+  !> As water evaporates from lakes this water needs to be accounted for
+  !> elsewhere. The lake water evaporation correction scheme reduces soil
+  !> moisture globally by the same small amount to account for this lake
+  !> evaporation.
+  !>
+  !> @param[in]     lake_evap              Evaporation from lakes (kg m-2 s-1)
+  !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
+  !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture fraction (m3 m-3)
+  !> @param[in]     soil_moist_sat         Saturated soil moisture fraction (m3 m-3)
+  !> @param[in]     soil_moist_wilt        Wilting point soil moisture fraction (m3 m-3)
+  !> @param[in]     tile_fraction          The fraction of each surface tile
+  !> @param[in]     dt                     Timestep length (s)
+  subroutine lake_water_correction(lake_evap, soil_moisture,                 &
+                                   unfrozen_soil_moisture, soil_moist_sat,   &
+                                   soil_moist_wilt, tile_fraction, dt)
+
+    use sci_geometric_constants_mod, only: get_da_msl_proj
+    use nlsizes_namelist_mod,        only: sm_levels
+    use log_mod,                     only: log_event,                          &
+                                           log_scratch_space,                  &
+                                           log_level,                          &
+                                           LOG_LEVEL_ERROR,                    &
+                                           LOG_LEVEL_DEBUG,                    &
+                                           LOG_LEVEL_INFO
+
+    ! Kernels used by this algorithm
+    use sci_multi_extract_kernel_mod, only: multi_extract_kernel_type
+    use generate_land_frac_kernel_mod, only: generate_land_frac_kernel_type
+    use generate_moist_mask_kernel_mod, only: generate_moist_mask_kernel_type
+    use apply_lake_correction_kernel_mod, only: apply_lake_correction_kernel_type
+
+    implicit none
+
+    type( field_type ), intent (in)     :: lake_evap
+    type( field_type ), intent (inout)  :: soil_moisture
+    type( field_type ), intent (inout)  :: unfrozen_soil_moisture
+    type( field_type ), intent (in)     :: soil_moist_sat
+    type( field_type ), intent (in)     :: soil_moist_wilt
+    type( field_type ), intent (in)     :: tile_fraction
+    real(r_def), intent(in) :: dt
+
+    ! Local variables
+    ! Field pointers
+    type( field_type ), pointer        :: cell_area => null()   ! The area of each grid box
+    type( mesh_type ),  pointer        :: mesh => null() ! The mesh
+
+    ! Whole fields
+    type( field_type )                 :: land_area           ! The area of land in each grid box (m2)
+    type( field_type )                 :: evap_whole_grid_cell  ! Lake evaporation total for each grid cell (kg s-1)
+    type( field_type )                 :: land_fraction       ! The fraction of land in each grid box
+    type( field_type )                 :: moist_mask          ! The points where it is moist enough to reduce soil moisture
+    type( field_type )                 :: soilm_init          ! Initial soil moisture from the lowest level (kg m-2)
+    type( field_type )                 :: soilm_end           ! Final soil moisture from the lowest level (kg m-2)
+    type( field_type )                 :: soilm_change_lakes  ! Soil moisture change from lake water conservation (kg m-2 s-1)
+
+    ! Proxy fields
+    type( field_proxy_type )           :: soil_moisture_proxy ! (kg m-2)
+    type( field_proxy_type )           :: unfrozen_soil_moisture_proxy
+
+    ! Reals
+    real(kind=r_def)  :: global_evap_rate   ! Rate of lake evaporation over the whole globe (kg s-1)
+    real(kind=r_def)  :: global_evap_total  ! Total lake evaporation over the whole globe over the whole timestep (kg)
+    real(kind=r_def)  :: moist_area         ! Total area where soil is moist enough for moisture to be removed (m2)
+    real(kind=r_def)  :: min_soil_moisture  ! Global minimum value of soil mosture
+    ! real(kind=r_def)  :: max_soil_moisture  ! Global maximum value of soil mosture
+    real(kind=r_def)  :: water_reduction    ! Amount of water (kg m-2) to reduce the soil moisture by
+
+    ! Parameters
+    real(kind=r_def), parameter  :: tiny = 1.0e-20_r_def
+
+    ! Logicals
+    logical(kind=l_def)  :: soilm_change_lakes_flag  ! Is the soilm_change_lakes requested
+
+    ! Initialise local fields
+    call lake_evap%copy_field_properties(land_area)
+    call lake_evap%copy_field_properties(evap_whole_grid_cell)
+    call lake_evap%copy_field_properties(land_fraction)
+    call lake_evap%copy_field_properties(moist_mask)
+
+    ! Initialise diagnostics
+    soilm_change_lakes_flag = init_diag(soilm_change_lakes, 'soil__soilm_change_lakes')
+    if (soilm_change_lakes_flag) then
+      call lake_evap%copy_field_properties(soilm_init)
+      call lake_evap%copy_field_properties(soilm_end)
+      call invoke(multi_extract_kernel_type(soilm_init, soil_moisture, sm_levels, 1))
+    end if
+
+    ! Get the mesh
+    mesh => lake_evap%get_mesh()
+
+    ! Calculate the grid cell areas (cell_area)
+    cell_area => get_dA_msl_proj( mesh%get_id() )
+
+    ! Multiply by the grid box areas
+    call invoke(X_times_Y(evap_whole_grid_cell,lake_evap, cell_area),  &
+
+                ! Do a global sum
+                sum_X(global_evap_rate, evap_whole_grid_cell))
+
+    ! Multiply by the length of the timestep to get total amount of water
+    global_evap_total = global_evap_rate * dt
+
+
+    call invoke(                                                                    &
+
+                ! Get the land fraction
+                generate_land_frac_kernel_type(land_fraction, tile_fraction),       &
+
+                ! Find out what grid cells can have soil moisture removed from them.
+                ! This rules out open ocean, land ice and dry desert regions when
+                ! the soil moisture is below the wilting threshold.
+                generate_moist_mask_kernel_type(moist_mask, unfrozen_soil_moisture, &
+                                    soil_moist_sat, soil_moist_wilt, land_fraction),&
+
+
+
+                ! Calculate the area of land in each grid cell
+                X_times_Y(land_area, cell_area, land_fraction),                     &
+
+                ! Calculate the global area where soil moisture can be reduced
+                X_innerproduct_Y(moist_area, moist_mask, land_area))
+
+    ! Find out how much water per m2 you need to reduce over the moist_mask area
+    water_reduction = global_evap_total / moist_area
+
+    ! Print out info
+    if (log_level() <= LOG_LEVEL_DEBUG) then
+      write(log_scratch_space,'(A)') 'Lake water conservation scheme:'
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+      write(log_scratch_space,'(A,G10.4)') '   global_evap_total = ', global_evap_total
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+      write(log_scratch_space,'(A,G10.4)') '   moist_area = ', moist_area
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+      write(log_scratch_space,'(A,G10.4)') '   water_reduction = ', water_reduction
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    end if
+
+    ! Pass to a kernel to remove from soil moisture
+    call invoke(apply_lake_correction_kernel_type(moist_mask,                       &
+                                            unfrozen_soil_moisture, soil_moist_sat, &
+                                            soil_moisture, water_reduction))
+
+    ! Check for negative values in soil moisture
+    if ( check_soilm_negatives ) then
+      soil_moisture_proxy = soil_moisture%get_proxy()
+      min_soil_moisture = soil_moisture_proxy%get_min()
+      if ( min_soil_moisture < -1.0_r_def*tiny ) then
+        write( log_scratch_space, '(A,E16.8)') &
+                              'soil_moisture has gone negative with a value of ',  &
+                               min_soil_moisture
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      unfrozen_soil_moisture_proxy = unfrozen_soil_moisture%get_proxy()
+      min_soil_moisture = unfrozen_soil_moisture_proxy%get_min()
+      if ( min_soil_moisture < -1.0_r_def*tiny ) then
+        write( log_scratch_space, '(A,E16.8)') &
+                     'unfrozen_soil_moisture has gone negative with a value of ',  &
+                               min_soil_moisture
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+    end if
+
+    ! Output diagnostics
+    if (soilm_change_lakes_flag) then
+      call invoke(                                                                  &
+                  ! Get the soil moisture at the lowest level at the end of this
+                  ! scheme
+                  multi_extract_kernel_type(soilm_end, soil_moisture, sm_levels, 1), &
+
+                  ! Subtract the soil moisture at the start from the soil mositure
+                  ! at the end to get the change
+                  X_minus_Y(soilm_change_lakes, soilm_end, soilm_init),             &
+
+                  ! Divide by the timestep to get the change per second
+                  inc_X_divideby_a(soilm_change_lakes, dt))
+
+      call soilm_change_lakes%write_field(soilm_change_lakes%get_name())
+    end if
+    call lake_evap%write_field('surface__lake_evap')
+
+  end subroutine lake_water_correction
+
+end module lake_water_correction_alg_mod

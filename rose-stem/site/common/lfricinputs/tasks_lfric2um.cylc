@@ -1,0 +1,58 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/lfricinputs/tasks_lfric2um.cylc") %}
+
+{% if task_ns.conf_name == "lfric2um-aquaplanet-C48L38_N48L38" %}
+
+    {% do task_dict.update({
+        "opt_confs": [],
+        "resolution": "C48",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C48",
+        "source_grid_levs": "38",
+        "source_grid_type": "global",
+        "target_grid_res": "N48",
+        "target_grid_levs": "38",
+        "target_grid_type": "global",
+        "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/lfric2um_startdump_aquaplanet_N48L38_C48L38.nc",
+        "namelist_src": "um_grid.nml",
+    }) %}
+
+{% elif task_ns.conf_name == "lfric2um-performance-C224L70_N512L70" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["performance"],
+        "resolution": "C224",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C224",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "N512",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "$BIG_DATA_DIR/start_dumps/nwp-gal9/apps1.1/nwp-gal9_N320L70_C224L70.nc",
+        "namelist_src": "um_grid.nml",
+        "memory_plot_ex": true,
+    }) %}
+{% elif task_ns.conf_name == "lfric2um-umlam-C48L70_N512L70" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_lam"],
+        "resolution": "C48",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C48",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "N512",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/lfric2um_startdump_um-lam_C48L70.nc",
+        "namelist_src": "um_grid.nml",
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/lfricinputs/tasks_lfric2um.cylc") %}

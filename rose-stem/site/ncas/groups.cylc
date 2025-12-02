@@ -1,0 +1,19 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/ncas/groups.cylc") %}
+
+
+{%- do site_groups.update({
+   "archer2_atm": [
+       "lfric_atm_nwp_archer2"
+   ],
+   "lfric_atm_nwp_archer2" : [],
+   "lfric_atm_nwp_quick" : [],
+   }) %}
+
+{% include "site/ncas/groups/groups_lfric_atm.cylc" %}
+
+{% do LOG.debug("Finished in site/ncas/groups.cylc") %}

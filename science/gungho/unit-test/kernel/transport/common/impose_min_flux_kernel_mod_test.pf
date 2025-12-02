@@ -1,0 +1,127 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the impose_min_flux_kernel_mod
+!>
+module impose_min_flux_kernel_mod_test
+
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  use log_mod,       only : log_event,           &
+                            log_scratch_space,   &
+                            LOG_LEVEL_INFO
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: impose_min_flux_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type impose_min_flux_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use impose_min_flux_kernel_mod,    only: impose_min_flux_code
+
+    implicit none
+
+    class(impose_min_flux_kernel_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-15_r_tran
+
+    ! Mesh and Spaces
+    integer(i_def), parameter :: nlayers = 4
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: ndf_w2 = 6
+    integer(i_def), parameter :: nfaces_h  = 4
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+    integer(i_def), parameter :: undf_w2 = nfaces_h*nlayers + nlayers + 1
+    integer(i_def), parameter :: ncell_3d = nlayers
+
+    ! Maps
+    integer(i_def), dimension(ndf_w3)   :: map_w3
+    integer(i_def), dimension(ndf_w2)   :: map_w2
+
+    ! Operators
+    real(r_tran), dimension(ncell_3d,ndf_w3,ndf_w2) :: div
+
+    ! Fields
+    real(r_tran), dimension(undf_w3) :: rho
+    real(r_tran), dimension(undf_w2) :: flux
+    real(r_tran)                     :: rho_min, dts
+    real(r_tran), dimension(undf_w2) :: flux_answer
+    real(r_tran), dimension(ndf_w2)  :: flux_cell
+
+    integer(i_def) :: i,j,k, cell
+    real(r_tran)    :: edge_value
+
+    map_w3 = (/ 1_i_def /)
+
+    do j = 1, nfaces_h
+      map_w2(j) = 1_i_def + (j-1)*nlayers
+    end do
+    map_w2(nfaces_h+1) = 1_i_def + nfaces_h*nlayers
+    map_w2(ndf_w2)     = map_w2(nfaces_h+1) + 1_i_def
+    map_w3(:) = 1_i_def
+
+    do i = 1, ndf_w3
+       do j = 1, ndf_w2
+           edge_value = +1.0_r_tran
+           if ( mod(j,2) == 0.0_r_tran ) then
+               edge_value = -1.0_r_tran
+           end if
+           div(:,i,j) = edge_value
+       end do
+    end do
+
+    do k = 0, nlayers-1
+      do j = 1, ndf_w2
+          edge_value = 2.0_r_tran
+          if ( mod(j,2) == 0.0_r_tran ) then
+               edge_value = 1.0_r_tran
+          end if
+          flux(map_w2(j)+k) = edge_value
+      end do
+    end do
+
+    rho(:)                = 3.0_r_tran
+
+    rho_min        = 0.0_r_tran
+    dts            = 1.0_r_tran
+    flux_answer(:) = 1.0_r_tran
+
+    ! Compute the modified fluxes
+
+    cell = 1_i_def
+
+    call impose_min_flux_code( cell,                    &
+                               nlayers,                 &
+                               rho, flux,               &
+                               ncell_3d,                &
+                               div,                     &
+                               rho_min,                 &
+                               dts,                     &
+                               ndf_w3, undf_w3, map_w3, &
+                               ndf_w2, undf_w2, map_w2  )
+
+    do j = 1,undf_w2
+      @assertEqual(flux_answer(j), flux(j) , tol)
+    end do
+
+  end subroutine test_all
+
+end module impose_min_flux_kernel_mod_test

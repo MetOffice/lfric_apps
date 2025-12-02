@@ -1,0 +1,1263 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Initialise, copy and finalise the data set.
+!>
+!> Methods to initialise (create and read), copy and finalise (write and
+!> destroy) the working data set.
+!>
+module gungho_init_fields_mod
+
+  use mr_indices_mod,                     only : nummr, mr_names
+  use moist_dyn_mod,                      only : num_moist_factors, moist_dyn_names
+  use field_array_mod,                    only : field_array_type
+  use field_mod,                          only : field_type
+  use integer_field_mod,                  only : integer_field_type
+  use field_parent_mod,                   only : write_interface
+  use field_collection_mod,               only : field_collection_type
+  use io_value_mod,                       only : io_value_type, &
+                                                 io_operation_interface, &
+                                                 get_io_value
+  use driver_modeldb_mod,                 only : modeldb_type
+  use gungho_time_axes_mod,               only : gungho_time_axes_type, &
+                                                 get_time_axes_from_collection
+  use constants_mod,                      only : i_def, l_def, r_def, str_def, &
+                                                 r_second
+  use log_mod,                            only : log_event,       &
+                                                 LOG_LEVEL_INFO,  &
+                                                 LOG_LEVEL_ERROR, &
+                                                 LOG_LEVEL_DEBUG, &
+                                                 log_scratch_space
+  use base_mesh_config_mod,               only : geometry,          &
+                                                 geometry_spherical
+  use mesh_mod,                           only : mesh_type
+  use files_config_mod,                   only : checkpoint_stem_name
+  use formulation_config_mod,             only : use_physics
+  use section_choice_config_mod,          only : iau,                         &
+                                                 iau_sst,                     &
+                                                 iau_surf,                    &
+                                                 cloud, cloud_none,           &
+                                                 stochastic_physics,          &
+                                                 stochastic_physics_um
+  use initialization_config_mod,          only : init_option,                 &
+                                                 init_option_analytic,        &
+                                                 init_option_fd_start_dump,   &
+                                                 init_option_checkpoint_dump, &
+                                                 init_option_fe_start_dump,   &
+                                                 ancil_option,                &
+                                                 ancil_option_none,           &
+                                                 ancil_option_start_dump,     &
+                                                 ancil_option_fixed,          &
+                                                 ancil_option_idealised,      &
+                                                 ancil_option_updating,       &
+                                                 lbc_option,                  &
+                                                 lbc_option_none,             &
+                                                 lbc_option_analytic,         &
+                                                 lbc_option_gungho_file,      &
+                                                 lbc_option_um2lfric_file,    &
+                                                 zero_w2v_wind,               &
+                                                 sst_source,                  &
+                                                 sst_source_start_dump,       &
+                                                 snow_source,                 &
+                                                 snow_source_surf
+  use io_config_mod,                      only : checkpoint_read,  &
+                                                 checkpoint_write, &
+                                                 checkpoint_times, &
+                                                 end_of_run_checkpoint, &
+                                                 write_dump
+  use lfric_xios_read_mod,                only : read_checkpoint,  &
+                                                 read_state,       &
+                                                 checkpoint_read_value
+  use lfric_xios_write_mod,               only : write_checkpoint, &
+                                                 checkpoint_write_value, &
+                                                 create_checkpoint_list, &
+                                                 write_state
+  use boundaries_config_mod,              only : limited_area
+  use create_iau_fields_mod,              only : create_iau_fields
+  use create_lbcs_mod,                    only : create_lbc_fields
+  use create_gungho_prognostics_mod,      only : create_gungho_prognostics
+  use create_physics_prognostics_mod,     only : create_physics_prognostics
+  use field_mapper_mod,                   only : field_mapper_type
+  use map_fd_to_prognostics_alg_mod,      only : map_fd_to_prognostics
+  use gungho_init_prognostics_driver_mod, only : init_gungho_prognostics
+  use init_gungho_lbcs_alg_mod,           only : init_lbcs_file_alg,    &
+                                                 init_lbcs_analytic_alg
+  use init_physics_prognostics_alg_mod,   only : init_physics_prognostics_alg
+  use derived_config_mod,                 only : l_esm_couple
+  use ageofair_alg_mod,                   only : init_ageofair
+  use transport_config_mod,               only : transport_ageofair
+#ifdef COUPLED
+  use coupler_mod,                      only : zero_coupling_send_fields
+#endif
+  use moist_dyn_factors_alg_mod,        only : moist_dyn_factors_alg
+  use init_fd_prognostics_mod,          only : init_fd_prognostics_dump
+  use map_physics_fields_alg_mod,       only : map_physics_fields_alg
+  use set_any_dof_alg_mod,              only : set_any_dof_alg
+  use reference_element_mod,            only : T
+#ifdef UM_PHYSICS
+  use create_fd_prognostics_mod,          only : create_fd_prognostics
+  use init_ancils_mod,                    only : create_fd_ancils, &
+                                                 create_fd_ancils_idealised
+  use process_inputs_alg_mod,             only : process_inputs_alg
+  use process_urban_alg_mod,              only : process_urban_alg
+  use update_tstar_alg_mod,               only : update_tstar_alg
+  use variable_fields_mod,                only : init_variable_fields
+  use lfric_xios_time_axis_mod,           only : regridder
+  use intermesh_mappings_alg_mod,         only : map_scalar_intermesh
+  use iau_config_mod,                     only : iau_use_pertinc
+  use casim_activate_alg_mod,             only : casim_activate_alg
+  use microphysics_config_mod,            only : microphysics_casim
+  use stochastic_physics_config_mod,      only : use_spt, &
+                                                 use_skeb, &
+                                                 use_random_parameters, &
+                                                 ens_memb
+  use random_seed_gen_alg_mod,            only : random_seed_gen_alg
+  use stph_rp_main_alg_mod,               only : stph_rp_init_alg
+#endif
+  use linked_list_mod,                    only : linked_list_type, &
+                                                 linked_list_item_type
+  use energy_correction_config_mod,       only : encorr_usage, &
+                                                 encorr_usage_none
+  use compute_total_energy_alg_mod,       only : compute_total_energy_alg
+  use compute_total_mass_alg_mod,         only : compute_total_mass_alg
+  use compute_column_integral_kernel_mod, &
+                                     only : compute_column_integral_kernel_type
+  use sci_field_to_scalar_alg_mod,        only : field_to_scalar_alg
+  use fs_continuity_mod,                  only : W1, W2
+#ifdef UM_PHYSICS
+  use planet_config_mod,                  only: rgas => rd
+  use dust_parameters_mod,                only: rhop_def
+  use aerosol_config_mod,                 only : glomap_mode, &
+                                                 glomap_mode_dust_and_clim
+  use section_choice_config_mod,          only : aerosol, aerosol_um
+  use dust_transform_kernel_mod,          only: dust_transform_kernel_type
+#endif
+
+  implicit none
+
+  private
+
+  ! Set these to select how to initialize model prognostic fields
+  integer(i_def) :: prognostic_init_choice, ancil_choice
+
+  public create_model_data, finalise_model_data, &
+         initialise_model_data, output_model_data
+
+contains
+  !> @brief Split single prognostic field into components
+  !> @param[in]    prognostics   Prognostic field collection
+  !> @param[in]    fs            Complex function space
+  !> @param[in]    name          Name of field to be split into components
+  !> @param[in]    h_name        Name of horizontal component
+  !> @param[in]    v_name        Name of vertical component
+  subroutine split_single_complex_field(prognostics, fs, name, h_name, v_name)
+
+    use split_w2_field_kernel_mod,   only: split_w2_field_kernel_type
+    use sci_geometric_constants_mod, only: get_face_selector_ew, &
+                                           get_face_selector_ns
+
+    implicit none
+
+    type(field_collection_type), intent(in) :: prognostics
+    integer(i_def),              intent(in) :: fs
+    character(*),                intent(in) :: name
+    character(*),                intent(in) :: h_name
+    character(*),                intent(in) :: v_name
+
+    character(26), parameter :: routine_name = 'split_single_complex_field'
+
+    type( field_type ),         pointer :: field
+    type( field_type ),         pointer :: h_field
+    type( field_type ),         pointer :: v_field
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+
+    if (.not. prognostics%field_exists(h_name)) then
+      ! legacy checkpointing
+      return
+    end if
+
+    call prognostics%get_field(name, field)
+    call prognostics%get_field(h_name, h_field)
+    call prognostics%get_field(v_name, v_field)
+
+    select case (fs)
+    case (W1)
+      call log_event(                                                           &
+        'unsupported function space W1 in ' // routine_name, log_level_error)
+    case (W2)
+      face_selector_ew => get_face_selector_ew(field%get_mesh_id())
+      face_selector_ns => get_face_selector_ns(field%get_mesh_id())
+      call invoke( split_w2_field_kernel_type(h_field, v_field, field, &
+                                              face_selector_ew,        &
+                                              face_selector_ns) )
+    case default
+      call log_event(                                                           &
+        'unexpected function space in ' // routine_name, log_level_error)
+    end select
+
+  end subroutine split_single_complex_field
+
+  !> @brief Restore single prognostic field from components
+  !> @param[in]    prognostics   Prognostic field collection
+  !> @param[in]    fs            Complex function space
+  !> @param[in]    name          Name of field to be restored from components
+  !> @param[in]    h_name        Name of horizontal component
+  !> @param[in]    v_name        Name of vertical component
+  subroutine combine_single_complex_field(prognostics, fs, name, h_name, v_name)
+
+    use combine_w2_field_kernel_mod, only: combine_w2_field_kernel_type
+    use sci_geometric_constants_mod, only: get_face_selector_ew, &
+                                           get_face_selector_ns
+
+    implicit none
+
+    type(field_collection_type), intent(in) :: prognostics
+    integer(i_def),              intent(in) :: fs
+    character(*),                intent(in) :: name
+    character(*),                intent(in) :: h_name
+    character(*),                intent(in) :: v_name
+
+    character(28), parameter :: routine_name = 'combine_single_complex_field'
+
+    type( field_type ),         pointer :: field
+    type( field_type ),         pointer :: h_field
+    type( field_type ),         pointer :: v_field
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+
+    if (.not. prognostics%field_exists(h_name)) then
+      ! legacy checkpointing
+      return
+    end if
+
+    call prognostics%get_field(name, field)
+    call prognostics%get_field(h_name, h_field)
+    call prognostics%get_field(v_name, v_field)
+
+    select case (fs)
+    case (W1)
+      call log_event(                                                           &
+        'unsupported function space W1 in ' // routine_name, log_level_error)
+    case (W2)
+      face_selector_ew => get_face_selector_ew(field%get_mesh_id())
+      face_selector_ns => get_face_selector_ns(field%get_mesh_id())
+      call invoke( combine_w2_field_kernel_type(field, h_field, v_field, &
+                                                face_selector_ew,        &
+                                                face_selector_ns) )
+    case default
+      call log_event(                                                           &
+        'unexpected function space in ' // routine_name, log_level_error)
+    end select
+
+  end subroutine combine_single_complex_field
+
+  !> @brief Split prognostic W2 and W1 fields into components
+  !>         by using W2 = W2H + W2V and W1 = W1H + W1V
+  !> @param[in]    prognostic_fields   Prognostic field collection
+  subroutine split_complex_prognostics( prognostic_fields )
+
+    implicit none
+
+    type(field_collection_type), intent(in) :: prognostic_fields
+
+    call split_single_complex_field(prognostic_fields, W2,                      &
+      'u', 'h_u', 'v_u')
+
+    if (prognostic_fields%field_exists('lbc_u')) then
+      call split_single_complex_field(prognostic_fields, W2,                    &
+        'lbc_u', 'lbc_h_u', 'lbc_v_u')
+      call split_single_complex_field(prognostic_fields, W2,                    &
+        'boundary_u_diff', 'boundary_h_u_diff', 'boundary_v_u_diff')
+      call split_single_complex_field(prognostic_fields, W2,                    &
+        'boundary_u_driving', 'boundary_h_u_driving', 'boundary_v_u_driving')
+    end if
+
+  end subroutine split_complex_prognostics
+
+  !> @brief Restore W2 and W1 fields from components
+  !>        by using W2 = W2H + W2V and W1 = W1H + W1V
+  !> @param[in]    prognostic_fields   Prognostic field collection
+  subroutine combine_complex_prognostics( prognostic_fields )
+
+    implicit none
+
+    type(field_collection_type), intent(in) :: prognostic_fields
+
+    call combine_single_complex_field(prognostic_fields, W2,                    &
+      'u', 'h_u', 'v_u')
+
+    if (prognostic_fields%field_exists('lbc_u')) then
+      call combine_single_complex_field(prognostic_fields, W2,                  &
+        'lbc_u', 'lbc_h_u', 'lbc_v_u')
+      call combine_single_complex_field(prognostic_fields, W2,                  &
+        'boundary_u_diff', 'boundary_h_u_diff', 'boundary_v_u_diff')
+      call combine_single_complex_field(prognostic_fields, W2,                  &
+        'boundary_u_driving', 'boundary_h_u_driving', 'boundary_v_u_driving')
+    end if
+  end subroutine combine_complex_prognostics
+
+  !> @brief Create the fields contained in model_data
+  !> @param[inout] modeldb   The working data set for a model run
+  !> @param[in]    mesh      The current 3d mesh
+  !> @param[in]    twod_mesh The current 2d mesh
+  !> @param[in]    aerosol_mesh      Aerosol 3d mesh
+  !> @param[in]    aerosol_twod_mesh Aerosol 2d mesh
+subroutine create_model_data( modeldb,      &
+                              mesh,         &
+                              twod_mesh,    &
+                              aerosol_mesh, &
+                              aerosol_twod_mesh )
+
+
+    implicit none
+
+    type( modeldb_type ), intent(inout)       :: modeldb
+    type( mesh_type ),    intent(in), pointer :: mesh
+    type( mesh_type ),    intent(in), pointer :: twod_mesh
+    type( mesh_type ),    intent(in), pointer :: aerosol_mesh
+    type( mesh_type ),    intent(in), pointer :: aerosol_twod_mesh
+
+    type(field_mapper_type), target :: field_mapper
+
+    type(field_collection_type), pointer :: depository
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_array_type)               :: mr_array_local
+    type(field_array_type), pointer      :: mr_array
+    type(field_array_type)               :: moist_dyn_array_local
+    type(field_array_type), pointer      :: moist_dyn_array
+    type(field_array_type)               :: moist_dyn_ref_array_local
+    type(field_array_type), pointer      :: moist_dyn_ref_array
+    type(field_array_type)               :: ls_mr_array_local
+    type(field_array_type)               :: ls_moist_dyn_array_local
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: diagnostic_fields
+    type(field_collection_type), pointer :: turbulence_fields
+    type(field_collection_type), pointer :: soil_fields
+    type(field_collection_type), pointer :: snow_fields
+    type(field_collection_type), pointer :: chemistry_fields
+    type(field_collection_type), pointer :: surface_fields
+    type(field_collection_type), pointer :: convection_fields
+    type(field_collection_type), pointer :: stph_fields
+    type(field_collection_type), pointer :: ancil_fields
+    type(field_collection_type), pointer :: electric_fields
+    type(field_collection_type), pointer :: orography_fields
+    type(field_collection_type), pointer :: adv_tracer_all_outer
+    type(field_collection_type), pointer :: adv_tracer_last_outer
+    type(field_collection_type), pointer :: con_tracer_all_outer
+    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: microphysics_fields
+    type(field_collection_type), pointer :: derived_fields
+    type(field_collection_type), pointer :: cloud_fields
+    type(field_collection_type), pointer :: aerosol_fields
+    type(field_collection_type), pointer :: lbc_fields
+    type(field_collection_type), pointer :: radiation_fields
+    type(field_collection_type), pointer :: fd_fields
+
+    type(gungho_time_axes_type), pointer :: model_axes
+
+    !-------------------------------------------------------------------------
+    ! Select how to initialize model prognostic fields
+    !-------------------------------------------------------------------------
+
+    ! This way of setting up the initialisation options is not ideal, but
+    ! pragmatic for now and avoids extra namelist changes. It should be
+    ! reviewed in the next round of driver layer refactoring
+
+    ! Get the specified namelist options for prognostic initialisation
+    prognostic_init_choice = init_option
+    ancil_choice = ancil_option
+
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
+
+    ! If checkpoint reading has been specified then override these options
+    if (checkpoint_read) then
+      prognostic_init_choice = init_option_checkpoint_dump
+      if ( ancil_option /= ancil_option_updating ) then
+        ancil_choice = ancil_option_none
+      end if
+    end if
+
+    !-------------------------------------------------------------------------
+    ! Instantiate the fields
+    !-------------------------------------------------------------------------
+
+    ! Create Field bundles for moisture variables
+    ! First, create a collection to put them in
+    call modeldb%fields%add_empty_field_collection("moisture_fields", table_len = 10)
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+    lbc_fields => modeldb%fields%get_field_collection("lbc_fields")
+
+    call moist_dyn_array_local%initialise(num_moist_factors, name="moist_dyn")
+    call moisture_fields%add_field(moist_dyn_array_local)
+    ! The array in the collection will be a copy - so get that version
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+
+    ! Reference moist dynamics factors required if checkpointing fields for semi-implicit operator
+    ! recomputation
+    call moist_dyn_ref_array_local%initialise(num_moist_factors, name="moist_dyn_ref")
+    call moisture_fields%add_field(moist_dyn_ref_array_local)
+    ! The array in the collection will be a copy - so get that version
+    call moisture_fields%get_field("moist_dyn_ref", moist_dyn_ref_array)
+
+    call mr_array_local%initialise(nummr, name="mr")
+    call moisture_fields%add_field(mr_array_local)
+    call moisture_fields%get_field("mr", mr_array)
+
+    call ls_moist_dyn_array_local%initialise(num_moist_factors, name="ls_moist_dyn")
+    call moisture_fields%add_field(ls_moist_dyn_array_local)
+
+    call ls_mr_array_local%initialise(nummr, name="ls_mr")
+    call moisture_fields%add_field(ls_mr_array_local)
+
+    depository => modeldb%fields%get_field_collection("depository")
+
+    diagnostic_fields => modeldb%fields%get_field_collection("diagnostic_fields")
+
+    call modeldb%fields%add_empty_field_collection("turbulence_fields", table_len = 100)
+    call modeldb%fields%add_empty_field_collection("soil_fields", table_len = 100)
+    call modeldb%fields%add_empty_field_collection("snow_fields", table_len = 100)
+    call modeldb%fields%add_empty_field_collection("chemistry_fields", table_len = 100)
+    call modeldb%fields%add_empty_field_collection("surface_fields", table_len = 100)
+    call modeldb%fields%add_empty_field_collection("convection_fields", table_len = 100)
+    call modeldb%fields%add_empty_field_collection("stph_fields", table_len = 100)
+    call modeldb%fields%add_empty_field_collection("ancil_fields", table_len = 100)
+
+    turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
+    soil_fields => modeldb%fields%get_field_collection("soil_fields")
+    snow_fields => modeldb%fields%get_field_collection("snow_fields")
+    chemistry_fields => modeldb%fields%get_field_collection("chemistry_fields")
+    surface_fields => modeldb%fields%get_field_collection("surface_fields")
+    convection_fields => modeldb%fields%get_field_collection("convection_fields")
+    stph_fields => modeldb%fields%get_field_collection("stph_fields")
+    ancil_fields => modeldb%fields%get_field_collection("ancil_fields")
+    call modeldb%fields%add_empty_field_collection("electric_fields", table_len = 100)
+    electric_fields => modeldb%fields%get_field_collection("electric_fields")
+    call modeldb%fields%add_empty_field_collection("orography_fields", table_len = 100)
+    orography_fields => modeldb%fields%get_field_collection("orography_fields")
+    call modeldb%fields%add_empty_field_collection("adv_tracer_all_outer", table_len = 100)
+    adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
+    call modeldb%fields%add_empty_field_collection("adv_tracer_last_outer", table_len = 100)
+    adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
+    call modeldb%fields%add_empty_field_collection("con_tracer_all_outer", table_len = 100)
+    con_tracer_all_outer => modeldb%fields%get_field_collection("con_tracer_all_outer")
+    call modeldb%fields%add_empty_field_collection("con_tracer_last_outer", table_len = 100)
+    con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+    call modeldb%fields%add_empty_field_collection("microphysics_fields", table_len = 100)
+    microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
+    call modeldb%fields%add_empty_field_collection("derived_fields", table_len = 100)
+    derived_fields => modeldb%fields%get_field_collection("derived_fields")
+    call modeldb%fields%add_empty_field_collection("cloud_fields", table_len = 100)
+    cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+    call modeldb%fields%add_empty_field_collection("aerosol_fields", table_len = 100)
+    aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+    radiation_fields  => modeldb%fields%get_field_collection("radiation_fields")
+    fd_fields         => modeldb%fields%get_field_collection("fd_fields")
+
+    call field_mapper%init( depository,                               &
+                            moisture_fields,                          &
+                            prognostic_fields,                        &
+                            adv_tracer_all_outer,                     &
+                            adv_tracer_last_outer,                    &
+                            con_tracer_all_outer,                     &
+                            con_tracer_last_outer,                    &
+                            derived_fields,                           &
+                            radiation_fields,                         &
+                            microphysics_fields,                      &
+                            electric_fields,                          &
+                            orography_fields,                         &
+                            turbulence_fields,                        &
+                            convection_fields,                        &
+                            cloud_fields,                             &
+                            surface_fields,                           &
+                            soil_fields,                              &
+                            snow_fields,                              &
+                            chemistry_fields,                         &
+                            aerosol_fields,                           &
+                            stph_fields,                              &
+                            lbc_fields,                               &
+                            model_axes )
+
+    ! Create gungho prognostics and auxiliary (diagnostic) fields
+    call create_gungho_prognostics( mesh,                             &
+                                    twod_mesh,                        &
+                                    aerosol_mesh,                     &
+                                    aerosol_twod_mesh,                &
+                                    field_mapper,                     &
+                                    modeldb%clock )
+
+    if (limited_area) then
+      call create_lbc_fields( mesh, twod_mesh,  aerosol_mesh, aerosol_twod_mesh, &
+                              field_mapper, modeldb%clock )
+    end if
+
+    if ( iau ) call create_iau_fields( mesh, twod_mesh,                      &
+                                       depository,                           &
+                                       prognostic_fields, &
+                                       modeldb )
+
+    ! Create prognostics used by physics
+    if (use_physics) then
+      call create_physics_prognostics( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, field_mapper, &
+                                       modeldb%clock )
+
+#ifdef UM_PHYSICS
+      ! Create FD prognostic fields
+      select case ( prognostic_init_choice )
+        case ( init_option_fd_start_dump )
+          call create_fd_prognostics(mesh, twod_mesh,       &
+                                     fd_fields,             &
+                                     depository)
+      end select
+
+      ! Create and populate collection of fields to be read from ancillary files
+      select case ( ancil_choice )
+        case ( ancil_option_fixed, ancil_option_updating )
+          call create_fd_ancils( depository,                      &
+                                 ancil_fields,                    &
+                                 mesh, twod_mesh ,                &
+                                 aerosol_mesh,                    &
+                                 aerosol_twod_mesh,               &
+                                 model_axes%ancil_times_list )
+        case ( ancil_option_idealised )
+          call create_fd_ancils_idealised( depository, &
+                                           ancil_fields, &
+                                           mesh, twod_mesh )
+      end select
+#endif
+    end if
+
+  end subroutine create_model_data
+
+  !------------------------------------------------------------------------------
+  !> @brief Initialises the working data set dependent of namelist
+  !>        configuration.
+  !>
+  !> @param [inout] modeldb The working data set for a model run.
+  !>
+  subroutine initialise_model_data( modeldb, mesh, twod_mesh )
+
+    implicit none
+
+    type(modeldb_type), intent(inout) :: modeldb
+    type( mesh_type ),  intent(in), pointer :: mesh
+    type( mesh_type ),  intent(in), pointer :: twod_mesh
+
+    type( field_type ), pointer :: theta => null()
+    type( field_type ), pointer :: rho   => null()
+    type( field_type ), pointer :: u     => null()
+    type( field_type ), pointer :: exner => null()
+    type( field_type ), pointer :: accumulated_fluxes    => null()
+    type( field_type ), pointer :: ageofair => null()
+
+    type( io_value_type ),               pointer :: temp_corr_io_value
+    type( io_value_type ),               pointer :: random_seed_io_value
+    procedure( io_operation_interface ), pointer :: io_op_read_ptr
+    procedure( io_operation_interface ), pointer :: io_op_write_ptr
+
+    ! Dust fields
+#ifdef UM_PHYSICS
+    type( field_type ), pointer :: dust1_mmr
+    type( field_type ), pointer :: dust2_mmr
+    type( field_type ), pointer :: n_acc_ins
+    type( field_type ), pointer :: acc_ins_du
+    type( field_type ), pointer :: n_cor_ins
+    type( field_type ), pointer :: cor_ins_du
+#endif
+
+    type(field_collection_type),   pointer :: prognostic_fields
+    type( field_collection_type ), pointer :: depository => null()
+    type( field_collection_type ), pointer :: field_collection_ptr => null()
+
+    type(field_collection_type), pointer :: turbulence_fields
+    type(field_collection_type), pointer :: soil_fields
+    type(field_collection_type), pointer :: snow_fields
+    type(field_collection_type), pointer :: chemistry_fields
+    type(field_collection_type), pointer :: surface_fields
+    type(field_collection_type), pointer :: convection_fields
+    type(field_collection_type), pointer :: stph_fields
+    type(field_collection_type), pointer :: ancil_fields
+    type(field_collection_type), pointer :: electric_fields
+    type(field_collection_type), pointer :: orography_fields
+    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: microphysics_fields
+    type(field_collection_type), pointer :: derived_fields
+    type(field_collection_type), pointer :: cloud_fields
+    type(field_collection_type), pointer :: aerosol_fields
+
+    type(field_collection_type),   pointer :: fd_fields
+
+    type(gungho_time_axes_type), pointer :: model_axes
+
+    real(r_def), pointer :: total_dry_mass
+    real(r_def), pointer :: total_energy_previous
+
+    type(field_collection_type), pointer :: moisture_fields => null()
+    type(field_array_type), pointer      :: mr_array => null()
+    type(field_array_type), pointer      :: moist_dyn_array => null()
+    type(field_collection_type), pointer :: lbc_fields
+    type(field_collection_type), pointer :: radiation_fields
+
+    character(str_def) :: string
+    integer(i_def) :: i
+    integer(i_def) :: random_seed_size
+    integer(i_def), allocatable :: ranseed(:)
+#ifdef UM_PHYSICS
+    integer(i_def) :: ensemble_number
+    procedure(regridder), pointer :: regrid_operation => null()
+
+    regrid_operation => map_scalar_intermesh
+#endif
+
+    depository => modeldb%fields%get_field_collection("depository")
+    electric_fields => modeldb%fields%get_field_collection("electric_fields")
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+
+    turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
+    soil_fields => modeldb%fields%get_field_collection("soil_fields")
+    snow_fields => modeldb%fields%get_field_collection("snow_fields")
+    chemistry_fields => modeldb%fields%get_field_collection("chemistry_fields")
+    surface_fields => modeldb%fields%get_field_collection("surface_fields")
+    convection_fields => modeldb%fields%get_field_collection("convection_fields")
+    stph_fields => modeldb%fields%get_field_collection("stph_fields")
+    ancil_fields => modeldb%fields%get_field_collection("ancil_fields")
+    orography_fields => modeldb%fields%get_field_collection("orography_fields")
+    con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+    microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
+    derived_fields => modeldb%fields%get_field_collection("derived_fields")
+    cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+    aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+    lbc_fields => modeldb%fields%get_field_collection("lbc_fields")
+    radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
+    fd_fields => modeldb%fields%get_field_collection("fd_fields")
+
+    ! Get model_axes out of modeldb
+    model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
+
+    temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value' )
+    if ( stochastic_physics == stochastic_physics_um ) then
+      random_seed_io_value => get_io_value( modeldb%values, 'random_seed_io_value' )
+    end if
+    call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
+    call modeldb%values%get_value( 'total_energy_previous', &
+                                   total_energy_previous )
+
+    ! Initialise all the physics fields here. We'll then re initialise
+    ! them below if need be
+    if (use_physics) then
+          call init_physics_prognostics_alg( radiation_fields,                       &
+                                             microphysics_fields,                    &
+                                             electric_fields,                        &
+                                             orography_fields,                       &
+                                             turbulence_fields,                      &
+                                             convection_fields,                      &
+                                             cloud_fields,                           &
+                                             surface_fields,                         &
+                                             soil_fields,                            &
+                                             snow_fields,                            &
+                                             chemistry_fields,                       &
+                                             aerosol_fields,                         &
+                                             stph_fields)
+
+    end if
+
+    if ( transport_ageofair ) then
+      ! Age-of-air needs initialising to zero in case this is a new run
+      ! If picking up from a checkpoint, this will be overwritten
+      call con_tracer_last_outer%get_field('ageofair', ageofair)
+      call init_ageofair( ageofair )
+    end if
+
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+
+    ! Ideally, setting IO behaviour should be part of the initialisation
+    ! like with the fields but currently there is no support for this so they are placed here
+    io_op_read_ptr => checkpoint_read_value
+    io_op_write_ptr => checkpoint_write_value
+    if ( encorr_usage /= encorr_usage_none ) then
+      call temp_corr_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
+      call temp_corr_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+    end if
+    if ( stochastic_physics == stochastic_physics_um ) then
+      call random_seed_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
+      call random_seed_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
+    end if
+    ! Initialise prognostic fields appropriately
+    select case ( prognostic_init_choice )
+
+      case ( init_option_analytic )
+
+        ! Initialise prognostics analytically according to
+        ! namelist options
+
+        call init_gungho_prognostics( prognostic_fields,                    &
+                                      mr_array%bundle,                      &
+                                      moist_dyn_array%bundle                &
+                                      )
+
+      case ( init_option_checkpoint_dump )
+
+        ! Initialize prognostics using a checkpoint file
+        ! from a previous run
+
+        call read_checkpoint( prognostic_fields,                    &
+                              modeldb%clock%get_first_step() - 1,   &
+                              checkpoint_stem_name )
+        call combine_complex_prognostics( prognostic_fields )
+
+        ! Update factors for moist dynamics
+        call moist_dyn_factors_alg( moist_dyn_array%bundle, &
+                                    mr_array%bundle )
+
+      case ( init_option_fd_start_dump )
+
+        if (use_physics) then
+
+          ! Initialise FD prognostic fields from a UM2LFRic dump
+
+          ! Read in from a UM2LFRic dump file
+          call init_fd_prognostics_dump( fd_fields )
+
+          ! Populate prognostics from input finite difference fields
+          call map_fd_to_prognostics( modeldb%configuration,                &
+                                      prognostic_fields,                    &
+                                      mr_array%bundle,                      &
+                                      moist_dyn_array%bundle,               &
+                                      fd_fields )
+          ! Transform UM 2-bin dust to UKCA LFRIC 2-mode dust
+#ifdef UM_PHYSICS
+          if ( aerosol == aerosol_um .and. &
+               glomap_mode == glomap_mode_dust_and_clim ) then
+
+            ! Load UM dust fields
+            call fd_fields%get_field('dust1_mmr', dust1_mmr)
+            call fd_fields%get_field('dust2_mmr', dust2_mmr)
+            ! Load LFRIC dust fields
+            call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+            call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+            call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+            call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+
+            ! Transform UM dust fields to LFRIC dust fields
+            call invoke(dust_transform_kernel_type ( n_acc_ins, acc_ins_du, &
+                                                     n_cor_ins, cor_ins_du, &
+                                                     dust1_mmr, dust2_mmr,  &
+                                                     rhop_def, rgas ) )
+
+            call fd_fields%remove_field("dust1_mmr")
+            call depository%remove_field("dust1_mmr")
+            call fd_fields%remove_field("dust2_mmr")
+            call depository%remove_field("dust2_mmr")
+
+          end if
+#endif
+        else
+          call log_event("Gungho: Prognostic initialisation from an FD dump not valid "// &
+                          "if use_physics is .false., stopping program! ",LOG_LEVEL_ERROR)
+
+        end if
+
+      case ( init_option_fe_start_dump )
+        ! Initialise FE prognostic fields from an FE dump
+        ! Not yet supported
+        call log_event("Gungho: Prognostic initialisation from an FE dump not yet supported, "// &
+                          "stopping program! ",LOG_LEVEL_ERROR)
+      case default
+        ! No valid initialisation option selected
+        call log_event("Gungho: No valid prognostic initialisation option selected, "// &
+                          "stopping program! ",LOG_LEVEL_ERROR)
+
+    end select
+
+#ifdef COUPLED
+    ! Initialise coupling send fields to zero
+    if(l_esm_couple) call zero_coupling_send_fields(modeldb)
+#endif
+
+    if (limited_area) then
+
+      select case( lbc_option )
+        case ( lbc_option_analytic )
+          call init_lbcs_analytic_alg( prognostic_fields,     &
+                                       lbc_fields, modeldb )
+
+        case ( lbc_option_gungho_file )
+          call init_lbcs_file_alg( modeldb%configuration,     &
+                                   model_axes%lbc_times_list, &
+                                   modeldb%clock,             &
+                                   lbc_fields )
+
+        case ( lbc_option_um2lfric_file )
+          call init_lbcs_file_alg( modeldb%configuration,     &
+                                   model_axes%lbc_times_list, &
+                                   modeldb%clock,             &
+                                   lbc_fields )
+
+        case ( lbc_option_none )
+          call log_event( "Gungho: No LBC option specified, yet limited area", LOG_LEVEL_ERROR )
+      end select
+
+    end if
+
+
+    ! Assuming this is only relevant for physics runs at the moment
+    if (use_physics) then
+
+      ! Initial derived fields
+      call prognostic_fields%get_field('u',u)
+      call prognostic_fields%get_field('theta',theta)
+      call prognostic_fields%get_field('exner',exner)
+      call prognostic_fields%get_field('rho',rho)
+
+      if ( encorr_usage /= encorr_usage_none ) then
+        if ( geometry /= geometry_spherical ) then
+          write(log_scratch_space, '(a)') &
+          'Energy correction valid for spherical geometry only.'
+          call log_event(log_scratch_space, log_level_error)
+        end if
+        call derived_fields%get_field('accumulated_fluxes',accumulated_fluxes)
+      end if
+
+      if (.not. checkpoint_read .and. zero_w2v_wind) then
+        call set_any_dof_alg(u, T, 0.0_r_def)
+      end if
+      call map_physics_fields_alg(u, exner, rho, theta,     &
+                                  moist_dyn_array%bundle,     &
+                                  derived_fields)
+
+#ifdef UM_PHYSICS
+      ! Initialise Casim numbers if they aren't coming from an LFRic dump
+      if (microphysics_casim .and. &
+           ( prognostic_init_choice /= init_option_checkpoint_dump ) ) then
+        call casim_activate_alg( theta, mr_array%bundle,                   &
+                                 derived_fields,                           &
+                                 cloud_fields,                             &
+                                 microphysics_fields,                      &
+                                 convection_fields,                        &
+                                 initialise=.true.)
+      end if
+#endif
+
+      ! Initialise ancillary fields
+      select case ( ancil_choice )
+        case ( ancil_option_none )
+          call log_event( "Gungho: No ancillaries to be read for this run.", LOG_LEVEL_INFO )
+#ifdef UM_PHYSICS
+        case ( ancil_option_start_dump )
+          call log_event( "Gungho: Ancillaries are being read from start dump ", LOG_LEVEL_INFO )
+          ! Update the tiled surface temperature with the calculated tstar
+          call update_tstar_alg(surface_fields,                           &
+                                fd_fields, put_field=.true. )
+        case ( ancil_option_fixed, ancil_option_updating )
+          call init_variable_fields( model_axes%ancil_times_list,         &
+                                     modeldb%clock,                       &
+                                     ancil_fields,                        &
+                                     regrid_operation )
+          if (.not. checkpoint_read) then
+            ! These parts only need to happen on a new run
+            call log_event( "Gungho: Reading ancillaries from file ", LOG_LEVEL_INFO )
+            if (init_option == init_option_fd_start_dump) then
+                 call read_state( ancil_fields )
+            end if
+            call process_inputs_alg( ancil_fields,                      &
+                                                        fd_fields,      &
+                                     surface_fields,                    &
+                                     soil_fields,                       &
+                                     snow_fields,                       &
+                                     radiation_fields )
+
+            ! Free up any prognostics not required
+            if (init_option == init_option_fd_start_dump) then
+              call fd_fields%remove_field("can_water_in")
+              call depository%remove_field("can_water_in")
+              call fd_fields%remove_field("land_tile_temp")
+              call depository%remove_field("land_tile_temp")
+              call fd_fields%remove_field("tstar_sea_ice")
+              call depository%remove_field("tstar_sea_ice")
+              call fd_fields%remove_field("tile_snow_mass_in")
+              call depository%remove_field("tile_snow_mass_in")
+              call fd_fields%remove_field("n_snow_layers_in")
+              call depository%remove_field("n_snow_layers_in")
+              call fd_fields%remove_field("snow_depth_in")
+              call depository%remove_field("snow_depth_in")
+              call fd_fields%remove_field("tile_snow_rgrain_in")
+              call depository%remove_field("tile_snow_rgrain_in")
+              call fd_fields%remove_field("snow_under_canopy_in")
+              call depository%remove_field("snow_under_canopy_in")
+              call fd_fields%remove_field("snowpack_density_in")
+              call depository%remove_field("snowpack_density_in")
+            end if
+
+          end if
+
+          ! Urban fields need calculating even on checkpoint-read
+          call process_urban_alg(surface_fields)
+          call surface_fields%remove_field("urbemisw")
+          call depository%remove_field("urbemisw")
+          call surface_fields%remove_field("urbemisr")
+          call depository%remove_field("urbemisr")
+
+          ! Free up any ancils which are no longer needed
+          if (prognostic_init_choice == init_option_fd_start_dump) then
+            call ancil_fields%remove_field("land_area_fraction")
+            call depository%remove_field("land_area_fraction")
+            call ancil_fields%remove_field("land_tile_fraction")
+            call depository%remove_field("land_tile_fraction")
+            call ancil_fields%remove_field("stdev_topog_index")
+            call depository%remove_field("stdev_topog_index")
+            call ancil_fields%remove_field("grad_x_orog")
+            call depository%remove_field("grad_x_orog")
+            call ancil_fields%remove_field("grad_y_orog")
+            call depository%remove_field("grad_y_orog")
+          end if
+          if (ancil_option == ancil_option_fixed) then
+            if (sst_source /= sst_source_start_dump) then
+              call ancil_fields%remove_field("tstar_sea")
+              call depository%remove_field("tstar_sea")
+            end if
+            if (.not. l_esm_couple) then
+              call ancil_fields%remove_field("sea_ice_fraction")
+              call depository%remove_field("sea_ice_fraction")
+            end if
+            ! Time axes are no longer needed
+            call model_axes%ancil_times_list%clear()
+          end if
+          if ( snow_source == snow_source_surf ) then
+            call ancil_fields%remove_field("tile_snow_rgrain_in")
+            call depository%remove_field("tile_snow_rgrain_in")
+            call ancil_fields%remove_field("tile_snow_mass_in")
+            call depository%remove_field("tile_snow_mass_in")
+            call ancil_fields%remove_field("snow_under_canopy_in")
+            call depository%remove_field("snow_under_canopy_in")
+            call ancil_fields%remove_field("snow_depth_in")
+            call depository%remove_field("snow_depth_in")
+            call ancil_fields%remove_field("snowpack_density_in")
+            call depository%remove_field("snowpack_density_in")
+            call ancil_fields%remove_field("n_snow_layers_in")
+            call depository%remove_field("n_snow_layers_in")
+          end if
+
+        case ( ancil_option_idealised )
+          call init_variable_fields( model_axes%ancil_times_list,         &
+                                     modeldb%clock,                       &
+                                     ancil_fields,                        &
+                                     regrid_operation )
+          if (.not. checkpoint_read) then
+            call log_event( "Gungho: Reading ancillaries from file ", LOG_LEVEL_INFO )
+            call read_state( ancil_fields )
+          end if
+#endif
+        case default
+          ! No valid ancil option selected
+          call log_event("Gungho: No valid ancillary initialisation option selected, "// &
+                          "stopping program! ",LOG_LEVEL_ERROR)
+      end select
+
+      ! Initialise energy correction
+      if ( encorr_usage /= encorr_usage_none ) then
+        call compute_total_mass_alg( total_dry_mass, rho, mesh )
+
+        call compute_total_energy_alg( total_energy_previous,                 &
+                                       derived_fields,                        &
+                                       u, theta, exner, rho,                  &
+                                       mr_array%bundle,                       &
+                                       mesh, twod_mesh )
+
+        ! Initialise flux sum to zero
+        call invoke( setval_c(accumulated_fluxes, 0.0_r_def) )
+
+        if ( checkpoint_read ) then
+          ! Read the checkpointed temperature correction rate
+          call temp_corr_io_value%read_checkpoint()
+          write( log_scratch_space,                                     &
+                 '("restart_temperature_correction_rate = ", e30.22)' ) &
+            temp_corr_io_value%data(1)
+          call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+        else
+          temp_corr_io_value%data(1) = 0.0_r_def
+        end if
+
+      end if
+
+      if ( stochastic_physics == stochastic_physics_um ) then
+        random_seed_size = size(random_seed_io_value%data)
+        allocate(ranseed(random_seed_size))
+        ranseed(1:random_seed_size) = 0
+
+#ifdef UM_PHYSICS
+        if ( .not. checkpoint_read .or. use_random_parameters ) then
+          if ( use_spt .or. use_skeb .or. use_random_parameters ) then
+            ! Random seed will depend on ensemble member number
+            ensemble_number = ens_memb
+          else
+            ! Set ensemble number to zero for other users of random numbers
+            ensemble_number = 0
+          end if
+          call random_seed_gen_alg(ranseed, ensemble_number)
+
+          ! Initialise RP scheme (stochastic perturbed parameters)
+          if (use_random_parameters) then
+            call random_seed(put = ranseed(1:random_seed_size))
+            call stph_rp_init_alg( modeldb )
+          end if
+        end if
+#endif
+        if ( checkpoint_read ) then
+          ! Read the checkpointed random seed
+          call random_seed_io_value%read_checkpoint()
+
+          ! Convert into integer, because io_value_type can accept only real.
+          do i = 1, random_seed_size
+            ranseed(i) = nint(random_seed_io_value%data(i), i_def)
+          end do
+        end if
+
+        ! Set random seed for stochastic physics
+        call random_seed(put = ranseed(1:random_seed_size))
+
+        write( log_scratch_space, &
+               '(": Random seed generation: Size of random seed: ", I6)' ) &
+               random_seed_size
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+        write( string, '("(",A23, I3, "(I5))" )' ) '"Random Seed Values: ",', &
+               random_seed_size
+        write( log_scratch_space, trim(string) ) &
+               (ranseed(i), i=1,random_seed_size)
+        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+        deallocate(ranseed)
+      end if
+    end if
+
+    if ( iau ) then
+      call log_event( 'IAU: read file in initialise', LOG_LEVEL_INFO )
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
+      call read_state( field_collection_ptr )
+#ifdef UM_PHYSICS
+      if ( iau_use_pertinc ) then
+        call log_event( 'IAU: read pertinc file in initialise', LOG_LEVEL_INFO )
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_pert_fields")
+        call read_state( field_collection_ptr )
+      end if
+#endif
+    end if
+
+    if ( iau_surf ) then
+      call log_event( 'IAU: read surf inc file in initialise', LOG_LEVEL_INFO )
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_surf_fields")
+      call read_state( field_collection_ptr )
+    end if
+
+    if ( iau_sst ) then
+      call log_event( 'IAU: read sst inc file in initialise', LOG_LEVEL_INFO )
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_sst_fields")
+      call read_state( field_collection_ptr )
+    end if
+
+  end subroutine initialise_model_data
+
+  !----------------------------------------------------------------------------
+  !> @brief Writes out a checkpoint and dump file dependent on namelist
+  !> options
+  !> @param[inout] modeldb The working data set for the model run
+  !>
+  subroutine output_model_data( modeldb )
+
+    implicit none
+
+    type( modeldb_type ), intent(inout), target :: modeldb
+
+    type( field_collection_type ), pointer :: fd_fields
+    type( field_collection_type ), pointer :: prognostic_fields
+
+    type( io_value_type ), pointer :: random_seed_io_value
+    integer(i_def) :: i
+    integer(i_def) :: random_seed_size
+    integer(i_def), allocatable :: ranseed(:)
+    real(r_second), allocatable :: all_checkpoint_times(:)
+
+    ! Get pointers to field collections for use downstream
+    fd_fields => modeldb%fields%get_field_collection("fd_fields")
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+
+    !===================== Write fields to dump ======================!
+    if( use_physics ) then
+
+      ! Current dump writing is only relevant for physics runs at the moment
+      if (write_dump) then
+
+        call log_event("Gungho: writing FD fields to dump is not yet supported", LOG_LEVEL_ERROR)
+
+        ! Write prognostic fields to dump
+        call write_state(fd_fields)
+
+      end if
+
+    end if
+
+    !=================== Write fields to checkpoint files ====================!
+    if( checkpoint_write ) then
+
+      if ( stochastic_physics == stochastic_physics_um ) then
+        ! Get current random seed
+        random_seed_io_value => get_io_value(modeldb%values, 'random_seed_io_value')
+        random_seed_size = size(random_seed_io_value%data)
+        allocate(ranseed(random_seed_size))
+
+        call random_seed(get = ranseed(1:random_seed_size))
+
+        ! Convert into real, because io_value_type cannot accept integer.
+        do i = 1, random_seed_size
+          random_seed_io_value%data(i) = real(ranseed(i), r_def)
+        end do
+        deallocate(ranseed)
+      end if
+      call split_complex_prognostics( prognostic_fields )
+      call create_checkpoint_list( modeldb%clock, checkpoint_times, &
+                                    end_of_run_checkpoint, all_checkpoint_times )
+      call write_checkpoint( prognostic_fields, modeldb%values, modeldb%clock, &
+                              checkpoint_stem_name, all_checkpoint_times )
+    end if
+
+  end subroutine output_model_data
+
+  !>@brief Routine to destroy all the field collections in the working data set
+  !> @param[inout] modeldb The working data set for a model run
+  subroutine finalise_model_data( modeldb )
+
+    implicit none
+
+      type(modeldb_type), intent(inout) :: modeldb
+
+      type(field_collection_type), pointer :: depository
+      type(field_collection_type), pointer :: field_collection_ptr
+      type(field_collection_type), pointer :: moisture_fields
+      type(field_collection_type), pointer :: prognostic_fields
+      type(field_collection_type), pointer :: diagnostic_fields
+      type(field_collection_type), pointer :: turbulence_fields
+      type(field_collection_type), pointer :: soil_fields
+      type(field_collection_type), pointer :: snow_fields
+      type(field_collection_type), pointer :: chemistry_fields
+      type(field_collection_type), pointer :: surface_fields
+      type(field_collection_type), pointer :: convection_fields
+      type(field_collection_type), pointer :: stph_fields
+
+#ifdef COUPLED
+      type(field_collection_type), pointer :: cpl_snd_2d
+      type(field_collection_type), pointer :: cpl_rcv_2d
+      type(field_collection_type), pointer :: cpl_snd_0d
+#endif
+      type(field_collection_type), pointer :: electric_fields
+      type(field_collection_type), pointer :: orography_fields
+      type(field_collection_type), pointer :: adv_tracer_all_outer
+      type(field_collection_type), pointer :: adv_tracer_last_outer
+      type(field_collection_type), pointer :: con_tracer_all_outer
+      type(field_collection_type), pointer :: con_tracer_last_outer
+      type(field_collection_type), pointer :: microphysics_fields
+      type(field_collection_type), pointer :: derived_fields
+      type(field_collection_type), pointer :: cloud_fields
+      type(field_collection_type), pointer :: aerosol_fields
+      type(field_collection_type), pointer :: lbc_fields
+      type(field_collection_type), pointer :: radiation_fields
+      type(field_collection_type), pointer :: ls_fields
+      type(field_collection_type), pointer :: fd_fields
+
+      depository => modeldb%fields%get_field_collection("depository")
+      prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+      diagnostic_fields => modeldb%fields%get_field_collection("diagnostic_fields")
+      turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
+      soil_fields => modeldb%fields%get_field_collection("soil_fields")
+      snow_fields => modeldb%fields%get_field_collection("snow_fields")
+      chemistry_fields => modeldb%fields%get_field_collection("chemistry_fields")
+      surface_fields => modeldb%fields%get_field_collection("surface_fields")
+      convection_fields => modeldb%fields%get_field_collection("convection_fields")
+      stph_fields => modeldb%fields%get_field_collection("stph_fields")
+      electric_fields => modeldb%fields%get_field_collection("electric_fields")
+      orography_fields => modeldb%fields%get_field_collection("orography_fields")
+      adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
+      adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
+      con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+      con_tracer_all_outer => modeldb%fields%get_field_collection("con_tracer_all_outer")
+      microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
+      derived_fields => modeldb%fields%get_field_collection("derived_fields")
+      cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+      aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+      radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
+      ls_fields => modeldb%fields%get_field_collection("ls_fields")
+      fd_fields => modeldb%fields%get_field_collection("fd_fields")
+
+      ! Clear all the fields in each field collection
+      call depository%clear()
+      call prognostic_fields%clear()
+      call diagnostic_fields%clear()
+      call adv_tracer_last_outer%clear()
+      call adv_tracer_all_outer%clear()
+      call con_tracer_last_outer%clear()
+      call con_tracer_all_outer%clear()
+      call derived_fields%clear()
+      call radiation_fields%clear()
+      call microphysics_fields%clear()
+      call electric_fields%clear()
+      call orography_fields%clear()
+      call turbulence_fields%clear()
+      call convection_fields%clear()
+      call cloud_fields%clear()
+      call surface_fields%clear()
+      call soil_fields%clear()
+      call snow_fields%clear()
+      call chemistry_fields%clear()
+      call aerosol_fields%clear()
+      call stph_fields%clear()
+      call fd_fields%clear()
+#ifdef COUPLED
+      if(l_esm_couple) then
+         cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
+         cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
+         cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
+         call cpl_snd_2d%clear()
+         call cpl_rcv_2d%clear()
+         call cpl_snd_0d%clear()
+      endif
+#endif
+
+      if ( iau ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_fields")
+        call field_collection_ptr%clear()
+      end if
+
+      if ( iau_surf ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_surf_fields")
+        call field_collection_ptr%clear()
+      end if
+
+      if ( iau_sst ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_sst_fields")
+        call field_collection_ptr%clear()
+      end if
+
+#ifdef UM_PHYSICS
+      if ( iau_use_pertinc ) then
+        field_collection_ptr => modeldb%fields%get_field_collection("iau_pert_fields")
+        call field_collection_ptr%clear()
+      end if
+#endif
+
+      lbc_fields => modeldb%fields%get_field_collection("lbc_fields")
+      call lbc_fields%clear()
+      call ls_fields%clear()
+
+      moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+      call moisture_fields%clear()
+
+      call log_event( 'finalise_model_data: all fields have been cleared', &
+                       LOG_LEVEL_INFO )
+
+  end subroutine finalise_model_data
+
+end module gungho_init_fields_mod

@@ -1,0 +1,178 @@
+<!-- TODO : #325 Define fields to initialise for lfric2lfric miniapp -->
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+  <context id = "lfric2lfric_source">
+
+    <!-- Include axis definitions -->
+    <axis_definition src="./axis_def_main.xml"/>
+    <axis_definition src="./axis_def_urban1t.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="./grid_def_main.xml"/>
+
+    <!-- Local file definitions -->
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- File definition for LFRic checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+
+         <!-- Atmosphere fields -->
+        <field id="restart_upward_wind" name="upward_wind" long_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_h_wind" name="h_wind" long_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_grid" operation="once" />
+        <field id="restart_theta" name="theta" long_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_rho" name="rho" long_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" operation="once" />
+        <field id="restart_m_v" name="m_v" long_name="humidity_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_m_cf" name="m_cf" long_name="m_cf" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+
+        <!-- Cloud fields -->
+        <field id="restart_area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+
+        <!-- Turbulence fields -->
+        <field id="restart_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
+
+        <!-- Convection fields -->
+        <field id="restart_dd_mf_cb" name="dd_mf_cb" long_name="downdraft_massflux_at_cloud_base" unit="Pa s-1" domain_ref="face" operation="once" />
+
+        <!-- Snow fields -->
+        <field id="restart_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="restart_tile_n_snow_layers" name="tile_n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="restart_tile_snow_depth" name="tile_snow_depth" long_name="snow_depth_on_tiles" unit="m" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="restart_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="restart_snow_soot" name="snow_soot" long_name="snow_soot_content" unit="kg kg-1" domain_ref="face" operation="once" />
+        <field id="restart_tile_snow_under_canopy" name="tile_snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="restart_tile_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="restart_tile_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="restart_tile_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="restart_tile_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="restart_tile_snowpack_density" name="tile_snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" domain_ref="face" axis_ref="land_tiles" operation="once" />
+
+        <!-- Soil fields -->
+        <field id="restart_soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" domain_ref="face" axis_ref="soil_levels" operation="once" />
+        <field id="restart_soil_moisture" name="soil_moisture" long_name="soil_moisture_content" unit="kg kg-1" domain_ref="face" axis_ref="soil_levels" operation="once" />
+        <field id="restart_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" operation="once" />
+        <field id="restart_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="once" />
+        <field id="restart_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" domain_ref="face" operation="once" />
+
+        <!-- Surface fields -->
+        <field id="restart_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="once" />
+        <field id="restart_surface_conductance" name="surface_conductance" long_name="conductance" unit="m s-1" domain_ref="face" operation="once" />
+        <field id="restart_tile_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="restart_tile_temperature" name="tile_temperature" long_name="tile_temperature" unit="K" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="restart_tstar_sea_ice" name="tstar_sea_ice" long_name="sea_ice_surface_temperature" unit="K" domain_ref="face" operation="once" />
+        <field id="restart_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" operation="once" />
+
+
+        <!-- LBC fields-->
+        <field id="restart_lbc_theta" name="theta" long_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_lbc_rho" name="rho" long_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" operation="once" />
+        <field id="restart_lbc_m_v" name="m_v" long_name="m_v" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_lbc_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_lbc_m_r" name="m_r" long_name="m_r" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="restart_lbc_m_cf" name="m_cf" long_name="m_cf" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+
+      </file>
+    </file_definition>
+  </context>
+
+  <context id = "lfric2lfric_destination">
+    <!-- Include axis definitions -->
+    <axis_definition src="./axis_def_main.xml"/>
+    <axis_definition src="./axis_def_urban1t.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="./grid_def_main.xml"/>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+      <!-- File definition for LFRic checkpoint write -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+
+        <!-- Atmosphere fields -->
+        <field id="checkpoint_upward_wind" name="upward_wind" long_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_h_wind" name="h_wind" long_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_grid" operation="once" />
+        <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" unit="K" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_rho" name="rho" long_name="air_density" unit="kg m-3" prec="8" grid_ref="half_level_face_grid" operation="once" />
+        <field id="checkpoint_m_v" name="m_v" long_name="humidity_mixing_ratio" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_m_cf" name="m_cf" long_name="m_cf" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+
+        <!-- Cloud fields -->
+        <field id="checkpoint_area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+
+
+        <!-- Turbulence fields -->
+        <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+
+
+        <!-- Convection fields -->
+        <field id="checkpoint_dd_mf_cb" name="dd_mf_cb" long_name="downdraft_massflux_at_cloud_base" unit="Pa s-1" prec="8" domain_ref="face" operation="once" />
+
+
+        <!-- Snow fields -->
+        <field id="checkpoint_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="checkpoint_tile_n_snow_layers" name="tile_n_snow_layers" long_name="number_of_snow_layers" unit="1" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="checkpoint_tile_snow_depth" name="tile_snow_depth" long_name="snow_depth_on_tiles" unit="m" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="checkpoint_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="checkpoint_snow_soot" name="snow_soot" long_name="snow_soot_content" unit="kg kg-1" prec="8" domain_ref="face" operation="once" />
+        <field id="checkpoint_tile_snow_under_canopy" name="tile_snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="checkpoint_tile_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="checkpoint_tile_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="checkpoint_tile_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="checkpoint_tile_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="checkpoint_tile_snowpack_density" name="tile_snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+
+        <!-- Soil fields -->
+        <field id="checkpoint_soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" prec="8" domain_ref="face" axis_ref="soil_levels" operation="once" />
+        <field id="checkpoint_soil_moisture" name="soil_moisture" long_name="soil_moisture_content" unit="kg kg-1" prec="8" domain_ref="face" axis_ref="soil_levels" operation="once" />
+        <field id="checkpoint_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" prec="8" domain_ref="face" operation="once" />
+        <field id="checkpoint_water_table" name="water_table" long_name="water_table_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+        <field id="checkpoint_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" prec="8" domain_ref="face" operation="once" />
+
+        <!-- Surface fields -->
+        <field id="checkpoint_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" prec="8" domain_ref="face" operation="once" />
+        <field id="checkpoint_surface_conductance" name="surface_conductance" long_name="conductance" unit="m s-1" prec="8" domain_ref="face" operation="once" />
+        <field id="checkpoint_tile_canopy_water" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="checkpoint_tile_temperature" name="tile_temperature" long_name="tile_temperature" unit="K" prec="8" domain_ref="face" axis_ref="land_tiles" operation="once" />
+        <field id="checkpoint_tstar_sea_ice" name="tstar_sea_ice" long_name="sea_ice_surface_temperature" unit="K" domain_ref="face" operation="once" />
+        <field id="checkpoint_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_bulk_temperature" unit="K" prec="8" domain_ref="face" operation="once" />
+
+        <!-- LBC fields-->
+        <field id="checkpoint_lbc_theta" name="theta" long_name="air_potential_temperature"  unit="K" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_lbc_rho" name="rho" long_name="air_density"  unit="kg m-3" prec="8" grid_ref="half_level_face_grid" operation="once" />
+        <field id="checkpoint_lbc_m_v" name="m_v" long_name="m_v" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_lbc_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_lbc_m_r" name="m_r" long_name="m_r" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+        <field id="checkpoint_lbc_m_cf" name="m_cf" long_name="m_cf" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
+
+      </file>
+    </file_definition>
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >false</variable>
+        <variable id = "using_oasis" type = "bool">false</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+        <variable id = "oasis_codes_id" type="string" >lfric2lfric lfric2lfric</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

@@ -1,0 +1,13 @@
+components/science/source/kernel/inter_function_space/sci_average_w2b_to_w2_kernel_mod.F90
+components/science/source/kernel/inter_function_space/sci_combine_multidata_field_kernel_mod.F90
+components/science/source/kernel/inter_function_space/combine_w2_field_kernel_mod.F90
+components/science/source/kernel/inter_function_space/sci_extract_w_kernel_mod.F90
+components/science/source/kernel/inter_function_space/w2_to_w1_projection_kernel_mod.F90
+components/science/source/kernel/inter_function_space/sample_field_kernel_mod.F90
+components/science/source/kernel/inter_function_space/sample_flux_kernel_mod.F90
+components/science/source/kernel/inter_function_space/split_w2_field_kernel_mod.F90
+components/science/source/kernel/fem/strong_curl_kernel_mod.F90
+components/science/source/kernel/algebra/matrix_vector_kernel_mod.F90
+components/science/source/kernel/algebra/dg_inc_matrix_vector_kernel_mod.F90
+components/science/source/kernel/algebra/transpose_matrix_vector_kernel_mod.F90
+components/science/source/kernel/algebra/dg_matrix_vector_kernel_mod.F90

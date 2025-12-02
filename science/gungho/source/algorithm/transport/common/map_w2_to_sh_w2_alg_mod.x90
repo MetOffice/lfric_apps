@@ -1,0 +1,62 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Map a W2 field to the shifted W2 mesh.
+
+module map_w2_to_sh_w2_alg_mod
+
+  use sci_consist_w2_to_sh_w2_kernel_mod, &
+                               only: consist_w2_to_sh_w2_kernel_type
+  use constants_mod,           only: i_def
+  use extrusion_mod,           only: SHIFTED
+  use fs_continuity_mod,       only: Wtheta
+  use sci_geometric_constants_mod,   &
+                               only: get_face_selector_ew, &
+                                     get_face_selector_ns
+  use integer_field_mod,       only: integer_field_type
+  use mesh_mod,                only: mesh_type
+  use mesh_collection_mod,     only: mesh_collection
+  use r_tran_field_mod,        only: r_tran_field_type
+
+  implicit none
+
+  private
+
+  public :: map_w2_to_sh_w2_alg
+
+contains
+
+  !> @brief Sample a W2 field in the shifted W2 function space.
+  !> @param[in,out] w2_field_shifted The W2 field sampled in shifted W2
+  !> @param[in]     w2_field         The W2 field to map
+  subroutine map_w2_to_sh_w2_alg(w2_field_shifted, w2_field)
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type), intent(inout) :: w2_field_shifted
+    type(r_tran_field_type), intent(in)    :: w2_field
+
+    ! Internal arguments
+    integer(kind=i_def)               :: primary_mesh_id
+    type(mesh_type),          pointer :: primary_mesh
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    ! Get mesh information
+    primary_mesh => w2_field%get_mesh()
+    primary_mesh_id = primary_mesh%get_id()
+    face_selector_ew => get_face_selector_ew(primary_mesh_id)
+    face_selector_ns => get_face_selector_ns(primary_mesh_id)
+
+    ! Map field to shifted mesh
+    call invoke( setval_c(w2_field_shifted, 0.0_r_tran),                       &
+                 consist_w2_to_sh_w2_kernel_type(w2_field_shifted, w2_field,   &
+                                                 face_selector_ew,             &
+                                                 face_selector_ns) )
+
+  end subroutine map_w2_to_sh_w2_alg
+
+end module map_w2_to_sh_w2_alg_mod

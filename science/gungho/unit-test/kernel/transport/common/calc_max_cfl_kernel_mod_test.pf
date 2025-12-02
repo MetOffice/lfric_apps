@@ -1,0 +1,135 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module calc_max_cfl_kernel_mod_test
+
+  use funit
+  use constants_mod,      only : i_def, r_def, r_second, r_tran
+
+  implicit none
+
+  private
+  public :: calc_max_cfl_test_type , test_all
+
+  @TestCase
+  type, extends(TestCase) :: calc_max_cfl_test_type
+    private
+  contains
+    procedure test_all
+  end type calc_max_cfl_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use calc_max_cfl_kernel_mod, only : calc_max_cfl_code
+
+    implicit none
+
+    class(calc_max_cfl_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter   :: tol    = 1.0e-6_r_tran
+    real(kind=r_tran), allocatable :: sum_cfl(:), sum_horizontal_cfl(:)
+    real(kind=r_tran), allocatable :: horizontal_cfl(:), vertical_cfl(:)
+    integer(kind=i_def)           :: nlayers
+    integer(kind=i_def)           :: ndf_w2h
+    integer(kind=i_def)           :: undf_w2h
+    integer(kind=i_def)           :: map_w2h(4)
+    integer(kind=i_def)           :: ndf_w2v
+    integer(kind=i_def)           :: undf_w2v
+    integer(kind=i_def)           :: map_w2v(2)
+    integer(kind=i_def)           :: ndf_w3
+    integer(kind=i_def)           :: undf_w3
+    integer(kind=i_def)           :: map_w3(1)
+
+    nlayers  = 1
+    undf_w2h = 4
+    ndf_w2h  = 4
+    undf_w2v = 2
+    ndf_w2v  = 2
+    undf_w3  = 1
+    ndf_w3   = 1
+    map_w2h  = (/ 1,2,3,4 /)
+    map_w2v  = (/ 1,2 /)
+    map_w3   = (/ 1 /)
+
+    allocate(sum_cfl(1:undf_w3))
+    allocate(sum_horizontal_cfl(1:undf_w3))
+    allocate(horizontal_cfl(1:undf_w2h))
+    allocate(vertical_cfl(1:undf_w2v))
+
+    ! Set horizontal and vertical CFL
+    horizontal_cfl(1) = 0.5_r_tran
+    horizontal_cfl(2) = 0.6_r_tran
+    horizontal_cfl(3) = 0.7_r_tran
+    horizontal_cfl(4) = 0.8_r_tran
+    vertical_cfl(1)   = 0.9_r_tran
+    vertical_cfl(2)   = 1.0_r_tran
+
+    ! Initialise outputs to zero
+    sum_cfl(:) = 0.0_r_tran
+    sum_horizontal_cfl(:)  = 0.0_r_tran
+
+    call calc_max_cfl_code( nlayers,              &
+                            sum_cfl,              &
+                            sum_horizontal_cfl,   &
+                            horizontal_cfl,       &
+                            vertical_cfl,         &
+                            ndf_w3,               &
+                            undf_w3,              &
+                            map_w3,               &
+                            ndf_w2h,              &
+                            undf_w2h,             &
+                            map_w2h,              &
+                            ndf_w2v,              &
+                            undf_w2v,             &
+                            map_w2v               &
+                            )
+
+    @assertEqual( 2.5_r_tran, sum_cfl(1), tol)
+    @assertEqual( 1.5_r_tran, sum_horizontal_cfl(1), tol)
+
+    ! Set horizontal and vertical CFL with negative values
+    horizontal_cfl(1) = -1.0_r_tran
+    horizontal_cfl(2) = 1.0_r_tran
+    horizontal_cfl(3) = 0.5_r_tran
+    horizontal_cfl(4) = -0.5_r_tran
+    vertical_cfl(1)   = 0.1_r_tran
+    vertical_cfl(2)   = -0.2_r_tran
+
+    ! Initialise outputs to zero
+    sum_cfl(:) = 0.0_r_tran
+    sum_horizontal_cfl(:)  = 0.0_r_tran
+
+    call calc_max_cfl_code( nlayers,              &
+                            sum_cfl,              &
+                            sum_horizontal_cfl,   &
+                            horizontal_cfl,       &
+                            vertical_cfl,         &
+                            ndf_w3,               &
+                            undf_w3,              &
+                            map_w3,               &
+                            ndf_w2h,              &
+                            undf_w2h,             &
+                            map_w2h,              &
+                            ndf_w2v,              &
+                            undf_w2v,             &
+                            map_w2v               &
+                            )
+
+    @assertEqual( 2.2_r_tran, sum_cfl(1), tol)
+    @assertEqual( 2.0_r_tran, sum_horizontal_cfl(1), tol)
+
+    deallocate(sum_cfl)
+    deallocate(sum_horizontal_cfl)
+    deallocate(horizontal_cfl)
+    deallocate(vertical_cfl)
+
+  end subroutine test_all
+
+end module calc_max_cfl_kernel_mod_test

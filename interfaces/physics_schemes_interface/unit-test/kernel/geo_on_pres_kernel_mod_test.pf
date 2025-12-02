@@ -1,0 +1,147 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the geo_on_pres kernel
+!>
+module geo_on_pres_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def
+
+  implicit none
+
+  private
+  public :: test_geo_on_pres
+
+  @TestCase
+  type, extends(TestCase), public :: geo_on_pres_test_type
+    private
+    real(kind=r_def), allocatable :: exner(:), data_in(:), ans_data(:), &
+         plevs(:), data_out(:), height(:), theta(:), ex_at_data(:)
+    integer(i_def), allocatable :: map_in(:), map_out(:), map_wth(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_geo_on_pres
+  end type geo_on_pres_test_type
+
+  integer(i_def), parameter :: nlev = 2_i_def
+  integer(i_def), parameter :: nplev = 2_i_def
+  integer(i_def), parameter :: ndf_in = 1_i_def
+  integer(i_def), parameter :: ndf_out = 1_i_def
+  integer(i_def), parameter :: ndf_wth = 1_i_def
+  integer(i_def), parameter :: undf_in = nlev+1_i_def
+  integer(i_def), parameter :: undf_wth = nlev+1_i_def
+  integer(i_def), parameter :: undf_out = nplev
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+  implicit none
+
+  class(geo_on_pres_test_type), intent(inout) :: this
+
+  allocate( this%exner(nlev+1) )
+  allocate( this%data_in(nlev+1) )
+  allocate( this%height(nlev+1) )
+  allocate( this%theta(nlev+1) )
+  allocate( this%ex_at_data(nlev+1) )
+  allocate( this%data_out(nplev) )
+  allocate( this%plevs(nplev) )
+  allocate( this%ans_data(nplev) )
+  allocate( this%map_in(ndf_in) )
+  allocate( this%map_wth(ndf_wth) )
+  allocate( this%map_out(ndf_out) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+  implicit none
+
+  class(geo_on_pres_test_type), intent(inout) :: this
+
+  deallocate ( this%exner, this%data_in, this%ans_data, this%plevs, &
+               this%map_in, this%map_out, this%data_out, this%height, &
+               this%theta, this%ex_at_data, this%map_wth)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_geo_on_pres( this )
+
+  use geo_on_pres_kernel_mod, only : geo_on_pres_code
+
+  implicit none
+
+  class(geo_on_pres_test_type), intent(inout) :: this
+
+  real(r_def), parameter :: tol = 1.0e-14_r_def
+  real(r_def), parameter :: p_zero = 100000.0_r_def
+  real(r_def), parameter :: kappa = 1.0_r_def
+  real(r_def), parameter :: ex_power = 1.0_r_def
+  real(r_def), parameter :: cp = 1000.0_r_def
+  real(r_def), parameter :: gravity = 10.0_r_def
+
+  ! Input arrays
+  this%map_in = 1_i_def
+  this%map_out = 1_i_def
+  this%map_wth = 1_i_def
+  this%plevs(1) = 100000.0_r_def
+  this%plevs(2) = 90000.0_r_def
+
+  ! Set initial fields
+  this%exner(1) = 0.95_r_def
+  this%exner(2) = 0.9_r_def
+  this%exner(3) = 0.85_r_def
+  this%ex_at_data = this%exner
+  this%data_in(1) = 0.0_r_def
+  this%data_in(2) = 100.0_r_def
+  this%data_in(3) = 1000.0_r_def
+  this%height(1) = 0.0_r_def
+  this%height(2) = 100.0_r_def
+  this%height(3) = 3000.0_r_def
+  this%theta(1) = 300.0_r_def
+  this%theta(2) = 320.0_r_def
+  this%theta(3) = 350.0_r_def
+
+  ! Set correct answer
+  this%ans_data(1) = -100.0_r_def
+  this%ans_data(2) = 100.0_r_def
+
+  call geo_on_pres_code( nlev,           &
+                         this%data_in,   &
+                         this%ex_at_data,&
+                         this%theta,     &
+                         this%height,    &
+                         this%exner,     &
+                         nplev,          &
+                         this%plevs,     &
+                         this%data_out,  &
+                         p_zero,         &
+                         kappa,          &
+                         cp,             &
+                         gravity,        &
+                         ex_power,       &
+                         ndf_in,         &
+                         undf_in,        &
+                         this%map_in,    &
+                         ndf_wth,        &
+                         undf_wth,       &
+                         this%map_wth,   &
+                         ndf_out,        &
+                         undf_out,       &
+                         this%map_out)
+
+  @assertEqual(this%ans_data(:), this%data_out(:), tol )
+
+  end subroutine test_geo_on_pres
+
+end module geo_on_pres_kernel_mod_test

@@ -1,0 +1,143 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Adjoint of the transport_controller initialise routines used in the
+!!        tl_transport_controller object of the linear model
+module adj_transport_controller_mod
+
+  use adj_copy_field_mod,            only: adj_copy_field
+  use adj_substep_transport_alg_mod, only: adj_substep_transport_alg
+  use constants_mod,                 only: i_def, r_tran, l_def
+  use field_mod,                     only: field_type
+  use log_mod,                       only: log_event, &
+                                           LOG_LEVEL_ERROR
+  use model_clock_mod,               only: model_clock_type
+  use r_tran_field_mod,              only: r_tran_field_type
+  use transport_controller_mod,      only: transport_controller_type
+
+  implicit none
+
+  private
+  public :: adj_ls_wind_pert_rho_initialiser
+  public :: adj_pert_wind_ls_rho_initialiser
+
+  contains
+  !=============================================================================
+  !> @brief Adjoint routine for initialisation of pert rho controller.
+  !> @param[in,out] transport_controller  The transport controller object
+  !> @param[in,out] ref_field_rdef        Reference field
+  subroutine adj_ls_wind_pert_rho_initialiser( transport_controller, &
+                                               ref_field_rdef )
+
+    implicit none
+
+    ! Arguments
+    class(transport_controller_type), intent(inout) :: transport_controller
+    type(field_type),                 intent(inout) :: ref_field_rdef
+
+    ! Internal variables
+    type(r_tran_field_type),                pointer :: ref_field_rtran
+
+    ref_field_rtran => transport_controller%get_ref_field()
+
+    call adj_copy_field(ref_field_rdef, ref_field_rtran)
+
+  end subroutine adj_ls_wind_pert_rho_initialiser
+
+  !=============================================================================
+  !> @brief Adjoint routine for initialisation of pert wind controller.
+  !> @param[in,out] transport_controller  The transport controller object
+  !> @param[in]     model_clock           The model clock
+  !> @param[in,out] wind_n_rdef           Wind at timestep n
+  !> @param[in,out] wind_np1_rdef           Wind at timestep n plus 1
+  subroutine adj_pert_wind_ls_rho_initialiser( transport_controller, &
+                                               model_clock,          &
+                                               wind_n_rdef,          &
+                                               wind_np1_rdef )
+
+    use transport_config_mod,           only: ffsl_unity_3d,                   &
+                                              adjust_vhv_wind,                 &
+                                              substep_transport,               &
+                                              substep_transport_two,           &
+                                              substep_transport_four
+
+    implicit none
+
+    ! Arguments
+    class(transport_controller_type), intent(inout) :: transport_controller
+    class(model_clock_type),     target, intent(in) :: model_clock
+    type(field_type),                 intent(inout) :: wind_n_rdef
+    type(field_type),       optional, intent(inout) :: wind_np1_rdef
+
+    ! Internal variables
+    logical(kind=l_def)                             :: perform_watkins
+    logical(kind=l_def)                             :: fixed_multiple_substeps
+    integer(kind=i_def)                             :: num_substeps
+    type(r_tran_field_type),                pointer :: transporting_wind
+    real(kind=r_tran)                               :: dt_rtran
+    logical(kind=l_def)                             :: cheap_update_step
+    type(r_tran_field_type),                pointer :: wind_n_rtran
+    type(r_tran_field_type),                pointer :: wind_np1_rtran
+
+    dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+    num_substeps = transport_controller%get_num_substeps()
+
+    fixed_multiple_substeps = (                                                &
+      substep_transport == substep_transport_two .or.                          &
+      substep_transport == substep_transport_four                              &
+    )
+    perform_watkins = (                                                        &
+         ffsl_unity_3d .and. adjust_vhv_wind                                   &
+         .and. .not. fixed_multiple_substeps                                   &
+    )
+
+    if (perform_watkins) then
+      call log_event("adj_pert_wind_init: no adjoint for non-linear Watkins routines possible", &
+                     LOG_LEVEL_ERROR)
+    end if
+
+    ! Normally executed if perform_watkins is false, which we have guaranteed
+    ! with the error guarding above. Currently this routine should do nothing
+    ! to the active fields and only produce an error if the wrong configuration is used.
+    transporting_wind => transport_controller%get_transporting_wind()
+    call adj_substep_transport_alg( num_substeps,      &
+                                    transporting_wind, &
+                                    dt_rtran )
+
+    ! ------------------------------------------------------------------------ !
+    ! Set transporting wind based on optional arguments
+    ! ------------------------------------------------------------------------ !
+    cheap_update_step = transport_controller%get_cheap_update_step()
+    wind_n_rtran => transport_controller%get_wind_npdt(0_i_def)
+    wind_np1_rtran => transport_controller%get_wind_npdt(1_i_def)
+
+    ! "cheap update" wind: 1/2 difference between wind_n and wind_np1
+    if (present(wind_np1_rdef) .and. cheap_update_step) then
+      call invoke( inc_a_times_X( 0.5_r_tran, transporting_wind ),    &
+                   inc_X_plus_Y( wind_np1_rtran, transporting_wind ), &
+                   inc_X_minus_Y( wind_n_rtran, transporting_wind ),  &
+                   setval_c( transporting_wind, 0.0_r_tran ) )
+
+    ! standard semi-implicit transport wind: average of wind_n and wind_np1
+    else if (present(wind_np1_rdef)) then
+      call invoke( inc_a_times_X( 0.5_r_tran, transporting_wind ),    &
+                   inc_X_plus_Y( wind_np1_rtran, transporting_wind ), &
+                   inc_X_plus_Y( wind_n_rtran, transporting_wind ),   &
+                   setval_c( transporting_wind, 0.0_r_tran ) )
+
+    else
+      call invoke( inc_X_plus_Y( wind_np1_rtran, transporting_wind ), &
+                   setval_c( transporting_wind, 0.0_r_tran ) )
+    end if
+
+    if (present(wind_np1_rdef)) then
+      call adj_copy_field(wind_np1_rdef, wind_np1_rtran)
+    end if
+
+    call adj_copy_field(wind_n_rdef, wind_n_rtran)
+
+  end subroutine adj_pert_wind_ls_rho_initialiser
+
+end module adj_transport_controller_mod

@@ -1,0 +1,90 @@
+! *****************************COPYRIGHT*******************************
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file LICENCE
+! which you should have received as part of this distribution.
+! *****************************COPYRIGHT*******************************
+module X_powreal_a_mod
+!
+! This module contains a generator to raise the data in a field by a given power.
+!
+
+use dependency_graph_mod, only: dependency_graph
+
+implicit none
+
+contains
+
+subroutine X_powreal_a(dep_graph)
+!
+! This generator raises the data in a field by a given power.
+!
+
+use gen_io_check_mod,       only: gen_io_check
+use field_mod,              only: field_type
+use log_mod,                only: log_event, log_scratch_space, LOG_LEVEL_ERROR
+use constants_def_mod,      only: genpar_len, r_def
+
+implicit none
+
+!
+! Argument definitions:
+!
+! Dependency graph to be processed
+class(dependency_graph), intent(in out) :: dep_graph
+
+!
+! Local variables
+!
+! Field pointers to use
+type(field_type), pointer :: field_y => null(), field_x => null()
+!
+! Exponent
+real(kind=r_def) :: exponent
+!
+! Parameter list
+character(len=genpar_len) :: parlist
+!
+! Dummy function space variable used in checks
+integer :: fspace
+!
+! Error code for reading parameter list
+integer :: ioerr
+
+!
+! Perform some initial input checks
+!
+fspace = dep_graph % output_field(1) % field_ptr % which_function_space()
+call gen_io_check(                                                             &
+                  dep_graph=dep_graph,                                         &
+                  input_field_no=1,                                            &
+                  input_field_fs=[fspace],                                     &
+                  output_field_no=1,                                           &
+                  output_field_fs=[fspace],                                    &
+                  parameter_no=1                                               &
+                 )
+!
+! Done with initial field checks
+!
+
+! Read parameter list for exponent
+parlist = dep_graph % genpar
+read(parlist,*,iostat=ioerr) exponent
+if (ioerr /= 0 ) then
+  write(log_scratch_space,'(A)') 'Error occured when parsing parameter ' //    &
+                                 'list in routine X_power_n. ' //              &
+                                 'Input should be a single real value.'
+  call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+end if
+
+! Call psyclone built-ins to generate the new field
+field_y => dep_graph % output_field(1) % field_ptr
+field_x => dep_graph % input_field(1) % field_ptr
+call invoke(setval_X(field_y, field_x))
+call invoke(inc_X_powreal_a(field_y, exponent))
+
+! Nullify field pointers
+nullify(field_y, field_x)
+
+end subroutine X_powreal_a
+
+end module X_powreal_a_mod

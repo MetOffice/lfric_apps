@@ -1,0 +1,252 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Integrate total energy evaluated at W3 locations.
+module compute_total_energy_alg_mod
+
+  use compute_column_integral_kernel_mod, &
+                                     only: compute_column_integral_kernel_type
+  use compute_energetics_kernel_mod, &
+                                     only: compute_energetics_kernel_type
+  use constants_mod,                 only: r_def, i_def, pi
+  use driver_water_constants_mod,    only: Lc => latent_heat_h2o_condensation, &
+                                           Lf => latent_heat_h2o_fusion
+  use energy_correction_config_mod,  only: integral_method,    &
+                                           integral_method_fd, &
+                                           integral_method_fe
+  use extrusion_config_mod,          only: planet_radius
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use fs_continuity_mod,             only: W3, Wtheta
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
+  use sci_geometric_constants_mod,   only: get_height_fv,   &
+                                           get_coordinates, &
+                                           get_panel_id,    &
+                                           get_da_msl_proj
+  use io_config_mod,                 only: subroutine_timers
+  use log_mod,                       only: log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_DEBUG,   &
+                                           LOG_LEVEL_ERROR
+  use physics_mappings_alg_mod,      only: map_physics_scalars
+  use dycore_constants_mod,          only: get_geopotential
+  use mesh_mod,                      only: mesh_type
+  use mr_indices_mod,                only: nummr, imr_cl, imr_ci, imr_r, imr_s
+  use planet_config_mod,             only: cv, gravity
+  use quadrature_xyoz_mod,           only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
+  use timer_mod,                     only: timer
+
+  implicit none
+
+  private
+  public :: compute_total_energy_alg
+
+contains
+
+  !> @details Calculate total energy of the atmosphere:
+  !!  \f[
+  !!  E = \int \left[ \rho\left(\frac{\mathbf{u}.\mathbf{u}}{2}
+  !!                            + c_{vd} \theta\pi + \Phi
+  !!                            - L_c \left( m_{cl} + m_r \right)
+  !!                            - \left( L_c + L_f \right)
+  !!                              \left( m_{ci} + m_s \right) \right)
+  !!           \right]\,dV,
+  !!  \f]
+  !!  where \f$\rho\f$ is density of dry air; \f$\mathbf{u}\f$ is the wind
+  !!        field; \f$c_{vd}\f$ is specific heat capacity of dry air at constant
+  !!        volume; \f$\theta\f$ and \f$\pi\f$ are potential temperature and
+  !!        Exner pressure, respectively; \f$\Phi\f$ is geopotential height;
+  !!        \f$L_c\f$ and \f$L_f\f$ are specific latent heats of condensation
+  !!        and fusion, respectively; and \f$m_{cl}\f$, \f$m_r\f$, \f$m_{ci}\f$
+  !!        and \f$m_s\f$ are the mixing ratios of liquid cloud, rain, ice cloud
+  !!        and ice aggregates, respectively. The volume element is \f$dV\f$,
+  !!        which is the true volume element if the integration method is finite
+  !!        element. For finite difference integration the assumed mesh is that
+  !!        for a spherical planet.
+  !> @param[out] total_energy   Total energy of the atmosphere
+  !> @param[in]  derived_fields Contains u and theta fields mapped to W3 space
+  !> @param[in]  u              Wind fields
+  !> @param[in]  theta          Potential temperature field
+  !> @param[in]  exner          Non-dimensional Exner pressure field
+  !> @param[in]  rho            Dry density field
+  !> @param[in]  mr             Water mixing ratio fields
+  !> @param[in]  mesh           Mesh information
+  !> @param[in]  twod_mesh      Horizontal mesh information
+  subroutine compute_total_energy_alg( total_energy, derived_fields, &
+                                       u, theta, exner, rho, mr,     &
+                                       mesh, twod_mesh )
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_type ), intent(in)            :: u
+    type( field_type ), intent(in)            :: theta
+    type( field_type ), intent(in)            :: exner
+    type( field_type ), intent(in)            :: rho
+    type( field_type ), intent(in)            :: mr(nummr)
+
+    type( mesh_type ), intent(in), pointer    :: mesh
+    type( mesh_type ), intent(in), pointer    :: twod_mesh
+
+    real( kind=r_def ), intent(out)           :: total_energy
+
+    ! Set pointers
+    type( field_type ), pointer :: theta_in_w3  => null()
+    type( field_type ), pointer :: u_in_w3      => null()
+    type( field_type ), pointer :: v_in_w3      => null()
+    type( field_type ), pointer :: w_in_w3      => null()
+    type( field_type ), pointer :: geopotential => null()
+    type( field_type ), pointer :: dA           => null()
+    type( field_type ), pointer :: height_w3    => null()
+    type( field_type ), pointer :: height_wth   => null()
+
+    type( field_type ) :: energy_term, energy_field
+    type( field_type ) :: kinetic_uv, kinetic_w, &
+                          potential, internal, moist_int
+    type( field_type ) :: tot_col_energy
+    type( field_type ) :: mr_sum, mr_w3
+
+    type( quadrature_xyoz_type )          :: qr
+    type( quadrature_rule_gaussian_type ) :: quadrature_rule
+    type( field_type ),          pointer  :: chi(:) => null()
+    type( field_type ),          pointer  :: panel_id => null()
+    type( function_space_type ), pointer  :: w3_fs => null()
+    type( field_type )                    :: energy
+
+    real( kind=r_def ) :: Lcf
+    real( kind=r_def ) :: area
+    real( kind=r_def ) :: surface_geopotential
+    integer(kind=i_def) :: nqp_h_exact, nqp_v_exact
+    integer(kind=i_def) :: element_order_h, element_order_v
+
+    if ( subroutine_timers ) call timer( "compute_total_energy" )
+
+    geopotential => get_geopotential( mesh%get_id() )
+    surface_geopotential = planet_radius*gravity
+
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+    nqp_h_exact = element_order_h + 3
+    nqp_v_exact = element_order_v + 3
+
+    select case( integral_method )
+    case( integral_method_fe )
+      qr = quadrature_xyoz_type( nqp_h_exact, nqp_h_exact, nqp_v_exact, &
+                                 quadrature_rule )
+      w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                 element_order_v, W3 )
+      chi => get_coordinates( mesh%get_id() )
+      panel_id => get_panel_id( mesh%get_id() )
+
+      call energy%initialise( vector_space = w3_fs )
+      call kinetic_uv%initialise( vector_space = w3_fs )
+      call kinetic_w%initialise( vector_space = w3_fs )
+      call potential%initialise( vector_space = w3_fs )
+      call internal%initialise( vector_space = w3_fs )
+      call moist_int%initialise( vector_space = w3_fs )
+      call invoke( name = "compute_total_energy",                         &
+                   setval_c(energy, 0.0_r_def),                           &
+                   compute_energetics_kernel_type( kinetic_uv, kinetic_w, &
+                                                   potential, internal,   &
+                                                   moist_int,             &
+                                                   u, rho, exner, theta,  &
+                                                   mr, geopotential,      &
+                                                   surface_geopotential,  &
+                                                   chi,                   &
+                                                   panel_id, cv, qr ),    &
+                   inc_X_plus_Y( energy, kinetic_uv ),                    &
+                   inc_X_plus_Y( energy, kinetic_w ),                     &
+                   inc_X_plus_Y( energy, moist_int ),                     &
+                   inc_X_plus_Y( energy, potential ),                     &
+                   inc_X_plus_Y( energy, internal ),                      &
+                   sum_X( total_energy, energy ) )
+
+      nullify( w3_fs, chi, panel_id )
+
+    case( integral_method_fd )
+      area = 4.0_r_def * pi * planet_radius ** 2_i_def
+
+      Lcf = Lc + Lf
+
+      call derived_fields%get_field( 'theta_in_w3', theta_in_w3 )
+      call derived_fields%get_field( 'u_in_w3', u_in_w3 )
+      call derived_fields%get_field( 'v_in_w3', v_in_w3 )
+      call derived_fields%get_field( 'w_in_w3', w_in_w3 )
+      dA => get_da_msl_proj( twod_mesh%get_id() )
+      height_w3 => get_height_fv( W3, mesh%get_id() )
+      height_wth => get_height_fv( Wtheta, mesh%get_id() )
+
+      call energy_field%initialise( vector_space = &
+                                    function_space_collection%get_fs(mesh, 0, 0, W3) )
+
+      call energy_term%initialise( vector_space = &
+                                   function_space_collection%get_fs(mesh, 0, 0, W3) )
+
+      call mr_sum%initialise( vector_space = &
+                              function_space_collection%get_fs(mesh, 0, 0, Wtheta) )
+
+      call mr_w3%initialise( vector_space = &
+                             function_space_collection%get_fs(mesh, 0, 0, W3) )
+
+      call tot_col_energy%initialise( vector_space = &
+                                      function_space_collection%get_fs(twod_mesh, 0, 0, W3) )
+
+      call invoke( setval_c(energy_field, 0.0_r_def),                   &
+                   setval_X(energy_term, u_in_w3),                      &
+                   inc_X_powint_n(energy_term, 2_i_def),                &
+                   inc_X_plus_bY(energy_field, 0.5_r_def, energy_term), &
+                   setval_X(energy_term, v_in_w3),                      &
+                   inc_X_powint_n(energy_term, 2_i_def),                &
+                   inc_X_plus_bY(energy_field, 0.5_r_def, energy_term), &
+                   setval_X(energy_term, w_in_w3),                      &
+                   inc_X_powint_n(energy_term, 2_i_def),                &
+                   inc_X_plus_bY(energy_field, 0.5_r_def, energy_term), & ! kinetic
+                   inc_a_plus_X(surface_geopotential, energy_field),    & ! surface_geopotential
+                   inc_X_plus_Y(energy_field, geopotential),            & ! geopotential
+                   X_times_Y(energy_term, theta_in_w3, exner),          &
+                   inc_X_plus_bY(energy_field, cv, energy_term),        & ! dry internal
+                   setval_X(mr_sum, mr(imr_cl)),                        &
+                   inc_X_plus_Y(mr_sum, mr(imr_r)) )                      ! liquid m.r.
+
+      call map_physics_scalars(mr_w3, mr_sum)
+
+      call invoke( inc_X_minus_bY( energy_field, Lc, mr_w3 ), & ! liquid water energy
+                   setval_X( mr_sum, mr(imr_ci) ),            &
+                   inc_X_plus_Y( mr_sum, mr(imr_s) ) )          ! ice mixing ratio
+
+      call map_physics_scalars( mr_w3, mr_sum )
+
+      total_energy = 0.0_r_def
+
+      ! Ice water energy, density factor, global integral
+      call invoke( inc_X_minus_bY( energy_field, Lcf, mr_w3 ),                      &
+                   inc_X_times_Y( energy_field, rho ),                              &
+                   compute_column_integral_kernel_type( energy_field, height_w3,    &
+                                                        height_wth, tot_col_energy, &
+                                                        planet_radius ),                   &
+                   inc_X_times_Y( tot_col_energy, dA ),                             &
+                   sum_X( total_energy, tot_col_energy ) )
+
+      nullify( dA, height_w3, height_wth )
+      nullify( theta_in_w3, u_in_w3, v_in_w3, w_in_w3 )
+
+    case default
+      write( log_scratch_space, '(''Unknown integral_method = '', i0, &
+                                 ''in compute_total_energy.'')' ) integral_method
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end select
+
+    write( log_scratch_space, '(''compute_total_energy: '', e30.22)' ) total_energy
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    nullify( geopotential )
+
+    if ( subroutine_timers ) call timer( "compute_total_energy" )
+
+  end subroutine compute_total_energy_alg
+
+end module compute_total_energy_alg_mod

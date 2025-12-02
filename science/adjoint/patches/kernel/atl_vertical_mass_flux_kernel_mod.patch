@@ -1,0 +1,61 @@
+@@ -1,26 +1,26 @@
+-module adj_vertical_mass_flux_kernel_mod
++module atl_vertical_mass_flux_kernel_mod
+   use argument_mod, only : any_discontinuous_space_1, any_w2, arg_type, cell_column, func_type, gh_field, gh_inc, gh_read, &
+-&gh_real, gh_write
++&gh_real, gh_readinc
+   use constants_mod, only : i_def, l_def, r_def
+   use kernel_mod, only : kernel_type
+   implicit none
+-  type, public, extends(kernel_type) :: adj_vertical_mass_flux_kernel_type
++  type, public, extends(kernel_type) :: atl_vertical_mass_flux_kernel_type
+   type(ARG_TYPE) :: META_ARGS(4) = (/ &
+-    arg_type(gh_field, gh_real, gh_write, any_w2), &
++    arg_type(gh_field, gh_real, gh_readinc, any_w2), &
+     arg_type(gh_field, gh_real, gh_read, any_w2), &
+     arg_type(gh_field, gh_real, gh_inc, any_w2), &
+     arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_1)/)
+   INTEGER :: OPERATES_ON = cell_column
+   CONTAINS
+-    PROCEDURE, NOPASS :: adj_vertical_mass_flux_code
+-END TYPE adj_vertical_mass_flux_kernel_type
++    PROCEDURE, NOPASS :: atl_vertical_mass_flux_code
++END TYPE atl_vertical_mass_flux_kernel_type
+ 
+   private
+ 
+-  public :: adj_vertical_mass_flux_code
++  public :: atl_vertical_mass_flux_code
+ 
+   contains
+-  subroutine adj_vertical_mass_flux_code(nlayers, mass_flux, ls_wind, wind, reconstruction, ndf_w2, undf_w2, map_w2, ndf_md, &
++  subroutine atl_vertical_mass_flux_code(nlayers, mass_flux, ls_wind, wind, reconstruction, ndf_w2, undf_w2, map_w2, ndf_md, &
+ &undf_md, map_md)
+     integer(kind=i_def), intent(in) :: nlayers
+     integer(kind=i_def), intent(in) :: ndf_md
+@@ -47,18 +47,18 @@
+       df = 5
+       offset = 4 * nlayers
+     end if
+-    mass_flux(map_w2(df) + nlayers) = 0.0
++    mass_flux(map_w2(df) + nlayers) = 0.0_r_def
+     do k = nlayers - 1, 1, -1
+       ijp2 = k + nlayers + offset + map_md(1) - 1
+       ijp1 = k + offset + map_md(1)
+-      wgt = 0.5 - SIGN(0.5, ls_wind(k + map_w2(df)))
++      wgt = 0.5_r_def - SIGN(0.5_r_def, ls_wind(k + map_w2(df)))
+       wind(k + map_w2(df)) = wind(k + map_w2(df)) + wgt * reconstruction(ijp1) * mass_flux(map_w2(df) + k)
+       wind(k + map_w2(df)) = wind(k + map_w2(df)) - wgt * reconstruction(ijp2) * mass_flux(map_w2(df) + k)
+-      wind(k + map_w2(df)) = wind(k + map_w2(df)) + 1.0 * reconstruction(ijp2) * mass_flux(map_w2(df) + k)
+-      mass_flux(map_w2(df) + k) = 0.0
++      wind(k + map_w2(df)) = wind(k + map_w2(df)) + 1.0_r_def * reconstruction(ijp2) * mass_flux(map_w2(df) + k)
++      mass_flux(map_w2(df) + k) = 0.0_r_def
+     enddo
+-    mass_flux(map_w2(df)) = 0.0
++    mass_flux(map_w2(df)) = 0.0_r_def
+ 
+-  end subroutine adj_vertical_mass_flux_code
++  end subroutine atl_vertical_mass_flux_code
+ 
+-end module adj_vertical_mass_flux_kernel_mod
++end module atl_vertical_mass_flux_kernel_mod

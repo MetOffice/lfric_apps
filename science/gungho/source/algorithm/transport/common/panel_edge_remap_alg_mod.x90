@@ -1,0 +1,168 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Remap a field on the cubed-sphere at panel edges, so that the field
+!!        values neighbouring panel edges correspond to those on extended mesh
+!!        panels.
+module panel_edge_remap_alg_mod
+
+  use constants_mod,                 only: i_def, l_def, r_tran
+  use r_tran_field_mod,              only: r_tran_field_type
+  use integer_field_mod,             only: integer_field_type
+  use mesh_mod,                      only: mesh_type
+  use io_config_mod,                 only: subroutine_timers
+  use timer_mod,                     only: timer
+  use function_space_mod,            only: function_space_type
+  use transport_config_mod,          only: ffsl_inner_order, ffsl_outer_order, &
+                                           panel_edge_high_order
+  use transport_constants_mod,       only: get_panel_edge_indices_x,           &
+                                           get_panel_edge_indices_y,           &
+                                           get_panel_edge_weights_x,           &
+                                           get_panel_edge_weights_y,           &
+                                           get_panel_edge_dist,                &
+                                           get_halo_mask_x,                    &
+                                           get_halo_mask_y
+  use panel_edge_remap_kernel_mod,   only: panel_edge_remap_kernel_type
+  use psykal_lite_transport_mod,     only: invoke_panel_edge_remap_kernel_type
+  use sci_psykal_light_mod,          only: invoke_rtran_halo_exchange
+
+  implicit none
+
+  private
+
+  public :: panel_edge_remap_alg
+
+contains
+
+  !> @brief Remap a field near the panel edges of the cubed-sphere
+  !> @param[in,out] remapped_in_x     Field remapped in local x direction
+  !> @param[in,out] remapped_in_y     Field remapped in local y direction
+  !> @param[in]     field_for_x       Original field to be remapped in x
+  !> @param[in]     field_for_y       Original field to be remapped in y
+  !> @param[in]     ffsl_depth        Depth to which FFSL flux calculations will
+  !!                                  be performed
+  !> @param[in]     monotone          Whether to enforce monotonicity when
+  !!                                  remapping
+  !> @param[in]     enforce_minvalue  Whether to enforce a minimum field value
+  !!                                  when remapping
+  !> @param[in]     minvalue          The minimum value to use when enforcing
+  !!                                  a minimum value
+  subroutine panel_edge_remap_alg(remapped_in_x, remapped_in_y,                &
+                                  field_for_x, field_for_y, ffsl_depth,        &
+                                  monotone, enforce_minvalue, minvalue)
+
+    implicit none
+
+    type(r_tran_field_type),  intent(inout) :: remapped_in_x
+    type(r_tran_field_type),  intent(inout) :: remapped_in_y
+    type(r_tran_field_type),  intent(inout) :: field_for_x
+    type(r_tran_field_type),  intent(inout) :: field_for_y
+    integer(kind=i_def),      intent(in)    :: ffsl_depth
+    logical(kind=l_def),      intent(in)    :: monotone
+    logical(kind=l_def),      intent(in)    :: enforce_minvalue
+    real(kind=r_tran),        intent(in)    :: minvalue
+
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: fs
+    type(function_space_type), pointer :: index_fs
+    type(r_tran_field_type),   pointer :: panel_edge_weights_x
+    type(r_tran_field_type),   pointer :: panel_edge_weights_y
+    type(integer_field_type),  pointer :: panel_edge_indices_x
+    type(integer_field_type),  pointer :: panel_edge_indices_y
+    type(integer_field_type),  pointer :: panel_edge_dist(:)
+    type(integer_field_type),  pointer :: halo_mask_x
+    type(integer_field_type),  pointer :: halo_mask_y
+
+    logical(kind=l_def)              :: compute_all_halo
+    integer(kind=i_def)              :: mesh_id, ndata
+    integer(kind=i_def)              :: max_halo_depth, cross_depth
+    integer(kind=i_def)              :: field_read_depth, remap_depth
+
+
+    if ( subroutine_timers ) call timer('transport.panel_edge_remap')
+
+    mesh => field_for_x%get_mesh()
+    mesh_id = mesh%get_id()
+    panel_edge_weights_x => get_panel_edge_weights_x(mesh_id)
+    panel_edge_weights_y => get_panel_edge_weights_y(mesh_id)
+    panel_edge_indices_x => get_panel_edge_indices_x(mesh_id)
+    panel_edge_indices_y => get_panel_edge_indices_y(mesh_id)
+    panel_edge_dist => get_panel_edge_dist(mesh_id)
+    halo_mask_x => get_halo_mask_x(mesh_id)
+    halo_mask_y => get_halo_mask_y(mesh_id)
+
+    fs => field_for_x%get_function_space()
+    index_fs => panel_edge_indices_x%get_function_space()
+    ndata = index_fs%get_ndata()  ! Number of data points used in remapping
+
+    ! Various depths are used in this algorithm:
+    ! - cross depth:      specifies the size of the stencil to use in remapping,
+    !                     which should increase with the horizontal order
+    ! - remap_depth:      specifies to what halo depth the remapping is done,
+    !                     which is equal to the horizontal order
+    ! - max_halo_depth:   the full depth of halos, which is used to set the size
+    !                     of the remapped fields. These are set to full size to
+    !                     match transported fields. When the kernel is called
+    !                     at depths greater than this, nothing happens
+    ! - ffsl_depth :      stencil depth used in FFSL transport, which is the
+    !                     depth to which the kernel is called, and the depth to
+    !                     which the remapped fields will be set to clean
+    ! - field_read_depth: depth to which fields will be read. When performing
+    !                     redundant computations, this is equal to the stencil
+    !                     extent plus the number of data points used in the
+    !                     remapping
+    max_halo_depth = mesh%get_halo_depth()
+    remap_depth = MAX(ffsl_inner_order, ffsl_outer_order)
+    if (panel_edge_high_order) then
+      cross_depth = MAX(ffsl_inner_order, ffsl_outer_order) + 2
+    else
+      cross_depth = MAX(ffsl_inner_order, ffsl_outer_order)
+    end if
+
+    field_read_depth = MIN(MAX(cross_depth + remap_depth, ffsl_depth), max_halo_depth)
+    compute_all_halo = .false.
+
+    call remapped_in_x%initialise(fs, halo_depth=field_for_x%get_field_halo_depth())
+    call remapped_in_y%initialise(fs, halo_depth=field_for_y%get_field_halo_depth())
+
+    ! Manually halo exchange the input fields here to a "field_read_depth",
+    ! which allows the following remap kernel to perform redundant computations
+    ! to avoid extra, deep, halo exchanges on the remapped fields
+    ! NB: this breaks the normal convention for the psy layer handling all of
+    ! the halo exchanges, but this is a significant optimisation for this panel
+    ! edge method, and cannot be easily supported by PSyclone
+    call invoke_rtran_halo_exchange(field_for_x, depth=field_read_depth)
+    call invoke_rtran_halo_exchange(field_for_y, depth=field_read_depth)
+
+    ! Psykal lite implementation necessary for a kernel that loops over halo
+    ! cells and also uses a stencil
+    call invoke_panel_edge_remap_kernel_type(remapped_in_x,                    &
+                                             remapped_in_y,                    &
+                                             field_for_x,                      &
+                                             cross_depth,                      &
+                                             field_for_y,                      &
+                                             cross_depth,                      &
+                                             panel_edge_weights_x,             &
+                                             panel_edge_weights_y,             &
+                                             panel_edge_indices_x,             &
+                                             panel_edge_indices_y,             &
+                                             panel_edge_dist,                  &
+                                             halo_mask_x,                      &
+                                             halo_mask_y,                      &
+                                             compute_all_halo,                 &
+                                             remap_depth,                      &
+                                             ndata,                            &
+                                             monotone,                         &
+                                             enforce_minvalue,                 &
+                                             minvalue,                         &
+                                             ffsl_depth                        &
+    )
+
+    if ( subroutine_timers ) call timer('transport.panel_edge_remap')
+
+  end subroutine panel_edge_remap_alg
+
+end module panel_edge_remap_alg_mod

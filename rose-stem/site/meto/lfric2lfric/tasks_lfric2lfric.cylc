@@ -1,0 +1,10 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/lfric2lfric/tasks_lfric2lfric.cylc") %}
+
+{% include 'site/'+SITE+'/lfric2lfric/tasks_lfric2lfric_'~task_ns.platform~'.cylc' %}
+
+{% do LOG.debug("Finised in site/meto/lfric2lfric/tasks_lfric2lfric.cylc") %}

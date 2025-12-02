@@ -1,0 +1,455 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for bl_imp_alg
+
+module bl_imp_diags_mod
+
+  use constants_mod,             only: l_def
+  use field_mod,                 only: field_type
+  use bl_extra_diags_kernel_mod, only: bl_extra_diags_kernel_type
+  use physics_mappings_alg_mod,  only: map_physics_winds
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
+                                         samp_diag => diagnostic_to_be_sampled
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+  logical( l_def ) :: dt_bl_flag
+  logical( l_def ) :: dmv_bl_flag
+  logical( l_def ) :: dmcl_bl_flag
+  logical( l_def ) :: dms_bl_flag
+  logical( l_def ) :: dbcf_bl_flag
+  logical( l_def ) :: dacf_bl_flag
+  logical( l_def ) :: dcfl_bl_flag
+  logical( l_def ) :: dcff_bl_flag
+  logical( l_def ) :: du_bl_flag
+  logical( l_def ) :: dv_bl_flag
+  logical( l_def ) :: dw_bl_flag
+  logical( l_def ) :: u10m_flag
+  logical( l_def ) :: v10m_flag
+  logical( l_def ) :: wind_gust_flag
+  logical( l_def ) :: scale_dep_wind_gust_flag
+  logical( l_def ) :: wspd10m_neut_flag
+  logical( l_def ) :: u10m_neut_flag
+  logical( l_def ) :: v10m_neut_flag
+  logical( l_def ) :: ustar_implicit_flag
+  logical( l_def ) :: taux_flag
+  logical( l_def ) :: tauy_flag
+  logical( l_def ) :: pseudotaux_flag
+  logical( l_def ) :: pseudotauy_flag
+  logical( l_def ) :: vis_no_precip_flag
+  logical( l_def ) :: vis_with_precip_flag
+  logical( l_def ) :: fog_fraction_flag
+  logical( l_def ) :: fog_fraction_ssi_flag
+  logical( l_def ) :: fog_fraction_land_flag
+  logical( l_def ) :: vis_prob_5km_flag
+  logical( l_def ) :: dew_point_flag
+  logical( l_def ) :: dew_point_ssi_flag
+  logical( l_def ) :: dew_point_land_flag
+
+  public :: initialise_diags_for_bl_imp
+  public :: output_diags_for_bl_imp
+
+contains
+
+  !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     mv                 Vapour mixing ratio
+  !> @param[in]     mcl                Cloud liq mixing ratio
+  !> @param[in]     mci                Cloud ice mixing ratio
+  !> @param[in]     cf_bulk            Bulk cloud fraction
+  !> @param[in]     cf_area            Area cloud fraction
+  !> @param[in]     cf_liq             Liquid cloud fraction
+  !> @param[in]     cf_fro             Frozen cloud fraction
+  !> @param[in,out] dmv_bl             BL increment to vapour mixing ratio
+  !> @param[in,out] dmcl_bl            BL increment to cloud liq mixing ratio
+  !> @param[in,out] dms_bl             BL increment to snow mixing ratio
+  !> @param[in,out] dbcf_bl            BL increment to bulk cloud fraction
+  !> @param[in,out] dacf_bl            BL increment to area cloud fraction
+  !> @param[in,out] dcfl_bl            BL increment to liquid cloud fraction
+  !> @param[in,out] dcff_bl            BL increment to frozen cloud fraction
+  !> @param[in,out] u10m               Zonal 10m wind speed
+  !> @param[in,out] v10m               Meridional 10m wind speed
+  !> @param[in,out] wspd10m_neut       neutral wind speed at 10m
+  !> @param[in,out] u10m_neut          Zonal 10m neutral wind speed
+  !> @param[in,out] v10m_neut          Meridional 10m neutral wind speed
+  !> @param[in,out] taux               'Zonal' momentum stress
+  !> @param[in,out] tauy               'Meridional' momentum stress
+  !> @param[in,out] ustar_implicit     Implicit surface friction velocity
+  subroutine initialise_diags_for_bl_imp(mv, mcl, mci, cf_bulk,          &
+                                         cf_area, cf_liq, cf_fro,        &
+                                         dmv_bl, dmcl_bl, dms_bl,        &
+                                         dbcf_bl, dacf_bl,               &
+                                         dcfl_bl, dcff_bl,               &
+                                         u10m, v10m,                     &
+                                         wspd10m_neut, u10m_neut,        &
+                                         v10m_neut, taux, tauy,          &
+                                         ustar_implicit)
+
+    implicit none
+
+    ! Fields passed in to copy properties from
+    type( field_type ), intent(in)    :: mv, mcl, mci
+    type( field_type ), intent(in)    :: cf_bulk, cf_area, cf_liq, cf_fro
+
+    ! Diagnostic fields to initialise
+    type( field_type ), intent(inout) :: dmv_bl, dmcl_bl, dms_bl
+    type( field_type ), intent(inout) :: dbcf_bl, dacf_bl
+    type( field_type ), intent(inout) :: dcfl_bl, dcff_bl
+    type( field_type ), intent(inout) :: u10m, v10m
+    type( field_type ), intent(inout) :: wspd10m_neut, u10m_neut
+    type( field_type ), intent(inout) :: v10m_neut
+    ! Note that taux and tauy are actually on wtheta in the vertical but
+    ! are mapped from tau_w2 by map_physics_winds (to w3) in bl_imp_alg
+    type( field_type ), intent(inout) :: taux, tauy
+    type( field_type ), intent(inout) :: ustar_implicit
+
+    if ( subroutine_timers ) call timer("bl_imp_diags")
+
+    ! Genuine turbulence diagnostics
+    ! 3D fields in wtheta space
+    dmv_bl_flag = init_diag(dmv_bl, 'turbulence__dmv_bl')
+    if (dmv_bl_flag) call invoke(a_times_X(dmv_bl, -1.0_r_def, mv))
+
+    dmcl_bl_flag = init_diag(dmcl_bl, 'turbulence__dmcl_bl')
+    if (dmcl_bl_flag) call invoke(a_times_X(dmcl_bl, -1.0_r_def, mcl))
+
+    dms_bl_flag = init_diag(dms_bl, 'turbulence__dms_bl')
+    if (dms_bl_flag) call invoke(a_times_X(dms_bl, -1.0_r_def, mci))
+
+    dbcf_bl_flag = init_diag(dbcf_bl, 'turbulence__dbcf_bl')
+    if (dbcf_bl_flag) call invoke(a_times_X(dbcf_bl, -1.0_r_def, cf_bulk))
+
+    dacf_bl_flag = init_diag(dacf_bl, 'turbulence__dacf_bl')
+    if (dacf_bl_flag) call invoke(a_times_X(dacf_bl, -1.0_r_def, cf_area))
+
+    dcfl_bl_flag = init_diag(dcfl_bl, 'turbulence__dcfl_bl')
+    if (dcfl_bl_flag) call invoke(a_times_X(dcfl_bl, -1.0_r_def, cf_liq))
+
+    dcff_bl_flag = init_diag(dcff_bl, 'turbulence__dcff_bl')
+    if (dcff_bl_flag) call invoke(a_times_X(dcff_bl, -1.0_r_def, cf_fro))
+
+    ! Surface diagnostics on staggered grid so need special treatment
+    ! 2D fields
+    u10m_flag = init_diag(u10m, 'surface__u10m', activate=.true.)
+    v10m_flag = init_diag(v10m, 'surface__v10m', activate=.true.)
+    wspd10m_neut_flag = init_diag(wspd10m_neut, 'surface__wspd10m_neut')
+    u10m_neut_flag = init_diag(u10m_neut, 'surface__u10m_neut')
+    v10m_neut_flag = init_diag(v10m_neut, 'surface__v10m_neut')
+    taux_flag = init_diag(taux, 'turbulence__taux', activate=.true.)
+    tauy_flag = init_diag(tauy, 'turbulence__tauy', activate=.true.)
+    ustar_implicit_flag = init_diag(ustar_implicit, 'surface__ustar_implicit', activate=.true.)
+
+    if ( subroutine_timers ) call timer("bl_imp_diags")
+
+  end subroutine initialise_diags_for_bl_imp
+
+  !> @brief Output diagnostics from bl_imp_alg
+  !> @param[in]     zh                       Surface-based boundary layer depth
+  !> @param[in]     du_bl_w2                 3D wind increment
+  !> @param[in]     wspd10m                  10m wind speed
+  !> @param[in]     u10m                     Zonal 10m wind speed
+  !> @param[in]     v10m                     Meridional 10m wind speed
+  !> @param[in]     wind10m_neut_w2          neutral 10m wind at w2 dofs
+  !> @param[in]     wspd10m_neut             neutral wind speed at 10m
+  !> @param[in]     u10m_neut                Zonal 10m neutral wind speed
+  !> @param[in]     v10m_neut                Meridional 10m neutral wind speed
+  !> @param[in]     taux                     'Zonal' momentum stress
+  !> @param[in]     tauy                     'Meridional' momentum stress
+  !> @param[in]     ustar_implicit           Implicit surface friction velocity
+  !> @param[in]     taux_ssi                 Surface zonal wind stress over sea, seaice
+  !> @param[in]     tauy_ssi                 Surface meridional wind stress over sea, seaice
+  !> @param[in]     pseudotau_w2             pseudo wind stress in w2
+  !> @param[in]     z0m_eff                  Gridbox mean effective roughness length for momentum
+  !> @param[in]     rho_in_w3                Density field in density space
+  !> @param[in]     wetrho_in_w3             Wet density field in w3 space
+  !> @param[in]     mv                       Vapour mixing ratio
+  !> @param[in]     mcl                      Cloud liq mixing ratio
+  !> @param[in]     mci                      Cloud ice mixing ratio
+  !> @param[in]     mr                       Rain mixing ratio
+  !> @param[in]     nr_mphys                 Rain number mixing ratio
+  !> @param[in]     ns_mphys                 Snow number mixing ratio
+  !> @param[in]     cf_bulk                  Bulk cloud fraction
+  !> @param[in]     cf_area                  Area cloud fraction
+  !> @param[in]     cf_liq                   Liquid cloud fraction
+  !> @param[in]     cf_fro                   Frozen cloud fraction
+  !> @param[in]     dtheta_bl                potential temperature increment from bl scheme
+  !> @param[in]     exner_in_wth             Exner Pressure in the wth space
+  !> @param[in]     dt_conv                  temperature increment from convection scheme
+  !> @param[in]     t1p5m                    1.5m temperature
+  !> @param[in]     q1p5m                    1.5m specific humidity
+  !> @param[in]     qcl1p5m                  1.5m specific cloud water
+  !> @param[in]     t1p5m_ssi                1.5m temperature over sea and sea-ice
+  !> @param[in]     q1p5m_ssi                1.5m specific humidity over sea and sea-ice
+  !> @param[in]     qcl1p5m_ssi              1.5m specific cloud water over sea and sea-ice
+  !> @param[in]     t1p5m_land               1.5m temperature over land
+  !> @param[in]     q1p5m_land               1.5m specific humidity over land
+  !> @param[in]     qcl1p5m_land             1.5m specific cloud water over land
+  !> @param[in]     heat_flux_bl             upward turbulent heat flux
+  !> @param[in]     moist_flux_bl            upward turbulent moisture flux
+  !> @param[in]     bl_weight_1dbl           Blending weight to 1D BL scheme in the BL
+  !> @param[in]     ls_rain                  Surface large-scale  rainfall rate
+  !> @param[in]     ls_snow                  Surface large-scale snowfall rate
+  !> @param[in]     lsca_2d                  2D large scale precip fraction
+  !> @param[in]     conv_rain                Surface convective rainfall rate
+  !> @param[in]     conv_snow                Surface convective snowfall rate
+  !> @param[in]     cca_2d                   2D convective cloud fraction
+  !> @param[in,out] dmv_bl                   BL increment to vapour mixing ratio
+  !> @param[in,out] dmcl_bl                  BL increment to cloud liq mixing ratio
+  !> @param[in,out] dms_bl                   BL increment to snow mixing ratio
+  !> @param[in,out] dbcf_bl                  BL increment to bulk cloud fraction
+  !> @param[in,out] dacf_bl                  BL increment to area cloud fraction
+  !> @param[in,out] dcfl_bl                  BL increment to liquid cloud fraction
+  !> @param[in,out] dcff_bl                  BL increment to frozen cloud fraction
+  subroutine output_diags_for_bl_imp(zh, du_bl_w2,                             &
+                                     wspd10m, u10m, v10m,                      &
+                                     wind10m_neut_w2,                          &
+                                     wspd10m_neut, u10m_neut, v10m_neut,       &
+                                     taux, tauy, ustar_implicit,               &
+                                     taux_ssi, tauy_ssi,                       &
+                                     pseudotau_w2,                             &
+                                     z0m_eff, rho_in_w3, wetrho_in_w3,         &
+                                     mv, mcl, mci, mr,                         &
+                                     nr_mphys, ns_mphys, murk,                 &
+                                     cf_bulk, cf_area, cf_liq, cf_fro,         &
+                                     dtheta_bl, exner_in_wth, dt_conv,         &
+                                     t1p5m, q1p5m, qcl1p5m,                    &
+                                     t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,        &
+                                     t1p5m_land, q1p5m_land, qcl1p5m_land,     &
+                                     heat_flux_bl, moist_flux_bl,              &
+                                     bl_weight_1dbl, ls_rain, ls_snow, lsca_2d,&
+                                     conv_rain, conv_snow, cca_2d,             &
+                                     dmv_bl, dmcl_bl, dms_bl, dbcf_bl,         &
+                                     dacf_bl, dcfl_bl, dcff_bl)
+
+    implicit none
+
+    ! Prognostic fields input, used in calculations
+    type( field_type ), intent(in)    :: mv, mcl, mci, mr,                     &
+                                         nr_mphys, ns_mphys, murk,             &
+                                         cf_bulk, cf_area, cf_liq, cf_fro,     &
+                                         rho_in_w3, wetrho_in_w3,              &
+                                         exner_in_wth, z0m_eff, bl_weight_1dbl,&
+                                         ls_rain, ls_snow, lsca_2d,            &
+                                         conv_rain, conv_snow, cca_2d,         &
+                                         taux, tauy, ustar_implicit,           &
+                                         pseudotau_w2
+
+    ! Prognostic fields to output
+    type( field_type ), intent(in)    :: zh, wspd10m, taux_ssi,                &
+                                         tauy_ssi, du_bl_w2, dtheta_bl,        &
+                                         heat_flux_bl, moist_flux_bl, dt_conv
+
+    ! Diagnostics computed within the kernels
+    type( field_type ), intent(in)    :: t1p5m, q1p5m, qcl1p5m
+    type( field_type ), intent(in)    :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi
+    type( field_type ), intent(in)    :: t1p5m_land, q1p5m_land, qcl1p5m_land
+    type( field_type ), intent(in)    :: u10m, v10m
+    type( field_type ), intent(inout) :: u10m_neut, v10m_neut, wspd10m_neut
+    type( field_type ), intent(in)    :: wind10m_neut_w2
+
+    ! Diagnostics locally computed here from other fields
+    type( field_type ), intent(inout) :: dmv_bl
+    type( field_type ), intent(inout) :: dmcl_bl
+    type( field_type ), intent(inout) :: dms_bl
+    type( field_type ), intent(inout) :: dbcf_bl
+    type( field_type ), intent(inout) :: dacf_bl
+    type( field_type ), intent(inout) :: dcfl_bl
+    type( field_type ), intent(inout) :: dcff_bl
+
+    ! Local variables
+    type( field_type ) :: wind_gust
+    type( field_type ) :: scale_dep_wind_gust
+    type( field_type ) :: visibility_with_precip
+    type( field_type ) :: visibility_no_precip
+    type( field_type ) :: fog_fraction
+    type( field_type ) :: fog_fraction_ssi
+    type( field_type ) :: fog_fraction_land
+    type( field_type ) :: vis_prob_5km
+    type( field_type ) :: dew_point
+    type( field_type ) :: dew_point_ssi
+    type( field_type ) :: dew_point_land
+
+    type( field_type ) :: dt_bl, pseudotauz, du_bl, dv_bl, dw_bl, &
+         w10m_neut, u10m2, v10m2
+    type( field_type ) :: pseudotaux, pseudotauy
+
+    logical( l_def ) :: ignore
+
+    if ( subroutine_timers ) call timer("bl_imp_diags")
+
+    ! Output prognostic fields
+    if (samp_diag('aerosol__murk')) call murk%write_field('aerosol__murk')
+
+    call dtheta_bl%write_field('turbulence__dtheta_blcnv')
+    call zh%write_field('turbulence__zh')
+    call heat_flux_bl%write_field('turbulence__heat_flux_bl')
+    call moist_flux_bl%write_field('turbulence__moist_flux_bl')
+
+    ! Diagnostic fields for BL locally computed here
+    du_bl_flag = init_diag(du_bl, 'turbulence__du_bl')
+    dv_bl_flag = init_diag(dv_bl, 'turbulence__dv_bl')
+    dw_bl_flag = init_diag(dw_bl, 'turbulence__dw_bl')
+    ! If any of the three fields is required then all are needed to do the mapping
+    if (du_bl_flag .or. dv_bl_flag .or. dw_bl_flag) then
+      if (.not. du_bl_flag) ignore = init_diag(du_bl, 'turbulence__du_bl', activate=.true.)
+      if (.not. dv_bl_flag) ignore = init_diag(dv_bl, 'turbulence__dv_bl', activate=.true.)
+      if (.not. dw_bl_flag) ignore = init_diag(dw_bl, 'turbulence__dw_bl', activate=.true.)
+      call map_physics_winds(du_bl,dv_bl,dw_bl,du_bl_w2)
+    end if
+    if (du_bl_flag) call du_bl%write_field()
+    if (dv_bl_flag) call dv_bl%write_field()
+    if (dw_bl_flag) call dw_bl%write_field()
+
+    dt_bl_flag = init_diag(dt_bl, 'turbulence__dt_bl')
+    if (dt_bl_flag) then
+      call invoke(    X_times_Y(dt_bl,dtheta_bl,exner_in_wth), &
+                  inc_X_minus_Y(dt_bl,dt_conv) )
+      call dt_bl%write_field()
+    end if
+    if (dmv_bl_flag) then
+      call invoke(inc_X_plus_Y(dmv_bl, mv))
+      call dmv_bl%write_field()
+    end if
+    if (dmcl_bl_flag) then
+      call invoke(inc_X_plus_Y(dmcl_bl, mcl))
+      call dmcl_bl%write_field()
+    end if
+    if (dms_bl_flag) then
+      call invoke(inc_X_plus_Y(dms_bl, mci))
+      call dms_bl%write_field()
+    end if
+    if (dbcf_bl_flag) then
+      call invoke(inc_X_plus_Y(dbcf_bl, cf_bulk))
+      call dbcf_bl%write_field()
+    end if
+    if (dacf_bl_flag) then
+      call invoke(inc_X_plus_Y(dacf_bl, cf_area))
+      call dacf_bl%write_field()
+    end if
+    if (dcfl_bl_flag) then
+      call invoke(inc_X_plus_Y(dcfl_bl, cf_liq))
+      call dcfl_bl%write_field()
+    end if
+    if (dcff_bl_flag) then
+      call invoke(inc_X_plus_Y(dcff_bl, cf_fro))
+      call dcff_bl%write_field()
+    end if
+
+    if (taux_flag) call taux%write_field()
+    if (tauy_flag) call tauy%write_field()
+
+    ! prognostic fields for surface but mapped from staggered atmosphere grid
+    call wspd10m%write_field('surface__wspd10m')
+    call taux_ssi%write_field('surface__taux_ssi')
+    call tauy_ssi%write_field('surface__tauy_ssi')
+
+    ! diagnostic fields for surface but mapped from staggered atmosphere grid
+    if (u10m_flag) call u10m%write_field()
+    if (v10m_flag) call v10m%write_field()
+
+    ! diagnostic fields for surface but on staggered atmosphere grid
+    if (wspd10m_neut_flag .or. u10m_neut_flag .or. v10m_neut_flag) then
+      if (.not. u10m_neut_flag) ignore = init_diag(u10m_neut, 'surface__u10m_neut', activate=.true.)
+      if (.not. v10m_neut_flag) ignore = init_diag(v10m_neut, 'surface__v10m_neut', activate=.true.)
+      call zh%copy_field_properties(w10m_neut)
+      call map_physics_winds(u10m_neut, v10m_neut, w10m_neut, wind10m_neut_w2)
+    end if
+    if (wspd10m_neut_flag) then
+      ! Calculate the neutral 10m windspeed
+      call u10m_neut%copy_field_properties(u10m2)
+      call v10m_neut%copy_field_properties(v10m2)
+      call invoke(setval_X(u10m2, u10m_neut),                                &
+                  setval_X(v10m2, v10m_neut),                                &
+                  inc_X_powint_n(u10m2, 2_i_def),                            &
+                  inc_X_powint_n(v10m2, 2_i_def),                            &
+                  X_plus_Y(wspd10m_neut,u10m2,v10m2),                        &
+                  inc_X_powreal_a(wspd10m_neut, 0.5_r_def) )
+      call wspd10m_neut%write_field()
+    end if
+    if (u10m_neut_flag) call u10m_neut%write_field()
+    if (v10m_neut_flag) call v10m_neut%write_field()
+
+    pseudotaux_flag = init_diag(pseudotaux, 'surface__pseudotaux')
+    pseudotauy_flag = init_diag(pseudotauy, 'surface__pseudotauy')
+    if (pseudotaux_flag .or. pseudotauy_flag) then
+      if (.not. pseudotaux_flag) ignore = init_diag(pseudotaux, 'surface__pseudotaux', activate=.true.)
+      if (.not. pseudotauy_flag) ignore = init_diag(pseudotauy, 'surface__pseudotauy', activate=.true.)
+      call pseudotaux%copy_field_properties(pseudotauz)
+      call map_physics_winds(pseudotaux, pseudotauy, pseudotauz, pseudotau_w2)
+    end if
+    if (pseudotaux_flag) call pseudotaux%write_field()
+    if (pseudotauy_flag) call pseudotauy%write_field()
+    if (ustar_implicit_flag) call ustar_implicit%write_field()
+
+    ! Local diagnostic calculated here
+    wind_gust_flag = init_diag(wind_gust, 'surface__wind_gust')
+    scale_dep_wind_gust_flag = init_diag(scale_dep_wind_gust, 'surface__scale_dep_wind_gust')
+    vis_no_precip_flag = init_diag(visibility_no_precip, 'surface__visibility_no_precip')
+    vis_with_precip_flag = init_diag(visibility_with_precip, 'surface__visibility_with_precip')
+    fog_fraction_flag = init_diag(fog_fraction, 'surface__fog_fraction')
+    fog_fraction_ssi_flag = init_diag(fog_fraction_ssi, 'surface__fog_fraction_ssi')
+    fog_fraction_land_flag = init_diag(fog_fraction_land, 'surface__fog_fraction_land')
+    vis_prob_5km_flag = init_diag(vis_prob_5km, 'surface__vis_prob_5km')
+    dew_point_flag = init_diag(dew_point, 'surface__dew_point')
+    dew_point_ssi_flag = init_diag(dew_point_ssi, 'surface__dew_point_ssi')
+    dew_point_land_flag = init_diag(dew_point_land, 'surface__dew_point_land')
+
+    ! visibility_with_precip requires visibility_no_precip
+    if (vis_with_precip_flag .and. .not. vis_no_precip_flag) then
+      ignore = init_diag(visibility_no_precip, 'surface__visibility_no_precip', activate=.true.)
+    end if
+
+    if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
+         vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
+         fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
+         fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
+         .or. dew_point_ssi_flag .or. dew_point_land_flag ) then
+
+      ! Calculate various extra diagnostics
+      call invoke( bl_extra_diags_kernel_type( rho_in_w3, wetrho_in_w3,        &
+                                               heat_flux_bl, moist_flux_bl,    &
+                                               exner_in_wth, mci, mr,          &
+                                               nr_mphys, ns_mphys, murk,       &
+                                               zh, t1p5m, q1p5m, qcl1p5m,      &
+                                               t1p5m_ssi, q1p5m_ssi,           &
+                                               qcl1p5m_ssi,                    &
+                                               t1p5m_land, q1p5m_land,         &
+                                               qcl1p5m_land,                   &
+                                               wspd10m, z0m_eff,               &
+                                               bl_weight_1dbl,                 &
+                                               ls_rain, ls_snow, lsca_2d,      &
+                                               conv_rain, conv_snow, cca_2d,   &
+                                               ustar_implicit,                 &
+                                               wind_gust, scale_dep_wind_gust, &
+                                               fog_fraction, fog_fraction_ssi, &
+                                               fog_fraction_land, vis_prob_5km,&
+                                               dew_point, dew_point_ssi,       &
+                                               dew_point_land,                 &
+                                               visibility_with_precip,         &
+                                               visibility_no_precip ) )
+
+      if (wind_gust_flag) call wind_gust%write_field()
+      if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
+      if (vis_no_precip_flag) call visibility_no_precip%write_field()
+      if (vis_with_precip_flag) call visibility_with_precip%write_field()
+      if (fog_fraction_flag) call fog_fraction%write_field()
+      if (fog_fraction_ssi_flag) call fog_fraction_ssi%write_field()
+      if (fog_fraction_land_flag) call fog_fraction_land%write_field()
+      if (vis_prob_5km_flag) call vis_prob_5km%write_field()
+      if (dew_point_flag) call dew_point%write_field()
+      if (dew_point_ssi_flag) call dew_point_ssi%write_field()
+      if (dew_point_land_flag) call dew_point_land%write_field()
+    end if
+
+    if ( subroutine_timers ) call timer("bl_imp_diags")
+
+  end subroutine output_diags_for_bl_imp
+end module bl_imp_diags_mod

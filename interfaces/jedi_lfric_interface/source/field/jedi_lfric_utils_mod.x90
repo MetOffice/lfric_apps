@@ -1,0 +1,115 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Utility functions for used by the JEDI model-interface
+
+!> @details Handles access to and creation of fields in the input
+!> field_collection.
+
+module jedi_lfric_utils_mod
+
+  use constants_mod,                  only : r_def, i_def
+  use field_mod,                      only : field_type
+  use field_collection_mod,           only : field_collection_type
+  use field_parent_mod,               only : write_interface, &
+                                             read_interface
+  use function_space_collection_mod,  only : function_space_collection
+  use fs_continuity_mod,              only : W3, Wtheta, name_from_functionspace
+  use log_mod,                        only : log_event,       &
+                                             LOG_LEVEL_ERROR, &
+                                             LOG_LEVEL_TRACE, &
+                                             log_scratch_space
+  use mesh_mod,                       only : mesh_type
+  use lfric_xios_read_mod,            only : read_field_generic
+  use lfric_xios_write_mod,           only : write_field_generic
+  use field_collection_mod,           only : field_collection_type
+  use constants_mod,                  only : i_def
+
+  implicit none
+
+  contains
+
+  !> @brief  Get pointer to field stored in the input field_collection.
+  !>
+  !> @param[in]    field_name       the name of the field to return
+  !> @param[inout] field_collection field_collection to get field from
+  !> @param[inout] field_ptr        pointer to the field requested
+  subroutine get_model_field( field_name, field_collection, field_ptr )
+
+    implicit none
+
+    character(*), intent(in)                   :: field_name
+    type(field_collection_type), intent(inout) :: field_collection
+    type(field_type), pointer, intent(inout)   :: field_ptr
+
+    logical :: field_exists
+
+    call log_event( 'lfric_da: get_model_field - start', LOG_LEVEL_TRACE )
+
+    field_exists = field_collection % field_exists(field_name)
+    if ( .not.field_exists ) then
+      write(log_scratch_space, '(3A)') "lfric_da: the requested field: ", &
+                                       trim(field_name), ", is not available"
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    ! get a pointer to the field
+    call field_collection % get_field(field_name, field_ptr)
+
+    call log_event( 'lfric_da: get_model_field - end', LOG_LEVEL_TRACE )
+
+  end subroutine get_model_field
+
+  !> @brief  Create and add a real-valued field to a field collection
+  !>
+  !> @param[inout] field_collection The collection to add the field to
+  !> @param[in]    mesh             The mesh to build the field on
+  !> @param[in]    fs_enumerator    The function space to build the field on
+  !> @param[in]    field_name       The name of the new field
+  subroutine add_real_field(field_collection, mesh, fs_enumerator, field_name)
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: field_collection
+    type(mesh_type), intent(in), pointer  :: mesh
+    integer(i_def), intent(in)            :: fs_enumerator
+    character(*), intent(in)              :: field_name
+
+    type(field_type), allocatable         :: field
+
+    procedure(read_interface), pointer    :: tmp_read_ptr
+    procedure(write_interface), pointer   :: tmp_write_ptr
+
+    integer(i_def) :: element_order_h = 0
+    integer(i_def) :: element_order_v = 0
+
+    allocate(field)
+
+    call field%initialise( &
+      vector_space = function_space_collection%get_fs(mesh, element_order_h,   &
+                                                      element_order_v,         &
+                                                      fs_enumerator),          &
+      name = field_name )
+
+    if (fs_enumerator == W3 .or. fs_enumerator == Wtheta) then
+      tmp_read_ptr => read_field_generic
+      tmp_write_ptr => write_field_generic
+    else
+      write(log_scratch_space, '(3A)') "The ", &
+        trim(name_from_functionspace(fs_enumerator)) , &
+        " function space is not supported."
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    call field%set_read_behaviour(tmp_read_ptr)
+    call field%set_write_behaviour(tmp_write_ptr)
+
+    call invoke(setval_c(field, 0.0_r_def))
+
+    call field_collection%add_field( field )
+
+  end subroutine add_real_field
+
+end module jedi_lfric_utils_mod

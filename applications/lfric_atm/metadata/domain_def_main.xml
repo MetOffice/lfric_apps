@@ -1,0 +1,6 @@
+<!-- Main domain definitions -->
+<domain_definition comment="to be sized by the model">
+  <domain id="face" type="unstructured" comment="for dofs over faces of plane mesh"/>
+  <domain id="edge" type="unstructured" comment="for dofs over edges of plane mesh"/>
+  <domain id="node" type="unstructured" comment="for dofs over vertices of plane mesh"/>
+</domain_definition>

@@ -1,0 +1,38 @@
+@@ -1,12 +1,12 @@
+ module adj_vertical_mass_flux_kernel_mod
+   use argument_mod, only : any_discontinuous_space_1, any_w2, arg_type, cell_column, func_type, gh_field, gh_read, gh_readwrite, &
+-&gh_real, gh_write
++&gh_real, gh_readinc
+   use constants_mod, only : i_def, l_def, r_tran
+   use kernel_mod, only : kernel_type
+   implicit none
+   type, public, extends(kernel_type) :: adj_vertical_mass_flux_kernel_type
+   type(ARG_TYPE) :: META_ARGS(3) = (/ &
+-    arg_type(gh_field, gh_real, gh_write, any_w2), &
++    arg_type(gh_field, gh_real, gh_readinc, any_w2), &
+     arg_type(gh_field, gh_real, gh_read, any_w2), &
+     arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_1)/)
+   INTEGER :: OPERATES_ON = cell_column
+@@ -44,17 +44,17 @@
+       df = 5
+       offset = 4 * nlayers
+     end if
+-    mass_flux(map_w2(df) + nlayers) = 0.0
++    mass_flux(map_w2(df) + nlayers) = 0.0_r_tran
+     do k = nlayers - 1, 1, -1
+       ijp2 = k + nlayers + offset + map_md(1) - 1
+       ijp1 = k + offset + map_md(1)
+-      wgt = 0.5 - SIGN(0.5, wind(k + map_w2(df)))
++      wgt = 0.5_r_tran - SIGN(0.5_r_tran, wind(k + map_w2(df)))
+       reconstruction(ijp1) = reconstruction(ijp1) + wgt * mass_flux(map_w2(df) + k) * wind(k + map_w2(df))
+       reconstruction(ijp2) = reconstruction(ijp2) - wgt * mass_flux(map_w2(df) + k) * wind(k + map_w2(df))
+-      reconstruction(ijp2) = reconstruction(ijp2) + 1.0 * mass_flux(map_w2(df) + k) * wind(k + map_w2(df))
+-      mass_flux(map_w2(df) + k) = 0.0
++      reconstruction(ijp2) = reconstruction(ijp2) + mass_flux(map_w2(df) + k) * wind(k + map_w2(df))
++      mass_flux(map_w2(df) + k) = 0.0_r_tran
+     enddo
+-    mass_flux(map_w2(df)) = 0.0
++    mass_flux(map_w2(df)) = 0.0_r_tran
+ 
+   end subroutine adj_vertical_mass_flux_code
+ 

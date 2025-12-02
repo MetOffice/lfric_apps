@@ -1,0 +1,108 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the relative_humidity_kernel
+module relative_humidity_kernel_mod_test
+
+  use constants_mod, only : r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: relative_humidity_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: relative_humidity_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type relative_humidity_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(relative_humidity_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(relative_humidity_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use relative_humidity_kernel_mod, only : relative_humidity_code
+
+   implicit none
+
+    class(relative_humidity_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-10_r_def
+    real(kind=r_def), parameter :: tk0c = 273.15_r_def ! Temperature of freezing in Kelvin
+    real(kind=r_def), parameter :: qsa1 = 3.8_r_def   ! Constant in qsat equation
+    real(kind=r_def), parameter :: qsa4 = 6.109_r_def  ! Constant in qsat equation in mbar
+    real(kind=r_def), parameter :: p_zero = 100000.0_r_def
+    real(kind=r_def), parameter :: recip_epsilon = 0.60_r_def
+    real(kind=r_def), parameter :: rd = 300.0_r_def
+    real(kind=r_def), parameter :: cp = 1000.0_r_def
+    real(kind=r_def), parameter :: kappa = rd / cp
+
+    ! Fields
+    real(kind=r_def) :: mr_sat
+    real(kind=r_def) :: relative_humidity
+    real(kind=r_def) :: theta_d
+    real(kind=r_def) :: exner_at_wt
+    real(kind=r_def) :: mr_v
+    real(kind=r_def) :: answer
+
+    ! Strategy behind this test is to fix the temperature at 273.15
+    ! In this case, mr_sat from Tetens' formula simplifies to:
+    ! mr_sat = qsa1 / (p - qsa4)
+    mr_sat = qsa1 / ( 0.01_r_def * p_zero - qsa4 )
+
+    ! Have pressure equal to p_zero
+    exner_at_wt = 1.0_r_def
+
+    ! Then theta_d is equal to temperature
+    theta_d = tk0c
+
+    ! Set an arbritrary m_v
+    mr_v = 1.0_r_def / 100.0_r_def
+
+    ! Use simplified situation to calculate answer
+    answer = mr_v / mr_sat &
+          * ( 1.0_r_def + mr_sat * recip_epsilon ) &
+          / ( 1.0_r_def + mr_v * recip_epsilon )
+
+    ! Make relative_humidity initially have wrong values
+    relative_humidity = 0.0_r_def
+
+    call relative_humidity_code( relative_humidity, &
+                                 mr_v,              &
+                                 theta_d,           &
+                                 exner_at_wt,       &
+                                 recip_epsilon,     &
+                                 kappa,             &
+                                 p_zero )
+
+    @assertEqual(answer, relative_humidity, tol)
+
+  end subroutine test_all
+
+end module relative_humidity_kernel_mod_test

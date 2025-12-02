@@ -1,0 +1,36 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Initialise some fields used for the solver miniapp
+module init_solver_fields_alg_mod
+
+  use constants_mod, only : r_def
+  use field_mod,     only : field_type
+
+  implicit none
+
+  private
+
+  public :: init_solver_fields_alg
+
+contains
+
+  !>@brief Initialise of fields in solver miniapp
+  !>@param[in,out] f1 First field to initialise
+  !>@param[in,out] f2 Second field to initialise
+  subroutine init_solver_fields_alg(f1, f2)
+
+    implicit none
+
+    type(field_type), intent(inout) :: f1, f2
+
+    ! Set the fields to scalars
+    call invoke( setval_c(f1, 0.5_r_def), &
+                 setval_c(f2, 1.0_r_def) )
+
+  end subroutine init_solver_fields_alg
+
+end module init_solver_fields_alg_mod

@@ -1,0 +1,46 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_lfricinputs.cyc") %}
+
+{# Runtime sections for lfric_coupled fcm_make tasks. #}
+{# The run, build_ and checksum/plot tasks for lfric_coupled use #}
+{# the standard templating. Only fcm_make tasks are set here #}
+
+{% set task_app = "fcm_make_"~task_ns.conf_name %}
+
+{% if task.startswith("fcm_make2") or task_ns.conf_name == "river" %}
+{# The final build step - either the fcm_make2 task or fcm_make_rivers #}
+{# which only uses a single step build #}
+
+    {% if "drivers" in task %}
+    [[fcm_make2_drivers]]
+    {% else %}
+    [[{{task}}]]
+    {% endif %}
+        inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}},{{task_ns.platform|upper}}_BUILD_COUPLED_CCE
+        script = rose task-run
+        [[[environment]]]
+            ROSE_TASK_APP = {{task_app}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["build_cpus"], task_values["build_memory"]) }}
+
+{% else %}
+{# The first build stage for 2-step builds #}
+
+    {% if "drivers" in task %}
+    [[fcm_make_drivers]]
+    {% else %}
+    [[{{task}}]]
+    {% endif %}
+        inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}}, {{SITE|upper}}_FCM_MAKE
+        script = rose task-run
+        execution time limit = PT10M
+        [[[environment]]]
+            ROSE_TASK_APP = {{task_app}}
+
+{% endif %}
+
+{% do LOG.debug("Finised in templates/runtime/generate_runtime_lfricinputs.cyc") %}

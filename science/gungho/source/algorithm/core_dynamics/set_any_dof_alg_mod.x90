@@ -1,0 +1,35 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Setting of any dof of a field
+module set_any_dof_alg_mod
+
+  use constants_mod,              only: r_def, i_def
+  use sci_set_any_dof_kernel_mod, only: set_any_dof_kernel_type
+  use field_mod,                  only: field_type
+
+  implicit none
+
+  private
+  public :: set_any_dof_alg
+
+contains
+  !> @details An algorithm for setting any dof of a field
+  !> @param[inout] field         The field to update
+  !> @param[in]    dof_to_update The ID of the DoF which needs setting
+  !> @param[in]    value         The value to set it to
+  subroutine set_any_dof_alg( field, dof_to_update, value )
+
+    implicit none
+
+    integer(i_def) ,  intent(in)    :: dof_to_update
+    real(r_def),      intent(in)    :: value
+    type(field_type), intent(inout) :: field
+
+    call invoke( set_any_dof_kernel_type ( field, dof_to_update, value ) )
+
+  end subroutine set_any_dof_alg
+
+end module set_any_dof_alg_mod

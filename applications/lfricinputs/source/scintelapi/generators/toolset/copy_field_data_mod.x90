@@ -1,0 +1,69 @@
+! *****************************COPYRIGHT*******************************
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file LICENCE
+! which you should have received as part of this distribution.
+! *****************************COPYRIGHT*******************************
+module copy_field_data_mod
+!
+! This module contains a generator to copy data from one field to another.
+!
+
+use dependency_graph_mod, only: dependency_graph
+
+implicit none
+
+contains
+
+subroutine copy_field_data(dep_graph)
+!
+! This generator copies the field data from the input field to the output field
+! in the dependency graph.
+!
+
+use gen_io_check_mod,       only: gen_io_check
+use field_mod,              only: field_type
+
+implicit none
+
+!
+! Argument definitions:
+!
+! Dependency graph to be processed
+class(dependency_graph), intent(in out) :: dep_graph
+
+!
+! Local variables
+!
+! Field pointers to use
+type(field_type), pointer :: outfield => null(), infield => null()
+!
+! Dummy function space variable used in checks
+integer :: fspace
+
+!
+! Perform some initial input checks
+!
+fspace = dep_graph % output_field(1) % field_ptr % which_function_space()
+call gen_io_check(                                                             &
+                  dep_graph=dep_graph,                                         &
+                  input_field_no=1,                                            &
+                  input_field_fs=[fspace],                                     &
+                  output_field_no=1,                                           &
+                  output_field_fs=[fspace],                                    &
+                  parameter_no=0                                               &
+                 )
+!
+! Done with initial input checks
+!
+
+! Copy field data through a call to a Psyclone built-in kernel
+outfield => dep_graph % output_field(1) % field_ptr
+infield => dep_graph % input_field(1) % field_ptr
+call invoke(setval_X(outfield, infield))
+
+! Nullify field pointers
+nullify(infield, outfield)
+
+end subroutine copy_field_data
+
+end module copy_field_data_mod

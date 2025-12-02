@@ -1,0 +1,68 @@
+@@ -8,13 +8,13 @@
+     use function_space_mod, only : function_space_type
+     use mesh_mod, only : mesh_type
+     use function_space_collection_mod, only : function_space_collection
+-    use extract_w_kernel_mod, only : extract_w_kernel_type
+-    use adj_extract_w_kernel_mod, only : adj_extract_w_kernel_type
++    use sci_extract_w_kernel_mod, only : extract_w_kernel_type
++    use adj_sci_extract_w_kernel_mod, only : adj_extract_w_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : w2, wtheta
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -27,12 +27,15 @@
+     type(field_type) :: u_physics_input
+     real(kind=r_def) :: velocity_w2v_inner_prod
+     real(kind=r_def) :: u_physics_inner_prod
++    real(kind=r_def) :: velocity_w2v_sf
++    real(kind=r_def) :: u_physics_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: velocity_w2v_velocity_w2v_input_inner_prod
+     real(kind=r_def) :: u_physics_u_physics_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+     vector_space_wtheta_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,wtheta)
+@@ -42,14 +45,23 @@
+     call u_physics_input%initialise(vector_space=vector_space_w2_ptr, name='u_physics_input')
+     velocity_w2v_inner_prod = 0.0_r_def
+     u_physics_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(velocity_w2v), setval_x(velocity_w2v_input, velocity_w2v), setval_random(u_physics), &
+ &setval_x(u_physics_input, u_physics), extract_w_kernel_type(velocity_w2v, u_physics), x_innerproduct_x(velocity_w2v_inner_prod, &
+ &velocity_w2v), x_innerproduct_x(u_physics_inner_prod, u_physics))
++    write( log_scratch_space, * ) "adjt_sci_extract_w inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "u_physics inner product = ", u_physics_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "velocity_w2v inner product = ", velocity_w2v_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    u_physics_sf = 1.0_r_def / (u_physics_inner_prod + eps)
++    velocity_w2v_sf = 1.0_r_def / (velocity_w2v_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + velocity_w2v_inner_prod
+-    inner1 = inner1 + u_physics_inner_prod
++    inner1 = inner1 + u_physics_inner_prod * u_physics_sf
++    inner1 = inner1 + velocity_w2v_inner_prod * velocity_w2v_sf
++    call invoke( inc_a_times_X( u_physics_sf, u_physics ), &
++                 inc_a_times_X( velocity_w2v_sf, velocity_w2v ) )
+     velocity_w2v_velocity_w2v_input_inner_prod = 0.0_r_def
+     u_physics_u_physics_input_inner_prod = 0.0_r_def
+     call invoke(adj_extract_w_kernel_type(velocity_w2v, u_physics), x_innerproduct_y(velocity_w2v_velocity_w2v_input_inner_prod, &
+@@ -57,7 +69,6 @@
+     inner2 = 0.0_r_def
+     inner2 = inner2 + velocity_w2v_velocity_w2v_input_inner_prod
+     inner2 = inner2 + u_physics_u_physics_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

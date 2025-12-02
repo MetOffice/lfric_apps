@@ -1,0 +1,17 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/uoe/gungho_model/tasks_gungho_model_epic.cylc") %}
+
+{% if task_ns.conf_name == "exo-hs-C24_MG" %}
+
+    {% do task_dict.update({
+        "tsteps": 1080,
+        "crun": 2,
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finised in site/uoe/gungho_model/tasks_gungho_model_epic.cylc") %}

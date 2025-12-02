@@ -1,0 +1,180 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Common routines for computing transport increments at the end of
+!!        the transport step, for adjoint model.
+
+module adj_end_transport_step_alg_mod
+
+  use constants_mod,                  only: i_def, r_tran, l_def
+  use fs_continuity_mod,              only: W2, W2H, W2V
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+  use sci_geometric_constants_mod,    only: get_face_selector_ew, &
+                                            get_face_selector_ns
+  use integer_field_mod,              only: integer_field_type
+  use io_config_mod,                  only: subroutine_timers
+  use log_mod,                        only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                       only: mesh_type
+  use r_tran_field_mod,               only: r_tran_field_type
+  use timer_mod,                      only: timer
+  use transport_config_mod,           only: dry_field_name
+  use transport_enumerated_types_mod, only: direction_3d, &
+                                            direction_h,  &
+                                            direction_v,  &
+                                            splitting_strang_vhv
+  use transport_metadata_mod,         only: transport_metadata_type
+  use transport_counter_mod,          only: transport_counter_type
+  use split_transport_utils_mod,      only: get_num_split_steps
+
+  implicit none
+
+  private
+
+  public  :: adj_build_up_flux
+
+contains
+
+  !=============================================================================
+  !> @brief Build up the mass flux used over a full conservative transport step
+  !> @details Takes the mass fluxes saved in the transport runtime, and builds
+  !!          up the fluxes from those for each transport step.
+  !> @param[in,out] sum_flux           The 3D total flux to be computed
+  !> @param[in,out] flux_last_step     The flux from the final transport step
+  !> @param[in]     transport_counter  The transport counter object, which
+  !!                                   has stored the fluxes over the whole
+  !!                                   transport (sub)step
+  !> @param[in]     transport_metadata The transport metadata object for the
+  !!                                   transported field
+  subroutine adj_build_up_flux( sum_flux, flux_last_step, transport_counter, &
+                                transport_metadata )
+
+    use adj_combine_w2_field_kernel_mod, only: adj_combine_w2_field_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type),         intent(inout) :: sum_flux
+    type(r_tran_field_type), target, intent(inout) :: flux_last_step
+    type(transport_counter_type),    intent(inout) :: transport_counter
+    type(transport_metadata_type),   intent(in)    :: transport_metadata
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_id, step, num_steps
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2v_fs
+    type(r_tran_field_type),   pointer :: old_flux
+    type(r_tran_field_type),   pointer :: hori_flux
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    type(r_tran_field_type)            :: sum_hori_flux
+    type(r_tran_field_type)            :: sum_vert_flux
+    type(r_tran_field_type)            :: combined_flux
+    logical(kind=l_def)                :: is_flux_3d
+    logical(kind=l_def)                :: is_flux_split
+
+    if ( subroutine_timers ) call timer('transport.adj_build_up_flux')
+
+    ! Don't know which function space the fluxes are in -- add up each
+    mesh => sum_flux%get_mesh()
+    mesh_id = mesh%get_id()
+    w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
+    w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
+    w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
+    face_selector_ew => get_face_selector_ew(mesh_id)
+    face_selector_ns => get_face_selector_ns(mesh_id)
+
+    ! Make specific routine for our most common splitting to slightly optimise
+    ! for it
+    if ( transport_metadata%get_splitting() == splitting_strang_vhv ) then
+
+      ! Get fluxes from first two stages of splitting
+      old_flux => transport_counter%get_flux(1)
+      hori_flux => transport_counter%get_flux(2)
+
+      call sum_vert_flux%initialise(w2v_fs)
+      call invoke( setval_c( sum_vert_flux, 0.0_r_tran ),                           &
+                   adj_combine_w2_field_kernel_type( sum_flux, hori_flux,           &
+                                                     sum_vert_flux,                 &
+                                                     face_selector_ew,              &
+                                                     face_selector_ns ),            &
+                   inc_X_plus_Y( old_flux, sum_vert_flux ),                         &
+                   inc_X_plus_Y( flux_last_step, sum_vert_flux ),                   &
+                   setval_c( sum_vert_flux, 0.0_r_tran ) )
+
+    ! General case for any splitting
+    else
+      call sum_hori_flux%initialise(w2h_fs)
+      call sum_vert_flux%initialise(w2v_fs)
+
+      call invoke( setval_c(sum_hori_flux, 0.0_r_tran), &
+                   setval_c(sum_vert_flux, 0.0_r_tran) )
+
+      is_flux_3d = .false.
+      is_flux_split = .false.
+
+      select case ( flux_last_step%which_function_space() )
+      case ( W2 )
+        is_flux_3d = .true.
+      case ( W2H )
+        is_flux_split = .true.
+      case ( W2V )
+        is_flux_split = .true.
+      case default
+        call log_event('Function space of flux not recognised', LOG_LEVEL_ERROR)
+      end select
+
+      if (is_flux_split) then
+        if (is_flux_3d) then
+          call combined_flux%initialise(w2_fs)
+          call invoke( setval_x( combined_flux, sum_flux ),                 &
+                       adj_combine_w2_field_kernel_type( combined_flux,     &
+                                                         sum_hori_flux,     &
+                                                         sum_vert_flux,     &
+                                                         face_selector_ew,  &
+                                                         face_selector_ns) )
+        else
+          ! There is no 3D step, so straightaway combine horizontal and vertical fluxes
+          call invoke( adj_combine_w2_field_kernel_type(sum_flux, sum_hori_flux,   &
+                                                        sum_vert_flux,             &
+                                                        face_selector_ew,          &
+                                                        face_selector_ns) )
+        end if
+      end if
+
+      num_steps = get_num_split_steps(transport_metadata%get_splitting())
+      do step = num_steps, 1, -1
+        if (step == num_steps) then
+          old_flux => flux_last_step
+        else
+          old_flux => transport_counter%get_flux(step)
+        end if
+
+        select case ( old_flux%which_function_space() )
+        case ( W2 )
+          call invoke( inc_X_plus_Y(old_flux, sum_flux) )
+        case ( W2H )
+          call invoke( inc_X_plus_Y(old_flux, sum_hori_flux) )
+        case ( W2V )
+          call invoke( inc_X_plus_Y(old_flux, sum_vert_flux) )
+        case default
+          call log_event('Function space of flux not recognised', LOG_LEVEL_ERROR)
+        end select
+      end do
+
+      call invoke( setval_c( sum_flux, 0.0_r_tran ),      &
+                   setval_c( sum_hori_flux, 0.0_r_tran ), &
+                   setval_c( sum_vert_flux, 0.0_r_tran ) )
+
+
+    end if
+
+    if ( subroutine_timers ) call timer('transport.adj_build_up_flux')
+
+  end subroutine adj_build_up_flux
+
+end module adj_end_transport_step_alg_mod

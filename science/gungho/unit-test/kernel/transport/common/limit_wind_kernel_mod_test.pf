@@ -1,0 +1,75 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the sorting of columns of data to remove static instability
+!>
+module limit_wind_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def, r_second
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: limit_wind_test_type
+    private
+  contains
+    procedure test_all
+  end type limit_wind_test_type
+
+  real(r_def), parameter :: DT = 600.0_r_def
+  real(r_def), parameter :: DX = 1000.0_r_def
+  real(r_def), parameter :: U0 = 1.0_r_def
+  real(r_def), parameter :: UFAST = 10.0_r_def
+  real(r_def), parameter :: MAX_CFL = 0.75_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use limit_wind_kernel_mod, only: limit_wind_code
+
+    implicit none
+
+    class(limit_wind_test_type), intent(inout) :: this
+
+    ! Fields
+    real(r_def) :: wind
+    real(r_def) :: dJ_on_w2
+
+    integer :: cell
+
+    ! Get detJ values
+    dJ_on_w2 = DX*DX*DX
+
+
+    wind = U0*DX*DX
+    call limit_wind_code( wind,            &
+                          dJ_on_w2, dt,    &
+                          MAX_CFL )
+    @assertLessThanOrEqual( wind, DX*DX*DX*MAX_CFL/DT )
+
+    ! Large vertical wind
+    wind =  UFAST*DX*DX
+    call limit_wind_code( wind,            &
+                          dJ_on_w2, dt,    &
+                          MAX_CFL )
+    @assertLessThanOrEqual( wind, DX*DX*DX*MAX_CFL/DT )
+
+    ! Large and negative horizonal wind
+    wind =  -UFAST*DX*DX
+    call limit_wind_code( wind,            &
+                          dJ_on_w2, dt,    &
+                          MAX_CFL )
+    @assertLessThanOrEqual( wind, DX*DX*DX*MAX_CFL/DT )
+
+  end subroutine test_all
+
+end module limit_wind_kernel_mod_test

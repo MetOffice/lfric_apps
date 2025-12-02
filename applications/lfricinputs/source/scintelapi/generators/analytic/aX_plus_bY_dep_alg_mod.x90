@@ -1,0 +1,93 @@
+! *****************************COPYRIGHT*******************************
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file LICENCE
+! which you should have received as part of this distribution.
+! *****************************COPYRIGHT*******************************
+module aX_plus_bY_dep_alg_mod
+!
+! This module contains a generator that calculates a linear combination of
+! two fields.
+!
+
+use dependency_graph_mod, only: dependency_graph
+
+implicit none
+
+contains
+
+subroutine aX_plus_bY_dep_alg(dep_graph)
+!
+! This generator calculates a linear combination of the two input fields in a
+! dependency graph and store result in the output field.
+!
+
+use gen_io_check_mod,       only: gen_io_check
+use field_mod,              only: field_type
+use log_mod,                only: log_event, log_scratch_space, LOG_LEVEL_ERROR
+use constants_def_mod,      only: genpar_len, r_def
+
+implicit none
+
+!
+! Argument definitions:
+!
+! Dependency graph to be processed
+class(dependency_graph), intent(in out) :: dep_graph
+
+!
+! Local variables
+!
+! Field pointers to use
+type(field_type), pointer :: field_y => null(), field_x => null(),             &
+                             field_z => null()
+!
+! Scaling factors
+real(kind=r_def) :: scale_fac_a, scale_fac_b
+!
+! Parameter list
+character(len=genpar_len) :: parlist
+!
+! Dummy function space variable used in checks
+integer :: fspace
+!
+! Error code for reading parameter list
+integer :: ioerr
+
+!
+! Perform some initial input checks
+!
+fspace = dep_graph % output_field(1) % field_ptr % which_function_space()
+call gen_io_check(                                                             &
+                  dep_graph=dep_graph,                                         &
+                  input_field_no=2,                                            &
+                  input_field_fs=[fspace, fspace],                             &
+                  output_field_no=1,                                           &
+                  output_field_fs=[fspace],                                    &
+                  parameter_no=2                                               &
+                 )
+!
+! Done with initial input checks
+!
+
+! Read parameter list for scaling factor
+parlist = dep_graph % genpar
+read(parlist,*,iostat=ioerr) scale_fac_a, scale_fac_b
+if (ioerr /= 0 ) then
+  write(log_scratch_space,'(A)') 'Error occured when parsing parameter ' //    &
+                                 'list in routine aX_plus_bY_dep_alg. ' //             &
+                                 'Input should be two real/integer values.'
+  call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+end if
+
+! Linearly combine field data via a call to a Psyclone built-in kernel
+field_z => dep_graph % output_field(1) % field_ptr
+field_x => dep_graph % input_field(1) % field_ptr
+field_y => dep_graph % input_field(2) % field_ptr
+call invoke(aX_plus_bY(field_z, scale_fac_a, field_x, scale_fac_b, field_y))
+
+! Nullify field pointers
+nullify(field_x, field_y, field_z)
+
+end subroutine aX_plus_bY_dep_alg
+
+end module aX_plus_bY_dep_alg_mod

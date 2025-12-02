@@ -1,0 +1,137 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the moist_to_dry_theta_kernel
+module moist_to_dry_theta_kernel_mod_test
+
+  use, intrinsic :: iso_fortran_env,       only : real64
+  use constants_mod,                       only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: moist_to_dry_theta_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: moist_to_dry_theta_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type moist_to_dry_theta_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(moist_to_dry_theta_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(moist_to_dry_theta_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use moist_to_dry_theta_kernel_mod, only : moist_to_dry_theta_code
+
+   implicit none
+
+    class(moist_to_dry_theta_test_type), intent(inout) :: this
+
+    real(kind=r_def),      parameter :: cpd = 1000.0_r_def
+    real(kind=r_def),      parameter :: Rd = 200.0_r_def
+    real(kind=r_def),      parameter :: p_zero = 100000.0_r_def
+    real(kind=r_def),      parameter :: tol = 1.0_r_def
+    real(kind=r_def)                 :: use_tol
+    integer(kind=i_def),   parameter :: undf_wt = 3
+    integer(kind=i_def)              :: df
+
+    ! Fields
+    real(kind=r_def),    allocatable :: rho(:)
+    real(kind=r_def),    allocatable :: theta_m(:)
+    real(kind=r_def),    allocatable :: theta_d(:)
+    real(kind=r_def),    allocatable :: mr_v(:)
+    real(kind=r_def),    allocatable :: mr_cl(:)
+    real(kind=r_def),    allocatable :: mr_ci(:)
+    real(kind=r_def),    allocatable :: mr_r(:)
+    real(kind=r_def),    allocatable :: mr_s(:)
+    real(kind=r_def),    allocatable :: mr_g(:)
+    real(kind=r_def),    allocatable :: answer(:)
+
+
+    ! Create the data
+    allocate( mr_v( undf_wt ) )
+    allocate( mr_cl( undf_wt ) )
+    allocate( mr_ci( undf_wt ) )
+    allocate( mr_r( undf_wt ) )
+    allocate( mr_s( undf_wt ) )
+    allocate( mr_g( undf_wt ) )
+    allocate( rho( undf_wt ) )
+    allocate( theta_d( undf_wt ) )
+    allocate( theta_m( undf_wt ) )
+    allocate( answer( undf_wt ) )
+
+    theta_d(:) = 0.0_r_def
+    theta_m(:) = 300.0_r_def
+    mr_v(:) = 0.02_r_def
+    mr_cl(:) = 0.01_r_def
+    mr_ci(:) = 0.001_r_def
+    mr_r(:) = 0.0_r_def
+    mr_s(:) = 0.0_r_def
+    mr_g(:) = 0.0_r_def
+    rho(:) = 0.8_r_def
+    answer(:) = 301.65_r_def
+
+    do df = 1, undf_wt
+      call moist_to_dry_theta_code( theta_d(df),       &
+                                    theta_m(df),       &
+                                    rho(df),           &
+                                    mr_v(df),          &
+                                    mr_cl(df),         &
+                                    mr_r(df),          &
+                                    mr_ci(df),         &
+                                    mr_s(df),          &
+                                    mr_g(df),          &
+                                    cpd,               &
+                                    Rd,                &
+                                    p_zero )
+    end do
+
+    if ( r_def == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_def*spacing( maxval(answer) )
+    end if
+
+    @assertEqual(answer, theta_d, use_tol)
+
+    deallocate( answer )
+    deallocate( theta_d )
+    deallocate( theta_m )
+    deallocate( mr_v )
+    deallocate( mr_cl )
+    deallocate( mr_ci )
+    deallocate( mr_r )
+    deallocate( mr_s )
+    deallocate( mr_g )
+    deallocate( rho )
+
+  end subroutine test_all
+
+end module moist_to_dry_theta_kernel_mod_test

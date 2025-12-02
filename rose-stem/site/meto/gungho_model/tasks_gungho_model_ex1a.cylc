@@ -1,0 +1,58 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/gungho_model/tasks_gungho_model_ex1a.cylc") %}
+
+{% if task_ns.conf_name == "lfric-real-domain-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [12, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "baroclinic-C96_MG" %}
+
+    {% do task_dict.update({
+        "memory": [54, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "moist_baroclinic_orog-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [12, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "robert-moist-smag-l300-BiP200x8-5x5" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "sbr-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "straka_50m-BiP1024x8-50x50" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "warm3dbubble-BiP100x100-10x10" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "sbr-alt2-C24_MG_op" %}
+
+    {% do task_dict.update({
+        "wallclock": 45,
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finised in site/meto/gungho_model/tasks_gungho_model_ex1a.cylc") %}

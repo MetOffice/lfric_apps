@@ -1,0 +1,173 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% from "cylc.flow" import LOG %}
+
+{% do LOG.debug("Entered templates/runtime/generate_runtime_application.cylc") %}
+{# Generate the runtime section for application run tasks #}
+
+{# Define a family for this task #}
+    [[{{task_family|upper}}]]
+        inherit={{task_ns.application|upper}}_{{task_ns.platform|upper}}
+
+{# Set the family inheritance for this task #}
+{% set inherit = namespace(str="") %}
+{% set inherit.str = task_family|upper %}
+{% for family in task_values["run_families"] %}
+    {% set inherit.str = inherit.str~","~family|upper %}
+{% endfor %}
+
+{# Generate the script command #}
+{% set script_str = namespace(name="") %}
+{% set script_str.name = "$CYLC_WORKFLOW_RUN_DIR/bin/application_results_setup.sh ; " %}
+{% set script_str.name = script_str.name~"rose task-run --app-key="~task_values["app_name"] %}
+{% if task_values["app_name"] == "canned_test" %}
+    {% set script_str.name = script_str.name~" --command-key=$RUN_METHOD" %}
+{% else %}
+    {% if task_ns.application != "lfricinputs" %}
+        {% set script_str.name = script_str.name~" --opt-conf-key="~task_values["resolution"] %}
+    {% endif %}
+    {% for opt_conf in task_values["opt_confs"] %}
+        {% if opt_conf.strip() %}
+            {% set script_str.name = script_str.name~" --opt-conf-key="~opt_conf %}
+        {% endif %}
+    {% endfor %}
+    {% if task_values["use_xios"] and task_values["app_name"]!='lfric_atm' %}
+        {% set script_str.name = script_str.name~" --opt-conf-key=xios_server" %}
+    {% endif %}
+    {% set script_str.name = script_str.name~" --opt-conf-key=suite_controlled" %}
+{% endif %}
+
+{# The PANEL_DECOMP variable expects it to be quoted #}
+{% set panel_decomp = "'"~task_values["panel_decomp"]~"'" %}
+
+{# Set the read/write filenames for restarts #}
+{% set restart_stem_name = checkpoint_dir~"/restart_"~task_family~"_tstep" %}
+
+{# If lfric2lfric, set the weights loc #}
+{% set weight_loc = "" %}
+{% if task_ns.application == "lfric2lfric" %}
+    {% set weight_loc = "$CYLC_WORKFLOW_WORK_DIR/1/generate_weights_lfric2lfric_"~
+                        task_ns.conf_name~"_"~
+                        site_vars["scripts_platform"]~
+                        "_weightgen_script" %}
+{% endif %}
+
+{# Set the pre-script command for canned tests #}
+{% set canned_prescript = "cp -r $SOURCE_DIRECTORY/"~task_values["example_dir"]~"/* "~
+                          "$CYLC_TASK_WORK_DIR" %}
+
+{# Set the post script command - should be a list of strings #}
+{% set post_script_commands = [
+    '# Create results directory, if not already created.',
+    'mkdir -p $TASK_OUTPUT_DIR/results/',
+    'RELATIVE_LOG_ROOT=$(echo $CYLC_TASK_LOG_ROOT | sed "s|$HOME/||")',
+    'echo $RELATIVE_LOG_ROOT > $TASK_OUTPUT_DIR/run.log.path',
+    'find . -regex ".*PET0+\..+\.Log" -exec cp {} $ROSE_TASK_LOG_DIR \;',
+    'find . -regex ".*PET0+\..+\.Log" -exec cp {} $TASK_OUTPUT_DIR \;',
+    'find . -regex ".*PET0+\..+\.Log" -exec cat {} \;',
+    'test -f '~task_values["app_name"]~
+        '-checksums.txt && cp $CYLC_TASK_WORK_DIR/'~
+        task_values["app_name"]~'-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
+    'touch $CYLC_TASK_WORK_DIR/tmp.m',
+    'mv $CYLC_TASK_WORK_DIR/*.m $TASK_OUTPUT_DIR/results',
+    'test -f $CYLC_TASK_WORK_DIR/timer.txt && '~
+        'cp $CYLC_TASK_WORK_DIR/timer.txt $TASK_OUTPUT_DIR || true'
+    ] %}
+
+{# Check to see if it is a Perftools application run, as we need to change the binary target#}
+{% set PAT_EXE_EXTEN ='' %}
+{% if SITE~"-"~task_ns.platform == 'meto-ex1a' %}
+    {% if 'perftools' in task_ns.compiler %}
+        {% set PAT_EXE_EXTEN ='+pat' %}
+    {% endif %}
+{% endif %}
+
+{# Define the task runtime section #}
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = {{script_str.name}}
+        {{ generate_script("post-script", post_script_commands) }}
+        execution time limit = PT{{task_values["wallclock"]}}M
+        [[[environment]]]
+            DESTINATION_DIRECTORY   = {{destination_dir}}
+            APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
+            CORE_ROOT_DIR           = $SOURCE_ROOT/lfric_core
+            SOURCE_DIRECTORY        = $SOURCE_ROOT/{{task_values["application_dir"]}}
+            METADATA                = $SOURCE_ROOT/lfric_apps/applications/lfric_atm/metadata
+            BIN_DIR                 = {{bin_dir}}
+            LIB_DIR                 = {{lib_dir}}
+            MOD_DIR                 = {{mod_dir}}
+{% if task_ns.application == "lfric2lfric" %}
+            MESH_DIR                = {{mesh_dir}}
+{% else %}
+            MESH_DIR                = {{mesh_dir}}/{{task_values["resolution"]}}
+{% endif %}
+            TASK_OUTPUT_DIR         = {{task_output_dir}}
+            APP_NAME                = {{task_values["app_name"]}}
+            APPLICATION             = {{task_ns.application}}
+            LOG_LEVEL               = {{task_values["log_level"]}}
+            RESOLUTION              = {{task_values["resolution"]|replace("_MG","")}}
+            ancil_resolution        = {{task_values["ancil_resolution"]|default('NONE')}}
+            DT                      = {{task_values["DT"]}}
+            USE_XIOS_IO             = {{task_values["use_xios_io"]}}
+            NODAL_OUTPUT_ON_W3      = {{task_values["nodal_output_on_w3"]}}
+            OMP_NUM_THREADS         = {{task_values["threads"]}}
+            TOTAL_RANKS             = {{task_values["mpi_parts"]}}
+            XPROC                   = {{task_values["xproc"]}}
+            YPROC                   = {{task_values["yproc"]}}
+            PANEL_DECOMP            = {{panel_decomp}}
+            RESTART_NTS             = {{task_values["tsteps"]}}
+            RESTART_NO              = {{task_values["restart_no"]}}
+            RESTART                 = {{task_values["restart"]}}
+            RESTART_START           = {{task_values["init_tstep"]}}
+            RESTART_STOP            = {{task_values["last_tstep"]}}
+            RESTART_READ            = {{task_values["restart_read"]}}
+            RESTART_WRITE           = {{task_values["restart_write"]}}
+            CHECKPOINT_STEM_FILE    = {{restart_stem_name}}
+            CANNED_PRESCRIPT        = {{canned_prescript}}
+            XIOS_SERVER_MODE        = {{task_values["xios_server_mode"]}}
+            XIOS_SERVER_RANKS       = {{task_values["xios_server_ranks"]}}
+            xios_nodes              = {{task_values["xios_nodes"]}}
+            mpi_parts_xios          = {{task_values["mpi_parts_xios"]}}
+            PAT_EXE_EXTEN           = {{PAT_EXE_EXTEN}}
+            CORES_PER_NODE_OVERRIDE = {{task_values["task_ranks_per_node"]}}
+            RANKS_DEPTH_PAD         = {{task_values["task_ranks_depth_pad"]}}
+            LOG_SOLE_RANK           = {{task_values["log_to_rank_zero_only"]}}
+            WEIGHT_LOC              = {{weight_loc}}
+{% if "memory_plot_ex" in task_values %}
+            MEMORY_PROFILE          = {{task_values["memory_plot_ex"]}}
+{% endif %}
+
+{% if task_ns.application == "lfricinputs" %}
+    {% include "templates/runtime/lfricinputs_task_environment.cylc" %}
+{% endif %}
+
+{% if task_ns.application == "lfric_coupled" %}
+    {% include "templates/runtime/coupled_task_environment.cylc" %}
+{% endif %}
+
+{# Set any directives using macros imported in generate_runtime for this platform #}
+        [[[directives]]]
+
+{% if task_ns.application == "lfric_coupled" %}
+    {{ set_task_resources(task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ocean_nodes=task_values["ocean_nodes"],
+                          river_nodes=task_values["river_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% else %}
+    {{ set_task_resources(task_values["mpi_parts"],
+                          task_values["memory"],
+                          threads=task_values["threads"],
+                          xios_nodes=task_values["xios_nodes"],
+                          ranks_per_node=task_values["task_ranks_per_node"],
+                          ranks_depth_pad=task_values["task_ranks_depth_pad"]) }}
+{% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_application.cylc") %}

@@ -1,0 +1,310 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the computation of the vertical adv coefficients
+module poly1d_vert_adv_coeffs_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, l_def, r_tran
+  use funit
+  implicit none
+
+  private
+  public :: test_uniform_mesh
+  public :: test_stretched_mesh
+
+  @TestCase
+  type, extends(TestCase), public :: poly1d_vert_adv_coeffs_test_type
+    private
+  contains
+    procedure setUp
+    procedure test_uniform_mesh
+    procedure test_stretched_mesh
+    procedure tearDown
+  end type poly1d_vert_adv_coeffs_test_type
+
+contains
+
+  subroutine setUp( this )
+    use feign_config_mod,     only : feign_base_mesh_config, &
+                                     feign_planet_config,    &
+                                     feign_transport_config
+    use base_mesh_config_mod, only : geometry_planar,    &
+                                     topology_fully_periodic
+    use transport_config_mod, only : runge_kutta_method_ssp2,       &
+                                     operators_fv,                  &
+                                     slice_order_cubic,             &
+                                     si_outer_transport_none,       &
+                                     vertical_sl_order_quintic,     &
+                                     max_vert_cfl_calc_uniform,     &
+                                     substep_transport_off,         &
+                                     theta_variable_dry,            &
+                                     min_val_method_iterative,      &
+                                     calculate_detj_upwind,         &
+                                     panel_edge_treatment_none
+    implicit none
+
+    class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
+
+    call feign_transport_config( operators = operators_fv,                                 &
+                                 runge_kutta_method = runge_kutta_method_ssp2,             &
+                                 fv_vertical_order = 2,                                    &
+                                 fv_horizontal_order = 2,                                  &
+                                 broken_w2_projection = .false.,                           &
+                                 consistent_metric  = .false.,                             &
+                                 oned_reconstruction = .false.,                            &
+                                 cfl_mol_1d_stab = 1.0_r_def,                              &
+                                 cfl_mol_2d_stab = 1.0_r_def,                              &
+                                 cfl_mol_3d_stab = 1.0_r_def,                              &
+                                 cheap_update = .false.,                                   &
+                                 calculate_detj = calculate_detj_upwind,                   &
+                                 dep_pt_stencil_extent = 2,                                &
+                                 ffsl_inner_order = 0,                                     &
+                                 ffsl_outer_order = 1,                                     &
+                                 ffsl_vertical_order = (/ 1, 1, 1 /),                      &
+                                 ffsl_unity_3d = .true.,                                   &
+                                 slice_order = slice_order_cubic,                          &
+                                 vertical_sl_order = vertical_sl_order_quintic,            &
+                                 si_outer_transport = si_outer_transport_none,             &
+                                 substep_transport = substep_transport_off,                &
+                                 theta_variable=theta_variable_dry,                        &
+                                 theta_dispersion_correction  = .false.,                   &
+                                 use_density_predictor = .false.,                          &
+                                 cap_density_predictor = 0.001_r_def,                      &
+                                 min_val_abs_tol = -1.0e-12_r_def,                         &
+                                 min_val_max_iterations = 100,                             &
+                                 min_val_method = min_val_method_iterative,                &
+                                 wind_mono_top = .false.,                                  &
+                                 wind_mono_top_depth = 0,                                  &
+                                 adjust_theta = .false.,                                   &
+                                 adjust_theta_above = 0.0_r_def,                           &
+                                 adjust_vhv_wind=.false.,                                  &
+                                 dry_field_name='tracer',                                  &
+                                 profile_size = 1,                                         &
+                                 field_names = (/'tracer'/),                               &
+                                 equation_form = (/1/),                                    &
+                                 scheme = (/1/),                                           &
+                                 splitting = (/1/),                                        &
+                                 horizontal_method = (/1/),                                &
+                                 vertical_method = (/1/),                                  &
+                                 horizontal_monotone = (/1/),                              &
+                                 vertical_monotone = (/1/),                                &
+                                 vertical_monotone_order = (/1/),                          &
+                                 ffsl_splitting = (/ 1 /),                                 &
+                                 log_space = (/.false./),                                  &
+                                 enforce_min_value = (/.false./),                          &
+                                 min_value = (/0.0_r_def/),                                &
+                                 max_vert_cfl_calc = max_vert_cfl_calc_uniform,            &
+                                 reversible = (/.false./),                                 &
+                                 transport_ageofair=.false.,                               &
+                                 ageofair_reset_level = 10,                                &
+                                 panel_edge_treatment=panel_edge_treatment_none,           &
+                                 panel_edge_high_order = .false.,                          &
+                                 special_edges_monotone = (/1/)                            &
+                                 )
+    call feign_base_mesh_config( file_prefix='foo',                   &
+                                 prime_mesh_name='unit_test',         &
+                                 geometry=geometry_planar,            &
+                                 prepartitioned=.false.,              &
+                                 topology=topology_fully_periodic,    &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+  end subroutine setUp
+
+  @Test
+  subroutine test_uniform_mesh( this )
+    use, intrinsic :: iso_fortran_env,     only : real64
+    use poly1d_vert_adv_coeffs_kernel_mod, only: poly1d_vert_adv_coeffs_code
+    use poly1d_vert_adv_kernel_mod,        only: poly1d_vert_adv_code
+    implicit none
+
+    class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
+
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran   ! precision with 32bit r_defs
+    real(r_tran), dimension(4) :: answer
+    real(r_tran)               :: use_tol
+
+    integer(i_def), parameter :: nfaces_v = 2
+
+    integer(i_def), parameter :: nlayers = 9
+    integer(i_def), parameter :: mol_order = 3
+    integer(i_def), parameter :: ndf_c  = 2
+    integer(i_def), parameter :: ndf_wx = 2
+    integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+    integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
+    integer(i_def), parameter :: undf_wx = nlayers + 1
+    integer(i_def), dimension(ndf_c)  :: map_c
+    integer(i_def), dimension(ndf_wx) :: map_wx
+
+    real(r_tran), dimension(undf_c)  :: coeff
+    real(r_def), dimension(undf_wx) :: z
+
+    real(r_def) :: dz = 3.0_r_def
+
+    integer(i_def) :: k, df
+
+    map_c(:) = (/ 1, 1 + ndata /)
+    map_wx(:) = (/ 1, 2 /)
+
+    z(1) = 0.0_r_def
+    do k = 0,nlayers-1
+      z(map_wx(2)+k) = z(map_wx(1)+k) + dz
+    end do
+
+    call poly1d_vert_adv_coeffs_code(nlayers,                   &
+                                     coeff,                     &
+                                     z,                         &
+                                     ndata,                     &
+                                     mol_order,                 &
+                                     ndf_c,                     &
+                                     undf_c,                    &
+                                     map_c,                     &
+                                     ndf_wx,                    &
+                                     undf_wx,                   &
+                                     map_wx)
+    answer = (/ -2.0_r_tran, -3.0_r_tran, 6.0_r_tran, -1.0_r_tran /)/6.0_r_tran
+
+    use_tol = tol
+    do df = 0,3
+      @assertEqual(answer(df+1), coeff(df + map_c(1) + 2*ndata), use_tol)
+    end do
+    answer = (/ 1.0_r_tran, -6.0_r_tran, 3.0_r_tran, 2.0_r_tran /)/6.0_r_tran
+    do df = 0,3
+      @assertEqual(answer(df+1), coeff(df + (mol_order+1) + map_c(1) + 2*ndata), use_tol)
+    end do
+
+  end subroutine test_uniform_mesh
+
+  @Test
+  subroutine test_stretched_mesh( this )
+
+    use, intrinsic :: iso_fortran_env,     only : real64
+    use poly1d_vert_adv_coeffs_kernel_mod, only : poly1d_vert_adv_coeffs_code
+    use poly1d_vert_adv_kernel_mod,        only : poly1d_vert_adv_code
+    implicit none
+
+    class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
+
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran  ! precision with 32bit r_defs
+    real(r_tran)               :: use_tol
+
+    integer(i_def), parameter :: nfaces_v = 2
+
+    integer(i_def), parameter :: nlayers = 9
+    integer(i_def), parameter :: mol_order = 3
+    logical(l_def), parameter :: logspace = .false.
+    integer(i_def), parameter :: ndf_wt = 2
+    integer(i_def), parameter :: ndf_c  = 2
+    integer(i_def), parameter :: ndf_wx = 2
+    integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+    integer(i_def), parameter :: undf_wt = (nlayers+1)
+    integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
+    integer(i_def), parameter :: undf_wx = nlayers + 1
+    integer(i_def), dimension(ndf_c)  :: map_c
+    integer(i_def), dimension(ndf_wt) :: map_wt
+    integer(i_def), dimension(ndf_wx) :: map_wx
+
+    real(r_tran), dimension(undf_c)  :: coeff
+    real(r_def), dimension(undf_wx) :: z
+    real(r_tran), dimension(undf_wt) :: mdwt
+
+    real(r_def), parameter :: dx = 2.0_r_def
+    real(r_def), parameter :: dy = 1.5_r_def
+    real(r_def)            :: dz
+
+    integer(i_def) :: i, k, df
+
+    integer(i_def), parameter :: ndf_w2v = 2
+    integer(i_def), parameter :: undf_w2v = nlayers+1
+    integer(i_def), dimension(ndf_w2v)  :: map_w2v
+    real(r_tran),    dimension(undf_w2v) :: flux
+    real(r_tran),    dimension(undf_w2v) :: wind
+    real(r_tran),    dimension(undf_wt)  :: density
+    real(r_tran),    dimension(undf_wt)  :: ddensitydz
+    real(r_tran)                         :: ddz
+    integer(i_def)                      :: power = 1
+    real(r_def)                         :: stretch = 1.5_r_def
+
+    map_c(:)  = (/ 1, 1 + ndata /)
+    map_wt(:) = (/ 1, 2 /)
+    map_w2v(:) = (/ 1, 2 /)
+    map_wx(:) = map_wt(:)
+
+    ! Test reconstruction on a stretched grid
+    coeff = 0.0_r_tran
+    mdwt = 0.0_r_tran
+    z(1) = 0.0_r_def
+    dz = 2.3_r_def
+    do k = 0,nlayers-1
+      dz = dz * stretch
+      z(map_wx(2)+k) = z(map_wx(1)+k) + dz
+      mdwt(map_wt(1)+k) = mdwt(map_wt(1)+k) + 0.5_r_def*dx*dy*dz
+      mdwt(map_wt(2)+k) = mdwt(map_wt(2)+k) + 0.5_r_def*dx*dy*dz
+      density(1+k)    = z(map_wx(1)+k)**power
+      ! power is always 1 so this is a constant
+      ddensitydz(1+k) = 1.0_r_def
+    end do
+
+    density(nlayers+1)    = z(map_wx(2)+nlayers-1)**power
+    ddensitydz(nlayers+1) = real(power,r_def)*z(map_wx(2)+nlayers-1)**(power-1)
+
+    ! Compute the coeffs for the stretched mesh
+    call poly1d_vert_adv_coeffs_code(nlayers,                   &
+                                     coeff,                     &
+                                     z,                         &
+                                     ndata,                     &
+                                     mol_order,                 &
+                                     ndf_c,                     &
+                                     undf_c,                    &
+                                     map_c,                     &
+                                     ndf_wx,                    &
+                                     undf_wx,                   &
+                                     map_wx)
+
+
+    do i = 0,1
+      wind = (-1.0_r_tran + 2.0_r_tran*real(i,r_tran))*dx*dy
+      flux = 0.0_r_tran
+
+      call poly1d_vert_adv_code( nlayers,              &
+                                 flux,                 &
+                                 wind,                 &
+                                 density,              &
+                                 coeff,                &
+                                 ndata,                &
+                                 mol_order,            &
+                                 logspace,             &
+                                 ndf_wt,               &
+                                 undf_wt,              &
+                                 map_wt,               &
+                                 ndf_w2v,              &
+                                 undf_w2v,             &
+                                 map_w2v,              &
+                                 ndf_c,                &
+                                 undf_c,               &
+                                 map_c)
+
+      use_tol = tol
+      do k = 1,nlayers-1
+        ddz = flux(map_w2v(1)+k)/mdwt(map_wt(1)+k) * dx*dy/wind(map_w2v(1))
+        @assertEqual(ddensitydz(map_wt(1)+k), ddz, use_tol)
+      end do
+
+    end do
+
+  end subroutine test_stretched_mesh
+
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(poly1d_vert_adv_coeffs_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end  subroutine tearDown
+
+end module poly1d_vert_adv_coeffs_kernel_mod_test

@@ -1,0 +1,98 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test easyaerosol_scatdiag_kernel
+!>
+
+module easyaerosol_scatdiag_kernel_mod_test
+
+  use funit
+  use constants_mod,                   only : r_def, i_def
+  use easyaerosol_scatdiag_kernel_mod, only : easyaerosol_scatdiag_code
+
+  implicit none
+
+  private
+  public :: test_easyaerosol_scatdiag
+
+  @TestCase
+  type, extends(TestCase), public  :: easyaerosol_test_type
+    private
+    real(kind=r_def), allocatable :: easy_absorption(:),        &
+                                     easy_extinction(:),        &
+                                     easy_diag(:),              &
+                                     answer_diag(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_easyaerosol_scatdiag
+
+  end type easyaerosol_test_type
+
+  integer(kind=i_def), parameter :: nlayers      = 2_i_def
+  integer(kind=i_def), parameter :: n_band       = 2_i_def
+  integer(kind=i_def), parameter :: ndf          = 2_i_def
+  integer(kind=i_def), parameter :: map(2)       = (/1_i_def, -999_i_def /)
+  integer(kind=i_def), parameter :: easy_arr_len = (nlayers + 1) * n_band
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine setUp( this )
+
+    implicit none
+
+    class(easyaerosol_test_type), intent(inout) :: this
+
+    allocate ( this%easy_absorption(easy_arr_len),              &
+               this%easy_extinction(easy_arr_len),              &
+               this%easy_diag      (easy_arr_len),              &
+               this%answer_diag    (easy_arr_len) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(easyaerosol_test_type), intent(inout) :: this
+
+    deallocate( this%easy_absorption,                           &
+                this%easy_extinction,                           &
+                this%easy_diag,                                 &
+                this%answer_diag)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_easyaerosol_scatdiag ( this )
+
+    implicit none
+
+    class(easyaerosol_test_type), intent(inout) :: this
+
+    ! Some test values and answers
+    this%easy_extinction = (/ 99.0_r_def, 990.0_r_def, 6.0_r_def, 60.0_r_def,  8.0_r_def, 80.0_r_def /)
+    this%easy_absorption = (/  9.0_r_def,  90.0_r_def, 0.6_r_def,  6.0_r_def,  0.8_r_def,  8.0_r_def /)
+    this%answer_diag     = (/  0.0_r_def,  5.4_r_def, 7.2_r_def,   0.0_r_def, 54.0_r_def, 72.0_r_def /)
+
+    call easyaerosol_scatdiag_code( nlayers,                                   &
+                                    n_band,                                    &
+                                    this%easy_extinction,                      &
+                                    this%easy_absorption,                      &
+                                    this%easy_diag,                            &
+                                    ndf, easy_arr_len, map,                    &
+                                    ndf, easy_arr_len, map )
+
+    @assertEqual( this%answer_diag, this%easy_diag )
+
+  end subroutine test_easyaerosol_scatdiag
+
+end module easyaerosol_scatdiag_kernel_mod_test

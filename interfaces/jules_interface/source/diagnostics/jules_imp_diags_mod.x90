@@ -1,0 +1,347 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for jules_imp_alg
+
+module jules_imp_diags_mod
+
+  use constants_mod,             only: l_def
+  use field_mod,                 only: field_type
+  use jules_control_init_mod,    only: n_surf_tile, n_land_tile
+  use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
+                                         samp_diag => diagnostic_to_be_sampled
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+  logical( l_def ) :: t1p5m_surft_flag
+  logical( l_def ) :: q1p5m_surft_flag
+  logical( l_def ) :: t1p5m_flag
+  logical( l_def ) :: q1p5m_flag
+  logical( l_def ) :: qcl1p5m_flag
+  logical( l_def ) :: rh1p5m_flag
+  logical( l_def ) :: t1p5m_ssi_flag
+  logical( l_def ) :: q1p5m_ssi_flag
+  logical( l_def ) :: qcl1p5m_ssi_flag
+  logical( l_def ) :: rh1p5m_ssi_flag
+  logical( l_def ) :: t1p5m_land_flag
+  logical( l_def ) :: q1p5m_land_flag
+  logical( l_def ) :: qcl1p5m_land_flag
+  logical( l_def ) :: rh1p5m_land_flag
+  logical( l_def ) :: latent_heat_flag
+  logical( l_def ) :: grid_latent_heat_flag
+  logical( l_def ) :: snomlt_surf_htf_flag
+  logical( l_def ) :: soil_evap_flag
+  logical( l_def ) :: soil_surf_ht_flux_flag
+  logical( l_def ) :: surf_sw_net_flag
+  logical( l_def ) :: surf_radnet_flag
+  logical( l_def ) :: surf_lw_up_flag
+  logical( l_def ) :: surf_lw_down_flag
+
+  public :: initialise_diags_for_jules_imp
+  public :: output_diags_for_jules_imp
+
+contains
+
+  !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in,out] t1p5m_surft        1.5m temperature for land tiles
+  !> @param[in,out] q1p5m_surft        1.5m specific humidity for land tiles
+  !> @param[in,out] t1p5m              1.5m temperature
+  !> @param[in,out] q1p5m              1.5m specific humidity
+  !> @param[in,out] qcl1p5m            1.5m specific cloud water
+  !> @param[in,out] rh1p5m             1.5m relative humidity
+  !> @param[in,out] t1p5m_ssi          1.5m temperature over sea and sea-ice
+  !> @param[in,out] q1p5m_ssi          1.5m specific humidity over sea and sea-ice
+  !> @param[in,out] qcl1p5m_ssi        1.5m specific cloud water over sea and sea-ice
+  !> @param[in,out] rh1p5m_ssi         1.5m relative humidity over sea and sea-ice
+  !> @param[in,out] t1p5m_land         1.5m temperature over land
+  !> @param[in,out] q1p5m_land         1.5m specific humidity over land
+  !> @param[in,out] qcl1p5m_land       1.5m specific cloud water over land
+  !> @param[in,out] rh1p5m_land        1.5m relative humidity over land
+  !> @param[in,out] latent_heat        Surface latent heat flux on tiles
+  !> @param[in,out] snomlt_surf_htf    Surface snow melt heat flux
+  !> @param[in,out] soil_evap          Water evaporation flux from soil
+  !> @param[in,out] soil_surf_ht_flux  downward heat flux at ground level in soil
+  !> @param[in,out] surf_sw_net        surface net downward shortwave flux on tiles
+  !> @param[in,out] surf_radnet        surface net downward radiative flux on tiles
+  !> @param[in,out] surf_lw_up         surface upward longwave flux on tiles
+  !> @param[in,out] surf_lw_down       surface downward longwave flux on tiles
+  subroutine initialise_diags_for_jules_imp(loop, t1p5m_surft, q1p5m_surft, &
+                                            t1p5m, q1p5m, qcl1p5m, rh1p5m,  &
+                                            t1p5m_ssi, q1p5m_ssi,           &
+                                            qcl1p5m_ssi, rh1p5m_ssi,        &
+                                            t1p5m_land, q1p5m_land,         &
+                                            qcl1p5m_land, rh1p5m_land,      &
+                                            latent_heat,                    &
+                                            snomlt_surf_htf, soil_evap,     &
+                                            soil_surf_ht_flux,              &
+                                            surf_sw_net, surf_radnet,       &
+                                            surf_lw_up, surf_lw_down)
+
+    implicit none
+
+    ! Diagnostic fields to initialise
+    type( field_type ), intent(inout) :: t1p5m_surft, q1p5m_surft
+    type( field_type ), intent(inout) :: t1p5m, q1p5m, qcl1p5m, rh1p5m
+    type( field_type ), intent(inout) :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi
+    type( field_type ), intent(inout) :: t1p5m_land, q1p5m_land, qcl1p5m_land, rh1p5m_land
+    type( field_type ), intent(inout) :: latent_heat
+    type( field_type ), intent(inout) :: snomlt_surf_htf
+    type( field_type ), intent(inout) :: soil_evap
+    type( field_type ), intent(inout) :: soil_surf_ht_flux
+    type( field_type ), intent(inout) :: surf_sw_net, surf_radnet
+    type( field_type ), intent(inout) :: surf_lw_up, surf_lw_down
+
+    integer, intent(in) :: loop
+
+    logical( l_def ) :: ignore
+
+    ! Diagnostics computed within the kernel - these are computed on 1st loop
+    ! currently they are initialised on all loops but possibly not needed on 2nd
+    ! 2D fields
+    rh1p5m_flag = init_diag(rh1p5m, 'surface__rh1p5m')
+    rh1p5m_ssi_flag = init_diag(rh1p5m_ssi, 'surface__rh1p5m_ssi')
+    rh1p5m_land_flag = init_diag(rh1p5m_land, 'surface__rh1p5m_land')
+    snomlt_surf_htf_flag = init_diag(snomlt_surf_htf, 'surface__snomlt_surf_htf')
+    soil_evap_flag = init_diag(soil_evap, 'surface__soil_evap')
+    soil_surf_ht_flux_flag = init_diag(soil_surf_ht_flux, 'surface__soil_surf_ht_flux')
+
+    ! surface tiled fields
+    t1p5m_surft_flag = init_diag(t1p5m_surft, 'surface__t1p5m_surft')
+    if (t1p5m_surft_flag) call invoke(setval_c(t1p5m_surft,0.0_r_def))
+
+    q1p5m_surft_flag = init_diag(q1p5m_surft, 'surface__q1p5m_surft')
+    if (q1p5m_surft_flag) call invoke(setval_c(q1p5m_surft,0.0_r_def))
+
+    surf_sw_net_flag = init_diag(surf_sw_net, 'surface__surf_sw_net')
+    if (surf_sw_net_flag) call invoke(setval_c(surf_sw_net,0.0_r_def))
+
+    surf_radnet_flag = init_diag(surf_radnet, 'surface__surf_radnet')
+    if (surf_radnet_flag) call invoke(setval_c(surf_radnet,0.0_r_def))
+
+    surf_lw_up_flag = init_diag(surf_lw_up, 'surface__surf_lw_up')
+    if (surf_lw_up_flag) call invoke(setval_c(surf_lw_up,0.0_r_def))
+
+    surf_lw_down_flag = init_diag(surf_lw_down, 'surface__surf_lw_down')
+    if (surf_lw_down_flag) call invoke(setval_c(surf_lw_down,0.0_r_def))
+
+    if (loop == 1) then
+      ! complex diagnostic, needs updating in both loops, so allocate on 1st
+      ! and save from 1st to 2nd loop
+      latent_heat_flag = init_diag(latent_heat, 'surface__latent_heat')
+      grid_latent_heat_flag = samp_diag('surface__grid_latent_heat')
+      if (grid_latent_heat_flag .and. .not. latent_heat_flag) then
+        ignore = init_diag(latent_heat, 'surface__latent_heat', activate=.true.)
+      end if
+      if (latent_heat_flag .or. grid_latent_heat_flag) &
+           call invoke(setval_c(latent_heat,0.0_r_def))
+
+      ! diagnostics which are needed in BL code, so allocate on 1st loop
+      ! and save
+      t1p5m_flag = init_diag(t1p5m, 'surface__t1p5m')
+      q1p5m_flag = init_diag(q1p5m, 'surface__q1p5m')
+      qcl1p5m_flag = init_diag(qcl1p5m, 'surface__qcl1p5m')
+      t1p5m_ssi_flag = init_diag(t1p5m_ssi, 'surface__t1p5m_ssi')
+      q1p5m_ssi_flag = init_diag(q1p5m_ssi, 'surface__q1p5m_ssi')
+      qcl1p5m_ssi_flag = init_diag(qcl1p5m_ssi, 'surface__qcl1p5m_ssi')
+      t1p5m_land_flag = init_diag(t1p5m_land, 'surface__t1p5m_land')
+      q1p5m_land_flag = init_diag(q1p5m_land, 'surface__q1p5m_land')
+      qcl1p5m_land_flag = init_diag(qcl1p5m_land, 'surface__qcl1p5m_land')
+
+      ! Initialise fields where another diagnostic depends on them
+      if (samp_diag('surface__ustar_implicit') .or. &
+          samp_diag('surface__wind_gust') .or. &
+          samp_diag('surface__scale_dep_wind_gust') .or. &
+          samp_diag('surface__visibility_no_precip') .or. &
+          samp_diag('surface__visibility_with_precip') .or. &
+          samp_diag('surface__fog_fraction') .or. &
+          samp_diag('surface__vis_prob_5km') .or. &
+          samp_diag('surface__dew_point')) then
+        if (.not. t1p5m_flag) ignore = init_diag(t1p5m, 'surface__t1p5m', activate=.true.)
+        if (.not. q1p5m_flag) ignore = init_diag(q1p5m, 'surface__q1p5m', activate=.true.)
+        if (.not. qcl1p5m_flag) ignore = init_diag(qcl1p5m, 'surface__qcl1p5m', activate=.true.)
+      end if
+      ! sea and sea-ice derived diags
+      if (samp_diag('surface__fog_fraction_ssi') .or. &
+          samp_diag('surface__dew_point_ssi')) then
+        if (.not. t1p5m_ssi_flag) ignore = init_diag(t1p5m_ssi, 'surface__t1p5m_ssi', activate=.true.)
+        if (.not. q1p5m_ssi_flag) ignore = init_diag(q1p5m_ssi, 'surface__q1p5m_ssi', activate=.true.)
+        if (.not. qcl1p5m_ssi_flag) ignore = init_diag(qcl1p5m_ssi, 'surface__qcl1p5m_ssi', activate=.true.)
+      end if
+      ! land derived diags
+      if (samp_diag('surface__fog_fraction_land') .or. &
+          samp_diag('surface__dew_point_land')) then
+        if (.not. t1p5m_land_flag) ignore = init_diag(t1p5m_land, 'surface__t1p5m_land', activate=.true.)
+        if (.not. q1p5m_land_flag) ignore = init_diag(q1p5m_land, 'surface__q1p5m_land', activate=.true.)
+        if (.not. qcl1p5m_land_flag) ignore = init_diag(qcl1p5m_land, 'surface__qcl1p5m_land', activate=.true.)
+      end if
+
+    end if !loop=1
+
+  end subroutine initialise_diags_for_jules_imp
+
+  !> @brief Output diagnostics from jules_imp_alg
+  !> @param[in]     tile_heat_flux           surface sensible heat flux on tiles
+  !> @param[in]     tile_moisture_flux       surface moisture flux on tiles
+  !> @param[in]     tile_temperature         surface temperature on tiles
+  !> @param[in]     snowice_sublimation      surface snow and ice sublimation rate on tiles
+  !> @param[in]     canopy_evap              canopy evaporation on tiles
+  !> @param[in]     tile_fraction            Surface tile fractions
+  !> @param[in]     t1p5m_surft              1.5m temperature for land tiles
+  !> @param[in]     q1p5m_surft              1.5m specific humidity for land tiles
+  !> @param[in]     t1p5m                    1.5m temperature
+  !> @param[in]     q1p5m                    1.5m specific humidity
+  !> @param[in]     qcl1p5m                  1.5m specific cloud water
+  !> @param[in]     rh1p5m                   1.5m relative humidity
+  !> @param[in]     t1p5m_ssi                1.5m temperature over sea and sea-ice
+  !> @param[in]     q1p5m_ssi                1.5m specific humidity over sea and sea-ice
+  !> @param[in]     qcl1p5m_ssi              1.5m specific cloud water over sea and sea-ice
+  !> @param[in]     rh1p5m_ssi               1.5m relative humidity over sea and sea-ice
+  !> @param[in]     t1p5m_land               1.5m temperature over land
+  !> @param[in]     q1p5m_land               1.5m specific humidity over land
+  !> @param[in]     qcl1p5m_land             1.5m specific cloud water over land
+  !> @param[in]     rh1p5m_land              1.5m relative humidity over land
+  !> @param[in]     latent_heat              Surface latent heat flux on tiles
+  !> @param[in]     snomlt_surf_htf          Surface snow melt heat flux
+  !> @param[in]     soil_evap                Water evaporation flux from soil
+  !> @param[in]     surf_ht_flux             downward heat flux at ground level on tiles
+  !> @param[in]     soil_surf_ht_flux        downward heat flux at ground level in soil
+  !> @param[in]     surf_sw_net              surface net downward shortwave flux on tiles
+  !> @param[in]     surf_radnet              surface net downward radiative flux on tiles
+  !> @param[in]     surf_lw_up               surface upward longwave flux on tiles
+  !> @param[in]     surf_lw_down             surface downward longwave flux on tiles
+  subroutine output_diags_for_jules_imp(loop, tile_heat_flux,                  &
+                                     tile_moisture_flux, tile_temperature,     &
+                                     snowice_sublimation, canopy_evap,         &
+                                     tile_fraction,                            &
+                                     t1p5m_surft, q1p5m_surft,                 &
+                                     t1p5m, q1p5m, qcl1p5m, rh1p5m,            &
+                                     t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,        &
+                                     rh1p5m_ssi,                               &
+                                     t1p5m_land, q1p5m_land, qcl1p5m_land,     &
+                                     rh1p5m_land,                              &
+                                     latent_heat,                              &
+                                     snomlt_surf_htf,                          &
+                                     soil_evap,                                &
+                                     surf_ht_flux,                             &
+                                     soil_surf_ht_flux, surf_sw_net,           &
+                                     surf_radnet, surf_lw_up,                  &
+                                     surf_lw_down)
+
+  implicit none
+
+  ! Prognostic fields to output
+  type( field_type ), intent(in)    :: tile_heat_flux, tile_fraction,        &
+                                       tile_moisture_flux, tile_temperature, &
+                                       snowice_sublimation,                  &
+                                       canopy_evap
+
+  ! Diagnostics computed within the kernel
+  type( field_type ), intent(in)    :: t1p5m_surft, q1p5m_surft
+  type( field_type ), intent(in)    :: t1p5m, q1p5m, qcl1p5m, rh1p5m
+  type( field_type ), intent(in)    :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi
+  type( field_type ), intent(in)    :: t1p5m_land, q1p5m_land, qcl1p5m_land, rh1p5m_land
+  type( field_type ), intent(in)    :: latent_heat, snomlt_surf_htf
+  type( field_type ), intent(in)    :: soil_evap
+  type( field_type ), intent(in)    :: surf_ht_flux, soil_surf_ht_flux
+  type( field_type ), intent(in)    :: surf_sw_net, surf_radnet
+  type( field_type ), intent(in)    :: surf_lw_up, surf_lw_down
+
+  integer, intent(in) :: loop
+
+  ! Local variables
+  type( field_type ) :: land_surface_temperature, grid_canopy_evap, &
+       grid_surface_temperature, grid_latent_heat, grid_sublimation
+
+  if ( subroutine_timers ) call timer("jules_imp_diags")
+
+  ! Output prognostic fields - always output these on 2nd loop
+  if (loop == 2) then
+    call tile_heat_flux%write_field('surface__tile_heat_flux')
+    call tile_moisture_flux%write_field('surface__tile_moisture_flux')
+    call tile_temperature%write_field('surface__tile_temperature')
+    call canopy_evap%write_field('surface__canopy_evap')
+    call snowice_sublimation%write_field('surface__snowice_sublimation')
+    call surf_ht_flux%write_field('surface__surf_ht_flux')
+
+    ! Diagnostics locally computed here from prognostic fields - also do these
+    ! on 2nd loop
+    if (init_diag(grid_surface_temperature, 'surface__grid_surface_temperature')) then
+      call invoke(weighted_ave_kernel_type(grid_surface_temperature,       &
+                                       tile_temperature, tile_fraction,    &
+                                       1, n_surf_tile))
+      call grid_surface_temperature%write_field()
+    end if
+
+    if(init_diag(land_surface_temperature, 'surface__land_surface_temperature')) then
+      call invoke(weighted_ave_kernel_type(land_surface_temperature,       &
+                                       tile_temperature, tile_fraction,    &
+                                       1, n_land_tile))
+      call land_surface_temperature%write_field()
+    end if
+
+    if (init_diag(grid_canopy_evap, 'surface__grid_canopy_evap')) then
+      call invoke(weighted_ave_kernel_type(grid_canopy_evap,              &
+                                       canopy_evap, tile_fraction,        &
+                                       1, n_surf_tile))
+      call grid_canopy_evap%write_field()
+    end if
+
+    if (init_diag(grid_sublimation, 'surface__grid_sublimation')) then
+      call invoke(weighted_ave_kernel_type(grid_sublimation,               &
+                                       snowice_sublimation, tile_fraction, &
+                                       1, n_surf_tile) )
+      call grid_sublimation%write_field()
+    end if
+
+    ! complex diagnostic - is updated on both loops hence needs outputting
+    ! on 2nd loop but values saving from 1st
+    if (latent_heat_flag) call latent_heat%write_field()
+    ! derived from complex diagnostic, hence done on 2nd loop only
+    if (init_diag(grid_latent_heat, 'surface__grid_latent_heat')) then
+      call invoke(weighted_ave_kernel_type(grid_latent_heat,               &
+                                       latent_heat, tile_fraction,         &
+                                       1, n_surf_tile))
+      call grid_latent_heat%write_field()
+    end if
+
+  else !loop=1
+
+    ! Diagnostics computed within the kernel - these are computed on 1st loop
+    ! so output on 1st loop
+    if (t1p5m_surft_flag) call t1p5m_surft%write_field()
+    if (q1p5m_surft_flag) call q1p5m_surft%write_field()
+    if (t1p5m_flag) call t1p5m%write_field()
+    if (q1p5m_flag) call q1p5m%write_field()
+    if (qcl1p5m_flag) call qcl1p5m%write_field()
+    if (rh1p5m_flag) call rh1p5m%write_field()
+    if (t1p5m_ssi_flag) call t1p5m_ssi%write_field()
+    if (q1p5m_ssi_flag) call q1p5m_ssi%write_field()
+    if (qcl1p5m_ssi_flag) call qcl1p5m_ssi%write_field()
+    if (rh1p5m_ssi_flag) call rh1p5m_ssi%write_field()
+    if (t1p5m_land_flag) call t1p5m_land%write_field()
+    if (q1p5m_land_flag) call q1p5m_land%write_field()
+    if (qcl1p5m_land_flag) call qcl1p5m_land%write_field()
+    if (rh1p5m_land_flag) call rh1p5m_land%write_field()
+    if (snomlt_surf_htf_flag) call snomlt_surf_htf%write_field()
+    if (soil_evap_flag) call soil_evap%write_field()
+    if (soil_surf_ht_flux_flag) call soil_surf_ht_flux%write_field()
+    if (surf_sw_net_flag) call surf_sw_net%write_field()
+    if (surf_radnet_flag) call surf_radnet%write_field()
+    if (surf_lw_up_flag) call surf_lw_up%write_field()
+    if (surf_lw_down_flag) call surf_lw_down%write_field()
+
+  end if
+
+  if ( subroutine_timers ) call timer("jules_imp_diags")
+
+  end subroutine output_diags_for_jules_imp
+end module jules_imp_diags_mod

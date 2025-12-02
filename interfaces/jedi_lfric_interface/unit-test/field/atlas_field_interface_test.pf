@@ -1,0 +1,1781 @@
+!------------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!
+! Test the atlas_field_interface_type
+!
+module atlas_field_interface_test
+
+  use, intrinsic :: iso_fortran_env,  only: real64
+  use atlas_field_interface_mod,      only: atlas_field_interface_type, &
+                                            surface_level_present, &
+                                            surface_level_absent_copy_level_above, &
+                                            surface_level_absent_zero_level
+  use constants_mod,                  only: i_def, l_def, str_def
+  use funit
+  use local_mesh_mod,                 only: local_mesh_type
+  use function_space_collection_mod,  only: function_space_collection_type, &
+                                            function_space_collection
+  use function_space_mod,             only: function_space_type
+  use fs_continuity_mod,              only: W3, Wtheta
+  use mesh_collection_mod,            only: mesh_collection_type, &
+                                            mesh_collection
+  use mesh_mod,                       only: mesh_type, PLANE, PLANE_TWOD
+  use halo_routing_collection_mod,    only: halo_routing_collection_type, &
+                                            halo_routing_collection
+  use field_mod,                      only: field_type, field_proxy_type
+  use extrusion_mod,                  only: TWOD
+
+  implicit none
+
+  private
+
+  ! W3
+  public :: copy_field_test_w3_field, &
+            zero_field_test_w3_field, &
+            adjoint_test_w3_field, &
+            adjoint_test_w3_field_flip
+  ! Wtheta
+  public :: copy_field_test_wtheta, &
+            adjoint_test_wtheta_field
+  ! Wtheta - zero missing
+  public :: copy_field_test_wtheta_field_zero_missing, &
+            adjoint_test_wtheta_field_zero_missing
+  ! Wtheta - copy missing
+  public :: copy_field_test_wtheta_field_copy_missing, &
+            adjoint_test_wtheta_field_copy_missing
+  ! W3 2D
+  public :: copy_field_test_twod_w3_field, &
+            adjoint_test_twod_w3_field
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @TestCase
+  type, extends(TestCase), public :: atlas_field_interface_test_type
+    private
+    type( local_mesh_type ), pointer     :: unit_test_local_mesh
+    type( mesh_type ), pointer           :: mesh
+    type( mesh_type ), pointer           :: twod_mesh
+    character( str_def )                 :: lfric_field_name
+    character( str_def )                 :: lfric_field_name_other
+    character( str_def )                 :: atlas_field_name
+    type( function_space_type ), pointer :: fspace_w3
+    type( function_space_type ), pointer :: fspace_wth
+    type( function_space_type ), pointer :: fspace_2d
+    integer( i_def )                     :: ncells
+    integer( i_def ), pointer            :: horizontal_map(:)
+    integer( i_def ), pointer            :: horizontal_map_reverse(:)
+    integer, allocatable                 :: dummy_for_gnu
+  contains
+    procedure setUp
+    procedure tearDown
+  end type atlas_field_interface_test_type
+
+  integer( i_def ), parameter :: element_order_h = 0
+  integer( i_def ), parameter :: element_order_v = 0
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine setUp(this)
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: this
+
+    type( mesh_type ) :: plane_mesh
+    integer( i_def )  :: mesh_id
+    integer( i_def )  :: ij
+
+    ! Create top level mesh collection
+    mesh_collection = mesh_collection_type()
+
+    ! Create top level function space collection
+    function_space_collection = function_space_collection_type()
+
+    ! Create top level halo_routing collection
+    halo_routing_collection = halo_routing_collection_type()
+
+    allocate( this%unit_test_local_mesh )
+    call this%unit_test_local_mesh%initialise()
+
+    ! Add canned mesh to the mesh collection
+    plane_mesh = mesh_type( PLANE, this%unit_test_local_mesh )
+    mesh_id = mesh_collection%add_new_mesh( plane_mesh )
+    this%mesh => mesh_collection%get_mesh( mesh_id )
+
+    ! Add canned 2D mesh to the mesh collection
+    plane_mesh = mesh_type( PLANE_TWOD, this%unit_test_local_mesh )
+    mesh_id = mesh_collection%add_new_mesh( plane_mesh )
+    this%twod_mesh => mesh_collection%get_mesh_variant( this%mesh, TWOD )
+
+    ! Setup field names
+    this%lfric_field_name = "lfric_field_name"
+    this%lfric_field_name_other = "lfric_field_name_other"
+    this%atlas_field_name = "atlas_field_name"
+
+    ! Get the required function space to use
+    this%fspace_w3 => function_space_collection%get_fs( this%mesh,             &
+                                                        element_order_h,       &
+                                                        element_order_v, W3 )
+    this%fspace_wth => function_space_collection%get_fs( this%mesh,            &
+                                                        element_order_h,       &
+                                                        element_order_v, Wtheta )
+    this%fspace_2d => function_space_collection%get_fs( this%twod_mesh,        &
+                                                        element_order_h,       &
+                                                        element_order_v, W3 )
+
+    ! Get the number of cells
+    this%ncells = this%fspace_2d%get_last_dof_owned()
+
+    ! Create the maps to use
+    allocate(this%horizontal_map(this%ncells))
+    do ij = 1,this%ncells
+      this%horizontal_map(ij) = ij
+    end do
+
+    allocate(this%horizontal_map_reverse(this%ncells))
+    do ij = 1,this%ncells
+      this%horizontal_map_reverse(ij) = this%ncells-ij+1
+    end do
+
+  end subroutine
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine tearDown( this )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: this
+
+    ! Clear top level function_space collection
+    call function_space_collection%clear()
+
+    ! Clear top level mesh collection
+    call mesh_collection%clear()
+
+    ! Clear top level halo routing collection
+    call halo_routing_collection%clear()
+
+    ! Deallocate allocated pointers
+    deallocate( this%unit_test_local_mesh )
+    deallocate( this%horizontal_map )
+    deallocate( this%horizontal_map_reverse )
+
+    ! Nullify pointers
+    nullify(this%fspace_w3, this%fspace_wth, this%fspace_2d)
+    nullify(this%horizontal_map, this%horizontal_map_reverse)
+    nullify(this%mesh, this%twod_mesh)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function compute_dot_product( data_array_1, data_array_2 ) result(dot_product)
+
+    implicit none
+
+    real( real64 ), intent(in) :: data_array_1(:,:)
+    real( real64 ), intent(in) :: data_array_2(:,:)
+
+    real( real64 ) :: dot_product
+
+    integer :: i
+    integer :: j
+
+    dot_product = 0.0_real64
+    do i = 1,size(data_array_1,dim = 1)
+      do j = 1,size(data_array_1,dim = 2)
+        dot_product = dot_product + data_array_1(i,j)*data_array_2(i,j)
+      end do
+    end do
+
+  end function compute_dot_product
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function compute_tolerance( dot_product_1, dot_product_2 ) result(tolerance)
+
+    implicit none
+
+    real( real64 ), intent(in) :: dot_product_1
+    real( real64 ), intent(in) :: dot_product_2
+
+    real( real64 ) :: tolerance
+
+    ! Local
+    real( real64 ), parameter :: overall_tolerance = 1500.0_real64
+    real( real64 )            :: machine_tolerance
+
+    ! Machine tolerance computed as the smallest delta between two numbers of a
+    ! given type using the larger dot_product
+    machine_tolerance = spacing( max( abs( dot_product_1 ), &
+                                      abs( dot_product_2 ) ) )
+    ! Output tolerance scaled by a predefined factor
+    tolerance = overall_tolerance*machine_tolerance
+
+  end function compute_tolerance
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine setup_fields(lfric_field, atlas_field, atlas_field_interface, &
+                          lfric_field_proxy, horizontal_map_ptr, &
+                          ncells, nlevels, fspace, &
+                          lfric_field_name, atlas_field_name, &
+                          fill_direction_up, surface_level_type)
+
+    type( field_type ),          target, intent(out) :: lfric_field
+    real( real64 ), allocatable, target, intent(out) :: atlas_field(:,:)
+    type( atlas_field_interface_type ),  intent(out) :: atlas_field_interface
+    type( field_proxy_type ),            intent(out) :: lfric_field_proxy
+    integer( i_def ),            pointer, intent(in) :: horizontal_map_ptr(:)
+    integer( i_def ),                     intent(in) :: ncells
+    integer( i_def ),                     intent(in) :: nlevels
+    type( function_space_type ), pointer, intent(in) :: fspace
+    character( str_def ),                 intent(in) :: lfric_field_name
+    character( str_def ),       optional, intent(in) :: atlas_field_name
+    logical( l_def ),           optional, intent(in) :: fill_direction_up
+    integer(i_def),             optional, intent(in) :: surface_level_type
+
+    ! Local
+    type( field_type ), pointer :: lfric_field_ptr
+    real( real64 ), pointer     :: atlas_field_ptr(:,:)
+    logical( l_def )            :: local_fill_direction_up
+    character( str_def )        :: local_atlas_field_name
+    integer(i_def)              :: local_surface_level_type
+
+    ! Create the LFRic field and get pointer access to it
+    call lfric_field%initialise( vector_space = fspace, &
+                                 name = lfric_field_name )
+
+    ! Get pointer and proxy access to the field
+    lfric_field_ptr => lfric_field
+    lfric_field_proxy = lfric_field%get_proxy()
+
+    ! Create the Atlas field and setup pointers
+    allocate(atlas_field(nlevels,ncells))
+    atlas_field_ptr => atlas_field
+
+    ! Default use lfric_field_name
+    if ( present(atlas_field_name) ) then
+      local_atlas_field_name = atlas_field_name
+    else
+      local_atlas_field_name = lfric_field_name
+    end if
+
+    ! Default use fill_direction_up
+    if ( present(fill_direction_up) ) then
+      local_fill_direction_up = fill_direction_up
+    else
+      local_fill_direction_up = .true.
+    end if
+
+    ! Default use fill_direction_up
+    if ( present(surface_level_type) ) then
+      local_surface_level_type = surface_level_type
+    else
+      local_surface_level_type = surface_level_present
+    end if
+
+    ! Setup atlas-LFRic field interface
+    call atlas_field_interface%initialise( atlas_field_ptr, horizontal_map_ptr, &
+                                           lfric_field_ptr, &
+                                           atlas_name = local_atlas_field_name, &
+                                           fill_direction_up = local_fill_direction_up, &
+                                           surface_level_type = local_surface_level_type )
+
+  end subroutine setup_fields
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine copy_field_test_w3_field( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    character( str_def )               :: field_name
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: ij_counter
+    integer( i_def )                   :: k
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface
+    type( field_type )                 :: lfric_field
+    type( field_proxy_type )           :: lfric_field_proxy
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_w3%get_nlayers()
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map_reverse
+
+    ! Setup LFRic & Atlas fields and interface
+    call setup_fields( lfric_field, atlas_field, atlas_field_interface, &
+                       lfric_field_proxy, horizontal_map_ptr, &
+                       ncells, nlevels, context%fspace_w3, &
+                       context%lfric_field_name, context%atlas_field_name )
+
+    !-- 1. Test copy_to and its adjoint
+
+    ! Initialise Atlas and LFRic fields
+    ij_counter = -2
+    do ij = ncells,1,-1
+      ij_counter = ij_counter + 1
+      do k = 1,nlevels
+        atlas_field(k,ij) = real(ij_counter*k)
+      end do
+    end do
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 1.1 Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric()
+
+    ! Check LFRic data after copy
+    @assertEqual((/-1.0, -2.0, -3.0, -4.0, -5.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/ 0.0,  0.0,  0.0,  0.0,  0.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/ 1.0,  2.0,  3.0,  4.0,  5.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/ 2.0,  4.0,  6.0,  8.0, 10.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/ 3.0,  6.0,  9.0, 12.0, 15.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/ 4.0,  8.0, 12.0, 16.0, 20.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/ 5.0, 10.0, 15.0, 20.0, 25.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/ 6.0, 12.0, 18.0, 24.0, 30.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/ 7.0, 14.0, 21.0, 28.0, 35.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! 1.2 Adjoint Copy Atlas field to the LFRic field
+
+    ! Initialise the Atlas field before calling copy_to_lfric_ad
+    atlas_field = 0.0_real64
+
+    ! Adjoint Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric_ad()
+
+    ! Check Atlas data after copy_to_lfric_ad
+    @assertEqual((/ 7.0, 14.0, 21.0, 28.0, 35.0/), atlas_field(:,1))
+    @assertEqual((/ 6.0, 12.0, 18.0, 24.0, 30.0/), atlas_field(:,2))
+    @assertEqual((/ 5.0, 10.0, 15.0, 20.0, 25.0/), atlas_field(:,3))
+    @assertEqual((/ 4.0,  8.0, 12.0, 16.0, 20.0/), atlas_field(:,4))
+    @assertEqual((/ 3.0,  6.0,  9.0, 12.0, 15.0/), atlas_field(:,5))
+    @assertEqual((/ 2.0,  4.0,  6.0,  8.0, 10.0/), atlas_field(:,6))
+    @assertEqual((/ 1.0,  2.0,  3.0,  4.0,  5.0/), atlas_field(:,7))
+    @assertEqual((/ 0.0,  0.0,  0.0,  0.0,  0.0/), atlas_field(:,8))
+    @assertEqual((/-1.0, -2.0, -3.0, -4.0, -5.0/), atlas_field(:,9))
+
+    !-- 2. Test copy_from and its adjoint
+
+    ! Initialise LFRic and Atlas fields
+    do ij = 1,ncells*nlevels
+      lfric_field_proxy%data(ij) = real(ij)
+    end do
+    atlas_field = 0.0_real64
+
+    ! 2.1 Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric()
+
+    ! Check Atlas data after copy_from_lfric
+    @assertEqual((/41.0, 42.0, 43.0, 44.0, 45.0/), atlas_field(:,1))
+    @assertEqual((/36.0, 37.0, 38.0, 39.0, 40.0/), atlas_field(:,2))
+    @assertEqual((/31.0, 32.0, 33.0, 34.0, 35.0/), atlas_field(:,3))
+    @assertEqual((/26.0, 27.0, 28.0, 29.0, 30.0/), atlas_field(:,4))
+    @assertEqual((/21.0, 22.0, 23.0, 24.0, 25.0/), atlas_field(:,5))
+    @assertEqual((/16.0, 17.0, 18.0, 19.0, 20.0/), atlas_field(:,6))
+    @assertEqual((/11.0, 12.0, 13.0, 14.0, 15.0/), atlas_field(:,7))
+    @assertEqual((/6.0,  7.0,  8.0,   9.0, 10.0/), atlas_field(:,8))
+    @assertEqual((/1.0,  2.0,  3.0,   4.0,  5.0/), atlas_field(:,9))
+
+    ! Initialise the LFRic field before calling copy_from_lfric_ad
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 2.2 Adjoint of Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric_ad()
+
+    ! Check LFRic data after copy_from_lfric_ad
+    @assertEqual((/1.0,   2.0,  3.0,  4.0,  5.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/6.0,   7.0,  8.0,  9.0, 10.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/11.0, 12.0, 13.0, 14.0, 15.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/16.0, 17.0, 18.0, 19.0, 20.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/21.0, 22.0, 23.0, 24.0, 25.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/26.0, 27.0, 28.0, 29.0, 30.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/31.0, 32.0, 33.0, 34.0, 35.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/36.0, 37.0, 38.0, 39.0, 40.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/41.0, 42.0, 43.0, 44.0, 45.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! Check Atlas data after copy_from_lfric_ad
+    @assertTrue( sum(abs(atlas_field(:,:))) == 0.0_real64 )
+
+    !-- Test get name methods
+
+    ! Test get_lfric_name
+    field_name = atlas_field_interface%get_lfric_name()
+    @assertEqual( trim(context%lfric_field_name), trim(field_name) )
+
+    ! Test get_atlas_name
+    field_name = atlas_field_interface%get_atlas_name()
+    @assertEqual( trim(context%atlas_field_name), trim(field_name) )
+
+  end subroutine copy_field_test_w3_field
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine zero_field_test_w3_field( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable           :: atlas_field(:,:)
+    integer( i_def ), pointer             :: horizontal_map_ptr(:)
+    integer( i_def )                      :: ij
+    integer( i_def )                      :: ij_counter
+    integer( i_def )                      :: k
+    integer( i_def )                      :: nlevels
+    integer( i_def )                      :: ncells
+    type( atlas_field_interface_type )    :: atlas_field_interface
+    type( field_type )                    :: lfric_field
+    type( field_proxy_type )              :: lfric_field_proxy
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_w3%get_nlayers()
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map_reverse
+
+    ! Setup LFRic & Atlas fields and interface
+    call setup_fields( lfric_field, atlas_field, atlas_field_interface, &
+                       lfric_field_proxy, horizontal_map_ptr, &
+                       ncells, nlevels, context%fspace_w3, &
+                       context%lfric_field_name, context%atlas_field_name )
+
+    ! Initialise LFRic and Atlas fields
+    ij_counter = -2
+    do ij = ncells,1,-1
+      ij_counter = ij_counter + 1
+      do k = 1,nlevels
+        atlas_field(k,ij) = real(ij_counter*k)
+        lfric_field_proxy%data(ij) = real(ij_counter*k)
+      end do
+    end do
+
+    ! Zero the Atlas field
+    call atlas_field_interface%zero_atlas()
+
+    ! Check Atlas data after zero_atlas
+    @assertTrue( sum(abs(atlas_field(:,:))) == 0.0_real64 )
+
+    ! Zero the LFRic field
+    call atlas_field_interface%zero_lfric()
+
+    ! Check LFRic data after zero_lfric
+    @assertTrue( sum(abs(lfric_field_proxy%data(:))) == 0.0_real64 )
+
+  end subroutine zero_field_test_w3_field
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! The standard dot product adjoint tests is employed here which relies on
+  ! the following identity for the inner product denoted with angled braces <>:
+  !
+  ! <x,Ay> == <A^{T}x,y>
+  !
+  ! where A is the linear forward operator and A^{T} is the adjoint (transpose)
+  !
+  ! Using arbitrary notation for a field "F" which could be stored in Atlas or
+  ! LFRic and defining the following identities:
+  !
+  ! F11: x
+  ! F21: Ay
+  ! and
+  ! F12: A^{T}x
+  ! F22: y
+  !
+  ! Then we can test for the correctness of the adjoint by computing the
+  ! inner product and checking they are equal within machine tolerance:
+  !
+  !  <F11,F21> == <F12,F22>
+  !
+  ! This is true for any vector x and y and so in the test, different
+  ! random vector are computed (F11 and F22).
+  @Test
+  subroutine adjoint_test_w3_field( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable           :: atlas_field_11(:,:)
+    real( real64 ), allocatable           :: atlas_field_21(:,:)
+    integer( i_def ), pointer             :: horizontal_map_ptr(:)
+    integer( i_def )                      :: ij
+    integer( i_def )                      :: nlevels
+    integer( i_def )                      :: ncells
+    type( atlas_field_interface_type )    :: atlas_field_interface_1
+    type( atlas_field_interface_type )    :: atlas_field_interface_2
+    type( field_type )                    :: lfric_field_12
+    type( field_type )                    :: lfric_field_22
+    real( real64 ), pointer               :: lfric_field_12_data_ptr(:,:)
+    real( real64 ), pointer               :: lfric_field_22_data_ptr(:,:)
+    real( real64 )                        :: dot_product_1
+    real( real64 )                        :: dot_product_2
+    type( field_proxy_type )              :: lfric_field_12_proxy
+    type( field_proxy_type )              :: lfric_field_22_proxy
+    real( real64 )                        :: tolerance
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_w3%get_nlayers()
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map_reverse
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_12, atlas_field_11, atlas_field_interface_1, &
+                       lfric_field_12_proxy, horizontal_map_ptr, &
+                       ncells, nlevels, context%fspace_w3, &
+                       context%lfric_field_name, context%atlas_field_name )
+
+    ! Setup LFRic & Atlas fields and interface - F22 and F21
+    call setup_fields( lfric_field_22, atlas_field_21, atlas_field_interface_2, &
+                       lfric_field_22_proxy, horizontal_map_ptr, &
+                       ncells, nlevels, context%fspace_w3, &
+                       context%lfric_field_name_other )
+
+    ! Setup 2D ptr access to the LFRic fields
+    lfric_field_12_data_ptr(1:nlevels, 1:ncells) => lfric_field_12_proxy%data(1:nlevels*ncells)
+    lfric_field_22_data_ptr(1:nlevels, 1:ncells) => lfric_field_22_proxy%data(1:nlevels*ncells)
+
+    ! -- test copy_to_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(:) = 0.0_real64
+
+    ! Check the values in 11 and 22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_to_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_to_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+    ! -- Test copy_from_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(:) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_from_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_from_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+  end subroutine adjoint_test_w3_field
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! The standard dot product adjoint tests is employed here which relies on
+  ! the following identity for the inner product denoted with angled braces <>:
+  !
+  ! <x,Ay> == <A^{T}x,y>
+  !
+  ! where A is the linear forward operator and A^{T} is the adjoint (transpose)
+  !
+  ! Using arbitrary notation for a field "F" which could be stored in Atlas or
+  ! LFRic and defining the following identities:
+  !
+  ! F11: x
+  ! F21: Ay
+  ! and
+  ! F12: A^{T}x
+  ! F22: y
+  !
+  ! Then we can test for the correctness of the adjoint by computing the
+  ! inner product and checking they are equal within machine tolerance:
+  !
+  !  <F11,F21> == <F12,F22>
+  !
+  ! This is true for any vector x and y and so in the test, different
+  ! random vector are computed (F11 and F22).
+
+  @Test
+  subroutine adjoint_test_w3_field_flip( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field_11(:,:)
+    real( real64 ), allocatable        :: atlas_field_21(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface_1
+    type( atlas_field_interface_type ) :: atlas_field_interface_2
+    type( field_type )                 :: lfric_field_12
+    type( field_type )                 :: lfric_field_22
+    real( real64 ), pointer            :: lfric_field_12_data_ptr(:,:)
+    real( real64 ), pointer            :: lfric_field_22_data_ptr(:,:)
+    real( real64 )                     :: dot_product_1
+    real( real64 )                     :: dot_product_2
+    type( field_proxy_type )           :: lfric_field_12_proxy
+    type( field_proxy_type )           :: lfric_field_22_proxy
+    real( real64 )                     :: tolerance
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_w3%get_nlayers()
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map_reverse
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_12, atlas_field_11, atlas_field_interface_1, &
+                       lfric_field_12_proxy, horizontal_map_ptr, &
+                       ncells, nlevels, context%fspace_w3, &
+                       context%lfric_field_name, fill_direction_up = .false. )
+
+    ! Setup LFRic & Atlas fields and interface - F22 and F21
+    call setup_fields( lfric_field_22, atlas_field_21, atlas_field_interface_2, &
+                       lfric_field_22_proxy, horizontal_map_ptr, &
+                       ncells, nlevels, context%fspace_w3, &
+                       context%lfric_field_name_other, fill_direction_up = .false. )
+
+    ! Setup 2D ptr access to the LFRic fields
+    lfric_field_12_data_ptr(1:nlevels, 1:ncells) => lfric_field_12_proxy%data(1:nlevels*ncells)
+    lfric_field_22_data_ptr(1:nlevels, 1:ncells) => lfric_field_22_proxy%data(1:nlevels*ncells)
+
+    ! -- Test copy_to_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(:) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_to_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_to_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+    ! -- Test copy_from_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(:) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_from_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_from_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+  end subroutine adjoint_test_w3_field_flip
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine copy_field_test_wtheta( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    character( str_def )               :: field_name
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: ij_counter
+    integer( i_def )                   :: k
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface
+    type( field_type )                 :: lfric_field
+    type( field_proxy_type )           :: lfric_field_proxy
+    real( real64 )                     :: tolerance
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_wth%get_nlayers() + 1
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map
+
+    ! Setup LFRic & Atlas fields and interface
+    call setup_fields( lfric_field, atlas_field, atlas_field_interface, &
+                       lfric_field_proxy, horizontal_map_ptr, ncells, &
+                       nlevels, context%fspace_wth, context%lfric_field_name )
+
+    !-- A. Test copy_to and its adjoint
+
+    ! Initialise Atlas and LFRic fields
+    ij_counter = -2
+    do ij = ncells,1,-1
+      ij_counter = ij_counter + 1
+      do k = 1,nlevels
+        atlas_field(k,ij) = real(ij_counter*k)
+      end do
+    end do
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! A.1 Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric()
+
+    ! Check LFRic data after copy
+    @assertEqual((/ 7.0, 14.0, 21.0, 28.0, 35.0, 42.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/ 6.0, 12.0, 18.0, 24.0, 30.0, 36.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/ 5.0, 10.0, 15.0, 20.0, 25.0, 30.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/ 4.0,  8.0, 12.0, 16.0, 20.0, 24.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/ 3.0,  6.0,  9.0, 12.0, 15.0, 18.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/ 2.0,  4.0,  6.0,  8.0, 10.0, 12.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/ 1.0,  2.0,  3.0,  4.0,  5.0,  6.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/ 0.0,  0.0,  0.0,  0.0,  0.0,  0.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/-1.0, -2.0, -3.0, -4.0, -5.0, -6.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! A.2 Adjoint Copy Atlas field to the LFRic field
+
+    ! Initialise the Atlas field before calling copy_to_lfric_ad
+    atlas_field = 0.0_real64
+
+    ! Adjoint Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric_ad()
+
+    ! Check Atlas data after copy_to_lfric_ad
+    @assertEqual((/ 7.0, 14.0, 21.0, 28.0, 35.0, 42.0/), atlas_field(:,1))
+    @assertEqual((/ 6.0, 12.0, 18.0, 24.0, 30.0, 36.0/), atlas_field(:,2))
+    @assertEqual((/ 5.0, 10.0, 15.0, 20.0, 25.0, 30.0/), atlas_field(:,3))
+    @assertEqual((/ 4.0,  8.0, 12.0, 16.0, 20.0, 24.0/), atlas_field(:,4))
+    @assertEqual((/ 3.0,  6.0,  9.0, 12.0, 15.0, 18.0/), atlas_field(:,5))
+    @assertEqual((/ 2.0,  4.0,  6.0,  8.0, 10.0, 12.0/), atlas_field(:,6))
+    @assertEqual((/ 1.0,  2.0,  3.0,  4.0,  5.0,  6.0/), atlas_field(:,7))
+    @assertEqual((/ 0.0,  0.0,  0.0,  0.0,  0.0,  0.0/), atlas_field(:,8))
+    @assertEqual((/-1.0, -2.0, -3.0, -4.0, -5.0, -6.0/), atlas_field(:,9))
+
+    ! Check LFRic data after copy_to_lfric_ad
+    @assertTrue( sum(abs(lfric_field_proxy%data(:))) == 0.0_real64 )
+
+    !-- B. Test copy_from and its adjoint
+
+    ! Initialise LFRic and Atlas fields
+    do ij = 1,ncells*nlevels
+      lfric_field_proxy%data(ij) = real(ij)
+    end do
+    atlas_field = 0.0_real64
+
+    ! Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric()
+
+    ! Check Atlas data after copy_from_lfric
+    @assertEqual((/1.0,  2.0,  3.0,   4.0,  5.0,  6.0/), atlas_field(:,1))
+    @assertEqual((/7.0,  8.0,  9.0,  10.0, 11.0, 12.0/), atlas_field(:,2))
+    @assertEqual((/13.0, 14.0, 15.0, 16.0, 17.0, 18.0/), atlas_field(:,3))
+    @assertEqual((/19.0, 20.0, 21.0, 22.0, 23.0, 24.0/), atlas_field(:,4))
+    @assertEqual((/25.0, 26.0, 27.0, 28.0, 29.0, 30.0/), atlas_field(:,5))
+    @assertEqual((/31.0, 32.0, 33.0, 34.0, 35.0, 36.0/), atlas_field(:,6))
+    @assertEqual((/37.0, 38.0, 39.0, 40.0, 41.0, 42.0/), atlas_field(:,7))
+    @assertEqual((/43.0, 44.0, 45.0, 46.0, 47.0, 48.0/), atlas_field(:,8))
+    @assertEqual((/49.0, 50.0, 51.0, 52.0, 53.0, 54.0/), atlas_field(:,9))
+
+    ! Initialise the LFRic field before calling copy_from_lfric_ad
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! Adjoint of Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric_ad()
+
+    ! Check LFRic data after copy_from_lfric_ad
+    @assertEqual((/1.0,   2.0,  3.0,  4.0,  5.0,  6.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/7.0,   8.0,  9.0, 10.0, 11.0, 12.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/13.0, 14.0, 15.0, 16.0, 17.0, 18.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/19.0, 20.0, 21.0, 22.0, 23.0, 24.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/25.0, 26.0, 27.0, 28.0, 29.0, 30.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/31.0, 32.0, 33.0, 34.0, 35.0, 36.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/37.0, 38.0, 39.0, 40.0, 41.0, 42.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/43.0, 44.0, 45.0, 46.0, 47.0, 48.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/49.0, 50.0, 51.0, 52.0, 53.0, 54.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! Check Atlas data after copy_from_lfric_ad
+    @assertTrue( sum(abs(atlas_field(:,:))) == 0.0_real64 )
+
+    !-- Test get name
+
+    ! Test get_lfric_name
+    field_name = atlas_field_interface%get_lfric_name()
+    @assertEqual( trim(context%lfric_field_name), trim(field_name) )
+
+    ! Test get_atlas_name
+    field_name = atlas_field_interface%get_atlas_name()
+    @assertEqual( trim(context%lfric_field_name), trim(field_name) )
+
+  end subroutine copy_field_test_wtheta
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! The standard dot product adjoint tests is employed here which relies on
+  ! the following identity for the inner product denoted with angled braces <>:
+  !
+  ! <x,Ay> == <A^{T}x,y>
+  !
+  ! where A is the linear forward operator and A^{T} is the adjoint (transpose)
+  !
+  ! Using arbitrary notation for a field "F" which could be stored in Atlas or
+  ! LFRic and defining the following identities:
+  !
+  ! F11: x
+  ! F21: Ay
+  ! and
+  ! F12: A^{T}x
+  ! F22: y
+  !
+  ! Then we can test for the correctness of the adjoint by computing the
+  ! inner product and checking they are equal within machine tolerance:
+  !
+  !  <F11,F21> == <F12,F22>
+  !
+  ! This is true for any vector x and y and so in the test, different
+  ! random vector are computed (F11 and F22).
+  @Test
+  subroutine adjoint_test_wtheta_field( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field_11(:,:)
+    real( real64 ), allocatable        :: atlas_field_21(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface_1
+    type( atlas_field_interface_type ) :: atlas_field_interface_2
+    type( field_type )                 :: lfric_field_12
+    type( field_type )                 :: lfric_field_22
+    real( real64 ), pointer            :: lfric_field_12_data_ptr(:,:)
+    real( real64 ), pointer            :: lfric_field_22_data_ptr(:,:)
+    real( real64 )                     :: dot_product_1
+    real( real64 )                     :: dot_product_2
+    type( field_proxy_type )           :: lfric_field_12_proxy
+    type( field_proxy_type )           :: lfric_field_22_proxy
+    real( real64 )                     :: tolerance
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_wth%get_nlayers() + 1
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_12, atlas_field_11, atlas_field_interface_1, &
+                       lfric_field_12_proxy, horizontal_map_ptr, ncells, &
+                       nlevels, context%fspace_wth, context%lfric_field_name )
+
+    ! Setup LFRic & Atlas fields and interface - F22 and F21
+    call setup_fields( lfric_field_22, atlas_field_21, atlas_field_interface_2, &
+                       lfric_field_22_proxy, horizontal_map_ptr, ncells, &
+                       nlevels, context%fspace_wth, context%lfric_field_name_other )
+
+    ! Setup 2D ptr access to the LFRic fields
+    lfric_field_12_data_ptr(1:nlevels, 1:ncells) => lfric_field_12_proxy%data(1:nlevels*ncells)
+    lfric_field_22_data_ptr(1:nlevels, 1:ncells) => lfric_field_22_proxy%data(1:nlevels*ncells)
+
+    ! -- Test copy_to_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:nlevels*ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_to_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_to_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+    ! -- Test copy_from_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:nlevels*ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_from_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+    call atlas_field_interface_2%copy_from_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+  end subroutine adjoint_test_wtheta_field
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine copy_field_test_wtheta_field_zero_missing( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: k
+    integer( i_def )                   :: ij_counter
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface
+    type( field_type )                 :: lfric_field
+    type( field_proxy_type )           :: lfric_field_proxy
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_wth%get_nlayers() + 1
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map
+
+    call setup_fields( lfric_field, atlas_field, atlas_field_interface, &
+                       lfric_field_proxy, horizontal_map_ptr, ncells, &
+                       nlevels-1, context%fspace_wth, context%lfric_field_name, &
+                       surface_level_type = surface_level_absent_zero_level )
+
+    !-- 1. Test copy_to and its adjoint
+
+    ! Initialise Atlas and LFRic fields
+    ij_counter = -2
+    do ij = ncells,1,-1
+      ij_counter = ij_counter + 1
+      do k = 1,nlevels-1
+        atlas_field(k,ij) = real(ij_counter*k)
+      end do
+    end do
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 1.1 Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric()
+
+    ! Check LFRic data after copy
+    @assertEqual((/0.0,  7.0, 14.0, 21.0, 28.0, 35.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/0.0,  6.0, 12.0, 18.0, 24.0, 30.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/0.0,  5.0, 10.0, 15.0, 20.0, 25.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/0.0,  4.0,  8.0, 12.0, 16.0, 20.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/0.0,  3.0,  6.0,  9.0, 12.0, 15.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/0.0,  2.0,  4.0,  6.0,  8.0, 10.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/0.0,  1.0,  2.0,  3.0,  4.0,  5.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/0.0,  0.0,  0.0,  0.0,  0.0,  0.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/0.0, -1.0, -2.0, -3.0, -4.0, -5.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! 1.2 Adjoint Copy Atlas field to the LFRic field
+
+    ! Initialise the Atlas field before calling copy_to_lfric_ad
+    atlas_field = 0.0_real64
+
+    ! Adjoint Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric_ad()
+
+    ! Check Atlas data after copy_to_lfric_ad
+    @assertEqual((/ 7.0, 14.0, 21.0, 28.0, 35.0/), atlas_field(:,1))
+    @assertEqual((/ 6.0, 12.0, 18.0, 24.0, 30.0/), atlas_field(:,2))
+    @assertEqual((/ 5.0, 10.0, 15.0, 20.0, 25.0/), atlas_field(:,3))
+    @assertEqual((/ 4.0,  8.0, 12.0, 16.0, 20.0/), atlas_field(:,4))
+    @assertEqual((/ 3.0,  6.0,  9.0, 12.0, 15.0/), atlas_field(:,5))
+    @assertEqual((/ 2.0,  4.0,  6.0,  8.0, 10.0/), atlas_field(:,6))
+    @assertEqual((/ 1.0,  2.0,  3.0,  4.0,  5.0/), atlas_field(:,7))
+    @assertEqual((/ 0.0,  0.0,  0.0,  0.0,  0.0/), atlas_field(:,8))
+    @assertEqual((/-1.0, -2.0, -3.0, -4.0, -5.0/), atlas_field(:,9))
+
+    ! Check LFRic data after copy_to_lfric_ad
+    @assertTrue( sum(abs(lfric_field_proxy%data(:))) == 0.0_real64 )
+
+    !-- 2. Test copy_from and its adjoint
+
+    ! Initialise LFRic and Atlas fields
+    do ij = 1,ncells*nlevels
+      lfric_field_proxy%data(ij) = real(ij)
+    end do
+    atlas_field = 0.0_real64
+
+    ! 2.1 Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric()
+
+    ! Check Atlas data after copy_from_lfric
+    @assertEqual((/2.0,  3.0,   4.0,  5.0,  6.0/), atlas_field(:,1))
+    @assertEqual((/8.0,  9.0,  10.0, 11.0, 12.0/), atlas_field(:,2))
+    @assertEqual((/14.0, 15.0, 16.0, 17.0, 18.0/), atlas_field(:,3))
+    @assertEqual((/20.0, 21.0, 22.0, 23.0, 24.0/), atlas_field(:,4))
+    @assertEqual((/26.0, 27.0, 28.0, 29.0, 30.0/), atlas_field(:,5))
+    @assertEqual((/32.0, 33.0, 34.0, 35.0, 36.0/), atlas_field(:,6))
+    @assertEqual((/38.0, 39.0, 40.0, 41.0, 42.0/), atlas_field(:,7))
+    @assertEqual((/44.0, 45.0, 46.0, 47.0, 48.0/), atlas_field(:,8))
+    @assertEqual((/50.0, 51.0, 52.0, 53.0, 54.0/), atlas_field(:,9))
+
+    ! Initialise the LFRic field before calling copy_from_lfric_ad
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 2.2 Adjoint of Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric_ad()
+
+    ! Check LFRic data after copy_from_lfric_ad
+    @assertEqual((/0.0, 2.0,  3.0,   4.0,  5.0,  6.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/0.0, 8.0,  9.0,  10.0, 11.0, 12.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/0.0, 14.0, 15.0, 16.0, 17.0, 18.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/0.0, 20.0, 21.0, 22.0, 23.0, 24.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/0.0, 26.0, 27.0, 28.0, 29.0, 30.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/0.0, 32.0, 33.0, 34.0, 35.0, 36.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/0.0, 38.0, 39.0, 40.0, 41.0, 42.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/0.0, 44.0, 45.0, 46.0, 47.0, 48.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/0.0, 50.0, 51.0, 52.0, 53.0, 54.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! Check Atlas data after copy_from_lfric_ad
+    @assertTrue( sum(abs(atlas_field(:,:))) == 0.0_real64 )
+
+  end subroutine copy_field_test_wtheta_field_zero_missing
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! The standard dot product adjoint tests is employed here which relies on
+  ! the following identity for the inner product denoted with angled braces <>:
+  !
+  ! <x,Ay> == <A^{T}x,y>
+  !
+  ! where A is the linear forward operator and A^{T} is the adjoint (transpose)
+  !
+  ! Using arbitrary notation for a field "F" which could be stored in Atlas or
+  ! LFRic and defining the following identities:
+  !
+  ! F11: x
+  ! F21: Ay
+  ! and
+  ! F12: A^{T}x
+  ! F22: y
+  !
+  ! Then we can test for the correctness of the adjoint by computing the
+  ! inner product and checking they are equal within machine tolerance:
+  !
+  !  <F11,F21> == <F12,F22>
+  !
+  ! This is true for any vector x and y and so in the test, different
+  ! random vector are computed (F11 and F22).
+  !
+  @Test
+  subroutine adjoint_test_wtheta_field_zero_missing( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field_11(:,:)
+    real( real64 ), allocatable        :: atlas_field_21(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface_1
+    type( atlas_field_interface_type ) :: atlas_field_interface_2
+    type( field_type )                 :: lfric_field_12
+    type( field_type )                 :: lfric_field_22
+    real( real64 ), pointer            :: lfric_field_12_data_ptr(:,:)
+    real( real64 ), pointer            :: lfric_field_22_data_ptr(:,:)
+    real( real64 )                     :: dot_product_1
+    real( real64 )                     :: dot_product_2
+    type( field_proxy_type )           :: lfric_field_12_proxy
+    type( field_proxy_type )           :: lfric_field_22_proxy
+    real( real64 )                     :: tolerance
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_wth%get_nlayers() + 1
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_12, atlas_field_11, atlas_field_interface_1, &
+                       lfric_field_12_proxy, horizontal_map_ptr, ncells, &
+                       nlevels-1, context%fspace_wth, context%lfric_field_name, &
+                       surface_level_type = surface_level_absent_zero_level )
+
+    ! Setup LFRic & Atlas fields and interface - F22 and F21
+    call setup_fields( lfric_field_22, atlas_field_21, atlas_field_interface_2, &
+                       lfric_field_22_proxy, horizontal_map_ptr, ncells, &
+                       nlevels-1, context%fspace_wth, context%lfric_field_name_other, &
+                       surface_level_type = surface_level_absent_zero_level )
+
+    ! Setup 2D ptr access to the LFRic fields
+    lfric_field_12_data_ptr(1:nlevels, 1:ncells) => lfric_field_12_proxy%data(1:nlevels*ncells)
+    lfric_field_22_data_ptr(1:nlevels, 1:ncells) => lfric_field_22_proxy%data(1:nlevels*ncells)
+
+    ! -- Test copy_to_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:nlevels*ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_to_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_to_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+    ! -- Test copy_from_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:nlevels*ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_from_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_from_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+  end subroutine adjoint_test_wtheta_field_zero_missing
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine copy_field_test_wtheta_field_copy_missing( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: ij_counter
+    integer( i_def )                   :: k
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface
+    type( field_type )                 :: lfric_field
+    type( field_proxy_type )           :: lfric_field_proxy
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_wth%get_nlayers() + 1
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map
+
+    ! Setup LFRic & Atlas fields and interface
+    call setup_fields( lfric_field, atlas_field, atlas_field_interface, &
+                       lfric_field_proxy, horizontal_map_ptr, ncells, &
+                       nlevels-1, context%fspace_wth, context%lfric_field_name, &
+                       surface_level_type = surface_level_absent_copy_level_above )
+
+    !-- 1. Test copy_to and its adjoint
+
+    ! Initialise Atlas and LFRic fields
+    ij_counter = -2
+    do ij = ncells,1,-1
+      ij_counter = ij_counter + 1
+      do k = 1,nlevels-1
+        atlas_field(k,ij) = real(ij_counter*k)
+      end do
+    end do
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 1.1 Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric()
+
+    ! Check LFRic data after copy
+    @assertEqual((/ 7.0,  7.0, 14.0, 21.0, 28.0, 35.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/ 6.0,  6.0, 12.0, 18.0, 24.0, 30.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/ 5.0,  5.0, 10.0, 15.0, 20.0, 25.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/ 4.0,  4.0,  8.0, 12.0, 16.0, 20.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/ 3.0,  3.0,  6.0,  9.0, 12.0, 15.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/ 2.0,  2.0,  4.0,  6.0,  8.0, 10.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/ 1.0,  1.0,  2.0,  3.0,  4.0,  5.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/ 0.0,  0.0,  0.0,  0.0,  0.0,  0.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/-1.0, -1.0, -2.0, -3.0, -4.0, -5.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! 1.2 Adjoint Copy Atlas field to the LFRic field
+
+    ! Initialise the Atlas field before calling copy_to_lfric_ad
+    atlas_field = 0.0_real64
+
+    ! Adjoint Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric_ad()
+
+    ! Check Atlas data after copy_to_lfric_ad
+    @assertEqual((/14.0, 14.0, 21.0, 28.0, 35.0/), atlas_field(:,1))
+    @assertEqual((/12.0, 12.0, 18.0, 24.0, 30.0/), atlas_field(:,2))
+    @assertEqual((/10.0, 10.0, 15.0, 20.0, 25.0/), atlas_field(:,3))
+    @assertEqual((/ 8.0,  8.0, 12.0, 16.0, 20.0/), atlas_field(:,4))
+    @assertEqual((/ 6.0,  6.0,  9.0, 12.0, 15.0/), atlas_field(:,5))
+    @assertEqual((/ 4.0,  4.0,  6.0,  8.0, 10.0/), atlas_field(:,6))
+    @assertEqual((/ 2.0,  2.0,  3.0,  4.0,  5.0/), atlas_field(:,7))
+    @assertEqual((/ 0.0,  0.0,  0.0,  0.0,  0.0/), atlas_field(:,8))
+    @assertEqual((/-2.0, -2.0, -3.0, -4.0, -5.0/), atlas_field(:,9))
+
+    ! Check LFRic data after copy_to_lfric_ad
+    @assertTrue( sum(abs(lfric_field_proxy%data(:))) == 0.0_real64 )
+
+    !-- 2. Test copy_from and its adjoint
+
+    ! Initialise LFRic and Atlas fields
+    do ij = 1,ncells*nlevels
+      lfric_field_proxy%data(ij) = real(ij)
+    end do
+    atlas_field = 0.0_real64
+
+    ! 2.1 Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric()
+
+    ! Check Atlas data after copy_from_lfric
+    @assertEqual((/2.0,  3.0,   4.0,  5.0,  6.0/), atlas_field(:,1))
+    @assertEqual((/8.0,  9.0,  10.0, 11.0, 12.0/), atlas_field(:,2))
+    @assertEqual((/14.0, 15.0, 16.0, 17.0, 18.0/), atlas_field(:,3))
+    @assertEqual((/20.0, 21.0, 22.0, 23.0, 24.0/), atlas_field(:,4))
+    @assertEqual((/26.0, 27.0, 28.0, 29.0, 30.0/), atlas_field(:,5))
+    @assertEqual((/32.0, 33.0, 34.0, 35.0, 36.0/), atlas_field(:,6))
+    @assertEqual((/38.0, 39.0, 40.0, 41.0, 42.0/), atlas_field(:,7))
+    @assertEqual((/44.0, 45.0, 46.0, 47.0, 48.0/), atlas_field(:,8))
+    @assertEqual((/50.0, 51.0, 52.0, 53.0, 54.0/), atlas_field(:,9))
+
+    ! Initialise the LFRic field before calling copy_from_lfric_ad
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 2.2 Adjoint of Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric_ad()
+
+    ! Check LFRic data after copy_from_lfric_ad
+    @assertEqual((/0.0, 2.0,  3.0,   4.0,  5.0,  6.0/), lfric_field_proxy%data(1:nlevels))
+    @assertEqual((/0.0, 8.0,  9.0,  10.0, 11.0, 12.0/), lfric_field_proxy%data(nlevels+1:2*nlevels))
+    @assertEqual((/0.0, 14.0, 15.0, 16.0, 17.0, 18.0/), lfric_field_proxy%data(2*nlevels+1:3*nlevels))
+    @assertEqual((/0.0, 20.0, 21.0, 22.0, 23.0, 24.0/), lfric_field_proxy%data(3*nlevels+1:4*nlevels))
+    @assertEqual((/0.0, 26.0, 27.0, 28.0, 29.0, 30.0/), lfric_field_proxy%data(4*nlevels+1:5*nlevels))
+    @assertEqual((/0.0, 32.0, 33.0, 34.0, 35.0, 36.0/), lfric_field_proxy%data(5*nlevels+1:6*nlevels))
+    @assertEqual((/0.0, 38.0, 39.0, 40.0, 41.0, 42.0/), lfric_field_proxy%data(6*nlevels+1:7*nlevels))
+    @assertEqual((/0.0, 44.0, 45.0, 46.0, 47.0, 48.0/), lfric_field_proxy%data(7*nlevels+1:8*nlevels))
+    @assertEqual((/0.0, 50.0, 51.0, 52.0, 53.0, 54.0/), lfric_field_proxy%data(8*nlevels+1:9*nlevels))
+
+    ! Check Atlas data after copy_from_lfric_ad
+    @assertTrue( sum(abs(atlas_field(:,:))) == 0.0_real64 )
+
+  end subroutine copy_field_test_wtheta_field_copy_missing
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! The standard dot product adjoint tests is employed here which relies on
+  ! the following identity for the inner product denoted with angled braces <>:
+  !
+  ! <x,Ay> == <A^{T}x,y>
+  !
+  ! where A is the linear forward operator and A^{T} is the adjoint (transpose)
+  !
+  ! Using arbitrary notation for a field "F" which could be stored in Atlas or
+  ! LFRic and defining the following identities:
+  !
+  ! F11: x
+  ! F21: Ay
+  ! and
+  ! F12: A^{T}x
+  ! F22: y
+  !
+  ! Then we can test for the correctness of the adjoint by computing the
+  ! inner product and checking they are equal within machine tolerance:
+  !
+  !  <F11,F21> == <F12,F22>
+  !
+  ! This is true for any vector x and y and so in the test, different
+  ! random vector are computed (F11 and F22).
+  !
+  @Test
+  subroutine adjoint_test_wtheta_field_copy_missing( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field_11(:,:)
+    real( real64 ), allocatable        :: atlas_field_21(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface_1
+    type( atlas_field_interface_type ) :: atlas_field_interface_2
+    type( field_type )                 :: lfric_field_12
+    type( field_type )                 :: lfric_field_22
+    real( real64 ), pointer            :: lfric_field_12_data_ptr(:,:)
+    real( real64 ), pointer            :: lfric_field_22_data_ptr(:,:)
+    real( real64 )                     :: dot_product_1
+    real( real64 )                     :: dot_product_2
+    type( field_proxy_type )           :: lfric_field_12_proxy
+    type( field_proxy_type )           :: lfric_field_22_proxy
+    real( real64 )                     :: tolerance
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_wth%get_nlayers() + 1
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_12, atlas_field_11, atlas_field_interface_1, &
+                       lfric_field_12_proxy, horizontal_map_ptr, ncells, &
+                       nlevels-1, context%fspace_wth, context%lfric_field_name, &
+                       surface_level_type = surface_level_absent_copy_level_above )
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_22, atlas_field_21, atlas_field_interface_2, &
+                       lfric_field_22_proxy, horizontal_map_ptr, ncells, &
+                       nlevels-1, context%fspace_wth, context%lfric_field_name_other, &
+                       surface_level_type = surface_level_absent_copy_level_above )
+
+    ! Setup 2D ptr access to the LFRic fields
+    lfric_field_12_data_ptr(1:nlevels, 1:ncells) => lfric_field_12_proxy%data(1:nlevels*ncells)
+    lfric_field_22_data_ptr(1:nlevels, 1:ncells) => lfric_field_22_proxy%data(1:nlevels*ncells)
+
+    ! -- Test copy_to_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:nlevels*ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_to_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_to_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+    ! -- Test copy_from_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,nlevels*ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:nlevels*ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_from_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_from_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+  end subroutine adjoint_test_wtheta_field_copy_missing
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine copy_field_test_twod_w3_field( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: ij_counter
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface
+    type( field_type )                 :: lfric_field
+    real( real64 )                     :: lfric_field_kgo(9)
+    real( real64 )                     :: atlas_field_kgo(9)
+    type( field_proxy_type )           :: lfric_field_proxy
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_2d%get_nlayers()
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map_reverse
+
+    ! Setup LFRic & Atlas fields and interface
+    call setup_fields( lfric_field, atlas_field, atlas_field_interface, &
+                       lfric_field_proxy, horizontal_map_ptr, ncells, &
+                       nlevels, context%fspace_2d, context%lfric_field_name )
+
+    !-- 1. Test copy_to and its adjoint
+
+    ! Initialise Atlas and LFRic fields
+    ij_counter = -2
+    do ij = ncells,1,-1
+      ij_counter = ij_counter + 1
+      atlas_field(1,ij) = real(ij_counter)
+    end do
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 1.1 Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric()
+
+    ! Check LFRic data after copy
+    lfric_field_kgo = [-1.0_real64, 0.0_real64, 1.0_real64, 2.0_real64, 3.0_real64, 4.0_real64, 5.0_real64, 6.0_real64, 7.0_real64]
+    @assertEqual( lfric_field_kgo, lfric_field_proxy%data(1:ncells) )
+
+    ! 1.2 Adjoint Copy Atlas field to the LFRic field
+
+    ! Initialise the Atlas field before calling copy_to_lfric_ad
+    atlas_field = 0.0_real64
+
+    ! Adjoint Copy Atlas field to the LFRic field
+    call atlas_field_interface%copy_to_lfric_ad()
+
+    ! Check Atlas data after copy_to_lfric_ad
+    atlas_field_kgo = [7.0_real64, 6.0_real64, 5.0_real64, 4.0_real64, 3.0_real64, 2.0_real64, 1.0_real64, 0.0_real64, -1.0_real64]
+    @assertEqual( atlas_field_kgo, atlas_field(1,:) )
+
+    !-- 2. Test copy_from and its adjoint
+
+    ! Initialise LFRic and Atlas fields
+    do ij = 1,ncells
+      lfric_field_proxy%data(ij) = real(ij)
+    end do
+    atlas_field = 0.0_real64
+
+    ! 2.1 Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric()
+
+    ! Check Atlas data after copy_from_lfric
+    atlas_field_kgo = [9.0_real64, 8.0_real64, 7.0_real64, 6.0_real64, 5.0_real64, 4.0_real64, 3.0_real64, 2.0_real64, 1.0_real64]
+    @assertEqual( atlas_field_kgo, atlas_field(1,:) )
+
+    ! Initialise the LFRic field before calling copy_from_lfric_ad
+    lfric_field_proxy%data(:) = 0.0_real64
+
+    ! 2.2 Adjoint of Copy from the LFRic field into the atlas field
+    call atlas_field_interface%copy_from_lfric_ad()
+
+    ! Check LFRic data after copy_from_lfric_ad
+    lfric_field_kgo = [1.0_real64, 2.0_real64, 3.0_real64, 4.0_real64, 5.0_real64, 6.0_real64, 7.0_real64, 8.0_real64, 9.0_real64]
+    @assertEqual( lfric_field_kgo, lfric_field_proxy%data(1:ncells) )
+
+    ! Check Atlas data after copy_from_lfric_ad
+    @assertTrue( sum(abs(atlas_field(:,:))) == 0.0_real64 )
+
+  end subroutine copy_field_test_twod_w3_field
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! The standard dot product adjoint tests is employed here which relies on
+  ! the following identity for the inner product denoted with angled braces <>:
+  !
+  ! <x,Ay> == <A^{T}x,y>
+  !
+  ! where A is the linear forward operator and A^{T} is the adjoint (transpose)
+  !
+  ! Using arbitrary notation for a field "F" which could be stored in Atlas or
+  ! LFRic and defining the following identities:
+  !
+  ! F11: x
+  ! F21: Ay
+  ! and
+  ! F12: A^{T}x
+  ! F22: y
+  !
+  ! Then we can test for the correctness of the adjoint by computing the
+  ! inner product and checking they are equal within machine tolerance:
+  !
+  !  <F11,F21> == <F12,F22>
+  !
+  ! This is true for any vector x and y and so in the test, different
+  ! random vector are computed (F11 and F22).
+  !
+  @Test
+  subroutine adjoint_test_twod_w3_field( context )
+
+    implicit none
+
+    class( atlas_field_interface_test_type ), intent(inout) :: context
+
+    real( real64 ), allocatable        :: atlas_field_11(:,:)
+    real( real64 ), allocatable        :: atlas_field_21(:,:)
+    integer( i_def ), pointer          :: horizontal_map_ptr(:)
+    integer( i_def )                   :: ij
+    integer( i_def )                   :: nlevels
+    integer( i_def )                   :: ncells
+    type( atlas_field_interface_type ) :: atlas_field_interface_1
+    type( atlas_field_interface_type ) :: atlas_field_interface_2
+    type( field_type )                 :: lfric_field_12
+    type( field_type )                 :: lfric_field_22
+    real( real64 ), pointer            :: lfric_field_12_data_ptr(:,:)
+    real( real64 ), pointer            :: lfric_field_22_data_ptr(:,:)
+    real( real64 )                     :: dot_product_1
+    real( real64 )                     :: dot_product_2
+    type( field_proxy_type )           :: lfric_field_12_proxy
+    type( field_proxy_type )           :: lfric_field_22_proxy
+    real( real64 )                     :: tolerance
+
+    ! Get the required objects and data to use locally
+    nlevels = context%fspace_2d%get_nlayers()
+    ncells = context%ncells
+    horizontal_map_ptr => context%horizontal_map_reverse
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_12, atlas_field_11, atlas_field_interface_1, &
+                       lfric_field_12_proxy, horizontal_map_ptr, ncells, &
+                       nlevels, context%fspace_2d, context%lfric_field_name )
+
+    ! Setup LFRic & Atlas fields and interface - F12 and F11
+    call setup_fields( lfric_field_22, atlas_field_21, atlas_field_interface_2, &
+                       lfric_field_22_proxy, horizontal_map_ptr, ncells, &
+                       nlevels, context%fspace_2d, context%lfric_field_name_other )
+
+    ! Setup 2D ptr access to the LFRic fields
+    lfric_field_12_data_ptr(1:1, 1:ncells) => lfric_field_12_proxy%data(1:ncells)
+    lfric_field_22_data_ptr(1:1, 1:ncells) => lfric_field_22_proxy%data(1:ncells)
+
+    ! -- test copy_to_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_to_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_to_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+    ! -- test copy_from_lfric
+
+    ! Setup Atlas and LFRic data arrays
+
+    ! Setting F11 and F22 to random values
+    do ij = ncells,1,-1
+      call random_number(atlas_field_11(:,ij))
+    end do
+    do ij = 1,ncells
+      call random_number(lfric_field_22_proxy%data(ij))
+    end do
+
+    ! Setting F21 and F12 to zero
+    atlas_field_21 = 0.0_real64
+    lfric_field_12_proxy%data(1:ncells) = 0.0_real64
+
+    ! Check the values in F11 and F22 are different
+    dot_product_1 = compute_dot_product(atlas_field_11, atlas_field_11)
+    dot_product_2 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_12_data_ptr)
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertGreaterThan( abs(dot_product_1-dot_product_2), tolerance )
+
+    ! Adjoint test
+    call atlas_field_interface_1%copy_from_lfric()
+    dot_product_1 = compute_dot_product(lfric_field_12_data_ptr, lfric_field_22_data_ptr)
+
+    call atlas_field_interface_2%copy_from_lfric_ad()
+    dot_product_2 = compute_dot_product(atlas_field_11, atlas_field_21)
+
+    ! Check <F11,F21> == <F12,F22>; within machine tolerance
+    tolerance = compute_tolerance( dot_product_1, dot_product_2 )
+    @assertEqual( dot_product_1, dot_product_2, tolerance )
+
+  end subroutine adjoint_test_twod_w3_field
+
+end module atlas_field_interface_test

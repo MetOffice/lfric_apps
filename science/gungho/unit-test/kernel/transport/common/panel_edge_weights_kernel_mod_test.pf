@@ -1,0 +1,288 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the remapping of scalar fields on the cubed-sphere panel extension
+module panel_edge_weights_kernel_mod_test
+
+  use constants_mod, only: l_def, i_def, r_def, pi, r_tran, IMDI
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: panel_edge_weights_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type panel_edge_weights_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_spherical,                  &
+                                          topology_fully_periodic
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use extrusion_config_mod,      only : method_uniform,                      &
+                                          stretching_method_linear
+    use finite_element_config_mod, only : cellshape_quadrilateral,             &
+                                          coord_system_native
+    use feign_config_mod,          only : feign_finite_element_config,         &
+                                          feign_base_mesh_config,              &
+                                          feign_extrusion_config,              &
+                                          feign_planet_config
+
+    implicit none
+
+    class(panel_edge_weights_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config(                                               &
+        file_prefix='foo',                                                     &
+        prime_mesh_name='unit_test',                                           &
+        geometry=geometry_spherical,                                           &
+        prepartitioned=.false.,                                                &
+        topology=topology_fully_periodic,                                      &
+        fplane=.false., f_lat_deg=0.0_r_def                                    &
+    )
+    call feign_extrusion_config(                                               &
+        planet_radius=1.0_r_def,                                               &
+        domain_height=10.0_r_def,                                              &
+        method=method_uniform,                                                 &
+        number_of_layers=1_i_def,                                              &
+        stretching_method=stretching_method_linear,                            &
+        stretching_height=1.0_r_def,                                           &
+        eta_values=(/0.5_r_def/)                                               &
+    )
+    call feign_planet_config(                                                  &
+        gravity=9.98_r_def,                                                    &
+        omega=7.27E-5_r_def,                                                   &
+        rd=300.0_r_def,                                                        &
+        cp=1000.0_r_def,                                                       &
+        p_zero=100000.0_r_def,                                                 &
+        scaling_factor=1.0_r_def                                               &
+    )
+    call feign_finite_element_config(                                          &
+        cellshape=cellshape_quadrilateral,                                     &
+        coord_order=0_i_def,                                                   &
+        coord_system=coord_system_native,                                      &
+        element_order_h=0_i_def,                                               &
+        element_order_v=0_i_def,                                               &
+        rehabilitate=.true.,                                                   &
+        vorticity_in_w1=.false.                                                &
+    )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(panel_edge_weights_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  @Test
+  subroutine test_all( this )
+
+    use panel_edge_weights_kernel_mod, only: panel_edge_weights_code
+
+    implicit none
+
+    class(panel_edge_weights_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter    :: tol = 1.0e-5_r_def
+    real(kind=r_tran)              :: answer_weights(4)
+    integer(kind=i_def)            :: answer_indices(4)
+
+    integer(kind=i_def), parameter :: ndata = 4
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ncells = 6
+    integer(kind=i_def), parameter :: ndf_ww = 1
+    integer(kind=i_def), parameter :: undf_ww = ncells*ndf_ww*ndata
+    integer(kind=i_def), parameter :: ndf_wx = 1
+    integer(kind=i_def), parameter :: undf_wx = ncells*ndf_wx*nlayers
+    integer(kind=i_def), parameter :: ndf_pid = 1
+    integer(kind=i_def), parameter :: undf_pid = 1 + ncells*ndf_pid*nlayers
+    integer(kind=i_def), parameter :: max_length = 3
+    integer(kind=i_def), parameter :: depth = 1
+    logical(kind=l_def), parameter :: cubic_remap = .true.
+
+    integer(kind=i_def) :: map_ww(ndf_ww)
+    integer(kind=i_def) :: map_wx(ndf_wx)
+    integer(kind=i_def) :: map_pid(ndf_pid)
+
+    integer(kind=i_def) :: stencil_size(4)
+    integer(kind=i_def) :: wx_stencil(ndf_wx, max_length, 4)
+    integer(kind=i_def) :: pid_stencil(ndf_pid, max_length, 4)
+
+    real(kind=r_def)    :: basis_wx(1, ndf_wx, ndf_ww)
+
+    real(kind=r_tran)   :: panel_edge_weights_x(undf_ww)
+    real(kind=r_tran)   :: panel_edge_weights_y(undf_ww)
+    integer(kind=i_def) :: panel_edge_indices_x(undf_ww)
+    integer(kind=i_def) :: panel_edge_indices_y(undf_ww)
+    integer(kind=i_def) :: panel_edge_dist_W(undf_pid)
+    integer(kind=i_def) :: panel_edge_dist_E(undf_pid)
+    integer(kind=i_def) :: panel_edge_dist_S(undf_pid)
+    integer(kind=i_def) :: panel_edge_dist_N(undf_pid)
+    real(kind=r_def)    :: panel_id(undf_pid)
+    real(kind=r_def)    :: alpha(undf_wx), alpha_x(undf_wx), alpha_y(undf_wx)
+    real(kind=r_def)    :: beta(undf_wx), beta_x(undf_wx), beta_y(undf_wx)
+    real(kind=r_def)    :: height(undf_wx)
+
+    real(kind=r_def), parameter :: alpha0 = -pi/4.0_r_def
+    real(kind=r_def), parameter :: beta0  = 0.3_r_def
+    real(kind=r_def), parameter :: delta_alpha = 0.1_r_def
+    real(kind=r_def), parameter :: delta_beta  = 0.1_r_def
+
+    ! Remap from panel 2 to panel 1
+    stencil_size(:) = 3
+    stencil_size(1) = 2
+    stencil_size(3) = 1
+
+    ! Stencil shape is:
+    !     | 6 |
+    !     | 4 |
+    ! | 2 | 1 |
+    !     | 3 |
+    !     | 5 |
+
+    map_ww(1) = 1
+
+    ! First entry of panel_id is assumed to be the owned panel
+    ! so the map points to the second entry
+    map_pid(1) = 2
+
+    pid_stencil(1,1,:) = map_pid(1)
+    pid_stencil(1,2,1) = 3
+    pid_stencil(1,2,2) = 4
+    pid_stencil(1,2,3) = -1
+    pid_stencil(1,2,4) = 5
+    pid_stencil(1,3,2) = 6
+    pid_stencil(1,3,4) = 7
+
+    panel_id(1) = 1.0_r_def
+    panel_id(2) = 2.0_r_def
+    panel_id(3) = 2.0_r_def
+    panel_id(4) = 2.0_r_def
+    panel_id(5) = 2.0_r_def
+    panel_id(6) = 2.0_r_def
+    panel_id(7) = 2.0_r_def
+
+    ! Coordinate arrays only include the centre point
+    map_wx(1) = 1
+    wx_stencil(1,1,:) = map_wx(1)
+    wx_stencil(1,2,1) = 2
+    wx_stencil(1,2,2) = 3
+    wx_stencil(1,2,3) = -1
+    wx_stencil(1,2,4) = 4
+    wx_stencil(1,3,2) = 5
+    wx_stencil(1,3,4) = 6
+
+    basis_wx(1,1,1) = 1.0_r_def
+
+    ! height fields unchanged by the remapping
+    height(:) = 1.0_r_def
+
+    ! Original coordinates
+    ! Cell 2 on edge of panel 1
+    alpha(2) = -alpha0 + 0.5_r_def*delta_alpha
+    beta(2)  = beta0
+    ! All other cells are on the edge of panel 2
+    alpha(1) = alpha0 - 0.5_r_def*delta_alpha
+    beta(1)  = beta0
+
+    alpha(3) = alpha0 - 0.5_r_def*delta_alpha
+    beta(3)  = beta0 - delta_beta
+
+    alpha(4) = alpha0 - 0.5_r_def*delta_alpha
+    beta(4)  = beta0 + delta_beta
+
+    alpha(5) = alpha0 - 0.5_r_def*delta_alpha
+    beta(5)  = beta0 - 2.0_r_def*delta_beta
+
+    alpha(6) = alpha0 - 0.5_r_def*delta_alpha
+    beta(6)  = beta0 + 2.0_r_def*delta_beta
+
+    ! Remapping is in x-direction
+    panel_edge_dist_W(:) = 1
+    panel_edge_dist_E(:) = -ABS(IMDI)
+    panel_edge_dist_N(:) = -ABS(IMDI)
+    panel_edge_dist_S(:) = -ABS(IMDI)
+    panel_edge_dist_W(1) = -ABS(IMDI)
+    panel_edge_dist_E(1) = 1
+
+    alpha_y(:) = 0.0_r_def
+    beta_y(:) = 0.0_r_def
+
+    ! Extended coordinates, all points count as being on panel 1
+    alpha_x(2) = alpha(2)
+    beta_x(2)  = beta(2)
+
+    alpha_x(1) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_x(1)  = beta0
+
+    alpha_x(3) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_x(3)  = beta0 - delta_beta
+
+    alpha_x(4) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_x(4)  = beta0 + delta_beta
+
+    alpha_x(5) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_x(5)  = beta0 - 2.0_r_def*delta_beta
+
+    alpha_x(6) = - alpha0 - 0.5_r_def*delta_alpha
+    beta_x(6)  = beta0 + 2.0_r_def*delta_beta
+
+    panel_edge_weights_x(:) = 0.0_r_tran
+    panel_edge_weights_y(:) = 0.0_r_tran
+    panel_edge_indices_x(:) = 0_i_def
+    panel_edge_indices_y(:) = 0_i_def
+
+    call panel_edge_weights_code( nlayers,                                     &
+                                  panel_edge_weights_x, panel_edge_weights_y,  &
+                                  panel_edge_indices_x, panel_edge_indices_y,  &
+                                  alpha, beta, height,                         &
+                                  stencil_size, max_length, wx_stencil,        &
+                                  alpha_x, beta_x, alpha_y, beta_y,            &
+                                  panel_id,                                    &
+                                  stencil_size, max_length, pid_stencil,       &
+                                  panel_edge_dist_W, panel_edge_dist_E,        &
+                                  panel_edge_dist_S, panel_edge_dist_N,        &
+                                  cubic_remap, depth,                          &
+                                  ndf_ww, undf_ww, map_ww,                     &
+                                  ndf_wx, undf_wx, map_wx, basis_wx,           &
+                                  ndf_wx, undf_wx, map_wx, basis_wx,           &
+                                  ndf_pid, undf_pid, map_pid                   &
+    )
+
+    answer_weights = (/                                                        &
+        0.778652565624120_r_def,  0.325261916669839_r_def,                     &
+       -0.059070390960466_r_def, -0.044844091333493_r_def                      &
+    /)
+    answer_indices = (/ 1, 4, 2, 5 /)
+
+    @assertEqual(answer_weights, panel_edge_weights_x(1:4), tol)
+    @assertEqual(answer_indices, panel_edge_indices_x(1:4))
+
+  end subroutine test_all
+
+end module panel_edge_weights_kernel_mod_test

@@ -1,0 +1,303 @@
+!-------------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-------------------------------------------------------------------------------
+
+!> @brief Linear operator type which applies the mixed (outer) operator in the
+!!        gravity-wave system.
+!>
+!> @details Calculates the left hand side of the implicit gravity wave system.
+!!  Given the field-vector \f$ x = (\mathbf{U'},P',B') \f$ this calculate the
+!!  field-vector \f$ y = (\mathbf{U},P,B) \f$ where the components are
+!!  calculated via the discretised version of the following set of equations:
+!!
+!!  \f[ \mathbf{u} = \mathbf{u}' - \alpha\Delta t(\nabla p' + b\mathbf{z})  \f]
+!!  \f[          p =          p' + \alpha\Delta t c^2\nabla.\mathbf{u}'     \f]
+!!  \f[          b =          b' + \alpha\Delta t N^2\mathbf{u}'.\mathbf{z} \f]
+!!
+!!  The primed terms are increments to the n timelevel field. Upon
+!!  discretisation, this leads to (note that the pressure-equation has been
+!!  divided by the mass-matrix \f$ M_3 \f$):
+!!
+!!  \f[ \mathbf{U} = M_2 \mathbf{U}' - \alpha\Delta t (D^T P' + Q B') \f]
+!!  \f[          P = P'  + \alpha\Delta t c^2 M_3^{-1} D \mathbf{U}'  \f]
+!!  \f[          B = M_theta B' + \alpha\Delta t N^2 Q^T \mathbf{U}'  \f]
+
+module gw_mixed_operator_alg_mod
+
+  use base_mesh_config_mod,              only: prime_mesh_name
+  use constants_mod,                     only: r_solver, i_def
+  use r_solver_field_mod,                only: r_solver_field_type
+  use field_indices_mod,                 only: igw_u, igw_p, igw_b
+  use sci_linear_operator_mod,           only: abstract_linear_operator_type
+  use sci_r_solver_field_vector_mod,     only: r_solver_field_vector_type
+  use log_mod,                           only: log_event, LOG_LEVEL_ERROR, &
+                                               log_scratch_space
+  use operator_mod,                      only: r_solver_operator_type
+  use sci_fem_constants_mod,             only: get_mass_matrix_fe, &
+                                               get_div
+  use solver_constants_mod,              only: get_im3_div_r_solver
+  use limited_area_constants_mod,        only: get_mask_r_solver
+  use vector_mod,                        only: abstract_vector_type
+
+  implicit none
+
+  private
+
+  type, public, extends(abstract_linear_operator_type) :: &
+                        gw_mixed_operator_type
+
+     private
+
+     !> Operator Q
+     type(r_solver_operator_type) :: Q
+
+   contains
+     !> Over-ride the abstract interface
+     !> param[in,out] self A linear operator
+     !> param[in] x A field vector the linear operator is applied to
+     !> param[in,out] y A field vector, the result.
+     procedure, public  :: apply => apply_gw_mixed_operator
+     !> Applies the operator as LMA matrix matrix-vector kernels in all blocks
+     procedure, private :: apply_gw_mixed_operator
+     !> performs a deep copy (for overriding the "=" operator)
+     !> @param[out] dest   gw_mixed_operator_type LHS
+     !> @param[in]  source gw_mixed_operator_type RHS
+     procedure, public  :: gw_mixed_operator_assign
+
+     !> Destroys the object
+     final              :: destroy_gw_mixed_operator
+
+     !> Override default assignment for gw_mixed_operator_type pairs.
+     generic            :: assignment(=) => gw_mixed_operator_assign
+
+  end type gw_mixed_operator_type
+
+  interface gw_mixed_operator_type
+     module procedure gw_mixed_operator_constructor
+  end interface
+
+contains
+  !> @brief Construct a <code>gw_mixed_operator_type</code> object.
+  !>
+  !> @details Initialise the object by building the relevant operators.
+  !>
+  !> @param[in] u_fs Function space for velocity field
+  !> @param[in] b_fs Function space for buoyancy field
+  !> @return self Instance of the gravity wave mixed operator
+  function gw_mixed_operator_constructor(u_fs, b_fs) result(self)
+
+    use finite_element_config_mod,     only: element_order_h, element_order_v
+    use function_space_mod,            only: function_space_type
+    use quadrature_xyoz_mod,           only: quadrature_xyoz_type
+    use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
+    use compute_q_operator_kernel_mod, only: compute_q_operator_type
+    implicit none
+
+    type(gw_mixed_operator_type)          :: self
+    type(function_space_type), intent(in) :: u_fs, b_fs
+    type(quadrature_xyoz_type)            :: qr
+    type(quadrature_rule_gaussian_type)   :: quadrature_rule
+
+    ! Construct projection operator \f$ Q \f$
+    call self%Q%initialise( u_fs, b_fs)
+    qr = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
+                              element_order_v+2, quadrature_rule)
+    call invoke( compute_q_operator_type(self%Q, qr) )
+
+  end function gw_mixed_operator_constructor
+
+  !> @brief Performs a deep copy between gw_mixed_operator_type pairs
+  !!        (for overriding the "=" operator).
+  !>
+  !> @param[out] dest   gw_mixed_operator_type LHS
+  !> @param[in]  source gw_mixed_operator_type RHS
+  subroutine gw_mixed_operator_assign(dest, source)
+
+    implicit none
+    class(gw_mixed_operator_type), intent(in)  :: source
+    class(gw_mixed_operator_type), intent(out) :: dest
+
+    ! Deep copy of the contents of the pressure_operator_type
+    dest%Q = source%Q
+
+  end subroutine gw_mixed_operator_assign
+
+  !> @brief Applies the GW mixed operator to the vector, \f$ y = M x \f$.
+  !>
+  !> @param[in,out] self Instance of the gravity wave mixed operator
+  !> @param[in] x Field vector to be read
+  !> @param[in,out] y Field vector to be written
+  subroutine apply_gw_mixed_operator(self, x, y)
+
+    use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+    use operator_mod,                       only: r_solver_operator_type, operator_type
+    use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+    use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
+    use initial_temperature_config_mod,     only: bvf_square
+    use timestepping_config_mod,            only: dt, alpha
+    use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
+    use gravity_wave_constants_config_mod,  only: cs_square,  &
+                                                  b_space,    &
+                                                  b_space_w0, &
+                                                  b_space_w3, &
+                                                  b_space_wtheta
+    use fs_continuity_mod,                  only: W0, W2, W3, Wtheta
+    use boundaries_config_mod,              only: limited_area
+    use sci_operator_algebra_kernel_mod,    only: operator_setval_x_kernel_type
+
+    implicit none
+
+    class(gw_mixed_operator_type), intent(inout) :: self
+    class(abstract_vector_type),   intent(in)    :: x
+    class(abstract_vector_type),   intent(inout) :: y
+
+    type(operator_type),          pointer :: mm => null()
+    type(r_solver_operator_type)          :: mm_w2, mm_wt
+    type(r_solver_operator_type), pointer :: im3_div => null()
+    type(operator_type),          pointer :: div_r_def => null()
+    type(r_solver_field_type),    pointer :: w2_mask => null()
+    type(r_solver_field_type),    pointer :: w3_mask => null()
+    type(r_solver_field_type),    pointer :: wtheta_mask => null()
+    type(r_solver_operator_type)          :: div
+    integer(kind=i_def)                   :: buoyancy_space, mesh_id
+
+    ! Auxiliary constants to group invokes
+    real(kind=r_solver) :: const1, const2, const3
+
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(r_solver_field_type), pointer :: x_vec_u => null(), &
+                                          x_vec_p => null(), &
+                                          x_vec_b => null(), &
+                                          y_vec_u => null(), &
+                                          y_vec_p => null(), &
+                                          y_vec_b => null()
+
+    ! Extract mesh ID
+    select type (y)
+    type is (r_solver_field_vector_type)
+      mesh_id = y%vector(igw_u)%get_mesh_id()
+    class default
+       write(log_scratch_space, '(A)') &
+             "gw_mixed_operator_alg_mod: incorrect vector_type argument y"
+       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    ! Extract buoyancy mass matrix
+    select case(b_space)
+    case(b_space_w0)
+       buoyancy_space = W0
+    case(b_space_w3)
+       buoyancy_space = W3
+    case(b_space_wtheta)
+       buoyancy_space = Wtheta
+    end select
+
+    mm => get_mass_matrix_fe(buoyancy_space, mesh_id)
+    call mm_wt%initialise( mm%get_fs_to(), mm%get_fs_from() )
+    call invoke( operator_setval_x_kernel_type( mm_wt, mm ) )
+
+    ! Extract velocity mass matrix
+    mm => get_mass_matrix_fe(W2, mesh_id)
+    call mm_w2%initialise( mm%get_fs_to(), mm%get_fs_from() )
+    call invoke( operator_setval_x_kernel_type( mm_w2, mm ) )
+
+    ! Extract divergence operator
+    im3_div   => get_im3_div_r_solver(mesh_id)
+    div_r_def => get_div(mesh_id)
+    call div%initialise( div_r_def%get_fs_to(), div_r_def%get_fs_from() )
+
+    if (limited_area) then
+      ! Extract limited area mask
+      wtheta_mask => get_mask_r_solver(buoyancy_space, mesh_id, prime_mesh_name)
+      w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
+      w3_mask => get_mask_r_solver(W3, mesh_id, prime_mesh_name)
+    endif
+
+    ! Set auxiliary constants
+    const1 = real(-alpha*dt, r_solver)
+    const2 = real(alpha*dt*bvf_square, r_solver)
+    const3 = real(alpha*dt*cs_square, r_solver)
+
+    select type (x)
+
+    type is (r_solver_field_vector_type)
+
+      select type (y)
+
+      type is (r_solver_field_vector_type)
+
+        ! Get pointers to x and y abstract types
+        x_vec_u => x%get_field_from_position( igw_u )
+        x_vec_p => x%get_field_from_position( igw_p )
+        x_vec_b => x%get_field_from_position( igw_b )
+        y_vec_u => y%get_field_from_position( igw_u )
+        y_vec_p => y%get_field_from_position( igw_p )
+        y_vec_b => y%get_field_from_position( igw_b )
+
+        ! Compute GW LHS
+        call invoke( &
+                ! Initialise LHS
+                setval_c(y_vec_u, 0.0_r_solver),                               &
+                setval_c(y_vec_b, 0.0_r_solver),                               &
+                ! Compute LHS
+                operator_setval_x_kernel_type( div, div_r_def ),               &
+                transpose_matrix_vector_kernel_type(y_vec_u, x_vec_p, div),    &
+                matrix_vector_kernel_type          (y_vec_u, x_vec_b, self%Q), &
+                dg_matrix_vector_kernel_type       (y_vec_p, x_vec_u, im3_div),&
+                transpose_matrix_vector_kernel_type(y_vec_b, x_vec_u, self%Q), &
+                ! Scale LHS
+                inc_a_times_X(const1, y_vec_u),                                &
+                inc_a_times_X(const2, y_vec_b),                                &
+                ! Add time dependencies
+                matrix_vector_kernel_type(y_vec_u, x_vec_u, mm_w2),            &
+                enforce_bc_kernel_type(y_vec_u),                               &
+                matrix_vector_kernel_type(y_vec_b, x_vec_b, mm_wt),            &
+                inc_aX_plus_Y(const3, y_vec_p, x_vec_p) )
+
+        if (limited_area) then
+          ! Enforce lateral boundary condition (LBC) by setting values
+          ! to zero on boundary and exterior, as defined by the masks
+          call invoke( &
+                inc_X_times_Y(y_vec_u, w2_mask),     &
+                inc_X_times_Y(y_vec_b, wtheta_mask), &
+                inc_X_times_Y(y_vec_p, w3_mask) )
+        endif
+
+      class default
+
+        write(log_scratch_space, '(A)') &
+              "gw_mixed_operator_alg_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+      end select
+
+    class default
+
+      write(log_scratch_space, '(A)') &
+            "gw_mixed_operator_alg_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+    end select
+
+    if (limited_area) then
+      nullify(w3_mask)
+      nullify(w2_mask)
+      nullify(wtheta_mask)
+    endif
+
+    nullify( x_vec_u, x_vec_p, x_vec_b, y_vec_u, y_vec_p, y_vec_b, &
+             div_r_def, im3_div )
+
+  end subroutine apply_gw_mixed_operator
+
+  !> @brief Finalizer for the gravity wave mixed operator.
+  !>
+  !> @param[in,out] self The gravity wave mixed operator
+  subroutine destroy_gw_mixed_operator(self)
+    implicit none
+    type(gw_mixed_operator_type), intent(inout) :: self
+  end subroutine destroy_gw_mixed_operator
+
+end module gw_mixed_operator_alg_mod

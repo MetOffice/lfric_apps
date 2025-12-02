@@ -1,0 +1,109 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module schur_backsub_kernel_mod_test
+
+  use constants_mod, only : i_def, r_solver, l_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  @test( )
+  subroutine test_all( )
+
+    use schur_backsub_kernel_mod, only : schur_backsub_code
+
+    implicit none
+
+    real(r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    ! Mesh
+    integer(i_def), parameter :: nlayers = 1_i_def
+    integer(i_def), parameter :: cell = 1_i_def
+    integer(i_def), parameter :: ncell = 1_i_def
+
+    ! Spaces
+    integer(i_def), parameter :: ndf_w2h = 2_i_def
+    integer(i_def), parameter :: ndf_w2v = 2_i_def
+    integer(i_def), parameter :: ndf_w2 = ndf_w2h+ndf_w2v
+    integer(i_def), parameter :: ndf_w3 = 1_i_def
+    integer(i_def), parameter :: undf_w2h = ndf_w2h*nlayers
+    integer(i_def), parameter :: undf_w2v = nlayers + 1_i_def
+    integer(i_def), parameter :: undf_w2 = undf_w2h + undf_w2v
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+
+    ! Maps
+    integer(i_def), dimension(ndf_w2h) :: map_w2h
+    integer(i_def), dimension(ndf_w2v) :: map_w2v
+    integer(i_def), dimension(ndf_w2)  :: map_w2
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+
+    ! Operators
+    real(r_solver), dimension(ncell, ndf_w2, ndf_w3) :: Grad
+
+    ! Fields
+    real(r_solver), dimension(undf_w2)  :: rhs, mask, z, y
+    real(r_solver), dimension(undf_w2h) :: Luv
+    real(r_solver), dimension(undf_w2v) :: Lw
+    real(r_solver), dimension(undf_w3)  :: x
+
+    ! Logicals
+    logical(l_def), parameter :: lam = .true.
+
+    integer(i_def) :: df
+    real(r_solver) :: answer
+
+    map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
+    map_w2v = (/ 1_i_def, 2_i_def /)
+    map_w2 = (/ 1_i_def, 1_i_def + nlayers, 1_i_def + 2_i_def*nlayers, 2_i_def + 2_i_def*nlayers /)
+    map_w3 = (/ 1_i_def /)
+
+    ! Set up operators
+    do df = 1, ndf_w2
+      Grad(1,df,1) = (-1.0_r_solver)**df
+    end do
+
+    ! Set up the fields
+    y = (/ 0.0_r_solver, 1.0_r_solver, 3.0_r_solver, -2.0_r_solver /)
+    z = (/ 2.4_r_solver, 0.4_r_solver, 7.3_r_solver, 1.2_r_solver /)
+    x = (/ 1.2_r_solver /)
+    rhs = (/ 6.3_r_solver, 6.7_r_solver, 4.2_r_solver, 7.5_r_solver /)
+    Luv = 0.0_r_solver
+    mask = (/ 2.0_r_solver, 1.0_r_solver, 0.25_r_solver, 0.1_r_solver /)
+
+    ! Compute: (L_uv, L_w) =  mask*( rhs + y*z*grad*x )
+    call schur_backsub_code(cell,                       &
+                            nlayers,                    &
+                            Luv, Lw,                    &
+                            rhs, x,                     &
+                            ncell,                      &
+                            Grad,                       &
+                            y,                          &
+                            z,                          &
+                            lam, mask,                  &
+                            ndf_w2h, undf_w2h, map_w2h, &
+                            ndf_w2v, undf_w2v, map_w2v, &
+                            ndf_w2, undf_w2, map_w2,    &
+                            ndf_w3, undf_w3, map_w3 )
+
+    do df = 1, ndf_w2h
+      answer = mask(df)*( 0.5_r_solver*rhs(df) + y(df)*z(df)*grad(1,df,1)*x(1))
+      @assertEqual(answer, Luv(df), tol)
+    end do
+
+    do df = 1, ndf_w2v
+      answer = 0.0_r_solver
+      @assertEqual(answer, Lw(df), tol)
+    end do
+
+  end subroutine test_all
+
+end module schur_backsub_kernel_mod_test

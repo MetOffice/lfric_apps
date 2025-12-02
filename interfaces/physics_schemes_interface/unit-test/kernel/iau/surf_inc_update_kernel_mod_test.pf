@@ -1,0 +1,286 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Test the updating of surface fields in IAU applications
+!>
+module surf_inc_update_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def, r_um
+  use funit
+
+  implicit none
+
+  private
+
+  public :: surf_inc_update_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: surf_inc_update_test_type
+
+    private
+
+    ! Fields and dof_map
+    real(r_def), allocatable    :: soil_moist_sat(:)
+    real(r_def), allocatable    :: grid_snow_mass(:)
+    real(r_def), allocatable    :: soil_temperature_inc(:)
+    real(r_def), allocatable    :: soil_temperature(:)
+    real(r_def), allocatable    :: soil_moisture_inc(:)
+    real(r_def), allocatable    :: soil_moisture(:)
+    real(r_def), allocatable    :: tile_temperature_inc(:)
+    real(r_def), allocatable    :: tile_temperature(:)
+    real(r_def), allocatable    :: snow_layer_temp_inc(:)
+    real(r_def), allocatable    :: snow_layer_temp(:)
+    integer(i_def), allocatable :: map(:)
+
+    ! Inputs that affect code coverage
+    real(r_def),    allocatable :: soil_temperature_inc_inp(:)
+    real(r_def),    allocatable :: soil_moisture_inc_inp(:)
+    real(r_def),    allocatable :: tile_temperature_inc_inp(:)
+    real(r_def),    allocatable :: tile_temperature_inp(:)
+    real(r_def),    allocatable :: snow_layer_temp_inc_inp(:)
+    real(r_def),    allocatable :: snow_layer_temp_inp(:)
+
+    ! KGOs
+    real(r_def), allocatable    :: soil_temperature_out(:)
+    real(r_def), allocatable    :: soil_moisture_out(:)
+    real(r_def), allocatable    :: tile_temperature_out(:)
+    real(r_def), allocatable    :: snow_layer_temp_out(:)
+
+  contains
+
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+
+  end type surf_inc_update_test_type
+
+  ! Use same n for every array for simplicity
+  integer(i_def), parameter :: nlayers = 16
+  integer(i_def), parameter :: ndf = 1
+  integer(i_def), parameter :: undf = nlayers * ndf
+  integer(i_def), parameter :: nsmax = 1
+  real(r_def),    parameter :: Tfw = 273.15_r_def
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(surf_inc_update_test_type), intent(inout) :: this
+
+    allocate( this%soil_moist_sat( undf ) )
+    allocate( this%grid_snow_mass( undf ) )
+    allocate( this%soil_temperature_inc( undf ) )
+    allocate( this%soil_temperature( undf ) )
+    allocate( this%soil_moisture_inc( undf ) )
+    allocate( this%soil_moisture( undf ) )
+    allocate( this%tile_temperature_inc( undf ) )
+    allocate( this%tile_temperature( undf ) )
+    allocate( this%snow_layer_temp_inc( undf ) )
+    allocate( this%snow_layer_temp( undf ) )
+    allocate( this%map( ndf ) )
+
+    ! Each layer features a batch of these field inputs
+    ! such that each branch of the kernel logic is visited
+    allocate( this%soil_temperature_inc_inp( nlayers ) )
+    allocate( this%soil_moisture_inc_inp( nlayers ) )
+    allocate( this%tile_temperature_inc_inp( nlayers ) )
+    allocate( this%tile_temperature_inp( nlayers ) )
+    allocate( this%snow_layer_temp_inc_inp( nlayers ) )
+    allocate( this%snow_layer_temp_inp( nlayers ) )
+
+    ! Each layer corresponds to a kgo
+    allocate( this%soil_temperature_out( nlayers ) )
+    allocate( this%soil_moisture_out( nlayers ) )
+    allocate( this%tile_temperature_out( nlayers ) )
+    allocate( this%snow_layer_temp_out( nlayers ) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+    implicit none
+
+    class(surf_inc_update_test_type), intent(inout) :: this
+
+    deallocate( this%soil_moist_sat )
+    deallocate( this%grid_snow_mass )
+    deallocate( this%soil_temperature_inc )
+    deallocate( this%soil_temperature )
+    deallocate( this%soil_moisture_inc )
+    deallocate( this%soil_moisture )
+    deallocate( this%tile_temperature_inc )
+    deallocate( this%tile_temperature )
+    deallocate( this%snow_layer_temp_inc )
+    deallocate( this%snow_layer_temp )
+    deallocate( this%map )
+
+    deallocate( this%soil_temperature_inc_inp )
+    deallocate( this%soil_moisture_inc_inp )
+    deallocate( this%tile_temperature_inc_inp )
+    deallocate( this%tile_temperature_inp )
+    deallocate( this%snow_layer_temp_inc_inp )
+    deallocate( this%snow_layer_temp_inp )
+
+    deallocate( this%soil_temperature_out )
+    deallocate( this%soil_moisture_out )
+    deallocate( this%tile_temperature_out )
+    deallocate( this%snow_layer_temp_out )
+
+  end subroutine tearDown
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use surf_inc_update_kernel_mod,    only : surf_inc_update_code
+
+    implicit none
+
+    class(surf_inc_update_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def   ! r_def 64bit
+    real(r_def)            :: answer, use_tol
+    integer(i_def)         :: k, df
+    ! RMDI stands for Real Missing Data Indicator.
+    ! These should not be incremented because this data is missing.
+    real(r_def), parameter :: rmdi = real( -1073741824.0_r_um, r_def )
+    real(r_def), parameter :: zero = 0.0_r_def
+    real(r_def), parameter :: one = 1.0_r_def
+
+    this%map = (/ 1_i_def /)
+
+    ! Inputs for code coverage
+    this%soil_temperature_inc_inp = (/ rmdi, rmdi, rmdi, rmdi, &
+                                       rmdi, rmdi, rmdi, rmdi, &
+                                       one,  one,  one,  one,  &
+                                       one,  one,  one,  one   /)
+    this%soil_moisture_inc_inp    = (/ rmdi, rmdi, rmdi, rmdi, &
+                                       one,  one,  one,  one,  &
+                                       rmdi, rmdi, rmdi, rmdi, &
+                                       one,  one,  one,  one   /)
+    this%tile_temperature_inc_inp = (/ rmdi, rmdi, one,  one,  &
+                                       rmdi, rmdi, one,  one,  &
+                                       rmdi, rmdi, one,  one,  &
+                                       rmdi, rmdi, one,  one   /)
+    this%tile_temperature_inp     = (/ rmdi, zero, zero, zero, &
+                                       rmdi, zero, zero, zero, &
+                                       rmdi, zero, zero, zero, &
+                                       rmdi, zero, zero, zero  /)
+    this%snow_layer_temp_inc_inp  = (/ rmdi, one,  one,  one,  &
+                                       rmdi, one,  one,  one,  &
+                                       rmdi, one,  one,  one,  &
+                                       rmdi, one,  one,  one   /)
+    this%snow_layer_temp_inp      = (/ rmdi, zero, rmdi, zero, &
+                                       rmdi, zero, rmdi, zero, &
+                                       rmdi, zero, rmdi, zero, &
+                                       rmdi, zero, rmdi, Tfw   /)
+
+    ! KGOs
+    this%soil_temperature_out = (/ zero, zero, zero, zero, &
+                                   zero, zero, zero, zero, &
+                                   one,  one,  one,  one,  &
+                                   one,  one,  one,  one   /)
+    this%soil_moisture_out    = (/ zero, zero, zero, zero, &
+                                   one,  one,  one,  one,  &
+                                   zero, zero, zero, zero, &
+                                   one,  one,  one,  one   /)
+    this%tile_temperature_out = (/ rmdi, zero, one,  one,  &
+                                   rmdi, zero, one,  one,  &
+                                   rmdi, zero, one,  one,  &
+                                   rmdi, zero, one,  one   /)
+    this%snow_layer_temp_out  = (/ rmdi, one,  rmdi, one,  &
+                                   rmdi, one,  rmdi, one,  &
+                                   rmdi, one,  rmdi, one,  &
+                                   rmdi, one,  rmdi, Tfw   /)
+
+    ! Create the data
+    this%soil_moist_sat(:) = 0.05_r_def
+    this%grid_snow_mass(:) = 0.05_r_def
+
+    do k = 1, nlayers
+      do df = 1, ndf
+        this%soil_temperature_inc( this%map(df) + k - 1 ) = this%soil_temperature_inc_inp( k )
+        this%soil_moisture_inc( this%map(df) + k - 1 ) = this%soil_moisture_inc_inp( k )
+        this%tile_temperature_inc( this%map(df) + k - 1 ) = this%tile_temperature_inc_inp( k )
+        this%tile_temperature( this%map(df) + k - 1 ) = this%tile_temperature_inp( k )
+        this%snow_layer_temp_inc( this%map(df) + k - 1 ) = this%snow_layer_temp_inc_inp( k )
+        this%snow_layer_temp( this%map(df) + k - 1 ) = this%snow_layer_temp_inp( k )
+      end do
+    end do
+    this%soil_temperature(:) = zero
+    this%soil_moisture(:) = zero
+
+    ! Test kernel
+    call surf_inc_update_code( nlayers,                       &
+                               this%soil_moist_sat,           &
+                               this%grid_snow_mass,           &
+                               this%soil_temperature_inc,     &
+                               this%soil_temperature,         &
+                               this%soil_moisture_inc,        &
+                               this%soil_moisture,            &
+                               this%tile_temperature_inc,     &
+                               this%tile_temperature,         &
+                               this%snow_layer_temp_inc,      &
+                               this%snow_layer_temp,          &
+                               nlayers,                       &
+                               nlayers,                       &
+                               nlayers,                       &
+                               nsmax,                         &
+                               Tfw,                           &
+                               ndf, undf, this%map,           &
+                               ndf, undf, this%map,           &
+                               ndf, undf, this%map,           &
+                               ndf, undf, this%map,           &
+                               ndf, undf, this%map )
+
+    ! KGO check
+    do k = 1, nlayers
+
+      ! Soil temperature check
+      answer = this%soil_temperature_out( k )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%soil_temperature( this%map(1) + k - 1 ), use_tol )
+
+      ! Soil moisture check
+      answer = this%soil_moisture_out( k )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%soil_moisture( this%map(1) + k - 1 ), use_tol )
+
+      ! Tile temperature check
+      answer = this%tile_temperature_out( k )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%tile_temperature( this%map(1) + k - 1 ), use_tol )
+
+      ! Snow layer temperature check
+      answer = this%snow_layer_temp_out( k )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%snow_layer_temp( this%map(1) + k - 1 ), use_tol )
+
+    end do
+
+  end subroutine test_all
+
+end module surf_inc_update_kernel_mod_test

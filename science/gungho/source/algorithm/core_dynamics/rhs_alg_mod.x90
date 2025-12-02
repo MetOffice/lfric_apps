@@ -1,0 +1,431 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> @brief Wrapper algorithm to compute the rhs of the prognostic
+!>        equations
+module rhs_alg_mod
+
+  use constants_mod,                       only: r_def, r_second, i_def, l_def
+  use model_clock_mod,                     only: model_clock_type
+  use log_mod,                             only: log_event, &
+                                                 LOG_LEVEL_ERROR
+  use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+  use sci_geometric_constants_mod,         only: get_coordinates,     &
+                                                 get_panel_id
+  use sci_fem_constants_mod,               only: get_mass_matrix_fe,         &
+                                                 get_mass_matrix_fv,         &
+                                                 get_inverse_mass_matrix_fe, &
+                                                 get_inverse_mass_matrix_fv
+  use dycore_constants_mod,                only: get_coriolis,       &
+                                                 get_geopotential,   &
+                                                 get_w2_mass_matrix, &
+                                                 w2_damping_layer_matrix
+  use field_mod,                           only: field_type
+  use finite_element_config_mod,           only: vorticity_in_w1
+  use formulation_config_mod,              only: rotating,             &
+                                                 si_momentum_equation, &
+                                                 vector_invariant,     &
+                                                 eos_method,           &
+                                                 eos_method_sampled,   &
+                                                 eos_method_projected
+  use planet_config_mod,                   only: cp, kappa, rd, p_zero
+  use kinetic_energy_gradient_kernel_mod,  only: kinetic_energy_gradient_kernel_type
+  use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
+  use dg_inc_matrix_vector_kernel_mod,     only: dg_inc_matrix_vector_kernel_type
+  use operator_mod,                        only: operator_type
+  use hydrostatic_kernel_mod,              only: hydrostatic_kernel_type
+  use pressure_gradient_bd_kernel_mod,     only: pressure_gradient_bd_kernel_type
+  use quadrature_xyoz_mod,                 only: quadrature_xyoz_type
+  use quadrature_face_mod,                 only: quadrature_face_type
+  use quadrature_rule_gaussian_mod,        only: quadrature_rule_gaussian_type
+  use derived_config_mod,                  only: bundle_size
+  use field_indices_mod,                   only: igh_u, igh_t, igh_d, igh_p
+  use io_config_mod,                       only: subroutine_timers
+  use timer_mod,                           only: timer
+  use rhs_project_eos_kernel_mod,          only: rhs_project_eos_kernel_type
+  use rhs_sample_eos_kernel_mod,           only: rhs_sample_eos_kernel_type
+  use moist_dyn_mod,                       only: num_moist_factors, gas_law
+  use dg_matrix_vector_kernel_mod,         only: dg_matrix_vector_kernel_type
+  use reference_element_mod,               only: reference_element_type
+  use mesh_mod,                            only: mesh_type
+  use vorticity_advection_kernel_mod,      only: vorticity_advection_kernel_type
+  use compute_vorticity_alg_mod,           only: compute_vorticity_alg
+  use fs_continuity_mod,                   only: W1, W2, W3, Wtheta
+  use function_space_collection_mod,       only: function_space_collection
+  use w2_vorticity_advection_kernel_mod,   only: w2_vorticity_advection_kernel_type
+  use pressure_gradient_p0_kernel_mod,     only: pressure_gradient_p0_kernel_type
+
+  implicit none
+
+  private
+  public  :: rhs_alg
+  private :: rhs_default_alg
+  private :: rhs_general_alg
+
+contains
+
+  !>@details A wrapper algorithm for computing the rhs of the prognostic
+  !>         equations. If computing the lhs of the semi-implicit equations
+  !>         a correction to the theta and rho advection terms is also computed
+  !>         (d_adv terms) namely:
+  !>         \f[
+  !>            \mathbf{R_u} = \mathbf{u}
+  !>                         + \alpha\Delta t\left[ 2\Omega \times \mathbf{u}
+  !>                         + \nabla\left(\Phi + 1/2\mathbf{u}.\mathbf{u}\right)
+  !>                         + Cp\theta\nabla\Pi \right]
+  !>         \f]
+  !>         \f[ R_\rho = \rho + d_{adv}\alpha\Delta t \nabla.\left(\rho\mathbf{u}\right) \f]
+  !>         \f[ R_\theta = \theta + d_{adv}\alpha\Delta t\mathbf{u}.\nabla\theta \f]
+  !>         This can be given either timelevel n or n+1 fields to compute
+  !>         the appropriate part of the full right hand side
+  !> @param[in,out] rhs The state vector to compute
+  !> @param[in]     alpha_dt        The offcentering parameter times the timestep
+  !> @param[in]     base_state      The model prognostic state to which increments are added
+  !> @param[in]     state           The current model prognostic state
+  !> @param[in]     moist_dyn       Factors relating to moist dynamics
+  !> @param[in]     compute_eos     Flag to control computation of the equation of
+  !!                state
+  !> @param[in]     dlayer_rhs      Use damping layer in rhs yes/no
+  !> @param[in]     compute_rhs_t_d Compute rhs for the potential temperature
+  !!                                and density
+  !> @param[in]     model_clock     Time in the model
+  subroutine rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
+                      compute_rhs_t_d, dlayer_rhs, model_clock )
+
+    implicit none
+
+    real(kind=r_def),             intent(in)    :: alpha_dt
+    logical(kind=l_def),          intent(in)    :: dlayer_rhs
+
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type), target,     intent(in)    :: base_state(bundle_size)
+    type(field_type), target,     intent(in)    :: state(bundle_size)
+    type(field_type),             intent(in)    :: moist_dyn(num_moist_factors)
+    type(field_type),             intent(inout) :: rhs(bundle_size)
+    logical(kind=l_def),          intent(in)    :: compute_eos
+    logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
+    class(model_clock_type),      intent(in)    :: model_clock
+
+    if (   (rhs(igh_u)%get_element_order_h() == 0) &
+     .and. (rhs(igh_u)%get_element_order_v() == 0) &
+     .and. (.not. si_momentum_equation)            &
+     .and. (eos_method == eos_method_sampled) ) then
+      call rhs_default_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
+                            compute_rhs_t_d, dlayer_rhs, model_clock )
+    else
+      call rhs_general_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
+                            compute_rhs_t_d, dlayer_rhs, model_clock )
+    end if
+
+  end subroutine rhs_alg
+
+  !> @brief rhs algorithm for the default setup ( lowest order elements,
+  !!        explicit momentum advection, global and sampled eos)
+  subroutine rhs_default_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
+                              compute_rhs_t_d, dlayer_rhs, model_clock )
+
+    implicit none
+
+    real(kind=r_def),             intent(in)    :: alpha_dt
+    logical(kind=l_def),          intent(in)    :: dlayer_rhs
+
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type), target,     intent(in)    :: base_state(bundle_size)
+    type(field_type), target,     intent(in)    :: state(bundle_size)
+    type(field_type),             intent(in)    :: moist_dyn(num_moist_factors)
+    type(field_type),             intent(inout) :: rhs(bundle_size)
+    logical(kind=l_def),          intent(in)    :: compute_eos
+    logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
+    class(model_clock_type),      intent(in)    :: model_clock
+
+    type(operator_type), pointer :: mm_vel    => null(), &
+                                    mm_wtheta => null(), &
+                                    coriolis  => null()
+    type(field_type), pointer :: geopotential => null(), &
+                                 u            => null(), &
+                                 theta        => null(), &
+                                 rho          => null(), &
+                                 u_base       => null(), &
+                                 theta_base   => null(), &
+                                 rho_base     => null(), &
+                                 exner        => null()
+
+    type(field_type)    :: rhs_u
+    integer(kind=i_def) :: mesh_id
+    type(field_type)    :: theta_v
+
+    ! For continuous fields the default looping depth is to the depth 1 halo
+    ! and so for any fields that are accessed with a stencil the halo_depth
+    ! needs to be one bigger than the required stencil_depth
+    integer(kind=i_def), parameter :: req_stencil_depth = 1
+    integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
+
+    if ( subroutine_timers ) call timer('rhs_alg')
+
+    mesh_id = base_state(igh_u)%get_mesh_id()
+
+    geopotential => get_geopotential(mesh_id)
+    mm_wtheta    => get_mass_matrix_fv(Wtheta, mesh_id)
+
+    ! Using modified velocity mass matrix if needing damping layer
+    if (dlayer_rhs) then
+      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+    else
+      mm_vel => get_mass_matrix_fv(W2, mesh_id)
+    end if
+
+    u     => state(igh_u)
+    theta => state(igh_t)
+    rho   => state(igh_d)
+    exner => state(igh_p)
+
+    u_base     => base_state(igh_u)
+    theta_base => base_state(igh_t)
+    rho_base   => base_state(igh_d)
+
+    call rhs_u%initialise( vector_space=rhs(igh_u)%get_function_space() )
+
+    ! Initialise RHS u and theta fields
+    call invoke( setval_c( rhs_u,    0.0_r_def ),   &
+                 setval_c( rhs(igh_u), 0.0_r_def ), &
+                 setval_c( rhs(igh_t), 0.0_r_def ) )
+
+    ! Compute rhs_u
+    if ( rotating ) then
+      coriolis => get_coriolis(mesh_id)
+      call invoke( matrix_vector_kernel_type( rhs_u, u, coriolis ) )
+    end if
+    call theta_v%initialise( theta%get_function_space(), halo_depth = req_halo_depth )
+    call invoke( X_times_Y( theta_v, theta, moist_dyn(1) ),               &
+                 inc_X_divideby_Y( theta_v,  moist_dyn(2) ),              &
+                 pressure_gradient_p0_kernel_type( rhs_u, exner,          &
+                                                   geopotential, theta_v, &
+                                                   req_stencil_depth,     &
+                                                   cp),                   &
+                 matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ), &
+                 inc_X_plus_bY( rhs(igh_u), alpha_dt, rhs_u ),            &
+                 enforce_bc_kernel_type(rhs(igh_u)) )
+
+    if ( compute_rhs_t_d ) then
+      call invoke( &
+    ! Compute rhs_theta
+                 dg_inc_matrix_vector_kernel_type( rhs(igh_t), theta_base,   &
+                                                   mm_wtheta ),              &
+    ! Compute rhs_rho
+                 setval_X( rhs(igh_d), rho_base ) )
+    else
+      call invoke(setval_c( rhs(igh_d), 0.0_r_def ) )
+    end if
+
+    ! Compute rhs_exner
+    if ( compute_eos ) then
+      call invoke( rhs_sample_eos_kernel_type( rhs(igh_p), exner, rho,    &
+                                               theta, moist_dyn(gas_law), &
+                                               kappa, rd, p_zero ) )
+    else
+      call invoke( setval_c(rhs(igh_p), 0.0_r_def) )
+    end if
+
+    nullify( mm_vel, mm_wtheta,                  &
+             geopotential, u, theta, rho, exner, &
+             u_base, theta_base, rho_base )
+
+    if ( subroutine_timers ) call timer('rhs_alg')
+
+  end subroutine rhs_default_alg
+
+  !> @brief rhs algorithm for any generic setup
+  subroutine rhs_general_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
+                              compute_rhs_t_d, dlayer_rhs, model_clock )
+
+    implicit none
+
+    real(kind=r_def),             intent(in)    :: alpha_dt
+    logical(kind=l_def),          intent(in)    :: dlayer_rhs
+
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type), target,     intent(in)    :: base_state(bundle_size)
+    type(field_type), target,     intent(in)    :: state(bundle_size)
+    type(field_type),             intent(in)    :: moist_dyn(num_moist_factors)
+    type(field_type),             intent(inout) :: rhs(bundle_size)
+    logical(kind=l_def),          intent(in)    :: compute_eos
+    logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
+    class(model_clock_type),      intent(in)    :: model_clock
+
+    type(operator_type), pointer :: mm_vel    => null(), &
+                                    mm_wtheta => null(), &
+                                    mm_w3_inv => null(), &
+                                    coriolis  => null()
+    type(field_type), pointer :: chi(:)   => null(), &
+                                 panel_id     => null(), &
+                                 geopotential => null(), &
+                                 u            => null(), &
+                                 theta        => null(), &
+                                 rho          => null(), &
+                                 u_base       => null(), &
+                                 theta_base   => null(), &
+                                 rho_base     => null(), &
+                                 exner        => null()
+
+    type(field_type)                       :: rhs_tmp, rhs_eos
+    type(field_type)                       :: vorticity
+    type(quadrature_xyoz_type)             :: qr, qr_exact
+    type(quadrature_face_type)             :: qrf
+    type(quadrature_rule_gaussian_type)    :: gaussian_quadrature
+    class(reference_element_type), pointer :: reference_element => null()
+    type (mesh_type),              pointer :: mesh => null()
+    integer(kind=i_def)                    :: mesh_id
+    integer(kind=i_def)                    :: vorticity_fs
+    integer(kind=i_def)                    :: element_order_h
+    integer(kind=i_def)                    :: element_order_v
+    type(field_type)                       :: rhs_adv
+    type(field_type)                       :: exner_big_halo
+
+    ! For continuous fields the default looping depth is to the depth 1 halo
+    ! and so for any fields that are accessed with a stencil the halo_depth
+    ! needs to be one bigger than the required stencil_depth
+    integer(kind=i_def), parameter :: req_stencil_depth = 1
+    integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
+
+    if ( subroutine_timers ) call timer('rhs_alg')
+
+    mesh_id = base_state(igh_u)%get_mesh_id()
+
+    geopotential => get_geopotential(mesh_id)
+    mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh_id)
+    chi          => get_coordinates(mesh_id)
+    panel_id     => get_panel_id(mesh_id)
+    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh_id)
+
+    ! Using modified velocity mass matrix if needing damping layer
+    if (dlayer_rhs) then
+      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+    else
+      mm_vel => get_mass_matrix_fe(W2, mesh_id)
+    end if
+
+    u     => state(igh_u)
+    theta => state(igh_t)
+    rho   => state(igh_d)
+    exner => state(igh_p)
+
+    u_base     => base_state(igh_u)
+    theta_base => base_state(igh_t)
+    rho_base   => base_state(igh_d)
+
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+
+    call rhs_tmp%initialise( vector_space=rhs(igh_u)%get_function_space() )
+    qr       = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
+                                    element_order_v+2, gaussian_quadrature)
+    qr_exact = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
+                                    element_order_v+3, gaussian_quadrature)
+    mesh              => theta%get_mesh()
+    reference_element => mesh%get_reference_element()
+    qrf = quadrature_face_type(element_order_h+2, element_order_v+2, &
+                               .true., .false.,                      &
+                               reference_element, gaussian_quadrature)
+
+    ! Initialise RHS u and theta fields
+    call invoke( name = "initialise_rhs_u_and_theta_fields", &
+                 setval_c( rhs_tmp,    0.0_r_def ),          &
+                 setval_c( rhs(igh_u), 0.0_r_def ),          &
+                 setval_c( rhs(igh_t), 0.0_r_def ) )
+
+    ! Compute rhs_u
+    call exner_big_halo%initialise( exner%get_function_space(), halo_depth = req_halo_depth)
+    call invoke( setval_x( exner_big_halo, exner ) )
+    call invoke( name = "compute_rhs_u_setup",                               &
+                 pressure_gradient_bd_kernel_type( rhs_tmp, exner_big_halo,  &
+                                                   req_stencil_depth, theta, &
+                                                   moist_dyn, cp, qrf ),     &
+                 hydrostatic_kernel_type( rhs_tmp, exner, theta, moist_dyn,  &
+                                          geopotential, cp, qr ),            &
+                 matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ) )
+
+    if ( si_momentum_equation ) then
+      ! Treat the momentum advection terms with the semi-implicit scheme
+      if ( vector_invariant ) then
+        ! Compute grad(K) + curl(u) x u
+        call invoke( kinetic_energy_gradient_kernel_type( rhs_tmp, u, &
+                                                          chi, panel_id, qr ) )
+        ! Compute the vorticity
+        if ( vorticity_in_w1 ) then
+          vorticity_fs = W1
+        else
+          vorticity_fs = W2
+        end if
+        call vorticity%initialise( vector_space =                           &
+                    function_space_collection%get_fs(mesh, element_order_h, &
+                                                     element_order_v,       &
+                                                     vorticity_fs) )
+        call compute_vorticity_alg(vorticity, u, .false.)
+        if ( vorticity_in_w1 ) then
+          call invoke( vorticity_advection_kernel_type(rhs_tmp, u, vorticity, &
+                                                       chi, panel_id, qr_exact) )
+        else
+          call invoke( w2_vorticity_advection_kernel_type(rhs_tmp, u, vorticity, &
+                                                          chi, panel_id, qr_exact) )
+        end if
+      else
+        call rhs_adv%initialise( u%get_function_space() )
+        call invoke( setval_c( rhs_adv, 0.0_r_def ) )
+        call log_event('SI advective form not supported', LOG_LEVEL_ERROR)
+        call invoke( inc_X_plus_Y( rhs_tmp, rhs_adv ) )
+      end if
+    end if
+
+    if ( rotating ) then
+      coriolis => get_coriolis(mesh_id)
+      call invoke( matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )
+    end if
+
+    call invoke( name = "compute_rhs_u_evaluation",              &
+                 inc_X_plus_bY( rhs(igh_u), alpha_dt, rhs_tmp ), &
+                 enforce_bc_kernel_type(rhs(igh_u)) )
+
+    if ( compute_rhs_t_d ) then
+      call invoke( name = "compute_rhs_theta_and_rhs_rho", &
+      ! Compute rhs_theta
+                   dg_inc_matrix_vector_kernel_type( rhs(igh_t), theta_base, mm_wtheta ), &
+      ! Compute rhs_rho
+                   setval_X( rhs(igh_d), rho_base ) )
+    else
+      call invoke(setval_c( rhs(igh_d), 0.0_r_def ) )
+    end if
+    if ( compute_eos ) then
+      select case(eos_method)
+        case(eos_method_sampled)
+          call invoke( name = "sample_rhs_eos",                               &
+                       rhs_sample_eos_kernel_type( rhs(igh_p), exner, rho,    &
+                                                   theta, moist_dyn(gas_law), &
+                                                   kappa, rd, p_zero ) )
+        case(eos_method_projected)
+          call rhs_eos%initialise( vector_space=rhs(igh_p)%get_function_space() )
+          call invoke( name = "project_rhs_eos",                                &
+                       rhs_project_eos_kernel_type(rhs_eos, exner, rho, theta,  &
+                                                   moist_dyn(gas_law), chi,     &
+                                                   panel_id, kappa, rd, p_zero, &
+                                                   qr_exact),                   &
+                       dg_matrix_vector_kernel_type( rhs(igh_p), rhs_eos, mm_w3_inv ) )
+        case default
+          call log_event( "Gungho: Unrecognised method used for equation of state", LOG_LEVEL_ERROR )
+      end select
+    else
+      call invoke( setval_c(rhs(igh_p), 0.0_r_def) )
+    end if
+
+    nullify( mm_vel, mm_wtheta, mm_w3_inv,       &
+             chi, panel_id,                      &
+             geopotential, u, theta, rho, exner, &
+             mesh, reference_element )
+
+    if ( subroutine_timers ) call timer('rhs_alg')
+
+  end subroutine rhs_general_alg
+
+end module rhs_alg_mod

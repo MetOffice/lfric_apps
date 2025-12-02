@@ -1,0 +1,29 @@
+{% do LOG.debug("Entered site/uoe/macros/macros_dial3.cylc") %}
+
+{# Macro to set wallclock, input is in minutes #}
+{% macro set_wallclock(time) %}
+            --time=00:{{time}}:00
+{% endmacro %}
+
+
+{% macro set_task_resources(mpi_ranks,
+                        memory,
+                        threads=1,
+                        xios_nodes=0,
+                        ocean_nodes=0,
+                        river_nodes=0,
+                        ranks_per_node=0,
+                        ranks_depth_pad=1) %}
+
+            --ntasks={{mpi_ranks|int + xios_nodes|int}}
+            --cpus-per-task={{threads|int}}
+{% endmacro %}
+
+
+{% macro set_memory(mem) %}
+    {% set value = mem[0] %}
+    {% set unit = mem[1] %}
+            --mem={{value}}{{unit[:1]}}
+{% endmacro %}
+
+{% do LOG.debug("Finished in site/uoe/macros/macros_dial3.cylc") %}

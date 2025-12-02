@@ -1,0 +1,317 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Test the TL vertical reconstruction using 1d polynomials
+module tl_poly1d_vert_w3_reconstruction_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, l_def, EPS
+  use funit
+
+  use, intrinsic :: iso_fortran_env,  only: real64
+  use tl_poly1d_vert_w3_reconstruction_kernel_mod,                           &
+                                only: tl_poly1d_vert_w3_reconstruction_code, &
+                                      tl_poly1d_vert_w3_reconstruction_init, &
+                                      tl_poly1d_vert_w3_reconstruction_final
+
+  implicit none
+
+  private
+  public :: test_standard, &
+            test_logspace, &
+            test_log_zero
+
+  @TestCase
+  type, extends(TestCase), public :: tl_poly1d_vert_w3_reconstruction_test_type
+    private
+
+    real(r_def)            :: answer, use_tol
+
+    integer(i_def), allocatable :: map_md(:)
+    integer(i_def), allocatable :: map_w3(:)
+    integer(i_def), allocatable :: map_c(:)
+
+    real(r_def), allocatable :: recon(:)
+    real(r_def), allocatable :: density(:)
+    real(r_def), allocatable :: ls_density(:)
+    real(r_def), allocatable :: coeff(:)
+    real(r_def), allocatable :: recon_answer(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_standard
+    procedure test_logspace
+    procedure test_log_zero
+
+  end type tl_poly1d_vert_w3_reconstruction_test_type
+
+  real(r_def), parameter :: tol = 1.0e-12_r_def  ! r_def 64bit tolerance
+
+  integer(i_def), parameter :: nfaces_v = 2
+  integer(i_def), parameter :: nlayers = 5
+  integer(i_def), parameter :: mol_order = 2
+  integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+  integer(i_def), parameter :: ndf_md = 1
+  integer(i_def), parameter :: ndf_w3 = 1
+  integer(i_def), parameter :: ndf_c  = 1
+  integer(i_def), parameter :: undf_md = 2*nlayers
+  integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+  integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
+
+    integer(i_def) :: df, k, f
+
+    allocate(this%map_md(ndf_md))
+    allocate(this%map_w3(ndf_w3))
+    allocate(this%map_c(ndf_c))
+    allocate(this%recon(undf_md))
+    allocate(this%recon_answer(undf_md))
+    allocate(this%density(undf_w3))
+    allocate(this%ls_density(undf_w3))
+    allocate(this%coeff(undf_c))
+
+    this%map_w3(1) = 1
+    this%map_c(1) = 1
+    this%map_md(1) = 1
+
+    ! Quadratic fit for most of the domain
+    do k = 1, nlayers-1
+      df = k*ndata + this%map_c(1)
+      this%coeff( df:2+df) = (/2.0_r_def, 5.0_r_def, -1.0_r_def/)/6.0_r_def
+      df = (mol_order+1) + k*ndata + this%map_c(1)
+      this%coeff( df:2+df) = (/-1.0_r_def, 5.0_r_def, 2.0_r_def/)/6.0_r_def
+    end do
+    ! Downwinding near boundaries
+    k = 1
+    df = (mol_order+1) +  k*ndata + this%map_c(1)
+    this%coeff( df:2+df) = (/2.0_r_def, 5.0_r_def, -1.0_r_def/)/6.0_r_def
+    k = nlayers-1
+    df = k*ndata + this%map_c(1)
+    this%coeff( df:2+df) = (/-1.0_r_def, 5.0_r_def, 2.0_r_def/)/6.0_r_def
+    ! Extrapolation on boundaries
+    k = nlayers
+    do f = 0, 1
+      df = f*(mol_order+1) + this%map_c(1)
+      this%coeff( df:2+df ) = (/ 15.0_r_def, -10.0_r_def, 3.0_r_def/)/8.0_r_def
+      df = f*(mol_order+1) + k*ndata + this%map_c(1)
+      this%coeff( df:2+df ) = (/ 3.0_r_def, -10.0_r_def, 15.0_r_def/)/8.0_r_def
+    end do
+
+    ! Set up stencil
+    call tl_poly1d_vert_w3_reconstruction_init( mol_order, &
+                                                nlayers )
+
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
+
+    deallocate(this%map_md)
+    deallocate(this%map_w3)
+    deallocate(this%map_c)
+    deallocate(this%recon)
+    deallocate(this%density)
+    deallocate(this%ls_density)
+    deallocate(this%coeff)
+    deallocate(this%recon_answer)
+
+    ! Deallocate stencil
+    call tl_poly1d_vert_w3_reconstruction_final()
+
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_standard( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
+
+    integer(i_def) :: df, k, f
+    logical(l_def) :: logspace
+
+    this%recon = 0.0_r_def
+
+    do k = 1,nlayers
+      this%density(k) = real(k,r_def) - 0.5_r_def
+      this%ls_density(k) = real(k,r_def) - 0.5_r_def
+    end do
+
+    ! First test standard polynomial interpolation
+    logspace = .false.
+
+    call tl_poly1d_vert_w3_reconstruction_code(                       &
+                                   nlayers,                           &
+                                   this%recon,                        &
+                                   this%density,                      &
+                                   this%ls_density,                   &
+                                   this%coeff,                        &
+                                   ndata,                             &
+                                   mol_order,                         &
+                                   logspace,                          &
+                                   ndf_md,                            &
+                                   undf_md,                           &
+                                   this%map_md,                       &
+                                   ndf_w3,                            &
+                                   undf_w3,                           &
+                                   this%map_w3,                       &
+                                   ndf_c,                             &
+                                   undf_c,                            &
+                                   this%map_c)
+    this%answer = 1.0_r_def
+    @assertEqual(this%answer, this%recon(this%map_md(1)+1) , tol)
+    this%answer = 2.0_r_def
+    @assertEqual(this%answer, this%recon(this%map_md(1)+2) , tol)
+
+  end subroutine test_standard
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_logspace( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
+
+    integer(i_def) :: df, k, f
+    logical(l_def) :: logspace
+
+    ! Test polynomial interpolation in log-space
+
+    this%recon = 0.0_r_def
+
+    do k = 1,nlayers
+      this%density(k) = exp(-real(k,r_def)+0.5_r_def)
+      this%ls_density(k) = exp(-real(k,r_def)+0.5_r_def)
+    end do
+
+    logspace = .true.
+
+    call tl_poly1d_vert_w3_reconstruction_code(                       &
+                                   nlayers,                           &
+                                   this%recon,                        &
+                                   this%density,                      &
+                                   this%ls_density,                   &
+                                   this%coeff,                        &
+                                   ndata,                             &
+                                   mol_order,                         &
+                                   logspace,                          &
+                                   ndf_md,                            &
+                                   undf_md,                           &
+                                   this%map_md,                       &
+                                   ndf_w3,                            &
+                                   undf_w3,                           &
+                                   this%map_w3,                       &
+                                   ndf_c,                             &
+                                   undf_c,                            &
+                                   this%map_c)
+
+    this%answer = 1.0_r_def * exp(-1.0_r_def)
+    @assertEqual(this%answer, this%recon(this%map_md(1)+1), tol)
+    this%answer = 1.0_r_def * exp(-2.0_r_def)
+    if ( r_def == real64 ) then
+      this%use_tol = tol
+      @assertEqual(this%answer, this%recon(this%map_md(1)+2), this%use_tol)
+    else
+      this%use_tol = 10.0_r_def*spacing( this%recon(this%map_md(1)+2) )
+      @assertEqual(this%answer, this%recon(this%map_md(1)+2), this%use_tol)
+    end if
+
+  end subroutine test_logspace
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_log_zero( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_w3_reconstruction_test_type), intent(inout) :: this
+
+    integer(i_def) :: df, k
+    logical(l_def) :: logspace
+
+    ! Test interpolation in log-space with zero values doesn't cause problems
+
+    this%recon = 0.0_r_def
+    this%recon_answer = 0.0_r_def
+
+    do k = 1,nlayers
+      this%density(k) = exp(-real(k,r_def)+0.5_r_def)
+    end do
+
+    logspace = .true.
+    this%ls_density(:) = 0.0_r_def
+
+    call tl_poly1d_vert_w3_reconstruction_code(                       &
+                                   nlayers,                           &
+                                   this%recon,                        &
+                                   this%density,                      &
+                                   this%ls_density,                   &
+                                   this%coeff,                        &
+                                   ndata,                             &
+                                   mol_order,                         &
+                                   logspace,                          &
+                                   ndf_md,                            &
+                                   undf_md,                           &
+                                   this%map_md,                       &
+                                   ndf_w3,                            &
+                                   undf_w3,                           &
+                                   this%map_w3,                       &
+                                   ndf_c,                             &
+                                   undf_c,                            &
+                                   this%map_c)
+
+    this%ls_density(:) = EPS
+
+    call tl_poly1d_vert_w3_reconstruction_code(                       &
+                                   nlayers,                           &
+                                   this%recon_answer,                 &
+                                   this%density,                      &
+                                   this%ls_density,                   &
+                                   this%coeff,                        &
+                                   ndata,                             &
+                                   mol_order,                         &
+                                   logspace,                          &
+                                   ndf_md,                            &
+                                   undf_md,                           &
+                                   this%map_md,                       &
+                                   ndf_w3,                            &
+                                   undf_w3,                           &
+                                   this%map_w3,                       &
+                                   ndf_c,                             &
+                                   undf_c,                            &
+                                   this%map_c)
+
+    if ( r_def == real64 ) then
+      this%use_tol = tol
+    else
+      this%use_tol = 10.0_r_def*spacing( this%recon_answer(this%map_md(1)+2) )
+    end if
+
+    @assertEqual(this%recon_answer, this%recon, this%use_tol)
+
+  end subroutine test_log_zero
+
+end module tl_poly1d_vert_w3_reconstruction_kernel_mod_test

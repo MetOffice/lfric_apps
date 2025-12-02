@@ -1,0 +1,355 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module analytic_wind_profiles_mod_test
+
+  use constants_mod, only : r_def, i_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+  real(r_def), parameter :: planet_radius = 6000000.0_r_def
+  real(r_def), parameter :: domain_min_x = -20.0_r_def
+  real(r_def), parameter :: domain_max_x =  20.0_r_def
+  real(r_def), parameter :: domain_min_y = -20.0_r_def
+  real(r_def), parameter :: domain_max_y =  20.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use feign_config_mod,        only : feign_planet_config,       &
+                                        feign_formulation_config,  &
+                                        feign_extrusion_config,    &
+                                        feign_initial_wind_config
+    use formulation_config_mod,  only : eos_method_projected,    &
+                                        moisture_formulation_dry
+    use initial_wind_config_mod, only : profile_none
+    use extrusion_config_mod,    only : method_uniform, stretching_method_linear
+
+    implicit none
+
+    call feign_extrusion_config( method=method_uniform,       &
+                                 planet_radius=planet_radius, &
+                                 domain_height=40.0_r_def,    &
+                                 number_of_layers=5_i_def,    &
+                                 stretching_height=1.0_r_def, &
+                                 stretching_method=stretching_method_linear, &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_planet_config( gravity=10.0_r_def, omega=8.0E-5_r_def, &
+                              rd=300.0_r_def, cp=1000.0_r_def,        &
+                              p_zero=100000.0_r_def,                  &
+                              scaling_factor=1.0_r_def )
+
+    call feign_formulation_config( l_multigrid           = .false.,              &
+                                   lagged_orog           = .false.,              &
+                                   rotating              = .true.,               &
+                                   moisture_formulation  =                       &
+                                   moisture_formulation_dry,                     &
+                                   moisture_in_solver    = .true.,               &
+                                   p2theta_vert          = .true.,               &
+                                   theta_moist_source    = .false.,              &
+                                   use_physics           = .false.,              &
+                                   shallow               = .false.,              &
+                                   use_wavedynamics      = .true.,               &
+                                   use_multires_coupling = .false.,              &
+                                   dry_static_adjust     = .false.,              &
+                                   exner_from_eos        = .false.,              &
+                                   eos_method            = eos_method_projected, &
+                                   init_exner_bt         = .true.,               &
+                                   dlayer_on             = .false.,              &
+                                   si_momentum_equation  = .true.,               &
+                                   horizontal_physics_predictor=.false.,         &
+                                   horizontal_transport_predictor=.false.,       &
+                                   vector_invariant=.true.)
+
+    call feign_initial_wind_config( profile=profile_none,                  &
+                                    profile_data_u = (/ 0.0_r_def /),      &
+                                    profile_data_v = (/ 0.0_r_def /),      &
+                                    profile_data_w = (/ 0.0_r_def /),      &
+                                    profile_heights_uv = (/ 0.0_r_def /),  &
+                                    profile_heights_w  = (/ 0.0_r_def /),  &
+                                    profile_size_uv = 1_i_def,             &
+                                    profile_size_w  = 1_i_def,             &
+                                    u0=0.0_r_def,                          &
+                                    v0=0.0_r_def,                          &
+                                    sbr_angle_lat=0.0_r_def,               &
+                                    sbr_angle_lon=0.0_r_def,               &
+                                    nl_constant=2.0_r_def,                 &
+                                    shear=1.0_r_def,                       &
+                                    wavelength=1.0_r_def,                  &
+                                    wind_time_period=864000.0_r_def,       &
+                                    smp_init_wind=.false. )
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use analytic_wind_profiles_mod, only: analytic_wind
+    use constants_mod,              only: PI
+    use initial_wind_config_mod,                                &
+                         only: profile_solid_body_rotation,     &
+                               profile_solid_body_rotation_alt, &
+                               profile_constant_shear_uv,       &
+                               profile_sin_uv,                  &
+                               profile_vortex,                  &
+                               profile_yz_NL_case_1,            &
+                               profile_xy_NL_case_1,            &
+                               profile_NL_case_1,               &
+                               profile_NL_case_2,               &
+                               profile_NL_case_3,               &
+                               profile_NL_case_4,               &
+                               profile_hadley_like_dcmip
+
+    implicit none
+
+    real(kind=r_def) :: u(3), v(3), llr(3), xyz(3)
+    real(kind=r_def) :: u0, v0, s, shear, wavelength
+    real(kind=r_def) :: sbr_angle_lat, sbr_angle_lon
+    real(kind=r_def) :: tol
+    real(kind=r_def) :: initial_time
+    real(kind=r_def) :: lat_pole, lon_pole
+
+    llr           = (/ PI, PI / 4.0_r_def, planet_radius + 10000.0_r_def /)
+    u0            = 20.0_r_def
+    sbr_angle_lat = 1.0_r_def / 8.0_r_def
+    sbr_angle_lon = 0.0_r_def
+    initial_time  = 0.0_r_def
+    tol           = 1.0e-12_r_def
+
+    u = analytic_wind( llr, initial_time,             &
+                       profile_solid_body_rotation,   &
+                       3, domain_max_x, domain_max_y, &
+                       (/ u0, sbr_angle_lat, sbr_angle_lon /))
+
+    s = 0.5_r_def * (llr(3) / planet_radius + 1.0_r_def)
+
+    lat_pole = pi / 2.0_r_def - sbr_angle_lat * pi
+    lon_pole = pi / 2.0_r_def + sbr_angle_lon * pi
+
+    v(1) = s * u0 * (  sin(lat_pole) * cos(llr(2))                             &
+                     - cos(lat_pole) * cos(llr(1) - lon_pole) * sin(llr(2)) )
+    v(2) = s * u0 * cos(lat_pole) * sin(llr(1) - lon_pole)
+    v(3) = 0.0_r_def
+
+    @assertEqual(v, u, tol)
+
+    llr           = (/ PI, PI / 4.0_r_def, planet_radius + 10000.0_r_def /)
+    u0            = 20.0_r_def
+    sbr_angle_lat = 1.0_r_def / 8.0_r_def
+    sbr_angle_lon = 0.0_r_def
+    initial_time  = 0.0_r_def
+    tol           = 1.0e-12_r_def
+
+    u = analytic_wind( llr, initial_time,               &
+                       profile_solid_body_rotation_alt, &
+                       3, domain_max_x, domain_max_y,   &
+                       (/ u0, sbr_angle_lat, sbr_angle_lon /))
+
+    ! Deep atmosphere case
+    s = llr(3) / planet_radius
+
+    lat_pole = pi / 2.0_r_def - sbr_angle_lat * pi
+    lon_pole = pi / 2.0_r_def + sbr_angle_lon * pi
+
+    v(1) = s * u0 * (  sin(lat_pole) * cos(llr(2))                            &
+                     - cos(lat_pole) * cos(llr(1) - lon_pole) * sin(llr(2)) )
+    v(2) = s * u0 * cos(lat_pole) * sin(llr(1) - lon_pole)
+    v(3) = 0.0_r_def
+
+    @assertEqual(v, u, tol)
+
+
+    tol  = 1.0e-12_r_def
+    u0   = 20.0_r_def
+    v0   = 5.0_r_def
+    shear= 40000.0_r_def
+    xyz  = (/ 1000.0_r_def, 75000.0_r_def, 5000.0_r_def /)
+    u = analytic_wind( xyz, initial_time,            &
+                       profile_constant_shear_uv, 3, &
+                       domain_max_x, domain_max_y,   &
+                       (/ u0, v0, shear /))
+    v(1) = 2.5_r_def
+    v(2) = 0.625_r_def
+    v(3) = 0.0_r_def
+
+    @assertEqual(v, u, tol)
+
+    tol  = 1.0e-12_r_def
+    u0   = 20.0_r_def
+    v0   = 10.0_r_def
+    wavelength = 30000.0_r_def
+    xyz  = (/ 1000.0_r_def, 75000.0_r_def, 2500.0_r_def /)
+    u = analytic_wind( xyz, initial_time, profile_sin_uv, 3, &
+                       domain_max_x, domain_max_y,           &
+                       (/ u0, v0, wavelength /))
+    v(1) = 10.0_r_def
+    v(2) = 5.0_r_def
+    v(3) = 0.0_r_def
+
+    @assertEqual(v, u, tol)
+
+    tol = 10.0E-12_r_def
+    llr = (/ 0.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_vortex, 0, &
+                       domain_max_x, domain_max_y )
+    @assertEqual(0.0_r_def, u(1), tol)
+
+    llr = (/ 0.0_r_def, PI/8.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_vortex, 0, &
+                       domain_max_x, domain_max_y )
+
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
+    @assertEqual(-9.0801912773695435_r_def, u(1), tol)
+    @assertEqual(0.0_r_def, u(2), tol)
+
+    tol = 10.0E-12_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_vortex, 0, &
+                       domain_max_x, domain_max_y )
+
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
+    @assertEqual(0.0_r_def, u(1), tol)
+    @assertEqual(9.0801912773695435_r_def, u(2), tol)
+
+    tol = 10.0E-12_r_def
+    xyz = (/ 0.0_r_def, 10.0_r_def, 20.0_r_def /)
+    initial_time = 0.0_r_def
+    u = analytic_wind( xyz, initial_time, profile_yz_nl_case_1, 0, &
+                       domain_max_x, domain_max_y )
+
+    @assertEqual(0.0_r_def, u(1), tol)
+    @assertEqual(0.0_r_def, u(2), tol)
+    @assertEqual(-6.94444444444446_r_def, u(3), tol)
+
+    xyz = (/ 0.0_r_def, 12.0_r_def, 21.0_r_def /)
+    initial_time = 1.0_r_def
+    u = analytic_wind( xyz, initial_time, profile_yz_nl_case_1, 0, &
+                       domain_max_x, domain_max_y )
+
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
+    @assertEqual(0.0_r_def, u(1), tol)
+    @assertEqual(0.750649700250913_r_def, u(2), tol)
+    @assertEqual(-6.584199489223709_r_def, u(3), tol)
+
+    tol = 10.0E-12_r_def
+    xyz = (/ 10.0_r_def, 15.0_r_def, 0.0_r_def /)
+    initial_time = 0.0_r_def
+    u = analytic_wind( xyz, initial_time, profile_xy_nl_case_1, 0, &
+                       domain_max_x, domain_max_y )
+
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
+    @assertEqual(4.910463758239915_r_def, u(1), tol)
+    @assertEqual(-2.657523835868679_r_def, u(2), tol)
+    @assertEqual(0.0_r_def, u(3), tol)
+
+    tol = 10.0E-12_r_def
+    xyz = (/ -10.0_r_def, -5.0_r_def, 0.0_r_def /)
+    initial_time = 1.0_r_def
+    u = analytic_wind( xyz, initial_time, profile_xy_nl_case_1, 0, &
+                       domain_max_x, domain_max_y )
+
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(1) )
+    @assertEqual(-4.910463758207451_r_def, u(1), tol)
+    @assertEqual(6.415830086841524_r_def, u(2), tol)
+    @assertEqual(0.0_r_def, u(3), tol)
+
+    tol = 10.0E-12_r_def
+    initial_time = 0.0_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_nl_case_1, 0, &
+                       domain_max_x, domain_max_y )
+
+    @assertEqual(0.0_r_def, u(1), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
+    @assertEqual(2.657523835868679_r_def, u(2), tol)
+
+    tol = 10.0E-12_r_def
+    initial_time = 691200.0_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_nl_case_1, 0, &
+                       domain_max_x, domain_max_y )
+
+    @assertEqual(0.0_r_def, u(1), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(2) )
+    @assertEqual(-2.149981946174261_r_def, u(2), tol)
+
+    tol = 10.0E-12_r_def
+    initial_time = 0.0_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_nl_case_2, 0, &
+                       domain_max_x, domain_max_y )
+    @assertEqual(0.0_r_def, u(1), tol)
+    @assertEqual(9.820927516479825_r_def, u(2), tol)
+
+    initial_time = 0.0_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_nl_case_3, 0, &
+                       domain_max_x, domain_max_y )
+    @assertEqual(43.633231299858238_r_def, u(1), tol)
+    @assertEqual(2.657523835868679_r_def, u(2), tol)
+
+    tol = 10.0E-12_r_def
+    initial_time = 0.0_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_nl_case_4, 0, &
+                       domain_max_x, domain_max_y )
+    @assertEqual(43.633231299858238_r_def, u(1), tol)
+    @assertEqual(9.820927516479825_r_def, u(2), tol)
+
+    initial_time = 86400.0_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6371229.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_nl_case_4, 0, &
+                       domain_max_x, domain_max_y )
+    @assertEqual(43.633231299858238_r_def, u(1), tol)
+    @assertEqual(-5.996814209908186_r_def, u(2), tol)
+
+    tol = 10.0E-12_r_def
+    initial_time = 3600.0_r_def
+    llr = (/ PI/8.0_r_def, 0.0_r_def, 6000000.0_r_def + 4500.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_hadley_like_dcmip, 0, &
+                       domain_max_x, domain_max_y )
+    @assertEqual(40.0_r_def, u(1), tol)
+    @assertEqual(0.0_r_def, u(2), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(3) )
+    @assertEqual(0.229381563122066_r_def, u(3), tol)
+
+    tol = 10.0E-12_r_def
+    initial_time = 82800.0_r_def
+    llr = (/ PI/4.0_r_def, 0.0_r_def, 6000000.0_r_def + 4500.0_r_def /)
+    u = analytic_wind( llr, initial_time, profile_hadley_like_dcmip, 0, &
+                       domain_max_x, domain_max_y )
+    @assertEqual(40.0_r_def, u(1), tol)
+    @assertEqual(0.0_r_def, u(2), tol)
+    if ( r_def /= real64 ) tol = 10.0_r_def*spacing( u(3) )
+    @assertEqual(-0.229381563122066_r_def, u(3), tol)
+
+  end subroutine test_all
+
+end module analytic_wind_profiles_mod_test

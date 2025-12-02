@@ -1,0 +1,135 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_shallow_water.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "shallow_water_azspice_developer": [
+        "shallow_water_galewsky-C24_azspice_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi-C24_azspice_gnu_fast-debug-64bit",
+        "shallow_water_gaussian-BiP32x32-1x1_azspice_gnu_fast-debug-64bit",
+        "shallow_water_gaussian_vi-BiP32x32-1x1_azspice_gnu_fast-debug-64bit",
+        "shallow_water_gaussian_ex-BiP32x32-1x1_azspice_gnu_fast-debug-64bit",
+        "shallow_water_thermal_vi-BiP32x32-1x1_azspice_gnu_fast-debug-64bit",
+        "shallow_water_williamson2_vi-C24_azspice_gnu_fast-debug-64bit",
+        "shallow_water_williamson5_vi-C24_azspice_gnu_fast-debug-64bit",
+        "shallow_water_azspice_unit_tests",
+        "shallow_water_azspice_canned",
+    ],
+    "shallow_water_azspice_extra": [
+        "shallow_water_galewsky_vi-C96_azspice_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi_ffsl-C96_azspice_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi_koren-C96_azspice_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi_mono-C96_azspice_gnu_fast-debug-64bit",
+        "shallow_water_thermal-BiP32x32-1x1_azspice_gnu_fast-debug-64bit",
+        "shallow_water_vortex_plane-BiP64x64-1x1_azspice_gnu_fast-debug-64bit",
+        "shallow_water_vortex_plane_vi-BiP64x64-1x1_azspice_gnu_fast-debug-64bit",
+        "shallow_water_williamson5-C24_azspice_gnu_fast-debug-64bit",
+    ],
+    "shallow_water_azspice": [
+        "shallow_water_azspice_developer",
+        "shallow_water_azspice_extra",
+    ],
+    "shallow_water_azspice_unit_tests": [
+        "shallow_water_unit_tests_azspice_gnu_64bit",
+    ],
+    "shallow_water_azspice_build": [
+        "build_shallow_water_azspice_gnu_fast-debug-64bit",
+    ],
+    "shallow_water_azspice_canned": [
+        "shallow_water_canned_azspice_gnu_fast-debug-64bit",
+    ],
+    }) %}
+
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "shallow_water_ex1a_developer": [
+        "shallow_water_galewsky-C24_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi-C24_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_gaussian-BiP32x32-1x1_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_gaussian_vi-BiP32x32-1x1_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_gaussian_ex-BiP32x32-1x1_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_thermal_vi-BiP32x32-1x1_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_williamson2_vi-C24_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_williamson5_vi-C24_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_ex1a_unit_tests",
+        "shallow_water_ex1a_canned",
+    ],
+    "shallow_water_ex1a_extra": [
+        "shallow_water_galewsky_vi-C96_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi_ffsl-C96_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi_koren-C96_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_galewsky_vi_mono-C96_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_thermal-BiP32x32-1x1_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_vortex_plane-BiP64x64-1x1_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_vortex_plane_vi-BiP64x64-1x1_ex1a_gnu_fast-debug-64bit",
+        "shallow_water_williamson5-C24_ex1a_gnu_fast-debug-64bit",
+    ],
+    "shallow_water_ex1a": [
+        "shallow_water_ex1a_developer",
+        "shallow_water_ex1a_extra",
+    ],
+    "shallow_water_ex1a_unit_tests": [
+        "shallow_water_unit_tests_ex1a_gnu_64bit",
+    ],
+    "shallow_water_ex1a_build": [
+        "build_shallow_water_ex1a_gnu_fast-debug-64bit",
+    ],
+    "shallow_water_ex1a_canned": [
+        "shallow_water_canned_ex1a_gnu_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "shallow_water_developer": [
+        "scripts",
+        "shallow_water_azspice_developer",
+        "shallow_water_ex1a_developer",
+    ],
+    "shallow_water_extra": [
+        "shallow_water_azspice_extra",
+        "shallow_water_ex1a_extra",
+    ],
+    "shallow_water": [
+        "shallow_water_developer",
+        "shallow_water_azspice",
+        "shallow_water_ex1a",
+    ],
+    "shallow_water_unit_tests": [
+        "shallow_water_azspice_unit_tests",
+        "shallow_water_ex1a_unit_tests",
+    ],
+    "shallow_water_build": [
+        "shallow_water_azspice_build",
+        "shallow_water_ex1a_build",
+    ],
+    "shallow_water_canned": [
+        "shallow_water_azspice_canned",
+        "shallow_water_ex1a_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.shallow_water_developer) %}
+{% do site_groups.all.extend(site_groups.shallow_water) %}
+{% do site_groups.unit_tests.extend(site_groups.shallow_water_unit_tests) %}
+{% do site_groups.build.extend(site_groups.shallow_water_build) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.shallow_water_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.shallow_water_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.shallow_water_azspice_unit_tests) %}
+{% do site_groups.azspice_build.extend(site_groups.shallow_water_azspice_build) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.shallow_water_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.shallow_water_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.shallow_water_ex1a_unit_tests) %}
+{% do site_groups.ex1a_build.extend(site_groups.shallow_water_ex1a_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_shallow_water.cylc") %}

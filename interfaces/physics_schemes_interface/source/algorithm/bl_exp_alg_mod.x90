@@ -1,0 +1,476 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the explicit UM Boundary Layer scheme
+
+module bl_exp_alg_mod
+
+  use constants_mod,        only: i_def, r_def
+  use field_mod,            only: field_type
+  use integer_field_mod,    only: integer_field_type
+  use field_collection_mod, only: field_collection_type
+  use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_s
+
+  use function_space_mod,            only: function_space_type
+  use function_space_collection_mod, only: function_space_collection
+  use sci_fem_constants_mod,         only: get_rmultiplicity_fv
+  use fs_continuity_mod,             only: W2, W3, Wtheta
+  use sci_geometric_constants_mod,   only: get_height_fv, get_da_at_w2,       &
+                                           get_delta_at_wtheta,               &
+                                           get_dz_at_wtheta
+  use physics_constants_mod,         only: get_max_diff, get_rdz_fd1,         &
+                                           get_rdz_w3, get_dtrdz_wth
+  use map_fd_to_prognostics_alg_mod, only: set_wind
+  use jules_surface_config_mod,      only: formdrag, formdrag_dist_drag
+  use bl_option_mod,                 only: l_calc_tau_at_p
+  use microphysics_config_mod,       only: microphysics_casim
+  use bl_option_mod,                 only: l_noice_in_turb
+  use um_sizes_init_mod,             only: um_sizes_init
+
+  use io_config_mod,        only: subroutine_timers
+  use timer_mod,            only: timer
+  use log_mod,              only: log_event, LOG_LEVEL_DEBUG
+  use mesh_mod,             only: mesh_type
+  use model_clock_mod,      only: model_clock_type
+
+  ! xios output
+  use io_config_mod,      only: write_diag, use_xios_io
+  use bl_exp_diags_mod,   only: initialise_diags_for_bl_exp, &
+                                output_diags_for_bl_exp
+
+  implicit none
+
+  private
+  public bl_exp_alg
+
+contains
+
+  !>@brief Run the explicit UM Boundary Layer scheme
+  !>@details The UM Boundary Layer scheme does:
+  !>             vertical mixing of heat, momentum and moisture,
+  !>             as documented in UMDP24
+  !>         NB This version uses winds in w3 space (i.e. A-grid)
+  !>@param[in]     theta             Theta in its native (wth) space
+  !>@param[in]     rho               Dry density in its native (w3) space
+  !>@param[in]     exner             Exner Pressure in the w3 space
+  !>@param[in]     mr_n              Mixing ratios at time level n
+  !>@param[in]     derived_fields    Group of derived fields
+  !>@param[in]     radition_fields     Fields for radiation scheme
+  !>@param[in]     microphysics_fields Fields for mphys scheme
+  !>@param[in]     dmr_mphys         Mixing ratio increment due to microphysics
+  !>@param[in]     orography_fields    Fields for orog drag scheme
+  !>@param[in,out] turbulence_fields   Fields for turbulence scheme
+  !>@param[in,out] convection_fields   Fields for convection scheme
+  !>@param[in]     cloud_fields        Fields for cloud scheme
+  !>@param[in,out] surface_fields      Fields for surface scheme
+  !>@param[in]     recip_l_mo_sea      Inverse Obukhov length over sea only
+  !>@param[in]     rhostar             Surface density
+  !>@param[in      h_blend_orog        Orographic blending height
+  !>@param[in]     t1_sd_2d            StDev of level 1 temperature
+  !>@param[in]     q1_sd_2d            StDev of level 1 humidity
+  !>@param[in]     model_clock         Time in the model
+  subroutine bl_exp_alg(theta, rho, exner, mr_n,                 &
+                        derived_fields, radiation_fields,                 &
+                        microphysics_fields, dmr_mphys, orography_fields, &
+                        turbulence_fields, convection_fields,             &
+                        cloud_fields, surface_fields,                     &
+                        recip_l_mo_sea,                                   &
+                        rhostar, h_blend_orog, t1_sd_2d, q1_sd_2d,        &
+                        model_clock)
+
+    use bl_exp_kernel_mod, only: bl_exp_kernel_type
+    use interp_bl_kernel_mod, only: interp_bl_kernel_type
+    use bl_exp_du_kernel_mod, only: bl_exp_du_kernel_type
+    use planet_constants_mod, only: lcrcp_def, lsrcp_def
+
+    implicit none
+
+    type( field_type ), intent( in )        :: theta, rho, exner, mr_n(nummr)
+    type( field_type ), intent( in )        :: dmr_mphys ( nummr )
+
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(in)    :: radiation_fields
+    type( field_collection_type ), intent(in)    :: microphysics_fields
+    type( field_collection_type ), intent(in)    :: orography_fields
+    type( field_collection_type ), intent(in)    :: turbulence_fields
+    type( field_collection_type ), intent(in)    :: convection_fields
+    type( field_collection_type ), intent(in)    :: cloud_fields
+    type( field_collection_type ), intent(in)    :: surface_fields
+
+    type( field_type ), intent( in )     :: recip_l_mo_sea
+    type( field_type ), intent( in )     :: rhostar
+    type( field_type ), intent( in )     :: h_blend_orog
+    type( field_type ), intent( in )     :: t1_sd_2d
+    type( field_type ), intent( in )     :: q1_sd_2d
+
+    class( model_clock_type ), intent(in) :: model_clock
+
+    ! Temporary fields unpacked fields from collections
+    type( field_type ), pointer :: exner_in_wth
+    type( field_type ), pointer :: rho_in_wth
+    type( field_type ), pointer :: wetrho_in_wth
+    type( field_type ), pointer :: wetrho_in_w3
+    type( field_type ), pointer :: wetrho_in_w2
+    type( field_type ), pointer :: u_in_w3
+    type( field_type ), pointer :: v_in_w3
+    type( field_type ), pointer :: w_in_wth
+    type( field_type ), pointer :: velocity_w2v
+    type( field_type ), pointer :: shear
+    type( field_type ), pointer :: visc_h
+    type( field_type ), pointer :: visc_m
+    type( field_type ), pointer :: u_physics
+    type( field_type ), pointer :: sea_u_current_ptr
+    type( field_type ), pointer :: sea_v_current_ptr
+    type( field_type ), pointer :: sea_current_w2_ptr
+
+    type( field_type ), pointer :: zh
+    type( integer_field_type ), pointer :: ntml
+    type( integer_field_type ), pointer :: cumulus
+    type( integer_field_type ), pointer :: bl_type_ind
+    type( field_type ), pointer :: zh_nonloc
+    type( field_type ), pointer :: zhsc
+    type( field_type ), pointer :: z_lcl
+    type( field_type ), pointer :: inv_depth
+    type( field_type ), pointer :: qcl_at_inv_top
+    type( field_type ), pointer :: bl_weight_1dbl
+    type( field_type ), pointer :: rhokh_bl
+    type( field_type ), pointer :: tke_bl
+    type( field_type ), pointer :: bq_bl
+    type( field_type ), pointer :: bt_bl
+    type( field_type ), pointer :: moist_flux_bl
+    type( field_type ), pointer :: heat_flux_bl
+    type( field_type ), pointer :: dtrdz_tq_bl
+    type( field_type ), pointer :: dw_bl
+    type( field_type ), pointer :: lmix_bl
+    type( field_type ), pointer :: dsldzm
+    type( field_type ), pointer :: mix_len_bm
+    type( field_type ), pointer :: wvar
+    type( field_type ), pointer :: gradrinr
+    type( field_type ), pointer :: rhokm_w2
+    type( field_type ), pointer :: tau_w2
+    type( field_type ), pointer :: taux
+    type( field_type ), pointer :: tauy
+    type( field_type ), pointer :: rhokm_bl
+    type( integer_field_type ), pointer :: level_ent
+    type( integer_field_type ), pointer :: level_ent_dsc
+    type( field_type ), pointer :: ent_we_lim
+    type( field_type ), pointer :: ent_t_frac
+    type( field_type ), pointer :: ent_zrzi
+    type( field_type ), pointer :: ent_we_lim_dsc
+    type( field_type ), pointer :: ent_t_frac_dsc
+    type( field_type ), pointer :: ent_zrzi_dsc
+
+    type( field_type ), pointer :: sw_heating_rate
+    type( field_type ), pointer :: lw_heating_rate
+
+    type( integer_field_type ), pointer :: shallow_flag
+    type( field_type ), pointer :: uw0_flux
+    type( field_type ), pointer :: vw0_flux
+    type( field_type ), pointer :: lcl_height
+    type( field_type ), pointer :: parcel_top
+    type( integer_field_type ), pointer :: level_parcel_top
+    type( field_type ), pointer :: wstar
+    type( field_type ), pointer :: thv_flux
+    type( field_type ), pointer :: parcel_buoyancy
+    type( field_type ), pointer :: qsat_at_lcl
+
+    type( field_type ), pointer :: cf_bulk
+    type( field_type ), pointer :: cf_liquid
+    type( field_type ), pointer :: rh_crit
+
+    type( field_type ), pointer :: dtheta_mphys
+    type( field_type ), pointer :: tnuc
+    type( field_type ), pointer :: tnuc_nlcl
+
+    type( field_type ), pointer :: tile_fraction
+    type( field_type ), pointer :: tile_temperature
+    type( field_type ), pointer :: z0m_eff
+    type( field_type ), pointer :: ustar
+    type( field_type ), pointer :: surf_interp_w2
+    type( field_type ), pointer :: surf_interp
+    type( field_type ), pointer :: tau_land_w2
+    type( field_type ), pointer :: tau_ssi_w2
+
+    type( field_type ), pointer :: sd_orog
+    type( field_type ), pointer :: peak_to_trough_orog
+    type( field_type ), pointer :: silhouette_area_orog
+
+    type( field_type ), pointer :: height_w3
+    type( field_type ), pointer :: height_wth
+    type( field_type ), pointer :: delta
+    type( field_type ), pointer :: max_diff_smag
+    type( field_type ), pointer :: dA
+    type( field_type ), pointer :: rdz_fd1
+    type( field_type ), pointer :: rdz_w3
+    type( field_type ), pointer :: dtrdz_wth
+    type( field_type ), pointer :: w2_rmultiplicity
+    type( field_type ), pointer :: dz_wth
+
+    ! local variables
+    type(mesh_type),           pointer :: mesh
+    type( field_type ) :: dtl_mphys, dmt_mphys, ngstress_w2,                  &
+                          fd_tau_w2, ngstress_bl, fd_taux, fd_tauy, fd_tauz,  &
+                          zht, oblen
+    type( field_type) :: rdz_wth, taux_land, tauy_land, taux_ssi, tauy_ssi
+    type( field_type ) :: mr_ice
+
+    integer(i_def) :: ncells
+
+    if ( subroutine_timers ) call timer('bl_exp_alg')
+
+    call log_event( 'slow_physics: Running explicit Boundary layer', LOG_LEVEL_DEBUG )
+
+    ! Unpack derived fields
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
+    call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+    call derived_fields%get_field('wetrho_in_w2', wetrho_in_w2)
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+    call derived_fields%get_field('w_in_wth', w_in_wth)
+    call derived_fields%get_field('velocity_w2v', velocity_w2v)
+    call derived_fields%get_field('shear', shear)
+    call derived_fields%get_field('visc_h', visc_h)
+    call derived_fields%get_field('visc_m', visc_m)
+    call derived_fields%get_field('u_physics', u_physics)
+
+    ! Unpack turbulence fields
+    call turbulence_fields%get_field('zh', zh)
+    call turbulence_fields%get_field('ntml', ntml)
+    call turbulence_fields%get_field('cumulus', cumulus)
+    call turbulence_fields%get_field('zh_nonloc', zh_nonloc)
+    call turbulence_fields%get_field('zhsc', zhsc)
+    call turbulence_fields%get_field('z_lcl', z_lcl)
+    call turbulence_fields%get_field('inv_depth', inv_depth)
+    call turbulence_fields%get_field('qcl_at_inv_top', qcl_at_inv_top)
+    call turbulence_fields%get_field('bl_weight_1dbl', bl_weight_1dbl)
+    call turbulence_fields%get_field('bl_type_ind', bl_type_ind)
+    call turbulence_fields%get_field('rhokh_bl', rhokh_bl)
+    call turbulence_fields%get_field('tke_bl', tke_bl)
+    call turbulence_fields%get_field('bq_bl', bq_bl)
+    call turbulence_fields%get_field('bt_bl', bt_bl)
+    call turbulence_fields%get_field('moist_flux_bl', moist_flux_bl)
+    call turbulence_fields%get_field('heat_flux_bl', heat_flux_bl)
+    call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
+    call turbulence_fields%get_field('dw_bl', dw_bl)
+    call turbulence_fields%get_field('lmix_bl', lmix_bl)
+    call turbulence_fields%get_field('dsldzm', dsldzm)
+    call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
+    call turbulence_fields%get_field('wvar', wvar)
+    call turbulence_fields%get_field('gradrinr', gradrinr)
+    call turbulence_fields%get_field('rhokm_w2', rhokm_w2)
+    call turbulence_fields%get_field('rhokm_bl', rhokm_bl)
+    call turbulence_fields%get_field('tau_w2', tau_w2)
+    call turbulence_fields%get_field('level_ent', level_ent)
+    call turbulence_fields%get_field('level_ent_dsc', level_ent_dsc)
+    call turbulence_fields%get_field('ent_we_lim', ent_we_lim)
+    call turbulence_fields%get_field('ent_t_frac', ent_t_frac)
+    call turbulence_fields%get_field('ent_zrzi', ent_zrzi)
+    call turbulence_fields%get_field('ent_we_lim_dsc', ent_we_lim_dsc)
+    call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
+    call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
+
+    ! Radiation fields
+    call radiation_fields%get_field('sw_heating_rate', sw_heating_rate)
+    call radiation_fields%get_field('lw_heating_rate', lw_heating_rate)
+
+    ! Convection fields
+    call convection_fields%get_field('shallow_flag', shallow_flag)
+    call convection_fields%get_field('uw0_flux', uw0_flux)
+    call convection_fields%get_field('vw0_flux', vw0_flux)
+    call convection_fields%get_field('lcl_height', lcl_height)
+    call convection_fields%get_field('parcel_top', parcel_top)
+    call convection_fields%get_field('level_parcel_top', level_parcel_top)
+    call convection_fields%get_field('wstar', wstar)
+    call convection_fields%get_field('thv_flux', thv_flux)
+    call convection_fields%get_field('parcel_buoyancy', parcel_buoyancy)
+    call convection_fields%get_field('qsat_at_lcl', qsat_at_lcl)
+
+    ! Unpack cloud fields
+    call cloud_fields%get_field('bulk_fraction', cf_bulk)
+    call cloud_fields%get_field('liquid_fraction', cf_liquid)
+    call cloud_fields%get_field('rh_crit', rh_crit)
+
+    ! Unpack the microphysics fields
+    call microphysics_fields%get_field('dtheta_mphys', dtheta_mphys)
+    call microphysics_fields%get_field('tnuc', tnuc)
+    call microphysics_fields%get_field('tnuc_nlcl', tnuc_nlcl)
+
+    ! Orography fields
+    call orography_fields%get_field('sd_orog', sd_orog)
+    call orography_fields%get_field('peak_to_trough_orog', peak_to_trough_orog)
+    call orography_fields%get_field('silhouette_area_orog', silhouette_area_orog)
+
+    ! Surface fields
+    call surface_fields%get_field('tile_fraction', tile_fraction)
+    call surface_fields%get_field('tile_temperature', tile_temperature)
+    call surface_fields%get_field('z0m_eff', z0m_eff)
+    call surface_fields%get_field('ustar', ustar)
+    call surface_fields%get_field('surf_interp_w2', surf_interp_w2)
+    call surface_fields%get_field('surf_interp', surf_interp)
+    call surface_fields%get_field('tau_land_w2', tau_land_w2)
+    call surface_fields%get_field('tau_ssi_w2', tau_ssi_w2)
+    call surface_fields%get_field('sea_current_w2',sea_current_w2_ptr)
+    call surface_fields%get_field('sea_u_current',sea_u_current_ptr)
+    call surface_fields%get_field('sea_v_current',sea_v_current_ptr)
+
+    mesh => theta%get_mesh()
+
+    height_wth       => get_height_fv( Wtheta, mesh%get_id() )
+    height_w3        => get_height_fv( W3, mesh%get_id() )
+    ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
+    ! in lfric core as the mininum of the cell horizontal edge lengths
+    delta            => get_delta_at_wtheta( mesh%get_id() )
+    max_diff_smag    => get_max_diff( mesh%get_id(), model_clock )
+    dA               => get_da_at_w2( mesh%get_id() )
+    rdz_fd1          => get_rdz_fd1( mesh%get_id() )
+    rdz_w3           => get_rdz_w3( mesh%get_id() )
+    dtrdz_wth        => get_dtrdz_wth( mesh%get_id(), model_clock )
+    w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() )
+    dz_wth           => get_dz_at_wtheta( mesh%get_id() )
+
+    ! Initialise diagnostics
+    call initialise_diags_for_bl_exp(zht, oblen)
+
+    ! Fields from microphysics
+    call dtheta_mphys%copy_field_properties(dtl_mphys)
+    call dtheta_mphys%copy_field_properties(dmt_mphys)
+
+    ! Fields for interpolation to cell faces
+    call u_physics%copy_field_properties(ngstress_w2)
+    call u_physics%copy_field_properties(fd_tau_w2)
+    call theta%copy_field_properties(ngstress_bl)
+    call rho%copy_field_properties(fd_taux)
+    call rho%copy_field_properties(fd_tauy)
+
+    ncells = mesh%get_last_edge_cell()
+
+    ! Calculate total ice field
+    call mr_n(imr_s)%copy_field_properties(mr_ice)
+    call invoke(setval_X(mr_ice, mr_n(imr_s)))
+    if (microphysics_casim) then
+      call invoke(inc_X_plus_Y(mr_ice, mr_n(imr_ci)))
+    end if
+
+                ! Calculate TL = T - (lc/cp)*mcl
+    call invoke(     X_times_Y(dtl_mphys, dtheta_mphys, exner_in_wth),         &
+                inc_X_minus_bY(dtl_mphys, lcrcp_def, dmr_mphys(imr_cl)),           &
+                ! And mt = mv + mcl
+                    X_plus_Y(dmt_mphys, dmr_mphys(imr_v), dmr_mphys(imr_cl)) )
+    if (.not. l_noice_in_turb) then
+      ! Add in ice increments
+      call invoke(inc_X_minus_bY(dtl_mphys, lsrcp_def, dmr_mphys(imr_s)),          &
+                  inc_X_minus_bY(dtl_mphys, lsrcp_def, dmr_mphys(imr_ci)),         &
+                  inc_X_plus_Y(dmt_mphys, dmr_mphys(imr_s)),                   &
+                  inc_X_plus_Y(dmt_mphys, dmr_mphys(imr_ci)) )
+    end if
+
+    ! Switch UM to running i-first on whole domain
+    call um_sizes_init(ncells)
+    ! Call explicit BL scheme
+    call invoke(bl_exp_kernel_type( theta, rho, rho_in_wth, wetrho_in_wth,     &
+                                    exner, exner_in_wth, u_in_w3, v_in_w3,     &
+                                    w_in_wth, velocity_w2v, mr_n(imr_v),       &
+                                    mr_n(imr_cl), mr_ice, height_w3,           &
+                                    height_wth, dz_wth, rdz_w3, dtrdz_wth,     &
+                                    shear, delta, max_diff_smag, zh, ntml,     &
+                                    cumulus, tile_fraction, sd_orog,           &
+                                    peak_to_trough_orog, silhouette_area_orog, &
+                                    tile_temperature, rhostar, recip_l_mo_sea, &
+                                    h_blend_orog, t1_sd_2d, q1_sd_2d,          &
+                                    dtl_mphys, dmt_mphys, sw_heating_rate,     &
+                                    lw_heating_rate, cf_bulk, cf_liquid,       &
+                                    rh_crit, tnuc, tnuc_nlcl,                  &
+                                    dsldzm, mix_len_bm,                        &
+                                    wvar, visc_m, visc_h,                      &
+                                    dw_bl, rhokm_bl, surf_interp, rhokh_bl,    &
+                                    tke_bl, ngstress_bl, bq_bl, bt_bl,         &
+                                    moist_flux_bl, heat_flux_bl, dtrdz_tq_bl,  &
+                                    fd_taux, fd_tauy, sea_u_current_ptr,       &
+                                    sea_v_current_ptr, lmix_bl, gradrinr,      &
+                                    z0m_eff, ustar, zh_nonloc, zhsc, z_lcl,    &
+                                    inv_depth, qcl_at_inv_top, shallow_flag,   &
+                                    uw0_flux, vw0_flux, lcl_height,            &
+                                    parcel_top, level_parcel_top, wstar,       &
+                                    thv_flux, parcel_buoyancy, qsat_at_lcl,    &
+                                    bl_weight_1dbl, bl_type_ind, level_ent,    &
+                                    level_ent_dsc, ent_we_lim, ent_t_frac,     &
+                                    ent_zrzi, ent_we_lim_dsc, ent_t_frac_dsc,  &
+                                    ent_zrzi_dsc, zht, oblen ),                &
+                ! Initialise w2 fields
+                setval_c(rhokm_w2,       0.0_r_def),                           &
+                setval_c(surf_interp_w2, 0.0_r_def),                           &
+                setval_c(ngstress_w2,    0.0_r_def),                           &
+                setval_c(wetrho_in_w2,   0.0_r_def),                           &
+                setval_c(tau_w2,         0.0_r_def),                           &
+                ! Re-grid the required variables into w2
+                interp_bl_kernel_type(rhokm_bl, surf_interp, ngstress_bl,      &
+                                      wetrho_in_w3,                            &
+                                      rhokm_w2, surf_interp_w2, ngstress_w2,   &
+                                      wetrho_in_w2, w2_rmultiplicity) )
+    ! Switch UM back to columns
+    call um_sizes_init(1_i_def)
+
+    if (formdrag == formdrag_dist_drag) then
+      if ( subroutine_timers ) call timer('bl_exp_alg')
+      call theta%copy_field_properties(fd_tauz)
+      call invoke(setval_c(fd_tauz, 0.0_r_def))
+      ! Calculate form drag stress in w2
+      call set_wind(fd_tau_w2,fd_taux,fd_tauy,fd_tauz)
+      call invoke(inc_X_divideby_Y(fd_tau_w2, dA))
+      if ( subroutine_timers ) call timer('bl_exp_alg')
+    end if
+
+    ! Calculate explicit momentum diffusion on cell faces
+    call invoke(bl_exp_du_kernel_type(4_i_def, tau_w2, tau_land_w2, tau_ssi_w2,&
+                                      rhokm_w2, rdz_fd1, u_physics,            &
+                                      surf_interp_w2, ngstress_w2, fd_tau_w2,  &
+                                      sea_current_w2_ptr) )
+
+    if (l_calc_tau_at_p) then
+      call dz_wth%copy_field_properties(rdz_wth)
+      call zh%copy_field_properties(taux_land)
+      call zh%copy_field_properties(tauy_land)
+      call zh%copy_field_properties(taux_ssi)
+      call zh%copy_field_properties(tauy_ssi)
+      call turbulence_fields%get_field('taux', taux)
+      call turbulence_fields%get_field('tauy', tauy)
+      call invoke(setval_X(rdz_wth, dz_wth),                                   &
+                  inc_X_powint_n(rdz_wth, (-1_i_def)),                         &
+                  setval_c(taux, 0.0_r_def),                                   &
+                  setval_c(tauy, 0.0_r_def),                                   &
+      ! Calculate explicit momentum diffusion at cell centres
+                  bl_exp_du_kernel_type(1_i_def, taux, taux_land, taux_ssi,    &
+                                        rhokm_bl, rdz_wth, u_in_w3,            &
+                                        surf_interp, ngstress_bl, fd_taux,     &
+                                        sea_u_current_ptr),                    &
+                  bl_exp_du_kernel_type(1_i_def, tauy, tauy_land, tauy_ssi,    &
+                                        rhokm_bl, rdz_wth, v_in_w3,            &
+                                        surf_interp, ngstress_bl, fd_tauy,     &
+                                        sea_v_current_ptr) )
+    end if
+
+    if ( subroutine_timers ) call timer('bl_exp_alg')
+
+    ! output BL diagnostics
+    if (write_diag .and. use_xios_io) then
+
+      call output_diags_for_bl_exp(ntml, cumulus, bl_type_ind,               &
+                                   wvar, dsldzm, mix_len_bm,                 &
+                                   gradrinr, rhokh_bl, tke_bl, dtrdz_tq_bl,  &
+                                   rdz_w3, zhsc, level_ent, level_ent_dsc,   &
+                                   ent_we_lim, ent_t_frac, ent_zrzi,         &
+                                   ent_we_lim_dsc, ent_t_frac_dsc,           &
+                                   ent_zrzi_dsc, zht, oblen,                 &
+                                   bl_weight_1dbl)
+
+    end if
+
+    nullify( mesh )
+
+  end subroutine bl_exp_alg
+
+end module bl_exp_alg_mod

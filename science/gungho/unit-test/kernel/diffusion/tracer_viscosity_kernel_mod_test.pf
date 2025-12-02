@@ -1,0 +1,201 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module tracer_viscosity_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: tracer_viscosity_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type tracer_viscosity_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use feign_config_mod,          only : feign_finite_element_config
+    use mixing_config_mod,         only : method_3d_smag
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+
+    implicit none
+
+    class(tracer_viscosity_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(      &
+        cellshape=cellshape_quadrilateral, &
+        coord_order=0_i_def,               &
+        coord_system=coord_system_xyz,     &
+        element_order_h=0_i_def,           &
+        element_order_v=0_i_def,           &
+        rehabilitate=.true.,               &
+        vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use sci_chi_transform_mod, only: final_chi_transforms
+    use configuration_mod,  only: final_configuration
+
+    implicit none
+
+    class(tracer_viscosity_test_type), intent(inout) :: this
+
+    ! Finalise namelists
+    call final_chi_transforms()
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use tracer_viscosity_kernel_mod, only: tracer_viscosity_code
+
+    use get_unit_test_m3x3_dofmap_mod,       only: get_w2_m3x3_dofmap,      &
+                                                   get_wtheta_m3x3_dofmap,  &
+                                                   get_m3x3_stencil_dofmap_cross
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2_m3x3_q3x3x3_size, &
+                                                   get_wtheta_m3x3_q3x3x3_size
+    use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
+    implicit none
+
+    class(tracer_viscosity_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    real(r_def), parameter :: viscosity_mu = 10.0_r_def
+
+
+    real(r_def)    :: answer
+    integer(i_def) :: cell, i, j, k, icell
+
+    ! Variables for testing tracer_viscosity
+    real(r_def), allocatable :: t_inc_data(:)
+    real(r_def), allocatable :: t_data(:), dx_at_w2(:)
+
+    integer(i_def) :: ndf_t, undf_t
+    integer(i_def) :: stencil_t_size
+
+    integer(i_def), allocatable :: map_t(:,:)
+    integer(i_def), allocatable :: stencil_map_t(:,:,:)
+
+    integer(i_def) :: ndf_w2, undf_w2
+    integer(i_def) :: ndf_wtheta, undf_wtheta
+    integer(i_def) :: stencil_cross_size
+
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_wtheta(:,:)
+    integer(i_def), allocatable :: stencil_cross_wtheta(:,:,:)
+
+    !=====================================
+    ! Get infrastructure support data
+    !=====================================
+    nlayers = 3
+
+    ! Get sizes
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,         &
+                                  dim_space, dim_space_diff,       &
+                                  nqp_h, nqp_v, nlayers )
+    call get_wtheta_m3x3_q3x3x3_size(                              &
+                                  ndf_wtheta, undf_wtheta, ncells, &
+                                  dim_space, dim_space_diff,       &
+                                  nqp_h, nqp_v, nlayers )
+    ! Get maps
+    call get_w2_m3x3_dofmap( map_w2 )
+    call get_wtheta_m3x3_dofmap( map_wtheta )
+    call get_m3x3_stencil_dofmap_cross( stencil_cross_wtheta, map_wtheta )
+    stencil_cross_size = 5
+
+    ! Compute coordinates
+    allocate(dx_at_w2(undf_w2))
+    icell = 1
+    do j = 1,3
+      do i = 1,3
+        dx_at_w2(map_w2(1,icell):map_w2(1,icell)+2) = dx
+        dx_at_w2(map_w2(2,icell):map_w2(2,icell)+2) = dy
+        dx_at_w2(map_w2(3,icell):map_w2(3,icell)+2) = dx
+        dx_at_w2(map_w2(4,icell):map_w2(4,icell)+2) = dy
+        dx_at_w2(map_w2(5,icell):map_w2(5,icell)+2) = dz
+        dx_at_w2(map_w2(6,icell):map_w2(6,icell)+2) = dz
+        icell = icell+1
+      end do
+    end do
+
+    !=====================================
+    ! Assign data for testing
+    !=====================================
+
+    ! Assign tracer
+    ndf_t  = ndf_wtheta
+    undf_t = undf_wtheta
+    allocate( map_t, source=map_wtheta )
+    allocate( stencil_map_t, source=stencil_cross_wtheta )
+    stencil_t_size = stencil_cross_size
+
+    ! Assign data
+    allocate(t_data(undf_t))
+    allocate(t_inc_data(undf_t))
+    t_data     = 300.0_r_def
+    t_inc_data = 0.0_r_def
+
+    !=====================================
+    ! Apply test on interior cell 5
+    !=====================================
+    cell=5
+    call tracer_viscosity_code( nlayers,                 &
+                                t_inc_data,              &
+                                t_data,                  &
+                                stencil_t_size,          &
+                                stencil_map_t(:,:,cell), &
+                                dx_at_w2,                &
+                                viscosity_mu,            &
+                                ndf_t,                   &
+                                undf_t,                  &
+                                stencil_map_t(:,1,cell), &
+                                ndf_w2,                  &
+                                undf_w2,                 &
+                                map_w2(:,cell)          )
+
+     answer = 0.0_r_def
+     @assertEqual(answer, t_inc_data(stencil_map_t(1,1,cell) ), tol)
+
+     deallocate( map_t )
+     deallocate( t_data )
+     deallocate( t_inc_data )
+     deallocate( stencil_map_t )
+     deallocate( map_w2 )
+     deallocate( map_wtheta )
+     deallocate( stencil_cross_wtheta )
+
+  end subroutine test_all
+
+end module tracer_viscosity_kernel_mod_test

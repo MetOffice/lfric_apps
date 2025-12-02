@@ -1,0 +1,178 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics relating to the CASIM microphysics scheme
+
+module casim_diagnostics_mod
+
+  use constants_mod,              only: l_def
+  use field_mod,                  only: field_type
+  use io_config_mod,              only: subroutine_timers
+  use timer_mod,                  only: timer
+
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  !-----------------------------
+  ! 3D Diagnostic flags
+  !-----------------------------
+  logical( l_def ) :: dt_mphys_flag
+  logical( l_def ) :: refl_tot_flag
+  logical( l_def ) :: superc_liq_flag
+  logical( l_def ) :: superc_rain_flag
+  logical( l_def ) :: ls_graup_3d_flag
+
+  !-----------------------------
+  ! 2D Diagnostic flags
+  !-----------------------------
+
+  logical( l_def ) :: refl_1km_flag
+
+  public :: output_diags_for_casim, initialise_diags_for_casim
+  public :: ls_graup_3d_flag
+
+contains
+
+  !> @brief Initialise fields for CASIM mphys diagnostics
+  !> @param[inout] refl_tot    Total radar reflectivity
+  !> @param[inout] refl_1km    Radar reflectivity at 1km above the ground
+  !> @param[inout] superc_liq  Supercooled liquid cloud mixing ratio
+  !> @param[inout] superc_rain Supercooled rain mixing ratio
+  !> @param[inout] ls_graup_3d Graupelfall rate (3-dimensional)
+  subroutine initialise_diags_for_casim(refl_tot, refl_1km, superc_liq,        &
+                                        superc_rain, ls_graup_3d )
+
+    implicit none
+
+    type( field_type ), intent(inout) :: refl_tot
+    type( field_type ), intent(inout) :: refl_1km
+    type( field_type ), intent(inout) :: superc_liq
+    type( field_type ), intent(inout) :: superc_rain
+    type( field_type ), intent(inout) :: ls_graup_3d
+
+    if ( subroutine_timers ) call timer("casim_diagnostics")
+
+    refl_tot_flag = init_diag(refl_tot, 'microphysics__refl_tot')
+    refl_1km_flag = init_diag(refl_1km, 'microphysics__refl_1km')
+    superc_liq_flag = init_diag(superc_liq, 'microphysics__superc_liq')
+    superc_rain_flag = init_diag(superc_rain, 'microphysics__superc_rain')
+    ls_graup_3d_flag = init_diag(ls_graup_3d, 'microphysics__ls_graup_3d')
+
+    if ( subroutine_timers ) call timer("casim_diagnostics")
+
+  end subroutine initialise_diags_for_casim
+
+
+  !----------------------------------------------------------------------------
+  ! Note: If adding new diagnostics below, please consider whether the
+  !       Wilson-Ballard microphysics should have equivalent diagnostics
+  !       added in the file mphys_diagnostics_mod.x90
+  !----------------------------------------------------------------------------
+
+  subroutine output_diags_for_casim(ls_rain, ls_snow, ls_graup,                &
+                                    lsca_2d, refl_tot, refl_1km,               &
+                                    ls_rain_3d, ls_snow_3d, ls_graup_3d,       &
+                                    nl_mphys, nr_mphys, ni_mphys, ns_mphys,    &
+                                    ng_mphys, exner_in_wth, theta_inc,         &
+                                    dmv_mphys, dmcl_mphys, dmci_mphys,         &
+                                    dmr_mphys, dmg_mphys, dms_mphys,           &
+                                    superc_liq, superc_rain)
+
+    implicit none
+
+    type ( field_type ), intent(in) :: ls_rain, ls_snow, ls_graup,             &
+                                       lsca_2d, refl_tot, refl_1km,            &
+                                       ls_rain_3d, ls_snow_3d, ls_graup_3d,    &
+                                       nl_mphys, nr_mphys, ni_mphys, ns_mphys, &
+                                       ng_mphys, exner_in_wth, theta_inc,      &
+                                       dmv_mphys, dmcl_mphys, dmci_mphys,      &
+                                       dmr_mphys, dmg_mphys, dms_mphys,        &
+                                       superc_liq, superc_rain
+
+    type ( field_type ) :: dt_mphys
+
+    !--------------------------------------
+    ! End of declarations
+    !--------------------------------------
+    if ( subroutine_timers ) call timer ("casim_diagnostics")
+
+
+    !----------------------------------------------------
+    ! Output 2D precipitation rates
+    !----------------------------------------------------
+
+    call ls_rain%write_field('microphysics__ls_rain')
+    call ls_snow%write_field('microphysics__ls_snow')
+    call ls_graup%write_field('microphysics__ls_graup')
+
+    !-----------------------------------------------------
+    ! Output 3D precipitation rates
+    !-----------------------------------------------------
+
+    call ls_rain_3d%write_field('microphysics__ls_rain_3d')
+    call ls_snow_3d%write_field('microphysics__ls_snow_3d')
+    if (ls_graup_3d_flag) call ls_graup_3d%write_field()
+
+    !-----------------------------------------------------
+    ! Output 2D radar reflectivity diagnostics
+    !-----------------------------------------------------
+
+    if (refl_tot_flag) call refl_tot%write_field()
+    if (refl_1km_flag) call refl_1km%write_field()
+
+    !-----------------------------------------------------
+    ! Other 2D fields
+    !-----------------------------------------------------
+    call lsca_2d%write_field('microphysics__lsca_2d')
+
+    !-----------------------------------------------------
+    ! Output change in theta and change in temperature
+    !-----------------------------------------------------
+    call theta_inc%write_field('microphysics__dtheta_mphys')
+
+    dt_mphys_flag = init_diag(dt_mphys, 'microphysics__dt_mphys')
+    if (dt_mphys_flag) then
+      ! Convert from theta increment to temperature increment
+      call invoke( X_times_Y(dt_mphys, theta_inc, exner_in_wth) )
+      call dt_mphys%write_field()
+    end if
+
+    !-----------------------------------------------------
+    ! Changes to mixing ratios
+    !-----------------------------------------------------
+    call dmv_mphys%write_field('microphysics__dmv_mphys')
+    call dmcl_mphys%write_field('microphysics__dmcl_mphys')
+    call dmci_mphys%write_field('microphysics__dmci_mphys')
+    call dms_mphys%write_field('microphysics__dms_mphys')
+    call dmg_mphys%write_field('microphysics__dmg_mphys')
+    call dmr_mphys%write_field('microphysics__dmr_mphys')
+
+    ! Changes to cloud fractions have no impact at the moment in CASIM
+    ! so not output for now.
+
+    !-----------------------------------------------------
+    ! Supercooled liquid and rain
+    !-----------------------------------------------------
+    if (superc_liq_flag) call superc_liq%write_field()
+    if (superc_rain_flag) call superc_rain%write_field()
+
+    !-----------------------------------------------------
+    ! CASIM specific 3D number diagnostics/prognostics
+    !-----------------------------------------------------
+    call nl_mphys%write_field('casim__nl_mphys')
+    call nr_mphys%write_field('casim__nr_mphys')
+    call ni_mphys%write_field('casim__ni_mphys')
+    call ns_mphys%write_field('casim__ns_mphys')
+    call ng_mphys%write_field('casim__ng_mphys')
+
+    if ( subroutine_timers ) call timer ("casim_diagnostics")
+
+  end subroutine output_diags_for_casim
+
+end module casim_diagnostics_mod
+

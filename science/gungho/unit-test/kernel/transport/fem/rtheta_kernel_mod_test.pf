@@ -1,0 +1,176 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2019,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the rtheta computation for horizontally discontinuous theta
+!>
+module rtheta_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: rtheta_test_type
+    private
+  contains
+    procedure setup
+    procedure tearDown
+    procedure test_all
+  end type rtheta_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(rtheta_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(rtheta_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use rtheta_kernel_mod,          only : rtheta_code
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2_m3x3_q3x3x3_size,    &
+                                                   get_wtheta_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod, only: get_w2_m3x3_dofmap,            &
+                                             get_wtheta_m3x3_dofmap
+
+    use get_unit_test_q3x3x3_basis_mod, only: get_w2_q3x3x3_basis,            &
+                                              get_w2_q3x3x3_diff_basis,       &
+                                              get_wtheta_q3x3x3_basis,        &
+                                              get_wtheta_q3x3x3_diff_basis
+
+    use get_unit_test_q3x3x3_quadrature_mod, only:             &
+                                                              get_gaussian_q3x3x3_quadrature_weights_xy, &
+                    get_gaussian_q3x3x3_quadrature_weights_z
+
+     implicit none
+
+    class(rtheta_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol    = 1.0e-6_r_tran
+    real(r_tran), parameter :: answer = 1.0_r_tran
+
+    integer(i_def) :: cell, k
+
+    integer(i_def)          :: nlayers, nqp_h, nqp_v
+    integer(i_def)          :: ndf_wtheta, undf_wtheta
+    integer(i_def)          :: ndf_w2, undf_w2
+
+    integer(i_def), allocatable :: map_wtheta(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    real(kind=r_def), allocatable :: wh(:)
+    real(kind=r_def), allocatable :: wv(:)
+
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_w2(:,:,:,:)
+    real(r_def), allocatable :: basis_wtheta(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_wtheta(:,:,:,:)
+
+    real(r_tran),allocatable :: theta_data(:)
+    real(r_tran),allocatable :: r_theta_data(:)
+    real(r_tran),allocatable :: u_data(:)
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    ! Get canned data for a 3-layer mesh
+    nlayers=3
+
+    ! Get sizes
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wtheta, undf_wtheta, unused, &
+                                      unused, unused,                  &
+                                      unused, unused,                  &
+                                      nlayers )
+
+    ! Get arrays of quadrature weights
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+    nqp_h=size(wh,1)
+    nqp_v=size(wv,1)
+
+    ! Get basis functions
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_w2_q3x3x3_diff_basis(diff_basis_w2)
+    call get_wtheta_q3x3x3_basis(basis_wtheta)
+    call get_wtheta_q3x3x3_diff_basis(diff_basis_wtheta)
+
+    ! Get dofmaps
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_wtheta_m3x3_dofmap(map_wtheta)
+
+    ! Create the data arrays
+    allocate(theta_data(undf_wtheta))
+    allocate(r_theta_data(undf_wtheta))
+    allocate(u_data(undf_w2))
+
+    ! Initialise the data
+    r_theta_data(:) = 1.0_r_tran
+    theta_data(:)   = 300.0_r_tran
+    u_data(:)       = 0.0_r_tran
+
+    ! Test the first cell
+    cell = 1
+
+    call rtheta_code( nlayers,                 &
+                      r_theta_data,            &
+                      theta_data,              &
+                      u_data,                  &
+                      ndf_wtheta, undf_wtheta, &
+                      map_wtheta(:,cell),      &
+                      basis_wtheta,            &
+                      diff_basis_wtheta,       &
+                      ndf_w2, undf_w2,         &
+                      map_w2(:,cell),          &
+                      basis_w2,                &
+                      diff_basis_w2,           &
+                      nqp_h, nqp_v, wh, wv     &
+                      )
+
+    k = 1
+    ! Simple test, check that when theta=const, u = 0, kernel does not modify input value
+    @assertEqual( answer, r_theta_data(map_wtheta(2,cell)+k), tol )
+
+    deallocate(map_wtheta)
+    deallocate(map_w2)
+    deallocate(basis_wtheta)
+    deallocate(diff_basis_wtheta)
+    deallocate(basis_w2)
+    deallocate(diff_basis_w2)
+    deallocate(wh)
+    deallocate(wv)
+    deallocate(theta_data)
+    deallocate(r_theta_data)
+    deallocate(u_data)
+
+  end subroutine test_all
+
+end module rtheta_kernel_mod_test

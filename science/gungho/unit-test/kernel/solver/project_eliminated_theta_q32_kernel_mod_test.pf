@@ -1,0 +1,155 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the weighted q32 matrix
+!>
+module project_eliminated_theta_q32_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: project_eliminated_theta_q32_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type project_eliminated_theta_q32_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(project_eliminated_theta_q32_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(project_eliminated_theta_q32_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_all( this )
+
+    use project_eliminated_theta_q32_kernel_mod, only : project_eliminated_theta_q32_code
+
+    implicit none
+
+    class(project_eliminated_theta_q32_test_type), intent(inout) :: this
+
+    real(kind=r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    ! Mesh
+    integer(kind=i_def), parameter :: ncell   = 1
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: cell    = 1
+
+    ! Array sizes
+    integer(kind=i_def), parameter :: ndf_w3 = 1_i_def
+    integer(kind=i_def), parameter :: ndf_w2 = 4_i_def
+    integer(kind=i_def), parameter :: ndf_wt = 2_i_def
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2
+    integer(kind=i_def), parameter :: undf_wt = ndf_wt
+    ! Operators to test
+    real(kind=r_solver), dimension(ncell,ndf_w3,ndf_w2) :: q32
+    ! Maps
+    integer(kind=i_def), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), dimension(ndf_w2) :: map_w2
+    integer(kind=i_def), dimension(ndf_wt) :: map_wt
+    ! Basis arrays
+    real(kind=r_def), dimension(1,ndf_w3) :: basis_w3
+    real(kind=r_def), dimension(3,ndf_w2) :: basis_w2
+    real(kind=r_def), dimension(1,ndf_wt) :: basis_wt
+    real(kind=r_def), dimension(3,ndf_wt) :: diff_basis_wt
+    ! Quadrature
+    integer(kind=i_def), parameter   :: nqp = 1_i_def
+    real(kind=r_def), dimension(nqp) :: wgt
+    ! Fields
+    real(kind=r_solver), dimension(undf_wt) :: theta
+    ! Operators
+    real(kind=r_solver), dimension(ncell,ndf_w3,ndf_w3) :: inv_m3
+    ! Scalars
+    real(kind=r_solver) :: const
+
+    integer(kind=i_def) :: i, df1, df2
+    real(kind=r_solver), dimension(ndf_w3, ndf_w2) :: answer
+
+    do i = 1,ndf_w3
+      map_w3(i) = int(i,i_def)
+    end do
+    do i = 1,ndf_w2
+      map_w2(i) = int(i,i_def)
+    end do
+    do i = 1,ndf_wt
+      map_wt(i) = int(i,i_def)
+    end do
+
+    ! Quadrature
+    wgt(:) = 1.0_r_def
+
+    ! Basis functions
+    basis_w2(:,1) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    basis_w2(:,2) = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    basis_w2(:,3) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+    basis_w2(:,4) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+
+    basis_w3(:,:) = 1.0_r_def
+
+    basis_wt(:,:) = 0.5_r_def
+
+    diff_basis_wt(:,1) = (/ 0.0_r_def, 0.0_r_def, -1.0_r_def /)
+    diff_basis_wt(:,2) = (/ 0.0_r_def, 0.0_r_def,  1.0_r_def /)
+
+    ! Fields
+    theta = (/ 310.0_r_solver, 322.95_r_solver /)
+    const = 17.0_r_solver
+    ! Operators
+    inv_m3 = 1.0_r_solver/27.0_r_solver
+    q32 = 0.0_r_solver
+    call project_eliminated_theta_q32_code(cell,                    &
+                                           nlayers,                 &
+                                           ncell,                   &
+                                           q32,                     &
+                                           theta,                   &
+                                           ncell,                   &
+                                           inv_m3,                  &
+                                           const,                   &
+                                           ndf_w3, basis_w3,        &
+                                           ndf_w2, basis_w2,        &
+                                           ndf_wt, undf_wt, map_wt, &
+                                           basis_wt, diff_basis_wt, &
+                                           nqp, nqp, wgt, wgt)
+
+    ! q32 = const * < basis_w3, (k*dtheta/dz).basis_w2 >
+    ! Only the vertical components of W2 are nonzero (df2 = 3,4)
+    answer = 0.0_r_solver
+    do df2 = 3,ndf_w2
+      do df1 = 1,ndf_w3
+        answer(df1,df2) = const / 27.0_r_solver * (theta(2)-theta(1))/(theta(2)+theta(1))
+      end do
+    end do
+    @assertEqual(answer, q32(1,:,:), tol)
+
+  end subroutine test_all
+
+end module project_eliminated_theta_q32_kernel_mod_test

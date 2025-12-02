@@ -1,0 +1,263 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_pressure_gradient_bd_kernel
+module atlt_pressure_gradient_bd_alg_mod
+
+  use sci_assign_field_random_range_alg_mod, &
+                                           only : assign_field_random_range
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_ERROR,   &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_INFO
+  use mesh_mod,                            only : mesh_type
+  use function_space_collection_mod,       only : function_space_collection
+  use finite_element_config_mod,           only : element_order_h, element_order_v
+  use fs_continuity_mod,                   only : W2, W3, Wtheta
+  use constants_mod,                       only : i_def, r_def
+  use quadrature_face_mod,                 only : quadrature_face_type
+  use quadrature_rule_gaussian_mod,        only : quadrature_rule_gaussian_type
+  use reference_element_mod,               only : reference_element_type
+  use planet_config_mod,                   only : cp
+  use adjoint_test_parameters_mod,         only : ls_theta_range, &
+                                                  ls_exner_range, &
+                                                  ls_md1_range,   &
+                                                  ls_md2_range,   &
+                                                  ls_md3_range
+
+  implicit none
+
+  public
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_pressure_gradient_bd.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in] mesh        Mesh object
+  subroutine atlt_pressure_gradient_bd_alg( mesh )
+
+    use tl_pressure_gradient_bd_kernel_mod,  only : tl_pressure_gradient_bd_kernel_type
+    use atl_pressure_gradient_bd_kernel_mod, only : atl_pressure_gradient_bd_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type)               :: r_u
+    type(field_type)               :: exner
+    integer(kind=i_def), parameter :: stencil_extent = 1_i_def
+    type(field_type)               :: dummy_w3
+    type(field_type)               :: theta
+    type(field_type), dimension(3) :: moist_dyn
+    type(field_type)               :: ls_exner
+    type(field_type)               :: ls_theta
+    type(field_type), dimension(3) :: ls_moist_dyn
+    type(quadrature_face_type)     :: qrf
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: r_u_input
+    type(field_type) :: exner_input
+    type(field_type) :: theta_input
+    type(field_type), dimension(3) :: moist_dyn_input
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)               :: r_u_inner_prod
+    real(kind=r_def)               :: exner_inner_prod
+    real(kind=r_def)               :: theta_inner_prod
+    real(kind=r_def), dimension(3) :: moist_dyn_inner_prod
+    real(kind=r_def)               :: r_u_sf
+    real(kind=r_def)               :: exner_sf
+    real(kind=r_def)               :: theta_sf
+    real(kind=r_def), dimension(3) :: moist_dyn_sf
+    real(kind=r_def)               :: inner1
+    real(kind=r_def)               :: r_u_r_u_input_inner_prod
+    real(kind=r_def)               :: exner_exner_input_inner_prod
+    real(kind=r_def)               :: theta_theta_input_inner_prod
+    real(kind=r_def), dimension(3) :: moist_dyn_moist_dyn_input_inner_prod
+    real(kind=r_def)               :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Misc
+    class(reference_element_type), pointer :: reference_element
+    type(quadrature_rule_gaussian_type)    :: quadrature_rule
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+    call r_u%initialise( vector_space = vector_space_w2_ptr, name = 'r_u' )
+    call exner%initialise( vector_space = vector_space_w3_ptr, halo_depth = 2, name = 'exner' )
+    call dummy_w3%initialise( vector_space = vector_space_w3_ptr, halo_depth = 2, name = 'dummy_w3' )
+    call theta%initialise( vector_space = vector_space_wtheta_ptr, name = 'theta' )
+    call moist_dyn(1_i_def)%initialise( vector_space = vector_space_wtheta_ptr, name = 'moist_dyn_1' )
+    call moist_dyn(2_i_def)%initialise( vector_space = vector_space_wtheta_ptr, name = 'moist_dyn_2' )
+    call moist_dyn(3_i_def)%initialise( vector_space = vector_space_wtheta_ptr, name = 'moist_dyn_3' )
+    call exner%copy_field_properties( ls_exner )
+    call theta%copy_field_properties( ls_theta )
+    call moist_dyn(1_i_def)%copy_field_properties( ls_moist_dyn(1_i_def) )
+    call moist_dyn(2_i_def)%copy_field_properties( ls_moist_dyn(2_i_def) )
+    call moist_dyn(3_i_def)%copy_field_properties( ls_moist_dyn(3_i_def) )
+    reference_element => mesh%get_reference_element()
+    qrf = quadrature_face_type( element_order_h + 2, element_order_v + 2, .true., .false., &
+                                reference_element,  quadrature_rule )
+    call r_u%copy_field_properties( r_u_input )
+    call exner%copy_field_properties( exner_input )
+    call theta%copy_field_properties( theta_input )
+    call moist_dyn(1_i_def)%copy_field_properties( moist_dyn_input(1_i_def) )
+    call moist_dyn(2_i_def)%copy_field_properties( moist_dyn_input(2_i_def) )
+    call moist_dyn(3_i_def)%copy_field_properties( moist_dyn_input(3_i_def) )
+
+    r_u_inner_prod = 0.0_r_def
+    exner_inner_prod = 0.0_r_def
+    theta_inner_prod = 0.0_r_def
+    moist_dyn_inner_prod(1_i_def) = 0.0_r_def
+    moist_dyn_inner_prod(2_i_def) = 0.0_r_def
+    moist_dyn_inner_prod(3_i_def) = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random( r_u ),                                     &
+                 setval_x( r_u_input, r_u ),                               &
+                 setval_random( exner ),                                   &
+                 setval_x( exner_input, exner ),                           &
+                 setval_random( theta ),                                   &
+                 setval_x( theta_input, theta ),                           &
+                 setval_random( moist_dyn(1_i_def) ),                      &
+                 setval_x( moist_dyn_input(1_i_def), moist_dyn(1_i_def) ), &
+                 setval_random( moist_dyn(2_i_def) ),                      &
+                 setval_x( moist_dyn_input(2_i_def), moist_dyn(2_i_def) ), &
+                 setval_random( moist_dyn(3_i_def) ),                      &
+                 setval_x( moist_dyn_input(3_i_def), moist_dyn(3_i_def) ) )
+
+    call assign_field_random_range( ls_theta, ls_theta_range(1), ls_theta_range(2) )
+    call assign_field_random_range( ls_exner, ls_exner_range(1), ls_exner_range(2) )
+    call assign_field_random_range( ls_moist_dyn(1), ls_md1_range(1), ls_md1_range(2) )
+    call assign_field_random_range( ls_moist_dyn(2), ls_md2_range(1), ls_md2_range(2) )
+    call assign_field_random_range( ls_moist_dyn(3), ls_md3_range(1), ls_md3_range(2) )
+
+    ! < Mx, Mx >
+    call invoke( tl_pressure_gradient_bd_kernel_type( r_u,                              &
+                                                      exner, stencil_extent,            &
+                                                      theta,                            &
+                                                      moist_dyn,                        &
+                                                      ls_exner, stencil_extent,         &
+                                                      ls_theta,                         &
+                                                      ls_moist_dyn,                     &
+                                                      cp,                               &
+                                                      qrf ),                            &
+                 x_innerproduct_x( r_u_inner_prod, r_u ),                               &
+                 x_innerproduct_x( exner_inner_prod, exner ),                           &
+                 x_innerproduct_x( theta_inner_prod, theta ),                           &
+                 x_innerproduct_x( moist_dyn_inner_prod(1_i_def), moist_dyn(1_i_def) ), &
+                 x_innerproduct_x( moist_dyn_inner_prod(2_i_def), moist_dyn(2_i_def) ), &
+                 x_innerproduct_x( moist_dyn_inner_prod(3_i_def), moist_dyn(3_i_def) ) )
+
+    write(log_scratch_space, *) "atlt_pressure_gradient_bd inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "r_u inner product = ", r_u_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "exner inner product = ", exner_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "theta inner product = ", theta_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "moist_dyn(1) inner product = ", moist_dyn_inner_prod(1_i_def)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "moist_dyn(2) inner product = ", moist_dyn_inner_prod(2_i_def)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "moist_dyn(3) inner product = ", moist_dyn_inner_prod(3_i_def)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    r_u_sf = 1.0_r_def / (r_u_inner_prod + eps)
+    exner_sf = 1.0_r_def / (exner_inner_prod + eps)
+    theta_sf = 1.0_r_def / (theta_inner_prod + eps)
+    moist_dyn_sf(1_i_def) = 1.0_r_def / (moist_dyn_inner_prod(1_i_def) + eps)
+    moist_dyn_sf(2_i_def) = 1.0_r_def / (moist_dyn_inner_prod(2_i_def) + eps)
+    moist_dyn_sf(3_i_def) = 1.0_r_def / (moist_dyn_inner_prod(3_i_def) + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + r_u_inner_prod * r_u_sf
+    inner1 = inner1 + exner_inner_prod * exner_sf
+    inner1 = inner1 + theta_inner_prod * theta_sf
+    inner1 = inner1 + moist_dyn_inner_prod(1_i_def) * moist_dyn_sf(1_i_def)
+    inner1 = inner1 + moist_dyn_inner_prod(2_i_def) * moist_dyn_sf(2_i_def)
+    inner1 = inner1 + moist_dyn_inner_prod(3_i_def) * moist_dyn_sf(3_i_def)
+
+    r_u_r_u_input_inner_prod = 0.0_r_def
+    exner_exner_input_inner_prod = 0.0_r_def
+    theta_theta_input_inner_prod = 0.0_r_def
+    moist_dyn_moist_dyn_input_inner_prod(1_i_def) = 0.0_r_def
+    moist_dyn_moist_dyn_input_inner_prod(2_i_def) = 0.0_r_def
+    moist_dyn_moist_dyn_input_inner_prod(3_i_def) = 0.0_r_def
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( r_u_sf, r_u ),                               &
+                 inc_a_times_X( exner_sf, exner ),                           &
+                 inc_a_times_X( theta_sf, theta ),                           &
+                 inc_a_times_X( moist_dyn_sf(1_i_def), moist_dyn(1_i_def) ), &
+                 inc_a_times_X( moist_dyn_sf(2_i_def), moist_dyn(2_i_def) ), &
+                 inc_a_times_X( moist_dyn_sf(3_i_def), moist_dyn(3_i_def) ) )
+
+    ! < AMx, x >
+    call invoke( atl_pressure_gradient_bd_kernel_type( r_u, stencil_extent,            &
+                                                       exner,                          &
+                                                       dummy_w3, stencil_extent,       &
+                                                       theta,                          &
+                                                       moist_dyn,                      &
+                                                       ls_exner, stencil_extent,       &
+                                                       ls_theta, stencil_extent,       &
+                                                       ls_moist_dyn, stencil_extent,   &
+                                                       cp,                             &
+                                                       qrf ),                          &
+                 x_innerproduct_y( r_u_r_u_input_inner_prod, r_u, r_u_input ),         &
+                 x_innerproduct_y( exner_exner_input_inner_prod, exner, exner_input ), &
+                 x_innerproduct_y( theta_theta_input_inner_prod, theta, theta_input ), &
+                 x_innerproduct_y( moist_dyn_moist_dyn_input_inner_prod(1_i_def),      &
+                                   moist_dyn(1_i_def),                                 &
+                                   moist_dyn_input(1_i_def) ),                         &
+                 x_innerproduct_y( moist_dyn_moist_dyn_input_inner_prod(2_i_def),      &
+                                   moist_dyn(2_i_def),                                 &
+                                   moist_dyn_input(2_i_def) ),                         &
+                 x_innerproduct_y( moist_dyn_moist_dyn_input_inner_prod(3_i_def),      &
+                                   moist_dyn(3_i_def),                                 &
+                                   moist_dyn_input(3_i_def) ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + r_u_r_u_input_inner_prod
+    inner2 = inner2 + exner_exner_input_inner_prod
+    inner2 = inner2 + theta_theta_input_inner_prod
+    inner2 = inner2 + moist_dyn_moist_dyn_input_inner_prod(1_i_def)
+    inner2 = inner2 + moist_dyn_moist_dyn_input_inner_prod(2_i_def)
+    inner2 = inner2 + moist_dyn_moist_dyn_input_inner_prod(3_i_def)
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_pressure_gradient_bd:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED tl_pressure_gradient_bd:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine atlt_pressure_gradient_bd_alg
+
+end module atlt_pressure_gradient_bd_alg_mod

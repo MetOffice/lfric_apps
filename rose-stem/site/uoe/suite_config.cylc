@@ -1,0 +1,11 @@
+{% do LOG.debug("Entered site/uoe/suite_config.cylc") %}
+
+    [[UOE_ORIG]]
+#        platform = {{ROSE_ORIG_HOST}}
+         platform = localhost
+
+{% include 'site/uoe/common/suite_config_epic.cylc' %}
+
+{% include 'site/uoe/common/suite_config_dial3.cylc' %}
+
+{% do LOG.debug("Finished in site/uoe/suite_config.cylc") %}

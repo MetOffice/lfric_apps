@@ -1,0 +1,1129 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Base algorithm that contains the various intermesh mappings used
+!>        to map fields and collections of fields between different horizontal
+!>        resolution meshes
+module intermesh_mappings_alg_mod
+
+  use check_configuration_mod,        only : check_moisture_advective
+  use constants_mod,                  only : i_def, r_def, l_def
+  use sci_enforce_lower_bound_kernel_mod, &
+                                      only : enforce_lower_bound_kernel_type
+  use extrusion_mod,                  only : SHIFTED, TWOD
+  use sci_geometric_constants_mod,    only : get_face_selector_ew, &
+                                             get_face_selector_ns
+  use field_collection_mod,           only : field_collection_type
+  use field_mod,                      only : field_type
+  use sci_field_bundle_builtins_mod,  only : clone_bundle, copy_bundle
+  use function_space_mod,             only : function_space_type
+  use function_space_collection_mod,  only : function_space_collection
+  use fs_continuity_mod,              only : W2, Wtheta, W3
+  use integer_field_mod,              only : integer_field_type
+  use log_mod,                        only : log_event, LOG_LEVEL_ERROR
+  use mesh_collection_mod,            only : mesh_collection
+  use mesh_mod,                       only : mesh_type
+  use mr_indices_mod,                 only : nummr
+  use multires_coupling_config_mod,   only : recovery_order,                   &
+                                             recovery_order_constant,          &
+                                             recovery_order_linear,            &
+                                             reconstruction,                   &
+                                             reconstruction_reversible,        &
+                                             reconstruction_simple,            &
+                                             negative_correction,              &
+                                             negative_correction_none,         &
+                                             negative_correction_one_by_one,   &
+                                             negative_correction_consistent
+
+  implicit none
+
+  private
+
+  public  :: obtain_shifted_rho        ! Shifts rho from prime extrusion to shifted extrusion
+  private :: restrict_scalar           ! Non-conservative restriction of W3/Wtheta field
+  private :: restrict_multidata        ! Non-conservative restriction of W3/Wtheta multidata field
+  private :: prolong_scalar_simple     ! Injection/recovery of W3/Wtheta field
+  private :: prolong_multidata_simple  ! Injection/recovery of W3/Wtheta multidata field
+  private :: prolong_scalar_reversible ! Reversible prolongation of non-conservative W3/Wtheta field
+  public  :: map_scalar_intermesh      ! Public routine for non-conservative W3/Wtheta fields
+  public  :: map_scalar_field          ! Simple interface to map_scalar_intermesh
+  private :: restrict_rho              ! Conservative restriction of W3 field
+  private :: inject_rho                ! Conservative injection of W3 field
+  private :: prolong_rho_reversible    ! Conservative and reversible prolong for W3 fields
+  public  :: map_rho_intermesh         ! Public routine for conservative W3 fields
+  public  :: map_w2_intermesh          ! Routine for mapping any W2 field
+  public  :: map_w0_intermesh          ! Routine for mapping any W0 field
+  private :: restrict_mr               ! Conservative restriction for mixing ratio
+  private :: inject_mr                 ! Conservative injection for mixing ratio
+  private :: prolong_mr_reversible     ! Raw prolong. for mix. ratio (conservative/non-conservative)
+  public  :: map_mr_bundle_intermesh   ! Public routine for mapping mr bundle
+  public  :: apply_mr_incs             ! Maps and applies moisture increments
+  public  :: map_mr_intermesh          ! Public routine for mapping single mixing ratio fields
+contains
+
+  !> @brief Converts rho field to the shifted mesh
+  !> @param[in,out] shifted_rho  Rho in W3 on the shifted mesh
+  !> @param[in]     primary_rho  Rho in W3 on the prime extrusion mesh
+  subroutine obtain_shifted_rho(shifted_rho, primary_rho)
+
+    use extrusion_mod,                    only: SHIFTED
+    use sci_apply_w3_to_sh_w3_kernel_mod, only: apply_w3_to_sh_w3_kernel_type
+    use sci_geometric_constants_mod,      only: get_detj_at_w3_fe, &
+                                                get_detj_at_w3_fv
+
+    implicit none
+
+    type(field_type), intent(inout) :: shifted_rho
+    type(field_type), intent(in)    :: primary_rho
+
+    type(mesh_type),  pointer :: prime_extrusion_mesh
+    type(mesh_type),  pointer :: shifted_mesh
+    type(field_type), pointer :: detj_shifted
+    type(field_type), pointer :: detj_primary
+    type(function_space_type), pointer :: sh_w3_fs
+    integer(kind=i_def) :: element_order_h
+    integer(kind=i_def) :: element_order_v
+
+    element_order_h = primary_rho%get_element_order_h()
+    element_order_v = primary_rho%get_element_order_v()
+
+    ! Obtain shifted densities
+    prime_extrusion_mesh => primary_rho%get_mesh()
+    shifted_mesh => mesh_collection%get_mesh(prime_extrusion_mesh, SHIFTED)
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      detj_primary => get_detj_at_w3_fe(prime_extrusion_mesh%get_id())
+      detj_shifted => get_detj_at_w3_fe(shifted_mesh%get_id())
+    else
+      detj_primary => get_detj_at_w3_fv(prime_extrusion_mesh%get_id())
+      detj_shifted => get_detj_at_w3_fv(shifted_mesh%get_id())
+    end if
+
+    sh_w3_fs => function_space_collection%get_fs(shifted_mesh,    &
+                                                 element_order_h, &
+                                                 element_order_v, W3)
+
+    call shifted_rho%initialise( sh_w3_fs )
+
+    call invoke( apply_w3_to_sh_w3_kernel_type(shifted_rho,  &
+                                               primary_rho,  &
+                                               detj_shifted, &
+                                               detj_primary) )
+
+  end subroutine obtain_shifted_rho
+
+  !> @brief Non-conservative restriction of a W3/Wtheta field
+  !> @param[in,out] target_field  Target field, on a coarse mesh
+  !> @param[in]     source_field  Source field, on a fine mesh
+  subroutine restrict_scalar( target_field, source_field )
+
+    use sci_restrict_scalar_unweighted_kernel_mod, &
+                                  only: restrict_scalar_unweighted_kernel_type
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+
+    call invoke( name='restrict_scalar_unweighted', &
+            restrict_scalar_unweighted_kernel_type(target_field, source_field) )
+
+  end subroutine restrict_scalar
+
+  !> @brief Non-conservative restriction of a W3/Wtheta multidata field
+  !> @param[in,out] target_field  Target field, on a coarse mesh
+  !> @param[in]     source_field  Source field, on a fine mesh
+  subroutine restrict_multidata( target_field, source_field )
+
+    use psykal_lite_mod, only: invoke_restrict_multidata_scalar_kernel_type
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+    type(function_space_type), pointer :: fs_type => null()
+    integer(kind=i_def) :: ndata
+
+    fs_type => source_field%get_function_space()
+    ndata = fs_type%get_ndata()
+
+    if (fs_type%is_ndata_first()) then
+      call log_event('Multidata restriction has only been implemented for column first multidata fields', LOG_LEVEL_ERROR)
+    end if
+
+    call invoke_restrict_multidata_scalar_kernel_type(target_field, source_field, ndata)
+
+  end subroutine restrict_multidata
+
+  !> @brief Non-conservative, irreversible prolongation of a W3/Wtheta field
+  !> @details This is used for non-conservative reconstruction of a W3/Wtheta
+  !!          field on a finer mesh, to be used for instance for a pressure or
+  !!          potential temperature field. The recovery order argument
+  !!          determines what order of reconstruction to use -- a zeroth-order
+  !!          recovery is equivalent to injection.
+  !> @param[in,out] target_field        Target field, on a fine mesh
+  !> @param[in]     source_field        Source field, on a coarse mesh
+  !> @param[in]     recovery_order_arg  Order of reconstruction to use
+  subroutine prolong_scalar_simple( target_field, source_field, &
+                                    recovery_order_arg )
+
+    use sci_prolong_scalar_unweighted_kernel_mod, &
+                                 only: prolong_scalar_unweighted_kernel_type
+    use psykal_lite_mod,         only: invoke_prolong_scalar_linear_kernel_type
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+    integer(kind=i_def),        intent(in)    :: recovery_order_arg
+    integer(kind=i_def)                       :: stencil_extent
+
+    select case ( recovery_order_arg )
+    case ( recovery_order_constant )
+      call invoke( setval_c(target_field, 0.0_r_def ), &
+                   prolong_scalar_unweighted_kernel_type(target_field, source_field) )
+    case ( recovery_order_linear )
+      stencil_extent = 1_i_def
+      call invoke( setval_c(target_field, 0.0_r_def ) )
+      call invoke_prolong_scalar_linear_kernel_type(target_field, source_field, stencil_extent)
+    case default
+      call log_event('Recovery order invalid or not implemented', LOG_LEVEL_ERROR)
+    end select
+
+  end subroutine prolong_scalar_simple
+
+  !> @brief Non-conservative, irreversible prolongation of a W3/Wtheta multidata field
+  !> @details This is used for non-conservative reconstruction of a W3/Wtheta multidata
+  !!          field on a finer mesh, to be used for instance for a pressure or
+  !!          potential temperature field. The recovery order argument
+  !!          determines what order of reconstruction to use -- a zeroth-order
+  !!          recovery is equivalent to injection.
+  !> @param[in,out] target_field        Target field, on a fine mesh
+  !> @param[in]     source_field        Source field, on a coarse mesh
+  !> @param[in]     source_mask         Source mask, on a coarse mesh
+  !> @param[in]     recovery_order_arg  Order of reconstruction to use
+  subroutine prolong_multidata_simple( target_field, source_field, source_mask, recovery_order_arg )
+
+    use psykal_lite_mod,          only: invoke_prolong_multidata_linear_kernel_type, &
+                                        invoke_prolong_multidata_scalar_kernel_type
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(in)    :: source_mask
+    type(field_type),           intent(inout) :: target_field
+    integer(kind=i_def),        intent(in)    :: recovery_order_arg
+    integer(kind=i_def)                       :: ndata, stencil_extent
+    type(function_space_type), pointer :: fs_type => null()
+
+    fs_type => source_field%get_function_space()
+    ndata = fs_type%get_ndata()
+
+    if (fs_type%is_ndata_first()) then
+      call log_event('Multidata prolongation has only been implemented for column first multidata fields', LOG_LEVEL_ERROR)
+    end if
+
+    select case ( recovery_order_arg )
+    case ( recovery_order_constant )
+      call invoke( setval_c(target_field, 0.0_r_def ) )
+      call invoke_prolong_multidata_scalar_kernel_type(target_field, source_field, ndata)
+    case ( recovery_order_linear )
+      stencil_extent = 1_i_def
+      call invoke( setval_c(target_field, 0.0_r_def ) )
+      call invoke_prolong_multidata_linear_kernel_type(target_field, source_field, source_mask, stencil_extent, ndata)
+    case default
+      call log_event('Recovery order invalid or not implemented', LOG_LEVEL_ERROR)
+    end select
+
+  end subroutine prolong_multidata_simple
+
+  !> @brief Non-conservative, reversible prolongation of a W3/Wtheta field
+  !> @param[in,out] target_field  Target field, on a fine mesh
+  !> @param[in]     source_field  Source field, on a coarse mesh
+  subroutine prolong_scalar_reversible( target_field, source_field )
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+    type(field_type)                          :: recovered_field_fine
+    type(field_type)                          :: recovered_field_coarse
+    type(field_type)                          :: rev_correction_fine
+    type(field_type)                          :: rev_correction_coarse
+    type(function_space_type),        pointer :: fs_coarse
+    type(function_space_type),        pointer :: fs_fine
+
+    fs_coarse => source_field%get_function_space()
+    fs_fine => target_field%get_function_space()
+
+    call recovered_field_fine%initialise( vector_space = fs_fine )
+    call rev_correction_fine%initialise( vector_space = fs_fine )
+    call recovered_field_coarse%initialise( vector_space = fs_coarse )
+    call rev_correction_coarse%initialise( vector_space = fs_coarse )
+
+    ! Call other operators to get fields needed for reversible reconstruction
+    call prolong_scalar_simple(recovered_field_fine, source_field, recovery_order)
+    call restrict_scalar(recovered_field_coarse, recovered_field_fine)
+    call invoke( X_minus_Y(rev_correction_coarse, source_field, recovered_field_coarse) )
+    call prolong_scalar_simple(rev_correction_fine, rev_correction_coarse, recovery_order_constant)
+    ! Add together constituent fields
+    call invoke( X_plus_Y(target_field, recovered_field_fine, rev_correction_fine) )
+
+  end subroutine prolong_scalar_reversible
+
+  !> @brief Alg for non-conservatively mapping W3/Wtheta fields between meshes
+  !> @details This routine maps a W3 or Wtheta field non-conservatively between
+  !!          meshes, according to the namelist options. It is appropriate for
+  !!          fields such as pressure or potential temperature fields. Based on
+  !!          the mesh of the source and target fields, this will call the
+  !!          appropriate restriction / prolongation routines.
+  !> @param[in,out] target_field       Target field
+  !> @param[in]     source_field       Source field
+  !> @param[in]     source_mask        Optional source mask
+  !> @param[in]     lowest_order_flag  Optional logical argument to force any
+  !!                                   recovery to be lowest-order
+  subroutine map_scalar_intermesh( target_field, source_field, source_mask, lowest_order_flag )
+
+
+    implicit none
+
+    type(field_type),              intent(in)    :: source_field
+    type(field_type),              intent(inout) :: target_field
+    type(field_type), optional,    intent(in)    :: source_mask
+    logical(kind=l_def), optional, intent(in)    :: lowest_order_flag
+
+
+    type(mesh_type), pointer  :: source_mesh
+    type(mesh_type), pointer  :: source_mesh_2d
+    type(mesh_type), pointer  :: target_mesh
+    type(field_type)          :: source_mask_temp
+    integer(kind=i_def)       :: source_ncells
+    integer(kind=i_def)       :: target_ncells
+    integer(kind=i_def)       :: recovery_order_arg
+    integer(kind=i_def)       :: ndata, nlayers
+    integer(kind=i_def)       :: element_order_h
+    integer(kind=i_def)       :: element_order_v
+    type(function_space_type), pointer :: fs_type
+    type(function_space_type), pointer :: fs_source_2d
+
+    ! Get source and target mesh ids and meshes
+    source_mesh => source_field%get_mesh()
+    target_mesh => target_field%get_mesh()
+    source_mesh_2d => mesh_collection%get_mesh(source_mesh, TWOD)
+
+    element_order_h = source_field%get_element_order_h()
+    element_order_v = source_field%get_element_order_v()
+
+    fs_source_2d => function_space_collection%get_fs(source_mesh_2d,  &
+                                                     element_order_h, &
+                                                     element_order_v, W3)
+
+    nlayers = source_mesh%get_nlayers()
+
+    fs_type => source_field%get_function_space()
+    ndata = fs_type%get_ndata()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    if ( source_ncells == target_ncells ) then
+
+      call invoke( setval_X(target_field, source_field))
+
+    else if ( source_ncells > target_ncells ) then
+      if (ndata > 1) then
+        call restrict_multidata(target_field, source_field)
+      else
+        call restrict_scalar(target_field, source_field)
+      end if
+
+    else
+      if ( present(lowest_order_flag) .and. lowest_order_flag ) then
+        recovery_order_arg = recovery_order_constant
+      else
+        recovery_order_arg = recovery_order
+      end if
+      if (ndata > 1) then
+        if (present(source_mask)) then
+          call prolong_multidata_simple(target_field, source_field, source_mask, recovery_order_arg)
+        else
+          call source_mask_temp%initialise( vector_space = fs_source_2d )
+          call invoke( setval_c(source_mask_temp, 1.0_r_def))
+          call prolong_multidata_simple(target_field, source_field, source_mask_temp, recovery_order_arg)
+        end if
+      else
+
+        if ( recovery_order_arg == recovery_order_constant &
+            .or. reconstruction == reconstruction_simple ) then
+          call prolong_scalar_simple(target_field, source_field, recovery_order_arg)
+
+        else
+          ! Reversible reconstruction
+          call prolong_scalar_reversible(target_field, source_field)
+
+        end if
+      end if
+    end if
+
+  end subroutine map_scalar_intermesh
+
+  !> @brief Interface to map_scalar_intermesh where lowest_order_flag option is not required
+  !> @details Can be used to satisfy generic remapping requirements
+  !> @param[in,out] target_field       Target field
+  !> @param[in]     source_field       Source field
+  subroutine map_scalar_field( target_field, source_field )
+
+    implicit none
+
+    type(field_type),              intent(in)    :: source_field
+    type(field_type),              intent(inout) :: target_field
+
+    call map_scalar_intermesh( target_field, source_field )
+
+  end subroutine map_scalar_field
+
+  !> @brief Conservative restriction of a W3 field (such as a density)
+  !> @param[in,out] target_field  Target field, on a coarse mesh
+  !> @param[in]     source_field  Source field, on a fine mesh
+  subroutine restrict_rho( target_field, source_field )
+
+    use sci_restrict_scalar_weighted_kernel_mod, &
+                                     only: restrict_scalar_weighted_kernel_type
+    use sci_mapping_constants_mod,   only: get_intermesh_weights_w3_rdef
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+    type(field_type),           pointer       :: weights
+
+    weights => get_intermesh_weights_w3_rdef(source_field%get_mesh(), &
+                                             target_field%get_mesh())
+
+    call invoke( name='restrict_scalar_weighted',                              &
+      restrict_scalar_weighted_kernel_type(target_field, source_field, weights) )
+
+  end subroutine restrict_rho
+
+  !> @brief Conservative injection (prolong) of a W3 field (such as a density)
+  !> @param[in,out] target_field  Target field, on a fine mesh
+  !> @param[in]     source_field  Source field, on a coarse mesh
+  subroutine inject_rho( target_field, source_field )
+
+    use sci_prolong_scalar_weighted_kernel_mod, &
+                                      only: prolong_scalar_weighted_kernel_type
+    use sci_mapping_constants_mod,    only: get_intermesh_weights_w3_rdef
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+    type(field_type),           pointer       :: weights
+
+    weights => get_intermesh_weights_w3_rdef(target_field%get_mesh(), &
+                                             source_field%get_mesh())
+
+    call invoke(                                                       &
+      setval_c(target_field, 0.0_r_def),                               &
+      prolong_scalar_weighted_kernel_type(target_field, source_field, weights) )
+
+  end subroutine inject_rho
+
+  !> @brief Conservative, reversible prolongation of a W3 field (e.g. a density)
+  !> @param[in,out] target_field  Target field, on a fine mesh
+  !> @param[in]     source_field  Source field, on a coarse mesh
+  subroutine prolong_rho_reversible( target_field, source_field )
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+    type(field_type)                          :: recovered_field_fine
+    type(field_type)                          :: recovered_field_coarse
+    type(field_type)                          :: mass_correction_fine
+    type(field_type)                          :: mass_correction_coarse
+    type(function_space_type),        pointer :: w3_fs_coarse
+    type(function_space_type),        pointer :: w3_fs_fine
+
+    w3_fs_coarse => source_field%get_function_space()
+    w3_fs_fine => target_field%get_function_space()
+
+    call recovered_field_fine%initialise( vector_space = w3_fs_fine )
+    call mass_correction_fine%initialise( vector_space = w3_fs_fine )
+    call recovered_field_coarse%initialise( vector_space = w3_fs_coarse )
+    call mass_correction_coarse%initialise( vector_space = w3_fs_coarse )
+
+    ! Call other operators to get fields needed for reversible reconstruction
+    call prolong_scalar_simple(recovered_field_fine, source_field, recovery_order)
+    call restrict_rho(recovered_field_coarse, recovered_field_fine)
+    call invoke( X_minus_Y(mass_correction_coarse, source_field, recovered_field_coarse) )
+    call inject_rho(mass_correction_fine, mass_correction_coarse)
+    ! Add together constituent fields
+    call invoke( X_plus_Y(target_field, recovered_field_fine, mass_correction_fine) )
+
+  end subroutine prolong_rho_reversible
+
+  !> @brief Public routine for conservatively mapping a W3 field between meshes
+  !> @details This routine maps a W3 conservatively between meshes, according to
+  !!          the namelist options. Based on the mesh of the source and target
+  !!          fields, this will call the appropriate restriction/prolongation
+  !!          routines.
+  !> @param[in,out] target_field  Target field, on any mesh
+  !> @param[in]     source_field  Source field, on any mesh
+  subroutine map_rho_intermesh( target_field, source_field )
+
+    implicit none
+
+    type(field_type),           intent(in)    :: source_field
+    type(field_type),           intent(inout) :: target_field
+
+    type(mesh_type),           pointer :: source_mesh
+    type(mesh_type),           pointer :: target_mesh
+    integer(kind=i_def)                :: source_ncells
+    integer(kind=i_def)                :: target_ncells
+
+    ! Get source and target mesh ids and meshes
+    source_mesh => source_field%get_mesh()
+    target_mesh => target_field%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    if ( source_ncells == target_ncells ) then
+      call invoke( setval_X(target_field, source_field))
+
+    else if ( source_ncells > target_ncells ) then
+      call restrict_rho(target_field, source_field)
+
+    else
+      if ( recovery_order == recovery_order_constant ) then
+        call inject_rho(target_field, source_field)
+
+      else if ( reconstruction == reconstruction_simple ) then
+        ! Cannot do conservative simple reconstruction, so piggy-back on the
+        ! pressure mapping routine
+        call prolong_scalar_simple(target_field, source_field, recovery_order)
+
+      else
+        ! Reversible reconstruction
+        call prolong_rho_reversible(target_field, source_field)
+
+      end if
+    end if
+
+  end subroutine map_rho_intermesh
+
+  !> @details An algorithm for mapping W2 vector fields
+  !> @param[in,out] target_field  Target W2 field
+  !> @param[in]     source_field  Source W2 field
+  subroutine map_w2_intermesh( target_field, source_field )
+
+    use sci_prolong_w2_kernel_mod,      only: prolong_w2_kernel_type
+    use sci_restrict_w2_kernel_mod,     only: restrict_w2_kernel_type
+    use sci_mapping_constants_mod,      only: get_intermesh_weights_w2
+
+    implicit none
+
+    type(field_type),    intent(in)    :: source_field
+    type(field_type),    intent(inout) :: target_field
+
+    type(field_type),          pointer :: weights
+    type(mesh_type),           pointer :: source_mesh
+    type(mesh_type),           pointer :: target_mesh
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    integer(kind=i_def)                :: source_ncells
+    integer(kind=i_def)                :: target_ncells
+
+    ! Get source and target meshes
+    source_mesh => source_field%get_mesh()
+    target_mesh => target_field%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    ! Map W2 vector field from source to target
+    if ( source_ncells > target_ncells ) then
+      face_selector_ew => get_face_selector_ew(target_mesh%get_id())
+      face_selector_ns => get_face_selector_ns(target_mesh%get_id())
+      call invoke( restrict_w2_kernel_type(target_field, source_field, &
+                                           face_selector_ew, face_selector_ns) )
+
+    else if ( source_ncells < target_ncells ) then
+      weights => get_intermesh_weights_w2(target_mesh, source_mesh)
+      ! Prolong kernel increments target_field, so need to set it to be 0 first
+      call invoke( setval_c(target_field, 0.0_r_def), &
+                   prolong_w2_kernel_type(target_field, source_field, weights) )
+
+    else
+      call invoke( setval_X(target_field, source_field) )
+    end if
+
+  end subroutine map_w2_intermesh
+
+
+  !> @details An algorithm for mapping W0 scalar fields
+  !> @param[in,out] target_field Target field
+  !> @param[in] source_field  Source field
+  subroutine map_w0_intermesh( target_field, source_field )
+
+    use sci_prolong_w0_kernel_mod,  only: prolong_w0_kernel_type
+    use sci_restrict_w0_kernel_mod, only: restrict_w0_kernel_type
+
+    implicit none
+
+    type(field_type),    intent(in)    :: source_field
+    type(field_type),    intent(inout) :: target_field
+
+    type(mesh_type), pointer  :: source_mesh
+    type(mesh_type), pointer  :: target_mesh
+    integer(kind=i_def)       :: source_ncells
+    integer(kind=i_def)       :: target_ncells
+
+    ! Get source and target mesh id's and meshes
+    source_mesh => source_field%get_mesh()
+    target_mesh => target_field%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    ! Map scalar field from source to target
+    if ( source_ncells > target_ncells ) then
+      call invoke( setval_c(target_field, 0.0_r_def), &
+                   restrict_w0_kernel_type(target_field, source_field) )
+
+    else if ( source_ncells < target_ncells ) then
+      call invoke( setval_c(target_field, 0.0_r_def ), &
+                   prolong_w0_kernel_type(target_field, source_field) )
+
+    else
+      call invoke( setval_X(target_field, source_field) )
+    end if
+
+  end subroutine map_w0_intermesh
+
+  !> @brief Conservative restriction of a mixing ratio field
+  !> @param[in,out] target_field     Target mixing ratio field, on a coarse mesh
+  !> @param[in]     source_field     Source mixing ratio field, on a fine mesh
+  !> @param[in]     target_rho_sh_w3 Dry density in shifted W3, on the target
+  !!                                 (coarse) mesh
+  !> @param[in]     source_rho_sh_w3 Dry density in shifted W3, on the source
+  !!                                 (fine) mesh
+  subroutine restrict_mr( target_field, source_field, &
+                          target_rho_sh_w3, source_rho_sh_w3 )
+
+    implicit none
+
+    type(field_type),    intent(inout) :: target_field
+    type(field_type),    intent(in)    :: source_field
+    type(field_type),    intent(in)    :: target_rho_sh_w3
+    type(field_type),    intent(in)    :: source_rho_sh_w3
+    type(field_type)                   :: target_field_sh_w3
+    type(field_type)                   :: source_field_sh_w3
+    type(field_type)                   :: rho_X_source, rho_X_target
+    type(function_space_type), pointer :: target_sh_w3_fs
+    type(function_space_type), pointer :: source_sh_w3_fs
+
+    target_sh_w3_fs => target_rho_sh_w3%get_function_space()
+    source_sh_w3_fs => source_rho_sh_w3%get_function_space()
+
+    call rho_X_source%initialise( source_sh_w3_fs )
+    call rho_X_target%initialise( target_sh_w3_fs )
+    call source_field_sh_w3%initialise( source_sh_w3_fs )
+    call target_field_sh_w3%initialise( target_sh_w3_fs )
+
+    ! Convert source field to to density in shifted W3
+    call invoke( X_times_Y(rho_X_source, source_rho_sh_w3, source_field) )
+
+    ! Restrict as a density
+    call restrict_rho(rho_X_target, rho_X_source)
+
+    ! Convert back to mixing ratio
+    call invoke( X_divideby_Y(target_field, rho_X_target, target_rho_sh_w3) )
+
+  end subroutine restrict_mr
+
+  !> @brief Conservative injection (prolong) of a mixing ratio field
+  !> @param[in,out] target_field     Target mixing ratio field, on a fine mesh
+  !> @param[in]     source_field     Source mixing ratio field, on a coarse mesh
+  !> @param[in]     target_rho_sh_w3 Dry density in shifted W3, on the target
+  !!                                 (fine) mesh
+  !> @param[in]     source_rho_sh_w3 Dry density in shifted W3, on the source
+  !!                                 (coarse) mesh
+  subroutine inject_mr( target_field, source_field, &
+                        target_rho_sh_w3, source_rho_sh_w3 )
+
+    implicit none
+
+    type(field_type),    intent(inout) :: target_field
+    type(field_type),    intent(in)    :: source_field
+    type(field_type),    intent(in)    :: target_rho_sh_w3
+    type(field_type),    intent(in)    :: source_rho_sh_w3
+    type(field_type)                   :: target_field_sh_w3
+    type(field_type)                   :: source_field_sh_w3
+    type(field_type)                   :: rho_X_source, rho_X_target
+    type(function_space_type), pointer :: target_sh_w3_fs
+    type(function_space_type), pointer :: source_sh_w3_fs
+
+    target_sh_w3_fs => target_rho_sh_w3%get_function_space()
+    source_sh_w3_fs => source_rho_sh_w3%get_function_space()
+
+    call rho_X_source%initialise( source_sh_w3_fs )
+    call rho_X_target%initialise( target_sh_w3_fs )
+    call source_field_sh_w3%initialise( source_sh_w3_fs )
+    call target_field_sh_w3%initialise( target_sh_w3_fs )
+
+    ! Convert source field to to density in shifted W3
+    call invoke( X_times_Y(rho_X_source, source_rho_sh_w3, source_field) )
+
+    ! Mass-conservative injection using the density
+    call inject_rho(rho_X_target, rho_X_source)
+
+    ! Convert back to mixing ratio
+    call invoke( X_divideby_Y(target_field, rho_X_target, target_rho_sh_w3) )
+
+  end subroutine inject_mr
+
+  !> @brief Uncorrected, reversible prolongation of a mixing ratio
+  !> @details Performs the reversible prolongation of a mixing ratio field, but
+  !!          without correcting to avoid the generation of negative values.
+  !!          Also returns the injected source field, which may subsequently be
+  !!          used to perform the negative correction. This prolongation may be
+  !!          conservative or non-conservative (dependent on whether moisture
+  !!          transport is also conservative). In the non-conservative case,
+  !!          this is mapped like a Wtheta field.
+  !> @param[in,out] target_field     Target mixing ratio field, on a fine mesh
+  !> @param[in,out] inject_field     Injected source field, on a fine mesh
+  !> @param[in]     source_field     Source mixing ratio field, on a coarse mesh
+  !> @param[in]     target_rho_sh_w3 Dry density in shifted W3, on the target
+  !!                                 (fine) mesh
+  !> @param[in]     source_rho_sh_w3 Dry density in shifted W3, on the source
+  !!                                 (coarse) mesh
+  subroutine prolong_mr_reversible( target_field, inject_field, source_field, &
+                                    target_rho_sh_w3, source_rho_sh_w3 )
+
+    implicit none
+
+    type(field_type),    intent(inout) :: target_field
+    type(field_type),    intent(inout) :: inject_field
+    type(field_type),    intent(in)    :: source_field
+    type(field_type),    intent(in)    :: target_rho_sh_w3
+    type(field_type),    intent(in)    :: source_rho_sh_w3
+    type(field_type)                   :: recovered_field_fine
+    type(field_type)                   :: recovered_field_coarse
+    type(field_type)                   :: rev_correction_fine
+    type(function_space_type), pointer :: wt_fs_coarse
+    type(function_space_type), pointer :: wt_fs_fine
+    logical(kind=l_def)                :: moisture_advective
+
+    wt_fs_coarse => source_field%get_function_space()
+    wt_fs_fine => target_field%get_function_space()
+
+    call recovered_field_fine%initialise( vector_space = wt_fs_fine )
+    call rev_correction_fine%initialise( vector_space = wt_fs_fine )
+    call recovered_field_coarse%initialise( vector_space = wt_fs_coarse )
+
+    ! Common recovery for both approaches
+    call prolong_scalar_simple(recovered_field_fine, source_field, recovery_order)
+
+    moisture_advective = check_moisture_advective()
+    if ( moisture_advective ) then
+      ! Prolongation using Wtheta routines
+      call prolong_scalar_simple(inject_field, source_field, recovery_order_constant)
+      call restrict_scalar(recovered_field_coarse, recovered_field_fine)
+      call prolong_scalar_simple(rev_correction_fine, recovered_field_coarse, recovery_order_constant)
+    else
+      ! Conservative prolongation
+      call inject_mr(inject_field, source_field, target_rho_sh_w3, source_rho_sh_w3)
+      call restrict_mr(recovered_field_coarse, recovered_field_fine, source_rho_sh_w3, target_rho_sh_w3)
+      call inject_mr(rev_correction_fine, recovered_field_coarse, target_rho_sh_w3, source_rho_sh_w3)
+    end if
+
+    ! Apply reversible correction
+    call invoke( inc_X_minus_Y(rev_correction_fine, inject_field), &
+                 X_minus_Y(target_field, recovered_field_fine, rev_correction_fine) )
+
+  end subroutine prolong_mr_reversible
+
+  !> @brief Maps a bundle of mixing ratios between meshes
+  !> @details Controls the mapping of mixing ratio bundles between meshes. This
+  !!          routine contains various if statements to control the computation
+  !!          of the new mixing ratios, dependent upon namelist options. If
+  !!          reversible prolongation is used, then a correction to prevent
+  !!          negative values will be applied.
+  !> @param[in,out] target_bundle  Bundle of mixing ratios to be computed
+  !> @param[in]     source_bundle  Input bundle of mixing ratios to be mapped
+  !> @param[in]     target_rho     Target dry density in (primary) W3
+  !> @param[in]     source_rho     Source dry density in (primary) W3
+  subroutine map_mr_bundle_intermesh( target_bundle, source_bundle, &
+                                      target_rho, source_rho )
+
+    use sci_adjust_lambda_kernel_mod, only: adjust_lambda_kernel_type
+    use sci_apply_lambda_kernel_mod,  only: apply_lambda_kernel_type
+
+    implicit none
+
+    type(field_type), intent(inout) :: target_bundle(:)
+    type(field_type), intent(in)    :: source_bundle(:)
+    type(field_type), intent(in)    :: target_rho
+    type(field_type), intent(in)    :: source_rho
+
+    type(mesh_type),        pointer :: source_mesh
+    type(mesh_type),        pointer :: target_mesh
+    integer(kind=i_def)             :: source_ncells
+    integer(kind=i_def)             :: target_ncells
+    integer(kind=i_def)             :: imr, bundle_size
+    type(field_type)                :: target_rho_sh_w3
+    type(field_type)                :: source_rho_sh_w3
+    type(field_type)                :: lambda
+    type(field_type),   allocatable :: inject_bundle(:)
+
+    ! Get source and target mesh ids and meshes
+    source_mesh => source_bundle(1)%get_mesh()
+    target_mesh => target_bundle(1)%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    bundle_size = SIZE(target_bundle)
+
+    if (target_ncells < source_ncells .and.               &
+        reconstruction == reconstruction_reversible .and. &
+        negative_correction == negative_correction_consistent) then
+        ! Reversible prolongation with consistent negative correction, needs special treatment
+        call obtain_shifted_rho(target_rho_sh_w3, target_rho)
+        call obtain_shifted_rho(source_rho_sh_w3, source_rho)
+        ! Conservation is handled by prolongation routine so no if statement
+        allocate(inject_bundle(bundle_size))
+        call clone_bundle(target_bundle, inject_bundle, bundle_size)
+        do imr = 1, bundle_size
+          call prolong_mr_reversible(target_bundle(imr), inject_bundle(imr), &
+                                      source_bundle(imr), target_rho_sh_w3,   &
+                                      source_rho_sh_w3)
+        end do
+        call lambda%initialise( source_bundle(1)%get_function_space() )
+        call invoke( setval_c(lambda, 0.0_r_def) )
+        ! First loop through fields to find lambda for all of them
+        do imr = 1, bundle_size
+          call invoke( adjust_lambda_kernel_type(lambda, target_bundle(imr), inject_bundle(imr)) )
+        end do
+        ! Now loop through fields correcting negativity
+        do imr = 1, bundle_size
+          call invoke( apply_lambda_kernel_type(target_bundle(imr), lambda, inject_bundle(imr)) )
+          call invoke( enforce_lower_bound_kernel_type(target_bundle(imr), 0.0_r_def) )
+        end do
+        deallocate(inject_bundle)
+    else
+      ! Fields can be mapped separately
+      do imr = 1, bundle_size
+        call map_mr_intermesh(target_bundle(imr), source_bundle(imr), &
+                             target_rho, source_rho)
+      end do
+
+      ! Ensure positivity by clipping
+      do imr = 1, bundle_size
+        call invoke( enforce_lower_bound_kernel_type(target_bundle(imr), 0.0_r_def) )
+      end do
+    end if
+
+  end subroutine map_mr_bundle_intermesh
+
+  !> @brief Maps a mixing ratio field between meshes
+  !> @details Controls the mapping of a mixing ratio between meshes. This
+  !!          routine contains various if statements to control the computation
+  !!          of the new mixing ratio, dependent upon namelist options. If
+  !!          reversible prolongation is used, then a correction to prevent
+  !!          negative values will be applied.
+  !> @param[in,out] target_mr      Mixing ratio to be computed
+  !> @param[in]     source_mr      Input mixing ratio to be mapped
+  !> @param[in]     target_rho     Target dry density in (primary) W3
+  !> @param[in]     source_rho     Source dry density in (primary) W3
+  subroutine map_mr_intermesh( target_mr, source_mr, &
+                               target_rho, source_rho )
+
+    use sci_adjust_lambda_kernel_mod, only: adjust_lambda_kernel_type
+    use sci_apply_lambda_kernel_mod,  only: apply_lambda_kernel_type
+
+    implicit none
+
+    type(field_type), intent(inout) :: target_mr
+    type(field_type), intent(in)    :: source_mr
+    type(field_type), intent(in)    :: target_rho
+    type(field_type), intent(in)    :: source_rho
+
+    type(mesh_type),        pointer :: source_mesh
+    type(mesh_type),        pointer :: target_mesh
+    integer(kind=i_def)             :: source_ncells
+    integer(kind=i_def)             :: target_ncells
+    type(field_type)                :: target_rho_sh_w3
+    type(field_type)                :: source_rho_sh_w3
+    type(field_type)                :: lambda
+    type(field_type)                :: inject_mr_field
+    logical(kind=l_def)             :: moisture_advective
+
+    ! Get source and target mesh ids and meshes
+    source_mesh => source_mr%get_mesh()
+    target_mesh => target_mr%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    if ( target_ncells == source_ncells ) then
+      call invoke( setval_X(target_mr, source_mr))
+    else
+      moisture_advective = check_moisture_advective()
+      if ( .not. moisture_advective ) then
+        ! Pre-mapping calculations
+        call obtain_shifted_rho(target_rho_sh_w3, target_rho)
+        call obtain_shifted_rho(source_rho_sh_w3, source_rho)
+      end if
+
+      ! ---------------------------------------------------------------------- !
+      ! Restriction
+      ! ---------------------------------------------------------------------- !
+      if ( target_ncells < source_ncells ) then
+        if ( moisture_advective ) then
+          ! Use Wtheta restriction -- not conservative
+          call restrict_scalar(target_mr, source_mr)
+        else
+          ! Conservative restriction, using dry density
+          call restrict_mr(target_mr, source_mr, &
+                           target_rho_sh_w3, source_rho_sh_w3)
+        end if
+
+      ! ---------------------------------------------------------------------- !
+      ! Prolongation
+      ! ---------------------------------------------------------------------- !
+      else
+        ! For recovery order 0, just do injection. No negative correction.
+        if ( recovery_order == recovery_order_constant ) then
+          if ( moisture_advective ) then
+            ! Use Wtheta injection -- not conservative
+              call prolong_scalar_simple(target_mr, source_mr, recovery_order_constant)
+          else
+            ! Conservative injection, using dry density
+            call inject_mr(target_mr, source_mr, &
+                           target_rho_sh_w3, source_rho_sh_w3)
+          end if
+
+        ! Simple reconstructions, which cannot be done conservatively
+        else if ( reconstruction == reconstruction_simple ) then
+          call prolong_scalar_simple(target_mr, source_mr, recovery_order)
+
+        ! Reversible prolongation. Needs negative correction.
+        else
+          ! Conservation is handled by prolongation routine so no if statement
+          call target_mr%copy_field_properties(inject_mr_field)
+          call prolong_mr_reversible(target_mr, inject_mr_field, &
+                                     source_mr, target_rho_sh_w3,   &
+                                     source_rho_sh_w3)
+          ! Perform negative correction (if specified)
+          if ( negative_correction /= negative_correction_none) then
+            call lambda%initialise( source_mr%get_function_space() )
+            ! Reset lambda and apply it
+            call invoke( setval_c(lambda, 0.0_r_def), &
+                         adjust_lambda_kernel_type(lambda, target_mr, inject_mr_field) )
+            ! Separate invoke as on different grid
+            call invoke( apply_lambda_kernel_type(target_mr, lambda, inject_mr_field) )
+          end if
+        end if
+      end if
+
+      ! Ensure positivity by clipping no matter the negative_correction option
+      call invoke( enforce_lower_bound_kernel_type(target_mr, 0.0_r_def) )
+    end if
+
+  end subroutine map_mr_intermesh
+
+  !> @brief Maps and applies mixing ratio increments
+  !> @details Maps mixing ratio increments calculated on one mesh (e.g. a mesh
+  !!          used for physics parametrisations) and applies them to a mixing
+  !!          ratio state on another mesh. A correction may be applied to ensure
+  !!          that negative values have not been generated.
+  !> @param[in,out] target_mr_np1 Updated mixing ratio bundle to be computed (on
+  !!                              the target mesh)
+  !> @param[in]     target_mr_n   Initial mixing ratio bundle (on target mesh)
+  !> @param[in]     source_mr_inc Bundle of mixing ratio increments (on the
+  !!                              source mesh)
+  !> @param[in]     source_mr_np1 Updated mixing ratio bundle that has already
+  !!                              been computed (on source mesh)
+  !> @param[in]     target_rho    Dry density field (on target mesh)
+  !> @param[in]     source_rho    Dry density field (on source mesh)
+  subroutine apply_mr_incs( target_mr_np1, target_mr_n, source_mr_inc, &
+                            source_mr_np1, target_rho, source_rho )
+
+    use sci_adjust_lambda_kernel_mod,  only: adjust_lambda_kernel_type
+    use sci_apply_lambda_kernel_mod,   only: apply_lambda_kernel_type
+    use sci_field_bundle_builtins_mod, only: add_bundle
+
+    implicit none
+
+    type(field_type),    intent(inout) :: target_mr_np1(:)
+    type(field_type),    intent(inout) :: target_mr_n(:)
+    type(field_type),    intent(in)    :: source_mr_inc(:)
+    type(field_type),    intent(in)    :: source_mr_np1(:)
+    type(field_type),    intent(in)    :: target_rho
+    type(field_type),    intent(in)    :: source_rho
+
+    ! Internal variables
+    integer(kind=i_def)                :: source_ncells
+    integer(kind=i_def)                :: target_ncells
+    integer(kind=i_def)                :: imr, bundle_size
+    type(mesh_type),           pointer :: source_mesh
+    type(mesh_type),           pointer :: target_mesh
+    type(field_type)                   :: target_rho_sh_w3
+    type(field_type)                   :: source_rho_sh_w3
+    type(field_type)                   :: lambda
+    type(field_type),      allocatable :: dummy_bundle(:)
+    type(field_type),      allocatable :: target_mr_inc(:)
+    type(field_type),      allocatable :: inject_mr_np1(:)
+    logical(kind=l_def)                :: moisture_advective
+
+    ! Get source and target mesh id's and meshes
+    source_mesh => source_mr_np1(1)%get_mesh()
+    target_mesh => target_mr_np1(1)%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    bundle_size = SIZE(target_mr_np1)
+
+    if ( target_ncells == source_ncells ) then
+      call copy_bundle(source_mr_np1, target_mr_np1, bundle_size)
+
+    else
+      moisture_advective = check_moisture_advective()
+      if ( .not. moisture_advective ) then
+        ! Pre-mapping calculations
+        call obtain_shifted_rho(target_rho_sh_w3, target_rho)
+        call obtain_shifted_rho(source_rho_sh_w3, source_rho)
+      end if
+
+      allocate(target_mr_inc(bundle_size))
+      call clone_bundle(target_mr_np1, target_mr_inc, bundle_size)
+
+      ! ---------------------------------------------------------------------- !
+      ! Restriction (increment was on finer mesh)
+      ! ---------------------------------------------------------------------- !
+      if ( target_ncells < source_ncells ) then
+        if ( moisture_advective ) then
+          ! Use Wtheta restriction -- not conservative
+          do imr = 1, bundle_size
+            call restrict_scalar(target_mr_inc(imr), source_mr_inc(imr))
+          end do
+        else
+          ! Conservative restriction, using dry density
+          do imr = 1, bundle_size
+            call restrict_mr(target_mr_inc(imr), source_mr_inc(imr), &
+                             target_rho_sh_w3, source_rho_sh_w3)
+          end do
+        end if
+
+        ! Apply increment
+        call add_bundle(target_mr_n, target_mr_inc, target_mr_np1, bundle_size)
+
+      ! ---------------------------------------------------------------------- !
+      ! Prolongation (increment on coarser mesh)
+      ! ---------------------------------------------------------------------- !
+      else
+        ! For recovery order 0, just do injection
+        if ( recovery_order == recovery_order_constant ) then
+          if ( moisture_advective ) then
+            ! Use Wtheta injection -- not conservative
+            do imr = 1, bundle_size
+              call prolong_scalar_simple(target_mr_inc(imr), source_mr_inc(imr), recovery_order_constant)
+            end do
+          else
+            ! Conservative injection, using dry density
+            do imr = 1, bundle_size
+              call inject_mr(target_mr_inc(imr), source_mr_inc(imr), &
+                             target_rho_sh_w3, source_rho_sh_w3)
+            end do
+          end if
+
+        ! Simple reconstructions, which cannot be done conservatively
+        else if ( reconstruction == reconstruction_simple ) then
+            do imr = 1, bundle_size
+              call prolong_scalar_simple(target_mr_inc(imr), source_mr_inc(imr), recovery_order)
+            end do
+
+        ! Reversible prolongation
+        else
+          ! Conservation is handled by prolongation routine so no if statement
+          allocate(dummy_bundle(bundle_size))
+          call clone_bundle(target_mr_np1, dummy_bundle, bundle_size)
+          do imr = 1, bundle_size
+            call prolong_mr_reversible(target_mr_inc(imr), dummy_bundle(imr), &
+                                       source_mr_inc(imr), target_rho_sh_w3,   &
+                                       source_rho_sh_w3)
+          end do
+          deallocate(dummy_bundle)
+        end if
+
+        ! Apply increment
+        call add_bundle(target_mr_n, target_mr_inc, target_mr_np1, bundle_size)
+
+        ! -------------------------------------------------------------------- !
+        ! Apply negative correction
+        ! -------------------------------------------------------------------- !
+        ! target_mr_np1 may have negative values, so perform correction
+        ! Need source_mr_np1 on fine mesh
+        if ( negative_correction /= negative_correction_none ) then
+          call lambda%initialise( source_mr_np1(1)%get_function_space() )
+          allocate(inject_mr_np1(bundle_size))
+          call clone_bundle(target_mr_np1, inject_mr_np1, bundle_size)
+          if ( moisture_advective ) then
+            do imr = 1, bundle_size
+              call prolong_scalar_simple(inject_mr_np1(imr), source_mr_np1(imr), recovery_order_constant)
+            end do
+          else
+            do imr = 1, bundle_size
+              call inject_mr(inject_mr_np1(imr), source_mr_np1(imr), &
+                             target_rho_sh_w3, source_rho_sh_w3)
+            end do
+          end if
+        end if
+
+        if ( negative_correction == negative_correction_one_by_one ) then
+          do imr = 1, bundle_size
+            ! Reset lambda and apply it
+            call invoke( setval_c(lambda, 0.0_r_def), &
+                         adjust_lambda_kernel_type(lambda, target_mr_np1(imr), inject_mr_np1(imr)) )
+            ! Separate invoke as on different grid
+            call invoke( apply_lambda_kernel_type(target_mr_np1(imr), lambda, inject_mr_np1(imr)) )
+          end do
+
+        else if ( negative_correction == negative_correction_consistent ) then
+          call invoke( setval_c(lambda, 0.0_r_def) )
+          ! First loop through fields to find lambda for all of them
+          do imr = 1, bundle_size
+            call invoke( adjust_lambda_kernel_type(lambda, target_mr_np1(imr), inject_mr_np1(imr)) )
+          end do
+          ! Now loop through fields correcting negativity
+          do imr = 1, bundle_size
+            call invoke( apply_lambda_kernel_type(target_mr_np1(imr), lambda, inject_mr_np1(imr)) )
+          end do
+        end if
+      end if
+
+      ! Ensure positivity by clipping no matter the negative_correction option
+      do imr = 1, nummr
+        call invoke( enforce_lower_bound_kernel_type(target_mr_np1(imr), 0.0_r_def) )
+      end do
+
+      deallocate(target_mr_inc)
+      if (allocated(inject_mr_np1)) deallocate(inject_mr_np1)
+    end if
+
+  end subroutine apply_mr_incs
+
+end module intermesh_mappings_alg_mod

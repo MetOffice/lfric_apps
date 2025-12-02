@@ -1,0 +1,123 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> An example of an LFRic unit test.
+!> LFRic unit tests use pfUnit, a Fortran unit test framework written by NASA.
+!> This particular example tests the result of a matrix vector calculation
+!> using the code from the gungho matrix_vector_kernel_mod.
+!>
+!-------------------------------------------------------------------------------
+module lfric_coupled_test
+
+  ! Global use statements go here
+
+  use constants_mod, only : r_def
+
+  use funit
+
+  implicit none
+
+  private
+  public :: example_test
+
+  ! The test case type, containing procedures to setup, run
+  ! and clean up after a test.
+  ! It can also contain data.
+
+  @TestCase
+  type, extends(TestCase), public :: lfric_coupled_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure example_test
+  end type lfric_coupled_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The setUp subroutine is optional and is called prior to running the test.
+  !> It is used to create and initialise types / data that are used in
+  !> the tests
+  subroutine setUp( this )
+
+    implicit none
+
+    class(lfric_coupled_test_type), intent(inout) :: this
+
+    ! This section should create and initialise anything needed for the test
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The tearDown subroutine is optional and called after the test.
+  !> It is used to destroy any types / data previously created by setUp()
+  subroutine tearDown( this )
+
+
+    implicit none
+
+    class(lfric_coupled_test_type), intent(inout) :: this
+
+    ! This section should destroy any previously created types / data
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! pfUnit will run each subroutine preceded by the @test line
+  @test
+  !> A test subroutine. There can be more than one of these.
+  subroutine example_test( this )
+
+    ! This section is where the code for a self-contained test should be put
+
+    use sci_matrix_vector_kernel_mod, only : matrix_vector_code
+
+    implicit none
+
+    class(lfric_coupled_test_type), intent(inout) :: this
+
+    real(kind=r_def) :: d(4,2), x(2), y(4), answer(4)
+    real(kind=r_def) :: tol
+    integer          :: i
+
+    ! Make up a matrix
+    d(1,:) = (/ 2.0_r_def, -2.0_r_def /)
+    d(2,:) = (/ 3.0_r_def, -1.0_r_def /)
+    d(3,:) = (/ 0.4_r_def,  1.3_r_def /)
+    d(4,:) = (/ -4.5_r_def, 7.9_r_def /)
+    ! rhs vector
+    x(:) = (/ 0.25_r_def, 1.5_r_def /)
+    ! lhs vector
+    y(:) = 0.0_r_def
+    answer = matmul(d,x)
+
+    call matrix_vector_code(1, &
+                            1, &
+                            y, &
+                            x, &
+                            1, &
+                            d, &
+                            4, &
+                            4, &
+                            (/1, 2, 3, 4/), &
+                            2, &
+                            2, &
+                            (/1, 2 /) )
+
+    tol = 1.0e-14_r_def
+
+    do i = 1,4
+      ! pfUnit supports a range of assertions. This one requires the first
+      ! two arguments to be equal to within the range of the third.
+      @assertEqual( y(i), answer(i), tol )
+    end do
+
+
+  end  subroutine example_test
+
+end module lfric_coupled_test

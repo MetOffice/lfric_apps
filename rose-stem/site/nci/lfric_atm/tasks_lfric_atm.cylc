@@ -1,0 +1,116 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/nci/lfric_atm/tasks_lfric_atm.cylc") %}
+
+{# ###################################################################### #}
+{# Global NWP jobs #}
+{# ###################################################################### #}
+
+{% if task_ns.conf_name == "nwp_gal9-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_debug-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{# ###################################################################### #}
+{# Global Climate jobs #}
+{# ###################################################################### #}
+
+{% elif task_ns.conf_name == "clim_gal9_nomg-C12" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_perf-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"]
+    }) %}
+
+{# ###################################################################### #}
+{# Regional jobs #}
+{# ###################################################################### #}
+
+{% elif task_ns.conf_name == "ral3-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [64, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "ral3_ens-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [64, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "ral3_mixmol-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [64, "GB"]
+    }) %}
+
+{# ###################################################################### #}
+{# Idealised jobs #}
+{# ###################################################################### #}
+
+{% elif task_ns.conf_name == "rce_test-BiP64x64-1500x1500_MG" %}
+
+    {% do task_dict.update({
+        "memory": [64, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "thai_ben1-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "thai_ben2-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "thai_hab1-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "thai_hab2-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in site/nci/lfric_atm/tasks_lfric_atm.cylc") %}

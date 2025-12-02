@@ -1,0 +1,218 @@
+<!-- This file was created for the Proto-GAL milestone in 2022. Beyond fixing 
+     fields that are broken (including adding the exner field to the output when
+     that functionality is working) this file should not be added to or edited.
+     Not all fields processed by this file are for use in the LFRic model itself. 
+     Some are used by other applications, e.g. the IAU, but are included here to 
+     test their regrid functionality.
+-->
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+
+  <context id = "gungho_atm">
+
+    <axis_definition>
+      <axis id="vert_axis_half_levels" name="half_levels"/>
+      <axis id="vert_axis_full_levels" name="full_levels"/>
+      <axis id="radiation_levels" name="radiation_levels"/>
+      <axis id="soil_levels" name="soil_levels" n_glo="4"/>
+      <axis id="land_tiles" name="land_tiles" n_glo="9"/>
+      <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="27"/>
+    </axis_definition>
+
+    <grid_definition>
+      <grid id="node_grid">
+        <domain domain_ref="node"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="full_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_edge_grid">
+        <domain domain_ref="edge"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="soil_levels_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="soil_levels"/>
+      </grid>
+      <grid id="land_tiles_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="land_tiles"/>
+      </grid>
+      <grid id="snow_layers_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="snow_layers_and_tiles"/>
+      </grid>
+    </grid_definition>
+
+    <field_definition prec="8" >
+
+      <!-- UM2LFRIc fields used in checkpoint -->
+      <field_group id="um2lfric_fields" freq_op="1ts" operation="once"  enabled=".TRUE." >
+	<!-- Fields for Aquaplanet -->
+	<field id="ew_wind" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="ns_wind" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" />
+	<field id="upward_wind" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+	<field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+	<field id="rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" />
+	<field id="m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="m_cf" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="area_fraction" name="area_fraction" long_name="area_fraction"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="bulk_fraction" name="bulk_fraction" long_name="bulk_fraction"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="liquid_fraction" name="liquid_fraction" long_name="liquid_fraction"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="frozen_fraction" name="frozen_fraction" long_name="frozen_fraction"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="zh" name="zh" long_name="Boundary layer depth" unit="m" domain_ref="face" />
+	<field id="z0msea" name="z0msea" long_name="Momentum roughness length" unit="m" domain_ref="face" />
+	<field id="tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" />
+	<field id="ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" />
+
+	<!-- Additional fields for basic_gal -->
+	<field id="dd_mf_cb" name="dd_mf_cb" long_name="Downdraft massflux at cloud base" unit="Pa s-1" domain_ref="face" />
+	<field id="tile_snow_mass" name="tile_snow_mass" long_name="Tile snow mass" unit="kg" grid_ref="land_tiles_face_grid" />
+	<field id="tile_n_snow_layers" name="tile_n_snow_layers" long_name="Number of snow layers on tiles" unit="1" grid_ref="land_tiles_face_grid" />
+	<field id="tile_snow_depth" name="tile_snow_depth" long_name="Snow depth on tiles" unit="m" grid_ref="land_tiles_face_grid" />
+	<field id="tile_snow_rgrain" name="tile_snow_rgrain" long_name="Tile snow grain size" unit="microns" grid_ref="land_tiles_face_grid" />
+	<field id="snow_soot" name="snow_soot" long_name="Snow soot content" unit="kg kg-1" domain_ref="face" />
+	<field id="tile_snow_under_canopy" name="tile_snow_under_canopy" long_name="Snow under canopy on tiles" unit="m" grid_ref="land_tiles_face_grid" />
+	<field id="tile_snowpack_density" name="tile_snowpack_density" long_name="Snowpack density on tiles" unit="kg m-3" grid_ref="land_tiles_face_grid" />
+	<field id="tile_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="Snow layer thickness on tiles" unit="m" grid_ref="snow_layers_face_grid" />
+	<field id="tile_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="Snow layer ice mass on tiles" unit="kg m-2" grid_ref="snow_layers_face_grid" />
+	<field id="tile_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="Snow layer liquid mass on tiles" unit="kg m-2" grid_ref="snow_layers_face_grid" />
+	<field id="tile_snow_layer_temp" name="tile_snow_layer_temp" long_name="Snow layer temperature on tiles" unit="K" grid_ref="snow_layers_face_grid" />
+	<field id="tile_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="Snow layer grain size on tiles" unit="microns" grid_ref="snow_layers_face_grid" />
+	<field id="soil_temperature" name="soil_temperature" long_name="Soil temperature" unit="K" grid_ref="soil_levels_face_grid" />
+	<field id="soil_moisture" name="soil_moisture" long_name="Soil moisture content" unit="kg kg-1" grid_ref="soil_levels_face_grid"/>
+	<field id="soil_sat_frac" name="soil_sat_frac" long_name="Soil saturated fraction" unit="1" domain_ref="face" />
+	<field id="water_table" name="water_table" long_name="Water table depth" unit="m" domain_ref="face" />
+	<field id="wetness_under_soil" name="wetness_under_soil" long_name="Wetness below soil column" unit="1" domain_ref="face" />
+	<field id="surface_conductance" name="surface_conductance" long_name="Surface conductance" unit="m s-1" domain_ref="face" />
+	<field id="tile_canopy_water" name="tile_canopy_water" long_name="Canopy water content on tiles" unit="kg m-2" grid_ref="land_tiles_face_grid" />
+	<field id="tile_temperature" name="tile_temperature" long_name="Tile temperature" unit="K" grid_ref="land_tiles_face_grid" />
+	<field id="tstar_sea_ice" name="tstar_sea_ice" long_name="Sea ice surface temperature" unit="K" domain_ref="face" />
+	<field id="sea_ice_temperature" name="sea_ice_temperature" long_name="Sea-ice bulk temperature" unit="K" domain_ref="face" />
+
+	<!-- New fields for proto_gal -->
+	<field id="q" name="q" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="qcf" name="qcf" long_name="cloud_ice_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="icefrac" name="icefrac" long_name="sea ice fraction" unit="1" domain_ref="face" />
+	<field id="icethick" name="icethick" long_name="sea ice depth" unit="m" domain_ref="face" />
+	<field id="rho_r2" name="rho_r2" long_name="density*R*R" unit="1" grid_ref="half_level_face_grid"/>
+	<field id="qcl" name="qcl" long_name="cloud condensate specific liquid content" unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="total_aero" name="total_aero" long_name="total aerosol" unit="kg" grid_ref="full_level_face_grid" />
+	<field id="ls_snow_rate" name="ls_snow_rate" long_name="Large Scale Snow Rate" unit="kg m-2 s-1" domain_ref="face" />
+	<field id="conv_rain_rate" name="conv_rain_rate" long_name="Convective Rain Rate" unit="kg m-2 s-1" domain_ref="face" />
+	<field id="z0h_tile" name="z0h_tile" long_name="Thermal Roughness Length On Tiles" unit="m" grid_ref="land_tiles_face_grid" />
+	<field id="dust1_mmr" name="dust1_mmr" long_name="Dust Division 1 Mass Mixing Ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="dust2_mmr" name="dust2_mmr" long_name="Dust Division 2 Mass Mixing Ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="qt" name="qt" long_name="Total Specific Humidity" unit="1" grid_ref="full_level_face_grid" />
+	<field id="exner" name="exner_inc" long_name="Exner Pressure" unit="kg m-1 s-2" domain_ref="checkpoint_W3"/>
+
+	<!-- Fields currently unused NOT CHECKED -->
+	<field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" domain_ref="face"/>
+	<field id="unfrozen_soil_moisture" name="unfrozen_soil_moisture" long_name="Unfrozen soil moisture proportion" unit="1" grid_ref="soil_levels_face_grid" />
+	<field id="frozen_soil_moisture" name="frozen_soil_moisture" long_name="Frozen soil moisture proportion" unit="1" grid_ref="soil_levels_face_grid" />
+	<field id="soil_wet_frac" name="soil_wet_frac" long_name="Soil wet fraction" unit="1" domain_ref="face" />
+	<field id="tstar_sea" name="tstar_sea" long_name="Sea surface temperature" unit="K" domain_ref="face" />
+	<field id="land_mask" name="land_mask" long_name="land_mask" unit="1" domain_ref="checkpoint_W3" />
+	</field_group>
+
+    </field_definition>
+
+    <file_definition
+	type="one_file"
+	par_access="collective"
+	time_counter="none">
+
+      <!-- File definition for checkpoint write -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+	<field field_ref="ew_wind"/>
+	<field field_ref="ns_wind"/>
+	<field field_ref="upward_wind"/>
+	<field field_ref="theta"/>
+	<field field_ref="rho" />
+	<field field_ref="m_v" />
+	<field field_ref="m_cl"/>
+	<field field_ref="m_cf"/>
+	<field field_ref="m_r"/>
+	<field field_ref="area_fraction"/>
+	<field field_ref="bulk_fraction"/>
+	<field field_ref="liquid_fraction"/>
+	<field field_ref="frozen_fraction"/>
+	<field field_ref="zh"/>
+	<field field_ref="z0msea"/>
+
+	<!-- Additional fields for basicGAL -->
+	<field field_ref="dd_mf_cb"/>
+	<field field_ref="tile_snow_mass"/>
+	<field field_ref="tile_n_snow_layers"/>
+	<field field_ref="tile_snow_depth"/>
+	<field field_ref="tile_snow_rgrain"/>
+	<field field_ref="snow_soot"/>
+	<field field_ref="tile_snow_under_canopy"/>
+	<field field_ref="tile_snowpack_density"/>
+	<field field_ref="tile_snow_layer_thickness"/>
+	<field field_ref="tile_snow_layer_liq_mass"/>
+	<field field_ref="tile_snow_layer_ice_mass"/>
+	<field field_ref="tile_snow_layer_temp"/>
+	<field field_ref="tile_snow_layer_rgrain"/>
+	<field field_ref="soil_temperature"/>
+	<field field_ref="soil_moisture"/>
+	<field field_ref="soil_sat_frac"/>
+	<field field_ref="water_table"/>
+	<field field_ref="wetness_under_soil"/>
+	<field field_ref="surface_conductance"/>
+	<field field_ref="tile_canopy_water"/>
+	<field field_ref="tile_temperature"/>
+	<field field_ref="tstar_sea_ice"/>
+	<field field_ref="sea_ice_temperature"/>
+
+	<!-- New fields for proto_gal -->
+	<field field_ref="q"/>
+	<field field_ref="qcf"/>
+	<field field_ref="icefrac"/>
+	<field field_ref="icethick"/>
+	<field field_ref="rho_r2"/>
+	<field field_ref="qcl"/>
+	<field field_ref="total_aero"/>
+	<field field_ref="ls_snow_rate"/>
+	<field field_ref="conv_rain_rate"/>
+	<field field_ref="z0h_tile"/>
+	<field field_ref="dust1_mmr"/>
+	<field field_ref="dust2_mmr"/>
+	<field field_ref="qt"/>
+	<!-- field exner will go here -->
+      </file>
+
+      <file id="land_area_ancil" name="land_area_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+	<field id="land_area_fraction" name="land_area_fraction" long_name="land_area_fraction" unit="1" operation="once" domain_ref="face"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

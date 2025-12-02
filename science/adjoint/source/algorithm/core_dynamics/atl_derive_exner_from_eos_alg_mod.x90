@@ -1,0 +1,105 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+
+!> @brief Adjoint of tangent linear deriving exner from equation of state.
+module atl_derive_exner_from_eos_alg_mod
+
+  use constants_mod,                    only: i_def
+  use fs_continuity_mod,                only: W3
+  use field_mod,                        only: field_type
+  use log_mod,                          only: log_event, &
+                                              LOG_LEVEL_ERROR
+  use derived_config_mod,               only: bundle_size
+  use field_indices_mod,                only: igh_p, igh_t, igh_d, &
+                                              igh_u, igh_w, igh_uv
+  use formulation_config_mod,           only: eos_method,         &
+                                              eos_method_sampled, &
+                                              eos_method_projected
+  use atl_project_eos_pressure_kernel_mod, &
+                                        only: atl_project_eos_pressure_kernel_type
+  use atl_sample_eos_pressure_kernel_mod, &
+                                        only: atl_sample_eos_pressure_kernel_type
+
+  implicit none
+
+  private
+
+  public :: atl_derive_exner_from_eos
+
+contains
+
+  !> @details The adjoint of the tangent linear for specifying exner from the equation of state
+  !>
+  !> @param[inout] state                Change in Prognostic model state
+  !> @param[in]    moist_dyn_gas_law    Change in Gas law component of moist
+  !>                                    dynamics factors
+  !> @param[inout] ls_state             Lin state for Prognostic model state
+  !> @param[in]    ls_moist_dyn_gas_law Lin state for Gas law component of
+  !>                                    moist dynamics factors
+  subroutine atl_derive_exner_from_eos( state,             &
+                                        moist_dyn_gas_law, &
+                                        ls_state,          &
+                                        ls_moist_dyn_gas_law )
+
+    use operator_mod,                   only: operator_type
+    use sci_geometric_constants_mod,    only: get_coordinates, &
+                                              get_panel_id
+    use sci_fem_constants_mod,          only: get_inverse_mass_matrix_fe, &
+                                              get_qr_fe
+    use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+
+    implicit none
+
+    type( field_type ), dimension(bundle_size), intent( inout ) :: state
+    type( field_type ),                         intent( inout ) :: moist_dyn_gas_law
+    type( field_type ), dimension(bundle_size), intent( in )    :: ls_state
+    type( field_type ),                         intent( in )    :: ls_moist_dyn_gas_law
+
+    type( field_type ),           pointer :: chi(:)
+    type( field_type ),           pointer :: panel_id
+    type( operator_type ),        pointer :: m3_inv
+    type( quadrature_xyoz_type ), pointer :: qr
+
+    integer( kind=i_def ) :: mesh_id
+    integer( kind=i_def ) :: element_order_h, element_order_v
+
+    mesh_id = state(igh_p)%get_mesh_id()
+    element_order_h = state(igh_p)%get_element_order_h()
+    element_order_v = state(igh_p)%get_element_order_v()
+
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    m3_inv  => get_inverse_mass_matrix_fe(W3, mesh_id)
+    qr => get_qr_fe()
+
+    select case(eos_method)
+    case(eos_method_sampled)
+      call invoke( name = 'sample_eos_pressure',                                    &
+                   atl_sample_eos_pressure_kernel_type( state(igh_p),               &
+                                                        state(igh_d),               &
+                                                        state(igh_t),               &
+                                                        moist_dyn_gas_law,          &
+                                                        ls_state(igh_d),            &
+                                                        ls_state(igh_t),            &
+                                                        ls_moist_dyn_gas_law ) )
+    case(eos_method_projected)
+      call invoke( name = 'project_eos_pressure',                                    &
+                   atl_project_eos_pressure_kernel_type( state(igh_p),               &
+                                                         state(igh_d),               &
+                                                         state(igh_t),               &
+                                                         moist_dyn_gas_law,          &
+                                                         ls_state(igh_d),            &
+                                                         ls_state(igh_t),            &
+                                                         ls_moist_dyn_gas_law,       &
+                                                         chi,                        &
+                                                         panel_id, m3_inv, qr ) )
+    case default
+      call log_event( "Gungho: Unrecognised method to calculate pressure", LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine atl_derive_exner_from_eos
+
+end module atl_derive_exner_from_eos_alg_mod

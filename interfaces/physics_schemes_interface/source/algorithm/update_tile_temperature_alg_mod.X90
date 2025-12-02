@@ -1,0 +1,102 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Update the surface tile temperature fields.
+module update_tile_temperature_alg_mod
+  use constants_mod,                  only: r_def, i_def
+  use sci_multi_insert_kernel_mod,    only: multi_insert_kernel_type
+  use mesh_mod,                       only: mesh_type
+  use field_mod,                      only: field_type
+  use field_collection_mod,           only: field_collection_type
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+  use mesh_collection_mod,            only: mesh_collection
+  use log_mod,                        only: log_event,       &
+                                            LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_INFO
+
+  implicit none
+
+  private
+  public :: update_tile_temperature_alg
+
+  contains
+
+!> @brief Update the surface tile temperature fields using time interpolation.
+!> @details Interpolate a list of surface tile temperatures and corresponding times.
+!!          If the current
+!!          time falls outside of the range of the provided times list, then the
+!!          max/min value is used instead accordingly.
+!> @param[in]      clock            The clock
+!> @param[in,out]  surface_fields   The collection of surface fields
+subroutine update_tile_temperature_alg ( clock, surface_fields )
+
+  use specified_surface_config_mod, only: sea_surf_temps,                  &
+                                          time_data_sst,                   &
+                                          profile_size_sst,                &
+                                          time_units_sst,                  &
+                                          time_units_sst_seconds,          &
+                                          time_units_sst_minutes,          &
+                                          time_units_sst_hours,            &
+                                          time_units_sst_days
+  use jules_control_init_mod, only: first_sea_tile
+  use sci_time_interp_mod,    only: time_interpolate_list
+  use clock_mod,              only: clock_type
+
+  implicit none
+
+  type(field_collection_type), intent(inout) :: surface_fields
+  class(clock_type),           intent(in)    :: clock
+
+  type(function_space_type), pointer :: fs
+  type(field_type), pointer :: tile_temperature
+  type(field_type) :: input_field
+  type(mesh_type), pointer :: mesh
+
+  integer(i_def) :: i, j, k, n
+  integer(i_def) :: fs_idx
+  integer(i_def) :: mesh_idx
+  real(r_def) :: profile_now
+  real(r_def) :: time_now
+
+  nullify(fs, tile_temperature, mesh)
+
+  time_now = real( clock%get_step(), r_def ) * &
+	     real( clock%get_seconds_per_step(), r_def )
+
+  ! Select time units
+  select case ( time_units_sst )
+    case( time_units_sst_seconds )
+      time_now = time_now
+    case( time_units_sst_minutes )
+      time_now = time_now / 60
+    case( time_units_sst_hours )
+      time_now = time_now / 3600
+    case( time_units_sst_days )
+      time_now = time_now / 86400
+    case default
+      call log_event( 'Unknown time_units_sst', LOG_LEVEL_ERROR )
+  end select
+
+  call surface_fields%get_field( 'tile_temperature', tile_temperature )
+
+  mesh_idx = tile_temperature%get_mesh_id()
+  mesh => mesh_collection%get_mesh( mesh_idx )
+  fs_idx = tile_temperature%which_function_space()
+  fs => function_space_collection%get_fs( mesh, 0, 0, fs_idx )
+
+  call input_field%initialise( vector_space = fs)
+
+  call time_interpolate_list( profile_now, time_data_sst, &
+			      sea_surf_temps, time_now )
+
+  call invoke( setval_C ( input_field, profile_now ) )
+  call invoke( multi_insert_kernel_type( tile_temperature, input_field, &
+					 first_sea_tile, 1 ) )
+
+end subroutine update_tile_temperature_alg
+
+end module update_tile_temperature_alg_mod

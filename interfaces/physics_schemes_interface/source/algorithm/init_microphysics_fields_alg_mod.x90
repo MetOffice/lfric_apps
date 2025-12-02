@@ -1,0 +1,117 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the microphysics fields
+module init_microphysics_fields_alg_mod
+
+  use constants_mod,                   only: r_def
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_microphysics_fields_alg
+
+contains
+
+  !> @brief   Initialises the microphysics fields
+  !> @details The microphysics fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case the microphysics scheme is off.
+  !> @param[in,out] microphysics_fields Collection of fields for mphys scheme
+  subroutine init_microphysics_fields_alg(microphysics_fields)
+
+    use mphys_inputs_mod, only: l_mcr_precfrac
+    use microphysics_config_mod, only: microphysics_casim
+
+    implicit none
+    ! Arguments
+    type(field_collection_type), intent(in) :: microphysics_fields
+
+    ! Microphysics increments and outputs
+    type( field_type ), pointer :: ls_rain      => null()
+    type( field_type ), pointer :: ls_snow      => null()
+    type( field_type ), pointer :: ls_graup     => null()
+    type( field_type ), pointer :: lsca_2d      => null()
+    type( field_type ), pointer :: ls_rain_3d   => null()
+    type( field_type ), pointer :: ls_snow_3d   => null()
+    type( field_type ), pointer :: autoconv     => null()
+    type( field_type ), pointer :: accretion    => null()
+    type( field_type ), pointer :: rim_cry      => null()
+    type( field_type ), pointer :: rim_agg      => null()
+    type( field_type ), pointer :: dtheta_mphys => null()
+    type( field_type ), pointer :: dmv_mphys    => null()
+    type( field_type ), pointer :: n_cl         => null()
+    type( field_type ), pointer :: n_r          => null()
+    type( field_type ), pointer :: n_ci         => null()
+    type( field_type ), pointer :: n_s          => null()
+    type( field_type ), pointer :: n_g          => null()
+    type( field_type ), pointer :: tnuc         => null()
+    type( field_type ), pointer :: tnuc_nlcl    => null()
+    type( field_type ), pointer :: precfrac
+
+    call microphysics_fields%get_field('dtheta_mphys', dtheta_mphys)
+    call microphysics_fields%get_field('dmv_mphys', dmv_mphys)
+    call microphysics_fields%get_field('ls_rain', ls_rain)
+    call microphysics_fields%get_field('ls_snow', ls_snow)
+    call microphysics_fields%get_field('ls_graup', ls_graup)
+    call microphysics_fields%get_field('lsca_2d', lsca_2d)
+    call microphysics_fields%get_field('ls_rain_3d', ls_rain_3d)
+    call microphysics_fields%get_field('ls_snow_3d', ls_snow_3d)
+    call microphysics_fields%get_field('autoconv', autoconv)
+    call microphysics_fields%get_field('accretion', accretion)
+    call microphysics_fields%get_field('rim_cry', rim_cry)
+    call microphysics_fields%get_field('rim_agg', rim_agg)
+    call microphysics_fields%get_field('tnuc', tnuc)
+    call microphysics_fields%get_field('tnuc_nlcl', tnuc_nlcl)
+    call microphysics_fields%get_field('precfrac', precfrac)
+
+    ! Set microphysics output fields to zero for use when scheme is off
+    call invoke( setval_c(dtheta_mphys, 0.0_r_def), &
+                 setval_c(dmv_mphys,    0.0_r_def), &
+                 setval_c(ls_rain,      0.0_r_def), &
+                 setval_c(ls_snow,      0.0_r_def), &
+                 setval_c(ls_graup,     0.0_r_def), &
+                 setval_c(lsca_2d,      0.0_r_def), &
+                 setval_c(ls_rain_3d,   0.0_r_def), &
+                 setval_c(ls_snow_3d,   0.0_r_def), &
+                 setval_c(autoconv,     0.0_r_def), &
+                 setval_c(accretion,    0.0_r_def), &
+                 setval_c(rim_cry,      0.0_r_def), &
+                 setval_c(rim_agg,      0.0_r_def), &
+                 setval_c(tnuc,         0.0_r_def), &
+                 setval_c(tnuc_nlcl,    0.0_r_def))
+
+    ! Initialise Casim numbers
+    if (microphysics_casim) then
+
+      call microphysics_fields%get_field('nl_mphys', n_cl)
+      call microphysics_fields%get_field('nr_mphys', n_r)
+      call microphysics_fields%get_field('ni_mphys', n_ci)
+      call microphysics_fields%get_field('ns_mphys', n_s)
+      call microphysics_fields%get_field('ng_mphys', n_g)
+
+      ! Initialise rain, snow and graupel numbers to nonzero values
+      ! This ~10/litre (1e4) number concentration is a pragmatic choice
+      ! until number concentration prognostics are fed in from a Casim
+      ! parent model.
+      ! Cloud liquid and ice will be done using activation routines.
+      call invoke(setval_c(n_cl, 0.0_r_def),   &
+                  setval_c(n_r,  1.0e4_r_def), &
+                  setval_c(n_ci, 0.0_r_def),   &
+                  setval_c(n_s,  1.0e4_r_def), &
+                  setval_c(n_g,  1.0e4_r_def) )
+    end if
+
+    ! Initialise precipitation fraction to nonzero value - it will be set
+    ! correctly in first run through microphysics scheme
+    if (l_mcr_precfrac) call invoke(setval_c(precfrac, 0.5_r_def))
+
+  end subroutine init_microphysics_fields_alg
+
+end module init_microphysics_fields_alg_mod

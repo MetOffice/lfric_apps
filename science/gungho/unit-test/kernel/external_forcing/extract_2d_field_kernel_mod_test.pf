@@ -1,0 +1,107 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for extracting a 2D field from a specified layer of a 3D field
+!>
+module extract_2d_field_kernel_mod_test
+
+use constants_mod,                   only: i_def, r_def
+use, intrinsic :: iso_fortran_env,   only: real64
+use funit
+
+implicit none
+
+private
+public :: extract_2d_field_test_type, test_all
+
+@TestCase
+type, extends(TestCase) :: extract_2d_field_test_type
+  private
+contains
+  procedure setUp
+  procedure tearDown
+  procedure test_all
+end type extract_2d_field_test_type
+
+integer(i_def), parameter   :: nlayers = 10_i_def
+integer(i_def), parameter   :: ndf_wt  = 2_i_def
+integer(i_def), parameter   :: undf_wt = nlayers + 1_i_def
+integer(i_def), parameter   :: ndf_2d  = 1
+integer(i_def), parameter   :: undf_2d = 1
+
+integer(i_def), allocatable :: map_wt(:), map_2d(:)
+real(r_def),    allocatable :: theta(:), theta_2d(:)
+
+contains
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(extract_2d_field_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+
+    allocate( map_wt(ndf_wt), map_2d(ndf_2d) )
+    allocate( theta(undf_wt) , theta_2d(undf_2d) )
+
+    ! Create the model grid
+    map_wt(:) = (/ 1_i_def, 2_i_def /)
+    map_2d(:) = (/ 1_i_def /)
+
+    do k = 0, nlayers
+      theta(map_wt(1)+k) = real(k, r_def)
+    end do
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(extract_2d_field_test_type), intent(inout) :: this
+
+    deallocate( map_wt, map_2d )
+    deallocate( theta, theta_2d )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use extract_2d_field_kernel_mod, only: extract_2d_field_code
+
+    implicit none
+
+    class(extract_2d_field_test_type), intent(inout) :: this
+
+    integer(i_def)            :: extract_layer
+    real(r_def)               :: target_value
+    real(r_def), parameter    :: tol = 1.0e-12_r_def
+    real(r_def)               :: use_tol
+
+
+    do extract_layer = 0, nlayers
+      call extract_2d_field_code( nlayers, theta_2d,        &
+                                  theta,   extract_layer,   &
+                                  ndf_2d,  undf_2d, map_2d, &
+                                  ndf_wt, undf_wt, map_wt )
+
+      target_value = real( extract_layer, r_def )
+
+      if (r_def == real64) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( target_value )
+      end if
+
+      @assertEqual( target_value, theta(map_wt(1)+extract_layer), use_tol )
+    end do
+
+  end subroutine test_all
+
+end module extract_2d_field_kernel_mod_test

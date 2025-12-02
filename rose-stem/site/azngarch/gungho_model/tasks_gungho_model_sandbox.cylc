@@ -1,0 +1,20 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/azngarch/gungho_model/tasks_gungho_model_sandbox.cylc") %}
+
+{# Set default values for Gungho Model tasks #}
+{% if task_dict %}
+    {% if "full-debug" in task %}
+        {% if "wallclock" not in task_dict %}
+            {% do task_dict.update({"wallclock": 15}) %}
+        {% else %}
+            {% set val = 1.5 * task_dict["wallclock"] %}
+            {% do task_dict.update({"wallclock": val}) %}
+        {% endif %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finised in site/azngarch/gungho_model/tasks_gungho_model_sandbox.cylc") %}

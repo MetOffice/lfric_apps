@@ -1,0 +1,98 @@
+<!-- TODO : #325 Define fields to initialise for lfric2lfric miniapp -->
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- File definition for LFRic checkpoint read  -->
+  <context id = "lfric2lfric_source">
+
+    <!-- Include axis definitions -->
+    <axis_definition src="./axis_def_main.xml"/>
+    <axis_definition src="./axis_def_urban1t.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="./grid_def_main.xml"/>
+
+    <!-- Local file definitions -->
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- File definition for LFRic checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+
+        <!-- Atmosphere fields -->
+        <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" operation="once" />
+
+        <!-- Turbulence fields -->
+	      <field id="restart_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
+
+      </file>
+    </file_definition>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- This file contains orography ancil data -->
+      <!-- ANCIL FILES -->
+      <file id="src_orography_mean_ancil" name="src_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <!-- File definition for LFRic checkpoint write -->
+  <context id = "lfric2lfric_destination">
+
+    <!-- Include axis definitions -->
+    <axis_definition src="./axis_def_main.xml"/>
+    <axis_definition src="./axis_def_urban1t.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="./grid_def_main.xml"/>
+
+    <!-- Local file definitions -->
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- File definition for LFRic checkpoint read -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+
+        <!-- Atmosphere fields -->
+        <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" prec="8" domain_ref="checkpoint_W3" operation="once" />
+
+        <!-- Turbulence fields -->
+	      <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+
+      </file>
+    </file_definition>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- This file contains orography ancil data -->
+      <!-- ANCIL FILES -->
+      <file id="dst_orography_mean_ancil" name="dst_orography_mean_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+        <field id="surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >false</variable>
+        <variable id = "using_oasis" type = "bool">false</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+        <variable id = "oasis_codes_id" type="string" >lfric2lfric lfric2lfric</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

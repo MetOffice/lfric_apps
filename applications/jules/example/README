@@ -1,0 +1,37 @@
+This "example" directory contains a configuration file that enables
+you to run standalone jules from the command line. This directory and example
+directories for the other applications within the LFRic code
+repository are colloquially called "canned" configurations as they are
+designed to be run from the command line straight out of the can
+without needing to run the Rose Stem application.
+
+To run them without using Rose Stem, check out a working copy of a
+branch. Then:
+
+$ cd r12345_workingCopy 
+$ ./build/local_build.py -a jules # Builds jules and copies it to bin directory
+<snip lots of output>
+$ cd applications/jules/example
+$ ../bin/jules configuration.nml ;# Runs jules with the configuration file as input
+
+To ensure canned configurations are kept up to date with changes to
+the application, the Rose Stem developer test suite tests the canned
+configurations to ensure they run to completion without errors.
+
+configuration.nml
+----------------- 
+
+This file holds the application configuration. It configures a "single
+point" run of jules. It is configured to use the mesh file in
+this directory which is, in reality, not a single point mesh, but a
+2x2 biperiodic mesh. However, the configuration is designed in such a
+way as each point is computed independently from the other points
+and, in fact, gives identical results for each point. 
+
+As this configuration is tested routinely with the Gnu compiler, it
+is always expected to successfully run to completion. Note that it
+should be run single-threaded as jules does not currently support
+running with OpenMP. In practice, it means that either the jules
+executable must be built without applying OpenMP transformations
+(which is the default) or the application should be run with a single
+thread, such as by setting the environment variable OMP_NUM_THREADS=1.

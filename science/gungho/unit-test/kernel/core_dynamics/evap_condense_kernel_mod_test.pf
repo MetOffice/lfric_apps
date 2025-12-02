@@ -1,0 +1,98 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Tests the simple microphysics schemes kernel
+!>
+module evap_condense_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use evap_condense_kernel_mod, only: evap_condense_code
+    use physics_common_mod,       only: qsaturation
+
+    implicit none
+
+    integer(kind=i_def), parameter :: undf_wtheta = 3
+    real(kind=r_def),    parameter :: tol = 0.01_r_def
+
+    real(kind=r_def), allocatable :: theta(:)
+    real(kind=r_def), allocatable :: theta_inc(:)
+    real(kind=r_def), allocatable :: exner_wth(:)
+    real(kind=r_def), allocatable :: mr_v(:)
+    real(kind=r_def), allocatable :: mr_cl(:)
+    real(kind=r_def), allocatable :: mr_v_inc(:)
+    real(kind=r_def), allocatable :: mr_cl_inc(:)
+    real(kind=r_def), allocatable :: answer(:)
+
+    integer(kind=i_def) :: df
+    real(kind=r_def)    :: cpd, cpv, cl, Rd, Rv, p_zero
+
+    cpd = 1000.0_r_def
+    cpv = 3000.0_r_def
+    cl = 4000.0_r_def
+    Rd = 300.0_r_def
+    Rv = 450.0_r_def
+    p_zero = 100000.0_r_def
+
+    ! Create the data
+    allocate(exner_wth(undf_wtheta))
+    allocate(theta(undf_wtheta))
+    allocate(mr_v(undf_wtheta))
+    allocate(mr_cl(undf_wtheta))
+    allocate(theta_inc(undf_wtheta))
+    allocate(mr_v_inc(undf_wtheta))
+    allocate(mr_cl_inc(undf_wtheta))
+    allocate(answer(undf_wtheta))
+
+    exner_wth(:) = 1.0_r_def
+    theta(:) = 299.0_r_def
+    mr_cl(:) = 1.0e-2_r_def
+    theta_inc(:) = 0.0_r_def
+    mr_v_inc(:)  = 0.0_r_def
+    mr_cl_inc(:) = 0.0_r_def
+
+    ! Oversaturate by setting vapour to saturation value at higher theta
+    mr_v(:)  = qsaturation(300.0_r_def, 0.01_r_def*p_zero )
+
+    do df = 1, undf_wtheta
+      call evap_condense_code(theta_inc(df), theta(df),    &
+                              mr_v_inc(df), mr_cl_inc(df), &
+                              mr_v(df), mr_cl(df),         &
+                              exner_wth(df),               &
+                              Rd, Rv, cpd, cpv, cl, p_zero)
+    end do
+
+    answer = 0.00032_r_def
+    @assertEqual(-answer, mr_v_inc, tol)
+    @assertEqual(answer, mr_cl_inc, tol)
+
+    answer = 0.69_r_def
+    @assertEqual(answer, theta_inc, tol)
+
+    deallocate(mr_v)
+    deallocate(mr_cl)
+    deallocate(mr_v_inc)
+    deallocate(mr_cl_inc)
+    deallocate(exner_wth)
+    deallocate(theta)
+    deallocate(theta_inc)
+    deallocate(answer)
+
+  end subroutine test_all
+
+end module evap_condense_kernel_mod_test

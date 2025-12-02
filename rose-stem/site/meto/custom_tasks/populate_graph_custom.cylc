@@ -1,0 +1,43 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/custom_tasks/populate_graph_custom.cylc") %}
+
+{# This file is for defining custom graphs for tasks that don't fit into #}
+{# the templating scheme. Any non-standard tasks  added to graph here which #}
+{# are not defined elsewhere (eg. export-source tasks) will be expected to have #}
+{# a matching runtime definition in generate_runtime_custom.cylc. #}
+
+{# To define the graph, append a list to a dictionary (graph_sections) entry #}
+{# where the key is the cycle point of the graph. The list will contain 2 #}
+{# strings, where the 2nd is a task that depends on the 1st, eg. to add a #}
+{# graph to the 1st cycle for a task with conf_name "example_custom": #}
+
+{# {% if task_ns.conf_name == "example_custom" %} #}
+    {# {% set found_task = true %} #}
+
+    {# {% set run_task = task %} #}
+    {# {% set task_dict = task_values.copy() %} #}
+    {# {% do task_dict.update({"custom_task": false}) %} #}
+    {# {% include "templates/parse_build_config.cylc" %} #}
+    {# {% do tasks_to_run.update({run_task: task_dict }) %} #}
+
+    {# {% do graph_sections.append(["task_name1", "task_name2"]) %} #}
+{# {% endif %} #}
+
+{# It is important that the found_task variable is set to true and the tasks_to_run #}
+{# dictionary is updated with the current task. #}
+
+{# It is almost certain that the first task required in a graph will be an #}
+{# export-source task which should be defined: #}
+{# {% set export-source_task = "export-source => export-source_"~task_ns.platform %} #}
+
+{# For meto, this file calls sub-files to enable different tasks for each platform, #}
+{# other sites may only have one platform so only use this file. #}
+
+
+{% include "site/meto/custom_tasks/populate_graph_custom_"~task_ns.platform~".cylc" %}
+
+{% do LOG.debug("Finished in site/meto/custom_tasks/populate_graph_custom.cylc") %}

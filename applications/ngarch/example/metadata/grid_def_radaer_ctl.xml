@@ -1,0 +1,10 @@
+<!-- Aerosol diagnostic grid definitions - all on same mesh-->
+<grid_definition>
+  <grid id="var_full_face_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+  </grid>
+  <grid id="var_face">
+    <domain domain_ref="face"/>
+  </grid>
+</grid_definition>

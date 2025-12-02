@@ -1,0 +1,82 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/solver/tasks_solver.cylc") %}
+
+{% if task_ns.conf_name == "bicgstab-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["bicgstab"],
+        "resolution": "C24",
+    }) %}
+
+{% elif task_ns.conf_name == "cg-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["cg"],
+        "resolution": "C24",
+    }) %}
+
+{% elif task_ns.conf_name == "fgmres-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["fgmres"],
+        "resolution": "C24",
+    }) %}
+
+{% elif task_ns.conf_name == "gcr-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["gcr"],
+        "resolution": "C24",
+    }) %}
+
+{% elif task_ns.conf_name == "gmres-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["gmres"],
+        "resolution": "C24",
+    }) %}
+
+{% elif task_ns.conf_name == "jacobi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["jacobi"],
+        "resolution": "C24",
+    }) %}
+
+{% elif task_ns.conf_name == "prec_only-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["prec_only"],
+        "resolution": "C24",
+    }) %}
+
+{% elif task.startswith("build") %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% endif %}
+
+
+{# Set default values for Solver tasks #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/solver"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "solver"}) %}
+    {% endif %}
+
+    {% if "DT" not in task_dict %}
+        {% do task_dict.update({"DT": 600}) %}
+    {% endif %}
+
+    {% if "kgo_checks" not in task_dict %}
+        {% do task_dict.update({"kgo_checks": ["checksum"]}) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/solver/tasks_solver.cylc") %}

@@ -1,0 +1,99 @@
+@@ -1,11 +1,11 @@
+-module adj_poly1d_vert_adv_kernel_mod
++module atl_poly1d_vert_adv_kernel_mod
+   use argument_mod, only : any_discontinuous_space_1, arg_type, cell_column, gh_field, gh_integer, gh_logical, gh_read, &
+ &gh_readwrite, gh_real, gh_scalar
+-  use constants_mod, only : i_def, l_def, r_def
++  use constants_mod, only : i_def, l_def, r_def, eps
+   use fs_continuity_mod, only : w2v, wtheta
+   use kernel_mod, only : kernel_type
+   implicit none
+-  type, public, extends(kernel_type) :: adj_poly1d_vert_adv_kernel_type
++  type, public, extends(kernel_type) :: atl_poly1d_vert_adv_kernel_type
+   type(ARG_TYPE) :: META_ARGS(9) = (/ &
+     arg_type(gh_field, gh_real, gh_read, wtheta), &
+     arg_type(gh_field, gh_real, gh_readwrite, w2v), &
+@@ -18,15 +18,15 @@
+     arg_type(gh_scalar, gh_logical, gh_read)/)
+   INTEGER :: OPERATES_ON = cell_column
+   CONTAINS
+-    PROCEDURE, NOPASS :: adj_poly1d_vert_adv_code
+-END TYPE adj_poly1d_vert_adv_kernel_type
++    PROCEDURE, NOPASS :: atl_poly1d_vert_adv_code
++END TYPE atl_poly1d_vert_adv_kernel_type
+ 
+   private
+ 
+-  public :: adj_poly1d_vert_adv_code
++  public :: atl_poly1d_vert_adv_code
+ 
+   contains
+-  subroutine adj_poly1d_vert_adv_code(nlayers, advective, wind, tracer, ls_wind, ls_tracer, coeff, ndata, global_order, logspace, &
++  subroutine atl_poly1d_vert_adv_code(nlayers, advective, wind, tracer, ls_wind, ls_tracer, coeff, ndata, global_order, logspace, &
+ &ndf_wt, undf_wt, map_wt, ndf_w2v, undf_w2v, map_w2v, ndf_c, undf_c, map_c)
+     integer(kind=i_def), intent(in) :: nlayers
+     integer(kind=i_def), intent(in) :: ndf_wt
+@@ -61,7 +61,6 @@
+     real(kind=r_def) :: dpdz
+     real(kind=r_def) :: ls_dpdz
+     real(kind=r_def) :: safe_ls_tracer
+-    real(kind=r_def) :: eps
+     real(kind=r_def), dimension(0:nlayers) :: ls_log_tracer
+     real(kind=r_def) :: tmp1
+     real(kind=r_def) :: tmp2
+@@ -84,7 +83,7 @@
+         itmp3 = FLOOR(tmp2)
+         stencil(p + 1) = -itmp3 + k + p
+       enddo
+-      upwind = INT(0.5 * SIGN(1.0, ls_wind(k + map_w2v(1))) + 0.5, i_def)
++      upwind = INT(0.5_r_def * SIGN(1.0_r_def, ls_wind(k + map_w2v(1))) + 0.5_r_def, i_def)
+       upwind_offset = upwind * use_upwind
+       stencil = stencil - upwind_offset
+       kmin = stencil(1)
+@@ -106,30 +105,41 @@
+       if (kmax > 0) then
+         stencil = -kmax + stencil
+       end if
++
++      ! ARP - calculate passive ls_dpdz first.
+       ls_dpdz = 0.0_r_def
++      if (logspace) then
++        do p = vertical_order + 1, 1, -1
++          ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
++          ls_dpdz = ls_dpdz + coeff(ik)*ls_log_tracer(stencil(p))
++        end do
++      else
++        do p = vertical_order + 1, 1, -1
++          ik = p + upwind_offset*(global_order+1) + k*ndata + map_c(1) - 1
++          ls_dpdz = ls_dpdz + coeff(ik)*ls_tracer(ij + stencil(p))
++        end do
++      end if
+       dpdz = dpdz + advective(map_wt(1) + k) * ls_wind(k + map_w2v(1))
+       wind(k + map_w2v(1)) = wind(k + map_w2v(1)) + ls_dpdz * advective(map_wt(1) + k)
++
+       if (logspace) then
+         safe_ls_tracer = SIGN(MAX(eps, ABS(ls_tracer(ij + k))), ls_tracer(ij + k))
+-        ls_dpdz = ls_dpdz * safe_ls_tracer
+         tracer(ij + k) = tracer(ij + k) + ls_dpdz * dpdz
+         dpdz = dpdz * safe_ls_tracer
+         do p = vertical_order + 1, 1, -1
+           ik = global_order * upwind_offset + k * ndata + p + upwind_offset + map_c(1) - 1
+-          ls_dpdz = ls_dpdz + coeff(ik) * ls_log_tracer(stencil(p))
+           tracer(ij + stencil(p)) = tracer(ij + stencil(p)) + coeff(ik) * dpdz / SIGN(MAX(eps, ABS(ls_tracer(ij + stencil(p)))), &
+ &ls_tracer(ij + stencil(p)))
+         enddo
+       else
+         do p = vertical_order + 1, 1, -1
+           ik = global_order * upwind_offset + k * ndata + p + upwind_offset + map_c(1) - 1
+-          ls_dpdz = ls_dpdz + coeff(ik) * ls_tracer(ij + stencil(p))
+           tracer(ij + stencil(p)) = tracer(ij + stencil(p)) + coeff(ik) * dpdz
+         enddo
+       end if
+       dpdz = 0.0
+     enddo
+ 
+-  end subroutine adj_poly1d_vert_adv_code
++  end subroutine atl_poly1d_vert_adv_code
+ 
+-end module adj_poly1d_vert_adv_kernel_mod
++end module atl_poly1d_vert_adv_kernel_mod

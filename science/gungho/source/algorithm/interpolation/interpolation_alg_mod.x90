@@ -1,0 +1,189 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Algorithms for interpolating between a W2 vector wind
+!>        field and a set of three scalar W3/Wtheta wind fields.
+!>
+!> @todo: The routines in this module should be moved to the model science
+!>        directory which is likely to be gungho (to be agreed). This work will
+!>        be done as part of lfric_apps #433.
+!>
+module interpolation_alg_mod
+
+  use constants_mod,                    only: i_def, r_def
+  use dg_inc_matrix_vector_kernel_mod,  only: dg_inc_matrix_vector_kernel_type
+  use dg_matrix_vector_kernel_mod,      only: dg_matrix_vector_kernel_type
+  use sci_fem_constants_mod,            only: get_rmultiplicity_fe, &
+                                              get_rmultiplicity_fv
+  use fs_continuity_mod,                only: W2, Wtheta, W2broken
+  use field_mod,                        only: field_type
+  use function_space_mod,               only: function_space_type
+  use function_space_collection_mod,    only: function_space_collection
+  use sci_geometric_constants_mod,      only: get_panel_id, get_coordinates
+  use mesh_mod,                         only: mesh_type
+  use operator_mod,                     only: operator_type
+  use sci_average_w2b_to_w2_kernel_mod, only: average_w2b_to_w2_kernel_type
+  use sci_compute_sample_u_ops_kernel_mod, &
+                                        only: compute_sample_u_ops_kernel_type
+  use sci_convert_hdiv_field_kernel_mod, &
+                                        only: convert_hdiv_field_kernel_type
+  use sci_extract_w_kernel_mod,         only: extract_w_kernel_type
+  use sci_convert_hdiv_field_kernel_mod, &
+                                        only: convert_hdiv_field_kernel_type
+  use sci_convert_cart2sphere_vector_kernel_mod, &
+                                        only: convert_cart2sphere_vector_kernel_type
+  use sci_nodal_xyz_coordinates_kernel_mod, &
+                                        only: nodal_xyz_coordinates_kernel_type
+
+  implicit none
+
+  public :: interp_w2_to_w3wth_alg
+  public :: interp_w3wth_to_w2_alg
+
+  contains
+
+  !> @brief Interpolate a W2 wind field to two horizontal W3 fields and a vertical Wtheta field
+  !> @param[in]      u_in_w2  W2 wind field to interpolate from
+  !> @param[in, out] u_in_w3  Zonal component on W3 to interpolate to
+  !> @param[in, out] v_in_w3  Meridional component on W3 to interpolate to
+  !> @param[in, out] w_in_wth Vertical component on Wtheta to interpolate to
+  subroutine interp_w2_to_w3wth_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth)
+
+    implicit none
+
+    type(field_type), intent(in)    :: u_in_w2
+    type(field_type), intent(inout) :: u_in_w3
+    type(field_type), intent(inout) :: v_in_w3
+    type(field_type), intent(inout) :: w_in_wth
+
+    ! Local
+    integer(kind=i_def)       :: i
+    integer(kind=i_def)       :: element_order_h
+    integer(kind=i_def)       :: element_order_v
+    type(field_type), pointer :: chi(:)
+    type(field_type), pointer :: panel_id
+    type(field_type), pointer :: w2_rmultiplicity
+    type(mesh_type),  pointer :: mesh
+    type(field_type)          :: physical_wind_w3(3)
+    type(field_type)          :: physical_chi_w3(3)
+    type(field_type)          :: physical_wind_w2(3)
+    type(field_type)          :: physical_chi_w2(3)
+
+    nullify(chi, panel_id, w2_rmultiplicity, mesh)
+
+    ! Get geometry data
+    mesh => u_in_w2%get_mesh()
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    element_order_h = u_in_w2%get_element_order_h()
+    element_order_v = u_in_w2%get_element_order_v()
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
+    else
+      w2_rmultiplicity => get_rmultiplicity_fv(W2, mesh%get_id())
+    end if
+
+    ! Set up intermediate fields
+    do i = 1,3
+      call u_in_w2%copy_field_properties(physical_wind_w2(i))
+      call u_in_w2%copy_field_properties(physical_chi_w2(i))
+      call u_in_w3%copy_field_properties(physical_wind_w3(i))
+      call u_in_w3%copy_field_properties(physical_chi_w3(i))
+    end do
+
+    ! Compute horizontal wind on W3
+    ! Based on map_physics_winds in physics_mappings_alg_mod with sample_physics_winds=.true.
+    call invoke( setval_c(physical_wind_w3(1), 0.0_r_def), &
+                 setval_c(physical_wind_w3(2), 0.0_r_def), &
+                 setval_c(physical_wind_w3(3), 0.0_r_def), &
+                 convert_hdiv_field_kernel_type(physical_wind_w3, u_in_w2, chi, panel_id), &
+                 nodal_xyz_coordinates_kernel_type(physical_chi_w3, chi, panel_id) )
+    call invoke( convert_cart2sphere_vector_kernel_type(physical_wind_w3, physical_chi_w3) )
+    call invoke( setval_X(u_in_w3, physical_wind_w3(1)), &
+                 setval_X(v_in_w3, physical_wind_w3(2)), &
+
+    ! Compute vertical wind on Wtheta
+    ! Based on split_winds_alg in physics_mappings_alg_mod
+                 setval_c(physical_wind_w2(1), 0.0_r_def), &
+                 setval_c(physical_wind_w2(2), 0.0_r_def), &
+                 setval_c(physical_wind_w2(3), 0.0_r_def), &
+                 convert_hdiv_field_kernel_type(physical_wind_w2, u_in_w2, chi, panel_id), &
+                 inc_X_times_Y(physical_wind_w2(1), w2_rmultiplicity), &
+                 inc_X_times_Y(physical_wind_w2(2), w2_rmultiplicity), &
+                 inc_X_times_Y(physical_wind_w2(3), w2_rmultiplicity), &
+                 nodal_xyz_coordinates_kernel_type(physical_chi_w2, chi, panel_id) )
+    call invoke( convert_cart2sphere_vector_kernel_type(physical_wind_w2, physical_chi_w2) )
+    call invoke( extract_w_kernel_type(w_in_wth, physical_wind_w2(3)) )
+
+  end subroutine interp_w2_to_w3wth_alg
+
+  !> @brief Interpolate two horizontal W3 fields and a vertical Wtheta field to a W2 wind field
+  !> @param[in, out] u_in_w2  W2 wind field to interpolate to
+  !> @param[in]      u_in_w3  Zonal component on W3 to interpolate from
+  !> @param[in]      v_in_w3  Meridional component on W3 to interpolate from
+  !> @param[in]      w_in_wth Vertical component on Wtheta to interpolate from
+  subroutine interp_w3wth_to_w2_alg(u_in_w2, u_in_w3, v_in_w3, w_in_wth)
+
+    implicit none
+
+    type(field_type), intent(inout) :: u_in_w2
+    type(field_type), intent(in)    :: u_in_w3
+    type(field_type), intent(in)    :: v_in_w3
+    type(field_type), intent(in)    :: w_in_wth
+
+    ! Local
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+    type(field_type)                   :: u_broken
+    type(field_type),          pointer :: w2_rmultiplicity
+    type(field_type),          pointer :: chi(:)
+    type(field_type),          pointer :: panel_id
+    type(function_space_type), pointer :: w2b_fs
+    type(function_space_type), pointer :: w3_fs
+    type(function_space_type), pointer :: wtheta_fs
+    type(mesh_type),           pointer :: mesh
+    type(operator_type)                :: u_map
+    type(operator_type)                :: v_map
+    type(operator_type)                :: w_map
+
+    nullify(w2b_fs, w3_fs, wtheta_fs, chi, mesh, w2_rmultiplicity)
+
+    ! Get geometry data
+    mesh => u_in_w2%get_mesh()
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    w3_fs => u_in_w3%get_function_space()
+    element_order_h = w3_fs%get_element_order_h()
+    element_order_v = w3_fs%get_element_order_v()
+    w2b_fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                               element_order_v, W2broken)
+    wtheta_fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                                  element_order_v, Wtheta)
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
+    else
+      w2_rmultiplicity => get_rmultiplicity_fv(W2, mesh%get_id())
+    end if
+
+    ! Set up intermediate fields
+    call u_map%initialise(w2b_fs, w3_fs)
+    call v_map%initialise(w2b_fs, w3_fs)
+    call w_map%initialise(w2b_fs, wtheta_fs)
+    call u_broken%initialise(w2b_fs)
+
+    ! Compute wind on W2
+    ! Based on set_wind in map_fd_prognostics_alg_mod with sample_physics_winds=.true.
+    ! Maps computed here to remove dependency on physical_op_constants_mod which requires sample_physics_winds=.true.
+    call invoke( compute_sample_u_ops_kernel_type(u_map, v_map, w_map, chi, panel_id), &
+                 setval_c(u_in_w2, 0.0_r_def), &
+                 dg_matrix_vector_kernel_type(u_broken, u_in_w3, u_map), &
+                 dg_inc_matrix_vector_kernel_type(u_broken, v_in_w3, v_map), &
+                 dg_inc_matrix_vector_kernel_type(u_broken, w_in_wth, w_map), &
+                 average_w2b_to_w2_kernel_type(u_in_w2, u_broken, w2_rmultiplicity) )
+
+  end subroutine interp_w3wth_to_w2_alg
+
+end module interpolation_alg_mod

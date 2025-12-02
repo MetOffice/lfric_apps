@@ -1,0 +1,142 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the consistent_dispersion_kernel_mod
+!>
+module consistent_dispersion_kernel_mod_test
+
+
+  use constants_mod, only : i_def, r_tran, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: consistent_dispersion_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type consistent_dispersion_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use consistent_dispersion_kernel_mod,    only: consistent_dispersion_code
+
+    implicit none
+
+    class(consistent_dispersion_kernel_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-8_r_tran
+    real(r_def),  parameter :: deltaz = 12.0_r_def
+    real(r_tran), parameter :: dtheta_dz = 0.4_r_tran
+    real(r_tran), parameter :: F_E0 = -0.5_r_tran
+    real(r_tran), parameter :: F_W0 = 0.6_r_tran
+    real(r_tran), parameter :: F_N0 = 0.7_r_tran
+    real(r_tran), parameter :: F_S0 = -0.4_r_tran
+    real(r_tran), parameter :: dF_dz_E = -0.05_r_tran
+    real(r_tran), parameter :: dF_dz_W = -0.16_r_tran
+    real(r_tran), parameter :: dF_dz_N = 0.01_r_tran
+    real(r_tran), parameter :: dF_dz_S = 0.04_r_tran
+
+    ! Mesh and Spaces
+    integer(i_def), parameter :: nlayers_prime = 4
+    integer(i_def), parameter :: nlayers_shifted = nlayers_prime + 1
+    integer(i_def), parameter :: ndf_w2_prime = 6
+    integer(i_def), parameter :: ndf_w2_shifted = 6
+    integer(i_def), parameter :: nfaces_h  = 4
+    integer(i_def), parameter :: ndf_w3_2d = 1
+    integer(i_def), parameter :: undf_w3_2d = 1
+    integer(i_def), parameter :: undf_w2_prime = nfaces_h*nlayers_prime + nlayers_prime + 1
+    integer(i_def), parameter :: undf_w2_shifted = nfaces_h*nlayers_shifted + nlayers_shifted + 1
+
+    ! Maps
+    integer(i_def), dimension(ndf_w2_prime)   :: map_w2_prime
+    integer(i_def), dimension(ndf_w2_shifted) :: map_w2_shifted
+    integer(i_def), dimension(ndf_w3_2d)      :: map_w3_2d
+
+    ! Fields
+    real(r_tran), dimension(undf_w2_shifted) :: flux_X_correction
+    real(r_tran), dimension(undf_w2_shifted) :: theta_factor
+    real(r_tran), dimension(undf_w2_prime)   :: dry_flux_prime
+    real(r_tran), dimension(undf_w2_shifted) :: flux_answer
+    integer(i_def), dimension(undf_w3_2d)    :: face_selector_ew
+    integer(i_def), dimension(undf_w3_2d)    :: face_selector_ns
+
+    integer(i_def) :: j, k
+
+    ! ------------------------------------------------------------------------ !
+    ! Set up DoF maps
+    ! ------------------------------------------------------------------------ !
+
+    ! Horizontal part of DoF map
+    do j = 1, nfaces_h
+      map_w2_shifted(j) = 1 + (j-1)*nlayers_shifted
+      map_w2_prime(j) = 1 + (j-1)*nlayers_prime
+    end do
+    ! Vertical part of DoF map
+    map_w2_shifted(nfaces_h+1) = 1 + nfaces_h*nlayers_shifted
+    map_w2_shifted(ndf_w2_shifted) = map_w2_shifted(nfaces_h+1) + 1
+    map_w2_prime(nfaces_h+1) = 1 + nfaces_h*nlayers_prime
+    map_w2_prime(ndf_w2_prime) = map_w2_prime(nfaces_h+1) + 1
+    map_w3_2d = (/ 1 /)
+
+    ! ------------------------------------------------------------------------ !
+    ! Set up initial fields
+    ! ------------------------------------------------------------------------ !
+
+    theta_factor(:) = 0.25_r_tran*deltaz*dtheta_dz
+
+    face_selector_ew(:) = 2
+    face_selector_ns(:) = 2
+
+    ! Linear increase in horizontal fluxes with z
+    do k = 0, nlayers_prime - 1
+      dry_flux_prime(map_w2_prime(1)+k) = real(k, r_tran)*dF_dz_W + F_W0
+      dry_flux_prime(map_w2_prime(2)+k) = real(k, r_tran)*dF_dz_S + F_S0
+      dry_flux_prime(map_w2_prime(3)+k) = real(k, r_tran)*dF_dz_E + F_E0
+      dry_flux_prime(map_w2_prime(4)+k) = real(k, r_tran)*dF_dz_N + F_N0
+    end do
+
+    ! Build up answer
+    flux_answer(:) = 0.0_r_tran
+    do k = 1, nlayers_shifted - 2
+      flux_answer(map_w2_shifted(1)+k) = 0.25_r_tran*dtheta_dz*deltaz*dF_dz_W
+      flux_answer(map_w2_shifted(2)+k) = 0.25_r_tran*dtheta_dz*deltaz*dF_dz_S
+      flux_answer(map_w2_shifted(3)+k) = 0.25_r_tran*dtheta_dz*deltaz*dF_dz_E
+      flux_answer(map_w2_shifted(4)+k) = 0.25_r_tran*dtheta_dz*deltaz*dF_dz_N
+    end do
+
+    flux_X_correction(:) = 0.0_r_tran
+
+    call consistent_dispersion_code( nlayers_shifted,         &
+                                     flux_X_correction,       &
+                                     dry_flux_prime,          &
+                                     theta_factor,            &
+                                     face_selector_ew,        &
+                                     face_selector_ns,        &
+                                     ndf_w2_shifted,          &
+                                     undf_w2_shifted,         &
+                                     map_w2_shifted,          &
+                                     ndf_w2_prime,            &
+                                     undf_w2_prime,           &
+                                     map_w2_prime,            &
+                                     ndf_w3_2d,               &
+                                     undf_w3_2d,              &
+                                     map_w3_2d )
+
+    @assertEqual(flux_answer, flux_X_correction, tol)
+
+  end subroutine test_all
+
+end module consistent_dispersion_kernel_mod_test

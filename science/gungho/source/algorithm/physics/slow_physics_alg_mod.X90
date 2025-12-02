@@ -1,0 +1,1183 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Calls to the slow physics schemes
+module slow_physics_alg_mod
+
+  use driver_water_constants_mod, &
+                                 only: heat_capacity_h2o_vapour, &
+                                       heat_capacity_h2o,        &
+                                       gas_constant_h2o
+  use energy_correction_config_mod,                  &
+                                 only: encorr_usage, &
+                                       encorr_usage_apply
+  use external_forcing_config_mod, &
+                                 only: pc2_force_response
+  use model_clock_mod,           only: model_clock_type
+  use timestepping_config_mod,   only: outer_iterations
+  use chemistry_config_mod,      only: chem_scheme, chem_scheme_flexchem, &
+                                       flexchem_opt, flexchem_opt_none
+  use cloud_config_mod,          only: scheme, scheme_pc2, scheme_bimodal, &
+                                       pc2ini, pc2ini_bimodal,cld_fsd_hill
+  use convection_config_mod,     only: cv_scheme, cv_scheme_lambert_lewis, &
+                                       cv_scheme_gregory_rowntree, &
+                                       cv_scheme_comorph
+  use constants_mod,             only: i_def, r_def, l_def
+  use log_mod,                   only: LOG_LEVEL_INFO
+  use lfric_xios_write_mod,      only: write_field_generic
+  use mesh_mod,                  only: mesh_type
+  use driver_modeldb_mod,        only: modeldb_type
+  use field_parent_mod,          only: write_interface
+  use mixing_config_mod,         only: leonard_term
+  use print_field_stats_alg_mod, only: print_field_stats_alg
+  use physics_config_mod,        only: microphysics_placement,         &
+                                       microphysics_placement_slow,    &
+                                       electric_placement,             &
+                                       electric_placement_slow,        &
+                                       electric_placement_post_mphys,  &
+                                       orographic_drag_placement,      &
+                                       orographic_drag_placement_slow, &
+                                       radiation_placement,            &
+                                       radiation_placement_slow,       &
+                                       spectral_gwd_placement,         &
+                                       spectral_gwd_placement_slow,    &
+                                       blayer_placement,               &
+                                       blayer_placement_slow,          &
+                                       convection_placement,           &
+                                       convection_placement_slow,      &
+                                       evap_condense_placement,        &
+                                       evap_condense_placement_slow
+  use radiation_config_mod,      only: n_radstep, l_inc_radstep, &
+                                       n_inc_radstep, &
+                                       l_planet_grey_surface
+  use specified_surface_config_mod, only: surf_temp_forcing, &
+                                       surf_temp_forcing_none
+  use section_choice_config_mod, only: aerosol, aerosol_um,                  &
+                                       boundary_layer, boundary_layer_um,    &
+                                       electric, electric_um,                &
+                                       microphysics, microphysics_um,        &
+                                       orographic_drag, orographic_drag_um,  &
+                                       radiation, radiation_socrates,        &
+                                       spectral_gwd, spectral_gwd_um,        &
+                                       methane_oxidation,                    &
+                                       surface, surface_jules,               &
+                                       convection, convection_um,            &
+                                       cloud, cloud_um, cloud_evap_condense, &
+                                       external_forcing
+
+  ! Derived Types
+  use field_mod,                 only: field_type
+  use integer_field_mod,         only: integer_field_type
+  use field_collection_mod,      only: field_collection_type
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
+  use mesh_collection_mod,  only: mesh_collection
+  ! Moisture species
+  use mr_indices_mod,            only: nummr, imr_v, imr_cl, imr_ci, imr_s
+  use moist_dyn_mod,             only: num_moist_factors
+  use sci_enforce_lower_bound_kernel_mod, &
+                                 only: enforce_lower_bound_kernel_type
+  use moisture_conservation_alg_mod, &
+                                 only: moisture_conservation_alg
+  use fs_continuity_mod,         only: W3, Wtheta
+  use extrusion_mod,             only: TWOD
+  use sci_field_bundle_builtins_mod,                             &
+                                 only: add_bundle, clone_bundle, &
+                                       set_bundle_scalar
+  use formulation_config_mod,    only: moisture_formulation,     &
+                                       moisture_formulation_dry, &
+                                       theta_moist_source
+  use io_config_mod,             only: subroutine_timers,        &
+                                       write_conservation_diag
+  use timer_mod,                 only: timer
+  use external_forcing_alg_mod,  only: external_forcing_alg
+  use evap_condense_kernel_mod,  only: evap_condense_kernel_type
+  use physics_mappings_alg_mod,  only: map_physics_scalars
+  use planet_config_mod,         only: p_zero, kappa, cp, Rd
+  ! Physics schemes called
+#ifdef UM_PHYSICS
+  use locate_tropopause_alg_mod, only: locate_tropopause_alg
+  use radaer_alg_mod,            only: radaer_alg
+  use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg
+  use strat_aerosol_alg_mod,     only: strat_aerosol_alg
+  use mphys_alg_mod,             only: mphys_alg
+  use casim_alg_mod,             only: casim_alg
+  use electric_main_alg_mod,     only: electric_main_alg
+  use illuminate_alg_mod,        only: illuminate_alg
+  use rad_tile_alg_mod,          only: rad_tile_alg
+  use rad_cloud_alg_mod,         only: rad_cloud_alg
+  use radiation_alg_mod,         only: radiation_alg
+  use cosp_alg_mod,              only: cosp_alg
+  use cosp_diags_mod,            only: cosp_diags_this_tstep
+  use surf_temp_forcing_alg_mod, only: surf_temp_forcing_alg
+  use pc2_rad_response_alg_mod,  only: pc2_rad_response_alg
+  use spectral_gwd_alg_mod,      only: spectral_gwd_alg
+  use orographic_drag_alg_mod,   only: orographic_drag_alg
+  use map_drag_incs_alg_mod,     only: map_drag_incs_alg
+  use bl_exp_alg_mod,            only: bl_exp_alg
+  use bl_imp_alg_mod,            only: bl_imp_alg
+  use conv_ll_alg_mod,           only: conv_ll_alg
+  use conv_gr_alg_mod,           only: conv_gr_alg
+  use jules_exp_alg_mod,         only: jules_exp_alg
+  use jules_extra_alg_mod,       only: jules_extra_alg
+  use leonard_term_alg_mod,      only: leonard_term_alg
+  use pc2_conv_coupling_alg_mod, only: pc2_conv_coupling_alg
+  use pc2_checks_alg_mod,        only: pc2_checks_alg
+  use methox_alg_mod,            only: methox_alg
+  use microphysics_config_mod,   only: microphysics_casim
+  use aerosol_config_mod,        only: activation_scheme,         &
+                                       activation_scheme_jones,   &
+                                       glomap_mode,               &
+                                       glomap_mode_climatology,   &
+                                       glomap_mode_dust_and_clim, &
+                                       glomap_mode_ukca,          &
+                                       glomap_mode_radaer_test,   &
+                                       l_radaer,                  &
+                                       sulphuric_strat_climatology,    &
+                                       easyaerosol_sw, easyaerosol_lw, &
+                                       murk_prognostic
+  use ancil_info,                only: rad_nband
+  use jules_control_init_mod,    only: n_land_tile
+  use fsd_condensate_alg_mod,    only: fsd_condensate_alg
+  use bm_tau_alg_mod,            only: bm_tau_alg
+  use um_sizes_init_mod,         only: um_sizes_init
+  use easyaerosol_alg_mod,       only: easyaerosol_alg
+  use murk_alg_mod,              only: murk_alg
+  use flexchem_alg_mod,          only: flexchem_alg
+
+#endif
+  use intermesh_mappings_alg_mod, &
+                              only: map_scalar_field,  &
+                                    map_rho_intermesh, &
+                                    map_mr_bundle_intermesh
+  use multires_coupling_config_mod, &
+                            only: aerosol_mesh_name, &
+                                  coarse_rad_aerosol
+  use initialization_config_mod, only: coarse_aerosol_ancil
+
+  implicit none
+
+contains
+
+  !> @details Collection of procedures for subgrid physics that act
+  !>          before the outer loop of the solver
+  !> @param[in]     modeldb                Holds the model state
+  !> @param[in,out] du                     Increment to wind field
+  !> @param[in,out] dtheta                 Increment to theta field
+  !> @param[in,out] mr                     Mixing ratios to be updated
+  !> @param[in]     theta                  Theta field at start of timestep
+  !> @param[in]     u                      3D wind field at start of timestep
+  !> @param[in]     rho                    Rho on w3 space
+  !> @param[in]     exner                  Exner pressure on w3 space
+  !> @param[in]     moist_dyn              Moist dynamics factors
+  !> @param[in]     mr_n                   Mixing ratios at start of timestep
+  !> @param[in]     derived_fields         Group of derived fields
+  !> @param[in,out] radiation_fields       Fields for radiation scheme
+  !> @param[in,out] microphysics_fields    Fields for mphys scheme
+  !> @param[in,out] electric_fields        Fields for electric (lightning) scheme
+  !> @param[in]     orography_fields       Fields for orog drag scheme
+  !> @param[in,out] turbulence_fields      Fields for turbulence scheme
+  !> @param[in,out] convection_fields      Fields for convection scheme
+  !> @param[in,out] cloud_fields           Fields for cloud scheme
+  !> @param[in,out] surface_fields         Fields for surface scheme
+  !> @param[in,out] soil_fields            Fields for soil hydrology scheme
+  !> @param[in,out] snow_fields            Fields for snow scheme
+  !> @param[in,out] chemistry_fields       Fields for chemistry scheme
+  !> @param[in,out] aerosol_fields         Fields for aerosol scheme
+  !> @param[in]     clock                  Model time
+  !> @param[in]     dt                     The model timestep length
+  !> @param[in]     dtemp_encorr           Temperature increment for energy correction
+  !> @param[in]     mesh                   Current mesh
+  !> @param[in]     twod_mesh              2d mesh
+  subroutine slow_physics(modeldb, du, dtheta, mr,                             &
+                          theta, u, rho, exner, moist_dyn, mr_n,               &
+                          derived_fields,                                      &
+                          radiation_fields, microphysics_fields,               &
+                          electric_fields,                                     &
+                          orography_fields, turbulence_fields,                 &
+                          convection_fields, cloud_fields, surface_fields,     &
+                          soil_fields, snow_fields, chemistry_fields,          &
+                          aerosol_fields, clock, dt, dtemp_encorr,             &
+                          mesh, twod_mesh )
+
+    implicit none
+
+    type( modeldb_type ), intent( in ), target  :: modeldb
+    ! Fields
+    type( field_type ), intent( inout )      :: du, dtheta
+    type( field_type ), intent( in ), target :: theta, u, rho, exner
+
+    ! Field bundles
+    type( field_type ), intent( inout )      :: mr(nummr)   ! Latest value, to update
+    type( field_type ), intent( in ), target :: mr_n(nummr) ! Start of timestep
+                                                            ! Do not alter
+    type( field_type ), intent( in )         :: moist_dyn(num_moist_factors)
+
+    ! Field groups
+    type( field_collection_type ), intent(inout) :: derived_fields
+    type( field_collection_type ), intent(inout) :: radiation_fields
+    type( field_collection_type ), intent(inout) :: microphysics_fields
+    type( field_collection_type ), intent(inout) :: electric_fields
+    type( field_collection_type ), intent(in)    :: orography_fields
+    type( field_collection_type ), intent(inout) :: turbulence_fields
+    type( field_collection_type ), intent(inout) :: convection_fields
+    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+    type( field_collection_type ), intent(inout) :: soil_fields
+    type( field_collection_type ), intent(inout) :: snow_fields
+    type( field_collection_type ), intent(inout) :: chemistry_fields
+    type( field_collection_type ), intent(inout) :: aerosol_fields
+
+    type(mesh_type),  intent(in), pointer :: mesh
+    type(mesh_type),  intent(in), pointer :: twod_mesh
+
+    class( model_clock_type ), intent(in) :: clock
+    real( kind=r_def ),        intent(in) :: dt
+    real( kind=r_def ),        intent(in) :: dtemp_encorr
+
+    real( kind=r_def )                    :: time_now
+    real( kind=r_def )                    :: Rv, cpv, cl
+
+    ! Local fields...
+    ! ...for external forcing
+    type( field_type ) :: dtheta_forcing, du_forcing, dmv_forcing, &
+         dmcl_forcing, dcfl_forcing, dbcf_forcing
+    ! ... for energy correction
+    type( field_type ) :: dtheta_encorr
+    ! ...for microphysics
+    type( field_type ), pointer :: dtheta_mphys => null()
+    type( field_type ) :: dmr_mphys(nummr)
+    type( field_type ) :: dcfl_pc2_mphys, dcff_pc2_mphys, dbcf_pc2_mphys
+    type( field_type ), pointer :: dtheta_rad => null()
+    type( field_type ), pointer :: dmv_pc2_rad => null()
+    type( field_type ) :: dtheta_pc2_rad, dmcl_pc2_rad
+    type( field_type ) :: dcfl_pc2_rad, dbcf_pc2_rad
+#ifdef UM_PHYSICS
+    real( r_def ) :: inv_kappa
+    type( field_type ) :: pressure_in_wth
+    type( field_type ) :: temperature_in_wth
+    type( integer_field_type ) :: trop_level
+    type( field_type ) :: tile_lw_albedo
+    type( field_type ) :: tile_lwinc_albedo
+    type( field_type ) :: tile_sw_diffuse_albedo, tile_sw_direct_albedo
+    type( field_type ) :: tile_swinc_diffuse_albedo, tile_swinc_direct_albedo
+    ! ...for electric
+    type( field_type ) :: mr_electric(nummr)
+    type( field_type ) :: theta_electric
+    ! ...for radiation
+    logical( kind=l_def ) :: rad_this_tstep, rad_inc_this_tstep
+    logical( kind=l_def ) :: cosp_this_tstep
+    type( integer_field_type ) :: rand_seed, n_cloud_layer
+    type( field_type ) :: radiative_cloud_fraction, radiative_conv_fraction
+    type( field_type ) :: conv_liquid_fraction, conv_frozen_fraction
+    type( field_type ) :: conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number
+    ! ...for JULES & Boundary Layer
+    type( field_type ) :: recip_l_mo_sea, rhostar, h_blend_orog
+    type( field_type ) :: t1_sd_2d, q1_sd_2d
+    ! ...for spectral GWD
+    type( field_type ) :: du_spectral_gwd, dv_spectral_gwd
+    ! ...for orog GWD
+    type( field_type ) :: du_orographic_drag, dv_orographic_drag
+    type( field_type ) :: dw_drag_inc
+#endif
+    type( field_type ) :: du_drag_inc, dtheta_orographic_drag, dtheta_spectral_gwd
+    ! ...for methane oxidation
+    type( field_type ) :: dmv_methox
+    ! ...for boundary layer
+    type( field_type ) :: dtheta_bl, du_bl
+    ! ...for Leonard term flux
+    type( field_type ) :: u_inc_leonard
+    type( field_type ), pointer :: mt_inc_leonard => null()
+    type( field_type ), pointer :: thetal_inc_leonard => null()
+    ! ...for evaporation condensation
+    type( field_type ) :: dtheta_cld
+    type( field_type ) :: dmr_cld(nummr)
+#ifdef UM_PHYSICS
+    ! ...for Convection
+    type( field_type ), pointer :: dmv_conv => null()
+    ! ...surface fields passed from BL to Jules
+    type( field_type ) :: surf_heat_flux
+    type( field_type ) :: canopy_evap
+    type( field_type ) :: water_extraction
+    type( field_type ) :: lake_evap
+    ! ...surface fields passed from BL to Stochastic Perturbation scheme
+    type( field_type ) :: theta_star_surf
+    type( field_type ) :: qv_star_surf
+    ! ...for PC2 checks
+    type( field_type ) :: dtheta_pc2_checks, theta_updated
+    type( field_type ) :: dmv_pc2_checks, dmcl_pc2_checks, dmci_pc2_checks, &
+                          dms_pc2_checks
+    type( field_type ) :: dcfl_pc2_checks, dcff_pc2_checks, dbcf_pc2_checks
+    ! ...for fractional standard deviation cloud (microphysics and radiation)
+    type( field_type ) :: f_arr
+
+    ! pointers to vector spaces
+    type(function_space_type), pointer :: vector_space => null()
+
+    procedure(write_interface), pointer :: write_diag_behaviour => null()
+
+    ! Temporary fields to unpack from field collection
+    type( field_type ), pointer :: departure_exner_wth => null()
+#endif
+    type( field_type ), pointer :: exner_in_wth => null()
+    type( field_type ), pointer :: rho_in_wth => null()
+    type( field_type ), pointer :: exner_wth_n => null()
+    ! Fields required by PC2
+    type( field_type ), pointer :: liquid_fraction => null()
+    type( field_type ), pointer :: frozen_fraction => null()
+    type( field_type ), pointer :: bulk_fraction   => null()
+    type( field_type ), pointer :: cf_liq_n
+    type( field_type ), pointer :: cf_fro_n
+    type( field_type ), pointer :: cf_bulk_n
+
+    integer( kind=i_def ) :: i_mr
+
+    ! Flags to indicate whether scheme has run and increments need adding
+    logical( kind=l_def ) :: theta_forcing_done
+    logical( kind=l_def ) :: vapour_forcing_done
+    logical( kind=l_def ) :: energy_correction_done
+    logical( kind=l_def ) :: wind_forcing_done
+    logical( kind=l_def ) :: microphysics_done
+    logical( kind=l_def ) :: radiation_done
+    logical( kind=l_def ) :: spectral_gwd_done
+    logical( kind=l_def ) :: orographic_drag_done
+    logical( kind=l_def ) :: methox_done
+    logical( kind=l_def ) :: boundary_layer_done
+    logical( kind=l_def ) :: leonard_term_done
+    logical( kind=l_def ) :: evap_condense_done
+#ifdef UM_PHYSICS
+    ! Variables for extracting horizontal number of cells from mesh
+    integer( kind=i_def ) :: ncells
+    ! Function spaces for aerosol UM
+    type(function_space_type), pointer :: w3_aero => null()
+    type(function_space_type), pointer :: wth_aero => null()
+    ! Aerosol fields
+    type( field_type ), target  :: exner_in_wth_coarse, exner_coarse, &
+                                   theta_coarse, rho_in_wth_coarse
+    type( field_type ), target  :: rho_coarse
+    type( field_type ), target  :: mr_n_coarse(nummr)
+    type( field_type ), pointer :: exner_in_wth_aero, exner_aero, theta_aero, &
+                                   rho_in_wth_aero, rho_aero
+    type( field_type ), pointer :: mr_n_aero(:)
+    type(mesh_type),        pointer :: aerosol_mesh      => null()
+    type(mesh_type),        pointer :: aerosol_twod_mesh => null()
+#endif
+
+    if ( subroutine_timers ) call timer("slow_physics")
+
+    !--------------------------------------------------------------------
+    ! Initialisation of fields and flags
+    !--------------------------------------------------------------------
+    call invoke( setval_c(dtheta, 0.0_r_def), &
+                 setval_c(du, 0.0_r_def) )
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('exner_wth_n', exner_wth_n)
+    call invoke( setval_X(exner_wth_n,exner_in_wth) )
+
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
+
+    ! Save time n cloud fractions for Comorph
+    if (cv_scheme == cv_scheme_comorph) then
+      call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+      call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+      call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+      call cloud_fields%get_field('cf_liq_n', cf_liq_n)
+      call cloud_fields%get_field('cf_fro_n', cf_fro_n)
+      call cloud_fields%get_field('cf_bulk_n', cf_bulk_n)
+      call invoke(setval_X(cf_liq_n, liquid_fraction), &
+                  setval_X(cf_fro_n, frozen_fraction), &
+                  setval_X(cf_bulk_n, bulk_fraction) )
+    end if
+
+    theta_forcing_done   = .false.
+    vapour_forcing_done  = .false.
+    energy_correction_done = .false.
+    wind_forcing_done    = .false.
+    microphysics_done    = .false.
+    radiation_done       = .false.
+    spectral_gwd_done    = .false.
+    orographic_drag_done = .false.
+    methox_done          = .false.
+    boundary_layer_done  = .false.
+    leonard_term_done    = .false.
+    evap_condense_done   = .false.
+
+    !--------------------------------------------------------------------
+    ! External forcing options
+    !--------------------------------------------------------------------
+    if ( external_forcing ) then
+      time_now = real( clock%get_step(), r_def ) * dt
+      call external_forcing_alg(derived_fields, u, theta, exner, exner_in_wth, &
+                                rho, mr_n, cloud_fields, twod_mesh, dt,        &
+                                time_now,                                      &
+                                dtheta_forcing, du_forcing, dmv_forcing,       &
+                                dmcl_forcing, dcfl_forcing, dbcf_forcing,      &
+                                theta_forcing_done, vapour_forcing_done,       &
+                                wind_forcing_done)
+    end if
+
+    !--------------------------------------------------------------------
+    ! Energy correction
+    !--------------------------------------------------------------------
+    if ( encorr_usage == encorr_usage_apply ) then
+      ! Convert absolute temperature increment to a potential temperature
+      ! increment
+      call dtheta_encorr%initialise( vector_space = theta%get_function_space() )
+      call invoke( setval_c(dtheta_encorr, dtemp_encorr),          &
+                   inc_X_divideby_Y(dtheta_encorr, exner_in_wth) )
+      energy_correction_done = .true.
+    end if
+
+#ifdef UM_PHYSICS
+
+    if ( microphysics == microphysics_um .or. &
+         radiation == radiation_socrates ) then
+
+      ! Set pressure and temperature in wth
+      call pressure_in_wth%initialise( vector_space=theta%get_function_space() )
+      call temperature_in_wth%initialise( &
+                                       vector_space=theta%get_function_space() )
+
+      ! Set the write behaviour for pressure_in_wth and temperature_in_wth here
+      write_diag_behaviour => write_field_generic
+      call pressure_in_wth%set_write_behaviour(write_diag_behaviour)
+      call temperature_in_wth%set_write_behaviour(write_diag_behaviour)
+
+      inv_kappa = 1.0_r_def/kappa
+      call invoke( &
+        setval_X(pressure_in_wth, exner_in_wth), &
+        inc_X_powreal_a(pressure_in_wth, inv_kappa), &
+        inc_a_times_X(p_zero, pressure_in_wth), &
+        X_times_Y(temperature_in_wth, theta, exner_in_wth) )
+
+      !--------------------------------------------------------------------
+      ! Fractional standard deviation (FSD) of cloud condensate
+      !--------------------------------------------------------------------
+      vector_space => function_space_collection%get_fs( mesh, 0, 0, Wtheta, 3)
+      call f_arr%initialise(vector_space)
+      if ( cld_fsd_hill ) then
+        call fsd_condensate_alg( f_arr, cloud_fields, convection_fields )
+      end if
+
+      if ( aerosol == aerosol_um ) then
+
+        ! If aerosol data is on a different mesh, get this
+        if (coarse_rad_aerosol) then
+          ! For now use the coarsest mesh
+          aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
+          aerosol_twod_mesh => mesh_collection%get_mesh(aerosol_mesh, TWOD)
+          ! Initialise the coarse aerosol fields fields
+          wth_aero => function_space_collection%get_fs( aerosol_mesh, 0, 0, WTHETA )
+          w3_aero => function_space_collection%get_fs( aerosol_mesh, 0, 0, W3 )
+          call theta_coarse%initialise(vector_space = wth_aero)
+          call exner_in_wth_coarse%initialise(vector_space = wth_aero)
+          call rho_in_wth_coarse%initialise(vector_space = wth_aero)
+          call exner_coarse%initialise(vector_space = w3_aero)
+          call rho_coarse%initialise(vector_space = w3_aero)
+          do i_mr = 1, nummr
+            call mr_n_coarse(i_mr)%initialise(vector_space = wth_aero)
+          end do
+          ! Map data to coarse aerosol fields
+          call map_scalar_field(theta_coarse, theta)
+          call map_scalar_field(exner_coarse, exner)
+          call map_rho_intermesh(rho_coarse, rho)
+          call map_scalar_field(exner_in_wth_coarse, exner_in_wth)
+          call map_physics_scalars(rho_in_wth_coarse, rho_coarse)
+          call map_mr_bundle_intermesh(mr_n_coarse, mr_n, rho_coarse, rho)
+          ! Set pointers
+          theta_aero => theta_coarse
+          rho_aero => rho_coarse
+          exner_aero => exner_coarse
+          exner_in_wth_aero => exner_in_wth_coarse
+          rho_in_wth_aero => rho_in_wth_coarse
+          mr_n_aero => mr_n_coarse
+        else
+          aerosol_mesh => mesh
+          aerosol_twod_mesh => twod_mesh
+          theta_aero => theta
+          exner_aero => exner
+          rho_aero => rho
+          call derived_fields%get_field('exner_in_wth', exner_in_wth_aero)
+          call derived_fields%get_field('rho_in_wth', rho_in_wth_aero)
+          mr_n_aero => mr_n
+        end if
+
+        !--------------------------------------------------------------------
+        ! Tropopause level
+        !--------------------------------------------------------------------
+
+        ! note that triggered options like l_radaer do not
+        ! necessarily default to false
+        if ( sulphuric_strat_climatology .or.                                  &
+             ( ( ( glomap_mode == glomap_mode_climatology ) .or.               &
+                 ( glomap_mode == glomap_mode_dust_and_clim ) .or.             &
+                 ( glomap_mode == glomap_mode_ukca ) .or.                      &
+                 ( glomap_mode == glomap_mode_radaer_test ) ) .and.            &
+               l_radaer ) ) then
+
+          call locate_tropopause_alg( trop_level, theta_aero, exner_in_wth_aero, &
+                                      aerosol_twod_mesh )
+        end if
+
+        !--------------------------------------------------------------------
+        ! GLOMAP-mode aerosol climatology
+        !--------------------------------------------------------------------
+        if ( ( ( glomap_mode == glomap_mode_climatology ) .or.       &
+               ( glomap_mode == glomap_mode_dust_and_clim ) ) .and.  &
+             ( ( activation_scheme == activation_scheme_jones ) .or. &
+               ( l_radaer ) ) ) then
+          call glomap_aerosol_alg ( aerosol_fields, cloud_fields, theta_aero,       &
+                                    exner_in_wth_aero, mr_n_aero, clock%get_step() )
+        end if
+
+        !--------------------------------------------------------------------
+        ! Stratospheric aerosol climatology
+        !--------------------------------------------------------------------
+        if ( sulphuric_strat_climatology ) then
+          call strat_aerosol_alg ( aerosol_fields, trop_level, exner_aero )
+        end if
+
+      end if ! aerosol
+    end if ! microphysics or socrates
+
+    !--------------------------------------------------------------------
+    ! UM microphysics scheme
+    !--------------------------------------------------------------------
+    call microphysics_fields%get_field('dtheta_mphys', dtheta_mphys)
+    call clone_bundle(mr_n, dmr_mphys, nummr)
+    call set_bundle_scalar(0.0_r_def, dmr_mphys, nummr)
+    if ( microphysics == microphysics_um .and. &
+         microphysics_placement == microphysics_placement_slow) then
+      if ( microphysics_casim ) then
+        call casim_alg( mr_n, theta, rho, derived_fields, microphysics_fields, &
+                        cloud_fields, aerosol_fields, turbulence_fields,       &
+                        mesh, dmr_mphys, dtheta_mphys,                         &
+                        dcfl_pc2_mphys, dcff_pc2_mphys, dbcf_pc2_mphys )
+      else
+        ! Switch UM to running i-first on whole domain
+        ncells = mesh%get_last_edge_cell()
+        call um_sizes_init(ncells)
+        call mphys_alg( mr_n, theta, rho, derived_fields, microphysics_fields, &
+                      cloud_fields, aerosol_fields, turbulence_fields,       &
+                      orography_fields,                                      &
+                      f_arr, dmr_mphys, dtheta_mphys, dcfl_pc2_mphys,        &
+                      dcff_pc2_mphys, dbcf_pc2_mphys, dt )
+        ! Switch UM back to columns
+        call um_sizes_init(1_i_def)
+      end if
+      microphysics_done = .true. ! Collect this increment later on
+      call f_arr%field_final()
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM Electric (Lightning) scheme
+    !--------------------------------------------------------------------
+
+    if ( electric == electric_um .and. &
+         electric_placement == electric_placement_slow) then
+
+      ! Call electric_main_alg with the start of the model timestep
+      ! information... this differs from the UM (called after microphysics).
+
+      call electric_main_alg( mr_n, theta, derived_fields, electric_fields, dt )
+
+      ! no electric_done flag yet as at present the scheme only generates
+      ! diagnostics and does not affect model evolution.
+
+    else if (microphysics_done .and. electric == electric_um .and.      &
+        electric_placement == electric_placement_post_mphys ) then
+
+      ! Run the electric scheme but the updated information from the
+      ! microphysics, matching what we did in the UM pre-LFRic.
+
+      ! Mixing ratios and theta need updating due to microphysics
+      ! however, derived fields and electric_fields will remain unchanged.
+
+      ! Update mixing ratios due to microphysics increment.
+      call clone_bundle(mr_n, mr_electric, nummr)
+      call add_bundle(mr_n, dmr_mphys, mr_electric, nummr)
+
+      ! Update theta due to microphysics
+      call theta%copy_field_properties(theta_electric)
+      call invoke(X_plus_Y(theta_electric, theta, dtheta_mphys))
+
+      ! Finally, call electric_main_alg with the quantities updated
+      ! from the microphysics
+      call electric_main_alg( mr_electric, theta_electric,         &
+                              derived_fields, electric_fields, dt )
+
+      ! no electric_done flag yet as at present the scheme only generates
+      ! diagnostics and does not affect model evolution.
+      do i_mr = 1, nummr
+        call mr_electric(i_mr)%field_final()
+      end do
+      call theta_electric%field_final()
+
+    end if ! call to electric scheme
+
+    if (chem_scheme == chem_scheme_flexchem .and. &
+        flexchem_opt /= flexchem_opt_none) then
+      call flexchem_alg(pressure_in_wth, temperature_in_wth, chemistry_fields)
+    end if ! call to flexchem
+
+    !--------------------------------------------------------------------
+    ! Socrates radiation scheme
+    !--------------------------------------------------------------------
+    if (radiation == radiation_socrates .and. &
+        radiation_placement == radiation_placement_slow) then
+
+      ! Set logicals for the radiation calls to be made this timestep
+      rad_this_tstep = (mod(clock%get_step()-1_i_def, n_radstep) == 0)
+      if (l_inc_radstep) then
+        rad_inc_this_tstep = rad_this_tstep .or. &
+          (mod(clock%get_step()-1_i_def, n_inc_radstep) == 0)
+      else
+        rad_inc_this_tstep = .false.
+      end if
+      cosp_this_tstep = cosp_diags_this_tstep()
+
+      !--------------------------------------------------------------------
+      ! Radiatively active cloud for Socrates and COSP
+      !--------------------------------------------------------------------
+      call rad_cloud_alg(rand_seed, n_cloud_layer, &
+                         radiative_cloud_fraction, radiative_conv_fraction, &
+                         conv_liquid_fraction, conv_frozen_fraction, &
+                         conv_liquid_mmr, conv_frozen_mmr, &
+                         conv_frozen_number, temperature_in_wth, theta, &
+                         cloud_fields, convection_fields, derived_fields, &
+                         rad_this_tstep, rad_inc_this_tstep, &
+                         cosp_this_tstep, twod_mesh)
+
+      !--------------------------------------------------------------------
+      ! Socrates illumination scheme: solar position
+      !--------------------------------------------------------------------
+      call illuminate_alg( radiation_fields, clock%get_step(), &
+                           dt )
+
+      !--------------------------------------------------------------------
+      ! UM radaer scheme
+      !--------------------------------------------------------------------
+      if ( aerosol == aerosol_um .and.                                         &
+           ( ( glomap_mode == glomap_mode_climatology )  .or.                  &
+             ( glomap_mode == glomap_mode_dust_and_clim ) .or.                 &
+             ( glomap_mode == glomap_mode_ukca ) .or.                          &
+             ( glomap_mode == glomap_mode_radaer_test) ) .and.                 &
+           l_radaer ) then
+        call radaer_alg( aerosol_fields,                                       &
+                         radiation_fields,                                     &
+                         rho_in_wth_aero,                                      &
+                         theta_aero,                                           &
+                         exner_in_wth_aero,                                    &
+                         exner_aero,                                           &
+                         rho,                                                  &
+                         rho_aero,                                             &
+                         trop_level,                                           &
+                         aerosol_mesh,                                         &
+                         aerosol_twod_mesh,                                    &
+                         clock%get_step() )
+      end if
+      call theta_coarse%field_final()
+      call rho_coarse%field_final()
+      call exner_coarse%field_final()
+      call exner_in_wth_coarse%field_final()
+      do i_mr = 1, nummr
+        call mr_n_coarse(i_mr)%field_final()
+      end do
+      call trop_level%field_final()
+
+      !--------------------------------------------------------------------
+      ! Easy Aerosol climatology
+      !--------------------------------------------------------------------
+      if (easyaerosol_sw .or. easyaerosol_lw) then
+        call easyaerosol_alg(radiation_fields, aerosol_fields, &
+                             derived_fields, clock%get_step() )
+      end if
+    end if
+
+    !--------------------------------------------------------------------
+    ! JULES surface scheme: tile albedo and emissivity
+    !--------------------------------------------------------------------
+    if (radiation == radiation_socrates .or. surface == surface_jules) then
+      ! Switch UM to running i-first on whole domain
+      ncells = mesh%get_last_edge_cell()
+      call um_sizes_init(ncells)
+
+      call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                        tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                        tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
+                        radiation_fields, orography_fields,                  &
+                        surface_fields, soil_fields, snow_fields,            &
+                        twod_mesh, clock%get_step())
+
+      ! Switch UM back to columns
+      call um_sizes_init(1_i_def)
+    end if
+
+    !--------------------------------------------------------------------
+    ! Socrates radiative transfer scheme: SW and LW
+    !--------------------------------------------------------------------
+    if (radiation == radiation_socrates .and. &
+        radiation_placement == radiation_placement_slow) then
+      call radiation_fields%get_field('dtheta_rad', dtheta_rad)
+      call radiation_fields%get_field('dmv_pc2_rad', dmv_pc2_rad)
+      call radiation_alg( dtheta_rad, theta, exner, mr_n, moist_dyn,           &
+                          pressure_in_wth, temperature_in_wth,                 &
+                          derived_fields, radiation_fields, cloud_fields,      &
+                          microphysics_fields, aerosol_fields,                 &
+                          chemistry_fields, surface_fields,                    &
+                          rad_this_tstep, rad_inc_this_tstep,                  &
+                          tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                          tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                          tile_lw_albedo, tile_lwinc_albedo,                   &
+                          rand_seed, n_cloud_layer,                            &
+                          radiative_cloud_fraction, radiative_conv_fraction,   &
+                          conv_liquid_fraction, conv_frozen_fraction,          &
+                          conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number,&
+                          dt)
+      radiation_done = .true. ! Collect this increment later on
+      call tile_lw_albedo%field_final()
+      call tile_lwinc_albedo%field_final()
+      call tile_sw_diffuse_albedo%field_final()
+      call tile_sw_direct_albedo%field_final()
+      call tile_swinc_diffuse_albedo%field_final()
+      call tile_swinc_direct_albedo%field_final()
+
+      !--------------------------------------------------------------------
+      ! PC2 cloud scheme: radiative increments
+      !--------------------------------------------------------------------
+      if (cloud == cloud_um .and. scheme == scheme_pc2) then
+        ! PC2 code will be called with dtheta_rad as the only forcing.
+        call pc2_rad_response_alg(                 & ! Current state
+                                   mr_n,           & ! IN
+                                   theta,          & ! IN
+                                   derived_fields, & ! IN
+                                   cloud_fields,   & ! IN
+                                                     ! Forcings
+                                   dtheta_rad,     & ! IN
+                                                     ! Responses
+                                   dtheta_pc2_rad, & ! OUT
+                                   dmv_pc2_rad,    & ! OUT
+                                   dmcl_pc2_rad,   & ! OUT
+                                   dcfl_pc2_rad,   & ! OUT
+                                   dbcf_pc2_rad,   & ! OUT
+                                   dt )              ! IN
+      end if ! (scheme == scheme_pc2)
+
+      !--------------------------------------------------------------------
+      ! CFMIP Observation Simulator Package (COSP)
+      !--------------------------------------------------------------------
+      if (cosp_this_tstep) then
+        call cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr_n, &
+                      derived_fields, radiation_fields, cloud_fields, &
+                      aerosol_fields, convection_fields, microphysics_fields, &
+                      rand_seed, n_cloud_layer, &
+                      radiative_cloud_fraction, radiative_conv_fraction, &
+                      conv_liquid_fraction, conv_frozen_fraction, &
+                      conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number)
+      end if
+
+      call pressure_in_wth%field_final()
+      call temperature_in_wth%field_final()
+      call rand_seed%field_final()
+      call n_cloud_layer%field_final()
+      call radiative_cloud_fraction%field_final()
+      call radiative_conv_fraction%field_final()
+      call conv_liquid_fraction%field_final()
+      call conv_frozen_fraction%field_final()
+      call conv_liquid_mmr%field_final()
+      call conv_frozen_mmr%field_final()
+      call conv_frozen_number%field_final()
+
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM spectral gravity wave drag scheme
+    !--------------------------------------------------------------------
+    if (spectral_gwd == spectral_gwd_um .and. &
+        spectral_gwd_placement == spectral_gwd_placement_slow) then
+      call dtheta%copy_field_properties(dtheta_spectral_gwd)
+      call spectral_gwd_alg(du_spectral_gwd,     &
+                            dv_spectral_gwd,     &
+                            dtheta_spectral_gwd, &
+                            derived_fields,      &
+                            microphysics_fields, &
+                            convection_fields,   &
+                            theta, u)
+      spectral_gwd_done = .true. ! Collect this increment later on
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM orographic drag scheme
+    !--------------------------------------------------------------------
+    if (orographic_drag == orographic_drag_um .and. &
+        orographic_drag_placement == orographic_drag_placement_slow) then
+      call dtheta%copy_field_properties(dtheta_orographic_drag)
+      call orographic_drag_alg(du_orographic_drag,     &
+                               dv_orographic_drag,     &
+                               dtheta_orographic_drag, &
+                               derived_fields,         &
+                               orography_fields,       &
+                               theta, u,               &
+                               mr_n)
+      orographic_drag_done = .true. ! Collect this increment later on
+    end if
+
+    ! Call methane oxidation code
+    if (methane_oxidation) then
+      call methox_alg(dmv_methox, mr_n, clock)
+      methox_done = .true.
+    end if
+
+    !---------------------------------------------------------------------
+    ! Surface temperature forcing
+    !---------------------------------------------------------------------
+    if ( l_planet_grey_surface .and. &
+         surf_temp_forcing /= surf_temp_forcing_none ) then
+      call surf_temp_forcing_alg(radiation_fields, surface_fields)
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM explicit boundary layer and Jules surface schemes
+    !--------------------------------------------------------------------
+    if (boundary_layer == boundary_layer_um ) then
+      call jules_exp_alg(modeldb, theta, mr_n,                               &
+                         derived_fields, radiation_fields,                   &
+                         orography_fields,                                   &
+                         turbulence_fields, convection_fields, cloud_fields, &
+                         surface_fields, soil_fields, snow_fields,           &
+                         aerosol_fields, recip_l_mo_sea, rhostar,            &
+                         h_blend_orog, t1_sd_2d, q1_sd_2d)
+      call bl_exp_alg(theta, rho, exner, mr_n,                            &
+                      derived_fields, radiation_fields,                   &
+                      microphysics_fields, dmr_mphys, orography_fields,   &
+                      turbulence_fields, convection_fields, cloud_fields, &
+                      surface_fields,                                     &
+                      recip_l_mo_sea, rhostar,                            &
+                      h_blend_orog, t1_sd_2d, q1_sd_2d, clock)
+    end if
+
+    !--------------------------------------------------------------------
+    ! Map spectral and orographic drag increments back to W2 space
+    ! This is done here to align it with similar halo exchanges happening
+    ! at the end of bl_exp_alg
+    !--------------------------------------------------------------------
+    if (spectral_gwd_done .or. orographic_drag_done) then
+      call du%copy_field_properties(du_drag_inc)
+      call dtheta%copy_field_properties(dw_drag_inc)
+      call invoke(setval_c(dw_drag_inc, 0.0_r_def))
+      if (spectral_gwd_done .and. orographic_drag_done) then
+        ! If both schemes are called, add the increments and map to W2
+        call invoke(inc_X_plus_Y(du_spectral_gwd, du_orographic_drag), &
+                    inc_X_plus_Y(dv_spectral_gwd, dv_orographic_drag) )
+        call map_drag_incs_alg(du_spectral_gwd, dv_spectral_gwd, &
+                               dw_drag_inc, u, du_drag_inc)
+      else if (spectral_gwd_done) then
+        ! Only spectral scheme called
+        call map_drag_incs_alg(du_spectral_gwd, dv_spectral_gwd, &
+                               dw_drag_inc, u, du_drag_inc)
+      else
+        ! Only orographic scheme called
+        call map_drag_incs_alg(du_orographic_drag, dv_orographic_drag, &
+                               dw_drag_inc, u, du_drag_inc)
+      end if
+      call du_spectral_gwd%field_final()
+      call dv_spectral_gwd%field_final()
+      call du_orographic_drag%field_final()
+      call dv_orographic_drag%field_final()
+      call dw_drag_inc%field_final()
+    end if
+
+    !--------------------------------------------------------------------
+    ! Calculate Leonard term fluxes and increments
+    ! NOTE the Leonard terms code will only work when using the UM BL
+    ! scheme due to the dependence on dtrdz_tq_bl
+    !--------------------------------------------------------------------
+
+    if (leonard_term .and. boundary_layer == boundary_layer_um ) then
+      call u%copy_field_properties(u_inc_leonard)
+      call turbulence_fields%get_field('mt_inc_leonard', mt_inc_leonard)
+      call turbulence_fields%get_field('thetal_inc_leonard', thetal_inc_leonard)
+      call leonard_term_alg(mt_inc_leonard, thetal_inc_leonard,           &
+                            u_inc_leonard, mr_n, theta, u, rho,           &
+                            turbulence_fields, derived_fields,            &
+                            dt, clock)
+      leonard_term_done = .true. ! Collect this increment later on
+
+    end if
+
+    !--------------------------------------------------------------------
+    ! Calculate time scales for bimodal cloud scheme
+    !------------------------------------------------------------------
+
+    if ( cloud == cloud_um .and. ( scheme == scheme_bimodal .or.          &
+        ( scheme == scheme_pc2 .and. pc2ini == pc2ini_bimodal ) ) ) then
+
+      call bm_tau_alg(mr_n, theta, derived_fields, turbulence_fields,     &
+                     cloud_fields, microphysics_fields)
+
+    end if
+
+
+    !-------------------------------------------------------------------
+    ! Call emissions and mixing of murk
+    !-------------------------------------------------------------------
+    if (murk_prognostic) then
+      call murk_alg(aerosol_fields, derived_fields, turbulence_fields)
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM convection scheme
+    !--------------------------------------------------------------------
+    if (convection == convection_um .and.                       &
+        convection_placement == convection_placement_slow) then
+      if ( cv_scheme == cv_scheme_lambert_lewis ) then
+        ! Call the UM Lambert-Lewis convection scheme
+        call conv_ll_alg(mr, exner, derived_fields, convection_fields,    &
+                         outer_iterations)
+      else if ( cv_scheme == cv_scheme_gregory_rowntree ) then
+        ! Call the UM Gregory Rowntree convection scheme
+        call conv_gr_alg(mr, rho, exner, derived_fields,                  &
+                         turbulence_fields, convection_fields,            &
+                         cloud_fields, surface_fields, chemistry_fields,  &
+                         aerosol_fields, microphysics_fields, outer_iterations)
+      end if
+
+      if ( cloud == cloud_um .and. scheme == scheme_pc2 ) then
+        ! Update the cloud fields if using PC2
+        call pc2_conv_coupling_alg( mr, derived_fields,                  &
+                                    convection_fields, cloud_fields, dt)
+      else
+        ! Without PC2, just update vapour field
+        call convection_fields%get_field('dmv_conv', dmv_conv)
+        call invoke( inc_X_plus_Y(mr(imr_v), dmv_conv) )
+      end if
+
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM implicit boundary layer and Jules surface schemes
+    !--------------------------------------------------------------------
+    if (boundary_layer == boundary_layer_um ) then
+      if (blayer_placement == blayer_placement_slow) then
+        call du%copy_field_properties(du_bl)
+        call bl_imp_alg(dtheta_bl, du_bl, mr,                               &
+                        surf_heat_flux, canopy_evap, water_extraction,      &
+                        lake_evap, theta_star_surf, qv_star_surf,           &
+                        theta, exner, mr_n, rho,                            &
+                        derived_fields, radiation_fields, orography_fields, &
+                        turbulence_fields, convection_fields, cloud_fields, &
+                        surface_fields, soil_fields, snow_fields,           &
+                        microphysics_fields, aerosol_fields,                &
+                        outer_iterations, clock)
+        boundary_layer_done = .true. ! Collect this increment later on
+
+        if ( surface == surface_jules ) then
+          call jules_extra_alg(microphysics_fields, convection_fields,        &
+                               surface_fields, soil_fields, snow_fields,      &
+                               surf_heat_flux, canopy_evap,                   &
+                               water_extraction, lake_evap, dt)
+        end if ! jules
+      end if ! slow_bl
+    end if ! bl_um
+#endif
+
+    if (evap_condense_placement == evap_condense_placement_slow .and. &
+        cloud == cloud_evap_condense) then
+      call clone_bundle(mr, dmr_cld, nummr)
+      if (theta_moist_source) then
+        ! More accurate thermodynamic approximations
+        Rv = gas_constant_h2o
+        cpv = heat_capacity_h2o_vapour
+        cl = heat_capacity_h2o
+      else
+        ! Do not include moist contributions to thermodynamic variables
+        Rv = 0.0_r_def
+        cpv = 0.0_r_def
+        cl = 0.0_r_def
+      end if
+      call invoke( evap_condense_kernel_type(dtheta_cld, theta,                &
+                                             dmr_cld(imr_v), dmr_cld(imr_cl),  &
+                                             mr(imr_v), mr(imr_cl),            &
+                                             exner_in_wth,                     &
+                                             Rd, Rv, cp, cpv, cl, p_zero) )
+      evap_condense_done = .true.
+    end if
+
+    !=====================================================================
+    ! Update the main fields and increments to pass out
+    !=====================================================================
+    if (cloud == cloud_um .and. scheme == scheme_pc2) then
+        call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+        call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+        call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+    end if
+
+    if (theta_forcing_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_forcing))
+    end if
+
+    if (vapour_forcing_done) then
+      if (cloud == cloud_um .and. scheme == scheme_pc2 &
+           .and. pc2_force_response) then
+        call invoke(inc_X_plus_Y(mr(imr_v),       dmv_forcing),    &
+                    inc_X_plus_Y(mr(imr_cl),      dmcl_forcing),   &
+                    inc_X_plus_Y(liquid_fraction, dcfl_forcing),   &
+                    inc_X_plus_Y(bulk_fraction,   dbcf_forcing) )
+      else
+        call invoke(inc_X_plus_Y(mr(imr_v), dmv_forcing) )
+      end if
+    end if
+
+    if (energy_correction_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_encorr))
+      call dtheta_encorr%field_final()
+    end if
+
+    if (wind_forcing_done) then
+      call invoke(inc_X_plus_Y(du, du_forcing))
+    end if
+
+    if (microphysics_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_mphys))
+      call add_bundle(dmr_mphys, mr, mr, nummr)
+      do i_mr = 1, nummr
+        call dmr_mphys(i_mr)%field_final()
+      end do
+      if (cloud == cloud_um .and. scheme == scheme_pc2) then
+        call invoke(name="update_with_pc2_mphys_inc",              &
+                    inc_X_plus_Y(liquid_fraction, dcfl_pc2_mphys), &
+                    inc_X_plus_Y(frozen_fraction, dcff_pc2_mphys), &
+                    inc_X_plus_Y(bulk_fraction,   dbcf_pc2_mphys)  )
+      end if
+      call dcfl_pc2_mphys%field_final()
+      call dcff_pc2_mphys%field_final()
+      call dbcf_pc2_mphys%field_final()
+    end if
+
+    if (radiation_done) then
+      if (cloud == cloud_um .and. scheme == scheme_pc2) then
+        call invoke(name="update_with_pc2_rad_inc",                &
+                    inc_X_plus_Y(dtheta_rad,      dtheta_pc2_rad), &
+                    inc_X_plus_Y(mr(imr_v),       dmv_pc2_rad),    &
+                    inc_X_plus_Y(mr(imr_cl),      dmcl_pc2_rad),   &
+                    inc_X_plus_Y(liquid_fraction, dcfl_pc2_rad),   &
+                    inc_X_plus_Y(bulk_fraction,   dbcf_pc2_rad)    )
+      end if
+      call invoke(inc_X_plus_Y(dtheta, dtheta_rad))
+      call dtheta_pc2_rad%field_final()
+      call dmcl_pc2_rad%field_final()
+      call dcfl_pc2_rad%field_final()
+      call dbcf_pc2_rad%field_final()
+    end if
+
+    if (spectral_gwd_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_spectral_gwd))
+      call dtheta_spectral_gwd%field_final()
+      if (.not. orographic_drag_done) then
+        ! If not doing orographic drag, add inc here
+        ! else add it with orographic drag incs
+        call invoke(inc_X_plus_Y(du, du_drag_inc))
+        call du_drag_inc%field_final()
+      end if
+    end if
+
+    if (orographic_drag_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_orographic_drag), &
+                  inc_X_plus_Y(du, du_drag_inc))
+      call dtheta_orographic_drag%field_final()
+      call du_drag_inc%field_final()
+    end if
+
+    if (methox_done) then
+      call invoke(inc_X_plus_Y(mr(imr_v), dmv_methox))
+      call dmv_methox%field_final()
+    end if
+
+    if (leonard_term_done) then
+      call invoke(inc_X_plus_Y(mr(imr_v), mt_inc_leonard), &
+                  inc_X_plus_Y(dtheta, thetal_inc_leonard), &
+                  inc_X_plus_Y(du, u_inc_leonard) )
+      call u_inc_leonard%field_final()
+    end if
+
+    if (boundary_layer_done) then
+      call invoke(inc_X_plus_Y(du, du_bl), &
+                  inc_X_plus_Y(dtheta, dtheta_bl) )
+      call du_bl%field_final()
+      call dtheta_bl%field_final()
+    end if
+
+    if (evap_condense_done) then
+      call invoke(inc_X_plus_Y(dtheta,      dtheta_cld),     &
+                  inc_X_plus_Y(mr(imr_v),   dmr_cld(imr_v)), &
+                  inc_X_plus_Y(mr(imr_cl),  dmr_cld(imr_cl)))
+      do i_mr = 1, nummr
+        call dmr_cld(i_mr)%field_final()
+      end do
+      call dtheta_cld%field_final()
+    end if
+
+#ifdef UM_PHYSICS
+    !--------------------------------------------------------------------
+    ! PC2 checking of current state and preparation for advection
+    !--------------------------------------------------------------------
+    if (cloud == cloud_um .and. scheme == scheme_pc2) then
+
+      ! Make a copy of exner to be advected
+      call cloud_fields%get_field('departure_exner_wth', departure_exner_wth)
+      call invoke( setval_X(departure_exner_wth,exner_in_wth) )
+
+      if (microphysics_done .or. radiation_done) then
+
+        ! Construct the latest estimate of theta and call PC2 checks with
+        ! this and the latest cloud and mr fields
+        call theta%copy_field_properties(theta_updated)
+        call invoke(name="estimate_theta_at_end_of_slow_before_check", &
+                    setval_X(theta_updated, theta),                    &
+                    inc_X_plus_Y(theta_updated,dtheta) )
+        call pc2_checks_alg( mr,                & ! Current state IN
+                             theta_updated,     & ! Current state IN
+                             derived_fields,    & ! Current state IN
+                             cloud_fields,      & ! Current state IN
+                             dtheta_pc2_checks, & ! Increments OUT
+                             dmv_pc2_checks,    & ! Increments OUT
+                             dmcl_pc2_checks,   & ! Increments OUT
+                             dmci_pc2_checks,   & ! Increments OUT
+                             dms_pc2_checks,    & ! Increments OUT
+                             dcfl_pc2_checks,   & ! Increments OUT
+                             dcff_pc2_checks,   & ! Increments OUT
+                             dbcf_pc2_checks)     ! Increments OUT
+
+        ! Update all fields and the theta increment again
+        call invoke(name="update_after_pc2_checks",                   &
+                    inc_X_plus_Y(dtheta,          dtheta_pc2_checks), &
+                    inc_X_plus_Y(mr(imr_v),       dmv_pc2_checks),    &
+                    inc_X_plus_Y(mr(imr_cl),      dmcl_pc2_checks),   &
+                    inc_X_plus_Y(mr(imr_ci),      dmci_pc2_checks),   &
+                    inc_X_plus_Y(mr(imr_s),       dms_pc2_checks),    &
+                    inc_X_plus_Y(liquid_fraction, dcfl_pc2_checks),   &
+                    inc_X_plus_Y(frozen_fraction, dcff_pc2_checks),   &
+                    inc_X_plus_Y(bulk_fraction,   dbcf_pc2_checks)    )
+      end if ! (microphysics_done .or. radiation_done))
+
+    end if ! (scheme == scheme_pc2)
+#endif
+
+    call print_field_stats_alg(dtheta, LOG_LEVEL_INFO, printmin=-20.0_r_def, &
+                               printmax=20.0_r_def, name='dtheta slow')
+
+    if ( moisture_formulation /= moisture_formulation_dry ) then
+      do i_mr = 1, nummr
+        call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
+      end do
+      if (write_conservation_diag) &
+        call moisture_conservation_alg( rho, mr, 'After slow' )
+    end if
+
+    if ( subroutine_timers ) call timer("slow_physics")
+
+  end subroutine slow_physics
+
+end module slow_physics_alg_mod

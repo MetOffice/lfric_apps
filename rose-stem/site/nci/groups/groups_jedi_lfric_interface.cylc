@@ -1,0 +1,57 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_jedi_lfric_interface.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "jedi_lfric_interface_gadi_developer": [
+        "jedi_lfric_interface_gadi_unit_tests",
+        "jedi_lfric_interface_gadi_integration_tests",
+    ],
+    "jedi_lfric_interface_gadi": [
+        "jedi_lfric_interface_gadi_developer",
+    ],
+    "jedi_lfric_interface_gadi_unit_tests": [
+        "jedi_lfric_interface_unit_tests_gadi_intel_64bit",
+    ],
+    "jedi_lfric_interface_gadi_integration_tests": [
+        "jedi_lfric_interface_integration_tests_gadi_intel_64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "jedi_lfric_interface_developer": [
+        "scripts",
+        "jedi_lfric_interface_gadi_developer",
+        "jedi_lfric_interface_unit_tests",
+        "jedi_lfric_interface_integration_tests",
+    ],
+    "jedi_lfric_interface": [
+        "jedi_lfric_interface_developer",
+        "jedi_lfric_interface_gadi",
+    ],
+    "jedi_lfric_interface_unit_tests": [
+        "jedi_lfric_interface_gadi_unit_tests",
+    ],
+    "jedi_lfric_interface_integration_tests": [
+        "jedi_lfric_interface_gadi_integration_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.jedi_lfric_interface_developer) %}
+{% do site_groups.all.extend(site_groups.jedi_lfric_interface) %}
+{% do site_groups.unit_tests.extend(site_groups.jedi_lfric_interface_unit_tests) %}
+{% do site_groups.integration_tests.extend(site_groups.jedi_lfric_interface_integration_tests) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.jedi_lfric_interface_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.jedi_lfric_interface_gadi) %}
+{% do site_groups.gadi_unit_tests.extend(site_groups.jedi_lfric_interface_gadi_unit_tests) %}
+{% do site_groups.gadi_integration_tests.extend(site_groups.jedi_lfric_interface_gadi_integration_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_jedi_lfric_interface.cylc") %}

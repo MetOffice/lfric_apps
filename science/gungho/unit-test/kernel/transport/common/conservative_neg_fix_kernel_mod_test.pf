@@ -1,0 +1,77 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the conservative_neg_fix_kernel_mod
+!>
+module conservative_neg_fix_kernel_mod_test
+
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  use log_mod,       only : log_event,           &
+                            log_scratch_space,   &
+                            LOG_LEVEL_INFO
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: conservative_neg_fix_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type conservative_neg_fix_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use conservative_neg_fix_kernel_mod,    only: conservative_neg_fix_code
+
+    implicit none
+
+    class(conservative_neg_fix_kernel_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-15_r_tran
+
+    ! Mesh and Spaces
+    integer(i_def), parameter :: nlayers = 4
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+
+    ! Maps
+    integer(i_def), dimension(ndf_w3) :: map_w3
+
+    ! Fields
+    real(r_tran), dimension(undf_w3) :: rho, rho_answer
+    real(r_tran), dimension(undf_w3) :: mm_w3_diag
+
+    map_w3 = (/ 1_i_def /)
+
+    ! Initial rho has a negative value
+    rho(:)        = (/ 2.0_r_tran, -1.0_r_tran, 0.5_r_tran, 0.5_r_tran /)
+    mm_w3_diag(:) = (/ 0.5_r_tran, 0.25_r_tran, 0.5_r_tran, 1.0_r_tran /)
+    ! Equivalent initial masses = (1.0, -0.25, 0.25, 0.5), sum = 1.5
+    ! Answer before scaling:
+    rho_answer(:) = (/ 2.0_r_tran, 0.0_r_tran, 0.5_r_tran, 0.5_r_tran /)
+    ! New mass = 1.75 => scaling = 6/7
+    rho_answer(:) = 6.0_r_tran / 7.0_r_tran * rho_answer(:)
+
+    call conservative_neg_fix_code( nlayers,                 &
+                                    rho, mm_w3_diag,         &
+                                    ndf_w3, undf_w3, map_w3  )
+
+    @assertEqual(rho_answer, rho , tol)
+
+  end subroutine test_all
+
+end module conservative_neg_fix_kernel_mod_test

@@ -1,0 +1,133 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Algorithm to compute the total mass.
+!> @details Total mass is calculated by multiplying the density value in each
+!>         cell by the volume of the cell and summing all cells.
+module mass_conservation_alg_mod
+
+  use compute_total_mass_alg_mod,      only: compute_total_mass_alg
+  use constants_mod,                   only: r_def, i_def, l_def
+  use energy_correction_config_mod,    only: integral_method_fe
+  use extrusion_mod,                   only: SHIFTED
+  use function_space_collection_mod,   only: function_space_collection
+  use field_mod,                       only: field_type
+  use fs_continuity_mod,               only: W3
+  use function_space_mod,              only: function_space_type
+  use sci_inject_wt_to_sh_w3_kernel_mod, only: inject_wt_to_sh_w3_kernel_type
+  use intermesh_mappings_alg_mod,      only: obtain_shifted_rho, &
+                                             map_rho_intermesh
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO
+  use mesh_collection_mod,             only: mesh_collection
+  use mesh_mod,                        only: mesh_type
+  use mr_indices_mod,                  only: nummr
+  use io_config_mod,                   only: subroutine_timers
+  use timer_mod,                       only: timer
+
+  implicit none
+
+  private
+  public :: mass_conservation
+
+contains
+
+  !> @brief Subroutine to compute the total mass
+  !> @param[in] tstep       Current timestep
+  !> @param[in] rho_d       Density field
+  !> @param[in] mr          Bundle of mixing ratio fields
+  !> @param[in] w3_aerosol  W3 aerosol field (on coarse mesh)
+  !> @param[in] wt_aerosol  Wtheta aerosol field (on coarse mesh)
+  subroutine mass_conservation( tstep, rho_d, mr, &
+                                w3_aerosol, wt_aerosol, use_aerosols )
+
+    implicit none
+
+    integer(kind=i_def),     intent(in) :: tstep
+    type(field_type),        intent(in) :: rho_d
+    type(field_type),        intent(in) :: mr(nummr)
+    type(field_type),        intent(in) :: w3_aerosol, wt_aerosol
+    logical(kind=l_def),     intent(in) :: use_aerosols
+
+    type(function_space_type),  pointer :: w3_sh_fs => null()
+    type(mesh_type),            pointer :: mesh => null()
+    type(mesh_type),            pointer :: shifted_mesh => null()
+    type(mesh_type),            pointer :: coarse_mesh => null()
+
+    type(field_type) :: rho_X_shifted, rho_d_shifted
+    type(field_type) :: coarse_rho_d, rho_X, aerosol_shifted
+    real(kind=r_def) :: total_dry_mass, total_water_mass
+    real(kind=r_def) :: total_w3_aerosol_mass, total_wt_aerosol_mass
+
+
+    if ( subroutine_timers ) call timer( 'mass_conservation' )
+
+    mesh => rho_d%get_mesh()
+
+    ! Compute dry mass
+    call compute_total_mass_alg( total_dry_mass, rho_d, &
+                                 mesh, method=integral_method_fe )
+
+    ! Compute moist mass by converting into moisture density on shifted mesh
+    shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+    w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, 0, W3 )
+    call rho_X_shifted%initialise( vector_space = w3_sh_fs )
+
+    call obtain_shifted_rho(rho_d_shifted, rho_d)
+    call invoke( X_times_Y(rho_X_shifted, mr(1), rho_d_shifted) )
+    call compute_total_mass_alg( total_water_mass, rho_X_shifted, &
+                                 shifted_mesh, method=integral_method_fe )
+
+    ! Write out masses
+    write( log_scratch_space, '(A,I4,1E32.24)')  &
+                  'Total dry mass  = ', tstep, total_dry_mass
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    write( log_scratch_space, '(A,I4,1E32.24)')  &
+                  'Total water mass  = ', tstep, total_water_mass
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    nullify( mesh, w3_sh_fs, shifted_mesh )
+
+    if (use_aerosols) then
+      coarse_mesh => w3_aerosol%get_mesh()
+      shifted_mesh => mesh_collection%get_mesh(coarse_mesh, SHIFTED)
+      w3_sh_fs => function_space_collection%get_fs( shifted_mesh, 0, 0, W3 )
+
+      ! Compute mass of W3 aerosol
+      call coarse_rho_d%initialise( w3_aerosol%get_function_space() )
+      call rho_X%initialise( w3_aerosol%get_function_space() )
+      call map_rho_intermesh(coarse_rho_d, rho_d)
+      call invoke( X_times_Y(rho_X, coarse_rho_d, w3_aerosol) )
+      call compute_total_mass_alg( total_w3_aerosol_mass, rho_X, &
+                                   coarse_mesh, method=integral_method_fe )
+
+      ! Compute Wtheta aerosol mass by converting into density on shifted mesh
+      call aerosol_shifted%initialise( vector_space = w3_sh_fs )
+      call rho_X_shifted%initialise( vector_space = w3_sh_fs )
+
+      call obtain_shifted_rho(rho_d_shifted, coarse_rho_d)
+      call invoke( inject_wt_to_sh_w3_kernel_type( aerosol_shifted, wt_aerosol ), &
+                   X_times_Y( rho_X_shifted, aerosol_shifted, rho_d_shifted ) )
+      call compute_total_mass_alg( total_wt_aerosol_mass, rho_X_shifted, &
+                                   shifted_mesh, method=integral_method_fe )
+
+      ! Write out masses
+      write( log_scratch_space, '(A,I4,1E32.24)')  &
+                    'Total w3_aerosol mass  = ', tstep, total_w3_aerosol_mass
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      write( log_scratch_space, '(A,I4,1E32.24)')  &
+                    'Total wt_aerosol mass  = ', tstep, total_wt_aerosol_mass
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      nullify( coarse_mesh, w3_sh_fs, shifted_mesh )
+    end if
+
+    if ( subroutine_timers ) call timer( 'mass_conservation' )
+
+  end subroutine mass_conservation
+
+end module mass_conservation_alg_mod

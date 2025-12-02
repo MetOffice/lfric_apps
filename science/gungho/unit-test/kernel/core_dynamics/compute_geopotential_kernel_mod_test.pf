@@ -1,0 +1,123 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+module compute_geopotential_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, l_def
+  use funit
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: GEOMETRY_SPHERICAL
+  use finite_element_config_mod, only: COORD_SYSTEM_XYZ
+
+  implicit none
+
+  private
+  public :: compute_geopotential_kernel_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: compute_geopotential_kernel_test_type
+    private
+    integer(i_def), allocatable :: map(:)
+    real(r_def),    allocatable :: x(:), y(:), z(:), phi(:), basis(:,:,:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type compute_geopotential_kernel_test_type
+
+  integer(i_def), parameter :: nlayers = 1, &
+                               ndf     = 1, &
+                               undf    = 1
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+
+  integer(i_def), parameter :: coord_system = COORD_SYSTEM_XYZ
+  integer(i_def), parameter :: geometry     = GEOMETRY_SPHERICAL
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(compute_geopotential_kernel_test_type), intent(inout) :: this
+
+    allocate( this%map(ndf), &
+              this%x(undf),  &
+              this%y(undf),  &
+              this%z(undf),  &
+              this%phi(undf) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(compute_geopotential_kernel_test_type), intent(inout) :: this
+
+    deallocate( this%map, this%x, this%y, this%z, this%phi, this%basis )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use compute_geopotential_kernel_mod, only: compute_geopotential_code
+
+    implicit none
+
+    class(compute_geopotential_kernel_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    logical(l_def) :: shallow
+
+    real(r_def) :: answer
+
+    allocate(this%basis(1,ndf,ndf))
+
+    this%map(1) = 1
+    this%x(1)   = 0.0_r_def
+    this%y(1)   = 0.0_r_def
+    this%z(1)   = radius + 10000.0_r_def
+
+    this%basis(1,1,1) = 1.0_r_def
+
+    ! Test shallow geometry
+    shallow = .true.
+    call compute_geopotential_code( nlayers,                          &
+                                    this%phi, this%x, this%y, this%z, &
+                                    gravity, radius, coord_system,    &
+                                    shallow, geometry,                &
+                                    ndf, undf, this%map, ndf, undf,   &
+                                    this%map, this%basis )
+
+    ! answer = gravity * (z - radius)
+    answer = gravity * 10000.0_r_def
+    @assertEqual( answer, this%phi(1), tol )
+
+    ! Test deep geometry
+    shallow = .false.
+    call compute_geopotential_code( nlayers,                          &
+                                    this%phi, this%x, this%y, this%z, &
+                                    gravity, radius, coord_system,    &
+                                    shallow, geometry,                &
+                                    ndf, undf, this%map, ndf, undf,   &
+                                    this%map, this%basis )
+
+    ! answer = radius * gravity * (1 - (radius/(radius + height))
+    answer = 60000000.0_r_def * ( 1.0_r_def - 6000000.0_r_def/6010000.0_r_def)
+    @assertEqual( answer, this%phi(1), tol )
+
+  end subroutine test_all
+
+end module compute_geopotential_kernel_mod_test

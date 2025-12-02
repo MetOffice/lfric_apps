@@ -1,0 +1,88 @@
+@@ -8,13 +8,13 @@
+     use function_space_mod, only : function_space_type
+     use mesh_mod, only : mesh_type
+     use function_space_collection_mod, only : function_space_collection
+-    use average_w2b_to_w2_kernel_mod, only : average_w2b_to_w2_kernel_type
+-    use adj_average_w2b_to_w2_kernel_mod, only : adj_average_w2b_to_w2_kernel_type
++    use sci_average_w2b_to_w2_kernel_mod, only : average_w2b_to_w2_kernel_type
++    use adj_sci_average_w2b_to_w2_kernel_mod, only : adj_average_w2b_to_w2_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : w2, w2broken
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -26,17 +26,17 @@
+     type(field_type) :: rmultiplicity_w2
+     type(field_type) :: field_w2_input
+     type(field_type) :: field_w2_broken_input
+-    type(field_type) :: rmultiplicity_w2_input
+     real(kind=r_def) :: field_w2_inner_prod
+     real(kind=r_def) :: field_w2_broken_inner_prod
+-    real(kind=r_def) :: rmultiplicity_w2_inner_prod
++    real(kind=r_def) :: field_w2_sf
++    real(kind=r_def) :: field_w2_broken_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: field_w2_field_w2_input_inner_prod
+     real(kind=r_def) :: field_w2_broken_field_w2_broken_input_inner_prod
+-    real(kind=r_def) :: rmultiplicity_w2_rmultiplicity_w2_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+     vector_space_w2broken_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2broken)
+@@ -45,33 +45,34 @@
+     call rmultiplicity_w2%initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_w2')
+     call field_w2_input%initialise(vector_space=vector_space_w2_ptr, name='field_w2_input')
+     call field_w2_broken_input%initialise(vector_space=vector_space_w2broken_ptr, name='field_w2_broken_input')
+-    call rmultiplicity_w2_input%initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_w2_input')
+     field_w2_inner_prod = 0.0_r_def
+     field_w2_broken_inner_prod = 0.0_r_def
+-    rmultiplicity_w2_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(field_w2), setval_x(field_w2_input, field_w2), setval_random(field_w2_broken), &
+-&setval_x(field_w2_broken_input, field_w2_broken), setval_random(rmultiplicity_w2), setval_x(rmultiplicity_w2_input, &
+-&rmultiplicity_w2), average_w2b_to_w2_kernel_type(field_w2, field_w2_broken, rmultiplicity_w2), &
+-&x_innerproduct_x(field_w2_inner_prod, field_w2), x_innerproduct_x(field_w2_broken_inner_prod, field_w2_broken), &
+-&x_innerproduct_x(rmultiplicity_w2_inner_prod, rmultiplicity_w2))
++&setval_x(field_w2_broken_input, field_w2_broken), setval_random(rmultiplicity_w2), &
++&average_w2b_to_w2_kernel_type(field_w2, field_w2_broken, rmultiplicity_w2), &
++&x_innerproduct_x(field_w2_inner_prod, field_w2), x_innerproduct_x(field_w2_broken_inner_prod, field_w2_broken))
++    write( log_scratch_space, * ) "adjt_sci_average_w2b_to_w2_alg inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "field_w2 inner product = ", field_w2_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "field_w2_broken inner product = ", field_w2_broken_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    field_w2_sf = 1.0_r_def / (field_w2_inner_prod + eps)
++    field_w2_broken_sf = 1.0_r_def / (field_w2_broken_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + field_w2_inner_prod
+-    inner1 = inner1 + field_w2_broken_inner_prod
+-    inner1 = inner1 + rmultiplicity_w2_inner_prod
++    inner1 = inner1 + field_w2_inner_prod * field_w2_sf
++    inner1 = inner1 + field_w2_broken_inner_prod * field_w2_broken_sf
++    call invoke( inc_a_times_X( field_w2_sf, field_w2 ), &
++                 inc_a_times_X( field_w2_broken_sf, field_w2_broken ) )
+     field_w2_field_w2_input_inner_prod = 0.0_r_def
+     field_w2_broken_field_w2_broken_input_inner_prod = 0.0_r_def
+-    rmultiplicity_w2_rmultiplicity_w2_input_inner_prod = 0.0_r_def
+     call invoke(adj_average_w2b_to_w2_kernel_type(field_w2, field_w2_broken, rmultiplicity_w2), &
+ &x_innerproduct_y(field_w2_field_w2_input_inner_prod, field_w2, field_w2_input), &
+-&x_innerproduct_y(field_w2_broken_field_w2_broken_input_inner_prod, field_w2_broken, field_w2_broken_input), &
+-&x_innerproduct_y(rmultiplicity_w2_rmultiplicity_w2_input_inner_prod, rmultiplicity_w2, rmultiplicity_w2_input))
++&x_innerproduct_y(field_w2_broken_field_w2_broken_input_inner_prod, field_w2_broken, field_w2_broken_input))
+     inner2 = 0.0_r_def
+     inner2 = inner2 + field_w2_field_w2_input_inner_prod
+     inner2 = inner2 + field_w2_broken_field_w2_broken_input_inner_prod
+-    inner2 = inner2 + rmultiplicity_w2_rmultiplicity_w2_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

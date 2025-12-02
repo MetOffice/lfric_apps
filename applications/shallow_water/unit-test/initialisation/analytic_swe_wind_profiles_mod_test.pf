@@ -1,0 +1,153 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the analytic wind routine
+!>
+
+
+module analytic_swe_wind_profiles_mod_test
+
+  use constants_mod, only: r_def, i_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use base_mesh_config_mod,              only: geometry_spherical,      &
+                                                 topology_fully_periodic
+    use extrusion_config_mod,              only : method_uniform, &
+                                                  stretching_method_linear
+    use feign_config_mod,                  only: feign_base_mesh_config,    &
+                                                 feign_extrusion_config,    &
+                                                 feign_planet_config,       &
+                                                 feign_initial_wind_config, &
+                                                 feign_shallow_water_settings_config
+    use shallow_water_settings_config_mod, only: momentum_form_momentum, &
+                                                 swe_test_swe_mountain,  &
+                                                 time_scheme_semi_implicit
+    use initial_wind_config_mod,           only: profile_none
+
+    implicit none
+
+    call feign_base_mesh_config                     &
+             ( file_prefix='foo',                   &
+               prime_mesh_name='unit_test',         &
+               geometry=geometry_spherical,         &
+               prepartitioned=.false.,              &
+               topology=topology_fully_periodic,    &
+               fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( method=method_uniform,                      &
+                                 planet_radius=6000000.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 number_of_layers=5_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=10.0_r_def,               &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_planet_config( gravity=10.0_r_def,      &
+                              omega=8.0E-5_r_def,      &
+                              rd=300.0_r_def,          &
+                              cp=1000.0_r_def,         &
+                              p_zero=100000.0_r_def,   &
+                              scaling_factor=1.0_r_def )
+
+    call feign_initial_wind_config( profile=profile_none,               &
+                                    profile_data_u=(/ 0.0_r_def /),     &
+                                    profile_data_v=(/ 0.0_r_def /),     &
+                                    profile_data_w=(/ 0.0_r_def /),     &
+                                    profile_heights_uv=(/ 0.0_r_def /), &
+                                    profile_heights_w=(/ 0.0_r_def /),  &
+                                    profile_size_uv=1_i_def,            &
+                                    profile_size_w=1_i_def,             &
+                                    sbr_angle_lat=0.0_r_def,            &
+                                    sbr_angle_lon=0.0_r_def,            &
+                                    u0=0.0_r_def,                       &
+                                    v0=0.0_r_def,                       &
+                                    nl_constant=0.0_r_def,              &
+                                    shear=1.0_r_def,                    &
+                                    wavelength=1.0_r_def,               &
+                                    wind_time_period=0.0_r_def,         &
+                                    smp_init_wind=.false. )
+
+    call feign_shallow_water_settings_config(              &
+                  thermal_swe = .false.,                   &
+                  momentum_form = momentum_form_momentum,  &
+                  time_scheme = time_scheme_semi_implicit, &
+                  swe_test = swe_test_swe_mountain,        &
+                  ref_gp = 10000.0_r_def )
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use analytic_swe_wind_profiles_mod,    only: analytic_swe_wind
+    use constants_mod,                     only: PI
+    use planet_config_mod,                 only: scaled_radius
+    use shallow_water_settings_config_mod, only: swe_test_swe_mountain
+
+    implicit none
+
+    real(kind=r_def) :: xyz(3)
+    real(kind=r_def) :: wind(3), answer(3)
+    real(r_def), parameter :: tol = 1.0e-14_r_def
+    real(r_def), parameter :: domain_x=1.0_r_def
+
+    ! Test with Mountain test case and different latitudes
+    ! xyz is (long,lat,r)
+
+    xyz = (/ 0.0_r_def, pi/4.0_r_def, scaled_radius /)
+    wind = analytic_swe_wind( xyz, swe_test_swe_mountain, domain_x )
+    answer(1) = 14.142135623730951_r_def
+    answer(2) = 0.0_r_def
+    answer(3) = 0.0_r_def
+    @assertEqual(answer(1), wind(1), tol)
+    @assertEqual(answer(2), wind(2), tol)
+    @assertEqual(answer(3), wind(3), tol)
+
+    xyz = (/ 0.0_r_def, 1.0_r_def, scaled_radius /)
+    wind = analytic_swe_wind( xyz, swe_test_swe_mountain, domain_x )
+    answer(1) = 10.806046117362795_r_def
+    answer(2) = 0.0_r_def
+    answer(3) = 0.0_r_def
+    @assertEqual(answer(1), wind(1), tol)
+    @assertEqual(answer(2), wind(2), tol)
+    @assertEqual(answer(3), wind(3), tol)
+
+    xyz = (/ 0.0_r_def, -pi/8.0_r_def, scaled_radius /)
+    wind = analytic_swe_wind( xyz, swe_test_swe_mountain, domain_x )
+    answer(1) = 18.477590650225736_r_def
+    answer(2) = 0.0_r_def
+    answer(3) = 0.0_r_def
+    @assertEqual(answer(1), wind(1), tol)
+    @assertEqual(answer(2), wind(2), tol)
+    @assertEqual(answer(3), wind(3), tol)
+
+  end subroutine test_all
+
+end module analytic_swe_wind_profiles_mod_test

@@ -1,0 +1,38 @@
+@@ -7,7 +7,7 @@
+   type, public, extends(kernel_type) :: adj_apply_mixed_operator_kernel_type
+   type(ARG_TYPE) :: META_ARGS(15) = (/ &
+     arg_type(gh_field, gh_real, gh_read, w2h), &
+-    arg_type(gh_field, gh_real, gh_write, w2v), &
++    arg_type(gh_field, gh_real, gh_readwrite, w2v), &
+     arg_type(gh_field, gh_real, gh_readwrite, w3), &
+     arg_type(gh_field, gh_real, gh_inc, w2h), &
+     arg_type(gh_field, gh_real, gh_readwrite, w2v), &
+@@ -59,7 +59,7 @@
+     integer(kind=i_def), dimension(ndf_wt), intent(in) :: map_wt
+     integer(kind=i_def), dimension(ndf_w3), intent(in) :: map_w3
+     real(kind=r_solver), dimension(undf_w2h), intent(in) :: lhs_uv
+-    real(kind=r_solver), dimension(undf_w2v), intent(out) :: lhs_w
++    real(kind=r_solver), dimension(undf_w2v), intent(inout) :: lhs_w
+     real(kind=r_solver), dimension(undf_w3), intent(inout) :: lhs_p
+     real(kind=r_solver), dimension(undf_w2h), intent(inout) :: wind_uv
+     real(kind=r_solver), dimension(undf_w2v), intent(inout) :: wind_w
+@@ -91,7 +91,6 @@
+     integer :: idx_4
+     integer :: idx_5
+     integer :: idx_6
+-    integer :: idx_7
+     integer :: idx_8
+     integer :: idx_9
+     integer :: idx_10
+@@ -143,10 +142,7 @@
+     do idx_8 = iw2v + nlayers, iw2v, -1
+       lhs_w(idx_8) = 0.0
+     enddo
+-    do idx_7 = UBOUND(t_col, dim=1), LBOUND(t_col, dim=1), -1
+-      t_col = t_col + mt_lumped_inv(idx_7 + iwt - LBOUND(t_col(idx_7), 1)) * t_col(idx_7)
+-      t_col(idx_7) = 0.0
+-    enddo
++    t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
+     do df = ndf_w2, 1, -1
+       do idx_6 = nm1 + 1, 1, -1
+         u_e(idx_6 + LBOUND(u_e, 1) - 1,df) = u_e(idx_6 + LBOUND(u_e, 1) - 1,df) + (-pt2(idx_6 + ij - 1,2,df) * t_col(idx_6))

@@ -1,0 +1,80 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Tests the value_based_mask kernel
+!>
+module value_based_mask_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: value_based_mask_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type value_based_mask_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use value_based_mask_kernel_mod, only : value_based_mask
+
+    implicit none
+
+    class(value_based_mask_kernel_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol=1.0e-5_r_def
+
+    integer(i_def) :: nlayers
+    integer(i_def) :: ndf_2d, undf_2d
+    integer(i_def) :: map_2d(1,9)
+
+    real(r_def) :: mask(9)
+    real(r_def) :: values(9)
+    real(r_def) :: answer(9)
+
+    integer(i_def) :: i
+
+    !=====================================
+    ! Set up sizes and maps
+    nlayers = 1
+    ndf_2d = 1
+    undf_2d = 9
+    map_2d = reshape([1,2,3,4,5,6,7,8,9], [1,9])
+
+    !=====================================
+    ! Assign data for testing
+    values = 2.0_r_def
+    do i = 1, 9
+      values(i) = real(i, r_def)
+    end do
+
+    !=====================================
+    ! Run kernel on whole array
+    do i = 1, 9
+      call value_based_mask(nlayers, mask, values, &
+                            4.0_r_def, 6.0_r_def,  &
+                            ndf_2d, undf_2d, map_2d(1,i))
+    end do
+
+    !=====================================
+    ! Check results
+    answer = [0.0_r_def, 0.0_r_def, 0.0_r_def, &
+              1.0_r_def, 1.0_r_def, 1.0_r_def, &
+              0.0_r_def, 0.0_r_def, 0.0_r_def ]
+    @assertEqual( answer, mask, tol )
+
+  end subroutine test_all
+
+end module value_based_mask_kernel_mod_test

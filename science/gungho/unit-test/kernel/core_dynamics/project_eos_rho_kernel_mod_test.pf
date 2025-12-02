@@ -1,0 +1,309 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2021,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the computation of density from the equation of state by galerkin projection
+!>
+module project_eos_rho_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: project_eos_rho_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: project_eos_rho_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type project_eos_rho_test_type
+
+  real(r_def), parameter :: bvf_square = 0.0001_r_def
+  real(r_def), parameter :: theta_surf = 300.0_r_def
+  real(r_def), parameter :: pert_centre = 120.0_r_def
+  real(r_def), parameter :: pert_width_scaling = 1.0_r_def
+  integer(i_def),                                                  &
+               parameter :: profile_size       = 4
+  real(r_def), parameter :: profile_data(4)    = (/ 280.0_r_def,   &
+                                                    300.0_r_def,   &
+                                                    305.0_r_def,   &
+                                                    400.0_r_def /)
+  real(r_def), parameter :: profile_heights(4) = (/ 500.0_r_def,   &
+                                                    4.0e3_r_def,   &
+                                                    4.0e3_r_def,   &
+                                                    40.0e3_r_def /)
+
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: kappa    = rd/cp
+  real(r_def), parameter :: scaling  = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_planar, &
+                                          topology_fully_periodic
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_base_mesh_config,           &
+                                          feign_initial_temperature_config, &
+                                          feign_finite_element_config
+    use initial_temperature_config_mod, &
+                                   only : perturb_none
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(project_eos_rho_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_planar,         &
+                                 prepartitioned=.false.,           &
+                                 topology=topology_fully_periodic, &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+    call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
+                                      coord_order=0_i_def,               &
+                                      coord_system=coord_system_xyz,     &
+                                      element_order_h=0_i_def,           &
+                                      element_order_v=0_i_def,           &
+                                      rehabilitate=.true.,               &
+                                      vorticity_in_w1=.false. )
+    call feign_initial_temperature_config( bvf_square=bvf_square,                 &
+                                           theta_surf=theta_surf,                 &
+                                           pert_centre=pert_centre,               &
+                                           pert_width_scaling=pert_width_scaling, &
+                                           perturb=perturb_none,                  &
+                                           profile_size=profile_size,             &
+                                           profile_data=profile_data,             &
+                                           profile_heights=profile_heights )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(project_eos_rho_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use project_eos_rho_kernel_mod, only : project_eos_rho_code
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w3_m3x3_q3x3x3_size,     &
+                                                   get_wtheta_m3x3_q3x3x3_size, &
+                                                   get_w0_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod, only: get_w3_m3x3_dofmap,     &
+                                             get_wtheta_m3x3_dofmap, &
+                                             get_w0_m3x3_dofmap
+
+    use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                                    get_gaussian_q3x3x3_quadrature_weights_z
+    use get_unit_test_3x3x3_chi_mod,    only : get_w0_3x3x3_field
+    use get_unit_test_q3x3x3_basis_mod, only: get_w3_q3x3x3_basis,     &
+                                              get_wtheta_q3x3x3_basis, &
+                                              get_w0_q3x3x3_diff_basis, &
+                                              get_w0_q3x3x3_basis
+
+    implicit none
+
+    class(project_eos_rho_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-7_r_def
+    real(r_def), parameter :: dx = 1.0_r_def, &
+                              dy = 1.0_r_def, &
+                              dz = 1.0_r_def
+    real(r_def)            :: answer, use_tol
+
+    ! Required for calling kernel
+    real(r_def), allocatable :: exner_data(:)
+    real(r_def), allocatable :: rhs_rho_data(:)
+    real(r_def), allocatable :: rho_data(:)
+    real(r_def), allocatable :: theta_data(:)
+    real(r_def), allocatable :: moist_dyn_gas_data(:)
+
+    integer(i_def)            :: nlayers, ncells
+    integer(i_def)            :: ndf_wtheta, undf_wtheta
+    integer(i_def)            :: ndf_w3, undf_w3
+    integer(i_def)            :: ndf_w0, undf_w0
+    integer(i_def)            :: ndf_pid, undf_pid
+    integer(i_def)            :: dim_space, dim_space_diff
+    integer(i_def)            :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+    integer(i_def), allocatable :: map_wtheta(:,:)
+
+    real(r_def), allocatable :: diff_basis_w0(:,:,:,:)
+    real(r_def), allocatable :: basis_w0(:,:,:,:)
+    real(r_def), allocatable :: basis_w3(:,:,:,:)
+    real(r_def), allocatable :: basis_wtheta(:,:,:,:)
+    real(r_def), allocatable :: wh(:), wv(:)
+
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    integer(i_def) :: k
+    integer(i_def) :: cell
+
+    ! Use a 3 layer mesh
+    nlayers = 3_i_def
+
+    ! Get sizes
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wtheta, undf_wtheta, ncells, &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, &
+                                      nlayers )
+   ! Get basis functions
+    call get_w0_q3x3x3_basis(basis_w0)
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+    call get_w3_q3x3x3_basis(basis_w3)
+    call get_wtheta_q3x3x3_basis(basis_wtheta)
+
+    ! Get dofmaps
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_wtheta_m3x3_dofmap(map_wtheta)
+
+    ndf_pid = 1_i_def
+    undf_pid = ncells
+    call get_w3_m3x3_dofmap(map_pid, 1_i_def)
+
+    ! Get quadrature weights
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+    allocate(panel_id(undf_pid))
+
+    call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                            map_w0, nlayers)
+    panel_id(:) = 1.0_r_def
+
+    ! Create the data arrays
+    allocate(exner_data(undf_w3))
+    allocate(theta_data(undf_wtheta))
+    allocate(moist_dyn_gas_data(undf_wtheta))
+    allocate(rho_data(undf_w3))
+    allocate(rhs_rho_data(undf_w3))
+
+    cell = 1_i_def
+
+    ! Initialise the data
+    exner_data(:) = 1.0_r_def
+    rho_data(:)   = 0.0_r_def
+    rhs_rho_data(:)   = 0.0_r_def
+    theta_data(:) = 300.0_r_def
+    moist_dyn_gas_data(:) = 1.0_r_def
+
+    call project_eos_rho_code( nlayers,            &
+                               rhs_rho_data,       &
+                               exner_data,         &
+                               theta_data,         &
+                               moist_dyn_gas_data, &
+                               chi1,               &
+                               chi2,               &
+                               chi3,               &
+                               panel_id,           &
+                               kappa,              &
+                               rd,                 &
+                               p_zero,             &
+                               ndf_w3,             &
+                               undf_w3,            &
+                               map_w3(:,cell),     &
+                               basis_w3,           &
+                               ndf_wtheta,         &
+                               undf_wtheta,        &
+                               map_wtheta(:,cell), &
+                               basis_wtheta,       &
+                               ndf_w0,             &
+                               undf_w0,            &
+                               map_w0,             &
+                               basis_w0,           &
+                               diff_basis_w0,      &
+                               ndf_pid,            &
+                               undf_pid,           &
+                               map_pid(:,cell),    &
+                               nqp_h,              &
+                               nqp_v,              &
+                               wh,                 &
+                               wv )
+
+    ! Note in this case m3_inv is the identity matrix so rhs_rho=rho
+    rho_data(:)=rhs_rho_data(:)
+
+    k = 1
+    answer = 1.11111111_r_def
+    if ( r_def == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_def*spacing( rho_data(map_w3(1,cell)+k) )
+    end if
+    @assertEqual(answer, rho_data(map_w3(1,cell)+k), use_tol)
+
+    deallocate(rhs_rho_data)
+    deallocate(rho_data)
+    deallocate(exner_data)
+    deallocate(theta_data)
+    deallocate(moist_dyn_gas_data)
+    deallocate(map_w3)
+    deallocate(map_wtheta)
+    deallocate(basis_w3)
+    deallocate(basis_wtheta)
+    deallocate(map_w0)
+    deallocate(map_pid)
+    deallocate(diff_basis_w0)
+    deallocate(basis_w0)
+    deallocate(wh)
+    deallocate(wv)
+    deallocate(chi1)
+    deallocate(chi2)
+    deallocate(chi3)
+    deallocate(panel_id)
+
+  end subroutine test_all
+
+end module project_eos_rho_kernel_mod_test

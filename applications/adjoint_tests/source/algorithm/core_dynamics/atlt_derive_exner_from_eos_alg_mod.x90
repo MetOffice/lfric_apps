@@ -1,0 +1,189 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_derive_exner_from_eos_alg
+module atlt_derive_exner_from_eos_alg_mod
+
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def
+  use field_indices_mod,                   only : igh_t, igh_d, &
+                                                  igh_p
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use derived_config_mod,                  only : bundle_size
+  use finite_element_config_mod,           only : element_order_h, element_order_v
+  use fs_continuity_mod,                   only : W3, Wtheta
+  use function_space_collection_mod,       only : function_space_collection
+
+  implicit none
+
+  public
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_derive_exner_from_eos_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  subroutine atlt_derive_exner_from_eos_alg( mesh )
+
+    use tl_derive_exner_from_eos_alg_mod,    only : tl_derive_exner_from_eos
+    use atl_derive_exner_from_eos_alg_mod,   only : atl_derive_exner_from_eos
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and atl calls
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type)    :: state(bundle_size)
+    type(field_type)    :: moist_dyn
+    type(field_type)    :: ls_state(bundle_size)
+    type(field_type)    :: ls_moist_dyn
+
+    ! Copies of input fields used in inner products
+    type(field_type)    :: state_input(bundle_size)
+    type(field_type)    :: moist_dyn_input
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: state_inner_prod(bundle_size)
+    real(kind=r_def)            :: moist_dyn_inner_prod
+    real(kind=r_def)            :: state_sf(bundle_size)
+    real(kind=r_def)            :: moist_dyn_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: state_state_input_inner_prod(bundle_size)
+    real(kind=r_def)            :: moist_dyn_moist_dyn_input_inner_prod
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Initialising fields
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    call state(igh_t)%initialise( vector_space = vector_space_wtheta_ptr )
+    call state(igh_d)%initialise( vector_space = vector_space_w3_ptr )
+    call state(igh_p)%initialise( vector_space = vector_space_w3_ptr )
+    call moist_dyn%initialise( vector_space = vector_space_wtheta_ptr )
+
+    call state(igh_t)%copy_field_properties( ls_state(igh_t) )
+    call state(igh_d)%copy_field_properties( ls_state(igh_d) )
+    call moist_dyn%copy_field_properties( ls_moist_dyn )
+
+    call state(igh_t)%copy_field_properties( state_input(igh_t) )
+    call state(igh_d)%copy_field_properties( state_input(igh_d) )
+    call state(igh_p)%copy_field_properties( state_input(igh_p) )
+    call moist_dyn%copy_field_properties( moist_dyn_input )
+
+    state_inner_prod(:) = 0.0_r_def
+    moist_dyn_inner_prod = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( name = "init",                                            &
+                 setval_random( state(igh_t) ),                            &
+                 setval_x( state_input(igh_t), state(igh_t) ),             &
+                 setval_random( state(igh_d) ),                            &
+                 setval_x( state_input(igh_d), state(igh_d) ),             &
+                 setval_random( state(igh_p) ),                            &
+                 setval_x( state_input(igh_p), state(igh_p) ),             &
+                 setval_random( moist_dyn ),                               &
+                 setval_x( moist_dyn_input, moist_dyn ),                   &
+                 setval_random( ls_state(igh_t) ),                         &
+                 setval_random( ls_state(igh_d) ),                         &
+                 setval_random( ls_moist_dyn ) )
+
+    ! Tangent linear
+    call tl_derive_exner_from_eos( state, moist_dyn, ls_state, ls_moist_dyn )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( state_inner_prod(igh_t), state(igh_t) ),           &
+                 x_innerproduct_x( state_inner_prod(igh_d), state(igh_d) ),           &
+                 x_innerproduct_x( state_inner_prod(igh_p), state(igh_p) ),           &
+                 x_innerproduct_x( moist_dyn_inner_prod, moist_dyn ) )
+
+    write(log_scratch_space, *) "atlt_derive_exner_from_eos inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "state(igh_t) inner product = ", state_inner_prod(igh_t)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "state(igh_d) inner product = ", state_inner_prod(igh_d)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "state(igh_p) inner product = ", state_inner_prod(igh_p)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "moist_dyn inner product = ", moist_dyn_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    state_sf(igh_t) = 1.0_r_def / (state_inner_prod(igh_t) + eps)
+    state_sf(igh_d) = 1.0_r_def / (state_inner_prod(igh_d) + eps)
+    state_sf(igh_p) = 1.0_r_def / (state_inner_prod(igh_p) + eps)
+    moist_dyn_sf = 1.0_r_def / (moist_dyn_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + state_inner_prod(igh_t) * state_sf(igh_t)
+    inner1 = inner1 + state_inner_prod(igh_d) * state_sf(igh_d)
+    inner1 = inner1 + state_inner_prod(igh_p) * state_sf(igh_p)
+    inner1 = inner1 + moist_dyn_inner_prod * moist_dyn_sf
+
+    call invoke( inc_a_times_X( state_sf(igh_t), state(igh_t) ), &
+                 inc_a_times_X( state_sf(igh_d), state(igh_d) ), &
+                 inc_a_times_X( state_sf(igh_p), state(igh_p) ), &
+                 inc_a_times_X( moist_dyn_sf, moist_dyn ) )
+
+    ! Adjoint alg call and inner products
+    state_state_input_inner_prod(:) = 0.0_r_def
+    moist_dyn_moist_dyn_input_inner_prod = 0.0_r_def
+
+    ! Adjoint
+    call atl_derive_exner_from_eos( state, moist_dyn, ls_state, ls_moist_dyn )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( state_state_input_inner_prod(igh_t),           &
+                                   state(igh_t),                                  &
+                                   state_input(igh_t) ),                          &
+                 x_innerproduct_y( state_state_input_inner_prod(igh_d),           &
+                                   state(igh_d),                                  &
+                                   state_input(igh_d) ),                          &
+                 x_innerproduct_y( state_state_input_inner_prod(igh_p),           &
+                                   state(igh_p),                                  &
+                                   state_input(igh_p) ),                          &
+                 x_innerproduct_y( moist_dyn_moist_dyn_input_inner_prod,          &
+                                   moist_dyn,                                     &
+                                   moist_dyn_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + state_state_input_inner_prod(igh_t)
+    inner2 = inner2 + state_state_input_inner_prod(igh_d)
+    inner2 = inner2 + state_state_input_inner_prod(igh_p)
+    inner2 = inner2 + moist_dyn_moist_dyn_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_derive_exner_from_eos_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_derive_exner_from_eos_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_derive_exner_from_eos_alg
+
+end module atlt_derive_exner_from_eos_alg_mod

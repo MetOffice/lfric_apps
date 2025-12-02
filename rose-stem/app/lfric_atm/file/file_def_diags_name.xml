@@ -1,0 +1,46 @@
+<file_definition>
+
+  <!-- Diagnostic output file for NAME model on global runs -->
+  <file id="lfric_name" name="lfric_name" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="3h" prec="4">
+      <field field_ref="u_in_w3"/>                      <!-- 3D, Field Name: wind (u-cpt) -->
+      <field field_ref="v_in_w3"/>                      <!-- 3D, Field Name: wind (v-cpt) -->
+      <field field_ref="w_in_w3"/>                      <!-- 3D, Field Name: wind (w-cpt) -->
+      <field field_ref="processed__temperature"/>       <!-- 3D, Field Name: temperature, field code 16004, unsure if this is correct. -->
+      <field field_ref="processed__qv"/>                <!-- 3D, Field Name: specific humidity, field code 408 -->
+      <field field_ref="processed__pressure_in_w3"/>    <!-- ?D, Field Name: pressure, field code 408. unsure if this is correct. -->
+      <field field_ref="surface__pseudotaux"/>          <!-- 2D, Field Name: surface stress (u-cpt) -->
+      <field field_ref="surface__pseudotauy"/>          <!-- 2D, Field Name: surface stress (v-cpt) -->
+      <field field_ref="turbulence__heat_flux_bl"/>     <!-- 2D, Field Name: surface sensible heat flux -->
+      <field field_ref="processed__pmsl"/>              <!-- 2D, Field Name: sea level pressure, field code 16222, is this correct? -->
+      <field field_ref="processed__pstar"/>             <!-- 2D, Field Name: pressure, field code 409 -->
+      <field field_ref="surface__t1p5m"/>               <!-- 2D, Field Name: temperature -->
+      <field field_ref="turbulence__zh"/>               <!-- 2D, Field Name: boundary layer depth -->
+      <field field_ref="surface__z0m"/>                 <!-- 2D, Field Name: roughness length -->
+      <field field_ref="soil__soil_moisture"/>          <!-- 2D, Field Name: soil moisture in layer multiply by fraction-->
+      <field field_ref="soil__unfrozen_soil_moisture"/> <!-- 2D, Field Name: soil moisture in layer, fraction -->
+      <field field_ref="surface__canopy_height"/>       <!-- 2D, Field Name: canopy height, will this be an ancil like orography? -->
+      <field field_ref="surface__grid_canopy_water"/>   <!-- 2D, Field Name: canopy water -->
+      <field field_ref="surface__gc_tile"/>             <!-- 2D, Field Name: stomatal conductance -->
+      <field field_ref="orography"/>                    <!-- Operationally will be an ancil -->
+      <field field_ref="surface__tile_fraction"/>       <!-- Operationally will be an ancil -->
+    </field_group>
+
+    <field_group operation="average" freq_op="1ts" prec="4"> 
+      <field field_ref="m_cl"/>                             <!-- 3D, Field Name: cloud liquid water -->
+      <field field_ref="m_cf"/>                             <!-- 3D, Field Name: cloud ice water -->
+      <field field_ref="convection__cca_2d"/>               <!-- 2D, Field Name: convective cloud amount -->
+      <field field_ref="convection__pres_cv_base"/>         <!-- 2D, Field Name: convective cloud base -->
+      <field field_ref="convection__pres_cv_top"/>          <!-- 2D, Field Name: convective cloud top -->
+      <field field_ref="convection__conv_rain"/>            <!-- 2D, Field Name: convective rain rate -->
+      <field field_ref="convection__conv_snow"/>            <!-- 2D, Field Name: convective snow rate -->
+      <field field_ref="microphysics__ls_rain"/>            <!-- 2D, Field Name: dynamic rain rate -->
+      <field field_ref="microphysics__ls_snow"/>            <!-- 2D, Field Name: dynamic rain rate -->
+      <field field_ref="cloud__low_type_cloud_amount"/>     <!-- 2D, Field Name: low cloud amount -->
+      <field field_ref="cloud__medium_type_cloud_amount"/>  <!-- 2D, Field Name: medium cloud amount -->
+      <field field_ref="cloud__high_type_cloud_amount"/>    <!-- 2D, Field Name: high cloud amount -->
+    </field_group>
+
+  </file>
+
+</file_definition>

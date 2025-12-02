@@ -1,0 +1,107 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_gravity_wave.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "gravity_wave_azspice_developer": [
+        "gravity_wave_default-C24_azspice_gnu_fast-debug-64bit",
+        "gravity_wave_default-C24_azspice_gnu_full-debug-64bit",
+        "gravity_wave_multigrid-C24_MG_azspice_gnu_fast-debug-64bit",
+        "gravity_wave_limited_300x4-BiP300x4-1000x2000_azspice_gnu_fast-debug-64bit",
+        "gravity_wave_p1_75x4-BiP75x4-4000x2000_azspice_gnu_fast-debug-64bit",
+        "gravity_wave_limited_spherical_50x50_LAM50x50-2x2_azspice_gnu_fast-debug-64bit",
+        "gravity_wave_limited_c24-C24_azspice_gnu_fast-debug-64bit",
+        "gravity_wave_limited_c24_rec-C24_azspice_gnu_fast-debug-64bit",
+        "gravity_wave_azspice_unit_tests",
+        "gravity_wave_azspice_canned",
+    ],
+    "gravity_wave_azspice": [
+        "gravity_wave_azspice_developer",
+    ],
+    "gravity_wave_azspice_unit_tests": [
+        "gravity_wave_unit_tests_azspice_gnu_64bit",
+    ],
+    "gravity_wave_azspice_canned": [
+        "gravity_wave_canned_azspice_gnu_fast-debug-64bit",
+    ],
+    "gravity_wave_azspice_build": [
+        "build_gravity_wave_azspice_gnu_fast-debug-64bit",
+        "build_gravity_wave_azspice_gnu_full-debug-64bit",
+    ],
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "gravity_wave_ex1a_developer": [
+        "gravity_wave_default-C24_ex1a_gnu_fast-debug-64bit",
+        "gravity_wave_multigrid-C24_MG_ex1a_gnu_fast-debug-64bit",
+        "gravity_wave_limited_300x4-BiP300x4-1000x2000_ex1a_gnu_fast-debug-64bit",
+        "gravity_wave_p1_75x4-BiP75x4-4000x2000_ex1a_gnu_fast-debug-64bit",
+        "gravity_wave_limited_spherical_50x50_LAM50x50-2x2_ex1a_gnu_fast-debug-64bit",
+        "gravity_wave_limited_c24_rec-C24_ex1a_gnu_fast-debug-64bit",
+        "gravity_wave_unit_tests_ex1a_gnu_64bit",
+        "gravity_wave_ex1a_canned",
+    ],
+    "gravity_wave_ex1a": [
+        "gravity_wave_ex1a_developer",
+    ],
+    "gravity_wave_ex1a_unit_tests": [
+        "gravity_wave_unit_tests_ex1a_gnu_64bit",
+    ],
+    "gravity_wave_ex1a_canned": [
+        "gravity_wave_canned_ex1a_gnu_fast-debug-64bit",
+    ],
+    "gravity_wave_ex1a_build": [
+        "build_gravity_wave_ex1a_gnu_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "gravity_wave_developer": [
+        "scripts",
+        "gravity_wave_azspice_developer",
+        "gravity_wave_ex1a_developer",
+    ],
+    "gravity_wave": [
+        "gravity_wave_developer",
+        "gravity_wave_azspice",
+        "gravity_wave_ex1a",
+    ],
+    "gravity_wave_unit_tests": [
+        "gravity_wave_azspice_unit_tests",
+        "gravity_wave_ex1a_unit_tests",
+    ],
+    "gravity_wave_build": [
+        "gravity_wave_azspice_build",
+        "gravity_wave_ex1a_build",
+    ],
+    "gravity_wave_canned": [
+        "gravity_wave_azspice_canned",
+        "gravity_wave_ex1a_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.gravity_wave_developer) %}
+{% do site_groups.all.extend(site_groups.gravity_wave) %}
+{% do site_groups.unit_tests.extend(site_groups.gravity_wave_unit_tests) %}
+{% do site_groups.build.extend(site_groups.gravity_wave_build) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.gravity_wave_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.gravity_wave_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.gravity_wave_azspice_unit_tests) %}
+{% do site_groups.azspice_build.extend(site_groups.gravity_wave_azspice_build) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.gravity_wave_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.gravity_wave_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.gravity_wave_ex1a_unit_tests) %}
+{% do site_groups.ex1a_build.extend(site_groups.gravity_wave_ex1a_build) %}
+
+{% do LOG.debug("Finished iin site/meto/groups/groups_gravity_wave.cylc") %}

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+
+  <context id = "gungho_atm">
+
+    <variable_definition src="$METADATA/variable_def_main.xml"/>
+    <axis_definition src="$METADATA/axis_def_main.xml"/>
+    <!-- Pressure level axes definitions -->
+    <axis_definition>
+      <axis id="pressure_levels" name="pressure_levels" n_glo="29" value="(0,28)[100000 95000 92500 90000 85000 70000 60000 50000 40000 30000 25000 20000 15000 10000 7000 5000 3000 2000 1000 700 500 300 200 100 70 50 30 20 10]"/>
+      <axis id="pressure_levels_xi3" name="pressure_levels_xi3" n_glo="1" value="(0,0)[85000]"/>
+    </axis_definition>
+
+    <domain_definition src="$METADATA/domain_def_main.xml"/>
+    <grid_definition src="$METADATA/grid_def_main.xml"/>
+
+    <field_definition src="$METADATA/lfric_dictionary.xml"/>
+
+    <field_definition src="$METADATA/field_def_diags.xml"/>
+    <field_definition src="$METADATA/field_def_initial_diags.xml"/>
+    <field_definition src="$METADATA/field_def_lbc_diags.xml"/>
+
+    <field_definition prec="8" >
+      <!-- Checkpoint group -->
+      <field_group id="checkpoint_fields" freq_op="1ts" operation="once" enabled=".FALSE." >
+        <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" />
+        <field id="checkpoint_exner" name="exner" long_name="exner_pressure" unit="1" domain_ref="checkpoint_W3" />
+        <field id="checkpoint_theta_ref" name="theta_ref" long_name="air_potential_temperature_ref" standard_name="air_potential_temperature_ref" unit="K" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_rho_ref" name="rho_ref" long_name="air_density_ref" standard_name="air_density_ref" unit="kg m-3" domain_ref="checkpoint_W3" />
+        <field id="checkpoint_exner_ref" name="exner_ref" long_name="exner_pressure_ref" unit="1" domain_ref="checkpoint_W3" />
+        <field id="checkpoint_u" name="u" long_name="U" unit="m s-1" domain_ref="checkpoint_W2" />
+        <field id="checkpoint_m_v" name="m_v" long_name="m_v" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_m_r" name="m_r" long_name="m_r" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_m_s" name="m_s" long_name="m_s" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_m_g" name="m_g" long_name="m_g" unit="kg kg-1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_moist_dyn_gas_law_ref" name="moist_dyn_gas_law_ref" long_name="moist_dyn_gas_law_ref" unit="1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_moist_dyn_total_mass_ref" name="moist_dyn_total_mass_ref" long_name="moist_dyn_total_mass_ref" unit="1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_moist_dyn_water_ref" name="moist_dyn_water_ref" long_name="moist_dyn_water_ref" unit="1" domain_ref="checkpoint_Wtheta" />
+        <field id="checkpoint_ageofair" name="ageofair" long_name="ageofair" unit="s" domain_ref="checkpoint_W3" />
+      </field_group>
+
+      <!-- Restart group -->
+      <field_group id="restart_fields" freq_op="1ts" operation="once" enabled=".FALSE." >
+        <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="restart_Wtheta" />
+        <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="restart_W3" />
+        <field id="restart_exner" name="exner" long_name="exner_pressure" unit="1" domain_ref="restart_W3" />
+        <field id="restart_theta_ref" name="theta_ref" long_name="air_potential_temperature_ref" standard_name="air_potential_temperature_ref" unit="K" domain_ref="restart_Wtheta" />
+        <field id="restart_rho_ref" name="rho_ref" long_name="air_density_ref" standard_name="air_density_ref" unit="kg m-3" domain_ref="restart_W3" />
+        <field id="restart_exner_ref" name="exner_ref" long_name="exner_pressure_ref" unit="1" domain_ref="restart_W3" />
+        <field id="restart_u" name="u" long_name="U" unit="m s-1" domain_ref="restart_W2" />
+        <field id="restart_m_v" name="m_v" long_name="m_v" unit="kg kg-1" domain_ref="restart_Wtheta" />
+        <field id="restart_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" domain_ref="restart_Wtheta" />
+        <field id="restart_m_r" name="m_r" long_name="m_r" unit="kg kg-1" domain_ref="restart_Wtheta" />
+        <field id="restart_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" domain_ref="restart_Wtheta" />
+        <field id="restart_m_s" name="m_s" long_name="m_s" unit="kg kg-1" domain_ref="restart_Wtheta" />
+        <field id="restart_m_g" name="m_g" long_name="m_g" unit="kg kg-1" domain_ref="restart_Wtheta" />
+        <field id="restart_moist_dyn_gas_law_ref" name="moist_dyn_gas_law_ref" long_name="moist_dyn_gas_law_ref" unit="1" domain_ref="restart_Wtheta" />
+        <field id="restart_moist_dyn_total_mass_ref" name="moist_dyn_total_mass_ref" long_name="moist_dyn_total_mass_ref" unit="1" domain_ref="restart_Wtheta" />
+        <field id="restart_moist_dyn_water_ref" name="moist_dyn_water_ref" long_name="moist_dyn_water_ref" unit="1" domain_ref="restart_Wtheta" />
+        <field id="restart_ageofair" name="ageofair" long_name="ageofair" unit="s" domain_ref="restart_W3" />
+        <field id="restart_conv_prog_dtheta" name="conv_prog_dtheta" long_name="convective_prognostic_dtheta" unit="K" grid_ref="restart_Wtheta" />
+      </field_group>
+	  </field_definition>
+
+    <file_definition type="one_file" par_access="collective" time_counter="none">
+
+      <!-- Checkpoint groups -->
+
+      <!-- File definition for checkpoint write -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="CF" enabled=".FALSE.">
+      </file>
+
+      <!-- File definition for checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+              </file>
+
+      <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+      </file>
+
+      <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
+      </file>
+
+      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+      </file>
+
+      <!-- File definition for writing an FD dump -->
+      <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
+      </file>
+
+      <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

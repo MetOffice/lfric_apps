@@ -1,0 +1,84 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_shallow_water.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "shallow_water_gadi_developer": [
+        "shallow_water_galewsky-C24_gadi_intel_fast-debug-64bit",
+        "shallow_water_galewsky_vi-C24_gadi_intel_fast-debug-64bit",
+        "shallow_water_gaussian-BiP32x32-1x1_gadi_intel_fast-debug-64bit",
+        "shallow_water_gaussian_vi-BiP32x32-1x1_gadi_intel_fast-debug-64bit",
+        "shallow_water_gaussian_ex-BiP32x32-1x1_gadi_intel_fast-debug-64bit",
+        "shallow_water_thermal_vi-BiP32x32-1x1_gadi_intel_fast-debug-64bit",
+        "shallow_water_williamson2_vi-C24_gadi_intel_fast-debug-64bit",
+        "shallow_water_williamson5_vi-C24_gadi_intel_fast-debug-64bit",
+        "shallow_water_gadi_unit_tests",
+        "shallow_water_gadi_canned",
+    ],
+    "shallow_water_gadi_extra": [
+        "shallow_water_galewsky_vi-C96_gadi_intel_fast-debug-64bit",
+        "shallow_water_galewsky_vi_ffsl-C96_gadi_intel_fast-debug-64bit",
+        "shallow_water_galewsky_vi_koren-C96_gadi_intel_fast-debug-64bit",
+        "shallow_water_galewsky_vi_mono-C96_gadi_intel_fast-debug-64bit",
+        "shallow_water_thermal-BiP32x32-1x1_gadi_intel_fast-debug-64bit",
+        "shallow_water_vortex_plane-BiP64x64-1x1_gadi_intel_fast-debug-64bit",
+        "shallow_water_vortex_plane_vi-BiP64x64-1x1_gadi_intel_fast-debug-64bit",
+        "shallow_water_williamson5-C24_gadi_intel_fast-debug-64bit",
+    ],
+    "shallow_water_gadi": [
+        "shallow_water_gadi_developer",
+        "shallow_water_gadi_extra",
+    ],
+    "shallow_water_gadi_unit_tests": [
+        "shallow_water_unit_tests_gadi_intel_64bit",
+    ],
+    "shallow_water_gadi_build": [
+        "build_shallow_water_gadi_intel_fast-debug-64bit",
+    ],
+    "shallow_water_gadi_canned": [
+        "shallow_water_canned_gadi_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "shallow_water_developer": [
+        "scripts",
+        "shallow_water_gadi_developer",
+        "shallow_water_unit_tests",
+    ],
+    "shallow_water_extra": [
+        "shallow_water_gadi_extra",
+    ],
+    "shallow_water": [
+        "shallow_water_developer",
+        "shallow_water_gadi",
+    ],
+    "shallow_water_unit_tests": [
+        "shallow_water_gadi_unit_tests",
+    ],
+    "shallow_water_build": [
+        "shallow_water_gadi_build",
+    ],
+    "shallow_water_canned": [
+        "shallow_water_gadi_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.shallow_water_developer) %}
+{% do site_groups.all.extend(site_groups.shallow_water) %}
+{% do site_groups.unit_tests.extend(site_groups.shallow_water_unit_tests) %}
+{% do site_groups.build.extend(site_groups.shallow_water_build) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.shallow_water_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.shallow_water_gadi) %}
+{% do site_groups.gadi_unit_tests.extend(site_groups.shallow_water_gadi_unit_tests) %}
+{% do site_groups.gadi_build.extend(site_groups.shallow_water_gadi_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_shallow_water.cylc") %}

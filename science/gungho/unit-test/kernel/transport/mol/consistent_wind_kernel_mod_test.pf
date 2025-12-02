@@ -1,0 +1,147 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the computation of consistent winds
+module consistent_wind_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: consistent_wind_test_type
+    private
+  contains
+    procedure test_all
+  end type consistent_wind_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use consistent_wind_kernel_mod, only: consistent_wind_code
+
+    implicit none
+
+    class(consistent_wind_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran
+
+    integer(i_def), parameter :: nlayers = 2
+    integer(i_def), parameter :: ndf_w2 = 6
+    integer(i_def), parameter :: undf_w2 = 4*nlayers + nlayers+1
+    integer(i_def), parameter :: ndf_wt = 2
+    integer(i_def), parameter :: undf_wt = nlayers+1
+    integer(i_def), parameter :: ndf_wx = 8
+    integer(i_def), parameter :: undf_wx = ndf_wx*nlayers
+    integer(i_def), dimension(ndf_w2) :: map_w2
+    integer(i_def), dimension(ndf_wt) :: map_wt
+    integer(i_def), dimension(ndf_wx) :: map_wx
+
+    real(r_tran), dimension(undf_w2) :: consistent_wind, wind
+    real(r_tran), dimension(undf_wt) :: metrics
+    real(r_def), dimension(undf_wx) :: z
+    real(r_def), dimension(3,ndf_w2,ndf_wt) :: basis
+    real(r_def), dimension(3,ndf_wx,ndf_wt) :: diff_basis
+
+    real(r_tran), parameter :: dx = 2.0_r_tran
+    real(r_tran), parameter :: dy = 3.0_r_tran
+    real(r_tran), parameter :: dz = 4.0_r_tran
+    real(r_tran)            :: dzdx, dzdy, u0, answer
+
+    integer(i_def) :: i, k
+
+    do i = 1,4
+      map_w2(i) = (i-1)*nlayers + 1
+    end do
+    do i = 1,2
+      map_w2(4+i) = 4*nlayers + i
+    end do
+    do i = 1,ndf_wt
+      map_wt(i) = i
+    end do
+    do i = 1,ndf_wx
+      map_wx(i) = (i-1)*nlayers + 1
+    end do
+
+    basis = 0.0_r_def
+    basis(1,1,:) = 0.5_r_def
+    basis(2,2,:) = 0.5_r_def
+    basis(1,3,:) = 0.5_r_def
+    basis(2,4,:) = 0.5_r_def
+    basis(3,5,1) = 1.0_r_def
+    basis(3,5,2) = 0.0_r_def
+    basis(3,6,1) = 0.0_r_def
+    basis(3,6,2) = 1.0_r_def
+
+    diff_basis = 0.0_r_def
+    diff_basis(:,1,1) = (/ -1.0_r_def, -1.0_r_def, -1.0_r_def /)
+    diff_basis(:,2,1) = (/  1.0_r_def, -1.0_r_def, -1.0_r_def /)
+    diff_basis(:,3,1) = (/  1.0_r_def,  1.0_r_def, -1.0_r_def /)
+    diff_basis(:,4,1) = (/ -1.0_r_def,  1.0_r_def, -1.0_r_def /)
+    diff_basis(:,5,1) = (/  0.0_r_def,  0.0_r_def,  1.0_r_def /)
+    diff_basis(:,6,1) = (/  0.0_r_def,  0.0_r_def,  1.0_r_def /)
+    diff_basis(:,7,1) = (/  0.0_r_def,  0.0_r_def,  1.0_r_def /)
+    diff_basis(:,8,1) = (/  0.0_r_def,  0.0_r_def,  1.0_r_def /)
+    diff_basis(:,1,2) = (/  0.0_r_def,  0.0_r_def, -1.0_r_def /)
+    diff_basis(:,2,2) = (/  0.0_r_def,  0.0_r_def, -1.0_r_def /)
+    diff_basis(:,3,2) = (/  0.0_r_def,  0.0_r_def, -1.0_r_def /)
+    diff_basis(:,4,2) = (/  0.0_r_def,  0.0_r_def, -1.0_r_def /)
+    diff_basis(:,5,2) = (/ -1.0_r_def, -1.0_r_def,  1.0_r_def /)
+    diff_basis(:,6,2) = (/  1.0_r_def, -1.0_r_def,  1.0_r_def /)
+    diff_basis(:,7,2) = (/  1.0_r_def,  1.0_r_def,  1.0_r_def /)
+    diff_basis(:,8,2) = (/ -1.0_r_def,  1.0_r_def,  1.0_r_def /)
+    diff_basis = 0.25_r_def*diff_basis
+
+    ! Set up input data
+    dzdx = 2.0_r_def
+    dzdy = 3.0_r_def
+    do k = 0,nlayers-1
+      z(map_wx(1) + k) = 0.0_r_def + k*dz
+      z(map_wx(2) + k) = dzdx + k*dz
+      z(map_wx(3) + k) = dzdx + dzdy + k*dz
+      z(map_wx(4) + k) = dzdy + k*dz
+      do i = 1,4
+        z(map_wx(4+i) + k) = z(map_wx(i)+k) + dz
+      end do
+    end do
+
+    u0 = 2.0_r_tran
+    wind(:) = u0
+    consistent_wind = wind
+    metrics(:) = u0*(dzdx + dzdy)*0.5_r_tran
+
+    call consistent_wind_code(nlayers,                   &
+                              consistent_wind,           &
+                              wind,                      &
+                              metrics,                   &
+                              z,                         &
+                              ndf_wt,                    &
+                              undf_wt,                   &
+                              map_wt,                    &
+                              ndf_w2,                    &
+                              undf_w2,                   &
+                              map_w2,                    &
+                              basis,                     &
+                              ndf_wt,                    &
+                              undf_wt,                   &
+                              map_wt,                    &
+                              ndf_wx,                    &
+                              undf_wx,                   &
+                              map_wx,                    &
+                              diff_basis)
+    answer = u0
+
+    @assertEqual(answer, consistent_wind(map_w2(6)) , tol)
+
+  end subroutine test_all
+
+end module consistent_wind_kernel_mod_test

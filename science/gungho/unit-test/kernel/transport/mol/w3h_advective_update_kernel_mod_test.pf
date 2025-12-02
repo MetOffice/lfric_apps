@@ -1,0 +1,128 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the horizontal advective wind update computation
+module w3h_advective_update_kernel_mod_test
+
+  use, intrinsic :: iso_fortran_env, only : real64, real32
+  use constants_mod,                 only : i_def, r_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: w3h_advective_update_test_type
+    private
+  contains
+    procedure test_all
+  end type w3h_advective_update_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use w3h_advective_update_kernel_mod, only : w3h_advective_update_code
+
+    implicit none
+
+    class(w3h_advective_update_test_type), intent(inout) :: this
+
+    real(kind=r_tran) :: tol
+    real(kind=r_tran) :: answer
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 2
+    integer(kind=i_def), parameter :: ncell_3d = nlayers
+    integer(kind=i_def), parameter :: cell = 1
+    ! Scalar Space
+    integer(kind=i_def), parameter                           :: ndf_ws = 1_i_def
+    integer(kind=i_def), parameter                           :: undf_ws = ndf_ws*nlayers
+    integer(kind=i_def), dimension(ndf_ws)                   :: map_ws
+    real(kind=r_tran),   dimension(undf_ws)                  :: advective_update
+    real(kind=r_def),    dimension(ncell_3d, ndf_ws, ndf_ws) :: m3_inv
+    ! Vector Space
+    integer(kind=i_def), parameter                         :: ndf_wv  = 4_i_def
+    integer(kind=i_def), parameter                         :: undf_wv = ndf_wv*nlayers
+    integer(kind=i_def), dimension(ndf_wv)                 :: map_wv
+    integer(kind=i_def), dimension(4)                      :: smap_wv_size
+    integer(kind=i_def), parameter                         :: smap_wv_max = 2
+    integer(kind=i_def), dimension(ndf_wv, smap_wv_max, 4) :: smap_wv
+    real(kind=r_tran),   dimension(undf_wv)                :: wind
+    ! Multidata space
+    integer(kind=i_def), parameter                         :: ndf_md  = 1_i_def
+    integer(kind=i_def), parameter                         :: undf_md = 4_i_def*ndf_md*nlayers
+    integer(kind=i_def), dimension(ndf_md)                 :: map_md
+    integer(kind=i_def), dimension(4)                      :: smap_md_size
+    integer(kind=i_def), parameter                         :: smap_md_max = 2
+    integer(kind=i_def), dimension(ndf_md, smap_md_max, 4) :: smap_md
+    real(kind=r_tran),   dimension(undf_md)                :: wind_recon
+
+    integer(kind=i_def) :: k, df
+
+    map_ws = (/ 1 /)
+    map_wv(1) = 1
+    do df = 2,4
+      map_wv(df) = map_wv(df-1) + nlayers
+    end do
+    map_md(1) = 1
+
+    ! Set some values for the initial field
+    do k = 0, nlayers - 1
+      wind(map_wv(1)+k) = 0.25_r_tran + real(k,r_tran)
+      wind(map_wv(3)+k) = 0.75_r_tran + real(k,r_tran)
+      wind(map_wv(2)+k) = -1.25_r_tran - real(k,r_tran)
+      wind(map_wv(4)+k) =  1.25_r_tran + real(k,r_tran)
+    end do
+
+    do k = 0, nlayers-1
+      wind_recon(map_md(1) + k + 0*nlayers) =-19.0_r_tran - 3.52_r_tran*real(k,r_tran)
+      wind_recon(map_md(1) + k + 1*nlayers) =-23.0_r_tran + 1.46_r_tran*real(k,r_tran)
+      wind_recon(map_md(1) + k + 2*nlayers) = 19.0_r_tran + 3.52_r_tran*real(k,r_tran)
+      wind_recon(map_md(1) + k + 3*nlayers) = 0.0_r_tran
+    end do
+
+    ! Set up stencil maps
+    smap_wv_size(:) = 2
+    smap_wv = -1
+    do k = 1,4
+      smap_wv(:,1,k) = map_wv
+      smap_wv(k,2,k) = map_wv(k)
+    end do
+
+    smap_md_size(:) = 2
+    smap_md = map_md(1)
+
+    m3_inv(:,:,:) = 0.1_r_def
+    advective_update = 0.0_r_tran
+
+    call w3h_advective_update_code(cell, nlayers,           &
+                                   advective_update,        &
+                                   wind_recon,              &
+                                   smap_md_size,            &
+                                   smap_md_max,             &
+                                   smap_md,                 &
+                                   wind,                    &
+                                   smap_wv_size,            &
+                                   smap_wv_max,             &
+                                   smap_wv,                 &
+                                   ncell_3d, m3_inv,        &
+                                   ndf_ws, undf_ws, map_ws, &
+                                   ndf_md, undf_md, map_md, &
+                                   ndf_wv, undf_wv, map_wv  &
+                                  )
+
+    tol = 1.0e-6_r_tran ! precision with 32-bit r_def
+    do k = 0,nlayers-1
+      answer = 0.2_r_tran*(0.5_r_tran + real(k,r_tran))*wind_recon(map_md(1)+k+2*nlayers)
+      @assertEqual(answer, advective_update(map_ws(1)+k), tol)
+    end do
+
+  end subroutine test_all
+
+end module w3h_advective_update_kernel_mod_test

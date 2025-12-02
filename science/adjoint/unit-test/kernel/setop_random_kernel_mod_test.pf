@@ -1,0 +1,94 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Tests that setop_random_kernel_mod properly allocates data to operator data
+module setop_random_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+
+  public :: setop_random_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: setop_random_test_type
+
+    private
+
+    real(kind=r_def), dimension(:,:,:), allocatable :: local_stencil
+
+  contains
+
+    procedure setUp
+    procedure tearDown
+
+  end type setop_random_test_type
+
+    integer(kind=i_def) :: nlayers = 1_i_def
+    integer(kind=i_def) :: cell = 1_i_def
+    integer(kind=i_def), parameter :: ncell_3d = 1_i_def
+    integer(kind=i_def), parameter :: ndf_aspc1 = 3_i_def
+    integer(kind=i_def), parameter :: ndf_aspc2 = 3_i_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(setop_random_test_type), intent(inout) :: this
+
+    allocate( this%local_stencil( ncell_3d, ndf_aspc1, ndf_aspc2 ) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(setop_random_test_type), intent(inout) :: this
+
+    deallocate( this%local_stencil )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( context )
+
+    use setop_random_kernel_mod, only : setop_random_kernel_code
+
+    implicit none
+
+    class(setop_random_test_type), intent(inout) :: context
+    integer(kind=i_def) :: i, seed_size
+    integer, allocatable :: seed(:)
+
+    ! Setting up random seed
+    call random_seed( size = seed_size )
+    allocate( seed(1:seed_size) )
+    seed = [ ( i, i = 1, seed_size ) ]
+    call random_seed( put = seed )
+
+    call setop_random_kernel_code( cell,                  &
+                                   nlayers,               &
+                                   ncell_3d,              &
+                                   context%local_stencil, &
+                                   ndf_aspc1,             &
+                                   ndf_aspc2 )
+
+    ! Ensure all values within range
+    @assertTrue( all( context%local_stencil < 1_r_def ) )
+    @assertTrue( all(context%local_stencil > 0_r_def ) )
+
+   end subroutine test_all
+
+end module setop_random_kernel_mod_test

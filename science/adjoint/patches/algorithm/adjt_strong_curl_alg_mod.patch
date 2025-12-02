@@ -1,0 +1,59 @@
+@@ -14,7 +14,7 @@
+     use fs_continuity_mod, only : w1, w2
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -27,12 +27,15 @@
+     type(field_type) :: u_input
+     real(kind=r_def) :: xi_inner_prod
+     real(kind=r_def) :: u_inner_prod
++    real(kind=r_def) :: xi_sf
++    real(kind=r_def) :: u_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: xi_xi_input_inner_prod
+     real(kind=r_def) :: u_u_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w1_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w1)
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+@@ -42,13 +45,22 @@
+     call u_input%initialise(vector_space=vector_space_w1_ptr, name='u_input')
+     xi_inner_prod = 0.0_r_def
+     u_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(xi), setval_x(xi_input, xi), setval_random(u), setval_x(u_input, u), strong_curl_kernel_type(xi, u), &
+ &x_innerproduct_x(xi_inner_prod, xi), x_innerproduct_x(u_inner_prod, u))
++    write( log_scratch_space, * ) "adjt_strong_curl_alg inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "u inner product = ", u_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "xi inner product = ", xi_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    u_sf = 1.0_r_def / (u_inner_prod + eps)
++    xi_sf = 1.0_r_def / (xi_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + xi_inner_prod
+-    inner1 = inner1 + u_inner_prod
++    inner1 = inner1 + u_inner_prod * u_sf
++    inner1 = inner1 + xi_inner_prod * xi_sf
++    call invoke( inc_a_times_X( u_sf, u ), &
++                 inc_a_times_X( xi_sf, xi ) )
+     xi_xi_input_inner_prod = 0.0_r_def
+     u_u_input_inner_prod = 0.0_r_def
+     call invoke(adj_strong_curl_kernel_type(xi, u), x_innerproduct_y(xi_xi_input_inner_prod, xi, xi_input), &
+@@ -56,7 +68,6 @@
+     inner2 = 0.0_r_def
+     inner2 = inner2 + xi_xi_input_inner_prod
+     inner2 = inner2 + u_u_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

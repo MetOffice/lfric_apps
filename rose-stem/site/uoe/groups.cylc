@@ -1,0 +1,40 @@
+{% do LOG.debug("Entered site/uoe/groups.cylc") %}
+
+{# This groups file is an example for testing and not
+   representative of the final structure #}
+
+{%- do site_groups.update({
+    "all": [
+        "scripts",
+    ],
+    "scripts": [
+        "config_dump_checker",
+        "style_checker",
+        "extract_checker",
+        "site_validator",
+    ],
+    "gungho_epic_unitandintegration_tests": [
+        "gungho_unit_tests_epic_gnu_64bit",
+        "gungho_integration_tests_epic_gnu_64bit",
+    ],
+    "gungho_model_epic_exoplanet": [
+        "gungho_model_exo-hs-C24_MG_epic_gnu_fast-debug-64bit",
+    ],
+    "gungho_model_dial3_exoplanet": [
+        "gungho_model_exo-hs-C24_MG_dial3_gnu_fast-debug-64bit",
+    ],
+    "lfric_atm_epic_exoplanets": [
+        "lfric_atm_camembert_case3_gj1214b-C12_epic_gnu_fast-debug-64bit",
+        "lfric_atm_hd209458b-C24_epic_gnu_fast-debug-64bit",
+        "lfric_atm_scm_hd209458b-BiP2x2-50000x50000_epic_gnu_fast-debug-64bit",
+        "lfric_atm_thai_ben1-C48_MG_epic_gnu_fast-debug-64bit",
+    ],
+    "lfric_atm_dial3_exoplanets": [
+        "lfric_atm_camembert_case3_gj1214b-C12_dial3_gnu_fast-debug-64bit",
+        "lfric_atm_hd209458b-C24_dial3_gnu_fast-debug-64bit",
+        "lfric_atm_scm_hd209458b-BiP2x2-50000x50000_dial3_gnu_fast-debug-64bit",
+        "lfric_atm_thai_ben1-C48_MG_dial3_gnu_fast-debug-64bit",
+    ],
+    }) %}
+
+{% do LOG.debug("Finished in site/uoe/groups.cylc") %}

@@ -1,0 +1,762 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief Control code for the radiative transfer scheme
+
+module radiation_alg_mod
+
+use field_mod,               only: field_type
+use integer_field_mod,       only: integer_field_type
+use field_collection_mod,    only: field_collection_type
+use function_space_collection_mod, only: function_space_collection
+use function_space_mod,      only: function_space_type
+use fs_continuity_mod,       only: W3, Wtheta
+use mr_indices_mod,          only: nummr, imr_v, imr_cl, imr_ci, imr_s
+use moist_dyn_mod,           only: num_moist_factors, total_mass
+use constants_mod,           only: r_def, i_def, l_def
+use io_config_mod,           only: write_diag, use_xios_io
+use sci_geometric_constants_mod,   &
+                             only: get_dz_at_wtheta
+use sw_kernel_mod,           only: sw_kernel_type
+use sw_inc_kernel_mod,       only: sw_inc_kernel_type
+use sw_mts_kernel_mod,       only: sw_mts_kernel_type
+use lw_kernel_mod,           only: lw_kernel_type
+use lw_inc_kernel_mod,       only: lw_inc_kernel_type
+use lw_mts_kernel_mod,       only: lw_mts_kernel_type
+use io_config_mod,           only: subroutine_timers
+use timer_mod,               only: timer
+use log_mod,                 only: log_event, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
+use log_field_alg_mod,       only: log_field_alg
+use lfric_xios_write_mod,    only: write_field_generic
+use mesh_mod,                only: mesh_type
+use field_parent_mod,        only: write_interface
+use empty_data_mod,          only: empty_real_data
+use planet_config_mod,       only: p_zero, kappa, gravity, cp
+use microphysics_config_mod, only: microphysics_casim
+use radiation_diags_mod,     only: initialise_diags_for_radiation, &
+                                   output_diags_for_radiation
+use set_thermodynamic_kernel_mod, only: set_thermodynamic_kernel_type
+use radiative_gases_config_mod,   only: h2o_rad_opt, h2o_rad_opt_ancil
+
+implicit none
+private
+
+!------------------------------------------------------------------------------
+! Contained functions/subroutines
+!------------------------------------------------------------------------------
+public :: radiation_alg
+
+contains
+
+!> @param[in,out] dtheta_rad               Potential temperature increment
+!> @param[in]     theta                    Potential temperature field
+!> @param[in]     exner                    Exner pressure field in density space
+!> @param[in]     moist_dyn                Moist dynamics factors
+!> @param[in]     mr                       Mixing ratios
+!> @param[in]     pressure_in_wth          Pressure field
+!> @param[in]     temperature_in_wth       Temperature field
+!> @param[in]     derived_fields           Derived fields
+!> @param[in,out] radiation_fields         Fields for radiation scheme
+!> @param[in]     cloud_fields             Fields for cloud scheme
+!> @param[in]     microphysics_fields      Fields from the microphysics scheme
+!> @param[in]     aerosol_fields           Fields for aerosol scheme
+!> @param[in]     chemistry_fields         Fields for chemistry scheme
+!> @param[in]     surface_fields           Fields for surface scheme
+!> @param[in]     rad_this_tstep           Flag for radiation timestep
+!> @param[in]     rad_inc_this_tstep       Flag for radiation increment timestep
+!> @param[in,out] tile_sw_direct_albedo    Tile SW direct albedos
+!> @param[in,out] tile_sw_diffuse_albedo   Tile SW diffuse albedos
+!> @param[in]     tile_swinc_direct_albedo  Tile SWINC direct albedos
+!> @param[in]     tile_swinc_diffuse_albedo Tile SWINC diffuse albedos
+!> @param[in,out] tile_lw_albedo           Tile LW albedos (1 - emissivity)
+!> @param[in]     tile_lwinc_albedo        Tile LWINC albedos (1 - emissivity)
+!> @param[in]     rand_seed                Random seed field for cloud generator
+!> @param[in]     n_cloud_layer            Number of cloud layers
+!> @param[in,out] radiative_cloud_fraction Large scale cloud fraction
+!> @param[in,out] radiative_conv_fraction  Convective cloud fraction
+!> @param[in,out] conv_liquid_fraction     Convective liquid cloud fraction
+!> @param[in,out] conv_frozen_fraction     Convective frozen cloud fraction
+!> @param[in,out] conv_liquid_mmr          Convective liquid gridbox MMR
+!> @param[in,out] conv_frozen_mmr          Convective frozen gridbox MMR
+!> @param[in,out] conv_frozen_number       Convective frozen number conc
+!> @param[in]     dt                       Timestep length (s)
+subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
+                         pressure_in_wth, temperature_in_wth,                 &
+                         derived_fields, radiation_fields, cloud_fields,      &
+                         microphysics_fields, aerosol_fields,                 &
+                         chemistry_fields, surface_fields,                    &
+                         rad_this_tstep, rad_inc_this_tstep,                  &
+                         tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                         tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                         tile_lw_albedo, tile_lwinc_albedo,                   &
+                         rand_seed, n_cloud_layer,                            &
+                         radiative_cloud_fraction, radiative_conv_fraction,   &
+                         conv_liquid_fraction, conv_frozen_fraction,          &
+                         conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number,&
+                         dt)
+
+  implicit none
+
+  type( field_type ), intent( inout ) :: dtheta_rad
+  type( field_type ), intent( in ), target :: mr(nummr)
+  type( field_type ), intent( in ) :: theta, exner
+  type( field_type ), intent( in ) :: moist_dyn(num_moist_factors)
+  type( field_type ), intent( in ) :: pressure_in_wth, temperature_in_wth
+  type( field_type ), intent( inout ) :: tile_sw_direct_albedo
+  type( field_type ), intent( inout ) :: tile_sw_diffuse_albedo
+  type( field_type ), intent( in ) :: tile_swinc_direct_albedo
+  type( field_type ), intent( in ) :: tile_swinc_diffuse_albedo
+  type( field_type ), intent( inout ) :: tile_lw_albedo
+  type( field_type ), intent( in ) :: tile_lwinc_albedo
+  type( integer_field_type ), intent( in ) :: rand_seed
+  type( integer_field_type ), intent( in ) :: n_cloud_layer
+  type( field_type ), intent( inout ) :: radiative_cloud_fraction
+  type( field_type ), intent( inout ) :: radiative_conv_fraction
+  type( field_type ), intent( inout ) :: conv_liquid_fraction
+  type( field_type ), intent( inout ) :: conv_frozen_fraction
+  type( field_type ), intent( inout ) :: conv_liquid_mmr
+  type( field_type ), intent( inout ) :: conv_frozen_mmr
+  type( field_type ), intent( inout ) :: conv_frozen_number
+  type( field_collection_type ), intent(in) :: derived_fields
+  type( field_collection_type ), intent(inout) :: radiation_fields
+  type( field_collection_type ), intent(in) :: cloud_fields
+  type( field_collection_type ), intent(in) :: microphysics_fields
+  type( field_collection_type ), intent(in) :: aerosol_fields
+  type( field_collection_type ), intent(in) :: chemistry_fields
+  type( field_collection_type ), intent(in) :: surface_fields
+  logical( kind=l_def ), intent(in) :: rad_this_tstep, rad_inc_this_tstep
+  real( kind=r_def ), intent(in) :: dt
+
+  real( kind=r_def ) :: dt_again
+  type(mesh_type), pointer :: mesh      => null()
+  type(mesh_type), pointer :: twod_mesh => null()
+  integer(i_def) :: n_levs
+
+  type( function_space_type ), pointer :: flux_space => null()
+  type( function_space_type ), pointer :: wtheta_space => null()
+
+  procedure(write_interface), pointer :: write_diag_behaviour => null()
+
+  ! Unpacked fields from collections
+  type( field_type ), pointer :: tile_fraction       => null()
+  type( field_type ), pointer :: tile_temperature    => null()
+  type( field_type ), pointer :: tile_lw_grey_albedo => null()
+
+  type( field_type ), pointer :: exner_in_wth        => null()
+  type( field_type ), pointer :: rho_in_wth          => null()
+  type( field_type ), pointer :: theta_in_w3         => null()
+
+  type( field_type ), pointer :: liquid_fraction     => null()
+  type( field_type ), pointer :: frozen_fraction     => null()
+  type( field_type ), pointer :: sigma_ml
+  type( field_type ), pointer :: sigma_mi
+
+  type( field_type ), pointer :: cloud_drop_no_conc  => null()
+  type( field_type ), pointer :: sulphuric           => null()
+
+  type( field_type ), pointer :: lw_down_surf        => null()
+  type( field_type ), pointer :: sw_down_surf        => null()
+  type( field_type ), pointer :: sw_direct_surf      => null()
+  type( field_type ), pointer :: sw_down_blue_surf   => null()
+  type( field_type ), pointer :: sw_direct_blue_surf => null()
+  type( field_type ), pointer :: cos_zenith_angle    => null()
+  type( field_type ), pointer :: lit_fraction        => null()
+  type( field_type ), pointer :: skyview             => null()
+  type( field_type ), pointer :: sw_heating_rate     => null()
+  type( field_type ), pointer :: lw_heating_rate     => null()
+  type( field_type ), pointer :: lw_up_tile          => null()
+  type( field_type ), pointer :: sw_up_tile          => null()
+  type( field_type ), pointer :: sw_up_blue_tile     => null()
+
+  type( field_type ), pointer :: lw_down_surf_rts        => null()
+  type( field_type ), pointer :: sw_down_surf_rts        => null()
+  type( field_type ), pointer :: sw_direct_surf_rts      => null()
+  type( field_type ), pointer :: sw_down_blue_surf_rts   => null()
+  type( field_type ), pointer :: sw_direct_blue_surf_rts => null()
+  type( field_type ), pointer :: lw_up_surf_rts          => null()
+  type( field_type ), pointer :: sw_up_surf_rts          => null()
+  type( field_type ), pointer :: lw_up_toa_rts           => null()
+  type( field_type ), pointer :: sw_up_toa_rts           => null()
+  type( field_type ), pointer :: sw_direct_toa_rts       => null()
+  type( field_type ), pointer :: cos_zenith_angle_rts    => null()
+  type( field_type ), pointer :: lit_fraction_rts        => null()
+  type( field_type ), pointer :: stellar_irradiance_rts  => null()
+  type( field_type ), pointer :: orographic_correction_rts => null()
+  type( field_type ), pointer :: sw_heating_rate_rts     => null()
+  type( field_type ), pointer :: lw_heating_rate_rts     => null()
+  type( field_type ), pointer :: lw_up_tile_rts          => null()
+  type( field_type ), pointer :: sw_up_tile_rts          => null()
+  type( field_type ), pointer :: sw_up_blue_tile_rts     => null()
+
+  type( field_type ), pointer :: lw_down_surf_rtsi        => null()
+  type( field_type ), pointer :: sw_down_surf_rtsi        => null()
+  type( field_type ), pointer :: sw_direct_surf_rtsi      => null()
+  type( field_type ), pointer :: sw_down_blue_surf_rtsi   => null()
+  type( field_type ), pointer :: sw_direct_blue_surf_rtsi => null()
+  type( field_type ), pointer :: lw_up_surf_rtsi          => null()
+  type( field_type ), pointer :: sw_up_surf_rtsi          => null()
+  type( field_type ), pointer :: lw_up_toa_rtsi           => null()
+  type( field_type ), pointer :: sw_up_toa_rtsi           => null()
+  type( field_type ), pointer :: sw_direct_toa_rtsi       => null()
+  type( field_type ), pointer :: sw_heating_rate_rtsi     => null()
+  type( field_type ), pointer :: lw_heating_rate_rtsi     => null()
+  type( field_type ), pointer :: lw_up_tile_rtsi          => null()
+  type( field_type ), pointer :: sw_up_tile_rtsi          => null()
+  type( field_type ), pointer :: sw_up_blue_tile_rtsi     => null()
+
+  type( field_type ), pointer :: o3                  => null()
+  type( field_type ), pointer :: aer_mix_ratio       => null()
+  type( field_type ), pointer :: aer_sw_absorption   => null()
+  type( field_type ), pointer :: aer_sw_scattering   => null()
+  type( field_type ), pointer :: aer_sw_asymmetry    => null()
+  type( field_type ), pointer :: aer_lw_absorption   => null()
+  type( field_type ), pointer :: aer_lw_scattering   => null()
+  type( field_type ), pointer :: aer_lw_asymmetry    => null()
+
+  type( field_type ), pointer :: dz_in_wth           => null()
+
+  type( field_type ), pointer :: ni_mphys => null()
+  type( field_type ), pointer :: ns_mphys => null()
+
+  type( field_type ), pointer :: h2o => null()
+  type( field_type ), pointer :: co2 => null()
+  type( field_type ), pointer :: n2o => null()
+  type( field_type ), pointer :: co => null()
+  type( field_type ), pointer :: ch4 => null()
+  type( field_type ), pointer :: o2 => null()
+  type( field_type ), pointer :: so2 => null()
+  type( field_type ), pointer :: nh3 => null()
+  type( field_type ), pointer :: n2 => null()
+  type( field_type ), pointer :: h2 => null()
+  type( field_type ), pointer :: he => null()
+  type( field_type ), pointer :: hcn => null()
+  type( field_type ), pointer :: cs => null()
+  type( field_type ), pointer :: k => null()
+  type( field_type ), pointer :: li => null()
+  type( field_type ), pointer :: na => null()
+  type( field_type ), pointer :: rb => null()
+  type( field_type ), pointer :: tio => null()
+  type( field_type ), pointer :: vo => null()
+
+  ! Local thermodynamic fields
+  type( field_type ) :: d_mass
+  type( field_type ) :: layer_heat_capacity
+  type( field_type ) :: t_layer_boundaries
+  type( field_type ) :: mr_ice, n_ice
+
+  ! Local diagnostic fields
+  type( field_type ) :: &
+    lw_up_surf, sw_up_surf, lw_up_toa, sw_up_toa, sw_direct_toa, &
+    sw_direct_rts, sw_down_rts, sw_up_rts, lw_down_rts, lw_up_rts, &
+    sw_direct_band_rts, sw_down_band_rts, sw_up_band_rts, &
+    lw_down_band_rts, lw_up_band_rts, &
+    cloud_cover_rts, cloud_fraction_rts, cloud_droplet_re_rts, &
+    cloud_top_re_rts, cloud_top_weight_rts, &
+    warm_cloud_top_re_rts, warm_cloud_top_weight_rts, &
+    liq_cloud_frac_rts, liq_conv_frac_rts, &
+    ice_cloud_frac_rts, ice_conv_frac_rts, &
+    liq_cloud_mmr_rts, liq_conv_mmr_rts, &
+    ice_cloud_mmr_rts, ice_conv_mmr_rts, &
+    liq_cloud_path_rts, ice_cloud_path_rts, &
+    cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+    cloud_extinction_rts, cloud_weight_extinction_rts, &
+    sw_aer_optical_depth_rts, lw_aer_optical_depth_rts, &
+    sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
+    lw_down_clear_rts, lw_up_clear_rts, &
+    sw_direct_clear_band_rts, sw_down_clear_band_rts, sw_up_clear_band_rts, &
+    lw_down_clear_band_rts, lw_up_clear_band_rts, &
+    sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
+    lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts, &
+    sw_down_clean_surf_rts, sw_up_clean_surf_rts, sw_up_clean_toa_rts, &
+    lw_down_clean_surf_rts, lw_up_clean_surf_rts, lw_up_clean_toa_rts, &
+    sw_down_clear_clean_surf_rts, sw_up_clear_clean_surf_rts, &
+    lw_down_clear_clean_surf_rts, lw_up_clear_clean_surf_rts, &
+    sw_up_clear_clean_toa_rts, lw_up_clear_clean_toa_rts, &
+    sw_down_uv_surf_rts, sw_down_uv_clear_surf_rts, &
+    sw_direct_uv_surf_rts, sw_direct_uv_clear_surf_rts, &
+    sw_up_uv_surf_rts, sw_up_uv_clear_surf_rts, &
+    photolysis_rates_rts
+
+  call log_event( 'slow_physics: Running Radiation', LOG_LEVEL_DEBUG )
+
+  call surface_fields%get_field('tile_fraction', tile_fraction)
+  call surface_fields%get_field('tile_temperature', tile_temperature)
+  call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
+
+  call radiation_fields%get_field('lw_down_surf', lw_down_surf)
+  call radiation_fields%get_field('sw_down_surf', sw_down_surf)
+  call radiation_fields%get_field('sw_direct_surf', sw_direct_surf)
+  call radiation_fields%get_field('sw_down_blue_surf', sw_down_blue_surf)
+  call radiation_fields%get_field('sw_direct_blue_surf', sw_direct_blue_surf)
+  call radiation_fields%get_field('cos_zenith_angle', cos_zenith_angle)
+  call radiation_fields%get_field('lit_fraction', lit_fraction)
+  call radiation_fields%get_field('skyview', skyview)
+  call radiation_fields%get_field('sw_heating_rate', sw_heating_rate)
+  call radiation_fields%get_field('lw_heating_rate', lw_heating_rate)
+  call radiation_fields%get_field('lw_up_tile', lw_up_tile)
+  call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+  call radiation_fields%get_field('sw_up_blue_tile', sw_up_blue_tile)
+
+  call radiation_fields%get_field('lw_down_surf_rts', lw_down_surf_rts)
+  call radiation_fields%get_field('sw_down_surf_rts', sw_down_surf_rts)
+  call radiation_fields%get_field('sw_direct_surf_rts', sw_direct_surf_rts)
+  call radiation_fields%get_field('sw_down_blue_surf_rts', sw_down_blue_surf_rts)
+  call radiation_fields%get_field('sw_direct_blue_surf_rts', sw_direct_blue_surf_rts)
+  call radiation_fields%get_field('lw_up_surf_rts', lw_up_surf_rts)
+  call radiation_fields%get_field('sw_up_surf_rts', sw_up_surf_rts)
+  call radiation_fields%get_field('lw_up_toa_rts', lw_up_toa_rts)
+  call radiation_fields%get_field('sw_up_toa_rts', sw_up_toa_rts)
+  call radiation_fields%get_field('sw_direct_toa_rts', sw_direct_toa_rts)
+  call radiation_fields%get_field('cos_zenith_angle_rts', cos_zenith_angle_rts)
+  call radiation_fields%get_field('lit_fraction_rts', lit_fraction_rts)
+  call radiation_fields%get_field('stellar_irradiance_rts', stellar_irradiance_rts)
+  call radiation_fields%get_field('orographic_correction_rts', orographic_correction_rts)
+  call radiation_fields%get_field('sw_heating_rate_rts', sw_heating_rate_rts)
+  call radiation_fields%get_field('lw_heating_rate_rts', lw_heating_rate_rts)
+  call radiation_fields%get_field('lw_up_tile_rts', lw_up_tile_rts)
+  call radiation_fields%get_field('sw_up_tile_rts', sw_up_tile_rts)
+  call radiation_fields%get_field('sw_up_blue_tile_rts', sw_up_blue_tile_rts)
+
+  if (rad_inc_this_tstep) then
+    call radiation_fields%get_field('lw_down_surf_rtsi', lw_down_surf_rtsi)
+    call radiation_fields%get_field('sw_down_surf_rtsi', sw_down_surf_rtsi)
+    call radiation_fields%get_field('sw_direct_surf_rtsi', sw_direct_surf_rtsi)
+    call radiation_fields%get_field('sw_down_blue_surf_rtsi', sw_down_blue_surf_rtsi)
+    call radiation_fields%get_field('sw_direct_blue_surf_rtsi', sw_direct_blue_surf_rtsi)
+    call radiation_fields%get_field('lw_up_surf_rtsi', lw_up_surf_rtsi)
+    call radiation_fields%get_field('sw_up_surf_rtsi', sw_up_surf_rtsi)
+    call radiation_fields%get_field('lw_up_toa_rtsi', lw_up_toa_rtsi)
+    call radiation_fields%get_field('sw_up_toa_rtsi', sw_up_toa_rtsi)
+    call radiation_fields%get_field('sw_direct_toa_rtsi', sw_direct_toa_rtsi)
+    call radiation_fields%get_field('sw_heating_rate_rtsi', sw_heating_rate_rtsi)
+    call radiation_fields%get_field('lw_heating_rate_rtsi', lw_heating_rate_rtsi)
+    call radiation_fields%get_field('lw_up_tile_rtsi', lw_up_tile_rtsi)
+    call radiation_fields%get_field('sw_up_tile_rtsi', sw_up_tile_rtsi)
+    call radiation_fields%get_field('sw_up_blue_tile_rtsi', sw_up_blue_tile_rtsi)
+  end if
+
+  call radiation_fields%get_field('aer_mix_ratio', aer_mix_ratio)
+  call radiation_fields%get_field('aer_sw_absorption', aer_sw_absorption)
+  call radiation_fields%get_field('aer_sw_scattering', aer_sw_scattering)
+  call radiation_fields%get_field('aer_sw_asymmetry', aer_sw_asymmetry)
+  call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption)
+  call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering)
+  call radiation_fields%get_field('aer_lw_asymmetry', aer_lw_asymmetry)
+
+  call derived_fields%get_field('exner_in_wth', exner_in_wth)
+  call derived_fields%get_field('rho_in_wth', rho_in_wth)
+  call derived_fields%get_field('theta_in_w3', theta_in_w3)
+
+  call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+  call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+  call cloud_fields%get_field('sigma_ml', sigma_ml)
+  call cloud_fields%get_field('sigma_mi', sigma_mi)
+
+  call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc)
+  call aerosol_fields%get_field('sulphuric', sulphuric)
+
+  call microphysics_fields%get_field('ni_mphys', ni_mphys)
+  call microphysics_fields%get_field('ns_mphys', ns_mphys)
+
+  ! Radiatively active gases
+  call chemistry_fields%get_field('ch4', ch4)
+  call chemistry_fields%get_field('co', co)
+  call chemistry_fields%get_field('co2', co2)
+  call chemistry_fields%get_field('h2', h2)
+  call chemistry_fields%get_field('hcn', hcn)
+  call chemistry_fields%get_field('he', he)
+  call chemistry_fields%get_field('n2', n2)
+  call chemistry_fields%get_field('n2o', n2o)
+  call chemistry_fields%get_field('nh3', nh3)
+  call chemistry_fields%get_field('o2', o2)
+  call chemistry_fields%get_field('so2', so2)
+  call chemistry_fields%get_field('cs', cs)
+  call chemistry_fields%get_field('k', k)
+  call chemistry_fields%get_field('li', li)
+  call chemistry_fields%get_field('na', na)
+  call chemistry_fields%get_field('rb', rb)
+  call chemistry_fields%get_field('tio', tio)
+  call chemistry_fields%get_field('vo', vo)
+  ! Special case: ozone
+  call radiation_fields%get_field('ozone', o3)
+  ! Special case: water
+  if (h2o_rad_opt == h2o_rad_opt_ancil) then
+    call chemistry_fields%get_field('h2o', h2o)
+  else
+    h2o => mr(imr_v)
+  end if
+
+  mesh      => theta%get_mesh()
+  twod_mesh => cos_zenith_angle%get_mesh()
+  dz_in_wth => get_dz_at_wtheta(mesh%get_id())
+
+  n_levs = mesh%get_nlayers() + 1
+  flux_space => function_space_collection%get_fs(twod_mesh, 0, 0, W3, n_levs)
+  wtheta_space => function_space_collection%get_fs( mesh, 0, 0, Wtheta )
+
+  write_diag_behaviour => write_field_generic
+  call tile_lw_albedo%set_write_behaviour(write_diag_behaviour)
+  call tile_sw_diffuse_albedo%set_write_behaviour(write_diag_behaviour)
+  call tile_sw_direct_albedo%set_write_behaviour(write_diag_behaviour)
+  call radiative_cloud_fraction%set_write_behaviour(write_diag_behaviour)
+  call radiative_conv_fraction%set_write_behaviour(write_diag_behaviour)
+  call conv_liquid_fraction%set_write_behaviour(write_diag_behaviour)
+  call conv_frozen_fraction%set_write_behaviour(write_diag_behaviour)
+  call conv_liquid_mmr%set_write_behaviour(write_diag_behaviour)
+  call conv_frozen_mmr%set_write_behaviour(write_diag_behaviour)
+  call conv_frozen_number%set_write_behaviour(write_diag_behaviour)
+
+  ! ------------------------------------
+  ! Initialise the radiation diagnostics
+  ! ------------------------------------
+  call initialise_diags_for_radiation(lw_down_surf, lw_heating_rate, &
+    lw_up_surf, sw_up_surf, lw_up_toa, sw_up_toa, sw_direct_toa, &
+    sw_direct_rts, sw_down_rts, sw_up_rts, lw_down_rts, lw_up_rts, &
+    sw_direct_band_rts, sw_down_band_rts, sw_up_band_rts, &
+    lw_down_band_rts, lw_up_band_rts, &
+    cloud_cover_rts, cloud_fraction_rts, cloud_droplet_re_rts, &
+    cloud_top_re_rts, cloud_top_weight_rts, &
+    warm_cloud_top_re_rts, warm_cloud_top_weight_rts, &
+    liq_cloud_frac_rts, liq_conv_frac_rts, &
+    ice_cloud_frac_rts, ice_conv_frac_rts, &
+    liq_cloud_mmr_rts, liq_conv_mmr_rts, &
+    ice_cloud_mmr_rts, ice_conv_mmr_rts, &
+    liq_cloud_path_rts, ice_cloud_path_rts, &
+    cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+    cloud_extinction_rts, cloud_weight_extinction_rts, &
+    sw_aer_optical_depth_rts, lw_aer_optical_depth_rts, &
+    sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
+    lw_down_clear_rts, lw_up_clear_rts, &
+    sw_direct_clear_band_rts, sw_down_clear_band_rts, sw_up_clear_band_rts, &
+    lw_down_clear_band_rts, lw_up_clear_band_rts, &
+    sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
+    lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts, &
+    sw_down_clean_surf_rts, sw_up_clean_surf_rts, sw_up_clean_toa_rts, &
+    lw_down_clean_surf_rts, lw_up_clean_surf_rts, lw_up_clean_toa_rts, &
+    sw_down_clear_clean_surf_rts, sw_up_clear_clean_surf_rts, &
+    lw_down_clear_clean_surf_rts, lw_up_clear_clean_surf_rts, &
+    sw_up_clear_clean_toa_rts, lw_up_clear_clean_toa_rts, &
+    sw_down_uv_surf_rts, sw_down_uv_clear_surf_rts, &
+    sw_direct_uv_surf_rts, sw_direct_uv_clear_surf_rts, &
+    sw_up_uv_surf_rts, sw_up_uv_clear_surf_rts, &
+    photolysis_rates_rts)
+
+  if (rad_this_tstep .or. rad_inc_this_tstep ) then
+
+    ! ---------------------------------------------
+    ! Set thermodynamic fields required by Socrates
+    ! ---------------------------------------------
+    call d_mass%initialise(wtheta_space, name = "d_mass")
+    call layer_heat_capacity%initialise( &
+                           wtheta_space, name = "layer_heat_capacity")
+    call t_layer_boundaries%initialise(flux_space, name = "t_layer_boundaries")
+
+    write_diag_behaviour => write_field_generic
+    call d_mass%set_write_behaviour(write_diag_behaviour)
+    call layer_heat_capacity%set_write_behaviour(write_diag_behaviour)
+    call t_layer_boundaries%set_write_behaviour(write_diag_behaviour)
+
+    call invoke( set_thermodynamic_kernel_type( &
+                   exner, exner_in_wth, theta, theta_in_w3, rho_in_wth, &
+                   dz_in_wth, temperature_in_wth, moist_dyn(total_mass), &
+                   d_mass, layer_heat_capacity, &
+                   t_layer_boundaries, p_zero, kappa, gravity, cp ), &
+                 name="set_thermodynamics_fields" )
+
+    ! Set total ice mass and number fields
+    call mr(imr_s)%copy_field_properties(mr_ice)
+    call ni_mphys%copy_field_properties(n_ice)
+    call invoke( setval_X(mr_ice, mr(imr_s)) )
+    if (microphysics_casim) then
+      call invoke( inc_X_plus_Y(mr_ice, mr(imr_ci) ), &
+                       setval_X(n_ice, ni_mphys), &
+                   inc_X_plus_Y(n_ice, ns_mphys) )
+    end if ! microphysics_casim
+
+  else
+
+    ! Initialise fields with empty data on timesteps where they are unused.
+    call d_mass%initialise( wtheta_space, name = &
+        "d_mass", override_data=empty_real_data )
+    call layer_heat_capacity%initialise( wtheta_space, name = &
+        "layer_heat_capacity", override_data=empty_real_data )
+    call t_layer_boundaries%initialise( flux_space, name = &
+        "t_layer_boundaries", override_data=empty_real_data )
+    call mr_ice%initialise( wtheta_space, name = &
+        "mr_ice", override_data=empty_real_data )
+    call n_ice%initialise( wtheta_space, name = &
+        "n_ice", override_data=empty_real_data )
+
+    write_diag_behaviour => write_field_generic
+    call d_mass%set_write_behaviour(write_diag_behaviour)
+    call layer_heat_capacity%set_write_behaviour(write_diag_behaviour)
+    call t_layer_boundaries%set_write_behaviour(write_diag_behaviour)
+    call mr_ice%set_write_behaviour(write_diag_behaviour)
+    call n_ice%set_write_behaviour(write_diag_behaviour)
+
+  end if
+
+  if ( subroutine_timers ) call timer("sw_radiation")
+
+  if (rad_this_tstep) then
+    ! --------------------------------------------------
+    ! Radiation time-step: full calculation of SW fluxes
+    ! --------------------------------------------------
+    call log_event( 'Radiation timestep', LOG_LEVEL_INFO )
+    call invoke( sw_kernel_type( &
+      sw_heating_rate_rts, sw_down_surf_rts, sw_direct_surf_rts, &
+      sw_down_blue_surf_rts, sw_direct_blue_surf_rts, &
+      sw_up_surf_rts, sw_up_toa_rts, sw_direct_toa_rts, &
+      sw_up_tile_rts, sw_up_blue_tile_rts, &
+      rho_in_wth, pressure_in_wth, temperature_in_wth, &
+      d_mass, layer_heat_capacity, &
+      cos_zenith_angle_rts, lit_fraction_rts, &
+      stellar_irradiance_rts, orographic_correction_rts, &
+      h2o, co2, o3, n2o, co, ch4, o2, so2, nh3, n2, h2, he, hcn, &
+      cs, k, li, na, rb, tio, vo, &
+      mr(imr_cl), mr_ice, n_ice, conv_frozen_number, &
+      conv_liquid_mmr, conv_frozen_mmr, &
+      radiative_cloud_fraction, radiative_conv_fraction, &
+      liquid_fraction, frozen_fraction, &
+      conv_liquid_fraction, conv_frozen_fraction, &
+      sigma_ml, sigma_mi, cloud_drop_no_conc, &
+      rand_seed, n_cloud_layer, &
+      tile_fraction, &
+      tile_sw_direct_albedo, tile_sw_diffuse_albedo, &
+      sulphuric, aer_mix_ratio, &
+      aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry, &
+      ! Conditional diagnostics
+      cloud_top_re_rts, cloud_top_weight_rts, &
+      warm_cloud_top_re_rts, warm_cloud_top_weight_rts, &
+      cloud_extinction_rts, cloud_weight_extinction_rts, &
+      sw_aer_optical_depth_rts, &
+      sw_direct_rts, sw_down_rts, sw_up_rts, &
+      sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
+      sw_direct_band_rts, sw_down_band_rts, sw_up_band_rts, &
+      sw_direct_clear_band_rts, sw_down_clear_band_rts, sw_up_clear_band_rts, &
+      sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
+      sw_down_clean_surf_rts, sw_up_clean_surf_rts, sw_up_clean_toa_rts, &
+      sw_down_clear_clean_surf_rts, sw_up_clear_clean_surf_rts, &
+      sw_up_clear_clean_toa_rts, &
+      sw_down_uv_surf_rts, sw_down_uv_clear_surf_rts, &
+      sw_direct_uv_surf_rts, sw_direct_uv_clear_surf_rts, &
+      sw_up_uv_surf_rts, sw_up_uv_clear_surf_rts, &
+      photolysis_rates_rts ) )
+  end if
+  if (rad_inc_this_tstep) then
+    ! --------------------------------------------------------------
+    ! Radiation increment time-step: simple calculation of SW fluxes
+    ! --------------------------------------------------------------
+    call log_event( 'Radiation increment timestep', LOG_LEVEL_INFO )
+    call invoke( sw_inc_kernel_type(                                &
+      sw_heating_rate_rts, sw_down_surf_rts, sw_direct_surf_rts,    &
+      sw_down_blue_surf_rts, sw_direct_blue_surf_rts,               &
+      sw_up_surf_rts, sw_up_toa_rts, sw_direct_toa_rts,             &
+      sw_up_tile_rts, sw_up_blue_tile_rts,                          &
+      sw_heating_rate_rtsi, sw_down_surf_rtsi, sw_direct_surf_rtsi, &
+      sw_down_blue_surf_rtsi, sw_direct_blue_surf_rtsi,             &
+      sw_up_surf_rtsi, sw_up_toa_rtsi, sw_direct_toa_rtsi,          &
+      sw_up_tile_rtsi, sw_up_blue_tile_rtsi,                        &
+      rho_in_wth, pressure_in_wth, temperature_in_wth,              &
+      d_mass, layer_heat_capacity,                                  &
+      cos_zenith_angle_rts, lit_fraction_rts,                       &
+      stellar_irradiance_rts, orographic_correction_rts,            &
+      h2o, co2, o3, n2o, co, ch4, o2, so2, nh3, n2, h2, he, hcn,    &
+      cs, k, li, na, rb, tio, vo,                                   &
+      mr(imr_cl), mr_ice, n_ice, conv_frozen_number,                &
+      conv_liquid_mmr, conv_frozen_mmr,                             &
+      radiative_cloud_fraction, radiative_conv_fraction,            &
+      liquid_fraction, frozen_fraction,                             &
+      conv_liquid_fraction, conv_frozen_fraction,                   &
+      sigma_ml, sigma_mi, cloud_drop_no_conc,                       &
+      rand_seed, n_cloud_layer,                                     &
+      tile_fraction,                                                &
+      tile_swinc_direct_albedo, tile_swinc_diffuse_albedo,          &
+      sulphuric,                                                    &
+      rad_this_tstep ) )
+  end if
+  ! ---------------------------------------
+  ! Model timestep correction for SW fluxes
+  ! ---------------------------------------
+  call invoke( sw_mts_kernel_type(                                &
+    sw_heating_rate, sw_down_surf, sw_direct_surf,                &
+    sw_down_blue_surf, sw_direct_blue_surf,                       &
+    sw_up_surf, sw_up_toa, sw_direct_toa,                         &
+    sw_up_tile, sw_up_blue_tile,                                  &
+    sw_heating_rate_rts, sw_down_surf_rts, sw_direct_surf_rts,    &
+    sw_down_blue_surf_rts, sw_direct_blue_surf_rts,               &
+    sw_up_surf_rts, sw_up_toa_rts, sw_direct_toa_rts,             &
+    sw_up_tile_rts, sw_up_blue_tile_rts,                          &
+    exner_in_wth,                                                 &
+    cos_zenith_angle, lit_fraction,                               &
+    cos_zenith_angle_rts, lit_fraction_rts,                       &
+    orographic_correction_rts ) )
+
+  call log_event( 'SW outputs:',           LOG_LEVEL_DEBUG )
+  call log_field_alg( sw_heating_rate,     LOG_LEVEL_DEBUG )
+  call log_field_alg( sw_down_surf,        LOG_LEVEL_DEBUG )
+  call log_field_alg( sw_direct_surf,      LOG_LEVEL_DEBUG )
+  call log_field_alg( sw_down_blue_surf,   LOG_LEVEL_DEBUG )
+  call log_field_alg( sw_direct_blue_surf, LOG_LEVEL_DEBUG )
+  call log_field_alg( sw_up_tile,          LOG_LEVEL_DEBUG )
+  call log_field_alg( sw_up_blue_tile,     LOG_LEVEL_DEBUG )
+
+  if ( subroutine_timers ) call timer("sw_radiation")
+  if ( subroutine_timers ) call timer("lw_radiation")
+
+  if (rad_this_tstep) then
+    ! --------------------------------------------------
+    ! Radiation time-step: full calculation of LW fluxes
+    ! --------------------------------------------------
+    call invoke( lw_kernel_type( &
+      lw_heating_rate_rts, lw_down_surf_rts, lw_up_surf_rts, &
+      lw_up_toa_rts, lw_up_tile_rts, &
+      rho_in_wth, pressure_in_wth, temperature_in_wth, &
+      t_layer_boundaries, d_mass, layer_heat_capacity, &
+      h2o, co2, o3, n2o, co, ch4, o2, so2, nh3, n2, h2, he, hcn, &
+      cs, k, li, na, rb, tio, vo, &
+      mr(imr_cl), mr_ice, n_ice, conv_frozen_number, &
+      conv_liquid_mmr, conv_frozen_mmr, &
+      radiative_cloud_fraction, radiative_conv_fraction, &
+      liquid_fraction, frozen_fraction, &
+      conv_liquid_fraction, conv_frozen_fraction, &
+      sigma_ml, sigma_mi, cloud_drop_no_conc, &
+      rand_seed, n_cloud_layer, &
+      tile_fraction, tile_temperature, tile_lw_albedo, &
+      sulphuric, aer_mix_ratio, &
+      aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry, &
+      ! Conditional diagnostics
+      cloud_cover_rts, cloud_fraction_rts, cloud_droplet_re_rts, &
+      liq_cloud_frac_rts, liq_conv_frac_rts, &
+      ice_cloud_frac_rts, ice_conv_frac_rts, &
+      liq_cloud_mmr_rts, liq_conv_mmr_rts, &
+      ice_cloud_mmr_rts, ice_conv_mmr_rts, &
+      liq_cloud_path_rts, ice_cloud_path_rts, &
+      cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+      lw_aer_optical_depth_rts, &
+      lw_down_rts, lw_up_rts, &
+      lw_down_clear_rts, lw_up_clear_rts, &
+      lw_down_band_rts, lw_up_band_rts, &
+      lw_down_clear_band_rts, lw_up_clear_band_rts, &
+      lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts, &
+      lw_down_clean_surf_rts, lw_up_clean_surf_rts, lw_up_clean_toa_rts, &
+      lw_down_clear_clean_surf_rts, lw_up_clear_clean_surf_rts, &
+      lw_up_clear_clean_toa_rts ) )
+  end if
+  if (rad_inc_this_tstep) then
+    ! --------------------------------------------------------------
+    ! Radiation increment time-step: simple calculation of LW fluxes
+    ! --------------------------------------------------------------
+    call invoke( lw_inc_kernel_type(                             &
+      lw_heating_rate_rts, lw_down_surf_rts, lw_up_surf_rts,     &
+      lw_up_toa_rts, lw_up_tile_rts,                             &
+      lw_heating_rate_rtsi, lw_down_surf_rtsi, lw_up_surf_rtsi,  &
+      lw_up_toa_rtsi, lw_up_tile_rtsi,                           &
+      rho_in_wth, pressure_in_wth, temperature_in_wth,           &
+      t_layer_boundaries, d_mass, layer_heat_capacity,           &
+      h2o, co2, o3, n2o, co, ch4, o2, so2, nh3, n2, h2, he, hcn, &
+      cs, k, li, na, rb, tio, vo,                                &
+      mr(imr_cl), mr_ice, n_ice, conv_frozen_number,             &
+      conv_liquid_mmr, conv_frozen_mmr,                          &
+      radiative_cloud_fraction, radiative_conv_fraction,         &
+      liquid_fraction, frozen_fraction,                          &
+      conv_liquid_fraction, conv_frozen_fraction,                &
+      sigma_ml, sigma_mi, cloud_drop_no_conc,                    &
+      rand_seed, n_cloud_layer,                                  &
+      tile_fraction, tile_temperature, tile_lwinc_albedo,        &
+      sulphuric,                                                 &
+      rad_this_tstep ) )
+  end if
+  ! ---------------------------------------
+  ! Model timestep correction for LW fluxes
+  ! ---------------------------------------
+  call invoke( lw_mts_kernel_type(                             &
+    lw_heating_rate, lw_down_surf, lw_up_surf,                 &
+    lw_up_toa, lw_up_tile,                                     &
+    lw_heating_rate_rts, lw_down_surf_rts, lw_up_surf_rts,     &
+    lw_up_toa_rts, lw_up_tile_rts,                             &
+    exner_in_wth,                                              &
+    tile_fraction, tile_temperature, tile_lw_grey_albedo,      &
+    rad_this_tstep ) )
+
+  call log_event( 'LW outputs:',            LOG_LEVEL_DEBUG )
+  call log_field_alg( lw_heating_rate,      LOG_LEVEL_DEBUG )
+  call log_field_alg( lw_down_surf,         LOG_LEVEL_DEBUG )
+  call log_field_alg( lw_up_tile,           LOG_LEVEL_DEBUG )
+
+  if ( subroutine_timers ) call timer("lw_radiation")
+
+  ! first calculate the total temperature increment
+  dt_again=dt
+  call invoke(aX_plus_bY(dtheta_rad, dt,       sw_heating_rate,  &
+                                     dt_again, lw_heating_rate), &
+  ! then convert it to a theta increment
+              inc_X_divideby_Y(dtheta_rad, exner_in_wth) )
+
+  ! ------------------
+  ! Output diagnostics
+  ! ------------------
+  if (write_diag .and. use_xios_io) then
+    call output_diags_for_radiation( dtheta_rad, &
+      lw_down_surf, sw_down_surf, sw_direct_surf, &
+      sw_down_blue_surf, sw_direct_blue_surf, &
+      sw_heating_rate, lw_heating_rate, &
+      lw_down_surf_rts, sw_down_surf_rts, sw_direct_surf_rts, &
+      sw_down_blue_surf_rts, sw_direct_blue_surf_rts, &
+      lw_up_surf_rts, sw_up_surf_rts, &
+      lw_up_toa_rts, sw_up_toa_rts, sw_direct_toa_rts, &
+      sw_heating_rate_rts, lw_heating_rate_rts, &
+      cos_zenith_angle, lit_fraction, skyview, &
+      cos_zenith_angle_rts, lit_fraction_rts, &
+      stellar_irradiance_rts, orographic_correction_rts, &
+      sw_up_tile, aer_mix_ratio, &
+      aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry, &
+      aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry, &
+      pressure_in_wth, temperature_in_wth, d_mass, rho_in_wth, &
+      t_layer_boundaries, mr(imr_v), o3, &
+      tile_fraction, tile_temperature, tile_lw_albedo, &
+      tile_sw_diffuse_albedo, tile_sw_direct_albedo, &
+      radiative_cloud_fraction, liquid_fraction, frozen_fraction, &
+      mr(imr_cl), mr_ice, n_ice, cloud_drop_no_conc, &
+      radiative_conv_fraction, conv_liquid_fraction, conv_frozen_fraction, &
+      conv_liquid_mmr, conv_frozen_mmr, conv_frozen_number, sigma_ml, &
+      sigma_mi, rand_seed, layer_heat_capacity, sulphuric, &
+      lw_up_surf, sw_up_surf, lw_up_toa, sw_up_toa, sw_direct_toa, &
+      sw_direct_rts, sw_down_rts, sw_up_rts, lw_down_rts, lw_up_rts, &
+      sw_direct_band_rts, sw_down_band_rts, sw_up_band_rts, &
+      lw_down_band_rts, lw_up_band_rts, &
+      cloud_cover_rts, cloud_fraction_rts, cloud_droplet_re_rts, &
+      cloud_top_re_rts, cloud_top_weight_rts, &
+      warm_cloud_top_re_rts, warm_cloud_top_weight_rts, &
+      liq_cloud_frac_rts, liq_conv_frac_rts, &
+      ice_cloud_frac_rts, ice_conv_frac_rts, &
+      liq_cloud_mmr_rts, liq_conv_mmr_rts, &
+      ice_cloud_mmr_rts, ice_conv_mmr_rts, &
+      liq_cloud_path_rts, ice_cloud_path_rts, &
+      cloud_absorptivity_rts, cloud_weight_absorptivity_rts, &
+      cloud_extinction_rts, cloud_weight_extinction_rts, &
+      sw_aer_optical_depth_rts, lw_aer_optical_depth_rts, &
+      sw_direct_clear_rts, sw_down_clear_rts, sw_up_clear_rts, &
+      lw_down_clear_rts, lw_up_clear_rts, &
+      sw_direct_clear_band_rts, sw_down_clear_band_rts, sw_up_clear_band_rts, &
+      lw_down_clear_band_rts, lw_up_clear_band_rts, &
+      sw_down_clear_surf_rts, sw_up_clear_surf_rts, sw_up_clear_toa_rts, &
+      lw_down_clear_surf_rts, lw_up_clear_surf_rts, lw_up_clear_toa_rts, &
+      sw_down_clean_surf_rts, sw_up_clean_surf_rts, sw_up_clean_toa_rts, &
+      lw_down_clean_surf_rts, lw_up_clean_surf_rts, lw_up_clean_toa_rts, &
+      sw_down_clear_clean_surf_rts, sw_up_clear_clean_surf_rts, &
+      lw_down_clear_clean_surf_rts, lw_up_clear_clean_surf_rts, &
+      sw_up_clear_clean_toa_rts, lw_up_clear_clean_toa_rts, &
+      sw_down_uv_surf_rts, sw_down_uv_clear_surf_rts, &
+      sw_direct_uv_surf_rts, sw_direct_uv_clear_surf_rts, &
+      sw_up_uv_surf_rts, sw_up_uv_clear_surf_rts, &
+      photolysis_rates_rts, dt )
+  end if
+
+  nullify ( mesh, twod_mesh )
+
+end subroutine radiation_alg
+
+end module radiation_alg_mod

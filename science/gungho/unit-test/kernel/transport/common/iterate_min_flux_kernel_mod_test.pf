@@ -1,0 +1,130 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the iterate_min_flux_kernel_mod
+!>
+module iterate_min_flux_kernel_mod_test
+
+
+  use constants_mod, only : i_def, r_tran, r_def
+  use funit
+
+  use log_mod,       only : log_event,           &
+                            log_scratch_space,   &
+                            LOG_LEVEL_INFO
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: iterate_min_flux_kernel_test_type
+    private
+  contains
+    procedure test_all
+  end type iterate_min_flux_kernel_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use iterate_min_flux_kernel_mod,    only: iterate_min_flux_code
+
+    implicit none
+
+    class(iterate_min_flux_kernel_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-15_r_tran
+
+    ! Mesh and Spaces
+    integer(i_def), parameter :: nlayers = 4
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: ndf_w2 = 6
+    integer(i_def), parameter :: nfaces_h  = 4
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+    integer(i_def), parameter :: undf_w2 = nfaces_h*nlayers + nlayers + 1
+    integer(i_def), parameter :: ncell_3d = nlayers
+
+    ! Maps
+    integer(i_def), dimension(ndf_w3)   :: map_w3
+    integer(i_def), dimension(ndf_w2)   :: map_w2
+
+    ! Operators
+    real(r_def), dimension(ncell_3d,ndf_w3,ndf_w2) :: div
+
+    ! Fields
+    real(r_tran), dimension(undf_w3) :: rho
+    real(r_tran), dimension(undf_w2) :: flux
+    real(r_tran)                     :: rho_min, dts
+    real(r_tran), dimension(undf_w2) :: flux_answer
+    real(r_tran), dimension(ndf_w2)  :: flux_cell
+
+    integer(i_def) :: j, k, cell
+
+    map_w3 = (/ 1_i_def /)
+
+    do j = 1, nfaces_h
+      map_w2(j) = 1_i_def + (j-1)*nlayers
+    end do
+    map_w2(nfaces_h+1) = 1_i_def + nfaces_h*nlayers
+    map_w2(ndf_w2)     = map_w2(nfaces_h+1) + 1_i_def
+
+    do k = 1, nlayers
+      div(k,1,1) = -1.0_r_def
+      div(k,1,2) = 1.0_r_def
+      div(k,1,3) = 1.0_r_def
+      div(k,1,4) = -1.0_r_def
+      div(k,1,5) = -1.0_r_def
+      div(k,1,6) = 1.0_r_def
+    end do
+
+    rho(:)         = 1.5_r_tran
+    rho_min        = 0.0_r_tran
+    dts            = 2.0_r_tran
+    flux_answer(:) = 1.0_r_tran
+
+    flux(:) = 0.0_r_tran
+    ! Only set horizontal fluxes, vertical fluxes are zero
+    ! 2 incoming from W and N, 3 outgoing from E and S
+    do k = 0, nlayers-1
+      flux(map_w2(1)+k) = 2.0_r_tran
+      flux(map_w2(2)+k) = 3.0_r_tran
+      flux(map_w2(3)+k) = 3.0_r_tran
+      flux(map_w2(4)+k) = 2.0_r_tran
+    end do
+
+    ! With these values, -dt*div(F_out) = 12, -dt*div(F_in) = 8, giving difference of 4
+    ! With rho = 1.5, outgoing flux needs to be 2.375
+    flux_answer(:) = 0.0_r_tran
+    do k = 0, nlayers-1
+      flux_answer(map_w2(1)+k) = 2.0_r_tran
+      flux_answer(map_w2(2)+k) = 2.375_r_tran
+      flux_answer(map_w2(3)+k) = 2.375_r_tran
+      flux_answer(map_w2(4)+k) = 2.0_r_tran
+    end do
+
+    ! Compute the modified fluxes
+    cell = 1_i_def
+
+    call iterate_min_flux_code( cell,                    &
+                                nlayers,                 &
+                                rho, flux,               &
+                                ncell_3d,                &
+                                div,                     &
+                                rho_min,                 &
+                                dts,                     &
+                                ndf_w3, undf_w3, map_w3, &
+                                ndf_w2, undf_w2, map_w2  )
+
+    @assertEqual(flux_answer, flux , tol)
+
+  end subroutine test_all
+
+end module iterate_min_flux_kernel_mod_test

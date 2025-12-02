@@ -1,0 +1,77 @@
+@@ -20,7 +20,7 @@
+                                    GH_BASIS, GH_DIFF_BASIS,             &
+                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
+ use constants_mod,           only: r_def, i_def
+-use fs_continuity_mod,       only: W1, W2
++use fs_continuity_mod,       only: W1, W2, Wchi
+ use cross_product_mod,       only: cross_product
+ 
+ implicit none
+@@ -37,13 +37,13 @@
+        arg_type(GH_FIELD,   GH_REAL, GH_READ, W1),                     &
+        arg_type(GH_FIELD,   GH_REAL, GH_READ, W2),                     &
+        arg_type(GH_FIELD,   GH_REAL, GH_READ, W1),                     &
+-       arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),            &
+-       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3)        &
++       arg_type(GH_FIELD*3, GH_REAL, GH_READ, WChi),                   &
++       arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3) &
+        /)
+   type(func_type) :: meta_funcs(3) = (/                                &
+        func_type(W2, GH_BASIS),                                        &
+        func_type(W1, GH_BASIS),                                        &
+-       func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                 &
++       func_type(WChi, GH_BASIS, GH_DIFF_BASIS)                        &
+        /)
+   integer :: operates_on = CELL_COLUMN
+   integer :: gh_shape = GH_QUADRATURE_XYoZ
+@@ -162,6 +162,11 @@
+                                            j_vorticity, j_ls_vorticity,        &
+                                            vorticity_term
+ 
++  real(kind=r_def), dimension(3,3)      :: jac_inv_transpose
++
++  real(kind=r_def), dimension(3)        :: mul1, mul2,                         &
++                                           cross_product1, cross_product2
++
+   ipanel = int(panel_id(map_pid(1)), i_def)
+ 
+   do k = 0, nlayers-1
+@@ -187,7 +192,8 @@
+                                            ipanel, chi_basis(:,:,qp1,qp2),      &
+                                            chi_diff_basis(:,:,qp1,qp2), jac, dj)
+         jac_inv =  pointwise_coordinate_jacobian_inverse(jac, dj)
+-        jac = matmul(jac_inv,transpose(jac_inv))
++        jac_inv_transpose = transpose(jac_inv)
++        jac = matmul(jac_inv,jac_inv_transpose)
+ 
+         ! Linearisation state
+         ls_vorticity_at_quad(:) = 0.0_r_def
+@@ -218,14 +224,22 @@
+         end do
+ 
+         ! Calculation
+-        j_ls_vorticity = wqp_h(qp1) * wqp_v(qp2) *             &
+-                         matmul( jac, ls_vorticity_at_quad )
++        mul1 = matmul( jac, ls_vorticity_at_quad )
++        j_ls_vorticity(:) = wqp_h(qp1) * wqp_v(qp2) * mul1(:)
++
++        mul2 = matmul( jac, vorticity_at_quad )
++        j_vorticity(:) = wqp_h(qp1) * wqp_v(qp2) * mul2(:)
+ 
+-        j_vorticity = wqp_h(qp1) * wqp_v(qp2) *        &
+-                      matmul( jac, vorticity_at_quad )
++        ! inlined cross_product
++        cross_product1(1) = j_ls_vorticity(2)*u_at_quad(3) - j_ls_vorticity(3)*u_at_quad(2)
++        cross_product1(2) = j_ls_vorticity(3)*u_at_quad(1) - j_ls_vorticity(1)*u_at_quad(3)
++        cross_product1(3) = j_ls_vorticity(1)*u_at_quad(2) - j_ls_vorticity(2)*u_at_quad(1)
++        ! inlined cross_product
++        cross_product2(1) = j_vorticity(2)*u_ls_at_quad(3) - j_vorticity(3)*u_ls_at_quad(2)
++        cross_product2(2) = j_vorticity(3)*u_ls_at_quad(1) - j_vorticity(1)*u_ls_at_quad(3)
++        cross_product2(3) = j_vorticity(1)*u_ls_at_quad(2) - j_vorticity(2)*u_ls_at_quad(1)
+ 
+-        vorticity_term = cross_product( j_ls_vorticity, u_at_quad ) + &
+-                         cross_product( j_vorticity, u_ls_at_quad )
++        vorticity_term(:) = cross_product1(:) + cross_product2(:)
+ 
+         do df = 1, ndf_w2
+           r_u( map_w2(df) + k ) = r_u( map_w2(df) + k )                &

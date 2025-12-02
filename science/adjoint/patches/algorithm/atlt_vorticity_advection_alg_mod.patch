@@ -1,0 +1,162 @@
+@@ -9,14 +9,14 @@
+     use mesh_mod, only : mesh_type
+     use function_space_collection_mod, only : function_space_collection
+     use tl_vorticity_advection_kernel_mod, only : tl_vorticity_advection_kernel_type
+-    use adj_vorticity_advection_kernel_mod, only : adj_vorticity_advection_kernel_type
++    use atl_vorticity_advection_kernel_mod, only : atl_vorticity_advection_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : w1, w2, w3, wchi
+     use quadrature_xyoz_mod, only : quadrature_xyoz_type
+     use constants_mod, only : i_def, r_def
+     use quadrature_rule_gaussian_mod, only : quadrature_rule_gaussian_type
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -30,35 +30,25 @@
+     type(field_type) :: vorticity
+     type(field_type) :: ls_wind
+     type(field_type) :: ls_vorticity
+-    type(field_type), dimension(3) :: chi_3
+-    type(field_type) :: panel_id_1
+     type(quadrature_xyoz_type) :: qr_xyoz
+     type(quadrature_rule_gaussian_type) :: quadrature_rule
+     type(field_type) :: r_u_input
+     type(field_type) :: wind_input
+     type(field_type) :: vorticity_input
+-    type(field_type) :: ls_wind_input
+-    type(field_type) :: ls_vorticity_input
+-    type(field_type), dimension(3) :: chi_3_input
+-    type(field_type) :: panel_id_1_input
+     real(kind=r_def) :: r_u_inner_prod
+     real(kind=r_def) :: wind_inner_prod
+     real(kind=r_def) :: vorticity_inner_prod
+-    real(kind=r_def) :: ls_wind_inner_prod
+-    real(kind=r_def) :: ls_vorticity_inner_prod
+-    real(kind=r_def), dimension(3) :: chi_3_inner_prod
+-    real(kind=r_def) :: panel_id_1_inner_prod
++    real(kind=r_def) :: r_u_sf
++    real(kind=r_def) :: wind_sf
++    real(kind=r_def) :: vorticity_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: r_u_r_u_input_inner_prod
+     real(kind=r_def) :: wind_wind_input_inner_prod
+     real(kind=r_def) :: vorticity_vorticity_input_inner_prod
+-    real(kind=r_def) :: ls_wind_ls_wind_input_inner_prod
+-    real(kind=r_def) :: ls_vorticity_ls_vorticity_input_inner_prod
+-    real(kind=r_def), dimension(3) :: chi_3_chi_3_input_inner_prod
+-    real(kind=r_def) :: panel_id_1_panel_id_1_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w1_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w1)
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+@@ -69,81 +59,47 @@
+     call vorticity%initialise(vector_space=vector_space_w1_ptr, name='vorticity')
+     call ls_wind%initialise(vector_space=vector_space_w2_ptr, name='ls_wind')
+     call ls_vorticity%initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity')
+-    call chi_3(1_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
+-    call chi_3(2_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
+-    call chi_3(3_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3')
+-    call panel_id_1%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
+     qr_xyoz = quadrature_xyoz_type(element_order_h + 3,element_order_h + 3,element_order_v + 3,quadrature_rule)
+     call r_u_input%initialise(vector_space=vector_space_w2_ptr, name='r_u_input')
+     call wind_input%initialise(vector_space=vector_space_w2_ptr, name='wind_input')
+     call vorticity_input%initialise(vector_space=vector_space_w1_ptr, name='vorticity_input')
+-    call ls_wind_input%initialise(vector_space=vector_space_w2_ptr, name='ls_wind_input')
+-    call ls_vorticity_input%initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity_input')
+-    call chi_3_input(1_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
+-    call chi_3_input(2_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
+-    call chi_3_input(3_i_def)%initialise(vector_space=vector_space_wchi_ptr, name='chi_3_input')
+-    call panel_id_1_input%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
+     r_u_inner_prod = 0.0_r_def
+     wind_inner_prod = 0.0_r_def
+     vorticity_inner_prod = 0.0_r_def
+-    ls_wind_inner_prod = 0.0_r_def
+-    ls_vorticity_inner_prod = 0.0_r_def
+-    chi_3_inner_prod(1_i_def) = 0.0_r_def
+-    chi_3_inner_prod(2_i_def) = 0.0_r_def
+-    chi_3_inner_prod(3_i_def) = 0.0_r_def
+-    panel_id_1_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(r_u), setval_x(r_u_input, r_u), setval_random(wind), setval_x(wind_input, wind), &
+-&setval_random(vorticity), setval_x(vorticity_input, vorticity), setval_random(ls_wind), setval_x(ls_wind_input, ls_wind), &
+-&setval_random(ls_vorticity), setval_x(ls_vorticity_input, ls_vorticity), setval_random(chi_3(1_i_def)), &
+-&setval_x(chi_3_input(1_i_def), chi_3(1_i_def)), setval_random(chi_3(2_i_def)), setval_x(chi_3_input(2_i_def), chi_3(2_i_def)), &
+-&setval_random(chi_3(3_i_def)), setval_x(chi_3_input(3_i_def), chi_3(3_i_def)), setval_random(panel_id_1), &
+-&setval_x(panel_id_1_input, panel_id_1), tl_vorticity_advection_kernel_type(r_u, wind, vorticity, ls_wind, ls_vorticity, chi_3, &
+-&panel_id_1, qr_xyoz), x_innerproduct_x(r_u_inner_prod, r_u), x_innerproduct_x(wind_inner_prod, wind), &
+-&x_innerproduct_x(vorticity_inner_prod, vorticity), x_innerproduct_x(ls_wind_inner_prod, ls_wind), &
+-&x_innerproduct_x(ls_vorticity_inner_prod, ls_vorticity), x_innerproduct_x(chi_3_inner_prod(1_i_def), chi_3(1_i_def)), &
+-&x_innerproduct_x(chi_3_inner_prod(2_i_def), chi_3(2_i_def)), x_innerproduct_x(chi_3_inner_prod(3_i_def), chi_3(3_i_def)), &
+-&x_innerproduct_x(panel_id_1_inner_prod, panel_id_1))
++&setval_random(vorticity), setval_x(vorticity_input, vorticity), setval_random(ls_wind), &
++&setval_random(ls_vorticity), tl_vorticity_advection_kernel_type(r_u, wind, vorticity, ls_wind, ls_vorticity, chi, &
++&panel_id, qr_xyoz), x_innerproduct_x(r_u_inner_prod, r_u), x_innerproduct_x(wind_inner_prod, wind), &
++&x_innerproduct_x(vorticity_inner_prod, vorticity))
++    write( log_scratch_space, * ) "atlt_vorticity_advection inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "r_u inner product = ", r_u_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "wind inner product = ", wind_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "vorticity inner product = ", vorticity_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    r_u_sf = 1.0_r_def / (r_u_inner_prod + eps)
++    wind_sf = 1.0_r_def / (wind_inner_prod + eps)
++    vorticity_sf = 1.0_r_def / (vorticity_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + r_u_inner_prod
+-    inner1 = inner1 + wind_inner_prod
+-    inner1 = inner1 + vorticity_inner_prod
+-    inner1 = inner1 + ls_wind_inner_prod
+-    inner1 = inner1 + ls_vorticity_inner_prod
+-    inner1 = inner1 + chi_3_inner_prod(1_i_def)
+-    inner1 = inner1 + chi_3_inner_prod(2_i_def)
+-    inner1 = inner1 + chi_3_inner_prod(3_i_def)
+-    inner1 = inner1 + panel_id_1_inner_prod
++    inner1 = inner1 + r_u_inner_prod * r_u_sf
++    inner1 = inner1 + wind_inner_prod * wind_sf
++    inner1 = inner1 + vorticity_inner_prod * vorticity_sf
++    call invoke( inc_a_times_X( r_u_sf, r_u ),   &
++                 inc_a_times_X( wind_sf, wind ), &
++                 inc_a_times_X( vorticity_sf, vorticity ) )
+     r_u_r_u_input_inner_prod = 0.0_r_def
+     wind_wind_input_inner_prod = 0.0_r_def
+     vorticity_vorticity_input_inner_prod = 0.0_r_def
+-    ls_wind_ls_wind_input_inner_prod = 0.0_r_def
+-    ls_vorticity_ls_vorticity_input_inner_prod = 0.0_r_def
+-    chi_3_chi_3_input_inner_prod(1_i_def) = 0.0_r_def
+-    chi_3_chi_3_input_inner_prod(2_i_def) = 0.0_r_def
+-    chi_3_chi_3_input_inner_prod(3_i_def) = 0.0_r_def
+-    panel_id_1_panel_id_1_input_inner_prod = 0.0_r_def
+-    call invoke(adj_vorticity_advection_kernel_type(r_u, wind, vorticity, ls_wind, ls_vorticity, chi_3, panel_id_1, qr_xyoz), &
++    call invoke(atl_vorticity_advection_kernel_type(r_u, wind, vorticity, ls_wind, ls_vorticity, chi, panel_id, qr_xyoz), &
+ &x_innerproduct_y(r_u_r_u_input_inner_prod, r_u, r_u_input), x_innerproduct_y(wind_wind_input_inner_prod, wind, wind_input), &
+-&x_innerproduct_y(vorticity_vorticity_input_inner_prod, vorticity, vorticity_input), &
+-&x_innerproduct_y(ls_wind_ls_wind_input_inner_prod, ls_wind, ls_wind_input), &
+-&x_innerproduct_y(ls_vorticity_ls_vorticity_input_inner_prod, ls_vorticity, ls_vorticity_input), &
+-&x_innerproduct_y(chi_3_chi_3_input_inner_prod(1_i_def), chi_3(1_i_def), chi_3_input(1_i_def)), &
+-&x_innerproduct_y(chi_3_chi_3_input_inner_prod(2_i_def), chi_3(2_i_def), chi_3_input(2_i_def)), &
+-&x_innerproduct_y(chi_3_chi_3_input_inner_prod(3_i_def), chi_3(3_i_def), chi_3_input(3_i_def)), &
+-&x_innerproduct_y(panel_id_1_panel_id_1_input_inner_prod, panel_id_1, panel_id_1_input))
++&x_innerproduct_y(vorticity_vorticity_input_inner_prod, vorticity, vorticity_input))
+     inner2 = 0.0_r_def
+     inner2 = inner2 + r_u_r_u_input_inner_prod
+     inner2 = inner2 + wind_wind_input_inner_prod
+     inner2 = inner2 + vorticity_vorticity_input_inner_prod
+-    inner2 = inner2 + ls_wind_ls_wind_input_inner_prod
+-    inner2 = inner2 + ls_vorticity_ls_vorticity_input_inner_prod
+-    inner2 = inner2 + chi_3_chi_3_input_inner_prod(1_i_def)
+-    inner2 = inner2 + chi_3_chi_3_input_inner_prod(2_i_def)
+-    inner2 = inner2 + chi_3_chi_3_input_inner_prod(3_i_def)
+-    inner2 = inner2 + panel_id_1_panel_id_1_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

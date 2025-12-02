@@ -1,0 +1,117 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the Heaviside kernel
+!>
+module heaviside_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def
+
+  implicit none
+
+  private
+  public :: test_heaviside
+
+  @TestCase
+  type, extends(TestCase), public :: heaviside_test_type
+    private
+    real(kind=r_def), allocatable :: exner(:), plev_data(:), ans_data(:), &
+         plevs(:)
+    integer(i_def), allocatable :: map_in(:), map_out(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_heaviside
+  end type heaviside_test_type
+
+  integer(i_def), parameter :: nlev = 2_i_def
+  integer(i_def), parameter :: nplev = 2_i_def
+  integer(i_def), parameter :: ndf_in = 1_i_def
+  integer(i_def), parameter :: ndf_out = 1_i_def
+  integer(i_def), parameter :: undf_in = nlev+1_i_def
+  integer(i_def), parameter :: undf_out = nplev
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+  implicit none
+
+  class(heaviside_test_type), intent(inout) :: this
+
+  allocate( this%exner(nlev+1) )
+  allocate( this%plev_data(nplev) )
+  allocate( this%plevs(nplev) )
+  allocate( this%ans_data(nplev) )
+  allocate( this%map_in(ndf_in) )
+  allocate( this%map_out(ndf_out) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+  implicit none
+
+  class(heaviside_test_type), intent(inout) :: this
+
+  deallocate ( this%exner, this%plev_data, this%ans_data, this%plevs, &
+               this%map_in, this%map_out)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_heaviside( this )
+
+  use heaviside_kernel_mod, only : heaviside_code
+
+  implicit none
+
+  class(heaviside_test_type), intent(inout) :: this
+
+  real(r_def), parameter :: tol = 1.0e-14_r_def
+  real(r_def), parameter :: p_zero = 100000.0_r_def
+  real(r_def), parameter :: kappa = 1.0_r_def
+
+  ! Input arrays
+  this%map_in = 1_i_def
+  this%map_out = 1_i_def
+  this%plevs(1) = 100000.0_r_def
+  this%plevs(2) = 90000.0_r_def
+
+  ! Set initial fields
+  this%exner(1) = 0.95_r_def
+  this%exner(2) = 0.9_r_def
+  this%exner(3) = 0.85_r_def
+  this%plev_data(1) = 1.0_r_def
+  this%plev_data(2) = 1.0_r_def
+
+  ! Set correct answer
+  this%ans_data(1) = 0.0_r_def
+  this%ans_data(2) = 1.0_r_def
+
+  call heaviside_code( nlev,           &
+                       this%exner,     &
+                       nplev,          &
+                       this%plevs,     &
+                       this%plev_data, &
+                       p_zero,         &
+                       kappa,          &
+                       ndf_in,         &
+                       undf_in,        &
+                       this%map_in,    &
+                       ndf_out,        &
+                       undf_out,       &
+                       this%map_out)
+
+  @assertEqual(this%ans_data(:), this%plev_data(:), tol )
+
+  end subroutine test_heaviside
+
+end module heaviside_kernel_mod_test

@@ -1,0 +1,83 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Filter W2h wind dofs
+
+module w2_filter_alg_mod
+
+  use constants_mod,                  only: r_def, i_def
+  use field_mod,                      only: field_type
+  use mesh_mod,                       only: mesh_type
+  use fs_continuity_mod,              only: W2, W3, Wtheta
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+
+  implicit none
+
+  private
+  public :: w2_filter_alg
+
+contains
+
+  !> @details This first samples the W2 winds at W3 points and then projects back.
+  !>          The net effect is similar to a 1-2-1 filter of orthogonal wind components.
+  !> @param[inout]   w2_field_inout   Input w2 field that is overwritten on output
+  subroutine w2_filter_alg(w2_field_inout)
+
+    use physics_mappings_alg_mod,      only : map_physics_winds
+    use map_fd_to_prognostics_alg_mod, only : set_wind
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: w2_field_inout
+
+    ! local fields
+    type( field_type ) :: w2_h_filtered
+
+    type( field_type ) :: u_lat, u_lon, u_up, u_up_wt
+
+    type( mesh_type ), pointer :: mesh => null()
+    type( function_space_type ), pointer :: w2_fs => null()
+    type( function_space_type ), pointer :: w3_fs => null()
+    type( function_space_type ), pointer :: wt_fs => null()
+
+    integer(kind=i_def) :: element_order_h
+    integer(kind=i_def) :: element_order_v
+
+    mesh => w2_field_inout%get_mesh()
+
+    element_order_h = w2_field_inout%get_element_order_h()
+    element_order_v = w2_field_inout%get_element_order_v()
+
+    w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W3 )
+    w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W2 )
+    wt_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, Wtheta )
+
+    call w2_h_filtered%initialise( w2_fs )
+
+    call u_lon%initialise( w3_fs )
+    call u_lat%initialise( w3_fs )
+    call u_up%initialise( w3_fs )
+    call u_up_wt%initialise( wt_fs )
+
+    ! Set vertical component to zero, explicitly removing any vertical wind
+    call invoke( setval_c(u_up_wt, 0.0_r_def),        &
+                 setval_c(w2_h_filtered, 0.0_r_def) )
+
+    ! Sample winds at the W3 points
+    call map_physics_winds(u_lon, u_lat, u_up, w2_field_inout)
+
+    ! Project back to W2 points
+    call set_wind(w2_h_filtered, u_lon, u_lat, u_up_wt)
+    call invoke(setval_X(w2_field_inout, w2_h_filtered))
+
+    nullify(mesh, w2_fs, w3_fs, wt_fs)
+
+  end subroutine w2_filter_alg
+
+end module w2_filter_alg_mod

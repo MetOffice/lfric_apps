@@ -1,0 +1,141 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module initialise_diagnostics_mod_test
+
+  use funit
+  use constants_mod,                  only : i_def, l_def, r_second
+  use halo_routing_collection_mod,    only : halo_routing_collection_type, &
+                                             halo_routing_collection
+  use function_space_collection_mod,  only : function_space_collection_type, &
+                                             function_space_collection
+  use local_mesh_mod,                 only : local_mesh_type
+  use mesh_collection_mod,            only : mesh_collection_type, &
+                                             mesh_collection
+  use mesh_mod,                       only : mesh_type, PLANE_BI_PERIODIC
+  use fs_continuity_mod,              only : W2, W3, Wtheta, W2H, W0
+  use function_space_mod,             only : function_space_type
+  use field_mod,                      only : field_type
+  use feign_config_mod,               only : feign_io_config
+
+  implicit none
+
+  type(local_mesh_type), target      :: unit_test_local_mesh
+  type(mesh_type)                    :: unit_test_mesh
+
+  type(mesh_type), pointer           :: mesh => null()
+
+  private
+  public :: initialise_diagnostics_test_type, init_test
+
+  @TestCase
+  type, extends(TestCase) :: initialise_diagnostics_test_type
+  private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure init_test
+  end type initialise_diagnostics_test_type
+
+contains
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(initialise_diagnostics_test_type), intent(inout) :: this
+
+    type(local_mesh_type), pointer :: unit_test_local_mesh_ptr
+    integer(i_def)  :: mesh_id
+
+    mesh_collection = mesh_collection_type()
+    function_space_collection = function_space_collection_type()
+    halo_routing_collection = halo_routing_collection_type()
+
+    call unit_test_local_mesh%initialise()
+    unit_test_local_mesh_ptr => unit_test_local_mesh
+    unit_test_mesh = mesh_type(PLANE_BI_PERIODIC, unit_test_local_mesh_ptr)
+
+    mesh_id = mesh_collection%add_new_mesh(unit_test_mesh)
+    mesh => mesh_collection%get_mesh(mesh_id)
+
+  end subroutine setUp
+
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(initialise_diagnostics_test_type), intent(inout) :: this
+
+    call halo_routing_collection%clear()
+    call function_space_collection%clear()
+    call mesh_collection%clear()
+    call final_configuration()
+
+  end subroutine tearDown
+
+  @Test
+  subroutine init_test( this )
+
+    use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+    implicit none
+
+    class(initialise_diagnostics_test_type), intent(inout) :: this
+
+    type( field_type ) :: test_field
+    logical(l_def) :: ignore
+
+    call feign_io_config( checkpoint_read=.false., &
+                          checkpoint_times=(/ 1.0_r_second /), &
+                          checkpoint_write=.false., &
+                          counter_output_suffix='', &
+                          diag_active_files=(/ '' /), &
+                          diag_always_on_sampling=.false., &
+                          diagnostic_frequency=1, &
+                          end_of_run_checkpoint=.false., &
+                          file_convention=400256111, &
+                          multifile_io=.false., &
+                          nodal_output_on_w3=.false., &
+                          subroutine_counters=.false., &
+                          subroutine_timers=.false., &
+                          timer_output_path='', &
+                          use_xios_io=.true., &
+                          write_conservation_diag=.false., &
+                          write_diag=.true., &
+                          write_dump=.false., &
+                          write_fluxes=.false., &
+                          write_minmax_tseries=.false. )
+
+    @assertTrue(init_diag(test_field, 'diag_field_half_level_face_grid'))
+    @assertTrue(init_diag(test_field, 'diag_field_half_level_face_grid', activate=.true.))
+    @assertTrue(init_diag(test_field, 'diag_field_half_level_face_grid', activate=.false.))
+
+    @assertFalse(init_diag(test_field, 'diag_field_disabled'))
+    @assertFalse(init_diag(test_field, 'diag_field_disabled', activate=.true.))
+    @assertFalse(init_diag(test_field, 'diag_field_disabled', activate=.false.))
+
+    @assertTrue(init_diag(test_field, 'diag_field_no_flag'))
+    @assertTrue(init_diag(test_field, 'diag_field_no_flag', activate=.false.))
+    @assertTrue(init_diag(test_field, 'diag_field_no_flag', activate=.true.))
+
+    ! ! verify that there is no error in the following calls:
+    ignore = init_diag(test_field, 'diag_field_full_level_face_grid')
+    ignore = init_diag(test_field, 'diag_field_half_level_edge_grid')
+    ignore = init_diag(test_field, 'diag_field_node_grid')
+    ignore = init_diag(test_field, 'diag_field_face')
+    ignore = init_diag(test_field, 'diag_field_face_rad')
+
+    ! the following call cannot be tested here as multidata dimension lookup requires
+    ! UM_PHYSICS to be defined, which is not the case in gungho:
+    ! ignore = init_diag(test_field, 'diag_field_face_tile')
+
+  end subroutine init_test
+end module initialise_diagnostics_mod_test

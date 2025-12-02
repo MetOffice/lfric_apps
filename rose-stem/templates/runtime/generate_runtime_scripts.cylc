@@ -1,0 +1,132 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_scripts.cylc") %}
+
+{# Generate runtime section for scripts #}
+
+{# Import macros to set custom directive values for this platform #}
+{% from "site/"~SITE~"/macros/macros_"~site_vars['scripts_platform']~".cylc" import
+    set_task_resources,
+    with context %}
+
+{# Set the family inheritance for this task #}
+{% set inherit = namespace(str="") %}
+{% if "kgo_groups_checker" not in task %}
+    {# The SCRIPTS family is used as a trigger for the housekeeping task #}
+    {# Dont want housekeeping to depend on the kgo_checker #}
+    {# So kgo_checker not part of SCRIPTS family #}
+    {% set inherit.str = "SCRIPTS" %}
+{% endif %}
+{% for family in task_values["script_families"] %}
+    {% set inherit.str = inherit.str~","~family|upper %}
+{% endfor %}
+{# Remove leading commas #}
+{% set inherit.str = inherit.str|trim(",") %}
+
+{# ######################## #}
+{# Scripts Runtime Sections #}
+{# ######################## #}
+
+    [[{{task}}]]
+        execution time limit = PT15M
+
+{% if "config_dump_checker" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=check_config_dump"
+
+{% elif "style_checker" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=check_style"
+
+{% elif "extract_checker" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=extract_list_checker"
+
+{% elif "site_validator" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=site_validator"
+
+{% elif "rose-stem_lint_checker" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=rose-stem_lint_check"
+
+{% elif "test_launch-exe" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=test_launch-exe"
+        [[[environment]]]
+            launch_exe_meto_path = $CYLC_WORKFLOW_RUN_DIR/site/meto/common/bin/launch-exe
+
+{% elif "macro_chains_checker" in task %}
+
+        inherit=SCRIPTS,{{site_vars["scripts_platform"]|upper}}_PLOT
+        script="rose task-run --app-key=check_macro_chains"
+
+{% elif "validate_rose_meta" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=validate_rose_meta"
+        [[[environment]]]
+            ROSE_PYTHONPATH = $PYTHONPATH
+
+{% elif "kgo_groups_checker" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=check_kgo_groups"
+        {% set group_str = RUN_NAMES|join(",") %}
+        [[[environment]]]
+            SUITE_SITE = {{SITE}}
+            SUITE_GROUPS = {{group_str}}
+
+{% elif "global_variables_checker" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=check_global_variables"
+
+{% elif "python_unit_tests" in task %}
+
+        inherit={{inherit.str|upper}}
+        script="rose task-run --app-key=python_unit_tests"
+
+{% elif "local_build_test" in task %}
+    {# Test the local_build script by building gungho_model #}
+
+    {% if "launch_platform" in site_vars and site_vars.launch_platform == "azspice" %}
+        {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_GNU" %}
+    {% else %}
+        {% set local_build_inherit = "SCRIPTS,"~site_vars["scripts_platform"]|upper~"_BUILD_INTEL" %}
+    {% endif %}
+
+        inherit={{local_build_inherit|upper}}
+        execution time limit = PT25M
+        script = """
+                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_apps $CYLC_TASK_WORK_DIR/apps_local_build_source
+                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_core $CYLC_TASK_WORK_DIR/core_local_build_source
+                 cd $CYLC_TASK_WORK_DIR/apps_local_build_source
+                 python3 build/local_build.py gungho_model -c $CYLC_TASK_WORK_DIR/core_local_build_source
+                 cd $CYLC_TASK_WORK_DIR
+                 rm -rf $CYLC_TASK_WORK_DIR/apps_local_build_source
+                 rm -rf $CYLC_TASK_WORK_DIR/core_local_build_source
+                 """
+
+{% endif %}
+
+
+{# Directives Macros #}
+{# If this script task has any directives specified at this site, update those #}
+        [[[directives]]]
+{% if "local_build_test" in task %}
+    {{ set_task_resources(6, [1, "GB"]) }}
+{% else %}
+    {{ set_task_resources(1, [1, "GB"]) }}
+{% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_scripts.cylc") %}

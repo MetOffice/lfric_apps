@@ -1,0 +1,89 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> This code tests precomputation of Nirvana coefficients.
+
+module ffsl_third_dldz_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran, l_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( )
+
+    use, intrinsic :: iso_fortran_env,  only : real64
+    use ffsl_third_dldz_kernel_mod,     only : ffsl_third_dldz_code
+
+    implicit none
+
+    real(r_tran),   parameter :: tol       = 1.0e-12_r_tran   ! r_tran 64bit
+    integer(i_def), parameter :: nlayers   = 5
+    integer(i_def), parameter :: ndf_w3    = 1
+    integer(i_def), parameter :: undf_w3   = nlayers
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+
+    real(r_tran), dimension(undf_w3)  :: dla_dz_1, dla_dz_2, dla_dz_3
+    real(r_tran), dimension(undf_w3)  :: dlb_dz_1, dlb_dz_2, dlb_dz_3
+    real(r_tran), dimension(undf_w3)  :: dz
+    real(r_tran), dimension(undf_w3)  :: answer_a_1, answer_a_2, answer_a_3
+    real(r_tran), dimension(undf_w3)  :: answer_b_1, answer_b_2, answer_b_3
+
+    real(r_tran)   :: use_tol
+
+    real(r_tran), parameter :: sixth = 1.0_r_tran/6.0_r_tran
+    real(r_tran), parameter :: third  = 1.0_r_tran/3.0_r_tran
+
+    ! Set up maps
+    map_w3(1)= 1
+
+    ! Set constant grid spacing
+    dz = (/ 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
+
+    ! Compute edge reconstruction coefficients
+    call ffsl_third_dldz_code( nlayers,  &
+                               dla_dz_1, &
+                               dla_dz_2, &
+                               dla_dz_3, &
+                               dlb_dz_1, &
+                               dlb_dz_2, &
+                               dlb_dz_3, &
+                               dz,       &
+                               ndf_w3,   &
+                               undf_w3,  &
+                               map_w3 )
+
+    answer_a_1 = (/ -0.5_r_tran,  -1.0_r_tran,  -1.0_r_tran, -1.0_r_tran,  1.5_r_tran /)
+    answer_a_2 = (/ 1.0_r_tran,  0.5_r_tran,  0.5_r_tran, 0.5_r_tran,  -3.0_r_tran /)
+    answer_a_3 = (/ -sixth,  third,  third, third,  2.0_r_tran-sixth /)
+    answer_b_1 = (/ 3.0_r_tran,  -0.5_r_tran,  -0.5_r_tran, -0.5_r_tran,  -1.0_r_tran /)
+    answer_b_2 = (/ -1.5_r_tran,  1.0_r_tran,  1.0_r_tran, 1.0_r_tran,  0.5_r_tran /)
+    answer_b_3 = (/ third,  -sixth,  -sixth, -sixth,  third /)
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      ! Set tolerance based on precision of field
+      use_tol = 10.0_r_tran*spacing( maxval(dla_dz_1(:)) )
+    end if
+
+    @assertEqual(answer_a_1, dla_dz_1, use_tol)
+    @assertEqual(answer_a_2, dla_dz_2, use_tol)
+    @assertEqual(answer_a_3, dla_dz_3, use_tol)
+    @assertEqual(answer_b_1, dlb_dz_1, use_tol)
+    @assertEqual(answer_b_2, dlb_dz_2, use_tol)
+    @assertEqual(answer_b_3, dlb_dz_3, use_tol)
+
+  end subroutine test_all
+
+end module ffsl_third_dldz_kernel_mod_test

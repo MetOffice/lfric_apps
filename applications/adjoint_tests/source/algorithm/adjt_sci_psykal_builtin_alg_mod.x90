@@ -1,0 +1,147 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing adjoint tests for the sci_psykal_builtin_light_mod routines
+module adjt_sci_psykal_builtin_alg_mod
+
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, &
+                                            element_order_v
+  use fs_continuity_mod,             only : w3, wtheta
+  use constants_mod,                 only : i_def, r_def
+  use log_mod,                       only : log_event,         &
+                                            log_level_error,   &
+                                            log_level_debug,   &
+                                            log_level_info,    &
+                                            log_scratch_space
+
+  implicit none
+
+  private
+  public :: adjt_convert_cart2sphere_vector_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for the Cartesian to spherical coordinates conversion
+  !> @param[in] mesh  A mesh object
+  subroutine adjt_convert_cart2sphere_vector_alg( mesh )
+
+    use sci_convert_cart2sphere_vector_kernel_mod, &
+                                          only: convert_cart2sphere_vector_kernel_type
+    use adj_convert_cart2sphere_vector_kernel_mod, &
+                                          only: adj_convert_cart2sphere_vector_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for forward and adjoint calls
+    type(field_type)                   :: field(3)
+    type(field_type)                   :: coords(3)
+
+    ! Copies of input fields used in inner products
+    type(field_type)                   :: field_inp(3)
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)                   :: field_inner_prod(3)
+    real(kind=r_def)                   :: field_sf(3)
+    real(kind=r_def)                   :: inner1
+    real(kind=r_def)                   :: field_field_inp_inner_prod(3)
+    real(kind=r_def)                   :: inner2
+    integer(kind=i_def)                :: idx
+
+    ! Test parameters and variables
+    real(kind=r_def)                   :: machine_tolerance
+    real(kind=r_def)                   :: relative_diff
+    real(kind=r_def),        parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def),        parameter :: eps = 1e-30_r_def
+
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, w3)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                                element_order_v, wtheta)
+    call field(1)%initialise(vector_space=vector_space_w3_ptr)
+    call field(2)%initialise(vector_space=vector_space_w3_ptr)
+    call field(3)%initialise(vector_space=vector_space_wtheta_ptr)
+    call coords(1)%initialise(vector_space=vector_space_w3_ptr)
+    call coords(2)%initialise(vector_space=vector_space_w3_ptr)
+    call coords(3)%initialise(vector_space=vector_space_w3_ptr)
+    call field_inp(1)%initialise(vector_space=vector_space_w3_ptr)
+    call field_inp(2)%initialise(vector_space=vector_space_w3_ptr)
+    call field_inp(3)%initialise(vector_space=vector_space_wtheta_ptr)
+
+    field_inner_prod(:) = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(field(1)), setval_x(field_inp(1), field(1)), &
+                 setval_random(field(2)), setval_x(field_inp(2), field(2)), &
+                 setval_random(field(3)), setval_x(field_inp(3), field(3)), &
+                 setval_random(coords(1)), &
+                 setval_random(coords(2)), &
+                 setval_random(coords(3)) )
+
+    call invoke( convert_cart2sphere_vector_kernel_type( field, coords ) )
+
+    call invoke( x_innerproduct_x(field_inner_prod(1), field(1)), &
+                 x_innerproduct_x(field_inner_prod(2), field(2)), &
+                 x_innerproduct_x(field_inner_prod(3), field(3)) )
+
+    write( log_scratch_space, * ) "adjt_convert_cart2sphere_vector_kernel_type inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    do idx = 1, 3
+      write( log_scratch_space, * ) "field(", idx, ") inner product = ", field_inner_prod(idx)
+      call log_event( log_scratch_space, log_level_debug )
+    end do
+
+    do idx = 1, 3
+      field_sf(idx) = 1.0_r_def / (field_inner_prod(idx) + eps)
+    end do
+
+    inner1 = 0.0_r_def
+    do idx = 1, 3
+      inner1 = inner1 + field_inner_prod(idx) * field_sf(idx)
+    end do
+
+    call invoke( inc_a_times_X( field_sf(1), field(1) ), &
+                 inc_a_times_X( field_sf(2), field(2) ), &
+                 inc_a_times_X( field_sf(3), field(3) ) )
+
+    field_field_inp_inner_prod(:) = 0.0_r_def
+
+    call invoke( adj_convert_cart2sphere_vector_kernel_type( field, coords ) )
+
+    call invoke( x_innerproduct_y( field_field_inp_inner_prod(1), field(1), field_inp(1) ), &
+                 x_innerproduct_y( field_field_inp_inner_prod(2), field(2), field_inp(2) ), &
+                 x_innerproduct_y( field_field_inp_inner_prod(3), field(3), field_inp(3) ) )
+
+    inner2 = 0.0_r_def
+    do idx = 1, 3
+      inner2 = inner2 + field_field_inp_inner_prod(idx)
+    end do
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tolerance = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tolerance
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED convert_cart2sphere:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_info)
+    else
+      write(log_scratch_space, *) "FAILED convert_cart2sphere:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_error)
+    end if
+
+  end subroutine adjt_convert_cart2sphere_vector_alg
+
+end module adjt_sci_psykal_builtin_alg_mod

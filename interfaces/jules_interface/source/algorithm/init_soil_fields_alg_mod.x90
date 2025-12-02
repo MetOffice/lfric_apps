@@ -1,0 +1,159 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Prepares the soil fields
+module init_soil_fields_alg_mod
+
+  use constants_mod,                   only: r_def
+
+  ! Derived Types
+  use field_mod,                 only: field_type
+  use field_collection_mod,      only: field_collection_type
+
+  ! Jules information used
+  use jules_surface_types_mod,   only: ice
+  use ideal_surface_config_mod,  only: surf_tile_fracs
+
+  use initialization_config_mod, only: init_option, init_option_analytic, &
+                                       ancil_option, ancil_option_none
+
+  implicit none
+
+  private
+  public :: init_soil_fields_alg
+
+contains
+
+  !> @brief   Initialises the soil fields
+  !> @details The soil fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case no restart file is used.
+  !> @param[in,out] soil_fields Collection of fields for soil hydrology scheme
+  subroutine init_soil_fields_alg(soil_fields)
+
+    use initial_soil_kernel_mod, only: initial_soil_kernel_type
+    use process_soil_kernel_mod, only: process_soil_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(inout) :: soil_fields
+
+    ! Ancillary fields
+    type( field_type ), pointer :: soil_albedo         => null()
+    type( field_type ), pointer :: soil_moist_wilt     => null()
+    type( field_type ), pointer :: soil_moist_crit     => null()
+    type( field_type ), pointer :: soil_moist_sat      => null()
+    type( field_type ), pointer :: soil_cond_sat       => null()
+    type( field_type ), pointer :: soil_thermal_cap    => null()
+    type( field_type ), pointer :: soil_thermal_cond   => null()
+    type( field_type ), pointer :: soil_suction_sat    => null()
+    type( field_type ), pointer :: clapp_horn_b        => null()
+    type( field_type ), pointer :: soil_roughness      => null()
+    type( field_type ), pointer :: mean_topog_index    => null()
+    type( field_type ) :: stdev_topog_index
+    type( field_type ), pointer :: a_sat_frac          => null()
+    type( field_type ), pointer :: c_sat_frac          => null()
+    type( field_type ), pointer :: a_wet_frac          => null()
+    type( field_type ), pointer :: c_wet_frac          => null()
+
+    ! Prognostic fields
+    type( field_type ), pointer :: soil_temperature       => null()
+    type( field_type ), pointer :: soil_moisture          => null()
+    type( field_type ), pointer :: unfrozen_soil_moisture => null()
+    type( field_type ), pointer :: frozen_soil_moisture   => null()
+    type( field_type ), pointer :: soil_sat_frac          => null()
+    type( field_type ), pointer :: water_table            => null()
+    type( field_type ), pointer :: wetness_under_soil     => null()
+    type( field_type ), pointer :: surface_runoff         => null()
+    type( field_type ), pointer :: sub_surface_runoff     => null()
+
+    call soil_fields%get_field('soil_albedo', soil_albedo)
+    call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
+    call soil_fields%get_field('soil_moist_crit', soil_moist_crit)
+    call soil_fields%get_field('soil_moist_sat', soil_moist_sat)
+    call soil_fields%get_field('soil_cond_sat', soil_cond_sat)
+    call soil_fields%get_field('soil_thermal_cap', soil_thermal_cap)
+    call soil_fields%get_field('soil_thermal_cond', soil_thermal_cond)
+    call soil_fields%get_field('soil_suction_sat', soil_suction_sat)
+    call soil_fields%get_field('clapp_horn_b', clapp_horn_b)
+    call soil_fields%get_field('soil_roughness', soil_roughness)
+    call soil_fields%get_field('mean_topog_index', mean_topog_index)
+    call soil_fields%get_field('a_sat_frac', a_sat_frac)
+    call soil_fields%get_field('c_sat_frac', c_sat_frac)
+    call soil_fields%get_field('a_wet_frac', a_wet_frac)
+    call soil_fields%get_field('c_wet_frac', c_wet_frac)
+
+    call soil_fields%get_field('soil_temperature', soil_temperature)
+    call soil_fields%get_field('soil_moisture', soil_moisture)
+    call soil_fields%get_field('unfrozen_soil_moisture', unfrozen_soil_moisture)
+    call soil_fields%get_field('frozen_soil_moisture', frozen_soil_moisture)
+    call soil_fields%get_field('soil_sat_frac', soil_sat_frac)
+    call soil_fields%get_field('water_table', water_table)
+    call soil_fields%get_field('wetness_under_soil', wetness_under_soil)
+    call soil_fields%get_field('surface_runoff', surface_runoff)
+    call soil_fields%get_field('sub_surface_runoff', sub_surface_runoff)
+
+    ! Set soil ancillaries to fixed values for if no ancil is read
+    call invoke( setval_c(soil_albedo, 0.11_r_def),                         &
+                 setval_c(soil_moist_wilt, 0.263_r_def),                    &
+                 setval_c(soil_moist_crit, 0.37_r_def),                     &
+                 setval_c(soil_moist_sat, 0.456_r_def),                     &
+                 setval_c(soil_cond_sat, 0.0015_r_def),                     &
+                 setval_c(soil_thermal_cap, 1230000.0_r_def),               &
+                 setval_c(soil_thermal_cond, 0.22_r_def),                   &
+                 setval_c(soil_suction_sat, 0.324_r_def),                   &
+                 setval_c(clapp_horn_b, 11.2_r_def),                        &
+                 setval_c(soil_roughness, 0.001_r_def),                     &
+                 setval_c(mean_topog_index, 1.0_r_def),                     &
+                 setval_c(a_sat_frac, 1.0_r_def),                           &
+                 setval_c(c_sat_frac, 1.0_r_def),                           &
+                 setval_c(a_wet_frac, 1.0_r_def),                           &
+                 setval_c(c_wet_frac, 1.0_r_def),                           &
+                 setval_c(surface_runoff, 0.0_r_def),                       &
+                 setval_c(sub_surface_runoff, 0.0_r_def),                   &
+                 ! Set soil prognostics when no values are provided by um2lfric
+                 setval_c(soil_sat_frac, 1.0_r_def),                        &
+                 setval_c(water_table, 1.0_r_def),                          &
+                 setval_c(wetness_under_soil, 1.0_r_def),                   &
+                 setval_c(unfrozen_soil_moisture, 1.0_r_def),               &
+                 setval_c(frozen_soil_moisture, 1.0_r_def),                 &
+                 ! Initialise fields which vary with soil level
+                 initial_soil_kernel_type( soil_temperature,                &
+                                           soil_moisture) )
+
+    if (init_option == init_option_analytic .or. &
+         ancil_option == ancil_option_none) then
+
+      ! Set volumetric soil moisture at saturation to zero below the ice tile
+      ! or a sensible value elsewhere, since this is what Jules expects
+      if (surf_tile_fracs(ice) > 0.0_r_def) then
+        call invoke(setval_c(soil_moist_sat, 0.0_r_def))
+      end if
+
+      call mean_topog_index%copy_field_properties(stdev_topog_index)
+
+      ! Calculate correct versions of soil ancils and prognostics
+      call invoke(setval_c(stdev_topog_index, 1.0_r_def),                    &
+                  process_soil_kernel_type( soil_moist_sat,                  &
+                                            soil_moist_wilt,                 &
+                                            mean_topog_index,                &
+                                            stdev_topog_index,               &
+                                            a_sat_frac,                      &
+                                            c_sat_frac,                      &
+                                            a_wet_frac,                      &
+                                            c_wet_frac,                      &
+                                            clapp_horn_b,                    &
+                                            soil_suction_sat,                &
+                                            soil_temperature,                &
+                                            soil_moisture,                   &
+                                            unfrozen_soil_moisture,          &
+                                            frozen_soil_moisture) )
+
+    end if
+
+  end subroutine init_soil_fields_alg
+
+end module init_soil_fields_alg_mod

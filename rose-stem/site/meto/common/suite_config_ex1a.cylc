@@ -1,0 +1,184 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains etails of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/common/suite_config_ex1a.cylc") %}
+
+{% set ex1a_base = 'module use /common/internal/spack/releases/2025.10.1/ngms' %}
+
+{% set ex1a_compiler_gnu =  'module switch cpe/22.11 cpe/23.05 ; ' ~
+                            'module load PrgEnv-gnu ; '~
+                            'module load gcc/12.2.0 ; '~
+                            'module load lfric-gnu/12.2.0/3.0+ || true' %}
+
+{% set ex1a_compiler_cce =  'module switch PrgEnv-cray PrgEnv-cray/8.4.0 ; ' ~
+                            'module load cpe/23.05 ; '~
+                            'module switch cce cce/15.0.0 ; '~
+                            'module load lfric-cray/15.0.0/3.0+ || true ' %}
+
+{% set ex1a_coupled_cce = 'module unload xios/2701-h57fm7d || true ; ' ~
+                          'module load cray-hdf5-parallel ; ' ~
+                          'module load cray-netcdf-hdf5parallel ; ' ~
+                          'module use /data/users/moci/modules_ngms/modules ; '~
+                          'module load GC4-PrgEnv/2024-01-lfric_apps_coupled_port-cpe23.05/5548.lua' %}
+
+{% set ex1a_coupled_run = '. $BIG_DATA_DIR/ancils/lfric_coupled/ocean/ocean_ancil_GO8p0_CORE_forcing_eORCA025 ; ' ~
+                          'DIAG_MEAN_PERIOD="INVALID_PERIOD"'%}
+
+{% set set_ulimit = 'ulimit -s unlimited -c unlimited; '~
+                    'ulimit -a '%}
+
+{% set ex1a_scitools = 'module load scitools/production-os47-1' %}
+{% set ex1a_tech = '' %}
+
+{% set ex1a_perftools = 'module load perftools' %}
+
+    [[EX1A_BASE]]
+        platform = {{site_vars.host_ex}}
+        [[[environment]]]
+            BUILD_ROOT = ${TMPDIR}
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 128
+            NUMA_REGIONS_PER_NODE = 2
+            LUSTRE_FILESYSTEM = true
+            ROSE_LAUNCHER = 'mpiexec'
+
+    [[EX1A_BUILD]]
+        [[[environment]]]
+            TRANSMUTE_INCLUDE_METHOD = specify_include
+        [[[environment]]]
+            USE_VERNIER=yes
+            USE_TIMING_WRAPPER=yes
+        [[[directives]]]
+            -l tmpsize=12GB
+
+    [[EX1A_RUN]]
+        [[[environment]]]
+            {# BIG_DATA_DIR holds ancils and dump files #}
+{% if site_vars["host_ex"] == "exz" %}
+            BIG_DATA_DIR = '/common/internal/lfricdir/data'
+{% else %}
+            BIG_DATA_DIR = '/data/users/lfricadmin/data'
+{% endif %}
+            TARGET_PLATFORM = 'meto-ex1a'
+            RUN_METHOD = 'mpiexec'
+
+    [[EX1A_GNU]]
+        [[[environment]]]
+            COMPILER = 'gnu'
+
+    [[EX1A_CCE]]
+        [[[environment]]]
+            COMPILER = 'cce'
+
+    [[EX1A_BUILD_GNU]]
+        inherit=EX1A_BASE,EX1A_BUILD,EX1A_GNU
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu]) }}
+
+    [[EX1A_BUILD_CCE]]
+        inherit=EX1A_BASE,EX1A_BUILD,EX1A_CCE
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce]) }}
+
+    [[EX1A_BUILD_COUPLED_CCE]]
+        inherit=EX1A_BASE,EX1A_BUILD,EX1A_CCE
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, ex1a_coupled_cce]) }}
+
+    [[EX1A_BUILD_PERFTOOLS-GNU]]
+        inherit=EX1A_BASE,EX1A_BUILD,EX1A_GNU
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, ex1a_perftools]) }}
+
+    [[EX1A_RUN_GNU]]
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_GNU
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, set_ulimit]) }}
+
+    [[EX1A_RUN_CCE]]
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, set_ulimit]) }}
+
+    [[EX1A_RUN_COUPLED_CCE]]
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
+        {{ generate_script("pre-script", [ex1a_base,
+                                          ex1a_compiler_cce,
+                                          ex1a_coupled_cce,
+                                          ex1a_coupled_run,
+                                          set_ulimit]) }}
+
+    [[EX1A_RUN_PERFTOOLS-GNU]]
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_GNU
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, set_ulimit, ex1a_perftools]) }}
+
+    [[EX1A_MESH]]
+        inherit=EX1A_BASE
+        [[[directives]]]
+            -l tmpsize=6GB
+
+    [[EX1A_MESH_GNU]]
+        inherit=EX1A_GNU,EX1A_MESH
+        {{ generate_script("pre-script", [ex1a_base,
+                                          ex1a_compiler_gnu]) }}
+
+    [[EX1A_MESH_CCE]]
+        inherit=EX1A_CCE,EX1A_MESH
+        {{ generate_script("pre-script", [ex1a_base,
+                                          ex1a_compiler_cce]) }}
+
+    [[EX1A_MESH_PERFTOOLS-GNU]]
+        inherit=EX1A_GNU,EX1A_MESH
+        {{ generate_script("pre-script", [ex1a_base,
+                                          ex1a_compiler_gnu,
+                                          ex1a_tech,
+                                          ex1a_perftools]) }}
+
+    [[EX1A_TECH_BASE]]
+        inherit=EX1A_BASE
+        [[[directives]]]
+            -l tmpsize=6GB
+
+    [[EX1A_TECH_TESTS]]
+        inherit=EX1A_TECH_BASE
+
+    [[EX1A_TECH_TESTS_GNU]]
+        inherit=EX1A_TECH_TESTS,EX1A_GNU
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, ex1a_scitools]) }}
+
+    [[EX1A_TECH_TESTS_CCE]]
+        inherit=EX1A_TECH_TESTS,EX1A_CCE
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, ex1a_scitools]) }}
+
+    [[EX1A_TECH_TESTS_PERFTOOLS-GNU]]
+        inherit=EX1A_TECH_TESTS,EX1A_GNU
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, ex1a_tech, ex1a_perftools]) }}
+
+    [[EX1A_TECH]]
+        inherit=EX1A_TECH_BASE
+        {{ generate_script("pre-script", [ex1a_scitools,
+                                          ex1a_tech]) }}
+
+    [[EX1A_PLOT]]
+        inherit=EX1A_TECH_BASE
+        {{ generate_script("pre-script", [ex1a_scitools]) }}
+
+    [[EX1A_CHECK]]
+        inherit=EX1A_TECH
+
+    [[EX1A_ROSE_ANA]]
+        inherit = EX1A_BASE
+        pre-script = """
+                     module load nccmp/1.9.1.0
+                     module load scitools/production-os47-1
+                     module load um_tools/2025.10.1/openmp
+                     export ROSE_PYTHONPATH="$PYTHONPATH"
+                     module list 2>&1
+                     """
+
+    [[EX1A_EXPORT-SOURCE]]
+        inherit=METO_ORIG
+        [[[environment]]]
+            hostname = $(rose host-select {{site_vars.host_ex}})
+            PLATFORM_SYNC = true
+
+    [[EX1A_HOUSEKEEPING]]
+        inherit=EX1A_TECH_BASE
+
+{% do LOG.debug("Finished in sitemeto/common/suite_config_ex1a.cylc") %}

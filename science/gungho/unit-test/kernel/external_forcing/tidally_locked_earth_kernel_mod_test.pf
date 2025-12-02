@@ -1,0 +1,224 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the Tidally Locked Earth forcing kernel.
+!>
+module tidally_locked_earth_kernel_mod_test
+
+  use constants_mod,       only : i_def, r_def, r_second, PI
+  use coord_transform_mod, only : llr2xyz
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+  real(kind=r_def), parameter :: rd           = 287.05_r_def
+  real(kind=r_def), parameter :: cp           = 1005.0_r_def
+  real(kind=r_def), parameter :: kappa        = rd/cp
+  real(kind=r_def), parameter :: dlat         = 1.0_r_def, dlon = 1.0_r_def, dz = 10000.0_r_def
+  real(kind=r_def), parameter :: dt           = 1800.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use extrusion_config_mod,       only : method_uniform, &
+                                           stretching_method_linear
+    use feign_config_mod,           only : feign_extrusion_config,      &
+                                           feign_finite_element_config, &
+                                           feign_planet_config,         &
+                                           feign_timestepping_config
+    use finite_element_config_mod,  only : cellshape_quadrilateral, &
+                                           coord_system_xyz
+    use sci_chi_transform_mod,      only : init_chi_transforms
+    use timestepping_config_mod,    only : method_semi_implicit, &
+                                           runge_kutta_method_ssp3
+
+    implicit none
+
+    call feign_extrusion_config( planet_radius=6371229.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 method=method_uniform,                      &
+                                 number_of_layers=2_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
+                                      coord_order=0_i_def,               &
+                                      coord_system=coord_system_xyz,     &
+                                      element_order_h=0_i_def,           &
+                                      element_order_v=0_i_def,           &
+                                      rehabilitate=.true.,               &
+                                      vorticity_in_w1=.false. )
+
+    call feign_planet_config( gravity=9.80665_r_def, omega=1.99784E-7_r_def, &
+                              rd=rd, cp=cp, p_zero=100000.0_r_def,                 &
+                              scaling_factor=1.0_r_def )
+
+    call feign_timestepping_config( method=method_semi_implicit,                        &
+                                    dt=real(dt, r_second), alpha=0.5_r_def,             &
+                                    tau_u=0.5_r_def, tau_t=1.0_r_def, tau_r=0.5_r_def,  &
+                                    outer_iterations=1_i_def, inner_iterations=1_i_def, &
+                                    runge_kutta_method=runge_kutta_method_ssp3,         &
+                                    spinup_period=0.0_r_second, spinup_alpha=.false.)
+
+    call init_chi_transforms()
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use sci_chi_transform_mod, only: final_chi_transforms
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    ! Finalise namelists
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use tidally_locked_earth_kernel_mod, only : tidally_locked_earth_code
+    use planet_config_mod,     only : scaled_radius
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w3_m3x3_q3x3x3_size,     &
+                                                   get_wtheta_m3x3_q3x3x3_size, &
+                                                   get_wchi_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod, only: get_w3_m3x3_dofmap,     &
+                                             get_wtheta_m3x3_dofmap
+
+    use get_unit_test_3x3x3_chi_mod, only: get_wchi_3x3x3_latlon_field
+
+    implicit none
+
+    real(kind=r_def) :: lon0, lat0, rad0
+    real(kind=r_def) :: tol ! Tolerance to default precision
+    real(kind=r_def) :: use_tol
+
+    integer(kind=i_def) :: cell
+
+    integer(kind=i_def) :: i, j, k, df
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ndf_w3, undf_w3
+    integer(kind=i_def) :: ndf_wth, undf_wth
+
+    real(kind=r_def)    :: x, y, z
+
+    integer(kind=i_def), allocatable :: map_w3(:,:)
+    integer(kind=i_def), allocatable :: map_wth(:,:)
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(kind=i_def) :: unused
+
+    ! Test field data
+    real(kind=r_def), allocatable :: chi_data(:,:)
+    real(kind=r_def), allocatable :: panel_id(:)
+    real(kind=r_def), allocatable :: theta_data(:)
+    real(kind=r_def), allocatable :: exner_wth_data(:)
+    real(kind=r_def), allocatable :: dtheta_data(:)
+
+    real(kind=r_def) :: answer_dtheta
+
+    ! Get canned data for a 3-layer mesh
+    nlayers = 3
+
+    ! Get sizes
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wth, undf_wth, unused, &
+                                      unused, unused,            &
+                                      unused, unused,            &
+                                      nlayers )
+    ! Get dofmaps
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_wtheta_m3x3_dofmap(map_wth)
+
+    ! Create the data arrays
+    allocate(chi_data(undf_w3,3))
+    allocate(panel_id(undf_w3))
+    allocate(theta_data(undf_wth))
+    allocate(exner_wth_data(undf_wth))
+    allocate(dtheta_data(undf_wth))
+
+    ! Make a 3x3x3 chi field on w3
+    lon0 = 0.0_r_def
+    lat0 = 0.0_r_def
+    rad0 = scaled_radius
+    panel_id(:) = 1.0_r_def
+
+    cell = 1
+    do i = 0,2
+      do j = 0,2
+        do k = 0,2
+          do df = 1,ndf_w3
+            call llr2xyz(lon0 + real((i-1), r_def)*dlon, &
+                         lat0 + real((j-1), r_def)*dlat, &
+                         rad0 + real(k, r_def)*dz,       &
+                         x, y, z)
+            chi_data(map_w3(df, cell) + k, 1) = x
+            chi_data(map_w3(df, cell) + k, 2) = y
+            chi_data(map_w3(df, cell) + k, 3) = z
+          end do
+        end do
+        cell = cell + 1
+      end do
+    end do
+
+    ! Create the data
+    theta_data(:)            = 300.0_r_def
+    exner_wth_data(:)        = 1.0_r_def
+
+    ! Only test interior cell 5
+    cell = 5
+
+    call tidally_locked_earth_code( nlayers,                            &
+                                    dtheta_data,                        &
+                                    theta_data,                         &
+                                    exner_wth_data,                     &
+                                    chi_data(:,1),                      &
+                                    chi_data(:,2),                      &
+                                    chi_data(:,3),                      &
+                                    panel_id(:),                        &
+                                    kappa,                              &
+                                    dt,                                 &
+                                    ndf_wth, undf_wth, map_wth(:,cell), &
+                                    ndf_w3, undf_w3, map_w3(:,cell),    &
+                                    ndf_w3, undf_w3, map_w3(:,cell)     &
+                                  )
+
+    answer_dtheta = 75.0_r_def * dt * (1.0_r_def / (4.0_r_def * 86400.0_r_def))
+    tol = spacing(answer_dtheta)
+    @assertEqual( answer_dtheta, dtheta_data(map_wth(1,cell)), tol )
+
+
+    deallocate(map_w3)
+    deallocate(map_wth)
+    deallocate(chi_data)
+    deallocate(panel_id)
+    deallocate(theta_data)
+    deallocate(exner_wth_data)
+    deallocate(dtheta_data)
+
+  end subroutine test_all
+
+end module tidally_locked_earth_kernel_mod_test

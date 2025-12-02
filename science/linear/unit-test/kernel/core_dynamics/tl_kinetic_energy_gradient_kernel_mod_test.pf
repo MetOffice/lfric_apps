@@ -1,0 +1,308 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Test the tangent linear gradient of the kinetic energy computation
+module tl_kinetic_energy_gradient_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size,   &
+                                                  get_w2_m3x3_q3x3x3_size,   &
+                                                  get_w3_m3x3_q3x3x3_size
+
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap,        &
+                                                  get_w2_m3x3_dofmap,        &
+                                                  get_w3_m3x3_dofmap
+
+  use get_unit_test_q3x3x3_quadrature_mod,                                   &
+                      only : get_gaussian_q3x3x3_quadrature_weights_xy,      &
+                             get_gaussian_q3x3x3_quadrature_weights_z
+
+  use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_diff_basis,  &
+                                                  get_w0_q3x3x3_basis,       &
+                                                  get_w2_q3x3x3_diff_basis,  &
+                                                  get_w2_q3x3x3_basis
+
+  use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
+  use funit
+
+  implicit none
+
+  private
+  public :: tl_kinetic_energy_gradient_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: tl_kinetic_energy_gradient_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type tl_kinetic_energy_gradient_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : cellshape_quadrilateral,     &
+                                          coord_system_xyz
+    use formulation_config_mod,    only : eos_method_sampled,      &
+                                          moisture_formulation_dry
+    use feign_config_mod,          only : feign_finite_element_config, &
+                                          feign_formulation_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(tl_kinetic_energy_gradient_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(             &
+             cellshape = cellshape_quadrilateral, &
+             coord_order = 0_i_def,               &
+             coord_system = coord_system_xyz,     &
+             element_order_h = 0_i_def,           &
+             element_order_v = 0_i_def,           &
+             rehabilitate = .true.,               &
+             vorticity_in_w1 = .false. )
+
+    call feign_formulation_config( dlayer_on = .false.,            &
+                                   dry_static_adjust = .false.,    &
+                                   exner_from_eos = .false.,       &
+                                   eos_method=eos_method_sampled,  &
+                                   init_exner_bt = .false.,        &
+                                   lagged_orog = .false.,          &
+                                   l_multigrid = .false.,          &
+                                   rotating = .true.,              &
+                                   shallow = .false.,              &
+                                   moisture_formulation =          &
+                                     moisture_formulation_dry,     &
+                                   moisture_in_solver = .true.,    &
+                                   p2theta_vert = .true.,          &
+                                   theta_moist_source = .false.,   &
+                                   use_physics = .false.,          &
+                                   use_wavedynamics = .false.,     &
+                                   use_multires_coupling=.false.,  &
+                                   si_momentum_equation = .true.,  &
+                                   horizontal_physics_predictor=.false.,   &
+                                   horizontal_transport_predictor=.false., &
+                                   vector_invariant=.false.)
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(tl_kinetic_energy_gradient_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use tl_kinetic_energy_gradient_kernel_mod, &
+                                   only : tl_kinetic_energy_gradient_code
+
+    implicit none
+
+    class(tl_kinetic_energy_gradient_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: dx = 6000.0_r_def
+    real(r_def), parameter :: dy = 1000.0_r_def
+    real(r_def), parameter :: dz = 2000.0_r_def
+
+    real(r_def), parameter :: tol = 1.0e-3_r_def
+
+    real(r_def) :: answer
+    real(r_def) :: known_values(4)
+    real(r_def) :: scaling
+
+    ! Fields
+    real(r_def), allocatable :: r_u(:)
+    real(r_def), allocatable :: u(:)
+    real(r_def), allocatable :: ls_u(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+
+    integer(i_def) :: k, cell
+    integer(i_def) :: nlayers, ncells, nqp_h, nqp_v
+    integer(i_def) :: ndf_w0, ndf_w2, ndf_pid
+    integer(i_def) :: undf_w0, undf_w2, undf_pid
+    integer(i_def) :: dim_space, dim_space_diff
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+
+    ! Basis functions
+    real(r_def),    allocatable :: basis_w0(:,:,:,:)
+    real(r_def),    allocatable :: diff_basis_w0(:,:,:,:)
+    real(r_def),    allocatable :: basis_w2(:,:,:,:)
+    real(r_def),    allocatable :: diff_basis_w2(:,:,:,:)
+
+    ! Weights
+    real(r_def),    allocatable :: wh(:)
+    real(r_def),    allocatable :: wv(:)
+
+    nlayers = 3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells,  &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, 1 )
+
+    call get_w0_m3x3_dofmap( map_w0 )
+    call get_w2_m3x3_dofmap( map_w2 )
+    call get_w3_m3x3_dofmap( map_pid, 1 )
+
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ! Get canned basis functions
+    call get_w2_q3x3x3_basis( basis_w2 )
+    call get_w2_q3x3x3_diff_basis( diff_basis_w2 )
+    call get_w0_q3x3x3_diff_basis( diff_basis_w0 )
+    call get_w0_q3x3x3_basis( basis_w0 )
+
+    ! Compute coordinates
+    allocate( chi1( undf_w0 ) )
+    allocate( chi2( undf_w0 ) )
+    allocate( chi3( undf_w0 ) )
+    allocate( panel_id( undf_pid ) )
+
+    panel_id(:) = 1.0_r_def
+
+    call get_w0_3x3x3_field( chi1, chi2, chi3, dx, dy, dz, &
+                             map_w0, nlayers )
+
+    ! Create the data
+    allocate( r_u( undf_w2 ) )
+    allocate( u( undf_w2 ) )
+    allocate( ls_u( undf_w2 ) )
+    u(:) = 10.55_r_def
+    ls_u(:) = 20.44_r_def
+    r_u(:) = 0.0_r_def
+    cell = 1
+
+    ! As u and ls_u are constants, then the gradient is zero.
+    answer = 0.0_r_def
+
+    call tl_kinetic_energy_gradient_code( nlayers,               &
+                                          r_u,                   &
+                                          u,                     &
+                                          ls_u,                  &
+                                          chi1,                  &
+                                          chi2,                  &
+                                          chi3,                  &
+                                          panel_id,              &
+                                          ndf_w2,                &
+                                          undf_w2,               &
+                                          map_w2(:, cell),       &
+                                          basis_w2,              &
+                                          diff_basis_w2,         &
+                                          ndf_w0,                &
+                                          undf_w0,               &
+                                          map_w0(:, cell),       &
+                                          basis_w0,              &
+                                          diff_basis_w0,         &
+                                          ndf_pid,               &
+                                          undf_pid,              &
+                                          map_pid,               &
+                                          nqp_h,                 &
+                                          nqp_v,                 &
+                                          wh,                    &
+                                          wv                     &
+                                          )
+
+    do k = 0,2
+      @assertEqual( answer, r_u( map_w2( 1, cell ) + k ), tol )
+      @assertEqual( answer, r_u( map_w2( 2, cell ) + k ), tol )
+    end do
+
+    scaling = 1000.0_r_def
+    do k = 0,2
+      u( map_w2( 5, : ) + k ) = real( scaling * dz * k )
+      u( map_w2( 6, : ) + k ) = real( scaling * dz * (k+1) )
+      ls_u( map_w2( 5, : ) + k ) = real( scaling * dz * k )
+      ls_u( map_w2( 6, : ) + k ) = real( scaling * dz * (k+1) )
+    end do
+    r_u(:) = 0.0_r_def
+    cell = 3
+
+    ! These known_values are taken from a known good output, rather than
+    ! being calculated analytically.
+    known_values = (/ -9.259259313544E-3_r_def, &
+                      -5.555555555555E-2_r_def, &
+                      -0.111111111111110_r_def, &
+                       0.175925925980209_r_def /)
+
+    call tl_kinetic_energy_gradient_code( nlayers,               &
+                                          r_u,                   &
+                                          u,                     &
+                                          ls_u,                  &
+                                          chi1,                  &
+                                          chi2,                  &
+                                          chi3,                  &
+                                          panel_id,              &
+                                          ndf_w2,                &
+                                          undf_w2,               &
+                                          map_w2(:, cell),       &
+                                          basis_w2,              &
+                                          diff_basis_w2,         &
+                                          ndf_w0,                &
+                                          undf_w0,               &
+                                          map_w0(:, cell),       &
+                                          basis_w0,              &
+                                          diff_basis_w0,         &
+                                          ndf_pid,               &
+                                          undf_pid,              &
+                                          map_pid,               &
+                                          nqp_h,                 &
+                                          nqp_v,                 &
+                                          wh,                    &
+                                          wv                     &
+                                          )
+
+    @assertEqual( known_values(1:3), r_u( map_w2( 5, cell ) : map_w2( 5, cell ) + 2), tol )
+    @assertEqual( known_values(2:4), r_u( map_w2( 6, cell ) : map_w2( 6, cell ) + 2), tol )
+
+    deallocate( r_u )
+    deallocate( u )
+    deallocate( ls_u )
+    deallocate( chi1 )
+    deallocate( chi2 )
+    deallocate( chi3 )
+    deallocate( panel_id )
+    deallocate( map_w0 )
+    deallocate( map_w2 )
+    deallocate( map_pid )
+    deallocate( basis_w2 )
+    deallocate( diff_basis_w2 )
+    deallocate( basis_w0 )
+    deallocate( diff_basis_w0 )
+    deallocate( wh )
+    deallocate( wv )
+
+  end subroutine test_all
+
+end module tl_kinetic_energy_gradient_kernel_mod_test

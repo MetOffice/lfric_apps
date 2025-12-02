@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <context id = "shallow_water">
+
+   <axis_definition>
+    <axis id="vert_axis_half_levels" name="half_levels"/>
+    <axis id="vert_axis_full_levels" name="full_levels"/>
+   </axis_definition>
+
+   <domain_definition>
+      <domain id="node" name="Mesh2d_node" nvertex="1"/>
+      <domain id="face" name="Mesh2d_face" nvertex="4"/>
+      <domain id="edge" name="Mesh2d_edge" nvertex="2"/>
+      <domain id="face_half_levels" name="Mesh2d_half_levels" nvertex="4"/>
+      <domain id="face_full_levels" name="Mesh2d_full_levels" nvertex="4"/>
+      <domain id="edge_half_levels" name="Mesh2d_edge_half_levels" nvertex="2"/>
+      <domain id="checkpoint_W0" name="checkpoint_W0" nvertex="1"/>
+      <domain id="checkpoint_W1" name="checkpoint_W1" nvertex="1"/>
+      <domain id="checkpoint_W2" name="checkpoint_W2" nvertex="1"/>
+      <domain id="checkpoint_W3" name="checkpoint_W3" nvertex="1"/>
+      <domain id="checkpoint_Wtheta" name="checkpoint_Wtheta" nvertex="1"/>
+      <domain id="checkpoint_W3_2D" name="checkpoint_W3_2D" nvertex="1"/>
+      <domain id="checkpoint_pft" name="checkpoint_pft" nvertex="1"/>
+      <domain id="checkpoint_tile" name="checkpoint_tile" nvertex="1"/>
+      <domain id="checkpoint_sice" name="checkpoint_sice" nvertex="1"/>
+      <domain id="checkpoint_soil" name="checkpoint_soil" nvertex="1"/>
+      <domain id="checkpoint_snow" name="checkpoint_snow" nvertex="1"/>
+   </domain_definition>
+
+
+   <grid_definition>
+    <grid id="node_grid">
+      <domain domain_ref="node"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_face_grid">
+      <domain domain_ref="face_half_levels"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+    <grid id="full_level_face_grid">
+      <domain domain_ref="face_full_levels"/>
+      <axis axis_ref="vert_axis_full_levels"/>
+    </grid>
+    <grid id="half_level_edge_grid">
+      <domain domain_ref="edge_half_levels"/>
+      <axis axis_ref="vert_axis_half_levels"/>
+    </grid>
+   </grid_definition>
+
+   <field_definition prec="8" >
+
+     <!-- Checkpoint group -->
+     <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
+       <field id="checkpoint_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" domain_ref="checkpoint_Wtheta" />
+       <field id="checkpoint_q" name="q" long_name="potential vorticity" standard_name="potential vorticity" unit="m-1 s-1" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_wind" name="wind" long_name="wind" unit="m s-1" domain_ref="checkpoint_W2" />
+     </field_group>
+
+     <!-- Main diagnostic group -->
+     <field_group id="diagnostic_fields" freq_op="1ts" enabled=".TRUE." operation="instant" >
+       <field id="wind1" name="wind1" long_name="Wind1" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="wind2" name="wind2" long_name="Wind2" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="wind3" name="wind3" long_name="Wind3" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="q1" name="q1" long_name="potential vorticity1" standard_name="potential vorticity1" unit="m-1 s-1" grid_ref="half_level_face_grid" />
+       <field id="q2" name="q2" long_name="potential vorticity2" standard_name="potential vorticity2" unit="m-1 s-1" grid_ref="half_level_face_grid" />
+       <field id="q3" name="q3" long_name="potential vorticity3" standard_name="potential vorticity3" unit="m-1 s-1" grid_ref="half_level_face_grid" />
+       <field id="geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" grid_ref="half_level_face_grid" />
+       <field id="buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" grid_ref="full_level_face_grid" />
+     </field_group>
+
+      <!-- Initial conditions group -->
+     <field_group id="initial_fields" freq_op="1ts" enabled=".TRUE." operation="once" >
+       <field id="init_wind1" name="wind1" long_name="Wind1" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_wind2" name="wind2" long_name="Wind2" unit="m s-1" grid_ref="half_level_edge_grid" />
+       <field id="init_wind3" name="wind3" long_name="Wind3" unit="m s-1" grid_ref="full_level_face_grid" />
+       <field id="init_q1" name="q1" long_name="potential vorticity1" standard_name="potential vorticity1" unit="m-1 s-1" grid_ref="half_level_face_grid" />
+       <field id="init_q2" name="q2" long_name="potential vorticity2" standard_name="potential vorticity2" unit="m-1 s-1" grid_ref="half_level_face_grid" />
+       <field id="init_q3" name="q3" long_name="potential vorticity3" standard_name="potential vorticity3" unit="m-1 s-1" grid_ref="half_level_face_grid" />
+       <field id="init_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" grid_ref="half_level_face_grid" />
+       <field id="init_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" grid_ref="full_level_face_grid" />
+     </field_group>
+
+   </field_definition>
+
+   <file_definition
+      type="one_file"
+      time_counter="none">
+
+      <!-- Checkpoint groups -->
+
+      <!-- File definition for checkpoint write -->
+      <file id="lfric_checkpoint_write" name="lfric_swe_checkpoint" convention="CF" enabled=".FALSE.">
+        <field field_ref="checkpoint_geopot"/>
+        <field field_ref="checkpoint_buoyancy"/>
+        <field field_ref="checkpoint_wind"/>
+        <field field_ref="checkpoint_q"/>
+      </file>
+
+       <!-- file definition for checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_swe_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+       <field id="restart_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="checkpoint_Wtheta" />
+       <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+       <field id="restart_q" name="q" long_name="potential vorticity" standard_name="potential vorticity" unit="m-1 s-1" operation="instant" domain_ref="checkpoint_W3" />
+      </file>
+
+      <file id="lfric_diag" name="lfric_swe_diag" output_freq="10ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="wind1"/>
+        <field field_ref="wind2"/>
+        <field field_ref="wind3"/>
+        <field field_ref="geopot"/>
+        <field field_ref="buoyancy"/>
+        <field field_ref="q1"/>
+        <field field_ref="q2"/>
+        <field field_ref="q3"/>
+      </file>
+
+      <file id="lfric_initial" name="lfric_swe_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="init_wind1"/>
+        <field field_ref="init_wind2"/>
+        <field field_ref="init_wind3"/>
+        <field field_ref="init_geopot"/>
+        <field field_ref="init_buoyancy"/>
+        <field field_ref="init_q1"/>
+        <field field_ref="init_q2"/>
+        <field field_ref="init_q3"/>
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

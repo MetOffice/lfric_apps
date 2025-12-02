@@ -1,0 +1,230 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> @brief Diagonal preconditioner for the gravity-wave system.
+!>
+!> @details This type is derived from the abstract preconditioner type and
+!!          implements a preconditioner for the mixed gravity-wave system
+!!          in the variables \f$(\mathbf{U},P,B)\f$.
+!!
+!!          This preconditioner simply divides each of the fields by the
+!!          corresponding diagonal mass matrix.
+
+module gw_mixed_diag_precon_alg_mod
+
+  use constants_mod,                  only: i_def
+  use io_config_mod,                  only: subroutine_timers
+  use log_mod,                        only: log_event,       &
+                                            LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_INFO,  &
+                                            LOG_LEVEL_DEBUG, &
+                                            log_scratch_space
+  use r_solver_field_mod,             only: r_solver_field_type
+  use copy_field_alg_mod,             only: copy_field
+  use sci_preconditioner_mod,         only: abstract_preconditioner_type
+  use sci_r_solver_field_vector_mod,  only: r_solver_field_vector_type
+  use timer_mod,                      only: timer
+  use vector_mod,                     only: abstract_vector_type
+
+  implicit none
+
+  private
+
+  !> @brief Mixed diagonal preconditioner type.
+  !>
+  !> @details Implements mixed diagonal preconditioner which can be used in
+  !!          the iterative solver algorithms.
+  type, public, extends(abstract_preconditioner_type) :: &
+                        gw_mixed_diag_preconditioner_type
+
+     private
+
+     !> Diagonal mass matrices
+     type(r_solver_field_type) :: mm_diagonal_p, mm_diagonal_u, mm_diagonal_b
+
+     contains
+
+     ! Override the (abstract interface) for application of
+     ! a preconditioner \f$y = P.x\f$
+     procedure, public :: apply => apply_gw_mixed_diag_preconditioner
+     procedure, private :: apply_gw_mixed_diag_preconditioner
+
+     !> Performs a deep copy (for overriding the "=" operator)
+     procedure, public  :: gw_mixed_diag_preconditioner_assign
+
+     !> Destructor
+     final :: destroy_gw_mixed_diag_preconditioner
+
+     !> Override default assignment for gw_mixed_diag_preconditioner_type pairs.
+     generic            :: assignment(=) => gw_mixed_diag_preconditioner_assign
+
+  end type gw_mixed_diag_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface gw_mixed_diag_preconditioner_type
+     module procedure gw_mixed_diag_preconditioner_constructor
+  end interface
+
+contains
+
+  !> @brief Construct a <code> gw_mixed_diag_preconditioner_type</code> object.
+  !>
+  !> @details This constructs all required fields and builds operators.
+  !>
+  !> @param[in] mesh Mesh object
+  !> @return self The constructed preconditioner object
+  function gw_mixed_diag_preconditioner_constructor(mesh) result(self)
+
+    use gravity_wave_constants_config_mod, only: b_space,    &
+                                                 b_space_w0, &
+                                                 b_space_w3, &
+                                                 b_space_wtheta
+    use sci_fem_constants_mod,             only: get_mass_matrix_diagonal_fe
+    use fs_continuity_mod,                 only: W0, W2, W3, Wtheta
+    use field_indices_mod,                 only: igw_u
+    use mesh_mod,                          only: mesh_type
+    use field_mod,                         only: field_type
+
+    implicit none
+
+    type(mesh_type), intent(in) :: mesh
+    type(gw_mixed_diag_preconditioner_type)  :: self
+    integer(kind=i_def) :: mesh_id
+    type(field_type) :: diagonal
+
+    call log_event('Constructing gravity waves mixed diag preconditioner...', &
+                   LOG_LEVEL_INFO )
+    mesh_id = mesh%get_id()
+
+    ! u diagonal
+    diagonal = get_mass_matrix_diagonal_fe(W2, mesh_id)
+    call self%mm_diagonal_u%initialise(diagonal%get_function_space())
+    call copy_field(diagonal, self%mm_diagonal_u)
+
+    ! p diagonal
+    diagonal = get_mass_matrix_diagonal_fe(W3, mesh_id)
+    call self%mm_diagonal_p%initialise(diagonal%get_function_space())
+    call copy_field(diagonal, self%mm_diagonal_p)
+
+    ! b diagonal
+    select case(b_space)
+      case(b_space_w0)
+        diagonal = get_mass_matrix_diagonal_fe(W0, mesh_id)
+      case(b_space_w3)
+        diagonal = get_mass_matrix_diagonal_fe(W3, mesh_id)
+      case(b_space_wtheta)
+        diagonal = get_mass_matrix_diagonal_fe(Wtheta, mesh_id)
+    end select
+    call self%mm_diagonal_b%initialise(diagonal%get_function_space())
+    call copy_field(diagonal, self%mm_diagonal_b)
+
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function gw_mixed_diag_preconditioner_constructor
+
+  !> @brief Performs a deep copy between gw_mixed_diag_preconditioner_type
+  !!        pairs (for overriding the "=" operator).
+  !>
+  !> @param[out] dest   gw_mixed_diag_preconditioner_type lhs
+  !> @param[in]  source gw_mixed_diag_preconditioner_type rhs
+  subroutine gw_mixed_diag_preconditioner_assign(dest, source)
+
+    implicit none
+
+    class(gw_mixed_diag_preconditioner_type), intent(in)  :: source
+    class(gw_mixed_diag_preconditioner_type), intent(out) :: dest
+
+    ! Deep copy of the contents of the pressure_operator_type
+    call source%mm_diagonal_p%copy_field_properties(dest%mm_diagonal_p)
+    call source%mm_diagonal_u%copy_field_properties(dest%mm_diagonal_u)
+    call source%mm_diagonal_b%copy_field_properties(dest%mm_diagonal_b)
+    call invoke( setval_X(dest%mm_diagonal_p, source%mm_diagonal_p), &
+                 setval_X(dest%mm_diagonal_u, source%mm_diagonal_u), &
+                 setval_X(dest%mm_diagonal_b, source%mm_diagonal_b) )
+  end subroutine gw_mixed_diag_preconditioner_assign
+
+  !> @brief Apply the preconditioner to calculate \f$y = P.x\f$ for the
+  !!        mixed system in velocity, pressure and buoyancy.
+  !>
+  !> @details Apply the preconditioner by dividing each of the fields in
+  !!          the field vector by its associated mass matrix.
+  !>
+  !> @param[in,out] self Instance of type gw_mixed_preconditioner_type
+  !> @param[in]     x    Field-vector containing the residuals
+  !!                     \f$(\textbf{R}_u,R_p,r_b)\f$
+  !> @param[in,out] y    Field-vector containing the solution
+  !!                     \f$(\textbf{U},P,B)\f$ to be calculated
+  subroutine apply_gw_mixed_diag_preconditioner(self, x, y)
+
+    use field_indices_mod, only: igw_u, igw_p, igw_b
+
+    implicit none
+
+    class(gw_mixed_diag_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),              intent(in)    :: x
+    class(abstract_vector_type),              intent(inout) :: y
+
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(r_solver_field_type), pointer :: x_vec_u => null(), &
+                                          x_vec_p => null(), &
+                                          x_vec_b => null(), &
+                                          y_vec_u => null(), &
+                                          y_vec_p => null(), &
+                                          y_vec_b => null()
+
+    if ( subroutine_timers ) call timer('gw_mixed_diag_precon_alg')
+
+    select type(x)
+    type is(r_solver_field_vector_type)
+      select type(y)
+      type is(r_solver_field_vector_type)
+        ! Get pointers to x and y abstract types
+        x_vec_u => x%get_field_from_position( igw_u )
+        x_vec_p => x%get_field_from_position( igw_p )
+        x_vec_b => x%get_field_from_position( igw_b )
+        y_vec_u => y%get_field_from_position( igw_u )
+        y_vec_p => y%get_field_from_position( igw_p )
+        y_vec_b => y%get_field_from_position( igw_b )
+
+        call invoke( X_divideby_Y(y_vec_u,                        &
+                                  x_vec_u,                        &
+                                  self%mm_diagonal_u),            &
+                     X_divideby_Y(y_vec_p,                        &
+                                  x_vec_p,                        &
+                                  self%mm_diagonal_p),            &
+                     X_divideby_Y(y_vec_b,                        &
+                                  x_vec_b,                        &
+                                  self%mm_diagonal_b) )
+      class default
+        write(log_scratch_space, '(A)') &
+             "gw_mixed_diag_preconditioner_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end select
+
+    class default
+      write(log_scratch_space, '(A)') &
+            "gw_mixed_diag_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    nullify( x_vec_u, x_vec_p, x_vec_b, y_vec_u, y_vec_p, y_vec_b )
+
+    if ( subroutine_timers ) call timer('gw_mixed_diag_precon_alg')
+
+  end subroutine apply_gw_mixed_diag_preconditioner
+
+  !> @brief Destructor
+  !>
+  !> @param[in,out] self Instance of type to be destroyed
+  subroutine destroy_gw_mixed_diag_preconditioner(self)
+
+    implicit none
+
+    type(gw_mixed_diag_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_gw_mixed_diag_preconditioner
+
+end module gw_mixed_diag_precon_alg_mod

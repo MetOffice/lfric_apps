@@ -1,0 +1,72 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/variables.cylc") %}
+
+{% do site_vars.update({"known_applications": ["gungho",
+                                               "gungho_model",
+                                               "lfric_atm",
+                                               "mesh",
+                                               "gravity_wave",
+                                               "jedi_lfric_tests",
+                                               "jules",
+                                               "shallow_water",
+                                               "linear_model",
+                                               "lfricinputs",
+                                               "lfric2lfric",
+                                               "physics_schemes_interface",
+                                               "socrates_interface",
+                                               "name_transport",
+                                               "transport",
+                                               "solver",
+                                               "linear",
+                                               "lfric_coupled",
+                                               "jedi_lfric_interface",
+                                               "coupled_interface",
+                                               "adjoint",
+                                               "adjoint_tests",
+                                               "ngarch"]}) %}
+
+{% do site_vars.update({"site_platforms": ["ex1a",
+                                           "azspice"]}) %}
+
+
+{% do site_vars.update({"launch_platform": "azspice"}) %}
+{% do site_vars.update({"scripts_platform": "azspice"}) %}
+{% do site_vars.update({"coupled_fcm_make_platform": "azspice"}) %}
+
+{% do site_vars.update({"git_mirror_loc": "/data/users/gitassist/git_mirrors"}) %}
+
+{% do site_vars.update({"mesh_build": {"ex1a": "gnu_fast-debug-64bit",
+                                       "azspice": "gnu_fast-debug-64bit"} }) %}
+
+{# Choose EX Host - default to random ab or cd #}
+{% if USE_EXZ is defined and USE_EXZ %}
+    {% do site_vars.update({"host_ex" : "exz"}) %}
+{% elif USE_EXAB is defined and USE_EXAB %}
+    {% do site_vars.update({"host_ex": "exab"}) %}
+{% elif USE_EXCD is defined and USE_EXCD %}
+    {% do site_vars.update({"host_ex": "excd"}) %}
+{% else %}
+    {# randomly choose either ab or cd #}
+    {% from "random" import randint %}
+    {% if randint(1,2) < 2 %}
+        {% do site_vars.update({"host_ex": "exab"}) %}
+    {% else %}
+        {% do site_vars.update({"host_ex": "excd"}) %}
+    {% endif %}
+{% endif %}
+{% do LOG.info("Host EX: " + site_vars.host_ex) %}
+
+{% do site_vars.update({"lfricinputs_kgo_base": "$UMDIR/standard_jobs/lfricinputs/kgo"}) %}
+
+{# Set fixed release version the KGO corresponds to #}
+{% set BASE = "vn"~VN %}
+{% include "site/meto/variables_azspice.cylc" %}
+{% include "site/meto/variables_ex1a.cylc" %}
+
+{% include "site/meto/common/default_directives.cylc" %}
+
+{% do LOG.debug("Finished in site/meto/variables.cylc") %}

@@ -1,0 +1,135 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/populate_crun_graph.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# If the task includes restart comparisons, set them up here #}
+
+{% set crun = task_values["crun"] %}
+{% set tsteps = task_values["tsteps"] %}
+
+{% for restart_no in range(crun) %}
+
+    {% set crun_task = application_run_task~"-crun"~restart_no %}
+    {% set prev_point = restart_no - 1 %}
+    {% set prev_task = application_run_task~"-crun"~prev_point %}
+
+    {# Calculate the no. time steps and the start/stop points for #}
+    {# this restart section #}
+    {% if restart_no == crun-1 %}
+        {# Last crun calculates length as total_length - used_length #}
+        {% set restart = "false" %}
+        {% set length = tsteps - (restart_no) * tsteps//(crun) - 1 %}
+    {% else %}
+        {# Other sections set length as total_length // n_restarts #}
+        {% set restart = "" %}
+        {% set length = tsteps//(crun) - 1 %}
+    {% endif %}
+    {% set init_tstep = (restart_no) * tsteps//(crun) + 1 %}
+    {% set last_tstep = init_tstep + length %}
+
+    {# Populate the task dictionary with restart info #}
+    {% set crun_values = task_values.copy() %}
+    {% do crun_values.update({"tsteps": length}) %}
+    {% do crun_values.update({"restart": restart}) %}
+    {% do crun_values.update({"restart_no": restart_no}) %}
+    {% do crun_values.update({"init_tstep": init_tstep}) %}
+    {% do crun_values.update({"last_tstep": last_tstep}) %}
+    {% if restart_no > 0 %}
+        {% do crun_values.update({"prev_task": prev_task}) %}
+        {% do crun_values.update({"restart_read": ".true."}) %}
+    {% else %}
+        {% do crun_values.update({"prev_task": ""}) %}
+        {% do crun_values.update({"restart_read": ".false."}) %}
+    {% endif %}
+    {% if restart_no == crun -1 %}
+        {% do crun_values.update({"restart_write": ".false."}) %}
+    {% else %}
+        {% do crun_values.update({"restart_write": ".true."}) %}
+    {% endif %}
+    {% do tasks_to_run.update({crun_task: crun_values}) %}
+
+
+    {# Define the graph for the restart runs #}
+    {% if restart_no == 0 %}
+        {# 1st run depends on the build task and the mesh gen task #}
+        {% do graph_sections.append([
+            application_build_task,
+            crun_task]) %}
+        {% do graph_sections.append([
+            mesh_run_task,
+            crun_task]) %}
+    {% else %}
+        {# All other runs depend on the run previously #}
+        {% do graph_sections.append([
+            prev_task,
+            crun_task]) %}
+    {% endif %}
+
+    {% if perftools %}
+        {% set crun_perftools_export = app_perftools_export_task~"-crun"~restart_no %}
+        {% if crun_perftools_export not in tasks_to_run %}
+            {% do tasks_to_run.update({crun_perftools_export: task_values}) %}
+        {% endif %}
+        {% do graph_sections.append([
+            crun_task,
+            crun_perftools_export]) %}
+    {% endif %}
+
+    {# If we're on the final run #}
+    {% if restart_no == crun-1 %}
+
+        {# If crun_compare is true, compare to an nrun #}
+        {% if task_values["crun_compare"] %}
+
+            {% set comp_dir = task_values["task_family"] %}
+            {% set checksum_nvcrun = "check_"~comp_dir~"-nrun-v-crun" %}
+            {% do tasks_to_run.update({checksum_nvcrun: crun_values }) %}
+
+            {# The comparison requires the nrun task and the final run to finish #}
+            {% do graph_sections.append([
+                application_run_task,
+                checksum_nvcrun]) %}
+            {% do graph_sections.append([
+                crun_task,
+                checksum_nvcrun]) %}
+
+        {# Crun_compare is false #}
+        {% else %}
+
+            {# If crun_compare is false but we are checking kgo, #}
+            {# compare against stored kgo #}
+            {% if checksum_kgo %}
+                {% set checksum_task = "check_"~
+                                    task_values["task_family"]~
+                                    "-crun"~restart_no %}
+                {% if checksum_task not in tasks_to_run %}
+                    {% do tasks_to_run.update({checksum_task: crun_values }) %}
+                {% endif %}
+
+                {% do graph_sections.append([
+                    crun_task,
+                    checksum_task~"?"]) %}
+            {% endif %}
+
+            {# If we want to plot but not doing an nrun comparison, plot from final crun #}
+            {% if plot and not task_values["crun_compare"] %}
+
+                {% set plot_task = "plot_"~
+                                   task_values["task_family"]~
+                                   "-crun"~restart_no %}
+                {% if plot_task not in tasks_to_run %}
+                    {% do tasks_to_run.update({plot_task: crun_values}) %}
+                {% endif %}
+                {% do graph_sections.append([
+                    crun_task,
+                    plot_task]) %}
+            {% endif %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+{% do LOG.debug("Finished in templates/graph/populate_crun_graph.cylc") %}

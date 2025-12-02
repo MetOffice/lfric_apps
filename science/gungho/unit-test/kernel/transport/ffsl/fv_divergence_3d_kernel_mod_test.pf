@@ -1,0 +1,136 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the finite-volume divergence calculation in 3D.
+!>
+module fv_divergence_3d_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: fv_divergence_3d_test_type
+    private
+    real(kind=r_tran), allocatable :: mass_divergence(:)
+    real(kind=r_tran), allocatable :: mass_flux(:)
+    real(kind=r_tran), allocatable :: detj_w3(:)
+
+    integer(kind=i_def), allocatable :: map_w2(:)
+    integer(kind=i_def), allocatable :: map_w3(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type fv_divergence_3d_test_type
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ncell = 1*nlayers
+    integer(kind=i_def), parameter :: ndf_w2  = 6
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2
+    integer(kind=i_def), parameter :: ndf_w3  = 1
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(fv_divergence_3d_test_type), intent(inout) :: this
+    integer(kind=i_def) :: i
+
+    allocate( this%mass_flux(undf_w2) )
+    allocate( this%mass_divergence(undf_w3) )
+    allocate( this%detj_w3(undf_w3) )
+    allocate( this%map_w2(ndf_w2) )
+    allocate( this%map_w3(ndf_w3) )
+
+    this%map_w2 = (/ (i, i=1,ndf_w2) /)
+    this%map_w3 = 1
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(fv_divergence_3d_test_type), intent(inout) :: this
+
+    deallocate( this%mass_flux )
+    deallocate( this%mass_divergence )
+    deallocate( this%detj_w3 )
+    deallocate( this%map_w2 )
+    deallocate( this%map_w3 )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use fv_divergence_3d_kernel_mod, only : fv_divergence_3d_code
+
+    implicit none
+
+    class(fv_divergence_3d_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran
+
+    integer(kind=i_def), parameter :: cell = 1
+
+    ! Volume factor is 2
+    this%detj_w3(:) = 2.0_r_tran
+
+    this%mass_flux = (/ 3.0_r_tran, 1.0_r_tran, 10.0_r_tran, 9.0_r_tran, 1.0_r_tran, 3.0_r_tran /)
+
+    ! The fluxes have the following horizontal setup:
+    !          9.0
+    !     3.0       10.0
+    !          1.0
+    ! Hence the x-direction divergence will be (10-3 + 1-9 + 3-1)*0.5 = 0.5.
+
+    call fv_divergence_3d_code( nlayers,              &
+                                this%mass_divergence, &
+                                this%mass_flux,       &
+                                this%detj_w3,         &
+                                ndf_w3,               &
+                                undf_w3,              &
+                                this%map_w3,          &
+                                ndf_w2,               &
+                                undf_w2,              &
+                                this%map_w2 )
+    @assertEqual(this%mass_divergence(1), 0.5_r_tran, tol)
+
+    this%mass_flux = (/ -1.0_r_tran, 10.0_r_tran, 9.0_r_tran, 3.0_r_tran, -4.0_r_tran, 7.0_r_tran /)
+    ! The fluxes have the following horizontal setup:
+    !          3.0
+    !     -1.0       9.0
+    !          10.0
+    ! Hence the x-direction divergence will be (9+1 + 10-3 + 7+4)*0.5 = 14.
+
+    call fv_divergence_3d_code( nlayers,              &
+                                this%mass_divergence, &
+                                this%mass_flux,       &
+                                this%detj_w3,         &
+                                ndf_w3,               &
+                                undf_w3,              &
+                                this%map_w3,          &
+                                ndf_w2,               &
+                                undf_w2,              &
+                                this%map_w2 )
+    @assertEqual(this%mass_divergence(1), 14.0_r_tran, tol)
+
+  end subroutine test_all
+
+end module fv_divergence_3d_kernel_mod_test

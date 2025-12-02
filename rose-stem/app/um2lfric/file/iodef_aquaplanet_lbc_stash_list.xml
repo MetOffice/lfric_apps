@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+
+  <context id = "gungho_atm">
+
+    <axis_definition>
+      <axis id="vert_axis_half_levels" name="half_levels"/>
+      <axis id="vert_axis_full_levels" name="full_levels"/>
+      <axis id="radiation_levels" name="radiation_levels"/>
+      <axis id="soil_levels" name="soil_levels" n_glo="4"/>
+      <axis id="land_tiles" name="land_tiles" n_glo="9"/>
+      <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" n_glo="27"/>
+    </axis_definition>
+
+    <grid_definition>
+      <grid id="node_grid">
+        <domain domain_ref="node"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="full_level_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="vert_axis_full_levels"/>
+      </grid>
+      <grid id="half_level_edge_grid">
+        <domain domain_ref="edge"/>
+        <axis axis_ref="vert_axis_half_levels"/>
+      </grid>
+      <grid id="soil_levels_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="soil_levels"/>
+      </grid>
+      <grid id="land_tiles_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="land_tiles"/>
+      </grid>
+      <grid id="snow_layers_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="snow_layers_and_tiles"/>
+      </grid>
+    </grid_definition>
+
+    <field_definition prec="8" >
+
+      <!-- UM2LFRIc LBC fields used in time-series output -->
+      <field_group id="um2lfric_lbc_fields" freq_op="1ts" operation="instant" enabled=".TRUE.">
+	<!-- Fields for Aquaplanet LBCs-->
+        <field id="h_wind" name="h_wind" long_name="horizontal_wind" standard_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_grid" />
+	<field id="upward_wind" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />
+	<field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
+  <field id="rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" />
+	<field id="m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="m_cf" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
+  <field id="rho_r2" name="rho_r2" long_name="density_times_r_squared" unit="kg/m" grid_ref="half_level_face_grid" />
+	<field id="q" name="q" long_name="specific humidity"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="qcl" name="qcl" long_name="specific_humidity_cloud_liquid"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="qcf" name="qcf" long_name="specific_humidity_cloud_ice"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="qrain" name="qrain" long_name="mass_fraction_of_rain_in_air" unit="kg/kg" grid_ref="full_level_face_grid" />
+	<field id="bulk_fraction" name="bulk_fraction" long_name="bulk_fraction"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="liquid_fraction" name="liquid_fraction" long_name="liquid_fraction"  unit="1" grid_ref="full_level_face_grid" />
+	<field id="frozen_fraction" name="frozen_fraction" long_name="frozen_fraction"  unit="1" grid_ref="full_level_face_grid" />
+      </field_group>
+
+    </field_definition>
+
+    <file_definition
+	type="one_file"
+	par_access="collective"
+	time_counter="none">
+
+      <!-- File definition for checkpoint write timeseries output -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="UGRID" enabled=".TRUE." timeseries="both">
+        <field_group group_ref="um2lfric_lbc_fields" />
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

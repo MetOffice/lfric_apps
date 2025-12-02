@@ -1,0 +1,152 @@
+!----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!----------------------------------------------------------------------------
+!> @brief Initialising variables which depend on aspects of
+!> the domain (horizontal mesh, vertical levels)
+module um_domain_init_mod
+
+  ! LFRic namelists which have been read
+  use extrusion_config_mod,        only : domain_height,    &
+                                          number_of_layers, &
+                                          planet_radius
+  use nlsizes_namelist_mod,        only : bl_levels
+  use cloud_config_mod,            only : use_fsd_eff_res
+  use section_choice_config_mod,   only : microphysics,      &
+                                          microphysics_um,   &
+                                          radiation,         &
+                                          radiation_socrates
+
+  ! Other modules used
+  use constants_mod,               only : i_um, r_um, rmdi, i_def, r_def
+  use conversions_mod,             only : pi_over_180
+  use field_mod,                   only : field_type
+  use mesh_mod,                    only: mesh_type
+  use local_mesh_mod,              only: local_mesh_type
+  use log_mod,                     only : log_event,   &
+                                          log_scratch_space, &
+                                    log_level_error
+
+  implicit none
+
+  integer(i_def), protected :: level2km, n_iter_pmsl, model_wavenumber_max
+
+  private
+  public :: um_domain_init, level2km, n_iter_pmsl, model_wavenumber_max
+
+contains
+
+  !>@brief Initialisation of variables related to the domain.
+  !>@param[in] mesh    Mesh
+  subroutine um_domain_init( mesh )
+
+    ! UM modules containing things that need setting
+    use bl_option_mod,               only: nl_bl_levels
+    use cderived_mod,                only: delta_lambda, delta_phi
+    use level_heights_mod,           only: eta_theta_levels
+    use fsd_parameters_mod,          only: fsd_eff_lam, fsd_eff_phi
+
+    use sci_geometric_constants_mod, only: get_delta_at_wtheta
+
+    implicit none
+
+    type(mesh_type),  intent(in), pointer :: mesh
+
+    ! Local variables
+    type(field_type), pointer       :: delta => null() ! Horizontal edge length
+    type(field_type)                :: ones
+
+    real(r_def) :: sum_delta, sum_ones
+    real(r_def), allocatable :: eta_theta_def(:)
+
+    integer(i_def) :: k
+    integer(i_def) :: n_cells, n_panels, cells_per_panel, cells_per_side
+    type(local_mesh_type), pointer :: local_mesh => null()
+
+    ! The following 3D arrays are used direct from level_heights_mod
+    ! throughout the UM code.
+    ! We must initialise them here so that they are always available.
+    ! But they must be set to appropriate values for the current column
+    ! in any kernel whos external code uses the variables.
+    ! Ideally the UM code will be changed so that they are passed in
+    ! through the argument list.
+    allocate(eta_theta_levels(0:number_of_layers))
+    allocate(eta_theta_def(0:number_of_layers), source=rmdi)
+    call mesh%get_eta(eta_theta_def)
+    eta_theta_levels = real(eta_theta_def, r_um)
+
+    ! This is a temporary method of calculating
+    ! the global mean of a field - once psyclone#489 is live,
+    ! it should be changed to use the built-in function
+
+    delta => get_delta_at_wtheta( mesh%get_id() )
+    call delta%copy_field_properties(ones)
+    call invoke( setval_c(ones, 1.0_r_def), &
+                 sum_X(sum_delta, delta)  , &
+                 sum_X(sum_ones,  ones)     )
+
+    delta_lambda = sum_delta / ( sum_ones * planet_radius )
+    delta_phi    = delta_lambda
+
+    if ( microphysics == microphysics_um                                    &
+         .or. radiation == radiation_socrates ) then
+      if (use_fsd_eff_res) then
+        ! In UM GA9, the fixed effective resolution was N96: 1.875 x 1.25 degrees
+        ! here use 1.25 degrees in both directions.
+        fsd_eff_lam    = 1.25_r_um * pi_over_180
+        fsd_eff_phi    = 1.25_r_um * pi_over_180
+      else
+        fsd_eff_lam    = delta_lambda
+        fsd_eff_phi    = delta_phi
+      end if
+    end if
+
+    k = 1
+    do while ( k < bl_levels .and. &
+      domain_height * eta_theta_levels(k) < 6000.0_r_def )
+      k = k+1
+    end do
+    nl_bl_levels = k
+
+    !-----------------------------------------------------------------------
+    ! Stochastic physics (SKEB) - identify 1st model level above 2km
+    !-----------------------------------------------------------------------
+
+    k = 1
+    do while ( domain_height * eta_theta_levels(k) < 2000.0_r_def)
+      k = k+1
+      if ( k > size( eta_theta_levels ) )then
+        write( log_scratch_space, '(A)' )                                   &
+           'Top level must be above 2km for SKEB scheme.'
+        call log_event( log_scratch_space, log_level_error )
+      end if
+    end do
+    level2km = k
+
+
+    ! Calculate the mesh size
+    local_mesh => mesh%get_local_mesh()
+
+    n_cells  = local_mesh%get_ncells_global_mesh()
+    n_panels = local_mesh%get_num_panels_global_mesh()
+
+    cells_per_panel = n_cells / n_panels
+    cells_per_side = nint( sqrt( real( cells_per_panel, r_def ) ), i_def )
+
+    ! Calculate parameters derived from mesh size
+    if (n_panels > 1) then
+      ! global model, number of iters is equatorial number of points
+      n_iter_pmsl = 4_i_def * cells_per_side
+      ! max wavenumber is half equatorial number of points
+      model_wavenumber_max = 2_i_def * cells_per_side
+    else
+      ! limited area model, number of iters is number of points
+      n_iter_pmsl = cells_per_side
+      ! max wavenumber is half number of points
+      model_wavenumber_max = cells_per_side / 2_i_def
+    end if
+
+  end subroutine um_domain_init
+
+end module um_domain_init_mod

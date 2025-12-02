@@ -1,0 +1,138 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Adjoint of vertical preconditioner for the pressure equation
+
+module adj_pressure_precon_alg_mod
+
+  use constants_mod,                       only : i_def
+  use log_mod,                             only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+  use sci_hierarchical_preconditioner_mod, only : abstract_hierarchical_preconditioner_type
+  use sci_r_solver_field_vector_mod,       only : r_solver_field_vector_type
+  use vector_mod,                          only : abstract_vector_type
+
+  implicit none
+
+  type, public, extends(abstract_hierarchical_preconditioner_type) :: adj_pressure_preconditioner_type
+
+   integer(kind=i_def) :: level
+
+   contains
+     procedure, public  :: apply => apply_adj_pressure_preconditioner
+     procedure, private :: apply_adj_pressure_preconditioner
+     procedure, public  :: adj_pressure_preconditioner_assign
+     !> Returns a version of the preconditioner on the next-coarser level
+     procedure, public  :: coarsen => coarsen_adj_pressure_preconditioner
+     procedure, private :: coarsen_adj_pressure_preconditioner
+
+     final :: destroy_adj_pressure_preconditioner
+     !> Override default assignment for adj_pressure_preconditioner_type pairs
+     generic            :: assignment(=) => adj_pressure_preconditioner_assign
+
+  end type adj_pressure_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface adj_pressure_preconditioner_type
+     module procedure adj_pressure_preconditioner_constructor
+  end interface
+
+contains
+
+  !> @brief Constructs a adj_pressure_preconditioner_type object
+  !> @param[in] level Multigrid level
+  !> @return self The constructed preconditioner object
+  function adj_pressure_preconditioner_constructor(level) result(self)
+
+    use log_mod, only: log_event, LOG_LEVEL_INFO
+
+    implicit none
+
+    integer(kind=i_def), intent(in)        :: level
+    type(adj_pressure_preconditioner_type) :: self
+
+    call log_event( 'Constructing adjoint pressure preconditioner...', LOG_LEVEL_INFO )
+    self%level = level
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function adj_pressure_preconditioner_constructor
+
+  !> @brief Performs a deep copy between adj_pressure_preconditioner_type pairs
+  !> @param[out] dest   adj_pressure_preconditioner_type lhs
+  !> @param[in]  source adj_pressure_preconditioner_type rhs
+  subroutine adj_pressure_preconditioner_assign( dest, source )
+
+    implicit none
+
+    class(adj_pressure_preconditioner_type), intent(in)  :: source
+    class(adj_pressure_preconditioner_type), intent(out) :: dest
+
+    dest%level = source%level
+
+  end subroutine adj_pressure_preconditioner_assign
+
+  !> @brief Apply the preconditioner to calculate \f$y = P.x = x\f$
+  !> @details Apply the vertical preconditioner \f$y = H_z^{-1}x\f$
+  !> @param[in,out] self Instance of type adj_pressure_preconditioner_type
+  !> @param[in]     x    Field vector containing the right hand side of the pressure
+  !> @param[in,out] y    Field vector containing the solution
+  subroutine apply_adj_pressure_preconditioner( self, x, y )
+
+    use si_operators_alg_mod,         only: get_tri_precon
+    use adj_sci_tri_solve_kernel_mod, only: adj_tri_solve_kernel_type
+    use r_solver_field_mod,           only: r_solver_field_type
+
+    implicit none
+
+    class(adj_pressure_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),             intent(in)    :: x
+    class(abstract_vector_type),             intent(inout) :: y
+
+    type(r_solver_field_type), pointer :: tri(:)
+    type(r_solver_field_type), pointer :: x_vec, y_vec
+
+    select type(x)
+    type is(r_solver_field_vector_type)
+      select type(y)
+      type is(r_solver_field_vector_type)
+        ! Multiply by inverse of vertical operator \f$ H_z \f$ (adjoint)
+        tri => get_tri_precon(self%level)
+        x_vec => x%get_field_from_position(1)
+        y_vec => y%get_field_from_position(1)
+        call invoke(adj_tri_solve_kernel_type( y_vec, x_vec, tri ))
+      class default
+        call log_event( "adj_pressure_precon_alg_mod: incorrect vector_type argument y", LOG_LEVEL_ERROR )
+      end select
+    class default
+      call log_event( "adj_pressure_precon_alg_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine apply_adj_pressure_preconditioner
+
+  !> @brief Construct a coarsened version of the preconditioner on the next level of the multigrid hierarchy
+  !> @param[in,out] self  Instance of type adj_pressure_preconditioner_type
+  !> @param[in,out] other Coarsed version on next multigrid level
+  subroutine coarsen_adj_pressure_preconditioner( self, other )
+
+    implicit none
+
+    class(adj_pressure_preconditioner_type),                       intent(inout) :: self
+    class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
+
+    allocate( other, source=adj_pressure_preconditioner_type(self%level+1) )
+
+  end subroutine coarsen_adj_pressure_preconditioner
+
+  !> @brief Destructor
+  !> @param[in,out] self Instance of type to be destroyed
+  subroutine destroy_adj_pressure_preconditioner(self)
+
+    implicit none
+
+    type(adj_pressure_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_adj_pressure_preconditioner
+
+end module adj_pressure_precon_alg_mod

@@ -1,0 +1,145 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the term_s
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Sets up and calls IAU updates during the model run.
+
+module iau_main_alg_mod
+
+  use constants_mod,          only : i_def, l_def, str_def
+  use driver_modeldb_mod,     only : modeldb_type
+  use field_collection_mod,   only : field_collection_type
+  use iau_config_mod,         only : iau_mode, &
+                                     iau_mode_instantaneous, &
+                                     iau_mode_time_mixed,    &
+                                     iau_mode_time_window,   &
+                                     iau_ts_start,           &
+                                     iau_use_addinf,         &
+                                     iau_use_bcorr,          &
+                                     iau_use_pertinc
+  use iau_time_control_mod,   only : calc_iau_ts_end
+  use mesh_mod,               only : mesh_type
+  use remove_field_collection_mod, only : remove_field_collection
+  use update_iau_inc_alg_mod, only : update_iau_alg
+
+  implicit none
+
+  private
+  public :: iau_main_alg
+
+  contains
+
+  !> @brief   Set up the IAU behaviour and active increment types and call IAU
+  !> @details Set up required IAU behaviour depending on the mode of use and
+  !>          valid increment types to be applied to the prognostic state
+  !>          on the given timestep of the model run. These may include
+  !>          analysis increments, increments for additive inflation and bias
+  !>          correction, and increments from the perturbation members of the
+  !>          ensemble when running a control-pert EDA.
+  !> @param[in,out] modeldb  The model database
+  !> @param[in]     twodmesh Two dimensional mesh, used to calculate tropopause level
+  subroutine iau_main_alg( modeldb, twod_mesh )
+
+    implicit none
+
+    ! Arguments
+    type( modeldb_type ), intent(inout), target  :: modeldb
+    type( mesh_type ),    intent(in),    pointer :: twod_mesh
+
+    ! Internal variables
+    logical( l_def ) :: iau_ainc_active
+    logical( l_def ) :: iau_addinf_active
+    logical( l_def ) :: iau_bcorr_active
+    logical( l_def ) :: iau_pertinc_active
+    integer(i_def)   :: current_step
+
+    type( field_collection_type ), pointer :: field_collection_ptr
+
+    nullify( field_collection_ptr )
+
+    iau_ainc_active = .false.
+    iau_addinf_active = .false.
+    iau_bcorr_active = .false.
+    iau_pertinc_active = .false.
+
+    current_step = modeldb%clock%get_step()
+
+    ! If IAU increments need to be added to the prognostic state over
+    ! a time window, then do this at the start of every ts within the
+    ! required time window. This IAU behaviour is required when the
+    ! analysis increments have been produced by a 3D-Var DA
+    if ( iau_mode == iau_mode_time_window ) then
+  
+      if ( ( current_step >= iau_ts_start ) .and.                 &
+           ( current_step <= calc_iau_ts_end( modeldb%clock ) ) ) then
+
+        iau_ainc_active = .true.
+
+        ! IAU for control-pert where control inc and pert inc are both added
+        ! over a time window. This is the case when control member and pert
+        ! members both use 3D-Var for their DA
+        if ( iau_use_pertinc ) then
+          iau_pertinc_active = .true.
+        end if ! (iau_use_pertinc)
+
+      else if ( current_step > calc_iau_ts_end( modeldb%clock ) ) then
+        ! Model timestep is outside the IAU time window so clear IAU increment
+        ! fields that are no longer needed from the depository.
+        call remove_field_collection( modeldb, "iau_fields" )
+
+        if ( iau_use_pertinc ) then
+          call remove_field_collection( modeldb, "iau_pert_fields" )
+        end if ! (iau_use_pertinc)
+
+      end if
+
+    ! If the IAU is operating with mixed time behaviour some IAU updates are
+    ! needed at model initialisation (instantaneous updates) and others during
+    ! the model run (time window updates). This is the case when the DA uses
+    ! the control-pert method with a 4D-Var control member and 3D-Var pert
+    ! members. The analysis increment from the control member is added
+    ! instantaneously at model initialisation while the pert increments are
+    ! added here, over a time window during the model run.
+    else if ( ( iau_mode == iau_mode_time_mixed ) .and. &
+              ( iau_use_pertinc ) ) then
+
+      if ( ( current_step >= iau_ts_start ) .and.                 &
+           ( current_step <= calc_iau_ts_end( modeldb%clock ) ) ) then
+
+        ! iau_ainc_active remains false since these increments have already been
+        ! added at model initialisation
+        iau_ainc_active = .false.
+        iau_pertinc_active = .true.
+
+      else if (current_step > calc_iau_ts_end( modeldb%clock ) ) then
+
+        call remove_field_collection( modeldb, "iau_pert_fields" )
+
+      end if !(current_step test)
+
+    end if !(iau_mode)  
+
+    ! If used, additive inflation and bias correction are applied throughout
+    ! the whole model run
+    if ( iau_use_addinf ) iau_addinf_active = .true.
+    if ( iau_use_bcorr ) iau_bcorr_active = .true.
+
+    ! Now call the IAU with the appropriate increment types activated
+    if ( ( iau_ainc_active ) .or. ( iau_addinf_active ) &
+       .or. (iau_bcorr_active ) .or. ( iau_pertinc_active ) ) then
+      call update_iau_alg( modeldb,           &
+                           twod_mesh,         &
+                           iau_ainc_active,   &
+                           iau_addinf_active, &
+                           iau_bcorr_active,  &
+                           iau_pertinc_active )
+    else
+      field_collection_ptr => modeldb%fields%get_field_collection("iau_tot_inc")
+      call field_collection_ptr%clear()
+    end if ! (test logicals)
+  
+  end subroutine iau_main_alg
+
+end module iau_main_alg_mod

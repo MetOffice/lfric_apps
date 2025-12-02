@@ -1,0 +1,259 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_theta_transport_alg
+module atlt_theta_transport_alg_mod
+
+  use r_tran_field_mod,                    only : r_tran_field_type
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use model_clock_mod,                     only : model_clock_type
+  use finite_element_config_mod,           only : element_order_h, &
+                                                  element_order_v
+  use fs_continuity_mod,                   only : Wtheta
+  use function_space_collection_mod,       only : function_space_collection
+  use transport_metadata_collection_mod,   only : transport_metadata_collection
+  use transport_metadata_mod,              only : transport_metadata_type
+  use tl_transport_controller_mod,         only : tl_transport_controller_type
+  use transport_controller_mod,            only : transport_controller_type
+  use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
+  use inner_from_controller_rdef_alg_mod,  only : flux_pc_ref_flux_prod_rdef,     &
+                                                  flux_pc_ref_flux_inp_prod_rdef, &
+                                                  wind_pc_dir_prod_rdef,          &
+                                                  wind_pc_dir_inp_prod_rdef
+  use init_from_controller_alg_mod,        only : init_flux_pc_fieldvals, &
+                                                  init_wind_pc_fieldvals
+  use transport_enumerated_types_mod,      only : direction_3d, &
+                                                  direction_h,  &
+                                                  direction_v
+
+  implicit none
+
+  private
+  public :: atlt_theta_transport_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_theta_transport_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine atlt_theta_transport_alg( mesh, model_clock )
+
+    use tl_theta_transport_alg_mod,          only : tl_theta_transport_alg
+    use atl_theta_transport_alg_mod,         only : atl_theta_transport_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(field_type)                       :: theta_out
+    type(field_type)                       :: theta_inc
+    type(field_type)                       :: theta_in
+    type(field_type)                       :: ls_theta_in
+    type(tl_transport_controller_type)     :: tl_transport_controller
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    ! Copies of input fields used in inner products
+    type(field_type)                       :: theta_out_inp
+    type(field_type)                       :: theta_inc_inp
+    type(field_type)                       :: theta_in_inp
+
+    ! Variables used to handle calculations for fields stored in tl_transport_controller
+    integer(kind=i_def)                                :: mesh_id
+    type(transport_controller_type),           pointer :: pert_transport_controller
+    type(transport_controller_type),           pointer :: ls_transport_controller
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_pert_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_2_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
+    type(r_tran_field_type)                            :: wind_pc_h_inp
+    type(r_tran_field_type)                            :: wind_pc_v_inp
+    type(r_tran_field_type)                            :: wind_pc_3d_inp
+    type(field_type)                                   :: dummy
+    type(function_space_type),                 pointer :: dummy_vs
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: theta_out_inner_prod
+    real(kind=r_def)            :: theta_out_sf
+    real(kind=r_def)            :: theta_inc_inner_prod
+    real(kind=r_def)            :: theta_inc_sf
+    real(kind=r_def)            :: theta_in_inner_prod
+    real(kind=r_def)            :: theta_in_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: thout_thout_inp_inner_prod
+    real(kind=r_def)            :: thinc_thinc_inp_inner_prod
+    real(kind=r_def)            :: thin_thin_inp_inner_prod
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def) :: machine_tol
+    real(kind=r_def) :: relative_diff
+
+    mesh_id = mesh%get_id()
+    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs, 'potential_temperature' )
+    ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
+    pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+
+    ! Initialising fields
+    call init_flux_pc_fieldvals( mesh,                     &
+                                 1_i_def,                  &
+                                 fpc_ls_wind_ref_flux_inp, &
+                                 dummy_ref_field_1_inp,    &
+                                 dummy_ref_mass_1_inp,     &
+                                 ls_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                       &
+                                 1_i_def,                    &
+                                 fpc_pert_wind_ref_flux_inp, &
+                                 dummy_ref_field_2_inp,      &
+                                 dummy_ref_mass_2_inp,       &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_h_inp,            &
+                                 direction_h,              &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_v_inp,            &
+                                 direction_v,              &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_3d_inp,           &
+                                 direction_3d,             &
+                                 pert_transport_controller )
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    call theta_out%initialise( vector_space = vector_space_wtheta_ptr )
+    call theta_inc%initialise( vector_space = vector_space_wtheta_ptr )
+    call theta_in%initialise( vector_space = vector_space_wtheta_ptr )
+    call ls_theta_in%initialise( vector_space = vector_space_wtheta_ptr )
+
+    call theta_out%copy_field_properties( theta_out_inp )
+    call theta_inc%copy_field_properties( theta_inc_inp )
+    call theta_in%copy_field_properties( theta_in_inp )
+
+    theta_out_inner_prod = 0.0_r_def
+    theta_inc_inner_prod = 0.0_r_def
+    theta_in_inner_prod = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( setval_random( theta_out ),           &
+                 setval_x( theta_out_inp, theta_out ), &
+                 setval_random( theta_inc ),           &
+                 setval_x( theta_inc_inp, theta_inc ), &
+                 setval_random( theta_in ),            &
+                 setval_x( theta_in_inp, theta_in ),   &
+                 setval_random( ls_theta_in ),         &
+                 inc_a_times_X( 1.0E12_r_def, ls_theta_in ) ) ! Inflate LS theta to avoid numerical issues
+
+    ! Tangent linear
+    call tl_theta_transport_alg( theta_out, theta_inc, theta_in, ls_theta_in, &
+                                 tl_transport_controller, transport_metadata )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( theta_out_inner_prod, theta_out ), &
+                 x_innerproduct_x( theta_inc_inner_prod, theta_inc ), &
+                 x_innerproduct_x( theta_in_inner_prod, theta_in ) )
+
+    ! Determining scale factors
+    theta_out_sf = 1.0_r_def/(theta_out_inner_prod + eps)
+    theta_inc_sf = 1.0_r_def/(theta_inc_inner_prod + eps)
+    theta_in_sf = 1.0_r_def/(theta_in_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + theta_out_inner_prod*theta_out_sf
+    inner1 = inner1 + theta_inc_inner_prod*theta_inc_sf
+    inner1 = inner1 + theta_in_inner_prod*theta_in_sf
+    write(log_scratch_space, *) "atlt_theta_transport inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "theta_out inner product = ", theta_out_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "theta_inc inner product = ", theta_inc_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "theta_in inner product = ", theta_in_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    call flux_pc_ref_flux_prod_rdef( inner1, ls_transport_controller, 1_i_def )
+    call flux_pc_ref_flux_prod_rdef( inner1, pert_transport_controller, 1_i_def )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_h )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_v )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_3d )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( theta_out_sf, theta_out ), &
+                 inc_a_times_X( theta_inc_sf, theta_inc ), &
+                 inc_a_times_X( theta_in_sf, theta_in ) )
+
+    ! Adjoint alg call and inner products
+    thout_thout_inp_inner_prod = 0.0_r_def
+    thinc_thinc_inp_inner_prod = 0.0_r_def
+    thin_thin_inp_inner_prod = 0.0_r_def
+
+    ! Adjoint
+    call atl_theta_transport_alg( theta_out, theta_inc, theta_in, ls_theta_in, &
+                                  tl_transport_controller, transport_metadata )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( thout_thout_inp_inner_prod, &
+                                   theta_out,                  &
+                                   theta_out_inp ),            &
+                 x_innerproduct_y( thinc_thinc_inp_inner_prod, &
+                                   theta_inc,                  &
+                                   theta_inc_inp ),            &
+                 x_innerproduct_y( thin_thin_inp_inner_prod,   &
+                                   theta_in,                   &
+                                   theta_in_inp ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + thout_thout_inp_inner_prod
+    inner2 = inner2 + thinc_thinc_inp_inner_prod
+    inner2 = inner2 + thin_thin_inp_inner_prod
+    call flux_pc_ref_flux_inp_prod_rdef( inner2, ls_transport_controller, 1_i_def, fpc_ls_wind_ref_flux_inp  )
+    call flux_pc_ref_flux_inp_prod_rdef( inner2, pert_transport_controller, 1_i_def, fpc_pert_wind_ref_flux_inp  )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_h, wind_pc_h_inp )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_v, wind_pc_v_inp )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_3d, wind_pc_3d_inp )
+
+    call tl_transport_controller%finalise()
+    if ( allocated(fpc_ls_wind_ref_flux_inp) )   deallocate( fpc_ls_wind_ref_flux_inp )
+    if ( allocated(fpc_pert_wind_ref_flux_inp) ) deallocate( fpc_pert_wind_ref_flux_inp )
+    if ( allocated(dummy_ref_field_1_inp) )      deallocate( dummy_ref_field_1_inp )
+    if ( allocated(dummy_ref_mass_1_inp) )       deallocate( dummy_ref_mass_1_inp )
+    if ( allocated(dummy_ref_field_2_inp) )      deallocate( dummy_ref_field_2_inp )
+    if ( allocated(dummy_ref_mass_2_inp) )       deallocate( dummy_ref_mass_2_inp )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_theta_transport:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_theta_transport:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_theta_transport_alg
+
+end module atlt_theta_transport_alg_mod

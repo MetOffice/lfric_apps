@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- File suitable for global climate runs -->
+
+  <!-- In this version we have ONE context  -->
+  <context id = "gungho_atm">
+
+    <!-- Include variable definitions -->
+    <variable_definition src="$METADATA/variable_def_main.xml"/>
+
+    <!-- Include axis definitions -->
+    <axis_definition src="$METADATA/axis_def_main.xml"/>
+    <axis_definition src="./axis_def_plev.xml"/>
+
+    <!-- Include domain definitions -->
+    <domain_definition src="$METADATA/domain_def_main.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="$METADATA/grid_def_main.xml"/>
+    <grid_definition src="$METADATA/grid_def_aero_ctl.xml"/>
+    <grid_definition src="$METADATA/grid_def_radaer_ctl.xml"/>
+
+    <!-- Include field definitions -->
+    <field_definition src="$METADATA/lfric_dictionary.xml"/>
+    <field_definition src="$METADATA/field_def_diags.xml"/>
+    <field_definition src="$METADATA/field_def_initial_diags.xml"/>
+
+    <!-- Include file definitions -->
+    <file_definition src="./file_def_check_restart.xml"/>
+    <file_definition src="./file_def_ancil_main.xml"/>
+    <file_definition src="./file_def_ancil_gal.xml"/>
+    <file_definition src="./file_def_ancil_reynolds.xml"/>
+    <file_definition src="./file_def_diags_gal_clim_chem.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
+
+    <!-- Local file definitions -->
+    <file_definition type="one_file" time_counter="none">
+
+      <!-- File definition for writing an FD dump -->
+      <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
+      </file>
+
+      <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+	<!-- Atmosphere fields -->
+	<field id="read_ew_wind_in_w3" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
+	<field id="read_ns_wind_in_w3" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
+	<field id="read_upward_wind_in_wtheta" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_theta_in_wtheta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_dry_rho_in_w3" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="once" />
+	<field id="read_mv_in_wtheta" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_mcl_in_wtheta" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_mcf_in_wtheta" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_mr_in_wtheta" name="m_r" long_name="rain_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
+	<field id="read_area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="once" />
+	<!-- surface fields -->
+	<field id="read_dd_mf_cb" name="dd_mf_cb" long_name="downdraft_massflux_at_cloud_base" unit="Pa s-1" domain_ref="face" operation="once" />
+	<field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" operation="once" />
+	<field id="read_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="once" />
+	<field id="read_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" domain_ref="face" operation="once" />
+	<field id="read_soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" domain_ref="face" operation="once" axis_ref="soil_levels"/>
+	<field id="read_soil_moisture" name="soil_moisture" long_name="soil_moisture" unit="kg kg-1" domain_ref="face" operation="once" axis_ref="soil_levels"/>
+	<field id="read_surface_conductance" name="surface_conductance" long_name="conductance" unit="m s-1" domain_ref="face" operation="once" />
+	<field id="read_can_water_in" name="tile_canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_land_tile_temp" name="tile_temperature" long_name="land_tile_temperature" unit="K" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_tstar_sea_ice" name="tstar_sea_ice" long_name="sea_ice_surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" />
+	<field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" operation="once" />
+	<field id="read_tile_snow_mass_in" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_n_snow_layers_in" name="tile_n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snow_depth_in" name="tile_snow_depth" long_name="snow_depth_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_tile_snow_rgrain_in" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snow_soot" name="snow_soot" long_name="snow_soot_content" unit="kg kg-1" domain_ref="face" operation="once" />
+	<field id="read_snow_under_canopy_in" name="tile_snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snowpack_density_in" name="tile_snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+
+        <!-- Chemistry fields -->
+        <field id="read_o3p" name="o3p" long_name="mass_fraction_of_oxygen_ground_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_o1d" name="o1d" long_name="mass_fraction_of_oxygen_excited_state_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_o3" name="o3" long_name="mass_fraction_of_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n" name="n" long_name="mass_fraction_of_nitrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_no" name="no" long_name="mass_fraction_of_nitric_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_no3" name="no3" long_name="mass_fraction_of_nitrate_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_lumped_n" name="lumped_n" long_name="mass_fraction_of_lumped_n_as_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_no2" name="no2" long_name="mass_fraction_of_nitrogen_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n2o5" name="n2o5" long_name="mass_fraction_of_dinitrogen_pentoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ho2no2" name="ho2no2" long_name="mass_fraction_of_peroxynitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hono2" name="hono2" long_name="mass_fraction_of_nitric_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h2o2" name="h2o2" long_name="mass_fraction_of_hydrogen_peroxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ch4" name="ch4" long_name="mass_fraction_of_methane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_co" name="co" long_name="mass_fraction_of_carbon_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hcho" name="hcho" long_name="mass_fraction_of_formaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meoo" name="meoo" long_name="mass_fraction_of_methyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meooh" name="meooh" long_name="mass_fraction_of_methyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h" name="h" long_name="mass_fraction_of_hydrogen_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_oh" name="oh" long_name="mass_fraction_of_hydroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ho2" name="ho2" long_name="mass_fraction_of_hydroxy_peroxyl_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cl" name="cl" long_name="mass_fraction_of_chloride_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cl2o2" name="cl2o2" long_name="mass_fraction_of_chlorine_monoxide_dimer_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_clo" name="clo" long_name="mass_fraction_of_chlorine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_oclo" name="oclo" long_name="mass_fraction_of_chlorine_dioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_br" name="br" long_name="mass_fraction_of_bromine_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_lumped_br" name="lumped_br" long_name="mass_fraction_of_lumped_br_as_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_bro" name="bro" long_name="mass_fraction_of_bromine_monoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_brcl" name="brcl" long_name="mass_fraction_of_bromine_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_brono2" name="brono2" long_name="mass_fraction_of_bromine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n2o" name="n2o" long_name="mass_fraction_of_nitrous_oxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_lumped_cl" name="lumped_cl" long_name="mass_fraction_of_lumped_cl_as_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hcl" name="hcl" long_name="mass_fraction_of_hydrogen_chloride_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hocl" name="hocl" long_name="mass_fraction_of_hydrochlorous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hbr" name="hbr" long_name="mass_fraction_of_hydrogen_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hobr" name="hobr" long_name="mass_fraction_of_hydrobromous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_clono2" name="clono2" long_name="mass_fraction_of_chlorine_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cfcl3" name="cfcl3" long_name="mass_fraction_of_cfc11_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cf2cl2" name="cf2cl2" long_name="mass_fraction_of_cfc12_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mebr" name="mebr" long_name="mass_fraction_of_methyl_bromide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hono" name="hono" long_name="mass_fraction_of_nitrous_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_c2h6" name="c2h6" long_name="mass_fraction_of_ethane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_etoo" name="etoo" long_name="mass_fraction_of_ethyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_etooh" name="etooh" long_name="mass_fraction_of_ethyl_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mecho" name="mecho" long_name="mass_fraction_of_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meco3" name="meco3" long_name="mass_fraction_of_peroxy_acetic_acide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_pan" name="pan" long_name="mass_fraction_of_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_c3h8" name="c3h8" long_name="mass_fraction_of_propane_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n_proo" name="n_proo" long_name="mass_fraction_of_n-propyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_i_proo" name="i_proo" long_name="mass_fraction_of_i-propyl_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_n_prooh" name="n_prooh" long_name="mass_fraction_of_n-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_i_prooh" name="i_prooh" long_name="mass_fraction_of_i-propyl_alcohol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_etcho" name="etcho" long_name="mass_fraction_of_propionaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_etco3" name="etco3" long_name="mass_fraction_of_ethyl_carbonate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_me2co" name="me2co" long_name="mass_fraction_of_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mecoch2oo" name="mecoch2oo" long_name="mass_fraction_of_acetone_peroxy_radical_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mecoch2ooh" name="mecoch2ooh" long_name="mass_fraction_of_acetone_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ppan" name="ppan" long_name="mass_fraction_of_peroxypropionyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meono2" name="meono2" long_name="mass_fraction_of_methyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_c5h8" name="c5h8" long_name="mass_fraction_of_isoprene_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_isooh" name="isooh" long_name="mass_fraction_of_isoprene_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_ison" name="ison" long_name="mass_fraction_of_isoprene_peroxy_acetyl_nitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_macr" name="macr" long_name="mass_fraction_of_methacrolein_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_macrooh" name="macrooh" long_name="mass_fraction_of_lumped_mvk_macr_hydroperoxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mpan" name="mpan" long_name="mass_fraction_of_methacryolyl_peroxynitrate_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hacet" name="hacet" long_name="mass_fraction_of_hydroxy_acetone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_mgly" name="mgly" long_name="mass_fraction_of_methylglyoxal_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_nald" name="nald" long_name="mass_fraction_of_nitroxy_acetaldehyde_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_hcooh" name="hcooh" long_name="mass_fraction_of_formic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meco3h" name="meco3h" long_name="mass_fraction_of_peroxy_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meco2h" name="meco2h" long_name="mass_fraction_of_acetic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h2" name="h2" long_name="mass_fraction_of_hydrogen_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_meoh" name="meoh" long_name="mass_fraction_of_methanol_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_msa" name="msa" long_name="mass_fraction_of_methyl_sulphonic_acid_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_nh3" name="nh3" long_name="mass_fraction_of_ammonia_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_cs2" name="cs2" long_name="mass_fraction_of_carbon_disulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_csul" name="csul" long_name="mass_fraction_of_carbonyl_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_h2s" name="h2s" long_name="mass_fraction_of_hydrogen_sulphide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_so3" name="so3" long_name="mass_fraction_of_sulphur_trioxide_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_passive_o3" name="passive_o3" long_name="mass_fraction_of_passive_ozone_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_age_of_air" name="age_of_air" long_name="mass_fraction_of_age_of_air_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once" />
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

@@ -1,0 +1,63 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2023 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the stochastic physics increment fields
+module init_stph_fields_alg_mod
+
+  use constants_mod,                   only: i_def, r_def
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use integer_field_mod,               only: integer_field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_stph_fields_alg
+
+contains
+
+  !> @brief   Initialises the stochastic physics fields
+  !> @param[in,out] stph_fields   stochastic physics related fields
+  subroutine init_stph_fields_alg(stph_fields)
+
+    use section_choice_config_mod, only: stochastic_physics, stochastic_physics_um
+    use stochastic_physics_config_mod, only: blpert_type, blpert_type_off
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent( in ) :: stph_fields
+
+    ! Increment fields
+    type( field_type ), pointer :: dtheta_stph => null()
+    type( field_type ), pointer :: dmv_stph => null()
+    type( field_type ), pointer :: du_stph => null()
+    type( field_type ), pointer :: blpert_rand_fld => null()
+    type( integer_field_type ), pointer :: blpert_flag => null()
+
+
+    if ( stochastic_physics == stochastic_physics_um )then
+      call stph_fields%get_field('dtheta_stph', dtheta_stph)
+      call stph_fields%get_field('dmv_stph', dmv_stph)
+      call stph_fields%get_field('du_stph', du_stph)
+
+      call invoke( setval_c(dtheta_stph,   0.0_r_def), &
+                   setval_c(dmv_stph,      0.0_r_def), &
+                   setval_c(du_stph,       0.0_r_def) )
+      if (blpert_type /= blpert_type_off) then
+        call stph_fields%get_field('blpert_rand_fld', blpert_rand_fld)
+        call stph_fields%get_field('blpert_flag', blpert_flag)
+
+        call invoke (setval_c(blpert_rand_fld, 0.0_r_def), &
+                     int_setval_c(blpert_flag, 0_i_def))
+      end if
+    end if
+
+
+  end subroutine init_stph_fields_alg
+
+end module init_stph_fields_alg_mod

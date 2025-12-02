@@ -1,0 +1,153 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+module reference_profile_mod_test
+
+  use constants_mod, only : r_def, i_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+
+  real(r_def), parameter :: bvf_square = 0.0001_r_def
+  real(r_def), parameter :: theta_surf = 300.0_r_def
+  real(r_def), parameter :: pert_width_scaling = 1.0_r_def
+  real(r_def), parameter :: pert_centre = 120.0_r_def
+  integer(i_def),                                                  &
+               parameter :: profile_size       = 4
+  real(r_def), parameter :: profile_data(4)    = (/ 280.0_r_def,   &
+                                                    300.0_r_def,   &
+                                                    305.0_r_def,   &
+                                                    400.0_r_def /)
+  real(r_def), parameter :: profile_heights(4) = (/ 500.0_r_def,   &
+                                                    4.0e3_r_def,   &
+                                                    4.0e3_r_def,   &
+                                                    40.0e3_r_def /)
+
+  real(r_def), parameter :: surface_pressure = 1000.0e2_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use base_mesh_config_mod,      only : geometry_planar,    &
+                                          topology_fully_periodic
+    use extrusion_config_mod,      only : method_uniform, &
+                                          stretching_method_linear
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_base_mesh_config,           &
+                                          feign_extrusion_config,           &
+                                          feign_initial_temperature_config, &
+                                          feign_planet_config,              &
+                                          feign_finite_element_config,      &
+                                          feign_initial_pressure_config
+
+    use initial_pressure_config_mod, &
+                                   only : method_balanced
+    use initial_temperature_config_mod, &
+                                   only : perturb_none
+
+    implicit none
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_planar,         &
+                                 prepartitioned=.false.,           &
+                                 topology=topology_fully_periodic, &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( planet_radius=6000000.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 method=method_uniform,                      &
+                                 number_of_layers=2_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_initial_temperature_config( bvf_square=bvf_square,                 &
+                                           theta_surf=theta_surf,                 &
+                                           pert_centre=pert_centre,               &
+                                           pert_width_scaling=pert_width_scaling, &
+                                           perturb=perturb_none,                  &
+                                           profile_size=profile_size,             &
+                                           profile_data=profile_data,             &
+                                           profile_heights=profile_heights  )
+
+    call feign_initial_pressure_config( method = method_balanced,             &
+                                        surface_pressure = surface_pressure )
+
+    call feign_planet_config( gravity=gravity, omega=8.0E-5_r_def, &
+                              rd=rd, cp=cp, p_zero=p_zero,                 &
+                              scaling_factor=1.0_r_def )
+
+    call feign_finite_element_config(                       &
+         cellshape = cellshape_quadrilateral,               &
+         coord_order = 0_i_def,                             &
+         coord_system = coord_system_xyz,                   &
+         element_order_h = 0_i_def,                         &
+         element_order_v = 0_i_def,                         &
+         rehabilitate = .true.,                             &
+         vorticity_in_w1 =.false. )
+
+  end subroutine set_up
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use idealised_config_mod,  only : test_gravity_wave
+    use reference_profile_mod, only : reference_profile
+
+    implicit none
+
+    real(r_def), parameter :: tol = 1.0e-14_r_def
+    real(r_def), parameter :: kappa = rd / cp
+
+    real(kind=r_def) :: exner, theta, rho, x(3)
+    real(kind=r_def) :: exner_exact, theta_exact, rho_exact
+
+    x = (/ 0.0_r_def, 0.0_r_def, 1000.0_r_def /)
+
+    ! Test the reference profile (exner, rho, theta) computation for
+    ! the gravity wave test at the point x
+    call reference_profile(exner, rho, theta, x, test_gravity_wave)
+
+    theta_exact = 300.0_r_def * exp ( bvf_square/gravity*x(3))
+    exner_exact = 1.0_r_def - gravity**2/(Cp*300.0_r_def*bvf_square)   &
+              * (1.0_r_def - exp ( - bvf_square/gravity * x(3) ))
+    rho_exact = p_zero/(Rd*theta_exact) * exner_exact ** ((1.0_r_def - kappa)/kappa)
+
+    @assertEqual( theta_exact, theta, tol )
+    @assertEqual( exner_exact, exner, tol )
+    @assertEqual( rho_exact,   rho,   tol )
+
+  end subroutine test_all
+
+end module reference_profile_mod_test

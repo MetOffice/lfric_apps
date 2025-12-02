@@ -1,0 +1,291 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module for 3D FFSL.
+!> @details Solves the 3D transport equation using the flux-form semi-Lagrangian
+!!          (FFSL) transport scheme and a choice of splitting methods.
+module ffsl_3d_alg_mod
+
+  ! Constants and types
+  use constants_mod,                    only: r_tran, i_def, l_def
+  use field_mod,                        only: field_type
+  use fs_continuity_mod,                only: W2, W2H, W2V
+  use function_space_mod,               only: function_space_type
+  use function_space_collection_mod,    only: function_space_collection
+  use sci_geometric_constants_mod,      only: get_face_selector_ew, &
+                                              get_face_selector_ns
+  use integer_field_mod,                only: integer_field_type
+  use log_mod,                          only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                         only: mesh_type
+  use r_tran_field_mod,                 only: r_tran_field_type
+  use timer_mod,                        only: timer
+  use transport_constants_mod,          only: get_element_order_h_transport, &
+                                              get_element_order_v_transport
+
+  ! Transport control
+  use transport_controller_mod,         only: transport_controller_type
+  use transport_enumerated_types_mod,   only: equation_form_advective,    &
+                                              equation_form_conservative, &
+                                              equation_form_consistent,   &
+                                              ffsl_splitting_cosmic
+  use transport_metadata_mod,           only: transport_metadata_type
+
+  ! Algorithms
+  use ffsl_hori_alg_mod,                only: ffsl_hori_cosmic_inner_alg, &
+                                              ffsl_hori_outer_alg
+  use ffsl_vert_alg_mod,                only: ffsl_vert_transport_alg
+
+  ! Kernels
+  use combine_w2_field_kernel_mod,      only: combine_w2_field_kernel_type
+
+  ! Configuration options
+  use io_config_mod,                    only: subroutine_timers
+  use transport_config_mod,             only: ffsl_inner_order, &
+                                              ffsl_outer_order
+
+  implicit none
+
+  private
+
+  public :: ffsl_3d_splitting_alg
+
+contains
+
+
+  !> @brief Algorithm for the full 3D FFSL transport scheme.
+  !> @details Solves the 3D transport equation, in advective or conservative
+  !!          form, including controlling the splitting between different
+  !!          dimensions. Returns an updated field for advective form or a mass
+  !!          flux for conservative form (these are then passed to the generic
+  !!          end_of_transport routines).
+  !!          One-dimensional flux differences are denoted F, G, H (while
+  !!          the advective differences are f, g, h).
+  !> @param[in,out] mass_flux          Mass flux used to transport the field.
+  !!                                   This is only used when the equation is in
+  !!                                   conservative form.
+  !> @param[in,out] field_np1          The updated advected field from the time
+  !!                                   step. Only used when the equation is in
+  !!                                   advective form.
+  !> @param[in]     field_n            Field at the start of the transport step
+  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  subroutine ffsl_3d_splitting_alg( mass_flux, field_np1, field_n, step_dt,    &
+                                    transport_controller )
+
+    implicit none
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: mass_flux
+    type(r_tran_field_type),         intent(inout) :: field_np1
+    type(r_tran_field_type),         intent(in)    :: field_n
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(mesh_type),               pointer :: mesh
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2v_fs
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+
+    ! Subroutine name for timer
+    character(*), parameter :: routine_name = 'ffsl_3d_transport_alg'
+
+    ! Density substeps in given direction
+    type(r_tran_field_type) :: field_x
+    type(r_tran_field_type) :: field_y
+    type(r_tran_field_type) :: field_z
+    type(r_tran_field_type) :: field_f
+    type(r_tran_field_type) :: field_g
+    type(r_tran_field_type) :: field_h
+    type(r_tran_field_type) :: field_xy
+
+    ! Field increments and fluxes in given direction
+    type(r_tran_field_type) :: increment
+    type(r_tran_field_type) :: increment_x
+    type(r_tran_field_type) :: increment_y
+    type(r_tran_field_type) :: increment_z
+    type(r_tran_field_type) :: half_increment_x
+    type(r_tran_field_type) :: half_increment_y
+    type(r_tran_field_type) :: half_increment_z
+    type(r_tran_field_type) :: half_increment_xy
+    type(r_tran_field_type) :: half_increment_yx
+    type(r_tran_field_type) :: half_increment_zx
+    type(r_tran_field_type) :: half_increment_xz
+    type(r_tran_field_type) :: half_increment_yz
+    type(r_tran_field_type) :: half_increment_zy
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: flux_z
+    type(r_tran_field_type) :: mass_flux_h
+    type(r_tran_field_type) :: dummy_np1
+
+    ! Useful constants
+    real(kind=r_tran)   :: half_dt
+    real(kind=r_tran)   :: third_dt
+    logical(kind=l_def) :: compute_adv_inc
+    integer(kind=i_def) :: vertical_order
+
+    if ( subroutine_timers ) call timer(routine_name)
+
+    ! Get pre-computed objects and set pointers --------------------------------
+    mesh => field_n%get_mesh()
+    transport_metadata => transport_controller%get_transport_metadata()
+
+    if (transport_metadata%get_ffsl_splitting() /= ffsl_splitting_cosmic) then
+      call log_event('3D FFSL only implemented for COSMIC splitting', LOG_LEVEL_ERROR)
+    end if
+
+    if (transport_metadata%get_equation_form() == equation_form_consistent) then
+      call log_event('3D FFSL not implemented for consistent equation', LOG_LEVEL_ERROR)
+    end if
+
+    vertical_order = transport_metadata%get_ffsl_vertical_order()
+
+    ! Function spaces
+    field_fs => field_n%get_function_space()
+    w2_fs => function_space_collection%get_fs( mesh, 0, 0, W2 )
+    w2h_fs => function_space_collection%get_fs( mesh, 0, 0, W2H )
+    w2v_fs => function_space_collection%get_fs( mesh, 0, 0, W2V )
+
+    ! Initialise fields used by all splitting options --------------------------
+    call increment_x%initialise( vector_space = field_fs )
+    call increment_y%initialise( vector_space = field_fs )
+    call increment_z%initialise( vector_space = field_fs )
+    call half_increment_x%initialise( vector_space = field_fs )
+    call half_increment_y%initialise( vector_space = field_fs )
+    call half_increment_z%initialise( vector_space = field_fs )
+    call field_x%initialise( vector_space = field_fs )
+    call field_y%initialise( vector_space = field_fs )
+    call field_z%initialise( vector_space = field_fs )
+    call field_xy%initialise( vector_space = field_fs )
+    call flux%initialise( vector_space = w2h_fs )
+    call flux_z%initialise( vector_space = w2v_fs )
+
+    ! Set fluxes to zero
+    call invoke( setval_c( flux_z, 0.0_r_tran ), &
+                 setval_c( flux, 0.0_r_tran )  )
+
+    ! Set constants
+    half_dt = 0.5_r_tran * step_dt
+    third_dt = 1.0_r_tran / 3.0_r_tran * step_dt
+
+    ! Full COSMIC splitting (from Leonard et al. 1996).
+    ! It has the form
+    !
+    !   rho_x = rho - dt/3 * f(rho)  |
+    !   rho_y = rho - dt/3 * g(rho)  | First advective step terms
+    !   rho_z = rho - dt/3 * h(rho)  |
+    !
+    !   rho_xy = rho - dt * f(rho_y) |
+    !   rho_yz = rho - dt * g(rho_z) |
+    !   rho_zx = rho - dt * h(rho_x) | Second advective step terms
+    !   rho_xz = rho - dt * f(rho_z) |
+    !   rho_yx = rho - dt * g(rho_x) |
+    !   rho_zy = rho - dt * h(rho_y) |
+    !
+    ! Output: F( (rho_yz + rho_yz)/2 ) + G( (rho_xz + rho_zx)/2 )
+    !                                  + H( (rho_xy + rho_yx)/2 )
+
+    ! Initialise fields for FULL splitting
+    call half_increment_xy%initialise( vector_space = field_fs )
+    call half_increment_xz%initialise( vector_space = field_fs )
+    call half_increment_yx%initialise( vector_space = field_fs )
+    call half_increment_yz%initialise( vector_space = field_fs )
+    call half_increment_zx%initialise( vector_space = field_fs )
+    call half_increment_zy%initialise( vector_space = field_fs )
+    call field_f%initialise( vector_space = field_fs )
+    call field_g%initialise( vector_space = field_fs )
+    call field_h%initialise( vector_space = field_fs )
+
+    ! 1st advective step -------------------------------------------------------
+    call ffsl_hori_cosmic_inner_alg( half_increment_x, half_increment_y,       &
+                                     field_n, step_dt, transport_controller )
+    call ffsl_vert_transport_alg(                                              &
+            flux_z, half_increment_z, dummy_np1, field_n, step_dt,             &
+            transport_controller, ffsl_inner_order,                            &
+            compute_adv_inc=.true., compute_field_np1=.false.                  &
+    )
+    call invoke( X_minus_bY(field_x, field_n, third_dt, half_increment_x),     &
+                 X_minus_bY(field_y, field_n, third_dt, half_increment_y),     &
+                 X_minus_bY(field_z, field_n, third_dt, half_increment_z) )
+
+    ! 2nd advective step -------------------------------------------------------
+    call ffsl_hori_outer_alg(                                                  &
+            flux, half_increment_xy, half_increment_yx,  dummy_np1,            &
+            field_n, field_x, field_y, step_dt,                                &
+            transport_controller, ffsl_outer_order,                            &
+            compute_adv_inc=.true., compute_field_np1=.false.                  &
+    )
+    call ffsl_hori_cosmic_inner_alg( half_increment_xz, half_increment_yz,     &
+                                     field_z, step_dt, transport_controller )
+
+    call ffsl_vert_transport_alg(                                              &
+            flux_z, half_increment_zx, dummy_np1, field_x, step_dt,            &
+            transport_controller, vertical_order,                              &
+            compute_adv_inc=.true., compute_field_np1=.false.                  &
+    )
+    call ffsl_vert_transport_alg(                                              &
+            flux_z, half_increment_zy, dummy_np1, field_y, step_dt,            &
+            transport_controller, vertical_order,                              &
+            compute_adv_inc=.true., compute_field_np1=.false.                  &
+    )
+
+    call invoke( X_minus_bY(field_f, field_n, half_dt, half_increment_yz),     &
+                 X_minus_bY(field_g, field_n, half_dt, half_increment_xz),     &
+                 X_minus_bY(field_h, field_n, half_dt, half_increment_xy),     &
+                 inc_X_minus_bY(field_f, half_dt, half_increment_zy),          &
+                 inc_X_minus_bY(field_g, half_dt, half_increment_zx),          &
+                 inc_X_minus_bY(field_h, half_dt, half_increment_yx) )
+
+    ! Final step (advective or conservative) -----------------------------------
+    compute_adv_inc = (transport_metadata%get_equation_form() == equation_form_advective)
+
+    call ffsl_hori_outer_alg(                                                  &
+            flux, increment_x, increment_y, dummy_np1,                         &
+            field_n, field_g, field_f, step_dt,                                &
+            transport_controller, ffsl_outer_order,                            &
+            compute_adv_inc=compute_adv_inc, compute_field_np1=.false.         &
+    )
+    call ffsl_vert_transport_alg(                                              &
+            flux_z, increment_z, dummy_np1, field_h,  step_dt,                 &
+            transport_controller, vertical_order,                              &
+            compute_adv_inc=compute_adv_inc, compute_field_np1=.false.         &
+    )
+
+    ! Bring together final fluxes or increments --------------------------------
+    select case ( transport_metadata%get_equation_form() )
+    case ( equation_form_conservative )
+      call mass_flux%initialise( vector_space = w2_fs )
+      call mass_flux_h%initialise( vector_space = w2h_fs )
+      face_selector_ew => get_face_selector_ew(mesh%get_id())
+      face_selector_ns => get_face_selector_ns(mesh%get_id())
+      call invoke( setval_X(mass_flux_h, flux), &
+                   combine_w2_field_kernel_type(mass_flux, mass_flux_h,        &
+                                                flux_z, face_selector_ew,      &
+                                                face_selector_ns) )
+
+    case ( equation_form_advective )
+      call increment%initialise( vector_space = field_fs )
+      call invoke( X_plus_Y(increment, increment_x, increment_y), &
+                   inc_X_plus_Y(increment, increment_z),                       &
+                   X_minus_bY(field_np1, field_n, step_dt, increment) )
+
+    case default
+      call log_event('FFSL_3D: equation not implemented', LOG_LEVEL_ERROR)
+    end select
+
+    if ( subroutine_timers ) call timer(routine_name)
+
+  end subroutine ffsl_3d_splitting_alg
+
+end module ffsl_3d_alg_mod

@@ -1,0 +1,70 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/set_task_families.cylc") %}
+
+{# Define common task families that will be inherited by the tasks #}
+{# This is primarily to set groupings of tasks in the gui #}
+
+    [[EXPORT-SOURCE]]
+
+    [[BUILD]]
+
+    [[SCRIPTS]]
+
+    {# This family is for running check_kgo_groups when a kgo task fails #}
+    [[KGO_CHECKS]]
+
+{% for platform in requested_platforms %}
+    [[{{platform|upper}}]]
+
+    [[BUILD_{{platform|upper}}]]
+        inherit=BUILD
+
+    {# Applications which families and build families need to be generated #}
+    {% set app_families = [] %}
+    {% set app_build_families = [] %}
+
+    {# Collect all applications that will run on this platform, making sure that #}
+    {# applications with overlapping names such as "gungho" and "gungho_model" #}
+    {# are recognised correctly (longest name wins). #}
+    {% for task in tasks_to_run %}
+        {% set app_ns = namespace(name="", found=false) %}
+        {% for application in requested_applications %}
+            {% if application in task and platform in task %}
+                {% if app_ns.found and application|length > app_ns.name|length %}
+                    {% set app_ns.name = application %}
+                {% elif not app_ns.found %}
+                    {% set app_ns.found = true %}
+                    {% set app_ns.name = application %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        {% if app_ns.found %}
+            {% if task.startswith("build") or task.startswith("fcm_make") %}
+                {% do set_add(app_build_families, app_ns.name) %}
+            {% else %}
+                {% do set_add(app_families, app_ns.name) %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% for application in app_families %}
+    [[{{application|upper}}_{{platform|upper}}]]
+        inherit={{platform|upper}}
+    {% endfor %}
+
+    {% for application in app_build_families %}
+    [[BUILD_{{application|upper}}_{{platform|upper}}]]
+        inherit=BUILD_{{platform|upper}}
+    {% endfor %}
+
+{% endfor %}
+
+{% if HOUSEKEEPING %}
+    [[HOUSEKEEPING]]
+{% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/set_task_families.cylc") %}

@@ -1,0 +1,149 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint test for adj_convert_hdiv_field_kernel
+module adjt_sci_convert_hdiv_field_alg_mod
+
+  use field_mod,                            only: field_type
+  use function_space_mod,                   only: function_space_type
+  use mesh_mod,                             only: mesh_type
+  use function_space_collection_mod,        only: function_space_collection
+  use finite_element_config_mod,            only: element_order_h, &
+                                                  element_order_v
+  use fs_continuity_mod,                    only: W3, W2
+  use constants_mod,                        only: i_def, r_def
+  use log_mod,                              only: log_event, &
+                                                  log_level_error, &
+                                                  log_level_debug, &
+                                                  log_level_info, &
+                                                  log_scratch_space
+
+  implicit none
+
+  private
+  public :: adjt_sci_convert_hdiv_field_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for adj_convert_hdiv_field_kernel
+  !> @param[in] mesh      A mesh object
+  !> @param[in] chi       The coordinate field
+  !> @param[in] panel_id  The panel id
+  subroutine adjt_sci_convert_hdiv_field_alg(mesh, chi, panel_id)
+
+    use sci_convert_hdiv_field_kernel_mod,    only: convert_hdiv_field_kernel_type
+    use invoke_adj_cvt_hdiv_field_kernel_mod, only: invoke_adj_convert_hdiv_field_kernel
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer,       intent(in) :: mesh
+    type(field_type), dimension(3), intent(in) :: chi
+    type(field_type),               intent(in) :: panel_id
+
+    ! Arguments for forward and adjoint calls
+    type(field_type), dimension(3) :: physical_field3
+    type(field_type)               :: computational_field
+
+    ! Copies of input fields used in inner products
+    type(field_type), dimension(3) :: physical_field3_input
+    type(field_type)               :: computational_field_input
+    integer(kind=i_def)            :: idx
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+
+    ! Inner products
+    real(kind=r_def), dimension(3) :: physical_field3_inner_prod
+    real(kind=r_def)               :: computational_field_inner_prod
+    real(kind=r_def), dimension(3) :: physical_field3_sf
+    real(kind=r_def)               :: computational_field_sf
+    real(kind=r_def)               :: inner1
+    real(kind=r_def), dimension(3) :: physical_field3_physical_field3_input_inner_prod
+    real(kind=r_def)               :: computational_field_computational_field_input_inner_prod
+    real(kind=r_def)               :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Initialise arguments
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, W3)
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, W2)
+    do idx = 1, 3
+      call physical_field3(idx)%initialise(vector_space=vector_space_w3_ptr, name='physical_field3')
+      call physical_field3_input(idx)%initialise(vector_space=vector_space_w3_ptr, name='physical_field3_input')
+      physical_field3_inner_prod(idx) = 0.0_r_def
+      physical_field3_physical_field3_input_inner_prod(idx) = 0.0_r_def
+
+      call invoke( setval_random(physical_field3(idx)), &
+                   setval_X(physical_field3_input(idx), physical_field3(idx)) )
+    end do
+    call computational_field%initialise(vector_space=vector_space_w2_ptr, name='computational_field')
+    call computational_field_input%initialise(vector_space=vector_space_w2_ptr, name='computational_field_input')
+    computational_field_inner_prod = 0.0_r_def
+    computational_field_computational_field_input_inner_prod = 0.0_r_def
+
+    ! Final initialisation and call TL kernel
+    call invoke( setval_random(computational_field), &
+                 setval_X(computational_field_input, computational_field), &
+                 convert_hdiv_field_kernel_type(physical_field3, computational_field, chi, panel_id) )
+
+    ! Get dot product <M dx, M dx>
+    write(log_scratch_space, *) "adjt_sci_convert_hdiv_field inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    inner1 = 0.0_r_def
+    do idx = 1, 3
+      call invoke( X_innerproduct_X(physical_field3_inner_prod(idx), physical_field3(idx)) )
+      write(log_scratch_space, *) "physical_field3(", idx, ") inner product = ", physical_field3_inner_prod(idx)
+      call log_event( log_scratch_space, log_level_debug )
+      physical_field3_sf(idx) = 1.0_r_def / (physical_field3_inner_prod(idx) + eps)
+      inner1 = inner1 + physical_field3_inner_prod(idx) * physical_field3_sf(idx)
+      call invoke(inc_a_times_X( physical_field3_sf(idx), physical_field3(idx) ))
+    end do
+    call invoke( X_innerproduct_X(computational_field_inner_prod, computational_field) )
+    write(log_scratch_space, *) "computational_field inner product = ", computational_field_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    computational_field_sf = 1.0_r_def / (computational_field_inner_prod + eps)
+    inner1 = inner1 + computational_field_inner_prod * computational_field_sf
+    call invoke(inc_a_times_X( computational_field_sf, computational_field ))
+
+    ! Call adjoint
+    call invoke_adj_convert_hdiv_field_kernel(physical_field3, computational_field, chi, panel_id)
+
+    ! Calculate dot product <AM dx, dx>
+    inner2 = 0.0_r_def
+    do idx = 1, 3
+      call invoke( X_innerproduct_Y(physical_field3_physical_field3_input_inner_prod(idx), &
+                                    physical_field3(idx), &
+                                    physical_field3_input(idx)) )
+      inner2 = inner2 + physical_field3_physical_field3_input_inner_prod(idx)
+    end do
+    call invoke( X_innerproduct_Y(computational_field_computational_field_input_inner_prod, &
+                                  computational_field, &
+                                  computational_field_input) )
+    inner2 = inner2 + computational_field_computational_field_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED convert_hdiv_field_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_info)
+    else
+      write(log_scratch_space, *) "FAILED convert_hdiv_field_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_error)
+    end if
+
+  end subroutine adjt_sci_convert_hdiv_field_alg
+
+end module adjt_sci_convert_hdiv_field_alg_mod

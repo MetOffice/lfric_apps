@@ -1,0 +1,289 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the vorticity rhs computation
+!>
+module vorticity_rhs_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: vorticity_rhs_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type vorticity_rhs_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_finite_element_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(vorticity_rhs_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(vorticity_rhs_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use vorticity_rhs_kernel_mod, &
+                             only: vorticity_rhs_code
+
+    use get_unit_test_m3x3_dofmap_mod,                 &
+                             only: get_w0_m3x3_dofmap, &
+                                   get_w1_m3x3_dofmap, &
+                                   get_w2_m3x3_dofmap, &
+                                   get_w3_m3x3_dofmap
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod,                &
+                             only: get_w0_m3x3_q3x3x3_size, &
+                                   get_w1_m3x3_q3x3x3_size, &
+                                   get_w2_m3x3_q3x3x3_size, &
+                                   get_w3_m3x3_q3x3x3_size
+
+    use get_unit_test_q3x3x3_basis_mod,                      &
+                             only: get_w0_q3x3x3_diff_basis, &
+                                   get_w0_q3x3x3_basis,      &
+                                   get_w1_q3x3x3_diff_basis, &
+                                   get_w2_q3x3x3_basis
+
+    use get_unit_test_q3x3x3_quadrature_mod,                                  &
+                             only: get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                   get_gaussian_q3x3x3_quadrature_weights_z
+
+    use get_unit_test_3x3x3_chi_mod, &
+                             only : get_w0_3x3x3_field
+
+    implicit none
+
+    class(vorticity_rhs_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: dx = 4.0_r_def, &
+                              dy = 3.0_r_def, &
+                              dz = 2.0_r_def
+
+    real(r_def) :: answer
+
+    integer(i_def) :: ndf_xi, undf_xi,   &
+                      ndf_u, undf_u,     &
+                      ndf_chi, undf_chi, &
+                      ndf_w3, undf_w3
+
+    real(r_def), allocatable :: u_data(:)
+    real(r_def), allocatable :: rhs_data(:)
+    real(r_def), allocatable :: basis_u(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_xi(:,:,:,:)
+    real(r_def), allocatable :: basis_chi(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_chi(:,:,:,:)
+
+    integer(i_def), allocatable :: map_chi(:,:)
+    integer(i_def), allocatable :: map_u(:,:)
+    integer(i_def), allocatable :: map_xi(:,:)
+
+    integer(i_def) :: ndf_w0, undf_w0
+    integer(i_def) :: ndf_w1, undf_w1
+    integer(i_def) :: ndf_w2, undf_w2
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: ncells, nlayers
+    integer(i_def) :: dim_space, dim_space_diff
+
+    real(r_def), allocatable :: wh(:)
+    real(r_def), allocatable :: wv(:)
+
+    real(r_def), allocatable :: chi_data(:,:)
+    real(r_def), allocatable :: panel_id(:)
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+    real(r_def), allocatable :: basis_w0(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_w0(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_w1(:,:,:,:)
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w1(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+
+    integer(i_def) :: i, j, k, cell
+
+    ! Get infrastructure support data
+    !=====================================
+    nlayers = 3
+
+    ! Get sizes
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+    call get_w1_m3x3_q3x3x3_size( ndf_w1, undf_w1, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+
+    ! Get maps
+    call get_w0_m3x3_dofmap( map_w0 )
+    call get_w1_m3x3_dofmap( map_w1 )
+    call get_w2_m3x3_dofmap( map_w2 )
+    call get_w3_m3x3_dofmap( map_w3 )
+
+    ! Get basis functions
+    call get_w2_q3x3x3_basis( basis_w2 )
+    call get_w0_q3x3x3_basis( basis_w0 )
+    call get_w0_q3x3x3_diff_basis( diff_basis_w0 )
+    call get_w1_q3x3x3_diff_basis( diff_basis_w1)
+
+    ! Get quadrature weights
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ! Compute coordinates
+    allocate(chi_data(undf_w0,3))
+    allocate(panel_id(undf_w3))
+
+    panel_id(:) = 1.0_r_def
+
+    call get_w0_3x3x3_field(chi_data(:,1), chi_data(:,2), chi_data(:,3), &
+                            dx, dy, dz, map_w0, nlayers)
+
+    !=====================================
+    ! Assign data for testing
+
+    ! Assign chi
+    ndf_chi  = ndf_w0
+    undf_chi = undf_w0
+    allocate( map_chi,        source=map_w0 )
+    allocate( basis_chi,      source=basis_w0 )
+    allocate( diff_basis_chi, source=diff_basis_w0 )
+
+    ! Assign Xi
+    ndf_xi  = ndf_w1
+    undf_xi = undf_w1
+    allocate( map_xi,        source=map_w1 )
+    allocate( diff_basis_xi, source=diff_basis_w1 )
+
+    ! Assign U
+    ndf_u  = ndf_w2
+    undf_u = undf_w2
+    allocate( map_u,   source=map_w2 )
+    allocate( basis_u, source=basis_w2 )
+
+    ! Assign data
+    allocate( u_data(undf_u) )
+    allocate( rhs_data(undf_xi) )
+
+    u_data   = 0.0_r_def
+    rhs_data = 0.0_r_def
+
+    ! Only test on cell 5
+    cell = 5
+    call vorticity_rhs_code( nlayers,          &
+                             rhs_data,         &
+                             u_data,           &
+                             chi_data(:,1),    &
+                             chi_data(:,2),    &
+                             chi_data(:,3),    &
+                             panel_id(:),      &
+                             ndf_xi,           &
+                             undf_xi,          &
+                             map_xi(:,cell),   &
+                             diff_basis_xi,    &
+                             ndf_u,            &
+                             undf_u,           &
+                             map_u(:,cell),    &
+                             basis_u,          &
+                             ndf_chi,          &
+                             undf_chi,         &
+                             map_chi(:,cell),  &
+                             basis_chi,        &
+                             diff_basis_chi,   &
+                             ndf_w3,           &
+                             undf_w3,          &
+                             map_w3,           &
+                             nqp_h,            &
+                             nqp_v,            &
+                             wh,               &
+                             wv )
+
+    ! This is only testing the vertical component of vorticity
+    answer = 0.0_r_def
+    do k = 0,1
+      @assertEqual(answer, rhs_data(map_xi(9,cell)  + (k-1) ), tol)
+      @assertEqual(answer, rhs_data(map_xi(10,cell) + (k-1) ), tol)
+      @assertEqual(answer, rhs_data(map_xi(11,cell) + (k-1) ), tol)
+      @assertEqual(answer, rhs_data(map_xi(12,cell) + (k-1) ), tol)
+    end do
+
+    deallocate( u_data )
+    deallocate( rhs_data )
+    deallocate( map_chi )
+    deallocate( map_xi )
+    deallocate( map_u )
+    deallocate( basis_u )
+    deallocate( basis_chi )
+    deallocate( diff_basis_chi )
+    deallocate( diff_basis_xi )
+
+    deallocate( chi_data )
+    deallocate( panel_id )
+    deallocate( basis_w2 )
+    deallocate( basis_w0 )
+    deallocate( diff_basis_w0 )
+    deallocate( diff_basis_w1 )
+    deallocate( map_w0 )
+    deallocate( map_w1 )
+    deallocate( map_w2 )
+    deallocate( map_w3 )
+    deallocate( wh )
+    deallocate( wv )
+
+  end subroutine test_all
+
+end module vorticity_rhs_kernel_mod_test

@@ -1,0 +1,81 @@
+<file_definition>
+
+  <!-- Main diagnostic output file for regional runs -->
+  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+    <field_group id="diags_ts_profile" operation="instant" freq_op="1h" prec="4">
+      <field field_ref="theta" />                        <!-- s00i004 -->
+      <field field_ref="m_v" />                          <!-- s00i391 -->
+      <field field_ref="m_cl" />                         <!-- s00i254 -->
+      <field field_ref="m_cf" />                         <!-- s00i396 -->
+      <field field_ref="m_r" />                          <!-- s00i394 -->
+      <field field_ref="u_in_w3" />                      <!-- s00i002 -->
+      <field field_ref="v_in_w3" />                      <!-- s00i003 -->
+      <field field_ref="exner_in_wth" />                 <!-- s00i255 -->
+      <field field_ref="divergence" />                   <!-- s00i002 -->
+      <field field_ref="aerosol__cloud_drop_no_conc" />  <!-- s04i211 -->
+      <field field_ref="cloud__combined_cloud_amount" /> <!-- s09i231 -->
+      <field field_ref="turbulence__heat_flux_bl" />     <!-- s03i216 -->
+    </field_group>
+    <field_group operation="instant" freq_op="1h" prec="4">
+      <field field_ref="cloud__cloud_amount_maxrnd" />            <!-- s09i207 -->
+      <field field_ref="cloud__ceilometer_cloud_amount_maxrnd" /> <!-- s09i233 -->
+      <field field_ref="cloud__cloud_base_altitude" />            <!-- s09i210 -->
+      <field field_ref="cloud__very_low_type_cloud_amount" />     <!-- s09i202 -->
+      <field field_ref="cloud__low_type_cloud_amount" />          <!-- s09i203 -->
+      <field field_ref="cloud__medium_type_cloud_amount" />       <!-- s09i204 -->
+      <field field_ref="cloud__high_type_cloud_amount" />         <!-- s09i205 -->
+      <field field_ref="microphysics__ls_prec" />                 <!-- s04i203 + s4i204 + s4i212 -->
+      <field field_ref="microphysics__ls_rain" />                 <!-- s04i203 -->
+      <field field_ref="microphysics__ls_snow" />                 <!-- s04i204 -->
+      <field field_ref="microphysics__ls_graup" />                <!-- s04i212 -->
+      <field field_ref="microphysics__refl_1km" />                <!-- s04i112 -->
+      <field field_ref="microphysics__refl_comp" />               <!-- s04i111 -->
+      <field field_ref="surface__tile_fraction" />                <!-- s03i317 land -->
+      <field field_ref="surface__land_fraction" />                <!-- s00i030 -->
+      <field field_ref="surface__grid_surface_temperature" />     <!-- s00i024 -->
+      <field field_ref="surface__t1p5m" />                        <!-- s03i236 -->
+      <field field_ref="surface__rh1p5m" />                       <!-- s03i245 -->
+      <field field_ref="surface__dew_point" />                    <!-- s03i250 -->
+      <field field_ref="surface__fog_fraction" />                 <!-- s03i248 -->
+      <field field_ref="surface__visibility_with_precip" />       <!-- s03i281 -->
+      <field field_ref="surface__grid_latent_heat" />             <!-- s03i234 -->
+      <field field_ref="surface__grid_sensible_heat" />           <!-- s03i217 -->
+      <field field_ref="surface__wspd10m" />                      <!-- s03i230 ?  -->
+      <field field_ref="surface__u10m" />                         <!-- s03i225 ?  -->
+      <field field_ref="surface__v10m" />                         <!-- s03i226 ?  -->
+      <field field_ref="snow__grid_snow_mass" />                  <!-- s00i023 -->
+      <field field_ref="soil__soil_moisture_content" />           <!-- s08i208 -->
+      <field field_ref="soil__soil_moisture" />                   <!-- s08i223 -->
+      <field field_ref="soil__soil_temperature" />                <!-- s08i225 -->
+      <field field_ref="turbulence__zh" />                        <!-- s00i025 -->
+      <field field_ref="turbulence__zht" />                       <!-- s03i304 -->
+      <field field_ref="turbulence__bl_type_ind" />               <!-- Maps to s03i305,s03i306,s03i307,s03i308,s03i309,s03i310,s03i340 / collapse to s03i476 -->
+      <field field_ref="radiation__sw_up_toa" />                  <!-- s01i205 -->
+      <field field_ref="radiation__sw_direct_toa" />              <!-- s01i207 -->
+      <field field_ref="radiation__sw_down_surf" />               <!-- s01i235 -->
+      <field field_ref="radiation__sw_net_surf" />                <!-- s01i202 -->
+      <field field_ref="radiation__lw_up_toa" />                  <!-- s03i332 -->
+      <field field_ref="radiation__lw_down_surf" />
+      <field field_ref="radiation__lw_net_surf" />                <!-- s02i201 -->
+      <field field_ref="radiation__skyview"/>                     <!-- s02i101 -->
+      <field field_ref="processed__tot_col_dry_air_mass" />       <!-- s30i403 -->
+      <field field_ref="processed__tot_col_wetplusdry_mass" />    <!-- s30i404 -->
+      <field field_ref="processed__tot_col_m_v" />                <!-- s30i461 -->
+      <field field_ref="processed__tot_col_m_ci" />
+      <field field_ref="processed__tot_col_m_s" />                <!-- s30i406 -->
+      <field field_ref="processed__tot_col_m_cl" />               <!-- s30i405 -->
+      <field field_ref="processed__pmsl" />                       <!-- s16i222 -->
+    </field_group>
+    <field_group id="diag_rts_fields" freq_op="1h" freq_offset="0ts" prec="4" comment="fields only valid on radiation timesteps - ENSURE NOT MODEL TIMESTEP DEPENDENT">
+      <field field_ref="radiation__sw_net_surf_rts"/>             <!-- s01i201 -->
+      <field field_ref="radiation__lw_net_surf_rts"/>             <!-- s02i201 -->
+      <field field_ref="radiation__sw_up_toa_rts"/>               <!-- s01i208 -->
+      <field field_ref="radiation__sw_up_clear_toa_rts"/>         <!-- s01i209 -->
+      <field field_ref="radiation__lw_up_toa_rts"/>               <!-- s02i205 -->
+      <field field_ref="radiation__lw_up_clear_toa_rts"/>         <!-- s02i206 -->
+      <field field_ref="radiation__orographic_correction_rts"/>   <!-- s01i295 -->
+      <field field_ref="radiation__sw_direct_orog_incr_rts"/>     <!-- s01i296 -->
+    </field_group>
+  </file>
+
+</file_definition>

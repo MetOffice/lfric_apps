@@ -1,0 +1,18 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/lfricinputs/tasks_lfricinputs_azspice.cylc") %}
+
+{% if task_dict %}
+    {% if "mpi_parts" not in task_dict %}
+        {% do task_dict.update({
+            "mpi_parts": 12,
+            "xproc": 3,
+            "yproc": 4,
+        }) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/meto/lfricinputs/tasks_lfricinputs_azspice.cylc") %}

@@ -1,0 +1,154 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing handwritten adjoint test for atl_poly_adv_update_kernel
+
+module atlt_poly_adv_update_alg_mod
+
+  use r_tran_field_mod,              only : r_tran_field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, element_order_v
+  use fs_continuity_mod,             only : W2H, Wtheta
+  use constants_mod,                 only : i_def, r_def, r_tran
+  use log_mod,                       only : log_event,       &
+                                            LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_INFO,  &
+                                            LOG_LEVEL_DEBUG, &
+                                            log_scratch_space
+
+  implicit none
+  public
+
+  contains
+  !============================================================================!
+  !> @brief Handwritten adjoint test for ayl_poly_adv_update_kernel
+  !> @param[in]   mesh    Model mesh
+  subroutine atlt_poly_adv_update_alg( mesh )
+
+    use poly_adv_update_kernel_mod,     only : poly_adv_update_kernel_type
+    use atl_poly_adv_update_kernel_mod, only : atl_poly_adv_update_kernel_type
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(r_tran_field_type) :: advective
+    type(r_tran_field_type) :: wind
+    type(r_tran_field_type) :: ls_reconstruction
+    type(r_tran_field_type) :: wind_dir
+
+    ! Copies of input fields used in inner products
+    type(r_tran_field_type) :: advective_input
+    type(r_tran_field_type) :: wind_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2h_ptr
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_wt_md_ptr
+    integer(kind=i_def), parameter :: stencil_extent = 1_i_def
+    integer(kind=i_def), parameter :: ndata = 4_i_def
+
+    ! Inner product variables
+    real(kind=r_def)             :: advective_inner_prod
+    real(kind=r_tran)            :: advective_sf
+    real(kind=r_def)             :: wind_inner_prod
+    real(kind=r_tran)            :: wind_sf
+    real(kind=r_tran)            :: inner1
+    real(kind=r_def)             :: advective_advective_input_inner_prod
+    real(kind=r_def)             :: wind_wind_input_inner_prod
+    real(kind=r_tran)            :: inner2
+    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+
+    ! Test variables
+    real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran)            :: machine_tol
+    real(kind=r_tran)            :: relative_diff
+
+    vector_space_w2h_ptr => function_space_collection%get_fs(                &
+        mesh, element_order_h, element_order_v, W2H                          &
+    )
+    vector_space_wt_md_ptr => function_space_collection%get_fs(              &
+        mesh, element_order_h, element_order_v, Wtheta, ndata                &
+    )
+    vector_space_wtheta_ptr => function_space_collection%get_fs(             &
+        mesh, element_order_h, element_order_v, Wtheta                       &
+    )
+    ! Stencil fields need bigger halos due to atl_poly being a stencil operation with GH_INC.
+    call advective%initialise( vector_space=vector_space_wtheta_ptr, name='advective' )
+    call wind%initialise( vector_space=vector_space_w2h_ptr, name='wind' )
+    call ls_reconstruction%initialise( vector_space=vector_space_wt_md_ptr, name='ls_reconstruction', &
+                                         halo_depth=stencil_extent + 1_i_def )
+    call wind_dir%initialise( vector_space=vector_space_w2h_ptr, name='wind_dir', &
+                                halo_depth=stencil_extent + 1_i_def )
+    call advective_input%initialise( vector_space=vector_space_wtheta_ptr, name='advective_input' )
+    call wind_input%initialise( vector_space=vector_space_w2h_ptr, name='wind_input' )
+
+    advective_inner_prod = 0.0_r_def
+    wind_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random( advective ), setval_x( advective_input, advective ), &
+                 setval_random( wind ), setval_x( wind_input, wind ),                &
+                 setval_random( ls_reconstruction ),                                 &
+                 setval_random( wind_dir ),                                          &
+                 poly_adv_update_kernel_type( advective,                             &
+                                              ls_reconstruction, stencil_extent,     &
+                                              wind,                                  &
+                                              wind_dir, stencil_extent ),            &
+                 x_innerproduct_x( advective_inner_prod, advective ),                &
+                 x_innerproduct_x( wind_inner_prod, wind ) )
+
+    ! Determining scale factors
+    advective_sf = 1.0_r_tran/( real( advective_inner_prod, r_tran ) + eps )
+    wind_sf = 1.0_r_tran/( real( wind_inner_prod, r_tran ) + eps )
+
+    inner1 = 0.0_r_tran
+    inner1 = inner1 + real( advective_inner_prod, r_tran )*advective_sf
+    inner1 = inner1 + real( wind_inner_prod, r_tran )*wind_sf
+    write(log_scratch_space, *) "atlt_poly_adv_update inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advective inner product = ", real( advective_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind inner product = ", real( wind_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( advective_sf, advective ), &
+                 inc_a_times_X( wind_sf, wind ) )
+
+    advective_advective_input_inner_prod = 0.0_r_def
+    wind_wind_input_inner_prod = 0.0_r_def
+
+    call invoke( atl_poly_adv_update_kernel_type( advective,                         &
+                                                  ls_reconstruction, stencil_extent, &
+                                                  wind,                              &
+                                                  wind_dir, stencil_extent ),        &
+                 x_innerproduct_y( advective_advective_input_inner_prod, &
+                                   advective,                            &
+                                   advective_input ),                    &
+                 x_innerproduct_y( wind_wind_input_inner_prod,           &
+                                   wind,                                 &
+                                   wind_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + real( advective_advective_input_inner_prod, r_tran )
+    inner2 = inner2 + real( wind_wind_input_inner_prod, r_tran )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_poly_adv_update_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write(log_scratch_space, *) "FAILED tl_poly_adv_update_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_poly_adv_update_alg
+
+end module atlt_poly_adv_update_alg_mod

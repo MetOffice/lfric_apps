@@ -1,0 +1,35 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_mesh.cylc") %}
+
+{# Generate runtime sections for mesh run tasks #}
+
+{# Set the family inheritance for this task #}
+{% set inherit = namespace(str="") %}
+{% set inherit.str = "MESH_"~task_ns.platform|upper %}
+{% for family in task_values["mesh_families"] %}
+    {% set inherit.str = inherit.str~","~family|upper %}
+{% endfor %}
+
+{% set script_str = "rose task-run --app-key=mesh --opt-conf-key="~task_ns.conf_name %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = {{script_str}}
+        execution time limit = PT{{task_values["mesh_wallclock"]}}M
+        [[[environment]]]
+            DESTINATION_DIRECTORY = {{destination_dir}}
+            BIN_DIR               = {{bin_dir}}
+            MESH_DIR              = {{mesh_dir}}/{{task_ns.conf_name}}
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
+            OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{task_ns.conf_name}}
+            TOTAL_RANKS           = {{ task_values["mesh_cpus"]|default("1",true) }}
+            FINAL_RANK            = $((TOTAL_RANKS-1))
+
+        [[[directives]]]
+{{ set_task_resources(task_values["mesh_cpus"], task_values["mesh_memory"]) }}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_mesh.cylc") %}

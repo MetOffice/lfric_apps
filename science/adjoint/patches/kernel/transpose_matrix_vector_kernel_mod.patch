@@ -1,0 +1,34 @@
+@@ -88,13 +88,15 @@
+   integer(kind=i_def)                  :: df, k, ik
+   real(kind=r_single), dimension(ndf2) :: x_e
+   real(kind=r_single), dimension(ndf1) :: lhs_e
++  real(kind=r_single), dimension(ndf1,ndf2) :: transposed_matrix
+ 
+   do k = 0, nlayers-1
+     do df = 1, ndf2
+       x_e(df) = x(map2(df)+k)
+     end do
+     ik = (cell-1)*nlayers + k + 1
+-    lhs_e = matmul(transpose(matrix(ik,:,:)),x_e)
++    transposed_matrix(:,:) = transpose(matrix(ik,:,:))
++    lhs_e = matmul(transposed_matrix,x_e)
+     do df = 1,ndf1
+        lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)
+     end do
+@@ -129,13 +131,15 @@
+   integer(kind=i_def)                  :: df, k, ik
+   real(kind=r_double), dimension(ndf2) :: x_e
+   real(kind=r_double), dimension(ndf1) :: lhs_e
++  real(kind=r_double), dimension(ndf1,ndf2) :: transposed_matrix
+ 
+   do k = 0, nlayers-1
+     do df = 1, ndf2
+       x_e(df) = x(map2(df)+k)
+     end do
+     ik = (cell-1)*nlayers + k + 1
+-    lhs_e = matmul(transpose(matrix(ik,:,:)),x_e)
++    transposed_matrix(:,:) = transpose(matrix(ik,:,:))
++    lhs_e = matmul(transposed_matrix,x_e)
+     do df = 1,ndf1
+        lhs(map1(df)+k) = lhs(map1(df)+k) + lhs_e(df)
+     end do

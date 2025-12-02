@@ -1,0 +1,292 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module watkins_kernel_mod_test
+
+  use funit
+  use constants_mod,         only : i_def, r_tran
+  use reference_element_mod, only : E, W, S, N, B
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use watkins_kernel_mod, only : watkins_code
+
+    implicit none
+
+    real(kind=r_tran),   parameter   :: tol = 1.0e-6_r_tran
+    real(kind=r_tran),   parameter   :: dt = 2.0_r_tran
+
+    integer(kind=i_def)              :: nlayers
+    integer(kind=i_def)              :: ndf_w2v, ndf_w3, ndf_w3_2d
+    integer(kind=i_def)              :: undf_w2v, undf_w3, undf_w3_2d
+    integer(kind=i_def)              :: undf_w2, ndf_w2
+    integer(kind=i_def), allocatable :: map_w2(:)
+    integer(kind=i_def), allocatable :: map_w2v(:)
+    integer(kind=i_def), allocatable :: map_w3(:)
+    integer(kind=i_def), allocatable :: map_w3_2d(:)
+    real(kind=r_tran),   allocatable :: wind(:)
+    real(kind=r_tran),   allocatable :: detj_at_w3(:)
+    real(kind=r_tran),   allocatable :: first_v_wind(:)
+    real(kind=r_tran),   allocatable :: answer(:)
+    real(kind=r_tran),   allocatable :: lipschitz_max_field(:)
+    integer(kind=i_def), allocatable :: watkins_failures(:)
+
+    ! Set integer values to describe mesh (single column)
+    nlayers = 10
+    undf_w2v = nlayers + 1
+    ndf_w2v = 2
+    undf_w3 = nlayers
+    ndf_w3 = 1
+    undf_w2 = 5*nlayers + 1
+    ndf_w2 = 6
+    undf_w3_2d = 1
+    ndf_w3_2d = 1
+
+    allocate(map_w2v(ndf_w2v))
+    allocate(map_w3(ndf_w3))
+    allocate(map_w2(ndf_w2))
+    allocate(map_w3_2d(ndf_w3_2d))
+
+    allocate(wind(undf_w2))
+    allocate(first_v_wind(undf_w2v))
+    allocate(detj_at_w3(undf_w3))
+    allocate(answer(undf_w2v))
+    allocate(watkins_failures(undf_w3_2d))
+    allocate(lipschitz_max_field(undf_w3_2d))
+
+    ! DoF maps
+    map_w3 = (/ 1 /)
+    map_w2v = (/ 1, 2 /)
+    map_w2 = (/ 1, 1 + nlayers, 1 + 2*nlayers, 1 + 3*nlayers, 1 + 4*nlayers, 2 + 4*nlayers /)
+    map_w3_2d = (/ 1 /)
+
+    detj_at_w3(:) = 1000.0_r_tran
+    watkins_failures = 0_i_def
+
+    ! ------------------------------------------------------------------------ !
+    ! TEST INVOLVING UPDATING WIND BELOW CELL
+    ! ------------------------------------------------------------------------ !
+
+    first_v_wind(:) = 0.0_r_tran
+
+    ! Set horizontal winds -----------------------------------------------------
+    ! Get mix of x, y and horizontal Lipschitz numbers being the max
+    ! Layer 1: E-W
+    wind(map_w2(E)) = -69.4192496_r_tran
+    wind(map_w2(W)) = 69.4192496_r_tran
+    wind(map_w2(N)) = 0.0_r_tran
+    wind(map_w2(S)) = 0.0_r_tran
+    ! Layer 2: N-S
+    wind(map_w2(E)+1) = 0.0_r_tran
+    wind(map_w2(W)+1) = 0.0_r_tran
+    wind(map_w2(N)+1) = -46.8732933_r_tran
+    wind(map_w2(S)+1) = 46.8732933_r_tran
+    ! Layer 3: horizontal
+    wind(map_w2(E)+2) = -254.28628879_r_tran
+    wind(map_w2(W)+2) = 254.28628879_r_tran
+    wind(map_w2(N)+2) = 254.28628879_r_tran
+    wind(map_w2(S)+2) = -254.28628879_r_tran
+    ! Layer 4: E-W
+    wind(map_w2(E)+3) = -92.45801287_r_tran
+    wind(map_w2(W)+3) = 92.45801287_r_tran
+    wind(map_w2(N)+3) = 0.0_r_tran
+    wind(map_w2(S)+3) = 0.0_r_tran
+    ! Layer 5: N-S
+    wind(map_w2(E)+4) = 0.0_r_tran
+    wind(map_w2(W)+4) = 0.0_r_tran
+    wind(map_w2(N)+4) = -495.30724635_r_tran
+    wind(map_w2(S)+4) = 495.30724635_r_tran
+    ! Layer 6: horizontal
+    wind(map_w2(E)+5) = -166.08132193_r_tran
+    wind(map_w2(W)+5) = 166.08132193_r_tran
+    wind(map_w2(N)+5) = 166.08132193_r_tran
+    wind(map_w2(S)+5) = -166.08132193_r_tran
+    ! Layer 7: E-W
+    wind(map_w2(E)+6) = 400.53194438_r_tran
+    wind(map_w2(W)+6) = -400.53194438_r_tran
+    wind(map_w2(N)+6) = 0.0_r_tran
+    wind(map_w2(S)+6) = 0.0_r_tran
+    ! Layer 8: N-S
+    wind(map_w2(E)+7) = 0.0_r_tran
+    wind(map_w2(W)+7) = 0.0_r_tran
+    wind(map_w2(N)+7) = -154.47087759_r_tran
+    wind(map_w2(S)+7) = 154.47087759_r_tran
+    ! Layer 9: horizontal
+    wind(map_w2(E)+8) = 43.46195779_r_tran
+    wind(map_w2(W)+8) = -43.46195779_r_tran
+    wind(map_w2(N)+8) = -43.46195779_r_tran
+    wind(map_w2(S)+8) = 43.46195779_r_tran
+    ! Layer 10: horizontal
+    wind(map_w2(E)+9) = 118.63548969_r_tran
+    wind(map_w2(W)+9) = -118.63548969_r_tran
+    wind(map_w2(N)+9) = -118.63548969_r_tran
+    wind(map_w2(S)+9) = 118.63548969_r_tran
+
+    ! Set vertical winds -------------------------------------------------------
+    wind(map_w2(B)) = 0.0_r_tran
+    wind(map_w2(B)+1) = 200.07860418_r_tran
+    wind(map_w2(B)+2) = 489.36899205_r_tran
+    wind(map_w2(B)+3) = 1120.4465996_r_tran
+    wind(map_w2(B)+4) = 933.77899507_r_tran
+    wind(map_w2(B)+5) = -488.63893994_r_tran
+    wind(map_w2(B)+6) = 475.04420876_r_tran
+    wind(map_w2(B)+7) = -75.67860415_r_tran
+    wind(map_w2(B)+8) = -51.6094259_r_tran
+    wind(map_w2(B)+9) = 205.29925097_r_tran
+    wind(map_w2(B)+10) = 0.0_r_tran
+
+    ! Answers determined from offline code
+    answer = (/ 0.0_r_tran, 100.03930209_r_tran, 244.68449603_r_tran,          &
+              560.2232998_r_tran, 466.88949754_r_tran, -143.1014454_r_tran,    &
+              306.8985546_r_tran, -44.16533416_r_tran, -25.80471295_r_tran,    &
+              102.64962548_r_tran, 0.0_r_tran /)
+
+    call watkins_code( nlayers,             &
+                       first_v_wind,        &
+                       lipschitz_max_field, &
+                       watkins_failures,    &
+                       wind,                &
+                       dt,                  &
+                       detj_at_w3,          &
+                       ndf_w2v,             &
+                       undf_w2v,            &
+                       map_w2v,             &
+                       ndf_w3_2d,           &
+                       undf_w3_2d,          &
+                       map_w3_2d,           &
+                       ndf_w2,              &
+                       undf_w2,             &
+                       map_w2,              &
+                       ndf_w3,              &
+                       undf_w3,             &
+                       map_w3 )
+
+    ! Check values!
+    @assertEqual( first_v_wind, answer, tol )
+
+    ! ------------------------------------------------------------------------ !
+    ! TEST INVOLVING UPDATING WIND ABOVE CELL
+    ! ------------------------------------------------------------------------ !
+
+    first_v_wind(:) = 0.0_r_tran
+
+    ! Set horizontal winds -----------------------------------------------------
+    ! Get mix of x, y and horizontal Lipschitz numbers being the max
+    ! Layer 1: E-W
+    wind(map_w2(E)) = -35.98465624_r_tran
+    wind(map_w2(W)) = 35.98465624_r_tran
+    wind(map_w2(N)) = 0.0_r_tran
+    wind(map_w2(S)) = 0.0_r_tran
+    ! Layer 2: N-S
+    wind(map_w2(E)+1) = 0.0_r_tran
+    wind(map_w2(W)+1) = 0.0_r_tran
+    wind(map_w2(N)+1) = 119.60577733_r_tran
+    wind(map_w2(S)+1) = -119.60577733_r_tran
+    ! Layer 3: horizontal
+    wind(map_w2(E)+2) = 4.99080788_r_tran
+    wind(map_w2(W)+2) = -4.99080788_r_tran
+    wind(map_w2(N)+2) = -4.99080788_r_tran
+    wind(map_w2(S)+2) = 4.99080788_r_tran
+    ! Layer 4: E-W
+    wind(map_w2(E)+3) = -534.61557162_r_tran
+    wind(map_w2(W)+3) = 534.61557162_r_tran
+    wind(map_w2(N)+3) = 0.0_r_tran
+    wind(map_w2(S)+3) = 0.0_r_tran
+    ! Layer 5: N-S
+    wind(map_w2(E)+4) = 0.0_r_tran
+    wind(map_w2(W)+4) = 0.0_r_tran
+    wind(map_w2(N)+4) = -446.22381012_r_tran
+    wind(map_w2(S)+4) = 446.22381012_r_tran
+    ! Layer 6: horizontal
+    wind(map_w2(E)+5) = -13.93828756_r_tran
+    wind(map_w2(W)+5) = 13.93828756_r_tran
+    wind(map_w2(N)+5) = 13.93828756_r_tran
+    wind(map_w2(S)+5) = -13.93828756_r_tran
+    ! Layer 7: E-W
+    wind(map_w2(E)+6) = -336.84397142_r_tran
+    wind(map_w2(W)+6) = 336.84397142_r_tran
+    wind(map_w2(N)+6) = 0.0_r_tran
+    wind(map_w2(S)+6) = 0.0_r_tran
+    ! Layer 8: N-S
+    wind(map_w2(E)+7) = 0.0_r_tran
+    wind(map_w2(W)+7) = 0.0_r_tran
+    wind(map_w2(N)+7) = -876.66780849_r_tran
+    wind(map_w2(S)+7) = 876.66780849_r_tran
+    ! Layer 9: horizontal
+    wind(map_w2(E)+8) = 24.56397792_r_tran
+    wind(map_w2(W)+8) = -24.56397792_r_tran
+    wind(map_w2(N)+8) = -24.56397792_r_tran
+    wind(map_w2(S)+8) = 24.56397792_r_tran
+    ! Layer 10: horizontal
+    wind(map_w2(E)+9) = -174.24147684_r_tran
+    wind(map_w2(W)+9) = 174.24147684_r_tran
+    wind(map_w2(N)+9) = 174.24147684_r_tran
+    wind(map_w2(S)+9) = -174.24147684_r_tran
+
+    ! Set vertical winds -------------------------------------------------------
+    wind(map_w2(B)) = 0.0_r_tran
+    wind(map_w2(B)+1) = 178.18319859_r_tran
+    wind(map_w2(B)+2) = 353.2865841_r_tran
+    wind(map_w2(B)+3) = 5.25001036_r_tran
+    wind(map_w2(B)+4) = 892.93524695_r_tran
+    wind(map_w2(B)+5) = 63.45604635_r_tran
+    wind(map_w2(B)+6) = 200.99468172_r_tran
+    wind(map_w2(B)+7) = 941.57534853_r_tran
+    wind(map_w2(B)+8) = -673.87953057_r_tran
+    wind(map_w2(B)+9) = -635.24249924_r_tran
+    wind(map_w2(B)+10) = 0.0_r_tran
+
+    ! Answers determined from offline code
+    answer = (/ 0.0_r_tran, 89.09159929_r_tran, 176.64329205_r_tran,           &
+              2.62500518_r_tran, 452.62500518_r_tran, 10.17738495_r_tran,      &
+              100.49734086_r_tran, 550.49734086_r_tran, -752.83827611_r_tran,  &
+              -401.09418778_r_tran, 0.0_r_tran /)
+
+    call watkins_code( nlayers,             &
+                       first_v_wind,        &
+                       lipschitz_max_field, &
+                       watkins_failures,    &
+                       wind,                &
+                       dt,                  &
+                       detj_at_w3,          &
+                       ndf_w2v,             &
+                       undf_w2v,            &
+                       map_w2v,             &
+                       ndf_w3_2d,           &
+                       undf_w3_2d,          &
+                       map_w3_2d,           &
+                       ndf_w2,              &
+                       undf_w2,             &
+                       map_w2,              &
+                       ndf_w3,              &
+                       undf_w3,             &
+                       map_w3 )
+
+    ! Check values!
+    @assertEqual( first_v_wind, answer, tol )
+
+    deallocate(map_w2)
+    deallocate(map_w2v)
+    deallocate(map_w3)
+    deallocate(first_v_wind)
+    deallocate(detj_at_w3)
+    deallocate(wind)
+    deallocate(answer)
+    deallocate(watkins_failures)
+    deallocate(lipschitz_max_field)
+
+  end subroutine test_all
+
+end module watkins_kernel_mod_test

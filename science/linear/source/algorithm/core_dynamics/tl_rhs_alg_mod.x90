@@ -1,0 +1,297 @@
+
+
+!> @brief Wrapper algorithm to compute the rhs of the prognostic
+!>        equations
+module tl_rhs_alg_mod
+
+  use constants_mod,                       only: r_def, i_def, l_def
+  use model_clock_mod,                     only: model_clock_type
+  use log_mod,                             only: log_event, &
+                                                 LOG_LEVEL_ERROR
+  use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+  use sci_geometric_constants_mod,         only: get_coordinates,    &
+                                                 get_panel_id
+  use sci_fem_constants_mod,               only: get_mass_matrix_fe,    &
+                                                 get_inverse_mass_matrix_fe
+  use dycore_constants_mod,                only: get_coriolis,       &
+                                                 get_w2_mass_matrix, &
+                                                 w2_damping_layer_matrix
+  use field_mod,                           only: field_type
+  use finite_element_config_mod,           only: element_order_h, &
+                                                 element_order_v, &
+                                                 vorticity_in_w1
+  use formulation_config_mod,              only: rotating,             &
+                                                 si_momentum_equation, &
+                                                 vector_invariant,     &
+                                                 eos_method,           &
+                                                 eos_method_sampled,   &
+                                                 eos_method_projected
+  use planet_config_mod,                   only: cp, kappa, rd, p_zero
+  use tl_kinetic_energy_gradient_kernel_mod, &
+                                           only: tl_kinetic_energy_gradient_kernel_type
+  use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
+  use dg_inc_matrix_vector_kernel_mod,     only: dg_inc_matrix_vector_kernel_type
+  use operator_mod,                        only: operator_type
+  use tl_hydrostatic_kernel_mod,           only: tl_hydrostatic_kernel_type
+  use tl_pressure_gradient_bd_kernel_mod,  only: tl_pressure_gradient_bd_kernel_type
+  use quadrature_xyoz_mod,                 only: quadrature_xyoz_type
+  use quadrature_face_mod,                 only: quadrature_face_type
+  use quadrature_rule_gaussian_mod,        only: quadrature_rule_gaussian_type
+  use derived_config_mod,                  only: bundle_size
+  use field_indices_mod,                   only: igh_u, igh_t, igh_d, igh_p
+  use io_config_mod,                       only: subroutine_timers
+  use timer_mod,                           only: timer
+  use tl_rhs_project_eos_kernel_mod,       only: tl_rhs_project_eos_kernel_type
+  use tl_rhs_sample_eos_kernel_mod,        only: tl_rhs_sample_eos_kernel_type
+  use moist_dyn_mod,                       only: num_moist_factors, gas_law
+  use dg_matrix_vector_kernel_mod,         only: dg_matrix_vector_kernel_type
+  use reference_element_mod,               only: reference_element_type
+  use mesh_mod,                            only: mesh_type
+  use tl_vorticity_advection_kernel_mod,   only: tl_vorticity_advection_kernel_type
+  use compute_vorticity_alg_mod,           only: compute_vorticity_alg
+  use fs_continuity_mod,                   only: W1, W2, W3, Wtheta
+  use function_space_collection_mod,       only: function_space_collection
+
+  implicit none
+
+  private
+  public :: tl_rhs_alg
+
+contains
+
+  !>@details A wrapper algorithm for computing the rhs of the prognostic
+  !>         equations. If computing the lhs of the semi-implicit equations
+  !>         a correction to the theta and rho advection terms is also computed
+  !>         (d_adv terms) namely:
+  !>         \f[
+  !>            \mathbf{R_u} = \mathbf{u}
+  !>                         + \alpha\Delta t\left[ 2\Omega \times \mathbf{u}
+  !>                         + \nabla\left(\Phi + 1/2\mathbf{u}.\mathbf{u}\right)
+  !>                         + Cp\theta\nabla\Pi \right]
+  !>         \f]
+  !>         \f[ R_\rho = \rho + d_{adv}\alpha\Delta t \nabla.\left(\rho\mathbf{u}\right) \f]
+  !>         \f[ R_\theta = \theta + d_{adv}\alpha\Delta t\mathbf{u}.\nabla\theta \f]
+  !>         This can be given either timelevel n or n+1 fields to compute
+  !>         the appropriate part of the full right hand side
+  !> @param[in,out] rhs The state vector to compute
+  !> @param[in]     alpha_dt The offcentering parameter times the timestep
+  !> @param[in]     base_state The model prognostic state to which increments are added
+  !> @param[in]     state The current model prognostic state
+  !> @param[in]     moist_dyn Factors relating to moist dynamics
+  !> @param[in]     compute_eos Flag to control computation of the equation of
+  !!                state
+  !> @param[in]     dlayer_rhs Use damping layer in rhs yes/no
+  !> @param[in]     model_clock Time in the model
+subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
+                      ls_state, ls_moist_dyn, compute_eos,                &
+                      dlayer_rhs, model_clock)
+
+    implicit none
+
+    real(kind=r_def),             intent(in)    :: alpha_dt
+    logical(kind=l_def),          intent(in)    :: dlayer_rhs
+
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type), target,     intent(in)    :: base_state(bundle_size)
+    type(field_type), target,     intent(in)    :: state(bundle_size)
+    type(field_type),             intent(in)    :: moist_dyn(num_moist_factors)
+    type(field_type), target,     intent(in)    :: ls_state(bundle_size)
+    type(field_type),             intent(in)    :: ls_moist_dyn(num_moist_factors)
+    type(field_type),             intent(inout) :: rhs(bundle_size)
+    logical(kind=l_def),          intent(in)    :: compute_eos
+    class(model_clock_type),      intent(in)    :: model_clock
+
+    type(operator_type), pointer :: mm_vel     => null(), &
+                                    mm_wtheta  => null(), &
+                                    mm_w3_inv  => null(), &
+                                    coriolis   => null()
+    type(field_type), pointer :: chi(:)        => null(), &
+                                 panel_id      => null(), &
+                                 u             => null(), &
+                                 theta         => null(), &
+                                 rho           => null(), &
+                                 u_base        => null(), &
+                                 theta_base    => null(), &
+                                 rho_base      => null(), &
+                                 exner         => null(), &
+                                 ls_u          => null(), &
+                                 ls_theta      => null(), &
+                                 ls_rho        => null(), &
+                                 ls_exner      => null()
+
+
+    type(field_type)                       :: rhs_tmp, rhs_eos
+    type(field_type)                       :: vorticity, ls_vorticity
+    type(quadrature_xyoz_type)             :: qr, qr_exact
+    type(quadrature_face_type)             :: qrf
+    type(quadrature_rule_gaussian_type)    :: gaussian_quadrature
+    class(reference_element_type), pointer :: reference_element => null()
+    type (mesh_type),              pointer :: mesh => null()
+    integer(kind=i_def)                    :: vorticity_fs
+    type(field_type)                       :: rhs_adv, &
+                                              exner_big_halo, &
+                                              ls_exner_big_halo
+
+    integer(kind=i_def), parameter :: exner_stencil_depth = 1
+
+    if ( subroutine_timers ) call timer('rhs_alg')
+
+    mesh => base_state(igh_u)%get_mesh()
+
+    mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh%get_id())
+    chi          => get_coordinates(mesh%get_id())
+    panel_id     => get_panel_id(mesh%get_id())
+    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+
+    ! Using modified velocity mass matrix if using damping layer
+    if (dlayer_rhs) then
+      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh%get_id(), model_clock)
+    else
+      mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+    end if
+
+    u     => state(igh_u)
+    theta => state(igh_t)
+    rho   => state(igh_d)
+    exner => state(igh_p)
+
+    u_base     => base_state(igh_u)
+    theta_base => base_state(igh_t)
+    rho_base   => base_state(igh_d)
+
+    ls_u     => ls_state(igh_u)
+    ls_theta => ls_state(igh_t)
+    ls_rho   => ls_state(igh_d)
+    ls_exner => ls_state(igh_p)
+
+    if ( vorticity_in_w1 ) then
+      vorticity_fs = W1
+    else
+      vorticity_fs = W2
+    end if
+
+    call vorticity%initialise( vector_space =                                &
+                    function_space_collection%get_fs(mesh, element_order_h,  &
+                                                     element_order_v,        &
+                                                      vorticity_fs) )
+    call ls_vorticity%initialise( vector_space =                             &
+                    function_space_collection%get_fs(mesh, element_order_h,  &
+                                                     element_order_v,        &
+                                                     vorticity_fs) )
+    call compute_vorticity_alg(ls_vorticity, ls_u, .false.)
+
+    call rhs_tmp%initialise( vector_space=rhs(igh_u)%get_function_space() )
+    call rhs_eos%initialise( vector_space=rhs(igh_p)%get_function_space() )
+    qr       = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
+                                    element_order_v+2, gaussian_quadrature)
+    qr_exact = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
+                                    element_order_v+3, gaussian_quadrature)
+    mesh              => theta%get_mesh()
+    reference_element => mesh%get_reference_element()
+    qrf = quadrature_face_type(element_order_h+2, element_order_v+2, &
+                               .true., .false., reference_element,   &
+                               gaussian_quadrature)
+
+    ! Initialise RHS u and theta fields
+    call invoke( name = "initialise_rhs_u_and_theta_fields", &
+                 setval_c( rhs_tmp,    0.0_r_def ),          &
+                 setval_c( rhs(igh_u), 0.0_r_def ),          &
+                 setval_c( rhs(igh_t), 0.0_r_def ) )
+
+
+    ! Compute rhs_u
+    call exner_big_halo%initialise( exner%get_function_space(), &
+                                    halo_depth = 2 )
+    call ls_exner_big_halo%initialise( ls_exner%get_function_space(), &
+                                       halo_depth = 2 )
+    call invoke( name = "compute_rhs_u_setup",                                &
+                 setval_X( exner_big_halo, exner ),                           &
+                 setval_X( ls_exner_big_halo, ls_exner ),                     &
+                 tl_pressure_gradient_bd_kernel_type( rhs_tmp,                &
+                                                      exner_big_halo,         &
+                                                      exner_stencil_depth,    &
+                                                      theta, moist_dyn,       &
+                                                      ls_exner_big_halo,      &
+                                                      exner_stencil_depth,    &
+                                                      ls_theta, ls_moist_dyn, &
+                                                      cp, qrf ),              &
+                 tl_hydrostatic_kernel_type( rhs_tmp, exner, theta, moist_dyn,  &
+                                             ls_exner, ls_theta, ls_moist_dyn,  &
+                                             cp, qr ),                          &
+                 matrix_vector_kernel_type( rhs(igh_u), u_base, mm_vel ) )
+
+    if ( si_momentum_equation ) then
+      ! Treat the momentum advection terms with the semi-implicit scheme
+      if ( vector_invariant ) then
+        ! Compute grad(K) + curl(u) x u
+        call invoke( tl_kinetic_energy_gradient_kernel_type( rhs_tmp, u, ls_u,  &
+                                                             chi, panel_id, qr ) )
+        ! Compute the vorticity
+        call compute_vorticity_alg(vorticity, u, .false.)
+        if ( vorticity_in_w1 ) then
+          call invoke( tl_vorticity_advection_kernel_type( rhs_tmp, u, vorticity,  &
+                                                           ls_u, ls_vorticity,     &
+                                                           chi, panel_id, qr_exact) )
+        else
+          call log_event( "TL for w2 vorticity_advection not available", &
+                          LOG_LEVEL_ERROR )
+        end if
+
+      else
+        call rhs_adv%initialise( u%get_function_space() )
+        call invoke( setval_c( rhs_adv, 0.0_r_def ) )
+        call log_event('SI advective form not supported', LOG_LEVEL_ERROR)
+        call invoke( inc_X_plus_Y( rhs_tmp, rhs_adv ) )
+      end if
+    end if
+
+    if ( rotating ) then
+      coriolis => get_coriolis(mesh%get_id())
+      call invoke( matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )
+    end if
+
+    call invoke( name = "compute_rhs_u_evaluation",                 &
+                 inc_X_plus_bY( rhs(igh_u), alpha_dt, rhs_tmp ),    &
+                 enforce_bc_kernel_type(rhs(igh_u)) )
+
+    call invoke( name = "compute_rhs_theta_and_rhs_rho",                    &
+    ! Compute rhs_theta
+                 dg_inc_matrix_vector_kernel_type( rhs(igh_t), theta_base, mm_wtheta ), &
+    ! Compute rhs_rho
+                 setval_X( rhs(igh_d), rho_base ) )
+    if ( compute_eos ) then
+      select case (eos_method)
+        case(eos_method_sampled)
+          call invoke( name = "sample_rhs_eos",                                    &
+                       tl_rhs_sample_eos_kernel_type(rhs_eos, exner, rho, theta,   &
+                                                     moist_dyn(gas_law), ls_exner, &
+                                                     ls_rho, ls_theta,             &
+                                                     ls_moist_dyn(gas_law),        &
+                                                     kappa, rd, p_zero),           &
+                       setval_X(rhs(igh_p), rhs_eos) )
+        case(eos_method_projected)
+          call invoke( name = "project_rhs_eos",                                             &
+                       tl_rhs_project_eos_kernel_type(rhs_eos, exner, rho, theta,            &
+                                                      moist_dyn(gas_law), ls_exner, ls_rho,  &
+                                                      ls_theta, ls_moist_dyn(gas_law),       &
+                                                      chi, panel_id,                         &
+                                                      kappa, rd, p_zero, qr_exact),          &
+                       dg_matrix_vector_kernel_type( rhs(igh_p), rhs_eos, mm_w3_inv ))
+        case default
+          call log_event( "Gungho: Unrecognised method to rhs_eos", LOG_LEVEL_ERROR )
+      end select
+    else
+      call invoke( setval_c(rhs(igh_p), 0.0_r_def) )
+    end if
+
+    nullify( mm_vel, mm_wtheta, mm_w3_inv,       &
+             chi, panel_id,                      &
+             u, theta, rho, exner,               &
+             mesh, reference_element )
+
+
+    if ( subroutine_timers ) call timer('rhs_alg')
+
+  end subroutine tl_rhs_alg
+
+end module tl_rhs_alg_mod

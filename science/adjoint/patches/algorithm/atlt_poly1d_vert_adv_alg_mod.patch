@@ -1,0 +1,135 @@
+@@ -9,12 +9,12 @@
+     use mesh_mod, only : mesh_type
+     use function_space_collection_mod, only : function_space_collection
+     use tl_poly1d_vert_adv_kernel_mod, only : tl_poly1d_vert_adv_kernel_type
+-    use adj_poly1d_vert_adv_kernel_mod, only : adj_poly1d_vert_adv_kernel_type
++    use atl_poly1d_vert_adv_kernel_mod, only : atl_poly1d_vert_adv_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : w2v, w3, wtheta
+     use constants_mod, only : i_def, l_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -31,31 +31,23 @@
+     integer(kind=i_def) :: ndata
+     integer(kind=i_def) :: global_order
+     logical(kind=l_def) :: logspace
+-    integer(kind=i_def) :: ndata_input
+-    integer(kind=i_def) :: global_order_input
+-    logical(kind=l_def) :: logspace_input
+     type(field_type) :: advective_input
+     type(field_type) :: wind_input
+     type(field_type) :: tracer_input
+-    type(field_type) :: ls_wind_input
+-    type(field_type) :: ls_tracer_input
+-    type(field_type) :: coeff_input
+     real(kind=r_def) :: advective_inner_prod
+     real(kind=r_def) :: wind_inner_prod
+     real(kind=r_def) :: tracer_inner_prod
+-    real(kind=r_def) :: ls_wind_inner_prod
+-    real(kind=r_def) :: ls_tracer_inner_prod
+-    real(kind=r_def) :: coeff_inner_prod
++    real(kind=r_def) :: advective_sf
++    real(kind=r_def) :: wind_sf
++    real(kind=r_def) :: tracer_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: advective_advective_input_inner_prod
+     real(kind=r_def) :: wind_wind_input_inner_prod
+     real(kind=r_def) :: tracer_tracer_input_inner_prod
+-    real(kind=r_def) :: ls_wind_ls_wind_input_inner_prod
+-    real(kind=r_def) :: ls_tracer_ls_tracer_input_inner_prod
+-    real(kind=r_def) :: coeff_coeff_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w2v_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2v)
+     vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+@@ -69,61 +61,47 @@
+     call advective_input%initialise(vector_space=vector_space_wtheta_ptr, name='advective_input')
+     call wind_input%initialise(vector_space=vector_space_w2v_ptr, name='wind_input')
+     call tracer_input%initialise(vector_space=vector_space_wtheta_ptr, name='tracer_input')
+-    call ls_wind_input%initialise(vector_space=vector_space_w2v_ptr, name='ls_wind_input')
+-    call ls_tracer_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_tracer_input')
+-    call coeff_input%initialise(vector_space=vector_space_w3_ptr, name='coeff_input')
+-    ndata = 1_i_def
+-    ndata_input = ndata
++    ndata = 0_i_def
+     global_order = 1_i_def
+-    global_order_input = global_order
+     logspace = .false._l_def
+-    logspace_input = logspace
+     advective_inner_prod = 0.0_r_def
+     wind_inner_prod = 0.0_r_def
+     tracer_inner_prod = 0.0_r_def
+-    ls_wind_inner_prod = 0.0_r_def
+-    ls_tracer_inner_prod = 0.0_r_def
+-    coeff_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(advective), setval_x(advective_input, advective), setval_random(wind), setval_x(wind_input, wind), &
+-&setval_random(tracer), setval_x(tracer_input, tracer), setval_random(ls_wind), setval_x(ls_wind_input, ls_wind), &
+-&setval_random(ls_tracer), setval_x(ls_tracer_input, ls_tracer), setval_random(coeff), setval_x(coeff_input, coeff), &
++&setval_random(tracer), setval_x(tracer_input, tracer), setval_random(ls_wind), setval_random(ls_tracer), setval_random(coeff), &
+ &tl_poly1d_vert_adv_kernel_type(advective, wind, tracer, ls_wind, ls_tracer, coeff, ndata, global_order, logspace), &
+ &x_innerproduct_x(advective_inner_prod, advective), x_innerproduct_x(wind_inner_prod, wind), x_innerproduct_x(tracer_inner_prod, &
+-&tracer), x_innerproduct_x(ls_wind_inner_prod, ls_wind), x_innerproduct_x(ls_tracer_inner_prod, ls_tracer), &
+-&x_innerproduct_x(coeff_inner_prod, coeff))
++&tracer))
++    write( log_scratch_space, * ) "atlt_poly1d_vert_adv inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "advective inner product = ", advective_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "wind inner product = ", wind_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "tracer inner product = ", tracer_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    advective_sf = 1.0_r_def / (advective_inner_prod + eps)
++    wind_sf = 1.0_r_def / (wind_inner_prod + eps)
++    tracer_sf = 1.0_r_def / (tracer_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + ndata * ndata
+-    inner1 = inner1 + global_order * global_order
+-    inner1 = inner1 + advective_inner_prod
+-    inner1 = inner1 + wind_inner_prod
+-    inner1 = inner1 + tracer_inner_prod
+-    inner1 = inner1 + ls_wind_inner_prod
+-    inner1 = inner1 + ls_tracer_inner_prod
+-    inner1 = inner1 + coeff_inner_prod
++    inner1 = inner1 + advective_inner_prod * advective_sf
++    inner1 = inner1 + wind_inner_prod * wind_sf
++    inner1 = inner1 + tracer_inner_prod * tracer_sf
++    call invoke( inc_a_times_X( advective_sf, advective ), &
++                 inc_a_times_X( wind_sf, wind ),           &
++                 inc_a_times_X( tracer_sf, tracer ) )
+     advective_advective_input_inner_prod = 0.0_r_def
+     wind_wind_input_inner_prod = 0.0_r_def
+     tracer_tracer_input_inner_prod = 0.0_r_def
+-    ls_wind_ls_wind_input_inner_prod = 0.0_r_def
+-    ls_tracer_ls_tracer_input_inner_prod = 0.0_r_def
+-    coeff_coeff_input_inner_prod = 0.0_r_def
+-    call invoke(adj_poly1d_vert_adv_kernel_type(advective, wind, tracer, ls_wind, ls_tracer, coeff, ndata, global_order, &
++    call invoke(atl_poly1d_vert_adv_kernel_type(advective, wind, tracer, ls_wind, ls_tracer, coeff, ndata, global_order, &
+ &logspace), x_innerproduct_y(advective_advective_input_inner_prod, advective, advective_input), &
+ &x_innerproduct_y(wind_wind_input_inner_prod, wind, wind_input), x_innerproduct_y(tracer_tracer_input_inner_prod, tracer, &
+-&tracer_input), x_innerproduct_y(ls_wind_ls_wind_input_inner_prod, ls_wind, ls_wind_input), &
+-&x_innerproduct_y(ls_tracer_ls_tracer_input_inner_prod, ls_tracer, ls_tracer_input), &
+-&x_innerproduct_y(coeff_coeff_input_inner_prod, coeff, coeff_input))
++&tracer_input))
+     inner2 = 0.0_r_def
+-    inner2 = inner2 + ndata * ndata_input
+-    inner2 = inner2 + global_order * global_order_input
+     inner2 = inner2 + advective_advective_input_inner_prod
+     inner2 = inner2 + wind_wind_input_inner_prod
+     inner2 = inner2 + tracer_tracer_input_inner_prod
+-    inner2 = inner2 + ls_wind_ls_wind_input_inner_prod
+-    inner2 = inner2 + ls_tracer_ls_tracer_input_inner_prod
+-    inner2 = inner2 + coeff_coeff_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

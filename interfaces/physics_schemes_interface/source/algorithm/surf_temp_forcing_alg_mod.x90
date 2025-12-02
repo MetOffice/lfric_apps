@@ -1,0 +1,88 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+! @brief Apply prescribed forcing to the surface temperature.
+
+module surf_temp_forcing_alg_mod
+
+use field_mod,                     only: field_type
+use field_collection_mod,          only: field_collection_type
+use io_config_mod,                 only: subroutine_timers
+use log_mod,                       only: log_event, &
+                                         LOG_LEVEL_DEBUG, &
+                                         LOG_LEVEL_WARNING, &
+                                         LOG_LEVEL_ERROR
+use timer_mod,                     only: timer
+use specified_surface_config_mod,  only: surf_temp_forcing, &
+                                         surf_temp_forcing_none, &
+                                         surf_temp_forcing_int_flux
+use internal_flux_kernel_mod,      only: internal_flux_kernel_type
+use jules_control_init_mod,        only: n_surf_tile
+use radiation_config_mod,          only: planet_emissivity
+
+implicit none
+private
+
+!------------------------------------------------------------------------------
+! Contained functions/subroutines
+!------------------------------------------------------------------------------
+public :: surf_temp_forcing_alg
+
+contains
+
+  !> @param[in]     radiation_fields   Fields for radiation scheme
+  !> @param[in,out] surface_fields     Fields for surface scheme
+  subroutine surf_temp_forcing_alg(radiation_fields, surface_fields)
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: radiation_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+
+    ! Fields unpacked from radiation and surface collections
+    type( field_type ), pointer :: lw_down_surf
+    type( field_type ), pointer :: sw_down_surf
+    type( field_type ), pointer :: sw_up_tile
+    type( field_type ), pointer :: internal_flux
+    type( field_type ), pointer :: tile_temperature
+
+    if ( subroutine_timers ) call timer('surf_temp_forcing_alg')
+
+      if (surf_temp_forcing /= surf_temp_forcing_none) then
+
+        select case(surf_temp_forcing)
+
+          case(surf_temp_forcing_int_flux)
+            call log_event( 'slow_physics: Running internal heat flux forcing',&
+                            LOG_LEVEL_DEBUG )
+
+            call radiation_fields%get_field('lw_down_surf', &
+                                            lw_down_surf)
+            call radiation_fields%get_field('sw_down_surf', &
+                                            sw_down_surf)
+            call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+
+            call surface_fields%get_field('internal_flux', internal_flux)
+            call surface_fields%get_field('tile_temperature', tile_temperature)
+
+            call invoke( internal_flux_kernel_type( tile_temperature, &
+                                                    lw_down_surf,     &
+                                                    sw_down_surf,     &
+                                                    sw_up_tile,       &
+                                                    internal_flux,    &
+                                                    n_surf_tile,      &
+                                                    planet_emissivity ) )
+          case default
+
+            call log_event( 'slow_physics: Incorrect surf_temp_forcing', &
+                            LOG_LEVEL_ERROR )
+
+        end select
+      end if
+
+    if ( subroutine_timers ) call timer('surf_temp_forcing_alg')
+
+  end subroutine surf_temp_forcing_alg
+end module surf_temp_forcing_alg_mod

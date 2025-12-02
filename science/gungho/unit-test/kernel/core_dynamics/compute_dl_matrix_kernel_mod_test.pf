@@ -1,0 +1,259 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the 'vertical W2' mass matrix used in the damping layer term
+!>
+module compute_dl_matrix_kernel_mod_test
+
+  use constants_mod,            only : i_def, r_def, r_second
+  use damping_layer_config_mod, only : dl_base, dl_str, dl_type, dl_type_standard
+  use get_unit_test_m3x3_dofmap_mod, &
+    only : get_w0_m3x3_dofmap, get_w3_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod,                   &
+    only : get_w0_m3x3_q3x3x3_size, get_w2_m3x3_q3x3x3_size, &
+           get_w3_m3x3_q3x3x3_size
+  use get_unit_test_q3x3x3_basis_mod,                     &
+    only : get_w0_q3x3x3_basis, get_w0_q3x3x3_diff_basis, &
+           get_w2_q3x3x3_basis
+  use get_unit_test_q3x3x3_quadrature_mod,            &
+    only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+           get_gaussian_q3x3x3_quadrature_weights_z
+  use get_unit_test_3x3x3_chi_mod, &
+    only : get_w0_3x3x3_field
+  use funit
+
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use feign_config_mod,          only: feign_timestepping_config,   &
+                                         feign_finite_element_config, &
+                                         feign_planet_config
+
+    use timestepping_config_mod,   only: method_semi_implicit, &
+                                         runge_kutta_method_ssp3
+    use extrusion_config_mod,      only: method_uniform, stretching_method_linear
+    use finite_element_config_mod, only: cellshape_quadrilateral, &
+                                         coord_system_xyz
+    use sci_chi_transform_mod,     only: init_chi_transforms
+
+    implicit none
+
+    call feign_timestepping_config(                              &
+             method=method_semi_implicit,                        &
+             dt=1.0_r_second, alpha=0.5_r_def, tau_u=0.5_r_def,  &
+             tau_t=0.5_r_def, tau_r=0.5_r_def,                   &
+             outer_iterations=4_i_def, inner_iterations=1_i_def, &
+             runge_kutta_method=runge_kutta_method_ssp3,         &
+             spinup_period=0.0_r_second, spinup_alpha=.false.)
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use compute_dl_matrix_kernel_mod, only : compute_dl_matrix_code
+
+    implicit none
+
+    real(r_def),    parameter :: tol = 1.0e-6_r_def
+    real(r_def),    parameter :: dx = 6000.0_r_def
+    real(r_def),    parameter :: dy = 1000.0_r_def
+    real(r_def),    parameter :: dz = 2000.0_r_def
+    real(r_second), parameter :: dt = 1.0_r_def
+    real(r_def),    parameter :: dl_base = 800.0_r_def
+    real(r_def),    parameter :: dl_str = 0.015_r_def
+    real(r_def),    parameter :: domain_height = 6000.0_r_def
+    real(r_def),    parameter :: radius=6000000.0_r_def
+
+    integer(i_def), parameter :: nlayers = 3
+    integer(i_def), parameter :: element_order_h = 0
+    integer(i_def), parameter :: element_order_v = 0
+    integer(i_def), parameter :: dl_type = dl_type_standard
+
+    integer(i_def) :: i, j, k, cell
+    integer(i_def) :: err
+
+    ! Required for calling mass matrix kernel
+
+    integer(i_def) :: ndf_w0, undf_w0
+    integer(i_def) :: ndf_w2, ndf_pid, undf_pid
+    integer(i_def) :: ncells, ncell_3d
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: unused
+
+    integer(i_def), allocatable :: map_w0(:,:), map_pid(:,:)
+
+    real(r_def), allocatable :: basis_w0(:,:,:,:), diff_basis_w0(:,:,:,:)
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+    real(r_def), allocatable :: wh(:), wv(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+    real(r_def), allocatable :: local_stencil(:,:,:)
+
+    real(r_def) :: answer(6,6)
+
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
+                                  unused, unused, &
+                                  nqp_h, nqp_v, nlayers=nlayers)
+    call get_w0_m3x3_dofmap( map_w0 )
+    call get_w0_q3x3x3_basis( basis_w0 )
+    call get_w0_q3x3x3_diff_basis( diff_basis_w0 )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, unused, unused, &
+                                  unused, unused, &
+                                  unused, unused, nlayers=nlayers)
+    call get_w2_q3x3x3_basis( basis_w2 )
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells, &
+                                  unused, unused, &
+                                  nqp_h, nqp_v, nlayers=1)
+    call get_w3_m3x3_dofmap( map_pid, 1 )
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+    allocate(panel_id(undf_pid))
+
+    panel_id(:) = 1.0_r_def
+
+    call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                            map_w0, nlayers)
+
+    ! Test mass matrix kernel
+    cell = 1
+    ncell_3d = ncells * nlayers
+    allocate( local_stencil(ncell_3d, ndf_w2, ndf_w2) )
+    local_stencil(:,:,:) = 0.0_r_def
+    call compute_dl_matrix_code( cell,            &
+                                 nlayers,         &
+                                 ncell_3d,        &
+                                 local_stencil,   &
+                                 chi1,            &
+                                 chi2,            &
+                                 chi3,            &
+                                 panel_id,        &
+                                 dl_base,         &
+                                 dl_str,          &
+                                 domain_height,   &
+                                 radius,          &
+                                 element_order_h, &
+                                 element_order_v, &
+                                 dt,              &
+                                 ndf_w2,          &
+                                 basis_w2,        &
+                                 ndf_w0,          &
+                                 undf_w0,         &
+                                 map_w0(:, cell), &
+                                 basis_w0,        &
+                                 diff_basis_w0,   &
+                                 ndf_pid,         &
+                                 undf_pid,        &
+                                 map_pid,         &
+                                 nqp_h,           &
+                                 nqp_v,           &
+                                 wh,              &
+                                 wv )
+
+    call mass_matrix_dl(answer)
+
+    ! Normalise by 1/average edge length
+    answer(:,:) = answer(:,:) * ( dx + dy + dz ) / 3.0_r_def
+
+    local_stencil(1, :, :) = local_stencil(1, :, :) &
+                              * ( dx + dy + dz ) / 3.0_r_def
+
+    @assertEqual( answer, local_stencil(1, :, :), tol )
+
+    deallocate( local_stencil )
+    deallocate( chi3, chi2, chi1, panel_id )
+    deallocate( wv, wh )
+    deallocate( basis_w2 )
+    deallocate( diff_basis_w0, basis_w0 )
+    deallocate( map_w0, map_pid )
+
+  end subroutine test_all
+
+  subroutine mass_matrix_dl( mm )
+    implicit none
+
+    real(kind=r_def), dimension(6,6), intent(inout) :: mm
+    mm = reshape( [ &
+      0.9999999999999905E-03_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.4999999999999963E-03_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.2777777777777752E-04_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.1388888888888879E-04_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.4999999999999963E-03_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.9999999999999907E-03_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.1388888888888879E-04_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.2777777777777752E-04_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.1111146217692656E-03_r_def, &
+      0.5556927496794279E-04_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.0000000000000000E+00_r_def, &
+      0.5556927496794279E-04_r_def, &
+      0.1112052038755525E-03_r_def  &
+      ], shape(mm) )
+    return
+  end subroutine mass_matrix_dl
+
+end module compute_dl_matrix_kernel_mod_test

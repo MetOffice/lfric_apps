@@ -1,0 +1,199 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the theta weighted divergence operator computation
+!>
+module weighted_div_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def, r_solver
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size,  &
+                                                  get_w2_m3x3_q3x3x3_size,  &
+                                                  get_w3_m3x3_q3x3x3_size
+  use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_basis,      &
+                                                  get_w0_q3x3x3_diff_basis, &
+                                                  get_w2_q3x3x3_basis,      &
+                                                  get_w2_q3x3x3_diff_basis, &
+                                                  get_w3_q3x3x3_basis
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap
+  use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                                  get_gaussian_q3x3x3_quadrature_weights_z
+  use funit
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: weighted_div_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type weighted_div_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,          only : feign_finite_element_config
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+
+    implicit none
+
+    class(weighted_div_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=1_i_def,           &
+             element_order_v=1_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(weighted_div_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use weighted_div_kernel_mod, only : weighted_div_code
+
+    implicit none
+
+    class(weighted_div_test_type), intent(inout) :: this
+
+    real(kind=r_solver), dimension(1,6) :: answer
+    real(kind=r_solver), parameter :: tol = 1.0e-6_r_solver   ! r_solver 64bit tolerance
+    real(kind=r_solver)            :: use_tol
+
+    integer(i_def) :: nlayers, ncells, ncell_3d, cell
+    integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2, ndf_w3, undf_w3
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    real(r_def), allocatable :: basis_w0(:,:,:,:), diff_basis_w0(:,:,:,:), &
+                                basis_w2(:,:,:,:), diff_basis_w2(:,:,:,:), &
+                                basis_w3(:,:,:,:)
+    real(r_def), allocatable :: wh(:), wv(:)
+    real(r_solver), allocatable :: local_stencil(:,:,: )
+    real(r_solver), allocatable :: theta_p_data(:)
+
+    nlayers = 3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w0_q3x3x3_basis(basis_w0)
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+    call get_w0_m3x3_dofmap(map_w0)
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_w2_q3x3x3_diff_basis(diff_basis_w2)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_q3x3x3_basis(basis_w3)
+
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ncell_3d = ncells*nlayers
+    allocate(local_stencil(ncell_3d, ndf_w2, ndf_w3))
+    local_stencil(:,:,:) = 0.0_r_solver
+    allocate(theta_p_data(undf_w0))
+    theta_p_data(:) = 300.0_r_solver
+
+    cell = 1
+    call weighted_div_code( cell,                              &
+                            nlayers,                           &
+                            ncell_3d,                          &
+                            local_stencil,                     &
+                            theta_p_data,                      &
+                            1.0_r_solver,                         &
+                            ndf_w2,                            &
+                            basis_w2,                          &
+                            diff_basis_w2,                     &
+                            ndf_w3,                            &
+                            basis_w3,                          &
+                            ndf_w0,                            &
+                            undf_w0,                           &
+                            map_w0(:,cell),                    &
+                            basis_w0,                          &
+                            diff_basis_w0,                     &
+                            nqp_h,                             &
+                            nqp_v,                             &
+                            wh,                                &
+                            wv                                 &
+                            )
+
+    call div_operator(answer)
+    if ( r_solver == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_solver*spacing( maxval(local_stencil(1, :, :)) )
+    endif
+    @assertEqual(answer, transpose(local_stencil(1, :, :)), use_tol)
+
+    deallocate(basis_w0)
+    deallocate(diff_basis_w0)
+    deallocate(map_w0)
+    deallocate(basis_w2)
+    deallocate(diff_basis_w2)
+    deallocate(basis_w3)
+    deallocate(wh)
+    deallocate(wv)
+    deallocate(local_stencil)
+    deallocate(theta_p_data)
+
+  end subroutine test_all
+
+  subroutine div_operator( div )
+    use constants_mod, only: r_solver
+    implicit none
+
+    real(kind=r_solver), dimension(1,6), intent(inout) :: div
+    real(kind=r_solver), dimension(1,1) :: m3
+    real(kind=r_solver), dimension(1,6) :: d32
+
+    m3 = reshape( [ &
+  1.0000000000000000E+00_r_solver &
+    ], shape(m3) )
+
+  d32 = real(reshape( [ &
+  -1, 1, 1, -1, -1, 1 &
+ ], shape(d32) ),r_solver)
+
+  div = 300.0_r_solver*matmul(m3,d32)
+
+    return
+  end subroutine div_operator
+
+end module weighted_div_kernel_mod_test

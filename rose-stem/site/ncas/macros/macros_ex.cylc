@@ -1,0 +1,82 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/macros/macros_ex.cylc") %}
+
+{% set ex_cores_per_node = 128 %}
+{% set ex_serialq_max_cores = 32 %}
+
+{% macro normal_queue(mpi_ranks,
+                        threads=1,
+                        xios_nodes=0,
+                        ocean_nodes=0,
+                        river_nodes=0,
+                        ranks_per_node=0,
+                        ranks_depth_pad=1) %}
+
+    {% if (ranks_per_node > 0) and ((ranks_per_node|int * threads|int) <= ex_cores_per_node|int) %}
+        {% set lfric_nodes = (mpi_ranks|float / ranks_per_node|float)|round(0, 'ceil')|int %}
+    {% else %}
+        {% set lfric_nodes = ((mpi_ranks|float * threads|float) /
+                            (ex_cores_per_node|float))|round(0, 'ceil')|int %}
+    {% endif %}
+
+            --partition=standard
+    {%- if site_vars["hpc_queue"] == 'short' %}
+            --reservation=shortqos
+            --qos=short
+    {%- elif site_vars["hpc_queue"] == 'standard' %}
+            --qos=standard
+    {%- else %}
+       {% do LOG.info("Using standard queue - options standard or short") %}
+            --qos=standard
+    {%- endif %}
+            --nodes={{ lfric_nodes +
+                         ocean_nodes|int +
+                         river_nodes|int +
+                         xios_nodes|int }}
+{% endmacro %}
+
+
+{% macro serial_queue(cores) %}
+            --partition=serial
+            --qos=serial
+            --ntasks={{ cores }}
+{% endmacro %}
+
+{% macro set_task_resources(mpi_ranks,
+                        memory,
+                        threads=1,
+                        xios_nodes=0,
+                        ocean_nodes=0,
+                        river_nodes=0,
+                        ranks_per_node=0,
+                        ranks_depth_pad=1) %}
+
+    {% set total_other_ranks = xios_nodes + ocean_nodes + river_nodes %}
+    {% set lfric_cores = mpi_ranks * threads %}
+    {% if task.startswith("run") and task_ns is defined and task_ns.application != "mesh" %}
+        {# This needs to be run on the normal queue as a non-mesh "run" job #}
+        {{ normal_queue(mpi_ranks, threads, xios_nodes, ocean_nodes, river_nodes, ranks_per_node) }}
+    {% elif lfric_cores > ex_serialq_max_cores or total_other_ranks > 0 %}
+        {# This needs to be run on the normal queue as more tasks than #}
+        {# serial queue ntasks limit or more than one executable #}
+        {{ normal_queue(mpi_ranks, threads, xios_nodes, ocean_nodes, river_nodes, ranks_per_node) }}
+    {% else %}
+        {# This is small enough to run on the serial queue #}
+        {{ serial_queue(mpi_ranks * threads) }}
+        {{ set_memory(memory) }}
+    {% endif %}
+
+{% endmacro %}
+
+
+{% macro set_memory(mem) %}
+    {% set value = mem[0]|int %}
+    {% set unit = mem[1] %}
+            --mem={{value}}{{unit}}
+{% endmacro %}
+
+{% do LOG.debug("Finished in site/meto/macros/macros_ex.cylc") %}

@@ -1,0 +1,130 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Algorithm to compute the vorticity: curl(u)
+!>@details Compute the vorticity (xi) in W1 as the projection of the weak
+!>         curl of the velocity field (u): <c,xi> = <curl(c),u>.
+!>         If the input u field is in the weak form (such as if we were
+!>         advecting the residual r_u as for a SL scheme) then we first
+!>         compute a strong form of u by inverting the W2 mass matrix
+module compute_vorticity_alg_mod
+
+  use constants_mod, only: r_def, i_def, l_def
+
+  implicit none
+
+  private
+  public :: compute_vorticity_alg
+
+contains
+
+  !> @brief Algorithm to compute the vorticity field
+  !> @param[in,out] xi Vorticity field = curl(u)
+  !> @param[in]     u Velocity field
+  !> @param[in]     weak_form_u Is u in weak form or not
+  subroutine compute_vorticity_alg(xi, u, weak_form_u, w1_flag)
+
+    use field_mod,                      only: field_type
+    use operator_mod,                   only: operator_type
+    use sci_mass_matrix_solver_alg_mod, only: mass_matrix_solver_alg
+    use sci_enforce_bc_kernel_mod,      only: enforce_bc_kernel_type
+    use sci_fem_constants_mod,          only: get_inverse_lumped_mass_matrix_fe, &
+                                              get_inverse_lumped_mass_matrix_fv, &
+                                              get_curl_fe, get_curl_fv,          &
+                                              get_qr_fe, get_qr_fv
+    use transpose_matrix_vector_kernel_mod, &
+                                        only: transpose_matrix_vector_kernel_type
+    use finite_element_config_mod,      only: vorticity_in_w1
+    use fs_continuity_mod,              only: W1
+    use function_space_collection_mod,  only: function_space_collection
+    use w2_to_w1_projection_kernel_mod, only: w2_to_w1_projection_kernel_type
+    use function_space_mod,             only: function_space_type
+    use mesh_mod,                       only: mesh_type
+    use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+    use strong_curl_kernel_mod,         only: strong_curl_kernel_type
+
+    implicit none
+
+    type(field_type),     intent(inout)       :: xi
+    type(field_type),     intent(in)          :: u
+    logical(kind=l_def),  intent(in)          :: weak_form_u
+    logical(kind=l_def), optional, intent(in) :: w1_flag
+
+    type(field_type)                    :: advected_u, r_xi, u_in_w1, r_u
+    type(field_type),           pointer :: m1_lumped_inv => null()
+    type(operator_type),        pointer :: curl => null()
+    type(function_space_type) , pointer :: w1_fs => null()
+    type(quadrature_xyoz_type), pointer :: qr => null()
+    logical(kind=l_def)                 :: w1_vorticity_flag
+    logical(kind=l_def)                 :: use_fe
+    integer(kind=i_def)                 :: element_order_h
+    integer(kind=i_def)                 :: element_order_v
+
+    type(mesh_type), pointer :: mesh => null()
+
+    mesh => u%get_mesh()
+
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+    use_fe = element_order_h > 0 .or. u%get_element_order_v() > 0
+
+    if ( weak_form_u ) then
+      ! Advect u^* = M^-1 * <v,{u + beta*dt*[coriolis + pgf + grad(phi+K)]}>
+      call advected_u%initialise( vector_space = u%get_function_space()  )
+      call invoke( setval_c(advected_u, 0.0_r_def) )
+      call mass_matrix_solver_alg(advected_u, u)
+    else
+      ! Advect u
+      call u%copy_field_properties(advected_u)
+      call invoke( setval_X(advected_u, u) )
+    end if
+
+    if ( present(w1_flag) ) then
+      w1_vorticity_flag = w1_flag
+    else
+      w1_vorticity_flag = vorticity_in_w1
+    end if
+
+    if ( w1_vorticity_flag ) then
+      ! Compute vorticity in W1 as the weak curl of the W2 winds
+      if (use_fe) then
+        m1_lumped_inv => get_inverse_lumped_mass_matrix_fe(W1, mesh%get_id())
+        curl          => get_curl_fe(mesh%get_id())
+      else
+        m1_lumped_inv => get_inverse_lumped_mass_matrix_fv(W1, mesh%get_id())
+        curl          => get_curl_fv(mesh%get_id())
+      end if
+
+      call r_xi%initialise( vector_space = xi%get_function_space() )
+      call invoke ( setval_c(r_xi, 0.0_r_def),                                   &
+                    transpose_matrix_vector_kernel_type(r_xi, advected_u, curl), &
+                    enforce_bc_kernel_type(r_xi),                                &
+                    setval_c(xi, 0.0_r_def) )
+      call mass_matrix_solver_alg(xi, r_xi)
+    else
+      ! Compute vorticity in W2 as the strong curl of the projected W1 winds
+      if (use_fe) then
+        qr => get_qr_fe()
+      else
+        qr => get_qr_fv()
+      end if
+      w1_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                 element_order_v, W1 )
+      call u_in_w1%initialise( vector_space = w1_fs )
+      call r_u%initialise( vector_space = w1_fs )
+      call invoke( setval_c(r_u, 0.0_r_def),                                   &
+                   setval_c(u_in_w1, 0.0_r_def),                               &
+                   w2_to_w1_projection_kernel_type(r_u, advected_u, qr) )
+      call mass_matrix_solver_alg( u_in_w1, r_u, .false.)
+      call invoke( strong_curl_kernel_type(xi, u_in_w1) )
+    end if
+
+    nullify( m1_lumped_inv, curl, w1_fs, qr, mesh )
+
+  end subroutine compute_vorticity_alg
+
+end module compute_vorticity_alg_mod
+

@@ -1,0 +1,26 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/nci/gungho_model/tasks_gungho_model.cylc") %}
+
+{# ########################### #}
+{# Developer + All Group Tasks #}
+{# ########################### #}
+
+{% if task_ns.conf_name == "dcmip200_realorog-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "lfric-real-domain-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"]
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in site/nci/gungho_model/tasks_gungho_model.cylc") %}

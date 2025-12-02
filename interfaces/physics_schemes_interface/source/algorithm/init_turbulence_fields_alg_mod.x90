@@ -1,0 +1,109 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the turbulence fields
+module init_turbulence_fields_alg_mod
+
+  use constants_mod,                   only: r_def
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use integer_field_mod,               only: integer_field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_turbulence_fields_alg
+
+contains
+
+  !> @brief   Initialises the turbulence fields
+  !> @details The turbulence fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case no restart file is used.
+  !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
+  subroutine init_turbulence_fields_alg(turbulence_fields)
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(in) :: turbulence_fields
+
+    ! Prognostic fields
+    type( field_type ), pointer :: zh             => null()
+    type( field_type ), pointer :: z_lcl          => null()
+    type( integer_field_type ), pointer :: ntml    => null()
+    type( integer_field_type ), pointer :: cumulus => null()
+    type( field_type ), pointer :: wvar           => null()
+    type( field_type ), pointer :: heat_flux_bl   => null()
+    type( field_type ), pointer :: moist_flux_bl  => null()
+    type( field_type ), pointer :: tke_bl         => null()
+    type( field_type ), pointer :: rhokh_bl       => null()
+    type( field_type ), pointer :: dtrdz_tq_bl    => null()
+    type( field_type ), pointer :: zhsc           => null()
+    type( integer_field_type ), pointer :: level_ent => null()
+    type( integer_field_type ), pointer :: level_ent_dsc => null()
+    type( field_type ), pointer :: ent_we_lim     => null()
+    type( field_type ), pointer :: ent_t_frac     => null()
+    type( field_type ), pointer :: ent_zrzi       => null()
+    type( field_type ), pointer :: ent_we_lim_dsc => null()
+    type( field_type ), pointer :: ent_t_frac_dsc => null()
+    type( field_type ), pointer :: ent_zrzi_dsc   => null()
+    type( field_type ), pointer :: dsldzm
+    type( field_type ), pointer :: mix_len_bm
+    type( field_type ), pointer :: gradrinr
+
+    call turbulence_fields%get_field('zh', zh)
+    call turbulence_fields%get_field('z_lcl', z_lcl)
+    call turbulence_fields%get_field('ntml', ntml)
+    call turbulence_fields%get_field('cumulus', cumulus)
+    call turbulence_fields%get_field('wvar', wvar)
+    call turbulence_fields%get_field('heat_flux_bl', heat_flux_bl)
+    call turbulence_fields%get_field('moist_flux_bl', moist_flux_bl)
+    call turbulence_fields%get_field('tke_bl', tke_bl)
+    call turbulence_fields%get_field('rhokh_bl', rhokh_bl)
+    call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
+    call turbulence_fields%get_field('zhsc', zhsc)
+    call turbulence_fields%get_field('level_ent', level_ent)
+    call turbulence_fields%get_field('level_ent_dsc', level_ent_dsc)
+    call turbulence_fields%get_field('ent_we_lim', ent_we_lim)
+    call turbulence_fields%get_field('ent_t_frac', ent_t_frac)
+    call turbulence_fields%get_field('ent_zrzi', ent_zrzi)
+    call turbulence_fields%get_field('ent_we_lim_dsc', ent_we_lim_dsc)
+    call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
+    call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
+    call turbulence_fields%get_field('dsldzm', dsldzm)
+    call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
+    call turbulence_fields%get_field('gradrinr', gradrinr)
+
+    ! Set turbulence fields to fixed values for use in SCM testing
+    ! or when no values is provided by the um2lfric dump
+    call invoke( setval_c(zh,          1000.0_r_def), &
+                 setval_c(z_lcl,          0.0_r_def), &
+                 int_setval_c(ntml,       1_i_def),   &
+                 int_setval_c(cumulus,    0_i_def),   &
+                 setval_c(wvar,           0.0_r_def), &
+                 setval_c(heat_flux_bl,   0.0_r_def), &
+                 setval_c(moist_flux_bl,  0.0_r_def), &
+                 setval_c(tke_bl,         0.0_r_def), &
+                 setval_c(rhokh_bl,       0.0_r_def), &
+                 setval_c(dtrdz_tq_bl,    0.0_r_def), &
+                 setval_c(zhsc,           0.0_r_def), &
+                 int_setval_c(level_ent,     2_i_def), &
+                 int_setval_c(level_ent_dsc, 2_i_def), &
+                 setval_c(ent_we_lim,     0.0_r_def), &
+                 setval_c(ent_t_frac,     0.0_r_def), &
+                 setval_c(ent_zrzi,       0.0_r_def), &
+                 setval_c(ent_we_lim_dsc, 0.0_r_def), &
+                 setval_c(ent_t_frac_dsc, 0.0_r_def), &
+                 setval_c(ent_zrzi_dsc,   0.0_r_def), &
+                 setval_c(dsldzm,         0.0_r_def), &
+                 setval_c(mix_len_bm,     0.0_r_def), &
+                 setval_c(gradrinr,       0.0_r_def) )
+
+  end subroutine init_turbulence_fields_alg
+
+end module init_turbulence_fields_alg_mod

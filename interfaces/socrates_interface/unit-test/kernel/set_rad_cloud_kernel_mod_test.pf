@@ -1,0 +1,226 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the Socrates random seed generation kernel
+!>
+module set_rad_cloud_kernel_mod_test
+
+  use funit
+  use constants_mod,                       only : r_def, i_def
+  use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap, &
+                                                  get_w3_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+  use sci_constants_mod,                   only : zero_C_in_K
+
+  implicit none
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_set_rad_cloud()
+
+    use set_rad_cloud_kernel_mod, only: set_rad_cloud_code
+
+    implicit none
+
+    integer(i_def) :: nlayers_wth
+    integer(i_def) :: ndf_wth
+    integer(i_def) :: undf_wth
+    integer(i_def) :: cells_wth
+    integer(i_def) :: dim_space_wth
+    integer(i_def) :: dim_space_diff_wth
+    integer(i_def) :: nqp_h_wth
+    integer(i_def) :: nqp_v_wth
+
+    integer(i_def), allocatable :: map_wth(:,:)
+
+    real(r_def), allocatable :: radiative_conv_fraction(:), &
+                                  radiative_conv_fraction_answer(:)
+    real(r_def), allocatable :: radiative_cloud_fraction(:), &
+                                  radiative_cloud_fraction_answer(:)
+    real(r_def), allocatable :: conv_liquid_fraction(:), &
+                                  conv_liquid_fraction_answer(:)
+    real(r_def), allocatable :: conv_frozen_fraction(:), &
+                                  conv_frozen_fraction_answer(:)
+    real(r_def), allocatable :: conv_liquid_mmr(:), &
+                                  conv_liquid_mmr_answer(:)
+    real(r_def), allocatable :: conv_frozen_mmr(:), &
+                                  conv_frozen_mmr_answer(:)
+    real(r_def), allocatable :: area_fraction(:)
+    real(r_def), allocatable :: cca(:)
+    real(r_def), allocatable :: ccw(:)
+    real(r_def), allocatable :: temperature_in_wth(:)
+    real(r_def) :: allicetdegc, starticetkelvin, zerodegc
+    integer(i_def) :: cell
+    real(r_def), parameter :: tol=1e-14_r_def
+
+    nlayers_wth = 3
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wth, undf_wth, cells_wth,   &
+                                      dim_space_wth, dim_space_diff_wth, &
+                                      nqp_h_wth, nqp_v_wth, nlayers_wth)
+    call get_wtheta_m3x3_dofmap( map_wth, nlayers_wth )
+
+    allocate(radiative_conv_fraction(1:undf_wth), source=0.0_r_def)
+    allocate(radiative_cloud_fraction(1:undf_wth), source=0.0_r_def)
+    allocate(conv_liquid_fraction(1:undf_wth), source=0.0_r_def)
+    allocate(conv_frozen_fraction(1:undf_wth), source=0.0_r_def)
+    allocate(conv_liquid_mmr(1:undf_wth), source=0.0_r_def)
+    allocate(conv_frozen_mmr(1:undf_wth), source=0.0_r_def)
+    allocate(area_fraction(1:undf_wth), source=0.0_r_def)
+    allocate(cca(1:undf_wth), source=0.0_r_def)
+    allocate(ccw(1:undf_wth), source=0.0_r_def)
+    allocate(temperature_in_wth(1:undf_wth), source=0.0_r_def)
+
+    allicetdegc = -20.0_r_def
+    starticetkelvin = 263.15_r_def
+    zerodegc = zero_C_in_K
+
+    area_fraction = (/ &
+      0.0_r_def, 3.386060556051483E-002_r_def, 2.804012518855292E-002_r_def, 4.308423677831311E-002_r_def, &
+      0.0_r_def, 0.164866754658977_r_def, 0.000000000000000E+000_r_def, 6.129653435940882E-003_r_def, &
+      0.0_r_def,  2.362313622080783E-002_r_def, 3.330542785744135E-002_r_def, 4.011665393352587E-002_r_def, &
+      0.0_r_def, 5.332126694238726E-003_r_def, 9.505175795529818E-003_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.556579138240741_r_def, 2.017363226793355E-002_r_def, 3.945080480288860E-002_r_def, &
+      0.0_r_def, 2.847672805048910E-002_r_def, 0.000000000000000E+000_r_def, 2.032134577132907E-003_r_def, &
+      0.0_r_def, 5.096689616696926E-003_r_def, 9.169223078600691E-002_r_def, 0.113294158972822_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 6.081421231347964E-002_r_def, 2.149815036919142E-002_r_def, &
+      0.0_r_def, 0.238487574992700_r_def, 0.740135195644284_r_def, 3.386060556051483E-002_r_def /)
+
+    cca = (/ &
+      0.0_r_def, 1.557188044550053E-002_r_def, 1.041671395967726E-002_r_def, 1.041671395967726E-002_r_def, &
+      0.0_r_def, 1.814803865651766E-002_r_def, 4.846788667416910E-003_r_def, 3.454068539465305E-002_r_def, &
+      0.0_r_def,  8.314602733592783E-003_r_def, 8.314602733592783E-003_r_def, 8.181747472259254E-003_r_def, &
+      0.0_r_def, 1.677223397991051E-002_r_def, 8.671082523894915E-003_r_def, 2.874157401787675E-003_r_def, &
+      0.0_r_def, 2.320140449107996E-002_r_def, 1.147443027910586E-002_r_def, 1.967329002238349E-002_r_def, &
+      0.0_r_def, 2.017181443497260E-002_r_def, 4.602755867567323E-003_r_def, 7.925795234954798E-003_r_def, &
+      0.0_r_def, 7.925795234954798E-003_r_def, 8.181747472259254E-003_r_def, 6.819032847366902E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 9.199813928353572E-003_r_def, 9.012314051552934E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 1.435266800647659E-002_r_def, 1.557188044550053E-002_r_def /)
+
+    ccw = (/ &
+      0.0_r_def, 1.000000000000000E-003_r_def, 1.988333523113726E-004_r_def, 2.740469799956381E-004_r_def, &
+      0.0_r_def, 1.278683398608572E-004_r_def, 5.000000000000000E-004_r_def, 7.279883665557469E-005_r_def, &
+      0.0_r_def,  2.745011353406394E-004_r_def, 3.478520104975203E-004_r_def, 5.000000000000000E-004_r_def, &
+      0.0_r_def, 1.288311984052870E-004_r_def, 2.971539582393453E-004_r_def, 1.000000000000000E-003_r_def, &
+      0.0_r_def, 9.082389310006379E-005_r_def, 2.578814745679903E-004_r_def, 1.520432756195614E-004_r_def, &
+      0.0_r_def, 9.985351459683906E-004_r_def, 5.000000000000000E-004_r_def, 1.000000000000000E-003_r_def, &
+      0.0_r_def, 8.825866223555609E-004_r_def, 4.044904940621393E-004_r_def, 3.388500627731796E-004_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 1.000000000000000E-003_r_def, 1.062805161698660E-004_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 3.677409121116650E-004_r_def, 1.000000000000000E-003_r_def /)
+
+    temperature_in_wth = (/ &
+      0.0_r_def, 285.389435750763_r_def, 292.608523474083_r_def, 292.030060734864_r_def, &
+      0.0_r_def, 290.221363662130_r_def, 275.218148676297_r_def, 293.787947727808_r_def, &
+      0.0_r_def,  291.260927288714_r_def, 290.376274432071_r_def, 259.763619033304_r_def, &
+      0.0_r_def, 291.353034443397_r_def,  289.991200899159_r_def, 280.229320846218_r_def, &
+      0.0_r_def, 285.417914833698_r_def, 289.654922538383_r_def, 285.617278948600_r_def, &
+      0.0_r_def, 289.279747731404_r_def, 280.544442170338_r_def, 261.185131654179_r_def, &
+      0.0_r_def, 258.154378876671_r_def, 256.745337769546_r_def, 254.738550989943_r_def, &
+      0.0_r_def, 302.472877625656_r_def, 278.344398342181_r_def, 286.083552313557_r_def, &
+      0.0_r_def, 249.472618315982_r_def, 255.851259037656_r_def, 285.389435750763_r_def /)
+
+
+    do cell=1, cells_wth
+      call set_rad_cloud_code( nlayers_wth, radiative_cloud_fraction, &
+                               radiative_conv_fraction, conv_liquid_fraction, &
+                               conv_frozen_fraction, conv_liquid_mmr, &
+                               conv_frozen_mmr, area_fraction, cca, ccw, &
+                               temperature_in_wth, allicetdegc, starticetkelvin, &
+                               zerodegc, ndf_wth, undf_wth, map_wth(:,cell) )
+    end do
+
+    allocate(radiative_cloud_fraction_answer(1:undf_wth), source = 0.0_r_def)
+    allocate(radiative_conv_fraction_answer(1:undf_wth), source = 0.0_r_def)
+    allocate(conv_liquid_fraction_answer(1:undf_wth), source = 0.0_r_def)
+    allocate(conv_frozen_fraction_answer(1:undf_wth), source = 0.0_r_def)
+    allocate(conv_liquid_mmr_answer(1:undf_wth), source = 0.0_r_def)
+    allocate(conv_frozen_mmr_answer(1:undf_wth), source = 0.0_r_def)
+
+    radiative_cloud_fraction_answer = (/ &
+      0.0_r_def, 3.333333225891424E-002_r_def, 2.774803922507022E-002_r_def, 4.263544060762241E-002_r_def, &
+      0.0_r_def, 0.161874746422251_r_def, 0.000000000000000E+000_r_def, 5.917931005031794E-003_r_def, &
+      0.0_r_def, 2.342671922781027E-002_r_def, 3.302850645593439E-002_r_def, 3.978842960160974E-002_r_def, &
+      0.0_r_def, 5.242695017712427E-003_r_def, 9.422755631802652E-003_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.543665720523121_r_def, 1.994215133099882E-002_r_def, 3.867467767838494E-002_r_def, &
+      0.0_r_def, 2.790230077653945E-002_r_def, 0.000000000000000E+000_r_def, 2.016028294584680E-003_r_def, &
+      0.0_r_def, 5.056294298418865E-003_r_def, 9.094202810854768E-002_r_def, 0.112521602381371_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 6.025473287599624E-002_r_def, 2.130440228653676E-002_r_def, &
+      0.0_r_def, 0.238487574992700_r_def, 0.729512280901293_r_def, 3.333333225891424E-002_r_def /)
+    radiative_conv_fraction_answer = (/ &
+      0.0_r_def, 1.557188044550053E-002_r_def, 1.041671395967726E-002_r_def, 1.041671395967726E-002_r_def, &
+      0.0_r_def, 1.814803865651766E-002_r_def, 4.846788667416910E-003_r_def, 3.454068539465305E-002_r_def, &
+      0.0_r_def, 8.314602733592783E-003_r_def, 8.314602733592783E-003_r_def, 8.181747472259254E-003_r_def, &
+      0.0_r_def, 1.677223397991051E-002_r_def, 8.671082523894915E-003_r_def, 2.874157401787675E-003_r_def, &
+      0.0_r_def, 2.320140449107996E-002_r_def, 1.147443027910586E-002_r_def, 1.967329002238349E-002_r_def, &
+      0.0_r_def, 2.017181443497260E-002_r_def, 4.602755867567323E-003_r_def, 7.925795234954798E-003_r_def, &
+      0.0_r_def, 7.925795234954798E-003_r_def, 8.181747472259254E-003_r_def, 6.819032847366902E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 9.199813928353572E-003_r_def, 9.012314051552934E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 1.435266800647659E-002_r_def, 1.557188044550053E-002_r_def /)
+    conv_liquid_fraction_answer = (/ &
+      0.0_r_def, 1.557188044550053E-002_r_def, 1.041671395967726E-002_r_def, 1.041671395967726E-002_r_def, &
+      0.0_r_def, 1.814803865651766E-002_r_def, 4.846788667416910E-003_r_def, 3.454068539465305E-002_r_def, &
+      0.0_r_def, 8.314602733592783E-003_r_def, 8.314602733592783E-003_r_def, 5.411096080822457E-003_r_def, &
+      0.0_r_def, 1.677223397991051E-002_r_def, 8.671082523894915E-003_r_def, 2.874157401787675E-003_r_def, &
+      0.0_r_def, 2.320140449107996E-002_r_def, 1.147443027910586E-002_r_def, 1.967329002238349E-002_r_def, &
+      0.0_r_def, 2.017181443497260E-002_r_def, 4.602755867567323E-003_r_def, 6.368480817692770E-003_r_def, &
+      0.0_r_def, 3.966368225462620E-003_r_def, 2.941614570790451E-003_r_def, 1.083238138014126E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 9.199813928353572E-003_r_def, 9.012314051552934E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 3.877027416697675E-003_r_def, 1.557188044550053E-002_r_def /)
+    conv_frozen_fraction_answer = (/ &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 2.770651391436797E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 1.557314417262027E-003_r_def, &
+      0.0_r_def, 3.959427009492178E-003_r_def, 5.240132901468802E-003_r_def, 5.735794709352776E-003_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 1.047564058977892E-002_r_def, 0.000000000000000E+000_r_def /)
+    conv_liquid_mmr_answer = (/ &
+      0.0_r_def, 1.557188044550053E-005_r_def, 2.071190156671302E-006_r_def, 2.854669002127959E-006_r_def, &
+      0.0_r_def, 2.320559574739576E-006_r_def, 2.423394333708455E-006_r_def, 2.514521714016942E-006_r_def, &
+      0.0_r_def, 2.282367890277603E-006_r_def, 2.892251277368428E-006_r_def, 2.705548040411229E-006_r_def, &
+      0.0_r_def, 2.160787003565747E-006_r_def, 2.576646494195386E-006_r_def, 2.874157401787675E-006_r_def, &
+      0.0_r_def, 2.107241881269186E-006_r_def, 2.959043000203415E-006_r_def, 2.991191457216821E-006_r_def, &
+      0.0_r_def, 2.014226567127266E-005_r_def, 2.301377933783661E-006_r_def, 6.368480817692771E-006_r_def, &
+      0.0_r_def, 3.500663535129474E-006_r_def, 1.189855131079417E-006_r_def, 3.670553110643886E-007_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 9.199813928353572E-006_r_def, 9.578333892839823E-007_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 1.425741598498335E-006_r_def, 1.557188044550053E-005_r_def /)
+    conv_frozen_mmr_answer = (/ &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 1.385325695718399E-006_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 1.557314417262027E-006_r_def, &
+      0.0_r_def, 3.494537310771081E-006_r_def, 2.119583946266387E-006_r_def, 1.943574397318260E-006_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, 0.000000000000000E+000_r_def, &
+      0.0_r_def, 0.000000000000000E+000_r_def, 3.852321625439278E-006_r_def, 0.000000000000000E+000_r_def /)
+
+    @assertEqual(radiative_conv_fraction, radiative_conv_fraction_answer, tol)
+    @assertEqual(radiative_cloud_fraction, radiative_cloud_fraction_answer, tol)
+    @assertEqual(conv_liquid_fraction, conv_liquid_fraction_answer, tol)
+    @assertEqual(conv_frozen_fraction, conv_frozen_fraction_answer, tol)
+    @assertEqual(conv_liquid_mmr, conv_liquid_mmr_answer, tol)
+    @assertEqual(conv_frozen_mmr, conv_frozen_mmr_answer, tol)
+
+    deallocate(map_wth)
+    deallocate(radiative_conv_fraction)
+    deallocate(radiative_cloud_fraction)
+    deallocate(conv_liquid_fraction)
+    deallocate(conv_frozen_fraction)
+    deallocate(conv_liquid_mmr)
+    deallocate(conv_frozen_mmr)
+    deallocate(area_fraction)
+    deallocate(cca)
+    deallocate(ccw)
+    deallocate(temperature_in_wth)
+
+  end subroutine test_set_rad_cloud
+
+end module set_rad_cloud_kernel_mod_test

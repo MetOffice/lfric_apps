@@ -1,0 +1,168 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Prepares the radiation fields
+module init_radiation_fields_alg_mod
+
+  use constants_mod,                   only: i_def, r_def, l_def, pi
+  use kernel_mod,                      only: kernel_type
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  use fs_continuity_mod,               only: Wtheta
+  use sci_geometric_constants_mod,     only: get_height_fv
+
+  implicit none
+
+  private
+  public :: init_radiation_fields_alg
+
+contains
+
+  !> @brief   Initialises the radiation fields
+  !> @details The radiation fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          if the radiation scheme is not used.
+  !> @param[in,out] radiation_fields Collection of fields for radiation scheme
+  subroutine init_radiation_fields_alg(radiation_fields)
+
+  use radiative_gases_config_mod,      only: o3_rad_opt, o3_rad_opt_profile,  &
+                                             o3_profile_size, o3_profile_data,&
+					     o3_profile_heights
+					     
+!> @todo Data passed to the kernel via module 'use' statements.
+!>       When PSyclone supports passing of arrays into kernels (issue #1312),
+!>       these data should be passed through the argument list of the invoke.
+  use profile_interp_kernel_mod,       only: profile_interp_kernel_type, &
+                                             profile_size,               &
+                                             profile_data,               &
+                                             profile_heights
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(inout) :: radiation_fields
+
+    ! Outputs from the radiation scheme
+    type( field_type ), pointer :: dtheta_rad        => null()
+    type( field_type ), pointer :: dmv_pc2_rad       => null()
+    type( field_type ), pointer :: sw_heating_rate   => null()
+    type( field_type ), pointer :: lw_heating_rate   => null()
+    type( field_type ), pointer :: sw_up_tile        => null()
+    type( field_type ), pointer :: ozone             => null()
+
+    type( field_type ), pointer :: cos_zenith_angle  => null()
+    type( field_type ), pointer :: lw_down_surf      => null()
+    type( field_type ), pointer :: sw_down_surf      => null()
+    type( field_type ), pointer :: sw_down_blue_surf => null()
+    type( field_type ), pointer :: sw_direct_blue_surf => null()
+
+    type( field_type ), pointer :: sin_stellar_declination_rts => null()
+    type( field_type ), pointer :: stellar_eqn_of_time_rts     => null()
+    type( field_type ), pointer :: orographic_correction_rts   => null()
+
+    type( field_type ), pointer :: slope_angle    => null()
+    type( field_type ), pointer :: slope_aspect   => null()
+    type( field_type ), pointer :: skyview        => null()
+    type( field_type ), pointer :: horizon_angle  => null()
+    type( field_type ), pointer :: horizon_aspect => null()
+
+    type( field_type ), pointer :: aer_mix_ratio => null()
+    type( field_type ), pointer :: aer_sw_absorption => null()
+    type( field_type ), pointer :: aer_sw_scattering => null()
+    type( field_type ), pointer :: aer_sw_asymmetry => null()
+    type( field_type ), pointer :: aer_lw_absorption => null()
+    type( field_type ), pointer :: aer_lw_scattering => null()
+    type( field_type ), pointer :: aer_lw_asymmetry => null()
+
+    integer(kind=i_def) :: mesh_id
+    type( field_type ), pointer :: height_o3 => null()
+
+    real( r_def ), parameter :: pi_by_two = pi / 2.0_r_def
+    logical( kind=l_def )    :: profile_extrap
+
+    call radiation_fields%get_field('dtheta_rad', dtheta_rad)
+    call radiation_fields%get_field('dmv_pc2_rad', dmv_pc2_rad)
+    call radiation_fields%get_field('sw_heating_rate', sw_heating_rate)
+    call radiation_fields%get_field('lw_heating_rate', lw_heating_rate)
+    call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+    call radiation_fields%get_field('ozone', ozone)
+    if ( o3_rad_opt == o3_rad_opt_profile ) then
+      mesh_id = ozone%get_mesh_id()
+      height_o3 => get_height_fv(Wtheta, mesh_id)
+      profile_size                    = o3_profile_size
+      profile_data(1:profile_size)    = o3_profile_data(1:o3_profile_size)
+      profile_heights(1:profile_size) = o3_profile_heights(1:o3_profile_size)
+      if ( profile_size == 1) then
+	call invoke( setval_c( ozone, profile_data(1) ) )
+      else
+        profile_extrap = .true.
+	call invoke( profile_interp_kernel_type( ozone, height_o3, &
+                                                 profile_extrap  ) )
+      end if
+    end if
+
+    call radiation_fields%get_field('cos_zenith_angle', cos_zenith_angle)
+    call radiation_fields%get_field('lw_down_surf', lw_down_surf)
+    call radiation_fields%get_field('sw_down_surf', sw_down_surf)
+    call radiation_fields%get_field('sw_down_blue_surf', sw_down_blue_surf)
+    call radiation_fields%get_field('sw_direct_blue_surf', sw_direct_blue_surf)
+
+    call radiation_fields%get_field('sin_stellar_declination_rts', &
+                                    sin_stellar_declination_rts)
+    call radiation_fields%get_field('stellar_eqn_of_time_rts', &
+                                    stellar_eqn_of_time_rts)
+    call radiation_fields%get_field('orographic_correction_rts', &
+                                    orographic_correction_rts)
+
+    call radiation_fields%get_field('slope_angle', slope_angle)
+    call radiation_fields%get_field('slope_aspect', slope_aspect)
+    call radiation_fields%get_field('skyview', skyview)
+    call radiation_fields%get_field('horizon_angle', horizon_angle)
+    call radiation_fields%get_field('horizon_aspect', horizon_aspect)
+
+    call radiation_fields%get_field('aer_mix_ratio', aer_mix_ratio)
+    call radiation_fields%get_field('aer_sw_absorption', aer_sw_absorption)
+    call radiation_fields%get_field('aer_sw_scattering', aer_sw_scattering)
+    call radiation_fields%get_field('aer_sw_asymmetry', aer_sw_asymmetry)
+    call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption)
+    call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering)
+    call radiation_fields%get_field('aer_lw_asymmetry', aer_lw_asymmetry)
+
+    ! Initialise the increments to 0 for use when the scheme isn't called
+    call invoke( setval_c(dtheta_rad,        0.0_r_def),   &
+                 setval_c(dmv_pc2_rad,       0.0_r_def),   &
+                 setval_c(sw_heating_rate,   0.0_r_def),   &
+                 setval_c(lw_heating_rate,   0.0_r_def),   &
+                 setval_c(sw_up_tile,        0.0_r_def),   &
+                 ! Set to zero if ancil/prognostic isn't read
+                 setval_c(ozone,             0.0_r_def),   &
+                 ! Need to set to zero for lowest level
+                 setval_c(aer_mix_ratio,     0.0_r_def),   &
+                 setval_c(aer_sw_absorption, 0.0_r_def),   &
+                 setval_c(aer_sw_scattering, 0.0_r_def),   &
+                 setval_c(aer_sw_asymmetry,  0.0_r_def),   &
+                 setval_c(aer_lw_absorption, 0.0_r_def),   &
+                 setval_c(aer_lw_scattering, 0.0_r_def),   &
+                 setval_c(aer_lw_asymmetry,  0.0_r_def),   &
+                 ! Set these values for use in SCM testing when radiation is off
+                 setval_c(cos_zenith_angle,  1.0_r_def),   &
+                 setval_c(lw_down_surf,      380.0_r_def), &
+                 setval_c(sw_down_surf,      640.0_r_def), &
+                 setval_c(sw_down_blue_surf, 400.0_r_def), &
+                 setval_c(sw_direct_blue_surf, 200.0_r_def), &
+                 setval_c(sin_stellar_declination_rts, 0.0_r_def), &
+                 setval_c(stellar_eqn_of_time_rts, 0.0_r_def), &
+                 setval_c(orographic_correction_rts, 1.0_r_def), &
+                 setval_c(slope_angle,       0.0_r_def), &
+                 setval_c(slope_aspect,      0.0_r_def), &
+                 setval_c(skyview,           1.0_r_def), &
+                 setval_c(horizon_angle,     pi_by_two), &
+                 setval_c(horizon_aspect,    0.0_r_def) )
+
+  end subroutine init_radiation_fields_alg
+
+end module init_radiation_fields_alg_mod

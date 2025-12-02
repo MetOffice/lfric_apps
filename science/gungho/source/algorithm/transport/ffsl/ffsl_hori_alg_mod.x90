@@ -1,0 +1,1320 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module for horizontal (2D) FFSL transport.
+!> @details Contains algorithms for first and final horizontal FFSL transport
+!!          steps. Also contains a control routine for 2D COSMIC splitting.
+module ffsl_hori_alg_mod
+
+  ! Constants and types
+  use constants_mod,                    only: r_tran, i_def, l_def
+  use field_mod,                        only: field_type
+  use fs_continuity_mod,                only: W2H, W2Hbroken
+  use function_space_mod,               only: function_space_type
+  use function_space_collection_mod,    only: function_space_collection
+  use sci_geometric_constants_mod,      only: get_panel_id,                    &
+                                              get_face_selector_ew,            &
+                                              get_face_selector_ns
+  use integer_field_mod,                only: integer_field_type
+  use lfric_mpi_mod,                    only: global_mpi
+  use log_mod,                          only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                         only: mesh_type
+  use r_tran_field_mod,                 only: r_tran_field_type
+  use timer_mod,                        only: timer
+
+  ! Transport control
+  use flux_precomputations_alg_mod,     only: flux_precomputations_type
+  use transport_constants_mod,          only: get_detj_at_w3_r_tran,           &
+                                              get_panel_edge_dist
+  use transport_controller_mod,         only: transport_controller_type
+  use transport_counter_mod,            only: transport_counter_type
+  use transport_enumerated_types_mod,   only: equation_form_advective,         &
+                                              equation_form_conservative,      &
+                                              equation_form_consistent,        &
+                                              direction_h,                     &
+                                              monotone_none,                   &
+                                              monotone_positive,               &
+                                              special_edges_monotone_none,     &
+                                              special_edges_monotone_positive, &
+                                              ffsl_splitting_swift
+  use transport_metadata_mod,           only: transport_metadata_type
+  use wind_precomputations_alg_mod,     only: wind_precomputations_type
+
+  ! Other algorithms
+  use ffsl_advective_updates_alg_mod,   only: swift_outer_update_tracer,       &
+                                              swift_inner_update_tracer,       &
+                                              ffsl_advective_increment
+  use limited_area_lbc_alg_mod,         only: overwrite_blending_zone_rtran
+  use panel_edge_remap_alg_mod,         only: panel_edge_remap_alg
+  use remap_on_extended_mesh_alg_mod,   only: remap_on_extended_mesh
+
+  ! Kernels
+  use sci_average_w2_to_w2b_kernel_mod, only: average_w2_to_w2b_kernel_type
+  use ffsl_flux_xy_kernel_mod,          only: ffsl_flux_xy_kernel_type
+  use ffsl_flux_xy_panel_remap_kernel_mod,                                     &
+                                        only: ffsl_flux_xy_panel_remap_kernel_type
+  use ffsl_flux_xy_sphere_kernel_mod,   only: ffsl_flux_xy_sphere_kernel_type
+  use ffsl_flux_xy_special_edge_kernel_mod,                                    &
+                                        only: ffsl_flux_xy_special_edge_kernel_type
+  use ffsl_unify_flux_kernel_mod,       only: ffsl_unify_flux_kernel_type
+  use fv_difference_x_kernel_mod,       only: fv_difference_x_kernel_type
+  use fv_difference_y_kernel_mod,       only: fv_difference_y_kernel_type
+  use fv_divergence_x_kernel_mod,       only: fv_divergence_x_kernel_type
+  use fv_divergence_y_kernel_mod,       only: fv_divergence_y_kernel_type
+
+  ! Configuration options
+  use base_mesh_config_mod,             only: topology, topology_non_periodic, &
+                                              topology_fully_periodic,         &
+                                              geometry, geometry_spherical
+  use boundaries_config_mod,            only: limited_area,                    &
+                                              transport_boundary_depth,        &
+                                              transport_overwrite_freq,        &
+                                              transport_overwrite_freq_all
+  use check_configuration_mod,          only: check_any_eqn_consistent,        &
+                                              get_required_stencil_depth
+  use io_config_mod,                    only: subroutine_timers
+  use transport_config_mod,             only:                                  &
+                                          panel_edge_treatment,                &
+                                          panel_edge_treatment_extended_mesh,  &
+                                          panel_edge_treatment_special_edges,  &
+                                          panel_edge_treatment_remapping,      &
+                                          panel_edge_high_order,               &
+                                          ffsl_inner_order,                    &
+                                          ffsl_outer_order,                    &
+                                          ffsl_unity_3d
+
+  implicit none
+
+  private
+
+  public  :: ffsl_hori_splitting_alg
+  public  :: ffsl_hori_cosmic_inner_alg
+  public  :: ffsl_hori_outer_alg
+  public  :: ffsl_hori_swift_inner_alg
+  private :: ffsl_extra_points
+  private :: monotone_option_special_edges
+
+contains
+
+  !> @brief Algorithm to control 2D horizontal FFSL splitting.
+  !> @details Solves the 2D transport equation, in advective or conservative
+  !!          form, including controlling the splitting between different
+  !!          dimensions. Returns an updated field for advective form and a mass
+  !!          flux for conservative form (these are then passed to the generic
+  !!          end_of_transport routines).
+  !!          One-dimensional flux differences are denoted F and G (while
+  !!          the advective differences are f and g).
+  !> @param[in,out] mass_flux          Mass flux used to transport the field.
+  !!                                   This is only used when the equation is in
+  !!                                   conservative form.
+  !> @param[in,out] field_np1          The updated advected field from the time
+  !!                                   step. Only used when specified through
+  !!                                   the optional logical argument.
+  !> @param[in]     field_n            Field at the start of the transport step
+  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  !> @param[in]     compute_field_np1  Optional argument as to whether advected
+  !!                                   field should be computed
+  subroutine ffsl_hori_splitting_alg( mass_flux, field_np1, field_n, step_dt,  &
+                                      transport_controller, compute_field_np1 )
+
+    implicit none
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: mass_flux
+    type(r_tran_field_type),         intent(inout) :: field_np1
+    type(r_tran_field_type), target, intent(in)    :: field_n
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+    logical(kind=l_def), optional,   intent(in)    :: compute_field_np1
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(mesh_type),               pointer :: mesh
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2h_fs
+
+    ! Transport options
+    logical(kind=l_def) :: to_compute_field_np1
+    logical(kind=l_def) :: do_overwrite
+
+    ! Subroutine name for timer
+    character(*), parameter :: routine_name = 'transport.ffsl_horizontal'
+
+    ! Density substeps in given direction
+    type(r_tran_field_type) :: field_x
+    type(r_tran_field_type) :: field_y
+
+    ! Field increments and fluxes in given direction
+    type(r_tran_field_type) :: first_increment_x
+    type(r_tran_field_type) :: first_increment_y
+    type(r_tran_field_type) :: increment_x
+    type(r_tran_field_type) :: increment_y
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: flux_first
+
+    ! Useful constants
+    real(kind=r_tran)   :: half_dt
+    logical(kind=l_def) :: swift_splitting
+
+    if ( subroutine_timers ) call timer(routine_name)
+
+    ! Get pre-computed objects and set pointers --------------------------------
+    mesh => field_n%get_mesh()
+    transport_metadata => transport_controller%get_transport_metadata()
+
+    ! Function spaces
+    field_fs => field_n%get_function_space()
+    w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
+
+    if (present(compute_field_np1)) then
+      to_compute_field_np1 = compute_field_np1
+    else
+      to_compute_field_np1 = .true.
+    end if
+
+    swift_splitting = (transport_metadata%get_ffsl_splitting() == &
+                       ffsl_splitting_swift)
+
+    ! Initialise fields used by all splitting options --------------------------
+    call field_x%initialise( vector_space = field_fs )
+    call field_y%initialise( vector_space = field_fs )
+    call mass_flux%initialise( vector_space = w2h_fs )
+    call flux%initialise( vector_space = w2h_fs )
+    call flux_first%initialise( vector_space = w2h_fs )
+
+    ! Set constants
+    half_dt = 0.5_r_tran * step_dt
+
+    ! COSMIC/Lin-Rood splitting (Leonard et al. 1996, Lin and Rood 1996).
+    ! It has the form
+    !
+    !   rho_x = rho - dt/2 * f(rho,u)
+    !   rho_y = rho - dt/2 * g(rho,v)
+    !
+    !   rho_np1 = rho - dt * F(rho_y,u) - dt * G(rho_x,v)
+    !
+    ! SWIFT splitting (for consistent transport) has the form
+    !
+    !   field_x = (field*rho - dt * F(field,rho_flux))/(rho - dt * F(rho,u))
+    !   field_y = (field*rho - dt * G(field,rho_flux))/(rho - dt * G(rho,v))
+    !
+    !   field_np1 = (1 / rho_np1) * ( field * rho
+    !               - dt / 2 * [ F(field,rho_flux) + F(field_y,rho_flux)
+    !                          + G(field,rho_flux) + G(field_y,rho_flux) ] )
+
+    ! 1st advective step -------------------------------------------------------
+    if ( swift_splitting ) then
+      call ffsl_hori_swift_inner_alg(                                          &
+              flux_first, field_x, field_y, field_n, step_dt,                  &
+              transport_controller, ffsl_outer_order                           &
+      )
+    else
+      if (ffsl_unity_3d) then
+        call log_event(                                                        &
+                'COSMIC splitting not supported for 3D unity', LOG_LEVEL_ERROR &
+        )
+      end if
+      call ffsl_hori_cosmic_inner_alg( first_increment_x, first_increment_y,   &
+                                       field_n, step_dt, transport_controller )
+      call invoke( X_minus_bY(field_x, field_n, half_dt, first_increment_x),   &
+                   X_minus_bY(field_y, field_n, half_dt, first_increment_y) )
+    end if
+
+    do_overwrite = (                                                           &
+      limited_area .and. topology == topology_non_periodic .and.               &
+      transport_overwrite_freq == transport_overwrite_freq_all                 &
+    )
+    if (do_overwrite) then
+      call overwrite_blending_zone_rtran(                                      &
+              field_x, field_n, depth=transport_boundary_depth                 &
+      )
+      call overwrite_blending_zone_rtran(                                      &
+              field_y, field_n, depth=transport_boundary_depth                 &
+      )
+    end if
+
+    ! Final step (advective or conservative) -----------------------------------
+    call ffsl_hori_outer_alg(                                                  &
+            flux, increment_x, increment_y, field_np1, field_n,                &
+            field_x, field_y, step_dt, transport_controller,                   &
+            ffsl_outer_order, compute_adv_inc=.false.,                         &
+            compute_field_np1=to_compute_field_np1                             &
+    )
+    ! Compute combined mass flux, if required ----------------------------------
+    if (transport_metadata%get_equation_form() == equation_form_conservative   &
+        .or. transport_metadata%get_equation_form() == equation_form_consistent) then
+      if ( swift_splitting ) then
+        call invoke( aX_plus_bY(mass_flux, 0.5_r_tran, flux_first,             &
+                                           0.5_r_tran, flux) )
+      else
+        call invoke( setval_X(mass_flux, flux) )
+      end if
+    end if
+
+    if ( subroutine_timers ) call timer(routine_name)
+
+  end subroutine ffsl_hori_splitting_alg
+
+  !> @brief Performs the inner COSMIC advective step of horizontal FFSL sweeps
+  !> @details Calculates the advective increment fields corresponding to X and Y
+  !!          transport sweeps, from a single input field. This is used for the
+  !!          inner step of the COSMIC splitting.
+  !> @param[in,out] increment_x        Advective increment from x-sweep.
+  !> @param[in,out] increment_y        Advective increment from y-sweep.
+  !> @param[in]     field_n            Field at the start of the transport step
+  !> @param[in]     dt                 The dt for this time step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  subroutine ffsl_hori_cosmic_inner_alg( increment_x, increment_y, field_n, &
+                                         dt, transport_controller )
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: increment_x
+    type(r_tran_field_type),         intent(inout) :: increment_y
+    type(r_tran_field_type), target, intent(in)    :: field_n
+    real(kind=r_tran),               intent(in)    :: dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: wind_precomputations
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: dep_dist
+    type(r_tran_field_type),         pointer :: detj_at_w3
+    type(r_tran_field_type),         pointer :: detj_at_w3_copy
+    type(field_type),                pointer :: panel_id
+    type(integer_field_type),        pointer :: panel_edge_dist(:)
+    type(integer_field_type),        pointer :: dep_lowest_k
+    type(integer_field_type),        pointer :: dep_highest_k
+    type(integer_field_type),        pointer :: face_selector_ew
+    type(integer_field_type),        pointer :: face_selector_ns
+    type(r_tran_field_type),         pointer :: adv_one_x
+    type(r_tran_field_type),         pointer :: adv_one_y
+    type(r_tran_field_type),         pointer :: frac_wind
+    integer(kind=i_def)                      :: dep_stencil_extent
+
+    ! Fields and increments
+    type(r_tran_field_type) :: flux
+    type(r_tran_field_type) :: flux_broken
+
+    ! Pointer to field, to avoid unnecessary setval calculation
+    type(r_tran_field_type),   target  :: field_big_halo
+    type(r_tran_field_type),   pointer :: field_ptr_copy
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2b_fs
+    type(function_space_type), pointer :: ndepk_fs
+
+    ! Transport options
+    integer(kind=i_def) :: monotone
+    integer(kind=i_def) :: splitting
+    logical(kind=l_def) :: monotone_remap
+    integer(kind=i_def) :: special_edges_monotone
+
+    ! Constants
+    integer(kind=i_def) :: step
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: extra_points
+    integer(kind=i_def) :: remap_depth
+    integer(kind=i_def) :: ndep
+    integer(kind=i_def) :: order
+    real(kind=r_tran)   :: min_val
+    logical(kind=l_def) :: is_cubed_sphere
+
+    ! Get pre-computed objects and set pointers --------------------------------
+    mesh_id = field_n%get_mesh_id()
+    mesh => field_n%get_mesh()
+    transport_counter => transport_controller%get_transport_counter()
+    transport_metadata => transport_controller%get_transport_metadata()
+    wind_precomputations => transport_controller%get_wind_precomputations()
+
+    ! Get options
+    step = transport_counter%get_split_step_of_substep_counter()
+    monotone = transport_metadata%get_horizontal_monotone()
+    special_edges_monotone = transport_metadata%get_special_edges_monotone()
+    call monotone_option_special_edges(special_edges_monotone, monotone)
+    splitting = transport_metadata%get_splitting()
+
+    if (transport_controller%get_cheap_update_step()) then
+      order = 0
+    else
+      order = ffsl_inner_order
+    end if
+
+    ! Whether computation is on the cubed sphere
+    is_cubed_sphere = (                                                        &
+        geometry == geometry_spherical                                         &
+        .and. topology == topology_fully_periodic                              &
+    )
+
+    if (is_cubed_sphere) then
+      panel_id => get_panel_id(mesh_id)
+      panel_edge_dist => get_panel_edge_dist(mesh_id)
+    end if
+
+    ! Get pre-computed fields
+    detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+    detj_at_w3_copy => get_detj_at_w3_r_tran(mesh_id)
+    adv_one_x => wind_precomputations%get_adv_unity_x(mesh_id, splitting, step)
+    adv_one_y => wind_precomputations%get_adv_unity_y(mesh_id, splitting, step)
+    dep_dist => wind_precomputations%get_dep_dist_xy(                          &
+        mesh_id, splitting, step, outer_step=.false.                           &
+    )
+    frac_wind => wind_precomputations%get_frac_wind_xy(                        &
+        mesh_id, splitting, step, outer_step=.false.                           &
+    )
+    dep_stencil_extent = wind_precomputations%get_dep_stencil_extent_xy(       &
+        mesh_id, splitting, step, outer_step=.false.                           &
+    )
+    dep_lowest_k => wind_precomputations%get_dep_lowest_k(                     &
+        mesh_id, splitting, step, outer_step=.false.                           &
+    )
+    dep_highest_k => wind_precomputations%get_dep_highest_k(                   &
+        mesh_id, splitting, step, outer_step=.false.                           &
+    )
+    face_selector_ew => get_face_selector_ew(mesh_id)
+    face_selector_ns => get_face_selector_ns(mesh_id)
+
+    if (is_cubed_sphere) then
+      panel_id => get_panel_id(mesh_id)
+      panel_edge_dist => get_panel_edge_dist(mesh_id)
+    end if
+
+    ! Function spaces
+    w2h_fs => dep_dist%get_function_space()
+    field_fs => field_n%get_function_space()
+    ndepk_fs => dep_lowest_k%get_function_space()
+
+    ! Initialise fields
+    call increment_x%initialise( vector_space = field_fs )
+    call increment_y%initialise( vector_space = field_fs )
+    call flux%initialise( vector_space = w2h_fs )
+
+    ! Set constant values
+    extra_points = ffsl_extra_points(panel_edge_treatment, panel_edge_high_order)
+    stencil_extent = MIN(dep_stencil_extent + extra_points + order, mesh%get_halo_depth())
+    ndep = ndepk_fs%get_ndata()
+
+    ! The minimum value is required for the quasi-monotone limiter for PPM,
+    ! if it is not set we assume positivity.
+    ! If other monotonicity or scheme is required then min_val is unused
+    if (transport_metadata%get_enforce_min_value()) then
+      min_val = transport_metadata%get_min_value()
+    else
+      min_val = 0.0_r_tran
+    end if
+
+    ! remap the field on an extended cubed sphere, if required -----------------
+    ! If needed remap the field on an extended cubed sphere
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
+      monotone_remap = ( monotone /= monotone_none )
+      remap_depth = stencil_extent
+      call remap_on_extended_mesh(field_big_halo, field_n, monotone_remap,     &
+                                  transport_metadata%get_enforce_min_value(),  &
+                                  transport_metadata%get_min_value(),          &
+                                  remap_depth)
+    else
+      call field_big_halo%initialise( field_n%get_function_space(), &
+                                      halo_depth=get_required_stencil_depth() )
+      call invoke( setval_x(field_big_halo, field_n) )
+    end if
+    ! Copy required as PSyclone doesn't allow the same field to be
+    ! used as two kernel arguments
+    field_ptr_copy => field_big_halo
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
+    ! MASS FLUX COMPUTATION ====================================================
+    if (panel_edge_treatment == panel_edge_treatment_special_edges) then
+      ! Special edge treatment ------------------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_special_edge_kernel_type(                      &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    detj_at_w3, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    detj_at_w3_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_wind,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id,                                  &
+                                    panel_edge_dist(1:2), stencil_extent,      &
+                                    panel_edge_dist(3:4), stencil_extent,      &
+                                    face_selector_ew, face_selector_ns,        &
+                                    panel_edge_high_order,                     &
+                                    ffsl_inner_order, monotone,                &
+                                    special_edges_monotone, min_val,           &
+                                    ndep, dt ) )
+    else if (is_cubed_sphere) then
+      ! Sphere requires handling of panel edges --------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_sphere_kernel_type(                            &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    detj_at_w3, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    detj_at_w3_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_wind,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id, panel_edge_dist,                 &
+                                    face_selector_ew, face_selector_ns,        &
+                                    ffsl_inner_order, monotone, min_val,       &
+                                    ndep, dt ) )
+    else
+      ! Not on the sphere ------------------------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_kernel_type(                                   &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    detj_at_w3, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    detj_at_w3_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_wind,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    face_selector_ew, face_selector_ns,        &
+                                    ffsl_inner_order, monotone,                &
+                                    min_val, ndep, dt ) )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
+
+    ! fluxes may need unifying to guarantee a unique flux for each face --------
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
+      if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
+      w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
+      call flux_broken%initialise( w2b_fs )
+      call invoke( average_w2_to_w2b_kernel_type(flux_broken, flux),           &
+                   ffsl_unify_flux_kernel_type(flux, flux_broken,              &
+                                               1, panel_id, 1) )
+      if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
+    end if
+
+    ! Compute updated advective fields -----------------------------------------
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_update')
+    call invoke( fv_divergence_x_kernel_type(increment_x, flux, detj_at_w3),   &
+                 fv_divergence_y_kernel_type(increment_y, flux, detj_at_w3) )
+
+    call ffsl_advective_increment(increment_x, field_n, dt, adv_one_x)
+    call ffsl_advective_increment(increment_y, field_n, dt, adv_one_y)
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_update')
+
+  end subroutine ffsl_hori_cosmic_inner_alg
+
+  !> @brief The first horizontal sweeps for FFSL with Swift splitting
+  !> @details Calculates the mass fluxes and updated mixing ratio fields from
+  !!          1D X and Y horizontal FFSL sweeps.
+  !> @param[in,out] flux               Horizontal mass flux
+  !> @param[in,out] field_x            Updated mixing ratio field from x-sweep
+  !> @param[in,out] field_y            Updated mixing ratio field from y-sweep
+  !> @param[in]     field_n            Input field the start of the horizontal
+  !!                                   transport step
+  !> @param[in]     step_dt            The dt for this time step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  !> @param[in]     order_arg          The reconstruction order to use.
+  subroutine ffsl_hori_swift_inner_alg( flux, field_x, field_y, field_n,       &
+                                        step_dt, transport_controller, order_arg )
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: field_x
+    type(r_tran_field_type),         intent(inout) :: field_y
+    type(r_tran_field_type),         intent(inout) :: flux
+    type(r_tran_field_type), target, intent(in)    :: field_n
+    real(kind=r_tran),               intent(in)    :: step_dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+    integer(kind=i_def),             intent(in)    :: order_arg
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: wind_precomputations
+    type(flux_precomputations_type), pointer :: ffsl_precomputations
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: dep_dist
+    type(r_tran_field_type),         pointer :: frac_flux
+    type(r_tran_field_type),         pointer :: dry_mass_n
+    type(r_tran_field_type),         pointer :: dry_mass_n_copy
+    type(r_tran_field_type),         pointer :: dry_mass_x
+    type(r_tran_field_type),         pointer :: dry_mass_y
+    type(field_type),                pointer :: panel_id
+    type(integer_field_type),        pointer :: face_selector_ew
+    type(integer_field_type),        pointer :: face_selector_ns
+    type(integer_field_type),        pointer :: dep_lowest_k
+    type(integer_field_type),        pointer :: dep_highest_k
+    integer(kind=i_def)                      :: dep_stencil_extent
+    type(integer_field_type),        pointer :: panel_edge_dist(:)
+
+    ! Fields and increments
+    type(r_tran_field_type), target :: field_big_halo
+
+    type(r_tran_field_type) :: flux_broken
+    type(r_tran_field_type) :: increment_x
+    type(r_tran_field_type) :: increment_y
+    type(r_tran_field_type) :: field_x_remapped
+    type(r_tran_field_type) :: field_y_remapped
+
+    ! Pointer to field, to avoid unnecessary setval calculation
+    type(r_tran_field_type),   pointer :: field_ptr_copy
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2b_fs
+    type(function_space_type), pointer :: ndepk_fs
+
+    ! Transport options
+    integer(kind=i_def) :: monotone
+    logical(kind=l_def) :: monotone_remap
+    integer(kind=i_def) :: special_edges_monotone
+    integer(kind=i_def) :: equation_form
+    integer(kind=i_def) :: splitting
+
+    ! Constants
+    integer(kind=i_def) :: mesh_id, step
+    integer(kind=i_def) :: extra_points
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: remap_depth
+    integer(kind=i_def) :: ndep
+    integer(kind=i_def) :: order
+    real(kind=r_tran)   :: min_val
+    logical(kind=l_def) :: enforce_minvalue
+    logical(kind=l_def) :: is_cubed_sphere
+
+    ! Get pre-computed objects and set pointers --------------------------------
+    mesh_id = field_x%get_mesh_id()
+    mesh => field_x%get_mesh()
+    transport_counter => transport_controller%get_transport_counter()
+    transport_metadata => transport_controller%get_transport_metadata()
+
+    ! Get options
+    monotone = transport_metadata%get_horizontal_monotone()
+    equation_form = transport_metadata%get_equation_form()
+    splitting = transport_metadata%get_splitting()
+    enforce_minvalue = transport_metadata%get_enforce_min_value()
+
+    if (transport_controller%get_cheap_update_step()) then
+      order = 0
+    else
+      order = order_arg
+    end if
+
+    is_cubed_sphere = (                                                        &
+        geometry == geometry_spherical                                         &
+        .and. topology == topology_fully_periodic                              &
+    )
+
+    if (is_cubed_sphere) then
+      panel_id => get_panel_id(mesh_id)
+      panel_edge_dist => get_panel_edge_dist(mesh_id)
+    end if
+
+    face_selector_ew => get_face_selector_ew(mesh_id)
+    face_selector_ns => get_face_selector_ns(mesh_id)
+
+    if (equation_form == equation_form_consistent) then
+      ffsl_precomputations => transport_controller%get_flux_precomputations()
+      step = transport_counter%get_split_step_of_whole_step_counter()
+      dep_stencil_extent = transport_controller%get_dep_stencil_extent(        &
+          mesh_id, step, outer_step=.false., flux_calc=.true.                  &
+      )
+    else if (ffsl_unity_3d) then
+      ffsl_precomputations => transport_controller%get_ffsl_precomputations()
+      step = transport_counter%get_split_step_of_substep_counter()
+      dep_stencil_extent = transport_controller%get_dep_stencil_extent(        &
+          mesh_id, step, outer_step=.false., flux_calc=.false.                 &
+      )
+    else
+      wind_precomputations => transport_controller%get_wind_precomputations()
+      step = transport_counter%get_split_step_of_substep_counter()
+    end if
+
+    if (equation_form == equation_form_consistent .or. ffsl_unity_3d) then
+      ! Consistent form of equation uses dry mass in place of volume
+      dry_mass_n => ffsl_precomputations%get_ref_mass(mesh_id, step)
+      dry_mass_n_copy => ffsl_precomputations%get_ref_mass(mesh_id, step)
+      dry_mass_x => ffsl_precomputations%get_ref_mass_x(mesh_id, step)
+      dry_mass_y => ffsl_precomputations%get_ref_mass_y(mesh_id, step)
+      dep_dist => ffsl_precomputations%get_dep_dist(                           &
+          mesh_id, step, outer_step=.false.                                    &
+      )
+      frac_flux => ffsl_precomputations%get_frac_flux(                         &
+          mesh_id, step, outer_step=.false.                                    &
+      )
+      dep_lowest_k => ffsl_precomputations%get_dep_lowest_k(                   &
+          mesh_id, step, outer_step=.false.                                    &
+      )
+      dep_highest_k => ffsl_precomputations%get_dep_highest_k(                 &
+          mesh_id, step, outer_step=.false.                                    &
+      )
+    else
+      ! Reset unity for advective/conservative forms
+      dry_mass_n => get_detj_at_w3_r_tran(mesh_id)
+      dry_mass_n_copy => get_detj_at_w3_r_tran(mesh_id)
+      dry_mass_x => wind_precomputations%get_adv_detj_x(                       &
+          mesh_id, splitting, step                                             &
+      )
+      dry_mass_y => wind_precomputations%get_adv_detj_y(                       &
+          mesh_id, splitting, step                                             &
+      )
+      dep_dist => wind_precomputations%get_dep_dist_xy(                        &
+          mesh_id, splitting, step, outer_step=.false.                         &
+      )
+      dep_stencil_extent = wind_precomputations%get_dep_stencil_extent_xy(     &
+          mesh_id, splitting, step, outer_step=.false.                         &
+      )
+      frac_flux => wind_precomputations%get_frac_wind_xy(                      &
+          mesh_id, splitting, step, outer_step=.false.                         &
+      )
+      dep_lowest_k => wind_precomputations%get_dep_lowest_k(                   &
+          mesh_id, splitting, step, outer_step=.false.                         &
+      )
+      dep_highest_k => wind_precomputations%get_dep_highest_k(                 &
+          mesh_id, splitting, step, outer_step=.false.                         &
+      )
+    end if
+
+    ! Function spaces
+    w2h_fs => dep_dist%get_function_space()
+    field_fs => field_x%get_function_space()
+    ndepk_fs => dep_lowest_k%get_function_space()
+
+    ! Initialise fields --------------------------------------------------------
+    call increment_x%initialise( vector_space = field_fs )
+    call increment_y%initialise( vector_space = field_fs )
+
+    ! Set constant values
+    extra_points = ffsl_extra_points(panel_edge_treatment, panel_edge_high_order)
+    stencil_extent = MIN(dep_stencil_extent + extra_points + order, mesh%get_halo_depth())
+    ndep = ndepk_fs%get_ndata()
+
+    ! The minimum value is required for the quasi-monotone limiter for PPM,
+    ! if it is not set we assume positivity.
+    ! If other monotonicity or scheme is required then min_val is unused
+    if (transport_metadata%get_enforce_min_value()) then
+      min_val = transport_metadata%get_min_value()
+    else
+      min_val = 0.0_r_tran
+    end if
+
+    ! remap the field on an extended cubed sphere, if required -----------------
+    ! If needed remap the field on an extended cubed sphere
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
+      monotone_remap = ( monotone /= monotone_none )
+      remap_depth = stencil_extent
+      call remap_on_extended_mesh(field_big_halo, field_n, monotone_remap,     &
+                                  transport_metadata%get_enforce_min_value(),  &
+                                  transport_metadata%get_min_value(),          &
+                                  remap_depth)
+    else
+      call field_big_halo%initialise( field_n%get_function_space(), &
+                                      halo_depth=get_required_stencil_depth() )
+      call invoke( setval_x(field_big_halo, field_n) )
+    end if
+
+    if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
+      monotone_remap = ( monotone /= monotone_none )
+      call panel_edge_remap_alg(                                               &
+              field_x_remapped, field_y_remapped,                              &
+              field_big_halo, field_big_halo, stencil_extent,                  &
+              monotone_remap, enforce_minvalue, min_val                        &
+      )
+    end if
+
+    field_ptr_copy => field_big_halo
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
+    ! MASS FLUX COMPUTATION ====================================================
+    if (panel_edge_treatment == panel_edge_treatment_remapping) then
+      ! Use remapped fields at panel edges -------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_panel_remap_kernel_type(                       &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    field_x_remapped, stencil_extent,          &
+                                    dry_mass_n, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    field_y_remapped, stencil_extent,          &
+                                    dry_mass_n_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id,                                  &
+                                    panel_edge_dist(1:2), stencil_extent,      &
+                                    panel_edge_dist(3:4), stencil_extent,      &
+                                    face_selector_ew, face_selector_ns,        &
+                                    order, monotone,                           &
+                                    min_val, ndep, step_dt ) )
+    else if (panel_edge_treatment == panel_edge_treatment_special_edges) then
+      ! Special edges ----------------------------------------------------------
+      special_edges_monotone = transport_metadata%get_special_edges_monotone()
+      call monotone_option_special_edges(special_edges_monotone, monotone)
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_special_edge_kernel_type(                      &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    dry_mass_n, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    dry_mass_n_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id,                                  &
+                                    panel_edge_dist(1:2), stencil_extent,      &
+                                    panel_edge_dist(3:4), stencil_extent,      &
+                                    face_selector_ew, face_selector_ns,        &
+                                    panel_edge_high_order, order,              &
+                                    monotone, special_edges_monotone,          &
+                                    min_val, ndep, step_dt ) )
+    else if (is_cubed_sphere) then
+      ! Sphere requires handling of panel edges --------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_sphere_kernel_type(                            &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    dry_mass_n, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    dry_mass_n_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id, panel_edge_dist,                 &
+                                    face_selector_ew, face_selector_ns,        &
+                                    order, monotone, min_val,                  &
+                                    ndep, step_dt ) )
+    else
+      ! Not special edges ------------------------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_kernel_type(                                   &
+                                    flux,                                      &
+                                    field_big_halo, stencil_extent,            &
+                                    dry_mass_n, dep_stencil_extent,            &
+                                    field_ptr_copy, stencil_extent,            &
+                                    dry_mass_n_copy, dep_stencil_extent,       &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    face_selector_ew, face_selector_ns,        &
+                                    order, monotone, min_val,                  &
+                                    ndep, step_dt ) )
+
+    end if
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
+
+    ! fluxes may need unifying to guarantee a unique flux for each face --------
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
+      if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
+      w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
+      call flux_broken%initialise( w2b_fs )
+      call invoke( average_w2_to_w2b_kernel_type(flux_broken, flux),           &
+                   ffsl_unify_flux_kernel_type(flux, flux_broken,              &
+                                               1, panel_id, 1) )
+      if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
+    end if
+
+    ! Compute advected fields
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_update')
+    call invoke( fv_difference_x_kernel_type(increment_x, flux),               &
+                 fv_difference_y_kernel_type(increment_y, flux) )
+    ! Obtain updated mixing ratio by dividing by updated density
+    call swift_inner_update_tracer(field_x, field_n, dry_mass_x,               &
+                                   dry_mass_n, increment_x, step_dt)
+    call swift_inner_update_tracer(field_y, field_n, dry_mass_y,               &
+                                   dry_mass_n, increment_y, step_dt)
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_update')
+
+  end subroutine ffsl_hori_swift_inner_alg
+
+  !> @brief Performs the outer horizontal steps of X and Y horizontal FFSL sweeps
+  !> @details Calculates the advective increment fields and/or updated fields
+  !!          and/or mass fluxes from 1D X and Y horizontal FFSL sweeps, in
+  !!          which the inputs to the sweeps are different fields.
+  !> @param[in,out] flux               Horizontal mass flux
+  !> @param[in,out] increment_x        Advective increment from x-sweep
+  !> @param[in,out] increment_y        Advective increment from y-sweep
+  !> @param[in,out] field_np1          The updated advected field from the time
+  !!                                   step. Only used when specified through
+  !!                                   the optional logical argument.
+  !> @param[in]     field_n            Input field the start of the horizontal
+  !!                                   transport step
+  !> @param[in]     field_x            Input field from steps in x direction
+  !> @param[in]     field_y            Input field from steps in y direction
+  !> @param[in]     dt                 The dt for this time step
+  !> @param[in,out] transport_controller
+  !!                                   Object with metadata and precomputations
+  !!                                   to control the transport of the field
+  !> @param[in]     order_arg          The reconstruction order to use.
+  !> @param[in]     compute_adv_inc    Optional argument as to whether advective
+  !!                                   increments should be computed
+  !> @param[in]     compute_field_np1  Optional argument as to whether advected
+  !!                                   field should be computed
+  subroutine ffsl_hori_outer_alg( flux, increment_x, increment_y,              &
+                                  field_np1, field_n, field_x, field_y, dt,    &
+                                  transport_controller, order_arg,             &
+                                  compute_adv_inc, compute_field_np1 )
+
+    ! Arguments ----------------------------------------------------------------
+    type(r_tran_field_type),         intent(inout) :: increment_x
+    type(r_tran_field_type),         intent(inout) :: increment_y
+    type(r_tran_field_type),         intent(inout) :: flux
+    type(r_tran_field_type),         intent(inout) :: field_np1
+    type(r_tran_field_type), target, intent(in)    :: field_n
+    type(r_tran_field_type), target, intent(in)    :: field_x
+    type(r_tran_field_type), target, intent(in)    :: field_y
+    real(kind=r_tran),               intent(in)    :: dt
+    type(transport_controller_type), intent(inout) :: transport_controller
+    integer(kind=i_def),             intent(in)    :: order_arg
+    logical(kind=l_def), optional,   intent(in)    :: compute_adv_inc
+    logical(kind=l_def), optional,   intent(in)    :: compute_field_np1
+
+    ! Internal variables -------------------------------------------------------
+    ! Pointers to existing objects
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+    type(wind_precomputations_type), pointer :: wind_precomputations
+    type(flux_precomputations_type), pointer :: ffsl_precomputations
+    type(mesh_type),                 pointer :: mesh
+    type(r_tran_field_type),         pointer :: dep_dist
+    type(r_tran_field_type),         pointer :: detj_at_w3
+    type(field_type),                pointer :: panel_id
+    type(r_tran_field_type),         pointer :: adv_one_x
+    type(r_tran_field_type),         pointer :: adv_one_y
+    type(r_tran_field_type),         pointer :: dry_mass_x
+    type(r_tran_field_type),         pointer :: dry_mass_y
+    type(r_tran_field_type),         pointer :: dry_mass_np1
+    type(r_tran_field_type),         pointer :: rho_d_n
+    type(r_tran_field_type),         pointer :: rho_d_np1
+    type(r_tran_field_type),         pointer :: frac_flux
+    integer(kind=i_def)                      :: dep_stencil_extent
+    type(integer_field_type),        pointer :: dep_lowest_k
+    type(integer_field_type),        pointer :: dep_highest_k
+    type(integer_field_type),        pointer :: face_selector_ew
+    type(integer_field_type),        pointer :: face_selector_ns
+    type(integer_field_type),        pointer :: panel_edge_dist(:)
+
+    ! Fields and increments
+    type(r_tran_field_type) :: field_x_big_halo
+    type(r_tran_field_type) :: field_y_big_halo
+    type(r_tran_field_type) :: field_x_remapped
+    type(r_tran_field_type) :: field_y_remapped
+    type(r_tran_field_type) :: flux_broken
+    type(r_tran_field_type) :: conservative_field_n
+    type(r_tran_field_type) :: conservative_field_np1
+
+    type(r_tran_field_type) :: increment
+
+    ! Function spaces
+    type(function_space_type), pointer :: field_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2b_fs
+    type(function_space_type), pointer :: ndepk_fs
+
+    ! Transport options
+    integer(kind=i_def) :: monotone
+    logical(kind=l_def) :: monotone_remap
+    integer(kind=i_def) :: special_edges_monotone
+    integer(kind=i_def) :: equation_form
+    integer(kind=i_def) :: splitting
+    logical(kind=l_def) :: swift_splitting
+
+    ! Constants
+    integer(kind=i_def) :: mesh_id, step
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: remap_depth
+    integer(kind=i_def) :: ndep
+    real(kind=r_tran)   :: min_val
+    logical(kind=l_def) :: enforce_minvalue
+
+    logical(kind=l_def) :: to_compute_adv_inc
+    logical(kind=l_def) :: to_compute_field_np1
+    integer(kind=i_def) :: extra_points
+    integer(kind=i_def) :: order
+    logical(kind=l_def) :: outer
+    logical(kind=l_def) :: is_cubed_sphere
+
+    ! Get pre-computed objects and set pointers --------------------------------
+    mesh_id = field_x%get_mesh_id()
+    mesh => field_x%get_mesh()
+    transport_counter => transport_controller%get_transport_counter()
+    transport_metadata => transport_controller%get_transport_metadata()
+
+    ! Get options
+    monotone = transport_metadata%get_horizontal_monotone()
+    equation_form = transport_metadata%get_equation_form()
+    splitting = transport_metadata%get_splitting()
+    swift_splitting = (transport_metadata%get_ffsl_splitting() &
+                       == ffsl_splitting_swift)
+    enforce_minvalue = transport_metadata%get_enforce_min_value()
+    outer = swift_splitting
+
+    if (transport_controller%get_cheap_update_step()) then
+      order = 0
+    else
+      order = order_arg
+    end if
+
+    ! Get pre-computed fields
+    face_selector_ew => get_face_selector_ew(mesh_id)
+    face_selector_ns => get_face_selector_ns(mesh_id)
+
+    ! Whether computation is on the cubed sphere
+    is_cubed_sphere = (                                                        &
+        geometry == geometry_spherical                                         &
+        .and. topology == topology_fully_periodic                              &
+    )
+
+    if (is_cubed_sphere) then
+      panel_id => get_panel_id(mesh_id)
+      panel_edge_dist => get_panel_edge_dist(mesh_id)
+    end if
+
+    if (equation_form == equation_form_consistent) then
+      ffsl_precomputations => transport_controller%get_flux_precomputations()
+      step = transport_counter%get_split_step_of_whole_step_counter()
+      dep_stencil_extent = transport_controller%get_dep_stencil_extent(        &
+          mesh_id, step, outer, flux_calc=.true.                               &
+      )
+    else if (ffsl_unity_3d) then
+      ffsl_precomputations => transport_controller%get_ffsl_precomputations()
+      step = transport_counter%get_split_step_of_substep_counter()
+      dep_stencil_extent = transport_controller%get_dep_stencil_extent(        &
+          mesh_id, step, outer, flux_calc=.false.                              &
+      )
+    else
+      wind_precomputations => transport_controller%get_wind_precomputations()
+      step = transport_counter%get_split_step_of_substep_counter()
+    end if
+
+    if (equation_form == equation_form_consistent .or. ffsl_unity_3d) then
+      ! Consistent form of equation uses mass in place of volume
+      if (swift_splitting) then
+        dry_mass_x => ffsl_precomputations%get_ref_mass_x(mesh_id, step)
+        dry_mass_y => ffsl_precomputations%get_ref_mass_y(mesh_id, step)
+      else
+        ! Same density used for both steps
+        dry_mass_x => ffsl_precomputations%get_ref_mass(mesh_id, step)
+        dry_mass_y => ffsl_precomputations%get_ref_mass(mesh_id, step)
+      end if
+      dep_dist => ffsl_precomputations%get_dep_dist(mesh_id, step, outer)
+      frac_flux => ffsl_precomputations%get_frac_flux(mesh_id, step, outer)
+      dep_lowest_k => ffsl_precomputations%get_dep_lowest_k(mesh_id, step, outer)
+      dep_highest_k => ffsl_precomputations%get_dep_highest_k(mesh_id, step, outer)
+    else
+      ! Advective/conservative forms of equation use volume ("detj") of cells
+      wind_precomputations => transport_controller%get_wind_precomputations()
+      if (swift_splitting) then
+        dry_mass_x => wind_precomputations%get_adv_detj_x(                     &
+            mesh_id, splitting, step                                           &
+        )
+        dry_mass_y => wind_precomputations%get_adv_detj_y(                     &
+            mesh_id, splitting, step                                           &
+        )
+      else
+        dry_mass_x => get_detj_at_w3_r_tran(mesh_id)
+        dry_mass_y => get_detj_at_w3_r_tran(mesh_id)
+      end if
+      detj_at_w3 => get_detj_at_w3_r_tran(mesh_id)
+      dep_dist => wind_precomputations%get_dep_dist_xy(                        &
+          mesh_id, splitting, step, outer                                      &
+      )
+      frac_flux => wind_precomputations%get_frac_wind_xy(                      &
+          mesh_id, splitting, step, outer                                      &
+      )
+      dep_lowest_k => wind_precomputations%get_dep_lowest_k(                   &
+          mesh_id, splitting, step, outer                                      &
+      )
+      dep_highest_k => wind_precomputations%get_dep_highest_k(                 &
+          mesh_id, splitting, step, outer                                      &
+      )
+      dep_stencil_extent = wind_precomputations%get_dep_stencil_extent_xy(     &
+          mesh_id, splitting, step, outer                                      &
+      )
+    end if
+
+    ! Function spaces
+    w2h_fs => dep_dist%get_function_space()
+    field_fs => field_x%get_function_space()
+    ndepk_fs => dep_lowest_k%get_function_space()
+
+    if (present(compute_adv_inc)) then
+      to_compute_adv_inc = compute_adv_inc
+    else
+      to_compute_adv_inc = .true.
+    end if
+
+    if (present(compute_field_np1)) then
+      to_compute_field_np1 = compute_field_np1
+    else
+      to_compute_field_np1 = .true.
+    end if
+
+    ! Set constant values
+    extra_points = ffsl_extra_points(panel_edge_treatment, panel_edge_high_order)
+    stencil_extent = MIN(dep_stencil_extent + extra_points + order, mesh%get_halo_depth())
+    ndep = ndepk_fs%get_ndata()
+
+    ! The minimum value is required for the quasi-monotone limiter for PPM,
+    ! if it is not set we assume positivity.
+    ! If other monotonicity or scheme is required then min_val is unused
+    if (transport_metadata%get_enforce_min_value()) then
+      min_val = transport_metadata%get_min_value()
+    else
+      min_val = 0.0_r_tran
+    end if
+
+    ! remap the field on an extended cubed sphere, if required -----------------
+    ! If needed remap the field on an extended cubed sphere
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
+      monotone_remap = ( monotone /= monotone_none )
+      remap_depth = stencil_extent
+      call remap_on_extended_mesh(field_x_big_halo, field_x, monotone_remap,   &
+                                  transport_metadata%get_enforce_min_value(),  &
+                                  transport_metadata%get_min_value(),          &
+                                  remap_depth)
+      call remap_on_extended_mesh(field_y_big_halo, field_y, monotone_remap,   &
+                                  transport_metadata%get_enforce_min_value(),  &
+                                  transport_metadata%get_min_value(),          &
+                                  remap_depth)
+    else
+      call field_x_big_halo%initialise(field_fs, halo_depth=get_required_stencil_depth())
+      call field_y_big_halo%initialise(field_fs, halo_depth=get_required_stencil_depth())
+      call invoke( setval_x(field_x_big_halo, field_x),                        &
+                   setval_x(field_y_big_halo, field_y) )
+    end if
+
+    if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
+      monotone_remap = ( monotone /= monotone_none )
+      ! Remap x field in y, and y field in x
+      call panel_edge_remap_alg(                                               &
+              field_y_remapped, field_x_remapped,                              &
+              field_y_big_halo, field_x_big_halo, stencil_extent,              &
+              monotone_remap, enforce_minvalue, min_val                        &
+      )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
+
+    ! MASS FLUX COMPUTATION ====================================================
+    if (panel_edge_treatment == panel_edge_treatment_remapping) then
+      ! Use remapped fields at panel edges -------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_panel_remap_kernel_type(                       &
+                                    flux,                                      &
+                                    field_y_big_halo, stencil_extent,          &
+                                    field_y_remapped, stencil_extent,          &
+                                    dry_mass_y, dep_stencil_extent,            &
+                                    field_x_big_halo, stencil_extent,          &
+                                    field_x_remapped, stencil_extent,          &
+                                    dry_mass_x, dep_stencil_extent,            &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id,                                  &
+                                    panel_edge_dist(1:2), stencil_extent,      &
+                                    panel_edge_dist(3:4), stencil_extent,      &
+                                    face_selector_ew, face_selector_ns,        &
+                                    order, monotone,                           &
+                                    min_val, ndep, dt ) )
+    else if (panel_edge_treatment == panel_edge_treatment_special_edges) then
+      ! Special edge treatment ------------------------------------------------
+      special_edges_monotone = transport_metadata%get_special_edges_monotone()
+      call monotone_option_special_edges(special_edges_monotone, monotone)
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_special_edge_kernel_type(                      &
+                                    flux,                                      &
+                                    field_y_big_halo, stencil_extent,          &
+                                    dry_mass_y, dep_stencil_extent,            &
+                                    field_x_big_halo, stencil_extent,          &
+                                    dry_mass_x, dep_stencil_extent,            &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id,                                  &
+                                    panel_edge_dist(1:2), stencil_extent,      &
+                                    panel_edge_dist(3:4), stencil_extent,      &
+                                    face_selector_ew, face_selector_ns,        &
+                                    panel_edge_high_order, order,              &
+                                    monotone, special_edges_monotone,          &
+                                    min_val, ndep, dt ) )
+    else if (is_cubed_sphere) then
+      ! Sphere requires handling of panel edges --------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_sphere_kernel_type(                            &
+                                    flux,                                      &
+                                    field_y_big_halo, stencil_extent,          &
+                                    dry_mass_y, dep_stencil_extent,            &
+                                    field_x_big_halo, stencil_extent,          &
+                                    dry_mass_x, dep_stencil_extent,            &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    panel_id, panel_edge_dist,                 &
+                                    face_selector_ew, face_selector_ns,        &
+                                    order, monotone, min_val,                  &
+                                    ndep, dt ) )
+    else
+      ! Not on the sphere ------------------------------------------------------
+      call invoke( setval_c(flux, 0.0_r_tran),                                 &
+                   ffsl_flux_xy_kernel_type(                                   &
+                                    flux,                                      &
+                                    field_y_big_halo, stencil_extent,          &
+                                    dry_mass_y, dep_stencil_extent,            &
+                                    field_x_big_halo, stencil_extent,          &
+                                    dry_mass_x, dep_stencil_extent,            &
+                                    dep_dist, frac_flux,                       &
+                                    dep_lowest_k, dep_highest_k,               &
+                                    face_selector_ew,                          &
+                                    face_selector_ns, order,                   &
+                                    monotone, min_val,                         &
+                                    ndep, dt ) )
+
+    end if
+
+    if ( subroutine_timers ) call timer('transport.ffsl_hori_sweeps')
+
+    ! fluxes may need unifying to guarantee a unique flux for each face --------
+    if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
+      if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
+      w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
+      call flux_broken%initialise( w2b_fs )
+      call invoke( average_w2_to_w2b_kernel_type(flux_broken, flux),           &
+                   ffsl_unify_flux_kernel_type(flux, flux_broken,              &
+                                               1, panel_id, 1) )
+      if ( subroutine_timers ) call timer('transport.ffsl_flux_unify')
+    end if
+
+    ! Compute advective increments, if required --------------------------------
+    if (to_compute_adv_inc .or. to_compute_field_np1) then
+      if ( subroutine_timers ) call timer('transport.ffsl_hori_update')
+
+      call increment_x%initialise( vector_space = field_fs )
+      call increment_y%initialise( vector_space = field_fs )
+
+      if (swift_splitting .and. to_compute_field_np1) then
+        if (equation_form == equation_form_consistent .or. ffsl_unity_3d) then
+          dry_mass_np1 => ffsl_precomputations%get_ref_mass(mesh_id, step+1)
+        else
+          dry_mass_np1 => wind_precomputations%get_adv_detj_xy(                &
+              mesh_id, splitting, step                                         &
+          )
+        end if
+        ! TODO #416: a small optimisation is to combine increment_x and increment_y
+        call invoke( fv_difference_x_kernel_type(increment_x, flux),           &
+                     fv_difference_y_kernel_type(increment_y, flux) )
+        ! Obtain updated mixing ratio by dividing by updated density
+        call swift_outer_update_tracer(field_np1, field_x, field_y,            &
+                                       dry_mass_np1, dry_mass_x,               &
+                                       dry_mass_y, increment_x,                &
+                                       increment_y, dt )
+
+      ! COSMIC splitting: consistent tracer
+      else if (equation_form == equation_form_consistent) then
+        call conservative_field_np1%initialise( vector_space = field_fs )
+        call conservative_field_n%initialise( vector_space = field_fs )
+        call increment%initialise( vector_space = field_fs )
+
+        ! Multiply tracer mixing ratio by dry density to get tracer density
+        rho_d_n => ffsl_precomputations%get_ref_field(mesh_id, step)
+        rho_d_np1 => ffsl_precomputations%get_ref_field(mesh_id, step+1)
+
+        call invoke( X_times_Y(conservative_field_n, field_n, rho_d_n),        &
+                     ! Calculate increment to tracer density
+                     fv_divergence_x_kernel_type(increment_x, flux,            &
+                                                 detj_at_w3),                  &
+                     fv_divergence_y_kernel_type(increment_y, flux,            &
+                                                 detj_at_w3),                  &
+                     X_plus_Y(increment, increment_x, increment_y),            &
+                     X_minus_bY(conservative_field_np1,                        &
+                                conservative_field_n, dt, increment),          &
+                     ! Obtain updated mixing ratio by dividing by updated density
+                     X_divideby_Y(field_np1, conservative_field_np1,           &
+                                  rho_d_np1) )
+
+      ! COSMIC splitting: conservative/advective form
+      else
+        call invoke( fv_divergence_x_kernel_type(increment_x, flux,            &
+                                                 detj_at_w3),                  &
+                     fv_divergence_y_kernel_type(increment_y, flux,            &
+                                                 detj_at_w3) )
+
+        adv_one_x => wind_precomputations%get_adv_unity_x(                     &
+            mesh_id, splitting, step                                           &
+        )
+        adv_one_y => wind_precomputations%get_adv_unity_y(                     &
+            mesh_id, splitting, step                                           &
+        )
+
+        call ffsl_advective_increment(increment_x, field_y, dt, adv_one_x)
+        call ffsl_advective_increment(increment_y, field_x, dt, adv_one_y)
+
+        if ( to_compute_field_np1 ) then
+          call invoke( X_minus_bY(field_np1, field_n, dt, increment_x),        &
+                       inc_X_minus_bY(field_np1, dt, increment_y) )
+        end if
+      end if
+
+      if ( subroutine_timers ) call timer('transport.ffsl_hori_update')
+    end if
+
+  end subroutine ffsl_hori_outer_alg
+
+  !----------------------------------------------------------------------------
+  !> @brief  Returns the number of extra points required for ffsl stencil
+  !> @param[in] panel_edge_treatment    Enumerator for edge treatment
+  !> @param[in] panel_high_order        Logical to use high order special edges
+  !> @return    extra_points            The number of extra points required
+  !----------------------------------------------------------------------------
+  function ffsl_extra_points(panel_edge_treatment, &
+                             panel_edge_high_order) result(extra_points)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: panel_edge_treatment
+    logical(kind=l_def), intent(in) :: panel_edge_high_order
+    integer(kind=i_def)             :: extra_points
+
+    if ( panel_edge_treatment == panel_edge_treatment_special_edges            &
+         .AND. panel_edge_high_order ) then
+      extra_points = 1_i_def
+    else
+      extra_points = 0_i_def
+    end if
+  end function ffsl_extra_points
+
+  !----------------------------------------------------------------------------
+  !> @brief Sets the monotonicity option at special edges which is either
+  !>        no monotonicity, the same as the option away from special edges,
+  !>        or positivity.
+  !> @param[in,out] special_edges_monotone The monotonicity option to set at
+  !!                                       panel edges when the special edges
+  !!                                       treatment is used
+  !> @param[in]    monotone                The monotonicity option otherwise
+  !----------------------------------------------------------------------------
+  subroutine monotone_option_special_edges(special_edges_monotone, &
+                                           monotone)
+
+    implicit none
+
+    integer(kind=i_def), intent(inout) :: special_edges_monotone
+    integer(kind=i_def), intent(in)    :: monotone
+
+    if (special_edges_monotone == special_edges_monotone_none) then
+      special_edges_monotone = monotone_none
+    else if (special_edges_monotone == special_edges_monotone_positive) then
+      special_edges_monotone = monotone_positive
+    else
+      special_edges_monotone = monotone
+    end if
+
+  end subroutine monotone_option_special_edges
+
+end module ffsl_hori_alg_mod

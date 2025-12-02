@@ -1,0 +1,60 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Map drag increments from W3/WTheta to W2
+
+module map_drag_incs_alg_mod
+
+  use field_mod,                     only: field_type
+  use constants_mod,                 only: r_def
+  use physics_config_mod,            only: limit_drag_incs
+  use map_fd_to_prognostics_alg_mod, only: set_wind
+  use drag_incs_kernel_mod,          only: drag_incs_kernel_type
+
+  implicit none
+  private
+
+  public :: map_drag_incs_alg
+
+contains
+
+  !> @details Map the drag increments from W3 (horizontal) and Wtheta (vertical)
+  !>          back to a W2 wind increment. Optionally limit the W2 increment
+  !>          such that it cannot accelerate the original wind, which can
+  !>          occasionally happen when there is a strong gradient between
+  !>          W3 points.
+  !> @param[in]     du_inc      Zonal wind increment
+  !> @param[in]     dv_inc      Meridional wind increment
+  !> @param[in]     dw_inc      Vertical wind increment
+  !> @param[in]     u           W2 wind field
+  !> @param[in,out] du_drag_inc W2 drag increment
+
+  subroutine map_drag_incs_alg(du_inc, dv_inc, dw_inc, u, du_drag_inc)
+
+    implicit none
+
+    ! Arguments
+    type( field_type ), intent( in ) :: du_inc
+    type( field_type ), intent( in ) :: dv_inc
+    type( field_type ), intent( in ) :: dw_inc
+    type( field_type ), intent( in ) :: u
+    type( field_type ), intent( inout ) :: du_drag_inc
+
+    type( field_type ) :: du_new_drag_inc
+
+    ! Mapping back of wind increments
+    call set_wind(du_drag_inc, du_inc, dv_inc, dw_inc)
+
+    if (limit_drag_incs) then
+      call du_drag_inc%copy_field_properties(du_new_drag_inc)
+      call invoke(setval_c(du_new_drag_inc, 0.0_r_def),                   &
+                  drag_incs_kernel_type(du_new_drag_inc, du_drag_inc, u), &
+                  setval_X(du_drag_inc, du_new_drag_inc) )
+    end if
+
+
+  end subroutine map_drag_incs_alg
+
+end module map_drag_incs_alg_mod

@@ -1,0 +1,111 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test for setting a field using a vertical profile
+!>
+module set_field_to_profile_kernel_mod_test
+
+use constants_mod,                   only: i_def, r_def
+use, intrinsic :: iso_fortran_env,   only: real64
+use funit
+
+implicit none
+
+private
+public :: set_field_to_profile_test_type, test_all
+
+@TestCase
+type, extends(TestCase) :: set_field_to_profile_test_type
+  private
+contains
+  procedure setUp
+  procedure tearDown
+  procedure test_all
+end type set_field_to_profile_test_type
+
+integer(i_def), parameter   :: nlayers = 10_i_def
+integer(i_def), parameter   :: ndf_wt  = 2_i_def
+integer(i_def), parameter   :: undf_wt = nlayers + 1_i_def
+
+integer(i_def), allocatable :: map_wt(:)
+real(r_def),    allocatable :: theta(:)
+real(r_def),    allocatable :: profile_data(:)
+
+contains
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(set_field_to_profile_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+
+    allocate( map_wt(ndf_wt) )
+    allocate( theta(undf_wt) )
+    allocate( profile_data(0:nlayers) )
+
+    ! Create the model grid
+    map_wt(:) = (/ 1_i_def, 2_i_def /)
+
+    do k = 0, nlayers
+      profile_data(k) = real(k, r_def)
+    end do
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(set_field_to_profile_test_type), intent(inout) :: this
+
+    deallocate( map_wt )
+    deallocate( theta )
+    deallocate( profile_data )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use set_field_to_profile_kernel_mod, only: set_field_to_profile_code
+
+    implicit none
+
+    class(set_field_to_profile_test_type), intent(inout) :: this
+
+    integer(i_def)            :: k
+    real(r_def)               :: target_value
+    real(r_def), parameter    :: tol = 1.0e-12_r_def
+    real(r_def)               :: use_tol
+
+
+    do k = 0, nlayers
+
+      call set_field_to_profile_code( nlayers,         &
+                                      theta,           &
+                                      k,               &
+                                      profile_data(k), &
+                                      ndf_wt,          &
+                                      undf_wt,         &
+                                      map_wt )
+
+      target_value = real( k, r_def )
+
+      if (r_def == real64) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( target_value )
+      end if
+
+      @assertEqual( target_value, theta(map_wt(1)+k), use_tol )
+    end do
+
+  end subroutine test_all
+
+end module set_field_to_profile_kernel_mod_test

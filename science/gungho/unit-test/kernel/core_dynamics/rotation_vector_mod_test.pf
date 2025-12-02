@@ -1,0 +1,100 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+module rotation_vector_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_fplane
+
+  real(r_def), parameter :: omega = 8.0E-5_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use extrusion_config_mod, only : method_uniform, &
+                                     stretching_method_linear
+    use feign_config_mod,     only : feign_extrusion_config, &
+                                     feign_planet_config
+
+    implicit none
+
+    call feign_extrusion_config( planet_radius=6000000.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 method=method_uniform,                      &
+                                 number_of_layers=2_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
+    call feign_planet_config( gravity=10.0_r_def, omega=omega, &
+                              rd=300.0_r_def, cp=1000.0_r_def, &
+                              p_zero=100000.0_r_def,           &
+                              scaling_factor=1.0_r_def )
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! 16/09/2014, IK: This version of rotation vector test is suitable only for
+  !                 the f-plane for now.
+  @test
+  subroutine test_fplane()
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use constants_mod,       only : PI
+    use rotation_vector_mod, only : rotation_vector_fplane
+
+    implicit none
+
+    real(r_def), parameter :: tol  = 1.0e-13_r_def, &    ! r_def 64bit
+                              zero = 0.0_r_def
+
+    integer :: ngp = 1
+    real(kind=r_def) :: rot_y, rot_z
+    real(kind=r_def) :: rotation_vec(3,1,1), err
+    real(kind=r_def) :: latitude
+    real(kind=r_def) :: use_tol
+
+    latitude = PI/3.0_r_def
+    rot_y = omega
+    rot_z = omega*sqrt(3.0_r_def)
+
+    rotation_vec = 0.0_r_def
+
+    call rotation_vector_fplane(ngp, ngp, omega, latitude, rotation_vec)
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( rotation_vec(:,1,1) ) )
+    endif
+
+    @assertEqual( zero,  rotation_vec(1,1,1), use_tol )
+    @assertEqual( rot_y, rotation_vec(2,1,1), use_tol )
+    @assertEqual( rot_z, rotation_vec(3,1,1), use_tol )
+
+  end subroutine test_fplane
+
+end module rotation_vector_mod_test

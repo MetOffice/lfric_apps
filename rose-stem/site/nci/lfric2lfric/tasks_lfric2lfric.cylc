@@ -1,0 +1,15 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/nci/lfric2lfric/tasks_lfric2lfric.cylc") %}
+
+{% if task_dict %}
+    {% do task_dict.update({
+        "build_families": ["GADI_BUILD_COUPLED_"~task_ns.compiler|upper],
+        "run_families": ["GADI_RUN_COUPLED_"~task_ns.compiler|upper]
+    }) %}
+{% endif %}
+
+{% do LOG.debug("Finised in site/nci/lfric2lfric/tasks_lfric2lfric.cylc") %}

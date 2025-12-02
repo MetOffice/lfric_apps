@@ -1,0 +1,181 @@
+<file_definition>
+
+  <!-- Diagnostic fields - Daily - mean/min/max -->
+  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1d" convention="UGRID" enabled=".TRUE.">
+    <!-- 2D fields averaged every timestep -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="processed__pstar"/>
+      <field field_ref="processed__tot_col_dry_air_mass"/>
+      <field field_ref="processed__tot_col_wetplusdry_mass"/>
+      <field field_ref="processed__tot_col_m_v"/>
+      <field field_ref="processed__tot_col_m_cl"/>
+      <field field_ref="processed__tot_col_m_cf"/>
+      <field field_ref="processed__tot_col_m_r"/>
+      <field field_ref="processed__total_rain"/>
+      <field field_ref="processed__total_snow"/>
+      <field field_ref="processed__total_prec"/>
+      <field field_ref="microphysics__ls_rain"/>
+      <field field_ref="microphysics__ls_snow"/>
+      <field field_ref="microphysics__ls_prec"/>
+      <field field_ref="convection__conv_rain"/>
+      <field field_ref="convection__conv_snow"/>
+      <field field_ref="convection__conv_prec"/>
+      <field field_ref="turbulence__bl_type_ind"/>
+      <field field_ref="turbulence__zh"/>
+      <field field_ref="turbulence__zht"/>
+      <field field_ref="turbulence__rib"/>
+      <field field_ref="turbulence__cumulus"/>
+      <field field_ref="convection__pres_cv_base"/>
+      <field field_ref="convection__pres_cv_top"/>
+      <field field_ref="convection__mid_cfl_limited"/>
+      <field field_ref="convection__mid_prec"/>
+      <field field_ref="convection__mid_in_col"/>
+      <field field_ref="convection__shallow_prec"/>
+      <field field_ref="convection__shallow_in_col"/>
+      <field field_ref="soil__soil_moisture_content"/>
+      <field field_ref="soil__soil_moisture"/>
+      <field field_ref="soil__soil_temperature"/>
+      <field field_ref="soil__unfrozen_soil_moisture"/>
+      <field field_ref="soil__frozen_soil_moisture"/>
+      <field field_ref="soil__surface_runoff"/>
+      <field field_ref="soil__sub_surface_runoff"/>
+      <field field_ref="cloud__cloud_amount_rnd"/>
+      <field field_ref="cloud__cloud_amount_maxrnd"/>
+      <field field_ref="cloud__very_low_type_cloud_amount"/>
+      <field field_ref="cloud__low_type_cloud_amount"/>
+      <field field_ref="cloud__medium_type_cloud_amount"/>
+      <field field_ref="cloud__high_type_cloud_amount"/>
+      <field field_ref="cloud__very_high_type_cloud_amount"/>
+      <field field_ref="surface__grid_sensible_heat"/>
+      <field field_ref="surface__grid_moisture_flux"/>
+      <field field_ref="surface__surface_taux"/>
+      <field field_ref="surface__surface_tauy"/>
+      <field field_ref="surface__grid_latent_heat"/>
+      <field field_ref="surface__grid_canopy_water"/>
+      <field field_ref="surface__grid_surface_temperature"/>
+      <field field_ref="surface__u10m"/>
+      <field field_ref="surface__v10m"/>
+      <field field_ref="surface__wspd10m"/>
+      <field field_ref="surface__t1p5m"/>
+      <field field_ref="surface__q1p5m"/>
+      <field field_ref="surface__rh1p5m"/>
+      <field field_ref="surface__z0m"/>
+      <field field_ref="snow__grid_snow_mass"/>
+    </field_group>
+
+    <!-- 2D fields, minimum over sampling period -->
+    <field_group operation="minimum" freq_op="1ts" prec="4">
+      <field field_ref="surface__t1p5m" name="t1p5m_minimum"/>
+      <field field_ref="surface__grid_surface_temperature" name="tstar_minimum"/>
+    </field_group>
+
+    <!-- 2D fields, maximum over sampling period -->
+    <field_group operation="maximum" freq_op="1ts" prec="4">
+      <field field_ref="turbulence__zh" name="zh_maximum"/>
+      <field field_ref="surface__t1p5m" name="t1p5m_maximum"/>
+      <field field_ref="surface__grid_surface_temperature" name="tstar_maximum"/>
+    </field_group>
+
+    <!-- Model timestep radiation diagnostics ("corrected") -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="radiation__lw_net_surf"/>
+      <field field_ref="radiation__lw_down_surf"/>
+      <field field_ref="radiation__lw_up_surf"/>
+      <field field_ref="radiation__lw_up_toa"/>
+      <field field_ref="radiation__sw_net_surf"/>
+      <field field_ref="radiation__sw_down_surf"/>
+      <field field_ref="radiation__sw_up_surf"/>
+      <field field_ref="radiation__sw_up_toa"/>
+      <field field_ref="radiation__sw_direct_toa"/>
+    </field_group>
+
+    <!-- Radiation timestep radiation diagnostics -->
+    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
+      <field field_ref="radiation__cloud_cover_rts"/>
+      <field field_ref="radiation__lw_net_surf_rts"/>
+      <field field_ref="radiation__lw_down_surf_rts"/>
+      <field field_ref="radiation__lw_up_surf_rts"/>
+      <field field_ref="radiation__lw_up_toa_rts"/>
+      <field field_ref="radiation__sw_net_surf_rts"/>
+      <field field_ref="radiation__sw_down_surf_rts"/>
+      <field field_ref="radiation__sw_up_surf_rts"/>
+      <field field_ref="radiation__sw_up_toa_rts"/>
+      <field field_ref="radiation__sw_direct_toa_rts"/>
+      <field field_ref="radiation__sw_down_uv_surf_rts"/>
+      <field field_ref="radiation__sw_direct_uv_surf_rts"/>
+      <field field_ref="radiation__sw_up_uv_surf_rts"/>
+      <field field_ref="radiation__sw_down_uv_clear_surf_rts"/>
+      <field field_ref="radiation__sw_direct_uv_clear_surf_rts"/>
+      <field field_ref="radiation__sw_up_uv_clear_surf_rts"/>
+      <field field_ref="radiation__lw_down_clear_surf_rts"/>
+      <field field_ref="radiation__lw_up_clear_surf_rts"/>
+      <field field_ref="radiation__lw_up_clear_toa_rts"/>
+      <field field_ref="radiation__sw_down_clear_surf_rts"/>
+      <field field_ref="radiation__sw_up_clear_surf_rts"/>
+      <field field_ref="radiation__sw_up_clear_toa_rts"/>
+      <field field_ref="radiation__warm_cloud_top_weight_rts"/>
+      <field field_ref="radiation__warm_cloud_top_re_microns_rts"/>
+      <field field_ref="processed__sw_aer_optical_depth_rts"/>
+      <field field_ref="processed__lw_aer_optical_depth_rts"/>
+      <field field_ref="aerosol__aod_ukca_ait_sol"/>
+      <field field_ref="aerosol__aaod_ukca_ait_sol"/>
+      <field field_ref="aerosol__aod_ukca_acc_sol"/>
+      <field field_ref="aerosol__aaod_ukca_acc_sol"/>
+      <field field_ref="aerosol__aod_ukca_cor_sol"/>
+      <field field_ref="aerosol__aaod_ukca_cor_sol"/>
+      <field field_ref="aerosol__aod_ukca_ait_ins"/>
+      <field field_ref="aerosol__aaod_ukca_ait_ins"/>
+      <field field_ref="aerosol__aod_ukca_acc_ins"/>
+      <field field_ref="aerosol__aaod_ukca_acc_ins"/>
+      <field field_ref="aerosol__aod_ukca_cor_ins"/>
+      <field field_ref="aerosol__aaod_ukca_cor_ins"/>
+    </field_group>
+
+    <!-- Full model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="processed__pressure_in_wth"/>
+      <field field_ref="theta"/>
+      <field field_ref="w_in_wth"/>
+      <field field_ref="m_v"/>
+      <field field_ref="m_cl"/>
+      <field field_ref="m_cf"/>
+      <field field_ref="m_r"/>
+      <field field_ref="processed__temperature"/>
+      <field field_ref="cloud__frozen_fraction"/>
+      <field field_ref="cloud__liquid_fraction"/>
+      <field field_ref="cloud__bulk_fraction"/>
+      <field field_ref="cloud__area_fraction"/>
+      <field field_ref="convection__cca"/>
+      <field field_ref="convection__massflux_up"/>
+      <field field_ref="convection__massflux_down"/>
+      <field field_ref="orographic_drag__taux_orographic_drag"/>
+      <field field_ref="orographic_drag__tauy_orographic_drag"/>
+    </field_group>
+
+    <!-- Half model level diagnostics - not being interpolated to pressure levels -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="processed__pressure_in_w3"/>
+      <field field_ref="u_in_w3"/>
+      <field field_ref="v_in_w3"/>
+      <field field_ref="rho"/>
+      <field field_ref="orographic_drag__dudt_orographic_drag"/>
+      <field field_ref="orographic_drag__dvdt_orographic_drag"/>
+    </field_group>
+
+    <!-- Full level diagnostics on radiation timesteps -->
+    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
+      <field field_ref="radiation__liq_cloud_mmr_rts"/>
+      <field field_ref="radiation__ice_cloud_mmr_rts"/>
+      <field field_ref="radiation__liq_cloud_frac_rts"/>
+      <field field_ref="radiation__ice_cloud_frac_rts"/>
+    </field_group>
+
+    <!-- Specific quantities For UM comparison -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="processed__qv"/>
+      <field field_ref="processed__qcl"/>
+      <field field_ref="processed__qcf"/>
+    </field_group>
+  </file>
+
+</file_definition>

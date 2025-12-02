@@ -1,0 +1,69 @@
+#!/bin/bash
+
+set -e
+
+MYPWD=$(pwd)
+PREVIOUS_WORKING_DIR=$MYPWD"/../"$PREVIOUS_JOB
+
+RECENT_PAT_REPORT=$(ls -t ${PREVIOUS_WORKING_DIR} | grep -m 1 --line-buffered "+pat+")
+PAT_REPORT_TARGET=$PREVIOUS_WORKING_DIR"/"$RECENT_PAT_REPORT
+echo $PAT_REPORT_TARGET
+
+echo "#####################################################################"
+echo "Perftools Profile ${RECENT_PAT_REPORT} found by export"
+echo "#####################################################################"
+
+pat_report $PAT_REPORT_TARGET
+
+echo "#####################################################################"
+echo "A basic Pat-Report has been run on the file "
+echo "${THE_APP_NAME} exe can be removed without invalidating the report"
+echo "#####################################################################"
+
+DATEVAR=$(date +"%d-%m-%y-%H%M%S")
+FILETYPE=".txt"
+PAT_REPORT_NAMED=$RECENT_PAT_REPORT"_"$DATEVAR$FILETYPE
+PAT_REPORT_NAMED_MPI=$RECENT_PAT_REPORT"_mpi_"$DATEVAR$FILETYPE
+
+pat_report -v -o $PAT_REPORT_NAMED $PAT_REPORT_TARGET
+
+echo "#####################################################################"
+echo "Pat Report text output generated as "$PAT_REPORT_NAMED
+echo "#####################################################################"
+
+pat_report -P -v -o $PAT_REPORT_NAMED_MPI $PAT_REPORT_TARGET
+
+echo "#####################################################################"
+echo "Full Pat Report ouput with MPI generated as "$PAT_REPORT_NAMED_MPI
+echo "#####################################################################"
+
+pat_report -P -O $RANK_REDORDER_TYPE $PAT_REPORT_TARGET
+
+echo "#####################################################################"
+echo "Rank reorder generated"
+echo "#####################################################################"
+
+if ($OUTPUT_TO_DATADIR); then
+
+    if [ "$ALTERNATE_OUTPUT_PATH" != " " -a "$ALTERNATE_OUTPUT_PATH" != "" ] ; then
+        MOVE_OUTPUTS_TO=$ALTERNATE_OUTPUT_PATH"/"$APP_CONFIGURATION_OUTPUT"/"
+    else
+        MOVE_OUTPUTS_TO=$DATADIR"/"$OUTPUT_TOP_DIR_NAME"/"$APP_CONFIGURATION_OUTPUT"/"
+    fi
+
+    echo $MOVE_OUTPUTS_TO
+    mkdir -p $MOVE_OUTPUTS_TO
+    mv $PAT_REPORT_TARGET $MOVE_OUTPUTS_TO
+    mv $PAT_REPORT_NAMED $PAT_REPORT_NAMED_MPI $MOVE_OUTPUTS_TO
+
+    echo "#####################################################################"
+    echo "All exported reports have been moved to "$MOVE_OUTPUTS_TO
+    echo "#####################################################################"
+
+else
+    echo "#####################################################################"
+    echo $RECENT_PAT_REPORT" can be found "$PREVIOUS_WORKING_DIR
+    echo "and new exported reports"$MYPWD
+    echo "#####################################################################"
+fi
+

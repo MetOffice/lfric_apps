@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- file suitable for idealised runs -->
+
+  <!-- In this version we have ONE context  -->
+  <context id = "gungho_atm">
+
+    <!-- Include variable definitions -->
+    <variable_definition src="$METADATA/variable_def_main.xml"/>
+
+    <!-- Include axis definitions -->
+    <axis_definition src="$METADATA/axis_def_main.xml"/>
+    <axis_definition src="./axis_def_plev.xml"/>
+
+    <!-- Include domain definitions -->
+    <domain_definition src="$METADATA/domain_def_main.xml"/>
+
+    <!-- Include grid definitions -->
+    <grid_definition src="$METADATA/grid_def_main.xml"/>
+    <grid_definition src="$METADATA/grid_def_aero_ctl.xml"/>
+    <grid_definition src="$METADATA/grid_def_radaer_ctl.xml"/>
+
+    <!-- Include field definitions -->
+    <field_definition src="$METADATA/lfric_dictionary.xml"/>
+    <field_definition src="$METADATA/field_def_diags.xml"/>
+    <field_definition src="$METADATA/field_def_initial_diags.xml"/>
+
+    <!-- Include file definitions -->
+    <file_definition src="./file_def_check_restart.xml"/>
+    <file_definition src="./file_def_ancil_idealised.xml"/>
+    <file_definition src="./file_def_diags_idealised.xml"/>
+    <file_definition src="./file_def_initial_diags.xml"/>
+
+    <!-- Local file definitions -->
+    <file_definition type="one_file" time_counter="none">
+
+      <!-- File definition for writing an FD dump -->
+      <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
+      </file>
+
+      <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+	<!-- Atmosphere fields -->
+	<field id="read_ew_wind_in_w3" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
+	<field id="read_ns_wind_in_w3" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once" />
+	<field id="read_upward_wind_in_wtheta" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_theta_in_wtheta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_dry_rho_in_w3" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="once" />
+	<field id="read_mv_in_wtheta" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_mcl_in_wtheta" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_mcf_in_wtheta" name="m_cf" long_name="cloud_ice_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_mr_in_wtheta" name="m_r" long_name="rain_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="once" />
+	<field id="read_area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+	<field id="read_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="once" />
+	<!-- aquaplanet ancillary fields -->
+	<field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" />
+	<field id="read_ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="once" />
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

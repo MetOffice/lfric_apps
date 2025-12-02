@@ -1,0 +1,202 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/common_macros.cylc") %}
+
+{% macro set_add(list, value) %}
+{# Macro to append to a list if value not already in list #}
+{# Added to replicate python sets #}
+
+    {% if value not in list %}
+        {% do list.append(value) %}
+    {% endif %}
+
+{% endmacro %} # set_add()
+
+
+{% macro expand_task_list(groups_dict, requested_groups, check, output_list) %}
+{# Populated output_list with a list of tasks based on the groups requested #}
+{# Will recursively search through groups_dict, expanding any group name into #}
+{# the values contained by that group. Loops over groups in requested_groups #}
+{# to determine which ones are chosen #}
+
+    {# Get lists of groups keys and values #}
+    {# Values only counted if not also keys #}
+    {% set groups_keys = groups_dict.keys() %}
+    {% set groups_values = [] %}
+    {% for group in groups_dict.values() %}
+        {% for task in group %}
+            {% if task not in groups_keys %}
+                {% do set_add(groups_values, task) %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    {# Loop over tasks provided by --group= #}
+    {% for name in requested_groups %}
+        {% if name in groups_values %}
+            {# This name is already a task - add it to the output #}
+            {% do set_add(output_list, name) %}
+        {% elif name in groups_keys %}
+            {# This name is a key - loop over values in this key recursively #}
+            {% set namestack = [name] %}
+            {% for stackname in namestack recursive %}
+                {# Add the contents of any matched key from the groups to the loop #}
+                {% if stackname in groups_keys %}
+                    {{ loop(groups_dict[stackname]) }}
+                {% else %}
+                    {# Otherwise add the name to the set of tasks #}
+                    {% do set_add(output_list, stackname) %}
+                {% endif %}
+            {% endfor %}
+        {% elif check %}
+            {# This name is unknown - raise an error #}
+            {{ raise("A task specified via the --group option could "
+                     "not be identified in the groups.cylc file. "
+                     "The task was '"~name~"'") }}
+        {% endif %}
+    {% endfor %}
+
+{% endmacro %} # expand_task_list
+
+
+{% macro generate_script(part, list) %}
+{# Macro to combine strings into a task pre-script #}
+{# Expects a list of strings which will be joined by \n #}
+
+    {{ part + ' = """\n ' + list|join('\n') + '\n"""' }}
+
+{% endmacro %} # generate_script()
+
+
+{% macro combine_application(app_conf_str, out_list) %}
+{# Called by split_task_name #}
+{# This macro takes in the app_conf str. It loops over all known_applications #}
+{# from site_vars and finds the matching one. If one name is a subset of #}
+{# another it will use the longer name - ie. if gungho_model is found it will #}
+{# use this instead of gungho. #}
+{# It then splits app_conf_str into a list with the app and conf, and returns #}
+{# this list. #}
+{# An error will be raised if no known_app matches #}
+
+    {# Set up namespace to record progress through loop #}
+    {% set application = namespace(name="", found=false) %}
+
+    {% for known_app in site_vars["known_applications"] %}
+        {% if app_conf_str.startswith(known_app) %}
+            {% if application.found %}
+                {# Some applications (eg. gungho and gungho_model) may start with #}
+                {# another application. In this case we take the longer app name #}
+                {# as the one we want #}
+                {% if known_app|length > application.name|length %}
+                    {% set application.name = known_app %}
+                {% endif %}
+            {% else %}
+                {% set application.name = known_app %}
+                {% set application.found = true %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {# Raise error if can't find application #}
+    {% if not application.found %}
+        {{ raise("There was an issue identifying the application for one "
+                 "of the defined tasks. Check the application is correct in "
+                 "the task name and that it is defined in "
+                 "'site_vars.known_applications' list. "
+                 "Task with error: "~app_conf_str) }}
+    {% endif %}
+
+    {% set app_conf_str = app_conf_str|replace(application.name, "", 1) %}
+    {% if app_conf_str.startswith("_") %}
+        {% set app_conf_str = app_conf_str[1:] %}
+    {% endif %}
+
+    {# Populate the output list in order to 'return' the new list #}
+    {% do out_list.append(application.name) %}
+    {% do out_list.append(app_conf_str) %}
+
+{% endmacro %}
+
+
+{% macro split_task_name(task_name, output_ns) %}
+{# Macro to split up a task name into its component part #}
+{# Expects 2 arguments, the task name and a namespace with values: #}
+{# application, #}
+{# conf_name, #}
+{# platform, #}
+{# compiler, #}
+{# extras #}
+{# Will populate these values to provide output #}
+
+    {% set ns = namespace(str=task_name) %}
+
+    {# Find the platform being run on #}
+    {% for platform in site_vars["site_platforms"] %}
+        {% if platform in ns.str %}
+            {% set output_ns.platform = platform %}
+        {% endif %}
+    {% endfor %}
+
+    {# Check valid platform found. If not raise error #}
+    {% if not output_ns.platform %}
+        {{ raise("A task name did not contain a valid platform for this site. "
+                 "Make sure the task is defined correctly. "
+                 "The task was "~ns.str) }}
+    {% endif %}
+
+    {# Task prefixes are keywords defining the type of task being run #}
+    {% set task_prefixes = [
+        "run",
+        "build",
+        "plot",
+        "memory_plot_ex",
+        "check",
+        "publish",
+        "phystest",
+        "fcm_make",
+        "fcm_make2",
+        "template",
+        "configurate",
+        "psyclone",
+        "generate_weights",
+        "rose_ana",
+        "perftools-export",
+        "pert_compare"] %}
+
+    {# Remove a task prefix if listed above #}
+    {% for prefix in task_prefixes %}
+        {% if ns.str.startswith(prefix) %}
+            {% set ns.str = ns.str|replace(prefix~"_", "") %}
+        {% endif %}
+    {% endfor %}
+
+    {# Split the task by the platform #}
+    {% set split_task = ns.str.split("_"~output_ns.platform~"_") %}
+
+    {# The application and config are in the 1st part of split_task #}
+    {% set app_conf = split_task[0] %}
+
+    {# Ensure 1st item is a valid application #}
+    {# Calls combine_application which returns a list #}
+    {# with the 1st value a valid application, 2nd the config #}
+    {% set tmp_list = [] %}
+    {% do combine_application(app_conf, tmp_list) %}
+    {% set output_ns.application = tmp_list[0] %}
+    {% set output_ns.conf_name = tmp_list[1] %}
+
+    {# The compiler and extra configs are in the 2nd part of split_task #}
+    {% set compiler_extras = split_task[1].split("_", 1) %}
+
+    {# The first item is the compiler #}
+    {% set output_ns.compiler = compiler_extras[0] %}
+
+    {# Remaining parts of compiler_extras are extra configs #}
+    {# Combine with underscores #}
+    {% set output_ns.extras = compiler_extras[1] %}
+
+{% endmacro %} # split_task_name
+
+{% do LOG.debug("Finished in templates/common_macros.cylc") %}

@@ -1,0 +1,48 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/common/default_directives.cylc") %}
+
+{% do default_directives.update({
+    "dial3": {
+        "memory": [6, "GB"],
+        "wallclock": 19,
+        "build_memory": [6, "GB"],
+        "build_wallclock": 29,
+        "build_cpus": 6,
+
+        "mesh": {
+            "mesh_wallclock": 19,
+            "mesh_memory": [1, "GB"],
+            "mesh_cpus": 6,
+        },
+        "tech-tests": {
+            "tech-tests_wallclock": 15,
+            "tech-tests_memory": [1, "GB"],
+            "tech-tests_cpus": 1,
+        },
+    },
+    "epic": {
+        "memory": [50, "GB"],
+        "wallclock": 20,
+        "build_memory": [40, "GB"],
+        "build_wallclock": 25,
+        "build_cpus": 24,
+
+        "mesh": {
+            "mesh_wallclock": 20,
+            "mesh_memory": [6, "GB"],
+            "mesh_cpus": 6,
+        },
+        "tech-tests": {
+            "tech-tests_wallclock": 15,
+            "tech-tests_memory": [6, "GB"],
+            "tech-tests_cpus": 1,
+        },
+    },
+    }) %}
+
+
+{% do LOG.debug("Finished in site/meto/common/default_directives.cylc") %}

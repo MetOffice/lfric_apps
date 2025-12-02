@@ -1,0 +1,179 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+! @todo Causes failure of later test (mixed_schur_preconditioner); not calling until resolved (#616).
+
+!> @brief Module containing adjoint test for adj_apply_helmholtz_op_lookup_kernel
+module adjt_apply_helmholtz_op_lookup_alg_mod
+
+  use constants_mod,                 only: i_def, r_def, l_def, r_solver
+  use field_mod,                     only: field_type
+  use finite_element_config_mod,     only: element_order_h, element_order_v
+  use fs_continuity_mod,             only: W2, W3, Wtheta
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
+  use log_mod,                       only: log_event, log_scratch_space, &
+                                           LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
+  use mesh_mod,                      only: mesh_type
+  use model_clock_mod,               only: model_clock_type
+  use moist_dyn_mod,                 only: num_moist_factors
+  use r_solver_field_mod,            only: r_solver_field_type
+  use integer_field_mod,             only: integer_field_type
+  use adj_lookup_table_mod,          only: adj_lookup_table_type
+  use sci_r_solver_field_vector_mod, only: r_solver_field_vector_type
+  use si_operators_alg_mod,          only: compute_si_operators, get_helmholtz_operator
+
+  implicit none
+
+  private
+  public  :: adjt_apply_helmholtz_op_lookup_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for the application of the Helmholtz operator
+  !> @details The operator and its adjoint are applied to one argument with
+  !!          the result stored in the other, so we use three vectors to save on
+  !!          variables. This differs from other adjoint tests as most adjoint
+  !!          routines would increment one argument and set the other to zero.
+  !> @param[in] mesh        The model mesh
+  !> @param[in] model_clock The model clock
+  subroutine adjt_apply_helmholtz_op_lookup_alg( mesh, model_clock )
+
+    use apply_helmholtz_operator_kernel_mod,     only: apply_helmholtz_operator_kernel_type
+    use adj_lookup_table_generators_alg_mod, only: create_lookup_apply_helmholtz_op
+    use invoke_adj_a_h_o_lookup_kernel_mod,  only: invoke_adj_a_h_o_lookup_kernel
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Randomised prognostics to initialise SI operators
+    type(field_type) :: init_op_t, init_op_d, init_op_p, init_op_moist_dyn(num_moist_factors)
+    integer(kind=i_def) :: idx
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Vectors
+    type(r_solver_field_type) :: vector_x, vector_mx, vector_amx
+
+    ! Configuration
+    logical(kind=l_def)                :: lam_mesh
+    integer(kind=i_def), parameter     :: stencil_extent = 1_i_def
+    type(r_solver_field_type), pointer :: Helmholtz_operator(:)
+
+    ! Lookup table
+    type(adj_lookup_table_type)        :: lookup
+    type(integer_field_type),  pointer :: lookup_field
+    type(integer_field_type),  pointer :: set_counts_field
+    integer(kind=i_def)                :: nindices
+
+    ! Inner products
+    real(kind=r_def)            :: vector_mx_vector_mx_inner_prod
+    real(kind=r_def)            :: vector_mx_sf
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: inner2
+    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def)            :: machine_tolerance
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+
+    nullify( lookup_field, set_counts_field, Helmholtz_operator, &
+             vector_space_w3_ptr, vector_space_wtheta_ptr )
+
+    ! Setup
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    call init_op_t%initialise(vector_space=vector_space_wtheta_ptr)
+    call init_op_d%initialise(vector_space=vector_space_w3_ptr)
+    call init_op_p%initialise(vector_space=vector_space_w3_ptr)
+
+    do idx = 1, num_moist_factors
+      call init_op_moist_dyn(idx)%initialise(vector_space=vector_space_wtheta_ptr)
+    end do
+
+    call invoke( setval_random(init_op_t), &
+                 setval_random(init_op_p), &
+                 setval_random(init_op_d) )
+
+    do idx = 1, num_moist_factors
+      call invoke(setval_random(init_op_moist_dyn(idx)))
+    end do
+
+    call compute_si_operators( init_op_t, init_op_d, init_op_p, model_clock, init_op_moist_dyn )
+
+    Helmholtz_operator => get_helmholtz_operator(stencil_extent)
+    lam_mesh = .false.
+
+    call vector_x%initialise(vector_space_w3_ptr)
+    call vector_x%copy_field_properties(vector_mx)
+    call vector_x%copy_field_properties(vector_amx)
+
+    call invoke( setval_random(vector_x),                                                                            &
+                 setval_c( vector_mx, 0.0_r_solver ),                                                                &
+                 setval_c( vector_amx, 0.0_r_solver ),                                                               &
+
+    ! Tangent linear (Mx)
+
+                 apply_helmholtz_operator_kernel_type( vector_mx, vector_x, stencil_extent, Helmholtz_operator, lam_mesh ), &
+
+    ! <Mx,Mx>
+
+                 x_innerproduct_x( vector_mx_vector_mx_inner_prod, vector_mx ) )
+
+    write(log_scratch_space, *) "adjt_apply_helmholtz_op_lookup inner product = ", vector_mx_vector_mx_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    vector_mx_sf = 1.0_r_def / (vector_mx_vector_mx_inner_prod + eps)
+
+    inner1 = vector_mx_vector_mx_inner_prod * vector_mx_sf
+
+    ! Scaling field
+    call invoke( inc_a_times_X( vector_mx_sf, vector_mx ) )
+
+    ! Adjoint (AMx)
+
+    ! Create lookup table.
+    call create_lookup_apply_helmholtz_op( lookup, vector_mx )
+    lookup_field => lookup%get_lookup_field()
+    set_counts_field => lookup%get_set_count_field()
+    nindices = lookup%get_nindices()
+
+    call invoke_adj_a_h_o_lookup_kernel( vector_mx,          &
+                                         vector_amx,         &
+                                         helmholtz_operator, &
+                                         lookup_field,       &
+                                         set_counts_field,   &
+                                         stencil_extent,     &
+                                         nindices,           &
+                                         lam_mesh )
+
+    ! <AMx,x>
+    call invoke( x_innerproduct_y( inner2, vector_amx, vector_x ) )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+
+    machine_tolerance = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tolerance
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED apply_helmholtz_op_lookup:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED apply_helmholtz_op_lookup:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine adjt_apply_helmholtz_op_lookup_alg
+
+end module adjt_apply_helmholtz_op_lookup_alg_mod

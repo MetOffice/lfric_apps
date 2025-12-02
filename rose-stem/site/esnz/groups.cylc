@@ -1,0 +1,32 @@
+{% do LOG.debug("Entered site/esnz/groups.cylc") %}
+
+{%- do site_groups.update({
+    "all": [
+        "scripts",
+        "gungho_model",
+        "lfric_atm",
+        "ngarch",
+    ],
+    "scripts": [
+        "config_dump_checker",
+        "extract_checker",
+        "site_validator",
+    ],
+    "gungho_model": [
+        "gungho_model_baroclinic-C24_MG_cascade_ifort_fast-debug-64bit",
+    ],
+    "lfric_atm": [
+        "lfric_atm_nwp_gal9-C48_MG_cascade_ifort_fast-debug-64bit",
+        "lfric_atm_aquaplanet-C12_cascade_ifort_fast-debug-64bit",
+        "lfric_atm_thai_ben1-C48_MG_cascade_ifort_fast-debug-64bit",
+        "lfric_atm_clim_gal9_chem-C12_cascade_ifort_fast-debug-64bit",
+        "lfric_atm_nwp_gal9_coarse_aero-C48_MG_cascade_ifort_fast-debug-64bit",
+        "lfric_atm_nwp_gal9_ls_and_jedi-C12_cascade_ifort_fast-debug-64bit",
+        "lfric_atm_scm_gal9_comp_tran_ref-BiP2x2-50000x50000_cascade_ifort_fast-debug-64bit",
+    ],
+    "ngarch": [
+        "ngarch_default-C24_cascade_ifort_fast-debug-64bit",
+    ],
+    }) %}
+
+{% do LOG.debug("Finished in site/esnz/groups.cylc") %}

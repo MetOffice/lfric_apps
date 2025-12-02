@@ -1,0 +1,227 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the buoyancy gradient facet integral kernel.
+!>
+
+module swe_buoyancy_gradient_facet_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use extrusion_config_mod,      only : method_uniform, &
+                                          stretching_method_linear
+    use finite_element_config_mod, only : cellshape_quadrilateral
+    use feign_config_mod,          only : feign_planet_config, &
+                                          feign_extrusion_config
+
+    implicit none
+
+    call feign_extrusion_config( method=method_uniform,                      &
+                                 planet_radius=6000000.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 number_of_layers=5_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=10.0_r_def,               &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_planet_config( gravity=10.0_r_def,      &
+                              omega=8.0E-5_r_def,      &
+                              rd=300.0_r_def,          &
+                              cp=1000.0_r_def,         &
+                              p_zero=100000.0_r_def,   &
+                              scaling_factor=1.0_r_def )
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use swe_buoyancy_gradient_facet_kernel_mod, only: swe_buoyancy_gradient_facet_code
+
+    use get_unit_test_qfaces_mod, only: get_number_quadrature_points_per_face, &
+                                        get_w2_qfaces_cube_h_basis,            &
+                                        get_w3_qfaces_cube_h_basis,            &
+                                        get_quadrature_faces_h_weights
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2_m3x3_q3x3x3_size,    &
+                                                   get_w3_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod, only: get_m3x3_stencil_dofmap_cross, &
+                                             get_w2_m3x3_dofmap,            &
+                                             get_w3_m3x3_dofmap
+
+    use get_unit_test_planar_mesh_mod, only: get_m3x3_adjacent_face,        &
+                                             get_outward_normals_to_faces,  &
+                                             get_outward_normals_to_horizontal_faces
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol     = 1.0e-6_r_def
+    real(kind=r_def), parameter :: answer1 = -1.5_r_def, &
+                                   answer2 = -2.5_r_def,  &
+                                   answer3 = 0.0_r_def
+
+    integer(i_def) :: cell
+
+    integer(i_def)         :: nlayers, nqp_f
+    integer(i_def)         :: ndf_w2, undf_w2
+    integer(i_def)         :: ndf_w3, undf_w3
+    integer(i_def)         :: nfaces_qr, nfaces_re_h, nfaces_re
+    integer(i_def)         :: k
+
+    ! Test field data
+    real(r_def),allocatable :: geopot_data(:)
+    real(r_def),allocatable :: buoyancy_data(:)
+    real(r_def),allocatable :: r_u_bd_data(:)
+
+    integer(i_def),allocatable :: cross_stencil_w3_map(:,:,:)
+    integer(i_def)             :: cross_stencil_w3_size
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    real(kind=r_def), allocatable :: wqp_f(:,:)
+
+    integer(i_def), allocatable :: adjacent_face(:,:)
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+
+    real(r_def), allocatable  :: outward_normals_to_horizontal_faces(:,:)
+    real(r_def), allocatable  :: outward_normals_to_faces(:,:)
+
+    real(r_def), allocatable :: basis_w2_face(:,:,:,:)
+    real(r_def), allocatable :: basis_w3_face(:,:,:,:)
+
+    ! Get canned data for a 1-layer mesh
+    nlayers=1
+
+    ! Fields on 2 different function spaces are used, so get the canned information
+
+    ! Get sizes
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    ! Get number of points and weights for quadrature points on
+    ! horizontal faces
+    call get_number_quadrature_points_per_face(nqp_f)
+    call get_quadrature_faces_h_weights(wqp_f)
+    ! Get number of faces in the quadrature rule from quadrature
+    ! weights array
+    nfaces_qr = size( wqp_f, 2 )
+
+    ! Get basis functions on horizontal faces
+    call get_w2_qfaces_cube_h_basis(basis_w2_face)
+    call get_w3_qfaces_cube_h_basis(basis_w3_face)
+
+    ! Get dofmaps
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+    call get_w3_m3x3_dofmap(map_w3, nlayers)
+
+    ! The W3 field uses a cross stencil
+    call get_m3x3_stencil_dofmap_cross(cross_stencil_w3_map, map_w3)
+    ! Canned field has extent of 1 which gives size 5
+    cross_stencil_w3_size=5
+
+    ! Get canned adjacency information for the mesh
+    call get_m3x3_adjacent_face(adjacent_face)
+    ! Get canned information for the reference cube
+    call get_outward_normals_to_horizontal_faces(outward_normals_to_horizontal_faces)
+    call get_outward_normals_to_faces(outward_normals_to_faces)
+    ! Get number of reference cube horizontal faces from the horizontal
+    ! outward normals array
+    nfaces_re_h = size( outward_normals_to_horizontal_faces, 2 )
+    nfaces_re   = size( outward_normals_to_faces, 2 )
+
+    ! Create the data arrays
+    allocate(r_u_bd_data(undf_w2))
+    allocate(buoyancy_data(undf_w3))
+    allocate(geopot_data(undf_w3))
+
+    ! Initialise the data
+    r_u_bd_data(:) = 0.0_r_def
+    buoyancy_data = (/ 2.0_r_def, 4.0_r_def, 4.0_r_def, 8.0_r_def, 1.0_r_def, &
+                       1.0_r_def, 1.0_r_def, 1.0_r_def, 1.0_r_def /)
+    geopot_data(:) = 1.0_r_def
+
+    ! Compute cell 1 only
+    cell    = 1
+
+    ! Call the kernel
+
+    call swe_buoyancy_gradient_facet_code( &
+      nlayers,                             &
+      r_u_bd_data,                         &
+      geopot_data,                         &
+      buoyancy_data,                       &
+      cross_stencil_w3_size,               &
+      cross_stencil_w3_map,                &
+      ndf_w2, undf_w2,                     &
+      map_w2, basis_w2_face,               &
+      ndf_w3, undf_w3,                     &
+      map_w3, basis_w3_face,               &
+      nfaces_re_h,                         &
+      nfaces_re,                           &
+      outward_normals_to_horizontal_faces, &
+      outward_normals_to_faces,            &
+      adjacent_face(:,cell),               &
+      nfaces_qr, nqp_f, wqp_f              &
+    )
+
+    ! Test only on level 0
+    k=0
+    @assertEqual( answer1, r_u_bd_data(map_w2(1,cell)+k) , tol )
+    @assertEqual( answer2, r_u_bd_data(map_w2(4,cell)+k) , tol )
+    @assertEqual( answer3, r_u_bd_data(map_w2(5,cell)+k) , tol )
+
+    deallocate(basis_w2_face)
+    deallocate(basis_w3_face)
+    deallocate(geopot_data)
+    deallocate(buoyancy_data)
+    deallocate(r_u_bd_data)
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(cross_stencil_w3_map)
+    deallocate(wqp_f)
+    deallocate(adjacent_face)
+    deallocate(outward_normals_to_horizontal_faces)
+    deallocate(outward_normals_to_faces)
+
+  end subroutine test_all
+
+end module swe_buoyancy_gradient_facet_kernel_mod_test

@@ -1,0 +1,16 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/azngarch/ gungho_model/tasks_gungho_model.cylc") %}
+
+{% include 'site/'+SITE+'/gungho_model/tasks_gungho_model_'~task_ns.platform~'.cylc' %}
+
+{% if task_dict %}
+    {% do task_dict.update({
+        "kgo_checks": [],
+        "plot_str": "" }) %}
+{% endif %}
+
+{% do LOG.debug("Finised in site/azngarch/gungho_model/tasks_gungho_model.cylc") %}

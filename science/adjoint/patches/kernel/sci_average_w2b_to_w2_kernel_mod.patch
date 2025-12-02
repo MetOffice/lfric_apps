@@ -1,0 +1,27 @@
+@@ -7,7 +7,7 @@
+ !> @details "Unbreaks" a W2 field by averaging values on either side of
+ !>          broken facets.
+ !>          This kernel only works for the lowest-order elements.
+-module sci_average_w2b_to_w2_kernel_mod
++module average_w2b_to_w2_kernel_mod
+ 
+   use argument_mod,          only : arg_type,                  &
+                                     GH_FIELD, GH_REAL,         &
+@@ -88,7 +88,10 @@
+   integer(kind=i_def) :: df, k, j
+   integer(kind=i_def) :: horizontal_dofs(4)
+ 
+-  horizontal_dofs = (/ N, E, S, W /)
++  horizontal_dofs(1) = N
++  horizontal_dofs(2) = E
++  horizontal_dofs(3) = S
++  horizontal_dofs(4) = W
+ 
+   ! Loop over horizontal W2 DoFs
+   ! Contribution from broken field is based on multiplicity
+@@ -117,4 +120,4 @@
+ 
+ end subroutine average_w2b_to_w2_code
+ 
+-end module sci_average_w2b_to_w2_kernel_mod
++end module average_w2b_to_w2_kernel_mod

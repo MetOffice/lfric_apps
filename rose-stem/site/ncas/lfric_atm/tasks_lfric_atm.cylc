@@ -1,0 +1,81 @@
+{% do LOG.debug("Started in site/ncas/lfric_atm/tasks_lfric_atm.cylc") %}
+
+{% if task_ns.conf_name == "nwp_gal9_noukca_3n_1T-C192_MG" %}
+
+    {% do task_dict.update({
+        "xios_nodes": 4,
+        "mpi_parts_xios" : 16,
+        "wallclock": 20,
+        "plot_str": "",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9-C48_MG" %}
+    {% do task_dict.update({
+        "mpi_parts": 54,
+        "plot_str": "",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
+
+    {% do task_dict.update({
+        "wallclock": 20,
+        "plot_str": "",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9-C896_MG" %}
+
+    {% do task_dict.update({
+        "task_ranks_per_node": 64,
+        "xios_nodes": 25,
+        "mpi_parts_xios" : 400,
+        "plot_str": "",
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_1T-C12" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_1T-C12" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_2T-C12" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_1T-C48_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_2T-C48_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_4T-C48_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_1T-C192_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_2T-C192_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_mgnoukca_3n_4T-C192_MG" %}
+    {% do task_dict.update({
+       "kgo_checks": 'None'
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in site/ncas/lfric_atm/tasks_lfric_atm.cylc") %}

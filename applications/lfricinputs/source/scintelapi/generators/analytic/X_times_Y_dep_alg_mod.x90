@@ -1,0 +1,71 @@
+! *****************************COPYRIGHT*******************************
+! (C) Crown copyright Met Office. All rights reserved.
+! For further details please refer to the file LICENCE
+! which you should have received as part of this distribution.
+! *****************************COPYRIGHT*******************************
+module X_times_Y_dep_alg_mod
+!
+! This module contains a generator to multiply the data in two fields.
+!
+
+use dependency_graph_mod, only: dependency_graph
+
+implicit none
+
+contains
+
+subroutine X_times_Y_dep_alg(dep_graph)
+!
+! This generator multiply the data in the two input fields of a dependency
+! graph and save the result in the output field of the dependency graph.
+!
+
+use gen_io_check_mod,       only: gen_io_check
+use field_mod,              only: field_type
+
+implicit none
+
+!
+! Argument definitions:
+!
+! Dependency graph to be processed
+class(dependency_graph), intent(in out) :: dep_graph
+
+!
+! Local variables
+!
+! Field pointers to use
+type(field_type), pointer :: field_x => null(), field_y => null(),             &
+                             field_z => null()
+!
+! Dummy function space variable used in checks
+integer :: fspace
+
+!
+! Perform some initial input checks
+!
+fspace = dep_graph % output_field(1) % field_ptr % which_function_space()
+call gen_io_check(                                                             &
+                  dep_graph=dep_graph,                                         &
+                  input_field_no=2,                                            &
+                  input_field_fs=[fspace, fspace],                             &
+                  output_field_no=1,                                           &
+                  output_field_fs=[fspace],                                    &
+                  parameter_no=0                                               &
+                 )
+!
+! Done with initial input checks
+!
+
+! Multiply field data through a call to a Psyclone built-in kernel
+field_z => dep_graph % output_field(1) % field_ptr
+field_x => dep_graph % input_field(1) % field_ptr
+field_y => dep_graph % input_field(2) % field_ptr
+call invoke (X_times_Y(field_z, field_x, field_y))
+
+! Nullify field pointers
+nullify(field_x, field_y, field_z)
+
+end subroutine X_times_Y_dep_alg
+
+end module X_times_Y_dep_alg_mod

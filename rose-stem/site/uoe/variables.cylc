@@ -1,0 +1,20 @@
+{% do LOG.debug("Entered site/uoe/variables.cylc") %}
+
+{% do site_vars.update({"known_applications": ["gungho_model",
+                                               "lfric_atm",
+                                               "mesh",
+                                               "gungho",
+                                               "socrates",
+                                               "um_physics",
+                                               "linear"]}) %}
+
+{% do site_vars.update({"site_platforms": ["epic", "dial3"]}) %}
+
+{% do site_vars.update({"scripts_platform": "epic"}) %}
+
+{% do site_vars.update({"mesh_build": {"epic": "gnu_fast-debug-64bit",
+                                       "dial3": "gnu_fast-debug-64bit"} }) %}
+
+{% include "site/uoe/common/default_directives.cylc" %}
+
+{% do LOG.debug("Finished in site/uoe/variables.cylc") %}

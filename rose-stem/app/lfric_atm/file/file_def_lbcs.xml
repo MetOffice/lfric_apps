@@ -1,0 +1,21 @@
+<file_definition>
+
+  <!-- LBC files -->
+  <file id="lbc" name="lbc" mode="read" output_freq="1h" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="lbc_time" name="time" unit="seconds" operation="once" axis_ref="lbc_axis" />
+    <field id="lbc_theta_data" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_time_grid" operation="once" />
+    <!-- <field id="lbc_rho_data" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_time_grid" operation="once"/> -->
+    <field id="lbc_rho_r2_data" name="rho_r2" long_name="density_times_r_squared" unit="kg m-1" grid_ref="half_level_face_time_grid" operation="once"/>
+    <field id="lbc_h_u_data" name="h_wind" long_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_time_grid" operation="once"/>
+    <field id="lbc_v_u_data" name="upward_wind" long_name="vertical_wind" standard_name="vertical_wind" unit="m s-1" grid_ref="full_level_face_time_grid" operation="once"/>
+    <field id="lbc_q_data" name="q" standard_name="specific_humidity" unit="1" grid_ref="full_level_face_time_grid" operation="once" />
+    <field id="lbc_qcf_data" name="qcf" long_name="specific_humidity_cloud_ice" unit="1" grid_ref="full_level_face_time_grid" operation="once" />
+    <field id="lbc_qcl_data" name="qcl" long_name="specific_humidity_cloud_liquid" unit="1" grid_ref="full_level_face_time_grid" operation="once" />
+    <field id="lbc_qrain_data" name="qrain" long_name="mass_fraction_of_rain_in_air" unit="1" grid_ref="full_level_face_time_grid" operation="once" />
+    <!-- <field id="lbc_m_v_data" name="m_v" long_name="humidity_mixing_ratio" unit="1" grid_ref="full_level_face_time_grid" operation="once" /> -->
+    <!-- <field id="lbc_m_cl_data" name="m_cl" long_name="cloud_liquid_water_mixing_ratio" unit="1" grid_ref="full_level_face_time_grid" operation="once" /> -->
+    <!-- <field id="lbc_m_s_data" name="m_cf" long_name="cloud_snow_mixing_ratio" unit="1" grid_ref="full_level_face_time_grid" operation="once" /> -->
+    <!-- <field id="lbc_m_r_data" name="m_r" long_name="rain_mixing_ratio" unit="1" grid_ref="full_level_face_time_grid" operation="once" /> -->
+  </file>
+
+</file_definition>

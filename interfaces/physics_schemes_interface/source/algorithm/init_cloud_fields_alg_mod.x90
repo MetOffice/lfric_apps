@@ -1,0 +1,75 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2019 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the cloud fields
+module init_cloud_fields_alg_mod
+
+  use constants_mod,        only: r_def
+  use field_mod,            only: field_type
+  use field_collection_mod, only: field_collection_type
+  use cloud_config_mod,     only: cloud_horizontal_liq_fsd, &
+                                  cloud_horizontal_ice_fsd
+
+  implicit none
+
+  private
+  public :: init_cloud_fields_alg
+
+contains
+
+  !> @brief   Initialises the cloud fields
+  !> @details The cloud fields need to be initialised so that they have a value
+  !>          when passed on to the physics at the first time step, in case no
+  !>          restart file is used or the cloud scheme is off.
+  !>          Also, rh_crit is set to the namelist value here.
+  !> @param[in,out] cloud_fields Collection of fields for cloud scheme
+  subroutine init_cloud_fields_alg(cloud_fields)
+
+    use initial_cloud_kernel_mod,  only: initial_cloud_kernel_type
+    use section_choice_config_mod, only: cloud, cloud_um
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(inout) :: cloud_fields
+
+    ! Prognostic fields
+    type( field_type ), pointer :: area_fraction   => null()
+    type( field_type ), pointer :: frozen_fraction => null()
+    type( field_type ), pointer :: liquid_fraction => null()
+    type( field_type ), pointer :: bulk_fraction   => null()
+    type( field_type ), pointer :: rh_crit         => null()
+    type( field_type ), pointer :: sigma_ml
+    type( field_type ), pointer :: sigma_mi
+
+    call cloud_fields%get_field('area_fraction', area_fraction)
+    call cloud_fields%get_field('frozen_fraction', frozen_fraction)
+    call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+    call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+    call cloud_fields%get_field('rh_crit', rh_crit)
+    call cloud_fields%get_field('sigma_ml', sigma_ml)
+    call cloud_fields%get_field('sigma_mi', sigma_mi)
+
+    ! Initialise cloud fractions to zero so other schemes will use them
+    ! correctly if the cloud scheme is off or no values are provided
+    ! by the um2lfric dump.
+    ! Also ensure sigma_ml,i initialised with a default value.
+    call invoke( setval_c(area_fraction,   0.0_r_def),            &
+                 setval_c(bulk_fraction,   0.0_r_def),            &
+                 setval_c(liquid_fraction, 0.0_r_def),            &
+                 setval_c(frozen_fraction, 0.0_r_def),            &
+                 ! Needed for screen diagnostics even if cloud scheme off
+                 setval_c(rh_crit,         0.99_r_def),           &
+                 setval_c(sigma_ml,    cloud_horizontal_liq_fsd), &
+                 setval_c(sigma_mi,    cloud_horizontal_ice_fsd) )
+
+    ! If cloud scheme is on, initialised 3D rh_crit from namelist
+    if (cloud == cloud_um) then
+      call invoke(initial_cloud_kernel_type(rh_crit) )
+    end if
+
+  end subroutine init_cloud_fields_alg
+
+end module init_cloud_fields_alg_mod

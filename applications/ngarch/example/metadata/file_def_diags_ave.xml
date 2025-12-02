@@ -1,0 +1,12 @@
+<file_definition>
+
+  <!-- Diagnostic averages output file -->
+  <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
+    <field field_ref="theta" operation="average" />
+    <field field_ref="exner" operation="average" />
+    <field field_ref="u_in_w3" operation="average" />
+    <field field_ref="v_in_w3" operation="average" />
+    <field field_ref="w_in_wth" operation="average" />
+  </file>
+
+</file_definition>

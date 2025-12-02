@@ -1,0 +1,314 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief Processing of ancillary files
+module process_inputs_alg_mod
+
+  use field_collection_mod, only : field_collection_type
+  use field_mod,            only : field_type
+  use fs_continuity_mod,    only : W3
+  use mesh_mod,             only : mesh_type
+  use integer_field_mod,    only : integer_field_type
+  use constants_mod,        only : i_def
+
+  use initialization_config_mod,  only: sst_source, sst_source_start_dump, &
+                                        init_option, init_option_fd_start_dump, &
+                                        snow_source, snow_source_surf
+  use io_config_mod,              only: checkpoint_read
+  use section_choice_config_mod,  only: surface, surface_jules, &
+                                        radiation, radiation_socrates
+  use radiation_config_mod,       only: topography, topography_flat, &
+                                        topography_horizon, &
+                                        n_horiz_ang, n_horiz_layer
+  use process_land_kernel_mod,    only: process_land_kernel_type
+  use process_ssi_kernel_mod,     only: process_ssi_kernel_type
+  use process_soil_kernel_mod,    only: process_soil_kernel_type
+  use process_snow_kernel_mod,    only: process_snow_kernel_type
+  use jules_snow_mod,             only: nsmax
+  use jules_control_init_mod,     only: n_land_tile, &
+                                        first_sea_tile, n_sea_tile, &
+                                        first_sea_ice_tile, n_sea_ice_tile
+  use jules_sea_seaice_config_mod, only: amip_ice_thick
+  use sci_multi_insert_kernel_mod, only: multi_insert_kernel_type
+  use sci_int_multi_insert_kernel_mod, only: int_multi_insert_kernel_type
+  use derived_config_mod,         only: l_couple_sea_ice
+  use set_topography_kernel_mod,  only: set_topography_kernel_type
+  use sci_geometric_constants_mod,      &
+                                  only: get_latitude_fv
+
+  implicit none
+
+  private
+  public :: process_inputs_alg
+
+contains
+
+  !> @details Processes ancils that don't match exactly what the model
+  !>          expects into the fields it does
+  !> @param[in] ancil_fields     (in)     Ancil fields read in
+  !> @param[in] fd_fields        (in)     um2lfric fields read in
+  !> @param[in] surface_fields   (in,out) Surface field collection to update
+  !> @param[in] soil_fields      (in,out) Soil field collection to update
+  !> @param[in] snow_fields      (in,out) Snow field collection to update
+  !> @param[in] radiation_fields (in,out) Radiation field collection to update
+  subroutine process_inputs_alg(ancil_fields, fd_fields, &
+                                surface_fields, soil_fields, snow_fields, &
+                                radiation_fields)
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: ancil_fields
+    type( field_collection_type ), intent(in) :: fd_fields
+    type( field_collection_type ), intent(in) :: surface_fields
+    type( field_collection_type ), intent(in) :: soil_fields
+    type( field_collection_type ), intent(in) :: snow_fields
+    type( field_collection_type ), intent(in) :: radiation_fields
+
+    type( field_type ), pointer :: land_area_fraction => null()
+    type( field_type ), pointer :: land_tile_fraction => null()
+    type( field_type ), pointer :: sea_ice_fraction   => null()
+    type( field_type ), pointer :: sea_ice_thickness  => null()
+    type( field_type ), pointer :: tile_fraction      => null()
+
+    type( field_type ), pointer :: tstar_sea        => null()
+    type( field_type ), pointer :: tstar_sea_ice    => null()
+    type( field_type ), pointer :: land_tile_temp   => null()
+    type( field_type ), pointer :: tile_temperature => null()
+
+    type( field_type ), pointer :: canopy_water => null()
+    type( field_type ), pointer :: can_water_in => null()
+
+    type( field_type ), pointer :: soil_moist_sat    => null()
+    type( field_type ), pointer :: soil_moist_wilt   => null()
+    type( field_type ), pointer :: mean_topog_index  => null()
+    type( field_type ), pointer :: stdev_topog_index => null()
+    type( field_type ), pointer :: a_sat_frac        => null()
+    type( field_type ), pointer :: c_sat_frac        => null()
+    type( field_type ), pointer :: a_wet_frac        => null()
+    type( field_type ), pointer :: c_wet_frac        => null()
+
+    type( field_type ), pointer :: soil_suction_sat => null()
+    type( field_type ), pointer :: clapp_horn_b     => null()
+    type( field_type ), pointer :: soil_temperature => null()
+    type( field_type ), pointer :: soil_moisture    => null()
+    type( field_type ), pointer :: unfrozen_soil_moisture => null()
+    type( field_type ), pointer :: frozen_soil_moisture   => null()
+
+    type( field_type ), pointer :: tile_snow_mass       => null()
+    type( field_type ), pointer :: tile_snow_rgrain     => null()
+    type( integer_field_type ), pointer :: n_snow_layers => null()
+    type( field_type ), pointer :: snow_depth           => null()
+    type( field_type ), pointer :: snow_under_canopy    => null()
+    type( field_type ), pointer :: snowpack_density     => null()
+    type( field_type ), pointer :: snow_layer_thickness => null()
+    type( field_type ), pointer :: snow_layer_ice_mass  => null()
+    type( field_type ), pointer :: snow_layer_liq_mass  => null()
+    type( field_type ), pointer :: snow_layer_temp      => null()
+    type( field_type ), pointer :: snow_layer_rgrain    => null()
+    type( field_type ), pointer :: tile_snow_mass_in    => null()
+    type( field_type ), pointer :: tile_snow_rgrain_in  => null()
+    type( field_type ), pointer :: n_snow_layers_in     => null()
+    type( field_type ), pointer :: snow_depth_in        => null()
+    type( field_type ), pointer :: snow_under_canopy_in => null()
+    type( field_type ), pointer :: snowpack_density_in  => null()
+    type( field_type ), pointer :: grad_x_orog    => null()
+    type( field_type ), pointer :: grad_y_orog    => null()
+    type( field_type ), pointer :: slope_angle    => null()
+    type( field_type ), pointer :: slope_aspect   => null()
+    type( field_type ), pointer :: skyview        => null()
+    type( field_type ), pointer :: horizon_angle  => null()
+    type( field_type ), pointer :: horizon_aspect => null()
+
+    type( mesh_type ),  pointer :: twod_mesh => null()
+    type( field_type ), pointer :: latitude  => null()
+
+    integer( i_def ) :: n_horizon_angle, n_horizon_layer
+
+    if (surface == surface_jules) then
+
+      ! Only needed on cold start from UM
+      if (init_option == init_option_fd_start_dump .and. &
+           .not. checkpoint_read) then
+        call ancil_fields%get_field('land_area_fraction', land_area_fraction)
+        call ancil_fields%get_field('land_tile_fraction', land_tile_fraction)
+        call fd_fields%get_field('land_tile_temp', land_tile_temp)
+        call fd_fields%get_field('tstar_sea_ice', tstar_sea_ice)
+        call fd_fields%get_field('can_water_in', can_water_in)
+        call surface_fields%get_field('canopy_water', canopy_water)
+      end if
+
+      ! For coupled models the sea ice fraction comes from the input
+      ! dump but for atmosphere only models they are provided by an
+      ! ancillary file
+      if (l_couple_sea_ice) then
+        call fd_fields%get_field('sea_ice_fraction', sea_ice_fraction)
+      else
+        call ancil_fields%get_field('sea_ice_fraction', sea_ice_fraction)
+      endif
+      call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
+      call surface_fields%get_field('tile_fraction', tile_fraction)
+
+      if (sst_source == sst_source_start_dump) then
+        call fd_fields%get_field('tstar_sea', tstar_sea)
+      else
+        call ancil_fields%get_field('tstar_sea', tstar_sea)
+      end if
+      call surface_fields%get_field('tile_temperature', tile_temperature)
+
+      if (init_option == init_option_fd_start_dump .and. &
+           .not. checkpoint_read) then
+        call soil_fields%get_field('soil_moist_sat', soil_moist_sat)
+        call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
+        call soil_fields%get_field('mean_topog_index', mean_topog_index)
+        call ancil_fields%get_field('stdev_topog_index', stdev_topog_index)
+        call soil_fields%get_field('a_sat_frac', a_sat_frac)
+        call soil_fields%get_field('c_sat_frac', c_sat_frac)
+        call soil_fields%get_field('a_wet_frac', a_wet_frac)
+        call soil_fields%get_field('c_wet_frac', c_wet_frac)
+
+        call soil_fields%get_field('soil_suction_sat', soil_suction_sat)
+        call soil_fields%get_field('clapp_horn_b', clapp_horn_b)
+        call soil_fields%get_field('soil_temperature', soil_temperature)
+        call soil_fields%get_field('soil_moisture', soil_moisture)
+        call soil_fields%get_field('unfrozen_soil_moisture', unfrozen_soil_moisture)
+        call soil_fields%get_field('frozen_soil_moisture', frozen_soil_moisture)
+      end if
+
+      if ( (init_option == init_option_fd_start_dump .and. &
+           .not. checkpoint_read) .or. (snow_source == snow_source_surf)) then
+        ! need to add .or. use_surf_analysis here
+        call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
+        call snow_fields%get_field('tile_snow_rgrain', tile_snow_rgrain)
+        call snow_fields%get_field('n_snow_layers', n_snow_layers)
+        call snow_fields%get_field('snow_depth', snow_depth)
+        call snow_fields%get_field('snow_under_canopy', snow_under_canopy)
+        call snow_fields%get_field('snowpack_density', snowpack_density)
+        call snow_fields%get_field('snow_layer_thickness', snow_layer_thickness)
+        call snow_fields%get_field('snow_layer_ice_mass', snow_layer_ice_mass)
+        call snow_fields%get_field('snow_layer_liq_mass', snow_layer_liq_mass)
+        call snow_fields%get_field('snow_layer_temp', snow_layer_temp)
+        call snow_fields%get_field('snow_layer_rgrain', snow_layer_rgrain)
+        call soil_fields%get_field('soil_temperature', soil_temperature)
+
+        if (snow_source == snow_source_surf) then
+          call ancil_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
+          call ancil_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
+          call ancil_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
+          call ancil_fields%get_field('snow_depth_in', snow_depth_in)
+          call ancil_fields%get_field('snowpack_density_in', snowpack_density_in)
+          call ancil_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+        else
+          call fd_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
+          call fd_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
+          call fd_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+          call fd_fields%get_field('snow_depth_in', snow_depth_in)
+          call fd_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
+          call fd_fields%get_field('snowpack_density_in', snowpack_density_in)
+        end if
+      end if
+
+      twod_mesh => sea_ice_thickness%get_mesh()
+      latitude => get_latitude_fv( W3, twod_mesh%get_id() )
+
+      ! Surface fields
+      if (init_option == init_option_fd_start_dump .and. &
+           .not. checkpoint_read) then
+        ! These only need processing when cold-starting from the UM
+        call invoke(process_land_kernel_type( land_area_fraction,             &
+                                            land_tile_fraction,               &
+                                            tile_fraction),                   &
+                  multi_insert_kernel_type(tile_temperature, land_tile_temp,  &
+                                           1, n_land_tile),                   &
+                  multi_insert_kernel_type(tile_temperature, tstar_sea_ice,   &
+                                         first_sea_ice_tile, n_sea_ice_tile ),&
+                  multi_insert_kernel_type(canopy_water, can_water_in,        &
+                                           1, n_land_tile))
+      end if
+
+      ! The time-update so always need processing
+      call invoke(process_ssi_kernel_type( sea_ice_fraction,                  &
+                                           sea_ice_thickness,                 &
+                                           tile_fraction, latitude,           &
+                                           amip_ice_thick, l_couple_sea_ice),     &
+                  multi_insert_kernel_type(tile_temperature, tstar_sea,       &
+                                           first_sea_tile, n_sea_tile ))
+
+      ! Soil fields
+      if (init_option == init_option_fd_start_dump .and. &
+           .not. checkpoint_read) then
+        ! These only need processing when cold-starting from the UM
+        call invoke(process_soil_kernel_type( soil_moist_sat,                 &
+                                            soil_moist_wilt,                  &
+                                            mean_topog_index,                 &
+                                            stdev_topog_index,                &
+                                            a_sat_frac,                       &
+                                            c_sat_frac,                       &
+                                            a_wet_frac,                       &
+                                            c_wet_frac,                       &
+                                            clapp_horn_b,                     &
+                                            soil_suction_sat,                 &
+                                            soil_temperature,                 &
+                                            soil_moisture,                    &
+                                            unfrozen_soil_moisture,           &
+                                            frozen_soil_moisture))
+      end if
+
+      ! Snow fields
+      if ((init_option == init_option_fd_start_dump .and. &
+           .not. checkpoint_read) .or. snow_source == snow_source_surf) then
+        ! These only need processing when cold-starting from the UM
+        call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
+                                              1, n_land_tile),                   &
+                      int_multi_insert_kernel_type(n_snow_layers,n_snow_layers_in,&
+                                                   1, n_land_tile),               &
+                      multi_insert_kernel_type(snow_depth, snow_depth_in,         &
+                                               1, n_land_tile),                   &
+                      multi_insert_kernel_type(tile_snow_rgrain,                  &
+                                             tile_snow_rgrain_in, 1, n_land_tile),&
+                      multi_insert_kernel_type(snow_under_canopy,                 &
+                                            snow_under_canopy_in, 1, n_land_tile),&
+                      multi_insert_kernel_type(snowpack_density,                  &
+                                             snowpack_density_in, 1, n_land_tile), &
+                      process_snow_kernel_type(tile_snow_mass, n_snow_layers,      &
+                                               snow_under_canopy, snowpack_density,&
+                                               snow_depth, snow_layer_thickness,   &
+                                               snow_layer_ice_mass,                &
+                                               snow_layer_liq_mass,                &
+                                               snow_layer_temp, snow_layer_rgrain, &
+                                               soil_temperature) )
+      end if
+
+    end if
+
+    if (radiation == radiation_socrates .and. &
+        topography /= topography_flat .and. &
+        init_option == init_option_fd_start_dump .and. &
+        .not. checkpoint_read) then
+
+      call ancil_fields%get_field('grad_x_orog', grad_x_orog)
+      call ancil_fields%get_field('grad_y_orog', grad_y_orog)
+      call radiation_fields%get_field('slope_angle', slope_angle)
+      call radiation_fields%get_field('slope_aspect', slope_aspect)
+      call radiation_fields%get_field('skyview', skyview)
+      call radiation_fields%get_field('horizon_angle', horizon_angle)
+      call radiation_fields%get_field('horizon_aspect', horizon_aspect)
+
+      if (topography == topography_horizon) then
+        n_horizon_angle = n_horiz_ang
+        n_horizon_layer = n_horiz_layer
+      else
+        n_horizon_angle = 0
+        n_horizon_layer = 0
+      end if
+
+      call invoke(set_topography_kernel_type(grad_x_orog, grad_y_orog, &
+        slope_angle, slope_aspect, skyview, horizon_angle, horizon_aspect, &
+        n_horizon_angle, n_horizon_layer))
+
+    end if
+
+  end subroutine process_inputs_alg
+
+end module process_inputs_alg_mod

@@ -1,0 +1,144 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test easyaerosol_lw_kernel
+!>
+
+module easyaerosol_lw_kernel_mod_test
+
+  use funit
+  use constants_mod,                   only : r_def, i_def
+  use easyaerosol_lw_kernel_mod,       only : easyaerosol_lw_code
+
+  implicit none
+
+  private
+  public :: test_easyaerosol_lw
+
+  @TestCase
+  type, extends(TestCase), public  :: easyaerosol_test_type
+    private
+    real(kind=r_def), allocatable :: aer_absorption(:),         &
+                                     aer_scattering(:),         &
+                                     aer_asymmetry(:),          &
+                                     easy_absorption(:),        &
+                                     easy_extinction(:),        &
+                                     easy_asymmetry(:),         &
+                                     rho_wtheta(:),             &
+                                     lit_fraction(:),           &
+                                     answer_absorption(:),      &
+                                     answer_scattering(:),      &
+                                     answer_asymmetry (:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_easyaerosol_lw
+
+  end type easyaerosol_test_type
+
+  integer(kind=i_def), parameter :: nlayers       = 2_i_def
+  integer(kind=i_def), parameter :: n_radaer_mode = 1_i_def
+  integer(kind=i_def), parameter :: n_radaer_step = 2_i_def
+  integer(kind=i_def), parameter :: n_band        = 2_i_def
+  integer(kind=i_def), parameter :: ndf           = 2_i_def
+  integer(kind=i_def), parameter :: map(2)        = (/1_i_def, -999_i_def /)
+  integer(kind=i_def), parameter :: aer_arr_len  = (nlayers + 1) * n_band * (n_radaer_mode + 1)
+  integer(kind=i_def), parameter :: easy_arr_len = (nlayers + 1) * n_band
+  integer(kind=i_def), parameter :: rho_arr_len  =  nlayers + 1
+  integer(kind=i_def), parameter :: lit_arr_len  =  1_i_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine setUp( this )
+
+    implicit none
+
+    class(easyaerosol_test_type), intent(inout) :: this
+
+    allocate ( this%easy_absorption(easy_arr_len),              &
+               this%easy_extinction(easy_arr_len),              &
+               this%easy_asymmetry (easy_arr_len),              &
+               this%aer_absorption(aer_arr_len),                &
+               this%aer_scattering(aer_arr_len),                &
+               this%aer_asymmetry (aer_arr_len),                &
+               this%rho_wtheta    (rho_arr_len),                &
+               this%lit_fraction  (lit_arr_len),                &
+               this%answer_absorption(aer_arr_len),             &
+               this%answer_scattering(aer_arr_len),             &
+               this%answer_asymmetry (aer_arr_len) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(easyaerosol_test_type), intent(inout) :: this
+
+    deallocate( this%aer_absorption,                            &
+                this%aer_scattering,                            &
+                this%aer_asymmetry,                             &
+                this%easy_absorption,                           &
+                this%easy_extinction,                           &
+                this%easy_asymmetry,                            &
+                this%rho_wtheta,                                &
+                this%lit_fraction,                              &
+                this%answer_absorption,                         &
+                this%answer_scattering,                         &
+                this%answer_asymmetry )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_easyaerosol_lw ( this )
+
+    implicit none
+    class(easyaerosol_test_type), intent(inout) :: this
+
+    real(kind=r_def), dimension(4) :: four_zeros
+    four_zeros(:)          = 0.0_r_def
+    this%lit_fraction      = 1.0_r_def
+    this%rho_wtheta(:)     = 1.0_r_def
+    this%aer_absorption(:) = 0.0_r_def
+    this%aer_scattering(:) = 0.0_r_def
+    this%aer_asymmetry(:)  = 0.0_r_def
+
+    ! Setting up some arbitrary values for the optical properties, assuming we have 3 levels and 2 modes
+    this%easy_extinction = (/  99.0_r_def,   99.0_r_def,  6.0_r_def, 60.0_r_def,  8.0_r_def, 80.0_r_def /)
+    this%easy_absorption = (/  99.0_r_def,   99.0_r_def,  2.0_r_def, 20.0_r_def,  3.0_r_def, 30.0_r_def /)
+    this%easy_asymmetry  = (/  0.99_r_def,  0.99_r_def,  0.08_r_def, 0.80_r_def, 0.09_r_def, 0.90_r_def /)
+
+    ! Create the answers for the LW kernel tests
+    this%answer_absorption = (/four_zeros, 2.0_r_def,   3.0_r_def, four_zeros, 20.0_r_def, 30.0_r_def/)
+    this%answer_scattering = (/four_zeros, 4.0_r_def,   5.0_r_def, four_zeros, 40.0_r_def, 50.0_r_def/)
+    this%answer_asymmetry  = (/four_zeros, 0.08_r_def, 0.09_r_def, four_zeros, 0.80_r_def, 0.90_r_def/)
+
+    call easyaerosol_lw_code( nlayers,                                         &
+                              n_radaer_mode,                                   &
+                              n_band,                                          &
+                              this%aer_absorption,                             &
+                              this%aer_scattering,                             &
+                              this%aer_asymmetry,                              &
+                              this%easy_absorption,                            &
+                              this%easy_extinction,                            &
+                              this%easy_asymmetry,                             &
+                              this%rho_wtheta,                                 &
+                              ndf, aer_arr_len,  map,                          &
+                              ndf, easy_arr_len, map,                          &
+                              ndf, rho_arr_len,  map )
+
+    @assertEqual( this%answer_absorption, this%aer_absorption )
+    @assertEqual( this%answer_scattering, this%aer_scattering )
+    @assertEqual( this%answer_asymmetry,  this%aer_asymmetry  )
+
+  end subroutine test_easyaerosol_lw
+
+end module easyaerosol_lw_kernel_mod_test

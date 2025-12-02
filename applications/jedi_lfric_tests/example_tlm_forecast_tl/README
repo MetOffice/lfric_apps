@@ -1,0 +1,19 @@
+To run tlm_forecast_tl application with pre-partitioned meshes
+===================================================================
+* build <LFRic_Core>/mesh_tools
+  - Check-out Lfric Core Repository
+  - cd <LFRic_Core>/mesh_tools
+  - make build
+
+* build <LFRic_Apps>/jedi_lfric_tests
+  - Check-out Lfric Apps Repository
+  - cd <LFRic_Apps>
+  - ./build/local_build.py -a jedi_lfric_tests
+
+* cd <LFRic_Apps>/applications/jedi_lfric_tests/example_tlm_forecast_tl
+
+* Generate the pre-partitioned files
+  <LFRic_Core>/mesh_tools/bin/cubedsphere_mesh_generator C12_op.nml
+
+* Run the application
+  mpiexec -n 6 ../bin/jedi_tlm_forecast_tl configuration_op.nml

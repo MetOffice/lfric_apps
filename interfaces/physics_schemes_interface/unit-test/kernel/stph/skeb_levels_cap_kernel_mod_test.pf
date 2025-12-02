@@ -1,0 +1,140 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Test the skeb_levels_cap kernel
+!>
+module skeb_levels_cap_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+  use get_unit_test_m3x3_dofmap_mod, only : get_w2_m3x3_dofmap
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: skeb_levels_cap_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type skeb_levels_cap_test_type
+
+contains
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(skeb_levels_cap_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(skeb_levels_cap_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use skeb_levels_cap_kernel_mod,   only : skeb_levels_cap_code
+
+    implicit none
+
+    class(skeb_levels_cap_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    ! Fields
+    real(r_def), allocatable :: field_in(:), field_out(:)
+
+    ! scalars
+    integer(i_def) :: skeb_level_bottom, skeb_level_top, level2km
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    integer(i_def) :: k, df, cell
+
+    ! Sizes
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2
+
+
+    ncells = 9
+
+    ! Set up 3d w2 field - need enough layers for ramping up and down
+    nlayers = 12
+    ndf_w2 = 6
+    undf_w2 = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+
+    ! Allocate fields
+    allocate(field_in(undf_w2))
+    allocate(field_out(undf_w2))
+
+
+    ! input scalars
+    skeb_level_bottom = 2
+    skeb_level_top = 8
+    level2km = 5
+
+    field_in = 0.0_r_def
+    ! Set up data
+    do cell = 1,9
+      do k = 0 , nlayers - 1
+          do df=1,ndf_w2
+            field_in(map_w2(df, cell) + k ) = 1.0_r_def
+          end do
+      end do
+    end do
+
+    field_out(:) = field_in(:)
+
+    do cell = 1,9
+      call skeb_levels_cap_code( nlayers,            &
+                                 field_out,          &
+                                 field_in,           &
+                                 skeb_level_bottom,  &
+                                 skeb_level_top,     &
+                                 level2km,           &
+                                 ndf_w2,             &
+                                 undf_w2,            &
+                                 map_w2(:, cell)     &
+                                )
+    end do
+
+    cell = 5
+    do k = 0, nlayers -1
+      ! We only test on horizontal dofs
+      do df = 1, 4
+        if (k < skeb_level_bottom-1 .or. k > skeb_level_top-1) then
+          @assertEqual(field_out(map_w2(df, cell) + k ), 0.0_r_def, tol )
+        else if( k >=skeb_level_bottom-1 .and. k <= level2km-1 ) then
+          @assertEqual(field_out(map_w2(df, cell) + k ), log10(10.0_r_def/level2km*(k+1)), tol )
+        else
+          @assertEqual(field_out(map_w2(df, cell) + k ), 0.25_r_def * (skeb_level_top - k), tol )
+        end if
+      end do
+    end do
+
+
+    deallocate(field_in)
+    deallocate(field_out)
+    deallocate(map_w2)
+
+  end subroutine test_all
+
+end module skeb_levels_cap_kernel_mod_test

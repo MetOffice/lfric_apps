@@ -1,0 +1,299 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Create any requested diagnostics for aerosol optical properties
+!>        including those corresponding to easyaerosol and accompanying optical
+!>        properties from RADAER.
+!
+module easyaerosol_diags_mod
+
+  use field_mod,              only: field_type
+  use constants_mod,          only: i_def, l_def
+
+  implicit none
+
+  private
+
+  ! Logicals indicating whether diagnostics are requested
+  logical( l_def ) :: aer_abs_diag_flag
+  logical( l_def ) :: aer_sca_diag_flag
+  logical( l_def ) :: easy_abs_diag_flag
+  logical( l_def ) :: easy_sca_diag_flag
+  logical( l_def ) :: easy_asy_diag_flag
+  logical( l_def ) :: easy_ext_diag_flag
+
+  public easyaerosol_diags
+
+contains
+
+  !>@brief         Initialise, process and output diagnostics for easyaerosol
+  !>@details       Some arrays need translating from ancil fields into the
+  !>               shape used by radaer. Some calculations also needed to
+  !>               ensure all outputs are in units of m-1.
+  !>               This algorithm is not specific to the SW or LW spectrum but
+  !>               can be called for either since the operations are identical
+  !>               in both cases.
+  !>@param[in]     aer_absorption        absorption from online aerosol scheme
+  !>@param[in]     aer_scattering        scattering from online aerosol scheme
+  !>@param[in]     easy_absorption       absorption from easyaerosol ancil
+  !>@param[in]     easy_extinction       extinction from easyaerosol ancil
+  !>@param[in]     easy_asymmetry        asymmetry  from easyaerosol ancil
+  !>@param[in]     aer_mix_ratio         Aerosol mixing ratios for every mode
+  !>@param[in]     rho_in_wth            air density on Wtheta vert levels
+  !>@param[in]     spectrum              string indicating either sw or lw
+  !>@param[in]     n_band                number of bands in this spectrum
+  !
+  subroutine easyaerosol_diags ( aer_absorption,                               &
+                                 aer_scattering,                               &
+                                 easy_absorption,                              &
+                                 easy_extinction,                              &
+                                 easy_asymmetry,                               &
+                                 aer_mix_ratio,                                &
+                                 rho_in_wth,                                   &
+                                 spectrum,                                     &
+                                 n_band )
+
+    implicit none
+
+    ! Arguments
+    type( field_type ),  intent( in ) :: aer_absorption
+    type( field_type ),  intent( in ) :: aer_scattering
+    type( field_type ),  intent( in ) :: easy_absorption
+    type( field_type ),  intent( in ) :: easy_extinction
+    type( field_type ),  intent( in ) :: easy_asymmetry
+    type( field_type ),  intent( in ) :: aer_mix_ratio
+    type( field_type ),  intent( in ) :: rho_in_wth
+    character(len=2),    intent( in ) :: spectrum
+    integer(kind=i_def), intent( in ) :: n_band
+
+    type( field_type ) :: aer_abs_diag   ! Aerosol absorption diagnostic in units m-1
+    type( field_type ) :: aer_sca_diag   ! Aerosol scattering diagnostic in units m-1
+    type( field_type ) :: easy_abs_diag  ! Easy aerosol absorption diagnostic in units m-1
+    type( field_type ) :: easy_sca_diag  ! Easy aerosol scattering diagnostic in units m-1
+    type( field_type ) :: easy_ext_diag  ! Easy aerosol extinction diagnostic in units m-1
+    type( field_type ) :: easy_asy_diag  ! Easy aerosol asymmetry diagnostic
+
+    call initialise_diags_for_easyaerosol( aer_abs_diag,                       &
+                                           aer_sca_diag,                       &
+                                           easy_abs_diag,                      &
+                                           easy_sca_diag,                      &
+                                           easy_ext_diag,                      &
+                                           easy_asy_diag,                      &
+                                           spectrum )
+
+    call process_diags_for_easyaerosol   ( aer_abs_diag,                       &
+                                           aer_sca_diag,                       &
+                                           easy_abs_diag,                      &
+                                           easy_sca_diag,                      &
+                                           easy_ext_diag,                      &
+                                           easy_asy_diag,                      &
+                                           aer_absorption,                     &
+                                           aer_scattering,                     &
+                                           easy_absorption,                    &
+                                           easy_extinction,                    &
+                                           easy_asymmetry,                     &
+                                           aer_mix_ratio,                      &
+                                           rho_in_wth,                         &
+                                           n_band )
+
+    call output_diags_for_easyaerosol    ( aer_abs_diag,                       &
+                                           aer_sca_diag,                       &
+                                           easy_abs_diag,                      &
+                                           easy_sca_diag,                      &
+                                           easy_ext_diag,                      &
+                                           easy_asy_diag,                      &
+                                           spectrum )
+
+  end subroutine easyaerosol_diags
+
+  !>@brief         Initialise aerosol optical property diagnostics
+  !>@param[in]     aer_abs_diag          absorption from radaer & easyaerosol
+  !>@param[in]     aer_sca_diag          scattering from radaer & easyaerosol
+  !>@param[in]     easy_abs_diag         absorption from easyaerosol ancil
+  !>@param[in]     easy_sca_diag         scattering derived from easyaerosol
+  !>@param[in]     easy_ext_diag         extinction from easyaerosol ancil
+  !>@param[in]     easy_asy_diag         asymmetry from easyaerosol ancil
+  !>@param[in]     spectrum              string, either "sw" or "lw"
+  !
+  subroutine initialise_diags_for_easyaerosol ( aer_abs_diag,                  &
+                                                aer_sca_diag,                  &
+                                                easy_abs_diag,                 &
+                                                easy_sca_diag,                 &
+                                                easy_ext_diag,                 &
+                                                easy_asy_diag,                 &
+                                                spectrum )
+
+    use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+    implicit none
+
+    ! Arguments
+    type( field_type ), intent( inout ) :: aer_abs_diag
+    type( field_type ), intent( inout ) :: aer_sca_diag
+    type( field_type ), intent( inout ) :: easy_abs_diag
+    type( field_type ), intent( inout ) :: easy_sca_diag
+    type( field_type ), intent( inout ) :: easy_ext_diag
+    type( field_type ), intent( inout ) :: easy_asy_diag
+    character(len=2),   intent( in )    :: spectrum
+
+    aer_abs_diag_flag  = init_diag( aer_abs_diag, 'aerosol__aer_'// spectrum //'_abs_per_m')
+    aer_sca_diag_flag  = init_diag( aer_sca_diag, 'aerosol__aer_'// spectrum //'_sca_per_m')
+    easy_abs_diag_flag = init_diag(easy_abs_diag, 'aerosol__easy_' // spectrum //'_abs')
+    easy_sca_diag_flag = init_diag(easy_sca_diag, 'aerosol__easy_' // spectrum //'_sca')
+    easy_ext_diag_flag = init_diag(easy_ext_diag, 'aerosol__easy_' // spectrum //'_ext')
+    easy_asy_diag_flag = init_diag(easy_asy_diag, 'aerosol__easy_' // spectrum //'_asy')
+
+  end subroutine initialise_diags_for_easyaerosol
+
+  !>@brief         Processing to calculate aerosol optical property diagnostics
+  !>@param[in]     aer_abs_diag          absorption from radaer & easyaerosol
+  !>@param[in]     aer_sca_diag          scattering from radaer & easyaerosol
+  !>@param[in]     easy_abs_diag         absorption from easyaerosol ancil
+  !>@param[in]     easy_sca_diag         scattering derived from easyaerosol
+  !>@param[in]     easy_ext_diag         extinction from easyaerosol ancil
+  !>@param[in]     easy_asy_diag         asymmetry from easyaerosol ancil
+  !>@param[in]     aer_absorption        absorption from online aerosol scheme
+  !>@param[in]     aer_scattering        scattering from online aerosol scheme
+  !>@param[in]     easy_absorption       absorption from easyaerosol ancil
+  !>@param[in]     easy_extinction       extinction from easyaerosol ancil
+  !>@param[in]     easy_asymmetry        asymmetry  from easyaerosol ancil
+  !>@param[in]     aer_mix_ratio         Aerosol mixing ratios for every mode
+  !>@param[in]     rho_in_wth            air density on Wtheta vert levels
+  !>@param[in]     n_band                number of bands in this spectrum
+  !
+  subroutine process_diags_for_easyaerosol ( aer_abs_diag,                     &
+                                             aer_sca_diag,                     &
+                                             easy_abs_diag,                    &
+                                             easy_sca_diag,                    &
+                                             easy_ext_diag,                    &
+                                             easy_asy_diag,                    &
+                                             aer_absorption,                   &
+                                             aer_scattering,                   &
+                                             easy_absorption,                  &
+                                             easy_extinction,                  &
+                                             easy_asymmetry,                   &
+                                             aer_mix_ratio,                    &
+                                             rho_in_wth,                       &
+                                             n_band )
+
+    use easyaerosol_fld2diag_kernel_mod, only: easyaerosol_fld2diag_kernel_type
+    use easyaerosol_convdiag_kernel_mod, only: easyaerosol_convdiag_kernel_type
+    use easyaerosol_scatdiag_kernel_mod, only: easyaerosol_scatdiag_kernel_type
+    use um_physics_init_mod,             only: mode_dimen
+
+    implicit none
+
+    ! Arguments
+    type( field_type ),  intent( inout ) :: aer_abs_diag
+    type( field_type ),  intent( inout ) :: aer_sca_diag
+    type( field_type ),  intent( inout ) :: easy_abs_diag
+    type( field_type ),  intent( inout ) :: easy_sca_diag
+    type( field_type ),  intent( inout ) :: easy_ext_diag
+    type( field_type ),  intent( inout ) :: easy_asy_diag
+    type( field_type ),  intent( in )    :: aer_absorption
+    type( field_type ),  intent( in )    :: aer_scattering
+    type( field_type ),  intent( in )    :: easy_absorption
+    type( field_type ),  intent( in )    :: easy_extinction
+    type( field_type ),  intent( in )    :: easy_asymmetry
+    type( field_type ),  intent( in )    :: aer_mix_ratio
+    type( field_type ),  intent( in )    :: rho_in_wth
+    integer(kind=i_def), intent( in )    :: n_band
+
+    if ( aer_abs_diag_flag ) then
+      call invoke( easyaerosol_convdiag_kernel_type(n_band,                    &
+                                                    mode_dimen,                &
+                                                    aer_absorption,            &
+                                                    aer_abs_diag,              &
+                                                    aer_mix_ratio,             &
+                                                    rho_in_wth) )
+    end if
+    if ( aer_sca_diag_flag ) then
+      call invoke( easyaerosol_convdiag_kernel_type(n_band,                    &
+                                                    mode_dimen,                &
+                                                    aer_scattering,            &
+                                                    aer_sca_diag,              &
+                                                    aer_mix_ratio,             &
+                                                    rho_in_wth) )
+    end if
+
+    if ( easy_abs_diag_flag ) then
+      call invoke( easyaerosol_fld2diag_kernel_type(n_band,                    &
+                                                     easy_absorption,          &
+                                                     easy_abs_diag) )
+    end if
+    if ( easy_ext_diag_flag ) then
+      call invoke( easyaerosol_fld2diag_kernel_type(n_band,                    &
+                                                     easy_extinction,          &
+                                                     easy_ext_diag) )
+    end if
+    if ( easy_asy_diag_flag ) then
+      call invoke( easyaerosol_fld2diag_kernel_type(n_band,                    &
+                                                    easy_asymmetry,            &
+                                                    easy_asy_diag))
+    end if
+    if ( easy_sca_diag_flag ) then
+      call invoke( easyaerosol_scatdiag_kernel_type(n_band,                    &
+                                   easy_extinction, easy_absorption,           &
+                                                     easy_sca_diag) )
+    end if
+
+  end subroutine process_diags_for_easyaerosol
+
+  !>@brief         Output requested aerosol optical property diagnostics
+  !>@param[in]     aer_abs_diag          absorption from radaer & easyaerosol
+  !>@param[in]     aer_sca_diag          scattering from radaer & easyaerosol
+  !>@param[in]     easy_abs_diag         absorption from easyaerosol ancil
+  !>@param[in]     easy_sca_diag         scattering derived from easyaerosol
+  !>@param[in]     easy_ext_diag         extinction from easyaerosol ancil
+  !>@param[in]     easy_asy_diag         asymmetry from easyaerosol ancil
+  !>@param[in]     spectrum              string, either "sw" or "lw"
+  !
+  subroutine output_diags_for_easyaerosol ( aer_abs_diag,                      &
+                                            aer_sca_diag,                      &
+                                            easy_abs_diag,                     &
+                                            easy_sca_diag,                     &
+                                            easy_ext_diag,                     &
+                                            easy_asy_diag,                     &
+                                            spectrum )
+
+    implicit none
+
+    ! Arguments
+    type( field_type ), intent( in ) :: aer_abs_diag
+    type( field_type ), intent( in ) :: aer_sca_diag
+    type( field_type ), intent( in ) :: easy_abs_diag
+    type( field_type ), intent( in ) :: easy_sca_diag
+    type( field_type ), intent( in ) :: easy_ext_diag
+    type( field_type ), intent( in ) :: easy_asy_diag
+    character(len=2),   intent( in ) :: spectrum
+
+    ! Output the diagnostics
+    if ( aer_abs_diag_flag ) then
+      call aer_abs_diag%write_field()
+    end if
+
+    if ( aer_sca_diag_flag ) then
+       call aer_sca_diag%write_field()
+    end if
+
+    if ( easy_abs_diag_flag ) then
+       call easy_abs_diag%write_field()
+    end if
+
+    if ( easy_sca_diag_flag ) then
+       call easy_sca_diag%write_field()
+    end if
+
+    if ( easy_ext_diag_flag ) then
+       call easy_ext_diag%write_field()
+    end if
+
+    if ( easy_asy_diag_flag ) then
+       call easy_asy_diag%write_field()
+    end if
+
+  end subroutine output_diags_for_easyaerosol
+
+end module easyaerosol_diags_mod

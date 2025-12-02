@@ -1,0 +1,128 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module analytic_density_profiles_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, &
+            analytic_density_test, vortex_field_test
+
+contains
+
+  @before
+  subroutine set_up()
+
+    use feign_config_mod,          only : feign_initial_density_config,   &
+                                          feign_extrusion_config,         &
+                                          feign_initial_pressure_config,  &
+                                          feign_planet_config
+
+    use extrusion_config_mod,         only : method_uniform, &
+                                             stretching_method_linear
+    use initial_pressure_config_mod,  only : method_balanced
+
+    implicit none
+
+    call feign_extrusion_config( planet_radius=6000000.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 method=method_uniform,                      &
+                                 number_of_layers=2_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
+    call feign_planet_config( gravity=10.0_r_def,                         &
+                              omega=8.0E-5_r_def, rd=300.0_r_def,         &
+                              cp=1000.0_r_def, p_zero=100000.0_r_def,     &
+                              scaling_factor=1.0_r_def )
+
+    call feign_initial_density_config( density_background=0.5_r_def,    &
+                                       density_max=1.0_r_def,           &
+                                       r1=1.0_r_def, x1=2.0_r_def,      &
+                                       y1=3.0_r_def, z1=4.0_r_def,      &
+                                       r2=1.0_r_def, x2=0.0_r_def,      &
+                                       y2=0.0_r_def, z2=0.0_r_def )
+
+    call feign_initial_pressure_config ( method           = method_balanced,   &
+                                         surface_pressure = 1000.0e2_r_def )
+
+  end subroutine set_up
+
+
+  @after
+  subroutine tear_down()
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+
+  @test
+  subroutine vortex_field_test()
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use constants_mod,                 only : PI
+    use analytic_density_profiles_mod, only : vortex_field
+
+    implicit none
+
+    real(kind=r_def) :: density, time, lat, long, radius
+    real(kind=r_def) :: tol
+
+    tol = 10.0e-8_r_def
+
+    time = 1.0_r_def
+    lat = 0.0_r_def
+    long = 0.0_r_def
+    radius = 6371229.0_r_def
+
+    density = vortex_field(lat,long,radius,time)
+    @assertEqual(1.0_r_def, density, tol)
+
+    long = PI/4.0_r_def
+    density = vortex_field(lat,long,radius,time)
+    @assertEqual(0.599483410782824_r_def, density,tol)
+
+  end subroutine vortex_field_test
+
+
+  @Test
+  subroutine analytic_density_test()
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use analytic_density_profiles_mod, only : analytic_density
+    use idealised_config_mod,          only : test_yz_cosine_hill
+
+    implicit none
+
+    real(kind=r_def) :: rho
+    real(kind=r_def) :: chi(3)
+    real(kind=r_def) :: tol
+
+    chi = (/ 2.0_r_def,3.25_r_def,4.5_r_def /)
+    rho = analytic_density(chi , test_yz_cosine_hill, 0.0_r_def)
+    if ( r_def == real64 ) then
+       tol = 10.0E-12_r_def
+    else
+       tol = 10.0_r_def * spacing( rho )
+    endif
+    @assertEqual(0.5_r_def, rho, tol)
+
+
+  end subroutine analytic_density_test
+
+
+end module analytic_density_profiles_mod_test

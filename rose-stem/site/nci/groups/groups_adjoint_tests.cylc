@@ -1,0 +1,55 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_adjoint_tests.cylc") %}
+
+{# Gadi Groups #}
+{% do site_groups.update({
+    "adjoint_tests_gadi_developer": [
+        "adjoint_tests_default-C12_gadi_intel_fast-debug-64bit",
+        "adjoint_tests_default-C12_gadi_intel_full-debug-64bit",
+        "adjoint_tests_gadi_canned",
+    ],
+    "adjoint_tests_gadi": [
+        "adjoint_tests_gadi_developer",
+    ],
+    "adjoint_tests_gadi_canned": [
+        "adjoint_tests_canned_gadi_intel_fast-debug-64bit",
+    ],
+    "adjoint_tests_gadi_build": [
+        "build_adjoint_tests_gadi_intel_fast-debug-64bit",
+        "build_adjoint_tests_gadi_intel_full-debug-64bit",
+    ],
+    })  %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "adjoint_tests_developer": [
+        "scripts",
+        "adjoint_tests_gadi_developer",
+    ],
+    "adjoint_tests": [
+        "adjoint_tests_developer",
+        "adjoint_tests_gadi",
+    ],
+    "adjoint_tests_canned": [
+        "adjoint_tests_gadi_canned",
+    ],
+    "adjoint_tests_build": [
+        "adjoint_tests_gadi_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.adjoint_tests_developer) %}
+{% do site_groups.all.extend(site_groups.adjoint_tests) %}
+{% do site_groups.build.extend(site_groups.adjoint_tests_build) %}
+
+{# Gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.adjoint_tests_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.adjoint_tests_gadi) %}
+{% do site_groups.gadi_build.extend(site_groups.adjoint_tests_gadi_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_adjoint_tests.cylc") %}

@@ -1,0 +1,98 @@
+Guide to optional configs
+
+Optional configs should be applied in the following order:
+- The horizontal mesh will always apply first.
+- The rest apply in the order they appear on the "opt_confs" line.
+This order allows that configuration specifics can override anything, idealised
+case descriptions can override science settings, and science settings can
+override grid specific information.
+
+Horizontal mesh information:
+- C12 - C12 mesh with low resolution requirements such as no multigrid
+- C48, C192, C224, C256, C512 - standard mesh information - includes radiation
+                                timestep appropriate for resolution
+- C224_MG_op - C224 mesh file for use with offline partitioning
+- C768, C896 - standard mesh information, plus low resolution aerosol and
+               ozone ancillaries
+- BiP2x2-50000x50000 - SCM mesh, setup with no dynamics
+- BiP64x64-100x100_MG, BiP64x64-250x250_MG, BiP64x64-500x500_MG,
+  BiP64x64-1500x1500_MG - various resolution bicyclic lam domains
+- seuk_MG - small UK LBC forced LAM, with input files and date
+- uk_MG - UK LBC forced LAM (648 x 648), with input files and date
+- uk_672x672_MG - UK LBC forced LAM (672x672), with input files and date
+- ukv_MG - variable resolution UK LBC forced LAM, with input files and date
+- comp_perf_MG - UK computational performance domain, with input files and date
+- melbourne_MG - Melbourne LBC forced LAM, with input files and date
+
+Vertical mesh information:
+- l85_85km - standard climate level set
+- l70_40km - standard high-resolution level set
+- l38_40km - old level set, still used for idealised and exoplanet runs
+- l38_40km_user_eta - with eta values specified in namelist rather than code
+- l66_4000km/9000km - uniform level sets used for exoplanet runs
+- l110_4p4km - high resolution level set used for idealised runs
+- l120_40km/l140_40km - high resolution level sets with standard model top
+
+Science settings
+- casim - settings for Casim microphysics
+- chemistry - UKCA strat-trop chemistry
+- climate - standard physical climate settings
+- coarse_aero - coarse mesh radaer
+- coma9 - ComorphA9 configuration
+- comatb - Modifications to Coma9 for 5km trailblazer setup
+- comorph_dev - development ComorphB configuration
+- da - with IAU from data assimilation
+- eda - with IAU from ensemble data assimilation (with multi-context IO),
+        including use of SST perturbations and land surface increments
+- eda_jada - with IAU from JADA control-pert ensemble data assimilation
+- hh_solve - Helmholtz only sovler (no mixed solve)
+- llcs - Use Lambert-Lewis simple convection scheme
+- mol - use MoL transport scheme
+- moruses - use the MORUSES urban scheme
+- murk - use single-species aerosol Murk
+- no_aerosol - use no aerosol scheme (fixed cloud drop number)
+- no_dust - don't use interactive dust
+- ral3 - regional configuration
+- ral3_ens - extra config for regional ensembles (including stochastic physics)
+- ral3_scm - single column regional physics (includes convection scheme)
+- ral_mixmol_opts - extra options for regional models when using the MoL
+                    transport scheme and mixed solver configuration
+- ral_opts - extra options for regional models, including LBC blending weights
+- ukca - UKCA Glomap aerosol scheme
+- urban2t - 2-tile urban scheme
+- dry_atm - a dry atmosphere
+
+Idealised initialisations and forcings
+- aquaplanet - setup for an Earth aquaplanet experiment
+- arm - ARM idealised case
+- bomex - BOMEX shallow convection case
+- cbl - dry convective boundary layer case
+- cbl_dry - same as cbl but with no moisture
+- comp_tran_ref - composite stratocu to cu transition reference case
+- constrain - Constrain cold-air outbreak case
+- dice2 - DICE phase 2 atmosphere-land case
+- gabls4 - GABLS4 snow over Antarctica case
+- rad_gas - test of greenhouse gas forciing
+- rce - radiative-convective equilibrium case
+- sahara - deep Saharan BL case
+- seaice - idealised sea-ice case
+- snow_init - initialise snowpack for an idealised case
+- toga - TOGA-COARE deep convection case
+- thai - Trappist habitible atmospheres intercomparison setup
+- co2_atm - a CO2 only atmosphere setup
+- camembert_case3_gj1214b - Camembert intercomparison case based on GJ1214b
+- hd209458b - Hot Jupiter setup of the planet HD209458b
+
+Configuration specific settings
+- june_case - change start date for 2nd June case study
+- lowres_stp - override maximum wavenumber for low resolution (e.g. C12) runs
+               with stochastic physics
+- ls_and_jedi - diagnostics and date for JEDI testing
+- ral_ls_and_jedi - diagnostics for regional (seuk) JEDI testing
+- no_diags - turn off diagnostic output
+- test_diags - simple diagnostics for testing
+- oper_diags - operational suite diagnostic setup
+- um_dump - global run starts from a UM dump
+- scm_45N - specifies the latitude as 45N for a single-column setup
+- perturb - Runs a second test with theta perturbed and compares the two
+- physics_segmentation - segment size values to use in physics with openMP

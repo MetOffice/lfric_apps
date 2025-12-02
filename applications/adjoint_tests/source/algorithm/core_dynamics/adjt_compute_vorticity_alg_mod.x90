@@ -1,0 +1,160 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for adj_compute_vorticity_alg
+module adjt_compute_vorticity_alg_mod
+
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def, l_def
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use finite_element_config_mod,           only : element_order_h, element_order_v, vorticity_in_w1
+  use fs_continuity_mod,                   only : W1, W2
+  use function_space_collection_mod,       only : function_space_collection
+
+  implicit none
+
+  public
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for adj_compute_vorticity_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  subroutine adjt_compute_vorticity_alg( mesh )
+
+    use compute_vorticity_alg_mod,           only : compute_vorticity_alg
+    use adj_compute_vorticity_alg_mod,       only : adj_compute_vorticity_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type)            :: xi
+    type(field_type)            :: u
+    logical(kind=l_def)         :: weak_form_u
+
+    ! Copies of input fields used in inner products
+    type(field_type)    :: xi_input
+    type(field_type)    :: u_input
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_w1_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: xi_inner_prod
+    real(kind=r_def)            :: u_inner_prod
+    real(kind=r_def)            :: xi_sf
+    real(kind=r_def)            :: u_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: xi_xi_input_inner_prod
+    real(kind=r_def)            :: u_u_input_inner_prod
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    if (.not. vorticity_in_w1) then
+      ! With vorticity_in_w1 == F, test will fail
+      ! However, tl_rhs_alg only calls compute_vorticity_alg if si_momentum_equation == T
+      ! Currently si_momentum_equation == F, so it's okay to skip this test for now
+      call log_event( "vorticity_in_w1 == F; skipping adjt_compute_vorticity", LOG_LEVEL_DEBUG )
+      return
+    end if
+
+    ! Initialising logicals
+    weak_form_u = .false.
+
+    ! Initialising fields
+    vector_space_w1_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W1 )
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+
+    call xi%initialise( vector_space = vector_space_w1_ptr )
+    call u%initialise( vector_space = vector_space_w2_ptr )
+
+    call xi%copy_field_properties( xi_input )
+    call u%copy_field_properties( u_input )
+
+    xi_inner_prod = 0.0_r_def
+    u_inner_prod = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( setval_random( xi ),               &
+                 setval_x( xi_input, xi ),          &
+                 setval_random( u ),                &
+                 setval_x( u_input, u ) )
+
+    ! Tangent linear
+    call compute_vorticity_alg( xi, u, weak_form_u )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( xi_inner_prod, xi ), &
+                 x_innerproduct_x( u_inner_prod, u ) )
+
+    write(log_scratch_space, *) "adjt_compute_vorticity inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "xi inner product = ", xi_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "u inner product = ", u_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    xi_sf = 1.0_r_def / (xi_inner_prod + eps)
+    u_sf = 1.0_r_def / (u_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + xi_inner_prod * xi_sf
+    inner1 = inner1 + u_inner_prod * u_sf
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( xi_sf, xi ), &
+                 inc_a_times_X( u_sf, u ) )
+
+    ! Adjoint alg call and inner products
+    xi_xi_input_inner_prod = 0.0_r_def
+    u_u_input_inner_prod = 0.0_r_def
+
+    ! Adjoint
+    call adj_compute_vorticity_alg( xi, u, weak_form_u )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( xi_xi_input_inner_prod,         &
+                                   xi,                             &
+                                   xi_input ),                     &
+                 x_innerproduct_y( u_u_input_inner_prod,           &
+                                   u,                              &
+                                   u_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + xi_xi_input_inner_prod
+    inner2 = inner2 + u_u_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED compute_vorticity_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED compute_vorticity_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine adjt_compute_vorticity_alg
+
+end module adjt_compute_vorticity_alg_mod

@@ -1,0 +1,87 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Surface emissions of a tracer
+
+module tracer_emission_alg_mod
+
+  use constants_mod,                 only: r_def, pi, i_def, l_def
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use fs_continuity_mod,             only: W3, WTheta
+  use mesh_mod,                      only: mesh_type
+  use xios,                          only: xios_date, xios_get_current_date
+  use sci_geometric_constants_mod,   only: get_height_fv
+  use sci_calc_dz_face_kernel_mod,   only: calc_dz_face_kernel_type
+  use timestepping_config_mod,       only: dt
+
+  implicit none
+
+  private
+  public tracer_emission_alg
+
+contains
+
+  !>@details Add emissions source to a tracer field
+  !>@param[in,out] tracer            tracer field to be updated
+  !>@param[in]     tracer_emissions  emissions of the tracer field
+  !>@param[in]     derived_fields    contains dry rho in wtheta
+  !>@param[in]     amplitude         diurnal amplitude of source
+  !>@param[in]     emission_scaling  scaling factor to apply to emissions
+  subroutine tracer_emission_alg(tracer, tracer_emissions, derived_fields, &
+                                 amplitude, emission_scaling)
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: derived_fields
+
+    type( field_type ), intent( inout ) :: tracer
+    type( field_type ), intent( in ) :: tracer_emissions
+
+    real(r_def), intent(in) :: amplitude, emission_scaling
+
+    type( field_type ), pointer :: rho_in_wth => null()
+    type(mesh_type),    pointer :: mesh
+    type( field_type ), pointer :: height_wth, height_w3
+    type( field_type ) :: scaled_emission, dz_wth
+
+    real(r_def) :: tstep_factor, hour, minute
+    real(r_def), parameter :: tzero = 12.0_r_def
+    integer(i_def), parameter :: n_faces = 1_i_def
+    logical(l_def), parameter :: inc_surf = .true.
+    type( xios_date ) :: datetime
+
+    ! Allow for tracer source varying with time of day
+    if (amplitude > 0.0_r_def) then
+      call xios_get_current_date(datetime)
+      hour = real(datetime%hour, r_def)
+      minute = real(datetime%minute, r_def)
+      tstep_factor = 1.0_r_def + amplitude * cos( (hour + minute/60.0_r_def &
+                                                   - tzero) * pi/12.0_r_def )
+    else
+      tstep_factor = 1.0_r_def
+    end if
+
+    ! Multiply by timestep and any scaling factor
+    tstep_factor = tstep_factor * dt * emission_scaling
+
+    call derived_fields%get_field('rho_in_wth',rho_in_wth)
+    mesh => rho_in_wth%get_mesh()
+    height_wth => get_height_fv(WTheta, mesh%get_id() )
+    height_w3 => get_height_fv(W3, mesh%get_id() )
+    call tracer_emissions%copy_field_properties(scaled_emission)
+    call tracer_emissions%copy_field_properties(dz_wth)
+
+    ! Compute scaled emission value and add to tracer field
+    call invoke(calc_dz_face_kernel_type(dz_wth, height_w3, height_wth,     &
+                                         n_faces, inc_surf),                &
+                a_times_X(scaled_emission, tstep_factor, tracer_emissions), &
+                inc_X_divideby_Y(scaled_emission, rho_in_wth),              &
+                inc_X_divideby_Y(scaled_emission, dz_wth),                  &
+                inc_X_plus_Y(tracer, scaled_emission) )
+
+  end subroutine tracer_emission_alg
+
+end module tracer_emission_alg_mod

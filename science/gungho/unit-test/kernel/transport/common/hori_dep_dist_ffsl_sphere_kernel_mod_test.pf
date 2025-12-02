@@ -1,0 +1,371 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module hori_dep_dist_ffsl_sphere_kernel_mod_test
+
+  use funit
+  use constants_mod,      only : i_def, r_tran, l_def, r_def, IMDI
+
+  implicit none
+
+  private
+  public :: hori_dep_dist_ffsl_sphere_test_type , test_all
+
+  @TestCase
+  type, extends(TestCase) :: hori_dep_dist_ffsl_sphere_test_type
+    private
+  contains
+    procedure test_all
+  end type hori_dep_dist_ffsl_sphere_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use hori_dep_dist_ffsl_sphere_kernel_mod, only : hori_dep_dist_ffsl_sphere_code
+
+    implicit none
+
+    class(hori_dep_dist_ffsl_sphere_test_type), intent(inout) :: this
+
+    real(kind=r_tran),   parameter   :: tol = 1.0e-6_r_tran
+
+    integer(kind=i_def)              :: nlayers
+    integer(kind=i_def)              :: stencil_extent
+    integer(kind=i_def)              :: ndf_w2h, ndf_w3, ndf_pid, ndf_w3_2d
+    integer(kind=i_def)              :: undf_w2h, undf_w3, undf_pid, undf_w3_2d
+    integer(kind=i_def)              :: ndf_depk, undf_depk, ndep
+    logical(kind=l_def)              :: cap_dep_points
+    integer(kind=i_def)              :: stencil_max
+    integer(kind=i_def), allocatable :: stencil_sizes(:)
+    integer(kind=i_def), allocatable :: map_w2h(:)
+    integer(kind=i_def), allocatable :: map_w3(:)
+    integer(kind=i_def), allocatable :: map_depk(:)
+    integer(kind=i_def), allocatable :: map_pid(:)
+    integer(kind=i_def), allocatable :: map_w3_2d(:)
+    integer(kind=i_def), allocatable :: stencil_map(:,:,:)
+    integer(kind=i_def), allocatable :: face_selector_ew(:)
+    integer(kind=i_def), allocatable :: face_selector_ns(:)
+    integer(kind=i_def), allocatable :: error_flag(:)
+    integer(kind=i_def), allocatable :: dep_lowest_k(:)
+    integer(kind=i_def), allocatable :: dep_highest_k(:)
+    integer(kind=i_def), allocatable :: panel_edge_dist_W(:)
+    integer(kind=i_def), allocatable :: panel_edge_dist_E(:)
+    integer(kind=i_def), allocatable :: panel_edge_dist_N(:)
+    integer(kind=i_def), allocatable :: panel_edge_dist_S(:)
+    real(kind=r_def),    allocatable :: panel_id(:)
+    real(kind=r_tran),   allocatable :: flux(:)
+    real(kind=r_tran),   allocatable :: detj_x(:)
+    real(kind=r_tran),   allocatable :: detj_y(:)
+    real(kind=r_tran),   allocatable :: dep_pts(:)
+    real(kind=r_tran),   allocatable :: frac_flux(:)
+    real(kind=r_tran),   allocatable :: true_dep_pts_answer(:)
+    real(kind=r_tran),   allocatable :: true_frac_flux_answer(:)
+    integer(kind=i_def), allocatable :: dep_lowest_k_answer(:)
+    integer(kind=i_def), allocatable :: dep_highest_k_answer(:)
+
+    ! Set integer values to describe mesh (single layer)
+    nlayers = 1
+    stencil_extent = 3
+    undf_w2h = 4
+    ndf_w2h = 4
+    undf_w3 = 7
+    ndf_w3 = 1
+    ndf_depk = 4
+    undf_depk = 28
+    ndf_pid = 1
+    undf_pid = 1
+    ndf_w3_2d = 1
+    undf_w3_2d = 1
+    ndep = 2*stencil_extent + 1
+    stencil_max = stencil_extent + 1
+    cap_dep_points = .false.
+
+    allocate(map_w2h(ndf_w2h))
+    allocate(map_w3(ndf_w3))
+    allocate(map_depk(ndf_depk))
+    allocate(map_pid(ndf_pid))
+    allocate(stencil_sizes(4))
+    allocate(stencil_map(ndf_w3,stencil_max,4))
+    allocate(flux(undf_w2h))
+    allocate(detj_x(undf_w3))
+    allocate(detj_y(undf_w3))
+    allocate(dep_pts(undf_w2h))
+    allocate(frac_flux(undf_w2h))
+    allocate(true_dep_pts_answer(undf_w2h))
+    allocate(true_frac_flux_answer(undf_w2h))
+    allocate(face_selector_ew(undf_w3))
+    allocate(face_selector_ns(undf_w3))
+    allocate(error_flag(undf_w3))
+    allocate(dep_lowest_k(undf_depk))
+    allocate(dep_highest_k(undf_depk))
+    allocate(dep_lowest_k_answer(undf_depk))
+    allocate(dep_highest_k_answer(undf_depk))
+    allocate(panel_id(undf_pid))
+    allocate(panel_edge_dist_W(undf_pid))
+    allocate(panel_edge_dist_E(undf_pid))
+    allocate(panel_edge_dist_S(undf_pid))
+    allocate(panel_edge_dist_N(undf_pid))
+
+    ! DoF maps
+    ! Consider a calculation on a single column, but with a stencil extending
+    ! over 7 columns
+    map_w3 = (/ 5 /)
+    map_w3_2d = (/ 1 /)
+    map_pid = (/ 1 /)
+    map_w2h = (/ 1,  2,  3,  4 /)
+    map_depk = (/ 1,  8,  15,  22 /)
+    stencil_sizes(:) = stencil_max
+    stencil_map = reshape((/ 4, 3, 2, 1,  4, 3, 2, 1,                         &
+                             1, 5, 6, 7,  1, 5, 6, 7 /), [ndf_w3, stencil_max, 4])
+
+    face_selector_ew(:) = 1
+    face_selector_ns(:) = 1
+    error_flag(:) = 0
+
+    ! Always keep these panel edges to be zero
+    panel_edge_dist_E(:) = -ABS(IMDI)
+    panel_edge_dist_S(:) = -ABS(IMDI)
+    panel_edge_dist_N(:) = -ABS(IMDI)
+
+    ! Set up non-uniform grid
+    ! Note differences in first three entries between the two fields, which
+    ! corresponds to different values on a different panel
+    detj_x = (/ 1000.0_r_tran, 800.0_r_tran, 1000.0_r_tran, 1200.0_r_tran, &
+                1000.0_r_tran, 1000.0_r_tran, 800.0_r_tran /)
+    detj_y = (/ 2000.0_r_tran, 600.0_r_tran, 800.0_r_tran, 1200.0_r_tran, &
+                1000.0_r_tran, 1000.0_r_tran, 800.0_r_tran /)
+
+    ! TEST 1: Fractional departure point, no rotated panel ---------------------
+    ! There is a panel edge between panels 1 and 2, but no rotation
+    panel_id(:) = 2.0_r_def
+    panel_edge_dist_W(:) = 1
+
+    ! Starting point is to set up a fractional flux. Only do calculation in x
+    flux = (/ 750.0_r_tran , 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+
+    ! Set answers
+    true_dep_pts_answer = (/ 0.75_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    true_frac_flux_answer(:) = flux(:)
+    dep_lowest_k_answer(:) = 0
+    dep_highest_k_answer(:) = -1
+
+    ! Set initial values of output fields to be zero
+    dep_pts(:) = 0.0_r_tran
+    frac_flux(:) = 0.0_r_tran
+    dep_lowest_k(:) = 0
+    dep_highest_k(:) = -1
+
+    call hori_dep_dist_ffsl_sphere_code( nlayers,               &
+                                         dep_pts,               &
+                                         frac_flux,             &
+                                         flux,                  &
+                                         detj_x,                &
+                                         stencil_sizes,         &
+                                         stencil_max,           &
+                                         stencil_map,           &
+                                         detj_y,                &
+                                         stencil_sizes,         &
+                                         stencil_max,           &
+                                         stencil_map ,          &
+                                         dep_lowest_k,          &
+                                         dep_highest_k,         &
+                                         panel_id,              &
+                                         panel_edge_dist_W,     &
+                                         panel_edge_dist_E,     &
+                                         panel_edge_dist_S,     &
+                                         panel_edge_dist_N,     &
+                                         face_selector_ew,      &
+                                         face_selector_ns,      &
+                                         error_flag,            &
+                                         ndep,                  &
+                                         cap_dep_points,        &
+                                         ndf_w2h,               &
+                                         undf_w2h,              &
+                                         map_w2h,               &
+                                         ndf_w3,                &
+                                         undf_w3,               &
+                                         map_w3,                &
+                                         ndf_depk,              &
+                                         undf_depk,             &
+                                         map_depk,              &
+                                         ndf_pid,               &
+                                         undf_pid,              &
+                                         map_pid,               &
+                                         ndf_w3_2d,             &
+                                         undf_w3_2d,            &
+                                         map_w3_2d )
+
+    @assertEqual( dep_pts, true_dep_pts_answer, tol )
+    @assertEqual( frac_flux, true_frac_flux_answer, tol )
+    @assertEqual( dep_lowest_k, dep_lowest_k_answer )
+    @assertEqual( dep_highest_k, dep_highest_k_answer )
+
+    ! TEST 2: Fractional departure point, with rotated panel -------------------
+    ! There is a panel edge between panels 4 and 1
+    panel_id(:) = 4.0_r_def
+    panel_edge_dist_W(:) = 1
+
+    ! Starting point is to set up a fractional flux. Only do calculation in x
+    flux = (/ 750.0_r_tran , 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+
+    ! Set answers
+    true_dep_pts_answer = (/ 0.9375_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    true_frac_flux_answer(:) = flux(:)
+    dep_lowest_k_answer(:) = 0
+    dep_highest_k_answer(:) = -1
+
+    ! Set initial values of output fields to be zero
+    dep_pts(:) = 0.0_r_tran
+    frac_flux(:) = 0.0_r_tran
+    dep_lowest_k(:) = 0
+    dep_highest_k(:) = -1
+
+    call hori_dep_dist_ffsl_sphere_code( nlayers,               &
+                                         dep_pts,               &
+                                         frac_flux,             &
+                                         flux,                  &
+                                         detj_x,                &
+                                         stencil_sizes,         &
+                                         stencil_max,           &
+                                         stencil_map,           &
+                                         detj_y,                &
+                                         stencil_sizes,         &
+                                         stencil_max,           &
+                                         stencil_map ,          &
+                                         dep_lowest_k,          &
+                                         dep_highest_k,         &
+                                         panel_id,              &
+                                         panel_edge_dist_W,     &
+                                         panel_edge_dist_E,     &
+                                         panel_edge_dist_S,     &
+                                         panel_edge_dist_N,     &
+                                         face_selector_ew,      &
+                                         face_selector_ns,      &
+                                         error_flag,            &
+                                         ndep,                  &
+                                         cap_dep_points,        &
+                                         ndf_w2h,               &
+                                         undf_w2h,              &
+                                         map_w2h,               &
+                                         ndf_w3,                &
+                                         undf_w3,               &
+                                         map_w3,                &
+                                         ndf_depk,              &
+                                         undf_depk,             &
+                                         map_depk,              &
+                                         ndf_pid,               &
+                                         undf_pid,              &
+                                         map_pid,               &
+                                         ndf_w3_2d,             &
+                                         undf_w3_2d,            &
+                                         map_w3_2d )
+
+    @assertEqual( dep_pts, true_dep_pts_answer, tol )
+    @assertEqual( frac_flux, true_frac_flux_answer, tol )
+    @assertEqual( dep_lowest_k, dep_lowest_k_answer )
+    @assertEqual( dep_highest_k, dep_highest_k_answer )
+
+    ! TEST 3: Integer departure point, with rotated panel ----------------------
+    ! There is a panel edge between panels 4 and 1
+    panel_id(:) = 4.0_r_def
+    panel_edge_dist_W(:) = 2
+
+    ! Starting point is to set up a fractional flux. Only do calculation in x
+    flux = (/ 2000.0_r_tran , 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+
+    ! Set answers
+    true_dep_pts_answer = (/ 2.2_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    true_frac_flux_answer(:) = (/ 400.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    dep_lowest_k_answer(:) = 0
+    dep_highest_k_answer(:) = -1
+    dep_highest_k_answer(map_depk(1) + 1) = 0
+    dep_highest_k_answer(map_depk(1) + 2) = 0
+
+    ! Set initial values of output fields to be zero
+    dep_pts(:) = 0.0_r_tran
+    frac_flux(:) = 0.0_r_tran
+    dep_lowest_k(:) = 0
+    dep_highest_k(:) = -1
+
+    call hori_dep_dist_ffsl_sphere_code( nlayers,               &
+                                         dep_pts,               &
+                                         frac_flux,             &
+                                         flux,                  &
+                                         detj_x,                &
+                                         stencil_sizes,         &
+                                         stencil_max,           &
+                                         stencil_map,           &
+                                         detj_y,                &
+                                         stencil_sizes,         &
+                                         stencil_max,           &
+                                         stencil_map ,          &
+                                         dep_lowest_k,          &
+                                         dep_highest_k,         &
+                                         panel_id,              &
+                                         panel_edge_dist_W,     &
+                                         panel_edge_dist_E,     &
+                                         panel_edge_dist_S,     &
+                                         panel_edge_dist_N,     &
+                                         face_selector_ew,      &
+                                         face_selector_ns,      &
+                                         error_flag,            &
+                                         ndep,                  &
+                                         cap_dep_points,        &
+                                         ndf_w2h,               &
+                                         undf_w2h,              &
+                                         map_w2h,               &
+                                         ndf_w3,                &
+                                         undf_w3,               &
+                                         map_w3,                &
+                                         ndf_depk,              &
+                                         undf_depk,             &
+                                         map_depk,              &
+                                         ndf_pid,               &
+                                         undf_pid,              &
+                                         map_pid,               &
+                                         ndf_w3_2d,             &
+                                         undf_w3_2d,            &
+                                         map_w3_2d )
+
+    @assertEqual( dep_pts, true_dep_pts_answer, tol )
+    @assertEqual( frac_flux, true_frac_flux_answer, tol )
+    @assertEqual( dep_lowest_k, dep_lowest_k_answer )
+    @assertEqual( dep_highest_k, dep_highest_k_answer )
+
+    deallocate(map_w2h)
+    deallocate(map_w3)
+    deallocate(map_depk)
+    deallocate(map_pid)
+    deallocate(map_w3_2d)
+    deallocate(stencil_map)
+    deallocate(stencil_sizes)
+    deallocate(frac_flux)
+    deallocate(dep_pts)
+    deallocate(detj_x)
+    deallocate(detj_y)
+    deallocate(flux)
+    deallocate(true_dep_pts_answer)
+    deallocate(true_frac_flux_answer)
+    deallocate(face_selector_ew)
+    deallocate(face_selector_ns)
+    deallocate(error_flag)
+    deallocate(dep_lowest_k)
+    deallocate(dep_highest_k)
+    deallocate(dep_lowest_k_answer)
+    deallocate(dep_highest_k_answer)
+    deallocate(panel_id)
+    deallocate(panel_edge_dist_W)
+    deallocate(panel_edge_dist_E)
+    deallocate(panel_edge_dist_S)
+    deallocate(panel_edge_dist_N)
+
+  end subroutine test_all
+
+end module hori_dep_dist_ffsl_sphere_kernel_mod_test

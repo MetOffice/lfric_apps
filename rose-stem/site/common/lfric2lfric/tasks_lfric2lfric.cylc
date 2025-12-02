@@ -1,0 +1,145 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/lfric2lfric/tasks_solver.cylc") %}
+
+{% if task_ns.conf_name == "ral_seuk-C32_lam_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["ral_seuk"],
+        "resolution": "seuk_MG",
+        "dst_mesh": "",
+        "dst_name": "",
+        "dst_type": "",
+        "src_mesh": "",
+        "src_name": "",
+        "src_type": "",
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_ral_seuk-C32_lam_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["ral_seuk","oasis"],
+        "resolution": "seuk_MG",
+        "dst_mesh": "seuk_MG",
+        "dst_name": "multigrid_l1",
+        "dst_type": "regional",
+        "src_mesh": "seuk_MG",
+        "src_name": "dynamics",
+        "src_type": "regional",
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-seuk" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["ral3"],
+        "resolution": "ral3_seuk",
+        "dst_mesh": "",
+        "dst_name": "",
+        "dst_type": "",
+        "src_mesh": "",
+        "src_name": "",
+        "src_type": "",
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-uk" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["ral3"],
+        "resolution": "ral3_uk",
+        "dst_mesh": "",
+        "dst_name": "",
+        "dst_type": "",
+        "src_mesh": "",
+        "src_name": "",
+        "src_type": "",
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-ukv" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["ral3"],
+        "resolution": "ral3_ukv",
+        "dst_mesh": "",
+        "dst_name": "",
+        "dst_type": "",
+        "src_mesh": "",
+        "src_name": "",
+        "src_type": "",
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9-C24_C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["clim_gal9"],
+        "resolution": "C24_C12",
+        "dst_mesh": "",
+        "dst_name": "",
+        "dst_type": "",
+        "src_mesh": "",
+        "src_name": "",
+        "src_type": "",
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_clim_gal9-C24_C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["clim_gal9","oasis"],
+        "resolution": "C24_C12",
+        "dst_mesh": "C24_C12",
+        "dst_name": "C24",
+        "dst_type": "global",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["clim_gal9_ral_seuk","oasis"],
+        "resolution": "C12_C16_lam",
+        "dst_mesh": "seuk_MG",
+        "dst_name": "multigrid_l1",
+        "dst_type": "regional",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+    }) %}
+
+{% elif task_ns.conf_name == "canned" %}
+
+    {% do task_dict.update({
+        "app_name": "canned_test",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task.startswith("build") %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+        "pre_process_macros": "MCT"
+    }) %}
+
+{% elif task.startswith("generate_weights") %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% endif %}
+
+{# Set default values for Solver tasks #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/lfric2lfric"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "lfric2lfric"}) %}
+    {% endif %}
+    {% if "kgo_checks" not in task_dict %}
+        {% do task_dict.update({"kgo_checks": ["checksum"]}) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/lfric2lfric/tasks_solver.cylc") %}

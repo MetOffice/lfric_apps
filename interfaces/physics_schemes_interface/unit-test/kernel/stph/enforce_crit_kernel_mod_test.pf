@@ -1,0 +1,135 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module enforce_crit_kernel_mod_test
+
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap,      &
+                                                  get_wtheta_m3x3_dofmap,  &
+                                                  get_m3x3_stencil_dofmap_region
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: enforce_crit_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type enforce_crit_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(enforce_crit_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(enforce_crit_test_type), intent(inout) :: this
+
+    ! Finalise namelists
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use enforce_crit_kernel_mod, only : enforce_crit_code
+
+    implicit none
+
+    class(enforce_crit_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w3, undf_w3
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: stencil_map_w3(:,:,:)
+
+    real(r_def), allocatable :: field_out(:)
+    real(r_def), allocatable :: field_in(:)
+
+    integer(i_def) :: icell, i, j, k
+
+    integer(i_def) :: cell
+
+    ! Variables for testing enforce_crit
+    ! Get sizes of everything
+    nlayers=3
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    ! Setup maps
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_m3x3_stencil_dofmap_region(stencil_map_w3, map_w3)
+
+     ! Create the data
+    cell = 5
+    k = 1
+    allocate(field_out(undf_w3))
+    allocate(field_in(undf_w3))
+
+    field_in = 50.0_r_def
+    field_in(stencil_map_w3(1,1,cell)+k) = 150.0_r_def
+    field_out = field_in
+
+    ! Call the kernel
+    do cell = 1,9
+    call enforce_crit_code( nlayers,                               &
+                            field_out,                             &
+                            field_in,                              &
+                            9, stencil_map_w3(:,:,cell),           &
+                            100.0_r_def,                           &
+                            0.0_r_def,                             &
+                            1,                                     &
+                            ndf_w3, undf_w3, map_w3(:,cell)        &
+                                                          )
+    end do
+
+    field_in = 50.0_r_def
+    k = 1
+    do cell = 1,9
+      field_in(stencil_map_w3(1,1,cell)+k) = 25.0_r_def
+    end do
+    cell = 5
+    field_in(stencil_map_w3(1,1,cell)+k) = 0.0_r_def
+
+    @assertEqual(field_in(:), field_out(:), tol)
+
+    deallocate(map_w3)
+    deallocate(stencil_map_w3)
+    deallocate(field_in)
+    deallocate(field_out)
+
+  end subroutine test_all
+
+end module enforce_crit_kernel_mod_test

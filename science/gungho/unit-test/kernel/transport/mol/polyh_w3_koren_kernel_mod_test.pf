@@ -1,0 +1,97 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the horizontal edge_values computed for a w3-field using the Koren scheme
+module polyh_w3_koren_kernel_mod_test
+
+  use constants_mod, only : i_def, l_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: polyh_w3_koren_test_type
+    private
+  contains
+    procedure test_all
+  end type polyh_w3_koren_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use polyh_w3_koren_kernel_mod,     only: polyh_w3_koren_code
+
+    implicit none
+
+    class(polyh_w3_koren_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64bit
+    real(r_tran) :: answer, use_tol
+
+    integer(i_def), parameter :: nlayers = 1
+    integer(i_def), parameter :: ndf_md = 1
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: ndf_c  = 1
+    integer(i_def), parameter :: nfaces_h = 4
+    integer(i_def), parameter :: stencil_size = 5
+    integer(i_def), parameter :: mol_order = 2
+    integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_h
+    integer(i_def), parameter :: undf_md = ndf_md*nfaces_h*nlayers
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers*stencil_size
+    integer(i_def), parameter :: undf_c  = ndata*nlayers
+
+    integer(i_def), dimension(ndf_md)              :: map_md
+    integer(i_def), dimension(ndf_w3)              :: map_w3
+    integer(i_def), dimension(ndf_w3,stencil_size) :: smap
+    integer(i_def), dimension(ndf_c)               :: map_c
+
+    real(r_tran), dimension(undf_md) :: edge_values
+    real(r_tran), dimension(undf_w3) :: density
+
+    smap(1,:) = (/ 1, 2, 3, 4, 5 /)
+    map_md(1) = 1
+    map_w3(1) = 1
+    map_c(1)  = 1
+
+    density(:) = (/ 3.0_r_tran, 1.0_r_tran, 2.0_r_tran, 5.0_r_tran, 4.0_r_tran /)
+
+    edge_values = -1.0_r_tran
+    call polyh_w3_koren_code( nlayers,      &
+                              edge_values,  &
+                              density,      &
+                              stencil_size, &
+                              smap,         &
+                              ndf_md,       &
+                              undf_md,      &
+                              map_md,       &
+                              ndf_w3,       &
+                              undf_w3,      &
+                              map_w3 )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing( maxval( edge_values(1:4) ) )
+    end if
+
+    answer = 2.0_r_tran
+    @assertEqual(answer, edge_values(1), use_tol)
+    answer = 2.5_r_tran
+    @assertEqual(answer, edge_values(2), use_tol)
+    answer = 4.0_r_tran
+    @assertEqual(answer, edge_values(3), use_tol)
+    answer = 3.5_r_tran
+    @assertEqual(answer, edge_values(4), use_tol)
+
+  end subroutine test_all
+
+end module polyh_w3_koren_kernel_mod_test

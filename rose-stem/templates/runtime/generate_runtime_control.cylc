@@ -1,0 +1,110 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_control.cylc") %}
+
+{# Generate runtime section for control tasks #}
+{# export_source and housekeeping for now #}
+{# gatekeeper tasks will potentially be added here if required #}
+
+    [[CONTROL_TASK_RETRIES]]
+        execution retry delays = 3*PT3M
+
+{% if task == "export-source" %}
+{# First export-source task. Runs locally to the launch platform #}
+{# Exports the lfric_core and lfric_apps sources to the #}
+{# cylc-run/share/source directory #}
+
+    [[{{task}}]]
+        inherit = EXPORT-SOURCE, {{SITE|upper}}_ORIG, CONTROL_TASK_RETRIES
+        [[[environment]]]
+            SOURCE_DIRECTORY = $SOURCE_ROOT
+            ROSE_TASK_APP = extract_source
+            DEPENDENCIES = {{dependencies}}
+            USE_MIRRORS = {{USE_MIRRORS}}
+            USE_TOKENS = {{USE_TOKENS}}
+        {% if USE_MIRRORS %}
+            {% if "git_mirror_loc" in site_vars %}
+            GIT_MIRROR_LOC = {{site_vars.git_mirror_loc}}
+            {% else %}
+                {{ raise(
+                    "Trying to run with mirrors without setting a mirror location. "
+                    "Ensure 'git_mirror_loc' is included in site_vars."
+                    ) }}
+            {% endif %}
+        {% endif %}
+
+
+{% elif task.startswith("export-source") %}
+{# 2nd export-source task specific to each platform #}
+{# Rsyncs source to remote platforms if required #}
+{# If PLATFORM_SYNC set to false in PLATFORM_EXPORT_SOURCE family #}
+{# the rsync will be skipped #}
+
+    {% set platform = task.split('_')[1] %}
+
+    [[{{task}}]]
+        inherit = EXPORT-SOURCE, {{platform|upper}}_EXPORT-SOURCE, CONTROL_TASK_RETRIES
+        script  = """
+                  if [[ "$PLATFORM_SYNC" = true ]] ; then
+                    RELATIVE_SOURCE_DIRECTORY=`echo $SOURCE_DIRECTORY | sed "s|$HOME/||"`
+                    ssh $hostname mkdir -p $RELATIVE_SOURCE_DIRECTORY
+                    rsync -avz --exclude=".*" $SOURCE_DIRECTORY/* $hostname:$RELATIVE_SOURCE_DIRECTORY/
+                    sleep 5
+                  else
+                    echo "PLATFORM_SYNC = false, nothing to do"
+                  fi
+                  """
+        [[[environment]]]
+            SOURCE_DIRECTORY = $SOURCE_ROOT
+
+{% elif task.startswith("export-weights") %}
+{# Task to rsync generated weights files from platform where they are generated #}
+{# to remote platforms which have lfricinputs tasks #}
+{# Only runs once all weights tasks have finished #}
+
+    {% set platform = task.split('_')[1] %}
+
+    [[{{task}}]]
+        inherit = GENERATE_WEIGHTS, {{platform|upper}}_EXPORT-SOURCE, CONTROL_TASK_RETRIES
+
+    {% if platform == site_vars["scripts_platform"] %}
+        script=echo "Running on weight generation platform - nothing to do"
+    {% else %}
+        script="""
+               RELATIVE_DIR=`echo $CYLC_WORKFLOW_WORK_DIR | sed "s|$HOME/||"`
+               rsync -avz $CYLC_WORKFLOW_WORK_DIR/1/generate_weights_* $hostname:$RELATIVE_DIR/1/
+               sleep 5
+               """
+
+    {% endif %}
+
+{% elif task.startswith("housekeep") %}
+
+    {% set platform = task.split('_')[1] %}
+
+    {% from "site/"~SITE~"/macros/macros_"~platform~".cylc" import
+        set_task_resources,
+        with context %}
+
+    [[{{task}}]]
+        inherit = HOUSEKEEPING, {{platform|upper}}_HOUSEKEEPING
+        execution time limit = PT5M
+        script = rose task-run --app-key=housekeeping
+        [[[directives]]]
+            {{ set_task_resources(1, [1, "GB"]) }}
+
+{% elif task.startswith("remote-init") %}
+
+    {% set platform = task.split('_')[1] %}
+
+    [[{{task}}]]
+        inherit = EXPORT-SOURCE, {{platform|upper}}_BASE, CONTROL_TASK_RETRIES
+        script = true
+        execution time limit = PT1M
+
+{% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_control.cylc") %}

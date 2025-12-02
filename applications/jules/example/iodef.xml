@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+
+  <context id = "gungho_atm">
+
+    <variable_definition src="../../lfric_atm/metadata/variable_def_main.xml"/>
+    <axis_definition src="../../lfric_atm/metadata/axis_def_main.xml"/>
+    <!-- Pressure level axes definitions -->
+    <axis_definition>
+      <axis id="pressure_levels" name="pressure_levels" n_glo="29" value="(0,28)[100000 95000 92500 90000 85000 70000 60000 50000 40000 30000 25000 20000 15000 10000 7000 5000 3000 2000 1000 700 500 300 200 100 70 50 30 20 10]"/>
+      <axis id="pressure_levels_xi3" name="pressure_levels_xi3" n_glo="1" value="(0,0)[85000]"/>
+    </axis_definition>
+
+    <domain_definition src="../../lfric_atm/metadata/domain_def_main.xml"/>
+    <grid_definition src="../../lfric_atm/metadata/grid_def_main.xml"/>
+
+    <field_definition src="../../lfric_atm/metadata/lfric_dictionary.xml"/>
+
+    <field_definition src="../../lfric_atm/metadata/field_def_diags.xml"/>
+    <field_definition src="../../lfric_atm/metadata/field_def_initial_diags.xml"/>
+    <field_definition src="../../lfric_atm/metadata/field_def_lbc_diags.xml"/>
+
+    <field_definition prec="8" >
+
+      <!-- Checkpoint group -->
+      <field_group id="checkpoint_fields" operation="once"  enabled=".FALSE." >
+      </field_group>
+    </field_definition>
+
+    <file_definition
+	type="one_file"
+	time_counter="none">
+
+      <!-- Checkpoint groups -->
+
+      <!-- File definition for checkpoint write -->
+      <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" output_freq="1ts" convention="CF" enabled=".FALSE.">
+      </file>
+
+      <!-- File definition for checkpoint read -->
+      <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
+      </file>
+
+      <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
+	<field field_ref="theta" />
+	<field field_ref="m_v" />
+	<field field_ref="rho" />
+	<field field_ref="wetrho_in_w3" />
+	<field field_ref="processed__pressure_in_w3" />
+	<field field_ref="u_in_w3" />
+	<field field_ref="v_in_w3" />
+	<field field_ref="w_in_wth" />
+	<field field_ref="surface__tile_temperature" />
+	<field field_ref="surface__grid_surface_temperature" />
+	<field field_ref="surface__z0m" />
+	<field field_ref="surface__grid_latent_heat" />
+	<field field_ref="surface__tile_heat_flux" />
+	<field field_ref="soil__soil_moisture" />
+	<field field_ref="soil__unfrozen_soil_moisture" />
+	<field field_ref="soil__soil_temperature" />
+      </file>
+
+      <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
+        <field field_ref="theta" operation="average" />
+        <field field_ref="exner" operation="average" />
+        <field field_ref="u_in_w3" operation="average" />
+        <field field_ref="v_in_w3" operation="average" />
+        <field field_ref="w_in_wth" operation="average" />
+      </file>
+
+      <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+	<field_group operation="once" freq_op="1ts">
+	  <field field_ref="init_theta" />
+	  <field field_ref="init_m_v" />
+	  <field field_ref="init_m_cl" />
+	  <field field_ref="init_m_s" />
+	  <field field_ref="init_m_r" />
+	  <field field_ref="init_w_in_wth" />
+	  <field field_ref="init_rho" />
+	  <field field_ref="init_exner" />
+	  <field field_ref="init_height_w3" />
+	  <field field_ref="init_height_wth" />
+	</field_group>
+      </file>
+
+      <!-- File definition for writing an FD dump -->
+      <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
+      </file>
+
+      <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+      </file>
+
+    </file_definition>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

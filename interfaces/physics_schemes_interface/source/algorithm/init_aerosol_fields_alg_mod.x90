@@ -1,0 +1,542 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2019 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the glomap aerosol fields
+module init_aerosol_fields_alg_mod
+
+  use constants_mod,                   only: r_def, i_def
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use field_collection_mod,            only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_aerosol_fields_alg
+
+contains
+
+  !> @brief   Initialises the aerosol fields
+  !> @details The aerosol fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case no restart file is used.
+  !>          Also the CDNC field is given a value for use when the
+  !>          aerosol parametrization is not used.
+  !> @param[in,out] aerosol_fields   aerosol related fields
+  subroutine init_aerosol_fields_alg(aerosol_fields)
+
+    use section_choice_config_mod, only: aerosol, aerosol_um
+    use aerosol_config_mod, only: glomap_mode,               &
+                                  glomap_mode_climatology,   &
+                                  glomap_mode_dust_and_clim, &
+                                  glomap_mode_ukca,          &
+                                  l_radaer, murk,            &
+                                  murk_prognostic
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent( in ) :: aerosol_fields
+
+    ! Prognostic fields
+    type( field_type ), pointer :: n_nuc_sol => null()
+    type( field_type ), pointer :: nuc_sol_su => null()
+    type( field_type ), pointer :: nuc_sol_om => null()
+    type( field_type ), pointer :: n_ait_sol => null()
+    type( field_type ), pointer :: ait_sol_su => null()
+    type( field_type ), pointer :: ait_sol_bc => null()
+    type( field_type ), pointer :: ait_sol_om => null()
+    type( field_type ), pointer :: n_acc_sol => null()
+    type( field_type ), pointer :: acc_sol_su => null()
+    type( field_type ), pointer :: acc_sol_bc => null()
+    type( field_type ), pointer :: acc_sol_om => null()
+    type( field_type ), pointer :: acc_sol_ss => null()
+    type( field_type ), pointer :: n_cor_sol => null()
+    type( field_type ), pointer :: cor_sol_su => null()
+    type( field_type ), pointer :: cor_sol_bc => null()
+    type( field_type ), pointer :: cor_sol_om => null()
+    type( field_type ), pointer :: cor_sol_ss => null()
+    type( field_type ), pointer :: n_ait_ins => null()
+    type( field_type ), pointer :: ait_ins_bc => null()
+    type( field_type ), pointer :: ait_ins_om => null()
+    type( field_type ), pointer :: n_acc_ins => null()
+    type( field_type ), pointer :: acc_ins_du => null()
+    type( field_type ), pointer :: n_cor_ins => null()
+    type( field_type ), pointer :: cor_ins_du => null()
+
+    ! Ancillary fields for emissions
+    type( field_type ), pointer :: emiss_bc_biofuel => null()
+    type( field_type ), pointer :: emiss_bc_fossil => null()
+    type( field_type ), pointer :: emiss_bc_biomass => null()
+    type( field_type ), pointer :: emiss_bc_biomass_high => null()
+    type( field_type ), pointer :: emiss_bc_biomass_low => null()
+    type( field_type ), pointer :: emiss_dms_land => null()
+    type( field_type ), pointer :: dms_conc_ocean => null()
+    type( field_type ), pointer :: emiss_monoterp => null()
+    type( field_type ), pointer :: emiss_om_biofuel => null()
+    type( field_type ), pointer :: emiss_om_fossil => null()
+    type( field_type ), pointer :: emiss_om_biomass => null()
+    type( field_type ), pointer :: emiss_om_biomass_high => null()
+    type( field_type ), pointer :: emiss_om_biomass_low => null()
+    type( field_type ), pointer :: emiss_so2_low => null()
+    type( field_type ), pointer :: emiss_so2_high => null()
+    type( field_type ), pointer :: emiss_so2_nat => null()
+    type( field_type ), pointer :: soil_clay => null()
+    type( field_type ), pointer :: soil_sand => null()
+    type( field_type ), pointer :: surf_wetness => null()
+    type( field_type ), pointer :: dust_mrel => null()
+
+    ! Prognostic field (emissions)
+    type( field_type ), pointer :: dust_flux => null()
+
+    ! Diagnostic fields
+    type( field_type ), pointer :: cloud_drop_no_conc => null()
+    type( field_type ), pointer :: drydp_ait_sol => null()
+    type( field_type ), pointer :: drydp_acc_sol => null()
+    type( field_type ), pointer :: drydp_cor_sol => null()
+    type( field_type ), pointer :: drydp_ait_ins => null()
+    type( field_type ), pointer :: drydp_acc_ins => null()
+    type( field_type ), pointer :: drydp_cor_ins => null()
+    type( field_type ), pointer :: wetdp_ait_sol => null()
+    type( field_type ), pointer :: wetdp_acc_sol => null()
+    type( field_type ), pointer :: wetdp_cor_sol => null()
+    type( field_type ), pointer :: rhopar_ait_sol => null()
+    type( field_type ), pointer :: rhopar_acc_sol => null()
+    type( field_type ), pointer :: rhopar_cor_sol => null()
+    type( field_type ), pointer :: rhopar_ait_ins => null()
+    type( field_type ), pointer :: rhopar_acc_ins => null()
+    type( field_type ), pointer :: rhopar_cor_ins => null()
+    type( field_type ), pointer :: pvol_wat_ait_sol => null()
+    type( field_type ), pointer :: pvol_wat_acc_sol => null()
+    type( field_type ), pointer :: pvol_wat_cor_sol => null()
+    type( field_type ), pointer :: pvol_su_ait_sol => null()
+    type( field_type ), pointer :: pvol_bc_ait_sol => null()
+    type( field_type ), pointer :: pvol_om_ait_sol => null()
+    type( field_type ), pointer :: pvol_su_acc_sol => null()
+    type( field_type ), pointer :: pvol_bc_acc_sol => null()
+    type( field_type ), pointer :: pvol_om_acc_sol => null()
+    type( field_type ), pointer :: pvol_ss_acc_sol => null()
+    type( field_type ), pointer :: pvol_su_cor_sol => null()
+    type( field_type ), pointer :: pvol_bc_cor_sol => null()
+    type( field_type ), pointer :: pvol_om_cor_sol => null()
+    type( field_type ), pointer :: pvol_ss_cor_sol => null()
+    type( field_type ), pointer :: pvol_bc_ait_ins => null()
+    type( field_type ), pointer :: pvol_om_ait_ins => null()
+    type( field_type ), pointer :: pvol_du_acc_ins => null()
+    type( field_type ), pointer :: pvol_du_cor_ins => null()
+
+    type( field_type ), pointer :: murk_3d => null()
+
+    call aerosol_fields%get_field('n_ait_sol', n_ait_sol)
+    call aerosol_fields%get_field('ait_sol_su', ait_sol_su)
+    call aerosol_fields%get_field('ait_sol_bc', ait_sol_bc)
+    call aerosol_fields%get_field('ait_sol_om', ait_sol_om)
+    call aerosol_fields%get_field('n_acc_sol', n_acc_sol)
+    call aerosol_fields%get_field('acc_sol_su', acc_sol_su)
+    call aerosol_fields%get_field('acc_sol_bc', acc_sol_bc)
+    call aerosol_fields%get_field('acc_sol_om', acc_sol_om)
+    call aerosol_fields%get_field('acc_sol_ss', acc_sol_ss)
+    call aerosol_fields%get_field('n_cor_sol', n_cor_sol)
+    call aerosol_fields%get_field('cor_sol_su', cor_sol_su)
+    call aerosol_fields%get_field('cor_sol_bc', cor_sol_bc)
+    call aerosol_fields%get_field('cor_sol_om', cor_sol_om)
+    call aerosol_fields%get_field('cor_sol_ss', cor_sol_ss)
+    call aerosol_fields%get_field('n_ait_ins', n_ait_ins)
+    call aerosol_fields%get_field('ait_ins_bc', ait_ins_bc)
+    call aerosol_fields%get_field('ait_ins_om', ait_ins_om)
+    call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+    call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+    call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+    call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+
+    call aerosol_fields%get_field('soil_clay', soil_clay)
+    call aerosol_fields%get_field('soil_sand', soil_sand)
+    call aerosol_fields%get_field('dust_mrel', dust_mrel)
+    call aerosol_fields%get_field('dust_flux', dust_flux)
+
+    call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc)
+
+    if (aerosol == aerosol_um) then
+      call aerosol_fields%get_field('drydp_ait_sol', drydp_ait_sol)
+      call aerosol_fields%get_field('drydp_acc_sol', drydp_acc_sol)
+      call aerosol_fields%get_field('drydp_cor_sol', drydp_cor_sol)
+      call aerosol_fields%get_field('drydp_ait_ins', drydp_ait_ins)
+      call aerosol_fields%get_field('drydp_acc_ins', drydp_acc_ins)
+      call aerosol_fields%get_field('drydp_cor_ins', drydp_cor_ins)
+      call aerosol_fields%get_field('wetdp_ait_sol', wetdp_ait_sol)
+      call aerosol_fields%get_field('wetdp_acc_sol', wetdp_acc_sol)
+      call aerosol_fields%get_field('wetdp_cor_sol', wetdp_cor_sol)
+      call aerosol_fields%get_field('rhopar_ait_sol', rhopar_ait_sol)
+      call aerosol_fields%get_field('rhopar_acc_sol', rhopar_acc_sol)
+      call aerosol_fields%get_field('rhopar_cor_sol', rhopar_cor_sol)
+      call aerosol_fields%get_field('rhopar_ait_ins', rhopar_ait_ins)
+      call aerosol_fields%get_field('rhopar_acc_ins', rhopar_acc_ins)
+      call aerosol_fields%get_field('rhopar_cor_ins', rhopar_cor_ins)
+      call aerosol_fields%get_field('pvol_wat_ait_sol', pvol_wat_ait_sol)
+      call aerosol_fields%get_field('pvol_wat_acc_sol', pvol_wat_acc_sol)
+      call aerosol_fields%get_field('pvol_wat_cor_sol', pvol_wat_cor_sol)
+      call aerosol_fields%get_field('pvol_su_ait_sol', pvol_su_ait_sol)
+      call aerosol_fields%get_field('pvol_bc_ait_sol', pvol_bc_ait_sol)
+      call aerosol_fields%get_field('pvol_om_ait_sol', pvol_om_ait_sol)
+      call aerosol_fields%get_field('pvol_su_acc_sol', pvol_su_acc_sol)
+      call aerosol_fields%get_field('pvol_bc_acc_sol', pvol_bc_acc_sol)
+      call aerosol_fields%get_field('pvol_om_acc_sol', pvol_om_acc_sol)
+      call aerosol_fields%get_field('pvol_ss_acc_sol', pvol_ss_acc_sol)
+      call aerosol_fields%get_field('pvol_su_cor_sol', pvol_su_cor_sol)
+      call aerosol_fields%get_field('pvol_bc_cor_sol', pvol_bc_cor_sol)
+      call aerosol_fields%get_field('pvol_om_cor_sol', pvol_om_cor_sol)
+      call aerosol_fields%get_field('pvol_ss_cor_sol', pvol_ss_cor_sol)
+      call aerosol_fields%get_field('pvol_bc_ait_ins', pvol_bc_ait_ins)
+      call aerosol_fields%get_field('pvol_om_ait_ins', pvol_om_ait_ins)
+      call aerosol_fields%get_field('pvol_du_acc_ins', pvol_du_acc_ins)
+      call aerosol_fields%get_field('pvol_du_cor_ins', pvol_du_cor_ins)
+      call aerosol_fields%get_field('murk', murk_3d)
+
+      if (murk_prognostic) then
+        call invoke(setval_c(murk_3d, 0.0_r_def))
+      else if (murk) then
+        ! Initialise murk field to a plausible value for idealised testing
+        call invoke(setval_c(murk_3d, 20.0_r_def))
+      end if
+
+    end if
+
+    if ( aerosol == aerosol_um .and.            &
+         glomap_mode == glomap_mode_ukca ) then
+
+      call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)
+      call aerosol_fields%get_field('nuc_sol_su', nuc_sol_su)
+      call aerosol_fields%get_field('nuc_sol_om', nuc_sol_om)
+      call aerosol_fields%get_field('emiss_bc_biofuel', emiss_bc_biofuel)
+      call aerosol_fields%get_field('emiss_bc_fossil', emiss_bc_fossil)
+      call aerosol_fields%get_field('emiss_bc_biomass', emiss_bc_biomass)
+      call aerosol_fields%get_field('emiss_bc_biomass_high', emiss_bc_biomass_high)
+      call aerosol_fields%get_field('emiss_bc_biomass_low', emiss_bc_biomass_low)
+      call aerosol_fields%get_field('emiss_dms_land', emiss_dms_land)
+      call aerosol_fields%get_field('dms_conc_ocean', dms_conc_ocean)
+      call aerosol_fields%get_field('emiss_monoterp', emiss_monoterp)
+      call aerosol_fields%get_field('emiss_om_biofuel', emiss_om_biofuel)
+      call aerosol_fields%get_field('emiss_om_fossil', emiss_om_fossil)
+      call aerosol_fields%get_field('emiss_om_biomass', emiss_om_biomass)
+      call aerosol_fields%get_field('emiss_om_biomass_high', emiss_om_biomass_high)
+      call aerosol_fields%get_field('emiss_om_biomass_low', emiss_om_biomass_low)
+      call aerosol_fields%get_field('emiss_so2_low', emiss_so2_low)
+      call aerosol_fields%get_field('emiss_so2_high', emiss_so2_high)
+      call aerosol_fields%get_field('emiss_so2_nat', emiss_so2_nat)
+      call aerosol_fields%get_field('surf_wetness', surf_wetness)
+
+      ! UKCA GLOMAP-mode prognostic aerosol scheme selected.
+      ! Note: Emissions fields are processed by UKCA on all time steps.
+      ! Aerosol and aerosol precursor chemistry calculations occur on every
+      ! nth time step where n is determined by the length of the chemistry time
+      ! step specified in the 'ukca_setup' API call.
+      ! Set aerosol fields to fixed values for use in SCM testing
+      ! or when no values are provided by the initial dump or, in the case of
+      ! emissions, when no values are provided from ancil files. (Dust_flux is
+      ! provided by the boundary layer scheme but set to zero here for safety.)
+      call invoke( setval_c(n_nuc_sol,             0.0_r_def), &
+                   setval_c(nuc_sol_su,            0.0_r_def), &
+                   setval_c(nuc_sol_om,            0.0_r_def), &
+                   setval_c(n_ait_sol,             0.0_r_def), &
+                   setval_c(ait_sol_su,            0.0_r_def), &
+                   setval_c(ait_sol_bc,            0.0_r_def), &
+                   setval_c(ait_sol_om,            0.0_r_def), &
+                   setval_c(n_acc_sol,             0.0_r_def), &
+                   setval_c(acc_sol_su,            0.0_r_def), &
+                   setval_c(acc_sol_bc,            0.0_r_def), &
+                   setval_c(acc_sol_om,            0.0_r_def), &
+                   setval_c(acc_sol_ss,            0.0_r_def), &
+                   setval_c(n_cor_sol,             0.0_r_def), &
+                   setval_c(cor_sol_su,            0.0_r_def), &
+                   setval_c(cor_sol_bc,            0.0_r_def), &
+                   setval_c(cor_sol_om,            0.0_r_def), &
+                   setval_c(cor_sol_ss,            0.0_r_def), &
+                   setval_c(n_ait_ins,             0.0_r_def), &
+                   setval_c(ait_ins_bc,            0.0_r_def), &
+                   setval_c(ait_ins_om,            0.0_r_def), &
+                   setval_c(n_acc_ins,             0.0_r_def), &
+                   setval_c(acc_ins_du,            0.0_r_def), &
+                   setval_c(n_cor_ins,             0.0_r_def), &
+                   setval_c(cor_ins_du,            0.0_r_def), &
+                   ! Emissions values for UKCA prognostic aerosol
+                   setval_c(emiss_bc_biofuel,    5e-11_r_def), &
+                   setval_c(emiss_bc_fossil,     5e-11_r_def), &
+                   setval_c(emiss_bc_biomass,      0.0_r_def), &
+                   setval_c(emiss_bc_biomass_high, 0.0_r_def), &
+                   setval_c(emiss_bc_biomass_low,  0.0_r_def), &
+                   setval_c(emiss_dms_land,      5e-11_r_def), &
+                   setval_c(dms_conc_ocean,        0.0_r_def), &
+                   setval_c(emiss_monoterp,      1e-11_r_def), &
+                   setval_c(emiss_om_biofuel,    5e-11_r_def), &
+                   setval_c(emiss_om_fossil,     5e-11_r_def), &
+                   setval_c(emiss_om_biomass,      0.0_r_def), &
+                   setval_c(emiss_om_biomass_high, 0.0_r_def), &
+                   setval_c(emiss_om_biomass_low,  0.0_r_def), &
+                   setval_c(emiss_so2_low,       1e-10_r_def), &
+                   setval_c(emiss_so2_high,        0.0_r_def), &
+                   setval_c(emiss_so2_nat,         0.0_r_def), &
+                   setval_c(soil_clay,             0.2_r_def), &
+                   setval_c(soil_sand,             0.2_r_def), &
+                   setval_c(surf_wetness,          0.0_r_def), &
+                   setval_c(dust_mrel,           0.167_r_def), &
+                   setval_c(dust_flux,             0.0_r_def), &
+                   ! CDNC and particle properties prior to their calculation
+                   ! at the first chemistry timestep.
+                   ! Note: zero partial volume values (pvol_*) here cause
+                   ! RADAER to avoid calculation of non-zero optical properties
+                   ! for aerosol introduced by emissions since these would
+                   ! be invalid prior to the availability of consistent
+                   ! particle property values from UKCA's aerosol processing.
+                   setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
+                   setval_c(drydp_ait_sol,         0.0_r_def), &
+                   setval_c(drydp_acc_sol,         0.0_r_def), &
+                   setval_c(drydp_cor_sol,         0.0_r_def), &
+                   setval_c(drydp_ait_ins,         0.0_r_def), &
+                   setval_c(drydp_acc_ins,         0.0_r_def), &
+                   setval_c(drydp_cor_ins,         0.0_r_def), &
+                   setval_c(wetdp_ait_sol,         0.0_r_def), &
+                   setval_c(wetdp_acc_sol,         0.0_r_def), &
+                   setval_c(wetdp_cor_sol,         0.0_r_def), &
+                   setval_c(rhopar_ait_sol,        0.0_r_def), &
+                   setval_c(rhopar_acc_sol,        0.0_r_def), &
+                   setval_c(rhopar_cor_sol,        0.0_r_def), &
+                   setval_c(rhopar_ait_ins,        0.0_r_def), &
+                   setval_c(rhopar_acc_ins,        0.0_r_def), &
+                   setval_c(rhopar_cor_ins,        0.0_r_def), &
+                   setval_c(pvol_wat_ait_sol,      0.0_r_def), &
+                   setval_c(pvol_wat_acc_sol,      0.0_r_def), &
+                   setval_c(pvol_wat_cor_sol,      0.0_r_def), &
+                   setval_c(pvol_su_ait_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_ait_sol,       0.0_r_def), &
+                   setval_c(pvol_om_ait_sol,       0.0_r_def), &
+                   setval_c(pvol_su_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_om_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_ss_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_su_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_om_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_ss_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_ait_ins,       0.0_r_def), &
+                   setval_c(pvol_om_ait_ins,       0.0_r_def), &
+                   setval_c(pvol_du_acc_ins,       0.0_r_def), &
+                   setval_c(pvol_du_cor_ins,       0.0_r_def))
+
+    else if (aerosol == aerosol_um .and. &
+         ( glomap_mode == glomap_mode_climatology .or. &
+           glomap_mode == glomap_mode_dust_and_clim ) ) then
+
+      ! GLOMAP-mode climatology scheme selected.
+      call invoke( setval_c(n_ait_sol,             0.0_r_def), &
+                   setval_c(ait_sol_su,            0.0_r_def), &
+                   setval_c(ait_sol_bc,            0.0_r_def), &
+                   setval_c(ait_sol_om,            0.0_r_def), &
+                   setval_c(n_acc_sol,             0.0_r_def), &
+                   setval_c(acc_sol_su,            0.0_r_def), &
+                   setval_c(acc_sol_bc,            0.0_r_def), &
+                   setval_c(acc_sol_om,            0.0_r_def), &
+                   setval_c(acc_sol_ss,            0.0_r_def), &
+                   setval_c(n_cor_sol,             0.0_r_def), &
+                   setval_c(cor_sol_su,            0.0_r_def), &
+                   setval_c(cor_sol_bc,            0.0_r_def), &
+                   setval_c(cor_sol_om,            0.0_r_def), &
+                   setval_c(cor_sol_ss,            0.0_r_def), &
+                   setval_c(n_ait_ins,             0.0_r_def), &
+                   setval_c(ait_ins_bc,            0.0_r_def), &
+                   setval_c(ait_ins_om,            0.0_r_def), &
+                   setval_c(n_acc_ins,             0.0_r_def), &
+                   setval_c(acc_ins_du,            0.0_r_def), &
+                   setval_c(n_cor_ins,             0.0_r_def), &
+                   setval_c(cor_ins_du,            0.0_r_def), &
+                   setval_c(soil_clay,             0.2_r_def), &
+                   setval_c(soil_sand,             0.2_r_def), &
+                   setval_c(dust_mrel,           0.167_r_def), &
+                   setval_c(dust_flux,             0.0_r_def), &
+                   ! Default values of CDNC for microphysics and
+                   ! particle properties for RADAER if not output by the
+                   ! GLOMAP climatology scheme.
+                   setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
+                   setval_c(drydp_ait_sol,         0.0_r_def), &
+                   setval_c(drydp_acc_sol,         0.0_r_def), &
+                   setval_c(drydp_cor_sol,         0.0_r_def), &
+                   setval_c(drydp_ait_ins,         0.0_r_def), &
+                   setval_c(drydp_acc_ins,         0.0_r_def), &
+                   setval_c(drydp_cor_ins,         0.0_r_def), &
+                   setval_c(wetdp_ait_sol,         0.0_r_def), &
+                   setval_c(wetdp_acc_sol,         0.0_r_def), &
+                   setval_c(wetdp_cor_sol,         0.0_r_def), &
+                   setval_c(rhopar_ait_sol,        0.0_r_def), &
+                   setval_c(rhopar_acc_sol,        0.0_r_def), &
+                   setval_c(rhopar_cor_sol,        0.0_r_def), &
+                   setval_c(rhopar_ait_ins,        0.0_r_def), &
+                   setval_c(rhopar_acc_ins,        0.0_r_def), &
+                   setval_c(rhopar_cor_ins,        0.0_r_def), &
+                   setval_c(pvol_wat_ait_sol,      0.0_r_def), &
+                   setval_c(pvol_wat_acc_sol,      0.0_r_def), &
+                   setval_c(pvol_wat_cor_sol,      0.0_r_def), &
+                   setval_c(pvol_su_ait_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_ait_sol,       0.0_r_def), &
+                   setval_c(pvol_om_ait_sol,       0.0_r_def), &
+                   setval_c(pvol_su_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_om_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_ss_acc_sol,       0.0_r_def), &
+                   setval_c(pvol_su_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_om_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_ss_cor_sol,       0.0_r_def), &
+                   setval_c(pvol_bc_ait_ins,       0.0_r_def), &
+                   setval_c(pvol_om_ait_ins,       0.0_r_def), &
+                   setval_c(pvol_du_acc_ins,       0.0_r_def), &
+                   setval_c(pvol_du_cor_ins,       0.0_r_def))
+
+    else if (aerosol == aerosol_um .and. l_radaer) then
+
+      ! Running RADAER test with no GLOMAP-mode scheme.
+      ! Set GLOMAP-mode aerosol fields and particle properties to fixed values
+      ! for RADAER testing (i.e. SCM testing or when no values are provided by
+      ! the initial dump).
+      ! Note that particle property values will not be consistent with aerosol
+      ! tracer values. Aerosol values set here are consistent with CDNC
+      ! approx 1e8 m-3.
+      call invoke( setval_c(n_ait_sol,         7.0e-19_r_def), &
+                   setval_c(ait_sol_su,        7.0e-12_r_def), &
+                   setval_c(ait_sol_bc,        7.0e-12_r_def), &
+                   setval_c(ait_sol_om,        3.0e-11_r_def), &
+                   setval_c(n_acc_sol,         7.0e-18_r_def), &
+                   setval_c(acc_sol_su,        2.0e-10_r_def), &
+                   setval_c(acc_sol_bc,        1.3e-11_r_def), &
+                   setval_c(acc_sol_om,        3.0e-11_r_def), &
+                   setval_c(acc_sol_ss,        3.0e-11_r_def), &
+                   ! Dummy value - find a better one
+                   setval_c(n_cor_sol,         2.0e-20_r_def), &
+                   setval_c(cor_sol_su,        3.0e-12_r_def), &
+                   setval_c(cor_sol_bc,        7.0e-14_r_def), &
+                   setval_c(cor_sol_om,        7.0e-13_r_def), &
+                   setval_c(cor_sol_ss,         1.3e-9_r_def), &
+                   ! Dummy value - find a better one
+                   setval_c(n_ait_ins,         7.0e-20_r_def), &
+                   setval_c(ait_ins_bc,        3.0e-12_r_def), &
+                   setval_c(ait_ins_om,        7.0e-13_r_def), &
+                   ! Dummy values - find better values
+                   setval_c(n_acc_ins,         1.0e-20_r_def), &
+                   setval_c(acc_ins_du,        5.0e-12_r_def), &
+                   setval_c(n_cor_ins,         1.0e-20_r_def), &
+                   setval_c(cor_ins_du,        5.0e-12_r_def), &
+                   setval_c(soil_clay,             0.0_r_def), &
+                   setval_c(soil_sand,             0.0_r_def), &
+                   setval_c(dust_mrel,             0.0_r_def), &
+                   setval_c(dust_flux,             0.0_r_def), &
+                   ! CDNC for use in microphysics and particle properties
+                   ! for use in RADAER.
+                   setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
+                   setval_c(drydp_ait_sol,      1.0e-7_r_def), &
+                   setval_c(drydp_acc_sol,      1.0e-7_r_def), &
+                   setval_c(drydp_cor_sol,      1.0e-6_r_def), &
+                   setval_c(drydp_ait_ins,      1.0e-7_r_def), &
+                   setval_c(drydp_acc_ins,      1.0e-7_r_def), &
+                   setval_c(drydp_cor_ins,      1.0e-6_r_def), &
+                   setval_c(wetdp_ait_sol,      1.0e-7_r_def), &
+                   setval_c(wetdp_acc_sol,      1.0e-7_r_def), &
+                   setval_c(wetdp_cor_sol,      1.0e-6_r_def), &
+                   setval_c(rhopar_ait_sol,      1.0e3_r_def), &
+                   setval_c(rhopar_acc_sol,      1.0e3_r_def), &
+                   setval_c(rhopar_cor_sol,      1.0e3_r_def), &
+                   setval_c(rhopar_ait_ins,      1.0e3_r_def), &
+                   setval_c(rhopar_acc_ins,      1.0e3_r_def), &
+                   setval_c(rhopar_cor_ins,      1.0e3_r_def), &
+                   setval_c(pvol_wat_ait_sol,  1.0e-23_r_def), &
+                   setval_c(pvol_wat_acc_sol,  1.0e-22_r_def), &
+                   setval_c(pvol_wat_cor_sol,  1.0e-20_r_def), &
+                   setval_c(pvol_su_ait_sol,   1.0e-22_r_def), &
+                   setval_c(pvol_bc_ait_sol,   1.0e-22_r_def), &
+                   setval_c(pvol_om_ait_sol,   1.0e-22_r_def), &
+                   setval_c(pvol_su_acc_sol,   1.0e-21_r_def), &
+                   setval_c(pvol_bc_acc_sol,   1.0e-21_r_def), &
+                   setval_c(pvol_om_acc_sol,   1.0e-21_r_def), &
+                   setval_c(pvol_ss_acc_sol,   1.0e-21_r_def), &
+                   setval_c(pvol_su_cor_sol,   1.0e-19_r_def), &
+                   setval_c(pvol_bc_cor_sol,   1.0e-19_r_def), &
+                   setval_c(pvol_om_cor_sol,   1.0e-19_r_def), &
+                   setval_c(pvol_ss_cor_sol,   1.0e-19_r_def), &
+                   setval_c(pvol_bc_ait_ins,   1.0e-22_r_def), &
+                   setval_c(pvol_om_ait_ins,   1.0e-22_r_def), &
+                   setval_c(pvol_du_acc_ins,   1.0e-21_r_def), &
+                   setval_c(pvol_du_cor_ins,   1.0e-18_r_def))
+
+    else
+
+      ! No GLOMAP-mode aerosol scheme and no requirement for mode-specific
+      ! output. Set CDNC to fixed value for microphysics. Other aerosol
+      ! fields are not used so set to zero.
+      call invoke( setval_c(n_ait_sol,             0.0_r_def), &
+                   setval_c(ait_sol_su,            0.0_r_def), &
+                   setval_c(ait_sol_bc,            0.0_r_def), &
+                   setval_c(ait_sol_om,            0.0_r_def), &
+                   setval_c(n_acc_sol,             0.0_r_def), &
+                   setval_c(acc_sol_su,            0.0_r_def), &
+                   setval_c(acc_sol_bc,            0.0_r_def), &
+                   setval_c(acc_sol_om,            0.0_r_def), &
+                   setval_c(acc_sol_ss,            0.0_r_def), &
+                   setval_c(n_cor_sol,             0.0_r_def), &
+                   setval_c(cor_sol_su,            0.0_r_def), &
+                   setval_c(cor_sol_bc,            0.0_r_def), &
+                   setval_c(cor_sol_om,            0.0_r_def), &
+                   setval_c(cor_sol_ss,            0.0_r_def), &
+                   setval_c(n_ait_ins,             0.0_r_def), &
+                   setval_c(ait_ins_bc,            0.0_r_def), &
+                   setval_c(ait_ins_om,            0.0_r_def), &
+                   setval_c(n_acc_ins,             0.0_r_def), &
+                   setval_c(acc_ins_du,            0.0_r_def), &
+                   setval_c(n_cor_ins,             0.0_r_def), &
+                   setval_c(cor_ins_du,            0.0_r_def), &
+                   setval_c(soil_clay,             0.0_r_def), &
+                   setval_c(soil_sand,             0.0_r_def), &
+                   setval_c(dust_mrel,             0.0_r_def), &
+                   setval_c(dust_flux,             0.0_r_def), &
+                   ! CDNC and particle properties
+                   setval_c(cloud_drop_no_conc,  1.0e8_r_def))
+      if (aerosol == aerosol_um) then
+        call invoke(setval_c(drydp_ait_sol,         0.0_r_def), &
+                    setval_c(drydp_acc_sol,         0.0_r_def), &
+                    setval_c(drydp_cor_sol,         0.0_r_def), &
+                    setval_c(drydp_ait_ins,         0.0_r_def), &
+                    setval_c(drydp_acc_ins,         0.0_r_def), &
+                    setval_c(drydp_cor_ins,         0.0_r_def), &
+                    setval_c(wetdp_ait_sol,         0.0_r_def), &
+                    setval_c(wetdp_acc_sol,         0.0_r_def), &
+                    setval_c(wetdp_cor_sol,         0.0_r_def), &
+                    setval_c(rhopar_ait_sol,        0.0_r_def), &
+                    setval_c(rhopar_acc_sol,        0.0_r_def), &
+                    setval_c(rhopar_cor_sol,        0.0_r_def), &
+                    setval_c(rhopar_ait_ins,        0.0_r_def), &
+                    setval_c(rhopar_acc_ins,        0.0_r_def), &
+                    setval_c(rhopar_cor_ins,        0.0_r_def), &
+                    setval_c(pvol_wat_ait_sol,      0.0_r_def), &
+                    setval_c(pvol_wat_acc_sol,      0.0_r_def), &
+                    setval_c(pvol_wat_cor_sol,      0.0_r_def), &
+                    setval_c(pvol_su_ait_sol,       0.0_r_def), &
+                    setval_c(pvol_bc_ait_sol,       0.0_r_def), &
+                    setval_c(pvol_om_ait_sol,       0.0_r_def), &
+                    setval_c(pvol_su_acc_sol,       0.0_r_def), &
+                    setval_c(pvol_bc_acc_sol,       0.0_r_def), &
+                    setval_c(pvol_om_acc_sol,       0.0_r_def), &
+                    setval_c(pvol_ss_acc_sol,       0.0_r_def), &
+                    setval_c(pvol_su_cor_sol,       0.0_r_def), &
+                    setval_c(pvol_bc_cor_sol,       0.0_r_def), &
+                    setval_c(pvol_om_cor_sol,       0.0_r_def), &
+                    setval_c(pvol_ss_cor_sol,       0.0_r_def), &
+                    setval_c(pvol_bc_ait_ins,       0.0_r_def), &
+                    setval_c(pvol_om_ait_ins,       0.0_r_def), &
+                    setval_c(pvol_du_acc_ins,       0.0_r_def), &
+                    setval_c(pvol_du_cor_ins,       0.0_r_def))
+      end if
+
+    end if
+
+  end subroutine init_aerosol_fields_alg
+
+end module init_aerosol_fields_alg_mod

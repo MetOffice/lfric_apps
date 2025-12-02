@@ -1,0 +1,135 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Integrate a W3 field using either finite element or
+!!        finite difference formulations.
+module compute_total_mass_alg_mod
+
+  use constants_mod, only: r_def, i_def
+
+  implicit none
+
+  private
+  public :: compute_total_mass_alg
+
+contains
+
+  !> @details Compute the total mass of dry air, using either
+  !!          quadrature on the finite element representation,
+  !!          or a finite difference calculation to mimic
+  !!          UM(ENDGame).
+  !> @param[out] total_mass Total dry mass of the atmosphere
+  !> @param[in]  rho        Density of dry component of atmosphere
+  !> @param[in]  mesh       Mesh information
+  !> @param[in]  method     (Optional) Argument to specify which calculation
+  !!                        method to use
+  subroutine compute_total_mass_alg( total_mass, rho, mesh, method )
+
+    use compute_column_integral_kernel_mod, &
+                                        only: compute_column_integral_kernel_type
+    use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+    use energy_correction_config_mod,   only: integral_method,    &
+                                              integral_method_fd, &
+                                              integral_method_fe
+    use extrusion_mod,                  only: TWOD
+    use extrusion_config_mod,           only: planet_radius
+    use sci_fem_constants_mod,          only: get_mass_matrix_fe, &
+                                              get_mass_matrix_fv
+    use fs_continuity_mod,              only: W3, Wtheta
+    use field_mod,                      only: field_type
+    use function_space_mod,             only: function_space_type
+    use function_space_collection_mod,  only: function_space_collection
+    use sci_geometric_constants_mod,    only: get_coordinates, &
+                                              get_height_fv,   &
+                                              get_panel_id,    &
+                                              get_da_msl_proj
+    use log_mod,                        only: log_event,         &
+                                              log_scratch_space, &
+                                              LOG_LEVEL_ERROR
+    use mesh_mod,                       only: mesh_type
+    use mesh_collection_mod,            only: mesh_collection
+    use operator_mod,                   only: operator_type
+
+    implicit none
+
+    type( field_type ),              intent(in)  :: rho
+    type( mesh_type ),     pointer,  intent(in)  :: mesh
+    real( kind=r_def ),              intent(out) :: total_mass
+    integer( kind=i_def ), optional, intent(in)  :: method
+
+    ! For finite difference calculations
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: dA => null()
+    type( field_type )          :: tot_col_mass
+    type( mesh_type ),  pointer :: twod_mesh => null()
+
+    ! For finite element calculations
+    type( operator_type ),        pointer :: mm_w3 => null()
+    type( function_space_type ),  pointer :: w3_fs => null()
+    type( field_type )                    :: mass
+
+    integer( kind=i_def ) :: element_order_h
+    integer( kind=i_def ) :: element_order_v
+    integer( kind=i_def ) :: mesh_id, method_to_use
+
+    mesh_id = mesh%get_id()
+    element_order_h = rho%get_element_order_h()
+    element_order_v = rho%get_element_order_v()
+
+    if (present(method)) then
+      method_to_use = method
+    else
+      method_to_use = integral_method
+    end if
+
+    select case( method_to_use )
+    case( integral_method_fd )
+      height_w3  => get_height_fv( W3, mesh_id )
+      height_wth => get_height_fv( Wtheta, mesh_id )
+      twod_mesh  => mesh_collection%get_mesh( mesh, TWOD )
+      dA         => get_da_msl_proj( twod_mesh%get_id() )
+
+      call tot_col_mass%initialise( vector_space = &
+                                    function_space_collection%get_fs( twod_mesh, 0, 0, W3 ) )
+
+      total_mass = 0.0_r_def
+
+      call invoke( compute_column_integral_kernel_type( rho,             &
+                                                        height_w3,       &
+                                                        height_wth,      &
+                                                        tot_col_mass,    &
+                                                        planet_radius ), &
+                   inc_X_times_Y( tot_col_mass, dA ),                    &
+                   sum_X( total_mass, tot_col_mass ) )
+
+      nullify( height_w3, height_wth, twod_mesh, dA )
+    case( integral_method_fe )
+      w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                 element_order_v, W3 )
+
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        mm_w3 => get_mass_matrix_fv( W3, mesh_id )
+      else
+        mm_w3 => get_mass_matrix_fe( W3, mesh_id )
+      end if
+
+      ! Initialise Mass
+      call mass%initialise( vector_space = w3_fs )
+
+      ! Compute conserved quantities
+      call invoke( dg_matrix_vector_kernel_type( mass, rho, mm_w3 ),  &
+                   sum_X( total_mass, mass ) )
+
+      nullify( mm_w3, w3_fs )
+    case default
+      write( log_scratch_space, '(''Unknown integral_method = '', i0, &
+                                 ''in compute_total_mass.'')' ) integral_method
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine compute_total_mass_alg
+
+end module compute_total_mass_alg_mod

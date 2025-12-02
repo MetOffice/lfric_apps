@@ -1,0 +1,317 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Test the TL vertical advective computation using 1d polynomials
+module tl_poly1d_vert_adv_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, l_def, EPS
+  use funit
+
+  use, intrinsic :: iso_fortran_env, only: real64
+  use tl_poly1d_vert_adv_kernel_mod, only: tl_poly1d_vert_adv_code
+
+  implicit none
+
+  private
+  public :: test_standard, &
+            test_logspace, &
+            test_log_zero
+
+  @TestCase
+  type, extends(TestCase), public :: tl_poly1d_vert_adv_test_type
+    private
+
+    real(r_def) :: answer, use_tol
+
+    integer(i_def), allocatable :: map_w2v(:)
+    integer(i_def), allocatable :: map_wt(:)
+    integer(i_def), allocatable :: map_c(:)
+
+    real(r_def), allocatable :: flux(:)
+    real(r_def), allocatable :: flux_answer(:)
+    real(r_def), allocatable :: wind(:)
+    real(r_def), allocatable :: density(:)
+    real(r_def), allocatable :: ls_wind(:)
+    real(r_def), allocatable :: ls_density(:)
+    real(r_def), allocatable :: coeff(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_standard
+    procedure test_logspace
+    procedure test_log_zero
+
+  end type tl_poly1d_vert_adv_test_type
+
+  real(r_def), parameter :: tol = 1.0e-12_r_def   ! r_def 64bit
+  integer(i_def), parameter :: nfaces_v = 2
+  integer(i_def), parameter :: nlayers = 6
+  integer(i_def), parameter :: mol_order = 3
+  integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+  integer(i_def), parameter :: ndf_w2v = 2
+  integer(i_def), parameter :: ndf_wt = 2
+  integer(i_def), parameter :: ndf_c  = 2
+  integer(i_def), parameter :: undf_w2v = nlayers+1
+  integer(i_def), parameter :: undf_wt = nlayers+1
+  integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
+
+    integer(i_def) :: df, k, f
+
+    allocate(this%map_w2v(ndf_w2v))
+    allocate(this%map_wt(ndf_wt))
+    allocate(this%map_c(ndf_c))
+    allocate(this%flux(undf_wt))
+    allocate(this%flux_answer(undf_wt))
+    allocate(this%wind(undf_w2v))
+    allocate(this%density(undf_wt))
+    allocate(this%ls_wind(undf_w2v))
+    allocate(this%ls_density(undf_wt))
+    allocate(this%coeff(undf_c))
+
+    this%map_wt(:) = (/ 1, 2 /)
+    this%map_w2v(:) = (/ 1, 2 /)
+    this%map_c(:)  = (/ 1, 1 + ndata /)
+
+    do k = 0,nlayers
+      do f = 1,nfaces_v
+        this%coeff(0 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) = -2.0_r_def/6.0_r_def
+        this%coeff(1 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) = -3.0_r_def/6.0_r_def
+        this%coeff(2 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) =  6.0_r_def/6.0_r_def
+        this%coeff(3 + (f-1)*(mol_order+1) + k*ndata + this%map_c(1)) = -1.0_r_def/6.0_r_def
+      end do
+    end do
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
+
+    deallocate(this%map_w2v)
+    deallocate(this%map_wt)
+    deallocate(this%map_c)
+    deallocate(this%flux)
+    deallocate(this%flux_answer)
+    deallocate(this%wind)
+    deallocate(this%density)
+    deallocate(this%ls_wind)
+    deallocate(this%ls_density)
+    deallocate(this%coeff)
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_standard( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+    logical(l_def) :: logspace
+
+    ! Test standard polynomial interpolation
+
+    this%flux = 0.0_r_def
+
+    this%wind(:) = 1.0_r_def
+    this%ls_wind(:) = 1.0_r_def
+
+    do k = 1,nlayers+1
+      this%density(k) = real(k,r_def)
+      this%ls_density(k) = real(k,r_def)
+    end do
+
+    logspace = .false.
+
+    call tl_poly1d_vert_adv_code( nlayers,              &
+                                  this%flux,            &
+                                  this%wind,            &
+                                  this%density,         &
+                                  this%ls_wind,         &
+                                  this%ls_density,      &
+                                  this%coeff,           &
+                                  ndata,                &
+                                  mol_order,            &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  this%map_wt,          &
+                                  ndf_w2v,              &
+                                  undf_w2v,             &
+                                  this%map_w2v,         &
+                                  ndf_c,                &
+                                  undf_c,               &
+                                  this%map_c)
+    this%answer = 2.0_r_def
+    if ( r_def == real64 ) then
+      this%use_tol = tol
+    else
+      this%use_tol = 10.0_r_def*spacing( maxval( this%flux(this%map_wt(1)+2:this%map_wt(1)+4) ) )
+    end if
+    @assertEqual(this%answer, this%flux(this%map_wt(1)+2), this%use_tol)
+    @assertEqual(this%answer, this%flux(this%map_wt(1)+3), this%use_tol)
+    @assertEqual(this%answer, this%flux(this%map_wt(1)+4), this%use_tol)
+
+  end subroutine test_standard
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_logspace( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+    logical(l_def) :: logspace
+
+    ! Test polynomial interpolation in log-space
+
+    this%flux = 0.0_r_def
+
+    this%wind(:) = 1.0_r_def
+    this%ls_wind(:) = 1.0_r_def
+
+    do k = 1,nlayers+1
+      this%density(k) = exp(-real(k,r_def))
+      this%ls_density(k) = exp(-real(k,r_def))
+    end do
+
+    logspace = .true.
+
+    call tl_poly1d_vert_adv_code( nlayers,              &
+                                  this%flux,            &
+                                  this%wind,            &
+                                  this%density,         &
+                                  this%ls_wind,         &
+                                  this%ls_density,      &
+                                  this%coeff,           &
+                                  ndata,                &
+                                  mol_order,            &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  this%map_wt,          &
+                                  ndf_w2v,              &
+                                  undf_w2v,             &
+                                  this%map_w2v,         &
+                                  ndf_c,                &
+                                  undf_c,               &
+                                  this%map_c)
+
+    if ( r_def == real64 ) then
+      this%use_tol = tol
+    else
+      this%use_tol = 10.0_r_def*spacing( maxval( this%flux(this%map_wt(1)+2:this%map_wt(1)+3) ) )
+    end if
+
+    do k = 2,3
+      this%answer = -2.0_r_def*this%density(this%map_wt(1)+k)
+      @assertEqual(this%answer, this%flux(this%map_wt(1)+k), this%use_tol)
+    end do
+
+  end subroutine test_logspace
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_log_zero( this )
+
+    implicit none
+
+    class(tl_poly1d_vert_adv_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+    logical(l_def) :: logspace
+
+    ! Test interpolation in log-space with zero values doesn't cause problems
+
+    this%flux = 0.0_r_def
+    this%flux_answer = 0.0_r_def
+
+    this%wind(:) = 1.0_r_def
+    this%ls_wind(:) = 1.0_r_def
+
+    do k = 1,nlayers+1
+      this%density(k) = exp(-real(k,r_def))
+    end do
+
+    logspace = .true.
+    this%ls_density(:) = 0.0_r_def
+
+    call tl_poly1d_vert_adv_code( nlayers,              &
+                                  this%flux,            &
+                                  this%wind,            &
+                                  this%density,         &
+                                  this%ls_wind,         &
+                                  this%ls_density,      &
+                                  this%coeff,           &
+                                  ndata,                &
+                                  mol_order,            &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  this%map_wt,          &
+                                  ndf_w2v,              &
+                                  undf_w2v,             &
+                                  this%map_w2v,         &
+                                  ndf_c,                &
+                                  undf_c,               &
+                                  this%map_c)
+
+    this%ls_density(:) = EPS
+
+    call tl_poly1d_vert_adv_code( nlayers,              &
+                                  this%flux_answer,     &
+                                  this%wind,            &
+                                  this%density,         &
+                                  this%ls_wind,         &
+                                  this%ls_density,      &
+                                  this%coeff,           &
+                                  ndata,                &
+                                  mol_order,            &
+                                  logspace,             &
+                                  ndf_wt,               &
+                                  undf_wt,              &
+                                  this%map_wt,          &
+                                  ndf_w2v,              &
+                                  undf_w2v,             &
+                                  this%map_w2v,         &
+                                  ndf_c,                &
+                                  undf_c,               &
+                                  this%map_c)
+
+    if ( r_def == real64 ) then
+      this%use_tol = tol
+    else
+      this%use_tol = 10.0_r_def*spacing( maxval( this%flux_answer(this%map_wt(1)+2:this%map_wt(1)+3) ) )
+    end if
+
+    @assertEqual(this%flux_answer, this%flux, this%use_tol)
+
+  end subroutine test_log_zero
+
+end module tl_poly1d_vert_adv_kernel_mod_test

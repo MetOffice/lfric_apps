@@ -1,0 +1,43 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_other.cylc") %}
+
+{# Generate runtime sections for other tasks not defined elsewhere, currently perftools #}
+
+{# Set the family inheritance for this task #}
+{% set inherit = namespace(str="") %}
+{% set inherit.str = task_family|upper %}
+
+{% if task.startswith("perftools") %}
+{# Perftools Tasks #}
+
+    {# We want to target the previous run task #}
+    {% set previous_job = "run_"~
+                          task_ns.application~"_"~
+                          task_ns.conf_name~"_"~
+                          task_ns.platform~"_"~
+                          task_ns.compiler~"_"~
+                          task_ns.extras %}
+
+    {# Set the family inheritance for this task #}
+    {% for family in task_values["run_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = rose task-run --app-key=perftools_export
+        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
+        [[[environment]]]
+            PREVIOUS_JOB={{previous_job}}
+            THE_APP_NAME={{task_ns.application}}
+            APP_CONFIGURATION_OUTPUT={{task_ns.application}}_{{task_ns.conf_name}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_other.cylc") %}

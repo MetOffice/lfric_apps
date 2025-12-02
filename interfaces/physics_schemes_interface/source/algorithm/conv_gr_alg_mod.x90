@@ -1,0 +1,775 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the UM Gregory Rowntree convection scheme
+
+module conv_gr_alg_mod
+
+  use constants_mod,        only: i_def
+  use field_mod,            only: field_type
+  use integer_field_mod,    only: integer_field_type
+  use field_collection_mod, only: field_collection_type
+  use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_s
+  use microphysics_config_mod, only: microphysics_casim
+
+  use timestepping_config_mod,     only: outer_iterations
+  use sci_geometric_constants_mod, only: get_height_fv, get_delta_at_wtheta
+  use fs_continuity_mod,           only: W3, Wtheta
+
+  use io_config_mod,        only: subroutine_timers
+  use timer_mod,            only: timer
+  ! xios output
+  use io_config_mod,        only: write_diag, use_xios_io
+  use conv_diags_mod,       only: initialise_diags_for_conv, &
+                                  output_diags_for_conv
+  use log_mod,              only: log_event, LOG_LEVEL_DEBUG
+  use mesh_mod,             only: mesh_type
+
+  implicit none
+
+  private
+  public conv_gr_alg
+
+contains
+
+  !>@brief Run the UM Gregory Rowntree convection scheme
+  !>@details The UM Gregory Rowntree convection scheme does:
+  !>             vertical mixing of heat, momentum and moisture,
+  !>             as documented in UMDP27
+  !>@param[in,out] mr                  Mixing ratios
+  !>@param[in]     rho                 Dry density in its native (w3) space
+  !>@param[in]     exner               Exner Pressure in the w3 space
+  !>@param[in]     derived_fields      Group of derived fields
+  !>@param[in]     turbulence_fields   Fields for turbulence scheme
+  !>@param[in]     convection_fields   Fields for convection scheme
+  !>@param[in]     cloud_fields        Fields for cloud scheme
+  !>@param[in]     surface_fields      Fields for surface scheme
+  !>@param[in]     chemistry_fields    Fields for chemistry scheme
+  !>@param[in]     aerosol_fields      Fields for aerosol scheme
+  !>@param[in]     microphysics_fields Fields for microphysics scheme
+  !>@param[in]     outer             Outer loop counter
+  subroutine conv_gr_alg(mr, rho, exner, derived_fields,                  &
+                         turbulence_fields, convection_fields,            &
+                         cloud_fields, surface_fields, chemistry_fields,  &
+                         aerosol_fields, microphysics_fields, outer)
+
+    use conv_gr_kernel_mod, only: conv_gr_kernel_type
+
+    implicit none
+
+    type( field_type ), intent( inout )     :: mr(nummr)
+    type( field_type ), intent( in )        :: rho, exner
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(in) :: convection_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_collection_type ), intent(in) :: surface_fields
+    type( field_collection_type ), intent(in) :: chemistry_fields
+    type( field_collection_type ), intent(in) :: aerosol_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
+
+    integer(kind=i_def), intent(in)         :: outer
+
+    ! Temporary fields unpacked fields from collections
+    type( field_type ), pointer :: exner_in_wth  => null()
+    type( field_type ), pointer :: rho_in_wth => null()
+    type( field_type ), pointer :: wetrho_in_wth => null()
+    type( field_type ), pointer :: wetrho_in_w3 => null()
+    type( field_type ), pointer :: w_in_wth => null()
+    type( field_type ), pointer :: theta_star => null()
+    type( field_type ), pointer :: u_in_w3_star => null()
+    type( field_type ), pointer :: v_in_w3_star => null()
+
+    type( field_type ), pointer :: zh => null()
+    type( integer_field_type ), pointer :: ntml => null()
+    type( integer_field_type ), pointer :: cumulus => null()
+    type( field_type ), pointer :: tke_bl => null()
+
+    type( field_type ), pointer :: conv_rain => null()
+    type( field_type ), pointer :: conv_rain_3d => null()
+    type( field_type ), pointer :: conv_snow => null()
+    type( field_type ), pointer :: conv_snow_3d => null()
+    type( field_type ), pointer :: cca_2d => null()
+    type( field_type ), pointer :: cv_base
+    type( field_type ), pointer :: cv_top
+    type( integer_field_type ), pointer :: shallow_flag => null()
+    type( field_type ), pointer :: uw0_flux  => null()
+    type( field_type ), pointer :: vw0_flux  => null()
+    type( field_type ), pointer :: lcl_height  => null()
+    type( field_type ), pointer :: parcel_top  => null()
+    type( integer_field_type ), pointer :: level_parcel_top => null()
+    type( field_type ), pointer :: wstar  => null()
+    type( field_type ), pointer :: thv_flux  => null()
+    type( field_type ), pointer :: parcel_buoyancy  => null()
+    type( field_type ), pointer :: qsat_at_lcl  => null()
+    type( field_type ), pointer :: cca => null()
+    type( field_type ), pointer :: ccw => null()
+    type( field_type ), pointer :: dt_conv => null()
+    type( field_type ), pointer :: dmv_conv => null()
+    type( field_type ), pointer :: dmcl_conv => null()
+    type( field_type ), pointer :: dms_conv
+    type( field_type ), pointer :: dcfl_conv => null()
+    type( field_type ), pointer :: dcff_conv => null()
+    type( field_type ), pointer :: dbcf_conv => null()
+    type( field_type ), pointer :: du_conv => null()
+    type( field_type ), pointer :: dv_conv => null()
+    type( field_type ), pointer :: conv_prog_precip => null()
+    type( field_type ), pointer :: conv_prog_dtheta => null()
+    type( field_type ), pointer :: conv_prog_dmv => null()
+    type( field_type ), pointer :: dd_mf_cb => null()
+    type( field_type ), pointer :: massflux_up => null()
+    type( field_type ), pointer :: massflux_down => null()
+    type( field_type ), pointer :: cape_diluted => null()
+
+    type( field_type ), pointer :: cf_fro  => null()
+    type( field_type ), pointer :: cf_liq  => null()
+    type( field_type ), pointer :: cf_bulk  => null()
+
+    type( field_type ), pointer :: tile_fraction => null()
+
+    type( field_type ), pointer :: o3p => null()
+    type( field_type ), pointer :: o1d => null()
+    type( field_type ), pointer :: o3 => null()
+    type( field_type ), pointer :: n => null()
+    type( field_type ), pointer :: no => null()
+    type( field_type ), pointer :: no3 => null()
+    type( field_type ), pointer :: lumped_n => null()
+    type( field_type ), pointer :: n2o5 => null()
+    type( field_type ), pointer :: ho2no2 => null()
+    type( field_type ), pointer :: hono2 => null()
+    type( field_type ), pointer :: h2o2 => null()
+    type( field_type ), pointer :: ch4 => null()
+    type( field_type ), pointer :: co => null()
+    type( field_type ), pointer :: hcho => null()
+    type( field_type ), pointer :: meoo => null()
+    type( field_type ), pointer :: meooh => null()
+    type( field_type ), pointer :: h => null()
+    type( field_type ), pointer :: oh => null()
+    type( field_type ), pointer :: ho2 => null()
+    type( field_type ), pointer :: cl => null()
+    type( field_type ), pointer :: cl2o2 => null()
+    type( field_type ), pointer :: clo => null()
+    type( field_type ), pointer :: oclo => null()
+    type( field_type ), pointer :: br => null()
+    type( field_type ), pointer :: lumped_br => null()
+    type( field_type ), pointer :: brcl => null()
+    type( field_type ), pointer :: brono2 => null()
+    type( field_type ), pointer :: n2o => null()
+    type( field_type ), pointer :: lumped_cl => null()
+    type( field_type ), pointer :: hocl => null()
+    type( field_type ), pointer :: hbr => null()
+    type( field_type ), pointer :: hobr => null()
+    type( field_type ), pointer :: clono2 => null()
+    type( field_type ), pointer :: cfcl3 => null()
+    type( field_type ), pointer :: cf2cl2 => null()
+    type( field_type ), pointer :: mebr => null()
+    type( field_type ), pointer :: hono => null()
+    type( field_type ), pointer :: c2h6 => null()
+    type( field_type ), pointer :: etoo => null()
+    type( field_type ), pointer :: etooh => null()
+    type( field_type ), pointer :: mecho => null()
+    type( field_type ), pointer :: meco3 => null()
+    type( field_type ), pointer :: pan => null()
+    type( field_type ), pointer :: c3h8 => null()
+    type( field_type ), pointer :: n_proo => null()
+    type( field_type ), pointer :: i_proo => null()
+    type( field_type ), pointer :: n_prooh => null()
+    type( field_type ), pointer :: i_prooh => null()
+    type( field_type ), pointer :: etcho => null()
+    type( field_type ), pointer :: etco3 => null()
+    type( field_type ), pointer :: me2co => null()
+    type( field_type ), pointer :: mecoch2oo => null()
+    type( field_type ), pointer :: mecoch2ooh => null()
+    type( field_type ), pointer :: ppan => null()
+    type( field_type ), pointer :: meono2 => null()
+    type( field_type ), pointer :: c5h8 => null()
+    type( field_type ), pointer :: iso2 => null()
+    type( field_type ), pointer :: isooh => null()
+    type( field_type ), pointer :: ison => null()
+    type( field_type ), pointer :: macr => null()
+    type( field_type ), pointer :: macro2 => null()
+    type( field_type ), pointer :: macrooh => null()
+    type( field_type ), pointer :: mpan => null()
+    type( field_type ), pointer :: hacet => null()
+    type( field_type ), pointer :: mgly => null()
+    type( field_type ), pointer :: nald => null()
+    type( field_type ), pointer :: hcooh => null()
+    type( field_type ), pointer :: meco3h => null()
+    type( field_type ), pointer :: meco2h => null()
+    type( field_type ), pointer :: h2 => null()
+    type( field_type ), pointer :: meoh => null()
+    type( field_type ), pointer :: msa => null()
+    type( field_type ), pointer :: nh3 => null()
+    type( field_type ), pointer :: cs2 => null()
+    type( field_type ), pointer :: csul => null()
+    type( field_type ), pointer :: h2s => null()
+    type( field_type ), pointer :: so3 => null()
+    type( field_type ), pointer :: passive_o3 => null()
+    type( field_type ), pointer :: age_of_air => null()
+
+    type( field_type ), pointer :: dms => null()
+    type( field_type ), pointer :: so2 => null()
+    type( field_type ), pointer :: h2so4 => null()
+    type( field_type ), pointer :: dmso => null()
+    type( field_type ), pointer :: monoterpene => null()
+    type( field_type ), pointer :: secondary_organic => null()
+
+    type( field_type ), pointer :: n_nuc_sol => null()
+    type( field_type ), pointer :: nuc_sol_su => null()
+    type( field_type ), pointer :: nuc_sol_om => null()
+    type( field_type ), pointer :: n_ait_sol => null()
+    type( field_type ), pointer :: ait_sol_su => null()
+    type( field_type ), pointer :: ait_sol_bc => null()
+    type( field_type ), pointer :: ait_sol_om => null()
+    type( field_type ), pointer :: n_acc_sol => null()
+    type( field_type ), pointer :: acc_sol_su => null()
+    type( field_type ), pointer :: acc_sol_bc => null()
+    type( field_type ), pointer :: acc_sol_om => null()
+    type( field_type ), pointer :: acc_sol_ss => null()
+    type( field_type ), pointer :: n_cor_sol => null()
+    type( field_type ), pointer :: cor_sol_su => null()
+    type( field_type ), pointer :: cor_sol_bc => null()
+    type( field_type ), pointer :: cor_sol_om => null()
+    type( field_type ), pointer :: cor_sol_ss => null()
+    type( field_type ), pointer :: n_ait_ins => null()
+    type( field_type ), pointer :: ait_ins_bc => null()
+    type( field_type ), pointer :: ait_ins_om => null()
+    type( field_type ), pointer :: n_acc_ins => null()
+    type( field_type ), pointer :: acc_ins_du => null()
+    type( field_type ), pointer :: n_cor_ins => null()
+    type( field_type ), pointer :: cor_ins_du => null()
+    type( field_type ), pointer :: tnuc  => null()
+    type( field_type ), pointer :: tnuc_nlcl => null()
+
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: delta => null()
+
+    ! Local variables
+    type( field_type ) :: cca_unadjusted
+    type( field_type ) :: deep_in_col, shallow_in_col, mid_in_col, deep_term
+    type( field_type ) :: deep_prec, shallow_prec, mid_prec
+    type( field_type ) :: freeze_level, cape_timescale
+    type( field_type ) :: lowest_cv_base, lowest_cv_top
+    type( field_type ) :: entrain_up, entrain_down
+    type( field_type ) :: detrain_up, detrain_down, dd_dt, dd_dq, deep_tops
+    type( field_type ) :: deep_dt, deep_dq, deep_massflux
+    type( field_type ) :: shallow_dt, shallow_dq, shallow_massflux
+    type( field_type ) :: mid_dt, mid_dq, mid_massflux
+    type( field_type ) :: pres_cv_base, pres_cv_top
+    type( field_type ) :: pres_lowest_cv_base, pres_lowest_cv_top, lowest_cca_2d
+    type( field_type ) :: deep_cfl_limited, mid_cfl_limited
+    type( field_type ) :: massflux_up_half, massflux_up_cmpta
+    type( field_type ) :: dth_conv_noshal, dmv_conv_noshal
+    type( field_type ) :: mr_ice
+
+    type( mesh_type ), pointer  :: mesh => null()
+
+    if ( subroutine_timers ) call timer("conv_gr_alg")
+
+    call log_event( 'Running GR convection scheme', LOG_LEVEL_DEBUG )
+
+    mesh => rho%get_mesh()
+
+    ! Unpack derived fields
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
+    call derived_fields%get_field('w_in_wth', w_in_wth)
+    call derived_fields%get_field('theta_star', theta_star)
+    call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
+    call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
+
+    ! Unpack turbulence fields
+    call turbulence_fields%get_field('zh', zh)
+    call turbulence_fields%get_field('ntml', ntml)
+    call turbulence_fields%get_field('cumulus', cumulus)
+    call turbulence_fields%get_field('tke_bl', tke_bl)
+
+    ! Unpack convection fields
+    call convection_fields%get_field('conv_rain', conv_rain)
+    call convection_fields%get_field('conv_rain_3d', conv_rain_3d)
+    call convection_fields%get_field('conv_snow', conv_snow)
+    call convection_fields%get_field('conv_snow_3d', conv_snow_3d)
+    call convection_fields%get_field('cca_2d', cca_2d)
+    call convection_fields%get_field('shallow_flag', shallow_flag)
+    call convection_fields%get_field('uw0_flux', uw0_flux)
+    call convection_fields%get_field('vw0_flux', vw0_flux)
+    call convection_fields%get_field('lcl_height', lcl_height)
+    call convection_fields%get_field('parcel_top', parcel_top)
+    call convection_fields%get_field('level_parcel_top', level_parcel_top)
+    call convection_fields%get_field('wstar', wstar)
+    call convection_fields%get_field('thv_flux', thv_flux)
+    call convection_fields%get_field('parcel_buoyancy', parcel_buoyancy)
+    call convection_fields%get_field('qsat_at_lcl', qsat_at_lcl)
+    call convection_fields%get_field('cca', cca)
+    call convection_fields%get_field('ccw', ccw)
+    call convection_fields%get_field('dt_conv', dt_conv)
+    call convection_fields%get_field('dmv_conv', dmv_conv)
+    call convection_fields%get_field('dmcl_conv', dmcl_conv)
+    call convection_fields%get_field('dms_conv', dms_conv)
+    call convection_fields%get_field('dcfl_conv', dcfl_conv)
+    call convection_fields%get_field('dcff_conv', dcff_conv)
+    call convection_fields%get_field('dbcf_conv', dbcf_conv)
+    call convection_fields%get_field('du_conv', du_conv)
+    call convection_fields%get_field('dv_conv', dv_conv)
+    call convection_fields%get_field('conv_prog_precip', conv_prog_precip)
+    call convection_fields%get_field('conv_prog_dtheta', conv_prog_dtheta)
+    call convection_fields%get_field('conv_prog_dmv', conv_prog_dmv)
+    call convection_fields%get_field('dd_mf_cb', dd_mf_cb)
+    call convection_fields%get_field('massflux_up', massflux_up)
+    call convection_fields%get_field('massflux_down', massflux_down)
+    call convection_fields%get_field('cape_diluted', cape_diluted)
+    call convection_fields%get_field('cv_base', cv_base)
+    call convection_fields%get_field('cv_top', cv_top)
+
+    ! Unpack cloud fields
+    call cloud_fields%get_field('frozen_fraction', cf_fro)
+    call cloud_fields%get_field('liquid_fraction', cf_liq)
+    call cloud_fields%get_field('bulk_fraction', cf_bulk)
+
+    ! Unpack surface fields
+    call surface_fields%get_field('tile_fraction', tile_fraction)
+
+    ! Unpack chemistry fields
+    call chemistry_fields%get_field('o3p',o3p)
+    call chemistry_fields%get_field('o1d',o1d)
+    call chemistry_fields%get_field('o3',o3)
+    call chemistry_fields%get_field('n',n)
+    call chemistry_fields%get_field('no',no)
+    call chemistry_fields%get_field('no3',no3)
+    call chemistry_fields%get_field('lumped_n',lumped_n)
+    call chemistry_fields%get_field('n2o5',n2o5)
+    call chemistry_fields%get_field('ho2no2',ho2no2)
+    call chemistry_fields%get_field('hono2',hono2)
+    call chemistry_fields%get_field('h2o2', h2o2)
+    call chemistry_fields%get_field('ch4',ch4)
+    call chemistry_fields%get_field('co',co)
+    call chemistry_fields%get_field('hcho',hcho)
+    call chemistry_fields%get_field('meoo',meoo)
+    call chemistry_fields%get_field('meooh',meooh)
+    call chemistry_fields%get_field('h',h)
+    call chemistry_fields%get_field('oh',oh)
+    call chemistry_fields%get_field('ho2',ho2)
+    call chemistry_fields%get_field('cl',cl)
+    call chemistry_fields%get_field('cl2o2',cl2o2)
+    call chemistry_fields%get_field('clo',clo)
+    call chemistry_fields%get_field('oclo',oclo)
+    call chemistry_fields%get_field('br',br)
+    call chemistry_fields%get_field('lumped_br',lumped_br)
+    call chemistry_fields%get_field('brcl',brcl)
+    call chemistry_fields%get_field('brono2',brono2)
+    call chemistry_fields%get_field('n2o',n2o)
+    call chemistry_fields%get_field('lumped_cl',lumped_cl)
+    call chemistry_fields%get_field('hocl',hocl)
+    call chemistry_fields%get_field('hbr',hbr)
+    call chemistry_fields%get_field('hobr',hobr)
+    call chemistry_fields%get_field('clono2',clono2)
+    call chemistry_fields%get_field('cfcl3',cfcl3)
+    call chemistry_fields%get_field('cf2cl2',cf2cl2)
+    call chemistry_fields%get_field('mebr',mebr)
+    call chemistry_fields%get_field('hono',hono)
+    call chemistry_fields%get_field('c2h6',c2h6)
+    call chemistry_fields%get_field('etoo',etoo)
+    call chemistry_fields%get_field('etooh',etooh)
+    call chemistry_fields%get_field('mecho',mecho)
+    call chemistry_fields%get_field('meco3',meco3)
+    call chemistry_fields%get_field('pan',pan)
+    call chemistry_fields%get_field('c3h8',c3h8)
+    call chemistry_fields%get_field('n_proo',n_proo)
+    call chemistry_fields%get_field('i_proo',i_proo)
+    call chemistry_fields%get_field('n_prooh',n_prooh)
+    call chemistry_fields%get_field('i_prooh',i_prooh)
+    call chemistry_fields%get_field('etcho',etcho)
+    call chemistry_fields%get_field('etco3',etco3)
+    call chemistry_fields%get_field('me2co',me2co)
+    call chemistry_fields%get_field('mecoch2oo',mecoch2oo)
+    call chemistry_fields%get_field('mecoch2ooh',mecoch2ooh)
+    call chemistry_fields%get_field('ppan',ppan)
+    call chemistry_fields%get_field('meono2',meono2)
+    call chemistry_fields%get_field('c5h8',c5h8)
+    call chemistry_fields%get_field('iso2',iso2)
+    call chemistry_fields%get_field('isooh',isooh)
+    call chemistry_fields%get_field('ison',ison)
+    call chemistry_fields%get_field('macr',macr)
+    call chemistry_fields%get_field('macro2',macro2)
+    call chemistry_fields%get_field('macrooh',macrooh)
+    call chemistry_fields%get_field('mpan',mpan)
+    call chemistry_fields%get_field('hacet',hacet)
+    call chemistry_fields%get_field('mgly',mgly)
+    call chemistry_fields%get_field('nald',nald)
+    call chemistry_fields%get_field('hcooh',hcooh)
+    call chemistry_fields%get_field('meco3h',meco3h)
+    call chemistry_fields%get_field('meco2h',meco2h)
+    call chemistry_fields%get_field('h2',h2)
+    call chemistry_fields%get_field('meoh',meoh)
+    call chemistry_fields%get_field('msa',msa)
+    call chemistry_fields%get_field('nh3',nh3)
+    call chemistry_fields%get_field('cs2',cs2)
+    call chemistry_fields%get_field('csul',csul)
+    call chemistry_fields%get_field('h2s',h2s)
+    call chemistry_fields%get_field('so3',so3)
+    call chemistry_fields%get_field('passive_o3',passive_o3)
+    call chemistry_fields%get_field('age_of_air',age_of_air)
+
+    call chemistry_fields%get_field('dms', dms)
+    call chemistry_fields%get_field('so2', so2)
+    call chemistry_fields%get_field('h2so4', h2so4)
+    call chemistry_fields%get_field('dmso', dmso)
+    call chemistry_fields%get_field('monoterpene', monoterpene)
+    call chemistry_fields%get_field('secondary_organic', secondary_organic)
+
+    ! Unpack aerosol fields
+    call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)
+    call aerosol_fields%get_field('nuc_sol_su', nuc_sol_su)
+    call aerosol_fields%get_field('nuc_sol_om', nuc_sol_om)
+    call aerosol_fields%get_field('n_ait_sol', n_ait_sol)
+    call aerosol_fields%get_field('ait_sol_su', ait_sol_su)
+    call aerosol_fields%get_field('ait_sol_bc', ait_sol_bc)
+    call aerosol_fields%get_field('ait_sol_om', ait_sol_om)
+    call aerosol_fields%get_field('n_acc_sol', n_acc_sol)
+    call aerosol_fields%get_field('acc_sol_su', acc_sol_su)
+    call aerosol_fields%get_field('acc_sol_bc', acc_sol_bc)
+    call aerosol_fields%get_field('acc_sol_om', acc_sol_om)
+    call aerosol_fields%get_field('acc_sol_ss', acc_sol_ss)
+    call aerosol_fields%get_field('n_cor_sol', n_cor_sol)
+    call aerosol_fields%get_field('cor_sol_su', cor_sol_su)
+    call aerosol_fields%get_field('cor_sol_bc', cor_sol_bc)
+    call aerosol_fields%get_field('cor_sol_om', cor_sol_om)
+    call aerosol_fields%get_field('cor_sol_ss', cor_sol_ss)
+    call aerosol_fields%get_field('n_ait_ins', n_ait_ins)
+    call aerosol_fields%get_field('ait_ins_bc', ait_ins_bc)
+    call aerosol_fields%get_field('ait_ins_om', ait_ins_om)
+    call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+    call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+    call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+    call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+    call microphysics_fields%get_field('tnuc', tnuc)
+    call microphysics_fields%get_field('tnuc_nlcl', tnuc_nlcl)
+
+    height_wth => get_height_fv(Wtheta, mesh%get_id())
+    height_w3  => get_height_fv(W3, mesh%get_id())
+    delta      => get_delta_at_wtheta(mesh%get_id())
+
+    ! Initialise the convection diagnostics
+    call initialise_diags_for_conv(theta_star,           &
+                                   rho,                  &
+                                   zh,                   &
+                                   deep_in_col,          & ! 2-D local variables
+                                   shallow_in_col,       &
+                                   mid_in_col,           &
+                                   freeze_level,         &
+                                   deep_prec,            &
+                                   shallow_prec,         &
+                                   mid_prec,             &
+                                   deep_term,            &
+                                   cape_timescale,       &
+                                   lowest_cv_base,       &
+                                   lowest_cv_top,        &
+                                   cv_base,              &
+                                   cv_top,               &
+                                   pres_cv_base,         &
+                                   pres_cv_top,          &
+                                   pres_lowest_cv_base,  &
+                                   pres_lowest_cv_top,   &
+                                   lowest_cca_2d,        &
+                                   deep_cfl_limited,     &
+                                   mid_cfl_limited,      &
+                                   entrain_up,           & ! 3-D local variables
+                                   entrain_down,         &
+                                   detrain_up,           &
+                                   detrain_down,         &
+                                   dd_dt,                &
+                                   dd_dq,                &
+                                   deep_dt,              &
+                                   deep_dq,              &
+                                   deep_massflux,        &
+                                   shallow_dt,           &
+                                   shallow_dq,           &
+                                   shallow_massflux,     &
+                                   mid_dt,               &
+                                   mid_dq,               &
+                                   mid_massflux,         &
+                                   deep_tops,            &
+                                   massflux_up_half,     &
+                                   massflux_up_cmpta,    &
+                                   cca_unadjusted,       &
+                                   dth_conv_noshal,      &
+                                   dmv_conv_noshal)
+
+    ! Calculate total ice field
+    call mr(imr_s)%copy_field_properties(mr_ice)
+    call invoke(setval_X(mr_ice, mr(imr_s)))
+    if (microphysics_casim) then
+      call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
+    end if
+
+    ! set increments to zero
+    call invoke( setval_c(dt_conv, 0.0_r_def),          &
+                 setval_c(dmv_conv, 0.0_r_def),         &
+                 setval_c(dmcl_conv, 0.0_r_def),        &
+                 setval_c(dms_conv, 0.0_r_def),         &
+                 setval_c(dcfl_conv, 0.0_r_def),        &
+                 setval_c(dcff_conv, 0.0_r_def),        &
+                 setval_c(dbcf_conv, 0.0_r_def),        &
+                 setval_c(du_conv, 0.0_r_def),          &
+                 setval_c(dv_conv, 0.0_r_def),          &
+                 setval_c(massflux_up, 0.0_r_def),      &
+                 setval_c(massflux_down, 0.0_r_def),    &
+                 setval_c(cape_diluted, 0.0_r_def),     &
+                 setval_c(conv_rain, 0.0_r_def),        &
+                 setval_c(conv_rain_3d, 0.0_r_def),     &
+                 setval_c(conv_snow, 0.0_r_def),        &
+                 setval_c(conv_snow_3d, 0.0_r_def),     &
+                 setval_c(cca_2d, 0.0_r_def),           &
+
+
+                 ! call the scheme
+                 conv_gr_kernel_type( outer, rho, rho_in_wth, wetrho_in_w3,   &
+                          wetrho_in_wth, exner, exner_in_wth, w_in_wth,       &
+                          theta_star, u_in_w3_star, v_in_w3_star,             &
+                          height_w3, height_wth, delta,                       &
+                          ntml, cumulus, tile_fraction,                       &
+                          dt_conv, dmv_conv, dmcl_conv,                       &
+                          dms_conv, du_conv, dv_conv,                         &
+                          conv_prog_precip, conv_prog_dtheta, conv_prog_dmv,  &
+                          mr(imr_v), mr(imr_cl), mr_ice,                      &
+                          cf_fro, cf_liq, cf_bulk, cca, ccw,                  &
+                          cape_diluted, conv_rain, conv_snow,                 &
+                          conv_rain_3d, conv_snow_3d,                         &
+                          cca_2d,                                             &
+                          dd_mf_cb, massflux_up, massflux_down, tke_bl,       &
+                          zh, shallow_flag,                                   &
+                          uw0_flux, vw0_flux, lcl_height, parcel_top,         &
+                          level_parcel_top, wstar, thv_flux,                  &
+                          parcel_buoyancy, qsat_at_lcl,                       &
+                          dcfl_conv, dcff_conv, dbcf_conv,                    &
+                          o3p,                                                &
+                          o1d,                                                &
+                          o3,                                                 &
+                          n,                                                  &
+                          no,                                                 &
+                          no3,                                                &
+                          lumped_n,                                           &
+                          n2o5,                                               &
+                          ho2no2,                                             &
+                          hono2,                                              &
+                          h2o2,                                               &
+                          ch4,                                                &
+                          co,                                                 &
+                          hcho,                                               &
+                          meoo,                                               &
+                          meooh,                                              &
+                          h,                                                  &
+                          oh,                                                 &
+                          ho2,                                                &
+                          cl,                                                 &
+                          cl2o2,                                              &
+                          clo,                                                &
+                          oclo,                                               &
+                          br,                                                 &
+                          lumped_br,                                          &
+                          brcl,                                               &
+                          brono2,                                             &
+                          n2o,                                                &
+                          lumped_cl,                                          &
+                          hocl,                                               &
+                          hbr,                                                &
+                          hobr,                                               &
+                          clono2,                                             &
+                          cfcl3,                                              &
+                          cf2cl2,                                             &
+                          mebr,                                               &
+                          hono,                                               &
+                          c2h6,                                               &
+                          etoo,                                               &
+                          etooh,                                              &
+                          mecho,                                              &
+                          meco3,                                              &
+                          pan,                                                &
+                          c3h8,                                               &
+                          n_proo,                                             &
+                          i_proo,                                             &
+                          n_prooh,                                            &
+                          i_prooh,                                            &
+                          etcho,                                              &
+                          etco3,                                              &
+                          me2co,                                              &
+                          mecoch2oo,                                          &
+                          mecoch2ooh,                                         &
+                          ppan,                                               &
+                          meono2,                                             &
+                          c5h8,                                               &
+                          iso2,                                               &
+                          isooh,                                              &
+                          ison,                                               &
+                          macr,                                               &
+                          macro2,                                             &
+                          macrooh,                                            &
+                          mpan,                                               &
+                          hacet,                                              &
+                          mgly,                                               &
+                          nald,                                               &
+                          hcooh,                                              &
+                          meco3h,                                             &
+                          meco2h,                                             &
+                          h2,                                                 &
+                          meoh,                                               &
+                          msa,                                                &
+                          nh3,                                                &
+                          cs2,                                                &
+                          csul,                                               &
+                          h2s,                                                &
+                          so3,                                                &
+                          passive_o3,                                         &
+                          age_of_air,                                         &
+                          dms,                                                &
+                          so2,                                                &
+                          h2so4,                                              &
+                          dmso,                                               &
+                          monoterpene,                                        &
+                          secondary_organic,                                  &
+                          n_nuc_sol,                                          &
+                          nuc_sol_su,                                         &
+                          nuc_sol_om,                                         &
+                          n_ait_sol,                                          &
+                          ait_sol_su,                                         &
+                          ait_sol_bc,                                         &
+                          ait_sol_om,                                         &
+                          n_acc_sol,                                          &
+                          acc_sol_su,                                         &
+                          acc_sol_bc,                                         &
+                          acc_sol_om,                                         &
+                          acc_sol_ss,                                         &
+                          n_cor_sol,                                          &
+                          cor_sol_su,                                         &
+                          cor_sol_bc,                                         &
+                          cor_sol_om,                                         &
+                          cor_sol_ss,                                         &
+                          n_ait_ins,                                          &
+                          ait_ins_bc,                                         &
+                          ait_ins_om,                                         &
+                          n_acc_ins,                                          &
+                          acc_ins_du,                                         &
+                          n_cor_ins,                                          &
+                          cor_ins_du,                                         &
+                          tnuc,                                               &
+                          tnuc_nlcl,                                          &
+                          deep_in_col,                                        &    ! 2-D local variables
+                          shallow_in_col,                                     &
+                          mid_in_col,                                         &
+                          freeze_level,                                       &
+                          deep_prec,                                          &
+                          shallow_prec,                                       &
+                          mid_prec,                                           &
+                          deep_term,                                          &
+                          cape_timescale,                                     &
+                          lowest_cv_base,                                     &
+                          lowest_cv_top,                                      &
+                          cv_base,                                            &
+                          cv_top,                                             &
+                          pres_cv_base,                                       &
+                          pres_cv_top,                                        &
+                          pres_lowest_cv_base,                                &
+                          pres_lowest_cv_top,                                 &
+                          lowest_cca_2d,                                      &
+                          deep_cfl_limited,                                   &
+                          mid_cfl_limited,                                    &
+                          entrain_up,                                         &   ! 3-D local variables
+                          entrain_down,                                       &
+                          detrain_up,                                         &
+                          detrain_down,                                       &
+                          dd_dt,                                              &
+                          dd_dq,                                              &
+                          deep_dt,                                            &
+                          deep_dq,                                            &
+                          deep_massflux,                                      &
+                          shallow_dt,                                         &
+                          shallow_dq,                                         &
+                          shallow_massflux,                                   &
+                          mid_dt,                                             &
+                          mid_dq,                                             &
+                          mid_massflux,                                       &
+                          deep_tops,                                          &
+                          massflux_up_half,                                   &
+                          massflux_up_cmpta,                                  &
+                          cca_unadjusted, dth_conv_noshal, dmv_conv_noshal )  &
+                                           ) ! end of invoke
+
+    if ( subroutine_timers ) call timer("conv_gr_alg")
+
+    ! output diagnostics on last iteration only
+    if (write_diag .and. use_xios_io .and. outer == outer_iterations) then
+
+      call output_diags_for_conv( cca,                   & ! prognostics
+                                  ccw,                   &
+                                  dt_conv,               & ! increments
+                                  dmv_conv,              &
+                                  dmcl_conv,             &
+                                  dms_conv,              &
+                                  du_conv,               &
+                                  dv_conv,               &
+                                  dbcf_conv,             &
+                                  dcfl_conv,             &
+                                  dcff_conv,             &
+                                  massflux_up,           & ! not local
+                                  massflux_down,         &
+                                  cape_diluted,          &
+                                  conv_rain,             &
+                                  conv_snow,             &
+                                  conv_rain_3d,          &
+                                  conv_snow_3d,          &
+                                  cca_2d,                &
+                                  deep_in_col,           & ! 2-D
+                                  shallow_in_col,        &
+                                  mid_in_col,            &
+                                  freeze_level,          &
+                                  deep_prec,             &
+                                  shallow_prec,          &
+                                  mid_prec,              &
+                                  deep_term,             &
+                                  cape_timescale,        &
+                                  lowest_cv_base,        &
+                                  lowest_cv_top,         &
+                                  cv_base,               &
+                                  cv_top,                &
+                                  pres_cv_base,          &
+                                  pres_cv_top,           &
+                                  pres_lowest_cv_base,   &
+                                  pres_lowest_cv_top,    &
+                                  lowest_cca_2d,         &
+                                  deep_cfl_limited,      &
+                                  mid_cfl_limited,       &
+                                  entrain_up,            & ! 3-D
+                                  entrain_down,          &
+                                  detrain_up,            &
+                                  detrain_down,          &
+                                  dd_dt,                 &
+                                  dd_dq,                 &
+                                  deep_dt,               &
+                                  deep_dq,               &
+                                  deep_massflux,         &
+                                  shallow_dt,            &
+                                  shallow_dq,            &
+                                  shallow_massflux,      &
+                                  mid_dt,                &
+                                  mid_dq,                &
+                                  mid_massflux,          &
+                                  deep_tops,             &
+                                  massflux_up_half,      &
+                                  massflux_up_cmpta,     &
+                                  cca_unadjusted,        &
+                                  dth_conv_noshal,       &
+                                  dmv_conv_noshal)
+
+    end if
+
+    nullify( mesh )
+
+  end subroutine conv_gr_alg
+
+end module conv_gr_alg_mod

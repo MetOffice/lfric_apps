@@ -1,0 +1,200 @@
+!-----------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------
+!> @brief Test suite to verify calculation of Schar mountain orography profile
+!>        in spherical coordinates.
+!-------------------------------------------------------------------------------
+module schar_orography_spherical_mod_test
+
+  use constants_mod,              only : i_def, r_def, l_def, PI, str_def, &
+                                         str_max_filename
+  use global_mesh_mod,            only : global_mesh_type
+  use analytic_orography_mod,     only : orography_profile
+  use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+
+  use funit
+
+  implicit none
+
+  private
+  public :: setUp, tearDown, test_schar_orography_spherical
+
+  @testCase
+  type, public, extends(TestCase) :: schar_orography_spherical_test_type
+    real(r_def) :: mountain_height
+    real(r_def) :: half_width
+    real(r_def) :: wavelength
+    real(r_def) :: lambda_centre_dec
+    real(r_def) :: phi_centre_dec
+  contains
+    procedure     :: setUp
+    procedure     :: tearDown
+    procedure     :: test_schar_orography_spherical
+  end type schar_orography_spherical_test_type
+
+  ! Mesh and element order parameters
+  character(str_def), parameter   :: mesh_name     = 'unit_test'
+  character(len=str_max_filename) :: file_prefix   = "data/mesh_C16"
+  integer(i_def),     parameter   :: total_ranks   = 1_i_def
+  integer(i_def),     parameter   :: local_rank    = 0_i_def
+  integer(i_def),     parameter   :: xproc         = 1_i_def
+  integer(i_def),     parameter   :: yproc         = 1_i_def
+  logical(l_def),     parameter   :: generate_inner_halos = .true.
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp(this)
+
+    use base_mesh_config_mod,          only : geometry_spherical, &
+                                              topology_fully_periodic
+    use extrusion_config_mod,          only : method_uniform, &
+                                              stretching_method_linear
+    use feign_config_mod,              only :                         &
+                                       feign_base_mesh_config,        &
+                                       feign_extrusion_config,        &
+                                       feign_planet_config,           &
+                                       feign_initial_pressure_config, &
+                                       feign_orography_schar_spherical_config
+    use finite_element_config_mod,     only : cellshape_quadrilateral
+    use initial_pressure_config_mod,   only : method_balanced
+    use orography_schar_spherical_config_mod, only : lambda_centre, phi_centre
+    use schar_orography_spherical_mod, only : schar_spherical_type
+
+    implicit none
+
+    class(schar_orography_spherical_test_type), intent(inout) :: this
+
+    ! Set mesh configuration
+    call feign_base_mesh_config(                                    &
+                         file_prefix     = file_prefix,             &
+                         prime_mesh_name = mesh_name,               &
+                         geometry        = geometry_spherical,      &
+                         prepartitioned  = .false.,                 &
+                         topology        = topology_fully_periodic, &
+                         fplane          = .false.,                 &
+                         f_lat_deg       = 0.0_r_def )
+
+    call feign_extrusion_config( method=method_uniform,                      &
+                                 planet_radius=6371229.0_r_def,              &
+                                 domain_height=12.0_r_def,                   &
+                                 number_of_layers=5_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=24.0_r_def,               &
+                                 eta_values=(/0.5_r_def/) )
+
+    ! Set planet parameters
+    call feign_planet_config( gravity        = 10.0_r_def,     &
+                              omega          = 8.0E-5_r_def,   &
+                              rd             = 300.0_r_def,    &
+                              cp             = 1000.0_r_def,   &
+                              p_zero         = 100000.0_r_def, &
+                              scaling_factor = 500.0_r_def )
+
+    call feign_initial_pressure_config( method           = method_balanced,   &
+                                        surface_pressure = 1000.0e2_r_def )
+
+    ! Set Schar spherical configuration
+    this%mountain_height   = 250.0_r_def
+    this%half_width        = 5000.0_r_def
+    this%wavelength        = 4000.0_r_def
+    this%lambda_centre_dec = 0.25_r_def
+    this%phi_centre_dec    = 0.0_r_def
+    call feign_orography_schar_spherical_config(                           &
+                               mountain_height   = this%mountain_height,   &
+                               half_width        = this%half_width,        &
+                               wavelength        = this%wavelength,        &
+                               lambda_centre_dec = this%lambda_centre_dec, &
+                               phi_centre_dec    = this%phi_centre_dec )
+
+    ! Initialise Schar spherical orography type
+    allocate( orography_profile,                                   &
+              source = schar_spherical_type( this%mountain_height, &
+                                             this%half_width,      &
+                                             this%wavelength,      &
+                                             lambda_centre,        &
+                                             phi_centre ) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown(this)
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(schar_orography_spherical_test_type), intent(inout) :: this
+
+    deallocate( orography_profile )
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_schar_orography_spherical(this)
+
+    use local_mesh_mod,       only : local_mesh_type
+    use panel_decomposition_mod, only : custom_decomposition_type
+    use partition_mod,        only : partition_type,        &
+                                     partitioner_interface, &
+                                     partitioner_cubedsphere_serial
+    implicit none
+    ! Arguments
+    class(schar_orography_spherical_test_type), intent(inout) :: this
+    ! Mesh and partition types
+    type(ugrid_mesh_data_type)                   :: ugrid_mesh_data
+    type(global_mesh_type),           pointer    :: global_mesh_ptr => null()
+    type(global_mesh_type),            target    :: global_mesh
+    type(custom_decomposition_type), allocatable :: decomposition
+    type(partition_type)                         :: partition
+    procedure(partitioner_interface), pointer    :: partitioner_ptr => null()
+    type(local_mesh_type)                        :: local_mesh
+    ! Test parameters
+    real(r_def), parameter  :: tol = 1.0e-3_r_def
+    real(r_def)             :: vertex_coords_2d(3,1), chi_surf, chi_test
+    integer(i_def)          :: itest
+
+    !Create global mesh
+    call ugrid_mesh_data%read_from_file(trim(file_prefix)//'.nc', mesh_name)
+    global_mesh = global_mesh_type( ugrid_mesh_data )
+    call ugrid_mesh_data%clear()
+    global_mesh_ptr => global_mesh
+
+    ! Assign partitioner
+    decomposition = custom_decomposition_type( xproc, yproc )
+    partitioner_ptr => partitioner_cubedsphere_serial
+    partition = partition_type( global_mesh_ptr,       &
+                                partitioner_ptr,       &
+                                decomposition,         &
+                                1,                     &
+                                generate_inner_halos, &
+                                local_rank,            &
+                                total_ranks )
+    ! Create local mesh
+    call local_mesh%initialise( global_mesh_ptr, partition )
+
+    ! Calculate surface height for selected number of points
+    itest = local_mesh%get_lid_from_gid(369)
+    call local_mesh%get_vert_coords(local_mesh%get_vert_on_cell(1,itest),&
+                                    vertex_coords_2d(:,1))
+    chi_surf = orography_profile%analytic_orography(vertex_coords_2d(1,1), &
+                                                    vertex_coords_2d(2,1))
+    chi_test = this%mountain_height
+    @assertEqual( chi_surf, chi_test, tol )
+
+    itest = local_mesh%get_lid_from_gid(80)
+    call local_mesh%get_vert_coords(local_mesh%get_vert_on_cell(1,itest),&
+                                    vertex_coords_2d(:,1))
+    chi_surf = orography_profile%analytic_orography(vertex_coords_2d(1,1), &
+                                                    vertex_coords_2d(2,1))
+    chi_test = 107.28412_r_def
+    @assertEqual( chi_surf, chi_test, tol )
+
+    return
+  end subroutine test_schar_orography_spherical
+
+end module schar_orography_spherical_mod_test

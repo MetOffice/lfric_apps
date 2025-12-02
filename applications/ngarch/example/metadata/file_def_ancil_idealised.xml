@@ -1,0 +1,14 @@
+<file_definition>
+
+  <!-- Ancillary files applicable to idealised setups -->
+  <file id="gas_mmr_ancil" name="gas_mmr_ancil" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+    <field id="ch4" name="ch4" long_name="mass_fraction_of_methane_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
+    <field id="co" name="co" long_name="mass_fraction_of_carbon_monoxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
+    <field id="co2" name="co2" long_name="mass_fraction_of_carbon_dioxide_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
+    <field id="h2" name="h2" long_name="mass_fraction_of_hydrogen_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
+    <field id="h2o" name="h2o" long_name="mass_fraction_of_water_vapour_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
+    <field id="he" name="he" long_name="mass_fraction_of_helium_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
+    <field id="nh3" name="nh3" long_name="mass_fraction_of_ammonia_in_air" unit="kg kg-1" operation="once" grid_ref="full_level_face_grid" />
+  </file>
+
+</file_definition>

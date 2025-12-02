@@ -1,0 +1,505 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the UM GLOMAP-mode aerosol climatology scheme
+
+module radaer_alg_mod
+
+  ! Derived Types
+  use field_mod,           only: field_type
+  use integer_field_mod,   only: integer_field_type
+  use field_collection_mod, &
+                           only: field_collection_type
+  use function_space_mod,  only: function_space_type
+  use function_space_collection_mod, &
+                           only: function_space_collection
+  use socrates_init_mod,   only: n_sw_band, n_lw_band
+  use io_config_mod,       only: subroutine_timers,                &
+                                 use_xios_io,                      &
+                                 write_diag
+  use timer_mod,           only: timer
+  use constants_mod,       only: i_def, l_def
+  use radiation_config_mod, &
+                           only: n_radstep
+  use aerosol_config_mod,  only: n_radaer_step
+  use mesh_mod,            only: mesh_type
+  use multires_coupling_config_mod, &
+                           only: lowest_order_aero_flag, &
+                                 coarse_rad_aerosol
+  use multidata_field_dimensions_mod, &
+                           only: get_ndata_val => get_multidata_field_dimension
+  use fs_continuity_mod,   only: Wtheta, W3
+  use intermesh_mappings_alg_mod, &
+                           only: map_scalar_intermesh, &
+                                 map_mr_intermesh
+
+  use radaer_main_diags_mod, only: initialise_main_diags_for_radaer,           &
+                                   output_main_diags_for_radaer
+
+  use sci_geometric_constants_mod, only: get_dz_at_wtheta
+
+  use ukca_radaer_precalc,  only: npd_ukca_aod_wavel
+
+  implicit none
+
+  private
+  public radaer_alg
+
+contains
+
+  !>@brief         Run the UM RADAER scheme
+  !>@details       The UM RADAER scheme calculates required fields for socrates.
+  !>@param[in]     rho_in_wth            Rho in theta space
+  !>@param[in]     radiation_fields      RADAER radiation related fields
+  !>@param[in]     theta_in_wth          Potential temperature (theta) wth space
+  !>@param[in]     exner_in_wth          Exner Pressure in theta space
+  !>@param[in]     exner_in_w3           Exner Pressure in w3 space
+  !>@param[in]     rho                   Density field
+  !>@param[in]     rho_aero              Density field on aerosol mesh
+  !>@param[in]     trop_level            Level of tropopause
+  !>@param[in]     aerosol_mesh          Mesh for aerosol fields
+  !>@param[in]     aerosol_twod_mesh     Mesh for 2D aerosol fields
+  !>@param[in]     timestep              Current timestep number
+  subroutine radaer_alg( aerosol_fields,                                       &
+                         radiation_fields,                                     &
+                         rho_in_wth,                                           &
+                         theta_in_wth,                                         &
+                         exner_in_wth,                                         &
+                         exner_in_w3,                                          &
+                         rho,                                                  &
+                         rho_aero,                                             &
+                         trop_level,                                           &
+                         aerosol_mesh,                                         &
+                         aerosol_twod_mesh,                                    &
+                         timestep )
+
+    use radaer_kernel_mod, only: radaer_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent( in )    :: aerosol_fields
+    type( field_collection_type ), intent( in )    :: radiation_fields
+
+    type( field_type ), intent( in )               :: rho_in_wth
+    type( field_type ), intent( in )               :: theta_in_wth
+    type( field_type ), intent( in )               :: exner_in_wth
+    type( field_type ), intent( in )               :: exner_in_w3
+    type( field_type ), intent( in )               :: rho
+    type( field_type ), intent( in )               :: rho_aero
+    type( integer_field_type ), intent( in )       :: trop_level
+    type(mesh_type), intent( in ),        pointer  :: aerosol_mesh
+    type(mesh_type), intent( in ),        pointer  :: aerosol_twod_mesh
+    integer( kind=i_def ), intent( in )            :: timestep
+
+    type(function_space_type), pointer :: w3_2d_aero => null()
+    type(function_space_type), pointer :: wth_aero => null()
+
+    type(mesh_type), pointer :: mesh => null()
+
+    type( field_type ), pointer :: dz_in_wth => null()
+
+    ! Temporary unpacked fields from collection aerosol_fields
+    type( field_type ), pointer :: n_ait_sol => null()
+    type( field_type ), pointer :: ait_sol_su => null()
+    type( field_type ), pointer :: ait_sol_bc => null()
+    type( field_type ), pointer :: ait_sol_om => null()
+    type( field_type ), pointer :: n_acc_sol => null()
+    type( field_type ), pointer :: acc_sol_su => null()
+    type( field_type ), pointer :: acc_sol_bc => null()
+    type( field_type ), pointer :: acc_sol_om => null()
+    type( field_type ), pointer :: acc_sol_ss => null()
+    type( field_type ), pointer :: n_cor_sol => null()
+    type( field_type ), pointer :: cor_sol_su => null()
+    type( field_type ), pointer :: cor_sol_bc => null()
+    type( field_type ), pointer :: cor_sol_om => null()
+    type( field_type ), pointer :: cor_sol_ss => null()
+    type( field_type ), pointer :: n_ait_ins => null()
+    type( field_type ), pointer :: ait_ins_bc => null()
+    type( field_type ), pointer :: ait_ins_om => null()
+    type( field_type ), pointer :: n_acc_ins => null()
+    type( field_type ), pointer :: acc_ins_du => null()
+    type( field_type ), pointer :: n_cor_ins => null()
+    type( field_type ), pointer :: cor_ins_du => null()
+    type( field_type ), pointer :: drydp_ait_sol => null()
+    type( field_type ), pointer :: drydp_acc_sol => null()
+    type( field_type ), pointer :: drydp_cor_sol => null()
+    type( field_type ), pointer :: drydp_ait_ins => null()
+    type( field_type ), pointer :: drydp_acc_ins => null()
+    type( field_type ), pointer :: drydp_cor_ins => null()
+    type( field_type ), pointer :: wetdp_ait_sol => null()
+    type( field_type ), pointer :: wetdp_acc_sol => null()
+    type( field_type ), pointer :: wetdp_cor_sol => null()
+    type( field_type ), pointer :: rhopar_ait_sol => null()
+    type( field_type ), pointer :: rhopar_acc_sol => null()
+    type( field_type ), pointer :: rhopar_cor_sol => null()
+    type( field_type ), pointer :: rhopar_ait_ins => null()
+    type( field_type ), pointer :: rhopar_acc_ins => null()
+    type( field_type ), pointer :: rhopar_cor_ins => null()
+    type( field_type ), pointer :: pvol_wat_ait_sol => null()
+    type( field_type ), pointer :: pvol_wat_acc_sol => null()
+    type( field_type ), pointer :: pvol_wat_cor_sol => null()
+    type( field_type ), pointer :: pvol_su_ait_sol => null()
+    type( field_type ), pointer :: pvol_bc_ait_sol => null()
+    type( field_type ), pointer :: pvol_om_ait_sol => null()
+    type( field_type ), pointer :: pvol_su_acc_sol => null()
+    type( field_type ), pointer :: pvol_bc_acc_sol => null()
+    type( field_type ), pointer :: pvol_om_acc_sol => null()
+    type( field_type ), pointer :: pvol_ss_acc_sol => null()
+    type( field_type ), pointer :: pvol_su_cor_sol => null()
+    type( field_type ), pointer :: pvol_bc_cor_sol => null()
+    type( field_type ), pointer :: pvol_om_cor_sol => null()
+    type( field_type ), pointer :: pvol_ss_cor_sol => null()
+    type( field_type ), pointer :: pvol_bc_ait_ins => null()
+    type( field_type ), pointer :: pvol_om_ait_ins => null()
+    type( field_type ), pointer :: pvol_du_acc_ins => null()
+    type( field_type ), pointer :: pvol_du_cor_ins => null()
+
+    type( field_type ), pointer :: lit_fraction_rts  => null()
+    type( field_type ), pointer :: aer_mix_ratio     => null()
+    type( field_type ), pointer :: aer_sw_absorption => null()
+    type( field_type ), pointer :: aer_sw_scattering => null()
+    type( field_type ), pointer :: aer_sw_asymmetry  => null()
+    type( field_type ), pointer :: aer_lw_absorption => null()
+    type( field_type ), pointer :: aer_lw_scattering => null()
+    type( field_type ), pointer :: aer_lw_asymmetry  => null()
+
+    type( field_type ), pointer  :: lit_fraction_rts_aero  => null()
+    type( field_type ), pointer  :: aer_mix_ratio_aero     => null()
+    type( field_type ), pointer  :: aer_sw_absorption_aero => null()
+    type( field_type ), pointer  :: aer_sw_scattering_aero => null()
+    type( field_type ), pointer  :: aer_sw_asymmetry_aero  => null()
+    type( field_type ), pointer  :: aer_lw_absorption_aero => null()
+    type( field_type ), pointer  :: aer_lw_scattering_aero => null()
+    type( field_type ), pointer  :: aer_lw_asymmetry_aero  => null()
+
+    type( field_type ), pointer :: n_acc_ins_aero => null()
+    type( field_type ), pointer :: acc_ins_du_aero => null()
+    type( field_type ), pointer :: n_cor_ins_aero => null()
+    type( field_type ), pointer :: cor_ins_du_aero => null()
+
+    type( field_type ), target :: lit_fraction_rts_coarse,  &
+                                  aer_mix_ratio_coarse,     &
+                                  aer_sw_absorption_coarse, &
+                                  aer_sw_scattering_coarse, &
+                                  aer_sw_asymmetry_coarse,  &
+                                  aer_lw_absorption_coarse, &
+                                  aer_lw_scattering_coarse, &
+                                  aer_lw_asymmetry_coarse,  &
+                                  n_acc_ins_coarse,         &
+                                  acc_ins_du_coarse,        &
+                                  n_cor_ins_coarse,         &
+                                  cor_ins_du_coarse
+
+    type( field_type ) :: aod_ukca_ait_sol
+    type( field_type ) :: aaod_ukca_ait_sol
+    type( field_type ) :: aod_ukca_acc_sol
+    type( field_type ) :: aaod_ukca_acc_sol
+    type( field_type ) :: aod_ukca_cor_sol
+    type( field_type ) :: aaod_ukca_cor_sol
+    type( field_type ) :: aod_ukca_ait_ins
+    type( field_type ) :: aaod_ukca_ait_ins
+    type( field_type ) :: aod_ukca_acc_ins
+    type( field_type ) :: aaod_ukca_acc_ins
+    type( field_type ) :: aod_ukca_cor_ins
+    type( field_type ) :: aaod_ukca_cor_ins
+
+    if ( subroutine_timers ) call timer('radaer_alg')
+
+    ! Call on radiation time steps only
+    if (mod(timestep-1_i_def, n_radaer_step*n_radstep) == 0) then
+
+      mesh      => theta_in_wth%get_mesh()
+      dz_in_wth => get_dz_at_wtheta(mesh%get_id())
+
+      ! Unpack fields from aerosol_fields
+      call aerosol_fields%get_field('n_ait_sol', n_ait_sol)
+      call aerosol_fields%get_field('ait_sol_su', ait_sol_su)
+      call aerosol_fields%get_field('ait_sol_bc', ait_sol_bc)
+      call aerosol_fields%get_field('ait_sol_om', ait_sol_om)
+      call aerosol_fields%get_field('n_acc_sol', n_acc_sol)
+      call aerosol_fields%get_field('acc_sol_su', acc_sol_su)
+      call aerosol_fields%get_field('acc_sol_bc', acc_sol_bc)
+      call aerosol_fields%get_field('acc_sol_om', acc_sol_om)
+      call aerosol_fields%get_field('acc_sol_ss', acc_sol_ss)
+      call aerosol_fields%get_field('n_cor_sol', n_cor_sol)
+      call aerosol_fields%get_field('cor_sol_su', cor_sol_su)
+      call aerosol_fields%get_field('cor_sol_bc', cor_sol_bc)
+      call aerosol_fields%get_field('cor_sol_om', cor_sol_om)
+      call aerosol_fields%get_field('cor_sol_ss', cor_sol_ss)
+      call aerosol_fields%get_field('n_ait_ins', n_ait_ins)
+      call aerosol_fields%get_field('ait_ins_bc', ait_ins_bc)
+      call aerosol_fields%get_field('ait_ins_om', ait_ins_om)
+      call aerosol_fields%get_field('drydp_ait_sol', drydp_ait_sol)
+      call aerosol_fields%get_field('drydp_acc_sol', drydp_acc_sol)
+      call aerosol_fields%get_field('drydp_cor_sol', drydp_cor_sol)
+      call aerosol_fields%get_field('drydp_ait_ins', drydp_ait_ins)
+      call aerosol_fields%get_field('drydp_acc_ins', drydp_acc_ins)
+      call aerosol_fields%get_field('drydp_cor_ins', drydp_cor_ins)
+      call aerosol_fields%get_field('wetdp_ait_sol', wetdp_ait_sol)
+      call aerosol_fields%get_field('wetdp_acc_sol', wetdp_acc_sol)
+      call aerosol_fields%get_field('wetdp_cor_sol', wetdp_cor_sol)
+      call aerosol_fields%get_field('rhopar_ait_sol', rhopar_ait_sol)
+      call aerosol_fields%get_field('rhopar_acc_sol', rhopar_acc_sol)
+      call aerosol_fields%get_field('rhopar_cor_sol', rhopar_cor_sol)
+      call aerosol_fields%get_field('rhopar_ait_ins', rhopar_ait_ins)
+      call aerosol_fields%get_field('rhopar_acc_ins', rhopar_acc_ins)
+      call aerosol_fields%get_field('rhopar_cor_ins', rhopar_cor_ins)
+      call aerosol_fields%get_field('pvol_wat_ait_sol', pvol_wat_ait_sol)
+      call aerosol_fields%get_field('pvol_wat_acc_sol', pvol_wat_acc_sol)
+      call aerosol_fields%get_field('pvol_wat_cor_sol', pvol_wat_cor_sol)
+      call aerosol_fields%get_field('pvol_su_ait_sol', pvol_su_ait_sol)
+      call aerosol_fields%get_field('pvol_bc_ait_sol', pvol_bc_ait_sol)
+      call aerosol_fields%get_field('pvol_om_ait_sol', pvol_om_ait_sol)
+      call aerosol_fields%get_field('pvol_su_acc_sol', pvol_su_acc_sol)
+      call aerosol_fields%get_field('pvol_bc_acc_sol', pvol_bc_acc_sol)
+      call aerosol_fields%get_field('pvol_om_acc_sol', pvol_om_acc_sol)
+      call aerosol_fields%get_field('pvol_ss_acc_sol', pvol_ss_acc_sol)
+      call aerosol_fields%get_field('pvol_su_cor_sol', pvol_su_cor_sol)
+      call aerosol_fields%get_field('pvol_bc_cor_sol', pvol_bc_cor_sol)
+      call aerosol_fields%get_field('pvol_om_cor_sol', pvol_om_cor_sol)
+      call aerosol_fields%get_field('pvol_ss_cor_sol', pvol_ss_cor_sol)
+      call aerosol_fields%get_field('pvol_bc_ait_ins', pvol_bc_ait_ins)
+      call aerosol_fields%get_field('pvol_om_ait_ins', pvol_om_ait_ins)
+      call aerosol_fields%get_field('pvol_du_acc_ins', pvol_du_acc_ins)
+      call aerosol_fields%get_field('pvol_du_cor_ins', pvol_du_cor_ins)
+
+      if ( coarse_rad_aerosol ) then
+        ! Unpack RADAER fields for radiation
+        call radiation_fields%get_field('lit_fraction_rts', lit_fraction_rts)
+        call radiation_fields%get_field('aer_mix_ratio', aer_mix_ratio)
+        call radiation_fields%get_field('aer_sw_absorption', aer_sw_absorption)
+        call radiation_fields%get_field('aer_sw_scattering', aer_sw_scattering)
+        call radiation_fields%get_field('aer_sw_asymmetry', aer_sw_asymmetry)
+        call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption)
+        call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering)
+        call radiation_fields%get_field('aer_lw_asymmetry', aer_lw_asymmetry)
+        ! If coarse RADAER, initialise new coarse fields, map data, and point to them
+        w3_2d_aero => function_space_collection%get_fs( aerosol_twod_mesh,     &
+                                                        0, 0, W3)
+        wth_aero => function_space_collection%get_fs( aerosol_mesh, &
+                                                      0, 0, WTHETA  )
+        call cor_ins_du_coarse%initialise(vector_space = wth_aero)
+        call acc_ins_du_coarse%initialise(vector_space = wth_aero)
+        call n_acc_ins_coarse%initialise(vector_space = wth_aero)
+        call n_cor_ins_coarse%initialise(vector_space = wth_aero)
+        call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+        call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+        call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+        call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
+                                                      0, 0, WTHETA,            &
+                                                      get_ndata_val('aero_modes') )
+        call aer_mix_ratio_coarse%initialise(vector_space = wth_aero)
+
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
+                                                      0, 0, WTHETA,            &
+                                                      get_ndata_val('sw_bands_aero_modes') )
+        call aer_sw_absorption_coarse%initialise(vector_space = wth_aero)
+        call aer_sw_scattering_coarse%initialise(vector_space = wth_aero)
+        call aer_sw_asymmetry_coarse%initialise(vector_space = wth_aero)
+
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
+                                                      0, 0, WTHETA,            &
+                                                      get_ndata_val('lw_bands_aero_modes') )
+        call aer_lw_absorption_coarse%initialise(vector_space = wth_aero)
+        call aer_lw_scattering_coarse%initialise(vector_space = wth_aero)
+        call aer_lw_asymmetry_coarse%initialise(vector_space = wth_aero)
+
+        call lit_fraction_rts_coarse%initialise(vector_space = w3_2d_aero)
+
+        call invoke(setval_c(lit_fraction_rts_coarse, 1.0_r_def),   &
+                    setval_c(aer_mix_ratio_coarse, 0.0_r_def),      &
+                    setval_c(aer_sw_absorption_coarse, 0.0_r_def),  &
+                    setval_c(aer_sw_scattering_coarse, 0.0_r_def),  &
+                    setval_c(aer_sw_asymmetry_coarse, 0.0_r_def),   &
+                    setval_c(aer_lw_absorption_coarse, 0.0_r_def),  &
+                    setval_c( aer_lw_scattering_coarse, 0.0_r_def), &
+                    setval_c( aer_lw_asymmetry_coarse, 0.0_r_def)   )
+
+        call map_scalar_intermesh(lit_fraction_rts_coarse, lit_fraction_rts)
+        call map_mr_intermesh(n_acc_ins_coarse, n_acc_ins, rho_aero, rho)
+        call map_mr_intermesh(acc_ins_du_coarse, acc_ins_du, rho_aero, rho)
+        call map_mr_intermesh(n_cor_ins_coarse, n_cor_ins, rho_aero, rho)
+        call map_mr_intermesh(cor_ins_du_coarse, cor_ins_du, rho_aero, rho)
+
+        ! Point to fields
+        aer_mix_ratio_aero =>  aer_mix_ratio_coarse
+        aer_sw_absorption_aero => aer_sw_absorption_coarse
+        aer_sw_scattering_aero => aer_sw_scattering_coarse
+        aer_sw_asymmetry_aero => aer_sw_asymmetry_coarse
+        aer_lw_absorption_aero => aer_lw_absorption_coarse
+        aer_lw_scattering_aero => aer_lw_scattering_coarse
+        aer_lw_asymmetry_aero => aer_lw_asymmetry_coarse
+        lit_fraction_rts_aero => lit_fraction_rts_coarse
+        n_acc_ins_aero => n_acc_ins_coarse
+        n_cor_ins_aero => n_cor_ins_coarse
+        acc_ins_du_aero => acc_ins_du_coarse
+        cor_ins_du_aero => cor_ins_du_coarse
+      else
+        ! Unpack RADAER fields for radiation
+        call radiation_fields%get_field('lit_fraction_rts', lit_fraction_rts_aero)
+        call radiation_fields%get_field('aer_mix_ratio', aer_mix_ratio_aero)
+        call radiation_fields%get_field('aer_sw_absorption', aer_sw_absorption_aero)
+        call radiation_fields%get_field('aer_sw_scattering', aer_sw_scattering_aero)
+        call radiation_fields%get_field('aer_sw_asymmetry', aer_sw_asymmetry_aero)
+        call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption_aero)
+        call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering_aero)
+        call radiation_fields%get_field('aer_lw_asymmetry', aer_lw_asymmetry_aero)
+
+        ! Unpack RADAER fields for aerosol
+        call aerosol_fields%get_field('n_acc_ins', n_acc_ins_aero)
+        call aerosol_fields%get_field('acc_ins_du', acc_ins_du_aero)
+        call aerosol_fields%get_field('n_cor_ins', n_cor_ins_aero)
+        call aerosol_fields%get_field('cor_ins_du', cor_ins_du_aero)
+      end if
+
+      ! Initialise radaer diagnostics
+      call initialise_main_diags_for_radaer(  aod_ukca_ait_sol,                &
+                                             aaod_ukca_ait_sol,                &
+                                              aod_ukca_acc_sol,                &
+                                             aaod_ukca_acc_sol,                &
+                                              aod_ukca_cor_sol,                &
+                                             aaod_ukca_cor_sol,                &
+                                              aod_ukca_ait_ins,                &
+                                             aaod_ukca_ait_ins,                &
+                                              aod_ukca_acc_ins,                &
+                                             aaod_ukca_acc_ins,                &
+                                              aod_ukca_cor_ins,                &
+                                             aaod_ukca_cor_ins,                &
+                                             trop_level )
+
+      call invoke( radaer_kernel_type( theta_in_wth,                           &
+                                       exner_in_wth,                           &
+                                       exner_in_w3,                            &
+                                       rho_in_wth,                             &
+                                       dz_in_wth,                              &
+                                       trop_level,                             &
+                                       lit_fraction_rts_aero,                  &
+                                       n_ait_sol,                              &
+                                       ait_sol_su,                             &
+                                       ait_sol_bc,                             &
+                                       ait_sol_om,                             &
+                                       n_acc_sol,                              &
+                                       acc_sol_su,                             &
+                                       acc_sol_bc,                             &
+                                       acc_sol_om,                             &
+                                       acc_sol_ss,                             &
+                                       n_cor_sol,                              &
+                                       cor_sol_su,                             &
+                                       cor_sol_bc,                             &
+                                       cor_sol_om,                             &
+                                       cor_sol_ss,                             &
+                                       n_ait_ins,                              &
+                                       ait_ins_bc,                             &
+                                       ait_ins_om,                             &
+                                       n_acc_ins_aero,                         &
+                                       acc_ins_du_aero,                        &
+                                       n_cor_ins_aero,                         &
+                                       cor_ins_du_aero,                        &
+                                       drydp_ait_sol,                          &
+                                       drydp_acc_sol,                          &
+                                       drydp_cor_sol,                          &
+                                       drydp_ait_ins,                          &
+                                       drydp_acc_ins,                          &
+                                       drydp_cor_ins,                          &
+                                       wetdp_ait_sol,                          &
+                                       wetdp_acc_sol,                          &
+                                       wetdp_cor_sol,                          &
+                                       rhopar_ait_sol,                         &
+                                       rhopar_acc_sol,                         &
+                                       rhopar_cor_sol,                         &
+                                       rhopar_ait_ins,                         &
+                                       rhopar_acc_ins,                         &
+                                       rhopar_cor_ins,                         &
+                                       pvol_wat_ait_sol,                       &
+                                       pvol_wat_acc_sol,                       &
+                                       pvol_wat_cor_sol,                       &
+                                       pvol_su_ait_sol,                        &
+                                       pvol_bc_ait_sol,                        &
+                                       pvol_om_ait_sol,                        &
+                                       pvol_su_acc_sol,                        &
+                                       pvol_bc_acc_sol,                        &
+                                       pvol_om_acc_sol,                        &
+                                       pvol_ss_acc_sol,                        &
+                                       pvol_su_cor_sol,                        &
+                                       pvol_bc_cor_sol,                        &
+                                       pvol_om_cor_sol,                        &
+                                       pvol_ss_cor_sol,                        &
+                                       pvol_bc_ait_ins,                        &
+                                       pvol_om_ait_ins,                        &
+                                       pvol_du_acc_ins,                        &
+                                       pvol_du_cor_ins,                        &
+                                       aer_mix_ratio_aero,                     &
+                                       aer_sw_absorption_aero,                 &
+                                       aer_sw_scattering_aero,                 &
+                                       aer_sw_asymmetry_aero,                  &
+                                       aer_lw_absorption_aero,                 &
+                                       aer_lw_scattering_aero,                 &
+                                       aer_lw_asymmetry_aero,                  &
+                                       aod_ukca_ait_sol,                       &
+                                       aaod_ukca_ait_sol,                      &
+                                       aod_ukca_acc_sol,                       &
+                                       aaod_ukca_acc_sol,                      &
+                                       aod_ukca_cor_sol,                       &
+                                       aaod_ukca_cor_sol,                      &
+                                       aod_ukca_ait_ins,                       &
+                                       aaod_ukca_ait_ins,                      &
+                                       aod_ukca_acc_ins,                       &
+                                       aaod_ukca_acc_ins,                      &
+                                       aod_ukca_cor_ins,                       &
+                                       aaod_ukca_cor_ins ) )
+
+      if ( coarse_rad_aerosol ) then
+        call map_scalar_intermesh( aer_mix_ratio, aer_mix_ratio_aero,          &
+                                   source_mask=lit_fraction_rts_aero,          &
+                                   lowest_order_flag=lowest_order_aero_flag )
+        call map_scalar_intermesh( aer_sw_absorption, aer_sw_absorption_aero,  &
+                                   source_mask=lit_fraction_rts_aero,          &
+                                   lowest_order_flag=lowest_order_aero_flag )
+        call map_scalar_intermesh( aer_sw_scattering, aer_sw_scattering_aero,  &
+                                   source_mask=lit_fraction_rts_aero,          &
+                                   lowest_order_flag=lowest_order_aero_flag )
+        call map_scalar_intermesh( aer_sw_asymmetry, aer_sw_asymmetry_aero,    &
+                                   source_mask=lit_fraction_rts_aero,          &
+                                   lowest_order_flag=lowest_order_aero_flag )
+        call map_scalar_intermesh( aer_lw_absorption, aer_lw_absorption_aero,  &
+                                   source_mask=lit_fraction_rts_aero,          &
+                                   lowest_order_flag=lowest_order_aero_flag )
+        call map_scalar_intermesh( aer_lw_scattering, aer_lw_scattering_aero,  &
+                                   source_mask=lit_fraction_rts_aero,          &
+                                   lowest_order_flag=lowest_order_aero_flag )
+        call map_scalar_intermesh( aer_lw_asymmetry, aer_lw_asymmetry_aero,    &
+                                   source_mask=lit_fraction_rts_aero,          &
+                                   lowest_order_flag=lowest_order_aero_flag )
+      end if
+
+      ! Diagnostic output
+      if ( write_diag .and. use_xios_io ) then
+
+        ! Process radaer diagnostics
+        call output_main_diags_for_radaer(  aod_ukca_ait_sol,                  &
+                                           aaod_ukca_ait_sol,                  &
+                                            aod_ukca_acc_sol,                  &
+                                           aaod_ukca_acc_sol,                  &
+                                            aod_ukca_cor_sol,                  &
+                                           aaod_ukca_cor_sol,                  &
+                                            aod_ukca_ait_ins,                  &
+                                           aaod_ukca_ait_ins,                  &
+                                            aod_ukca_acc_ins,                  &
+                                           aaod_ukca_acc_ins,                  &
+                                            aod_ukca_cor_ins,                  &
+                                           aaod_ukca_cor_ins )
+
+      end if
+
+    end if
+
+    if ( subroutine_timers ) call timer('radaer_alg')
+
+  end subroutine radaer_alg
+
+end module radaer_alg_mod

@@ -1,0 +1,117 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/populate_task_definitions.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# Assign each task requested a task definition based on its config #}
+{# Raise an error if no definition matches the config #}
+
+{# Script tasks are defined in their own file #}
+{% if task in scripts_list %}
+
+    {% include "site/"~SITE~"/scripts/tasks_scripts.cylc" ignore missing %}
+    {% if "script_families" not in task_dict %}
+        {% do task_dict.update({
+            "script_families": [site_vars["scripts_platform"]|upper~"_SCRIPTS"]
+        }) %}
+    {% endif %}
+    {% do requested_tasks.update({task: task_dict}) %}
+
+{# All other tasks #}
+{% else %}
+
+    {# Split the task and populate the namespace variable using macro #}
+    {% set task_ns = namespace(application="",
+                               conf_name="",
+                               platform="",
+                               compiler="",
+                               extras="") %}
+    {{ split_task_name(task, task_ns) }}
+
+    {# Record applications and platforms used #}
+    {% do set_add(requested_applications, task_ns.application) %}
+    {% do set_add(requested_platforms, task_ns.platform) %}
+
+    {# Look in the common and site specific application task files #}
+    {# for the task definition dictionary #}
+    {% include "site/common/"~
+               task_ns.application~
+               "/tasks_"~task_ns.application~".cylc" ignore missing %}
+    {% include "site/"~SITE~
+               "/"~task_ns.application~
+               "/tasks_"~task_ns.application~".cylc" ignore missing %}
+
+    {# If the task doesn't have a defined dictionary and the application is mesh #}
+    {# then define a default dictionary here as mesh are standardised enough. #}
+    {# If not mesh then raise an error #}
+    {% if task_ns.application == "mesh" %}
+
+        {% do task_dict.update({"application_dir": "lfric_core/mesh_tools",
+                                "app_name": "mesh"}) %}
+        {% if task.startswith("build") %}
+            {% do task_dict.update({"task_family": "build"}) %}
+        {% else %}
+            {% do task_dict.update({"resolutions": [task_ns.conf_name],
+                                    "task_family": "mesh"}) %}
+        {% endif %}
+
+    {% endif %}
+
+    {% if not task_dict %}
+
+        {{ raise("The task '"~task~"' does not have a task definition in "
+                    "your sites '"~task_ns.application~"/tasks_"~
+                    task_ns.application~".cylc' file. Please ensure there "
+                "is an entry for '"~task_ns.conf_name~"'.") }}
+
+    {% endif %}
+
+    {# Parse the build config (optimisation and precision) from the extras #}
+    {# value in the namespace #}
+    {% if task_dict %}
+        {% include "templates/parse_build_config.cylc" %}
+    {% endif %}
+
+    {# This variable is what rose-stem expects the task to be called based on build #}
+    {# options chosen. If the task name in the groups file doesn't match this it will #}
+    {# raise an error asking to rename the task. #}
+    {% if task.startswith("build") %}
+        {% set generated_task_name = "build_"~
+                                     task_ns.application~"_"~
+                                     task_ns.platform~"_"~
+                                     task_dict["build_conf"] %}
+    {% elif task.startswith("fcm_make") and task_ns.application == "lfricinputs" %}
+        {% set generated_task_name = "fcm_make_"~
+                                     task_ns.application~"_"~
+                                     task_dict["app_name"]~"_"~
+                                     task_ns.platform~"_"~
+                                     task_dict["build_conf"] %}
+    {% else %}
+        {% set generated_task_name = task_ns.application~"_"~
+                                     task_ns.conf_name~"_"~
+                                     task_ns.platform~"_"~
+                                     task_dict["build_conf"] %}
+    {% endif %}
+    {% if first_parse and generated_task_name != task %}
+        {{ raise("In order to avoid unnecessary build duplication the suite expects build "
+                 "settings to follow a particular order. The task '"~task~"' doesn't follow "
+                 "this order. Please change any entry for that task in the groups files to "
+                 "be '"~generated_task_name~"'.") }}
+    {% endif %}
+
+    {# Include the default task values for un-populated fields #}
+    {% include "templates/default_task_definitions.cylc" %}
+
+    {% set defined_task_name = generated_task_name %}
+    {% if not task.startswith("build") and not task.startswith("fcm_make") %}
+        {% set defined_task_name = "run_"~defined_task_name %}
+    {% endif %}
+
+    {% do requested_tasks.update({defined_task_name: task_dict}) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in templates/populate_task_definitions.cylc") %}

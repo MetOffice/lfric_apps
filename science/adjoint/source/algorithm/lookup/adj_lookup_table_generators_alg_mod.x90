@@ -1,0 +1,388 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing creation methods for lookup tables for specific kernels.
+module adj_lookup_table_generators_alg_mod
+
+  use adj_lookup_table_mod,          only : adj_lookup_table_type
+  use constants_mod,                 only : i_def
+  use fs_continuity_mod,             only : name_from_functionspace, &
+                                            W3
+  use integer_field_mod,             only : integer_field_type
+  use r_tran_field_mod,              only : r_tran_field_type
+  use r_solver_field_mod,            only : r_solver_field_type
+  use operator_mod,                  only : operator_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR
+
+  implicit none
+
+  private
+  public :: create_lookup_poly1d
+  public :: create_lookup_poly2d
+  public :: create_lookup_poly_adv_upd
+  public :: create_lookup_w3h_adv_upd
+  public :: create_lookup_apply_helmholtz_op
+
+contains
+
+  !=============================================================================
+  !> @brief Creates the lookup table for adj_poly1d_reconstruction_kernel
+  !> @param[inout]  lookup          The lookup table.
+  !> @param[in]     reconstruction  Field input for kernel.
+  !> @param[in]     tracer          Field input for kernel.
+  !> @param[in]     coeff           Field input for kernel.
+  !> @param[in]     stencil_extent  Horizontal extent of the stencil.
+  !> @param[in]     order           Order of the stencil.
+  subroutine create_lookup_poly1d(lookup, &
+                                  reconstruction, &
+                                  tracer, &
+                                  coeff, &
+                                  stencil_extent, &
+                                  order)
+
+    use psykal_lite_gen_lookup_tables_psy_mod, only : invoke_gen_poly1d_lookup_kernel
+
+    implicit none
+
+    ! Arguments
+    type(adj_lookup_table_type), intent(inout) :: lookup
+    type(r_tran_field_type),        intent(in) :: reconstruction
+    type(r_tran_field_type),        intent(in) :: tracer
+    type(r_tran_field_type),        intent(in) :: coeff
+    integer(kind=i_def),            intent(in) :: stencil_extent
+    integer(kind=i_def),            intent(in) :: order
+
+    ! Internal variables
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: recon_fspace
+    type(integer_field_type),  pointer :: lookup_poly1d_field
+    type(integer_field_type),  pointer :: set_counts_poly1d_field
+    type(integer_field_type)           :: lookup_poly1d_field_dummy
+    type(integer_field_type)           :: set_counts_poly1d_field_dummy
+
+    integer(kind=i_def)                :: nsets_max
+    integer(kind=i_def)                :: loop_halo_depth
+    integer(kind=i_def),     parameter :: nindices = 2
+    integer(kind=i_def),     parameter :: nfaces = 4
+
+    nullify( mesh, recon_fspace, lookup_poly1d_field, set_counts_poly1d_field )
+
+    !=============================================================================
+    ! Generating lookup_polynd
+    nsets_max = nfaces*(order + 1)   ! Derived from the looping within the generation code.
+
+    recon_fspace => reconstruction%get_function_space()
+    mesh => recon_fspace%get_mesh()
+
+    call lookup%initialise( nindices, nsets_max, mesh, recon_fspace%which(), stencil_extent )
+    lookup_poly1d_field => lookup%get_lookup_field()
+    set_counts_poly1d_field => lookup%get_set_count_field()
+
+    call lookup_poly1d_field%copy_field_properties( lookup_poly1d_field_dummy )
+    call set_counts_poly1d_field%copy_field_properties( set_counts_poly1d_field_dummy )
+
+    loop_halo_depth = stencil_extent
+    call invoke_gen_poly1d_lookup_kernel( tracer, &
+                                          coeff, &
+                                          reconstruction, &
+                                          lookup_poly1d_field, &
+                                          set_counts_poly1d_field, &
+                                          lookup_poly1d_field_dummy, &
+                                          set_counts_poly1d_field_dummy, &
+                                          order, &
+                                          nindices, &
+                                          stencil_extent, &
+                                          loop_halo_depth )
+
+  end subroutine create_lookup_poly1d
+
+
+  !=============================================================================
+  !> @brief Creates the lookup table for adj_poly2d_reconstruction_kernel
+  !> @param[inout]  lookup          The lookup table.
+  !> @param[in]     reconstruction  Field input for kernel.
+  !> @param[in]     tracer          Field input for kernel.
+  !> @param[in]     coeff           Field input for kernel.
+  !> @param[in]     stencil_size    Total size of the region stencil.
+  !> @param[in]     stencil_extent  Horizontal extent of the stencil.
+  subroutine create_lookup_poly2d(lookup, &
+                                  reconstruction, &
+                                  tracer, &
+                                  coeff, &
+                                  stencil_size, &
+                                  stencil_extent)
+
+    use psykal_lite_gen_lookup_tables_psy_mod, only : invoke_gen_poly2d_lookup_kernel
+
+    implicit none
+
+    ! Arguments
+    type(adj_lookup_table_type), intent(inout) :: lookup
+    type(r_tran_field_type),        intent(in) :: reconstruction
+    type(r_tran_field_type),        intent(in) :: tracer
+    type(r_tran_field_type),        intent(in) :: coeff
+    integer(kind=i_def),            intent(in) :: stencil_size
+    integer(kind=i_def),            intent(in) :: stencil_extent
+
+    ! Internal variables
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: recon_fspace
+    type(integer_field_type),  pointer :: lookup_poly2d_field
+    type(integer_field_type),  pointer :: set_counts_poly2d_field
+    type(integer_field_type)           :: lookup_poly2d_field_dummy
+    type(integer_field_type)           :: set_counts_poly2d_field_dummy
+
+    integer(kind=i_def)               :: nsets_max
+    integer(kind=i_def)               :: loop_halo_depth
+    integer(kind=i_def),    parameter :: nindices = 2
+    integer(kind=i_def),    parameter :: nfaces = 4
+
+    nullify( mesh, recon_fspace, lookup_poly2d_field, set_counts_poly2d_field )
+
+    !=============================================================================
+    ! Generating lookup_polynd
+    nsets_max = nfaces*stencil_size  ! Derived from the looping within the generation code.
+
+    recon_fspace => reconstruction%get_function_space()
+    mesh => recon_fspace%get_mesh()
+
+    call lookup%initialise( nindices, nsets_max, mesh, recon_fspace%which(), stencil_extent )
+    lookup_poly2d_field => lookup%get_lookup_field()
+    set_counts_poly2d_field => lookup%get_set_count_field()
+
+    call lookup_poly2d_field%copy_field_properties( lookup_poly2d_field_dummy )
+    call set_counts_poly2d_field%copy_field_properties( set_counts_poly2d_field_dummy )
+
+    loop_halo_depth = stencil_extent
+    call invoke_gen_poly2d_lookup_kernel( tracer, &
+                                          coeff, &
+                                          reconstruction, &
+                                          lookup_poly2d_field, &
+                                          set_counts_poly2d_field, &
+                                          lookup_poly2d_field_dummy, &
+                                          set_counts_poly2d_field_dummy, &
+                                          stencil_size, &
+                                          nindices, &
+                                          stencil_extent, &
+                                          loop_halo_depth )
+
+  end subroutine create_lookup_poly2d
+
+
+  !=============================================================================
+  !> @brief Creates the lookup table for adj_poly_advective_update_kernel
+  !> @param[inout]  lookup          The lookup table.
+  !> @param[in]     advective       Field input for kernel.
+  !> @param[in]     reconstruction  Field input for kernel.
+  !> @param[in]     wind            Field input for kernel.
+  !> @param[in]     stencil_extent  Horizontal extent of the stencil.
+  subroutine create_lookup_poly_adv_upd(lookup, advective, reconstruction, wind, stencil_extent)
+
+    use psykal_lite_gen_lookup_tables_psy_mod, only : invoke_gen_poly_adv_upd_lookup_kernel
+
+    implicit none
+
+    ! Arguments
+    type(adj_lookup_table_type), intent(inout) :: lookup
+    type(r_tran_field_type),        intent(in) :: advective
+    type(r_tran_field_type),        intent(in) :: reconstruction
+    type(r_tran_field_type),        intent(in) :: wind
+    integer(kind=i_def),            intent(in) :: stencil_extent
+
+    ! Local
+    integer(kind=i_def) :: loop_halo_depth
+
+    type(r_tran_field_type) :: reconstruction_big_halo, wind_big_halo
+
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: advective_fspace
+    type(integer_field_type),  pointer :: lookup_field
+    type(integer_field_type),  pointer :: set_counts_field
+
+    type(integer_field_type)           :: lookup_field_dummy
+    type(integer_field_type)           :: set_counts_field_dummy
+
+    integer(kind=i_def), parameter :: nfaces = 4
+    integer(kind=i_def), parameter :: nindices = 7
+    integer(kind=i_def), parameter :: nsets_max = 1
+
+    nullify( mesh, advective_fspace, lookup_field, set_counts_field )
+
+    advective_fspace => advective%get_function_space()
+    mesh => advective_fspace%get_mesh()
+    call lookup%initialise( nindices, nsets_max, mesh, advective_fspace%which(), stencil_extent, &
+                            ndata=nfaces )
+    lookup_field => lookup%get_lookup_field()
+    set_counts_field => lookup%get_set_count_field()
+
+    call lookup_field%copy_field_properties( lookup_field_dummy )
+    call set_counts_field%copy_field_properties( set_counts_field_dummy )
+
+    loop_halo_depth = stencil_extent
+
+    ! NOTE: For this kernel, fields with stencils must be extended so that the
+    !       halo depth is loop_halo_depth + stencil_extent,
+    !       because PSyclone will try to perform a halo exchange.
+    !       Due to the OWNED_AND_HALO_CELL_COLUMN argument.
+    call reconstruction_big_halo%initialise( reconstruction%get_function_space(), &
+                                             halo_depth=loop_halo_depth + stencil_extent )
+    call wind_big_halo%initialise( wind%get_function_space(), &
+                                   halo_depth=loop_halo_depth + stencil_extent )
+
+    call invoke_gen_poly_adv_upd_lookup_kernel( advective, &
+                                                reconstruction_big_halo, &
+                                                wind_big_halo, lookup_field, &
+                                                set_counts_field, &
+                                                lookup_field_dummy, &
+                                                set_counts_field_dummy, &
+                                                nsets_max, &
+                                                nindices, &
+                                                stencil_extent, &
+                                                loop_halo_depth )
+
+  end subroutine create_lookup_poly_adv_upd
+
+  !=============================================================================
+  !> @brief Creates the lookup table for adj_poly_advective_update_kernel
+  !> @param[inout]  lookup               The lookup table.
+  !> @param[in]     advective_increment  Field input for kernel.
+  !> @param[in]     tracer               Field input for kernel.
+  !> @param[in]     wind                 Field input for kernel.
+  !> @param[in]     m3_inv               Matrix operator input for kernel.
+  !> @param[in]     stencil_extent       Horizontal extent of the stencil.
+  subroutine create_lookup_w3h_adv_upd(lookup, advective_increment, tracer, wind, m3_inv, stencil_extent)
+    use psykal_lite_gen_lookup_tables_psy_mod, only : invoke_gen_w3h_adv_upd_lookup_kernel
+
+    implicit none
+
+    ! Arguments
+    type(adj_lookup_table_type), intent(inout) :: lookup
+    type(r_tran_field_type),        intent(in) :: advective_increment
+    type(r_tran_field_type),        intent(in) :: tracer
+    type(r_tran_field_type),        intent(in) :: wind
+    type(operator_type),            intent(in) :: m3_inv
+    integer(kind=i_def),            intent(in) :: stencil_extent
+
+    ! Local
+    integer(kind=i_def) :: loop_halo_depth
+
+    type(r_tran_field_type) :: advective_big_halo, wind_big_halo
+
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: tracer_fspace
+    type(integer_field_type),  pointer :: lookup_field
+    type(integer_field_type),  pointer :: set_counts_field
+
+    type(integer_field_type)           :: lookup_field_dummy
+    type(integer_field_type)           :: set_counts_field_dummy
+
+    integer(kind=i_def), parameter :: nfaces = 4
+    integer(kind=i_def), parameter :: nindices = 7
+    integer(kind=i_def), parameter :: nsets_max = 1
+
+    nullify( mesh, tracer_fspace, lookup_field, set_counts_field )
+
+    tracer_fspace => tracer%get_function_space()
+    mesh => tracer_fspace%get_mesh()
+    call lookup%initialise( nindices, nsets_max, mesh, tracer_fspace%which(), stencil_extent, &
+                            ndata=nfaces )
+    lookup_field => lookup%get_lookup_field()
+    set_counts_field => lookup%get_set_count_field()
+
+    call lookup_field%copy_field_properties( lookup_field_dummy )
+    call set_counts_field%copy_field_properties( set_counts_field_dummy )
+
+    loop_halo_depth = stencil_extent
+
+    ! NOTE: For this kernel fields with stencils must be extended so that the halo depth is
+    !       loop_halo_depth + stencil_extent, because PSyclone will try to perform a halo exchange.
+    !       Due to the OWNED_AND_HALO_CELL_COLUMN argument.
+    call advective_big_halo%initialise( advective_increment%get_function_space(), &
+                                        halo_depth=loop_halo_depth + stencil_extent )
+    call wind_big_halo%initialise( wind%get_function_space(), &
+                                   halo_depth=loop_halo_depth + stencil_extent )
+
+    call invoke_gen_w3h_adv_upd_lookup_kernel( advective_big_halo, &
+                                               wind_big_halo, &
+                                               m3_inv, &
+                                               lookup_field, &
+                                               set_counts_field, &
+                                               lookup_field_dummy, &
+                                               set_counts_field_dummy, &
+                                               nsets_max, &
+                                               nindices, &
+                                               stencil_extent, &
+                                               loop_halo_depth )
+
+  end subroutine create_lookup_w3h_adv_upd
+
+  !=============================================================================
+  !> @brief Creates the lookup table for adj_apply_helmholtz_operator_kernel
+  !> @param[inout]  lookup               The lookup table.
+  !> @param[in]     dummy_w3             Field input for kernel.
+  subroutine create_lookup_apply_helmholtz_op(lookup, dummy_w3)
+
+    use psykal_lite_gen_lookup_tables_psy_mod, only : invoke_gen_a_h_o_lookup_kernel
+
+    implicit none
+
+    ! Arguments
+    type(adj_lookup_table_type), intent(inout) :: lookup
+    type(r_solver_field_type),      intent(in) :: dummy_w3
+
+    ! Local
+    integer(kind=i_def)                :: loop_halo_depth
+    type(r_solver_field_type)          :: dummy_w3_big_halo
+
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w3fspace
+    type(integer_field_type),  pointer :: lookup_field
+    type(integer_field_type),  pointer :: set_counts_field
+
+    type(integer_field_type)           :: lookup_field_dummy
+    type(integer_field_type)           :: set_counts_field_dummy
+
+    integer(kind=i_def), parameter :: nfaces = 4
+    integer(kind=i_def), parameter :: nsets_max = nfaces
+    integer(kind=i_def), parameter :: nindices = 2
+    integer(kind=i_def), parameter :: stencil_extent = 1
+
+    nullify( mesh, w3fspace, lookup_field, set_counts_field )
+
+    w3fspace => dummy_w3%get_function_space()
+    mesh => w3fspace%get_mesh()
+    call lookup%initialise( nindices, nsets_max, mesh, W3, stencil_extent, &
+                            ndata=nfaces )
+    lookup_field => lookup%get_lookup_field()
+    set_counts_field => lookup%get_set_count_field()
+
+    call lookup_field%copy_field_properties( lookup_field_dummy )
+    call set_counts_field%copy_field_properties( set_counts_field_dummy )
+
+    loop_halo_depth = stencil_extent
+
+    ! NOTE: For this kernel fields with stencils must be extended so that the halo depth is
+    !       loop_halo_depth + stencil_extent, because PSyclone will try to perform a halo exchange.
+    !       Due to the OWNED_AND_HALO_CELL_COLUMN argument.
+    call dummy_w3_big_halo%initialise( dummy_w3%get_function_space(), &
+                                       halo_depth=loop_halo_depth + stencil_extent )
+
+    call invoke_gen_a_h_o_lookup_kernel( dummy_w3_big_halo, &
+                                         lookup_field, &
+                                         set_counts_field, &
+                                         lookup_field_dummy, &
+                                         set_counts_field_dummy, &
+                                         nindices, &
+                                         stencil_extent, &
+                                         loop_halo_depth )
+
+  end subroutine create_lookup_apply_helmholtz_op
+
+end module adj_lookup_table_generators_alg_mod

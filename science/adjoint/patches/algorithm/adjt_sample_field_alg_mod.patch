@@ -1,0 +1,78 @@
+@@ -14,7 +14,7 @@
+     use fs_continuity_mod, only : w0
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -24,50 +24,53 @@
+     type(field_type) :: rmultiplicity
+     type(field_type) :: field_2
+     type(field_type) :: field_1_input
+-    type(field_type) :: rmultiplicity_input
+     type(field_type) :: field_2_input
+     real(kind=r_def) :: field_1_inner_prod
+-    real(kind=r_def) :: rmultiplicity_inner_prod
+     real(kind=r_def) :: field_2_inner_prod
++    real(kind=r_def) :: field_1_sf
++    real(kind=r_def) :: field_2_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: field_1_field_1_input_inner_prod
+-    real(kind=r_def) :: rmultiplicity_rmultiplicity_input_inner_prod
+     real(kind=r_def) :: field_2_field_2_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
+     call field_1%initialise(vector_space=vector_space_w0_ptr, name='field_1')
+     call rmultiplicity%initialise(vector_space=vector_space_w0_ptr, name='rmultiplicity')
+     call field_2%initialise(vector_space=vector_space_w0_ptr, name='field_2')
+     call field_1_input%initialise(vector_space=vector_space_w0_ptr, name='field_1_input')
+-    call rmultiplicity_input%initialise(vector_space=vector_space_w0_ptr, name='rmultiplicity_input')
+     call field_2_input%initialise(vector_space=vector_space_w0_ptr, name='field_2_input')
+     field_1_inner_prod = 0.0_r_def
+-    rmultiplicity_inner_prod = 0.0_r_def
+     field_2_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(field_1), setval_x(field_1_input, field_1), setval_random(rmultiplicity), &
+-&setval_x(rmultiplicity_input, rmultiplicity), setval_random(field_2), setval_x(field_2_input, field_2), &
++&setval_random(field_2), setval_x(field_2_input, field_2), &
+ &sample_field_kernel_type(field_1, rmultiplicity, field_2), x_innerproduct_x(field_1_inner_prod, field_1), &
+-&x_innerproduct_x(rmultiplicity_inner_prod, rmultiplicity), x_innerproduct_x(field_2_inner_prod, field_2))
++&x_innerproduct_x(field_2_inner_prod, field_2))
++    write( log_scratch_space, * ) "adjt_sample_field_alg inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "field_1 inner product = ", field_1_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "field_2 inner product = ", field_2_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    field_1_sf = 1.0_r_def / (field_1_inner_prod + eps)
++    field_2_sf = 1.0_r_def / (field_2_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + field_1_inner_prod
+-    inner1 = inner1 + rmultiplicity_inner_prod
+-    inner1 = inner1 + field_2_inner_prod
++    inner1 = inner1 + field_1_inner_prod * field_1_sf
++    inner1 = inner1 + field_2_inner_prod * field_2_sf
++    call invoke( inc_a_times_X( field_1_sf, field_1 ), &
++                 inc_a_times_X( field_2_sf, field_2 ) )
+     field_1_field_1_input_inner_prod = 0.0_r_def
+-    rmultiplicity_rmultiplicity_input_inner_prod = 0.0_r_def
+     field_2_field_2_input_inner_prod = 0.0_r_def
+     call invoke(adj_sample_field_kernel_type(field_1, rmultiplicity, field_2), x_innerproduct_y(field_1_field_1_input_inner_prod, &
+-&field_1, field_1_input), x_innerproduct_y(rmultiplicity_rmultiplicity_input_inner_prod, rmultiplicity, rmultiplicity_input), &
++&field_1, field_1_input), &
+ &x_innerproduct_y(field_2_field_2_input_inner_prod, field_2, field_2_input))
+     inner2 = 0.0_r_def
+     inner2 = inner2 + field_1_field_1_input_inner_prod
+-    inner2 = inner2 + rmultiplicity_rmultiplicity_input_inner_prod
+     inner2 = inner2 + field_2_field_2_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

@@ -1,0 +1,645 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> @brief A two time-level iterative time-discretisation of the linear
+!>        gravity wave equations
+module gravity_wave_alg_mod
+
+  use constants_mod,                  only: i_def, r_def, l_def, &
+                                            r_second, str_def,   &
+                                            r_solver
+  use driver_modeldb_mod,             only: modeldb_type
+  use fs_continuity_mod,              only: W3
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_TRACE
+  use namelist_mod,                   only: namelist_type
+
+  ! Configuration options
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use sci_fem_constants_mod,          only: get_div,                   &
+                                            get_inverse_mass_matrix_fe
+  use limited_area_constants_mod,     only: get_mask_fe
+  use gravity_wave_constants_config_mod, only: cs_square,     &
+                                               b_space_w0,    &
+                                               b_space_w3,    &
+                                               b_space_wtheta
+
+  ! Derived Types
+  use field_mod,                      only: field_type
+  use derived_config_mod,             only: bundle_size
+  use function_space_mod,             only: function_space_type
+  use operator_mod,                   only: operator_type
+  use mesh_mod,                       only: mesh_type
+  use sci_field_vector_mod,           only: field_vector_type
+  use sci_r_solver_field_vector_mod,  only: r_solver_field_vector_type
+
+  ! Algorithms
+  use gw_mixed_operator_alg_mod,      only: gw_mixed_operator_type
+  use gw_mixed_schur_precon_alg_mod,  only: gw_mixed_schur_preconditioner_type
+  use gw_mixed_diag_precon_alg_mod,   only: gw_mixed_diag_preconditioner_type
+  use gw_pressure_operator_alg_mod,   only: gw_pressure_operator_type
+  use gw_pressure_precon_alg_mod,     only: gw_pressure_preconditioner_type
+  use sci_null_preconditioner_alg_mod, &
+                                      only: null_preconditioner_type
+  use multigrid_preconditioner_alg_mod, &
+                                      only: multigrid_preconditioner_type
+  use pressure_diag_precon_alg_mod,   only: pressure_diag_preconditioner_type
+
+  ! Preconditioner and solver
+  use sci_preconditioner_mod,         only: abstract_preconditioner_type
+  use sci_iterative_solver_mod,       only: abstract_iterative_solver_type, &
+                                            bicgstab_type,                  &
+                                            gmres_type,                     &
+                                            fgmres_type,                    &
+                                            gcr_type,                       &
+                                            block_gcr_type,                 &
+                                            jacobi_type,                    &
+                                            conjugate_gradient_type,        &
+                                            precondition_only_type
+
+  use field_indices_mod,              only: igw_u, igw_p, igw_b
+
+  use copy_field_alg_mod,             only: copy_field
+  use timer_mod,                      only: timer
+
+  implicit none
+
+  private
+
+  ! 'State' items private to the algorithm that need to be
+  !  created once but used every step
+  type( field_vector_type )         :: state, state_n, rdef_rhs_n, rdef_state_inc
+  type( r_solver_field_vector_type) :: rhs_n, state_inc
+  type(operator_type)               :: Q
+
+  ! Operator, preconditioner and iterative solver for mixed problem
+  type( gw_mixed_operator_type)                       :: gw_mixed_operator
+  class( abstract_preconditioner_type),   allocatable :: gw_mixed_preconditioner
+  class( abstract_iterative_solver_type), allocatable :: gw_mixed_solver
+
+  !> Absolute solver tolerance (mixed solver)
+  real(kind=r_def), parameter :: gw_mixed_solver_a_tol = 1.E-12_r_def
+
+  !> Operator, preconditioner and iterative solver for
+  !> Helmholtz (pressure) problem
+  type( gw_pressure_operator_type )                    :: gw_pressure_operator
+  class( abstract_preconditioner_type ),   allocatable :: gw_pressure_preconditioner
+  class( abstract_iterative_solver_type ), allocatable :: gw_pressure_solver
+
+  !> Absolute solver tolerance (pressure solver)
+  real(kind=r_def), parameter :: gw_pressure_solver_a_tol = 1.E-12_r_def
+
+  public :: gravity_wave_alg_init
+  public :: gravity_wave_alg_final
+  public :: gravity_wave_alg_step
+
+contains
+
+!=============================================================================!
+
+  !> @details Initialisation procedure for the timestepping algorithm
+  !>          Initialises various internal fields from the prognostic fields
+  !> @param[in] mesh     Mesh on which the model runs
+  !> @param[in] wind     The 3D wind field
+  !> @param[in] pressure The pressure field
+  !> @param[in] buoyancy The buoyancy field
+  subroutine gravity_wave_alg_init( mesh, wind, pressure, buoyancy)
+
+    use quadrature_xyoz_mod,           only: quadrature_xyoz_type
+    use quadrature_rule_gaussian_mod,  only: quadrature_rule_gaussian_type
+    use compute_q_operator_kernel_mod, only: compute_q_operator_type, &
+                                             compute_q_operator_init
+    use mixed_solver_config_mod,       only: si_maximum_iterations,      &
+                                             si_tolerance,               &
+                                             si_method,                  &
+                                             mixed_gcrk => gcrk,         &
+                                             si_method_cg,               &
+                                             si_method_bicgstab,         &
+                                             si_method_gmres,            &
+                                             si_method_fgmres,           &
+                                             si_method_gcr,              &
+                                             si_method_block_gcr,        &
+                                             si_method_prec_only,        &
+                                             si_preconditioner,          &
+                                             si_preconditioner_pressure, &
+                                             si_preconditioner_diagonal, &
+                                             si_preconditioner_none,     &
+                                             si_fail_on_non_converged => &
+                                               fail_on_non_converged,    &
+                                             si_monitor_convergence =>   &
+                                               monitor_convergence
+
+    use helmholtz_solver_config_mod,   only: si_pressure_maximum_iterations,             &
+                                             helmholtz_gcrk => gcrk,                     &
+                                             si_pressure_tolerance,                      &
+                                             helmholtz_method => method,                 &
+                                             method_cg,                                  &
+                                             method_bicgstab,                            &
+                                             method_gmres,                               &
+                                             method_fgmres,                              &
+                                             method_gcr,                                 &
+                                             method_prec_only,                           &
+                                             method_jacobi,                              &
+                                             helmholtz_preconditioner => preconditioner, &
+                                             preconditioner_none,                        &
+                                             preconditioner_tridiagonal,                 &
+                                             preconditioner_diagonal,                    &
+                                             preconditioner_multigrid,                   &
+                                             si_pressure_fail_on_non_converged =>        &
+                                               fail_on_non_converged,                    &
+                                             si_pressure_monitor_convergence =>          &
+                                               monitor_convergence,                      &
+                                             si_pressure_jacobi_relaxation =>            &
+                                                 jacobi_relaxation
+
+    implicit none
+
+    ! Mesh
+    type(mesh_type), intent(in), pointer :: mesh
+
+    ! Prognostic fields
+    type( field_type ), intent( in ) :: wind, pressure, buoyancy
+
+    type(function_space_type), pointer  :: u_fs => null()
+    type(function_space_type), pointer  :: p_fs => null()
+    type(function_space_type), pointer  :: b_fs => null()
+    type(quadrature_xyoz_type)          :: qr
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+
+    real(kind=r_def), allocatable       :: dz(:)
+    integer(kind=i_def)                 :: nlayers
+
+    type(gw_pressure_preconditioner_type) :: gw_Hz_preconditioner
+
+    !=== Create internal state field arrays ================================!
+    state          = field_vector_type(bundle_size)
+    state_n        = field_vector_type(bundle_size)
+    rdef_rhs_n     = field_vector_type(bundle_size)
+    rdef_state_inc = field_vector_type(bundle_size)
+    rhs_n          = r_solver_field_vector_type(bundle_size)
+    state_inc      = r_solver_field_vector_type(bundle_size)
+
+    !=== Initialise internal state field objects =============================!
+    u_fs => wind%get_function_space()
+    p_fs => pressure%get_function_space()
+    b_fs => buoyancy%get_function_space()
+
+    call state%import_field(wind,     igw_u)
+    call state%import_field(pressure, igw_p)
+    call state%import_field(buoyancy, igw_b)
+
+    state_n = state
+    rdef_rhs_n = state
+    rdef_state_inc = state
+
+    call rhs_n%initialise_field(igw_u, u_fs)
+    call rhs_n%initialise_field(igw_p, p_fs)
+    call rhs_n%initialise_field(igw_b, b_fs)
+    call state_inc%initialise_field(igw_u, u_fs)
+    call state_inc%initialise_field(igw_p, p_fs)
+    call state_inc%initialise_field(igw_b, b_fs)
+
+
+    ! Create Q operator
+    call Q%initialise( u_fs, b_fs)
+    qr = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
+                              element_order_v+2, quadrature_rule)
+    nlayers = mesh%get_nlayers()
+    allocate ( dz(nlayers) )
+    call mesh%get_dz(dz)
+    call compute_q_operator_init(dz, nlayers)
+    call invoke( compute_q_operator_type(Q, qr) )
+
+    ! *** Construct Helmholtz operator
+    gw_pressure_operator = gw_pressure_operator_type(level=1_i_def)
+
+    ! *** Allocate polymorphic solver- and preconditioner objects ***
+
+    ! Allocate pressure solver of correct type
+    if (helmholtz_method == METHOD_BICGSTAB) then
+       allocate ( bicgstab_type :: gw_pressure_solver )
+    else if (helmholtz_method == METHOD_CG) then
+       allocate ( conjugate_gradient_type :: gw_pressure_solver )
+    else if (helmholtz_method == METHOD_GMRES) then
+       allocate ( gmres_type :: gw_pressure_solver )
+    else if (helmholtz_method == METHOD_FGMRES) then
+       allocate ( fgmres_type :: gw_pressure_solver )
+    else if (helmholtz_method == METHOD_GCR) then
+       allocate ( gcr_type :: gw_pressure_solver )
+    else if (helmholtz_method == METHOD_JACOBI) then
+       allocate ( jacobi_type :: gw_pressure_solver )
+    else if (helmholtz_method == METHOD_PREC_ONLY) then
+       allocate ( precondition_only_type :: gw_pressure_solver )
+    else
+       call log_event("Unknown pressure solver specified",LOG_LEVEL_ERROR)
+    end if
+
+    ! Allocate pressure preconditioner preconditioner of correct type
+    if (helmholtz_preconditioner == PRECONDITIONER_NONE) then
+       allocate ( null_preconditioner_type :: gw_pressure_preconditioner)
+    else if (helmholtz_preconditioner == PRECONDITIONER_DIAGONAL) then
+       allocate ( gw_pressure_preconditioner, &
+                  source = pressure_diag_preconditioner_type() )
+    else if (helmholtz_preconditioner == PRECONDITIONER_TRIDIAGONAL) then
+       allocate (gw_pressure_preconditioner, &
+                 source = gw_pressure_preconditioner_type(level=1_i_def))
+    else if (helmholtz_preconditioner == PRECONDITIONER_MULTIGRID) then
+       gw_Hz_preconditioner = gw_pressure_preconditioner_type(level=1_i_def)
+       allocate ( gw_pressure_preconditioner, &
+                  source = multigrid_preconditioner_type(p_fs,                 &
+                                                         gw_pressure_operator, &
+                                                         gw_Hz_preconditioner) )
+    else
+       call log_event( "Unknown pressure preconditioner specified", &
+                       LOG_LEVEL_ERROR)
+    end if
+
+    ! Allocate mixed preconditioner of correct type
+    if (si_preconditioner == SI_PRECONDITIONER_PRESSURE) then
+       allocate ( gw_mixed_schur_preconditioner_type :: gw_mixed_preconditioner)
+    else if (si_preconditioner == SI_PRECONDITIONER_DIAGONAL) then
+       allocate ( gw_mixed_diag_preconditioner_type :: gw_mixed_preconditioner)
+    else if (si_preconditioner == SI_PRECONDITIONER_NONE) then
+       allocate ( null_preconditioner_type :: gw_mixed_preconditioner)
+    else
+       call log_event("Unknown mixed preconditioner specified",LOG_LEVEL_ERROR)
+    end if
+
+    ! Allocate mixed solver of correct type
+    if (si_method == SI_METHOD_BICGSTAB) then
+      allocate ( bicgstab_type :: gw_mixed_solver )
+    else if (si_method == SI_METHOD_CG) then
+      allocate ( conjugate_gradient_type :: gw_mixed_solver )
+    else if (si_method == SI_METHOD_GMRES) then
+      allocate ( gmres_type :: gw_mixed_solver )
+    else if (si_method == SI_METHOD_FGMRES) then
+      allocate ( fgmres_type :: gw_mixed_solver )
+    else if (si_method == SI_METHOD_GCR) then
+      allocate ( gcr_type :: gw_mixed_solver )
+    else if (si_method == SI_METHOD_BLOCK_GCR) then
+      allocate ( block_gcr_type :: gw_mixed_solver )
+    else if (si_method == SI_METHOD_PREC_ONLY) then
+      allocate ( precondition_only_type :: gw_mixed_solver )
+    else
+       call log_event("Unknown mixed solver specified",LOG_LEVEL_ERROR)
+    end if
+
+    ! *** Construct solver and preconditioner objects
+
+    ! Construct pressure solver
+    select type(gw_pressure_solver)
+    type is ( conjugate_gradient_type )
+       ! BiCGStab solver
+       gw_pressure_solver = conjugate_gradient_type( gw_pressure_operator,            &
+                                                     gw_pressure_preconditioner,      &
+                                                     si_pressure_tolerance,           &
+                                                     gw_pressure_solver_a_tol,        &
+                                                     si_pressure_maximum_iterations,  &
+                                                     si_pressure_monitor_convergence, &
+                                                     si_pressure_fail_on_non_converged )
+    type is ( bicgstab_type )
+       ! BiCGStab solver
+       gw_pressure_solver = bicgstab_type( gw_pressure_operator,            &
+                                           gw_pressure_preconditioner,      &
+                                           si_pressure_tolerance,           &
+                                           gw_pressure_solver_a_tol,        &
+                                           si_pressure_maximum_iterations,  &
+                                           si_pressure_monitor_convergence, &
+                                           si_pressure_fail_on_non_converged)
+    type is ( gmres_type )
+       ! GMRES solver
+       gw_pressure_solver = gmres_type( gw_pressure_operator,            &
+                                        gw_pressure_preconditioner,      &
+                                        helmholtz_gcrk,                  &
+                                        si_pressure_tolerance,           &
+                                        gw_pressure_solver_a_tol,        &
+                                        si_pressure_maximum_iterations,  &
+                                        si_pressure_monitor_convergence, &
+                                        si_pressure_fail_on_non_converged)
+
+    type is ( fgmres_type )
+       ! FGMRES solver
+       gw_pressure_solver = fgmres_type( gw_pressure_operator,            &
+                                         gw_pressure_preconditioner,      &
+                                         helmholtz_gcrk,                  &
+                                         si_pressure_tolerance,           &
+                                         gw_pressure_solver_a_tol,        &
+                                         si_pressure_maximum_iterations,  &
+                                         si_pressure_monitor_convergence, &
+                                         si_pressure_fail_on_non_converged)
+
+    type is ( gcr_type )
+       ! GCR solver
+       gw_pressure_solver = gcr_type( gw_pressure_operator,            &
+                                      gw_pressure_preconditioner,      &
+                                      helmholtz_gcrk,                  &
+                                      si_pressure_tolerance,           &
+                                      gw_pressure_solver_a_tol,        &
+                                      si_pressure_maximum_iterations,  &
+                                      si_pressure_monitor_convergence, &
+                                      si_pressure_fail_on_non_converged)
+    type is ( jacobi_type )
+       ! Jacobi solver
+       gw_pressure_solver = jacobi_type( gw_pressure_operator,              &
+                                         gw_pressure_preconditioner,        &
+                                         si_pressure_tolerance,             &
+                                         gw_pressure_solver_a_tol,          &
+                                         si_pressure_maximum_iterations,    &
+                                         si_pressure_monitor_convergence,   &
+                                         si_pressure_fail_on_non_converged, &
+                                         si_pressure_jacobi_relaxation )
+
+    type is ( precondition_only_type )
+       ! Precondition only solver
+       gw_pressure_solver = precondition_only_type( gw_pressure_operator,       &
+                                                    gw_pressure_preconditioner, &
+                                                    si_pressure_monitor_convergence )
+
+    class default
+       call log_event("Can not initialise pressure solver",LOG_LEVEL_ERROR)
+    end select
+
+    ! Set up mixed operator
+    gw_mixed_operator = gw_mixed_operator_type(state%vector(igw_u)%get_function_space(), &
+                                               state%vector(igw_b)%get_function_space())
+
+    ! Set up mixed preconditioner
+    select type(gw_mixed_preconditioner)
+    type is ( gw_mixed_schur_preconditioner_type )
+       ! Schur-complement preconditioner
+       gw_mixed_preconditioner = &
+           gw_mixed_schur_preconditioner_type(state%vector(igw_u)%get_function_space(), &
+                                              state%vector(igw_p)%get_function_space(), &
+                                              state%vector(igw_b)%get_function_space(), &
+                                              gw_pressure_operator%get_Hb_lumped_inv(), &
+                                              gw_pressure_solver)
+    type is ( gw_mixed_diag_preconditioner_type )
+       ! Diagonal preconditioner
+       gw_mixed_preconditioner = gw_mixed_diag_preconditioner_type(mesh)
+    type is ( null_preconditioner_type )
+       ! Null preconditioner
+       gw_mixed_preconditioner = null_preconditioner_type()
+    class default
+       call log_event("Can not initialise mixed preconditioner", &
+                      LOG_LEVEL_ERROR)
+    end select
+    select type(gw_mixed_solver)
+    type is ( conjugate_gradient_type )
+       gw_mixed_solver = conjugate_gradient_type( gw_mixed_operator,       &
+                                                  gw_mixed_preconditioner, &
+                                                  si_tolerance,            &
+                                                  gw_mixed_solver_a_tol,   &
+                                                  si_maximum_iterations,   &
+                                                  si_monitor_convergence,  &
+                                                  si_fail_on_non_converged)
+    type is ( bicgstab_type )
+       gw_mixed_solver = bicgstab_type( gw_mixed_operator,       &
+                                        gw_mixed_preconditioner, &
+                                        si_tolerance,            &
+                                        gw_mixed_solver_a_tol,   &
+                                        si_maximum_iterations,   &
+                                        si_monitor_convergence,  &
+                                        si_fail_on_non_converged)
+    type is ( gmres_type )
+       gw_mixed_solver = gmres_type( gw_mixed_operator,       &
+                                     gw_mixed_preconditioner, &
+                                     mixed_gcrk,              &
+                                     si_tolerance,            &
+                                     gw_mixed_solver_a_tol,   &
+                                     si_maximum_iterations,   &
+                                     si_monitor_convergence,  &
+                                     si_fail_on_non_converged)
+    type is ( fgmres_type )
+       gw_mixed_solver = fgmres_type( gw_mixed_operator,       &
+                                      gw_mixed_preconditioner, &
+                                      mixed_gcrk,              &
+                                      si_tolerance,            &
+                                      gw_mixed_solver_a_tol,   &
+                                      si_maximum_iterations,   &
+                                      si_monitor_convergence,  &
+                                      si_fail_on_non_converged)
+    type is ( gcr_type )
+       gw_mixed_solver = gcr_type( gw_mixed_operator,       &
+                                   gw_mixed_preconditioner, &
+                                   mixed_gcrk,              &
+                                   si_tolerance,            &
+                                   gw_mixed_solver_a_tol,   &
+                                   si_maximum_iterations,   &
+                                   si_monitor_convergence,  &
+                                   si_fail_on_non_converged)
+    type is ( block_gcr_type )
+       gw_mixed_solver = block_gcr_type( gw_mixed_operator,       &
+                                         gw_mixed_preconditioner, &
+                                         mixed_gcrk,              &
+                                         si_tolerance,            &
+                                         gw_mixed_solver_a_tol,   &
+                                         si_maximum_iterations,   &
+                                         si_monitor_convergence,  &
+                                         si_fail_on_non_converged)
+    type is ( precondition_only_type )
+       gw_mixed_solver = precondition_only_type( gw_mixed_operator,       &
+                                                 gw_mixed_preconditioner, &
+                                                 si_monitor_convergence)
+    class default
+       call log_event("Can not initialise mixed solver",LOG_LEVEL_ERROR)
+    end select
+
+    call log_event( "Gravity Wave: initialised timestepping algorithm", LOG_LEVEL_INFO )
+
+  end subroutine gravity_wave_alg_init
+
+  !> @brief Tidy up gravity wave algorithm module
+  !>
+  !> @details Deallocate memory
+  subroutine gravity_wave_alg_final()
+
+    implicit none
+
+    ! Deallocate mixed preconditioner object
+    if (allocated(gw_mixed_preconditioner)) then
+       deallocate(gw_mixed_preconditioner)
+    end if
+    ! Deallocate mixed solver object
+    if (allocated(gw_mixed_solver)) then
+       deallocate(gw_mixed_solver)
+    end if
+    ! Deallocate pressure preconditioner object
+    if (allocated(gw_pressure_preconditioner)) then
+       deallocate(gw_pressure_preconditioner)
+    end if
+    ! Deallocate pressure solver object
+    if (allocated(gw_pressure_solver)) then
+       deallocate(gw_pressure_solver)
+    end if
+
+  end subroutine gravity_wave_alg_final
+
+!=============================================================================!
+
+  !> @details An algorithm for timestepping the 3D linear gravity wave
+  !>          equations using a centred implicit method
+  !>
+  !> @param[in,out] wind     The 3D wind field
+  !> @param[in,out] pressure The pressure field
+  !> @param[in,out] buoyancy The buoyancy field
+  !> @param[inout]  modeldb  The modeldb object
+  subroutine gravity_wave_alg_step(wind, pressure, buoyancy, modeldb)
+
+    use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+    use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
+    use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+    use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
+    use fs_continuity_mod,                  only: W0, W2, W3, Wtheta
+    use boundaries_config_mod,              only: limited_area
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: wind, pressure, buoyancy
+    class(modeldb_type), intent(inout)  :: modeldb
+
+    type(operator_type), pointer :: div    => null()
+    type(operator_type), pointer :: m3_inv => null()
+    type(field_type), pointer    :: w2_mask => null()
+    type(field_type), pointer    :: w3_mask => null()
+    type(field_type), pointer    :: wtheta_mask => null()
+    integer(i_def)               :: buoyancy_space
+    type( field_type )           :: rhs_p
+    type(mesh_type), pointer     :: mesh => null()
+
+    ! Namelists
+    type(namelist_type), pointer :: base_mesh_nml
+    type(namelist_type), pointer :: timestepping_nml
+    type(namelist_type), pointer :: initial_temperature_nml
+    type(namelist_type), pointer :: gravity_wave_constants_nml
+    type(namelist_type), pointer :: io_nml
+
+    ! Namelist parameters
+    character(len=str_def)       :: prime_mesh_name
+    real(kind=r_second)          :: dt
+    real(kind=r_def)             :: bvf_square
+    integer(kind=i_def)          :: b_space
+    logical(kind=l_def)          :: subroutine_timers
+
+    ! Auxiliary constants to group invokes
+    real(kind=r_def)             :: const1, const2
+
+    if ( subroutine_timers ) call timer('gravity_wave_alg')
+
+    ! Pointers to namelists
+    timestepping_nml        => modeldb%configuration%get_namelist('timestepping')
+    initial_temperature_nml => modeldb%configuration%get_namelist('initial_temperature')
+    io_nml           => modeldb%configuration%get_namelist('io')
+
+    ! Obtain namelist parameters
+    call timestepping_nml%get_value( 'dt', dt )
+    call initial_temperature_nml%get_value( 'bvf_square', bvf_square )
+    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
+
+    !=== Do a single timestep ==============================================!
+    mesh => wind%get_mesh()
+    div => get_div(mesh%get_id())
+    m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+
+    if ( limited_area ) then
+      base_mesh_nml           => modeldb%configuration%get_namelist('base_mesh')
+      gravity_wave_constants_nml => modeldb%configuration%get_namelist('gravity_wave_constants')
+      call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+      call gravity_wave_constants_nml%get_value( 'b_space', b_space )
+
+      select case(b_space)
+        case(b_space_w0)
+          buoyancy_space = W0
+        case(b_space_w3)
+          buoyancy_space = W3
+        case(b_space_wtheta)
+          buoyancy_space = Wtheta
+        case default
+          call log_event( 'gravity_wave, gravity_wave_alg_mod: '//    &
+                          'Invalid buoyancy space', LOG_LEVEL_ERROR )
+      end select
+      w2_mask => get_mask_fe(W2, mesh%get_id(), prime_mesh_name)
+      w3_mask => get_mask_fe(W3, mesh%get_id(), prime_mesh_name)
+      wtheta_mask => get_mask_fe(buoyancy_space, mesh%get_id(), prime_mesh_name)
+    endif
+
+    call state%import_field(wind,     igw_u)
+    call state%import_field(pressure, igw_p)
+    call state%import_field(buoyancy, igw_b)
+
+    state_n = state
+
+    ! Set auxiliary constants
+    const1 = -dt*cs_square
+    const2 = -dt*bvf_square
+
+    ! Compute rhs of the gravity wave system
+    call rhs_p%initialise( vector_space = state_n%vector(igw_p)%get_function_space()  )
+    call invoke( setval_c(rdef_rhs_n%vector(igw_u), 0.0_r_def),                  &
+                 setval_c(rdef_rhs_n%vector(igw_b), 0.0_r_def),                  &
+                 transpose_matrix_vector_kernel_type(rdef_rhs_n%vector(igw_u),   &
+                                                     state_n%vector(igw_p),      &
+                                                     div),                       &
+                 matrix_vector_kernel_type          (rdef_rhs_n%vector(igw_u),   &
+                                                     state_n%vector(igw_b),      &
+                                                     Q),                         &
+                 dg_matrix_vector_kernel_type       (rhs_p,                      &
+                                                     state_n%vector(igw_u),      &
+                                                     div),                       &
+                 dg_matrix_vector_kernel_type       (rdef_rhs_n%vector(igw_p),   &
+                                                     rhs_p,                      &
+                                                     m3_inv),                    &
+                 transpose_matrix_vector_kernel_type(rdef_rhs_n%vector(igw_b),   &
+                                                     state_n%vector(igw_u),      &
+                                                     Q),                         &
+    ! Apply timestep scalings
+                 inc_a_times_X(dt,     rdef_rhs_n%vector(igw_u)),                &
+                 inc_a_times_X(const1, rdef_rhs_n%vector(igw_p)),                &
+                 inc_a_times_X(const2, rdef_rhs_n%vector(igw_b)),                &
+    ! Apply BC to wind rhs
+                 enforce_bc_kernel_type(rdef_rhs_n%vector(igw_u)) )
+
+    ! For limited area set the rhs to zero in the exterior,
+    ! as defined by the masks
+    if ( limited_area ) then
+      call invoke( inc_X_times_Y(rdef_rhs_n%vector(igw_u), w2_mask),             &
+                   inc_X_times_Y(rdef_rhs_n%vector(igw_p), w3_mask),             &
+                   inc_X_times_Y(rdef_rhs_n%vector(igw_b), wtheta_mask) )
+    endif
+
+    ! Solve mixed system
+    call log_event( "Gravity Wave: mixed solve:", LOG_LEVEL_INFO )
+    call copy_field( rdef_rhs_n%vector(igw_u), rhs_n%vector(igw_u))
+    call copy_field( rdef_rhs_n%vector(igw_p), rhs_n%vector(igw_p))
+    call copy_field( rdef_rhs_n%vector(igw_b), rhs_n%vector(igw_b))
+    call state_inc%set_scalar(0.0_r_def)
+    call gw_mixed_solver%apply(state_inc, rhs_n)
+    call copy_field( state_inc%vector(igw_u), rdef_state_inc%vector(igw_u))
+    call copy_field( state_inc%vector(igw_p), rdef_state_inc%vector(igw_p))
+    call copy_field( state_inc%vector(igw_b), rdef_state_inc%vector(igw_b))
+    call state%axpy(1.0_r_def,rdef_state_inc)
+
+    ! Return fields
+    call state%export_field(wind,     igw_u)
+    call state%export_field(pressure, igw_p)
+    call state%export_field(buoyancy, igw_b)
+
+    if (limited_area) then
+      nullify(w3_mask)
+      nullify(w2_mask)
+      nullify(wtheta_mask)
+    endif
+
+    nullify( mesh )
+
+    if ( subroutine_timers ) call timer('gravity_wave_alg')
+
+  end subroutine gravity_wave_alg_step
+
+end module gravity_wave_alg_mod

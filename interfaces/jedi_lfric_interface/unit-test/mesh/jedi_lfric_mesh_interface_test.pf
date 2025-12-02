@@ -1,0 +1,172 @@
+!------------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!
+! Unit tests for procedures in jedi_lfric_mesh_interface_mod
+!
+module jedi_lfric_mesh_interface_test
+
+  use constants_mod,                  only: i_def, r_def
+  use configuration_mod,              only: final_configuration
+  use halo_routing_collection_mod,    only: halo_routing_collection, &
+                                            halo_routing_collection_type
+  use local_mesh_collection_mod,      only: local_mesh_collection, &
+                                            local_mesh_collection_type
+  use local_mesh_mod,                 only: local_mesh_type
+  use mesh_collection_mod,            only: mesh_collection_type, &
+                                            mesh_collection
+  use mesh_mod,                       only: mesh_type, PLANE, PLANE_TWOD
+  use feign_config_mod,               only: feign_extrusion_config
+  use extrusion_config_mod,           only: method_uniform, &
+                                            stretching_method_linear
+
+  use jedi_lfric_mesh_interface_mod,  only: get_stretching_height,  &
+                                            get_layer_ncells,       &
+                                            get_sigma_w3_levels,    &
+                                            get_sigma_wtheta_levels
+  use log_mod,                        only: log_event, LOG_LEVEL_INFO
+
+  use funit
+
+  implicit none
+
+  real(r_def), parameter :: tol = 1e-5_r_def
+
+  @TestCase
+  type, extends(TestCase), public :: jedi_lfric_mesh_interface_test_type
+    private
+    real(r_def)                   :: tol
+    type(mesh_type)               :: unit_test_mesh
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_get_stretching_height
+    procedure test_get_layer_ncells
+    procedure test_get_sigma_w3_levels
+    procedure test_get_sigma_wtheta_levels
+  end type jedi_lfric_mesh_interface_test_type
+
+  contains
+
+  subroutine setUp( this )
+
+    implicit none
+
+    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
+
+    type(local_mesh_type), pointer  :: unit_test_local_mesh_ptr
+    type(local_mesh_type), target   :: unit_test_local_mesh
+    type(mesh_type)                 :: unit_test_twod_mesh
+    integer(i_def)                  :: mesh_id
+
+    ! Create top level collections
+    mesh_collection = mesh_collection_type()
+    local_mesh_collection = local_mesh_collection_type()
+    halo_routing_collection = halo_routing_collection_type()
+
+    ! Create unit test meshes
+    call unit_test_local_mesh%initialise()
+    mesh_id = local_mesh_collection%add_new_local_mesh(unit_test_local_mesh)
+    unit_test_local_mesh_ptr => local_mesh_collection%get_mesh_by_id(mesh_id)
+
+    ! 2d mesh
+    unit_test_twod_mesh = mesh_type( PLANE_TWOD, unit_test_local_mesh_ptr )
+    mesh_id = mesh_collection%add_new_mesh( unit_test_twod_mesh )
+
+    ! 3d mesh
+    this%unit_test_mesh = mesh_type( PLANE, unit_test_local_mesh_ptr )
+    mesh_id = mesh_collection%add_new_mesh( this%unit_test_mesh )
+
+    call feign_extrusion_config(    &
+      method=method_uniform,        &
+      planet_radius=6000.00_r_def,  &
+      domain_height=1.0_r_def,      &
+      number_of_layers=5_i_def,     &
+      stretching_height=1.0_r_def,  &
+      stretching_method=stretching_method_linear, &
+      eta_values=(/0.5_r_def/) )
+
+  end subroutine setUp
+
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
+
+    deallocate(mesh_collection)
+    deallocate(halo_routing_collection)
+    deallocate(local_mesh_collection)
+    call final_configuration()
+
+  end subroutine tearDown
+
+  @Test
+  subroutine test_get_stretching_height( this )
+
+    implicit none
+
+    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
+    real(r_def) :: out, kgo
+
+    out = get_stretching_height()
+    kgo = 1_r_def
+
+    @assertEqual(kgo, out, tol)
+
+  end subroutine test_get_stretching_height
+
+  @Test
+  subroutine test_get_layer_ncells( this )
+
+    implicit none
+
+    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
+    integer(i_def) :: out, kgo
+
+    out = get_layer_ncells(this%unit_test_mesh)
+
+    kgo = 9_i_def
+
+    @assertEqual(kgo, out)
+
+  end subroutine test_get_layer_ncells
+
+  @Test
+  subroutine test_get_sigma_w3_levels( this )
+
+    implicit none
+
+    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
+    real(r_def), allocatable :: out(:), kgo(:)
+
+    integer :: i
+
+    out = get_sigma_w3_levels(this%unit_test_mesh)
+    kgo = [ 0.1_r_def, 0.3_r_def, 0.5_r_def, 0.7_r_def, 0.9_r_def ]
+
+    @assertEqual(kgo, out, tol)
+
+  end subroutine test_get_sigma_w3_levels
+
+  @Test
+  subroutine test_get_sigma_wtheta_levels( this )
+
+    implicit none
+
+    class(jedi_lfric_mesh_interface_test_type), intent(inout) :: this
+    real(r_def), allocatable :: out(:), kgo(:)
+
+    integer :: i
+
+    out = get_sigma_wtheta_levels(this%unit_test_mesh)
+    kgo = [ 0.0_r_def, 0.2_r_def, 0.4_r_def, 0.6_r_def, 0.8_r_def, 1.0_r_def ]
+
+    @assertEqual(kgo, out, tol)
+
+  end subroutine test_get_sigma_wtheta_levels
+
+end module jedi_lfric_mesh_interface_test

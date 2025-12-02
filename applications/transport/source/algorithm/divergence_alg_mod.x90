@@ -1,0 +1,55 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Computes the divergence of a W2 field
+module divergence_alg_mod
+
+  use constants_mod,                   only: i_def
+  use dg_matrix_vector_kernel_mod,     only: dg_matrix_vector_kernel_type
+  use sci_fem_constants_mod,           only: get_div, &
+                                             get_inverse_mass_matrix_fe
+  use fs_continuity_mod,               only: W3
+  use field_mod,                       only: field_type
+  use mesh_mod,                        only: mesh_type
+  use operator_mod,                    only: operator_type
+
+  implicit none
+
+  private
+  public :: divergence_alg
+
+contains
+
+  !> @brief Subroutine to compute divergence of a W2 field
+  !> @param[in,out] divergence   W3 divergence field to be computed
+  !> @param[in]     wind         W2 field field
+  subroutine divergence_alg( divergence, wind )
+
+    implicit none
+
+    type(field_type), intent(inout) :: divergence
+    type(field_type), intent(in)    :: wind
+
+    ! Internal variables
+    type(field_type)             :: div_u
+    type(operator_type), pointer :: mm_w3_inv => null()
+    type(operator_type), pointer :: div => null()
+    type(mesh_type),     pointer :: mesh => null()
+
+    mesh      => wind%get_mesh()
+    mm_w3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    div       => get_div(mesh%get_id())
+
+    call div_u%initialise( vector_space=divergence%get_function_space() )
+
+    call invoke( dg_matrix_vector_kernel_type( div_u, wind, div ),            &
+                 dg_matrix_vector_kernel_type( divergence, div_u , mm_w3_inv) )
+
+    nullify( div, mm_w3_inv, mesh )
+
+  end subroutine divergence_alg
+
+end module divergence_alg_mod

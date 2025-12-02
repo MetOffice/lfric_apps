@@ -1,0 +1,488 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> @brief A Runge-Kutta time-discretisation of the non-linear 3D equations,
+!>        currently using 3-stage SSP.
+!> @details An algorithm for timestepping the 3D nonlinear linear
+!>          equations using a multistage explicit Runge-Kutta algorithm.
+module rk_alg_timestep_mod
+
+  use constants_mod,                      only: i_def, r_def, l_def
+  use fs_continuity_mod,                  only: W1, W2, W3
+  use log_mod,                            only: log_event,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_INFO,    &
+                                                LOG_LEVEL_ERROR
+
+  ! Parent of this module's Runge-Kutta timestep type
+  use timestep_method_mod,       only: timestep_method_type
+
+  ! Configuration options
+  use finite_element_config_mod,          only: vorticity_in_w1
+  use formulation_config_mod,             only: rotating, &
+                                                vector_invariant
+  use runge_kutta_init_mod,               only: get_rk_timestepping_weights
+  use timestepping_config_mod,            only: runge_kutta_method
+  use derived_config_mod,                 only: bundle_size
+  use sci_fem_constants_mod,              only: get_qr_fe, &
+                                                get_inverse_mass_matrix_fe
+  use sci_geometric_constants_mod,        only: get_coordinates, &
+                                                get_panel_id,    &
+                                                get_dx_at_w2
+  use transport_config_mod,               only: operators, &
+                                                operators_fv
+  use mixing_config_mod,                  only: viscosity, viscosity_mu
+  use planet_config_mod,                  only: cp
+
+  use sci_field_bundle_builtins_mod,      only: clone_bundle, &
+                                                bundle_axpy,  &
+                                                bundle_axpby, &
+                                                add_bundle,   &
+                                                copy_bundle,  &
+                                                set_bundle_scalar
+  use dycore_constants_mod,               only: get_geopotential,  &
+                                                get_coriolis
+
+  ! PsyKAl PSYClone kernels
+  use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
+  use pressure_gradient_bd_kernel_mod,    only: pressure_gradient_bd_kernel_type
+  use hydrostatic_kernel_mod,             only: hydrostatic_kernel_type
+  use kinetic_energy_gradient_kernel_mod, only: kinetic_energy_gradient_kernel_type
+  use project_eos_pressure_kernel_mod,    only: project_eos_pressure_kernel_type
+  use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+  use vorticity_advection_kernel_mod,     only: vorticity_advection_kernel_type
+  use w2_vorticity_advection_kernel_mod,  only: w2_vorticity_advection_kernel_type
+  use tracer_viscosity_kernel_mod,        only: tracer_viscosity_kernel_type
+  use momentum_viscosity_kernel_mod,      only: momentum_viscosity_kernel_type
+
+  ! Derived Types
+  use field_array_mod,                    only: field_array_type
+  use field_mod,                          only: field_type
+  use field_collection_mod,               only: field_collection_type
+  use function_space_collection_mod,      only: function_space_collection
+  use driver_modeldb_mod,                 only: modeldb_type
+  use model_clock_mod,                    only: model_clock_type
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use quadrature_face_mod,                only: quadrature_face_type
+  use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
+  use operator_mod,                       only: operator_type
+  use reference_element_mod,              only: reference_element_type
+  use mesh_mod,                           only: mesh_type
+  ! Algorithm
+  use sci_mass_matrix_solver_alg_mod,     only: mass_matrix_solver_alg
+  use gungho_transport_control_alg_mod,   only: gungho_transport_control_alg_init, &
+                                                gungho_transport_control_alg,      &
+                                                gungho_transport_control_alg_final
+  use compute_vorticity_alg_mod,          only: compute_vorticity_alg
+
+  ! Field indices
+  use field_indices_mod,                  only: igh_u, igh_t, igh_d, igh_p
+  use moist_dyn_mod,                      only: num_moist_factors, gas_law
+  use mr_indices_mod,                     only: nummr
+
+  use io_config_mod,                      only: subroutine_timers
+  use timer_mod,                          only: timer
+  use sci_field_minmax_alg_mod,           only: log_field_minmax
+
+  implicit none
+
+  private
+
+  ! State object for the Runge-Kutta method
+  type, extends(timestep_method_type), public :: rk_timestep_type
+    private
+    ! 'State' items that need to be created once but used every step
+    ! holds the latest estimate of the prognostic fields through the timestep
+    type(field_type), allocatable :: state(:)
+    ! prognostic fields at the start of timestep
+    type(field_type), allocatable :: state_n(:)
+    type(field_type), allocatable :: rhs(:), inc(:)
+    type(field_type), allocatable :: rhs_prediction(:,:)
+    type(field_type)              :: vorticity
+    integer(kind=i_def)           :: num_rk_stage
+    real(kind=r_def), allocatable :: ak(:,:)
+  contains
+    private
+
+    procedure, public  :: step     => rk_alg_step
+    procedure, public  :: finalise => rk_alg_final
+    procedure, nopass  :: run_init
+    procedure, nopass  :: run_step
+
+  end type rk_timestep_type
+
+  ! Constructor for type
+  interface rk_timestep_type
+    module procedure rk_alg_init
+  end interface rk_timestep_type
+
+contains
+
+  !> @brief Extracts data from modeldb to prepare for initialising object
+  !> @param[in] modeldb Holds the model state
+  function rk_alg_init(modeldb) result(self)
+
+    implicit none
+
+    type(rk_timestep_type) :: self
+
+    type(modeldb_type),           intent(in), target  :: modeldb
+
+    type( field_collection_type ), pointer :: prognostic_fields
+
+    type( field_type), pointer :: u
+    type( field_type), pointer :: rho
+    type( field_type), pointer :: theta
+    type( field_type), pointer :: exner
+
+    ! Get pointer to the field collection containing required fields
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+
+    ! Extract required fields
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('exner', exner)
+
+    ! Run the initialisation process
+    call run_init(self, u, rho, theta, exner)
+
+    nullify ( prognostic_fields, u, rho, theta, exner )
+
+  end function rk_alg_init
+
+  !> @brief Extracts data from modeldb to prepare for running timestep
+  !> @param[in] modeldb Holds the model state
+  subroutine rk_alg_step( self, modeldb )
+
+    implicit none
+
+    class(rk_timestep_type), intent(inout) :: self
+
+    type(modeldb_type),              intent(in), target  :: modeldb
+
+    type(model_clock_type), pointer :: model_clock
+
+    type( field_collection_type ), pointer :: prognostic_fields
+    type( field_collection_type ), pointer :: moisture_fields
+
+    type( field_type), pointer :: u
+    type( field_type), pointer :: rho
+    type( field_type), pointer :: theta
+    type( field_type), pointer :: exner
+    type( field_array_type ),      pointer :: mr_array
+    type( field_type ),            pointer :: mr(:)
+    type( field_array_type ),      pointer :: moist_dyn_array
+    type( field_type ),            pointer :: moist_dyn(:)
+
+    ! Get pointer to field collection containing required fields
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+
+    ! Get clock
+    model_clock => modeldb%clock
+
+    ! Extract fields
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field('exner', exner)
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    mr => mr_array%bundle
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+    moist_dyn => moist_dyn_array%bundle
+
+    ! Run the timestep
+    call run_step( self, u, rho, theta, moist_dyn, exner, mr, model_clock )
+
+    nullify ( model_clock, prognostic_fields, moisture_fields,             &
+              u, rho, theta, exner,                                        &
+              mr_array, mr, moist_dyn_array, moist_dyn )
+
+  end subroutine rk_alg_step
+
+  !> @details Initialises various internal fields for the Runge-Kutta method
+  !> @param[in]    u 3D  wind field
+  !> @param[in]    rho   Density
+  !> @param[in]    theta Potential temperature
+  !> @param[in]    exner Exner pressure
+  subroutine run_init(self, u, rho, theta, exner)
+
+    implicit none
+
+    type(rk_timestep_type), intent(inout) :: self
+
+    ! Prognostic fields
+    type( field_type ), intent( in ) :: u, rho, theta, exner
+
+    ! Mesh
+    type(mesh_type), pointer :: mesh
+
+    ! Timestepping variables
+    integer(i_def) :: stage
+
+    ! Function space for vorticity
+    integer(i_def) :: vorticity_fs
+
+    ! Element orders to initialise function spaces with
+    integer(i_def) :: element_order_h
+    integer(i_def) :: element_order_v
+
+    ! Get the mesh from one of the fields
+    mesh => theta%get_mesh()
+
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+
+    ! Get weights for RK scheme
+    call get_rk_timestepping_weights(self%num_rk_stage, self%ak, runge_kutta_method)
+
+    !=== Allocate internal state field arrays ================================!
+    allocate(self%state(bundle_size))
+    allocate(self%state_n(bundle_size))
+    allocate(self%rhs(bundle_size))
+    allocate(self%inc(bundle_size))
+
+    allocate ( self%rhs_prediction(bundle_size,self%num_rk_stage) )
+
+    !=== Initialise internal state field objects =============================!
+
+    call self%state(igh_u)%initialise( vector_space = u%get_function_space() )
+    call self%state(igh_t)%initialise( vector_space = theta%get_function_space() )
+    call self%state(igh_d)%initialise( vector_space = rho%get_function_space() )
+    call self%state(igh_p)%initialise( vector_space = exner%get_function_space(), halo_depth=2 )
+
+    call clone_bundle(self%state, self%state_n, bundle_size)
+    call clone_bundle(self%state, self%rhs, bundle_size)
+    call clone_bundle(self%state, self%inc, bundle_size)
+
+    do stage = 1,self%num_rk_stage
+      call clone_bundle(self%state, self%rhs_prediction(:,stage), bundle_size)
+    end do
+
+    ! Create the diagnostic vorticity field
+    if ( vorticity_in_w1 ) then
+      vorticity_fs = W1
+    else
+      vorticity_fs = W2
+    end if
+    call self%vorticity%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
+                                       vorticity_fs) )
+
+    call gungho_transport_control_alg_init(mesh)
+
+    nullify(mesh)
+
+    call log_event( "rk_alg: initialised timestepping algorithm", LOG_LEVEL_INFO )
+
+  end subroutine run_init
+
+  !> @brief A Runge-Kutta time-discretisation of the non-linear 3D equations,
+  !>        currently using 3-stage SSP.
+  !> @details An algorithm for timstepping the 3D nonlinear
+  !>          equations using a Runge-Kutta algortihm.
+  !>          The type of Runge-Kutta scheme can be simply changed by
+  !>          modifying the (currently hardwired) Butcher tableau (ak array)
+  !>          The current set up uses the 3rd-order three stage
+  !>          Strong-Stability-Preserving (SSP3) method
+  !> @param[in,out] u            3D wind field
+  !> @param[in,out] rho          Density
+  !> @param[in,out] theta        Potential temperature
+  !> @param[in,out] moist_dyn    Moist dynamics factors
+  !> @param[in,out] exner        Exner pressure field
+  !> @param[in,out] mr           Mixing ratios
+  !> @param[in]     model_clock  Time withing the model
+  !>
+  subroutine run_step(self, u, rho, theta, moist_dyn, exner, mr, model_clock )
+
+    implicit none
+
+    type(rk_timestep_type), intent(inout) :: self
+
+    ! Prognostic fields
+    type(field_type),            intent(inout) :: u, rho, theta, exner
+    type(field_type),            intent(inout) :: moist_dyn(num_moist_factors)
+    type(field_type),            intent(inout) :: mr(nummr)
+    class(model_clock_type),     intent(in)    :: model_clock
+
+    ! The quadrature object
+    type(quadrature_xyoz_type),    pointer :: qr
+    type(quadrature_face_type)             :: qrf
+    class(reference_element_type), pointer :: reference_element
+    type(mesh_type),               pointer :: mesh
+
+    ! Temps for retrieving things from runtime_constants
+    type(field_type),    pointer :: geopotential
+    type(field_type),    pointer :: chi(:)
+    type(field_type),    pointer :: panel_id
+    type(field_type),    pointer :: dx_at_w2
+    type(operator_type), pointer :: m3_inv
+    type(operator_type), pointer :: coriolis
+
+    type(quadrature_rule_gaussian_type) :: gaussian_quadrature
+
+    integer(kind=i_def) :: stages, stage, mesh_id, outer
+    integer(kind=i_def) :: element_order_h, element_order_v
+    integer(kind=i_def) :: nqp_h, nqp_v
+    logical(kind=l_def) :: horizontal_face, vertical_face, cheap_update
+
+    if ( subroutine_timers ) call timer('rk_alg')
+    qr => get_qr_fe()
+    mesh => theta%get_mesh()
+    reference_element => mesh%get_reference_element()
+    outer = 1_i_def
+    horizontal_face = .true.
+    vertical_face = .false.
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+    nqp_h = element_order_h + 2_i_def
+    nqp_v = element_order_v + 2_i_def
+    qrf = quadrature_face_type(nqp_h, nqp_v, horizontal_face, vertical_face, &
+                               reference_element,  gaussian_quadrature)
+    cheap_update = .false.
+
+    ! Get mm operators from runtime_constants
+    mesh_id = u%get_mesh_id()
+
+    ! Get geopotential field from runtime_constants
+    geopotential => get_geopotential(mesh_id)
+
+    ! Get coordinates
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+
+    !=== Copy prognostic field data to state arrays ===========================!
+    call invoke( name = "copy_fields_to_state",      &
+                 setval_X(self%state(igh_u), u    ), &
+                 setval_X(self%state(igh_t), theta), &
+                 setval_X(self%state(igh_d), rho  ), &
+                 setval_X(self%state(igh_p), exner) )
+
+    !=== Do a single timestep ==============================================!
+
+    ! Runge-Kutta algorithm
+    call copy_bundle(self%state, self%state_n, bundle_size)
+    do stage = 1,self%num_rk_stage
+      write( log_scratch_space, '(A,I0)' ) '  Start of stage ', stage
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+      ! Compute advection terms
+      call gungho_transport_control_alg( self%rhs_prediction(:,stage), self%state, &
+                                         self%state(igh_u), self%state(igh_u),     &
+                                         mr, mr, model_clock, outer, cheap_update )
+      ! Compute new rhs
+      if ( rotating ) then
+        coriolis => get_coriolis(mesh_id)
+        call invoke( matrix_vector_kernel_type( self%rhs_prediction(igh_u,stage),   &
+                                                self%state(igh_u), coriolis ) )
+      end if
+      if ( vector_invariant ) then
+        call compute_vorticity_alg(self%vorticity, self%state(igh_u), .false.)
+        if ( vorticity_in_w1 ) then
+          call invoke( vorticity_advection_kernel_type(self%rhs_prediction(igh_u,stage),  &
+                                                       self%state(igh_u), self%vorticity, &
+                                                       chi, panel_id, qr) )
+        else
+          call invoke( w2_vorticity_advection_kernel_type(self%rhs_prediction(igh_u,stage),  &
+                                                          self%state(igh_u), self%vorticity, &
+                                                          chi, panel_id, qr) )
+        end if
+        call invoke( kinetic_energy_gradient_kernel_type(                                    &
+                                        self%rhs_prediction(igh_u,stage), self%state(igh_u), &
+                                        chi, panel_id, qr) )
+      end if
+
+      call invoke( name = "compute_new_rhs",                                            &
+                   pressure_gradient_bd_kernel_type( self%rhs_prediction(igh_u, stage), &
+                                                     self%state(igh_p), 1,              &
+                                                     self%state(igh_t),                 &
+                                                     moist_dyn, cp, qrf ),              &
+                   hydrostatic_kernel_type( self%rhs_prediction(igh_u, stage),          &
+                                            self%state(igh_p), self%state(igh_t),       &
+                                            moist_dyn, geopotential, cp, qr ),          &
+                   enforce_bc_kernel_type( self%rhs_prediction(igh_u,stage) ) )
+      call set_bundle_scalar(0.0_r_def, self%rhs, bundle_size)
+
+      do stages = 1, stage
+        call bundle_axpy( self%ak(stage,stages), self%rhs_prediction(:,stage), &
+                          self%rhs, self%rhs, bundle_size )
+      end do
+
+      ! Invert mass matrices
+      if ( operators == operators_fv) then
+        ! Equation is in pointwise form already so dont need to do any mass
+        ! matrix inversions
+        call invoke( setval_X(self%inc(igh_t), self%rhs(igh_t)) )
+      else
+        ! Use full mass matrix
+        call mass_matrix_solver_alg( self%inc(igh_t), self%rhs(igh_t) )
+      end if
+      call mass_matrix_solver_alg( self%inc(igh_u), self%rhs(igh_u) )
+      call invoke( setval_X(self%inc(igh_d), self%rhs(igh_d)) )
+
+      ! Add increments
+      call invoke( setval_c(self%inc(igh_p), 0.0_r_def) )
+      call bundle_axpy( real(model_clock%get_seconds_per_step(), r_def), &
+                        self%inc, self%state_n, self%state, bundle_size)
+      ! Recompute exner from eos
+      m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+      call invoke( project_eos_pressure_kernel_type( self%state(igh_p), self%state(igh_d),  &
+                                                     self%state(igh_t), moist_dyn(gas_law), &
+                                                     chi, panel_id, m3_inv, qr ) )
+      ! Diagnostics
+      call log_field_minmax( LOG_LEVEL_INFO, 'theta_inc', self%inc(igh_t) )
+      call log_field_minmax( LOG_LEVEL_INFO, 'u_inc',     self%inc(igh_u) )
+      call log_field_minmax( LOG_LEVEL_INFO, 'rho_inc',   self%inc(igh_d) )
+      call log_field_minmax( LOG_LEVEL_INFO, 'exner_inc', self%inc(igh_p) )
+
+    end do
+
+    ! Apply viscosity
+    if ( viscosity ) then
+      call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
+      dx_at_w2 => get_dx_at_w2(mesh_id)
+      call invoke(setval_c(self%inc(igh_u), 0.0_r_def),                                  &
+                  tracer_viscosity_kernel_type(   self%inc(igh_t), self%state(igh_t), 1, &
+                                                  dx_at_w2, viscosity_mu ),              &
+                  momentum_viscosity_kernel_type( self%inc(igh_u), self%state(igh_u), 1, &
+                                                  dx_at_w2, 1, viscosity_mu ),           &
+                  setval_c(self%inc(igh_d), 0.0_r_def) )
+      call bundle_axpy( real(model_clock%get_seconds_per_step(), r_def), &
+                        self%inc, self%state, self%state, bundle_size )
+    end if
+
+    ! Return fields in u, theta, rho arrays
+    call invoke( name = "return_fields",        &
+                 setval_X(u,     self%state(igh_u)), &
+                 setval_X(theta, self%state(igh_t)), &
+                 setval_X(rho,   self%state(igh_d)), &
+                 setval_X(exner, self%state(igh_p)) )
+
+    nullify( geopotential, chi, panel_id, m3_inv, &
+             mesh, reference_element, qr )
+
+    if ( subroutine_timers ) call timer('rk_alg')
+
+  end subroutine run_step
+
+  !=============================================================================
+  !>@details Finalises allocatable arrays in module scope
+  subroutine rk_alg_final(self)
+
+    implicit none
+
+    class(rk_timestep_type), intent(inout) :: self
+
+    if (allocated(self%state))          deallocate(self%state)
+    if (allocated(self%state_n))        deallocate(self%state_n)
+    if (allocated(self%rhs))            deallocate(self%rhs)
+    if (allocated(self%inc))            deallocate(self%inc)
+    if (allocated(self%rhs_prediction)) deallocate(self%rhs_prediction)
+    if (allocated(self%ak))             deallocate(self%ak)
+
+  end subroutine rk_alg_final
+
+end module rk_alg_timestep_mod

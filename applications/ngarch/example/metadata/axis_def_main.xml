@@ -1,0 +1,44 @@
+<!-- Main axis definitions -->
+<axis_definition comment="to be sized by the model">
+  <axis id="vert_axis_half_levels" name="half_levels" comment="for dofs in center of 3D cells"/>
+  <axis id="vert_axis_full_levels" name="full_levels" comment="for dofs at top and bottom of 3D cells"/>
+  <axis id="land_tiles" name="land_tiles" />
+  <axis id="surface_tiles" name="surface_tiles" />
+  <axis id="snow_layers_and_tiles" name="snow_layers_and_tiles" />
+  <axis id="land_tile_rad_band" name="land_tile_rad_band" />
+  <axis id="radiation_levels" name="radiation_levels"/>
+  <axis id="horizon_angles" name="horizon_angles" />
+  <axis id="horizon_aspects" name="horizon_aspects" />
+  <axis id="aero_modes" name="aero_modes" />
+  <axis id="sw_bands_aero_modes" name="sw_bands_aero_modes" />
+  <axis id="lw_bands_aero_modes" name="lw_bands_aero_modes" />
+  <axis id="dust_divisions" name="dust_divisions" />
+  <axis id="soil_levels" name="soil_levels" />
+  <axis id="plant_func_types" name="plant_func_types" />
+  <axis id="sea_ice_categories" name="sea_ice_categories" />
+  <axis id="boundary_layer_types" name="boundary_layer_types" />
+  <axis id="entrainment_levels" name="entrainment_levels" />
+  <axis id="monthly_climatology" name="monthly_climatology" />
+  <axis id="lbc_axis" name="lbc_axis" />
+  <axis id="reynolds_timeseries" name="reynolds_timeseries" />
+  <axis id="emiss_axis" name="emiss_axis" />
+  <axis id="isccp_ctp_tau_bins" name="isccp_ctp_tau_bins" />
+  <axis id="cloudsat_levels" name="cloudsat_levels" />
+  <axis id="csat_lvls_atb_bins" name="csat_lvls_atb_bins" />
+  <axis id="cloud_subcols" name="cloud_subcols" />
+  <axis id="sw_bands" name="sw_bands" />
+  <axis id="lw_bands" name="lw_bands" />
+  <axis id="sw_bands_surface_tiles" name="sw_bands_surface_tiles" />
+  <axis id="lw_bands_surface_tiles" name="lw_bands_surface_tiles" />
+  <axis id="one_time_axis" name="one_time_axis" n_glo="1" />
+
+  <axis id="scalar_axis" name="scalar" n_glo="1" />
+
+<!-- Zoom filters -->
+  <axis id="surface_tiles_sea_zoom" axis_ref="surface_tiles">
+    <zoom_axis id="surface_tiles_sea_zoom_axis" />
+  </axis>
+  <axis id="surface_tiles_sea_ice_zoom" axis_ref="surface_tiles">
+    <zoom_axis id="surface_tiles_sea_ice_zoom_axis" />
+  </axis>
+</axis_definition>

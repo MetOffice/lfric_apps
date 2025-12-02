@@ -1,0 +1,229 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the pressure initialization computation using equation of state in
+!> lowest level, and vertical balance plus coriolis at successive levels above.
+module hydrostatic_coriolis_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_w3nodal_basis_mod,     only : get_wtheta_w3nodal_basis
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap,      &
+                                                  get_w3_m3x3_dofmap,      &
+                                                  get_wtheta_m3x3_dofmap
+  use funit
+
+  implicit none
+
+  private
+  public :: hydrostatic_coriolis_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: hydrostatic_coriolis_test_type
+    private
+      integer(i_def) :: ndf_w3, undf_w3, ndf_wt, undf_wt
+      integer(i_def), allocatable :: map_w3(:,:), map_wt(:,:)
+      real(r_def),    allocatable :: basis_w3(:,:,:), basis_wt(:,:,:)
+      real(r_def),    allocatable :: exner_data(:)
+      real(r_def),    allocatable :: rho_data(:)
+      real(r_def),    allocatable :: theta_data(:)
+      real(r_def),    allocatable :: coriolis_data(:)
+      real(r_def),    allocatable :: phi_data(:)
+      real(r_def),    allocatable :: moist_dyn_data(:,:)
+      real(r_def),    allocatable :: height_w3_data(:)
+      real(r_def),    allocatable :: mask_w3_data(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type hydrostatic_coriolis_test_type
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: kappa    = rd/cp
+  real(r_def), parameter :: scaling  = 1.0_r_def
+  integer(i_def), parameter :: eos_level = 3
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_planar, &
+                                          topology_fully_periodic
+    use finite_element_config_mod, only : cellshape_quadrilateral
+    use feign_config_mod,          only : feign_base_mesh_config, &
+                                          feign_planet_config
+
+    implicit none
+
+    class(hydrostatic_coriolis_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    integer(i_def) :: ncells, icell
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: nlayers, i, j, k
+
+    call feign_base_mesh_config                  &
+             ( file_prefix='foo',                &
+               prime_mesh_name='unit_test',      &
+               geometry=geometry_planar,         &
+               prepartitioned=.false.,           &
+               topology=topology_fully_periodic, &
+               fplane=.false.,                   &
+               f_lat_deg=0.0_r_def )
+
+    nlayers=3
+
+    call get_wtheta_w3nodal_basis(this%basis_wt)
+    allocate(this%basis_w3(1,1,1))
+    this%basis_w3(:,:,:) = 1.0_r_def
+
+    call get_w3_m3x3_dofmap( this%map_w3, nlayers )
+    call get_w3_m3x3_q3x3x3_size( this%ndf_w3, this%undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+
+    call get_wtheta_m3x3_dofmap( this%map_wt, nlayers )
+    call get_wtheta_m3x3_q3x3x3_size( this%ndf_wt, this%undf_wt, ncells, &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, &
+                                      nlayers )
+
+    allocate(this%height_w3_data(this%undf_w3))
+    icell = 1
+    do j = 1,3
+      do i = 1,3
+        do k = 0,nlayers-1
+          this%height_w3_data(this%map_w3(1,icell)+k) = real(k+0.5_r_def)*dz
+        end do
+        icell = icell + 1
+      end do
+    end do
+
+    ! Create the data
+    allocate(this%exner_data(this%undf_w3))
+    allocate(this%rho_data(this%undf_w3))
+    allocate(this%phi_data(this%undf_w3))
+    allocate(this%theta_data(this%undf_wt))
+    allocate(this%coriolis_data(this%undf_wt))
+    allocate(this%moist_dyn_data(this%undf_wt, 3))
+    allocate(this%mask_w3_data(this%undf_w3))
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only : final_configuration
+
+    implicit none
+
+    class(hydrostatic_coriolis_test_type), intent(inout) :: this
+
+    deallocate(this%basis_w3)
+    deallocate(this%basis_wt)
+    deallocate(this%map_w3)
+    deallocate(this%map_wt)
+    deallocate(this%exner_data)
+    deallocate(this%rho_data)
+    deallocate(this%phi_data)
+    deallocate(this%theta_data)
+    deallocate(this%coriolis_data)
+    deallocate(this%moist_dyn_data)
+    deallocate(this%height_w3_data)
+    deallocate(this%mask_w3_data)
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use hydrostatic_coriolis_kernel_mod, only : hydrostatic_coriolis_code
+
+    implicit none
+
+    class(hydrostatic_coriolis_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+    real(r_def), parameter :: mv = 0.01_r_def ! set 10 g/kg of vapour mixing ratio
+    real(r_def)            :: recip_epsilon
+    real(r_def)            :: answer
+    integer(i_def)         :: nlayers, cell, k
+
+    nlayers=3
+    cell=1
+
+    recip_epsilon =  461.51_r_def/rd
+    ! With u=50m/s, theta=800K, rho=10^-5
+    ! coriolis term = 2 \Omega u cos(lat) = 2 x 8e-5 x 50 x cos 45 = 5e-3
+    this%exner_data(:) = 0.0_r_def
+    this%rho_data(:) = 1.1_r_def
+    this%theta_data(:) = 300.0_r_def
+    this%coriolis_data(:) = 5.0e-3_r_def
+    this%mask_w3_data(:) = 1.0_r_def
+    this%moist_dyn_data(:,1) = 1.0_r_def + recip_epsilon*mv
+    this%moist_dyn_data(:,2) = 1.0_r_def + mv
+    this%moist_dyn_data(:,3) = 1.0_r_def
+    this%phi_data(:) = gravity * this%height_w3_data(:)
+    call hydrostatic_coriolis_code( nlayers,                             &
+                                    this%exner_data,                     &
+                                    this%rho_data,                       &
+                                    this%theta_data,                     &
+                                    this%coriolis_data,                  &
+                                    this%moist_dyn_data(:,1),            &
+                                    this%moist_dyn_data(:,2),            &
+                                    this%moist_dyn_data(:,3),            &
+                                    this%phi_data,                       &
+                                    this%height_w3_data,                 &
+                                    this%mask_w3_data,                   &
+                                    p_zero, kappa, rd, cp,               &
+                                    eos_level,                           &
+                                    this%ndf_w3, this%undf_w3,           &
+                                    this%map_w3(:,cell), this%basis_w3,  &
+                                    this%ndf_wt, this%undf_wt,           &
+                                    this%map_wt(:,cell), this%basis_wt   &
+                                    )
+
+    ! Checks equation of state (top level) using a moist theta.
+    ! theta_moist = theta * ( 1+ mv * recip_epsilon )
+    !             = 300 * ( 1 + (461.51/300) *0.01 )
+    !             = 304.6151
+    ! exner = ( theta_moist Rd rho / p0 ) ^ ( k / 1-k )
+    !       = (304.6151 * 300 *1.1 / 100 000 ) ^ (0.3 /0.7)
+    !       = 1.0022380
+    k = 2
+    answer = 1.0022380_r_def
+    @assertEqual(answer, this%exner_data(this%map_w3(1, cell)+k), tol)
+
+    ! Checks hydrostatic plus coriolis balance (bottom level)
+    ! theta_moist = theta ( 1+ mv * recip_epsilon )/(1 + mv)
+    !             = 300 * (1 + (461.51/300) *0.01 )/ (1 + 0.01)
+    !             = 301.5991
+    ! exner_{k} = exner_{k+2} + (g - coriolis) * 2dz / (Cp theta)
+    !           = 1.00223801 + (10 - 0.005) * 4000 / (1000 * 301.5991 )
+    !           = 1.1348
+    k=0
+    answer = 1.1347980_r_def
+    @assertEqual(answer, this%exner_data(this%map_w3(1, cell)+k), tol)
+
+  end subroutine test_all
+
+end module hydrostatic_coriolis_kernel_mod_test

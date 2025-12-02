@@ -1,0 +1,222 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the vertical edge_values computed for a w3-field using the Koren scheme
+module polyv_w3_koren_kernel_mod_test
+
+  use constants_mod, only : i_def, l_def, EPS, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: polyv_w3_koren_test_type
+    private
+  contains
+    procedure test_all
+  end type polyv_w3_koren_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use polyv_w3_koren_kernel_mod,     only: polyv_w3_koren_code
+
+    implicit none
+
+    class(polyv_w3_koren_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran  ! r_tran 64bit tolerance
+    real(r_tran)            :: use_tol
+
+    integer(i_def), parameter :: nlayers = 10
+    integer(i_def), parameter :: nfaces_v = 2
+    integer(i_def), parameter :: nfaces_h = 4
+    integer(i_def), parameter :: mol_order = 2
+    integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+    integer(i_def), parameter :: ndf_md = 1
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: ndf_c  = 1
+    integer(i_def), parameter :: ndf_wt = 2
+
+    integer(i_def), parameter :: undf_md = 2*nlayers
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers
+    integer(i_def), parameter :: undf_c  = ndata*nlayers
+    integer(i_def), parameter :: undf_wt = nlayers+1
+
+    integer(i_def), dimension(ndf_md) :: map_md
+    integer(i_def), dimension(ndf_w3) :: map_w3
+    integer(i_def), dimension(ndf_c)  :: map_c
+    integer(i_def), dimension(ndf_wt) :: map_wt
+
+    real(r_tran), dimension(undf_md)   :: edge_values
+    real(r_tran), dimension(undf_md)   :: edge_values_answer
+    real(r_tran), dimension(undf_w3)   :: density
+    real(r_tran), dimension(nlayers+1) :: edge_density
+    real(r_tran), dimension(undf_wt)   :: zw_height
+    real(r_tran), dimension(3) :: kw=(/-1.0_r_tran,5.0_r_tran,2.0_r_tran/)/6.0_r_tran
+
+    integer(i_def) :: df, k, p1, p2, p3
+    logical(l_def) :: logspace, reversible
+    real(r_tran)    :: constant, r, answerh, answerk
+
+    map_w3(1) = 1
+    map_c(1) = 1
+    map_md(1) = 1
+    map_wt(:) = (/ 1, 2 /)
+
+    ! The density is constructed with constant r=slope ratio
+    constant = 2.0_r_tran
+    r = 0.5_r_tran
+    density(1) = constant
+    density(2) = 1.2_r_tran*constant
+    do k = 3,nlayers
+      density(k) = density(k-1)+r*(density(k-1)-density(k-2))
+    end do
+    do k=1, nlayers+1
+      zw_height(k) = real(k-1, r_tran)
+    end do
+
+    ! Since r=0.5 => phi=(1+2r)/3, the Koren scheme reduces to a
+    ! quadratic scheme with the weights {-1/6, 5/6, 2/6}
+    ! except the end-points
+    do k = 3,nlayers
+      p3 = min(nlayers,k)
+      p2 = max(1,k-1)
+      p1 = max(1,k-2)
+      edge_density(k) = kw(1)*density(p1) + kw(2)*density(p2) + kw(3)*density(p3)
+    end do
+    edge_density(1:2) = density(1)
+    edge_density(nlayers+1) = density(nlayers)
+
+    edge_values_answer(:) = 0.0_r_tran
+    do k = 0, nlayers
+      edge_values_answer(map_md(1) + k ) = edge_density(k+1)
+    end do
+
+    ! Test subroutine with logspace = .false.
+
+    logspace = .false.
+    reversible=.false.
+    edge_values(:) = 0.0_r_tran
+    call polyv_w3_koren_code( nlayers,     &
+                              edge_values, &
+                              density,     &
+                              zw_height,   &
+                              reversible,  &
+                              logspace,    &
+                              ndf_md,      &
+                              undf_md,     &
+                              map_md,      &
+                              ndf_w3,      &
+                              undf_w3,     &
+                              map_w3,      &
+                              ndf_wt,      &
+                              undf_wt,     &
+                              map_wt       )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing(maxval(edge_density(1:nlayers+1)))
+    end if
+
+    do k = 0, nlayers-1
+      answerh = edge_values_answer(map_md(1)+k+1)
+      answerk =        edge_values(map_md(1)+k+nlayers)
+      @assertEqual(answerh, answerk, use_tol )
+    end do
+
+    ! Test subroutine with logspace = .true.
+
+    logspace = .true.
+    density(:) = exp(density(:))
+    edge_density(:) = exp(edge_density(:))
+    edge_values_answer(:) =  0.0_r_tran
+    do k = 0, nlayers
+      edge_values_answer(map_md(1)+k) = edge_density(k+1)
+    end do
+
+    edge_values(:) = 0.0_r_tran
+    call polyv_w3_koren_code( nlayers,     &
+                              edge_values, &
+                              density,     &
+                              zw_height,   &
+                              reversible,  &
+                              logspace,    &
+                              ndf_md,      &
+                              undf_md,     &
+                              map_md,      &
+                              ndf_w3,      &
+                              undf_w3,     &
+                              map_w3,      &
+                              ndf_wt,      &
+                              undf_wt,     &
+                              map_wt       )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing(maxval(edge_density(1:nlayers+1)))
+    end if
+    do k = 0, nlayers-1
+      answerh = edge_values_answer(map_md(1)+k+1)
+      answerk =        edge_values(map_md(1)+k+nlayers)
+      @assertEqual(answerh, answerk, use_tol )
+    end do
+
+    ! ------------------------------------------------------------------------ !
+    ! Test that zero values don't cause blow up
+    ! ------------------------------------------------------------------------ !
+
+    ! Do reconstruction with zero density
+    density(:) = 0.0_r_tran
+    edge_values(:) = 0.0_r_tran
+    call polyv_w3_koren_code( nlayers,     &
+                              edge_values, &
+                              density,     &
+                              zw_height,   &
+                              reversible,  &
+                              logspace,    &
+                              ndf_md,      &
+                              undf_md,     &
+                              map_md,      &
+                              ndf_w3,      &
+                              undf_w3,     &
+                              map_w3,      &
+                              ndf_wt,      &
+                              undf_wt,     &
+                              map_wt       )
+
+    ! Now do reconstruction with tiny density as a control
+    density(:) = EPS
+    edge_values_answer(:) = 0.0_r_tran
+    call polyv_w3_koren_code( nlayers,            &
+                              edge_values_answer, &
+                              density,            &
+                              zw_height,          &
+                              reversible,         &
+                              logspace,           &
+                              ndf_md,             &
+                              undf_md,            &
+                              map_md,             &
+                              ndf_w3,             &
+                              undf_w3,            &
+                              map_w3,             &
+                              ndf_wt,             &
+                              undf_wt,            &
+                              map_wt              )
+
+    @assertEqual(edge_values_answer, edge_values, use_tol )
+
+  end subroutine test_all
+
+end module polyv_w3_koren_kernel_mod_test

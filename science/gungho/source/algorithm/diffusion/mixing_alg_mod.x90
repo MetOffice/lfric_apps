@@ -1,0 +1,101 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Apply diffusion or mixing to model variables
+module mixing_alg_mod
+
+  implicit none
+
+  private
+
+  public :: mixing_alg
+contains
+
+  !> @details Diffuse prognostic fields using Smagorinsky coefficients or
+  !>          simple viscosity operator
+  !> @param[in,out] mr             mixing ratios
+  !> @param[in,out] theta          Potential temperature
+  !> @param[in,out] u              3D wind field
+  !> @param[in]     derived_fields Group of derived fields
+  !> @param[in]     rho            Density
+  !> @param[in]     dt             The model timestep length
+  subroutine mixing_alg(mr, theta, u, derived_fields, &
+                        rho, dt)
+
+    use constants_mod,                 only: i_def,r_def
+    use log_mod,                       only: log_event,         &
+                                             LOG_LEVEL_INFO
+    use field_mod,                     only: field_type
+    use field_collection_mod,          only: field_collection_type
+    use sci_geometric_constants_mod,   only: get_dx_at_w2
+    use mesh_mod,                      only: mesh_type
+    use mr_indices_mod,                only: nummr
+    use mixing_config_mod,             only: viscosity, smagorinsky, viscosity_mu
+    use smagorinsky_alg_mod,           only: smagorinsky_alg
+    use tracer_viscosity_kernel_mod,   only: tracer_viscosity_kernel_type
+    use momentum_viscosity_kernel_mod, only: momentum_viscosity_kernel_type
+    use physics_config_mod,            only: smagorinsky_placement, &
+                                             smagorinsky_placement_end
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent(inout) :: u, theta
+    type( field_type ), intent(inout) :: mr ( nummr )
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_type ), intent(in) :: rho
+
+    ! Timestepping information
+    real( r_def ),      intent(in) :: dt
+
+    ! Increment fields
+    type( field_type ) :: du, dtheta
+
+    type( field_type ), pointer :: dx_at_w2 => null()
+
+    type( mesh_type ), pointer   :: mesh => null()
+
+    !--------------------------------------------------------------------
+    ! Apply horizontal Smagorinsky subgrid mixing
+    !--------------------------------------------------------------------
+    if ( smagorinsky .and. smagorinsky_placement == smagorinsky_placement_end) then
+
+      call dtheta%initialise( theta%get_function_space() )
+      call du%initialise( u%get_function_space() )
+      call invoke( setval_c(dtheta, 0.0_r_def), &
+                   setval_c(du, 0.0_r_def) )
+      call smagorinsky_alg(dtheta, du, mr, theta, u, derived_fields, rho, dt)
+      call invoke( inc_X_plus_Y( theta, dtheta ), &
+                   inc_X_plus_Y( u,     du ) )
+
+    end if
+
+    !--------------------------------------------------------------------
+    ! Apply viscosity
+    !--------------------------------------------------------------------
+    if ( viscosity ) then
+
+      call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
+
+      mesh => theta%get_mesh()
+
+      call dtheta%initialise( theta%get_function_space() )
+      call du%initialise( u%get_function_space() )
+
+      dx_at_w2 => get_dx_at_w2(mesh%get_id())
+      call invoke( setval_c(du, 0.0_r_def),                                   &
+                   tracer_viscosity_kernel_type( dtheta, theta, 1, dx_at_w2,  &
+                                                 viscosity_mu ),              &
+                   momentum_viscosity_kernel_type( du, u, 1, dx_at_w2, 1,     &
+                                                   viscosity_mu ),            &
+                   inc_X_plus_bY( theta, dt, dtheta ),                        &
+                   inc_X_plus_bY( u,     dt, du ) )
+      nullify( mesh )
+    end if
+
+  end subroutine mixing_alg
+end module mixing_alg_mod

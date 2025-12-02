@@ -1,0 +1,54 @@
+@@ -1,11 +1,12 @@
+-module adj_project_eos_pressure_kernel_mod
++module atl_project_eos_pressure_kernel_mod
+   use argument_mod, only : any_discontinuous_space_3, any_space_2, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
+ &gh_field, gh_operator, gh_quadrature_xyoz, gh_read, gh_readwrite, gh_real, gh_write
+   use constants_mod, only : i_def, r_def
+   use fs_continuity_mod, only : w3, wtheta
+   use kernel_mod, only : kernel_type
++  use planet_config_mod, only : kappa, rd, p_zero
+   implicit none
+-  type, public, extends(kernel_type) :: adj_project_eos_pressure_kernel_type
++  type, public, extends(kernel_type) :: atl_project_eos_pressure_kernel_type
+   type(ARG_TYPE) :: META_ARGS(10) = (/ &
+     arg_type(gh_field, gh_real, gh_readwrite, w3), &
+     arg_type(gh_field, gh_real, gh_readwrite, w3), &
+@@ -24,15 +25,15 @@
+   INTEGER :: GH_SHAPE = gh_quadrature_xyoz
+   INTEGER :: OPERATES_ON = cell_column
+   CONTAINS
+-    PROCEDURE, NOPASS :: adj_project_eos_pressure_code
+-END TYPE adj_project_eos_pressure_kernel_type
++    PROCEDURE, NOPASS :: atl_project_eos_pressure_code
++END TYPE atl_project_eos_pressure_kernel_type
+ 
+   private
+ 
+-  public :: adj_project_eos_pressure_code
++  public :: atl_project_eos_pressure_code
+ 
+   contains
+-  subroutine adj_project_eos_pressure_code(cell, nlayers, exner, rho, theta, moist_dyn_gas, ls_rho, ls_theta, ls_moist_dyn_gas, &
++  subroutine atl_project_eos_pressure_code(cell, nlayers, exner, rho, theta, moist_dyn_gas, ls_rho, ls_theta, ls_moist_dyn_gas, &
+ &chi1, chi2, chi3, panel_id, ncell_3d, m3_inv, ndf_w3, undf_w3, map_w3, w3_basis, ndf_wt, undf_wt, map_wt, wt_basis, ndf_chi, &
+ &undf_chi, map_chi, chi_basis, chi_diff_basis, ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
+     use sci_coordinate_jacobian_mod, only : coordinate_jacobian
+@@ -96,9 +97,6 @@
+     real(kind=r_def) :: ls_theta_vd_at_quad
+     real(kind=r_def) :: tmp_ls_exner
+     real(kind=r_def) :: tmp_exner
+-    real(kind=r_def) :: kappa
+-    real(kind=r_def) :: rd
+-    real(kind=r_def) :: p_zero
+ 
+     exner_e = 0.0_r_def
+     exner_at_quad = 0.0_r_def
+@@ -176,6 +174,6 @@
+       enddo
+     enddo
+ 
+-  end subroutine adj_project_eos_pressure_code
++  end subroutine atl_project_eos_pressure_code
+ 
+-end module adj_project_eos_pressure_kernel_mod
++end module atl_project_eos_pressure_kernel_mod

@@ -1,0 +1,425 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_end_transport_step_alg_mod functions
+
+module atlt_end_transport_step_alg_mod
+
+  use field_mod,                           only : field_type
+  use r_tran_field_mod,                    only : r_tran_field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def, &
+                                                  l_def, r_tran
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use model_clock_mod,                     only : model_clock_type
+  use finite_element_config_mod,           only : element_order_h, &
+                                                  element_order_v
+  use fs_continuity_mod,                   only : W2, W3
+  use function_space_collection_mod,       only : function_space_collection
+  use tl_transport_controller_mod,         only : tl_transport_controller_type
+  use transport_controller_mod,            only : transport_controller_type
+  use flux_precomputations_alg_mod,        only : flux_precomputations_type
+  use transport_counter_mod,               only : transport_counter_type
+  use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
+  use transport_metadata_collection_mod,   only : transport_metadata_collection
+  use transport_metadata_mod,              only : transport_metadata_type
+  use inner_from_controller_rtran_alg_mod, only : flux_pc_ref_flux_prod_rtran,     &
+                                                  flux_pc_ref_flux_inp_prod_rtran, &
+                                                  counter_flux_prod_rtran,         &
+                                                  counter_flux_inp_prod_rtran,     &
+                                                  counter_field_n_prod_rtran,      &
+                                                  counter_field_n_inp_prod_rtran
+  use init_from_controller_alg_mod,        only : init_counter_fieldvals, &
+                                                  init_flux_pc_fieldvals
+
+  implicit none
+
+  private
+  public :: atlt_end_adv_step_alg
+  public :: atlt_end_con_step_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_end_advective_step_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine atlt_end_adv_step_alg( mesh, model_clock )
+
+    use tl_end_of_transport_step_alg_mod,    only : tl_end_of_advective_step_alg
+    use atl_end_transport_step_alg_mod,      only : atl_end_advective_step_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(r_tran_field_type)                :: field_np1
+    type(r_tran_field_type)                :: field_in
+    type(transport_counter_type),  pointer :: transport_counter
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    ! Copies of input fields used in inner products
+    type(r_tran_field_type)                :: field_np1_input
+    type(r_tran_field_type)                :: field_in_input
+
+    ! Variables for initialising fields
+    type(function_space_type),       pointer :: vector_space_w3_ptr
+
+    ! Setup for tl_transport_controller
+    type(tl_transport_controller_type)       :: tl_transport_controller
+    type(transport_controller_type), pointer :: pert_transport_controller
+    type(field_type)                         :: dummy
+    type(function_space_type),       pointer :: dummy_vs
+
+    ! Inner products
+    real(kind=r_tran)            :: inner1
+    real(kind=r_def)             :: field_np1_inner_prod
+    real(kind=r_tran)            :: field_np1_sf
+    real(kind=r_def)             :: field_in_inner_prod
+    real(kind=r_tran)            :: field_in_sf
+    real(kind=r_tran)            :: inner2
+    real(kind=r_def)             :: fnp1_fnp1_input_inner_prod
+    real(kind=r_def)             :: fi_fi_input_inner_prod
+    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+
+    ! Test parameters and variables
+    real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran) :: machine_tol
+    real(kind=r_tran) :: relative_diff
+
+    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs )
+    pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+    transport_counter => pert_transport_controller%get_transport_counter()
+
+    ! Initialising fields
+    vector_space_w3_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W3                           &
+    )
+
+    call field_np1%initialise( vector_space = vector_space_w3_ptr )
+    call field_in%initialise( vector_space = vector_space_w3_ptr )
+
+    call field_np1_input%initialise( vector_space = vector_space_w3_ptr )
+    call field_in_input%initialise( vector_space = vector_space_w3_ptr )
+
+    field_np1_inner_prod = 0.0_r_def
+    field_in_inner_prod = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( setval_random( field_np1 ),             &
+                 setval_x( field_np1_input, field_np1 ), &
+                 setval_random( field_in ),              &
+                 setval_x( field_in_input, field_in ) )
+
+    ! Tangent linear
+    call tl_end_of_advective_step_alg( field_np1, field_in, transport_counter, transport_metadata )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( field_np1_inner_prod, field_np1 ), &
+                 x_innerproduct_x( field_in_inner_prod, field_in ) )
+
+    ! Determining scale factors
+    field_np1_sf = 1.0_r_tran/( real( field_np1_inner_prod, r_tran ) + eps )
+    field_in_sf = 1.0_r_tran/( real( field_in_inner_prod, r_tran ) + eps )
+
+    inner1 = 0.0_r_tran
+    inner1 = inner1 + real( field_np1_inner_prod, r_tran )*field_np1_sf
+    inner1 = inner1 + real( field_in_inner_prod, r_tran )*field_in_sf
+    write(log_scratch_space, *) "atlt_end_adv_step inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "field_np1 inner product = ", real( field_np1_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "field_in inner product = ", real( field_in_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( field_np1_sf, field_np1 ), &
+                 inc_a_times_X( field_in_sf, field_in ) )
+
+    ! Adjoint alg call and inner products
+    fnp1_fnp1_input_inner_prod = 0.0_r_def
+    fi_fi_input_inner_prod = 0.0_r_def
+
+    ! Adjoint
+    call atl_end_advective_step_alg( field_np1, field_in, transport_counter, transport_metadata )
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( fnp1_fnp1_input_inner_prod, &
+                                   field_np1,                  &
+                                   field_np1_input ),          &
+                 x_innerproduct_y( fi_fi_input_inner_prod,     &
+                                   field_in,                   &
+                                   field_in_input ) )
+
+    inner2 = 0.0_r_tran
+    inner2 = inner2 + real( fnp1_fnp1_input_inner_prod, r_tran )
+    inner2 = inner2 + real( fi_fi_input_inner_prod, r_tran )
+
+    call tl_transport_controller%finalise()
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_end_adv_step:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_end_adv_step:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_end_adv_step_alg
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_end_conservative_step_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine atlt_end_con_step_alg( mesh, model_clock )
+
+    use tl_end_of_transport_step_alg_mod,    only : tl_end_of_conservative_step_alg
+    use atl_end_transport_step_alg_mod,      only : atl_end_conservative_step_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(r_tran_field_type)                  :: field_np1
+    type(r_tran_field_type)                  :: field_in
+    type(r_tran_field_type)                  :: flux_ls_wind
+    type(r_tran_field_type)                  :: flux_pert_wind
+    type(flux_precomputations_type), pointer :: flux_precomp_ls_wind
+    type(flux_precomputations_type), pointer :: flux_precomp_pert_wind
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
+
+    ! Copies of input fields used in inner products
+    type(r_tran_field_type)                            :: field_np1_input
+    type(r_tran_field_type)                            :: field_in_input
+    type(r_tran_field_type)                            :: flux_ls_wind_input
+    type(r_tran_field_type)                            :: flux_pert_wind_input
+
+    ! Variables used to handle calculations for fields stored in tl_transport_controller
+    type(tl_transport_controller_type)                 :: tl_transport_controller
+    type(transport_controller_type),           pointer :: pert_transport_controller
+    type(transport_controller_type),           pointer :: ls_transport_controller
+    type(field_type)                                   :: tctr_field_n
+    type(function_space_type),                 pointer :: tctr_field_n_vs
+    type(field_type)                                   :: tctr_field_n_inp
+    type(r_tran_field_type), dimension(:), allocatable :: tctr_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_pert_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_2_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_tran)            :: inner1
+    real(kind=r_def)             :: field_np1_inner_prod
+    real(kind=r_tran)            :: field_np1_sf
+    real(kind=r_def)             :: field_in_inner_prod
+    real(kind=r_tran)            :: field_in_sf
+    real(kind=r_def)             :: flux_ls_wind_inner_prod
+    real(kind=r_tran)            :: flux_ls_wind_sf
+    real(kind=r_def)             :: flux_pert_wind_inner_prod
+    real(kind=r_tran)            :: flux_pert_wind_sf
+    real(kind=r_tran)            :: inner2
+    real(kind=r_def)             :: fnp1_fnp1_input_inner_prod
+    real(kind=r_def)             :: fi_fi_input_inner_prod
+    real(kind=r_def)             :: flsw_flsw_input_inner_prod
+    real(kind=r_def)             :: fpw_fpw_input_inner_prod
+    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+
+    ! Test parameters and variables
+    real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran) :: machine_tol
+    real(kind=r_tran) :: relative_diff
+
+    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, tctr_field_n, tctr_field_n_vs )
+    ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
+    pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+    transport_counter => pert_transport_controller%get_transport_counter()
+    flux_precomp_ls_wind => ls_transport_controller%get_flux_precomputations()
+    flux_precomp_pert_wind => pert_transport_controller%get_flux_precomputations()
+
+    ! Initialising fields
+    call init_counter_fieldvals( mesh,                     &
+                                 tctr_field_n_inp,         &
+                                 tctr_flux_inp,            &
+                                 pert_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                     &
+                                 1_i_def,                  &
+                                 fpc_ls_wind_ref_flux_inp, &
+                                 dummy_ref_field_1_inp,    &
+                                 dummy_ref_mass_1_inp,     &
+                                 ls_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                       &
+                                 1_i_def,                    &
+                                 fpc_pert_wind_ref_flux_inp, &
+                                 dummy_ref_field_2_inp,      &
+                                 dummy_ref_mass_2_inp,       &
+                                 pert_transport_controller )
+
+    vector_space_w2_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W2                           &
+    )
+    vector_space_w3_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W3                           &
+    )
+
+    call field_np1%initialise( vector_space = vector_space_w3_ptr )
+    call field_in%initialise( vector_space = vector_space_w3_ptr )
+    call flux_ls_wind%initialise( vector_space = vector_space_w2_ptr )
+    call flux_pert_wind%initialise( vector_space = vector_space_w2_ptr )
+
+    call field_np1%copy_field_properties( field_np1_input )
+    call field_in%copy_field_properties( field_in_input )
+    call flux_ls_wind%copy_field_properties( flux_ls_wind_input )
+    call flux_pert_wind%copy_field_properties( flux_pert_wind_input )
+
+    field_np1_inner_prod = 0.0_r_def
+    field_in_inner_prod = 0.0_r_def
+    flux_ls_wind_inner_prod = 0.0_r_def
+    flux_pert_wind_inner_prod = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( setval_random( field_np1 ),                   &
+                 setval_x( field_np1_input, field_np1 ),       &
+                 setval_random( field_in ),                    &
+                 setval_x( field_in_input, field_in ),         &
+                 setval_random( flux_ls_wind ),                &
+                 setval_x( flux_ls_wind_input, flux_ls_wind ), &
+                 setval_random( flux_pert_wind ),              &
+                 setval_x( flux_pert_wind_input, flux_pert_wind ) )
+
+    ! Tangent linear
+    call tl_end_of_conservative_step_alg( field_np1, field_in,              &
+                                          flux_ls_wind, flux_pert_wind,     &
+                                          flux_precomp_ls_wind,             &
+                                          flux_precomp_pert_wind,           &
+                                          transport_counter,                &
+                                          transport_metadata )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( field_np1_inner_prod, field_np1 ),       &
+                 x_innerproduct_x( field_in_inner_prod, field_in ),         &
+                 x_innerproduct_x( flux_ls_wind_inner_prod, flux_ls_wind ), &
+                 x_innerproduct_x( flux_pert_wind_inner_prod, flux_pert_wind ) )
+
+    ! Determining scale factors
+    field_np1_sf = 1.0_r_tran/( real( field_np1_inner_prod, r_tran ) + eps )
+    field_in_sf = 1.0_r_tran/( real( field_in_inner_prod, r_tran ) + eps )
+    flux_ls_wind_sf = 1.0_r_tran/( real( flux_ls_wind_inner_prod, r_tran ) + eps )
+    flux_pert_wind_sf = 1.0_r_tran/( real( flux_pert_wind_inner_prod, r_tran ) + eps )
+
+    inner1 = 0.0_r_tran
+    inner1 = inner1 + real( field_np1_inner_prod, r_tran )*field_np1_sf
+    inner1 = inner1 + real( field_in_inner_prod, r_tran )*field_in_sf
+    inner1 = inner1 + real( flux_ls_wind_inner_prod, r_tran )*flux_ls_wind_sf
+    inner1 = inner1 + real( flux_pert_wind_inner_prod, r_tran )*flux_pert_wind_sf
+    write(log_scratch_space, *) "atlt_end_con_step inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "field_np1 inner product = ", real( field_np1_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "field_in inner product = ", real( field_in_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "flux_ls_wind inner product = ", real( flux_ls_wind_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "flux_pert_wind inner product = ", real( flux_pert_wind_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    call flux_pc_ref_flux_prod_rtran( inner1, ls_transport_controller, 1_i_def )
+    call flux_pc_ref_flux_prod_rtran( inner1, pert_transport_controller, 1_i_def )
+    call counter_flux_prod_rtran( inner1, pert_transport_controller )
+    call counter_field_n_prod_rtran( inner1, pert_transport_controller )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( field_np1_sf, field_np1 ),       &
+                 inc_a_times_X( field_in_sf, field_in ),         &
+                 inc_a_times_X( flux_ls_wind_sf, flux_ls_wind ), &
+                 inc_a_times_X( flux_pert_wind_sf, flux_pert_wind ) )
+
+    ! Adjoint alg call and inner products
+    fnp1_fnp1_input_inner_prod = 0.0_r_def
+    fi_fi_input_inner_prod = 0.0_r_def
+    flsw_flsw_input_inner_prod = 0.0_r_def
+    fpw_fpw_input_inner_prod = 0.0_r_def
+
+    ! Adjoint
+    call atl_end_conservative_step_alg( field_np1, field_in,              &
+                                        flux_ls_wind, flux_pert_wind,     &
+                                        flux_precomp_ls_wind,             &
+                                        flux_precomp_pert_wind,           &
+                                        transport_counter,                &
+                                        transport_metadata )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( fnp1_fnp1_input_inner_prod, &
+                                   field_np1,                  &
+                                   field_np1_input ),          &
+                 x_innerproduct_y( fi_fi_input_inner_prod,     &
+                                   field_in,                   &
+                                   field_in_input ),           &
+                 x_innerproduct_y( flsw_flsw_input_inner_prod, &
+                                   flux_ls_wind,               &
+                                   flux_ls_wind_input ),       &
+                 x_innerproduct_y( fpw_fpw_input_inner_prod,   &
+                                   flux_pert_wind,             &
+                                   flux_pert_wind_input ) )
+
+    inner2 = 0.0_r_tran
+    inner2 = inner2 + real( fnp1_fnp1_input_inner_prod, r_tran )
+    inner2 = inner2 + real( fi_fi_input_inner_prod, r_tran )
+    inner2 = inner2 + real( flsw_flsw_input_inner_prod, r_tran )
+    inner2 = inner2 + real( fpw_fpw_input_inner_prod, r_tran )
+    call flux_pc_ref_flux_inp_prod_rtran( inner2, ls_transport_controller, 1_i_def, fpc_ls_wind_ref_flux_inp )
+    call flux_pc_ref_flux_inp_prod_rtran( inner2, pert_transport_controller, 1_i_def, fpc_pert_wind_ref_flux_inp )
+    call counter_flux_inp_prod_rtran( inner2, pert_transport_controller, tctr_flux_inp )
+    call counter_field_n_inp_prod_rtran( inner2, pert_transport_controller, tctr_field_n_inp )
+
+    call tl_transport_controller%finalise()
+    if ( allocated(tctr_flux_inp) )              deallocate( tctr_flux_inp )
+    if ( allocated(fpc_ls_wind_ref_flux_inp) )   deallocate( fpc_ls_wind_ref_flux_inp )
+    if ( allocated(fpc_pert_wind_ref_flux_inp) ) deallocate( fpc_pert_wind_ref_flux_inp )
+    if ( allocated(dummy_ref_field_1_inp) )      deallocate( dummy_ref_field_1_inp )
+    if ( allocated(dummy_ref_mass_1_inp) )       deallocate( dummy_ref_mass_1_inp )
+    if ( allocated(dummy_ref_field_2_inp) )      deallocate( dummy_ref_field_2_inp )
+    if ( allocated(dummy_ref_mass_2_inp) )       deallocate( dummy_ref_mass_2_inp )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_end_con_step:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_end_con_step:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_end_con_step_alg
+
+end module atlt_end_transport_step_alg_mod

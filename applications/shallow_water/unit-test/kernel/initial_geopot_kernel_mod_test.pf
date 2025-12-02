@@ -1,0 +1,236 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the analytic geopotential kernel
+!>
+
+module initial_geopot_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w2_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                  get_w2_m3x3_dofmap, &
+                                                  get_w3_m3x3_dofmap
+
+  use get_unit_test_q3x3x3_quadrature_mod,             &
+     only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+            get_gaussian_q3x3x3_quadrature_weights_z
+
+  use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_basis,      &
+                                                  get_w0_q3x3x3_diff_basis, &
+                                                  get_w2_q3x3x3_basis
+
+  use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use base_mesh_config_mod,      only : geometry_planar,    &
+                                          topology_fully_periodic
+    use extrusion_config_mod,      only : method_uniform, &
+                                          stretching_method_linear
+    use feign_config_mod,          only : feign_base_mesh_config,      &
+                                          feign_extrusion_config,      &
+                                          feign_finite_element_config, &
+                                          feign_planet_config,         &
+                                          feign_shallow_water_settings_config
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use shallow_water_settings_config_mod,                           &
+                                   only : momentum_form_momentum,    &
+                                          time_scheme_semi_implicit, &
+                                          swe_test_swe_geostr_balance
+
+    implicit none
+
+    call feign_base_mesh_config( file_prefix='foo',                   &
+                                 prime_mesh_name='unit_test',         &
+                                 geometry=geometry_planar,            &
+                                 topology=topology_fully_periodic,    &
+                                 prepartitioned=.false.,              &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( method=method_uniform,                      &
+                                 planet_radius=6000000.0_r_def,              &
+                                 domain_height=10.0_r_def,                   &
+                                 number_of_layers=5_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=10.0_r_def,               &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
+                                      coord_order=0_i_def,               &
+                                      coord_system=coord_system_xyz,     &
+                                      element_order_h=0_i_def,           &
+                                      element_order_v=0_i_def,           &
+                                      rehabilitate=.true.,               &
+                                      vorticity_in_w1=.false. )
+
+    call feign_planet_config( gravity=10.0_r_def,     &
+                              omega=0.01_r_def,       &
+                              rd=300.0_r_def,         &
+                              cp=1000.0_r_def,        &
+                              p_zero=100000.0_r_def,  &
+                              scaling_factor=1.0_r_def )
+
+    call feign_shallow_water_settings_config( momentum_form = momentum_form_momentum,   &
+                                              time_scheme = time_scheme_semi_implicit,  &
+                                              ref_gp = 1.0_r_def,                       &
+                                              swe_test = swe_test_swe_geostr_balance,   &
+                                              thermal_swe = .false. )
+
+    call init_chi_transforms()
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use sci_chi_transform_mod,    only: final_chi_transforms
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    ! Finalise namelists
+    call final_chi_transforms()
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use initial_geopot_kernel_mod, only : initial_geopot_code
+
+   implicit none
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: dx = 2.0_r_def
+    real(r_def), parameter :: dy = 2.0_r_def
+    real(r_def), parameter :: dz = 2.0_r_def
+    real(r_def), parameter :: domain_x = 4.0_r_def
+
+    real(r_def), parameter :: initial_time = 0.0_r_def
+
+    ! Fields
+    real(r_def), allocatable :: geopot(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+
+    real(kind=r_def) :: answer
+
+    integer :: i, j, k, cell
+
+    integer(i_def)              :: nlayers, ncells, nqp_h, nqp_v
+    integer(i_def)              :: ndf_w0, ndf_w2, ndf_w3, ndf_pid
+    integer(i_def)              :: dim_space, dim_space_diff
+    integer(i_def)              :: undf_w0, undf_w2, undf_w3, undf_pid
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+
+    ! Basis functions
+    real(r_def),    allocatable :: basis_w0(:,:,:,:)
+    real(r_def),    allocatable :: basis_w2(:,:,:,:)
+    real(r_def),    allocatable :: diff_basis_w0(:,:,:,:)
+
+    ! Weights
+    real(r_def),    allocatable :: wh(:)
+    real(r_def),    allocatable :: wv(:)
+
+    nlayers = 3
+    call get_w3_m3x3_q3x3x3_size( ndf_pid, undf_pid, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  1 )
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_w3_m3x3_dofmap(map_pid, 1)
+
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ! Get canned basis functions
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_w0_q3x3x3_basis(basis_w0)
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+
+    ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+    allocate(panel_id(undf_pid))
+
+    panel_id(:) = 1.0_r_def
+    call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                            map_w0, nlayers)
+    cell = 1
+    k = 0
+
+    ! Create the data
+    allocate( geopot( undf_w3 ) )
+    geopot(:) = 0.0_r_def
+
+    ! Use geostrophic balance test
+    call initial_geopot_code(nlayers, geopot,                      &
+                             chi1, chi2, chi3, panel_id, domain_x, &
+                             ndf_w3, undf_w3, map_w3,              &
+                             ndf_w0, undf_w0, map_w0, basis_w0,    &
+                             ndf_pid, undf_pid, map_pid)
+
+    answer = 0.998483873274083_r_def
+    @assertEqual(answer, geopot(cell), tol)
+
+    deallocate( geopot )
+    deallocate( chi1 )
+    deallocate( chi2 )
+    deallocate( chi3 )
+    deallocate( panel_id )
+    deallocate( map_pid )
+    deallocate( map_w0 )
+    deallocate( map_w2 )
+    deallocate( map_w3 )
+    deallocate( basis_w0 )
+    deallocate( basis_w2 )
+    deallocate( diff_basis_w0 )
+    deallocate( wh )
+    deallocate( wv )
+
+  end subroutine test_all
+
+end module initial_geopot_kernel_mod_test

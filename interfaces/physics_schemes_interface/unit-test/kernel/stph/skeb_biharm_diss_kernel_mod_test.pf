@@ -1,0 +1,172 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Test the skeb_biharm_diss kernel
+!>
+module skeb_biharm_diss_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+  use get_unit_test_m3x3_dofmap_mod, only : get_w2_m3x3_dofmap, &
+                                            get_w1_m3x3_dofmap, &
+                                            get_w3_m3x3_dofmap, &
+                                            get_m3x3_stencil_dofmap_cross
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w1_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size, &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: skeb_biharm_diss_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type skeb_biharm_diss_test_type
+
+contains
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(skeb_biharm_diss_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(skeb_biharm_diss_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use skeb_biharm_diss_kernel_mod,   only : skeb_biharm_diss_code
+    use empty_data_mod,    only: empty_real_data
+
+    implicit none
+
+    class(skeb_biharm_diss_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol  = 1.0e-8_r_def
+
+    ! Fields
+    real(r_def), allocatable :: dx_at_w2(:), answer(:),  &
+         divergence(:), vorticity(:), ndisp(:)
+    real(r_def), pointer :: norm_xi(:), norm_div(:)
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w2(:,:), map_w1(:,:), map_w3(:,:), &
+         map_w3_stencil(:,:,:)
+
+    integer(i_def) :: k, df, cell
+    real(r_def) :: dt
+
+    ! Sizes
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, ndf_w1, undf_w1, ndf_w3, undf_w3
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    ncells = 9
+
+    ! Set up 3d w2 field - need enough layers for ramping up and down
+    nlayers = 3
+    ndf_w2 = 6
+    undf_w2 = 9*(nlayers+1) + 18*nlayers
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+
+    call get_w1_m3x3_q3x3x3_size( ndf_w1, undf_w1, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w1_m3x3_dofmap(map_w1)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_m3x3_stencil_dofmap_cross(map_w3_stencil, map_w3)
+
+    ! Create the data
+    allocate(dx_at_w2(undf_w2))
+    allocate(answer(undf_w3))
+    allocate(vorticity(undf_w1))
+    allocate(divergence(undf_w3))
+    allocate(ndisp(undf_w3))
+
+    norm_xi => empty_real_data
+    norm_div => empty_real_data
+
+    dx_at_w2 = 10.0_r_def
+    dt = 3.0_r_def/128.0_r_def
+    cell = 5
+    k=2
+
+    divergence = 0.0_r_def
+    vorticity = 0.0_r_def
+    ndisp = 0.0_r_def
+
+    divergence(map_w3_stencil(1,1,cell)+k-1) = 1.0_r_def
+    divergence(map_w3_stencil(1,4,cell)+k-1) = 2.0_r_def
+    ! ddiv/dx^2 = ((2-1)*10)^2 = 100
+    ! ddiv/dy^2 = ((1-0)*10)^2 = 100
+    vorticity(map_w1(7,cell)+k-1) = 1.0_r_def
+    vorticity(map_w1(5,cell)+k-1) = 2.0_r_def
+    ! dxi/dx^2 = 0.5*[((0-2)*10)^2 + ((1-0)*10)^2] = 250
+    ! dxi/dy^2 = 0.5*[((0-2)*10)^2 + ((1-0)*10)^2] = 250
+
+    answer = 0.0_r_def
+    ! ddiv/dx^2 + ddiv/dy^2 + dxi/dx^2 + dxi/dy^2
+    answer(map_w3(1,cell)+k-1) = 100.0_r_def+100.0_r_def+250.0_r_def+250.0_r_def
+
+    call skeb_biharm_diss_code( nlayers,                  &
+                                ndisp,                    &
+                                vorticity,                &
+                                divergence, 5,            &
+                                map_w3_stencil(:,:,cell), &
+                                dx_at_w2,                 &
+                                2, 2, dt,                 &
+                                norm_xi,                  &
+                                norm_div,                 &
+                                ndf_w3,                   &
+                                undf_w3,                  &
+                                map_w3(:, cell),          &
+                                ndf_w1,                   &
+                                undf_w1,                  &
+                                map_w1(:, cell),          &
+                                ndf_w2,                   &
+                                undf_w2,                  &
+                                map_w2(:, cell)           &
+                                )
+
+    @assertEqual(answer(:), ndisp(:), tol)
+
+    deallocate(answer)
+    deallocate(divergence)
+    deallocate(vorticity)
+    deallocate(dx_at_w2)
+    deallocate(ndisp)
+    deallocate(map_w1)
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(map_w3_stencil)
+
+  end subroutine test_all
+
+end module skeb_biharm_diss_kernel_mod_test

@@ -1,0 +1,74 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_transport.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "transport_gadi_developer": [
+        "transport_cylinder_xz_ffsl-BiP100x10-20x20_gadi_intel_fast-debug-64bit",
+        "transport_cylinder_xz_ffsl-BiP100x10-20x20_gadi_intel_full-debug-64bit",
+        "transport_deformation_2d_cylinder_ffsl_bigcfl-C32_gadi_intel_fast-debug-64bit",
+        "transport_hadley_dcmip_ffsl-C32_gadi_intel_fast-debug-64bit",
+        "transport_hadley_dcmip_ffsl_3d_overset-C32_gadi_intel_fast-debug-64bit",
+        "transport_hadley_dcmip_mol-C32_gadi_intel_fast-debug-64bit",
+        "transport_hadley_dcmip_mol_alt-C32_gadi_intel_fast-debug-64bit",
+        "transport_sbr_hori_cos_phi_ffsl_edges-C32_gadi_intel_fast-debug-64bit",
+        "transport_sbr_hori_cos_phi_ffsl_ppm_edges-C32_gadi_intel_fast-debug-64bit",
+        "transport_sbr_hori_cos_phi_mol_overset-C32_gadi_intel_fast-debug-64bit",
+        "transport_azspice_unit_tests",
+        "transport_azspice_canned",
+    ],
+    "transport_gadi": [
+        "transport_gadi_developer",
+    ],
+    "transport_gadi_canned": [
+        "transport_canned_gadi_intel_fast-debug-64bit",
+        "transport_canned_gadi_intel_fast-debug-32bit",
+    ],
+    "transport_gadi_unit_tests": [
+        "transport_unit_tests_gadi_intel_64bit",
+    ],
+    "transport_gadi_build": [
+        "build_transport_gadi_intel_fast-debug-64bit",
+        "build_transport_gadi_intel_fast-debug-32bit",
+        "build_transport_gadi_intel_full-debug-64bit",
+    ],
+    }) %}
+
+{% do site_groups.update({
+    "transport_developer": [
+        "scripts",
+        "transport_gadi_developer",
+        "transport_unit_tests",
+    ],
+    "transport": [
+        "transport_developer",
+        "transport_gadi",
+    ],
+    "transport_canned": [
+        "transport_gadi_canned",
+    ],
+    "transport_unit_tests": [
+        "transport_gadi_unit_tests",
+    ],
+    "transport_build": [
+        "transport_gadi_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.transport_developer) %}
+{% do site_groups.all.extend(site_groups.transport) %}
+{% do site_groups.unit_tests.extend(site_groups.transport_unit_tests) %}
+{% do site_groups.build.extend(site_groups.transport_build) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.transport_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.transport_gadi) %}
+{% do site_groups.gadi_unit_tests.extend(site_groups.transport_gadi_unit_tests) %}
+{% do site_groups.gadi_build.extend(site_groups.transport_gadi_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_transport.cylc") %}

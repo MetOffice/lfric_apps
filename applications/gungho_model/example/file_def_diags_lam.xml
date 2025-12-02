@@ -1,0 +1,23 @@
+<file_definition>
+
+  <file id="lfric_lam" name="lfric_lam" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+     <field_group id="masks" freq_op="1ts" operation="once" enabled=".TRUE." >
+       <field id="w3_mask"/>
+       <field id="wtheta_mask"/>
+       <field id="w3lbc_mask"/>
+       <field id="wthetalbc_mask"/>
+       <field id="w3blend_mask"/>
+       <field id="wthetablend_mask"/>
+       <field id="onion_layers"/>
+       <field id="h_w2_mask"/>
+       <field id="h_w2lbc_mask"/>
+       <field id="h_w2boundary_mask"/>
+       <field id="h_w2blend_mask"/>
+       <field id="v_w2_mask"/>
+       <field id="v_w2lbc_mask"/>
+       <field id="v_w2blend_mask"/>
+       <field id="v_w2boundary_mask"/>
+     </field_group>
+  </file>
+
+</file_definition>

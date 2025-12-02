@@ -1,0 +1,62 @@
+!--------------------------------------------------------------------
+! Example namelists for mesh generation
+!--------------------------------------------------------------------
+! These example namelists will result in the mesh generators
+! producing an output file (<mesh_filename>) which will
+! contain <n_meshes> mesh topologies which are identified by
+! the by <mesh_names>.
+!
+! Additional intergrid mappings may be produced and included
+! in the output file. Each map is specified by an item in the
+! <mesh_maps> list. Maps are specified by a string of the two
+! mesh names spearated by a ":". Each item will cause a
+! map to be added to the maps source mesh, i.e.
+!
+! 'dynamics:physics' will result in a map added to the
+!
+!  *  "dynamics" mesh (source) object mapping to "physics"  (target)
+!  *  "physics"  mesh (source) object mapping to "dynamics" (target)
+!
+! Notes: 
+!  *  Only the first "n_meshes" listed in mesh_names will be
+!     output in the mesh file.
+!  *  All spherical co-ordinates are given the order
+!     [longitude, latitude] in the units, degrees_east, degrees_north
+!     respectively
+!===================================================================
+&mesh
+  mesh_filename  = 'mesh_BiP40x40-5x5.nc'
+  geometry       = 'planar'
+  topology       = 'periodic'
+  n_meshes       = 1
+  mesh_names     = 'unit_test'
+  partition_mesh = .false.
+  coord_sys      = 'xyz'
+  rotate_mesh    = .false.
+/
+
+!==================================================================
+! Planar Meshes: Only used by the planar mesh generator
+!==================================================================
+! Each planar mesh is specified by the corresponding number of
+! cells on a panel edge in the x/y axes. These are listed in the
+! variables <edge_cells_x>/<edge_cells_y> and correspond to the
+! order of mesh topologies given by <mesh_names>.
+!
+! All lised meshes will occupy the same domain and periodicity.
+!
+! Note: When requesting a integrid mesh map, for a given pair of
+!       of source/target meshes, one meshes edge cell value must
+!       be a factor of the other.
+
+&planar_mesh
+  edge_cells_x    = 40
+  edge_cells_y    = 40
+  domain_x        = 200.0
+  domain_y        = 200.0
+  periodic_x      = .true.
+  periodic_y      = .true.
+  create_lbc_mesh = .false.
+  lbc_rim_depth   = 1
+  lbc_parent_mesh = 'test1'
+/

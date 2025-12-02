@@ -1,0 +1,280 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Initialisation of prognostic fields for the shallow water equations.
+!> @details Algorithms to initialise winds, geopotential, and buoyancy, and to
+!!          compute potential vorticity during the shallow water simuations.
+module swe_init_fields_alg_mod
+
+  ! Constants, Types, Function Space
+  use constants_mod,                      only: r_def, i_def, radians_to_degrees
+  use domain_mod,                         only: domain_type
+  use field_mod,                          only: field_type
+  use field_collection_mod,               only: field_collection_type
+  use fs_continuity_mod,                  only: W1
+  use function_space_collection_mod,      only: function_space_collection
+  use function_space_mod,                 only: function_space_type
+  use sci_geometric_constants_mod,        only: get_coordinates, &
+                                                get_panel_id
+  use log_mod,                            only: log_event,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_INFO,    &
+                                                LOG_LEVEL_ERROR
+  use mesh_mod,                           only: mesh_type
+  use sci_field_vector_mod,               only: field_vector_type
+
+  ! Configuration options
+  use finite_element_config_mod,          only: element_order_h, element_order_v
+  use shallow_water_settings_config_mod,  only: swe_test,              &
+                                                swe_test_swe_galewsky, &
+                                                swe_test_swe_geostr_balance
+  use shallow_water_settings_config_mod,  only: thermal_swe
+
+  ! Algorithms and Kernels
+  use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
+  use initial_geopot_kernel_mod,          only: initial_geopot_kernel_type
+  use initial_surface_geopot_kernel_mod,  only: initial_surface_geopot_kernel_type
+  use initial_swe_buoyancy_kernel_mod,    only: initial_swe_buoyancy_kernel_type
+  use initial_swe_streamfunc_kernel_mod,  only: initial_swe_streamfunc_kernel_type
+  use initial_swe_tracer_kernel_mod,      only: initial_swe_tracer_kernel_type
+  use initial_swe_u_kernel_mod,           only: initial_swe_u_kernel_type
+  use initial_vorticity_v2_kernel_mod,    only: initial_vorticity_v2_kernel_type
+  use sci_mass_matrix_solver_alg_mod,     only: mass_matrix_solver_alg
+  use strong_curl_kernel_mod,             only: strong_curl_kernel_type
+  use w2_to_w1_projection_kernel_mod,     only: w2_to_w1_projection_kernel_type
+
+  ! Quadrature
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
+
+  implicit none
+
+  public :: swe_init_fields_alg
+  public :: swe_init_vorticity_alg
+  public :: swe_init_surface_alg
+
+contains
+
+  !=============================================================================
+  !> @brief Initialise the prognostic fields for the shallow water miniapp.
+  !> @details An algorithm for initialising prognostic fields (wind, geopotential,
+  !!          buoyancy, potential voriticty) for the shallow water miniapp.
+  !> @param[in]     mesh        Mesh to initialise variables on
+  !> @param[in]     s_geopot    The surface geopotential
+  !> @param[in,out] prognostics The prognostic variables
+  !!                            (wind, buoyancy, geopotential, potential vorticity)
+  subroutine swe_init_fields_alg( mesh,     &
+                                  s_geopot, &
+                                  prognostics )
+
+    implicit none
+
+    ! Mesh, surface geopotential and prognostic fields
+    type( mesh_type ), pointer,    intent(in)    :: mesh
+    type( field_type ),            intent(in)    :: s_geopot
+    type( field_collection_type ), intent(inout) :: prognostics
+
+    ! Individual fields from prognostics
+    type( field_type ), pointer :: wind     => null()
+    type( field_type ), pointer :: geopot   => null()
+    type( field_type ), pointer :: buoyancy => null()
+    type( field_type ), pointer :: q        => null()
+    type( field_type ), pointer :: tracer_const => null()
+    type( field_type ), pointer :: tracer_pv    => null()
+    type( field_type ), pointer :: tracer_step  => null()
+
+    ! Quadrature
+    type( quadrature_xyoz_type )          :: qr
+    type( quadrature_rule_gaussian_type ) :: quadrature_rule
+    type( field_type )                    :: r_u, r_psi, psi
+
+    ! Coordinate fields and panel ID
+    type( field_type ), pointer :: chi(:)   => null()
+    type( field_type ), pointer :: panel_id => null()
+
+    ! Function space
+    type(function_space_type), pointer :: w1_fs => null()
+
+    ! Domain information
+    type( domain_type ) :: domain
+    real(kind=r_def)    :: domain_size_x
+
+    ! Get references out of the prognostic collection for the prognostic
+    ! variables
+    call prognostics%get_field("wind", wind)
+    call prognostics%get_field("buoyancy", buoyancy)
+    call prognostics%get_field("geopot", geopot)
+    call prognostics%get_field("q", q)
+    call prognostics%get_field("tracer_const", tracer_const)
+    call prognostics%get_field("tracer_pv", tracer_pv)
+    call prognostics%get_field("tracer_step", tracer_step)
+
+    ! Get coordinates and set up quadrature
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    qr  = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
+                               element_order_v+3, quadrature_rule)
+    w1_fs => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W1)
+
+    domain = mesh%get_domain()
+    if ( domain%is_lonlat() ) then
+      domain_size_x = domain%maximum_lonlat(axis=1) - domain%minimum_lonlat(axis=1)
+      domain_size_x = domain_size_x * radians_to_degrees
+    else
+      domain_size_x = domain%maximum_xy(axis=1) - domain%minimum_xy(axis=1)
+    end if
+
+    !------- Initialise global prognostic fields ------------------------------!
+
+    call log_event( 'shallow_water: Initialising prognostic fields', LOG_LEVEL_INFO )
+
+    ! Initialise total geopotential and subtract surface geopotential
+    call invoke( initial_geopot_kernel_type(geopot, chi, panel_id, domain_size_x), &
+                 inc_X_minus_Y(geopot, s_geopot) )
+
+    if ( thermal_swe ) then
+      call invoke( initial_swe_buoyancy_kernel_type(buoyancy, chi, panel_id, domain_size_x) )
+    else
+      call invoke( setval_c( buoyancy, 1.0_r_def ) )
+    end if
+
+    ! Initialise U according to formulation
+    if ( swe_test == swe_test_swe_galewsky .OR. &
+         swe_test == swe_test_swe_geostr_balance) then
+      call log_event( "Shallow water: Initialising winds from stream function", LOG_LEVEL_INFO )
+      call psi%initialise( vector_space = w1_fs )
+      call r_psi%initialise( vector_space = w1_fs )
+      call invoke( name = 'initialise_u_via_psi', &
+                   setval_c( psi, 0.0_r_def ),    &
+                   setval_c( r_psi, 0.0_r_def ),  &
+                   initial_swe_streamfunc_kernel_type( r_psi, chi, panel_id, qr ) )
+      call mass_matrix_solver_alg( psi, r_psi )
+      call invoke( strong_curl_kernel_type( wind, psi ), &
+                   enforce_bc_kernel_type( wind ) )
+    else
+      call r_u%initialise( vector_space = wind%get_function_space() )
+      call invoke( name = 'initialise_u',           &
+                   setval_c( wind,     0.0_r_def ), &
+                   setval_c( r_u,      0.0_r_def ), &
+                   initial_swe_u_kernel_type( r_u, chi, panel_id, domain_size_x, qr ) )
+      call mass_matrix_solver_alg(wind, r_u)
+    end if
+
+    ! Initialise vorticity
+    call swe_init_vorticity_alg( wind, geopot, q )
+
+    ! Set tracer_const to be one
+    call invoke( setval_c(tracer_const, 1.0_r_def) )
+
+    ! Set tracer_pv equal to q
+    call invoke( setval_X(tracer_pv, q) )
+
+    ! Set tracer_step to a step function
+    call invoke( initial_swe_tracer_kernel_type(tracer_step, chi, panel_id, domain_size_x) )
+
+    nullify( chi, panel_id, w1_fs )
+
+    call log_event( 'shallow_water: Prognostic fields initialised', LOG_LEVEL_INFO )
+
+  end subroutine swe_init_fields_alg
+
+  !=============================================================================
+  !> @brief Potential vorticity initialisation.
+  !> @details An algorithm for initialising the potential vorticity. Used for field
+  !!          initialisation and to resynchronise the vorticity during the run.
+  !> @param[in]     wind   The wind field
+  !> @param[in]     geopot The geopotential field
+  !> @param[in,out] q      The potential vorticity field
+  subroutine swe_init_vorticity_alg( wind,   &
+                                     geopot, &
+                                     q )
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent(in)    :: wind
+    type( field_type ), intent(in)    :: geopot
+    type( field_type ), intent(inout) :: q
+
+    ! Internal variables
+    type(field_type)                   :: r_q, r_uq, r_u, u_in_w1
+
+    ! Function space
+    type(function_space_type), pointer :: w1_fs => null()
+    type(function_space_type), pointer :: q_fs  => null()
+
+    ! Coordinate fields and quadrature
+    type( field_type ), pointer           :: chi(:) => null()
+    type( quadrature_xyoz_type )          :: qr
+    type( quadrature_rule_gaussian_type ) :: quadrature_rule
+    type( field_type ), pointer           :: panel_id => null()
+
+    ! Mesh ID
+    integer(i_def) :: mesh_id
+
+    mesh_id = geopot%get_mesh_id()
+
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    qr  = quadrature_xyoz_type(element_order_h+3, element_order_h+3, &
+                               element_order_v+3, quadrature_rule)
+    w1_fs => function_space_collection%get_fs(geopot%get_mesh(), element_order_h, &
+                                              element_order_v, W1)
+
+    ! Initialise vorticity using velocity and geopotential
+    q_fs => q%get_function_space()
+    call r_u%initialise( vector_space = wind%get_function_space() )
+    call r_q%initialise( vector_space = q_fs  )
+
+    ! Compute the V0 representation of the wind field by galerkin projection and
+    ! then compute its strong curl
+    call u_in_w1%initialise( vector_space = w1_fs)
+    call r_uq%initialise( vector_space = w1_fs)
+    call invoke( name = 'initialise_vorticity_in_v2', &
+                 setval_c( r_uq, 0.0_r_def ),         &
+                 w2_to_w1_projection_kernel_type( r_uq, wind, qr ) )
+    call mass_matrix_solver_alg( u_in_w1, r_uq, .false. )
+
+    call invoke( setval_c( r_u, 0.0_r_def ),              &
+                 setval_c( r_q, 0.0_r_def ),              &
+                 strong_curl_kernel_type( r_u, u_in_w1 ), &
+                 initial_vorticity_v2_kernel_type( r_q, r_u, geopot, chi, panel_id, qr ) )
+
+    call mass_matrix_solver_alg( q, r_q )
+
+    nullify( chi, panel_id, w1_fs, q_fs )
+
+    call log_event( 'shallow_water: Initialised potential vorticity', LOG_LEVEL_INFO )
+
+  end subroutine swe_init_vorticity_alg
+
+  !=============================================================================
+  !> @brief Surface geopotential initialisation.
+  !> @details An algorithm for initialising the surface geopotential. Used for field
+  !!          initialisation and if checkpointing is used.
+  !> @param[in,out] s_geopot The surface geopotential field
+  subroutine swe_init_surface_alg( s_geopot )
+
+    implicit none
+
+    type( field_type ), intent(inout) :: s_geopot
+
+    ! Coordinate field
+    type( field_type ), pointer :: chi(:) => null()
+    type( field_type ), pointer :: panel_id => null()
+
+    ! Get coordinates
+    chi => get_coordinates(s_geopot%get_mesh_id())
+    panel_id => get_panel_id(s_geopot%get_mesh_id())
+
+    ! Set surface geopotential
+    call invoke( initial_surface_geopot_kernel_type(s_geopot, chi, panel_id) )
+
+    nullify( chi, panel_id )
+
+  end subroutine swe_init_surface_alg
+
+end module swe_init_fields_alg_mod

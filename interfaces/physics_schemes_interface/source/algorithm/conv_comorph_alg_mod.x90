@@ -1,0 +1,678 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the Comorph convection scheme
+
+module conv_comorph_alg_mod
+
+  use constants_mod,        only: i_def
+  use field_mod,            only: field_type
+  use integer_field_mod,    only: integer_field_type
+  use field_collection_mod, only: field_collection_type
+  use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_r, imr_g,&
+       imr_s
+
+  use timestepping_config_mod,     only: outer_iterations
+  use sci_geometric_constants_mod, only: get_height_fv, get_delta_at_wtheta
+  use fs_continuity_mod,           only: W3, Wtheta
+
+  use io_config_mod,        only: subroutine_timers
+  use timer_mod,            only: timer
+  ! xios output
+  use io_config_mod,        only: write_diag, use_xios_io
+  use comorph_diags_mod,    only: initialise_diags_for_comorph, &
+                                  output_diags_for_comorph
+  use log_mod,              only: log_event, LOG_LEVEL_DEBUG
+  use mesh_mod,             only: mesh_type
+  use um_sizes_init_mod,    only: um_sizes_init
+
+  implicit none
+
+  private
+  public conv_comorph_alg
+
+contains
+
+  !>@brief Run the Comorph convection scheme
+  !>@details The Comorph convection scheme does:
+  !>             vertical mixing of heat, momentum and moisture,
+  !>@param[in,out] mr                  Mixing ratios
+  !>@param[in]     rho                 Dry density in its native (w3) space
+  !>@param[in]     exner               Exner Pressure in the w3 space
+  !>@param[in]     derived_fields      Group of derived fields
+  !>@param[in]     turbulence_fields   Fields for turbulence scheme
+  !>@param[in]     convection_fields   Fields for convection scheme
+  !>@param[in]     cloud_fields        Fields for cloud scheme
+  !>@param[in]     surface_fields      Fields for surface scheme
+  !>@param[in]     chemistry_fields    Fields for chemistry scheme
+  !>@param[in]     aerosol_fields      Fields for aerosol scheme
+  !>@param[in]     microphysics_fields Fields for microphysics scheme
+  !>@param[in]     outer             Outer loop counter
+  subroutine conv_comorph_alg(mr, mr_n, rho, exner, theta, derived_fields,&
+                         turbulence_fields, convection_fields,            &
+                         cloud_fields, surface_fields, chemistry_fields,  &
+                         aerosol_fields, microphysics_fields, outer)
+
+    use conv_comorph_kernel_mod, only: conv_comorph_kernel_type
+
+    implicit none
+
+    type( field_type ), intent( inout )     :: mr(nummr)
+    type( field_type ), intent( in )        :: mr_n(nummr)
+    type( field_type ), intent( in )        :: rho, exner, theta
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+    type( field_collection_type ), intent(in) :: convection_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_collection_type ), intent(in) :: surface_fields
+    type( field_collection_type ), intent(in) :: chemistry_fields
+    type( field_collection_type ), intent(in) :: aerosol_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
+
+    integer(kind=i_def), intent(in)         :: outer
+
+    ! Temporary fields unpacked fields from collections
+    type( field_type ), pointer :: exner_in_wth
+    type( field_type ), pointer :: delta
+    type( field_type ), pointer :: rho_in_wth
+    type( field_type ), pointer :: wetrho_in_wth
+    type( field_type ), pointer :: wetrho_in_w3
+    type( field_type ), pointer :: u_in_w3
+    type( field_type ), pointer :: v_in_w3
+    type( field_type ), pointer :: w_in_wth
+    type( field_type ), pointer :: theta_star
+    type( field_type ), pointer :: u_in_w3_star
+    type( field_type ), pointer :: v_in_w3_star
+
+    type( field_type ), pointer :: zh
+    type( field_type ), pointer :: zh_nonloc
+    type( field_type ), pointer :: zhsc
+    type( field_type ), pointer :: inv_depth
+    type( integer_field_type ), pointer :: bl_type_ind
+    type( field_type ), pointer :: tke_bl
+    type( field_type ), pointer :: wvar
+    type( field_type ), pointer :: rhokm_bl
+    type( field_type ), pointer :: moist_flux
+    type( field_type ), pointer :: heat_flux
+    type( field_type ), pointer :: taux
+    type( field_type ), pointer :: tauy
+
+    type( field_type ), pointer :: surf_interp
+    type( field_type ), pointer :: ustar
+
+    type( field_type ), pointer :: conv_rain
+    type( field_type ), pointer :: conv_rain_3d
+    type( field_type ), pointer :: conv_snow
+    type( field_type ), pointer :: conv_snow_3d
+    type( field_type ), pointer :: cca_2d
+    type( field_type ), pointer :: cv_base
+    type( field_type ), pointer :: cv_top
+    type( field_type ), pointer :: cca
+    type( field_type ), pointer :: ccw
+    type( field_type ), pointer :: dt_conv
+    type( field_type ), pointer :: dmv_conv
+    type( field_type ), pointer :: dmcl_conv
+    type( field_type ), pointer :: dms_conv
+    type( field_type ), pointer :: dcfl_conv
+    type( field_type ), pointer :: dcff_conv
+    type( field_type ), pointer :: dbcf_conv
+    type( field_type ), pointer :: du_conv
+    type( field_type ), pointer :: dv_conv
+    type( field_type ), pointer :: conv_prog_dtheta
+    type( field_type ), pointer :: conv_prog_dmv
+    type( field_type ), pointer :: dd_mf_cb
+    type( field_type ), pointer :: massflux_up
+    type( field_type ), pointer :: massflux_down
+    type( field_type ), pointer :: cape_diluted
+    type( field_type ), pointer :: pressure_inc_env
+
+    type( field_type ), pointer :: cf_fro
+    type( field_type ), pointer :: cf_liq
+    type( field_type ), pointer :: cf_bulk
+    type( field_type ), pointer :: cf_liq_n
+    type( field_type ), pointer :: cf_fro_n
+    type( field_type ), pointer :: cf_bulk_n
+
+    type( field_type ), pointer :: o3p
+    type( field_type ), pointer :: o1d
+    type( field_type ), pointer :: o3
+    type( field_type ), pointer :: n
+    type( field_type ), pointer :: no
+    type( field_type ), pointer :: no3
+    type( field_type ), pointer :: lumped_n
+    type( field_type ), pointer :: n2o5
+    type( field_type ), pointer :: ho2no2
+    type( field_type ), pointer :: hono2
+    type( field_type ), pointer :: h2o2
+    type( field_type ), pointer :: ch4
+    type( field_type ), pointer :: co
+    type( field_type ), pointer :: hcho
+    type( field_type ), pointer :: meoo
+    type( field_type ), pointer :: meooh
+    type( field_type ), pointer :: h
+    type( field_type ), pointer :: oh
+    type( field_type ), pointer :: ho2
+    type( field_type ), pointer :: cl
+    type( field_type ), pointer :: cl2o2
+    type( field_type ), pointer :: clo
+    type( field_type ), pointer :: oclo
+    type( field_type ), pointer :: br
+    type( field_type ), pointer :: lumped_br
+    type( field_type ), pointer :: brcl
+    type( field_type ), pointer :: brono2
+    type( field_type ), pointer :: n2o
+    type( field_type ), pointer :: lumped_cl
+    type( field_type ), pointer :: hocl
+    type( field_type ), pointer :: hbr
+    type( field_type ), pointer :: hobr
+    type( field_type ), pointer :: clono2
+    type( field_type ), pointer :: cfcl3
+    type( field_type ), pointer :: cf2cl2
+    type( field_type ), pointer :: mebr
+    type( field_type ), pointer :: hono
+    type( field_type ), pointer :: c2h6
+    type( field_type ), pointer :: etoo
+    type( field_type ), pointer :: etooh
+    type( field_type ), pointer :: mecho
+    type( field_type ), pointer :: meco3
+    type( field_type ), pointer :: pan
+    type( field_type ), pointer :: c3h8
+    type( field_type ), pointer :: n_proo
+    type( field_type ), pointer :: i_proo
+    type( field_type ), pointer :: n_prooh
+    type( field_type ), pointer :: i_prooh
+    type( field_type ), pointer :: etcho
+    type( field_type ), pointer :: etco3
+    type( field_type ), pointer :: me2co
+    type( field_type ), pointer :: mecoch2oo
+    type( field_type ), pointer :: mecoch2ooh
+    type( field_type ), pointer :: ppan
+    type( field_type ), pointer :: meono2
+    type( field_type ), pointer :: c5h8
+    type( field_type ), pointer :: iso2
+    type( field_type ), pointer :: isooh
+    type( field_type ), pointer :: ison
+    type( field_type ), pointer :: macr
+    type( field_type ), pointer :: macro2
+    type( field_type ), pointer :: macrooh
+    type( field_type ), pointer :: mpan
+    type( field_type ), pointer :: hacet
+    type( field_type ), pointer :: mgly
+    type( field_type ), pointer :: nald
+    type( field_type ), pointer :: hcooh
+    type( field_type ), pointer :: meco3h
+    type( field_type ), pointer :: meco2h
+    type( field_type ), pointer :: h2
+    type( field_type ), pointer :: meoh
+    type( field_type ), pointer :: msa
+    type( field_type ), pointer :: nh3
+    type( field_type ), pointer :: cs2
+    type( field_type ), pointer :: csul
+    type( field_type ), pointer :: h2s
+    type( field_type ), pointer :: so3
+    type( field_type ), pointer :: passive_o3
+    type( field_type ), pointer :: age_of_air
+
+    type( field_type ), pointer :: dms
+    type( field_type ), pointer :: so2
+    type( field_type ), pointer :: h2so4
+    type( field_type ), pointer :: dmso
+    type( field_type ), pointer :: monoterpene
+    type( field_type ), pointer :: secondary_organic
+
+    type( field_type ), pointer :: n_nuc_sol
+    type( field_type ), pointer :: nuc_sol_su
+    type( field_type ), pointer :: nuc_sol_om
+    type( field_type ), pointer :: n_ait_sol
+    type( field_type ), pointer :: ait_sol_su
+    type( field_type ), pointer :: ait_sol_bc
+    type( field_type ), pointer :: ait_sol_om
+    type( field_type ), pointer :: n_acc_sol
+    type( field_type ), pointer :: acc_sol_su
+    type( field_type ), pointer :: acc_sol_bc
+    type( field_type ), pointer :: acc_sol_om
+    type( field_type ), pointer :: acc_sol_ss
+    type( field_type ), pointer :: n_cor_sol
+    type( field_type ), pointer :: cor_sol_su
+    type( field_type ), pointer :: cor_sol_bc
+    type( field_type ), pointer :: cor_sol_om
+    type( field_type ), pointer :: cor_sol_ss
+    type( field_type ), pointer :: n_ait_ins
+    type( field_type ), pointer :: ait_ins_bc
+    type( field_type ), pointer :: ait_ins_om
+    type( field_type ), pointer :: n_acc_ins
+    type( field_type ), pointer :: acc_ins_du
+    type( field_type ), pointer :: n_cor_ins
+    type( field_type ), pointer :: cor_ins_du
+
+    type( field_type ), pointer :: tnuc
+    type( field_type ), pointer :: precfrac
+    type( field_type ), pointer :: ls_rain
+    type( field_type ), pointer :: ls_snow
+
+    type( field_type ), pointer :: height_w3
+    type( field_type ), pointer :: height_wth
+
+    ! local variables
+    type( field_type ) :: lowest_cv_base,lowest_cv_top
+    type( field_type ) :: entrain_up,entrain_down
+    type( field_type ) :: detrain_up,detrain_down
+    type( field_type ) :: pres_cv_base,pres_cv_top
+    type( field_type ) :: pres_lowest_cv_base,pres_lowest_cv_top, lowest_cca_2d
+    type( field_type ) :: massflux_up_half
+
+    type( mesh_type ), pointer  :: mesh
+    integer(i_def) :: ncells
+
+    if ( subroutine_timers ) call timer("conv_comorph_alg")
+
+    call log_event( 'Running Comorph convection scheme', LOG_LEVEL_DEBUG )
+
+    mesh  => rho%get_mesh()
+    delta => get_delta_at_wtheta( mesh%get_id() )
+
+    ! Unpack derived fields
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+    call derived_fields%get_field('w_in_wth', w_in_wth)
+    call derived_fields%get_field('theta_star', theta_star)
+    call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
+    call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
+
+    ! Unpack turbulence fields
+    call turbulence_fields%get_field('zh', zh)
+    call turbulence_fields%get_field('zh_nonloc', zh_nonloc)
+    call turbulence_fields%get_field('inv_depth', inv_depth)
+    call turbulence_fields%get_field('zhsc', zhsc)
+    call turbulence_fields%get_field('bl_type_ind', bl_type_ind)
+    call turbulence_fields%get_field('tke_bl', tke_bl)
+    call turbulence_fields%get_field('wvar', wvar)
+    call turbulence_fields%get_field('rhokm_bl', rhokm_bl)
+    call turbulence_fields%get_field('moist_flux_bl', moist_flux)
+    call turbulence_fields%get_field('heat_flux_bl', heat_flux)
+    call turbulence_fields%get_field('taux', taux)
+    call turbulence_fields%get_field('tauy', tauy)
+
+    ! Unpack surface fields
+    call surface_fields%get_field('surf_interp', surf_interp)
+    call surface_fields%get_field('ustar', ustar)
+
+    ! Unpack convection fields
+    call convection_fields%get_field('conv_rain', conv_rain)
+    call convection_fields%get_field('conv_rain_3d', conv_rain_3d)
+    call convection_fields%get_field('conv_snow', conv_snow)
+    call convection_fields%get_field('conv_snow_3d', conv_snow_3d)
+    call convection_fields%get_field('cca_2d', cca_2d)
+    call convection_fields%get_field('cca', cca)
+    call convection_fields%get_field('ccw', ccw)
+    call convection_fields%get_field('dt_conv', dt_conv)
+    call convection_fields%get_field('dmv_conv', dmv_conv)
+    call convection_fields%get_field('dmcl_conv', dmcl_conv)
+    call convection_fields%get_field('dms_conv', dms_conv)
+    call convection_fields%get_field('dcfl_conv', dcfl_conv)
+    call convection_fields%get_field('dcff_conv', dcff_conv)
+    call convection_fields%get_field('dbcf_conv', dbcf_conv)
+    call convection_fields%get_field('du_conv', du_conv)
+    call convection_fields%get_field('dv_conv', dv_conv)
+    call convection_fields%get_field('conv_prog_dtheta', conv_prog_dtheta)
+    call convection_fields%get_field('conv_prog_dmv', conv_prog_dmv)
+    call convection_fields%get_field('dd_mf_cb', dd_mf_cb)
+    call convection_fields%get_field('massflux_up', massflux_up)
+    call convection_fields%get_field('massflux_down', massflux_down)
+    call convection_fields%get_field('cape_diluted', cape_diluted)
+    call convection_fields%get_field('cv_base', cv_base)
+    call convection_fields%get_field('cv_top', cv_top)
+    call convection_fields%get_field('pressure_inc_env', pressure_inc_env)
+
+    ! Unpack cloud fields
+    call cloud_fields%get_field('frozen_fraction', cf_fro)
+    call cloud_fields%get_field('liquid_fraction', cf_liq)
+    call cloud_fields%get_field('bulk_fraction', cf_bulk)
+    call cloud_fields%get_field('cf_liq_n', cf_liq_n)
+    call cloud_fields%get_field('cf_fro_n', cf_fro_n)
+    call cloud_fields%get_field('cf_bulk_n', cf_bulk_n)
+
+    ! Unpack chemistry fields
+    call chemistry_fields%get_field('o3p',o3p)
+    call chemistry_fields%get_field('o1d',o1d)
+    call chemistry_fields%get_field('o3',o3)
+    call chemistry_fields%get_field('n',n)
+    call chemistry_fields%get_field('no',no)
+    call chemistry_fields%get_field('no3',no3)
+    call chemistry_fields%get_field('lumped_n',lumped_n)
+    call chemistry_fields%get_field('n2o5',n2o5)
+    call chemistry_fields%get_field('ho2no2',ho2no2)
+    call chemistry_fields%get_field('hono2',hono2)
+    call chemistry_fields%get_field('h2o2', h2o2)
+    call chemistry_fields%get_field('ch4',ch4)
+    call chemistry_fields%get_field('co',co)
+    call chemistry_fields%get_field('hcho',hcho)
+    call chemistry_fields%get_field('meoo',meoo)
+    call chemistry_fields%get_field('meooh',meooh)
+    call chemistry_fields%get_field('h',h)
+    call chemistry_fields%get_field('oh',oh)
+    call chemistry_fields%get_field('ho2',ho2)
+    call chemistry_fields%get_field('cl',cl)
+    call chemistry_fields%get_field('cl2o2',cl2o2)
+    call chemistry_fields%get_field('clo',clo)
+    call chemistry_fields%get_field('oclo',oclo)
+    call chemistry_fields%get_field('br',br)
+    call chemistry_fields%get_field('lumped_br',lumped_br)
+    call chemistry_fields%get_field('brcl',brcl)
+    call chemistry_fields%get_field('brono2',brono2)
+    call chemistry_fields%get_field('n2o',n2o)
+    call chemistry_fields%get_field('lumped_cl',lumped_cl)
+    call chemistry_fields%get_field('hocl',hocl)
+    call chemistry_fields%get_field('hbr',hbr)
+    call chemistry_fields%get_field('hobr',hobr)
+    call chemistry_fields%get_field('clono2',clono2)
+    call chemistry_fields%get_field('cfcl3',cfcl3)
+    call chemistry_fields%get_field('cf2cl2',cf2cl2)
+    call chemistry_fields%get_field('mebr',mebr)
+    call chemistry_fields%get_field('hono',hono)
+    call chemistry_fields%get_field('c2h6',c2h6)
+    call chemistry_fields%get_field('etoo',etoo)
+    call chemistry_fields%get_field('etooh',etooh)
+    call chemistry_fields%get_field('mecho',mecho)
+    call chemistry_fields%get_field('meco3',meco3)
+    call chemistry_fields%get_field('pan',pan)
+    call chemistry_fields%get_field('c3h8',c3h8)
+    call chemistry_fields%get_field('n_proo',n_proo)
+    call chemistry_fields%get_field('i_proo',i_proo)
+    call chemistry_fields%get_field('n_prooh',n_prooh)
+    call chemistry_fields%get_field('i_prooh',i_prooh)
+    call chemistry_fields%get_field('etcho',etcho)
+    call chemistry_fields%get_field('etco3',etco3)
+    call chemistry_fields%get_field('me2co',me2co)
+    call chemistry_fields%get_field('mecoch2oo',mecoch2oo)
+    call chemistry_fields%get_field('mecoch2ooh',mecoch2ooh)
+    call chemistry_fields%get_field('ppan',ppan)
+    call chemistry_fields%get_field('meono2',meono2)
+    call chemistry_fields%get_field('c5h8',c5h8)
+    call chemistry_fields%get_field('iso2',iso2)
+    call chemistry_fields%get_field('isooh',isooh)
+    call chemistry_fields%get_field('ison',ison)
+    call chemistry_fields%get_field('macr',macr)
+    call chemistry_fields%get_field('macro2',macro2)
+    call chemistry_fields%get_field('macrooh',macrooh)
+    call chemistry_fields%get_field('mpan',mpan)
+    call chemistry_fields%get_field('hacet',hacet)
+    call chemistry_fields%get_field('mgly',mgly)
+    call chemistry_fields%get_field('nald',nald)
+    call chemistry_fields%get_field('hcooh',hcooh)
+    call chemistry_fields%get_field('meco3h',meco3h)
+    call chemistry_fields%get_field('meco2h',meco2h)
+    call chemistry_fields%get_field('h2',h2)
+    call chemistry_fields%get_field('meoh',meoh)
+    call chemistry_fields%get_field('msa',msa)
+    call chemistry_fields%get_field('nh3',nh3)
+    call chemistry_fields%get_field('cs2',cs2)
+    call chemistry_fields%get_field('csul',csul)
+    call chemistry_fields%get_field('h2s',h2s)
+    call chemistry_fields%get_field('so3',so3)
+    call chemistry_fields%get_field('passive_o3',passive_o3)
+    call chemistry_fields%get_field('age_of_air',age_of_air)
+
+    call chemistry_fields%get_field('dms', dms)
+    call chemistry_fields%get_field('so2', so2)
+    call chemistry_fields%get_field('h2so4', h2so4)
+    call chemistry_fields%get_field('dmso', dmso)
+    call chemistry_fields%get_field('monoterpene', monoterpene)
+    call chemistry_fields%get_field('secondary_organic', secondary_organic)
+
+    ! Unpack aerosol fields
+    call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)
+    call aerosol_fields%get_field('nuc_sol_su', nuc_sol_su)
+    call aerosol_fields%get_field('nuc_sol_om', nuc_sol_om)
+    call aerosol_fields%get_field('n_ait_sol', n_ait_sol)
+    call aerosol_fields%get_field('ait_sol_su', ait_sol_su)
+    call aerosol_fields%get_field('ait_sol_bc', ait_sol_bc)
+    call aerosol_fields%get_field('ait_sol_om', ait_sol_om)
+    call aerosol_fields%get_field('n_acc_sol', n_acc_sol)
+    call aerosol_fields%get_field('acc_sol_su', acc_sol_su)
+    call aerosol_fields%get_field('acc_sol_bc', acc_sol_bc)
+    call aerosol_fields%get_field('acc_sol_om', acc_sol_om)
+    call aerosol_fields%get_field('acc_sol_ss', acc_sol_ss)
+    call aerosol_fields%get_field('n_cor_sol', n_cor_sol)
+    call aerosol_fields%get_field('cor_sol_su', cor_sol_su)
+    call aerosol_fields%get_field('cor_sol_bc', cor_sol_bc)
+    call aerosol_fields%get_field('cor_sol_om', cor_sol_om)
+    call aerosol_fields%get_field('cor_sol_ss', cor_sol_ss)
+    call aerosol_fields%get_field('n_ait_ins', n_ait_ins)
+    call aerosol_fields%get_field('ait_ins_bc', ait_ins_bc)
+    call aerosol_fields%get_field('ait_ins_om', ait_ins_om)
+    call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+    call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+    call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+    call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+
+    call microphysics_fields%get_field('tnuc', tnuc)
+    call microphysics_fields%get_field('precfrac', precfrac)
+    call microphysics_fields%get_field('ls_rain', ls_rain)
+    call microphysics_fields%get_field('ls_snow', ls_snow)
+
+    height_wth => get_height_fv(Wtheta, mesh%get_id())
+    height_w3  => get_height_fv(W3, mesh%get_id())
+
+    ! Initialise the convection diagnostics
+    call initialise_diags_for_comorph(lowest_cv_base,       &
+                                      lowest_cv_top,        &
+                                      cv_base,              &
+                                      cv_top,               &
+                                      pres_cv_base,         &
+                                      pres_cv_top,          &
+                                      pres_lowest_cv_base,  &
+                                      pres_lowest_cv_top,   &
+                                      lowest_cca_2d,        &
+                                      entrain_up,           & ! 3-D variables
+                                      entrain_down,         &
+                                      detrain_up,           &
+                                      detrain_down,         &
+                                      massflux_up_half)
+
+    ! call the scheme
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init(ncells)
+
+    call invoke( conv_comorph_kernel_type( outer, rho, rho_in_wth,            &
+                          wetrho_in_w3, wetrho_in_wth, exner, exner_in_wth,   &
+                          delta, theta, u_in_w3, v_in_w3, w_in_wth,           &
+                          theta_star, u_in_w3_star, v_in_w3_star,             &
+                          height_w3, height_wth,                              &
+                          dt_conv, dmv_conv, dmcl_conv,                       &
+                          dms_conv, du_conv, dv_conv,                         &
+                          conv_prog_dtheta, conv_prog_dmv,                    &
+                          mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),            &
+                          mr_n(imr_r), mr_n(imr_g), mr_n(imr_s),              &
+                          mr(imr_v), mr(imr_cl), mr(imr_ci),                  &
+                          mr(imr_r), mr(imr_g), mr(imr_s),                    &
+                          cf_fro, cf_liq, cf_bulk, cca, ccw, precfrac,        &
+                          cf_liq_n, cf_fro_n, cf_bulk_n,                      &
+                          cape_diluted, cca_2d,                               &
+                          dd_mf_cb, massflux_up, massflux_down, tke_bl,       &
+                          pressure_inc_env,                                   &
+                          zh, zh_nonloc, inv_depth, zhsc, bl_type_ind,        &
+                          wvar, rhokm_bl, moist_flux, heat_flux, taux, tauy,  &
+                          surf_interp, ustar, ls_rain, ls_snow,               &
+                          dcfl_conv, dcff_conv, dbcf_conv,                    &
+                          o3p,                                                &
+                          o1d,                                                &
+                          o3,                                                 &
+                          n,                                                  &
+                          no,                                                 &
+                          no3,                                                &
+                          lumped_n,                                           &
+                          n2o5,                                               &
+                          ho2no2,                                             &
+                          hono2,                                              &
+                          h2o2,                                               &
+                          ch4,                                                &
+                          co,                                                 &
+                          hcho,                                               &
+                          meoo,                                               &
+                          meooh,                                              &
+                          h,                                                  &
+                          oh,                                                 &
+                          ho2,                                                &
+                          cl,                                                 &
+                          cl2o2,                                              &
+                          clo,                                                &
+                          oclo,                                               &
+                          br,                                                 &
+                          lumped_br,                                          &
+                          brcl,                                               &
+                          brono2,                                             &
+                          n2o,                                                &
+                          lumped_cl,                                          &
+                          hocl,                                               &
+                          hbr,                                                &
+                          hobr,                                               &
+                          clono2,                                             &
+                          cfcl3,                                              &
+                          cf2cl2,                                             &
+                          mebr,                                               &
+                          hono,                                               &
+                          c2h6,                                               &
+                          etoo,                                               &
+                          etooh,                                              &
+                          mecho,                                              &
+                          meco3,                                              &
+                          pan,                                                &
+                          c3h8,                                               &
+                          n_proo,                                             &
+                          i_proo,                                             &
+                          n_prooh,                                            &
+                          i_prooh,                                            &
+                          etcho,                                              &
+                          etco3,                                              &
+                          me2co,                                              &
+                          mecoch2oo,                                          &
+                          mecoch2ooh,                                         &
+                          ppan,                                               &
+                          meono2,                                             &
+                          c5h8,                                               &
+                          iso2,                                               &
+                          isooh,                                              &
+                          ison,                                               &
+                          macr,                                               &
+                          macro2,                                             &
+                          macrooh,                                            &
+                          mpan,                                               &
+                          hacet,                                              &
+                          mgly,                                               &
+                          nald,                                               &
+                          hcooh,                                              &
+                          meco3h,                                             &
+                          meco2h,                                             &
+                          h2,                                                 &
+                          meoh,                                               &
+                          msa,                                                &
+                          nh3,                                                &
+                          cs2,                                                &
+                          csul,                                               &
+                          h2s,                                                &
+                          so3,                                                &
+                          passive_o3,                                         &
+                          age_of_air,                                         &
+                          dms,                                                &
+                          so2,                                                &
+                          h2so4,                                              &
+                          dmso,                                               &
+                          monoterpene,                                        &
+                          secondary_organic,                                  &
+                          n_nuc_sol,                                          &
+                          nuc_sol_su,                                         &
+                          nuc_sol_om,                                         &
+                          n_ait_sol,                                          &
+                          ait_sol_su,                                         &
+                          ait_sol_bc,                                         &
+                          ait_sol_om,                                         &
+                          n_acc_sol,                                          &
+                          acc_sol_su,                                         &
+                          acc_sol_bc,                                         &
+                          acc_sol_om,                                         &
+                          acc_sol_ss,                                         &
+                          n_cor_sol,                                          &
+                          cor_sol_su,                                         &
+                          cor_sol_bc,                                         &
+                          cor_sol_om,                                         &
+                          cor_sol_ss,                                         &
+                          n_ait_ins,                                          &
+                          ait_ins_bc,                                         &
+                          ait_ins_om,                                         &
+                          n_acc_ins,                                          &
+                          acc_ins_du,                                         &
+                          n_cor_ins,                                          &
+                          cor_ins_du,                                         &
+                          tnuc,                                               &
+                          lowest_cv_base,                                     &
+                          lowest_cv_top,                                      &
+                          cv_base,                                            &
+                          cv_top,                                             &
+                          pres_cv_base,                                       &
+                          pres_cv_top,                                        &
+                          pres_lowest_cv_base,                                &
+                          pres_lowest_cv_top,                                 &
+                          lowest_cca_2d,                                      &
+                          entrain_up,                                         &   ! 3-D local variables
+                          entrain_down,                                       &
+                          detrain_up,                                         &
+                          detrain_down,                                       &
+                          massflux_up_half)                                   &
+                                           ) ! end of invoke
+
+    call um_sizes_init(1_i_def)
+
+    if ( subroutine_timers ) call timer("conv_comorph_alg")
+
+    ! output diagnostics on last iteration only
+    if (write_diag .and. use_xios_io .and. outer == outer_iterations) then
+
+      call output_diags_for_comorph( cca,                & ! prognostics
+                                  ccw,                   &
+                                  dt_conv,               & ! increments
+                                  dmv_conv,              &
+                                  dmcl_conv,             &
+                                  dms_conv,              &
+                                  du_conv,               &
+                                  dv_conv,               &
+                                  dbcf_conv,             &
+                                  dcfl_conv,             &
+                                  dcff_conv,             &
+                                  massflux_up,           & ! not local
+                                  massflux_down,         &
+                                  cape_diluted,          &
+                                  conv_rain,             &
+                                  conv_snow,             &
+                                  conv_rain_3d,          &
+                                  conv_snow_3d,          &
+                                  cca_2d,                &
+                                  lowest_cv_base,        &
+                                  lowest_cv_top,         &
+                                  cv_base,               &
+                                  cv_top,                &
+                                  pres_cv_base,          &
+                                  pres_cv_top,           &
+                                  pres_lowest_cv_base,   &
+                                  pres_lowest_cv_top,    &
+                                  lowest_cca_2d,         &
+                                  entrain_up,            & ! 3-D
+                                  entrain_down,          &
+                                  detrain_up,            &
+                                  detrain_down,          &
+                                  massflux_up_half)
+
+    end if
+
+    nullify( mesh )
+
+  end subroutine conv_comorph_alg
+
+end module conv_comorph_alg_mod

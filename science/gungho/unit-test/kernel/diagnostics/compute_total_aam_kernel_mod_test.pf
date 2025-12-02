@@ -1,0 +1,268 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel for computing total axial angular momentum per cell.
+!>
+module compute_total_aam_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w2_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                  get_w2_m3x3_dofmap, &
+                                                  get_w3_m3x3_dofmap
+  use get_unit_test_q3x3x3_basis_mod,      only : get_w0_q3x3x3_diff_basis, &
+                                                  get_w0_q3x3x3_basis, &
+                                                  get_w2_q3x3x3_basis, &
+                                                  get_w3_q3x3x3_basis
+  use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                                  get_gaussian_q3x3x3_quadrature_weights_z
+  use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
+  use reference_element_mod,               only : N, S
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+  real(r_def), parameter :: lat_c = 0.0_r_def
+  real(r_def), parameter :: omega = 8.0E-5_r_def
+  real(r_def), parameter :: planet_radius = 6000000.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use base_mesh_config_mod,      only : geometry_spherical, &
+                                          topology_fully_periodic
+    use extrusion_config_mod,      only : method_uniform, &
+                                          stretching_method_linear
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_extrusion_config,      &
+                                          feign_finite_element_config, &
+                                          feign_base_mesh_config,      &
+                                          feign_planet_config
+    implicit none
+
+    call feign_base_mesh_config( file_prefix='foo',                &
+                                 prime_mesh_name='unit_test',      &
+                                 geometry=geometry_spherical,      &
+                                 prepartitioned=.false.,           &
+                                 topology=topology_fully_periodic, &
+                                 fplane=.false., f_lat_deg=0.0_r_def )
+
+    call feign_extrusion_config( planet_radius=planet_radius,                &
+                                 domain_height=10.0_r_def,                   &
+                                 method=method_uniform,                      &
+                                 number_of_layers=2_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call feign_planet_config( gravity=10.0_r_def, omega=omega, &
+                              rd=300.0_r_def, cp=1000.0_r_def, &
+                              p_zero=100000.0_r_def,           &
+                              scaling_factor=1.0_r_def )
+
+    call init_chi_transforms()
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use compute_total_aam_kernel_mod, only : compute_total_aam_code
+
+    implicit none
+
+    real(r_def), parameter :: wind   = 100.0_r_def     ! r_def 64bit
+    real(r_def), parameter :: rho0   = 1.5_r_def
+    real(r_def), parameter :: tol    = 1.0e-6_r_def
+    real(r_def), parameter :: dx     = 4.0_r_def, &
+                              dy     = 3.0_r_def, &
+                              dz     = 2.0_r_def
+
+    integer(i_def) :: nlayers, ncells, cell
+    integer(i_def) :: ndf_w0, undf_w0, ndf_w2, undf_w2
+    integer(i_def) :: ndf_w3, undf_w3, ndf_pid, undf_pid
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    real(r_def)    :: answer, use_tol
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+    real(r_def), allocatable    :: diff_basis_w0(:,:,:,:)
+    real(r_def), allocatable    :: basis_w0(:,:,:,:)
+    real(r_def), allocatable    :: basis_w2(:,:,:,:)
+    real(r_def), allocatable    :: basis_w3(:,:,:,:)
+    real(r_def), allocatable    :: wh(:), wv(:)
+
+    real(r_def), allocatable    :: chi1(:), chi2(:), chi3(:)
+    real(r_def), allocatable    :: panel_id(:)
+    real(r_def), allocatable    :: aam(:)
+    real(r_def), allocatable    :: u(:)
+    real(r_def), allocatable    :: rho(:)
+
+    nlayers=3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_w3_m3x3_dofmap(map_pid, 1)
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+    call get_w0_q3x3x3_basis(basis_w0)
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_w3_q3x3x3_basis(basis_w3)
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ndf_pid = 1
+    undf_pid = ncells
+
+    ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+    allocate(panel_id(ncells))
+
+    call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                            map_w0, nlayers)
+
+    panel_id(:) = 1.0_r_def
+
+    ! Create the data
+    allocate(u(undf_w2))
+    allocate(rho(undf_w3))
+    allocate(aam(undf_w3))
+
+    ! Transform to the surface of the sphere.
+    ! Chi is our global coordinate.
+    ! Take cell to lat = 0, lon = 0 by changing x -> x + radius
+    ! Thus chi1 is the local vertical coordinate and chi2 points zonally
+    chi1(:) = chi1(:) + planet_radius
+
+    u(:) = 0.0_r_def
+    rho(:) = rho0
+    aam(:) = 0.0_r_def
+
+    ! Consider a single cell on our sphere. Here are the numberings of the faces.
+    !                              FRONT        BACK
+    !                            o-------o    o------o
+    !    chi3                   /   6   /|   /|      |
+    !    |  chi2               o-------o |  o |   4  |
+    !    | /                   |       |3|  |1|      |
+    !    -----> chi1           |   2   | o  | o------o
+    !                          |       |/   |/  5   /
+    ! <-- to centre of Earth   o-------o    o------o
+
+    ! Our test will be zonal (axial) flow of 100 m/s.
+    ! For our setup, the zonal direction coincides with chi2.
+    ! From diagram above, this corresponds to faces 2 and 4 of the element.
+    ! We will only do the test for the first cell.
+    cell = 1
+    u(map_w2(2,cell)) = -wind * dx * dz
+    u(map_w2(4,cell)) = -wind * dx * dz
+
+    call compute_total_aam_code(                                           &
+                                nlayers,                                   &
+                                aam,                                       &
+                                u,                                         &
+                                rho,                                       &
+                                chi1,                                      &
+                                chi2,                                      &
+                                chi3,                                      &
+                                panel_id,                                  &
+                                omega,                                     &
+                                ndf_w3, undf_w3,                           &
+                                map_w3(:,cell), basis_w3,                  &
+                                ndf_w2, undf_w2,                           &
+                                map_w2(:,cell), basis_w2,                  &
+                                ndf_w0, undf_w0,                           &
+                                map_w0(:,cell), basis_w0, diff_basis_w0,   &
+                                ndf_pid, undf_pid, map_pid,                &
+                                nqp_h, nqp_v, wh, wv                       &
+                                )
+    ! We are evaluating
+    ! \int rho * dot(hat{z}, cross(r, v + cross(Omega, r))) dV
+    ! Doing this integral and a Taylor expansion (assuming cell is small compared to r) gives:
+    ! rho * (wind + Omega * radius * cos(phi)) * radius * cos(phi) * dx * dy * dz
+    ! We use this as our approximate answer to test the kernel.
+    answer = rho0 * (wind + omega * planet_radius * cos(lat_c)) &
+             * planet_radius * cos(lat_c) * dx * dy * dz
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( aam(map_w3(1, 1)) )
+    endif
+    @assertEqual(answer, aam(map_w3(1, 1)), use_tol*answer)
+
+    deallocate(map_w0)
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(map_pid)
+    deallocate(diff_basis_w0)
+    deallocate(basis_w0)
+    deallocate(basis_w2)
+    deallocate(basis_w3)
+    deallocate(wh)
+    deallocate(wv)
+
+    deallocate(chi1)
+    deallocate(chi2)
+    deallocate(chi3)
+    deallocate(panel_id)
+    deallocate(aam)
+    deallocate(u)
+    deallocate(rho)
+
+  end subroutine test_all
+
+end module compute_total_aam_kernel_mod_test

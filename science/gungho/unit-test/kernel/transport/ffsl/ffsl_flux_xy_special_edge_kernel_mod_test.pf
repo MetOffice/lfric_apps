@@ -1,0 +1,457 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Test the tracer 1D FFSL flux computation in the horizontal
+
+module ffsl_flux_xy_special_edge_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran, r_def, l_def, IMDI
+  use funit
+
+  implicit none
+
+  private
+
+  public :: test_all
+
+contains
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use ffsl_flux_xy_special_edge_kernel_mod,                                  &
+                                        only: ffsl_flux_xy_special_edge_code
+    use transport_enumerated_types_mod, only: monotone_none
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 1.0e-6_r_tran   ! r_tran 64-bit
+    real(kind=r_tran)            :: answer
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: ndf_w2 = 4
+    integer(kind=i_def), parameter :: stencil_max = 6
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers*(2*stencil_max-1)
+    integer(kind=i_def), parameter :: order = 1
+    integer(kind=i_def), parameter :: ndep = 2*stencil_max-1
+    integer(kind=i_def), parameter :: ndf_depk = 4
+    integer(kind=i_def), parameter :: ndep_half = (ndep - 1) / 2
+    integer(kind=i_def), parameter :: undf_depk = ndf_depk*ndep
+    real(kind=r_tran),   parameter :: min_val = 0.0_r_tran
+
+    integer(kind=i_def), dimension(ndf_w3)               :: map_w3
+    integer(kind=i_def), dimension(ndf_w2)               :: map_w2
+    integer(kind=i_def), dimension(ndf_depk)             :: map_depk
+    integer(kind=i_def), dimension(4)                    :: stencil_sizes
+    integer(kind=i_def), dimension(ndf_w3,stencil_max,4) :: stencil_map
+
+    real(kind=r_tran),   dimension(undf_w3)   :: field_for_x
+    real(kind=r_tran),   dimension(undf_w3)   :: field_for_y
+    real(kind=r_tran),   dimension(undf_w2)   :: dep_pts
+    real(kind=r_tran),   dimension(undf_w2)   :: flux
+    real(kind=r_tran),   dimension(undf_w3)   :: dry_mass_for_x
+    real(kind=r_tran),   dimension(undf_w3)   :: dry_mass_for_y
+    real(kind=r_tran),   dimension(undf_w2)   :: frac_dry_flux
+    real(kind=r_def),    dimension(undf_w3)   :: panel_id
+    integer(kind=i_def), dimension(undf_w3)   :: panel_edge_dist_W
+    integer(kind=i_def), dimension(undf_w3)   :: panel_edge_dist_E
+    integer(kind=i_def), dimension(undf_w3)   :: panel_edge_dist_S
+    integer(kind=i_def), dimension(undf_w3)   :: panel_edge_dist_N
+    integer(kind=i_def), dimension(undf_w3)   :: face_selector_ew
+    integer(kind=i_def), dimension(undf_w3)   :: face_selector_ns
+    integer(kind=i_def), dimension(undf_depk) :: dep_lowest_k
+    integer(kind=i_def), dimension(undf_depk) :: dep_highest_k
+
+    real(kind=r_tran)   :: dt
+    integer(kind=i_def) :: monotone, edge_monotone
+    logical(kind=l_def) :: high_order_edges
+
+    ! Set up maps
+    stencil_sizes(:) = stencil_max
+    stencil_map(:,:,:) = reshape(                                              &
+        (/ 6, 5, 4, 3, 2, 1,    6, 5, 4, 3, 2, 1,                              &
+           6, 7, 8, 9, 10, 11,  6, 7, 8, 9, 10, 11 /), [1, stencil_max, 4] )
+    map_w2(:) = (/ 1, 2, 3, 4 /)
+    map_w3(1) = 6
+    map_depk(:) = (/ 1, 12, 23, 34 /)
+
+    ! Set no monotonicity and high order special edges
+    monotone = monotone_none
+    edge_monotone = monotone_none
+    high_order_edges = .true.
+
+    ! Dry density and volume
+    dry_mass_for_x(:) = 3.0_r_tran
+    dry_mass_for_y(:) = 3.0_r_tran
+
+    ! Test will not involve x direction
+    panel_edge_dist_W(:) = -ABS(IMDI)
+    panel_edge_dist_E(:) = -ABS(IMDI)
+
+    face_selector_ew(:) = 1
+    face_selector_ns(:) = 2
+
+    ! Test 1, Panel edge with no rotation ======================================
+    dep_pts(:) = (/ 0.0_r_tran, 2.5_r_tran, 0.0_r_tran, 2.5_r_tran /)
+    frac_dry_flux(:) = 1.5_r_tran
+    dt = 1.0_r_tran
+
+    ! Set up departure point indices
+    dep_lowest_k(:) = 0  ! Default is to not include any layers
+    dep_highest_k(:) = -1  ! Default is to not include any layers
+    dep_highest_k(map_depk(2) + ndep_half) = 0
+    dep_highest_k(map_depk(2) + ndep_half + 1) = 0
+    dep_highest_k(map_depk(4) + ndep_half + 1) = 0
+    dep_highest_k(map_depk(4) + ndep_half + 2) = 0
+
+    panel_id(1:8) = 4.0_r_def
+    panel_id(9:11) = 3.0_r_def
+    panel_edge_dist_S(:) = -ABS(IMDI)
+    panel_edge_dist_N(:) = -ABS(IMDI)
+    panel_edge_dist_S(9) = 1
+    panel_edge_dist_S(10) = 2
+    panel_edge_dist_S(11) = 3
+    panel_edge_dist_N(5) = 4
+    panel_edge_dist_N(6) = 3
+    panel_edge_dist_N(7) = 2
+    panel_edge_dist_N(8) = 1
+
+    ! Set x field to some random number to ensure these aren't used
+    field_for_x(:) = 543.0_r_tran
+
+    ! S face calculation -------------------------------------------------------
+    ! Separate tests for S and N face calculations, so that we can put bad data
+    ! in certain entries of field_y to check that the correct thing happens
+
+    ! Quadratic profile, but use the wrong value in the 10th entry
+    field_for_y(:) = (/ 26.0_r_tran, 17.0_r_tran, 10.0_r_tran, 5.0_r_tran,     &
+                        2.0_r_tran,  1.0_r_tran,  2.0_r_tran, 5.0_r_tran,      &
+                        -9.0_r_tran, 17.0_r_tran, 26.0_r_tran /)
+
+    ! Initialise flux to zero before each test
+    flux(:) = 0.0_r_tran
+
+    call ffsl_flux_xy_special_edge_code( nlayers,           &
+                                         flux,              &
+                                         field_for_x,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_x,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         field_for_y,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_y,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dep_pts,           &
+                                         frac_dry_flux,     &
+                                         dep_lowest_k,      &
+                                         dep_highest_k,     &
+                                         panel_id,          &
+                                         panel_edge_dist_W, &
+                                         panel_edge_dist_E, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         panel_edge_dist_S, &
+                                         panel_edge_dist_N, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         face_selector_ew,  &
+                                         face_selector_ns,  &
+                                         high_order_edges,  &
+                                         order,             &
+                                         monotone,          &
+                                         edge_monotone,     &
+                                         min_val,           &
+                                         ndep,              &
+                                         dt,                &
+                                         ndf_w2,            &
+                                         undf_w2,           &
+                                         map_w2,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_depk,          &
+                                         undf_depk,         &
+                                         map_depk,          &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3 )
+
+    answer = 15.0_r_tran
+    @assertEqual(answer, flux(2), tol)
+
+    ! N face calculation -------------------------------------------------------
+    ! Quadratic profile, but use the wrong value in the 8th entry
+    field_for_y(:) = (/ 26.0_r_tran, 17.0_r_tran, 10.0_r_tran, 5.0_r_tran,     &
+                        2.0_r_tran,  1.0_r_tran,  2.0_r_tran, 4.0_r_tran,      &
+                        10.0_r_tran, 17.0_r_tran, 26.0_r_tran /)
+
+    ! Initialise flux to zero before each test
+    flux(:) = 0.0_r_tran
+
+    call ffsl_flux_xy_special_edge_code( nlayers,           &
+                                         flux,              &
+                                         field_for_x,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_x,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         field_for_y,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_y,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dep_pts,           &
+                                         frac_dry_flux,     &
+                                         dep_lowest_k,      &
+                                         dep_highest_k,     &
+                                         panel_id,          &
+                                         panel_edge_dist_W, &
+                                         panel_edge_dist_E, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         panel_edge_dist_S, &
+                                         panel_edge_dist_N, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         face_selector_ew,  &
+                                         face_selector_ns,  &
+                                         high_order_edges,  &
+                                         order,             &
+                                         monotone,          &
+                                         edge_monotone,     &
+                                         min_val,           &
+                                         ndep,              &
+                                         dt,                &
+                                         ndf_w2,            &
+                                         undf_w2,           &
+                                         map_w2,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_depk,          &
+                                         undf_depk,         &
+                                         map_depk,          &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3 )
+
+    answer = 30.75_r_tran
+    @assertEqual(answer, flux(4), tol)
+
+    ! Test 2, Panel edge with rotation =========================================
+    ! Bring panel edge closer
+    dep_pts(:) = (/ 0.0_r_tran, -1.5_r_tran, 0.0_r_tran, -1.5_r_tran /)
+    frac_dry_flux(:) = -1.5_r_tran
+    dt = 1.0_r_tran
+
+    ! Set up departure point indices
+    dep_lowest_k(:) = 0  ! Default is to not include any layers
+    dep_highest_k(:) = -1  ! Default is to not include any layers
+    dep_highest_k(map_depk(2) + ndep_half - 1) = 0
+    dep_highest_k(map_depk(4) + ndep_half) = 0
+
+    panel_id(1:4) = 1.0_r_def
+    panel_id(5:11) = 4.0_r_def
+    panel_edge_dist_S(:) = -ABS(IMDI)
+    panel_edge_dist_N(:) = -ABS(IMDI)
+    panel_edge_dist_E(:) = -ABS(IMDI)
+    panel_edge_dist_W(:) = -ABS(IMDI)
+    panel_edge_dist_S(5) = 1
+    panel_edge_dist_S(6) = 2
+    panel_edge_dist_S(7) = 3
+    panel_edge_dist_S(8) = 4
+    panel_edge_dist_S(9) = 5
+    panel_edge_dist_W(1) = 4
+    panel_edge_dist_W(2) = 3
+    panel_edge_dist_W(3) = 2
+    panel_edge_dist_W(4) = 1
+
+    ! Set x field to some random number to ensure these aren't used
+    field_for_x(:) = 543.0_r_tran
+
+    ! S face calculation -------------------------------------------------------
+    ! Separate tests for S and N face calculations, so that we can put bad data
+    ! in certain entries of field_y to check that the correct thing happens
+
+    ! Incorrect values on other panel (first 4 entries)
+    ! Use different value in entry 5, which is used for integer calculation
+    field_for_y(:) = (/ -19.0_r_tran, -19.0_r_tran, -19.0_r_tran,              &
+                        -19.0_r_tran, 1.0_r_tran,  1.0_r_tran,  2.0_r_tran,    &
+                        5.0_r_tran, 10.0_r_tran, 17.0_r_tran, 26.0_r_tran /)
+
+    ! Use correct values on other panel (these come into the reconstructions)
+    field_for_x(:) = (/ 26.0_r_tran, 17.0_r_tran, 10.0_r_tran, 5.0_r_tran,     &
+                        0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran,        &
+                        0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+
+    ! Initialise flux to zero before each test
+    flux(:) = 0.0_r_tran
+
+    call ffsl_flux_xy_special_edge_code( nlayers,           &
+                                         flux,              &
+                                         field_for_x,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_x,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         field_for_y,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_y,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dep_pts,           &
+                                         frac_dry_flux,     &
+                                         dep_lowest_k,      &
+                                         dep_highest_k,     &
+                                         panel_id,          &
+                                         panel_edge_dist_W, &
+                                         panel_edge_dist_E, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         panel_edge_dist_S, &
+                                         panel_edge_dist_N, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         face_selector_ew,  &
+                                         face_selector_ns,  &
+                                         high_order_edges,  &
+                                         order,             &
+                                         monotone,          &
+                                         edge_monotone,     &
+                                         min_val,           &
+                                         ndep,              &
+                                         dt,                &
+                                         ndf_w2,            &
+                                         undf_w2,           &
+                                         map_w2,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_depk,          &
+                                         undf_depk,         &
+                                         map_depk,          &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3 )
+
+    answer = -9.0_r_tran
+    @assertEqual(answer, flux(2), tol)
+
+    ! N face calculation -------------------------------------------------------
+
+    ! Incorrect values on other panel (first 4 entries)
+    field_for_y(:) = (/ -19.0_r_tran, -19.0_r_tran, -19.0_r_tran,              &
+                        -19.0_r_tran, 2.0_r_tran,  1.0_r_tran,  2.0_r_tran,    &
+                        5.0_r_tran, 10.0_r_tran, 17.0_r_tran, 26.0_r_tran /)
+
+    ! Shouldn't be used, so fill with bad values
+    field_for_x(:) = 2000.0_r_tran
+
+    ! Initialise flux to zero before each test
+    flux(:) = 0.0_r_tran
+
+    call ffsl_flux_xy_special_edge_code( nlayers,           &
+                                         flux,              &
+                                         field_for_x,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_x,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         field_for_y,       &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dry_mass_for_y,    &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         dep_pts,           &
+                                         frac_dry_flux,     &
+                                         dep_lowest_k,      &
+                                         dep_highest_k,     &
+                                         panel_id,          &
+                                         panel_edge_dist_W, &
+                                         panel_edge_dist_E, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         panel_edge_dist_S, &
+                                         panel_edge_dist_N, &
+                                         stencil_sizes,     &
+                                         stencil_max,       &
+                                         stencil_map,       &
+                                         face_selector_ew,  &
+                                         face_selector_ns,  &
+                                         high_order_edges,  &
+                                         order,             &
+                                         monotone,          &
+                                         edge_monotone,     &
+                                         min_val,           &
+                                         ndep,              &
+                                         dt,                &
+                                         ndf_w2,            &
+                                         undf_w2,           &
+                                         map_w2,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_depk,          &
+                                         undf_depk,         &
+                                         map_depk,          &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3,            &
+                                         ndf_w3,            &
+                                         undf_w3,           &
+                                         map_w3 )
+
+    answer = -5.25_r_tran
+    @assertEqual(answer, flux(4), tol)
+
+  end subroutine test_all
+
+end module ffsl_flux_xy_special_edge_kernel_mod_test

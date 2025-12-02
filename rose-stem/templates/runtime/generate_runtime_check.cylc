@@ -1,0 +1,117 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_check.cylc") %}
+
+{# Generate runtime section for comparison tasks #}
+{# checksum, rose_ana, phystest and pert_compare #}
+
+{# Set the family inheritance for this task #}
+{% set inherit = namespace(str="") %}
+{% set inherit.str = task_family|upper %}
+
+{% if task.startswith("check") %}
+{# Check KGO Checksum tasks #}
+
+    {% for family in task_values["checksum_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    {# Default kgo locations #}
+    {# current is in rose-stem/site/SITE/kgos, #}
+    {# new is in the task output dir #}
+    {# Can overwrite this per task, eg for nrun_vs_crun comparisons #}
+    {% set current_kgo = "$SOURCE_ROOT/lfric_apps/rose-stem/site/"~
+                          SITE~"/kgos/"~
+                          task_ns.application~"/"~
+                          task_ns.platform~
+                          "/checksum_"~task_family~".txt" %}
+    {% set new_kgo = task_output_dir~"/checksum.txt" %}
+
+    {% if "nrun-v-crun" in task %}
+        {# Work out the directories if comparing nrun-v-crun #}
+        {# "Current KGO" is the nrun task #}
+        {# "New KGO" is the restarted task #}
+        {% set crun_num = task_values["crun"] - 1 %}
+        {% set current_kgo = "$OUTPUT_ROOT/"~
+                              task_ns.application~"/"~
+                              task_values["task_family"] %}
+        {% set new_kgo = current_kgo~"-crun"~crun_num~"/checksum.txt" %}
+        {% set current_kgo = current_kgo~"/checksum.txt" %}
+    {% else %}
+        {# Inherit KGO_CHECKS family for triggering the check_groups_coverage task #}
+        {% set inherit.str = inherit.str~",KGO_CHECKS" %}
+    {% endif %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = 'rose task-run --app-key=check_kgo'
+        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
+        [[[environment]]]
+            CURRENT_KGO = {{current_kgo}}
+            NEW_KGO = {{new_kgo}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% elif task.startswith("rose_ana") %}
+
+    {% for family in task_values["rose_ana_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    {% set rose_ana_run_task = "run"~task.replace("rose_ana", "") %}
+    {% set rose_ana_app = "rose_ana_"~task_values["app_name"] %}
+
+    [[{{task}}]]
+        inherit = {{inherit.str|upper}}
+        [[[environment]]]
+            SUITE_DIR     = ../{{rose_ana_run_task}}
+            KGO_DIR       = {{site_vars["lfricinputs_kgo_base"]}}/{{task_values["task_family"]}}/{{kgo_vars[task_values["task_family"]]|default("vn2.1")}}
+            ROSE_TASK_APP = {{rose_ana_app}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% elif task.startswith("phystest") %}
+{# Phystest Tasks #}
+
+    {% for family in task_values["phystest_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = rose task-run --app-key=phystest
+        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
+        [[[environment]]]
+            PHYSTEST_DIR = {{task_output_dir}}
+            PHYSTEST_SCRIPT = {{task_values["phystest_str"]}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% elif task.startswith("pert_compare") %}
+{# Perturbation Comparison Tests #}
+
+    {% for family in task_values["plot_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    {% set perturb_output = task_output_dir %}
+    {% set perturb_off_output = perturb_output~"_pert_off" %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = 'rose task-run --app-key=perturbation_compare'
+        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
+        [[[environment]]]
+            PERT_ON_TASK  = {{perturb_output}}
+            PERT_OFF_TASK = {{perturb_off_output}}
+            PLOT_DIR      = {{task_output_dir}}/plots
+            PERT_CONFIG   = {{task_values["pert_plot_str"]}}
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_check.cylc") %}

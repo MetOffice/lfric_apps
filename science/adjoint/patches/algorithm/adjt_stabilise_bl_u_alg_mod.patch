@@ -1,0 +1,91 @@
+@@ -14,7 +14,7 @@
+     use fs_continuity_mod, only : w2
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -25,14 +25,15 @@
+     type(field_type) :: u_final
+     integer(kind=i_def) :: n_levels_to_stabilise
+     real(kind=r_def) :: max_stabilisation
+-    integer(kind=i_def) :: n_levels_to_stabilise_input
+-    real(kind=r_def) :: max_stabilisation_input
+     type(field_type) :: u_stabilised_input
+     type(field_type) :: u_initial_input
+     type(field_type) :: u_final_input
+     real(kind=r_def) :: u_stabilised_inner_prod
+     real(kind=r_def) :: u_initial_inner_prod
+     real(kind=r_def) :: u_final_inner_prod
++    real(kind=r_def) :: u_stabilised_sf
++    real(kind=r_def) :: u_initial_sf
++    real(kind=r_def) :: u_final_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: u_stabilised_u_stabilised_input_inner_prod
+     real(kind=r_def) :: u_initial_u_initial_input_inner_prod
+@@ -40,6 +41,7 @@
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+     call u_stabilised%initialise(vector_space=vector_space_w2_ptr, name='u_stabilised')
+@@ -49,25 +51,34 @@
+     call u_initial_input%initialise(vector_space=vector_space_w2_ptr, name='u_initial_input')
+     call u_final_input%initialise(vector_space=vector_space_w2_ptr, name='u_final_input')
+     n_levels_to_stabilise = 1_i_def
+-    n_levels_to_stabilise_input = n_levels_to_stabilise
+     call RANDOM_NUMBER(max_stabilisation)
+-    max_stabilisation_input = max_stabilisation
+     u_stabilised_inner_prod = 0.0_r_def
+     u_initial_inner_prod = 0.0_r_def
+     u_final_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(u_stabilised), setval_x(u_stabilised_input, u_stabilised), setval_random(u_initial), &
+ &setval_x(u_initial_input, u_initial), setval_random(u_final), setval_x(u_final_input, u_final), &
+ &stabilise_bl_u_kernel_type(u_stabilised, u_initial, u_final, n_levels_to_stabilise, max_stabilisation), &
+ &x_innerproduct_x(u_stabilised_inner_prod, u_stabilised), x_innerproduct_x(u_initial_inner_prod, u_initial), &
+ &x_innerproduct_x(u_final_inner_prod, u_final))
++    write( log_scratch_space, * ) "adjt_stabilise_bl_u inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "u_stabilised inner product = ", u_stabilised_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "u_initial inner product = ", u_initial_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "u_final inner product = ", u_final_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    u_stabilised_sf = 1.0_r_def / (u_stabilised_inner_prod + eps)
++    u_initial_sf = 1.0_r_def / (u_initial_inner_prod + eps)
++    u_final_sf = 1.0_r_def / (u_final_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + n_levels_to_stabilise * n_levels_to_stabilise
+-    inner1 = inner1 + max_stabilisation * max_stabilisation
+-    inner1 = inner1 + u_stabilised_inner_prod
+-    inner1 = inner1 + u_initial_inner_prod
+-    inner1 = inner1 + u_final_inner_prod
++    inner1 = inner1 + u_stabilised_inner_prod * u_stabilised_sf
++    inner1 = inner1 + u_initial_inner_prod * u_initial_sf
++    inner1 = inner1 + u_final_inner_prod * u_final_sf
++    call invoke( inc_a_times_X( u_stabilised_sf, u_stabilised ), &
++                 inc_a_times_X( u_initial_sf, u_initial ),       &
++                 inc_a_times_X( u_final_sf, u_final ) )
+     u_stabilised_u_stabilised_input_inner_prod = 0.0_r_def
+     u_initial_u_initial_input_inner_prod = 0.0_r_def
+     u_final_u_final_input_inner_prod = 0.0_r_def
+@@ -76,12 +87,9 @@
+ &x_innerproduct_y(u_initial_u_initial_input_inner_prod, u_initial, u_initial_input), &
+ &x_innerproduct_y(u_final_u_final_input_inner_prod, u_final, u_final_input))
+     inner2 = 0.0_r_def
+-    inner2 = inner2 + n_levels_to_stabilise * n_levels_to_stabilise_input
+-    inner2 = inner2 + max_stabilisation * max_stabilisation_input
+     inner2 = inner2 + u_stabilised_u_stabilised_input_inner_prod
+     inner2 = inner2 + u_initial_u_initial_input_inner_prod
+     inner2 = inner2 + u_final_u_final_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

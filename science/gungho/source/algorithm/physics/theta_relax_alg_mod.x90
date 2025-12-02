@@ -1,0 +1,139 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Newtonian relaxation of potential temperature
+!> @details This is intended for use in cloud resolving model simulations in a
+!>          Cartesian domain. Newtonian relaxation is applied to the horizontal
+!>          mean of potential temperature,\f$\theta(t,\mathbf{x},z)\f$,
+!>          \f[
+!>             \frac{\partial\theta}{\partial t} =
+!>             -\frac{\overline{\theta}(t,z)-\theta_{\mathrm target}(t,z)}
+!>                   {\tau},
+!>          \f]
+!>          where \f$\theta_{\mathrm target}(t,z)\f$ is the target profile,
+!>          which may be time-varying, and \f$\tau\f$ is the timescale for
+!>          the relaxation.
+module theta_relax_alg_mod
+
+  use constants_mod,                 only: i_def, r_def, l_def
+  use field_mod,                     only: field_type
+  use fs_continuity_mod,             only: Wtheta, W3
+  use function_space_collection_mod, only: function_space_collection
+  use sci_geometric_constants_mod,   only: get_height_fv
+  use mesh_mod,                      only: mesh_type
+  use planet_config_mod,             only: kappa, p_zero
+  use timestepping_config_mod,       only: dt
+  !> @todo Data passed to the kernel via module 'use' statements.
+  !>       When PSyclone supports passing of arrays into kernels (issue #1312),
+  !>       these data should be passed through the argument list of the invoke.
+  use profile_interp_kernel_mod,     only: profile_interp_kernel_type, &
+                                           profile_size,               &
+                                           profile_data,               &
+                                           profile_heights
+  use prof_temporal_interp_mod,      only: prof_temporal_interp
+
+  implicit none
+
+  private
+  public :: theta_relax_alg
+
+contains
+
+  !> @brief Algorithm to calculate Newtonian relaxation of potential temperature
+  !> @param[in,out] dtheta_forcing Relaxation increment
+  !> @param[in]     theta Dry potential temperature
+  !> @param[in]     exner_in_wth Exner mapped to Wtheta space
+  !> @param[in]     twod_mesh Information  about the horizontal mesh
+  !> @param[in]     time_now Current model time in seconds
+  !> @param[in]     nlayers Number of layers in the grid
+  subroutine theta_relax_alg( dtheta_forcing, theta, exner_in_wth,   &
+                              twod_mesh, time_now, nlayers )
+
+  use theta_relax_config_mod, only: number_times,                     &
+                                    number_heights,                   &
+                                    times,                            &
+                                    heights,                          &
+                                    coordinate,                       &
+                                    coordinate_pressure,              &
+                                    theta_relax_data => profile_data, &
+                                    timescale
+
+  use horiz_mean_alg_mod, only: horiz_mean_alg
+
+  implicit none
+
+  type( field_type ), intent(inout)       :: dtheta_forcing
+  type( field_type ), intent(in), target  :: theta
+  type( field_type ), intent(in), target  :: exner_in_wth
+  type( mesh_type ),  intent(in), pointer :: twod_mesh
+
+  real( kind=r_def ),    intent(in) :: time_now
+  integer( kind=i_def ), intent(in) :: nlayers
+
+  real( kind=r_def )          :: dt_rdef
+  real( kind=r_def )          :: theta_relax_now(number_heights)
+  real( kind=r_def )          :: relaxation_coeff
+  integer( kind=i_def )       :: k, mesh_id
+  logical( kind=l_def )       :: profile_extrap
+  type( field_type )          :: dtheta_relax
+  type( field_type ), target  :: horiz_mean
+  type( field_type ), pointer :: height_wth => null()
+
+  ! Only apply relaxation between the specified times, unless only
+  ! one time is specified. In the later case relaxation applies at all times.
+  if ( number_times > 1 .and. &
+       ( time_now < times(1) .or. time_now > times(number_times) ) ) return
+
+  dt_rdef = real( dt, kind=r_def )
+
+  relaxation_coeff = dt_rdef / timescale
+
+  call horiz_mean%initialise( vector_space = theta%get_function_space() )
+
+  call dtheta_relax%initialise( vector_space = theta%get_function_space() )
+
+  if ( number_times == 1 ) then
+    theta_relax_now(:) = theta_relax_data(:)
+  else
+    call prof_temporal_interp( time_now, number_heights, number_times, times, &
+                               theta_relax_data, theta_relax_now )
+  end if
+
+  call horiz_mean_alg( horiz_mean, nlayers, twod_mesh, theta )
+
+  if ( number_heights == 1 ) then
+    call invoke( setval_c( dtheta_relax, theta_relax_now(1) ),     &
+                 inc_X_minus_Y( dtheta_relax, horiz_mean ),        &
+                 inc_a_times_X( relaxation_coeff, dtheta_relax ),  &
+                 inc_X_plus_Y( dtheta_forcing, dtheta_relax ) )
+  else
+    profile_size = number_heights
+    profile_data( 1:profile_size ) = theta_relax_now( 1:profile_size )
+    profile_heights( 1:profile_size ) = heights( 1:profile_size )
+    if ( coordinate == coordinate_pressure ) then
+      ! If the target profile is specified with pressure as the vertical
+      ! coordinate then use Exner as the interpolation coordinate. This
+      ! avoids having to create the p_in_wth field for use as vertical
+      ! coordinate of the model data.
+      do k = 1, number_heights
+        profile_heights(k) = (profile_heights(k) / p_zero) ** kappa
+      end do
+      height_wth => exner_in_wth
+    else
+      mesh_id = dtheta_relax%get_mesh_id()
+      height_wth => get_height_fv( Wtheta, mesh_id )
+    end if
+    profile_extrap = .false.
+    call invoke( setval_X( dtheta_relax, horiz_mean),                  &
+                 profile_interp_kernel_type( dtheta_relax, height_wth, &
+                                             profile_extrap ),         &
+                 inc_X_minus_Y( dtheta_relax, horiz_mean ),            &
+                 inc_a_times_X( relaxation_coeff, dtheta_relax ),      &
+                 inc_X_plus_Y( dtheta_forcing, dtheta_relax ) )
+
+  end if
+
+  end subroutine theta_relax_alg
+end module theta_relax_alg_mod

@@ -1,0 +1,229 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+
+# Environment Variables used to control the execution:
+# ====================================================
+# TARGET_PLATFORM (string)
+# RUN_METHOD (string)
+# HYPERTHREADS (int)
+# CORES_PER_NODE (int)
+# NUMA_REGIONS_PER_NODE (int)
+# OMP_NUM_THREADS (int)
+# TOTAL_RANKS (int)
+# XIOS_SERVER_MODE (int)
+# XIOS_SERVER_RANKS (int)
+# xios_nodes (int)
+# mpi_parts_xios (int)
+# CORES_PER_NODE_OVERRIDE (int)
+# RANKS_DEPTH_PAD (int)
+# BIN_DIR (string)
+# EXEC_NAME (string)
+# PAT_EXE_EXTEN (string)
+# MEMORY_PROFILE (bool)
+
+EXEC_PATH="${BIN_DIR}/${EXEC_NAME}${PAT_EXE_EXTEN}"
+NAMELIST_FILE=${EXTRA_NAMELIST_FILES:=configuration.nml}
+XIOS_SERVER_EXEC_PATH="xios_server.exe"
+SLURM_MPMD_FILE="lfric_xios_mpmd"
+
+# Set to run mode or script test mode
+# if TEST_LAUNCH_EXE_EXEC is set, then it's value shall be the expected value to test
+# the behaviour of `launch-exe` and the script will error if the value
+# does not match
+if [ -n "$TEST_LAUNCH_EXE_EXEC" ] ; then
+    # the EXEC_COMMAND will not execute
+    TEST_MODE=0
+fi
+
+# Ensure Total ranks requested is at least 1
+#===========================================
+if [ "${TOTAL_RANKS}" = "" ] ; then
+  TOTAL_RANKS=1
+fi
+
+# Set the launcher method
+#===========================================
+if [ "${RUN_METHOD}" = "executable" ] ; then
+  LAUNCHER=""
+else
+  LAUNCHER=${RUN_METHOD}
+fi
+
+# Only EXs are really using ranks per node / numa settings
+if [ "${TARGET_PLATFORM}" = "meto-ex1a" ] ; then
+
+  # Check if there are threads
+  if [ -z "${OMP_NUM_THREADS+x}" ] ; then
+    # As no thread value is provided, we assume 1 thread (or none)
+    OMP_NUM_THREADS=1
+  fi
+
+  if [ -z "${CORES_PER_NODE_OVERRIDE+x}" ] ; then
+    CORES_PER_NODE_OVERRIDE=0
+  fi
+
+  if [ -z "${RANKS_DEPTH_PAD+x}" ] ; then
+    RANKS_DEPTH_PAD=1
+  fi
+
+  # The depth setting, padded or otherwise, is tied to threads
+  DEPTH_VAL=${OMP_NUM_THREADS}
+
+  # If the depth padding is present, and it is greater than the thread qty,
+  # we will use it instead. There may be occations where users use a pad, and 
+  # threads where there are memory concerns
+  if (( "${RANKS_DEPTH_PAD}" > "${OMP_NUM_THREADS}" )); then
+    DEPTH_VAL=${RANKS_DEPTH_PAD}
+  fi
+
+  # Set some default values based on cores per node, hyperthreads and OpenMP
+  DEFAULT_CORES_PER_NODE="$(( CORES_PER_NODE * HYPERTHREADS ))"
+  STANDARD_CORES_PER_NODE="${DEFAULT_CORES_PER_NODE}"
+  DEFAULT_CORES_PER_NODE="$(( DEFAULT_CORES_PER_NODE / DEPTH_VAL ))"
+  SET_CORES_PER_NODE="${DEFAULT_CORES_PER_NODE}"
+
+  CHECK_LOCAL_CPUS_USED="$(( TOTAL_RANKS * DEPTH_VAL ))"
+  CORE_PER_NUMA="$(( CORES_PER_NODE * HYPERTHREADS ))"
+  CORE_PER_NUMA="$(( CORE_PER_NUMA / NUMA_REGIONS_PER_NODE ))"
+
+  # Set MPI ranks / PEs per Node from provided value
+  #===========================================
+  # If there is an override
+  if (( "${CORES_PER_NODE_OVERRIDE}" > "0" )) ; then
+    echo "Override provided"
+    # we are checking a value is set, which times by threads comes out sensible
+    TMP_RANKS_PER_NODE="$(( CORES_PER_NODE_OVERRIDE * HYPERTHREADS ))"
+    CHECK_RANKS_PER_NODE="$(( TMP_RANKS_PER_NODE * DEPTH_VAL ))"
+    SET_CORES_PER_NODE="${CORES_PER_NODE_OVERRIDE}"
+    # If we have an specified cores per node, do checks then set
+    # Check if this value is less than CPUs to a node
+    if (( "${CHECK_RANKS_PER_NODE}" <= "${CORES_PER_NODE}" )) ; then
+      echo "This is a valid value"
+    else
+    #If nothing appropriate can be set, fall back on the default
+      SET_CORES_PER_NODE="${DEFAULT_CORES_PER_NODE}"
+      echo "Note, ranks per node has defaulted to standard value of maximum ranks per node".
+    fi
+  # if there is no override / default is 0, set it to known CORES_PER_NODE and check this fits with threading
+  else
+    # Grab a copy
+    TEST_SET_CORES="${SET_CORES_PER_NODE}"
+    # Check if it divides over the numa
+    if [ $(( TEST_SET_CORES % NUMA_REGIONS_PER_NODE )) -ne 0 ] ; then
+      # If not, from 1 to the total ranks available
+      for ((INDEX=1;INDEX<=STANDARD_CORES_PER_NODE;INDEX++)) ; do
+      # check if the index will divide cleanly over numa
+        if [ $(( INDEX % NUMA_REGIONS_PER_NODE )) -eq 0 ] ; then
+        # if it does ensure this remains a value which fits on the node
+          TEST_SET_CORES="$(( INDEX * DEPTH_VAL ))"
+          if [ $TEST_SET_CORES -le $STANDARD_CORES_PER_NODE ] ; then
+            SET_CORES_PER_NODE=$INDEX
+          fi
+        fi
+      done
+    fi
+  fi
+  # Set the cores per node to the same as the total ranks provided if too few
+  if (( "${TOTAL_RANKS}" < "${SET_CORES_PER_NODE}" )) ; then
+      SET_CORES_PER_NODE="${TOTAL_RANKS}"
+  fi
+fi
+
+# Construct launcher options
+#===========================================
+LAUNCHER_OPTS=""
+if [ "${RUN_METHOD}" = "mpiexec" ] ; then
+  if [ "${TARGET_PLATFORM}" = "meto-ex1a" ] ; then
+    if (( "${CORES_PER_NODE_OVERRIDE}" == "0" )) && (( "${CHECK_LOCAL_CPUS_USED}" <= "${SET_CORES_PER_NODE}" )) ; then
+      LAUNCHER_OPTS="--cpu-bind=depth --np ${TOTAL_RANKS} --depth ${DEPTH_VAL}"
+    elif [[ ! -z "${XIOS_SERVER_MODE}" && "${XIOS_SERVER_MODE}" = "True" && \
+	      "${xios_nodes}" = "0" ]] ; then
+      LAUNCHER_OPTS="--cpu-bind=depth --np ${TOTAL_RANKS} --depth ${DEPTH_VAL}"
+    else
+      LAUNCHER_OPTS="--cpu-bind=depth --np ${TOTAL_RANKS} --depth ${DEPTH_VAL} --ppn ${SET_CORES_PER_NODE}"
+    fi
+    if [[ ! -z "${XIOS_SERVER_MODE}" && "${XIOS_SERVER_MODE}" = "True" ]] ; then
+      if [ "${xios_nodes}" = "0" ] ; then
+	XIOS_OPTS=" : --cpu-bind=depth --np ${XIOS_SERVER_RANKS} "
+      else
+	XIOS_CORES_PER_NODE="$(( mpi_parts_xios / xios_nodes ))"
+	XIOS_OPTS=" : --cpu-bind=depth --np ${XIOS_SERVER_RANKS} --ppn ${XIOS_CORES_PER_NODE} "
+      fi
+    fi
+
+  elif [ "${SITE_MPI_LAUNCHER_OPTS}" != "" ] ; then
+    LAUNCHER_OPTS=${SITE_MPI_LAUNCHER_OPTS}
+  else
+    LAUNCHER_OPTS="-n ${TOTAL_RANKS}"
+    if [[ ! -z "${XIOS_SERVER_MODE}" && "${XIOS_SERVER_MODE}" = "True" ]] ; then
+      XIOS_OPTS=" : -n ${XIOS_SERVER_RANKS} "
+    fi    
+  fi
+elif [ "${RUN_METHOD}" = "executable" ] ; then
+  LAUNCHER_OPTS=""
+fi
+
+if [ -z "$XIOS_OPTS" ] ; then
+  XIOS_SERVER_EXEC_PATH=""
+fi
+
+
+# Launch the model (Or, test the launch command)
+#===============================================
+EXEC_COMMAND="${LAUNCHER} ${LAUNCHER_OPTS} ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_OPTS}${XIOS_SERVER_EXEC_PATH}"
+
+if [[ ! -z "${MEMORY_PROFILE}" && "${MEMORY_PROFILE}" = "True" ]] ; then
+  XIOS_MEM_TIME=""
+  if [[ ! -z "$XIOS_OPTS" ]] ; then
+    XIOS_MEM_TIME="/usr/bin/time -f max_mem_xios_server_%Mkb "
+  fi
+  if [ "${TARGET_PLATFORM}" = "meto-ex1a" ] ; then
+    EXEC_COMMAND="${LAUNCHER} --line-buffer --label ${LAUNCHER_OPTS} /usr/bin/time -f max_mem_${EXEC_NAME}_%Mkb ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_OPTS}${XIOS_MEM_TIME}${XIOS_SERVER_EXEC_PATH}"
+  else
+    EXEC_COMMAND="${LAUNCHER} -l ${LAUNCHER_OPTS} /usr/bin/time -f max_mem_${EXEC_NAME}_%Mkb ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_OPTS}${XIOS_MEM_TIME}${XIOS_SERVER_EXEC_PATH}"
+  fi
+fi
+
+if [ "${TEST_MODE}" = 0 ] ; then
+    # SLURM_MPMD_FILE?
+    if [ "${TEST_LAUNCH_EXE_EXEC}" = "${EXEC_COMMAND}" ] ; then
+	test_error=0
+    else
+        test_error=1
+	printf "Error: \n%s \n\t!= \n%s\n" "${TEST_LAUNCH_EXE_EXEC}" "${EXEC_COMMAND}" >&2
+    fi
+    exit ${test_error}
+fi
+
+echo Execute command is:
+echo ""
+echo ${EXEC_COMMAND}
+echo ""
+echo Running ...
+echo ""
+${EXEC_COMMAND}
+error=$?
+if [ ${error} != 0 ] ; then
+  echo "Execution failed, Error return code ${error}."
+fi
+
+if [[ -v MEMORY_PROFILE && "${TARGET_PLATFORM}" = "meto-ex1a" ]] ; then
+  # report on Memory usage in job.out
+  number_of_nodes=$(sort -u "$PBS_NODEFILE" | wc -l)
+  cat << 'EOF' > Scr_Memory.job
+#!/bin/bash
+echo "$(uname -n) $PALS_NODEID $(( $(cat /sys/fs/cgroup/memory/pbspro.service/jobid/$PBS_JOBID/memory.max_usage_in_bytes) / 1048576 ))"
+EOF
+  chmod u+x Scr_Memory.job
+  echo "Maximum memory usage per node (MiB)"
+  {
+    mpiexec -n "$number_of_nodes" --ppn 1 ./Scr_Memory.job
+  } | sort -r -n -k3 | column -t -o" " | sed 's/^/  /'
+
+fi
+
+
+exit ${error}

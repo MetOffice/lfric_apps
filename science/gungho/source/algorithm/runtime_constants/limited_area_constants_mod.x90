@@ -1,0 +1,1182 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides constants used for limited area models.
+!>
+!> @details This module controls the set-up of various limited area model
+!>          objects that do not change during a run. These objects are
+!>          accessed from this module through appropriate 'get' functions.
+!-------------------------------------------------------------------------------
+
+module limited_area_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                     only: i_def, r_def, l_def, &
+                                               str_def, str_short
+  use copy_field_alg_mod,                only: copy_field
+  use extrusion_mod,                     only: TWOD, PRIME_EXTRUSION
+  use field_mod,                         only: field_type
+  use r_solver_field_mod,                only: r_solver_field_type
+  use field_parent_mod,                  only: field_parent_type, write_interface
+  use field_collection_mod,              only: field_collection_type
+  use field_collection_iterator_mod,     only: field_collection_iterator_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use fs_continuity_mod,                 only: W2, W3, Wtheta
+  use sci_geometric_constants_mod,       only: get_coordinates
+  use inventory_by_local_mesh_mod,       only: inventory_by_local_mesh_type
+  use inventory_by_mesh_mod,             only: inventory_by_mesh_type
+  use io_config_mod,                     only: subroutine_timers
+  use lfric_xios_write_mod,              only: write_field_generic
+  use local_mesh_mod,                    only: local_mesh_type
+  use log_mod,                           only: log_event,       &
+                                               LOG_LEVEL_ERROR, &
+                                               LOG_LEVEL_DEBUG
+  use mesh_collection_mod,               only: mesh_collection
+  use mesh_mod,                          only: mesh_type
+  use timer_mod,                         only: timer
+
+  ! Configuration
+  use base_mesh_config_mod,              only: geometry, geometry_spherical
+  use boundaries_config_mod,             only: normal_only, lbc_method, &
+                                               lbc_method_coordinate_based
+  use finite_element_config_mod,         only: element_order_h, &
+                                               element_order_v
+  use logging_config_mod,                only: run_log_level, &
+                                               run_log_level_debug
+
+  ! Limited-area mask methods
+  use limited_area_masks_alg_mod,        only: create_limited_area_mask,      &
+                                               create_parallel_boundary_mask, &
+                                               create_boundary_mask,          &
+                                               create_blend_mask,             &
+                                               create_lbc_mask,               &
+                                               check_w2b_mask, &
+                                               create_onion_layers
+
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  ! Limited-area mask collection
+  type(field_collection_type), allocatable, target :: mask_collection
+
+  ! The mask lists are associated with and in the same order as the
+  ! mesh_id_list. i.e. They are lists of fields that define masks on all the
+  ! meshes.
+  ! The mask_w2_inventory, masks_w3_inventory and mask_wtheta_inventory give
+  ! fields that are 1.0 in the interior of the domain (as defined by the
+  ! solver boundary) and 0.0 elsewhere, for the W2, W3 and Wtheta
+  ! function spaces.
+  ! The mask_lbc*_inventory give fields that are 0.0 in the interior but are 1.0
+  ! elsewhere, as defined by the width of the Lateral Boundary
+  ! Conditions (LBCs),for the W2, W3 and Wtheta function spaces.
+  ! The mask_blend*_inventory gives fields that are similar to the mask_lbc*_inventory
+  ! but with weights that ramp from 1.0 to 0.0 in the interior, for the W2,
+  ! W3 and Wtheta function spaces.
+  ! The mask_boundary_w2_inventory gives fields that are 1.0 on the solver boundary
+  ! (in the W2 space) and 0.0 elsewhere.
+  ! onion_layers is a single field that identifies the cells in each concentric
+  ! layer of the LAM blending zone, on the primary mesh.
+  ! @TODO #416: a potential optimisation would make all masks be 2D fields
+  type(inventory_by_mesh_type), target :: mask_w2_inventory_fe
+  type(inventory_by_mesh_type), target :: mask_w2_inventory_fv
+  type(inventory_by_mesh_type), target :: mask_w3_inventory_fe
+  type(inventory_by_mesh_type), target :: mask_w3_inventory_fv
+  type(inventory_by_mesh_type), target :: mask_wtheta_inventory_fe
+  type(inventory_by_mesh_type), target :: mask_wtheta_inventory_fv
+  type(inventory_by_mesh_type), target :: mask_lbc_w2_inventory_fe
+  type(inventory_by_mesh_type), target :: mask_lbc_w2_inventory_fv
+  type(inventory_by_mesh_type), target :: mask_lbc_w3_inventory_fe
+  type(inventory_by_mesh_type), target :: mask_lbc_w3_inventory_fv
+  type(inventory_by_mesh_type), target :: mask_lbc_wtheta_inventory_fe
+  type(inventory_by_mesh_type), target :: mask_lbc_wtheta_inventory_fv
+  type(inventory_by_mesh_type), target :: mask_blend_w2_inventory
+  type(inventory_by_mesh_type), target :: mask_blend_w3_inventory
+  type(inventory_by_mesh_type), target :: mask_blend_wtheta_inventory
+  type(inventory_by_mesh_type), target :: mask_boundary_w2_inventory_fe
+  type(inventory_by_mesh_type), target :: mask_boundary_w2_inventory_fv
+  type(inventory_by_local_mesh_type)   :: onion_layers_inventory
+
+  ! r_solver masks
+  type(inventory_by_mesh_type), target :: mask_w2_r_solver_inventory
+  type(inventory_by_mesh_type), target :: mask_w3_r_solver_inventory
+  type(inventory_by_mesh_type), target :: mask_wt_r_solver_inventory
+
+  ! Public functions to create and access the module contents
+  private :: create_standard_masks
+  private :: create_multigrid_masks
+  public :: final_limited_area_constants
+  public :: get_mask_fe
+  public :: get_mask_fv
+  public :: get_mask_r_solver
+  public :: get_boundary_mask_fe
+  public :: get_boundary_mask_fv
+  public :: get_lbc_mask_fe
+  public :: get_lbc_mask_fv
+  public :: get_blend_mask
+  public :: get_onion_layers
+  public :: write_masks
+
+contains
+
+  !> @brief Creates the standard set of masks
+  !> @param[in] mesh             Mesh on which to create masks
+  !> @param[in] use_fe           Whether to use finite element or finite volume
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  subroutine create_standard_masks(mesh, use_fe, finest_mesh_name)
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    logical(kind=l_def),      intent(in) :: use_fe
+    character(len=str_def),   intent(in) :: finest_mesh_name
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_id
+    integer(kind=i_def)                :: k_h, k_v
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: w3_fs
+    type(function_space_type), pointer :: wtheta_fs
+    type(field_type),          pointer :: onion_layers
+    type(field_type),          pointer :: mask_w2
+    type(field_type),          pointer :: mask_w3
+    type(field_type),          pointer :: mask_wtheta
+    type(field_type),          pointer :: mask_boundary_w2
+    type(field_type),          pointer :: chi(:)
+
+    type(inventory_by_mesh_type), pointer :: mask_w2_inventory
+    type(inventory_by_mesh_type), pointer :: mask_w3_inventory
+    type(inventory_by_mesh_type), pointer :: mask_wtheta_inventory
+    type(inventory_by_mesh_type), pointer :: mask_boundary_w2_inventory
+
+    ! Masks used to define the boundary conditions on the helmholtz solver
+    ! These could be only normal or perpendicular to the solver boundary or
+    ! alternatively they could be both normal (perpendicular) and tangential
+    ! (parallel) to the solver boundary.
+    type(field_type) :: w2parallel_mask
+    type(field_type) :: w2perp_mask
+    type(field_type) :: w2interior_mask
+
+    ! Temporary mask fields to point to those in inventories
+    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+    ! Point to the correct inventories
+    if (use_fe) then
+      k_h = element_order_h
+      k_v = element_order_v
+      mask_w2_inventory => mask_w2_inventory_fe
+      mask_w3_inventory => mask_w3_inventory_fe
+      mask_wtheta_inventory => mask_wtheta_inventory_fe
+      mask_boundary_w2_inventory => mask_boundary_w2_inventory_fe
+    else
+      k_h = 0
+      k_v = 0
+      mask_w2_inventory => mask_w2_inventory_fv
+      mask_w3_inventory => mask_w3_inventory_fv
+      mask_wtheta_inventory => mask_wtheta_inventory_fv
+      mask_boundary_w2_inventory => mask_boundary_w2_inventory_fv
+    end if
+
+    ! Set up inventories
+    if (.not. mask_w2_inventory%is_initialised()) then
+      call mask_w2_inventory%initialise(name='w2_mask')
+    end if
+    if (.not. mask_w3_inventory%is_initialised()) then
+      call mask_w3_inventory%initialise(name='w3_mask')
+    end if
+    if (.not. mask_wtheta_inventory%is_initialised()) then
+      call mask_wtheta_inventory%initialise(name='wtheta_mask')
+    end if
+    if (.not. mask_boundary_w2_inventory%is_initialised()) then
+      call mask_boundary_w2_inventory%initialise(name='w2boundary_mask')
+    end if
+
+    mesh_id = mesh%get_id()
+    chi => get_coordinates(mesh_id)
+    w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
+    w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
+    wtheta_fs => function_space_collection%get_fs( mesh, k_h, k_v, Wtheta )
+    onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
+
+    ! Add fields to inventory
+    call mask_w2_inventory%add_field(mask_w2, w2_fs, mesh, name='w2_mask')
+    call mask_w3_inventory%add_field(mask_w3, w3_fs, mesh, name='w3_mask')
+    call mask_wtheta_inventory%add_field(mask_wtheta, wtheta_fs, mesh, name='wtheta_mask')
+    call mask_boundary_w2_inventory%add_field(mask_boundary_w2, w2_fs, mesh, name='w2boundary_mask')
+
+    ! W2 masks -----------------------------------------------------------------
+    call w2perp_mask%initialise( vector_space = w2_fs )
+    call w2parallel_mask%initialise( vector_space = w2_fs )
+    call w2interior_mask%initialise( vector_space = w2_fs )
+
+    if (normal_only) then
+      call log_event( "Using w2 dofs on boundary for LBC", LOG_LEVEL_DEBUG )
+      call create_boundary_mask( mask_boundary_w2, onion_layers, chi )
+      call create_limited_area_mask( mask_w2, onion_layers, chi )
+    else
+      call log_event(                                                          &
+              "Using w2 dofs on boundary and tangential 1 cell in",            &
+              LOG_LEVEL_DEBUG                                                  &
+      )
+      call create_boundary_mask( w2perp_mask, onion_layers, chi )
+      call create_parallel_boundary_mask ( w2parallel_mask, chi )
+      call create_limited_area_mask( w2interior_mask, onion_layers, chi )
+
+      call invoke(                                                             &
+                   ! Add the W2parallel and W2perp masks together
+                   X_plus_Y (mask_boundary_w2,  w2perp_mask, w2parallel_mask), &
+                   ! Subtract the W2parallel mask from the W2interior_mask
+                   X_minus_Y(mask_w2, w2interior_mask, w2parallel_mask) )
+    end if
+
+    ! Check that the W2 boundary mask has the correct number of dofs
+    ! if we're using the coordinate_based method
+    if ( lbc_method == lbc_method_coordinate_based )then
+      call check_w2b_mask( mask_boundary_w2 )
+    end if
+
+    call create_limited_area_mask( mask_w3, onion_layers, chi )
+    call create_limited_area_mask( mask_wtheta, onion_layers, chi )
+
+    ! Add the masks to the mask_collection to enable writing out
+    if (.not. allocated(mask_collection)) then
+      allocate(mask_collection)
+      call mask_collection%initialise(name='mask_collection')
+    end if
+    call mask_collection%add_field( mask_w2 )
+    call mask_collection%add_field( mask_w3 )
+    call mask_collection%add_field( mask_wtheta )
+    call mask_collection%add_field( mask_boundary_w2 )
+
+    if (run_log_level == run_log_level_debug) call list_mask_fields()
+
+    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+  end subroutine create_standard_masks
+
+  !> @brief Creates masks on all multigrid meshes
+  !> @param[in] finest_mesh   The finest mesh, on which the standard masks have
+  !!                          been defined
+  !> @param[in] use_fe        Whether to use finite element or finite volume
+  subroutine create_multigrid_masks(finest_mesh, use_fe)
+
+    use function_space_chain_mod, only: multigrid_function_space_chain
+    use multigrid_config_mod,     only: multigrid_chain_nitems
+    use sci_restrict_masked_w2_kernel_mod, &
+                                  only: restrict_masked_w2_kernel_type
+    use sci_restrict_scalar_masked_kernel_mod, &
+                                  only: restrict_scalar_masked_kernel_type
+
+    implicit none
+
+    type(mesh_type), pointer, intent(in)  :: finest_mesh
+    logical(kind=l_def),      intent(in)  :: use_fe
+    type(function_space_type),   pointer  :: w2_fs
+    type(function_space_type),   pointer  :: w3_fs
+    type(field_type),            pointer  :: mask_w2
+    type(field_type),            pointer  :: mask_w3
+    type(field_type),            pointer  :: w2_fine_mask
+    type(field_type),            pointer  :: w3_fine_mask
+    type(field_type),            pointer  :: w2_source_mask
+    type(field_type),            pointer  :: w3_source_mask
+    type(mesh_type),             pointer  :: fine_mesh
+    type(mesh_type),             pointer  :: coarse_mesh
+    type(inventory_by_mesh_type), pointer :: mask_w3_inventory
+    type(inventory_by_mesh_type), pointer :: mask_w2_inventory
+
+    integer(kind=i_def)                  :: i
+    integer(kind=i_def)                  :: current_fs_id
+    integer(kind=i_def)                  :: k_h, k_v
+
+    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+    ! Point to the correct inventories
+    if (use_fe) then
+      k_h = element_order_h
+      k_v = element_order_v
+      mask_w2_inventory => mask_w2_inventory_fe
+      mask_w3_inventory => mask_w3_inventory_fe
+    else
+      k_h = 0
+      k_v = 0
+      mask_w2_inventory => mask_w2_inventory_fv
+      mask_w3_inventory => mask_w3_inventory_fv
+    end if
+
+    ! We may be partially through the function space chain
+    ! Save position to be set later
+    w3_fs => multigrid_function_space_chain%get_current()
+    current_fs_id = w3_fs%get_id()
+
+    ! Set initial W3 function space for finest mesh
+    w3_fs => multigrid_function_space_chain%get_start()
+
+    do i = 1, multigrid_chain_nitems-1
+
+      fine_mesh => w3_fs%get_mesh()
+
+      ! Get masks on fine mesh -- "source" and "fine" masks are identical
+      ! Can't use standard getter as this would create a circular dependency,
+      ! so get them directly from the inventory
+      call mask_w3_inventory%get_field(fine_mesh, w3_source_mask)
+      call mask_w3_inventory%get_field(fine_mesh, w3_fine_mask)
+      call mask_w2_inventory%get_field(fine_mesh, w2_source_mask)
+      call mask_w2_inventory%get_field(fine_mesh, w2_fine_mask)
+
+      ! Obtain the next mesh level, and get the function spaces for this mesh
+      w3_fs => multigrid_function_space_chain%get_next()
+      coarse_mesh => w3_fs%get_mesh()
+      w2_fs => function_space_collection%get_fs(coarse_mesh, k_h, k_v, W2)
+
+      ! Create new masks
+      call mask_w2_inventory%add_field(mask_w2, w2_fs, coarse_mesh)
+      call mask_w3_inventory%add_field(mask_w3, w3_fs, coarse_mesh)
+
+      ! Define the masks on the coarse level meshes using restrict kernels.
+      ! coarse_level_mask (coarse cell) = average ( fine_level_mask (fine cells) )
+      ! where the average is only performed over the cells with non-zero values.
+      call invoke( restrict_scalar_masked_kernel_type(mask_w3,                 &
+                                                      w3_source_mask,          &
+                                                      w3_fine_mask),           &
+                   setval_c(mask_w2, 0.0_r_def),                               &
+                   restrict_masked_w2_kernel_type(mask_w2,                     &
+                                                  w2_source_mask,              &
+                                                  w2_fine_mask) )
+    end do
+
+    ! Return function space chain to its position
+    call multigrid_function_space_chain%set_current(current_fs_id)
+
+    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+  end subroutine
+
+  !> @brief Write out the name of each mask in the mask field collection
+  subroutine list_mask_fields()
+
+    implicit none
+
+    class( field_parent_type ), pointer :: abstract_field_ptr
+    type(field_collection_iterator_type) :: iterator
+    character(str_def) :: name
+
+    call log_event( "Mask Collection fields:", LOG_LEVEL_DEBUG )
+
+    call iterator%initialise(mask_collection)
+    do
+      if ( .not.iterator%has_next() ) exit
+      abstract_field_ptr => iterator%next()
+      name = trim(adjustl( abstract_field_ptr%get_name() ))
+      call log_event( name, LOG_LEVEL_DEBUG )
+    end do
+    abstract_field_ptr => null()
+
+  end subroutine list_mask_fields
+
+  subroutine write_masks()
+    use diagnostic_alg_mod,            only: extract_w2h_diagnostic_alg
+    use lfric_xios_write_mod,          only: write_field_generic
+    use field_parent_mod,              only: write_interface
+    use initialise_diagnostics_mod,    only: diagnostic_to_be_sampled
+
+    implicit none
+
+    class(field_parent_type),    pointer :: abstract_field_ptr
+    type(field_type),            pointer :: field_ptr
+    type(field_collection_iterator_type) :: iterator
+    character(str_def)                   :: name
+    type(function_space_type),   pointer :: fs
+
+    type(field_type)                     :: h_component, v_component
+
+    procedure(write_interface), pointer  :: h_comp_write_ptr
+    procedure(write_interface), pointer  :: v_comp_write_ptr
+    procedure(write_interface), pointer  :: tmp_write_ptr
+
+    ! write out each mask in the collection
+    call iterator%initialise(mask_collection)
+    do
+      if ( .not.iterator%has_next() ) exit
+
+      abstract_field_ptr => iterator%next()
+
+      name = trim(adjustl( abstract_field_ptr%get_name() ))
+
+      fs => abstract_field_ptr%get_function_space()
+
+      select type(abstract_field_ptr)
+      type is (field_type)
+        field_ptr => abstract_field_ptr
+      end select
+
+      select case(fs%which())
+      case (W2)
+        ! XIOS output for W2 is 2D, so the output is
+        ! for the horiztonal component on 'edges' and
+        ! vertical component on 'faces'
+
+        call extract_w2h_diagnostic_alg( h_component, v_component, &
+                                         field_ptr )
+        v_comp_write_ptr => write_field_generic
+        call v_component%set_write_behaviour(v_comp_write_ptr)
+        h_comp_write_ptr => write_field_generic
+        call h_component%set_write_behaviour(h_comp_write_ptr)
+        if (diagnostic_to_be_sampled("h_"//trim(name))) then
+          call h_component%write_field( "h_"//trim(name) )
+        end if
+        if (diagnostic_to_be_sampled("v_"//trim(name))) then
+          call v_component%write_field( "v_"//trim(name) )
+        end if
+      case default
+        if (diagnostic_to_be_sampled(name)) then
+          tmp_write_ptr => write_field_generic
+          call field_ptr%set_write_behaviour(tmp_write_ptr)
+          call field_ptr%write_field(name)
+        end if
+      end select
+    end do
+    field_ptr => null()
+
+  end subroutine write_masks
+
+  !> @brief  Returns pointer to the interior mask for a finite element space
+  !> @param[in] space            The function space of the interior mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The interior mask field
+  function get_mask_fe(space, mesh_id, finest_mesh_name) result(mask_ptr)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    integer(kind=i_def)                   :: finest_mesh_id
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: finest_mesh
+    type(field_type),             pointer :: mask_ptr
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+
+    ! If running at lowest order, use finite volume
+    if (element_order_h == 0 .and. element_order_v == 0) then
+      mask_ptr => get_mask_fv(space, mesh_id, finest_mesh_name)
+      return
+    end if
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_w2_inventory_fe
+        inventory_name = 'mask_w2_fe'
+      case (W3)
+        inventory => mask_w3_inventory_fe
+        inventory_name = 'mask_w3_fe'
+      case (Wtheta)
+        inventory => mask_wtheta_inventory_fe
+        inventory_name = 'mask_wtheta_fe'
+      case default
+        mask_ptr => null()
+        call log_event( "Mask not available on requested space",               &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+
+      ! Check if this is the finest mesh
+      ! If this is the finest mesh, create all standard finest mesh masks
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
+      finest_mesh_id = finest_mesh%get_id()
+      if (mesh_id == finest_mesh_id) then
+        call create_standard_masks(mesh, use_fe=.true., &
+                                   finest_mesh_name=finest_mesh_name)
+
+      ! Check mesh is prime extrusion
+      else if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
+        call log_event(                                                        &
+                'Masks only implemented on meshes with prime extrusion',       &
+                LOG_LEVEL_ERROR                                                &
+        )
+
+      ! Otherwise this is a multigrid mesh
+      else
+        ! First check that masks exist on finest mesh
+        ! If masks don't yet exist on finest mesh, create them
+        constant_exists = inventory%paired_object_exists(finest_mesh_id)
+        if (.not. constant_exists) then
+          call create_standard_masks(finest_mesh, use_fe=.true., &
+                                     finest_mesh_name=finest_mesh_name)
+        end if
+
+        ! Throw an error if the space is Wtheta
+        if (space == Wtheta) then
+          call log_event(                                                      &
+                  'Wtheta mask not implemented on a multigrid mesh',           &
+                  LOG_LEVEL_ERROR                                              &
+          )
+        end if
+
+        ! Now create multigrid masks
+        call create_multigrid_masks(finest_mesh, use_fe=.true.)
+      end if
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_ptr)
+
+  end function get_mask_fe
+
+  !> @brief  Returns pointer to the interior mask for a finite volume space
+  !> @param[in] space            The function space of the interior mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The interior mask field
+  function get_mask_fv(space, mesh_id, finest_mesh_name) result(mask_ptr)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    integer(kind=i_def)                   :: finest_mesh_id
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: finest_mesh
+    type(field_type),             pointer :: mask_ptr
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_w2_inventory_fv
+        inventory_name = 'mask_w2_fv'
+      case (W3)
+        inventory => mask_w3_inventory_fv
+        inventory_name = 'mask_w3_fv'
+      case (Wtheta)
+        inventory => mask_wtheta_inventory_fv
+        inventory_name = 'mask_wtheta_fv'
+      case default
+        mask_ptr => null()
+        call log_event( "Mask not available on requested space",               &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+
+      ! Check if this is the finest mesh
+      ! If this is the finest mesh, create all standard finest mesh masks
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
+      finest_mesh_id = finest_mesh%get_id()
+      if (mesh_id == finest_mesh_id) then
+        call create_standard_masks(mesh, use_fe=.false., &
+                                   finest_mesh_name=finest_mesh_name)
+
+      ! Check mesh is prime extrusion
+      else if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
+        call log_event(                                                        &
+                'Masks only implemented on meshes with prime extrusion',       &
+                LOG_LEVEL_ERROR                                                &
+        )
+
+      ! Otherwise this is a multigrid mesh
+      else
+        ! First check that masks exist on finest mesh
+        ! If masks don't yet exist on finest mesh, create them
+        constant_exists = inventory%paired_object_exists(finest_mesh_id)
+        if (.not. constant_exists) then
+          call create_standard_masks(finest_mesh, use_fe=.false., &
+                                     finest_mesh_name=finest_mesh_name)
+        end if
+
+        ! Throw an error if the space is Wtheta
+        if (space == Wtheta) then
+          call log_event(                                                      &
+                  'Wtheta mask not implemented on a multigrid mesh',           &
+                  LOG_LEVEL_ERROR                                              &
+          )
+        end if
+
+        ! Now create multigrid masks
+        call create_multigrid_masks(finest_mesh, use_fe=.false.)
+      end if
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_ptr)
+
+  end function get_mask_fv
+
+  !> @brief  Returns pointer to the interior mask at r_solver precision
+  !> @param[in] space            The function space of the interior mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The interior mask field
+  function get_mask_r_solver(space, mesh_id, finest_mesh_name) result(mask_r_solver)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    type(mesh_type),              pointer :: mesh
+    type(field_type),             pointer :: mask_r_def
+    type(r_solver_field_type),    pointer :: mask_r_solver
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+    type(function_space_type),    pointer :: fs
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_w2_r_solver_inventory
+        inventory_name = 'mask_w2_r_solver'
+      case (W3)
+        inventory => mask_w3_r_solver_inventory
+        inventory_name = 'mask_w3_r_solver'
+      case (Wtheta)
+        inventory => mask_wt_r_solver_inventory
+        inventory_name = 'mask_wtheta_r_solver'
+      case default
+        mask_r_solver => null()
+        call log_event( "Mask not available on requested space",               &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      mask_r_def => get_mask_fe(space, mesh_id, finest_mesh_name)
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, space)
+      call inventory%add_field(mask_r_solver, fs, mesh)
+      call copy_field(mask_r_def, mask_r_solver)
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_r_solver)
+
+  end function get_mask_r_solver
+
+  !> @brief  Returns pointer to the boundary mask for a finite element space
+  !> @param[in] space            The function space of the boundary mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The boundary mask field
+  function get_boundary_mask_fe(space, mesh_id, finest_mesh_name) result(mask_ptr)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: finest_mesh
+    type(field_type),             pointer :: mask_ptr
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+
+    ! If running at lowest order, use finite volume
+    if (element_order_h == 0 .and. element_order_v == 0) then
+      mask_ptr => get_boundary_mask_fv(space, mesh_id, finest_mesh_name)
+      return
+    end if
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_boundary_w2_inventory_fe
+        inventory_name = 'boundary_mask_w2_fe'
+      case default
+        mask_ptr => null()
+        call log_event( "Boundary mask not available on requested space",      &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+      ! Check if this is the finest mesh
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
+      if (mesh_id /= finest_mesh%get_id()) then
+        call log_event(                                                        &
+                'Boundary masks only implemented on meshes on finest mesh',    &
+                LOG_LEVEL_ERROR                                                &
+        )
+      end if
+
+      call create_standard_masks(mesh, use_fe=.true., &
+                                 finest_mesh_name=finest_mesh_name)
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_ptr)
+
+  end function get_boundary_mask_fe
+
+  !> @brief  Returns pointer to the boundary mask for a finite volume space
+  !> @param[in] space            The function space of the boundary mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The boundary mask field
+  function get_boundary_mask_fv(space, mesh_id, finest_mesh_name) result(mask_ptr)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: finest_mesh
+    type(field_type),             pointer :: mask_ptr
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_boundary_w2_inventory_fv
+        inventory_name = 'boundary_mask_w2_fv'
+      case default
+        mask_ptr => null()
+        call log_event( "Boundary mask not available on requested space",      &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+      ! Check if this is the finest mesh
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
+      if (mesh_id /= finest_mesh%get_id()) then
+        call log_event(                                                        &
+                'Boundary masks only implemented on meshes on finest mesh',    &
+                LOG_LEVEL_ERROR                                                &
+        )
+      end if
+
+      call create_standard_masks(mesh, use_fe=.false., &
+                                 finest_mesh_name=finest_mesh_name)
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_ptr)
+
+  end function get_boundary_mask_fv
+
+  !> @brief  Returns pointer to the LBC mask for a finite element space
+  !> @param[in] space            The function space of the LBC mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The LBC mask field
+  function get_lbc_mask_fe(space, mesh_id, finest_mesh_name) result(mask_ptr)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    type(mesh_type),              pointer :: mesh
+    type(field_type),             pointer :: mask_ptr
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: onion_layers
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+    character(len=str_def)                :: field_name
+    type(function_space_type),    pointer :: fs
+
+    ! If running at lowest order, use finite volume
+    if (element_order_h == 0 .and. element_order_v == 0) then
+      mask_ptr => get_lbc_mask_fv(space, mesh_id, finest_mesh_name)
+      return
+    end if
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_lbc_w2_inventory_fe
+        inventory_name = 'w2lbc_mask_fe'
+        field_name = 'w2lbc_mask'
+      case (W3)
+        inventory => mask_lbc_w3_inventory_fe
+        inventory_name = 'w3lbc_mask_fe'
+        field_name = 'w3lbc_mask'
+      case (Wtheta)
+        inventory => mask_lbc_wtheta_inventory_fe
+        inventory_name = 'wthetalbc_mask_fe'
+        field_name = 'wthetalbc_mask'
+      case default
+        mask_ptr => null()
+        call log_event( "LBC mask not available on requested space",           &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
+      chi => get_coordinates(mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, space)
+      call inventory%add_field(mask_ptr, fs, mesh, name=field_name)
+      call create_lbc_mask(mask_ptr, onion_layers, chi)
+
+      ! Add field to mask collection
+      if (.not. allocated(mask_collection)) then
+        allocate(mask_collection)
+        call mask_collection%initialise(name='mask_collection')
+      end if
+      call mask_collection%add_field( mask_ptr )
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_ptr)
+
+  end function get_lbc_mask_fe
+
+  !> @brief  Returns pointer to the LBC mask for a finite volume space
+  !> @param[in] space            The function space of the LBC mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The LBC mask field
+  function get_lbc_mask_fv(space, mesh_id, finest_mesh_name) result(mask_ptr)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    type(mesh_type),              pointer :: mesh
+    type(field_type),             pointer :: mask_ptr
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: onion_layers
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+    character(len=str_def)                :: field_name
+    type(function_space_type),    pointer :: fs
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_lbc_w2_inventory_fv
+        inventory_name = 'w2lbc_mask_fv'
+        field_name = 'w2lbc_mask'
+      case (W3)
+        inventory => mask_lbc_w3_inventory_fv
+        inventory_name = 'w3lbc_mask_fv'
+        field_name = 'w3lbc_mask'
+      case (Wtheta)
+        inventory => mask_lbc_wtheta_inventory_fv
+        inventory_name = 'wthetalbc_mask_fv'
+        field_name = 'wthetalbc_mask'
+      case default
+        mask_ptr => null()
+        call log_event( "LBC mask not available on requested space",           &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
+      chi => get_coordinates(mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+      fs => function_space_collection%get_fs(mesh, 0, 0, space)
+      call inventory%add_field(mask_ptr, fs, mesh, name=field_name)
+      call create_lbc_mask(mask_ptr, onion_layers, chi)
+
+      ! Add field to mask collection
+      if (.not. allocated(mask_collection)) then
+        allocate(mask_collection)
+        call mask_collection%initialise(name='mask_collection')
+      end if
+      call mask_collection%add_field( mask_ptr )
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_ptr)
+
+  end function get_lbc_mask_fv
+
+  !> @brief  Returns pointer to the onion_layer mask
+  !> @param[in] mesh_id          The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The onion_layer mask
+  function get_onion_layers(mesh_id, finest_mesh_name) result(onion_layers)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    integer(kind=i_def)                   :: local_mesh_id
+    type(mesh_type),              pointer :: mesh
+    type(mesh_type),              pointer :: finest_mesh
+    type(mesh_type),              pointer :: prime_mesh
+    type(local_mesh_type),        pointer :: local_mesh
+    type(field_type),             pointer :: onion_layers
+    logical(kind=l_def)                   :: constant_exists
+    type(function_space_type),    pointer :: w3_fs
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. onion_layers_inventory%is_initialised()) then
+      call onion_layers_inventory%initialise(name='onion_layers')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    local_mesh => mesh%get_local_mesh()
+    local_mesh_id = local_mesh%get_id()
+    constant_exists = onion_layers_inventory%paired_object_exists(local_mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+
+      ! Check if this is the finest mesh
+      finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
+      prime_mesh => mesh_collection%get_mesh(mesh, PRIME_EXTRUSION)
+
+      if (prime_mesh%get_id() == finest_mesh%get_id()) then
+
+        if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+        ! Onion layers are only defined for lowest order finite elements
+        w3_fs => function_space_collection%get_fs(                             &
+            prime_mesh, 0, 0, W3                                               &
+        )
+
+        ! @TODO #416: onion_layers should be a 2D field
+        call onion_layers_inventory%add_field(                                 &
+                onion_layers, w3_fs, local_mesh,                               &
+                name='onion_layers', halo_depth=2                              &
+        )
+
+        call create_onion_layers( onion_layers )
+
+        ! Add field to mask collection
+        if (.not. allocated(mask_collection)) then
+          allocate(mask_collection)
+          call mask_collection%initialise(name='mask_collection')
+        end if
+        call mask_collection%add_field( onion_layers )
+        if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+      else
+        call log_event('Onion layers only implemented on finest mesh', LOG_LEVEL_ERROR)
+      end if
+    end if
+
+    ! Get constant
+    call onion_layers_inventory%get_field(local_mesh, onion_layers)
+
+  end function get_onion_layers
+
+  !> @brief  Returns pointer to the blend mask
+  !> @param[in] space     The function space of the blend mask
+  !> @param[in] mesh_id   The ID of the mesh to get the object for
+  !> @param[in] finest_mesh_name Masks are created only from the finest mesh
+  !>                             of the model mesh hierarchy
+  !> @return The blend mask field
+  function get_blend_mask(space, mesh_id, finest_mesh_name) result(mask_ptr)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    integer(kind=i_def),       intent(in) :: space
+    character(len=str_def),    intent(in) :: finest_mesh_name
+    type(mesh_type),              pointer :: mesh
+    type(field_type),             pointer :: mask_ptr
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: onion_layers
+    logical(kind=l_def)                   :: constant_exists
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+    type(function_space_type),    pointer :: fs
+
+    ! Get appropriate inventory
+    select case (space)
+      case (W2)
+        inventory => mask_blend_w2_inventory
+        inventory_name = 'w2blend_mask'
+      case (W3)
+        inventory => mask_blend_w3_inventory
+        inventory_name = 'w3blend_mask'
+      case (Wtheta)
+        inventory => mask_blend_wtheta_inventory
+        inventory_name = 'wthetablend_mask'
+      case default
+        mask_ptr => null()
+        call log_event( "Blend mask not available on requested space",         &
+                        LOG_LEVEL_ERROR                                        &
+        )
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
+      chi => get_coordinates(mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, space)
+      call inventory%add_field(mask_ptr, fs, mesh, name=inventory_name)
+      call create_blend_mask(mask_ptr, onion_layers, chi)
+
+      ! Add field to mask collection
+      if (.not. allocated(mask_collection)) then
+        allocate(mask_collection)
+        call mask_collection%initialise(name='mask_collection')
+      end if
+      call mask_collection%add_field( mask_ptr )
+
+      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    end if
+
+    ! Return constant
+    call inventory%get_field(mesh, mask_ptr)
+
+  end function get_blend_mask
+
+  !> @brief Explicitly reclaim memory from module scope variables
+  !
+  subroutine final_limited_area_constants()
+
+    implicit none
+
+    call mask_w2_inventory_fe%clear()
+    call mask_w2_inventory_fv%clear()
+    call mask_w3_inventory_fe%clear()
+    call mask_w3_inventory_fv%clear()
+    call mask_wtheta_inventory_fe%clear()
+    call mask_wtheta_inventory_fv%clear()
+    call mask_lbc_w2_inventory_fe%clear()
+    call mask_lbc_w2_inventory_fv%clear()
+    call mask_lbc_w3_inventory_fe%clear()
+    call mask_lbc_w3_inventory_fv%clear()
+    call mask_lbc_wtheta_inventory_fe%clear()
+    call mask_lbc_wtheta_inventory_fv%clear()
+    call mask_blend_w2_inventory%clear()
+    call mask_blend_w3_inventory%clear()
+    call mask_blend_wtheta_inventory%clear()
+    call mask_boundary_w2_inventory_fe%clear()
+    call mask_boundary_w2_inventory_fv%clear()
+    call mask_w3_r_solver_inventory%clear()
+    call mask_w2_r_solver_inventory%clear()
+    call mask_wt_r_solver_inventory%clear()
+    if (allocated(mask_collection)) deallocate(mask_collection)
+
+  end subroutine final_limited_area_constants
+
+end module limited_area_constants_mod

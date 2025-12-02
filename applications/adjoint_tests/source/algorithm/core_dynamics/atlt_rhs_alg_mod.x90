@@ -1,0 +1,388 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_rhs_alg
+module atlt_rhs_alg_mod
+
+  use sci_assign_field_random_range_alg_mod, &
+                                           only : assign_field_random_range
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def, l_def
+  use field_indices_mod,                   only : igh_u, igh_t, &
+                                                  igh_d, igh_p
+  use model_clock_mod,                     only : model_clock_type
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use moist_dyn_mod,                       only : num_moist_factors
+  use derived_config_mod,                  only : bundle_size
+  use finite_element_config_mod,           only : element_order_h, element_order_v
+  use fs_continuity_mod,                   only : W2, W3, Wtheta
+  use function_space_collection_mod,       only : function_space_collection
+  use timestepping_config_mod,             only : alpha
+  use adjoint_test_parameters_mod,         only : ls_u_range, ls_theta_range,   &
+                                                  ls_rho_range, ls_exner_range, &
+                                                  ls_md1_range, ls_md2_range, ls_md3_range
+
+  implicit none
+
+  public
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for atl_rhs_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine atlt_rhs_alg( mesh, model_clock )
+
+    use tl_rhs_alg_mod,                      only : tl_rhs_alg
+    use atl_rhs_alg_mod,                     only : atl_rhs_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and atl calls
+    ! Form of state and rhs is [u,theta,rho,exner]
+    real(kind=r_def)    :: alpha_dt
+    logical(kind=l_def) :: dlayer_rhs
+    type(field_type)    :: base_state(bundle_size)
+    type(field_type)    :: state(bundle_size)
+    type(field_type)    :: moist_dyn(num_moist_factors)
+    type(field_type)    :: ls_state(bundle_size)
+    type(field_type)    :: ls_moist_dyn(num_moist_factors)
+    type(field_type)    :: rhs(bundle_size)
+    logical(kind=l_def) :: compute_eos
+
+    ! Copies of input fields used in inner products
+    type(field_type)    :: base_state_input(bundle_size)
+    type(field_type)    :: state_input(bundle_size)
+    type(field_type)    :: moist_dyn_input(num_moist_factors)
+    type(field_type)    :: rhs_input(bundle_size)
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Inner products
+    real(kind=r_def)    :: inner1
+    real(kind=r_def)    :: base_state_inner_prod(bundle_size)
+    real(kind=r_def)    :: state_inner_prod(bundle_size)
+    real(kind=r_def)    :: moist_dyn_inner_prod(num_moist_factors)
+    real(kind=r_def)    :: rhs_inner_prod(bundle_size)
+    real(kind=r_def)    :: base_state_sf(bundle_size)
+    real(kind=r_def)    :: state_sf(bundle_size)
+    real(kind=r_def)    :: moist_dyn_sf(num_moist_factors)
+    real(kind=r_def)    :: rhs_sf(bundle_size)
+    real(kind=r_def)    :: inner2
+    real(kind=r_def)    :: base_state_base_state_input_inner_prod(bundle_size)
+    real(kind=r_def)    :: state_state_input_inner_prod(bundle_size)
+    real(kind=r_def)    :: moist_dyn_moist_dyn_input_inner_prod(num_moist_factors)
+    real(kind=r_def)    :: rhs_rhs_input_inner_prod(bundle_size)
+
+    ! For indexing of moist_dyn related variables
+    integer(kind=i_def) :: moist_idx
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def) :: machine_tol
+    real(kind=r_def) :: relative_diff
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Misc
+    real(kind=r_def)    :: dt
+
+    ! Determining time constants
+    dt  = real(model_clock%get_seconds_per_step(), r_def)
+    if ( dt <= 0.0_r_def ) then
+      write( log_scratch_space, * ) "dt cannot be leq 0, found dt = ", dt
+      call log_event( log_scratch_space, log_level_error )
+    end if
+    alpha_dt = alpha*dt
+
+    ! Initialising logicals
+    compute_eos = .TRUE.
+    dlayer_rhs = .TRUE.
+
+    ! Initialising fields
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    call state(igh_u)%initialise( vector_space = vector_space_w2_ptr )
+    call state(igh_t)%initialise( vector_space = vector_space_wtheta_ptr )
+    call state(igh_d)%initialise( vector_space = vector_space_w3_ptr )
+    call state(igh_p)%initialise( vector_space = vector_space_w3_ptr )
+
+    call state(igh_u)%copy_field_properties( base_state(igh_u) )
+    call state(igh_t)%copy_field_properties( base_state(igh_t) )
+    call state(igh_d)%copy_field_properties( base_state(igh_d) )
+
+    call state(igh_u)%copy_field_properties( ls_state(igh_u) )
+    call state(igh_t)%copy_field_properties( ls_state(igh_t) )
+    call state(igh_d)%copy_field_properties( ls_state(igh_d) )
+    call state(igh_p)%copy_field_properties( ls_state(igh_p) )
+
+    do moist_idx = 1, num_moist_factors
+      call moist_dyn(moist_idx)%initialise( vector_space = vector_space_wtheta_ptr )
+      call moist_dyn(moist_idx)%copy_field_properties( moist_dyn_input(moist_idx) )
+      call moist_dyn(moist_idx)%copy_field_properties( ls_moist_dyn(moist_idx) )
+    end do
+
+    call state(igh_u)%copy_field_properties( rhs(igh_u) )
+    call state(igh_t)%copy_field_properties( rhs(igh_t) )
+    call state(igh_d)%copy_field_properties( rhs(igh_d) )
+    call state(igh_p)%copy_field_properties( rhs(igh_p) )
+
+    call state(igh_u)%copy_field_properties( base_state_input(igh_u) )
+    call state(igh_t)%copy_field_properties( base_state_input(igh_t) )
+    call state(igh_d)%copy_field_properties( base_state_input(igh_d) )
+
+    call state(igh_u)%copy_field_properties( state_input(igh_u) )
+    call state(igh_t)%copy_field_properties( state_input(igh_t) )
+    call state(igh_d)%copy_field_properties( state_input(igh_d) )
+    call state(igh_p)%copy_field_properties( state_input(igh_p) )
+
+    call state(igh_u)%copy_field_properties( rhs_input(igh_u) )
+    call state(igh_t)%copy_field_properties( rhs_input(igh_t) )
+    call state(igh_d)%copy_field_properties( rhs_input(igh_d) )
+    call state(igh_p)%copy_field_properties( rhs_input(igh_p) )
+
+    base_state_inner_prod(:) = 0.0_r_def
+    state_inner_prod(:) = 0.0_r_def
+    moist_dyn_inner_prod(:) = 0.0_r_def
+    rhs_inner_prod(:) = 0.0_r_def
+
+    ! Initialise values and call the tangent-linear alg.
+    call invoke( setval_random( base_state(igh_u) ),                              &
+                 setval_x( base_state_input(igh_u), base_state(igh_u) ),          &
+                 setval_random( base_state(igh_t) ),                              &
+                 setval_x( base_state_input(igh_t), base_state(igh_t) ),          &
+                 setval_random( base_state(igh_d) ),                              &
+                 setval_x( base_state_input(igh_d), base_state(igh_d) ),          &
+                 setval_random( state(igh_u) ),                                   &
+                 setval_x( state_input(igh_u), state(igh_u) ),                    &
+                 setval_random( state(igh_t) ),                                   &
+                 setval_x( state_input(igh_t), state(igh_t) ),                    &
+                 setval_random( state(igh_d) ),                                   &
+                 setval_x( state_input(igh_d), state(igh_d) ),                    &
+                 setval_random( state(igh_p) ),                                   &
+                 setval_x( state_input(igh_p), state(igh_p) ),                    &
+                 setval_random( rhs(igh_u) ),                                     &
+                 setval_x( rhs_input(igh_u), rhs(igh_u) ),                        &
+                 setval_random( rhs(igh_t) ),                                     &
+                 setval_x( rhs_input(igh_t), rhs(igh_t) ),                        &
+                 setval_random( rhs(igh_d) ),                                     &
+                 setval_x( rhs_input(igh_d), rhs(igh_d) ),                        &
+                 setval_random( rhs(igh_p) ),                                     &
+                 setval_x( rhs_input(igh_p), rhs(igh_p) ) )
+
+    ! Initialise values of moist_dyn fields
+    do moist_idx = 1, num_moist_factors
+      call invoke( setval_random( moist_dyn(moist_idx) ), &
+                   setval_x( moist_dyn_input(moist_idx), moist_dyn(moist_idx) ) )
+    end do
+
+    ! LS init
+    call assign_field_random_range( ls_state(igh_u), ls_u_range(1), ls_u_range(2) )
+    call assign_field_random_range( ls_state(igh_t), ls_theta_range(1), ls_theta_range(2) )
+    call invoke( setval_random( ls_state(igh_d) ), setval_random( ls_state(igh_p) ) )
+    call assign_field_random_range( ls_moist_dyn(1), ls_md1_range(1), ls_md1_range(2) )
+    call assign_field_random_range( ls_moist_dyn(2), ls_md2_range(1), ls_md2_range(2) )
+    call assign_field_random_range( ls_moist_dyn(3), ls_md3_range(1), ls_md3_range(2) )
+
+
+    ! Tangent linear
+    call tl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
+                     ls_state, ls_moist_dyn, compute_eos,                &
+                     dlayer_rhs, model_clock )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( base_state_inner_prod(igh_u), base_state(igh_u) ), &
+                 x_innerproduct_x( base_state_inner_prod(igh_t), base_state(igh_t) ), &
+                 x_innerproduct_x( base_state_inner_prod(igh_d), base_state(igh_d) ), &
+                 x_innerproduct_x( state_inner_prod(igh_u), state(igh_u) ),           &
+                 x_innerproduct_x( state_inner_prod(igh_t), state(igh_t) ),           &
+                 x_innerproduct_x( state_inner_prod(igh_d), state(igh_d) ),           &
+                 x_innerproduct_x( state_inner_prod(igh_p), state(igh_p) ),           &
+                 x_innerproduct_x( rhs_inner_prod(igh_u), rhs(igh_u) ),               &
+                 x_innerproduct_x( rhs_inner_prod(igh_t), rhs(igh_t) ),               &
+                 x_innerproduct_x( rhs_inner_prod(igh_d), rhs(igh_d) ),               &
+                 x_innerproduct_x( rhs_inner_prod(igh_p), rhs(igh_p) ) )
+
+    do moist_idx = 1, num_moist_factors
+      call invoke( x_innerproduct_x( moist_dyn_inner_prod(moist_idx), moist_dyn(moist_idx) ) )
+    end do
+
+    write(log_scratch_space, *) "atlt_rhs inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "base_state(igh_u) inner product = ", base_state_inner_prod(igh_u)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "base_state(igh_t) inner product = ", base_state_inner_prod(igh_t)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "base_state(igh_d) inner product = ", base_state_inner_prod(igh_d)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "state(igh_u) inner product = ", state_inner_prod(igh_u)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "state(igh_t) inner product = ", state_inner_prod(igh_t)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "state(igh_d) inner product = ", state_inner_prod(igh_d)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "state(igh_p) inner product = ", state_inner_prod(igh_p)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "rhs(igh_u) inner product = ", rhs_inner_prod(igh_u)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "rhs(igh_t) inner product = ", rhs_inner_prod(igh_t)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "rhs(igh_d) inner product = ", rhs_inner_prod(igh_d)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "rhs(igh_p) inner product = ", rhs_inner_prod(igh_p)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    do moist_idx = 1, num_moist_factors
+      write(log_scratch_space, *) "moist_dyn(", moist_idx, ") inner product = ", moist_dyn_inner_prod(moist_idx)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end do
+
+    base_state_sf(igh_u) = 1.0_r_def / (base_state_inner_prod(igh_u) + eps)
+    base_state_sf(igh_t) = 1.0_r_def / (base_state_inner_prod(igh_t) + eps)
+    base_state_sf(igh_d) = 1.0_r_def / (base_state_inner_prod(igh_d) + eps)
+    state_sf(igh_u) = 1.0_r_def / (state_inner_prod(igh_u) + eps)
+    state_sf(igh_t) = 1.0_r_def / (state_inner_prod(igh_t) + eps)
+    state_sf(igh_d) = 1.0_r_def / (state_inner_prod(igh_d) + eps)
+    state_sf(igh_p) = 1.0_r_def / (state_inner_prod(igh_p) + eps)
+    rhs_sf(igh_u) = 1.0_r_def / (rhs_inner_prod(igh_u) + eps)
+    rhs_sf(igh_t) = 1.0_r_def / (rhs_inner_prod(igh_t) + eps)
+    rhs_sf(igh_d) = 1.0_r_def / (rhs_inner_prod(igh_d) + eps)
+    rhs_sf(igh_p) = 1.0_r_def / (rhs_inner_prod(igh_p) + eps)
+    do moist_idx = 1, num_moist_factors
+      moist_dyn_sf(moist_idx) = 1.0_r_def / (moist_dyn_inner_prod(moist_idx) + eps)
+    end do
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + base_state_inner_prod(igh_u) * base_state_sf(igh_u)
+    inner1 = inner1 + base_state_inner_prod(igh_t) * base_state_sf(igh_t)
+    inner1 = inner1 + base_state_inner_prod(igh_d) * base_state_sf(igh_d)
+    inner1 = inner1 + state_inner_prod(igh_u) * state_sf(igh_u)
+    inner1 = inner1 + state_inner_prod(igh_t) * state_sf(igh_t)
+    inner1 = inner1 + state_inner_prod(igh_d) * state_sf(igh_d)
+    inner1 = inner1 + state_inner_prod(igh_p) * state_sf(igh_p)
+    inner1 = inner1 + rhs_inner_prod(igh_u) * rhs_sf(igh_u)
+    inner1 = inner1 + rhs_inner_prod(igh_t) * rhs_sf(igh_t)
+    inner1 = inner1 + rhs_inner_prod(igh_d) * rhs_sf(igh_d)
+    inner1 = inner1 + rhs_inner_prod(igh_p) * rhs_sf(igh_p)
+    do moist_idx = 1, num_moist_factors
+      inner1 = inner1 + moist_dyn_inner_prod(moist_idx) * moist_dyn_sf(moist_idx)
+    end do
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( base_state_sf(igh_u), base_state(igh_u) ), &
+                 inc_a_times_X( base_state_sf(igh_t), base_state(igh_t) ), &
+                 inc_a_times_X( base_state_sf(igh_d), base_state(igh_d) ), &
+                 inc_a_times_X( state_sf(igh_u), state(igh_u) ),           &
+                 inc_a_times_X( state_sf(igh_t), state(igh_t) ),           &
+                 inc_a_times_X( state_sf(igh_d), state(igh_d) ),           &
+                 inc_a_times_X( state_sf(igh_p), state(igh_p) ),           &
+                 inc_a_times_X( rhs_sf(igh_u), rhs(igh_u) ),               &
+                 inc_a_times_X( rhs_sf(igh_t), rhs(igh_t) ),               &
+                 inc_a_times_X( rhs_sf(igh_d), rhs(igh_d) ),               &
+                 inc_a_times_X( rhs_sf(igh_p), rhs(igh_p) ) )
+    do moist_idx = 1, num_moist_factors
+      call invoke(inc_a_times_X( moist_dyn_sf(moist_idx), moist_dyn(moist_idx) ))
+    end do
+
+    ! Adjoint alg call and inner products
+    base_state_base_state_input_inner_prod(:) = 0.0_r_def
+    state_state_input_inner_prod(:) = 0.0_r_def
+    moist_dyn_moist_dyn_input_inner_prod(:) = 0.0_r_def
+    rhs_rhs_input_inner_prod(:) = 0.0_r_def
+
+    ! Adjoint
+    call atl_rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn,        &
+                      ls_state, ls_moist_dyn, compute_eos,                &
+                      dlayer_rhs, model_clock )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( base_state_base_state_input_inner_prod(igh_u), &
+                                   base_state(igh_u),                             &
+                                   base_state_input(igh_u) ),                     &
+                 x_innerproduct_y( base_state_base_state_input_inner_prod(igh_t), &
+                                   base_state(igh_t),                             &
+                                   base_state_input(igh_t) ),                     &
+                 x_innerproduct_y( base_state_base_state_input_inner_prod(igh_d), &
+                                   base_state(igh_d),                             &
+                                   base_state_input(igh_d) ),                     &
+                 x_innerproduct_y( state_state_input_inner_prod(igh_u),           &
+                                   state(igh_u),                                  &
+                                   state_input(igh_u) ),                          &
+                 x_innerproduct_y( state_state_input_inner_prod(igh_t),           &
+                                   state(igh_t),                                  &
+                                   state_input(igh_t) ),                          &
+                 x_innerproduct_y( state_state_input_inner_prod(igh_d),           &
+                                   state(igh_d),                                  &
+                                   state_input(igh_d) ),                          &
+                 x_innerproduct_y( state_state_input_inner_prod(igh_p),           &
+                                   state(igh_p),                                  &
+                                   state_input(igh_p) ),                          &
+                 x_innerproduct_y( rhs_rhs_input_inner_prod(igh_u),               &
+                                   rhs(igh_u),                                    &
+                                   rhs_input(igh_u) ),                            &
+                 x_innerproduct_y( rhs_rhs_input_inner_prod(igh_t),               &
+                                   rhs(igh_t),                                    &
+                                   rhs_input(igh_t) ),                            &
+                 x_innerproduct_y( rhs_rhs_input_inner_prod(igh_d),               &
+                                   rhs(igh_d),                                    &
+                                   rhs_input(igh_d) ),                            &
+                 x_innerproduct_y( rhs_rhs_input_inner_prod(igh_p),               &
+                                   rhs(igh_p),                                    &
+                                   rhs_input(igh_p) ) )
+
+    do moist_idx = 1, num_moist_factors
+      call invoke( x_innerproduct_y( moist_dyn_moist_dyn_input_inner_prod(moist_idx),                  &
+                                                                          moist_dyn(moist_idx),        &
+                                                                          moist_dyn_input(moist_idx) ) )
+    end do
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + base_state_base_state_input_inner_prod(igh_u)
+    inner2 = inner2 + base_state_base_state_input_inner_prod(igh_t)
+    inner2 = inner2 + base_state_base_state_input_inner_prod(igh_d)
+    inner2 = inner2 + state_state_input_inner_prod(igh_u)
+    inner2 = inner2 + state_state_input_inner_prod(igh_t)
+    inner2 = inner2 + state_state_input_inner_prod(igh_d)
+    inner2 = inner2 + state_state_input_inner_prod(igh_p)
+    inner2 = inner2 + rhs_rhs_input_inner_prod(igh_u)
+    inner2 = inner2 + rhs_rhs_input_inner_prod(igh_t)
+    inner2 = inner2 + rhs_rhs_input_inner_prod(igh_d)
+    inner2 = inner2 + rhs_rhs_input_inner_prod(igh_p)
+
+    do moist_idx = 1, num_moist_factors
+      inner2 = inner2 + moist_dyn_moist_dyn_input_inner_prod(moist_idx)
+    end do
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_rhs_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_rhs_alg:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_rhs_alg
+
+end module atlt_rhs_alg_mod

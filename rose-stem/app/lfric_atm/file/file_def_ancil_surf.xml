@@ -1,0 +1,15 @@
+<file_definition>
+
+  <!-- Ancillary files for Reynolds daily SST and sea-ice -->
+  <file id="sst_ancil" name="sst_ancil" mode="read" output_freq="1d" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="sst_time" name="time" unit="days" operation="once" axis_ref="one_time_axis"/>
+    <field id="tstar_sea_data" name="surface_temperature" long_name="Sea surface temperature" unit="K" operation="instant" domain_ref="face" axis_ref="one_time_axis" />
+  </file>
+
+  <file id="sea_ice_ancil" name="sea_ice_ancil" mode="read" output_freq="1d" convention="UGRID" cyclic="true" enabled=".FALSE.">
+    <field id="sea_ice_time" name="time" unit="hours" operation="once" axis_ref="one_time_axis"/>
+    <field id="sea_ice_fraction_data" name="sea_ice_area_fraction" long_name="sea_ice_fraction" unit="1" operation="instant" domain_ref="face" axis_ref="one_time_axis" />
+       <field id="sea_ice_thickness_data" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" domain_ref="face" axis_ref="one_time_axis"/>
+  </file>
+
+</file_definition>

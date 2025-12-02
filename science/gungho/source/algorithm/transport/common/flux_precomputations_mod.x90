@@ -1,0 +1,2316 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Defines the "flux precomputation" object, used in transport schemes
+!> @details This module controls the pre-computation of various fields relating
+!!          the transporting wind or flux field that are used in the transport
+!!          of multiple fields, and so costs are saved by computing them once
+!!          and re-using them.
+!!          The fields are stored in a single "flux_precomputations" object,
+!!          which is passed to the transport algorithms, allowing different
+!!          model instances to have different objects.
+!!          This differs from the "wind precomputation" object because:
+!!          - entities relate to a reference flux (which may be the wind field)
+!!          - each object can only handle one type of splitting
+!!          - the time step used is that for a single transport *substep*
+!!          - entities are computed and stored based on the individual split
+!!            step of the whole (possibly substepped transport). So for a VHV
+!!            splitting with 2 substeps, 6 entities will be stored.
+!!          - it is used for 3D-unity FFSL schemes and stores fluxes for
+!!            consistent transport of tracer fields
+!!          - it can be initialised by being passed fluxes for individual steps
+
+module flux_precomputations_alg_mod
+
+  use base_mesh_config_mod,           only: topology, geometry,                &
+                                            topology_non_periodic,             &
+                                            topology_fully_periodic,           &
+                                            geometry_spherical
+  use boundaries_config_mod,          only: limited_area,                      &
+                                            transport_boundary_depth,          &
+                                            transport_overwrite_freq,          &
+                                            transport_overwrite_freq_all,      &
+                                            transport_overwrite_freq_final,    &
+                                            transport_overwrite_freq_split_step
+  use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
+                                            r_tran, EPS_R_TRAN, r_def
+  use departure_points_config_mod,    only: share_stencil_extent
+  use extrusion_mod,                  only: PRIME_EXTRUSION, SHIFTED, TWOD
+  use field_mod,                      only: field_type
+  use sci_field_minmax_alg_mod,       only: get_field_minmax,                  &
+                                            log_field_minmax
+  use fs_continuity_mod,              only: W2, W2h, W2v, W3
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+  use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
+                                            get_face_selector_ns
+  use integer_field_mod,              only: integer_field_type
+  use io_config_mod,                  only: subroutine_timers
+  use lfric_mpi_mod,                  only: global_mpi
+  use limited_area_lbc_alg_mod,       only: overwrite_blending_zone_rtran
+  use local_mesh_mod,                 only: local_mesh_type
+  use log_mod,                        only: log_event,                         &
+                                            log_scratch_space,                 &
+                                            LOG_LEVEL_ERROR,                   &
+                                            LOG_LEVEL_DEBUG,                   &
+                                            LOG_LEVEL_INFO,                    &
+                                            LOG_LEVEL_WARNING,                 &
+                                            log_at_level
+  use mesh_mod,                       only: mesh_type
+  use mesh_collection_mod,            only: mesh_collection
+  use psykal_lite_transport_mod,      only: invoke_deep_shift_mass,            &
+                                            invoke_deep_X_divideby_Y,          &
+                                            invoke_deep_X_times_Y
+  use r_tran_field_mod,               only: r_tran_field_type
+  use remap_on_extended_mesh_alg_mod, only: remap_on_extended_mesh
+  use runtime_tools_mod,              only: check_initialised_field
+  use sci_shift_mass_w3_kernel_mod,   only: shift_mass_w3_kernel_type
+  use split_transport_utils_mod,      only: get_dry_config,                    &
+                                            get_direction_w2_fs,               &
+                                            get_splitting_direction,           &
+                                            get_splitting_fraction,            &
+                                            get_fraction_from_idx,             &
+                                            get_fraction_idx,                  &
+                                            get_num_split_steps
+  use timer_mod,                      only: timer
+  use transport_config_mod,           only: panel_edge_treatment,              &
+                                            panel_edge_treatment_extended_mesh,&
+                                            ffsl_inner_order,                  &
+                                            ffsl_outer_order,                  &
+                                            dep_pt_stencil_extent
+  use transport_constants_mod,        only: get_detj_at_w3_r_tran
+  use transport_enumerated_types_mod, only: direction_h,                       &
+                                            direction_v,                       &
+                                            direction_3d
+
+  implicit none
+
+  private
+
+  ! Public types
+  type, public :: flux_precomputations_type
+
+    private
+
+    character(len=str_def)                :: name
+    integer(kind=i_def)                   :: local_mesh_id
+    integer(kind=i_def),      allocatable :: mesh_ids(:)
+    logical(kind=l_def)                   :: is_initialised_flag = .false.
+    logical(kind=l_def)                   :: reset_unity
+    logical(kind=l_def)                   :: to_initialise_by_step
+    integer(kind=i_def)                   :: splitting
+    integer(kind=i_def)                   :: num_steps
+    integer(kind=i_def)                   :: num_substeps
+    integer(kind=i_def)                   :: max_stencil_extent
+    logical(kind=l_def)                   :: max_stencil_extent_computed = .false.
+
+    ! Total reference flux (over whole transport step), needed for cheap update
+    type(r_tran_field_type)               :: total_ref_flux
+
+    ! Wind and dt for whole transport step, needed for logging
+    type(r_tran_field_type),  pointer     :: transporting_wind => null()
+    real(kind=r_tran)                     :: dt
+
+    ! Reference fields
+    type(r_tran_field_type),  allocatable :: ref_field(:,:)
+    type(r_tran_field_type),  allocatable :: ref_mass(:,:)
+    type(r_tran_field_type),  allocatable :: ref_flux(:,:)
+
+    ! Departure distances / fractional fluxes and stencil extents
+    type(r_tran_field_type),  allocatable :: dep_dist(:,:)
+    type(r_tran_field_type),  allocatable :: frac_flux(:,:)
+    type(integer_field_type), allocatable :: dep_lowest_k(:,:)
+    type(integer_field_type), allocatable :: dep_highest_k(:,:)
+
+    ! Quantities only needed for horizontal steps
+    type(r_tran_field_type),  allocatable :: ref_field_x(:,:)
+    type(r_tran_field_type),  allocatable :: ref_field_y(:,:)
+    type(r_tran_field_type),  allocatable :: ref_mass_x(:,:)
+    type(r_tran_field_type),  allocatable :: ref_mass_y(:,:)
+    type(r_tran_field_type),  allocatable :: dep_dist_outer(:,:)
+    type(r_tran_field_type),  allocatable :: frac_flux_outer(:,:)
+    type(integer_field_type), allocatable :: dep_lowest_k_outer(:,:)
+    type(integer_field_type), allocatable :: dep_highest_k_outer(:,:)
+    integer(kind=i_def),      allocatable :: dep_stencil_extent(:,:)
+    integer(kind=i_def),      allocatable :: dep_stencil_extent_outer(:,:)
+    logical(kind=l_def),      allocatable :: is_computed_stencil_extent(:,:)
+    logical(kind=l_def),      allocatable :: is_computed_stencil_extent_outer(:,:)
+
+    ! Settings for extended mesh remapping
+    logical(kind=l_def)                   :: ref_monotone
+    logical(kind=l_def)                   :: ref_enforce_min_value
+    real(kind=r_tran)                     :: ref_min_value
+
+    contains
+
+    procedure, public  :: initialise_step
+    procedure, public  :: get_local_mesh_id
+    procedure, public  :: get_prime_extrusion_mesh_id
+    procedure, public  :: get_mesh_id_from_idx
+    procedure, public  :: get_num_steps
+    procedure, public  :: get_splitting
+    procedure, public  :: is_initialised
+    procedure, public  :: get_ref_field
+    procedure, public  :: get_ref_mass
+    procedure, public  :: get_ref_field_x
+    procedure, public  :: get_ref_field_y
+    procedure, public  :: get_ref_mass_x
+    procedure, public  :: get_ref_mass_y
+    procedure, public  :: get_ref_flux
+    procedure, public  :: get_dep_dist
+    procedure, public  :: get_frac_flux
+    procedure, public  :: get_dep_stencil_extent
+    procedure, public  :: get_dep_lowest_k
+    procedure, public  :: get_dep_highest_k
+    procedure, public  :: get_total_ref_flux
+    procedure, public  :: set_total_ref_flux
+    procedure, private :: get_max_stencil_extent
+    procedure, public  :: set_max_stencil_extent
+    procedure, public  :: log_courant
+    procedure, private :: compute_ref_mass_x_and_y
+    procedure, private :: compute_dep_dist_outer
+    procedure, private :: compute_dep_dist_inner
+    procedure, private :: idx_from_mesh_id
+    procedure, private :: check_negative_field
+    procedure, public  :: check_all_reference_field
+    procedure, public  :: initialise => flux_precomputations_initialiser
+    procedure, public  :: finalise
+    final              :: destroy_flux_precomputations
+
+  end type flux_precomputations_type
+
+  !-----------------------------------------------------------------------------
+  ! Constructors
+  !-----------------------------------------------------------------------------
+
+contains
+
+  !> @brief Constructs the flux_precomputations object, allocating space for the
+  !!        pre-computed fields. This is intended for a single splitting.
+  !!        If a 3D flux field is provided, it will be split into components
+  !!        for each split step. Otherwise, individual flux fields must be
+  !!        passed to this object.
+  !> @param[in] prime_mesh    The prime extrusion mesh
+  !> @param[in] splitting     Splitting to be used for all pre-computations
+  !> @param[in] num_substeps  Number of transport substeps
+  !> @param[in] wind          Transporting wind for the whole transport step.
+  !!                          Used for logging information in case of failure.
+  !> @param[in] dt            Time step for the whole transport step.
+  !!                          Used for logging information in case of failure.
+  !> @param[in] ref_field     Optional, reference field (e.g. density) at the
+  !!                          start of the transport step. If not provided,
+  !!                          then this field is taken to be the unity field.
+  !> @param[in] flux          Optional, 3D reference flux which will be split
+  !!                          into component fluxes for each split step if this
+  !!                          argument is present. If not present, fluxes for
+  !!                          each step must be passed to this object. NOTE:
+  !!                          this must include the time step (i.e. it could be
+  !!                          the product of wind and dt (for the whole step))
+  !> @param[in] reset_unity   Optional, whether to reset the reference unity
+  !!                          field for each split step
+  !> @param[in] max_courant_num
+  !!                          Optional, maximum Courant number that can be
+  !!                          calculated from departure distance calculations.
+  !!                          If specified, this will be used to set the depth
+  !!                          of halos and the maximum stencil extents that can
+  !!                          be used in horizontal calculations.
+  subroutine flux_precomputations_initialiser(self, prime_mesh,                &
+                                              splitting, num_substeps,         &
+                                              wind, dt, ref_field, flux,       &
+                                              reset_unity, max_courant_num)
+
+    use sci_mapping_constants_mod,  only: get_intermesh_weights_w3_rtran
+    use sci_restrict_scalar_weighted_kernel_mod,                               &
+                                    only: restrict_scalar_weighted_kernel_type
+    use sci_restrict_w2_kernel_mod, only: restrict_w2_kernel_type
+    use split_w2_field_kernel_mod,  only: split_w2_field_kernel_type
+    use split_transport_utils_mod,  only: use_shifted_mesh,                    &
+                                          get_splitting_factor,                &
+                                          get_first_hori_step
+    use transport_config_mod,       only: horizontal_monotone,                 &
+                                          enforce_min_value,                   &
+                                          min_value
+    use transport_enumerated_types_mod,                                        &
+                                    only: splitting_none, monotone_none
+
+
+    implicit none
+
+    ! Arguments
+    class(flux_precomputations_type),           intent(inout) :: self
+    type(mesh_type),                   pointer, intent(in)    :: prime_mesh
+    integer(kind=i_def),                        intent(in)    :: splitting
+    integer(kind=i_def),                        intent(in)    :: num_substeps
+    type(r_tran_field_type),           target,  intent(in)    :: wind
+    real(kind=r_tran),                          intent(in)    :: dt
+    type(r_tran_field_type), optional,          intent(in)    :: ref_field
+    type(r_tran_field_type), optional, target,  intent(in)    :: flux
+    logical(kind=l_def),     optional,          intent(in)    :: reset_unity
+    integer(kind=i_def),     optional,          intent(in)    :: max_courant_num
+
+    ! Local variables
+    integer(kind=i_def) :: i, j, fs_id, step_idx
+    integer(kind=i_def) :: num_steps, num_split_steps
+    integer(kind=i_def) :: num_substeps_tmp
+    integer(kind=i_def) :: num_meshes
+    integer(kind=i_def) :: halo_depth
+    integer(kind=i_def) :: first_hori_step
+    integer(kind=i_def) :: direction
+    integer(kind=i_def) :: ref_config
+    real(kind=r_tran)   :: factor
+
+    type(local_mesh_type),     pointer :: local_mesh
+    type(mesh_type),           pointer :: shifted_mesh
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2v_fs
+    type(function_space_type), pointer :: w3_fs
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    type(r_tran_field_type),   pointer :: detj_w3
+    type(r_tran_field_type),   pointer :: weights_w3
+    type(r_tran_field_type)            :: tmp_field
+    type(r_tran_field_type)            :: flux_hori
+    type(r_tran_field_type)            :: flux_vert
+    type(r_tran_field_type),   pointer :: flux_ptr
+    type(r_tran_field_type),   target  :: ref_flux_restricted
+
+    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+
+    self%splitting = splitting
+    self%num_substeps = num_substeps
+    self%to_initialise_by_step = present(flux)
+    self%reset_unity = .false.
+    if (present(reset_unity)) self%reset_unity = reset_unity
+
+    ! Determine settings for extended mesh remapping of density
+    if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+      ref_config = get_dry_config()
+      self%ref_monotone = (horizontal_monotone(ref_config) /= monotone_none)
+      self%ref_enforce_min_value = enforce_min_value(ref_config)
+      self%ref_min_value = real(min_value(ref_config), r_tran)
+    end if
+
+    ! Determine the stencil extent to be used by departure distance calculations
+    ! in this object. This is used to set the halo depths of mass fields.
+    if (.not. share_stencil_extent) then
+      ! Each departure distance calculation will be done with an extent of
+      ! dep_pt_stencil_extent, so set mass fields to have max possible depth
+      self%max_stencil_extent = MIN(                                           &
+          prime_mesh%get_halo_depth(), dep_pt_stencil_extent                   &
+      )
+      self%max_stencil_extent_computed = .true.
+
+    else if (present(max_courant_num)) then
+      ! An argument specifying the depth has been passed in, so it will not need
+      ! an extra calculation
+      self%max_stencil_extent = MIN(                                           &
+          prime_mesh%get_halo_depth(), dep_pt_stencil_extent, max_courant_num  &
+      )
+      self%max_stencil_extent_computed = .true.
+
+    else
+      ! The maximum extent will be determined once the first departure distances
+      ! have been calculated
+      self%max_stencil_extent_computed = .false.
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Set mesh IDs and indices
+    ! ------------------------------------------------------------------------ !
+    local_mesh => prime_mesh%get_local_mesh()
+    self%local_mesh_id = local_mesh%get_id()
+
+    if (use_shifted_mesh()) then
+      num_meshes = 2
+      shifted_mesh => mesh_collection%get_mesh(prime_mesh, SHIFTED)
+      allocate(self%mesh_ids(num_meshes))
+      self%mesh_ids(1) = prime_mesh%get_id()
+      self%mesh_ids(2) = shifted_mesh%get_id()
+
+    else
+      num_meshes = 1
+      allocate(self%mesh_ids(num_meshes))
+      self%mesh_ids(1) = prime_mesh%get_id()
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Allocate fields based on splitting
+    ! ------------------------------------------------------------------------ !
+    num_split_steps = get_num_split_steps(splitting)
+    if (present(flux) .and. .not. present(ref_field)) then
+      ! When substepping and using the wind to transport fields, the (unity)
+      ! reference field will need to be reset between substeps. We handle this
+      ! by using the same flux/ref values for each substep, so only need to
+      ! store the values for the first substep values
+      num_substeps_tmp = 1
+    else
+      ! In all other cases, split steps in later substeps are different, and so
+      ! we need to store values for each split step
+      num_substeps_tmp = num_substeps
+    end if
+    num_steps = num_split_steps * num_substeps_tmp
+    self%num_steps = num_steps
+
+    ! Reference fields (store values at start and end of each step)
+    allocate( self%ref_field( num_meshes, num_steps + 1 ) )
+    allocate( self%ref_mass( num_meshes, num_steps + 1 ) )
+
+    ! Fluxes and quantities needed for each step
+    allocate( self%ref_flux( num_meshes, num_steps ) )
+    allocate( self%dep_dist( num_meshes, num_steps ) )
+    allocate( self%frac_flux( num_meshes, num_steps ) )
+    allocate( self%dep_lowest_k( num_meshes, num_steps ) )
+    allocate( self%dep_highest_k( num_meshes, num_steps ) )
+
+    ! Things only needed for horizontal steps, allocate for all steps anyway
+    ! but only the horizontal steps will be used
+    allocate( self%ref_field_x( num_meshes, num_steps ) )
+    allocate( self%ref_field_y( num_meshes, num_steps ) )
+    allocate( self%ref_mass_x( num_meshes, num_steps ) )
+    allocate( self%ref_mass_y( num_meshes, num_steps ) )
+    allocate( self%dep_dist_outer( num_meshes, num_steps ) )
+    allocate( self%frac_flux_outer( num_meshes, num_steps ) )
+    allocate( self%dep_lowest_k_outer( num_meshes, num_steps ) )
+    allocate( self%dep_highest_k_outer( num_meshes, num_steps ) )
+    allocate( self%dep_stencil_extent( num_meshes, num_steps ) )
+    allocate( self%dep_stencil_extent_outer( num_meshes, num_steps ) )
+    allocate( self%is_computed_stencil_extent( num_meshes, num_steps ) )
+    allocate( self%is_computed_stencil_extent_outer( num_meshes, num_steps ) )
+
+    ! Set name used for logging properties, based on arguments
+    if (present(ref_field)) then
+      self%name = 'tracer'
+    else if (.not. self%reset_unity) then
+      self%name = 'unity'
+    else
+      self%name = 'reset_unity'
+    end if
+
+    ! We may here be able to set all of the stencil extents
+    if (share_stencil_extent .and. self%max_stencil_extent_computed) then
+      self%dep_stencil_extent(:,:) = self%max_stencil_extent
+      self%dep_stencil_extent_outer(:,:) = self%max_stencil_extent
+      self%is_computed_stencil_extent(:,:) = .true.
+      self%is_computed_stencil_extent_outer(:,:) = .true.
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Set first reference field and mass
+    ! ------------------------------------------------------------------------ !
+    w3_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W3)
+
+    first_hori_step = get_first_hori_step(splitting)
+
+    if (first_hori_step == 1) then
+      halo_depth = prime_mesh%get_halo_depth()
+      call self%ref_field(1,1)%initialise(w3_fs, halo_depth=halo_depth)
+      call self%ref_mass(1,1)%initialise(w3_fs, halo_depth=halo_depth)
+
+    else
+      ! First step is vertical, so there won't need to be any halo exchanges
+      ! on these fields, and we can set halo depth to 1
+      halo_depth = 1
+      call self%ref_field(1,1)%initialise(w3_fs)
+      call self%ref_mass(1,1)%initialise(w3_fs)
+    end if
+
+    if (present(ref_field)) then
+      ! Checks -----------------------------------------------------------------
+      ! Is the reference field on a prime extrusion?
+      mesh => ref_field%get_mesh()
+      if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
+        write(log_scratch_space, '(A)')                                        &
+            'flux_precomputations%initialise: the reference field ' //         &
+            'provided is not on a prime extrusion mesh'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Is the reference field in the correct space for this split step?
+      fs_id = ref_field%which_function_space()
+      if (fs_id /= W3) then
+        write(log_scratch_space, '(A,I8,A)')                                   &
+            'flux_precomputations%initialise: the reference field ' //         &
+            'provided is in space with ID ', fs_id, ' but should be in W3'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Set first reference field for this object ------------------------------
+      if (mesh%get_id() /= self%mesh_ids(1)) then
+        ! Restrict field to the mesh for this precomputation object
+        weights_w3 => get_intermesh_weights_w3_rtran(mesh, prime_mesh)
+        call invoke( name='restrict_ref_field',                                &
+                     restrict_scalar_weighted_kernel_type(self%ref_field(1,1), &
+                                                          ref_field,           &
+                                                          weights_w3) )
+      else
+        ! Flux is already on the mesh for this precomputation object
+        call invoke( setval_X(self%ref_field(1,1), ref_field) )
+      end if
+
+    else
+      ! Reference field is unity, so set this to 1
+      call invoke( setval_c(self%ref_field(1,1), 1.0_r_tran) )
+    end if
+
+    ! Multiply by cell volume to get mass
+    ! If extended mesh, remap reference field here
+    detj_w3 => get_detj_at_w3_r_tran(self%mesh_ids(1))
+    if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+      call tmp_field%initialise(w3_fs)
+      call invoke( setval_X(tmp_field, self%ref_field(1,1)) )
+      call remap_on_extended_mesh(                                             &
+              self%ref_field(1,1), tmp_field, self%ref_monotone,               &
+              self%ref_enforce_min_value, self%ref_min_value, halo_depth       &
+      )
+      ! @todo #4302: replace this with redundant computation
+      call invoke_deep_X_times_Y(self%ref_mass(1,1), self%ref_field(1,1), detj_w3)
+
+    else
+      call invoke( X_times_Y(self%ref_mass(1,1), detj_w3, self%ref_field(1,1)) )
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! If flux was provided, split it into different parts
+    ! ------------------------------------------------------------------------ !
+    if (present(flux)) then
+      ! Checks -----------------------------------------------------------------
+      ! Is the reference flux on a prime extrusion?
+      mesh => flux%get_mesh()
+      if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
+        write(log_scratch_space, '(A)')                                        &
+            'flux_precomputations%initialise: the reference flux ' //          &
+            'provided is not on a prime extrusion mesh'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Is the reference flux in the correct space for this split step?
+      fs_id = flux%which_function_space()
+      if (fs_id /= W2) then
+        write(log_scratch_space, '(A,I8,A)')                                   &
+            'flux_precomputations%initialise: the reference flux ' //          &
+            'provided is in space with ID ', fs_id, ' but should be in W2'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! If the flux is not on the mesh for this object, restrict it
+      if (mesh%get_id() /= self%mesh_ids(1)) then
+        ! Restrict flux to the mesh for this precomputation object
+        w2_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2)
+        face_selector_ew => get_face_selector_ew(self%mesh_ids(1))
+        face_selector_ns => get_face_selector_ns(self%mesh_ids(1))
+
+        call ref_flux_restricted%initialise(w2_fs)
+
+        call invoke(                                                           &
+            restrict_w2_kernel_type(ref_flux_restricted, flux,                 &
+                                    face_selector_ew, face_selector_ns) )
+
+        flux_ptr => ref_flux_restricted
+
+      else
+        flux_ptr => flux
+      end if
+
+      ! Split flux into horizontal and vertical components ---------------------
+      w2_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2)
+      if (splitting /= splitting_none) then
+        w2h_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2H)
+        w2v_fs => function_space_collection%get_fs(prime_mesh, 0, 0, W2V)
+        face_selector_ew => get_face_selector_ew(self%mesh_ids(1))
+        face_selector_ns => get_face_selector_ns(self%mesh_ids(1))
+
+        call flux_hori%initialise(w2h_fs)
+        call flux_vert%initialise(w2v_fs)
+
+        call invoke( split_w2_field_kernel_type(flux_hori, flux_vert,          &
+                                                flux_ptr,                      &
+                                                face_selector_ew,              &
+                                                face_selector_ns) )
+      end if
+
+      ! Store the flux fields for each step ------------------------------------
+      do i = 1, num_substeps_tmp
+        do j = 1, num_split_steps
+          step_idx = (i - 1_i_def) * num_split_steps + j
+          direction = get_splitting_direction(splitting, j)
+          factor = get_splitting_factor(splitting, j)
+
+          select case (direction)
+          case (direction_3d)
+            call self%ref_flux(1, step_idx)%initialise(w2_fs)
+            call invoke( a_times_X(self%ref_flux(1, step_idx), factor, flux_ptr) )
+          case (direction_h)
+            call self%ref_flux(1, step_idx)%initialise(w2h_fs)
+            call invoke( a_times_X(self%ref_flux(1, step_idx), factor, flux_hori) )
+          case (direction_v)
+            call self%ref_flux(1, step_idx)%initialise(w2v_fs)
+            call invoke( a_times_X(self%ref_flux(1, step_idx), factor, flux_vert) )
+          end select
+        end do
+      end do
+    end if
+
+    self%is_initialised_flag = .true.
+    self%is_computed_stencil_extent(:,:) = .false.
+    self%is_computed_stencil_extent_outer(:,:) = .false.
+
+    ! Set transporting wind and dt, used for logging
+    self%transporting_wind => wind
+    self%dt = dt
+
+    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+
+  end subroutine flux_precomputations_initialiser
+
+  !> Finalizer for the flux precomputation object
+  subroutine destroy_flux_precomputations(self)
+
+    implicit none
+
+    type(flux_precomputations_type), intent(inout) :: self
+
+    call self%finalise()
+
+  end subroutine destroy_flux_precomputations
+
+  !> @brief Finalises the flux precomputations object
+  subroutine finalise(self)
+
+    implicit none
+
+    class(flux_precomputations_type), intent(inout) :: self
+
+    nullify(self%transporting_wind)
+    self%is_initialised_flag = .false.
+    self%max_stencil_extent_computed = .false.
+    if ( allocated( self%mesh_ids ) )        deallocate( self%mesh_ids )
+    if ( allocated( self%ref_field ) )       deallocate( self%ref_field )
+    if ( allocated( self%ref_mass ) )        deallocate( self%ref_mass )
+    if ( allocated( self%ref_flux ) )        deallocate( self%ref_flux )
+    if ( allocated( self%dep_dist ) )        deallocate( self%dep_dist )
+    if ( allocated( self%frac_flux ) )       deallocate( self%frac_flux )
+    if ( allocated( self%dep_lowest_k ) )    deallocate( self%dep_lowest_k )
+    if ( allocated( self%dep_highest_k ) )   deallocate( self%dep_highest_k )
+    if ( allocated( self%ref_field_x ) )     deallocate( self%ref_field_x )
+    if ( allocated( self%ref_field_y ) )     deallocate( self%ref_field_y )
+    if ( allocated( self%ref_mass_x ) )      deallocate( self%ref_mass_x )
+    if ( allocated( self%ref_mass_y ) )      deallocate( self%ref_mass_y )
+    if ( allocated( self%dep_dist_outer ) )  deallocate( self%dep_dist_outer )
+    if ( allocated( self%frac_flux_outer ) ) deallocate( self%frac_flux_outer )
+    if ( allocated( self%dep_lowest_k_outer ) )                                &
+                                             deallocate( self%dep_lowest_k_outer )
+    if ( allocated( self%dep_highest_k_outer ) )                               &
+                                             deallocate( self%dep_highest_k_outer )
+    if ( allocated( self%dep_stencil_extent ) )                                &
+                                             deallocate( self%dep_stencil_extent )
+    if ( allocated( self%dep_stencil_extent_outer ) )                          &
+                                             deallocate( self%dep_stencil_extent_outer )
+    if ( allocated( self%is_computed_stencil_extent ) )                        &
+                                             deallocate( self%is_computed_stencil_extent )
+    if ( allocated( self%is_computed_stencil_extent_outer ) )                  &
+                                             deallocate( self%is_computed_stencil_extent_outer )
+
+  end subroutine finalise
+
+! ============================================================================ !
+! SETTERS FOR INDIVIDUAL FLUXES
+! ============================================================================ !
+
+  !> @brief Sets the reference flux for a particular transport step
+  !> @param[in] step      The index of the split step (of the whole transport
+  !!                      step) for which the flux corresponds to. NOTE: this
+  !!                      must include a time step factor.
+  !> @param[in] ref_flux  The input reference flux to store
+  subroutine initialise_step(self, step, ref_flux)
+
+    use sci_restrict_w2_kernel_mod,   only: restrict_w2_kernel_type
+    use sci_restrict_w2h_kernel_mod,  only: restrict_w2h_kernel_type
+    use sci_restrict_w2v_kernel_mod,  only: restrict_w2v_kernel_type
+
+    implicit none
+
+    class(flux_precomputations_type), intent(inout) :: self
+    integer(kind=i_def),              intent(in)    :: step
+    type(r_tran_field_type),          intent(in)    :: ref_flux
+
+    ! Local variables
+    integer(kind=i_def)                :: step_of_substep
+    integer(kind=i_def)                :: fs_id, correct_fs_id
+    type(mesh_type),           pointer :: mesh
+    type(mesh_type),           pointer :: prime_mesh
+    type(function_space_type), pointer :: w2_fs
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+
+    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+
+    ! Checks ------------------------------------------------------------------
+    ! Is the reference flux on a prime extrusion?
+    mesh => ref_flux%get_mesh()
+    if (mesh%get_extrusion_id() /= PRIME_EXTRUSION) then
+      write(log_scratch_space, '(A,I8,A)')                                     &
+          'flux_precomputations%initialise_step: the reference flux ' //       &
+          'provided for step ', step, ' is not on a prime extrusion mesh'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Is the reference flux in the correct space for this split step?
+    fs_id = ref_flux%which_function_space()
+    step_of_substep = MOD(step - 1, get_num_split_steps(self%splitting)) + 1
+    correct_fs_id = get_direction_w2_fs(self%splitting, step_of_substep)
+    if (fs_id /= correct_fs_id) then
+      write(log_scratch_space, '(A,I8,A,I8,A,I8)')                             &
+          'flux_precomputations%initialise_step: the reference flux ' //       &
+          'provided for step ', step, ' is in space with ID ', fs_id,          &
+          ' but the corresponding split step should be in the W2 space' //     &
+          'with ID: ', correct_fs_id
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Has the reference flux already been initialised?
+    if (self%ref_flux(1, step)%is_initialised()) then
+      write(log_scratch_space, '(A,I8,A)')                                     &
+          'flux_precomputations%initialise_step: the reference flux ' //       &
+          'for step ', step, ' has already been initialised'
+      call log_event(log_scratch_space, LOG_LEVEL_WARNING)
+    end if
+
+    ! Is the step number valid?
+    if (step > self%num_steps .or. step < 1) then
+      write(log_scratch_space, '(A,I8,A,I8)')                                  &
+          'flux_precomputations%initialise_step: the value of step: ', step,   &
+          'is not valid. Should be between 1 and ', self%num_steps
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Set reference flux for this object ---------------------------------------
+    if (mesh%get_id() /= self%mesh_ids(1)) then
+      ! Restrict flux to the mesh for this precomputation object
+      prime_mesh => mesh_collection%get_mesh(self%mesh_ids(1))
+      w2_fs => function_space_collection%get_fs(prime_mesh, 0, 0, fs_id)
+      face_selector_ew => get_face_selector_ew(self%mesh_ids(1))
+      face_selector_ns => get_face_selector_ns(self%mesh_ids(1))
+
+      call self%ref_flux(1, step)%initialise(w2_fs)
+
+      ! Restrict flux, which depends on split direction
+      select case (ref_flux%which_function_space())
+      case (W2)
+        call invoke(                                                           &
+            restrict_w2_kernel_type(self%ref_flux(1, step), ref_flux,          &
+                                    face_selector_ew, face_selector_ns) )
+      case (W2H)
+        call invoke(                                                           &
+            restrict_w2h_kernel_type(self%ref_flux(1, step), ref_flux,         &
+                                     face_selector_ew, face_selector_ns) )
+      case (W2V)
+        call invoke(                                                           &
+            restrict_w2v_kernel_type(self%ref_flux(1, step), ref_flux) )
+      end select
+
+    else
+      ! Flux is already on the mesh for this precomputation object
+      call ref_flux%copy_field_properties(self%ref_flux(1, step))
+      call invoke( setval_X(self%ref_flux(1, step), ref_flux) )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+
+  end subroutine initialise_step
+
+! ============================================================================ !
+! GETTERS FOR INFORMATION ABOUT THIS OBJECT
+! ============================================================================ !
+
+  !> @brief Returns the local mesh id for the object
+  !> @return The identifier for the underlying local mesh
+  function get_local_mesh_id(self) result(local_mesh_id)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def)                                  :: local_mesh_id
+
+    local_mesh_id = self%local_mesh_id
+
+  end function get_local_mesh_id
+
+  !> @brief Returns the mesh id for the prime extrusion mesh for this object
+  !> @return The identifier for the prime extrusion mesh
+  function get_prime_extrusion_mesh_id(self) result(prime_mesh_id)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def)                                  :: prime_mesh_id
+
+    prime_mesh_id = self%mesh_ids(1)
+
+  end function get_prime_extrusion_mesh_id
+
+  !> @brief Returns whether the object has been initialised
+  !> @return A logical indicating if the object has been initialised
+  function is_initialised(self) result(is_initialised_flag)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    logical(kind=l_def)                                  :: is_initialised_flag
+
+    is_initialised_flag = self%is_initialised_flag
+
+  end function is_initialised
+
+  !> @brief   Public function for getting mesh_id corresponding to array index
+  !> @details Used by the adjoint model
+  !> @param[in] idx       Array index for the desired mesh
+  !> @return The ID of the corresponding mesh
+  function get_mesh_id_from_idx(self, idx) result(mesh_id)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def),                      intent(in) :: idx
+    integer(kind=i_def)                                  :: mesh_id
+
+    mesh_id = self%mesh_ids(idx)
+
+  end function get_mesh_id_from_idx
+
+  !> @brief   Public function to get number of transport steps for this object
+  !> @details Used by the adjoint model
+  !> @return The total number of transport steps used in these precomputations
+  function get_num_steps(self) result(num_steps)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def)                                  :: num_steps
+
+    num_steps = self%num_steps
+
+  end function get_num_steps
+
+  !> @brief   Public function to get enumerator of splitting for this object
+  !> @details Used by the adjoint model
+  !> @return Enumerator of the transport splitting for in these precomputations
+  function get_splitting(self) result(splitting)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def)                                  :: splitting
+
+    splitting = self%splitting
+
+  end function get_splitting
+
+! ============================================================================ !
+! GETTERS FOR FLUX (PERFORMS SHIFTING IF NECESSARY)
+! ============================================================================ !
+  !> @brief Returns the reference flux for a particular split step (and
+  !!        calculates the field if it hasn't already been)
+  !> @param[in]  mesh_id  Identifier of the mesh to get the field for
+  !> @param[in]  step     Index of the split step (of whole transport step)
+  !> @return The reference flux for the given mesh and step
+  function get_ref_flux(self, mesh_id, step) result(ref_flux)
+
+    use sci_consist_w2_to_sh_w2_kernel_mod,   only: consist_w2_to_sh_w2_kernel_type
+    use sci_consist_w2h_to_sh_w2h_kernel_mod, only: consist_w2h_to_sh_w2h_kernel_type
+    use sci_consist_w2v_to_sh_w2v_kernel_mod, only: consist_w2v_to_sh_w2v_kernel_type
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+
+    ! Internal variables
+    character(len=str_def)             :: field_name
+    integer(kind=i_def)                :: fs_id
+    integer(kind=i_def)                :: mesh_idx
+    integer(kind=i_def)                :: step_idx
+    type(mesh_type),           pointer :: shifted_mesh
+    type(function_space_type), pointer :: w2_fs
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    type(r_tran_field_type),   pointer :: ref_flux
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    ! This is because, when transporting by the wind field (and using unity as
+    ! the reference field), each substep has identical precomputations. We
+    ! therefore only store them for a single substep, and so substepping can
+    ! exceed the total number of steps.
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    if (.not. self%ref_flux(mesh_idx, step_idx)%is_initialised()               &
+        .and.mesh_idx == 2) then
+
+      if (.not. self%ref_flux(1, step_idx)%is_initialised()) then
+        write(log_scratch_space, '(A,I8,A)')                                   &
+            'flux_precomputations%get_ref_flux: the prime mesh ref flux ' //   &
+            'for step ', step, ' has not been initialised'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Flux on shifted mesh not yet calculated, so shift the flux
+      shifted_mesh => mesh_collection%get_mesh(self%mesh_ids(2))
+      fs_id = self%ref_flux(1, step_idx)%which_function_space()
+      w2_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, fs_id)
+      call self%ref_flux(2, step_idx)%initialise(w2_fs)
+
+      face_selector_ew => get_face_selector_ew(self%mesh_ids(2))
+      face_selector_ns => get_face_selector_ns(self%mesh_ids(2))
+
+      if ( subroutine_timers ) call timer('transport.get_ref_flux')
+
+      ! Transform fluxes to the shifted mesh, with case depending on fs_id
+      select case (fs_id)
+      case (W2)
+        call invoke(                                                           &
+          setval_c(self%ref_flux(2, step_idx), 0.0_r_tran),                    &
+          consist_w2_to_sh_w2_kernel_type(                                     &
+                                      self%ref_flux(2, step_idx),              &
+                                      self%ref_flux(1, step_idx),              &
+                                      face_selector_ew,                        &
+                                      face_selector_ns) )
+      case (W2h)
+        call invoke(                                                           &
+          setval_c(self%ref_flux(2, step_idx), 0.0_r_tran),                    &
+          consist_w2h_to_sh_w2h_kernel_type(                                   &
+                                      self%ref_flux(2, step_idx),              &
+                                      self%ref_flux(1, step_idx),              &
+                                      face_selector_ew,                        &
+                                      face_selector_ns) )
+      case (W2v)
+        call invoke(                                                           &
+          consist_w2v_to_sh_w2v_kernel_type(                                   &
+                                      self%ref_flux(2, step_idx),              &
+                                      self%ref_flux(1, step_idx)) )
+      end select
+
+      if ( subroutine_timers ) call timer('transport.get_ref_flux')
+    end if
+
+    ! Point to existing field
+    ref_flux => self%ref_flux(mesh_idx, step_idx)
+
+    ! Check if flux is initialised and return a helpful error if not
+    write(field_name, '(A,I8)') adjustl(trim(self%name)) // ' reference flux, step ', step
+    call check_initialised_field(ref_flux, field_name, mesh_id)
+
+  end function get_ref_flux
+
+! ============================================================================ !
+! GETTERS FOR REFERENCE FIELD (CALCULATED FROM APPROPRIATE DIVERGENCE)
+! ============================================================================ !
+  !> @brief Returns the reference field for a particular transport step. If it
+  !!        has not yet been computed, it will be obtained from the ref mass
+  !> @param[in]  mesh_id  Identifier of the mesh to get the field for
+  !> @param[in]  step     Index of the split step (generally of the whole
+  !!                      transport step, but potentially of the substep if
+  !!                      substepping is being used)
+  !!                      NB: when substepping, there may be ambiguity about
+  !!                      the appropriate reference field is at the beginning
+  !!                      of the first split step of a substep, or the end of
+  !!                      the last substep of the previous transport step. An
+  !!                      error will be thrown here if the step index is invalid
+  !!                      which should help catch these cases.
+  !> @return The reference field for the given mesh and step
+  function get_ref_field(self, mesh_id, step) result(ref_field)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_idx
+    integer(kind=i_def)                :: halo_depth
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w3_fs
+    type(r_tran_field_type),   pointer :: ref_mass
+    type(r_tran_field_type),   pointer :: ref_field
+    type(r_tran_field_type),   pointer :: detj_w3
+    character(len=str_def)             :: field_name
+
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    if (step > self%num_steps + 1) then
+      call log_event(                                                          &
+              'flux_precomputations%get_ref_field: step index exceeds ' //     &
+              'number of ref fields stored in this object. If substepping ' // &
+              'you should pass this an appropriate step into this function',   &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end if
+
+    if (.not. self%ref_field(mesh_idx, step)%is_initialised()) then
+      mesh => mesh_collection%get_mesh(mesh_id)
+      halo_depth = mesh%get_halo_depth()
+      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+      ! Obtain reference field from mass
+      ref_mass => self%get_ref_mass(mesh_id, step)
+
+      if ( subroutine_timers ) call timer('transport.get_ref_field')
+
+      call self%ref_field(mesh_idx, step)%initialise(w3_fs, halo_depth=halo_depth)
+
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+        call invoke_deep_X_divideby_Y(self%ref_field(mesh_idx, step),          &
+                                      ref_mass, detj_w3)
+      else
+        call invoke( X_divideby_Y(self%ref_field(mesh_idx, step), ref_mass,    &
+                                  detj_w3) )
+      end if
+
+      if ( subroutine_timers ) call timer('transport.get_ref_field')
+    end if
+
+    ! Return existing field
+    ref_field => self%ref_field(mesh_idx, step)
+
+    ! Check if it has been initialised, and return a helpful error if not
+    write(field_name, '(A,I8)') 'reference field, step ', step
+    call check_initialised_field(ref_field, field_name, mesh_id)
+
+  end function get_ref_field
+
+  !> @brief Returns the reference field for a particular transport step. If it
+  !!        has not yet been computed, it will be obtained from an existing
+  !!        field according to the following priority list:
+  !!        1. calculate this mass by incrementing the mass from the previous
+  !!           step using the appropriate flux
+  !!        2. if the density from this step has been computed, obtain the mass
+  !!           through multiplying by the cell volumes
+  !!        3. if on the shifted mesh, obtain the mass by shifting the mass from
+  !!           the prime mesh
+  !!        This is a recursive function to cover the first case. For instance,
+  !!        the request may be for the mass following the final step, but masses
+  !!        for intermediate steps may not yet have been calculated. Thus this
+  !!        may trigger all of those intermediate masses to be computed.
+  !> @param[in]  mesh_id  Identifier of the mesh to get the field for
+  !> @param[in]  step     Index of the split step (generally of the whole
+  !!                      transport step, but potentially of the substep if
+  !!                      substepping is being used)
+  !!                      NB: when substepping, there may be ambiguity about
+  !!                      the appropriate reference mass is at the beginning
+  !!                      of the first split step of a substep, or the end of
+  !!                      the last substep of the previous transport step. An
+  !!                      error will be thrown here if the step index is invalid
+  !!                      which should help catch these cases.
+  !> @param[in]  negative_check_flag
+  !!                      Optional flag indicating that the a tracer reference
+  !!                      mass should be checked for negative values. By default
+  !!                      this check will happen for the tracer computations
+  !> @return The reference mass for the given mesh and step
+  recursive function get_ref_mass(self, mesh_id, step, negative_check_flag) result(ref_mass)
+
+    use fv_difference_z_kernel_mod,     only: fv_difference_z_kernel_type
+    use fv_difference_2d_kernel_mod,    only: fv_difference_2d_kernel_type
+    use fv_difference_3d_kernel_mod,    only: fv_difference_3d_kernel_type
+    use split_transport_utils_mod,      only: get_next_step_hori
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: negative_check_flag
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_idx, fs_id
+    integer(kind=i_def)                :: halo_depth
+    integer(kind=i_def)                :: num_split_steps
+    logical(kind=l_def)                :: next_step_hori
+    logical(kind=l_def)                :: do_overwrite
+    logical(kind=l_def)                :: negative_check
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w3_fs
+    type(r_tran_field_type),   pointer :: ref_mass
+    type(r_tran_field_type),   pointer :: ref_mass_prev
+    type(r_tran_field_type),   pointer :: ref_mass_prime
+    type(r_tran_field_type),   pointer :: ref_flux
+    type(r_tran_field_type),   pointer :: detj_w3
+    type(r_tran_field_type)            :: increment
+    type(r_tran_field_type)            :: tmp_mass
+    type(r_tran_field_type)            :: tmp_field
+    character(len=str_def)             :: field_name
+
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    if (step > self%num_steps + 1) then
+      call log_event(                                                          &
+              'flux_precomputations%get_ref_mass: step index exceeds ' //      &
+              'number of ref masses stored in this object. If substepping ' // &
+              'you should pass this an appropriate step into this function',   &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end if
+
+    if (.not. self%ref_mass(mesh_idx, step)%is_initialised()) then
+      mesh => mesh_collection%get_mesh(mesh_id)
+      halo_depth = mesh%get_halo_depth()
+      w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      call self%ref_mass(mesh_idx, step)%initialise(w3_fs, halo_depth=halo_depth)
+
+      ! To determine the reference mass, use the following priorities:
+      ! ---------------------------------------------------------------------- !
+      ! 1. The mass from the previous step (incremented with appropriate flux)
+      ! ---------------------------------------------------------------------- !
+      if (step > 1) then
+        ! Recursive call, as here we obtain reference mass for previous step
+        if (self%reset_unity) then
+          ref_mass_prev => self%get_ref_mass(mesh_id, 1, negative_check_flag)
+        else
+          ref_mass_prev => self%get_ref_mass(mesh_id, step-1, negative_check_flag)
+        end if
+
+        ref_flux => self%get_ref_flux(mesh_id, step-1)
+        call increment%initialise(w3_fs)
+
+        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+
+        ! Take divergence of flux to get increment
+        fs_id = ref_flux%which_function_space()
+        select case (fs_id)
+        case (W2)
+          call invoke( fv_difference_3d_kernel_type(increment, ref_flux) )
+        case (W2H)
+          call invoke( fv_difference_2d_kernel_type(increment, ref_flux) )
+        case (W2V)
+          call invoke( fv_difference_z_kernel_type(increment, ref_flux) )
+        end select
+
+        ! If using the extended mesh, remap the reference field here
+        ! Store reference field as byproduct of this calculation
+        num_split_steps = get_num_split_steps(self%splitting)
+        next_step_hori = (                                                     &
+          step < self%num_steps + 1 .and.                                      &
+          get_next_step_hori(self%splitting, MOD(step-2, num_split_steps) + 1) &
+        )
+        if (panel_edge_treatment == panel_edge_treatment_extended_mesh         &
+            .and. next_step_hori) then
+          call tmp_mass%initialise(w3_fs)
+          call tmp_field%initialise(w3_fs)
+          detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+          call invoke( X_minus_Y(tmp_mass, ref_mass_prev, increment),      &
+                       X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
+          call remap_on_extended_mesh(                                         &
+              self%ref_field(mesh_idx, step), tmp_field, self%ref_monotone,    &
+              self%ref_enforce_min_value, self%ref_min_value, halo_depth       &
+          )
+          call invoke_deep_X_times_Y(self%ref_mass(mesh_idx, step),            &
+                                     self%ref_field(mesh_idx, step), detj_w3)
+
+        else
+          ! NB: dt already included in flux
+          call invoke( X_minus_Y(self%ref_mass(mesh_idx, step),                &
+                                 ref_mass_prev, increment) )
+        end if
+
+        do_overwrite = (                                                       &
+          ! Only overwrite when we have a LAM, and one of the following...
+          limited_area .and. topology == topology_non_periodic .and. (         &
+            transport_overwrite_freq == transport_overwrite_freq_split_step    &
+            .or. transport_overwrite_freq == transport_overwrite_freq_all      &
+            .or. ( step == self%num_steps + 1                                  &
+              .and. transport_overwrite_freq == transport_overwrite_freq_final &
+            )                                                                  &
+          )                                                                    &
+        )
+
+        if ( do_overwrite ) then
+        ! Only overwrite the final step
+          if (transport_overwrite_freq == transport_overwrite_freq_final) then
+            ref_mass_prev => self%get_ref_mass(mesh_id, 1, negative_check_flag)
+          end if
+          call overwrite_blending_zone_rtran(self%ref_mass(mesh_idx, step),    &
+                                             ref_mass_prev,                    &
+                                             depth=transport_boundary_depth)
+        end if
+
+        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+
+      ! ---------------------------------------------------------------------- !
+      ! 2. The density from this step (multiplied by cell volumes)
+      ! ---------------------------------------------------------------------- !
+      else if (self%ref_field(mesh_idx, step)%is_initialised()) then
+
+        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+        if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+          call invoke_deep_X_times_Y(self%ref_mass(mesh_idx, step),            &
+                                     self%ref_field(mesh_idx, step), detj_w3)
+        else
+          call invoke( X_times_Y(self%ref_mass(mesh_idx, step),                &
+                                 self%ref_field(mesh_idx, step), detj_w3) )
+        end if
+
+        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+
+      ! ---------------------------------------------------------------------- !
+      ! 3. If on the shifted mesh, obtain the mass by shifting the mass
+      ! ---------------------------------------------------------------------- !
+      else if (mesh_idx == 2) then
+        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        ref_mass_prime => self%get_ref_mass(self%mesh_ids(1), step, negative_check_flag)
+        if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+          ! Original field has already been remapped, so can perform a "deep"
+          ! shift on the original field to get the shifted, remapped density
+          ! @todo #4302: replace this with redundant computation
+          call invoke_deep_shift_mass(self%ref_mass(2, step),                  &
+                                      ref_mass_prime)
+        else
+          ! Can directly shift mass, then obtain rho by dividing by volume
+          call invoke( shift_mass_w3_kernel_type(self%ref_mass(2, step),       &
+                                                 ref_mass_prime) )
+        end if
+        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+      end if
+
+      ! Check if the computed reference mass is negative -----------------------
+      if (present(negative_check_flag)) then
+        negative_check = negative_check_flag
+      else
+        negative_check = (trim(self%name) == 'tracer')
+      end if
+
+      if (negative_check) then
+        write(field_name, '(A,I8)') 'ref_mass, step ', step
+        call self%check_negative_field(self%ref_mass(mesh_idx, step), field_name)
+      end if
+    end if
+
+    ! Return computed field
+    ref_mass => self%ref_mass(mesh_idx, step)
+
+    ! Check if it has been initialised, and return a helpful error if not
+    write(field_name, '(A,I8)') 'ref_mass, step ', step
+    call check_initialised_field(ref_mass, field_name, mesh_id)
+
+  end function get_ref_mass
+
+  !> @brief Returns the reference field transported in x for a particular step
+  !!        If it has not yet been computed, then it will be computed from the
+  !!        corresponding mass transported in x
+  !> @param[in]  mesh_id  Identifier of the mesh to get the field for
+  !> @param[in]  step     Index of the split step (of whole transport step)
+  !> @return The reference field transported in x for the given mesh and step
+  function get_ref_field_x(self, mesh_id, step) result(ref_field)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_idx, step_idx
+    integer(kind=i_def)                :: halo_depth
+    integer(kind=i_def)                :: direction
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w3_fs
+    type(r_tran_field_type),   pointer :: ref_mass
+    type(r_tran_field_type),   pointer :: detj_w3
+    type(r_tran_field_type),   pointer :: ref_field
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    if (.not. self%ref_field_x(mesh_idx, step_idx)%is_initialised()) then
+      ! Check this is a horizontal step ----------------------------------------
+      direction = get_splitting_direction(self%splitting, step_idx)
+      if (direction /= direction_h) then
+        write(log_scratch_space, '(A,I8,A)')                                   &
+            'flux_precomputations%get_ref_field_x: cannot return ' //          &
+            'ref_field_x for step ', step, ' as it is not a horizontal step'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Compute field from corresponding mass ----------------------------------
+      mesh => mesh_collection%get_mesh(mesh_id)
+      halo_depth = mesh%get_halo_depth()
+      ref_mass => self%get_ref_mass_x(mesh_id, step)
+      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+
+      call self%ref_field_x(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
+
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+        call invoke_deep_X_divideby_Y(self%ref_field_x(mesh_idx, step_idx),    &
+                                      ref_mass, detj_w3)
+      else
+        call invoke( X_divideby_Y(self%ref_field_x(mesh_idx, step_idx),        &
+                                  ref_mass, detj_w3) )
+      end if
+      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+    end if
+
+    ! Return existing field
+    ref_field => self%ref_field_x(mesh_idx, step_idx)
+
+  end function get_ref_field_x
+
+  !> @brief Returns the reference field transported in y for a particular step
+  !!        If it has not yet been computed, then it will be computed from the
+  !!        corresponding mass transported in y
+  !> @param[in]  mesh_id  Identifier of the mesh to get the field for
+  !> @param[in]  step     Index of the split step (of whole transport step)
+  !> @return The reference field transported in y for the given mesh and step
+  function get_ref_field_y(self, mesh_id, step) result(ref_field)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_idx, step_idx
+    integer(kind=i_def)                :: halo_depth
+    integer(kind=i_def)                :: direction
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w3_fs
+    type(r_tran_field_type),   pointer :: ref_mass
+    type(r_tran_field_type),   pointer :: detj_w3
+    type(r_tran_field_type),   pointer :: ref_field
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    if (.not. self%ref_field_y(mesh_idx, step_idx)%is_initialised()) then
+      ! Check this is a horizontal step ----------------------------------------
+      direction = get_splitting_direction(self%splitting, step_idx)
+      if (direction /= direction_h) then
+        write(log_scratch_space, '(A,I8,A)')                                   &
+            'flux_precomputations%get_ref_field_y: cannot return ' //          &
+            'ref_field_y for step ', step, ' as it is not a horizontal step'
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end if
+
+      ! Compute field from corresponding mass ----------------------------------
+      mesh => mesh_collection%get_mesh(mesh_id)
+      halo_depth = mesh%get_halo_depth()
+      ref_mass => self%get_ref_mass_y(mesh_id, step)
+      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+
+      call self%ref_field_y(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
+
+      if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+        call invoke_deep_X_divideby_Y(self%ref_field_y(mesh_idx, step_idx),    &
+                                      ref_mass, detj_w3)
+      else
+        call invoke( X_divideby_Y(self%ref_field_y(mesh_idx, step_idx),        &
+                                  ref_mass, detj_w3) )
+      end if
+      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+    end if
+
+    ! Return existing field
+    ref_field => self%ref_field_y(mesh_idx, step_idx)
+
+  end function get_ref_field_y
+
+  !> @brief Returns the reference field transported in x for a particular step
+  !!        If it has not yet been computed, then it will be computed from the
+  !!        corresponding mass transported in x
+  !> @param[in]  mesh_id  Identifier of the mesh to get the field for
+  !> @param[in]  step     Index of the split step (of whole transport step)
+  !> @param[in]  negative_check_flag
+  !!                      Optional flag indicating that the a tracer reference
+  !!                      mass should be checked for negative values. By default
+  !!                      this check will happen for the tracer computations
+  !> @return The reference field transported in x for the given mesh and step
+  function get_ref_mass_x(self, mesh_id, step, negative_check_flag) result(ref_mass)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: negative_check_flag
+
+    ! Internal variables
+    logical(kind=l_def)              :: negative_check
+    integer(kind=i_def)              :: mesh_idx, step_idx
+    character(len=str_def)           :: field_name
+    type(r_tran_field_type), pointer :: ref_mass
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    if (.not. self%ref_mass_x(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_ref_mass_x_and_y(mesh_id, step)
+
+      ! Check if the computed reference masses are negative ----------------------
+      if (present(negative_check_flag)) then
+        negative_check = negative_check_flag
+      else
+        negative_check = (trim(self%name) == 'tracer')
+      end if
+
+      if (negative_check) then
+        ! Both have been calculated, so check both to avoid missing the other
+        write(field_name, '(A,I8)') 'ref_mass_x, step ', step
+        call self%check_negative_field(self%ref_mass_x(mesh_idx, step_idx), field_name)
+        write(field_name, '(A,I8)') 'ref_mass_y, step ', step
+        call self%check_negative_field(self%ref_mass_y(mesh_idx, step_idx), field_name)
+      end if
+    end if
+
+    ! Return existing field
+    ref_mass => self%ref_mass_x(mesh_idx, step_idx)
+
+  end function get_ref_mass_x
+
+  !> @brief Returns the reference mass transported in y for a particular step
+  !!        If it has not yet been computed, then it will be computed from the
+  !!        corresponding mass transported in y
+  !> @param[in]  mesh_id  Identifier of the mesh to get the field for
+  !> @param[in]  step     Index of the split step (of whole transport step)
+  !> @return The reference mass transported in y for the given mesh and step
+  !> @param[in]  negative_check_flag
+  !!                      Optional flag indicating that the a tracer reference
+  !!                      mass should be checked for negative values. By default
+  !!                      this check will happen for the tracer computations
+  function get_ref_mass_y(self, mesh_id, step, negative_check_flag) result(ref_mass)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: negative_check_flag
+
+    ! Internal variables
+    logical(kind=l_def)              :: negative_check
+    integer(kind=i_def)              :: mesh_idx, step_idx
+    character(len=str_def)           :: field_name
+    type(r_tran_field_type), pointer :: ref_mass
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    if (.not. self%ref_mass_y(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_ref_mass_x_and_y(mesh_id, step)
+
+      ! Check if the computed reference masses are negative ----------------------
+      if (present(negative_check_flag)) then
+        negative_check = negative_check_flag
+      else
+        negative_check = (trim(self%name) == 'tracer')
+      end if
+
+      if (negative_check) then
+        ! Both have been calculated, so check both to avoid missing the other
+        write(field_name, '(A,I8)') 'ref_mass_x, step ', step
+        call self%check_negative_field(self%ref_mass_x(mesh_idx, step_idx), field_name)
+        write(field_name, '(A,I8)') 'ref_mass_y, step ', step
+        call self%check_negative_field(self%ref_mass_y(mesh_idx, step_idx), field_name)
+      end if
+    end if
+
+    ! Return existing field
+    ref_mass => self%ref_mass_y(mesh_idx, step_idx)
+
+  end function get_ref_mass_y
+
+! ============================================================================ !
+! GETTERS FOR DEPARTURE DISTANCE QUANTITIES
+! ============================================================================ !
+
+  !> @brief Returns the departure distance for a particular transport step
+  !> @param[in]  mesh_id    Identifier of the mesh to get the field for
+  !> @param[in]  step       Index of the split step (of whole transport step)
+  !> @param[in]  outer_step Whether this is an horizontal FFSL outer step. If
+  !!                        .true. is passed but this step is vertical, an
+  !!                        error will be thrown.
+  !> @return The departure distance for the given mesh and step
+  function get_dep_dist(self, mesh_id, step, outer_step) result(dep_dist)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: outer_step
+
+    ! Internal variables
+    integer(kind=i_def)              :: mesh_idx, step_idx
+    logical(kind=l_def)              :: outer_step_local
+    type(r_tran_field_type), pointer :: dep_dist
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    outer_step_local = .false.
+    if (present(outer_step)) outer_step_local = outer_step
+
+    if (outer_step_local .and.                                                 &
+        .not. self%dep_dist_outer(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_outer(mesh_id, step)
+
+    else if (.not. outer_step_local .and.                                      &
+             .not. self%dep_dist(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_inner(mesh_id, step)
+    end if
+
+    if (outer_step_local) then
+      dep_dist => self%dep_dist_outer(mesh_idx, step_idx)
+    else
+      dep_dist => self%dep_dist(mesh_idx, step_idx)
+    end if
+
+  end function get_dep_dist
+
+  !> @brief The transporting flux can be decomposed into parts corresponding to
+  !!        integer and fractional Courant numbers (the departure distances).
+  !!        This returns the fractional part of the transporting flux.
+  !> @param[in]  mesh_id    Identifier of the mesh to get the field for
+  !> @param[in]  step       Index of the split step (of whole transport step)
+  !> @param[in]  outer_step Whether this is an horizontal FFSL outer step. If
+  !!                        .true. is passed but this step is vertical, an
+  !!                        error will be thrown.
+  !> @return The fractional part of the flux for the given mesh and step
+  function get_frac_flux(self, mesh_id, step, outer_step) result(frac_flux)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: outer_step
+
+    ! Internal variables
+    integer(kind=i_def)              :: mesh_idx, step_idx
+    logical(kind=l_def)              :: outer_step_local
+    type(r_tran_field_type), pointer :: frac_flux
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    outer_step_local = .false.
+    if (present(outer_step)) outer_step_local = outer_step
+
+    if (outer_step_local .and.                                                 &
+        .not. self%frac_flux_outer(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_outer(mesh_id, step)
+
+    else if (.not. outer_step_local .and.                                      &
+             .not. self%frac_flux(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_inner(mesh_id, step)
+    end if
+
+    if (outer_step_local) then
+      frac_flux => self%frac_flux_outer(mesh_idx, step_idx)
+    else
+      frac_flux => self%frac_flux(mesh_idx, step_idx)
+    end if
+
+  end function get_frac_flux
+
+  !> @brief Returns the indices of the lowest k-levels for each column when
+  !!        iterating over the integer parts of departure distances
+  !> @param[in]  mesh_id    Identifier of the mesh to get the field for
+  !> @param[in]  step       Index of the split step (of whole transport step)
+  !> @param[in]  outer_step Whether this is an horizontal FFSL outer step. If
+  !!                        .true. is passed but this step is vertical, an
+  !!                        error will be thrown.
+  !> @return The departure lowest k indices for the given mesh and step
+  function get_dep_lowest_k(self, mesh_id, step, outer_step) result(dep_lowest_k)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: outer_step
+
+    ! Internal variables
+    integer(kind=i_def)               :: mesh_idx, step_idx
+    logical(kind=l_def)               :: outer_step_local
+    type(integer_field_type), pointer :: dep_lowest_k
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    outer_step_local = .false.
+    if (present(outer_step)) outer_step_local = outer_step
+
+    if (outer_step_local .and.                                                 &
+        .not. self%dep_lowest_k_outer(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_outer(mesh_id, step)
+
+    else if (.not. outer_step_local .and.                                      &
+             .not. self%dep_lowest_k(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_inner(mesh_id, step)
+    end if
+
+    if (outer_step_local) then
+      dep_lowest_k => self%dep_lowest_k_outer(mesh_idx, step_idx)
+    else
+      dep_lowest_k => self%dep_lowest_k(mesh_idx, step_idx)
+    end if
+
+  end function get_dep_lowest_k
+
+  !> @brief Returns the indices of the highest k-levels for each column when
+  !!        iterating over the integer parts of departure distances
+  !> @param[in]  mesh_id    Identifier of the mesh to get the field for
+  !> @param[in]  step       Index of the split step (of whole transport step)
+  !> @param[in]  outer_step Whether this is an horizontal FFSL outer step. If
+  !!                        .true. is passed but this step is vertical, an
+  !!                        error will be thrown.
+  !> @return The departure highest k indices for the given mesh and step
+  function get_dep_highest_k(self, mesh_id, step, outer_step) result(dep_highest_k)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: outer_step
+
+    ! Internal variables
+    integer(kind=i_def)               :: mesh_idx, step_idx
+    logical(kind=l_def)               :: outer_step_local
+    type(integer_field_type), pointer :: dep_highest_k
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    outer_step_local = .false.
+    if (present(outer_step)) outer_step_local = outer_step
+
+    if (outer_step_local .and.                                                 &
+        .not. self%dep_highest_k_outer(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_outer(mesh_id, step)
+
+    else if (.not. outer_step_local .and.                                      &
+             .not. self%dep_highest_k(mesh_idx, step_idx)%is_initialised()) then
+      call self%compute_dep_dist_inner(mesh_id, step)
+    end if
+
+    if (outer_step_local) then
+      dep_highest_k => self%dep_highest_k_outer(mesh_idx, step_idx)
+    else
+      dep_highest_k => self%dep_highest_k(mesh_idx, step_idx)
+    end if
+
+  end function get_dep_highest_k
+
+  !> @brief Returns the departure distance for a particular transport step
+  !> @param[in]  mesh_id    Identifier of the mesh to get the value for
+  !> @param[in]  step       Index of the split step (of whole transport step)
+  !> @param[in]  outer_step Whether this is an horizontal FFSL outer step. If
+  !!                        .true. is passed but this step is vertical, an
+  !!                        error will be thrown.
+  !> @return The stencil extent required for the given mesh and step
+  function get_dep_stencil_extent(self, mesh_id, step, outer_step) result(stencil_extent)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),            optional, intent(in)    :: outer_step
+
+    ! Internal variables
+    integer(kind=i_def)              :: mesh_idx, step_idx
+    logical(kind=l_def)              :: outer_step_local
+    integer(kind=i_def)              :: stencil_extent
+    real(kind=r_tran)                :: dep_min, dep_max
+    type(mesh_type),         pointer :: mesh
+    type(r_tran_field_type), pointer :: dep_dist
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    outer_step_local = .false.
+    if (present(outer_step)) outer_step_local = outer_step
+
+    ! OUTER STEP EXTENTS -------------------------------------------------------
+    if (outer_step_local) then
+      if (self%is_computed_stencil_extent_outer(mesh_idx, step_idx)) then
+        stencil_extent = self%dep_stencil_extent_outer(mesh_idx, step_idx)
+
+      else if (self%max_stencil_extent_computed .and. share_stencil_extent) then
+        ! We have computed the max_stencil_extent, but not the stencil extent
+        ! for this set of departure distances
+        stencil_extent = self%max_stencil_extent
+        self%is_computed_stencil_extent_outer(mesh_idx, step_idx) = .true.
+        self%dep_stencil_extent_outer(mesh_idx, step_idx) = stencil_extent
+
+      else
+        ! Extent not yet computed, so compute it here
+        mesh => mesh_collection%get_mesh(mesh_id)
+        dep_dist => self%get_dep_dist(mesh_id, step, outer_step_local)
+
+        if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+
+        ! We can shorten the stencil extent to the Courant number
+        call get_field_minmax(dep_dist, dep_min, dep_max)
+        dep_max = MAX(ABS(dep_max), ABS(dep_min))
+        stencil_extent = CEILING(dep_max, i_def)
+
+        ! Cap the stencil extent by dep_pt_stencil_extent
+        stencil_extent = MAX(MIN(stencil_extent, dep_pt_stencil_extent), 1)
+
+        self%dep_stencil_extent_outer(mesh_idx, step_idx) = stencil_extent
+        self%is_computed_stencil_extent_outer(mesh_idx, step_idx) = .true.
+
+        if (.not. self%max_stencil_extent_computed .and. share_stencil_extent) then
+          self%max_stencil_extent = stencil_extent
+          self%max_stencil_extent_computed = .true.
+        end if
+
+        if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+      end if
+
+    ! INNER STEP EXTENTS -------------------------------------------------------
+    else if (self%is_computed_stencil_extent(mesh_idx, step_idx)) then
+      stencil_extent = self%dep_stencil_extent(mesh_idx, step_idx)
+
+    else if (self%max_stencil_extent_computed .and. share_stencil_extent) then
+      ! We have computed the max_stencil_extent, but not the stencil extent
+      ! for this set of departure distances
+      stencil_extent = self%max_stencil_extent
+      self%is_computed_stencil_extent(mesh_idx, step_idx) = .true.
+      self%dep_stencil_extent(mesh_idx, step_idx) = stencil_extent
+
+    else
+      ! Not yet computed, so compute it here
+      mesh => mesh_collection%get_mesh(mesh_id)
+      dep_dist => self%get_dep_dist(mesh_id, step, outer_step_local)
+
+      if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+
+      ! We can shorten the stencil extent to the Courant number
+      call get_field_minmax(dep_dist, dep_min, dep_max)
+      dep_max = MAX(ABS(dep_max), ABS(dep_min))
+      stencil_extent = CEILING(dep_max, i_def)
+
+      ! Cap the stencil extent by dep_pt_stencil_extent
+      stencil_extent = MAX(MIN(stencil_extent, dep_pt_stencil_extent), 1)
+
+      self%dep_stencil_extent(mesh_idx, step_idx) = stencil_extent
+      self%is_computed_stencil_extent(mesh_idx, step_idx) = .true.
+
+      if (.not. self%max_stencil_extent_computed .and. share_stencil_extent) then
+        self%max_stencil_extent = stencil_extent
+        self%max_stencil_extent_computed = .true.
+      end if
+
+      if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+    end if
+
+  end function get_dep_stencil_extent
+
+! ============================================================================ !
+! GETTER AND SETTER FOR TOTAL FLUX
+! ============================================================================ !
+
+  !> @brief Returns the total reference flux, used for transporting the
+  !!        reference field over the *whole* transport step. This is needed when
+  !!        using the "cheap update" transport formulation, as the total flux
+  !!        needs storing from previous outer loops for the transport of tracers
+  !!        in the final outer loop.
+  !> @return The total reference flux
+  function get_total_ref_flux(self) result(total_ref_flux)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    type(r_tran_field_type), pointer                     :: total_ref_flux
+    character(len=str_def)                               :: field_name
+
+    total_ref_flux => self%total_ref_flux
+
+    ! Check field has been initialised
+    field_name = 'total_ref_flux'
+    call check_initialised_field(total_ref_flux, field_name, self%mesh_ids(1))
+
+  end function get_total_ref_flux
+
+  !> @brief Sets the total reference flux, used for transporting the reference
+  !!        field over the *whole* transport step. This is needed when using the
+  !!        "cheap update" transport formulation, as the total flux needs
+  !!        storing from previous outer loops for the transport of tracers in
+  !!        the final outer loop.
+  !!        As we may be substepping, the field is incremented rather than set
+  !> @param[in] total_ref_flux The total reference flux to set
+  subroutine set_total_ref_flux(self, total_ref_flux)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    type(r_tran_field_type),                  intent(in)    :: total_ref_flux
+
+    if (.not. self%total_ref_flux%is_initialised()) then
+      call self%total_ref_flux%initialise(total_ref_flux%get_function_space())
+      call invoke( setval_c(self%total_ref_flux, 0.0_r_tran) )
+    end if
+
+    call invoke( inc_X_plus_Y(self%total_ref_flux, total_ref_flux) )
+
+  end subroutine set_total_ref_flux
+
+! ============================================================================ !
+! PRIVATE FUNCTIONS FOR COMPUTING ENTITIES
+! ============================================================================ !
+
+  !> @brief Computes the reference mass transported in x and y for a particular
+  !!        transport step
+  !> @param[in]  mesh_id  Identifier of the mesh to compute the field for
+  !> @param[in]  step     Index of the split step (of whole transport step)
+  subroutine compute_ref_mass_x_and_y(self, mesh_id, step)
+
+    use fv_difference_x_kernel_mod,  only: fv_difference_x_kernel_type
+    use fv_difference_y_kernel_mod,  only: fv_difference_y_kernel_type
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_idx, step_idx
+    integer(kind=i_def)                :: halo_depth
+    integer(kind=i_def)                :: direction
+    integer(kind=i_def)                :: step_of_substep
+    logical(kind=l_def)                :: do_overwrite
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w3_fs
+    type(r_tran_field_type),   pointer :: ref_mass_prev
+    type(r_tran_field_type),   pointer :: ref_flux
+    type(r_tran_field_type),   pointer :: detj_w3
+    type(r_tran_field_type)            :: increment_x
+    type(r_tran_field_type)            :: increment_y
+    type(r_tran_field_type)            :: tmp_mass
+    type(r_tran_field_type)            :: tmp_field
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    ! Check this is a horizontal step ----------------------------------------
+    step_of_substep = MOD(step - 1, get_num_split_steps(self%splitting)) + 1
+    direction = get_splitting_direction(self%splitting, step_of_substep)
+    if (direction /= direction_h) then
+      write(log_scratch_space, '(A,I8,A)')                                     &
+          'flux_precomputations%compute_ref_mass_x_and_y: cannot compute ' //  &
+          'ref_mass_x/y for step ', step, ' as it is not a horizontal step'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    ! Compute field from corresponding mass ----------------------------------
+    mesh => mesh_collection%get_mesh(mesh_id)
+    halo_depth = mesh%get_halo_depth()
+    if (self%reset_unity) then
+      ref_mass_prev => get_detj_at_w3_r_tran(mesh_id)
+    else
+      ref_mass_prev => self%get_ref_mass(mesh_id, step_idx) ! Use step_idx to avoid problems
+    end if
+    ref_flux => self%get_ref_flux(mesh_id, step)
+    w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+    if ( subroutine_timers ) call timer('transport.get_ref_mass_xy')
+
+    call self%ref_mass_x(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
+    call self%ref_mass_y(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
+    call increment_x%initialise(w3_fs)
+    call increment_y%initialise(w3_fs)
+
+    call invoke( fv_difference_x_kernel_type(increment_x, ref_flux),           &
+                 X_minus_Y(self%ref_mass_x(mesh_idx, step_idx),                &
+                           ref_mass_prev, increment_x),                        &
+                 fv_difference_y_kernel_type(increment_y, ref_flux),           &
+                 X_minus_Y(self%ref_mass_y(mesh_idx, step_idx),                &
+                           ref_mass_prev, increment_y) )
+
+    ! If using the extended mesh, remap the reference field here
+    ! Store reference field as byproduct of this calculation
+    if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
+      call tmp_mass%initialise(w3_fs)
+      call tmp_field%initialise(w3_fs)
+      detj_w3 => get_detj_at_w3_r_tran(mesh_id)
+      ! Remap field in x
+      call invoke( setval_X(tmp_mass, self%ref_mass_x(mesh_idx, step_idx)),    &
+                   X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
+      call remap_on_extended_mesh(                                             &
+          self%ref_field_x(mesh_idx, step_idx), tmp_field, self%ref_monotone,  &
+          self%ref_enforce_min_value, self%ref_min_value, halo_depth           &
+      )
+      call invoke_deep_X_times_Y(self%ref_mass_x(mesh_idx, step_idx),          &
+                                 self%ref_field_x(mesh_idx, step_idx), detj_w3)
+      ! Remap field in y
+      call invoke( setval_X(tmp_mass, self%ref_mass_y(mesh_idx, step_idx)),    &
+                   X_divideby_Y(tmp_field, tmp_mass, detj_w3) )
+      call remap_on_extended_mesh(                                             &
+          self%ref_field_y(mesh_idx, step_idx), tmp_field, self%ref_monotone,  &
+          self%ref_enforce_min_value, self%ref_min_value, halo_depth           &
+      )
+      call invoke_deep_X_times_Y(self%ref_mass_y(mesh_idx, step_idx),          &
+                                 self%ref_field_y(mesh_idx, step_idx), detj_w3)
+    end if
+
+    do_overwrite = (                                                           &
+      limited_area .and. topology == topology_non_periodic .and.               &
+      transport_overwrite_freq == transport_overwrite_freq_all                 &
+    )
+
+    if (do_overwrite) then
+      call overwrite_blending_zone_rtran(                                      &
+              self%ref_mass_x(mesh_idx, step), ref_mass_prev,                  &
+              depth=transport_boundary_depth                                   &
+      )
+      call overwrite_blending_zone_rtran(                                      &
+              self%ref_mass_y(mesh_idx, step), ref_mass_prev,                  &
+              depth=transport_boundary_depth                                   &
+      )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.get_ref_mass_xy')
+
+  end subroutine compute_ref_mass_x_and_y
+
+  !> @brief Computes the departure distance and fractional flux for a particular
+  !!        transport step. This routine is used for vertical steps and the
+  !!        inner parts of horizontal steps.
+  !> @param[in]  mesh_id    Identifier of the mesh to get the field for
+  !> @param[in]  step       Index of the split step
+  subroutine compute_dep_dist_inner(self, mesh_id, step)
+
+    use calc_dep_pts_alg_mod,          only: calc_ffsl_hori_dep_pts
+    use vert_dep_dist_ffsl_kernel_mod, only: vert_dep_dist_ffsl_kernel_type
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_idx, step_idx
+    integer(kind=i_def)                :: step_of_substep
+    integer(kind=i_def)                :: direction
+    integer(kind=i_def)                :: dep_stencil_extent
+    integer(kind=i_def)                :: ndata
+    type(mesh_type),           pointer :: twod_mesh
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: depk_fs
+    type(r_tran_field_type),   pointer :: ref_mass
+    type(r_tran_field_type),   pointer :: ref_flux
+    character(len=str_def)             :: field_name
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    step_of_substep = MOD(step - 1, get_num_split_steps(self%splitting)) + 1
+    direction = get_splitting_direction(self%splitting, step_of_substep)
+
+    if (self%reset_unity) then
+      ref_mass => get_detj_at_w3_r_tran(mesh_id)
+    else
+      ref_mass => self%get_ref_mass(mesh_id, step_idx) ! Use step_idx to avoid problems
+    end if
+    ref_flux => self%get_ref_flux(mesh_id, step)
+
+    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+
+    w2_fs => ref_flux%get_function_space()
+    call self%dep_dist(mesh_idx, step_idx)%initialise(w2_fs)
+    call self%frac_flux(mesh_idx, step_idx)%initialise(w2_fs)
+
+    select case (direction)
+    case (direction_v)
+      call invoke( vert_dep_dist_ffsl_kernel_type(                             &
+                                self%dep_dist(mesh_idx, step_idx),             &
+                                self%frac_flux(mesh_idx, step_idx),            &
+                                ref_flux, ref_mass) )
+    case (direction_h)
+      dep_stencil_extent = self%get_max_stencil_extent()
+      ndata = 2*dep_stencil_extent + 1
+      twod_mesh => mesh_collection%get_mesh(ref_flux%get_mesh(), TWOD)
+      depk_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W2H, ndata)
+      call self%dep_lowest_k(mesh_idx, step_idx)%initialise(depk_fs)
+      call self%dep_highest_k(mesh_idx, step_idx)%initialise(depk_fs)
+
+      call calc_ffsl_hori_dep_pts(                                             &
+              self%dep_dist(mesh_idx, step_idx),                               &
+              self%frac_flux(mesh_idx, step_idx),                              &
+              self%dep_lowest_k(mesh_idx, step_idx),                           &
+              self%dep_highest_k(mesh_idx, step_idx),                          &
+              ref_flux, ref_mass, ref_mass, dep_stencil_extent                 &
+      )
+    end select
+
+    if (log_at_level(LOG_LEVEL_DEBUG)) then
+      if (direction == direction_h) then
+        write(field_name, '(2A,I8)')                                           &
+            adjustl(trim(self%name)), ' dep_dist_xy_inner, step ', step
+      else
+        write(field_name, '(2A,I8)')                                           &
+            adjustl(trim(self%name)), ' dep_dist_z, step ', step
+      end if
+      call log_field_minmax(                                                   &
+              LOG_LEVEL_DEBUG, field_name, self%dep_dist(mesh_idx, step_idx)   &
+      )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+
+  end subroutine compute_dep_dist_inner
+
+  !> @brief Computes the departure distance and fractional flux for a particular
+  !!        transport step. This routine is used for outer parts of horizontal
+  !!        steps.
+  !> @param[in]  mesh_id    Identifier of the mesh to get the field for
+  !> @param[in]  step       Index of the split step
+  subroutine compute_dep_dist_outer(self, mesh_id, step)
+
+    use calc_dep_pts_alg_mod, only: calc_ffsl_hori_dep_pts
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: step
+
+    ! Internal variables
+    integer(kind=i_def)                :: mesh_idx, step_idx
+    integer(kind=i_def)                :: step_of_substep
+    integer(kind=i_def)                :: direction
+    integer(kind=i_def)                :: ndata
+    integer(kind=i_def)                :: dep_stencil_extent
+    type(mesh_type),           pointer :: twod_mesh
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: depk_fs
+    type(r_tran_field_type),   pointer :: ref_flux
+    type(r_tran_field_type),   pointer :: ref_mass_x
+    type(r_tran_field_type),   pointer :: ref_mass_y
+    character(len=str_def)             :: field_name
+
+    ! If substepping, step can exceed num_steps, so take that into account here
+    step_idx = MOD(step - 1, self%num_steps) + 1
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    step_of_substep = MOD(step - 1, get_num_split_steps(self%splitting)) + 1
+    direction = get_splitting_direction(self%splitting, step_of_substep)
+    ref_flux => self%get_ref_flux(mesh_id, step)
+    ref_mass_x => self%get_ref_mass_x(mesh_id, step)
+    ref_mass_y => self%get_ref_mass_y(mesh_id, step)
+
+    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+
+    if (direction /= direction_h) then
+      write(log_scratch_space, '(A,I8,A)')                                     &
+          'flux_precomputations%compute_dep_dist_outer: cannot compute ' //    &
+          'outer departure quantities for step ', step, ' as it is not ' //    &
+          'a horizontal step'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+    w2_fs => ref_flux%get_function_space()
+    call self%dep_dist_outer(mesh_idx, step_idx)%initialise(w2_fs)
+    call self%frac_flux_outer(mesh_idx, step_idx)%initialise(w2_fs)
+
+    dep_stencil_extent = self%get_max_stencil_extent()
+    ndata = 2*dep_stencil_extent + 1
+    twod_mesh => mesh_collection%get_mesh(ref_flux%get_mesh(), TWOD)
+    depk_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W2H, ndata)
+    call self%dep_lowest_k_outer(mesh_idx, step_idx)%initialise(depk_fs)
+    call self%dep_highest_k_outer(mesh_idx, step_idx)%initialise(depk_fs)
+
+    call calc_ffsl_hori_dep_pts(                                               &
+            self%dep_dist_outer(mesh_idx, step_idx),                           &
+            self%frac_flux_outer(mesh_idx, step_idx),                          &
+            self%dep_lowest_k_outer(mesh_idx, step_idx),                       &
+            self%dep_highest_k_outer(mesh_idx, step_idx),                      &
+            ref_flux, ref_mass_y, ref_mass_x, dep_stencil_extent               &
+    )
+
+    if (log_at_level(LOG_LEVEL_DEBUG)) then
+      write(field_name, '(2A,I8)')                                             &
+          adjustl(trim(self%name)), ' dep_dist_xy_outer, step ', step
+      call log_field_minmax(                                                   &
+              LOG_LEVEL_DEBUG, field_name,                                     &
+              self%dep_dist_outer(mesh_idx, step_idx)                          &
+      )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+
+  end subroutine compute_dep_dist_outer
+
+! ============================================================================ !
+! UTILITIES
+! ============================================================================ !
+
+  !> @brief Private function for getting array index corresponding to mesh_id
+  !> @param[in] mesh_id   Identifier of mesh to find
+  function idx_from_mesh_id(self, mesh_id) result(idx)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def),                      intent(in) :: mesh_id
+    integer(kind=i_def)                                  :: idx
+    integer(kind=i_def)                                  :: i
+
+    idx = imdi
+    do i = 1, SIZE(self%mesh_ids)
+      if ( mesh_id == self%mesh_ids(i) ) idx = i
+    end do
+
+    if ( idx == imdi ) then
+      write(log_scratch_space, '(A,I8)')                                       &
+          'flux_precomputations does not contain mesh: ', mesh_id
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end function idx_from_mesh_id
+
+  !> @brief Checks a field for values less than epsilon, and throws an error
+  !!        if these values exist
+  !> @details It is not possible to compute sensible consistent departure
+  !!          distances for tracers if the ref mass is no longer positive.
+  subroutine check_negative_field(self, field, field_name)
+
+    use sci_field_minmax_alg_mod,  only: get_field_minmax,                     &
+                                         get_local_field_minmax
+    use lipschitz_diag_alg_mod,    only: lipschitz_diag_alg
+    use print_field_stats_alg_mod, only: print_field_stats_alg_rtran
+
+    implicit none
+
+    ! Arguments
+    class(flux_precomputations_type), target, intent(in) :: self
+    type(r_tran_field_type),                  intent(in) :: field
+    character(len=*),                         intent(in) :: field_name
+
+    ! Internal variables
+    real(kind=r_tran) :: field_min
+    real(kind=r_tran) :: field_max
+
+    if (log_at_level(LOG_LEVEL_INFO)) then
+      ! Global min/max is more expensive but makes failure easier to spot
+      call get_field_minmax(field, field_min, field_max)
+    else
+      ! For more sparse logging, avoid the global communication
+      call get_local_field_minmax(field, field_min, field_max)
+    end if
+
+    if (field_min < EPS_R_TRAN) then
+      ! We're about to fail... log the Lipschitz numbers and field stats
+      ! Protect this behind a log level check to avoid potentially hanging here
+      if (log_at_level(LOG_LEVEL_INFO)) then
+        call lipschitz_diag_alg(                                               &
+                self%splitting, self%transporting_wind,                        &
+                self%dt, LOG_LEVEL_WARNING                                     &
+        )
+        call print_field_stats_alg_rtran(                                      &
+                field, LOG_LEVEL_WARNING, 0.0_r_tran, HUGE(1.0_r_tran),        &
+                field_name                                                     &
+        )
+      end if
+
+      write(log_scratch_space, '(A,E16.8,A)')                                  &
+        'Negative or tiny value ', field_min, ' detected in ' //               &
+        'transport reference field ' // adjustl(trim(field_name)) // '. ' //   &
+        'This makes it impossible to find sensible departure distances. ' //   &
+        'Most likely the input transporting wind to the transport ' //         &
+        'scheme has a maximum Lipschitz number that exceeds 1 somewhere, ' //  &
+        'so check these values. Stopping model now to fail gracefully'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine check_negative_field
+
+  !> @brief Checks all reference fields on the primary mesh for negative values
+  !> @return If all reference fields are safe, returns .true., otherwise .false.
+  function check_all_reference_field(self) result(ref_field_safe)
+
+    use sci_field_minmax_alg_mod, only: get_field_minmax
+    use check_configuration_mod,  only: check_any_hori_scheme_ffsl
+
+    implicit none
+
+    ! Arguments
+    class(flux_precomputations_type), target, intent(inout) :: self
+
+    ! Internal variables
+    integer(kind=i_def)              :: mesh_id, step
+    real(kind=r_tran)                :: field_min
+    real(kind=r_tran)                :: field_max
+    logical(kind=l_def)              :: ref_field_safe
+    logical(kind=l_def)              :: hori_step
+    integer(kind=i_def)              :: step_of_substep
+    type(r_tran_field_type), pointer :: ref_mass
+
+    ref_field_safe = .true.
+    mesh_id = self%mesh_ids(1) ! Just look at reference masses on the first mesh
+
+    ! No need to check first or final reference fields
+    do step = 1, self%num_steps-1
+      ! Get the reference mass for the end of this step
+      ref_mass => self%get_ref_mass(mesh_id, step+1, negative_check_flag=.false.)
+      call get_field_minmax(ref_mass, field_min, field_max)
+
+      if (field_min < EPS_R_TRAN) then
+        ref_field_safe = .false.
+        EXIT
+      end if
+
+      ! Check the reference mass x and y fields for horizontal steps
+      step_of_substep = MOD(step - 1, get_num_split_steps(self%splitting)) + 1
+      hori_step = (                                                            &
+        get_splitting_direction(self%splitting,step_of_substep) == direction_h &
+        .and. check_any_hori_scheme_ffsl()                                     &
+      )
+      if (hori_step) then
+        ref_mass => self%get_ref_mass_x(mesh_id, step, negative_check_flag=.false.)
+        call get_field_minmax(ref_mass, field_min, field_max)
+        if (field_min < EPS_R_TRAN) then
+          ref_field_safe = .false.
+          EXIT
+        end if
+        ref_mass => self%get_ref_mass_y(mesh_id, step, negative_check_flag=.false.)
+        call get_field_minmax(ref_mass, field_min, field_max)
+        if (field_min < EPS_R_TRAN) then
+          ref_field_safe = .false.
+          EXIT
+        end if
+      end if
+    end do
+
+    if (ref_field_safe) then
+      call log_event(                                                          &
+              'All reference fields are safe, no negative values found',       &
+              LOG_LEVEL_DEBUG                                                  &
+      )
+    else
+      call log_event(                                                          &
+              'Negative values found in reference fields, departure point ' // &
+              'calculations will fail without taking further action',          &
+              LOG_LEVEL_WARNING                                                &
+      )
+    end if
+
+  end function check_all_reference_field
+
+  !> @brief Determines the maximum depth to initialise fields to, based on the
+  !!        stencil extent of the departure points.
+  !> @return The maximum depth to initialise fields to
+  function get_max_stencil_extent(self) result(max_depth)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(in) :: self
+
+    integer(kind=i_def)      :: max_depth
+    type(mesh_type), pointer :: mesh
+
+    if (self%max_stencil_extent_computed) then
+      max_depth = self%max_stencil_extent
+    else
+      mesh => mesh_collection%get_mesh(self%get_prime_extrusion_mesh_id())
+      max_depth = MIN(mesh%get_halo_depth(), dep_pt_stencil_extent)
+    end if
+
+  end function get_max_stencil_extent
+
+  !> @brief Sets the maximum depth to use in horizontal calculations
+  !> @param[in] max_depth The maximum depth to set
+  subroutine set_max_stencil_extent(self, max_depth)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: max_depth
+
+    self%max_stencil_extent = max_depth
+    self%max_stencil_extent_computed = .true.
+
+  end subroutine set_max_stencil_extent
+
+  !> @brief Logs the Courant numbers from the departure points. These correspond
+  !!        to the effective Courant number of the flow, not the Courant numbers
+  !!        of individual split steps. Courant numbers are determined from
+  !!        departure distances. For exact Courant numbers for split steps, run
+  !!        with log_level set to LOG_LEVEL_DEBUG.
+  subroutine log_courant(self)
+
+    implicit none
+
+    class(flux_precomputations_type), target, intent(inout) :: self
+
+    ! Internal variables
+    integer(kind=i_def)              :: step, step_of_substep
+    integer(kind=i_def)              :: direction
+    logical(kind=l_def)              :: hori_found, vert_found
+    integer(kind=i_def)              :: frac
+    real(kind=r_tran)                :: min_dist, max_dist
+    real(kind=r_tran)                :: max_courant_hori, max_courant_vert
+    type(r_tran_field_type), pointer :: dep_dist
+
+    if (log_at_level(LOG_LEVEL_INFO)) then
+      ! To estimate Courant numbers, use the departure distances for the first
+      ! vertical/horizontal steps, and multiply by split step fraction
+      hori_found = .false.
+      vert_found = .false.
+      ! Loop through steps to find first horizontal and vertical steps
+      do step = 1, self%num_steps
+        step_of_substep = MOD(step - 1, get_num_split_steps(self%splitting)) + 1
+        direction = get_splitting_direction(self%splitting, step_of_substep)
+        if (direction == direction_h .and. .not. hori_found) then
+          ! Get Courant number from departure distance, multiplied by step fraction
+          frac = get_splitting_fraction(self%splitting, step_of_substep)
+          dep_dist => self%get_dep_dist(self%mesh_ids(1), step)
+          call get_field_minmax(dep_dist, min_dist, max_dist)
+          max_courant_hori = MAX(ABS(min_dist), ABS(max_dist))                 &
+                             * REAL(frac*self%num_substeps, r_tran)
+          hori_found = .true.
+
+        else if (direction == direction_v .and. .not. vert_found) then
+          ! Get Courant number from departure distance, multiplied by step fraction
+          frac = get_splitting_fraction(self%splitting, step_of_substep)
+          dep_dist => self%get_dep_dist(self%mesh_ids(1), step)
+          call get_field_minmax(dep_dist, min_dist, max_dist)
+          max_courant_vert = MAX(ABS(min_dist), ABS(max_dist))                 &
+                             * REAL(frac*self%num_substeps, r_tran)
+          vert_found = .true.
+        end if
+      end do
+
+      write(log_scratch_space, '(A, E16.8)')                                   &
+          'Transport: max horizontal FFSL Courant ', max_courant_hori
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      write(log_scratch_space, '(A, E16.8)')                                   &
+          'Transport: max vertical FFSL Courant ', max_courant_vert
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
+
+  end subroutine log_courant
+
+end module flux_precomputations_alg_mod

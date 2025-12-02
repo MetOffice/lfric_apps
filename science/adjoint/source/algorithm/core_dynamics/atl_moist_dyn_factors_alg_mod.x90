@@ -1,0 +1,63 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>
+!> @brief Adjoint of moist dynamics factor updating
+!>
+module atl_moist_dyn_factors_alg_mod
+
+  use constants_mod,                 only : i_def
+  use field_mod,                     only : field_type
+  use formulation_config_mod,        only : moisture_formulation,            &
+                                            moisture_formulation_dry,        &
+                                            moisture_formulation_passive,    &
+                                            moisture_formulation_active,     &
+                                            moisture_formulation_traditional
+  use log_mod,                       only : log_event, LOG_LEVEL_ERROR
+  use mr_indices_mod,                only : nummr, imr_v
+  use moist_dyn_mod,                 only : num_moist_factors, &
+                                            gas_law,           &
+                                            total_mass,        &
+                                            water
+
+  use atl_moist_dyn_gas_kernel_mod,  only : atl_moist_dyn_gas_kernel_type
+  use atl_moist_dyn_mass_kernel_mod, only : atl_moist_dyn_mass_kernel_type
+
+  implicit none
+
+contains
+
+  !> @details Adjoint of moist dynamics factor updating
+  !> @param[in,out] moist_dyn Auxilliary fields for moist dynamics
+  !> @param[in] mr Field bundle containing the moisture mixing ratios
+  subroutine atl_moist_dyn_factors_alg( moist_dyn, mr )
+
+    implicit none
+
+    ! Moist dynamics
+    type( field_type ), intent(inout) :: moist_dyn(num_moist_factors)
+    ! Moisture mixing ratios
+    type( field_type ), intent(inout) :: mr(nummr)
+
+    select case(moisture_formulation)
+    case(moisture_formulation_dry, moisture_formulation_passive)
+      call invoke( setval_c(moist_dyn(gas_law),    0.0_r_def),  &
+                   setval_c(moist_dyn(total_mass), 0.0_r_def),  &
+                   setval_c(moist_dyn(water),      0.0_r_def) )
+    case(moisture_formulation_active)
+      call invoke( setval_c(moist_dyn(water), 0.0_r_def),                  &
+                   atl_moist_dyn_mass_kernel_type(moist_dyn(total_mass), mr), &
+                   setval_c(moist_dyn(gas_law), 0.0_r_def) )
+    case(moisture_formulation_traditional)
+      call invoke( setval_c(moist_dyn(water), 0.0_r_def), &
+                   atl_moist_dyn_mass_kernel_type(moist_dyn(total_mass), mr),    &
+                   atl_moist_dyn_gas_kernel_type(moist_dyn(gas_law), mr(imr_v)) )
+    case default
+      call log_event('Unknown moisture_formulation', LOG_LEVEL_ERROR)
+    end select
+
+  end subroutine atl_moist_dyn_factors_alg
+
+end module atl_moist_dyn_factors_alg_mod

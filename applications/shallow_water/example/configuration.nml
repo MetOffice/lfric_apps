@@ -1,0 +1,360 @@
+! Configuration for running the Gaussian test with shallow water miniapp
+
+&base_mesh
+file_prefix          = 'PUSM_res32'
+        ! Mesh Name
+        ! 'mesh_Cxx' for spherical test cases (C12, C24, C48, C96)
+        ! 'PUSM_resxx' for periodic unit square test cases (128, 64, 32, 16)
+        ! 'PSM_Lxxkm_resxx' for unit square test cases
+prime_mesh_name      = 'dynamics'
+geometry             = 'planar'
+        ! Geometry either 'planar' or 'spherical'
+topology             ='fully_periodic'
+prepartitioned       = .false.
+fplane               = .true.
+f_lat_deg            = 90.0
+        ! Choose 90.0 for planar shallow water equations with Coriolis term f u^perp
+/
+
+
+&io
+use_xios_io               = .false.
+diag_active_files         = 'lfric_diag'
+diag_always_on_sampling   = .false.
+write_diag                = .true.
+write_dump                = .false.
+file_convention           = 'UGRID'
+diagnostic_frequency      = 20
+nodal_output_on_w3        = .false.
+subroutine_timers         = .true.
+subroutine_counters       = .false.
+checkpoint_read           = .false.
+checkpoint_write          = .false.
+counter_output_suffix='counter.txt',
+timer_output_path='timer.txt',
+write_conservation_diag=.false.,
+write_fluxes=.false.,
+write_minmax_tseries=.false.,
+/
+
+&mixed_solver
+eliminate_variables   = 'discrete'
+fail_on_non_converged = .true.,
+si_method             = 'gmres',
+si_preconditioner     = 'diagonal',
+si_maximum_iterations = 20,
+gcrk                  = 4,
+si_tolerance          = 1.0e-4,
+guess_np1             = .F
+reference_reset_time  = 0.001
+normalise             = .true.,
+mixed_solver_a_tol    = 1.0e-4,
+monitor_convergence   = .true.,
+split_w               = .false.,
+/
+
+&partitioning
+panel_decomposition = 'auto'
+partitioner='planar'
+        ! use planar or cubedsphere based on geometry from base_mesh
+panel_xproc=1
+panel_yproc=1
+/
+
+&planet
+cp             = 1005.0
+p_zero         = 100000.0
+rd             = 287.05
+gravity        = 1.0
+        ! For our purposes gravity is hidden in ref_gp except for spherical tests initial conditions.
+        ! Recommended values: 9.80616 for Williamson and Galewsky  Sphere test cases
+        !                     1.0     for gaussian hill
+        !                     5.0     for geostrophic imbalance test case
+        !                     10.0    for geostrophic balance test case
+        !                     10.0    for thermal double vortex test case (non-dim)
+        !                     9.80616 for thermal double vortex test case
+        !                     9.80616 for vortex field test case
+omega          = 5.0
+        ! Equal to f/2. for coriolis parameter f in shallow water equations
+        ! Recommended values: 7.292116E-5 for spherical test cases
+        !                     2.5         for geostrophic imbalance test case
+        !                     5.0         for planar geostrophic balance test case
+        !                     0.02        for thermal double vortex test case (non-dim)
+        !                     0.000030735 for thermal double vortex test case
+        !                     0.0         for no Coriolis
+scaling_factor = 1.0
+        ! divides radius by this factor (for spherical domains),
+        ! multiplies omega by this factor (for all domains)
+        ! use 1.0 usually
+/
+
+&shallow_water_settings
+ref_gp = 5.0     ! reference geopotential; gravity*reference_height
+                 ! Recommended values: 29420   for spherical geostrophic balance test case (i.e. 3000*g)
+                 !                     58440   for mountain test case                      (i.e. 5960*g)
+	         !                     98061.6 for Galewsky test case                      (i.e. 10000*g)
+                 !                     100.0   for planar geostrophic balance test case
+	         !                     5.0     for geostrophic imbalance test case
+	         !                     5.0     for Gaussian test case
+	         !                     10.0     for vortex field test case
+	         !                     0.0015  for thermal double vortex test case (non-dim)
+	         !                     7354.62 for thermal double vortex test case         (i.e. 750*g)
+thermal_swe     = .false.
+momentum_form   = 'vector_invariant'
+                 ! Choose between 'vector_invariant' or 'momentum'
+time_scheme='semi_implicit'
+                 ! Choose between 'semi_implicit' (standard SI), 'ssprk3'
+		 ! (explicit RK-SSP3), or 'rk4' (Explicit RK4)
+                 ! Note that for explicit you must change runge_kutta_method='forward_euler'
+                 ! in the transport namelist.
+swe_test        = 'swe_gaussian_hill'
+                 ! choose from swe_geostr_imbalance   (planar sin wave)
+                 !             swe_geostr_balance     (planar sin wave|spherical Williamson2)
+                 !             swe_gaussian_hill      (planar Gaussian graivty wave)
+                 !             swe_vortex_field       (planar Vortex Field)
+                 !             swe_thermal_dbl_vortex (planar thermal test)
+                 !             swe_mountain           (spherical Williamson5 Mountain Test)
+                 !             swe_galewsky           (spherical Galewsky Instability Test)
+/
+
+&shallow_water_test_coeff
+! Gaussian hill parameters
+mag1 = 2.0 ! magnitude
+xr = 0.1   ! extend factor in x-direction
+yr = 0.1   ! extend factor in y-direction
+x1 = 0.1   ! position in x-direction
+y1 = 0.1   ! position in y-direction
+u1 = 1.0   ! 1st velocity component for advected hill
+u2 = -1.0  ! 2nd velocity component for advected hill
+/
+
+&solver
+method              = 'chebyshev'   ! gmres, bicgstab do not converge for v2 spherical initialisation of q
+preconditioner      = 'diagonal' ! or diagonal (still need to build diagonal one for q mass solver)
+maximum_iterations  = 20   ! Lots of iterations required for v2 spherical initialisation of q
+tolerance           = 1e-12   ! Use 12 except for Galewsky: 5
+gcrk                = 18
+monitor_convergence = .false.,
+/
+
+&time
+calendar        = 'timestep'
+timestep_start  = '1'
+timestep_end    = '200'
+        ! Recommended timestep_end:
+        !  288  for Galewsky                     (i.e. 6 days for dt = 1800)
+        !  720  for Williamson test cases       (i.e. 15 days for dt = 1800)
+        !  100  for Gaussian Test on P32                    (for dt = 0.001)
+        !  1000 for Vortex Test on P64                      (for dt = 0.001)
+        !  100  for Geostrophic planar test cases
+        !  360  for non-dim thermal double vortex test case (for dt = 0.1)
+        !  500  for thermal double vortex test case         (for dt = 486 s)
+calendar_type   = 'gregorian'
+calendar_start  = '2016-01-01 15:00:00'
+calendar_origin = '2016-01-01 15:00:00'
+/
+
+&timestepping
+method             = 'semi_implicit'
+        ! Note: To use Runge Kutta change time_scheme in shallow_water_settings
+dt                 = 0.001
+        ! Recommended values:
+        ! O(10)      for Williamson and Galewsky test cases ( O(0.0001) for scaled)
+        ! O(0.001)   for Geostrophic planar test cases
+        ! O(0.001)   for Gaussian and Vortex field tests
+        ! O(0.1)     for thermal double vortex test case (non-dim)
+        ! O(500)     for thermal double vortex test case (res 120: 486 s)
+alpha              = 0.5
+outer_iterations   = 2
+inner_iterations   = 2
+runge_kutta_method = 'ssp3'
+        ! This runge_kutta_method does not affect the shallow water miniapp
+spinup_alpha       = .false.
+tau_r              = 0.0
+tau_t              = 0.0
+tau_u              = 0.0
+/
+
+&transport
+adjust_theta=.false.
+adjust_theta_above=0.0
+adjust_vhv_wind=.false.
+broken_w2_projection = .true.
+calculate_detj = 'upwind'
+cap_density_predictor = 0.01
+cfl_mol_1d_stab    = 1.0
+cfl_mol_2d_stab    = 1.0
+cfl_mol_3d_stab    = 1.0
+cheap_update       = .false.
+consistent_metric  = .false.
+dep_pt_stencil_extent = 1
+dry_field_name     = 'q'
+enforce_min_value  = 7*.false.
+equation_form      = 1,2,2,1,2,2,2
+ffsl_inner_order   = 2
+ffsl_outer_order   = 2
+ffsl_splitting     = 7*1
+ffsl_unity_3d      = .false.
+ffsl_vertical_order= 7*1
+field_names              = 'geopot','buoyancy','wind','q','tracer_const','tracer_pv','tracer_step'
+fv_horizontal_order      = 2
+fv_vertical_order        = 2
+horizontal_method        = 7*1
+horizontal_monotone      = 7*1
+log_space                = 7*.false.
+max_vert_cfl_calc        = 'uniform'
+min_value                = 0.0,0.0,-99999999.0,-99999999.0,0.0,-99999999.0,0.0
+min_val_abs_tol          = -1.0e-12
+min_val_max_iterations   = 10
+min_val_method           = 'iterative'
+oned_reconstruction      = .false.
+operators                = 'fv'
+panel_edge_high_order    = .true.,
+panel_edge_treatment     = 'none'
+profile_size             = 7
+reversible               = .false., .false., .false., .false., .false., .false., .false.
+runge_kutta_method       = 'ssp3'
+        ! 'ssp3' should be used with semi-implicit time stepping,
+        ! 'forward_euler' should be used with explicit time stepping
+scheme                   = 7*1
+si_outer_transport       = 'none'
+slice_order              = 'cubic'
+special_edges_monotone   = 7*1
+splitting                = 7*1
+substep_transport        = 'off'
+theta_dispersion_correction=.false.
+theta_variable           = 'dry'
+use_density_predictor    = .true.
+vertical_method          = 7*1
+vertical_sl_order        = 'cubic'
+vertical_monotone        = 7*1
+vertical_monotone_order  = 7*3
+wind_mono_top            = .false.
+wind_mono_top_depth      = 0
+/
+
+! These namelist options do not affect the shallow water miniapp and should be left alone
+
+&checks
+limit_cfl=.false.
+/
+
+&departure_points
+  horizontal_limit    = 'none'
+  horizontal_method   = 'euler'
+  n_dep_pt_iterations = 1
+  share_stencil_extent=.true.
+  vertical_limit      = 'boundary'
+  vertical_method     = 'euler'
+  vertical_sorting    = .false.
+/
+
+&energy_correction
+  encorr_usage = 'none'
+/
+
+&extrusion
+method           = 'uniform'
+domain_height    = 1.0
+number_of_layers = 1
+        ! Have just one layer for shallow water equations
+planet_radius    = 1.0
+        ! Recommended values: 6371229 for spherical and dimensional test cases
+        !                     1.0     for non-dimensional test cases (i.e. PUSM)
+stretching_method='linear'
+/
+
+&files
+diag_stem_name       = 'shallow_water'
+checkpoint_stem_name = "restartShallowWater"
+start_dump_filename  = ''
+start_dump_directory = ''
+/
+
+&finite_element
+        ! These do not need changing
+cellshape       = 'quadrilateral'
+coord_order     = 1
+coord_system    = 'native'
+element_order_h = 0
+element_order_v = 0
+rehabilitate    = .true.
+vorticity_in_w1 = .true.
+/
+
+&formulation
+eos_method            = 'sampled'
+l_multigrid           = .false.
+moisture_formulation  = 'dry'
+rotating              = .true.
+dlayer_on             = .false.,
+dry_static_adjust     = .false.,
+exner_from_eos        = .false.,
+horizontal_physics_predictor   = .false.
+horizontal_transport_predictor = .false.
+init_exner_bt         = .false.,
+shallow               = .false.,
+si_momentum_equation  = .false.,
+theta_moist_source    = .false.
+use_multires_coupling = .false.,
+use_physics           = .false.,
+use_wavedynamics      = .false.,
+vector_invariant      = .false.,
+/
+
+&helmholtz_solver
+fail_on_non_converged = .true.,
+gcrk = 4,
+method = 'bicgstab',
+monitor_convergence = .true.,
+normalise = .true.,
+preconditioner = 'tridiagonal',
+si_pressure_a_tol = 1.0e-4,
+si_pressure_maximum_iterations = 499,
+si_pressure_tolerance = 1.0e-4,
+/
+
+&idealised
+perturb_init=.false.
+test = 'none'
+        ! The initial conditions are set in shallow_water_settings
+/
+
+&initial_wind
+profile        = 'none'
+u0             = 0.0
+v0             = 0.0
+sbr_angle_lat  = 0.0
+sbr_angle_lon  = 0.0
+/
+
+&initialization
+ancil_option = 'none'
+init_option  = 'analytic'
+lbc_option   = 'none'
+ls_option    = 'none'
+coarse_aerosol_ancil=.false.
+zero_w2v_wind=.false.,
+/
+
+&logging
+run_log_level='info'
+/
+
+&multigrid
+multigrid_chain_nitems = 4
+/
+
+&section_choice
+radiation          = 'none',
+boundary_layer     = 'none',
+convection         = 'none',
+microphysics       = 'none',
+cloud              = 'none',
+aerosol            = 'none',
+spectral_gwd       = 'none',
+orographic_drag    = 'none',
+dynamics           = 'gungho',
+surface            = 'none',
+stochastic_physics = 'none'
+/

@@ -1,0 +1,162 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/default_task_definitions_lfric_coupled.cylc") %}
+
+{% if "calendar" not in task_dict %}
+    {% do task_dict.update({"calendar": "360day"}) %}
+{% endif %}
+
+{% if "datam" not in task_dict %}
+    {% do task_dict.update({"datam": "History_Data"}) %}
+{% endif %}
+
+{% if "diag_mean_period" not in task_dict %}
+    {% do task_dict.update({"diag_mean_period": "1M"}) %}
+{% endif %}
+
+{% if "expt_basis" not in task_dict %}
+    {% do task_dict.update({"expt_basis": '1979,1,1,0,0'}) %}
+{% endif %}
+
+{% if "expt_calendar" not in task_dict %}
+    {% do task_dict.update({"expt_calendar": "360day"}) %}
+{% endif %}
+
+{% if "expt_resub" not in task_dict %}
+    {% do task_dict.update({"expt_resub": "12H"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "gswp_install_dir" not in task_dict %}
+    {% do task_dict.update({"gswp_install_dir": "/common/internal/jules/datasets/gswp2"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "nemo_ancil_trip_number" not in task_dict %}
+    {% do task_dict.update({"nemo_ancil_trip_number": "river_number_nemo.nc"}) %}
+{% endif %}
+
+{% if "nemo_iproc" not in task_dict %}
+    {% do task_dict.update({"nemo_iproc": 22}) %}
+{% endif %}
+
+{% if "nemo_jproc" not in task_dict %}
+    {% do task_dict.update({"nemo_jproc": 18}) %}
+{% endif %}
+
+{% if "nemo_nproc" not in task_dict %}
+    {% do task_dict.update({"nemo_nproc": task_dict["nemo_iproc"] *
+                                          task_dict["nemo_jproc"]}) %}
+{% endif %}
+
+{% if "nemo_rst" not in task_dict %}
+    {% do task_dict.update({"nemo_rst": task_dict["datam"]~"/NEMOhist"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "nemo_start" not in task_dict %}
+    {% do task_dict.update({"nemo_start": "$BIG_DATA_DIR/start_dumps/basic-gc/Tamaraw/19790101/cf652o_19790101_restart.nc"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "nemo_icebergs_start" not in task_dict %}
+    {% do task_dict.update({"nemo_icebergs_start": "$BIG_DATA_DIR/start_dumps/basic-gc/Tamaraw/19790101/cd986o_icebergs_19781201_restart.nc"}) %}
+{% endif %}
+
+{% if "nemo_version" not in task_dict %}
+    {% do task_dict.update({"nemo_version": 400}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "oceandir" not in task_dict %}
+    {% do task_dict.update({"oceandir": "/common/internal/ocean"}) %}
+{% endif %}
+
+{% if "ocean_seaice_timesteps_per_day" not in task_dict %}
+    {% do task_dict.update({"ocean_seaice_timesteps_per_day": 48}) %}
+{% endif %}
+
+{% if "ocean_seaice_seconds_per_timestep" not in task_dict %}
+    {% do task_dict.update({"ocean_seaice_seconds_per_timestep": 86400/task_dict["ocean_seaice_timesteps_per_day"]|int}) %}
+{% endif %}
+
+{% if "ocean_threads" not in task_dict %}
+    {% do task_dict.update({"ocean_threads": 1}) %}
+{% endif %}
+
+{# Caution: This default assumes running on the MO ex1a #}
+{% if "ppn" not in task_dict %}
+    {% do task_dict.update({"ppn": 128}) %}
+{% endif %}
+
+{% if "ocean_make_dir" not in task_dict %}
+    {% do task_dict.update({"ocean_make_dir": "$CYLC_WORKFLOW_SHARE_DIR/"~
+                                              "fcm_make_lfric_coupled_ocean_"~
+                                              task_ns.platform~"_"~
+                                              task_dict["build_conf"]}) %}
+{% endif %}
+
+{% if "ocean_nodes" not in task_dict %}
+    {% do task_dict.update({"ocean_nodes":
+                            ((task_dict["nemo_nproc"]|float * task_dict["ocean_threads"]|float) /
+                            (task_dict["ppn"]|float))|round(0, 'ceil')|int}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "rivers_only_drive_task" not in task_dict %}
+    {% do task_dict.update({"rivers_only_drive_task": "meto_linux_intel_gswp2_rivers"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "rivers_only_install_dir" not in task_dict %}
+    {% do task_dict.update({"rivers_only_install_dir": "$BIG_DATA_DIR/ancils/basic-gc/Ticket2861/C48/n96e/orca025/rivers_trip/rivers_grid"}) %}
+{% endif %}
+
+{% if "river_nodes" not in task_dict %}
+    {% do task_dict.update({"river_nodes": 1}) %}
+{% endif %}
+
+{% if "river_nproc" not in task_dict %}
+    {% do task_dict.update({"river_nproc": 1}) %}
+{% endif %}
+
+{% if "river_threads" not in task_dict %}
+    {% do task_dict.update({"river_threads": 1}) %}
+{% endif %}
+
+{% if "river_make_dir" not in task_dict %}
+    {% do task_dict.update({"river_make_dir": "$CYLC_WORKFLOW_SHARE_DIR/"~
+                                              "fcm_make_lfric_coupled_river_"~
+                                              task_ns.platform~"_"~
+                                              task_dict["build_conf"]}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "riv_number_ancillary" not in task_dict %}
+    {% do task_dict.update({"riv_number_ancillary": "$BIG_DATA_DIR/ancils/basic-gc/Ticket147/C48/n96e/orca025/remapping_weights"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "si3_start" not in task_dict %}
+    {% do task_dict.update({"si3_start": "$BIG_DATA_DIR/start_dumps/basic-gc/Tamaraw/19790101/cf652o_19790101_restart_ice.nc"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "um_ancil_trip_seq_dir" not in task_dict %}
+    {% do task_dict.update({"um_ancil_trip_seq_dir": "/dummy"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "um_ancil_trip_stor_dir" not in task_dict %}
+    {% do task_dict.update({"um_ancil_trip_stor_dir": "/dummy"}) %}
+{% endif %}
+
+{# Caution: This default assumes running at the MO #}
+{% if "um_ancil_trip_number" not in task_dict %}
+    {% do task_dict.update({"um_ancil_trip_number": "river_number_um"}) %}
+{% endif %}
+
+{% do LOG.debug("Finished in templates/default_task_definitions_lfric_coupled.cylc") %}

@@ -1,0 +1,24 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/azngarch/groups/groups_gungho.cylc") %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "gungho_developer": [
+        "scripts",
+        "gungho_unit_tests",
+        "gungho_integration_tests",
+    ],
+    "gungho": [
+        "gungho_developer",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.gungho_developer) %}
+{% do site_groups.all.extend(site_groups.gungho) %}
+
+{% do LOG.debug("Finished in site/azngarch/groups/groups_gungho.cylc") %}

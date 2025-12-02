@@ -1,0 +1,337 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing handwritten adjoint test for adj_flux_precomputations_mod routines
+module adjt_flux_precomputations_alg_mod
+
+  use field_mod,                           only : field_type
+  use r_tran_field_mod,                    only : r_tran_field_type
+  use mesh_mod,                            only : mesh_type
+  use function_space_collection_mod,       only : function_space_collection
+  use function_space_mod,                  only : function_space_type
+  use finite_element_config_mod,           only : element_order_h, &
+                                                  element_order_v
+  use model_clock_mod,                     only : model_clock_type
+  use constants_mod,                       only : i_def, r_def, r_tran, l_def
+  use fs_continuity_mod,                   only : W3, W2
+  use log_mod,                             only : log_event,       &
+                                                  LOG_LEVEL_ERROR, &
+                                                  LOG_LEVEL_INFO,  &
+                                                  LOG_LEVEL_DEBUG, &
+                                                  log_scratch_space
+  use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
+  use tl_transport_controller_mod,         only : tl_transport_controller_type
+  use transport_controller_mod,            only : transport_controller_type
+  use flux_precomputations_alg_mod,        only : flux_precomputations_type
+  use split_transport_utils_mod,           only : get_num_split_steps
+  use init_from_controller_alg_mod,        only : init_flux_fields, &
+                                                  init_flux_pc_fieldvals
+  use inner_from_controller_rtran_alg_mod, only : flux_pc_ref_flux_prod_rtran,      &
+                                                  flux_pc_ref_flux_inp_prod_rtran,  &
+                                                  flux_pc_ref_field_prod_rtran,     &
+                                                  flux_pc_ref_field_inp_prod_rtran, &
+                                                  flux_pc_ref_mass_prod_rtran,      &
+                                                  flux_pc_ref_mass_inp_prod_rtran
+
+  implicit none
+
+  private
+  public :: adjt_flux_precomputations_initialiser_alg
+  public :: adjt_initialise_step_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for adj_flux_pc_initialiser.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !> Determined by testing the equality of inner products
+  !> < Mx, Mx > and < AMx, x >, where M is the tangent linear
+  !> and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine adjt_flux_precomputations_initialiser_alg( mesh, model_clock )
+
+    use adj_flux_precomputations_mod, only : adj_flux_precomputations_initialiser
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(flux_precomputations_type), pointer :: flux_pc
+    integer(kind=i_def)                      :: splitting
+    integer(kind=i_def)                      :: num_substeps
+    type(r_tran_field_type)                  :: ref_field
+
+    ! Copies of input fields used in inner products
+    type(r_tran_field_type)        :: ref_field_inp
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+
+    ! Variables used to handle calculations for fields stored in tl_transport_controller
+    integer(kind=i_def)                                :: mesh_id
+    integer(kind=i_def)                                :: num_split_steps
+    integer(kind=i_def)                                :: num_steps
+    type(tl_transport_controller_type)                 :: tl_transport_controller
+    type(transport_controller_type),           pointer :: ls_transport_controller
+    type(r_tran_field_type),                   target  :: dummy_wind
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_inp
+    type(r_tran_field_type), dimension(:), allocatable :: flux_pc_ref_field_inp
+    type(r_tran_field_type), dimension(:), allocatable :: flux_pc_ref_mass_inp
+    type(field_type)                                   :: dummy
+    type(function_space_type),                 pointer :: dummy_vs
+
+    ! Inner products
+    real(kind=r_tran)            :: inner1
+    real(kind=r_def)             :: ref_field_inner_prod
+    real(kind=r_tran)            :: ref_field_sf
+    real(kind=r_tran)            :: inner2
+    real(kind=r_def)             :: rf_rf_inp_inner_prod
+    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+    real(kind=r_tran), parameter :: dt_logging = 1.0_r_tran
+
+    ! Test parameters and variables
+    real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran) :: machine_tol
+    real(kind=r_tran) :: relative_diff
+
+    mesh_id = mesh%get_id()
+
+    ! Initialising fields
+    vector_space_w3_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W3                             &
+    )
+    vector_space_w2_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W2                             &
+    )
+
+    call ref_field%initialise( vector_space = vector_space_w3_ptr )
+    call dummy_wind%initialise( vector_space = vector_space_w2_ptr )
+    call ref_field%copy_field_properties( ref_field_inp )
+
+    ! Initialise values
+    call invoke( setval_random( ref_field ),          &
+                 setval_X( ref_field_inp, ref_field ) )
+
+    ! Initialise wind_precomputations object
+    ref_field_inner_prod = 0.0_r_def
+
+    ! To avoid complexity everywhere else with the inner products, we need the flux precomputations
+    ! object to be associated with a transport controller...
+    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs )
+    ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
+
+    ! But this getter actually initialises the flux precomputations using the fields in the test setup function...
+    flux_pc => ls_transport_controller%get_flux_precomputations()
+    splitting = flux_pc%get_splitting()
+    num_split_steps = get_num_split_steps(splitting)
+    num_steps = flux_pc%get_num_steps()
+    num_substeps = num_steps/num_split_steps
+
+    ! So we deallocate the arrays...
+    call flux_pc%finalise()
+
+    ! And use the variables in this scope!
+    call flux_pc%initialise( mesh,         &
+                             splitting,    &
+                             num_substeps, &
+                             dummy_wind,   &
+                             dt_logging,   &
+                             ref_field )
+
+    call init_flux_pc_fieldvals( mesh,                     &
+                                 1_i_def,                  &
+                                 dummy_inp,                &
+                                 flux_pc_ref_field_inp,    &
+                                 flux_pc_ref_mass_inp,     &
+                                 ls_transport_controller )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( ref_field_inner_prod, &
+                                   ref_field ) )
+
+    ! Determining scale factors
+    ref_field_sf = 1.0_r_tran/( real( ref_field_inner_prod, r_tran ) + eps )
+
+    inner1 = 0.0_r_tran
+    inner1 = inner1 + real( ref_field_inner_prod, r_tran )*ref_field_sf
+    write(log_scratch_space, *) "adjt_flux_precomputations_initialiser inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "ref_field inner product = ", real( ref_field_inner_prod, r_tran )
+    call flux_pc_ref_field_prod_rtran( inner1, ls_transport_controller, 1_i_def )
+    call flux_pc_ref_mass_prod_rtran( inner1, ls_transport_controller, 1_i_def )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( ref_field_sf, ref_field ) )
+
+    ! Adjoint
+    rf_rf_inp_inner_prod = 0.0_r_def
+
+    call adj_flux_precomputations_initialiser( flux_pc, &
+                                               ref_field )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( rf_rf_inp_inner_prod, &
+                                   ref_field,            &
+                                   ref_field_inp ) )
+    inner2 = 0.0_r_tran
+    inner2 = inner2 + real( rf_rf_inp_inner_prod, r_tran )
+    call flux_pc_ref_field_inp_prod_rtran( inner2, ls_transport_controller, 1_i_def, flux_pc_ref_field_inp )
+    call flux_pc_ref_mass_inp_prod_rtran( inner2, ls_transport_controller, 1_i_def, flux_pc_ref_mass_inp )
+
+    call tl_transport_controller%finalise()
+    if ( allocated(dummy_inp) )              deallocate( dummy_inp )
+    if ( allocated(flux_pc_ref_field_inp) )  deallocate( flux_pc_ref_field_inp )
+    if ( allocated(flux_pc_ref_mass_inp) )   deallocate( flux_pc_ref_mass_inp )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED flux_precomputations_initialiser:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED flux_precomputations_initialiser:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine adjt_flux_precomputations_initialiser_alg
+
+  !=============================================================================
+  !> @brief Adjoint test for adj_initialise_step.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !> Determined by testing the equality of inner products
+  !> < Mx, Mx > and < AMx, x >, where M is the tangent linear
+  !> and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine adjt_initialise_step_alg( mesh, model_clock )
+
+    use adj_flux_precomputations_mod, only : adj_initialise_step
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(flux_precomputations_type),           pointer :: flux_pc
+    type(r_tran_field_type), dimension(:), allocatable :: ref_flux
+    integer(kind=i_def)                                :: step
+
+    ! Copies of input fields used in inner products
+    type(r_tran_field_type), dimension(:), allocatable :: ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: flux_pc_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_inp
+
+    ! Variables used to handle calculations for fields stored in tl_transport_controller
+    type(tl_transport_controller_type)                 :: tl_transport_controller
+    type(transport_controller_type),           pointer :: pert_wind_ls_rho_controller
+    integer(kind=i_def)                                :: num_steps
+    type(field_type)                                   :: dummy
+    type(function_space_type),                 pointer :: dummy_vs
+
+    ! Inner products
+    real(kind=r_def)             :: ref_flux_inner_prod
+    real(kind=r_tran)            :: ref_flux_sf
+    real(kind=r_tran)            :: inner1
+    real(kind=r_def)             :: ref_flux_ref_flux_inp_inner_prod
+    real(kind=r_tran)            :: inner2
+    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+
+    ! Test parameters and variables
+    real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran)            :: machine_tol
+    real(kind=r_tran)            :: relative_diff
+
+    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs )
+    pert_wind_ls_rho_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    flux_pc => pert_wind_ls_rho_controller%get_flux_precomputations()
+    num_steps = flux_pc%get_num_steps()
+
+    ref_flux_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call init_flux_fields( mesh,                       &
+                           num_steps,                  &
+                           ref_flux,                   &
+                           pert_wind_ls_rho_controller )
+    call init_flux_fields( mesh,                       &
+                           num_steps,                  &
+                           ref_flux_inp,               &
+                           pert_wind_ls_rho_controller )
+    call init_flux_pc_fieldvals( mesh,                       &
+                                 1_i_def,                    &
+                                 flux_pc_ref_flux_inp,       &
+                                 dummy_ref_field_inp,        &
+                                 dummy_ref_mass_inp,         &
+                                 pert_wind_ls_rho_controller )
+
+    inner1 = 0.0_r_tran
+    write(log_scratch_space, *) "adjt_initialise_step inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    do step = 1, num_steps
+      ref_flux_inner_prod = 0.0_r_def
+      call invoke( setval_random( ref_flux(step) ), &
+                   setval_X( ref_flux_inp(step), ref_flux(step) ) )
+
+      ! Tangent linear
+      call flux_pc%initialise_step( step, ref_flux(step) )
+      call invoke( x_innerproduct_x( ref_flux_inner_prod, &
+                                     ref_flux(step) ) )
+
+      ! Determining scale factors
+      ref_flux_sf = 1.0_r_tran/( real( ref_flux_inner_prod, r_tran ) + eps )
+
+      inner1 = inner1 + real( ref_flux_inner_prod, r_tran )*ref_flux_sf
+      write(log_scratch_space, *) "ref_flux(step = ", step, ") inner product = ", ref_flux_inner_prod
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+      ! Scaling fields
+      call invoke( inc_a_times_X( ref_flux_sf, ref_flux(step) ) )
+    end do
+    call flux_pc_ref_flux_prod_rtran( inner1, pert_wind_ls_rho_controller, 1_i_def )
+
+    ref_flux_ref_flux_inp_inner_prod = 0.0_r_def
+    inner2 = 0.0_r_tran
+    do step = num_steps, 1, -1
+      ref_flux_ref_flux_inp_inner_prod = 0.0_r_def
+      ! Adjoint
+      call adj_initialise_step( flux_pc, step, ref_flux(step) )
+      call invoke( x_innerproduct_y( ref_flux_ref_flux_inp_inner_prod, &
+                                     ref_flux(step),                   &
+                                     ref_flux_inp(step) ) )
+      inner2 = inner2 + real( ref_flux_ref_flux_inp_inner_prod, r_tran )
+    end do
+    call flux_pc_ref_flux_inp_prod_rtran( inner2, pert_wind_ls_rho_controller, 1_i_def, flux_pc_ref_flux_inp )
+
+    call tl_transport_controller%finalise()
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED flux_precomputations%initialise_step:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write(log_scratch_space, *) "FAILED flux_precomputations%initialise_step:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    if ( allocated(ref_flux) )             deallocate( ref_flux )
+    if ( allocated(ref_flux_inp) )         deallocate( ref_flux_inp )
+    if ( allocated(flux_pc_ref_flux_inp) ) deallocate( flux_pc_ref_flux_inp )
+    if ( allocated(dummy_ref_field_inp) )  deallocate( dummy_ref_field_inp )
+    if ( allocated(dummy_ref_mass_inp) )   deallocate( dummy_ref_mass_inp )
+
+  end subroutine adjt_initialise_step_alg
+
+end module adjt_flux_precomputations_alg_mod

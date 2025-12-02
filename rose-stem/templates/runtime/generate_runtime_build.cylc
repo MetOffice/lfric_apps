@@ -1,0 +1,71 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_build.cylc") %}
+
+{# Generate runtime section for build tasks #}
+
+{% set src_path = tasks_to_run[task]["application_dir"] %}
+
+{# Set the family inheritance for this task #}
+{% set inherit = namespace(str="") %}
+{% set inherit.str = "BUILD_"~task_ns.application|upper~"_"~task_ns.platform|upper~","~task_ns.platform|upper %}
+{% for family in task_values["build_families"] %}
+    {% set inherit.str = inherit.str~","~family|upper %}
+{% endfor %}
+
+{# Set the psyclone transformation #}
+{% if task_values["psyclone_transformation"] == "default" %}
+    {% set psyclone_transformation = SITE~"-"~task_ns.platform %}
+{% else %}
+    {% set psyclone_transformation = task_values["psyclone_transformation"] %}
+{% endif %}
+
+{# Check to see if it is a Perftools compile, as we need to change the Makefile target#}
+{%- set BUILD_TARGET  = "build" -%}
+{%  set PAT_BUILD_APP = "" %}
+{%- if SITE~"-"~task_ns.platform == 'meto-ex1a' %}
+    {%- if 'perftools' in task_ns.compiler %}
+        {%- set BUILD_TARGET  = "pat_build" -%}
+        {%- set PAT_BUILD_APP = "$LAUNCH_SCRIPT/launch_pat_build" -%}
+    {%- endif %}
+{%- endif %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile'
+        execution time limit = PT{{task_values["build_wallclock"]}}M
+        [[[environment]]]
+            SOURCE_DIRECTORY        = $SOURCE_ROOT/{{src_path}}
+            APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
+            CORE_ROOT_DIR           = $SOURCE_ROOT/lfric_core
+            PHYSICS_ROOT            = $SOURCE_ROOT
+            DESTINATION_DIRECTORY   = {{destination_dir}}
+            BIN_DIR                 = {{bin_dir}}
+            LIB_DIR                 = {{lib_dir}}
+            MOD_DIR                 = {{mod_dir}}
+            MESH_DIR                = {{mesh_dir}}
+            WORKING_DIR             = {{working_dir}}
+            TARGET                  = {{BUILD_TARGET}}
+            PROFILE                 = {{task_values["optlevel"]}}
+            PSYCLONE_TRANSFORMATION = {{psyclone_transformation}}
+            UM_FCM_TARGET_PLATFORM  = {{SITE}}-{{task_ns.platform}}
+            LFRIC_TARGET_PLATFORM   = {{SITE}}-{{task_ns.platform}}
+            MAKE_THREADS            = 6
+            RDEF_PRECISION          = {{task_values["precision"]["rdef"]}}
+            R_TRAN_PRECISION        = {{task_values["precision"]["rtran"]}}
+            R_BL_PRECISION          = {{task_values["precision"]["rbl"]}}
+            R_SOLVER_PRECISION      = {{task_values["precision"]["rsolver"]}}
+            R_PHYS_PRECISION        = {{task_values["precision"]["rphys"]}}
+            PRE_PROCESS_MACROS      = {{task_values["pre_process_macros"]}}
+            PAT_BUILD_PATH          = {{PAT_BUILD_APP}}
+{% if task_ns.application == "lfricinputs" %}
+            PROGRAMS                = {{task_values["app_name"]}}
+{% endif %}
+
+        [[[directives]]]
+{{ set_task_resources(task_values["build_cpus"], task_values["build_memory"]) }}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_build.cylc") %}

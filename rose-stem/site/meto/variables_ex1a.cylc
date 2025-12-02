@@ -1,0 +1,45 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/variables_ex1a.cylc") %}
+
+{% do kgo_vars.update({
+    "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_full-debug-64bit":          BASE,
+    "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit":          BASE,
+    "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_full-debug-64bit":              BASE,
+    "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit":              BASE,
+    "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit": BASE~"_t808",
+    "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit": BASE~"_t808",
+
+    "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_full-debug-64bit":             BASE,
+    "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_fast-debug-64bit":             BASE,
+    "lfricinputs_scintelapi-basicgal-C12L70-mixingratio_ex1a_gnu_full-debug-64bit":     BASE,
+    "lfricinputs_scintelapi-basicgal-C12L70-mixingratio_ex1a_gnu_fast-debug-64bit":     BASE,
+
+    "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_full-debug-64bit":                    BASE,
+    "lfricinputs_um2lfric-aquaplanet_lam_ex1a_gnu_fast-debug-64bit":                    BASE,
+    "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_full-debug-64bit":                    BASE,
+    "lfricinputs_um2lfric-aquaplanet_lbc_ex1a_gnu_fast-debug-64bit":                    BASE,
+    "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_full-debug-64bit":          BASE,
+    "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_ex1a_gnu_fast-debug-64bit":          BASE,
+    "lfricinputs_um2lfric-basicgal-N96L70_C12L70_ex1a_gnu_full-debug-64bit":            BASE,
+    "lfricinputs_um2lfric-basicgal-N96L70_C12L70_ex1a_gnu_fast-debug-64bit":            BASE,
+    "lfricinputs_um2lfric-falklands_lam_ex1a_gnu_full-debug-64bit":                     BASE,
+    "lfricinputs_um2lfric-falklands_lam_ex1a_gnu_fast-debug-64bit":                     BASE,
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C12L70_ex1a_gnu_full-debug-64bit":           BASE,
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C12L70_ex1a_gnu_fast-debug-64bit":           BASE,
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_full-debug-64bit":           BASE,
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C48L70_ex1a_gnu_fast-debug-64bit":           BASE,
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_fast-debug-64bit": BASE~"_t808",
+    "lfricinputs_um2lfric-nwp_gal9-N320L70_C224L70_ex1a_gnu_full-debug-64bit": BASE~"_t808",
+    "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_full-debug-64bit": BASE~"_t819",
+    "lfricinputs_um2lfric-protogal_chem-N48L70_C48L70_ex1a_gnu_fast-debug-64bit": BASE~"_t819",
+    "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_full-debug-64bit": BASE~"_t819",
+    "lfricinputs_um2lfric-protogal-N320L70_C12L70_ex1a_gnu_fast-debug-64bit": BASE~"_t819",
+    "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_full-debug-64bit":                      BASE,
+    "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_fast-debug-64bit":                      BASE,
+    }) %}
+
+{% do LOG.debug("Finished in site/meto/variables_ex1a.cylc") %}

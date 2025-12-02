@@ -1,0 +1,458 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Compute the advective update A of a Wtheta variable f by a wind U: A = U.grad(f).
+!> @todo There are number of workarounds in this algorithm for aspects which
+!!       aren't yet supported by PSyclone/LFRic:
+!!       1. Issue #868 Multidata fields are not natively supported in PSyclone.
+!!                     Currently we treat these as normal fields but need to
+!!                     additionally pass in ndata_h or ndata_v to the kernels
+!!                     as extra integer arguments.
+!!       2. Issue #1246 Region stencils require both the global maximum size of
+!!                      the stencil and local column size of the stencil.
+!!                      PSyclone currently only passes in the local size and so
+!!                      until this is resolved we also pass in the global maximum
+!!                      size as an integer argument.
+module wt_advective_update_alg_mod
+
+  use check_configuration_mod,            only: get_required_stencil_depth
+  use constants_mod,                      only: r_def, i_def, l_def, str_def,  &
+                                                r_tran
+  use sci_geometric_constants_mod,        only: get_coordinates,               &
+                                                get_extended_coordinates,      &
+                                                get_height_fe, get_height_fv
+  use sci_fem_constants_mod,              only: get_inverse_lumped_mass_matrix_fe, &
+                                                get_inverse_lumped_mass_matrix_fv
+  use field_mod,                          only: field_type
+  use r_tran_field_mod,                   only: r_tran_field_type
+  use fs_continuity_mod,                  only: W3, Wtheta, W2H, W2V
+  use function_space_mod,                 only: function_space_type
+  use function_space_collection_mod,      only: function_space_collection
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use quadrature_rule_gauss_lobatto_mod,  only: quadrature_rule_gauss_lobatto_type
+  use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use quadrature_face_mod,                only: quadrature_face_type
+  use quadrature_edge_mod,                only: quadrature_edge_type
+  use transport_config_mod,               only: operators,                     &
+                                                fv_horizontal_order,           &
+                                                fv_vertical_order,             &
+                                                operators_fv,                  &
+                                                operators_fem,                 &
+                                                oned_reconstruction,           &
+                                                consistent_metric,             &
+                                                panel_edge_treatment,          &
+                                                panel_edge_treatment_none
+  use transport_constants_mod,            only: get_element_order_h_transport, &
+                                                get_element_order_v_transport
+  use log_mod,                            only: log_event,                     &
+                                                LOG_LEVEL_ERROR,               &
+                                                LOG_LEVEL_INFO
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
+  use poly1d_reconstruction_kernel_mod,   only: poly1d_reconstruction_kernel_type
+  use poly2d_reconstruction_kernel_mod,   only: poly2d_reconstruction_kernel_type
+  use poly_adv_update_kernel_mod,         only: poly_adv_update_kernel_type
+  use remap_on_extended_mesh_alg_mod,     only: remap_on_extended_mesh
+  use transport_enumerated_types_mod,     only: direction_v,                   &
+                                                direction_h,                   &
+                                                direction_3d,                  &
+                                                monotone_none,                 &
+                                                monotone_koren,                &
+                                                monotone_clipping
+  use transport_metadata_mod,             only: transport_metadata_type
+  use polyh_wtheta_koren_kernel_mod,      only: polyh_wtheta_koren_kernel_type
+  use polyv_wtheta_koren_kernel_mod,      only: polyv_wtheta_koren_kernel_type
+  use copy_field_alg_mod,                 only: copy_field
+  use io_config_mod,                      only: subroutine_timers
+  use timer_mod,                          only: timer
+
+  implicit none
+
+  private
+
+  public  :: wt_advective_update_alg
+  public  :: hori_wt_update_alg
+  public  :: vert_wt_update_alg
+
+contains
+
+  !=============================================================================
+  !> @brief Compute the horizontal advective update of a Wtheta field.
+  !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
+  !> @param[in]     wind                Advecting wind field
+  !> @param[in]     wind_dir            Wind field to determine direction in kernel,
+  !>                                    equal to wind when used in gungho
+  !>                                    but ls_wind when used in the linear model
+  !> @param[in]     field               Wtheta field to advect
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  subroutine hori_wt_update_alg(u_grad_f, wind, wind_dir, field, transport_metadata)
+
+    use transport_constants_mod, only: get_hori_wt_mol_coeffs
+
+    implicit none
+
+    type(r_tran_field_type),       intent(in)    :: wind
+    type(r_tran_field_type),       intent(in)    :: wind_dir
+    type(r_tran_field_type),       intent(in)    :: field
+    type(r_tran_field_type),       intent(inout) :: u_grad_f
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: multidata_fs
+    type(r_tran_field_type),   pointer :: adv_coeffs
+    type(r_tran_field_type)            :: h_reconstruction
+    type(r_tran_field_type),   target  :: remap_field, field_big_halo
+    type(r_tran_field_type),   pointer :: field_ptr
+
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: stencil_size
+    logical(kind=l_def) :: monotone
+    integer(kind=i_def) :: remap_depth
+
+    if ( subroutine_timers ) call timer('transport.wt_hori_recon')
+
+    mesh => wind%get_mesh()
+    mesh_id = mesh%get_id()
+
+    if (oned_reconstruction) then
+      stencil_size = fv_horizontal_order + 1
+    else if (mod(fv_horizontal_order, 2) == 0) then
+      stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
+    else
+      stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
+    end if
+
+    stencil_extent = fv_horizontal_order/2_i_def
+    adv_coeffs => get_hori_wt_mol_coeffs(mesh_id)
+
+    ! Copy field to a large halo version
+    call field_big_halo%initialise( field%get_function_space(), &
+                                    halo_depth = get_required_stencil_depth() )
+    call invoke( setval_X( field_big_halo, field ) )
+
+    ! Compute reconstruction on a Wtheta multidata field
+    ! each Wt point contains 4 values assigned to each edge,
+    ! in the order (W,S,E,N) which is the same order as a W2 field
+    multidata_fs => &
+      function_space_collection%get_fs( mesh,                  &
+                                        get_element_order_h_transport(), &
+                                        get_element_order_v_transport(), &
+                                        Wtheta, 4, ndata_first=.false. )
+    call h_reconstruction%initialise( multidata_fs )
+    monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
+    if ( panel_edge_treatment /= panel_edge_treatment_none                     &
+         .and. (monotone .or. oned_reconstruction) ) then
+      remap_depth = int(fv_horizontal_order/2)
+      call remap_on_extended_mesh(remap_field, field_big_halo,                 &
+                                  monotone,                                    &
+                                  transport_metadata%get_enforce_min_value(),  &
+                                  transport_metadata%get_min_value(),          &
+                                  remap_depth)
+      field_ptr => remap_field
+    else
+      field_ptr => field_big_halo
+    end if
+
+    if ( transport_metadata%get_horizontal_monotone() == monotone_koren ) then
+      call invoke( name="wt_koren",                             &
+                   polyh_wtheta_koren_kernel_type(              &
+                                            h_reconstruction,   &
+                                            field_ptr,          &
+                                            stencil_extent))
+
+    else
+      if ( oned_reconstruction ) then
+        ! Use 1d reconstruction
+        call invoke( name="wt_1d_recon",                          &
+                     poly1d_reconstruction_kernel_type(           &
+                                              h_reconstruction,   &
+                                              field_ptr,          &
+                                              stencil_extent,     &
+                                              adv_coeffs,         &
+                                              fv_horizontal_order ) )
+      else
+        ! Use 2d reconstruction
+        call invoke( name="wt_2d_recon",                          &
+                     poly2d_reconstruction_kernel_type(           &
+                                              h_reconstruction,   &
+                                              field_big_halo,     &
+                                              stencil_extent,     &
+                                              adv_coeffs,         &
+                                              stencil_size) )
+      end if
+
+    end if
+
+    stencil_extent = 1
+    call invoke( name="poly_update",                               &
+                 poly_adv_update_kernel_type(u_grad_f,             &
+                                             h_reconstruction,     &
+                                             stencil_extent,       &
+                                             wind,                 &
+                                             wind_dir, stencil_extent))
+
+    if ( subroutine_timers ) call timer('transport.wt_hori_recon')
+
+  end subroutine hori_wt_update_alg
+
+  !=============================================================================
+  !> @brief Compute the vertical advective update of a Wtheta field.
+  !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
+  !> @param[in]     wind                Advecting wind field
+  !> @param[in]     field               Wtheta field to advect
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine vert_wt_update_alg(u_grad_f, wind, field, transport_metadata, &
+                                final_rk_stage)
+
+    use poly1d_vert_adv_kernel_mod,     only: poly1d_vert_adv_kernel_type
+    use transport_constants_mod,        only: get_vert_wt_mol_coeffs,          &
+                                              get_reversible_vert_wt_mol_coeffs
+
+    implicit none
+
+    type(r_tran_field_type),       intent(in)    :: field, wind
+    type(r_tran_field_type),       intent(inout) :: u_grad_f
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    integer(kind=i_def)              :: mesh_id
+    integer(kind=i_def)              :: vertical_order
+    integer(kind=i_def)              :: ndata_v
+    type(mesh_type),         pointer :: mesh
+    type(r_tran_field_type), pointer :: vert_adv_coeffs
+    type(field_type),        pointer :: height_tr
+    logical(kind=l_def)              :: logspace
+    logical(kind=l_def)              :: reversible
+    integer(kind=i_def)              :: monotonicity
+
+    if ( subroutine_timers ) call timer('transport.wt_vert_recon')
+
+    reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
+    logspace = transport_metadata%get_log_space()
+    monotonicity = transport_metadata%get_vertical_monotone()
+
+    mesh => wind%get_mesh()
+    mesh_id = mesh%get_id()
+
+    if ( reversible ) then
+      vert_adv_coeffs => get_reversible_vert_wt_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order
+    else
+      vert_adv_coeffs => get_vert_wt_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order + 1_i_def
+    end if
+
+    ndata_v = 2_i_def*(vertical_order + 1_i_def)
+
+    if ( monotonicity == monotone_koren ) then
+      height_tr => get_height_fv( Wtheta, mesh%get_id() )
+      call invoke( polyv_wtheta_koren_kernel_type(u_grad_f,      &
+                                                  wind,          &
+                                                  field,         &
+                                                  height_tr,     &
+                                                  reversible,    &
+                                                  logspace) )
+    else
+      call invoke( poly1d_vert_adv_kernel_type(u_grad_f,        &
+                                               wind,            &
+                                               field,           &
+                                               vert_adv_coeffs, &
+                                               ndata_v,         &
+                                               vertical_order,  &
+                                               logspace ) )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.wt_vert_recon')
+
+  end subroutine vert_wt_update_alg
+
+  !=============================================================================
+  !> @brief Compute advective update of a Wtheta field.
+  !> @details Compute advective update wind.grad(adv_field) using desired spatial
+  !!          reconstruction. Options for this are either FE or FV reconstructions.
+  !> @param[in,out] rhs                 Advective increment
+  !> @param[in]     adv_field           Field to advect
+  !> @param[in]     wind                Advecting wind field
+  !> @param[in]     reversible          Use the reversible reconstruction
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine wt_advective_update_alg(rhs, adv_field, wind, direction, &
+                                     transport_metadata, final_rk_stage)
+
+    use consistent_wind_kernel_mod,     only: consistent_wind_kernel_type
+    use poly1d_vert_adv_kernel_mod,     only: poly1d_vert_adv_kernel_type
+    use rtheta_kernel_mod,              only: rtheta_kernel_type
+    use rtheta_bd_kernel_mod,           only: rtheta_bd_kernel_type
+    use reference_element_mod,          only: reference_element_type
+    use mesh_mod,                       only: mesh_type
+    use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+    use integer_field_mod,              only: integer_field_type
+    use sci_geometric_constants_mod,    only: get_face_selector_ew,            &
+                                              get_face_selector_ns
+
+    implicit none
+
+    type(r_tran_field_type),       intent(in)    :: adv_field, wind
+    type(r_tran_field_type),       intent(inout) :: rhs
+    integer(kind=i_def),           intent(in)    :: direction
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+
+    type(r_tran_field_type)                :: u_grad_f
+    type(r_tran_field_type)                :: wind_v
+    type(r_tran_field_type)                :: wind_h
+    type(function_space_type),     pointer :: w2h_fs, w2v_fs
+    type(integer_field_type),      pointer :: face_selector_ew
+    type(integer_field_type),      pointer :: face_selector_ns
+    type(field_type),              pointer :: chi(:)
+    type(field_type),              pointer :: mt_lumped_inv_r_def
+    type(r_tran_field_type)                :: mt_lumped_inv_r_tran
+    type(r_tran_field_type)                :: consistent_wind
+    type(r_tran_field_type)                :: u_grad_z
+    type(field_type),              pointer :: height_rdef
+    type(r_tran_field_type)                :: height
+    class(reference_element_type), pointer :: reference_element
+    type(mesh_type),               pointer :: mesh
+    type(quadrature_xyoz_type)             :: qr
+    type(quadrature_face_type)             :: qrf
+    type(quadrature_rule_gaussian_type)    :: quadrature_rule
+    integer(kind=i_def)                    :: wt_stencil_size
+    integer(kind=i_def)                    :: w2_stencil_size
+    integer(kind=i_def)                    :: element_order_h
+    integer(kind=i_def)                    :: element_order_v
+    integer(kind=i_def)                    :: nqp_h_exact
+    integer(kind=i_def)                    :: nqp_v_exact
+    logical(kind=l_def)                    :: horizontal_faces
+    logical(kind=l_def)                    :: vertical_faces
+
+    mesh => wind%get_mesh()
+    element_order_h = get_element_order_h_transport()
+    element_order_v = get_element_order_v_transport()
+    call u_grad_f%initialise( adv_field%get_function_space() )
+    call invoke( setval_c(u_grad_f, 0.0_r_def ) )
+
+    select case ( operators )
+
+    case default
+      call log_event( "Gungho: Unrecognised option for wtheta reconstruction.", LOG_LEVEL_ERROR )
+
+    case ( operators_fv )
+
+      if ( direction == direction_h .or. direction == direction_3d ) then
+        if ( transport_metadata%get_horizontal_monotone() /= monotone_none     .and. &
+             transport_metadata%get_horizontal_monotone() /= monotone_clipping .and. &
+             transport_metadata%get_horizontal_monotone() /= monotone_koren ) then
+             call log_event("wt_advective_update_alg: Invalid horizontal_monotonicity", LOG_LEVEL_ERROR)
+        end if
+      end if
+      if ( direction == direction_v ) then
+        if ( transport_metadata%get_vertical_monotone() /= monotone_none     .and. &
+             transport_metadata%get_vertical_monotone() /= monotone_clipping .and. &
+             transport_metadata%get_vertical_monotone() /= monotone_koren ) then
+             call log_event("wt_advective_update_alg: Invalid vertical_monotonicity", LOG_LEVEL_ERROR)
+        end if
+      end if
+
+      select case ( direction )
+      case ( direction_3d )
+        ! Split wind into horizontal and vertical parts
+        w2h_fs => function_space_collection%get_fs(                            &
+            mesh, 0, 0, W2H                                                    &
+        )
+        w2v_fs => function_space_collection%get_fs(                            &
+            mesh, 0, 0, W2V                                                    &
+        )
+        face_selector_ew => get_face_selector_ew(mesh%get_id())
+        face_selector_ns => get_face_selector_ns(mesh%get_id())
+        call wind_h%initialise(w2h_fs)
+        call wind_v%initialise(w2v_fs)
+        call invoke( split_w2_field_kernel_type(wind_h, wind_v, wind,          &
+                                                face_selector_ew,              &
+                                                face_selector_ns) )
+        ! Horizontal update
+        call hori_wt_update_alg(u_grad_f, wind_h, wind_h, adv_field, transport_metadata)
+
+        ! TODO #3325: Make consistent wind be pre-computed
+        if ( consistent_metric ) then
+          ! Consistent wind will be vertical only -- initialise as wind_v
+          height_rdef => get_height_fv(Wtheta, mesh%get_id())
+          call height%initialise( vector_space = height_rdef%get_function_space() )
+          call copy_field( height_rdef, height )
+          chi => get_coordinates(mesh%get_id())
+          call u_grad_z%initialise( u_grad_f%get_function_space() )
+          call consistent_wind%initialise( wind_v%get_function_space() )
+          call invoke( setval_c(u_grad_z, 0.0_r_def), &
+                       setval_X(consistent_wind, wind_v) )
+          call hori_wt_update_alg(u_grad_z, wind_h, wind_h, height, transport_metadata)
+          call invoke( consistent_wind_kernel_type(consistent_wind, wind, &
+                                                   u_grad_z, chi(3)) )
+          ! Then vertical update uses consistent wind
+          call vert_wt_update_alg(u_grad_f, consistent_wind, adv_field, &
+                                  transport_metadata, final_rk_stage)
+        else
+          ! Not using consistent wind, so just do normal vertical update
+          call vert_wt_update_alg(u_grad_f, wind_v, adv_field, &
+                                  transport_metadata, final_rk_stage)
+        end if
+
+      case ( direction_h )
+        call hori_wt_update_alg(u_grad_f, wind, wind, adv_field, transport_metadata)
+
+      case ( direction_v )
+        call vert_wt_update_alg(u_grad_f, wind, adv_field, &
+                                transport_metadata, final_rk_stage)
+      case default
+        call log_event('Wtheta advective update: direction not recognised', LOG_LEVEL_ERROR)
+      end select
+
+    case ( operators_fem )
+      ! Perform 3D update using FEM operators
+      if ( direction /= direction_3d ) &
+        call log_event( "Gungho: FEM Wt advection requires unsplit method", LOG_LEVEL_ERROR )
+
+      nqp_h_exact = element_order_h + 3_i_def
+      nqp_v_exact = element_order_v + 3_i_def
+      ! Use project u.grad(adv_field) into the adv_field function space
+      qr = quadrature_xyoz_type(nqp_h_exact, nqp_h_exact, nqp_v_exact, &
+                                quadrature_rule)
+
+      ! Quadrature rule on lateral faces only
+      horizontal_faces = .true.
+      vertical_faces = .false.
+      reference_element => mesh%get_reference_element()
+      qrf = quadrature_face_type(nqp_h_exact, nqp_v_exact, horizontal_faces, &
+                                 vertical_faces, reference_element,          &
+                                 quadrature_rule)
+      wt_stencil_size = 1_i_def
+      w2_stencil_size = 1_i_def
+      call invoke( setval_c(u_grad_f, 0.0_r_def),                     &
+                   rtheta_kernel_type(u_grad_f, adv_field, wind, qr), &
+                   rtheta_bd_kernel_type(u_grad_f, adv_field,         &
+                                         wt_stencil_size, wind,       &
+                                         w2_stencil_size, qrf) )
+
+    end select
+
+    ! rhs = u_grad_f * mt_lumped_inv
+    if (element_order_h > 0 .or. element_order_v > 0) then
+      ! Use finite element mass matrix
+      mt_lumped_inv_r_def => get_inverse_lumped_mass_matrix_fe(Wtheta, mesh%get_id())
+    else
+      ! Use finite volume mass matrix
+      mt_lumped_inv_r_def => get_inverse_lumped_mass_matrix_fv(Wtheta, mesh%get_id())
+    end if
+
+    call mt_lumped_inv_r_tran%initialise(mt_lumped_inv_r_def%get_function_space())
+    call copy_field(mt_lumped_inv_r_def, mt_lumped_inv_r_tran)
+    call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv_r_tran) )
+
+  end subroutine wt_advective_update_alg
+
+end module wt_advective_update_alg_mod

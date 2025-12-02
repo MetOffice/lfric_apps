@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<simulation>
+
+  <!-- In this version we have ONE context  -->
+  <!-- This file is used for NWP-like runs -->
+  <!-- Diagnostics are instantaneous -->
+
+  <context id = "gungho_atm">
+
+  <!-- Include variable definitions -->
+  <variable_definition src="$METADATA/variable_def_main.xml"/>
+
+  <!-- Include axis definitions -->
+  <axis_definition src="$METADATA/axis_def_main.xml"/>
+
+  <!-- Include domain definitions -->
+  <domain_definition src="$METADATA/domain_def_main.xml"/>
+
+  <!-- Include grid definitions -->
+  <grid_definition src="$METADATA/grid_def_main.xml"/>
+
+  <!-- Include field definitions -->
+  <field_definition src="$METADATA/lfric_dictionary.xml"/>
+  <field_definition src="$METADATA/field_def_diags.xml"/>
+  <field_definition src="$METADATA/field_def_lbc_diags.xml"/>
+  <field_definition src="$METADATA/field_def_initial_diags.xml"/>
+
+  <!-- Include file definitions -->
+  <file_definition src="./file_def_diags_nwp.xml"/>
+  <file_definition src="./file_def_initial.xml"/>
+  <file_definition src="./file_def_ancil.xml"/>
+  <file_definition src="./file_def_check_restart.xml"/>
+
+  <!-- Local file definitions -->
+  <!-- This is necessary to ensure that we only write to one file -->
+  <file_definition type="one_file" time_counter="none"/>
+
+  </context>
+
+  <context id = "xios">
+    <variable_definition>
+      <variable_group id = "buffer">
+        <variable id = "optimal_buffer_size" type = "string" >performance</variable>
+        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+      </variable_group>
+
+      <variable_group id = "parameters" >
+        <variable id = "using_server" type = "bool" >true</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
+      </variable_group>
+    </variable_definition>
+  </context>
+
+</simulation>

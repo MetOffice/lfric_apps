@@ -1,0 +1,92 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_gungho_model.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "gungho_model_gadi_developer": [
+        "gungho_model_agnesi_hyd_cart-BiP120x8-2000x2000_gadi_intel_fast-debug-64bit",
+        "gungho_model_baroclinic-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_baroclinic-alt1-C24s_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_baroclinic-alt2-C24_MG_op_gadi_intel_fast-debug-64bit",
+        "gungho_model_baroclinic-alt3-C24_MG_gadi_intel_fast-debug-64bit-rtran32",
+        "gungho_model_bryan_fritsch-dry-BiP200x10-100x100_gadi_intel_fast-debug-64bit",
+        "gungho_model_dcmip200-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_dcmip200_realorog-C48_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_dcmip301-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_deep-hot-jupiter-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_earth-like-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_force_profile-BiP4x4-600x400_gadi_intel_fast-debug-64bit",
+        "gungho_model_geostrophic-BiP4x4-600x400_gadi_intel_fast-debug-64bit",
+        "gungho_model_held-suarez-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_lfric-real-domain-C48_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_no-timestep-method-C12_gadi_intel_fast-debug-64bit",
+        "gungho_model_rk-dcmip301-C24_gadi_intel_fast-debug-64bit",
+        "gungho_model_robert-moist-lam-BiP100x8-10x10_gadi_intel_fast-debug-64bit",
+        "gungho_model_robert-moist-smag-BiP100x8-10x10_gadi_intel_fast-debug-64bit",
+        "gungho_model_runge-kutta-for-linear-C12_gadi_intel_fast-debug-64bit",
+        "gungho_model_sbr-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_sbr-alt2-C24_MG_op_gadi_intel_fast-debug-64bit",
+        "gungho_model_sbr-alt3-C24_MG_gadi_intel_fast-debug-64bit-rtran32",
+        "gungho_model_sbr_lam-n96_MG_lam_gadi_intel_fast-debug-64bit",
+        "gungho_model_sbr_lam-n96_MG_lam_rotate_gadi_intel_fast-debug-64bit",
+        "gungho_model_schar_cart-BiP200x8-500x500_gadi_intel_fast-debug-64bit",
+        "gungho_model_schar_cart-alt2-BiP100x4-1000x1000_gadi_intel_fast-debug-64bit",
+        "gungho_model_semi-implicit-for-linear-C12_gadi_intel_fast-debug-64bit",
+        "gungho_model_shallow-hot-jupiter-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_skamarock_klemp_gw_p0-BiP300x8-1000x2000_gadi_intel_fast-debug-64bit",
+        "gungho_model_skamarock_klemp_gw_p1-BiP75x4-4000x2000_gadi_intel_fast-debug-64bit",
+        "gungho_model_straka_200m-BiP256x8-200x200_gadi_intel_fast-debug-64bit",
+        "gungho_model_straka_200m-alt1-BiP256x4-200x200_gadi_intel_fast-debug-64bit",
+        "gungho_model_straka_200m-alt2-BiP256x16-200x50_op_gadi_intel_fast-debug-64bit",
+        "gungho_model_straka_200m-alt3-BiP256x8-200x200_gadi_intel_fast-debug-64bit-rtran32",
+        "gungho_model_tidally-locked-earth-C24s_rot_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_tidally-locked-earth-C24_MG_gadi_intel_fast-debug-64bit",
+        "gungho_model_gadi_canned",
+    ],
+    "gungho_model_gadi": [
+        "gungho_model_gadi_developer",
+    ],
+    "gungho_model_gadi_canned": [
+        "gungho_model_canned_gadi_intel_fast-debug-64bit",
+        "gungho_model_canned_gadi_intel_fast-debug-32bit",
+    ],
+    "gungho_model_gadi_build": [
+        "build_gungho_model_gadi_intel_fast-debug-64bit",
+        "build_gungho_model_gadi_intel_fast-debug-32bit",
+    ],
+    })  %}
+
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "gungho_model_developer": [
+        "scripts",
+        "gungho_model_gadi_developer",
+    ],
+    "gungho_model": [
+        "gungho_model_developer",
+        "gungho_model_gadi",
+    ],
+    "gungho_model_canned": [
+        "gungho_model_gadi_canned",
+    ],
+    "gungho_model_build": [
+        "gungho_model_gadi_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.gungho_model_developer) %}
+{% do site_groups.all.extend(site_groups.gungho_model) %}
+{% do site_groups.build.extend(site_groups.gungho_model_build) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.gungho_model_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.gungho_model_gadi) %}
+{% do site_groups.gadi_build.extend(site_groups.gungho_model_gadi_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_gungho_model.cylc") %}

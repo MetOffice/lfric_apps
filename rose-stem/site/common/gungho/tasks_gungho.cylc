@@ -1,0 +1,36 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/gungho/tasks_gungho.cylc") %}
+
+{% if task_ns.conf_name == "unit_tests" %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% elif task_ns.conf_name == "integration_tests" %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% elif task.startswith("build") %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% endif %}
+
+{# Set default values for Gungho tasks #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/science/gungho"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "gungho"}) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/gungho/tasks_gungho.cylc") %}

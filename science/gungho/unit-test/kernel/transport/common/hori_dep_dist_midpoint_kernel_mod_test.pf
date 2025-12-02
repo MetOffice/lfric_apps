@@ -1,0 +1,124 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the Lagrangian midpoint departure point calculation
+
+module hori_dep_dist_midpoint_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: hori_dep_dist_midpoint_test_type
+    private
+  contains
+    procedure test_all
+  end type hori_dep_dist_midpoint_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use hori_dep_dist_midpoint_kernel_mod,     only: hori_dep_dist_midpoint_code
+
+    implicit none
+
+    class(hori_dep_dist_midpoint_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
+    real(kind=r_tran) :: answer, use_tol
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_w2h = 4
+    integer(kind=i_def), parameter :: stencil_size = 5
+    integer(kind=i_def), parameter :: undf_w2h = ndf_w2h*nlayers
+    integer(kind=i_def), parameter :: undf_w2s = ndf_w2h*nlayers*stencil_size
+
+    integer(kind=i_def), dimension(ndf_w2h)              :: map_w2h
+    integer(kind=i_def), dimension(ndf_w2h,stencil_size) :: stencil_map
+
+    real(kind=r_tran), dimension(undf_w2h) :: dep_pts
+    real(kind=r_tran), dimension(undf_w2s) :: wind_n
+
+    real(kind=r_tran)    :: dt
+    integer(kind=i_def) :: n_it
+
+    ! Set up maps
+    map_w2h(:) = (/ 1, 2, 3, 4 /)
+    ! Cross stencil has form
+    !       5
+    !     2 1 4
+    !       3
+    stencil_map(1,:) = (/ 1, 2, 3, 4, 5 /)
+    stencil_map(2,:) = (/ 6, 7, 8, 9, 10 /)
+    stencil_map(3,:) = (/ 11, 12, 13, 14, 15 /)
+    stencil_map(4,:) = (/ 16, 17, 18, 19, 20 /)
+
+    ! Initialise output as zero
+    dep_pts(:) = 0.0_r_tran
+
+    ! Set up winds to be constant
+    wind_n(:) = 1.0_r_tran
+    dt = 1.0_r_tran
+    n_it = 1_i_def
+    call hori_dep_dist_midpoint_code( nlayers,      &
+                                      dep_pts,      &
+                                      wind_n,       &
+                                      stencil_size, &
+                                      stencil_map,  &
+                                      n_it,         &
+                                      dt,           &
+                                      ndf_w2h,      &
+                                      undf_w2s,     &
+                                      map_w2h )
+    ! Get correct tolerance
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing( maxval( dep_pts(1:4) ) )
+    end if
+    answer = 1.0_r_tran
+    @assertEqual(answer, dep_pts(1), use_tol)
+    @assertEqual(answer, dep_pts(2), use_tol)
+    @assertEqual(answer, dep_pts(3), use_tol)
+    @assertEqual(answer, dep_pts(4), use_tol)
+
+    ! Set up winds to vary
+    wind_n(:) = (/ 1.0_r_tran, 3.0_r_tran, 4.0_r_tran, 2.0_r_tran, 4.0_r_tran, &
+                   1.0_r_tran, 4.0_r_tran, 4.0_r_tran, 4.0_r_tran, 2.0_r_tran, &
+                   2.0_r_tran, 1.0_r_tran, 4.0_r_tran, 4.0_r_tran, 5.0_r_tran, &
+                   2.0_r_tran, 4.0_r_tran, 1.0_r_tran, 4.0_r_tran, 0.0_r_tran  /)
+    dt = 0.5_r_tran
+    n_it = 1_i_def
+    call hori_dep_dist_midpoint_code( nlayers,      &
+                                      dep_pts,      &
+                                      wind_n,       &
+                                      stencil_size, &
+                                      stencil_map,  &
+                                      n_it,         &
+                                      dt,           &
+                                      ndf_w2h,      &
+                                      undf_w2s,     &
+                                      map_w2h )
+    answer = 0.75_r_tran
+    @assertEqual(answer, dep_pts(1), use_tol)
+    answer = 0.625_r_tran
+    @assertEqual(answer, dep_pts(2), use_tol)
+    answer = 0.75_r_tran
+    @assertEqual(answer, dep_pts(3), use_tol)
+    answer = 0.5_r_tran
+    @assertEqual(answer, dep_pts(4), use_tol)
+
+  end subroutine test_all
+
+end module hori_dep_dist_midpoint_kernel_mod_test

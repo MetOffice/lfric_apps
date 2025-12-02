@@ -1,0 +1,154 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the drag_incs kernel
+!>
+module drag_incs_kernel_mod_test
+
+  use funit
+  use constants_mod,                 only : r_def, i_def
+
+  implicit none
+
+  private
+  public :: test_drag_incs
+
+  @TestCase
+  type, extends(TestCase), public  :: drag_incs_test_type
+    private
+    real(kind=r_def), allocatable :: answer_du(:), du_out(:),  &
+                                     du_in(:), u_in(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_drag_incs
+  end type drag_incs_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+  implicit none
+
+  class(drag_incs_test_type), intent(inout) :: this
+
+  integer(kind=i_def) :: undf_w2
+
+  undf_w2 = 11_i_def
+
+  allocate( this%answer_du(undf_w2) )
+  allocate( this%du_out(undf_w2) )
+  allocate( this%du_in(undf_w2) )
+  allocate( this%u_in(undf_w2) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+  implicit none
+
+  class(drag_incs_test_type), intent(inout) :: this
+
+  deallocate ( this%answer_du, this%du_out, this%du_in, this%u_in)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_drag_incs( this )
+
+  use drag_incs_kernel_mod, only : drag_incs_code
+
+  implicit none
+
+  class(drag_incs_test_type), intent(inout) :: this
+
+  real(kind=r_def), parameter   :: tol = 1.0e-14_r_def
+
+  ! Argument list variables for drag_incs_code
+  integer(kind=i_def), allocatable :: map_w2(:)
+  integer(kind=i_def)              :: nlayers, df
+  integer(kind=i_def)              :: ndf_w2
+  integer(kind=i_def)              :: undf_w2
+
+  nlayers  = 2_i_def
+  ndf_w2  = 6_i_def
+  undf_w2 = 11_i_def
+
+  allocate(map_w2(ndf_w2))
+  do df = 1, 4
+    map_w2(df)  = 1 + (df-1)*nlayers
+  end do
+  map_w2(5) = 1 + 4*nlayers
+  map_w2(6) = map_w2(5)+1
+
+  ! Set initial fields
+  this%du_out(:) = 0.0_r_def
+  this%du_in(:) = 0.0_r_def
+  this%u_in(:) = 0.0_r_def
+  this%answer_du(:) = 0.0_r_def
+
+  ! This dof is correct - the drag is opposite and less than the wind
+  this%u_in(1) = 4.0_r_def
+  this%du_in(1) = -2.0_r_def
+  this%answer_du(1) = -2.0_r_def
+
+  ! This dof is correct - the drag is opposite and less than the wind
+  this%u_in(2) = -5.0_r_def
+  this%du_in(2) = 2.0_r_def
+  this%answer_du(2) = 2.0_r_def
+
+  ! This dof is wrong - the drag is in the same sense as the wind
+  ! It should be reduced to 0
+  this%u_in(3) = 4.0_r_def
+  this%du_in(3) = 2.0_r_def
+  this%answer_du(3) = 0.0_r_def
+
+  ! This dof is wrong - the drag is in the same sense as the wind
+  ! It should be reduced to 0
+  this%u_in(4) = -4.0_r_def
+  this%du_in(4) = -5.0_r_def
+  this%answer_du(4) = 0.0_r_def
+
+  ! This dof is wrong - the drag will reduce the wind past 0
+  ! It should be limited to the negative of the wind
+  this%u_in(5) = 4.0_r_def
+  this%du_in(5) = -5.0_r_def
+  this%answer_du(5) = -4.0_r_def
+
+  ! This dof is wrong - the drag will reduce the wind past 0
+  ! It should be limited to the negative of the wind
+  this%u_in(6) = -5.0_r_def
+  this%du_in(6) = 10.0_r_def
+  this%answer_du(6) = 5.0_r_def
+
+  ! This dof is correct - there is no drag
+  this%u_in(7) = 4.0_r_def
+  this%du_in(7) = 0.0_r_def
+  this%answer_du(7) = 0.0_r_def
+
+  ! This dof is wrong - there is no wind
+  this%u_in(8) = 0.0_r_def
+  this%du_in(8) = -2.0_r_def
+  this%answer_du(8) = 0.0_r_def
+
+  call drag_incs_code( nlayers,          &
+                       this%du_out(:),   &
+                       this%du_in(:),    &
+                       this%u_in(:),     &
+                       ndf_w2,           &
+                       undf_w2,          &
+                       map_w2 )
+
+  @assertEqual(this%answer_du(:), this%du_out(:), tol )
+
+  deallocate( map_w2 )
+
+  end subroutine test_drag_incs
+
+end module drag_incs_kernel_mod_test

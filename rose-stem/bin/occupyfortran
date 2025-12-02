@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+##############################################################################
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+from argparse import ArgumentParser
+from pathlib import Path
+import logging
+from logging import getLogger
+from sys import exit as sys_exit, stderr
+from typing import List
+import os
+
+from modules.occupy_fortran import entry
+
+VALID_APPS = [
+    "applications/gungho_model",
+    "applications/lfric_atm",
+    "applications/lfric2lfric",
+    "applications/linear_model",
+    "interfaces/coupled_interface",
+    "interfaces/jedi_lfric_interface",
+    "interfaces/socrates_interface",
+    "interfaces/physics_schemes_interface",
+    "science/adjoint",
+    "science/gungho",
+    "science/linear",
+    "science/physics_schemes",
+]
+
+if __name__ == "__main__":
+    TEXT = "Searches Fortran source for global variables."
+    parser = ArgumentParser(description=TEXT, add_help=False)
+    parser.add_argument(
+        "-help",
+        "-h",
+        "--help",
+        action="help",
+        help="Print this message and exit.",
+    )
+    parser.add_argument(
+        "-version",
+        action="version",
+        version="%(prog)s 0.1.0",
+        help="Print version information and exit.",
+    )
+    parser.add_argument(
+        "-debug", action="store_true", help="Log more information."
+    )
+
+    parser.add_argument(
+        "-directory",
+        metavar="FILENAME",
+        type=Path,
+        default=Path(),
+        help="Scan relative to this directory.",
+    )
+    parser.add_argument(
+        "-dirtylist",
+        metavar="FILENAME",
+        type=Path,
+        help="A list of failing files.",
+    )
+    parser.add_argument(
+        "-generate",
+        action="store_true",
+        help="Overwrite dirty list with new scan from source.",
+    )
+
+    parser.add_argument(
+        "filename",
+        type=Path,
+        default=Path(),
+        help="path relative to '-directory' to examine.",
+    )
+    arguments = parser.parse_args()
+
+    logger = getLogger("occupyfortran")
+    logger.addHandler(logging.StreamHandler())
+    if arguments.debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+
+    # We can't use a default here because we need to be able to turn it off.
+    #
+    expected_dirty_list: List[Path] = []
+    if getattr(arguments, "dirtylist"):
+        if arguments.dirtylist.exists():
+            for line in arguments.dirtylist.read_text().splitlines():
+                if line.strip() and not line.strip().startswith("#"):
+                    expected_dirty_list.append(arguments.directory / Path(line))
+    else:
+        arguments.dirtylist = Path() / "dirtylist.txt"
+
+    dirty_list = []
+
+    for app in VALID_APPS:
+
+        source_path = os.path.join(arguments.directory, app, arguments.filename)
+        file_objects: List[Path] = [Path(source_path)]
+
+        try:
+            app_dirty_list, clean_list, not_considered = entry(file_objects)
+        except FileNotFoundError as ex:
+            print(
+                f'Could not open file "{ex.filename}", has it been renamed?',
+                file=stderr,
+            )
+            sys_exit(2)
+        dirty_list += app_dirty_list
+
+        for report in app_dirty_list:
+            if report.filename in expected_dirty_list:
+                continue
+
+            for problem in report.dirt:
+                MESSAGE = " : ".join(
+                    [
+                        str(report.filename),
+                        str(problem.line_number),
+                        problem.fortran_type,
+                        problem.variable_name,
+                    ]
+                )
+                getLogger("occupyfortran").error(MESSAGE)
+
+    if arguments.generate:
+        if arguments.dirtylist.exists():
+            arguments.dirtylist.unlink()
+        if len(dirty_list) > 0:
+            dirty_list.sort()
+            with arguments.dirtylist.open("w", encoding="utf8") as fhandle:
+                print(
+                    "# Files should only ever be removed or renamed in "
+                    "this file, never added".strip(),
+                    file=fhandle,
+                )
+                print("#", file=fhandle)
+                for dirt in dirty_list:
+                    print(
+                        str(dirt.filename.relative_to(arguments.directory)),
+                        file=fhandle,
+                    )
+
+    # pylint: disable=invalid-name
+    total_scanned = len(dirty_list) + len(clean_list)
+    dirty_set = {str(dirt.filename) for dirt in dirty_list}
+    expected_dirty_set = {str(filename) for filename in expected_dirty_list}
+    new_files = dirty_set - expected_dirty_set
+    ignored_set = dirty_set & expected_dirty_set
+    stale_set = expected_dirty_set - dirty_set
+    message = f"Found {len(new_files)} new files with global variables."
+    getLogger("occupyfortran").info(message)
+    message = (
+        f"Ignored {len(ignored_set)} files already known to contain globals."
+    )
+    getLogger("occupyfortran").info(message)
+    message = f"Missed {len(stale_set)} expected files not found."
+    getLogger("occupyfortran").info(message)
+    message = f"Scanned {total_scanned} files in total."
+    getLogger("occupyfortran").info(message)
+    message = f"Meanwhile no problems found in {len(clean_list)} files."
+    getLogger("occupyfortran").info(message)
+
+    if len(new_files) > 0:
+        sys_exit(1)
+    else:
+        sys_exit(0)

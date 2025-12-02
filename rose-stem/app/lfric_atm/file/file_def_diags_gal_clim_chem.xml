@@ -1,0 +1,254 @@
+<file_definition>
+
+  <!-- Main diagnostic output file for global climate runs -->
+  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1d" convention="UGRID" enabled=".TRUE.">
+    <!-- 3D fields averaged every timestep -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="u_in_w3"/>
+      <field field_ref="theta"/>
+      <field field_ref="m_v"/>
+      <field field_ref="m_cl"/>
+      <field field_ref="m_cf"/>
+      <field field_ref="m_r"/>
+      <field field_ref="processed__qv"/>
+      <field field_ref="processed__qcl"/>
+      <field field_ref="processed__qcf"/>
+      <field field_ref="processed__qrain"/>
+      <field field_ref="cloud__area_fraction"/>
+      <field field_ref="cloud__frozen_fraction"/>
+      <field field_ref="cloud__liquid_fraction"/>
+      <field field_ref="cloud__bulk_fraction"/>
+      <field field_ref="processed__wbig"/>
+      <field field_ref="microphysics__tnuc"/>
+      <field field_ref="processed__pressure_in_w3"/>
+      <field field_ref="processed__pressure_in_wth"/>
+      <field field_ref="chemistry__emiss_no_aircrft"/>
+      <field field_ref="chemistry__o3"/>
+      <field field_ref="chemistry__no"/>
+      <field field_ref="chemistry__lumped_n"/>
+      <field field_ref="chemistry__no2"/>
+      <field field_ref="chemistry__hono2"/>
+      <field field_ref="chemistry__h2o2"/>
+      <field field_ref="chemistry__ch4"/>
+      <field field_ref="chemistry__co"/>
+      <field field_ref="chemistry__hcho"/>
+      <field field_ref="chemistry__oh"/>
+      <field field_ref="chemistry__ho2"/>
+      <field field_ref="chemistry__lumped_br"/>
+      <field field_ref="chemistry__bro"/>
+      <field field_ref="chemistry__n2o"/>
+      <field field_ref="chemistry__lumped_cl"/>
+      <field field_ref="chemistry__hcl"/>
+      <field field_ref="chemistry__cfcl3"/>
+      <field field_ref="chemistry__cf2cl2"/>
+      <field field_ref="chemistry__mebr"/>
+      <field field_ref="chemistry__etoo"/>
+      <field field_ref="chemistry__meco3"/>
+      <field field_ref="chemistry__pan"/>
+      <field field_ref="chemistry__etco3"/>
+      <field field_ref="chemistry__me2co"/>
+      <field field_ref="chemistry__c5h8"/>
+      <field field_ref="chemistry__ison"/>
+      <field field_ref="chemistry__macro2"/>
+      <field field_ref="chemistry__mgly"/>
+      <field field_ref="chemistry__h2"/>
+      <field field_ref="chemistry__meoh"/>
+      <field field_ref="chemistry__nh3"/>
+      <field field_ref="chemistry__csul"/>
+      <field field_ref="chemistry__passive_o3"/>
+      <field field_ref="chemistry__age_of_air"/>
+      <field field_ref="chemistry__dms" />
+      <field field_ref="chemistry__so2" />
+      <field field_ref="chemistry__h2so4" />
+      <field field_ref="chemistry__monoterpene" />
+      <field field_ref="chemistry__secondary_organic" />
+      <field field_ref="aerosol__n_nuc_sol" />
+      <field field_ref="aerosol__n_ait_sol" />
+      <field field_ref="aerosol__n_acc_sol" />
+      <field field_ref="aerosol__n_cor_sol" />
+      <field field_ref="aerosol__n_ait_ins" />
+      <field field_ref="aerosol__n_acc_ins" />
+      <field field_ref="aerosol__n_cor_ins" />
+      <field field_ref="aerosol__nuc_sol_su" />
+      <field field_ref="aerosol__ait_sol_su" />
+      <field field_ref="aerosol__ait_sol_bc" />
+      <field field_ref="aerosol__ait_sol_om" />
+      <field field_ref="aerosol__acc_sol_su" />
+      <field field_ref="aerosol__acc_sol_bc" />
+      <field field_ref="aerosol__acc_sol_om" />
+      <field field_ref="aerosol__acc_sol_ss" />
+      <field field_ref="aerosol__cor_sol_ss" />
+      <field field_ref="aerosol__ait_ins_bc" />
+      <field field_ref="aerosol__ait_ins_om" />
+      <field field_ref="aerosol__acc_ins_du" />
+      <field field_ref="aerosol__cor_ins_du" />
+      <field field_ref="aerosol__cloud_drop_no_conc" />
+    </field_group>
+
+    <!-- 2D fields averaged every timestep -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="processed__total_rain"/>
+      <field field_ref="processed__total_snow"/>
+      <field field_ref="processed__total_prec"/>
+      <field field_ref="processed__total_prec_acc"/>
+      <field field_ref="microphysics__ls_rain"/>
+      <field field_ref="microphysics__ls_snow"/>
+      <field field_ref="microphysics__ls_prec"/>
+      <field field_ref="convection__conv_rain"/>
+      <field field_ref="convection__conv_snow"/>
+      <field field_ref="convection__conv_prec"/>
+      <field field_ref="convection__shallow_prec"/>
+      <field field_ref="convection__mid_prec"/>
+      <field field_ref="convection__deep_prec"/>
+      <field field_ref="radiation__lw_net_surf"/>
+      <field field_ref="radiation__lw_down_surf"/>
+      <field field_ref="radiation__lw_up_surf"/>
+      <field field_ref="radiation__lw_up_toa"/>
+      <field field_ref="radiation__sw_net_surf"/>
+      <field field_ref="radiation__sw_down_surf"/>
+      <field field_ref="radiation__sw_up_surf"/>
+      <field field_ref="radiation__sw_up_toa"/>
+      <field field_ref="radiation__sw_direct_toa"/>
+      <field field_ref="surface__tile_temperature"/>
+      <field field_ref="surface__tile_heat_flux"/>
+      <field field_ref="surface__tile_moisture_flux"/>
+      <field field_ref="surface__snowice_sublimation"/>
+      <field field_ref="surface__grid_latent_heat"/>
+      <field field_ref="surface__sea_ice_fraction"/>
+      <field field_ref="surface__grid_surface_temperature"/>
+      <field field_ref="surface__snomlt_surf_htf"/>
+      <field field_ref="surface__grid_sublimation"/>
+      <field field_ref="surface__grid_throughfall"/>
+      <field field_ref="surface__grid_canopy_evap"/>
+      <field field_ref="surface__soil_evap"/>
+      <field field_ref="surface__gross_prim_prod"/>
+      <field field_ref="surface__net_prim_prod"/>
+      <field field_ref="surface__u10m"/>
+      <field field_ref="surface__v10m"/>
+      <field field_ref="surface__wspd10m"/>
+      <field field_ref="surface__u10m_neut"/>
+      <field field_ref="surface__v10m_neut"/>
+      <field field_ref="surface__wspd10m_neut"/>
+      <field field_ref="surface__t1p5m"/>
+      <field field_ref="surface__q1p5m"/>
+      <field field_ref="surface__rh1p5m"/>
+      <field field_ref="surface__grid_sensible_heat"/>
+      <field field_ref="surface__grid_moisture_flux"/>
+      <field field_ref="surface__surface_taux"/>
+      <field field_ref="surface__surface_tauy"/>
+      <field field_ref="soil__surface_runoff"/>
+      <field field_ref="soil__sub_surface_runoff"/>
+      <field field_ref="soil__soil_moisture"/>
+      <field field_ref="soil__soil_temperature"/>
+      <field field_ref="soil__unfrozen_soil_moisture"/>
+      <field field_ref="soil__frozen_soil_moisture"/>
+      <field field_ref="snow__grid_snow_mass"/>
+      <field field_ref="snow__grid_snowmelt"/>
+      <field field_ref="turbulence__zh"/>
+      <field field_ref="turbulence__cumulus"/>
+      <field field_ref="turbulence__bl_type_ind"/>
+      <field field_ref="cloud__cloud_amount_maxrnd"/>
+      <field field_ref="cloud__very_low_type_cloud_amount"/>
+      <field field_ref="cloud__low_type_cloud_amount"/>
+      <field field_ref="cloud__medium_type_cloud_amount"/>
+      <field field_ref="cloud__high_type_cloud_amount"/>
+      <field field_ref="cloud__very_high_type_cloud_amount"/>
+      <field field_ref="processed__tot_col_dry_air_mass"/>
+      <field field_ref="processed__tot_col_m_v"/>
+      <field field_ref="processed__tot_col_m_cl"/>
+      <field field_ref="processed__tot_col_m_cf"/>
+      <field field_ref="processed__tot_col_m_r"/>
+      <field field_ref="processed__tot_col_m_s"/>
+      <field field_ref="processed__tot_col_m_g"/>
+      <field field_ref="processed__tot_col_wetplusdry_mass"/>
+      <field field_ref="processed__tot_col_encorr"/>
+      <field field_ref="processed__pstar"/>
+      <field field_ref="chemistry__emiss_c5h8"/>
+      <field field_ref="chemistry__emiss_co"/>
+      <field field_ref="chemistry__emiss_hcho"/>
+      <field field_ref="chemistry__emiss_me2co"/>
+      <field field_ref="chemistry__emiss_no"/>
+      <field field_ref="chemistry__emiss_meoh"/>
+    </field_group>
+
+    <!-- Chem fields only available on the hour -->
+    <field_group operation="average" freq_op="1h" >
+      <field field_ref="chemistry__o1d"/>
+      <field field_ref="chemistry__photol_rate_jo1d"/>
+      <field field_ref="chemistry__photol_rate_jno2"/>
+    </field_group>
+
+    <!-- 2D fields averaged on radiation timesteps -->
+    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
+      <field field_ref="radiation__lw_net_surf_rts"/>
+      <field field_ref="radiation__lw_down_surf_rts"/>
+      <field field_ref="radiation__lw_up_surf_rts"/>
+      <field field_ref="radiation__lw_up_toa_rts"/>
+      <field field_ref="radiation__sw_net_surf_rts"/>
+      <field field_ref="radiation__sw_down_surf_rts"/>
+      <field field_ref="radiation__sw_up_surf_rts"/>
+      <field field_ref="radiation__sw_up_toa_rts"/>
+      <field field_ref="radiation__sw_direct_toa_rts"/>
+      <field field_ref="radiation__lw_down_clear_surf_rts"/>
+      <field field_ref="radiation__lw_up_clear_surf_rts"/>
+      <field field_ref="radiation__lw_up_clear_toa_rts"/>
+      <field field_ref="radiation__sw_down_clear_surf_rts"/>
+      <field field_ref="radiation__sw_up_clear_surf_rts"/>
+      <field field_ref="radiation__sw_up_clear_toa_rts"/>
+      <field field_ref="radiation__cloud_cover_rts"/>
+      <field field_ref="radiation__warm_cloud_top_weight_rts"/>
+      <field field_ref="radiation__warm_cloud_top_re_microns_rts"/>
+      <field field_ref="processed__sw_aer_optical_depth_rts"/>
+      <field field_ref="processed__lw_aer_optical_depth_rts"/>
+    </field_group>
+
+    <!-- Fields averaged every 6 hours  -->
+    <field_group operation="average" freq_op="6h" prec="4">
+      <field field_ref="orography"/>
+      <field field_ref="surface__tile_fraction"/>
+      <field field_ref="surface__land_fraction"/>
+      <field field_ref="processed__pmsl"/>
+      <field field_ref="surface__t1p5m" name="t1p5m_6hourly"/>
+      <field field_ref="plev__xi3"/>
+      <field field_ref="plev__heaviside" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__geopot_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__u_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__v_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__w_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__omega_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__temp_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__qv_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__rh_ice_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__uu_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__uv_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__uom_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__ut_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__vv_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__vom_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__vt_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__omom_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__omt_clim" axis_ref="pressure_levels_clim"/>
+      <field field_ref="plev__tt_clim" axis_ref="pressure_levels_clim"/>
+    </field_group>
+
+    <!-- COSP satellite simulator diagnostics -->
+    <field_group operation="average" freq_op="1ts" prec="4">
+      <field field_ref="cosp__cloud_thermal_absorptivity"/>
+      <field field_ref="cosp__cloud_solar_extinction"/>
+      <field field_ref="cosp__calipso_low_cloud"/>
+      <field field_ref="cosp__calipso_mid_cloud"/>
+      <field field_ref="cosp__calipso_high_cloud"/>
+      <field field_ref="cosp__calipso_low_cloud_mask"/>
+      <field field_ref="cosp__calipso_mid_cloud_mask"/>
+      <field field_ref="cosp__calipso_high_cloud_mask"/>
+      <field field_ref="cosp__calipso_cf_40_lvls_liq"/>
+      <field field_ref="cosp__calipso_cf_40_lvls_ice"/>
+      <field field_ref="cosp__calipso_cf_40_lvls_undet"/>
+      <field field_ref="cosp__calipso_cf_40_lvls_mask"/>
+      <field field_ref="cosp__calipso_cfad_sr_40_lvls"/>
+      <field field_ref="cosp__sunlit_mask"/>
+      <field field_ref="cosp__isccp_ctp_tau"/>
+    </field_group>
+  </file>
+
+</file_definition>

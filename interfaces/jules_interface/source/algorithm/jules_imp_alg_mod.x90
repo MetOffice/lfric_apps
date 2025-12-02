@@ -1,0 +1,335 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the implicit JULES scheme
+
+module jules_imp_alg_mod
+
+  use constants_mod,                 only: i_def
+  use model_clock_mod,               only: model_clock_type
+  use field_mod,                     only: field_type
+  use integer_field_mod,             only: integer_field_type
+  use field_collection_mod,          only: field_collection_type
+  use fs_continuity_mod,             only: W3, Wtheta
+  use sci_geometric_constants_mod,   only: get_height_fv,            &
+                                           get_latitude_fv
+  use mr_indices_mod,                only: imr_ci, nummr
+  use timestepping_config_mod,       only: outer_iterations
+
+  use io_config_mod, only: subroutine_timers
+  use timer_mod,     only: timer
+  ! xios output
+  use io_config_mod, only: write_diag, use_xios_io, diagnostic_frequency
+  use jules_imp_diags_mod, only: initialise_diags_for_jules_imp,     &
+                                 output_diags_for_jules_imp
+  use log_mod,                       only: log_event, LOG_LEVEL_DEBUG
+  use mesh_mod,                      only: mesh_type
+
+  implicit none
+
+  private
+  public jules_imp_alg
+
+contains
+
+  !>@brief Run the implicit JULES scheme
+  !>@details The JULES scheme does:
+  !>             vertical mixing of heat, momentum and moisture,
+  !>             as documented in UMDP24
+  !>         NB This version uses winds in w3 space (i.e. A-grid)
+  !>@param[in,out] mr                Mixing ratios
+  !>@param[in,out] surf_heat_flux    Net surface heat flux
+  !>@param[in,out] canopy_evap       Canopy evaporation from land tiles
+  !>@param[in,out] water_extraction  Extraction of water from each soil layer
+  !>@param[in,out] lake_evap         Evaporation from lakes GBM
+  !>@param[in]     derived_fields    Group of derived fields
+  !>@param[in]     radition_fields   Fields for radiation scheme
+  !>@param[in,out] turbulence_fields Fields for turbulence scheme
+  !>@param[in,out] cloud_fields      Fields for cloud scheme
+  !>@param[in,out] surface_fields    Fields for surface scheme
+  !>@param[in]     soil_fields       Fields for soil hydrology scheme
+  !>@param[in]     snow_fields       Fields for snow scheme
+  !>@param[in]     outer             Outer loop counter
+  !>@param[in]     clock             The clock object
+  !>@param[in]     loop              Loop no.
+  !>@param[in,out] qw                Total water content (kg/kg)
+  !>@param[in,out] tl                Liquid water temperature (K)
+  !>@param[in]     dqw1              Total water increment
+  !>@param[in]     dtl1              Liquid temperature increment
+  !>@param[in]     ct_ctq1           Coefficient in predictor-corrector
+  !>@param[in,out] ftl               liquid temperature flux
+  !>@param[in,out] fqw               total water flux
+  !>@param[in,out] rhokh             Heat eddy diffusivity
+  !>@param[in]     mr_ice            Mixing ratio for ice cloud
+  subroutine jules_imp_alg(mr, surf_heat_flux, canopy_evap,              &
+                           water_extraction, lake_evap,                  &
+                           derived_fields, radiation_fields,             &
+                           turbulence_fields, cloud_fields,              &
+                           surface_fields, soil_fields, snow_fields,     &
+                           outer, model_clock, loop, qw, tl, dqw1, dtl1, &
+                           ct_ctq1, ftl, fqw, rhokh, mr_ice,             &
+                           latent_heat, t1p5m, q1p5m, qcl1p5m,           &
+                           t1p5m_ssi, q1p5m_ssi,                         &
+                           qcl1p5m_ssi, t1p5m_land, q1p5m_land,          &
+                           qcl1p5m_land)
+
+    use jules_imp_kernel_mod, only: jules_imp_kernel_type
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: qw, tl, ftl, fqw, rhokh,           &
+                                           surf_heat_flux, canopy_evap,       &
+                                           water_extraction, lake_evap,       &
+                                           mr(nummr), latent_heat,            &
+                                           t1p5m, q1p5m, qcl1p5m,             &
+                                           t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, &
+                                           t1p5m_land, q1p5m_land, qcl1p5m_land
+    type( field_type ), intent( in )    :: dqw1, dtl1, ct_ctq1
+
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(in)    :: radiation_fields
+    type( field_collection_type ), intent(in)    :: turbulence_fields
+    type( field_collection_type ), intent(in)    :: cloud_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+    type( field_collection_type ), intent(in)    :: soil_fields
+    type( field_collection_type ), intent(in)    :: snow_fields
+    integer(kind=i_def),           intent(in)    :: outer
+    class(model_clock_type),       intent(in)    :: model_clock
+
+    ! Temporary fields unpacked fields from collections
+    type( field_type ), pointer :: exner_in_wth   => null()
+    type( field_type ), pointer :: wetrho_in_w3   => null()
+
+    type( integer_field_type ), pointer :: bl_type_ind => null()
+    type( field_type ), pointer :: dtrdz_tq_bl    => null()
+
+    type( field_type ), pointer :: rh_crit    => null()
+
+    type( field_type ), pointer :: skyview      => null()
+    type( field_type ), pointer :: lw_down_surf => null()
+    type( field_type ), pointer :: sw_down_surf => null()
+    type( field_type ), pointer :: sw_up_tile   => null()
+    type( field_type ), pointer :: sw_down_blue_surf => null()
+    type( field_type ), pointer :: sw_direct_blue_surf => null()
+
+    type( field_type ), pointer :: tile_fraction       => null()
+    type( field_type ), pointer :: sea_ice_thickness   => null()
+    type( field_type ), pointer :: sea_ice_temperature => null()
+    type( field_type ), pointer :: sea_ice_pensolar    => null()
+    type( field_type ), pointer :: sea_ice_pensolar_frac_direct => null()
+    type( field_type ), pointer :: sea_ice_pensolar_frac_diffuse => null()
+    type( field_type ), pointer :: tile_temperature    => null()
+    type( field_type ), pointer :: tile_lw_grey_albedo => null()
+    type( field_type ), pointer :: screen_temperature  => null()
+    type( field_type ), pointer :: time_since_transition => null()
+    type( field_type ), pointer :: canopy_water        => null()
+    type( field_type ), pointer :: tile_heat_flux      => null()
+    type( field_type ), pointer :: tile_moisture_flux  => null()
+    type( field_type ), pointer :: snowice_melt        => null()
+    type( field_type ), pointer :: surf_ht_flux        => null()
+    type( field_type ), pointer :: snowice_sublimation => null()
+    type( field_type ), pointer :: alpha1_tile         => null()
+    type( field_type ), pointer :: ashtf_prime_tile    => null()
+    type( field_type ), pointer :: dtstar_tile         => null()
+    type( field_type ), pointer :: fracaero_t_tile     => null()
+    type( field_type ), pointer :: fracaero_s_tile     => null()
+    type( field_type ), pointer :: z0h_tile            => null()
+    type( field_type ), pointer :: z0m_tile            => null()
+    type( field_type ), pointer :: rhokh_tile          => null()
+    type( field_type ), pointer :: chr1p5m_tile        => null()
+    type( field_type ), pointer :: resfs_tile          => null()
+    type( field_type ), pointer :: canhc_tile          => null()
+    type( field_type ), pointer :: ustar               => null()
+    type( field_type ), pointer :: tile_water_extract  => null()
+    type( integer_field_type ), pointer :: ocn_cpl_point => null()
+
+    type( field_type ), pointer :: soil_temperature   => null()
+    type( field_type ), pointer :: soil_moist_avail   => null()
+
+    type( field_type ), pointer :: tile_snow_mass     => null()
+    type( integer_field_type ), pointer :: n_snow_layers => null()
+    type( field_type ), pointer :: snow_depth         => null()
+
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: latitude   => null()
+
+    type( field_type ) :: rh1p5m, rh1p5m_ssi, rh1p5m_land
+    type( field_type ) :: t1p5m_surft, q1p5m_surft
+    type( field_type ) :: snomlt_surf_htf
+    type( field_type ) :: soil_evap
+    type( field_type ) :: soil_surf_ht_flux
+    type( field_type ) :: surf_sw_net, surf_radnet
+    type( field_type ) :: surf_lw_up, surf_lw_down
+    type( field_type ) :: mr_ice
+
+    type( mesh_type ), pointer :: mesh => null()
+    integer(i_def) :: loop, ncells
+
+    if ( subroutine_timers ) call timer("jules_imp_alg")
+
+    call log_event( 'Running implicit Jules', LOG_LEVEL_DEBUG )
+
+    ! Unpack derived fields
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+
+    ! Unpack turbulence fields
+    call turbulence_fields%get_field('bl_type_ind', bl_type_ind)
+    call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
+
+    ! Unpack cloud fields
+    call cloud_fields%get_field('rh_crit', rh_crit)
+
+    ! Radiation fields
+    call radiation_fields%get_field('skyview', skyview)
+    call radiation_fields%get_field('lw_down_surf', lw_down_surf)
+    call radiation_fields%get_field('sw_down_surf', sw_down_surf)
+    call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+    call radiation_fields%get_field('sw_down_blue_surf', sw_down_blue_surf)
+    call radiation_fields%get_field('sw_direct_blue_surf', sw_direct_blue_surf)
+
+    ! Surface fields
+    call surface_fields%get_field('tile_fraction', tile_fraction)
+    call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
+    call surface_fields%get_field('sea_ice_temperature', sea_ice_temperature)
+    call surface_fields%get_field('sea_ice_pensolar', sea_ice_pensolar)
+    call surface_fields%get_field('sea_ice_pensolar_frac_direct', sea_ice_pensolar_frac_direct)
+    call surface_fields%get_field('sea_ice_pensolar_frac_diffuse', sea_ice_pensolar_frac_diffuse)
+    call surface_fields%get_field('tile_temperature', tile_temperature)
+    call surface_fields%get_field('tile_lw_grey_albedo', tile_lw_grey_albedo)
+    call surface_fields%get_field('screen_temperature', screen_temperature)
+    call surface_fields%get_field('time_since_transition', time_since_transition)
+    call surface_fields%get_field('canopy_water', canopy_water)
+    call surface_fields%get_field('tile_heat_flux', tile_heat_flux)
+    call surface_fields%get_field('tile_moisture_flux', tile_moisture_flux)
+    call surface_fields%get_field('snowice_melt', snowice_melt)
+    call surface_fields%get_field('surf_ht_flux', surf_ht_flux)
+    call surface_fields%get_field('snowice_sublimation', snowice_sublimation)
+    call surface_fields%get_field('alpha1_tile', alpha1_tile)
+    call surface_fields%get_field('ashtf_prime_tile', ashtf_prime_tile)
+    call surface_fields%get_field('dtstar_tile', dtstar_tile)
+    call surface_fields%get_field('fracaero_t_tile', fracaero_t_tile)
+    call surface_fields%get_field('fracaero_s_tile', fracaero_s_tile)
+    call surface_fields%get_field('z0h_tile', z0h_tile)
+    call surface_fields%get_field('z0m_tile', z0m_tile)
+    call surface_fields%get_field('rhokh_tile', rhokh_tile)
+    call surface_fields%get_field('chr1p5m_tile', chr1p5m_tile)
+    call surface_fields%get_field('resfs_tile', resfs_tile)
+    call surface_fields%get_field('canhc_tile', canhc_tile)
+    call surface_fields%get_field('ustar', ustar)
+    call surface_fields%get_field('tile_water_extract', tile_water_extract)
+    call surface_fields%get_field('ocn_cpl_point', ocn_cpl_point)
+
+    ! Soil fields
+    call soil_fields%get_field('soil_temperature', soil_temperature)
+    call soil_fields%get_field('soil_moist_avail', soil_moist_avail)
+
+    ! Snow fields
+    call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
+    call snow_fields%get_field('n_snow_layers', n_snow_layers)
+    call snow_fields%get_field('snow_depth', snow_depth)
+
+    mesh       => exner_in_wth%get_mesh()
+    height_wth => get_height_fv(Wtheta, mesh%get_id())
+
+    mesh       => ustar%get_mesh()
+    latitude   => get_latitude_fv(W3, mesh%get_id())
+
+    if ( loop == 1 ) then
+
+      ! Local surface fields that need creating
+      call tile_temperature%copy_field_properties(surf_heat_flux)
+      call tile_temperature%copy_field_properties(canopy_evap)
+      call soil_temperature%copy_field_properties(water_extraction)
+      call sw_down_surf%copy_field_properties(lake_evap)
+      call invoke(setval_c(lake_evap, 0.0_r_def), &
+                  setval_c(canopy_evap, 0.0_r_def))
+
+    end if
+
+    ! Initialise the BL diagnostics
+    call initialise_diags_for_jules_imp(loop, t1p5m_surft, q1p5m_surft, &
+                                        t1p5m, q1p5m, qcl1p5m, rh1p5m,  &
+                                        t1p5m_ssi, q1p5m_ssi,           &
+                                        qcl1p5m_ssi, rh1p5m_ssi,        &
+                                        t1p5m_land, q1p5m_land,         &
+                                        qcl1p5m_land, rh1p5m_land,      &
+                                        latent_heat,                    &
+                                        snomlt_surf_htf, soil_evap,     &
+                                        soil_surf_ht_flux,              &
+                                        surf_sw_net, surf_radnet,       &
+                                        surf_lw_up, surf_lw_down)
+
+    ! Call the implicit scheme for scalars
+    call invoke(jules_imp_kernel_type( outer, loop, wetrho_in_w3,            &
+                                       exner_in_wth, height_wth,             &
+                                       tile_fraction, sea_ice_thickness,     &
+                                       sea_ice_temperature,                  &
+                                       sea_ice_pensolar,                     &
+                                       sea_ice_pensolar_frac_direct,         &
+                                       sea_ice_pensolar_frac_diffuse,        &
+                                       tile_temperature,                     &
+                                       screen_temperature,                   &
+                                       time_since_transition, latitude,      &
+                                       tile_snow_mass, n_snow_layers,        &
+                                       snow_depth, canopy_water,             &
+                                       soil_temperature, tile_heat_flux,     &
+                                       tile_moisture_flux, sw_up_tile,       &
+                                       sw_down_surf, lw_down_surf,           &
+                                       sw_down_blue_surf,                    &
+                                       sw_direct_blue_surf, skyview,         &
+                                       tile_lw_grey_albedo,                  &
+                                       snowice_sublimation, surf_heat_flux,  &
+                                       canopy_evap, water_extraction,        &
+                                       snowice_melt, mr_ice, rh_crit,        &
+                                       rhokh, fqw, ftl, dtrdz_tq_bl,         &
+                                       alpha1_tile, ashtf_prime_tile,        &
+                                       dtstar_tile, fracaero_t_tile,         &
+                                       fracaero_s_tile, z0h_tile,            &
+                                       z0m_tile, rhokh_tile, chr1p5m_tile,   &
+                                       resfs_tile, canhc_tile,               &
+                                       tile_water_extract,  ustar,           &
+                                       lake_evap,                            &
+                                       soil_moist_avail, bl_type_ind, qw, tl,&
+                                       dqw1, dtl1, ct_ctq1, surf_ht_flux,    &
+                                       t1p5m_surft, q1p5m_surft, t1p5m,      &
+                                       q1p5m, qcl1p5m, rh1p5m, t1p5m_ssi,    &
+                                       q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi,   &
+                                       t1p5m_land, q1p5m_land, qcl1p5m_land, &
+                                       rh1p5m_land, latent_heat,             &
+                                       snomlt_surf_htf, soil_evap,           &
+                                       soil_surf_ht_flux, surf_sw_net,       &
+                                       surf_radnet, surf_lw_up, surf_lw_down,&
+                                       ocn_cpl_point) )
+
+
+    if ( subroutine_timers ) call timer("jules_imp_alg")
+
+    ! Output the BL diagnostics
+    if (use_xios_io .and. write_diag .and. outer == outer_iterations) then
+      if (mod(model_clock%get_step(),diagnostic_frequency) == 0) then
+        call output_diags_for_jules_imp(loop, tile_heat_flux,                &
+                                 tile_moisture_flux, tile_temperature,       &
+                                 snowice_sublimation, canopy_evap,           &
+                                 tile_fraction,                              &
+                                 t1p5m_surft, q1p5m_surft,                   &
+                                 t1p5m, q1p5m, qcl1p5m, rh1p5m,              &
+                                 t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,          &
+                                 rh1p5m_ssi, t1p5m_land, q1p5m_land,         &
+                                 qcl1p5m_land, rh1p5m_land, latent_heat,     &
+                                 snomlt_surf_htf,                            &
+                                 soil_evap,                                  &
+                                 surf_ht_flux,                               &
+                                 soil_surf_ht_flux, surf_sw_net,             &
+                                 surf_radnet, surf_lw_up,                    &
+                                 surf_lw_down)
+      end if
+    end if  ! write_diag
+
+    nullify( mesh )
+
+  end subroutine jules_imp_alg
+
+end module jules_imp_alg_mod

@@ -1,0 +1,12 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/linear_model/tasks_linear_model_azspice.cylc") %}
+
+{% if task_ns.conf_name == "dcmip301-C24"  %}
+    {% do task_dict.update({"wallclock": 60}) %}
+{% endif %}
+
+{% do LOG.debug("Finised in site/meto/linear_model/tasks_linear_model_azspice.cylc") %}

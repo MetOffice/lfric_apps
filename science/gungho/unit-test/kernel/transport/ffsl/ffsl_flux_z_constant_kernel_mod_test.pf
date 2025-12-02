@@ -1,0 +1,162 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the calculation of flux through a vertical cell edge for FFSL
+!> transport using constant reconstruction.
+
+module ffsl_flux_z_constant_kernel_mod_test
+
+  use constants_mod,      only : i_def, r_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: ffsl_flux_z_constant_test_type, &
+            test_all
+
+  @TestCase
+  type, extends(TestCase) :: ffsl_flux_z_constant_test_type
+    private
+    real(kind=r_tran), allocatable :: dep_pts(:), rho(:), detj(:)
+    real(kind=r_tran), allocatable :: flux(:), frac_wind(:)
+    integer(i_def) :: map_w2(1:6)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type ffsl_flux_z_constant_test_type
+
+    integer(i_def), parameter :: nlayers = 5
+    integer(i_def), parameter :: ndf_w2  = 2
+    integer(i_def), parameter :: undf_w2 = nlayers+1
+    integer(i_def), parameter :: ndf_w3  = 1
+    integer(i_def), parameter :: undf_w3 = nlayers
+
+    real(r_tran),    parameter :: deltaT  = 10.0_r_tran
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(ffsl_flux_z_constant_test_type), intent(inout) :: this
+
+    this%map_w2 = (/ 1,2,3,4,5,6 /)
+
+    allocate( this%dep_pts(1:undf_w2) )
+    allocate( this%frac_wind(1:undf_w2) )
+    allocate( this%flux(1:undf_w2) )
+    allocate( this%rho(1:undf_w3) )
+    allocate( this%detj(1:undf_w3) )
+
+    this%flux(:) = 0.0_r_tran
+    this%rho(:) = (/ 1.0_r_tran, 2.0_r_tran, 3.0_r_tran, 4.0_r_tran, 5.0_r_tran /)
+    this%detj(:) = 2.0_r_tran
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(ffsl_flux_z_constant_test_type), intent(inout) :: this
+
+    deallocate( this%rho )
+    deallocate( this%flux )
+    deallocate( this%dep_pts )
+    deallocate( this%detj )
+    deallocate( this%frac_wind )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use ffsl_flux_z_constant_kernel_mod, only : ffsl_flux_z_constant_code
+
+    implicit none
+
+    class(ffsl_flux_z_constant_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol    = 1.0e-6_r_tran
+
+    integer(i_def) :: map_w3(1)
+
+    map_w3(1) = 1
+
+    ! Test with small cfl values
+
+    ! The departure points are in W2v space
+    ! Hence in dep_pts variable below the vertical departure points are
+    ! 0.0,0.5,0.5,0.5,0.5,0.0, taking into account 0.0 departure points for the
+    ! top and bottom boundaries.
+    this%dep_pts(:) = (/ 0.0_r_tran, 0.5_r_tran, 0.5_r_tran, 0.5_r_tran, 0.5_r_tran, &
+                         0.0_r_tran /)
+    this%frac_wind(:) = (/ 0.0_r_tran, 3.0_r_tran, 3.0_r_tran, 3.0_r_tran, 3.0_r_tran, &
+                           0.0_r_tran /)
+
+    call ffsl_flux_z_constant_code( nlayers,        &
+                                    this%flux,      &
+                                    this%frac_wind, &
+                                    this%dep_pts,   &
+                                    this%rho,       &
+                                    this%detj,      &
+                                    deltaT,         &
+                                    ndf_w2,         &
+                                    undf_w2,        &
+                                    this%map_w2,    &
+                                    ndf_w3,         &
+                                    undf_w3,        &
+                                    map_w3 )
+
+    ! The rho values for the 5 layers are (1.0,2.0,3.0,4.0,5.0)
+    ! The answers for the fluxes will be proportional to these values
+    @assertEqual(0.0_r_tran, this%flux(1), tol)
+    @assertEqual(0.3_r_tran, this%flux(2), tol)
+    @assertEqual(0.6_r_tran, this%flux(3), tol)
+    @assertEqual(0.9_r_tran, this%flux(4), tol)
+    @assertEqual(1.2_r_tran, this%flux(5), tol)
+    @assertEqual(0.0_r_tran, this%flux(6), tol)
+
+    ! Test with large cfl and negative cfl values
+    this%dep_pts(:) = (/ 0.0_r_tran, 0.8_r_tran, 1.5_r_tran, -1.2_r_tran, -0.5_r_tran, &
+                         0.0_r_tran /)
+    this%frac_wind(:) = (/ 0.0_r_tran, 1.6_r_tran, 3.0_r_tran, -2.4_r_tran, -1.0_r_tran, &
+                           0.0_r_tran /)
+
+    call ffsl_flux_z_constant_code( nlayers,        &
+                                    this%flux,      &
+                                    this%frac_wind, &
+                                    this%dep_pts,   &
+                                    this%rho,       &
+                                    this%detj,      &
+                                    deltaT,         &
+                                    ndf_w2,         &
+                                    undf_w2,        &
+                                    this%map_w2,    &
+                                    ndf_w3,         &
+                                    undf_w3,        &
+                                    map_w3 )
+
+    ! The rho values for the 5 layers are (1.0,2.0,3.0,4.0,5.0)
+    ! Note that for negative dep_pts the flux will be negative
+
+    ! The flux is given by the value of rho in the cell*Det(J) + fraction*rho*Det(j)
+    @assertEqual(0.0_r_tran,   this%flux(1), tol)
+    @assertEqual(0.16_r_tran,   this%flux(2), tol)
+    @assertEqual(0.7_r_tran,  this%flux(3), tol)
+    @assertEqual(-2.0_r_tran, this%flux(4), tol)
+    @assertEqual(-0.5_r_tran, this%flux(5), tol)
+    @assertEqual(0.0_r_tran,   this%flux(6), tol)
+
+  end subroutine test_all
+
+end module ffsl_flux_z_constant_kernel_mod_test

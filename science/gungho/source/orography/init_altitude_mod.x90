@@ -1,0 +1,144 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Create and initialise surface altitude fields
+!> @details Creates the surface altitude fields and populates them either with
+!>          data read from an ancillary file or data calculated analytically
+module init_altitude_mod
+
+  use constants_mod,                  only : i_def, r_def
+  use field_mod,                      only : field_type
+  use field_parent_mod,               only : read_interface,  &
+                                             write_interface
+  use function_space_collection_mod,  only : function_space_collection
+  use fs_continuity_mod,              only : W3
+  use function_space_mod,             only : function_space_type
+  use initialization_config_mod,      only : n_orog_smooth
+  use mesh_mod,                       only : mesh_type
+  use orography_config_mod,           only : orog_init_option,  &
+                                             orog_init_option_analytic, &
+                                             orog_init_option_ancil, &
+                                             orog_init_option_start_dump
+  use orography_control_mod,          only : set_orography_option
+  use sci_smooth_orog_kernel_mod,     only : smooth_orog_kernel_type
+  use io_config_mod,                  only : use_xios_io
+  use lfric_xios_read_mod,            only : read_field_generic
+  use lfric_xios_write_mod,           only : write_field_generic
+  use log_mod,                        only : log_event, &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO,  &
+                                             LOG_LEVEL_ERROR
+
+  implicit none
+
+  private
+
+  public :: init_altitude
+
+  contains
+  !> @brief Routine to initialise surface altitude field used for orography
+  !>        - either from ancil file or by calculating it analytically.
+  !> @param[in]   twod_mesh        2d mesh
+  !> @param[out]  surface_altitude Surface altitude field
+  subroutine init_altitude( twod_mesh, surface_altitude )
+
+    implicit none
+
+    type(mesh_type),  intent(in), pointer :: twod_mesh
+    type(field_type), intent(out)         :: surface_altitude
+    type(field_type)                      :: surface_altitude_tmp
+
+    ! Pointers to vector space and read interface
+    type(function_space_type), pointer  :: vector_space => null()
+    procedure(read_interface), pointer  :: read_ptr => null()
+    procedure(write_interface), pointer :: tmp_write_ptr => null()
+
+    ! Set the function space order to be 0 - ancil files currently store data
+    ! on 2D face centres
+    integer(i_def), parameter :: surface_order_h = 0
+    integer(i_def), parameter :: surface_order_v = 0
+    integer(i_def) :: i
+
+    write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
+          "Create surface altitude."
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    ! Here we create the 2D surface altitude field
+    vector_space => function_space_collection%get_fs( twod_mesh, &
+                                                      surface_order_h, &
+                                                      surface_order_v, W3)
+
+    call surface_altitude%initialise(vector_space, name=trim('surface_altitude'), &
+                                     halo_depth = twod_mesh%get_halo_depth())
+    call surface_altitude_tmp%initialise(vector_space, &
+                                         halo_depth = twod_mesh%get_halo_depth())
+
+    ! Default is zero
+    call invoke( setval_c(surface_altitude, 0.0_r_def))
+
+    select case ( orog_init_option )
+
+      ! Analytic orography
+      case ( orog_init_option_analytic )
+
+        ! Set up analytic orography parameters
+        call set_orography_option()
+
+      ! Orography read from ancil file
+      case ( orog_init_option_ancil, orog_init_option_start_dump )
+
+        ! Set up the read behaviour for our field and read it
+        if (use_xios_io) then
+
+          ! Altitude field should read in on W3_2D function space
+          read_ptr => read_field_generic
+          call surface_altitude%set_read_behaviour(read_ptr)
+
+          write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
+                "Read surface altitude from ancil."
+          call log_event(log_scratch_space, LOG_LEVEL_INFO)
+          call surface_altitude%read_field(trim(adjustl(surface_altitude%get_name())))
+
+          ! Write behaviour also set up for diagnostic output of altitude if required
+          tmp_write_ptr => write_field_generic
+          call surface_altitude%set_write_behaviour(tmp_write_ptr)
+
+          ! Apply n_orog_smooth passes of a 1-2-1 smoothing filter to the
+          ! orography, if required. This can only be applied to limited area
+          ! models at the moment, as it uses a region stencil, and assumes
+          ! a uniform grid (without cubed sphere corners).
+          if ( n_orog_smooth > 0 ) then
+            do i=1,n_orog_smooth
+              call invoke( smooth_orog_kernel_type( surface_altitude_tmp,   &
+                                                    surface_altitude, 1 ) , &
+                           setval_X(surface_altitude, surface_altitude_tmp ) )
+            end do
+         end if
+
+
+        ! Call error if XIOS is not being used - ancils cannot be read without it
+        else
+          write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
+                "XIOS must be enabled to read surface altitude from ancil."
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+        end if
+
+      ! Default - no orography
+      case default
+
+        write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
+              "No initialisation option set for orography."
+        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    end select
+
+    nullify(vector_space)
+    nullify(read_ptr)
+    nullify(tmp_write_ptr)
+
+  end subroutine init_altitude
+
+end module init_altitude_mod

@@ -1,0 +1,245 @@
+&base_mesh
+file_prefix='mesh_C24',
+geometry='spherical',
+prepartitioned = .false.,
+prime_mesh_name='dynamics',
+topology='fully_periodic',
+/
+&boundaries
+limited_area=.false.,
+/
+&checks
+limit_cfl=.false.,
+/
+&departure_points
+departure_grid='uniform',
+horizontal_limit='none',
+method='euler',
+n_dep_pt_iterations=1,
+vertical_limit='exponential',
+vertical_method='trapezoidal',
+/
+&section_choice
+dynamics='gungho',
+/
+&extrusion
+domain_height=30000.0,
+method='dcmip',
+number_of_layers=10,
+planet_radius=6371229.0,
+stretching_method='linear',
+/
+&files
+ancil_directory='',
+coarse_ancil_directory='',
+checkpoint_stem_name='',
+diag_stem_name='diagGungho',
+orography_mean_ancil_path='',
+start_dump_directory='',
+start_dump_filename='',
+lbc_directory='',
+lbc_filename='',
+/
+&finite_element
+cellshape='quadrilateral',
+coord_order=1,
+coord_system='native',
+element_order_h=0,
+element_order_v=0,
+rehabilitate=.true.,
+vorticity_in_w1=.true.,
+/
+&formulation
+dlayer_on=.false.,
+dry_static_adjust=.false.,
+eos_method='sampled'
+exner_from_eos=.true.,
+init_exner_bt=.true.,
+l_multigrid=.false.,
+moisture_formulation='dry',
+rotating=.true.,
+shallow=.false.,
+si_momentum_equation=.false.,
+theta_moist_source=.false.
+use_physics=.false.,
+use_wavedynamics=.true.,
+vector_invariant=.false.,
+/
+&helmholtz_solver
+diagnostic_norm=.false.,
+gcrk=18,
+method='prec_only',
+normalise=.true.,
+preconditioner='tridiagonal',
+si_pressure_maximum_iterations=400,
+si_pressure_tolerance=1.0e-6,
+/
+&idealised
+perturb_init=.false.
+perturb_magnitude=0
+perturb_seed=0
+test='deep_baroclinic_wave',
+/
+&initialization
+ancil_option='none',
+lbc_option='none',
+init_option='analytic',
+zero_w2v_wind=.false.,
+/
+&initial_density
+r1=0.0,
+r2=0.0,
+density_background=0.1,
+density_max=2.0,
+x1=0.0,
+x2=0.0,
+y1=0.0,
+y2=0.0,
+z1=0.0,
+z2=0.0,
+/
+&initial_pressure
+method = 'projected',
+surface_pressure = 1000.0e2,
+/
+&initial_temperature
+bvf_square=0.0001,
+pert_width_scaling=1.0,
+theta_surf=300.0,
+/
+&initial_wind
+nl_constant=0.0,
+profile='deep_baroclinic_perturbed',
+sbr_angle_lat=0.0,
+sbr_angle_lon=0.0,
+smp_init_wind=.false.,
+u0=0.0,
+v0=0.0,
+wind_time_period=0.0,
+/
+&io
+checkpoint_read=.false.,
+checkpoint_write=.false.,
+diagnostic_frequency=2,
+nodal_output_on_w3=.false.,
+subroutine_counters=.false.,
+subroutine_timers=.true.,
+use_xios_io=.true.,
+write_conservation_diag=.false.,
+write_diag=.true.,
+write_dump=.false.,
+write_fluxes=.true.
+write_minmax_tseries=.false.,
+/
+&logging
+run_log_level='info',
+/
+&mixed_solver
+eliminate_variables='discrete',
+gcrk=6,
+guess_np1=.false.,
+mixed_solver_a_tol=1.0e-2,
+normalise=.true.,
+reference_reset_time=1000.0,
+si_maximum_iterations=40,
+si_method='block_gcr',
+si_preconditioner='pressure',
+si_tolerance=1.0e-1,
+split_w=.true.,
+/
+&mixing
+smagorinsky=.false.,
+viscosity=.false.,
+viscosity_mu=0.0,
+/
+&orography
+orog_init_option='none',
+/
+&partitioning
+panel_decomposition='auto',
+panel_xproc=6,
+panel_yproc=1,
+/
+&planet
+cp=1005.0,
+gravity=9.80665,
+omega=7.292116E-5,
+p_zero=100000.0,
+rd=287.05,
+scaling_factor=1.0,
+/
+&solver
+gcrk=18,
+maximum_iterations=399,
+method='cg',
+preconditioner='diagonal',
+tolerance=1.0e-6,
+/
+&time
+calendar='timestep',
+timestep_end='20',
+timestep_start='1',
+calendar_type='gregorian',
+calendar_origin='2016-01-01 15:00:00',
+calendar_start='2016-01-01 15:00:00',
+/
+&timestepping
+alpha=0.5,
+dt=1000.0,
+inner_iterations=2,
+method='semi_implicit',
+outer_iterations=2,
+runge_kutta_method='ssp5',
+spinup_alpha=.false.,
+tau_r=1.0,
+tau_t=0.5,
+tau_u=0.5,
+/
+&transport
+moisture_eqn='advective'
+profile_size = 3
+field_names = 'density', 'potential_temperature', 'wind'
+scheme = 1, 1, 1
+splitting = 1, 1, 1
+horizontal_method = 1, 1, 1
+vertical_method = 1, 1, 1
+horizontal_monotone = 1,1,1
+vertical_monotone = 1,1,1
+vertical_monotone_order = 3,3,3
+log_space = .true., .false., .false.
+enforce_min_value=.false.,.false.,.false.
+max_vert_cfl_calc='uniform'
+min_value=0.0,0.0,-99999999.0,0.0
+adjust_vhv_wind=.false.
+calculate_detj='upwind',
+cap_density_predictor = 0.01
+cfl_mol_1d_stab = 2.0
+cfl_mol_2d_stab = 2.0
+cfl_mol_3d_stab = 2.0
+cheap_update = .false.
+consistent_metric  = .false.
+dep_pt_stencil_extent=3,
+dry_field_name = 'density'
+ffsl_inner_order=2
+ffsl_outer_order=2
+ffsl_unity_3d=.false.
+ffsl_vertical_order=3*2
+fv_flux_order = 2
+fv_advective_order = 2
+oned_reconstruction = .false.
+operators = 'fv'
+vertical_sl_order='cubic'
+slice_order='cubic'
+si_outer_transport='none'
+runge_kutta_method = 'ssp5'
+ffsl_advective_splitting='full'
+ffsl_flux_splitting='full'
+use_density_predictor=.true.
+panel_edge_treatment='none'
+panel_edge_high_order=.true.,
+special_edges_monotone=3*1
+wind_mono_top=.false.
+wind_mono_top_depth=5
+/
+&development
+/

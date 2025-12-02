@@ -1,0 +1,297 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the computation of the vertical flux coefficients
+module poly1d_vert_flux_coeffs_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def, l_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_uniform_mesh
+  public :: test_stretched_mesh
+
+  @TestCase
+  type, extends(TestCase), public :: poly1d_vert_flux_coeffs_test_type
+    private
+  contains
+    procedure setUp
+    procedure test_uniform_mesh
+    procedure test_stretched_mesh
+    procedure tearDown
+    procedure test_function
+  end type poly1d_vert_flux_coeffs_test_type
+
+contains
+
+  subroutine setUp( this )
+    implicit none
+
+    class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  @Test
+  subroutine test_uniform_mesh( this )
+
+    use, intrinsic :: iso_fortran_env,      only: real64
+    use poly1d_vert_flux_coeffs_kernel_mod, only: poly1d_vert_flux_coeffs_code
+    implicit none
+
+    class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
+
+    real(r_tran), parameter    :: tol = 1.0e-6_r_tran  ! precision with 32bit r_defs
+    real(r_tran), dimension(3) :: answer
+    real(r_tran)               :: use_tol
+
+    integer(i_def), parameter :: nfaces_v = 2
+    integer(i_def), parameter :: nlayers = 8
+    integer(i_def), parameter :: mol_order = 2
+    integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+    integer(i_def), parameter :: ndf_wx = 2
+    integer(i_def), parameter :: ndf_c  = 1
+    integer(i_def), parameter :: undf_wx = nlayers + 1
+    integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
+    integer(i_def), parameter :: nqp_h = 1
+    integer(i_def), parameter :: nqp_v = 3
+    integer(i_def), dimension(ndf_wx) :: map_wx
+    integer(i_def), dimension(ndf_c)  :: map_c
+
+    real(r_tran), dimension(undf_c)              :: coeff
+    real(r_def), dimension(undf_wx)              :: z
+    real(r_def), dimension(nqp_h)                :: wqp_h
+    real(r_def), dimension(nqp_v)                :: wqp_v
+    real(r_def), dimension(1,ndf_wx,nqp_h,nqp_v) :: basis_wx
+
+    real(r_def), parameter    :: dz = 3.0_r_def
+    real(r_def), dimension(3) :: xq
+
+    integer(i_def) :: i, k, df
+
+    xq(:) = 0.5_r_def + 0.5_r_def*(/ -sqrt(3.0_r_def/5.0_r_def), 0.0_r_def, sqrt(3.0_r_def/5.0_r_def) /)
+    wqp_v(:) = (/5.0_r_def, 8.0_r_def, 5.0_r_def/)/18.0_r_def
+    wqp_h(1) = 1.0_r_def
+
+    map_c(1) = 1
+    map_wx(:) = (/1, 2/)
+
+    z(1) = 0.0_r_def
+    do k = 0,nlayers-1
+      z(map_wx(2)+k) = z(map_wx(1)+k) + dz
+    end do
+
+    do k = 1, nqp_v
+      basis_wx(1,1,:,k) = (1.0_r_def - xq(k))
+      basis_wx(1,2,:,k) = xq(k)
+    end do
+    coeff = 0.0_r_tran
+    call poly1d_vert_flux_coeffs_code(nlayers,                   &
+                                      coeff,                     &
+                                      z,                         &
+                                      ndata,                     &
+                                      mol_order,                 &
+                                      ndf_c,                     &
+                                      undf_c,                    &
+                                      map_c,                     &
+                                      ndf_wx,                    &
+                                      undf_wx,                   &
+                                      map_wx,                    &
+                                      basis_wx,                  &
+                                      nqp_h, nqp_v, wqp_h, wqp_v)
+
+    use_tol = tol
+
+    k = 1
+    answer = (/ 2.0_r_tran, 5.0_r_tran, -1.0_r_tran /)/6.0_r_tran
+    do df = 0,2
+      @assertEqual(answer(df+1), coeff(df + k*ndata + map_c(1)), use_tol)
+      @assertEqual(answer(df+1), coeff(df + (mol_order+1) + k*ndata + map_c(1)), use_tol)
+    end do
+
+    k = 2
+    answer = (/ 2.0_r_tran, 5.0_r_tran, -1.0_r_tran /)/6.0_r_tran
+    do df = 0,2
+      @assertEqual(answer(df+1), coeff(df + k*ndata + map_c(1)), use_tol)
+    end do
+    answer = (/ -1.0_r_tran, 5.0_r_tran, 2.0_r_tran /)/6.0_r_tran
+    do df = 0,2
+      @assertEqual(answer(df+1), coeff(df + (mol_order+1) + k*ndata + map_c(1)), use_tol)
+    end do
+
+  end subroutine test_uniform_mesh
+
+  @Test
+  subroutine test_stretched_mesh( this )
+
+    use, intrinsic :: iso_fortran_env,            only: real64
+    use poly1d_vert_flux_coeffs_kernel_mod,       only: poly1d_vert_flux_coeffs_code
+    use poly1d_vert_w3_reconstruction_kernel_mod, only: poly1d_vert_w3_reconstruction_code, &
+                                                        poly1d_vert_w3_reconstruction_init, &
+                                                        poly1d_vert_w3_reconstruction_final
+    implicit none
+
+    class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
+
+    real(r_tran), parameter    :: tol = 1.0e-4_r_tran  ! precision with 32bit r_defs
+    real(r_tran)               :: ans, mx, use_tol
+
+    integer(i_def), parameter :: nfaces_v = 2
+    integer(i_def), parameter :: nlayers = 8
+    logical(l_def), parameter :: logspace = .false.
+    integer(i_def), parameter :: mol_order = 2
+    integer(i_def), parameter :: ndata = (mol_order+1)*nfaces_v
+    integer(i_def), parameter :: ndf_wx = 2
+    integer(i_def), parameter :: ndf_c  = 1
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: undf_wx = nlayers + 1
+    integer(i_def), parameter :: undf_w3 = nlayers
+    integer(i_def), parameter :: undf_c  = ndata*(nlayers+1)
+    integer(i_def), parameter :: nqp_h = 1
+    integer(i_def), parameter :: nqp_v = 3
+    integer(i_def), dimension(ndf_wx) :: map_wx
+    integer(i_def), dimension(ndf_w3) :: map_w3
+    integer(i_def), dimension(ndf_c)  :: map_c
+
+    real(r_tran), dimension(undf_c) :: coeff
+    real(r_def), dimension(undf_wx) :: z
+
+    real(r_def), dimension(nqp_h) :: wqp_h
+    real(r_def), dimension(nqp_v) :: wqp_v
+
+    real(r_def), dimension(1,ndf_wx,nqp_h,nqp_v) :: basis_wx
+
+    real(r_def)            :: dz = 2.3_r_def
+    real(r_def), parameter :: dx = 2.0_r_def
+    real(r_def), parameter :: dy = 1.7_r_def
+
+    real(r_def), dimension(3) :: xq
+
+    integer(i_def) :: i, k, df
+
+    integer(i_def), parameter :: ndf_md = 1
+    integer(i_def), parameter :: undf_md = 2*nlayers
+    integer(i_def), dimension(ndf_md)   :: map_md
+    real(r_tran),   dimension(undf_md)  :: reconstruction
+    real(r_tran),   dimension(undf_w3)  :: density
+
+    real(r_def) :: z_w3
+
+    xq(:) = 0.5_r_def + 0.5_r_def*(/ -sqrt(3.0_r_def/5.0_r_def), 0.0_r_def, sqrt(3.0_r_def/5.0_r_def) /)
+    wqp_v(:) = (/5.0_r_def, 8.0_r_def, 5.0_r_def/)/18.0_r_def
+
+    map_c(1) = 1
+    map_wx(:) = (/1, 2/)
+    map_w3(1) = 1
+    map_md = (/1/)
+
+    z(1) = 0.0_r_def
+    do k = 0,nlayers-1
+      z(map_wx(2)+k) = z(map_wx(1)+k) + dz
+      dz = dz * 1.5_r_def
+    end do
+
+    do k = 1, nqp_v
+      basis_wx(1,1,:,k) = (1.0_r_def - xq(k))
+      basis_wx(1,2,:,k) = xq(k)
+    end do
+
+    wqp_h(1) = 1.0_r_def
+
+    ! A more severe test is to check if the reconstruction
+    ! on a non-uniform grid returns the correct aswer.
+    ! We compute the coefficients on a non-uniform
+    ! mesh and then use them to compute the field
+    ! on the staggered points and compare that with the
+    ! exact answer. As a basic test we check that
+    ! the reconstruction can exactly reconstruct
+    ! a linear field.
+
+    coeff = 0.0_r_tran
+    dz = 2.3_r_def
+    z(1) = 0.0_r_def
+    do k = 0,nlayers-1
+     ! Stretch the vertical mesh a (very) nonuniform way(
+      z(map_wx(2)+k) = z(map_wx(1)+k) + dz
+      dz = dz * 1.5_r_def
+
+      z_w3 = 0.5_r_def*(z(map_wx(1)+k)+z(map_wx(2)+k))
+      density(1+k) = this%test_function(z_w3)
+    end do
+
+    ! Compute the coeffs for the stretched mesh
+    call poly1d_vert_flux_coeffs_code(nlayers,                   &
+                                      coeff,                     &
+                                      z,                         &
+                                      ndata,                     &
+                                      mol_order,                 &
+                                      ndf_c,                     &
+                                      undf_c,                    &
+                                      map_c,                     &
+                                      ndf_wx,                    &
+                                      undf_wx,                   &
+                                      map_wx,                    &
+                                      basis_wx,                  &
+                                      nqp_h, nqp_v, wqp_h, wqp_v )
+
+    ! The best way to check the coefficients is to call the kernel
+    ! to reconstruct the field, this will compute reconstruction =
+    ! reconstructed(density) and so we can then easily check
+    ! the reconstructed field with the exact answer.
+    ! this is done for both positive and negative winds
+    ! to check the upwind reconstruction in both directions
+
+    call poly1d_vert_w3_reconstruction_init( mol_order, nlayers )
+
+    reconstruction = 0.0_r_tran
+    do i = 0,1
+      call poly1d_vert_w3_reconstruction_code( nlayers,              &
+                                             reconstruction,       &
+                                             density,              &
+                                             coeff,                &
+                                             ndata,                &
+                                             mol_order,            &
+                                             logspace,             &
+                                             ndf_md,               &
+                                             undf_md,              &
+                                             map_md,               &
+                                             ndf_w3,               &
+                                             undf_w3,              &
+                                             map_w3,               &
+                                             ndf_c,                &
+                                             undf_c,               &
+                                             map_c )
+      use_tol = tol
+      do k = 0,nlayers-1
+        ans = this%test_function(z(map_wx(1)+k))
+        @assertEqual(ans, reconstruction(map_md(1)+k), use_tol)
+      end do
+    end do
+
+    call poly1d_vert_w3_reconstruction_final()
+
+  end subroutine test_stretched_mesh
+
+  subroutine tearDown( this )
+    implicit none
+
+    class(poly1d_vert_flux_coeffs_test_type), intent(inout) :: this
+  end subroutine tearDown
+
+  pure function test_function(this, z) result(fz)
+
+    implicit none
+
+    class(poly1d_vert_flux_coeffs_test_type), intent(in) :: this
+    real(r_def), intent(in) :: z
+    real(r_def)             :: fz
+
+    fz = z
+
+  end function test_function
+
+end module poly1d_vert_flux_coeffs_kernel_mod_test

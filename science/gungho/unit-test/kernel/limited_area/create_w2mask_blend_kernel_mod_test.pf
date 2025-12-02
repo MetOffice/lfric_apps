@@ -1,0 +1,317 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Does the W2 blend mask give 0.5 in the middle of the blending region?
+module create_w2mask_blend_kernel_mod_test
+
+  use constants_mod,                       only: i_def, r_def
+  use get_unit_test_m3x3_dofmap_mod,       only: get_w0_m3x3_dofmap,       &
+                                                 get_w2_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w0_m3x3_q3x3x3_size,  &
+                                                 get_w2_m3x3_q3x3x3_size
+  use get_unit_test_w2nodal_basis_mod,     only: get_w0_w2nodal_basis
+  use get_unit_test_3x3x3_chi_mod,         only: get_w0_3x3x3_field
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: create_w2mask_blend_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type create_w2mask_blend_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_planar, &
+                                          topology_non_periodic
+    use feign_config_mod,          only : feign_base_mesh_config,  &
+                                          feign_finite_element_config
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+
+    implicit none
+
+    class(create_w2mask_blend_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config( file_prefix     = 'foo',                 &
+                                 prime_mesh_name = 'unit_test',           &
+                                 geometry        = geometry_planar,       &
+                                 prepartitioned  = .false.,               &
+                                 topology        = topology_non_periodic, &
+                                 fplane          = .false.,               &
+                                 f_lat_deg       = 0.0_r_def )
+
+    call feign_finite_element_config(                                  &
+                    cellshape=cellshape_quadrilateral,                 &
+                    coord_order=0_i_def,                               &
+                    coord_system=coord_system_xyz,                     &
+                    element_order_h=0_i_def,                           &
+                    element_order_v=0_i_def,                           &
+                    rehabilitate=.true.,                               &
+                    vorticity_in_w1=.false. )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    implicit none
+
+    class(create_w2mask_blend_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use create_w2mask_blend_kernel_mod, only : create_w2mask_blend_code
+
+    implicit none
+
+    class(create_w2mask_blend_test_type), intent(inout) :: this
+
+    real(r_def), parameter    :: tol = 1.0e-6_r_def
+    real(r_def), parameter    :: dx = 6000.0_r_def,          &
+                                 dy = 1000.0_r_def,          &
+                                 dz = 2000.0_r_def
+    real(r_def), parameter    :: outer_s = 0.0_r_def,        &
+                                 outer_n = 3000.0_r_def,     &
+                                 outer_e = 18000.0_r_def,    &
+                                 outer_w = 0.0_r_def,        &
+
+                                 blend_s = 0.0_r_def,        &
+                                 blend_n = 3000.0_r_def,     &
+                                 blend_e = 18000.0_r_def,    &
+                                 blend_w = 6000.0_r_def,     &
+
+                                 rim_s = 0.0_r_def,          &
+                                 rim_n = 3000.0_r_def,       &
+                                 rim_e = 18000.0_r_def,      &
+                                 rim_w = 12000.0_r_def
+
+    integer(i_def), parameter :: rim_width_ns = -1_i_def,    &
+                                 rim_width_ew = 0_i_def
+
+    real(kind=r_def) :: answer
+
+    integer(i_def) :: ndf_chi, undf_chi
+    integer(i_def), allocatable :: map_chi(:,:)
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    real(r_def), allocatable :: basis_w0(:,:,:)
+    real(r_def), allocatable :: basis_chi(:,:,:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:)
+    real(r_def), allocatable :: wind_mask(:)
+
+    integer(i_def) :: nlayers
+    integer(i_def) :: ncells
+    integer(i_def) :: dim_space
+    integer(i_def) :: dim_space_diff
+    integer(i_def) :: nqp_h
+    integer(i_def) :: nqp_v
+    integer(i_def) :: ndf_w0
+    integer(i_def) :: undf_w0
+    integer(i_def) :: ndf_w2
+    integer(i_def) :: undf_w2
+
+    integer(i_def) :: i, j, k, cell, dof
+
+    !=====================================
+    ! Get infrastructure support data
+    !=====================================
+    nlayers = 3
+
+    ! Get sizes
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+
+    ! Get maps
+    call get_w0_m3x3_dofmap( map_w0 )
+    call get_w2_m3x3_dofmap( map_w2 )
+
+    ! Get basis functions
+    call get_w0_w2nodal_basis( basis_w0 )
+
+    ! Compute coordinates
+    allocate( chi1(undf_w0) )
+    allocate( chi2(undf_w0) )
+    allocate( chi3(undf_w0) )
+
+    call get_w0_3x3x3_field( chi1, chi2, chi3, dx, dy, dz,   &
+                             map_w0, nlayers )
+
+    !=====================================
+    ! Assign data for testing
+    !=====================================
+    allocate( map_chi, source = map_w0 )
+    allocate( basis_chi, source = basis_w0 )
+    ndf_chi  = ndf_w0
+    undf_chi = undf_w0
+    allocate( wind_mask(undf_w2) )
+
+   ! Cell ordering with boundaries
+    !
+    !  --> x
+    !
+    !  |  1  | 2 | 3
+    !  v     |   |
+    !  y  4  | 5 | 6
+    !        |   |
+    !     7  | 8 | 9
+
+    ! Face ordering on a cell in the w2 dofmap
+    ! ----2----
+    ! |       |
+    ! 1       3
+    ! |       |
+    ! ----4----
+
+    !=====================================
+    ! Apply test on blend cell 2
+    !=====================================
+    cell = 2
+    dof = 3
+    answer = 0.0_r_def
+
+    ! Call the kernel for create mask
+    call create_w2mask_blend_code( nlayers,         &
+                                   outer_s,         &
+                                   outer_n,         &
+                                   outer_e,         &
+                                   outer_w,         &
+                                   rim_s,           &
+                                   rim_n,           &
+                                   rim_e,           &
+                                   rim_w,           &
+                                   blend_s,         &
+                                   blend_n,         &
+                                   blend_e,         &
+                                   blend_w,         &
+                                   rim_width_ns,    &
+                                   rim_width_ew,    &
+                                   wind_mask,       &
+                                   chi1,            &
+                                   chi2,            &
+                                   chi3,            &
+                                   ndf_w2,          &
+                                   undf_w2,         &
+                                   map_w2(:,cell),  &
+                                   ndf_chi,         &
+                                   undf_chi,        &
+                                   map_chi(:,cell), &
+                                   basis_chi )
+    k = 2
+    @assertEqual( wind_mask(map_w2(dof,cell) + k), answer, tol )
+
+    !=====================================
+    ! Apply test on blend cell 2
+    !=====================================
+    cell = 2
+    dof = 1
+    answer = 1.0_r_def
+
+    ! Call the kernel for create mask
+    call create_w2mask_blend_code( nlayers,         &
+                                   outer_s,         &
+                                   outer_n,         &
+                                   outer_e,         &
+                                   outer_w,         &
+                                   rim_s,           &
+                                   rim_n,           &
+                                   rim_e,           &
+                                   rim_w,           &
+                                   blend_s,         &
+                                   blend_n,         &
+                                   blend_e,         &
+                                   blend_w,         &
+                                   rim_width_ns,    &
+                                   rim_width_ew,    &
+                                   wind_mask,       &
+                                   chi1,            &
+                                   chi2,            &
+                                   chi3,            &
+                                   ndf_w2,          &
+                                   undf_w2,         &
+                                   map_w2(:,cell),  &
+                                   ndf_chi,         &
+                                   undf_chi,        &
+                                   map_chi(:,cell), &
+                                   basis_chi )
+
+    k = 2
+    @assertEqual( wind_mask(map_w2(dof,cell) + k), answer, tol )
+
+    !=====================================
+    ! Apply test on blend cell 2
+    !=====================================
+    cell = 2
+    dof = 5
+    answer = 0.5_r_def
+
+    ! Call the kernel for create mask
+    call create_w2mask_blend_code( nlayers,         &
+                                   outer_s,         &
+                                   outer_n,         &
+                                   outer_e,         &
+                                   outer_w,         &
+                                   rim_s,           &
+                                   rim_n,           &
+                                   rim_e,           &
+                                   rim_w,           &
+                                   blend_s,         &
+                                   blend_n,         &
+                                   blend_e,         &
+                                   blend_w,         &
+                                   rim_width_ns,    &
+                                   rim_width_ew,    &
+                                   wind_mask,       &
+                                   chi1,            &
+                                   chi2,            &
+                                   chi3,            &
+                                   ndf_w2,          &
+                                   undf_w2,         &
+                                   map_w2(:,cell),  &
+                                   ndf_chi,         &
+                                   undf_chi,        &
+                                   map_chi(:,cell), &
+                                   basis_chi )
+
+    k = 2
+    @assertEqual( wind_mask(map_w2(dof,cell) + k), answer, tol )
+
+    deallocate( map_chi )
+    deallocate( map_w0 )
+    deallocate( map_w2 )
+    deallocate( chi1 )
+    deallocate( chi2 )
+    deallocate( chi3 )
+    deallocate( basis_w0 )
+    deallocate( basis_chi )
+    deallocate( wind_mask )
+
+  end subroutine test_all
+
+end module create_w2mask_blend_kernel_mod_test

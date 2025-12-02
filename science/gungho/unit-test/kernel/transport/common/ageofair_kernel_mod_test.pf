@@ -1,0 +1,56 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the age-of-air kernel which sets lower model levels to zero.
+module ageofair_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  contains
+
+  @test
+  subroutine test_all()
+
+    use ageofair_kernel_mod, only: ageofair_code
+
+    implicit none
+
+    integer(i_def), parameter :: nlayers = 10
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: undf_w3 = nlayers
+    integer(i_def), dimension(ndf_w3) :: map_w3
+    real(r_def), dimension(undf_w3) :: ageofair
+
+    integer(i_def), parameter :: ageofair_reset_level = 5
+
+    real(r_def), parameter :: ageofair_value = 1234.0_r_def
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def) :: answer(nlayers)
+
+    integer(i_def) :: k
+
+    map_w3(:) = 1
+
+    ageofair(1:nlayers) = ageofair_value
+
+    call ageofair_code( nlayers,                                &
+                        ageofair,                               &
+                        ageofair_reset_level,                   &
+                        ndf_w3,                                 &
+                        undf_w3,                                &
+                        map_w3 )
+
+    answer = (/0.0_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def,          &
+               0.0_r_def, 1234.0_r_def, 1234.0_r_def, 1234.0_r_def, &
+               1234.0_r_def, 1234.0_r_def/)
+    @assertEqual( answer, ageofair, tol )
+
+  end subroutine test_all
+
+end module ageofair_kernel_mod_test

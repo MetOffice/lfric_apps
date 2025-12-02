@@ -1,0 +1,156 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_lfricinputs.cylc") %}
+
+{# um2lfric Groups by Config #}
+{% do site_groups.update({
+    "um2lfric_gadi_aquaplanet": [
+        "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_gadi_intel_fast-debug-64bit",
+    ],
+    "um2lfric_aquaplanet": [
+        "um2lfric_gadi_aquaplanet",
+    ],
+
+    "um2lfric_gadi_basicgal": [
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_gadi_intel_fast-debug-64bit",
+    ],
+    "um2lfric_basicgal": [
+        "um2lfric_gadi_basicgal",
+    ],
+
+    "um2lfric_gadi_protogal": [
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_gadi_intel_fast-debug-64bit",
+    ],
+    "um2lfric_protogal": [
+        "um2lfric_gadi_protogal",
+    ],
+
+    "um2lfric_gadi_protogal_chem": [
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_gadi_intel_fast-debug-64bit",
+    ],
+    "um2lfric_protogal_chem": [
+        "um2lfric_gadi_protogal_chem",
+    ],
+
+    "um2lfric_gadi_aquaplanet_lam": [
+        "lfricinputs_um2lfric-aquaplanet_lam_gadi_intel_fast-debug-64bit",
+    ],
+    "um2lfric_aquaplanet_lam": [
+        "um2lfric_gadi_aquaplanet_lam",
+    ],
+
+    "um2lfric_gadi_aquaplanet_lbc": [
+        "lfricinputs_um2lfric-aquaplanet_lbc_gadi_intel_fast-debug-64bit",
+    ],
+    "um2lfric_aquaplanet_lbc": [
+        "um2lfric_gadi_aquaplanet_lbc",
+    ],
+
+    "um2lfric_gadi_falklands_lam": [
+        "lfricinputs_um2lfric-falklands_lam_gadi_intel_fast-debug-64bit",
+    ],
+    "um2lfric_falklands_lam": [
+        "um2lfric_gadi_falklands_lam",
+    ],
+
+    "um2lfric_gadi_var_seukv_lam": [
+        "lfricinputs_um2lfric-var_seuk_lam_gadi_intel_fast-debug-64bit",
+    ],
+
+    }) %}
+
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "lfricinputs_gadi_developer": [
+        "um2lfric_gadi_developer",
+        "lfric2um_gadi_developer",
+        "scintelapi_gadi_developer",
+    ],
+    "lfricinputs_gadi": [
+        "lfricinputs_gadi_developer",
+        "um2lfric_gadi",
+        "lfric2um_gadi",
+        "scintelapi_gadi",
+    ],
+    "um2lfric_gadi_developer": [
+        "lfricinputs_um2lfric-aquaplanet-N48L38_C48L38_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-basicgal-N96L70_C12L70_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal-N320L70_C12L70_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-protogal_chem-N48L70_C12L70_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lam_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-aquaplanet_lbc_gadi_intel_fast-debug-64bit",
+        "lfricinputs_um2lfric-falklands_lam_gadi_intel_fast-debug-64bit",
+         ],
+
+    "um2lfric_gadi": [
+        "um2lfric_gadi_developer",
+        "um2lfric_gadi_aquaplanet",
+        "um2lfric_gadi_basicgal",
+        "um2lfric_gadi_protogal",
+        "um2lfric_gadi_protogal_chem",
+        "um2lfric_gadi_aquaplanet_lam",
+        "um2lfric_gadi_aquaplanet_lbc",
+        "um2lfric_gadi_falklands_lam",
+    ],
+    "lfric2um_gadi_developer": [
+        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_gadi_intel_fast-debug-64bit",
+        "lfricinputs_lfric2um-umlam-C48L70_N512L70_gadi_intel_fast-debug-64bit",
+    ],
+    "lfric2um_gadi": [
+        "lfric2um_gadi_developer",
+    ],
+    "scintelapi_gadi_developer": [
+        "lfricinputs_scintelapi-basic-C48L38_C48L38_gadi_intel_fast-debug-64bit",
+        "lfricinputs_scintelapi-basicgal-C12L70-mixingratio_gadi_intel_fast-debug-64bit",
+    ],
+    "scintelapi_gadi": [
+        "scintelapi_gadi_developer",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "lfricinputs_developer": [
+        "scripts",
+        "lfricinputs_gadi_developer",
+    ],
+    "lfricinputs": [
+        "lfricinputs_developer",
+        "lfricinputs_gadi",
+    ],
+    "um2lfric_developer": [
+        "um2lfric_gadi_developer",
+    ],
+    "um2lfric": [
+        "um2lfric_developer",
+        "um2lfric_gadi",
+    ],
+    "lfric2um_developer": [
+        "lfric2um_gadi_developer",
+    ],
+    "lfric2um": [
+        "lfric2um_developer",
+        "lfric2um_gadi",
+    ],
+    "scintelapi_developer": [
+        "scintelapi_gadi_developer",
+    ],
+    "scintelapi": [
+        "scintelapi_developer",
+        "scintelapi_gadi",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.lfricinputs_developer) %}
+{% do site_groups.all.extend(site_groups.lfricinputs) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.lfricinputs_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.lfricinputs_gadi) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_lfricinputs.cylc") %}

@@ -1,0 +1,275 @@
+#!/usr/bin/env python3
+##############################################################################
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+"""
+Wrapper script for makefiles when doing a local build
+Will export a copy of lfric_core using a defined source and rsync it to a
+working dir so that incremental builds can occur.
+It then runs the makefile for the project being made.
+"""
+
+import os
+import sys
+import subprocess
+import argparse
+import yaml
+
+
+def subprocess_run(command):
+    """
+    Run a subprocess command with live output and check the return code
+    """
+
+    process = subprocess.Popen(
+        command.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+    )
+
+    # Realtime output of stdout and stderr
+    while True:
+        line = process.stdout.readline()
+        if not line and process.poll() is not None:
+            break
+        print(line.decode(), end="", flush=True)
+
+    retcode = process.returncode
+    if retcode != 0:
+        sys.exit(f"\nError while running subprocess command:\n{command}\n")
+
+
+def get_root_path():
+    """
+    Get the root path of the current working copy
+    """
+
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def determine_core_source(root_dir):
+    """
+    Determine the core source code location from the dependencies file
+    Returns an fcm url or a path
+    """
+
+    # Read through the dependencies file and populate revision and source
+    # variables for requested repo
+    with open(os.path.join(root_dir, "dependencies.yaml"), "r") as stream:
+        dependencies = yaml.safe_load(stream)
+    return dependencies["lfric_core"]
+
+
+def determine_project_path(project, root_dir):
+    """
+    Determine the path to the makefile for the lfric_apps project being
+    built. Defaults to the makefile in the top level if none provided.
+    Returns a relative path from this file to the makefile directory
+    """
+
+    # Find the project in either science/ interfaces/ or applications/
+    for drc in ["science/", "interfaces/", "applications/"]:
+        path = os.path.join(root_dir, drc)
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            if item_path and item == project:
+                return item_path
+
+    sys.exit(
+        f"The project {project} could not be found in either the "
+        "science/ or applications/ directories in this working copy."
+    )
+
+
+def clone_dependency(values, temp_dep):
+    """
+    Clone the physics dependencies into a temporary directory
+    """
+
+    source = values["source"]
+    ref = values["ref"]
+
+    commands = (
+        f"git -C {temp_dep} init",
+        f"git -C {temp_dep} remote add origin {source}",
+        f"git -C {temp_dep} fetch origin {ref}",
+        f"git -C {temp_dep} checkout FETCH_HEAD"
+    )
+    for command in commands:
+        subprocess_run(command)
+
+
+def get_lfric_core(core_source, working_dir):
+    """
+    Clone the lfric_core source if the source is a git url
+    rsync this export into the working dir as the lfric_core source - done so
+    incremental builds can still be used.
+    If core_source is a local working copy just rsync from there.
+    """
+
+    if core_source["source"].endswith(".git"):
+        print("Cloning LFRic Core from Github")
+        lfric_core_loc = f"{working_dir}/scratch/core"
+        clone_dependency(core_source["source"], core_source["ref"], lfric_core_loc)
+        print("rsyncing the exported lfric_core source")
+    else:
+        lfric_core_loc = core_source["source"]
+        print("rsyncing the local lfric_core source")
+
+    rsync_command = f"rsync -acvzq {lfric_core_loc}/ {working_dir}/lfric_core"
+    subprocess_run(rsync_command)
+
+
+def build_makefile(
+    root_dir,
+    project_path,
+    project,
+    working_dir,
+    ncores,
+    target,
+    optlevel,
+    psyclone,
+    um_fcm_platform,
+    verbose,
+):
+    """
+    Call the make command to build lfric_apps project
+    """
+
+    if target == "clean":
+        working_path = working_dir
+    else:
+        working_path = os.path.join(working_dir, f"{target}_{project}")
+
+    print(f"Calling make command for makefile at {project_path}")
+    make_command = (
+        f"make {target} -C {project_path} -j {ncores} "
+        f"WORKING_DIR={working_path} "
+        f"CORE_ROOT_DIR={working_dir}/lfric_core "
+        f"APPS_ROOT_DIR={root_dir} "
+    )
+    if optlevel:
+        make_command += f"PROFILE={optlevel} "
+    if psyclone:
+        make_command += f"PSYCLONE_TRANSFORMATION={psyclone} "
+    if um_fcm_platform:
+        make_command += f"UM_FCM_TARGET_PLATFORM={um_fcm_platform} "
+    if verbose:
+        make_command += "VERBOSE=1 "
+
+    subprocess_run(make_command)
+
+
+def main():
+    """
+    Main function
+    """
+
+    parser = argparse.ArgumentParser(
+        description="Wrapper for build makefiles for lfric_apps."
+    )
+    parser.add_argument(
+        "project",
+        help="project to build. Will search in both "
+        "science and projects dirs.",
+    )
+    parser.add_argument(
+        "-c",
+        "--core_source",
+        default=None,
+        help="Source for lfric_core. Defaults to looking in " "dependencies file.",
+    )
+    parser.add_argument(
+        "-w",
+        "--working_dir",
+        default=None,
+        help="Working directory where builds occur. Default to the project "
+        "directory in the working copy.",
+    )
+    parser.add_argument(
+        "-j",
+        "--ncores",
+        default=4,
+        help="The number of cores for the build task.",
+    )
+    parser.add_argument(
+        "-t",
+        "--target",
+        default="build",
+        help="The makefile target, eg. unit-tests, clean, etc. Default " "of build.",
+    )
+    parser.add_argument(
+        "-o",
+        "--optlevel",
+        default=None,
+        help="The optimisation to build with, eg. fast-debug. Default of the "
+        "the makefile default, usually fast-debug",
+    )
+    parser.add_argument(
+        "-p",
+        "--psyclone",
+        default=None,
+        help="Value passed to PSYCLONE_TRANSFORMATION variable in makefile. "
+        "Defaults to the makefile default",
+    )
+    parser.add_argument(
+        "-u",
+        "--um_fcm_platform",
+        default=None,
+        help="Value passed to UM_FCM_TARGET_PLATFORM variable in makefile, "
+        "used for build settings for extracted UM physics. Defaults to the "
+        "makefile default.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Request verbose output from the makefile ",
+    )
+    args = parser.parse_args()
+
+    # Find the root directory of the working copy
+    root_dir = get_root_path()
+
+    # Work out path for the makefile that we are building
+    project_path = determine_project_path(args.project, root_dir)
+
+    # Set the working dir default of the project directory
+    if not args.working_dir:
+        args.working_dir = os.path.join(project_path, "working")
+    else:
+        # If the working dir doesn't end in working, set that here
+        if not args.working_dir.strip("/").endswith("working"):
+            args.working_dir = os.path.join(args.working_dir, "working")
+    # Ensure that working_dir is an absolute path
+    args.working_dir = os.path.abspath(args.working_dir)
+    # Create the working_dir
+    subprocess_run(f"mkdir -p {args.working_dir}")
+
+    # Determine the core source if not provided
+    if args.core_source is None:
+        core_source = determine_core_source(root_dir)
+    else:
+        core_source = {"source": args.core_source}
+
+    # Export and rsync the lfric_core source
+    get_lfric_core(core_source, args.working_dir)
+
+    # Build the makefile
+    build_makefile(
+        root_dir,
+        project_path,
+        args.project,
+        args.working_dir,
+        args.ncores,
+        args.target,
+        args.optlevel,
+        args.psyclone,
+        args.um_fcm_platform,
+        args.verbose,
+    )
+
+
+if __name__ == "__main__":
+    main()

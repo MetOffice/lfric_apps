@@ -1,0 +1,106 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for orographic_drag_alg
+
+module orographic_drag_diags_mod
+
+  use constants_mod,       only: l_def
+  use field_mod,           only: field_type
+  use io_config_mod,       only: subroutine_timers
+  use timer_mod,           only: timer
+
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+
+  ! Stress from blocking drag
+  logical( l_def ) :: taux_orog_blk_flag
+  logical( l_def ) :: tauy_orog_blk_flag
+
+  ! Stress from orographic gravity wave drag
+  logical( l_def ) :: taux_orog_gwd_flag
+  logical( l_def ) :: tauy_orog_gwd_flag
+
+  public :: initialise_diags_for_orographic_drag
+  public :: output_diags_for_orographic_drag
+
+contains
+
+  !> @brief Initialise fields for locally-computed diagnostics
+  subroutine initialise_diags_for_orographic_drag(                          &
+                                theta, u1_in_w3,                            &
+                                taux_orog_blk, tauy_orog_blk,               &
+                                taux_orog_gwd, tauy_orog_gwd)
+
+    implicit none
+
+    ! Fields passed in to copy properties from
+    type( field_type ), intent(in)    :: theta, u1_in_w3
+
+    ! Diagnostic fields to initialise
+    type( field_type ), intent(inout) ::            &
+        taux_orog_blk, tauy_orog_blk,               &
+        taux_orog_gwd, tauy_orog_gwd
+
+    if ( subroutine_timers ) call timer("orographic_drag_diags")
+
+    ! 3D fields in wtheta space
+    taux_orog_blk_flag = init_diag(taux_orog_blk, 'orographic_drag__taux_orog_blk')
+    if (taux_orog_blk_flag) call invoke( setval_c(taux_orog_blk, 0.0_r_def) )
+    tauy_orog_blk_flag = init_diag(tauy_orog_blk, 'orographic_drag__tauy_orog_blk')
+    if (tauy_orog_blk_flag) call invoke( setval_c(tauy_orog_blk, 0.0_r_def) )
+    taux_orog_gwd_flag = init_diag(taux_orog_gwd, 'orographic_drag__taux_orog_gwd')
+    if (taux_orog_gwd_flag) call invoke( setval_c(taux_orog_gwd, 0.0_r_def) )
+    tauy_orog_gwd_flag = init_diag(tauy_orog_gwd, 'orographic_drag__tauy_orog_gwd')
+    if (tauy_orog_gwd_flag) call invoke( setval_c(tauy_orog_gwd, 0.0_r_def) )
+
+    if ( subroutine_timers ) call timer("orographic_drag_diags")
+
+  end subroutine initialise_diags_for_orographic_drag
+
+  !> @brief Output diagnostics from orographic_drag_alg
+  subroutine output_diags_for_orographic_drag(                                       &
+                   du_orographic_drag, dv_orographic_drag, dtemp_orographic_drag,    &
+                   dtheta_orographic_drag, du_orog_blk, dv_orog_blk, dtemp_orog_blk, &
+                   du_orog_gwd, dv_orog_gwd, dtemp_orog_gwd,                         &
+                   taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd)
+
+    implicit none
+
+    ! Prognostic fields to output
+    type( field_type ), intent(in)    :: du_orographic_drag, dv_orographic_drag, dtemp_orographic_drag,    &
+                                         dtheta_orographic_drag, du_orog_blk, dv_orog_blk, dtemp_orog_blk, &
+                                         du_orog_gwd, dv_orog_gwd, dtemp_orog_gwd,                         &
+                                         taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd
+
+    if ( subroutine_timers ) call timer("orographic_drag_diags")
+
+    ! Prognostic fields
+    call du_orographic_drag%write_field('orographic_drag__du_orographic_drag')
+    call dv_orographic_drag%write_field('orographic_drag__dv_orographic_drag')
+    call dtemp_orographic_drag%write_field('orographic_drag__dtemp_orographic_drag')
+    call dtheta_orographic_drag%write_field('orographic_drag__dtheta_orographic_drag')
+    call du_orog_blk%write_field('orographic_drag__du_orog_blk')
+    call dv_orog_blk%write_field('orographic_drag__dv_orog_blk')
+    call dtemp_orog_blk%write_field('orographic_drag__dtemp_orog_blk')
+    call du_orog_gwd%write_field('orographic_drag__du_orog_gwd')
+    call dv_orog_gwd%write_field('orographic_drag__dv_orog_gwd')
+    call dtemp_orog_gwd%write_field('orographic_drag__dtemp_orog_gwd')
+
+    ! Diagnostics computed within the kernel
+    if (taux_orog_blk_flag) call taux_orog_blk%write_field()
+    if (tauy_orog_blk_flag) call tauy_orog_blk%write_field()
+    if (taux_orog_gwd_flag) call taux_orog_gwd%write_field()
+    if (tauy_orog_gwd_flag) call tauy_orog_gwd%write_field()
+
+    if ( subroutine_timers ) call timer("orographic_drag_diags")
+
+  end subroutine output_diags_for_orographic_drag
+end module orographic_drag_diags_mod

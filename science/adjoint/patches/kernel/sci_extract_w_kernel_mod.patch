@@ -1,0 +1,15 @@
+@@ -6,7 +6,7 @@
+ !> @brief Extracts the vertical component of the wind in w2 and places it in
+ !>        wtheta.
+ !>
+-module sci_extract_w_kernel_mod
++module extract_w_kernel_mod
+ 
+   use argument_mod,      only: arg_type,          &
+                                GH_FIELD, GH_REAL, &
+@@ -124,4 +124,4 @@
+ 
+ end subroutine extract_w_code_r_double
+ 
+-end module sci_extract_w_kernel_mod
++end module extract_w_kernel_mod

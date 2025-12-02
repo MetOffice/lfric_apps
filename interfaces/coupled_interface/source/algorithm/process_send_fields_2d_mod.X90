@@ -1,0 +1,342 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Handles the calculation of 2d fields that will be coupled.
+!> @details Set up the fields which are to be passed to external models via a
+!>          coupler which deals with any regridding, interpolation, etc.
+
+module process_send_fields_2d_mod
+
+  use field_mod,                      only: field_type
+  use field_collection_mod,           only: field_collection_type
+  use function_space_mod,             only: function_space_type
+  use driver_modeldb_mod,             only: modeldb_type
+  use constants_mod,                  only: str_def, i_def, r_def, imdi, rmdi
+  use log_mod,                        only: log_event,       &
+                                            LOG_LEVEL_INFO,  &
+                                            LOG_LEVEL_DEBUG, &
+                                            LOG_LEVEL_ERROR, &
+                                            log_scratch_space
+  use io_config_mod,                  only: checkpoint_read
+#if defined(UM_PHYSICS)
+  use cv_run_mod,                     only: l_param_conv
+  use jules_control_init_mod,         only: n_sea_tile, first_sea_tile,   &
+                                            first_sea_ice_tile,           &
+                                            n_sea_ice_tile
+  use driver_water_constants_mod,     only: latent_heat_h2o_condensation, &
+                                            latent_heat_h2o_fusion
+#endif
+
+  use convert_to_celsius_kernel_mod,  only: convert_to_celsius_kernel_type
+  use convert_to_marine_fraction_mod, only: convert_to_marine_fraction_type
+
+  implicit none
+
+  private
+
+#if !defined(UM_PHYSICS)
+  !
+  ! Dummy variables required when NOT running with UM_PHYSICS
+  !
+  logical, parameter ::  l_param_conv = .false.
+  ! index of the sea tile set here to prevent using jules_control_init_mod
+  ! when UM physics is not used
+  integer(i_def),parameter              :: n_sea_tile = imdi
+  ! index of the first sea and tile
+  integer(i_def), parameter             :: first_sea_tile = imdi
+  ! other indices for sea ice
+  integer(i_def), parameter             :: first_sea_ice_tile = imdi
+  integer(i_def), parameter             :: n_sea_ice_tile = imdi
+  ! latent heat of condensation
+  real(r_def), parameter                :: latent_heat_h2o_condensation = rmdi
+#endif
+
+  public process_send_fields_2d, cpl_reset_field,    &
+         save_sea_ice_frac_previous, ice_sheet_mass, &
+         save_marine_fractions
+  contains
+
+  !> @brief assignes data to coupling fields
+  !> @param[in, out] fld coupling field
+  !> @param[inout] modeldb The working data set for a model run
+  !> @param[in] ldump_prep Flag indicates that pre-dump preparation is required
+  subroutine process_send_fields_2d(fld, modeldb)
+
+    use sci_multi_extract_kernel_mod, only: multi_extract_kernel_type
+    use value_based_mask_kernel_mod,  only: value_based_mask_kernel_type
+    use sci_field_minmax_alg_mod,     only: log_field_minmax
+
+    implicit none
+    type( field_type ), pointer, intent(inout)   :: fld
+    type( modeldb_type ),        intent(inout)   :: modeldb
+    ! Local variables
+    type( field_collection_type ), pointer       :: depository
+    type( field_type ), pointer                  :: r_sea_ice_frac_raw
+    type( field_type ), pointer                  :: r_ocean_fraction
+    type( field_type ), pointer                  :: dep_fld
+    type( field_type ), pointer                  :: fld_ptr1
+    type( field_type ), pointer                  :: fld_ptr2
+    type( field_type ), pointer                  :: fld_ptr3
+    type( field_type ), pointer                  :: fld_ptr4
+
+    character(str_def)                           :: fld_name
+
+    ! Number of accumulation steps
+    real(r_def), pointer                         :: acc_step
+    ! Reciprocal of number of accumulated time steps
+    real(r_def)                                  :: r_acc_step
+
+    fld_name = fld%get_name()
+
+    ! Extract the depository version of the field
+    depository => modeldb%fields%get_field_collection("depository")
+    call depository%get_field(trim(fld_name), dep_fld)
+
+    ! Get sea ice and ocean fractions from the previous step from the depository
+    call depository%get_field("r_sea_ice_frac_raw", r_sea_ice_frac_raw)
+    call depository%get_field("r_ocean_fraction", r_ocean_fraction)
+
+    ! Calculate the reciprocal of acc_step
+    ! If this is the first step after a restart then the division by 
+    ! acc_step has already been done in accumulate_send_fields before
+    ! the field was written to the restart file so we set r_acc_step=1
+    ! as we still need to divide by sea-ice fraction and copy values from
+    ! depository field (dep_fld) to fld ready for coupling.
+    call modeldb%values%get_value( 'accumulation_steps', acc_step )
+    if (modeldb%clock%get_step() /=  modeldb%clock%get_first_step() ) then
+       r_acc_step = 1.0_r_def/acc_step
+    else
+       r_acc_step = 1.0_r_def
+    endif
+
+    select case(fld_name)
+      case ("lf_taux")
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_tauy")
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_solar")
+        ! Solar heat flux
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ), &
+		    inc_X_times_Y(fld, r_ocean_fraction) )
+      case ("lf_heatflux")
+        ! Non-solar heat flux
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ), &
+		    inc_X_times_Y(fld, r_ocean_fraction) )
+      case ("lf_train")
+        !large scale rain
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_tsnow")
+        !large scale snow
+        call invoke(setval_X(fld, dep_fld), &
+                     inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_w10")
+        !10m wind
+        call invoke(setval_X(fld, dep_fld), &
+                     inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_evap")
+        ! Extract the oceanic evaporation from the ocean tile
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_topmelt")
+        ! Sea ice top melt
+        ! Some fields will need to be divided by ice fraction that has
+        ! just been passed from the sea ice model before being coupled
+        ! (time-travelling sea ice)
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ), &
+                    inc_X_times_Y(fld, r_sea_ice_frac_raw) )
+      case ("lf_iceheatflux")
+        ! Sea ice surface to sub-surface heat flux
+        ! Plus time-travelling sea ice
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ), &
+                    inc_X_times_Y(fld, r_sea_ice_frac_raw) )
+      case ("lf_sublimation")
+        ! Sea ice sublimation from the snowice_sublimation
+        ! Plus time-travelling sea ice
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ), &
+                    inc_X_times_Y(fld, r_sea_ice_frac_raw) )
+      case ("lf_iceskint")
+         ! Sea ice skin temperature
+         call invoke(setval_X(fld, dep_fld), &
+                     inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_pensolar")
+        ! Penetrating_solar_marine_fraction
+        ! Plus time-travelling sea ice
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ), &
+                    inc_X_times_Y(fld, r_sea_ice_frac_raw) )
+      case ("lf_rsurf")
+        ! Surface river runoff
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ) )
+      case ("lf_rsub")
+        ! Sub-surface river runoff
+        call invoke(setval_X(fld, dep_fld), &
+                    inc_a_times_X( r_acc_step, fld ) )
+      case default
+        write(log_scratch_space, '(3A)' )                              &
+                          "ERROR: process_send_fields_2d, field: ", &
+                          trim(fld_name), ": can not be found"
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine process_send_fields_2d
+
+  !> @brief sets value of both the coupling field and the
+  !> associated accumulatino field in the depository to 0
+  !> @param[in, out] fld coupling field
+  !> @param[in] depository field collection - all fields
+  subroutine cpl_reset_field(fld, depository)
+    implicit none
+    type( field_type )           , intent(inout) :: fld
+    type( field_collection_type ), intent(in)    :: depository
+
+    type( field_type ), pointer                  :: dep_fld
+    character(str_def)                           :: fld_name
+
+    fld_name = fld%get_name()
+    if( depository%field_exists(trim(fld_name))) then
+      call depository%get_field(trim(fld_name), dep_fld)
+      call invoke(setval_c(dep_fld, 0.0_r_def))
+    endif
+    call invoke(setval_c(fld, 0.0_r_def) )
+
+  end subroutine cpl_reset_field
+
+
+  !> @brief Save the sea and sea ice fractions from the previous timestep prior
+  !> @brief to recieving a new sea ice fraction from the coupler.
+  !> @brief These are saved as a marine fraction
+  !> @brief             (rather than whole grid box fraction)
+  subroutine save_sea_ice_frac_previous(depository)
+
+    implicit none
+    type( field_collection_type ), intent(in)    :: depository
+
+    !local variables
+    type( field_type ), pointer :: tile_fraction_ptr
+    type( field_type ), pointer :: sea_ice_frac_previous
+    type( field_type ), pointer :: sea_frac_previous
+
+    call depository%get_field('tile_fraction', tile_fraction_ptr)
+    call depository%get_field('sea_ice_frac_previous', sea_ice_frac_previous)
+    call depository%get_field('sea_frac_previous', sea_frac_previous)
+
+    call invoke(convert_to_marine_fraction_type(sea_ice_frac_previous, &
+                                           sea_frac_previous,          &
+                                           tile_fraction_ptr,          &
+                                           first_sea_ice_tile,         &
+                                           n_sea_ice_tile,             &
+                                           first_sea_tile))
+
+  end subroutine save_sea_ice_frac_previous
+
+  !> @brief Saves the reciprocal of the sea-ice fraction
+  !> @param[in] depository field collection - all fields
+  !> @param[in] sea_ice_fraction_ptr Sea ice fraction
+  subroutine save_marine_fractions(depository, sea_ice_fraction_ptr)
+
+    use sci_set_reciprocal_mod,   only: set_reciprocal_type
+    use set_r_ocean_fraction_mod, only: set_r_ocean_fraction_type
+
+    implicit none
+
+    type( field_type ), intent(in), pointer      :: sea_ice_fraction_ptr
+    type( field_collection_type ), intent(in)    :: depository
+
+    type( field_type ), pointer        :: r_sea_ice_frac_raw
+    type( field_type ), pointer        :: r_ocean_fraction
+    type(function_space_type), pointer :: multidata_fs
+    integer(kind=i_def)                :: ndata
+
+    ! Get r_sea_ice_frac_raw and r_ocean_fraction from the depository
+    call depository%get_field("r_sea_ice_frac_raw", r_sea_ice_frac_raw)
+    call depository%get_field("r_ocean_fraction", r_ocean_fraction)
+
+    multidata_fs => sea_ice_fraction_ptr%get_function_space()
+    ndata = multidata_fs%get_ndata()
+    call invoke(set_reciprocal_type(r_sea_ice_frac_raw, sea_ice_fraction_ptr, ndata))
+
+    ! Calculate the ocean fraction (for scaling ocean fluxes)
+    call invoke(set_r_ocean_fraction_type(r_ocean_fraction, sea_ice_fraction_ptr, ndata)) 
+
+  end subroutine save_marine_fractions
+
+  !> @brief Calculate the volume of snow on ice tile in region defined by mask
+  !> @param[in] mask_field - the coupling field (contains the region mask)
+  !> @param[in] snow_mass_on_tiles Pointer to the snow mass on tiles field
+  !> @param[in] tile_fraction Pointer to the tile fraction field
+  !> @param[out] imass Total snow mass as scalar
+  subroutine ice_sheet_mass(mask_field,         &
+                            snow_mass_on_tiles, &
+                            tile_fraction,      &
+                            imass)
+
+    use fs_continuity_mod,             only: W3
+    use function_space_collection_mod, only: function_space_collection
+    use sci_geometric_constants_mod,   only: get_da_at_w2, get_da_msl_proj
+    use jules_surface_types_mod,       only: ice
+    use mesh_mod,                      only: mesh_type
+    use sci_multi_extract_kernel_mod,  only: multi_extract_kernel_type
+
+    implicit none
+
+    type( field_type ),          intent(in) :: mask_field
+    type( field_type ), pointer, intent(in) :: snow_mass_on_tiles
+    type( field_type ), pointer, intent(in) :: tile_fraction
+    real(r_def),                 intent(out):: imass
+
+    !local variables
+    type( field_type ), pointer        :: dA
+    type(mesh_type), pointer           :: mesh
+
+    ! Function space used for temporary fields
+    type(function_space_type), pointer :: tmp_fs
+
+    ! Temporary fields used in calculation
+    type( field_type )                 :: tmp_field1, tmp_field2, tmp_field3
+
+    ! Get the mesh
+    mesh => snow_mass_on_tiles%get_mesh()
+
+    ! Initialsise temporary fields
+    tmp_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+    call tmp_field1%initialise( vector_space=tmp_fs, name="tmp_field1_W3" )
+    call tmp_field2%initialise( vector_space=tmp_fs, name="tmp_field2_W3" )
+    call tmp_field3%initialise( vector_space=tmp_fs, name="tmp_field3_W3" )
+
+    ! Calculate the grid cell areas (dA)
+    dA => get_dA_msl_proj( mesh%get_id() )
+
+    call invoke(                                                             &
+                ! Extract snow mass on ice tile into tmp_field1
+                multi_extract_kernel_type(tmp_field1,                        &
+                                          snow_mass_on_tiles, ice, 1),       &
+
+                !Extract tile_fraction on ice tile only into tmp_field2
+                multi_extract_kernel_type(tmp_field2, tile_fraction,         &
+                                          ice, 1),                           &
+
+                !Multiply the tile fraction by the latitude mask
+                X_times_Y(tmp_field3, mask_field, tmp_field2),               &
+
+                ! Multiply by cell area
+                inc_X_times_Y(tmp_field3, dA),                               &
+
+                !Multiply snow mass by masked area and sum
+                X_innerproduct_Y(imass, tmp_field1, tmp_field3)              &
+                )
+
+  end subroutine ice_sheet_mass
+
+end module process_send_fields_2d_mod

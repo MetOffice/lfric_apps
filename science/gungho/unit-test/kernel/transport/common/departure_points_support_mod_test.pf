@@ -1,0 +1,237 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the departure point calculations for the biperiodic domain
+!>
+module departure_points_support_mod_test
+  implicit none
+
+contains
+
+  @test
+  subroutine find_local_vertical_value_test()
+    use funit
+    use, intrinsic :: iso_fortran_env, only : real64
+    use constants_mod,                 only : r_tran, i_def
+    use departure_points_support_mod,  only : find_local_vertical_value
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 10.0e-8_r_tran  ! r_tran 64bit
+    real(kind=r_tran)    :: x_original, local_coordinate_value, use_tol
+    integer(kind=i_def) :: iEdge, nCellEdges
+
+    nCellEdges = 10
+
+    x_original = 0.4_r_tran
+    call find_local_vertical_value(x_original,nCellEdges,iEdge,local_coordinate_value)
+    @assertEqual(1, iEdge)
+    @assertEqual(0.4_r_tran, local_coordinate_value, tol)
+
+    x_original = 8.9_r_tran
+    call find_local_vertical_value(x_original,nCellEdges,iEdge,local_coordinate_value)
+    @assertEqual(9, iEdge)
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing( local_coordinate_value )
+    end if
+    @assertEqual(0.9_r_tran, local_coordinate_value, use_tol)
+
+    x_original = 9.0_r_tran
+    call find_local_vertical_value(x_original,nCellEdges,iEdge,local_coordinate_value)
+    @assertEqual(10, iEdge)
+    @assertEqual(0.0_r_tran, local_coordinate_value, tol)
+
+  end subroutine find_local_vertical_value_test
+
+  @test
+  subroutine calc_u_in_vertical_test()
+    use funit
+    use constants_mod,        only: r_tran, i_def
+    use departure_points_support_mod, only: calc_u_in_vertical_comp
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 10.0e-8_r_tran  ! r_tran 64bit
+    real(kind=r_tran)              :: x_in, u_at_x
+    real(kind=r_tran), allocatable :: wind_values(:)
+    integer(kind=i_def)           :: nCellEdges
+
+    nCellEdges = 6
+
+    allocate(wind_values(1:nCellEdges))
+
+    wind_values=(/ 0.0_r_tran,0.2_r_tran,0.4_r_tran,0.4_r_tran,0.2_r_tran,0.0_r_tran /)
+    x_in = 0.5_r_tran
+    u_at_x = calc_u_in_vertical_comp(x_in,nCellEdges,wind_values)
+    @assertEqual(0.1_r_tran, u_at_x, tol)
+
+    wind_values=(/ 0.0_r_tran,0.2_r_tran,0.4_r_tran,0.4_r_tran,0.2_r_tran,0.0_r_tran /)
+    x_in = 1.0_r_tran
+    u_at_x = calc_u_in_vertical_comp(x_in,nCellEdges,wind_values)
+    @assertEqual(0.2_r_tran, u_at_x, tol)
+
+    wind_values=(/ 0.0_r_tran,0.2_r_tran,0.4_r_tran,0.4_r_tran,0.2_r_tran,0.0_r_tran /)
+    x_in = 5.0_r_tran
+    u_at_x = calc_u_in_vertical_comp(x_in,nCellEdges,wind_values)
+    @assertEqual(0.0_r_tran, u_at_x, tol)
+
+    deallocate(wind_values)
+
+  end subroutine calc_u_in_vertical_test
+
+  @test
+  subroutine calc_u_in_vertical_phys_test()
+    use funit
+    use constants_mod,        only: r_tran, i_def
+    use departure_points_support_mod, only: calc_u_in_vertical_phys
+
+    implicit none
+
+    real(kind=r_tran), parameter   :: tol = 10.0e-8_r_tran  ! r_tran 64bit
+    real(kind=r_tran)              :: x_in, u_at_x
+    real(kind=r_tran), allocatable :: wind_values(:)
+    real(kind=r_tran), allocatable :: height(:)
+    integer(kind=i_def)           :: nCellEdges
+
+    nCellEdges = 6
+
+    allocate(wind_values(1:nCellEdges))
+    allocate(height(1:nCellEdges))
+    height=(/ 0.0_r_tran,1.0_r_tran,2.0_r_tran,3.0_r_tran,4.0_r_tran,5.0_r_tran /)
+
+    wind_values=(/ 0.0_r_tran,0.2_r_tran,0.4_r_tran,0.4_r_tran,0.2_r_tran,0.0_r_tran /)
+    x_in = 0.5_r_tran
+    u_at_x = calc_u_in_vertical_phys(x_in,nCellEdges,wind_values,height)
+    @assertEqual(0.1_r_tran, u_at_x, tol)
+
+    wind_values=(/ 0.0_r_tran,0.2_r_tran,0.4_r_tran,0.4_r_tran,0.2_r_tran,0.0_r_tran /)
+    x_in = 1.0_r_tran
+    u_at_x = calc_u_in_vertical_phys(x_in,nCellEdges,wind_values,height)
+    @assertEqual(0.2_r_tran, u_at_x, tol)
+
+    wind_values=(/ 0.0_r_tran,0.2_r_tran,0.4_r_tran,0.4_r_tran,0.2_r_tran,0.0_r_tran /)
+    x_in = 5.0_r_tran
+    u_at_x = calc_u_in_vertical_phys(x_in,nCellEdges,wind_values,height)
+    @assertEqual(0.0_r_tran, u_at_x, tol)
+
+    deallocate(wind_values)
+
+  end subroutine calc_u_in_vertical_phys_test
+
+  @test
+  subroutine calc_vertical_departure_dist_test()
+
+    use funit
+    use constants_mod,                only: r_tran, i_def
+    use departure_points_support_mod, only: calc_vertical_dep_cfl
+    use departure_points_config_mod,  only: vertical_method_euler,       &
+                                            vertical_method_midpoint,    &
+                                            vertical_method_trapezoidal, &
+                                            vertical_method_timeaverage, &
+                                            vertical_limit_boundary,     &
+                                            vertical_limit_exponential
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 10.0e-8_r_tran  ! r_tran 64bit
+    real(kind=r_tran)    :: x_arrival_comp, x_arrival_phys
+    real(kind=r_tran)    :: deltaT, departure_point, cfl
+    integer(kind=i_def)  :: n_dep_pt_iterations, nCellEdges
+    real(kind=r_tran), allocatable :: u_n(:), u_np1(:), height(:)
+
+    nCellEdges = 4
+
+    allocate(u_n(1:nCellEdges))
+    allocate(u_np1(1:nCellEdges))
+    allocate(height(1:nCellEdges))
+    u_n   = (/ 0.0_r_tran,0.6_r_tran,0.6_r_tran,0.0_r_tran /)
+    u_np1 = (/ 0.0_r_tran,0.6_r_tran,0.6_r_tran,0.0_r_tran /)
+    height = (/ 0.0_r_tran,1.0_r_tran,2.0_r_tran,3.0_r_tran /)
+
+    x_arrival_comp = 1.0_r_tran
+    x_arrival_phys = 1.0_r_tran
+    deltaT = 1.0_r_tran
+    n_dep_pt_iterations = 1
+
+    call calc_vertical_dep_cfl( x_arrival_comp, x_arrival_phys, nCellEdges,                   &
+                                u_n, u_np1, u_n, height, deltaT, vertical_method_trapezoidal, &
+                                n_dep_pt_iterations, vertical_limit_boundary, departure_point, cfl )
+    @assertEqual(0.58_r_tran, departure_point, tol)
+    @assertEqual(0.42_r_tran, cfl, tol)
+
+    deallocate(u_n)
+    deallocate(u_np1)
+    deallocate(height)
+
+    nCellEdges = 6
+
+    allocate(u_n(1:nCellEdges))
+    allocate(u_np1(1:nCellEdges))
+    allocate(height(1:nCellEdges))
+
+    u_n   = (/ 0.0_r_tran,-1.2_r_tran,-1.2_r_tran,-1.2_r_tran,-0.8_r_tran,0.0_r_tran /)
+    u_np1 = (/ 0.0_r_tran,-1.2_r_tran,-1.2_r_tran,-1.2_r_tran,-0.8_r_tran,0.0_r_tran /)
+    height = (/ 0.0_r_tran,1.0_r_tran,2.0_r_tran,3.0_r_tran,4.0_r_tran,5.0_r_tran /)
+
+    x_arrival_comp = 3.0_r_tran
+    x_arrival_phys = 3.0_r_tran
+
+    call calc_vertical_dep_cfl( x_arrival_comp, x_arrival_phys, nCellEdges,                   &
+                                u_n, u_np1, u_n, height, deltaT, vertical_method_trapezoidal, &
+                                n_dep_pt_iterations, vertical_limit_boundary, departure_point, cfl )
+    @assertEqual(3.92_r_tran, departure_point, tol)
+    @assertEqual(-0.92_r_tran, cfl, tol)
+
+    deallocate(u_n)
+    deallocate(u_np1)
+    deallocate(height)
+
+  end subroutine calc_vertical_departure_dist_test
+
+  @test
+  subroutine interpolate_u_to_x_test()
+    use funit
+    use constants_mod,                only: r_tran, i_def
+    use departure_points_support_mod, only: interpolate_u_to_x
+
+    implicit none
+
+    real(kind=r_tran), parameter   :: tol = 10.0e-8_r_tran  ! r_tran 64-bit
+    real(kind=r_tran)              :: x_in, u_at_x
+    real(kind=r_tran), allocatable :: wind_values(:)
+    integer(kind=i_def)           :: n_points, n_centre
+
+    n_points = 5
+    n_centre = (n_points+1)/2
+
+    allocate(wind_values(1:n_points))
+    wind_values=(/ 1.0_r_tran, 2.0_r_tran, 3.0_r_tran, 4.0_r_tran, 5.0_r_tran /)
+
+    ! Test both positive and negative x, and greater and smaller than 1
+
+    x_in = 0.6_r_tran
+    call interpolate_u_to_x(u_at_x, x_in, wind_values, n_points, n_centre)
+    @assertEqual(2.4_r_tran, u_at_x, tol)
+
+    x_in = 1.6_r_tran
+    call interpolate_u_to_x(u_at_x, x_in, wind_values, n_points, n_centre)
+    @assertEqual(1.4_r_tran, u_at_x, tol)
+
+    x_in = -0.7_r_tran
+    call interpolate_u_to_x(u_at_x, x_in, wind_values, n_points, n_centre)
+    @assertEqual(3.7_r_tran, u_at_x, tol)
+
+    x_in = -1.7_r_tran
+    call interpolate_u_to_x(u_at_x, x_in, wind_values, n_points, n_centre)
+    @assertEqual(4.7_r_tran, u_at_x, tol)
+
+    deallocate(wind_values)
+  end subroutine interpolate_u_to_x_test
+
+end module departure_points_support_mod_test

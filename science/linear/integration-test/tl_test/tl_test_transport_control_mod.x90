@@ -1,0 +1,327 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Tests the tangent linear transport control routine
+
+module tl_test_transport_control_mod
+
+  use sci_assign_field_random_kernel_mod, &
+                                      only: assign_field_random_kernel_type
+  use constants_mod,                  only: i_def, r_def, str_def
+  use field_array_mod,                only: field_array_type
+  use field_mod,                      only: field_type
+  use sci_field_bundle_builtins_mod,  only: clone_bundle, &
+                                            minus_bundle, &
+                                            add_bundle,   &
+                                            set_bundle_scalar
+  use field_collection_mod,           only: field_collection_type
+  use field_indices_mod,              only: igh_u, igh_t, igh_d, igh_p
+  use function_space_collection_mod,  only: function_space_collection
+  use derived_config_mod,             only: bundle_size
+  use driver_modeldb_mod,             only: modeldb_type
+  use moist_dyn_mod,                  only: num_moist_factors
+  use mr_indices_mod,                 only: nummr
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO
+  use mesh_mod,                       only: mesh_type
+  use gungho_transport_control_alg_mod,                                        &
+                                      only: gungho_transport_control_alg_init, &
+                                            gungho_transport_control_alg
+  use tl_transport_control_alg_mod,   only: tl_transport_control_alg
+  use tl_test_convergence_rate_check, only: convergence_rate_check
+
+  implicit none
+
+  private
+  public test_transport_control
+
+  contains
+
+  !> @brief Tests the tangent linear transport control routine
+  !> @param[in] modeldb    The working data set for a model run
+  !> @param[in] mesh       The current 3d mesh
+  !> @param[in] twod_mesh  The current 2d mesh
+  subroutine test_transport_control( modeldb,  &
+                                     mesh,     &
+                                     twod_mesh )
+    implicit none
+
+    type(mesh_type), pointer,   intent(in) :: mesh
+    type(mesh_type), pointer,   intent(in) :: twod_mesh
+    type(modeldb_type), target, intent(in) :: modeldb
+
+    character(str_def) :: label = "transport_control"
+
+    type(field_collection_type), pointer :: prognostic_fields => null()
+    type(field_collection_type), pointer :: ls_fields
+
+    type(field_type), pointer :: ls_u => null()
+    type(field_type), pointer :: ls_rho => null()
+    type(field_type), pointer :: ls_theta => null()
+    type(field_type), pointer :: ls_exner => null()
+    type(field_type), pointer :: ls_moist_dyn(:) => null()
+    type(field_type), pointer :: ls_mr(:) => null()
+    type(field_type), pointer :: moist_dyn(:) => null()
+    type(field_type), pointer :: mr(:) => null()
+
+    type(field_type) :: state(bundle_size)
+    type(field_type) :: ls_state(bundle_size)
+    type(field_type) :: p_state(bundle_size)
+    type(field_type) :: random(bundle_size)
+    type(field_type) :: p_rhs(bundle_size)
+    type(field_type) :: n1_rhs(bundle_size)
+    type(field_type) :: n2_rhs(bundle_size)
+    type(field_type) :: diff(bundle_size)
+    type(field_type), dimension(num_moist_factors) :: p_moist_dyn
+    type(field_type), dimension(num_moist_factors) :: n_moist_dyn
+    type(field_type), dimension(num_moist_factors) :: r_moist_dyn
+    type(field_type), dimension(num_moist_factors) :: diff_moist_dyn
+    type(field_type), dimension(nummr) :: p_mr_in
+    type(field_type), dimension(nummr) :: n_mr_in
+    type(field_type), dimension(nummr) :: ls_mr_out
+    type(field_type), dimension(nummr) :: p_mr_out
+    type(field_type), dimension(nummr) :: n_mr_out
+    type(field_type), dimension(nummr) :: r_mr
+    type(field_type), dimension(nummr) :: diff_mr
+
+    type(field_type) :: ls_advected_u, p_advected_u, n_advected_u
+
+    type(field_collection_type), pointer :: moisture_fields => null()
+    type(field_array_type), pointer      :: mr_array => null()
+    type(field_array_type), pointer      :: moist_dyn_array => null()
+    type(field_array_type), pointer      :: ls_mr_array => null()
+    type(field_array_type), pointer      :: ls_moist_dyn_array => null()
+
+    real(r_def) :: gamma_u, gamma_rho, gamma_exner, gamma_theta
+    real(r_def) :: gamma_moist_dyn, gamma_mr
+    real(r_def) :: norm_u, norm_rho, norm_exner, norm_theta
+    real(r_def) :: norm_moist_dyn, norm_mr
+    real(r_def) :: norm_diff, norm_diff_prev
+    real(r_def) :: norm_moist_dyn_tmp, norm_mr_tmp
+
+    real(r_def), parameter :: tol = 1.e-2_r_def
+
+    integer :: n, outer, i
+
+    call log_event( "TL Test: " // trim(label), &
+                     LOG_LEVEL_INFO )
+
+    prognostic_fields => modeldb%fields%get_field_collection( &
+                                           "prognostic_fields")
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    call moisture_fields%get_field("moist_dyn", moist_dyn_array)
+    mr => mr_array%bundle
+    moist_dyn => moist_dyn_array%bundle
+    call moisture_fields%get_field("ls_mr", ls_mr_array)
+    call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
+    ls_mr => ls_mr_array%bundle
+    ls_moist_dyn => ls_moist_dyn_array%bundle
+
+    ! Input
+    call ls_fields%get_field('ls_u', ls_u)
+    call ls_fields%get_field('ls_rho', ls_rho)
+    call ls_fields%get_field('ls_theta', ls_theta)
+    call ls_fields%get_field('ls_exner', ls_exner)
+
+    call ls_state(igh_u)%initialise( vector_space = ls_u%get_function_space() )
+    call ls_state(igh_t)%initialise( vector_space = ls_theta%get_function_space() )
+    call ls_state(igh_d)%initialise( vector_space = ls_rho%get_function_space() )
+    call ls_state(igh_p)%initialise( vector_space = ls_exner%get_function_space() )
+    call ls_advected_u%initialise( vector_space = ls_u%get_function_space() )
+    call p_advected_u%initialise( vector_space = ls_u%get_function_space() )
+    call n_advected_u%initialise( vector_space = ls_u%get_function_space() )
+
+    call clone_bundle(ls_state, state, bundle_size)
+    call clone_bundle(ls_state, p_state, bundle_size)
+    call clone_bundle(ls_state, random, bundle_size)
+    call clone_bundle(ls_state, p_rhs, bundle_size)
+    call clone_bundle(ls_state, n1_rhs, bundle_size)
+    call clone_bundle(ls_state, n2_rhs, bundle_size)
+    call clone_bundle(ls_state, diff, bundle_size)
+
+    call clone_bundle(moist_dyn, p_moist_dyn, num_moist_factors)
+    call clone_bundle(moist_dyn, r_moist_dyn, num_moist_factors)
+    call clone_bundle(moist_dyn, n_moist_dyn, num_moist_factors)
+    call clone_bundle(moist_dyn, diff_moist_dyn, num_moist_factors)
+
+    call clone_bundle(mr, r_mr, nummr)
+    call clone_bundle(mr, p_mr_in, nummr)
+    call clone_bundle(mr, n_mr_in, nummr)
+    call clone_bundle(mr, p_mr_out, nummr)
+    call clone_bundle(mr, n_mr_out, nummr)
+    call clone_bundle(mr, ls_mr_out, nummr)
+    call clone_bundle(mr, diff_mr, nummr)
+
+    call invoke( name = "copy_fields_to_ls_state",   &
+                 setval_X(ls_state(igh_u), ls_u    ), &
+                 setval_X(ls_state(igh_t), ls_theta), &
+                 setval_X(ls_state(igh_d), ls_rho  ), &
+                 setval_X(ls_state(igh_p), ls_exner), &
+                 setval_X(ls_advected_u, ls_u ) )
+
+    call gungho_transport_control_alg_init( mesh )
+
+    call invoke( assign_field_random_kernel_type( random(igh_u), 1.0_r_def ) , &
+                 assign_field_random_kernel_type( random(igh_d), 1.0_r_def ) , &
+                 assign_field_random_kernel_type( random(igh_t), 1.0_r_def ) , &
+                 assign_field_random_kernel_type( random(igh_p), 1.0_r_def ) )
+
+    do i = 1, num_moist_factors
+      call invoke( assign_field_random_kernel_type( r_moist_dyn(i), 1.0_r_def ) )
+    enddo
+
+    do i = 1, nummr
+      call invoke( assign_field_random_kernel_type( r_mr(i), 1.0_r_def ) )
+    enddo
+
+    call set_bundle_scalar( 0.0_r_def, n1_rhs, bundle_size )
+
+    outer = 1
+    call gungho_transport_control_alg(n1_rhs,                  &
+                                      ls_state,                &
+                                      ls_state(igh_u),         &
+                                      ls_state(igh_u),         &
+                                      ls_mr_out,               &
+                                      ls_mr,                   &
+                                      modeldb%clock,           &
+                                      outer,                   &
+                                      cheap_update = .false.)
+
+    gamma_u = 7.e8_r_def
+    gamma_theta = 1.e5_r_def
+    gamma_rho = 1.e5_r_def
+    gamma_exner = 1.e5_r_def
+    gamma_moist_dyn=1.e0_r_def
+    gamma_mr = 1.e0_r_def
+
+    do n=1,2
+      gamma_u = gamma_u/2.0_r_def
+      gamma_theta = gamma_theta/2.0_r_def
+      gamma_rho = gamma_rho/2.0_r_def
+      gamma_exner = gamma_exner/2.0_r_def
+      gamma_moist_dyn = gamma_moist_dyn/2.0_r_def
+      gamma_mr = gamma_mr/2.0_r_def
+
+      call set_bundle_scalar( 0.0_r_def, n2_rhs, bundle_size )
+      call set_bundle_scalar( 0.0_r_def, p_rhs, bundle_size )
+      call invoke( a_times_X( p_state(igh_u), gamma_u, random(igh_u) ),       &
+                   a_times_X( p_state(igh_t), gamma_theta, random(igh_t) ),   &
+                   a_times_X( p_state(igh_d), gamma_rho, random(igh_d) ),     &
+                   a_times_X( p_state(igh_p), gamma_exner, random(igh_p) ),   &
+                   a_times_X( p_advected_u,   gamma_u, random(igh_u) ) )
+
+      ! state = ls_state + p_state
+      call add_bundle( ls_state, p_state, state, bundle_size )
+
+      call invoke( setval_X( n_advected_u, ls_advected_u), &
+                   inc_X_plus_Y(n_advected_u, p_advected_u ) )
+
+      do i = 1, num_moist_factors
+        call invoke( &
+          a_times_X( p_moist_dyn(i), gamma_moist_dyn, r_moist_dyn(i) ), &
+          setval_X( n_moist_dyn(i), ls_moist_dyn(i) ),                       &
+          inc_X_plus_Y( n_moist_dyn(i), p_moist_dyn(i) ) )
+      end do
+
+      do i = 1, nummr
+        call invoke( &
+          a_times_X( p_mr_in(i), gamma_mr, r_mr(i) ), &
+          setval_X( n_mr_in(i), ls_mr(i) ),                       &
+          inc_X_plus_Y( n_mr_in(i), p_mr_in(i) ) )
+      end do
+
+      call gungho_transport_control_alg(n2_rhs,                  &
+                                        state,                   &
+                                        state(igh_u),            &
+                                        state(igh_u),            &
+                                        n_mr_out,                &
+                                        n_mr_in,                 &
+                                        modeldb%clock,           &
+                                        outer,                   &
+                                        cheap_update = .false. )
+
+      call tl_transport_control_alg(p_rhs,            &
+                                    p_state,          &
+                                    p_state(igh_u),   &
+                                    p_state(igh_u),   &
+                                    p_mr_out,         &
+                                    p_mr_in,          &
+                                    ls_state,         &
+                                    ls_state(igh_u),  &
+                                    ls_state(igh_u),  &
+                                    ls_mr,            &
+                                    modeldb%clock,    &
+                                    outer )
+
+     ! diff = n2_rhs - n1_rhs
+      call minus_bundle( n2_rhs, n1_rhs, diff, bundle_size )
+      call invoke( &
+                 inc_X_minus_Y( diff(igh_u), p_rhs(igh_u) ), &
+                 inc_X_minus_Y( diff(igh_t), p_rhs(igh_t) ), &
+                 inc_X_minus_Y( diff(igh_d), p_rhs(igh_d) ), &
+                 inc_X_minus_Y( diff(igh_p), p_rhs(igh_p) ) )
+
+      call invoke( X_innerproduct_X( norm_u,     diff(igh_u) ) , &
+                   X_innerproduct_X( norm_rho,   diff(igh_d) ) , &
+                   X_innerproduct_X( norm_theta, diff(igh_t) ) , &
+                   X_innerproduct_X( norm_exner, diff(igh_p) ) )
+
+      norm_moist_dyn=0.0_r_def
+      do i = 1, num_moist_factors
+        call invoke( &
+          X_minus_Y( diff_moist_dyn(i), n_moist_dyn(i), moist_dyn(i) ),   &
+          inc_X_minus_Y( diff_moist_dyn(i), p_moist_dyn(i) ),             &
+          X_innerproduct_X( norm_moist_dyn_tmp, diff_moist_dyn(i) ) )
+          norm_moist_dyn = norm_moist_dyn + norm_moist_dyn_tmp
+      end do
+
+      norm_mr=0.0_r_def
+      do i = 1, nummr
+        call invoke( &
+          X_minus_Y( diff_mr(i), n_mr_out(i), ls_mr_out(i) ),   &
+          inc_X_minus_Y( diff_mr(i), p_mr_out(i) ),             &
+          X_innerproduct_X( norm_mr_tmp, diff_mr(i) ) )
+          norm_mr = norm_mr + norm_mr_tmp
+      end do
+
+     write( log_scratch_space, &
+            '(A, E32.12, A, E32.12 )' ) &
+             ' norm_u = ' ,   norm_u,   &
+             ' norm_rho = ' , norm_rho
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space, &
+            '(A, E32.12, A, E32.12 )' )     &
+             ' norm_theta = ' , norm_theta, &
+             ' norm_moist_dyn = ' , norm_moist_dyn
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      write( log_scratch_space, &
+            '(A, E32.12, A, E32.12 )' )     &
+             ' norm_exner = ' , norm_exner, &
+             ' norm_mr = ' , norm_mr
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      norm_diff = norm_rho + norm_theta + norm_exner + norm_u &
+                + norm_moist_dyn + norm_mr
+      norm_diff = sqrt(norm_diff)
+
+      if (n == 2) then
+       call convergence_rate_check( norm_diff, norm_diff_prev, &
+                                     label, tol=tol )
+      end if
+
+      norm_diff_prev = norm_diff
+    end do
+
+  end subroutine test_transport_control
+
+end module tl_test_transport_control_mod

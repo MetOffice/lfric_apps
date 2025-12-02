@@ -1,0 +1,737 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Applies the Random Parameter (RP) scheme
+
+module stph_rp_main_alg_mod
+
+  use constants_mod,        only: r_def, i_def, l_def
+  use driver_modeldb_mod,   only: modeldb_type
+  use field_mod,            only: field_type
+
+  implicit none
+
+  private
+
+  public stph_rp_init_alg
+  public stph_rp_main_alg
+  private rp_update_alg
+
+contains
+  !>@brief     Initialise the Random Parameter (RP) scheme
+  !>@details   Set the initial values of the random numbers
+  !>           used to perturb the parameters in the RP scheme
+  !>           See UMDP-081 for full scheme details
+  !>
+  !>@param[inout] modeldb  The structure that holds the model state
+  subroutine stph_rp_init_alg(modeldb)
+
+  use stochastic_physics_config_mod, only: rp_ran_max
+
+  implicit none
+
+  ! Arguments
+  type(modeldb_type), intent(inout), target  :: modeldb
+
+  ! Time-correlated random numbers used to perturb
+  ! boundary layer parameter values.
+  real(kind=r_def) :: rp_bl_a_ent_1_rand
+  real(kind=r_def) :: rp_bl_cld_top_diffusion_rand
+  real(kind=r_def) :: rp_bl_mix_rand
+  real(kind=r_def) :: rp_bl_stab_rand
+
+  ! Land-surface
+  real(kind=r_def) :: rp_lsfc_albedo_rand
+  real(kind=r_def) :: rp_lsfc_lai_mult_rand
+  real(kind=r_def) :: rp_lsfc_orog_drag_param_rand
+  real(kind=r_def) :: rp_lsfc_z0hm_pft_rand
+  real(kind=r_def) :: rp_lsfc_z0v_rand
+
+  ! Micro-physics
+  real(kind=r_def) :: rp_mp_fxd_cld_num_rand
+  real(kind=r_def) :: rp_mp_fspd_rand
+  real(kind=r_def) :: rp_mp_mp_czero_rand
+  real(kind=r_def) :: rp_mp_mpof_rand
+  real(kind=r_def) :: rp_mp_ndrop_surf_rand
+
+  ! Random numbers for each parameter
+  real(kind=r_def) :: rp_rand(rp_ran_max)
+  integer(kind=i_def) :: rp_count
+
+  ! Initialise rp_count
+  rp_count = 1
+
+  ! Get set of random numbers and store in rp_rand
+  call random_number(rp_rand)
+
+  ! For each random number, initialise and adjust to
+  ! vary between -1 and 1
+  rp_bl_a_ent_1_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_bl_cld_top_diffusion_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_bl_mix_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_bl_stab_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_lsfc_albedo_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_lsfc_lai_mult_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_lsfc_orog_drag_param_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_lsfc_z0hm_pft_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_lsfc_z0v_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_mp_fxd_cld_num_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_mp_fspd_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_mp_mp_czero_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_mp_mpof_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+  rp_count = rp_count + 1
+
+  rp_mp_ndrop_surf_rand = 2.0_r_def*rp_rand(rp_count) - 1.0_r_def
+
+  ! Save to the modeldb for future use
+  call modeldb%values%add_key_value('rp_bl_a_ent_1_rand', rp_bl_a_ent_1_rand)
+  call modeldb%values%add_key_value('rp_bl_cld_top_diffusion_rand', &
+                                     rp_bl_cld_top_diffusion_rand)
+  call modeldb%values%add_key_value('rp_bl_mix_rand', rp_bl_mix_rand)
+  call modeldb%values%add_key_value('rp_bl_stab_rand', rp_bl_stab_rand)
+  call modeldb%values%add_key_value('rp_lsfc_albedo_rand', rp_lsfc_albedo_rand)
+  call modeldb%values%add_key_value('rp_lsfc_lai_mult_rand', &
+                                     rp_lsfc_lai_mult_rand)
+  call modeldb%values%add_key_value('rp_lsfc_orog_drag_param_rand', &
+                                     rp_lsfc_orog_drag_param_rand)
+  call modeldb%values%add_key_value('rp_lsfc_z0hm_pft_rand', &
+                                     rp_lsfc_z0hm_pft_rand)
+  call modeldb%values%add_key_value('rp_lsfc_z0v_rand', rp_lsfc_z0v_rand)
+  call modeldb%values%add_key_value('rp_mp_fxd_cld_num_rand', &
+                                     rp_mp_fxd_cld_num_rand)
+  call modeldb%values%add_key_value('rp_mp_fspd_rand', rp_mp_fspd_rand)
+  call modeldb%values%add_key_value('rp_mp_mp_czero_rand', rp_mp_mp_czero_rand)
+  call modeldb%values%add_key_value('rp_mp_mpof_rand', rp_mp_mpof_rand)
+  call modeldb%values%add_key_value('rp_mp_ndrop_surf_rand', &
+                                     rp_mp_ndrop_surf_rand)
+
+  end subroutine stph_rp_init_alg
+
+  !>@brief     Run the Random Parameter scheme
+  !>@details   Update each parameter according to a stochastic process
+  !>           See UMDP-081 for full scheme details
+  !>
+  !>@param[inout] modeldb  The structure that holds the model state
+
+  subroutine stph_rp_main_alg(modeldb)
+
+
+
+  ! Stochastic Physics namelist
+  use stochastic_physics_config_mod, only: rp_bl_a_ent_1,                      &
+                                           rp_bl_cbl_mix_fac,                  &
+                                           rp_bl_cld_top_diffusion,            &
+                                           rp_bl_stable_ri_coef,               &
+                                           rp_bl_min_mix_length,               &
+                                           rp_bl_neutral_mix_length,           &
+                                           rp_bl_ricrit,                       &
+                                           rp_bl_smag_coef,                    &
+                                           rp_callfreq,                        &
+                                           rp_cycle_in,                        &
+                                           rp_cycle_out,                       &
+                                           rp_cycle_tm,                        &
+                                           rp_decorr_ts,                       &
+                                           rp_lsfc_alnir_max,                  &
+                                           rp_lsfc_alnir_min,                  &
+                                           rp_lsfc_alnir,                      &
+                                           rp_lsfc_alpar_max,                  &
+                                           rp_lsfc_alpar_min,                  &
+                                           rp_lsfc_alpar,                      &
+                                           rp_lsfc_lai_mult_max,               &
+                                           rp_lsfc_lai_mult_min,               &
+                                           rp_lsfc_lai_mult,                   &
+                                           rp_lsfc_omega_max,                  &
+                                           rp_lsfc_omega_min,                  &
+                                           rp_lsfc_omega,                      &
+                                           rp_lsfc_omnir_max,                  &
+                                           rp_lsfc_omnir_min,                  &
+                                           rp_lsfc_omnir,                      &
+                                           rp_lsfc_orog_drag_param,            &
+                                           rp_lsfc_z0_soil,                    &
+                                           rp_lsfc_z0hm_pft_max,               &
+                                           rp_lsfc_z0hm_pft_min,               &
+                                           rp_lsfc_z0hm_pft,                   &
+                                           rp_lsfc_z0hm_soil,                  &
+                                           rp_lsfc_z0_urban_mult,              &
+                                           rp_lsfc_z0v_max,                    &
+                                           rp_lsfc_z0v_min,                    &
+                                           rp_lsfc_z0v,                        &
+                                           rp_mp_ice_fspd,                     &
+                                           rp_mp_fxd_cld_num,                  &
+                                           rp_mp_mp_czero,                     &
+                                           rp_mp_mpof,                         &
+                                           rp_mp_ndrop_surf,                   &
+                                           rp_mp_snow_fspd,                    &
+                                           rp_ran_max
+
+  use microphysics_config_mod,   only : droplet_tpr
+
+  use jules_surface_mod, only: l_urban2t
+  use jules_surface_types_mod, only: npft
+  use jules_vegetation_mod, only: l_spec_veg_z0
+  use stph_time_corr_pert_alg_mod, only: stph_time_corr_pert_alg
+
+  use field_collection_mod, only : field_collection_type
+
+  use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
+
+  ! UM Namelists to pass through perturbed values
+  use stochastic_physics_run_mod, only: a_ent_1_rp, alnir_rp, alpar_rp,        &
+         cbl_mix_fac_rp, cs_rp, fxd_cld_num_rp, g0_rp, g1_rp, ice_fspd_rp,     &
+         lai_mult_rp, lambda_min_rp, mp_czero_rp, mpof_rp, ndrop_surf_rp,      &
+         omega_rp, omnir_rp, orog_drag_param_rp, par_mezcla_rp, ricrit_rp,     &
+         rp2_callfreq, rp2_cycle_tm, rp2_decorr_ts, snow_fspd_rp, z0_soil_rp,  &
+         z0_urban_mult_rp, z0hm_soil_rp, z0hm_pft_rp, z0v_rp
+
+  implicit none
+
+  ! Arguments
+  type(modeldb_type), intent(inout), target  :: modeldb
+
+  ! Surface fields collection
+  type(field_collection_type), pointer :: surface_fields
+
+  ! Model timestep
+  integer(kind=i_def) :: timestep_number
+  real(kind=r_def) :: dt
+
+  ! Local variables
+  integer(kind=i_def) :: lead_time
+  real(kind=r_def) :: mu
+  integer(kind=i_def) :: n, rp_count
+  real(kind=r_def), parameter :: shock_amp = 2.0_r_def
+  real(kind=r_def), parameter :: rand_max = 1.0_r_def
+  real(kind=r_def), parameter :: rand_min = -1.0_r_def
+
+  ! The random parameter is an array of length three
+  ! The first value is the minimum, the second the parameter
+  ! value that will be used in the physics schemes and the
+  ! third is the maximum value
+  integer(kind=i_def), parameter :: min_idx = 1  ! Index of min_rp
+  integer(kind=i_def), parameter :: idx     = 2  ! Index of rp
+  integer(kind=i_def), parameter :: max_idx = 3  ! Index of max_rp
+
+  ! Random numbers for each parameter
+  real(kind=r_def) :: rp_rand(rp_ran_max)
+
+  ! Time-correlated random numbers used to perturb
+  ! boundary layer parameter values.  Note that some parameters
+  ! are perturbed together with the same random number
+  real(kind=r_def), pointer :: rp_bl_a_ent_1_rand
+  real(kind=r_def), pointer :: rp_bl_cld_top_diffusion_rand
+  real(kind=r_def), pointer :: rp_bl_mix_rand
+  real(kind=r_def), pointer :: rp_bl_stab_rand
+
+  ! Perturbed BL parameter values to pass through to the physics schemes
+  real(kind=r_def) :: rp_bl_a_ent_1_pert
+  real(kind=r_def) :: rp_bl_cbl_mix_fac_pert
+  real(kind=r_def) :: rp_bl_cld_top_diffusion_pert
+  real(kind=r_def) :: rp_bl_stable_ri_coef_pert
+  real(kind=r_def) :: rp_bl_min_mix_length_pert
+  real(kind=r_def) :: rp_bl_neutral_mix_length_pert
+  real(kind=r_def) :: rp_bl_ricrit_pert
+  real(kind=r_def) :: rp_bl_smag_coef_pert
+
+  ! Land-surface variables
+  real(kind=r_def), pointer :: rp_lsfc_albedo_rand
+  real(kind=r_def), pointer :: rp_lsfc_lai_mult_rand
+  real(kind=r_def), pointer :: rp_lsfc_orog_drag_param_rand
+  real(kind=r_def), pointer :: rp_lsfc_z0hm_pft_rand
+  real(kind=r_def), pointer :: rp_lsfc_z0v_rand
+
+  type( field_type ), pointer :: leaf_area_index => null()
+
+  real(kind=r_def) :: rp_lsfc_orog_drag_param_pert
+  real(kind=r_def) :: rp_lsfc_z0_soil_pert
+  real(kind=r_def) :: rp_lsfc_z0hm_soil_pert
+  real(kind=r_def) :: rp_lsfc_z0_urban_mult_pert
+  real(kind=r_def) :: rp_lsfc_lai_mult_pert
+  real(kind=r_def) :: rp_lsfc_lai_mult_pert_prev
+
+  real(kind=r_def), allocatable :: rp_lsfc_alnir_pert(:)
+  real(kind=r_def), allocatable :: rp_lsfc_alpar_pert(:)
+  real(kind=r_def), allocatable :: rp_lsfc_omnir_pert(:)
+  real(kind=r_def), allocatable :: rp_lsfc_omega_pert(:)
+  real(kind=r_def), allocatable :: rp_lsfc_z0hm_pft_pert(:)
+  real(kind=r_def), allocatable :: rp_lsfc_z0v_pert(:)
+
+  ! Micro-physics variables
+  real(kind=r_def), pointer :: rp_mp_fxd_cld_num_rand
+  real(kind=r_def), pointer :: rp_mp_fspd_rand
+  real(kind=r_def), pointer :: rp_mp_mp_czero_rand
+  real(kind=r_def), pointer :: rp_mp_mpof_rand
+  real(kind=r_def), pointer :: rp_mp_ndrop_surf_rand
+
+  real(kind=r_def) :: rp_mp_ice_fspd_pert
+  real(kind=r_def) :: rp_mp_fxd_cld_num_pert
+  real(kind=r_def) :: rp_mp_mp_czero_pert
+  real(kind=r_def) :: rp_mp_mpof_pert
+  real(kind=r_def) :: rp_mp_ndrop_surf_pert
+  real(kind=r_def) :: rp_mp_snow_fspd_pert
+
+  ! Surface fields data base
+  surface_fields => modeldb%fields%get_field_collection("surface_fields")
+
+  ! Call scheme depending on rp_callfreq
+  timestep_number = modeldb%clock%get_step()
+  dt = modeldb%clock%get_seconds_per_step()
+  lead_time = int(dt * (timestep_number - 1))
+
+  if (mod(lead_time, rp_callfreq) == 0) then
+    call log_event( 'gungho_driver: Running Random Parameter Scheme',  LOG_LEVEL_INFO )
+  else
+    ! Will need code in here to output parameter values to a dump or
+    ! other output file, even if the time doesn't coincide with the
+    ! RP scheme running
+    return
+  end if
+
+  ! Set up allocatable arrays and initialise values where necessary
+  if (.not. allocated(rp_lsfc_alnir_pert)) then
+    allocate(rp_lsfc_alnir_pert(1:npft))
+  end if
+  if (.not. allocated(rp_lsfc_alpar_pert)) then
+    allocate(rp_lsfc_alpar_pert(1:npft))
+  end if
+  if (.not. allocated(rp_lsfc_omnir_pert)) then
+    allocate(rp_lsfc_omnir_pert(1:npft))
+  end if
+  if (.not. allocated(rp_lsfc_omega_pert)) then
+    allocate(rp_lsfc_omega_pert(1:npft))
+  end if
+  if (.not. allocated(rp_lsfc_z0hm_pft_pert)) then
+    allocate(rp_lsfc_z0hm_pft_pert(1:npft))
+  end if
+  if (.not. allocated(rp_lsfc_z0v_pert)) then
+    allocate(rp_lsfc_z0v_pert(1:npft))
+  end if
+
+  ! Calculate auto-correlation coefficient
+  mu = 1.0_r_def - (rp_callfreq / rp_decorr_ts)
+
+  ! Initialise rp_count
+  rp_count = 1
+
+  ! Get set of random numbers and store in rp_rand
+  call random_number(rp_rand)
+
+  ! Extract the time-correlated random numbers from the modeldb
+  call modeldb%values%get_value('rp_bl_a_ent_1_rand', rp_bl_a_ent_1_rand)
+  call modeldb%values%get_value('rp_bl_cld_top_diffusion_rand', &
+                                 rp_bl_cld_top_diffusion_rand)
+  call modeldb%values%get_value('rp_bl_mix_rand', rp_bl_mix_rand)
+  call modeldb%values%get_value('rp_bl_stab_rand', rp_bl_stab_rand)
+  call modeldb%values%get_value('rp_lsfc_albedo_rand', rp_lsfc_albedo_rand)
+  call modeldb%values%get_value('rp_lsfc_lai_mult_rand', &
+                                 rp_lsfc_lai_mult_rand)
+  call modeldb%values%get_value('rp_lsfc_orog_drag_param_rand', &
+                                 rp_lsfc_orog_drag_param_rand)
+  call modeldb%values%get_value('rp_lsfc_z0hm_pft_rand', &
+                                 rp_lsfc_z0hm_pft_rand)
+  call modeldb%values%get_value('rp_lsfc_z0v_rand', rp_lsfc_z0v_rand)
+  call modeldb%values%get_value('rp_mp_fxd_cld_num_rand', &
+                                 rp_mp_fxd_cld_num_rand)
+  call modeldb%values%get_value('rp_mp_fspd_rand', &
+                                 rp_mp_fspd_rand)
+  call modeldb%values%get_value('rp_mp_mp_czero_rand', &
+                                 rp_mp_mp_czero_rand)
+  call modeldb%values%get_value('rp_mp_mpof_rand', &
+                                 rp_mp_mpof_rand)
+  call modeldb%values%get_value('rp_mp_ndrop_surf_rand', &
+                                 rp_mp_ndrop_surf_rand)
+
+  ! Calculate and save previous lai perturbation
+  call rp_update_alg(rp_lsfc_lai_mult_rand, rp_lsfc_lai_mult_min, &
+                     rp_lsfc_lai_mult_max, rp_lsfc_lai_mult, &
+                     rp_lsfc_lai_mult_pert_prev)
+
+  ! TODO in future ticket:
+  ! - running from CRUNS
+  ! - reading in values from a file if requested
+  ! - writing out values to a file if requested
+  ! - hook jobs
+
+  ! Update parameters
+
+  !
+  ! Boundary layer parameters
+  !
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_bl_a_ent_1_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_bl_a_ent_1_rand, rp_bl_a_ent_1(min_idx),               &
+                     rp_bl_a_ent_1(max_idx), rp_bl_a_ent_1(idx),               &
+                     rp_bl_a_ent_1_pert)
+  write( log_scratch_space, '("stph_rp_main: rp_bl_a_ent_1: ", 2ES16.8 )' )    &
+         rp_bl_a_ent_1_pert, rp_bl_a_ent_1(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max,                             &
+                               rp_bl_cld_top_diffusion_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_bl_cld_top_diffusion_rand,                             &
+                     rp_bl_cld_top_diffusion(min_idx),                         &
+                     rp_bl_cld_top_diffusion(max_idx),                         &
+                     rp_bl_cld_top_diffusion(idx),                             &
+                     rp_bl_cld_top_diffusion_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_bl_cld_top_diffusion: ", 2ES16.8 )' )             &
+         rp_bl_cld_top_diffusion_pert, rp_bl_cld_top_diffusion(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  ! Perturb all mixing lengths together
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_bl_mix_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_bl_mix_rand, rp_bl_cbl_mix_fac(min_idx),               &
+                     rp_bl_cbl_mix_fac(max_idx), rp_bl_cbl_mix_fac(idx),       &
+                     rp_bl_cbl_mix_fac_pert)
+  write( log_scratch_space, '("stph_rp_main: rp_bl_cbl_mix_fac: ", 2ES16.8 )' )&
+         rp_bl_cbl_mix_fac_pert, rp_bl_cbl_mix_fac(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call rp_update_alg(rp_bl_mix_rand, rp_bl_min_mix_length(min_idx),            &
+                     rp_bl_min_mix_length(max_idx), rp_bl_min_mix_length(idx), &
+                     rp_bl_min_mix_length_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_bl_min_mix_length: ", 2ES16.8 )' )                &
+         rp_bl_min_mix_length_pert, rp_bl_min_mix_length(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call rp_update_alg(rp_bl_mix_rand, rp_bl_neutral_mix_length(min_idx),        &
+                     rp_bl_neutral_mix_length(max_idx),                        &
+                     rp_bl_neutral_mix_length(idx),                            &
+                     rp_bl_neutral_mix_length_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_bl_neutral_mix_length: ", 2ES16.8 )' )            &
+         rp_bl_neutral_mix_length_pert, rp_bl_neutral_mix_length(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call rp_update_alg(rp_bl_mix_rand, rp_bl_smag_coef(min_idx),                 &
+                     rp_bl_smag_coef(max_idx), rp_bl_smag_coef(idx),           &
+                     rp_bl_smag_coef_pert)
+  write( log_scratch_space, '("stph_rp_main: rp_bl_smag_coef: ", 2ES16.8 )' )  &
+         rp_bl_smag_coef_pert, rp_bl_smag_coef(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  ! Perturb stability functions together
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_bl_stab_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_bl_stab_rand, rp_bl_stable_ri_coef(min_idx),           &
+                     rp_bl_stable_ri_coef(max_idx), rp_bl_stable_ri_coef(idx), &
+                     rp_bl_stable_ri_coef_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_bl_stable_ri_coef: ", 2ES16.8 )' )                &
+         rp_bl_stable_ri_coef_pert, rp_bl_stable_ri_coef(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call rp_update_alg(rp_bl_stab_rand, rp_bl_ricrit(min_idx),                   &
+                     rp_bl_ricrit(max_idx), rp_bl_ricrit(idx),                 &
+                     rp_bl_ricrit_pert)
+  write( log_scratch_space, '("stph_rp_main: rp_bl_ricrit: ", 2ES16.8 )' )     &
+         rp_bl_ricrit_pert, rp_bl_ricrit(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+
+  !
+  ! Micro-physics parameters
+  !
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_mp_fxd_cld_num_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_mp_fxd_cld_num_rand, rp_mp_fxd_cld_num(min_idx),       &
+                     rp_mp_fxd_cld_num(max_idx), rp_mp_fxd_cld_num(idx),       &
+                     rp_mp_fxd_cld_num_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_mp_fxd_cld_num: ", 2ES16.8 )' )                   &
+         rp_mp_fxd_cld_num_pert, rp_mp_fxd_cld_num(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  ! Perturb fall-speeds together
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_mp_fspd_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_mp_fspd_rand, rp_mp_ice_fspd(min_idx),                 &
+                     rp_mp_ice_fspd(max_idx), rp_mp_ice_fspd(idx),             &
+                     rp_mp_ice_fspd_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_mp_ice_fspd: ", 2ES16.8 )' )                      &
+         rp_mp_ice_fspd_pert, rp_mp_ice_fspd(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call rp_update_alg(rp_mp_fspd_rand, rp_mp_snow_fspd(min_idx),                &
+                     rp_mp_snow_fspd(max_idx), rp_mp_snow_fspd(idx),           &
+                     rp_mp_snow_fspd_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_mp_snow_fspd: ", 2ES16.8 )' )                     &
+         rp_mp_snow_fspd_pert, rp_mp_snow_fspd(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_mp_mp_czero_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_mp_mp_czero_rand, rp_mp_mp_czero(min_idx),             &
+                     rp_mp_mp_czero(max_idx), rp_mp_mp_czero(idx),             &
+                     rp_mp_mp_czero_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_mp_mp_czero: ", 2ES16.8 )' )                      &
+         rp_mp_mp_czero_pert, rp_mp_mp_czero(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_mp_mpof_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_mp_mpof_rand, rp_mp_mpof(min_idx),                     &
+                     rp_mp_mpof(max_idx), rp_mp_mpof(idx),                     &
+                     rp_mp_mpof_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_mp_mpof: ", 2ES16.8 )' )                          &
+         rp_mp_mpof_pert, rp_mp_mpof(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  if ( droplet_tpr ) then
+    call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,             &
+                                 rand_min, rand_max, rp_mp_ndrop_surf_rand)
+    rp_count = rp_count + 1
+    call rp_update_alg(rp_mp_ndrop_surf_rand, rp_mp_ndrop_surf(min_idx),       &
+                       rp_mp_ndrop_surf(max_idx), rp_mp_ndrop_surf(idx),       &
+                       rp_mp_ndrop_surf_pert)
+    write( log_scratch_space,                                                  &
+           '("stph_rp_main: rp_mp_ndrop_surf: ", 2ES16.8 )' )                  &
+           rp_mp_ndrop_surf_pert, rp_mp_ndrop_surf(idx)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+  end if
+
+  !
+  ! Land-surface parameters
+  !
+  ! Some of the land-surface parameters are input as an array for each
+  ! plant function type (1:npft).  To ensure the value for each plant function
+  ! type (PFT) is changing in the same way (for example, making the
+  ! forecast smoother/rougher overall) we use the same random number
+  ! to perturb each PFT for a given parameter.
+
+  ! Perturb all the albedo parameters together
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_lsfc_albedo_rand)
+  rp_count = rp_count + 1
+  do n = 1, npft
+    call rp_update_alg(rp_lsfc_albedo_rand, rp_lsfc_alnir_min(n),              &
+                       rp_lsfc_alnir_max(n), rp_lsfc_alnir(n),                 &
+                       rp_lsfc_alnir_pert(n))
+    write( log_scratch_space,                                                  &
+           '("stph_rp_main: rp_lsfc_alnir: ", I0, 2ES16.8 )' )                 &
+           n, rp_lsfc_alnir_pert(n), rp_lsfc_alnir(n)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call rp_update_alg(rp_lsfc_albedo_rand, rp_lsfc_alpar_min(n),              &
+                       rp_lsfc_alpar_max(n), rp_lsfc_alpar(n),                 &
+                       rp_lsfc_alpar_pert(n))
+    write( log_scratch_space,                                                  &
+           '("stph_rp_main: rp_lsfc_alpar: ", I0, 2ES16.8 )' )                 &
+           n, rp_lsfc_alpar_pert(n), rp_lsfc_alpar(n)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call rp_update_alg(rp_lsfc_albedo_rand, rp_lsfc_omnir_min(n),              &
+                       rp_lsfc_omnir_max(n), rp_lsfc_omnir(n),                 &
+                       rp_lsfc_omnir_pert(n))
+    write( log_scratch_space,                                                  &
+           '("stph_rp_main: rp_lsfc_omnir: ", I0, 2ES16.8 )' )                 &
+           n, rp_lsfc_omnir_pert(n), rp_lsfc_omnir(n)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call rp_update_alg(rp_lsfc_albedo_rand, rp_lsfc_omega_min(n),              &
+                       rp_lsfc_omega_max(n), rp_lsfc_omega(n),                 &
+                       rp_lsfc_omega_pert(n))
+    write( log_scratch_space,                                                  &
+           '("stph_rp_main: rp_lsfc_omega: ", I0, 2ES16.8 )' )                 &
+           n, rp_lsfc_omega_pert(n), rp_lsfc_omega(n)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+  end do
+
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_lsfc_lai_mult_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_lsfc_lai_mult_rand, rp_lsfc_lai_mult_min,              &
+                     rp_lsfc_lai_mult_max, rp_lsfc_lai_mult,                   &
+                     rp_lsfc_lai_mult_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_lsfc_lai_mult: ", 2ES16.8 )' )                    &
+         rp_lsfc_lai_mult_pert, rp_lsfc_lai_mult
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_lsfc_orog_drag_param_rand)
+  rp_count = rp_count + 1
+  call rp_update_alg(rp_lsfc_orog_drag_param_rand,                             &
+                     rp_lsfc_orog_drag_param(min_idx),                         &
+                     rp_lsfc_orog_drag_param(max_idx),                         &
+                     rp_lsfc_orog_drag_param(idx),                             &
+                     rp_lsfc_orog_drag_param_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_lsfc_orog_drag_param: ", 2ES16.8 )' )             &
+         rp_lsfc_orog_drag_param_pert, rp_lsfc_orog_drag_param(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  ! Perturb z0hm_pft and z0hm_soil together
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_lsfc_z0hm_pft_rand)
+  rp_count = rp_count + 1
+  do n = 1, npft
+    call rp_update_alg(rp_lsfc_z0hm_pft_rand, rp_lsfc_z0hm_pft_min(n),         &
+                       rp_lsfc_z0hm_pft_max(n), rp_lsfc_z0hm_pft(n),           &
+                       rp_lsfc_z0hm_pft_pert(n))
+    write( log_scratch_space,                                                  &
+           '("stph_rp_main: rp_lsfc_z0hm_pft: ", I0, 2ES16.8 )' )              &
+           n, rp_lsfc_z0hm_pft_pert(n), rp_lsfc_z0hm_pft(n)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+  end do
+
+  call rp_update_alg(rp_lsfc_z0hm_pft_rand, rp_lsfc_z0hm_soil(min_idx),        &
+                     rp_lsfc_z0hm_soil(max_idx), rp_lsfc_z0hm_soil(idx),       &
+                     rp_lsfc_z0hm_soil_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_lsfc_z0hm_soil: ", 2ES16.8 )' )                   &
+         rp_lsfc_z0hm_soil_pert, rp_lsfc_z0hm_soil(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  ! z0v, z0_soil and z0_urban_mult are all perturbed together
+  call stph_time_corr_pert_alg(mu, rp_rand(rp_count), shock_amp,               &
+                               rand_min, rand_max, rp_lsfc_z0v_rand)
+  rp_count = rp_count + 1
+
+  if ( l_spec_veg_z0 ) then
+    do n = 1, npft
+      call rp_update_alg(rp_lsfc_z0v_rand, rp_lsfc_z0v_min(n),                 &
+                         rp_lsfc_z0v_max(n), rp_lsfc_z0v(n),                   &
+                         rp_lsfc_z0v_pert(n))
+      write( log_scratch_space,                                                &
+             '("stph_rp_main: rp_lsfc_z0v: ", I0, 2ES16.8 )' )                 &
+             n, rp_lsfc_z0v_pert(n), rp_lsfc_z0v(n)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end do
+  end if
+
+  call rp_update_alg(rp_lsfc_z0v_rand, rp_lsfc_z0_soil(min_idx),               &
+                     rp_lsfc_z0_soil(max_idx), rp_lsfc_z0_soil(idx),           &
+                     rp_lsfc_z0_soil_pert)
+  write( log_scratch_space,                                                    &
+         '("stph_rp_main: rp_lsfc_z0_soil: ", 2ES16.8 )' )                     &
+         rp_lsfc_z0_soil_pert, rp_lsfc_z0_soil(idx)
+  call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+  if ( l_urban2t ) then
+    call rp_update_alg(rp_lsfc_z0v_rand, rp_lsfc_z0_urban_mult(min_idx),       &
+                       rp_lsfc_z0_urban_mult(max_idx),                         &
+                       rp_lsfc_z0_urban_mult(idx),                             &
+                       rp_lsfc_z0_urban_mult_pert)
+    write( log_scratch_space,                                                  &
+           '("stph_rp_main: rp_lsfc_z0_urban_mult: ", 2ES16.8 )' )             &
+           rp_lsfc_z0_urban_mult_pert, rp_lsfc_z0_urban_mult(idx)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+  end if
+
+  ! Apply perturbations directly to the relevant physics parameter/field
+  ! Currently we are only doing this for the leaf area
+  ! index ancillary but there are plans to move more of the perturbations
+  ! here so that the updated parameters can be used directly without having
+  ! to apply the perturbation in each subroutine (current practice)
+
+  call surface_fields%get_field('leaf_area_index', leaf_area_index)
+  ! First remove the perturbation from the previous update
+  call invoke(inc_X_divideby_a(leaf_area_index, rp_lsfc_lai_mult_pert_prev))
+  ! Then apply the new perturbation
+  call invoke(inc_a_times_X(rp_lsfc_lai_mult_pert, leaf_area_index))
+
+  ! Pass the values through to the physics schemes to use
+  a_ent_1_rp = rp_bl_a_ent_1_pert
+  cbl_mix_fac_rp = rp_bl_cbl_mix_fac_pert
+  cs_rp = rp_bl_smag_coef_pert
+  fxd_cld_num_rp = rp_mp_fxd_cld_num_pert
+  g0_rp = rp_bl_stable_ri_coef_pert
+  g1_rp = rp_bl_cld_top_diffusion_pert
+  ice_fspd_rp = rp_mp_ice_fspd_pert
+  lambda_min_rp = rp_bl_min_mix_length_pert
+  mp_czero_rp = rp_mp_mp_czero_pert
+  mpof_rp = rp_mp_mpof_pert
+  ndrop_surf_rp = rp_mp_ndrop_surf_pert
+  orog_drag_param_rp = rp_lsfc_orog_drag_param_pert
+  par_mezcla_rp = rp_bl_neutral_mix_length_pert
+  ricrit_rp = rp_bl_ricrit_pert
+  snow_fspd_rp = rp_mp_snow_fspd_pert
+  z0_soil_rp = rp_lsfc_z0_soil_pert
+  if (l_urban2t) z0_urban_mult_rp = rp_lsfc_z0_urban_mult_pert
+  z0hm_soil_rp = rp_lsfc_z0hm_soil_pert
+  do n = 1, npft
+    alnir_rp(n) = rp_lsfc_alnir_pert(n)
+    alpar_rp(n) = rp_lsfc_alpar_pert(n)
+    lai_mult_rp(n) = rp_lsfc_lai_mult_pert
+    omega_rp(n) = rp_lsfc_omega_pert(n)
+    omnir_rp(n) = rp_lsfc_omnir_pert(n)
+    z0hm_pft_rp(n) = rp_lsfc_z0hm_pft_pert(n)
+    if ( l_spec_veg_z0 ) z0v_rp(n) = rp_lsfc_z0v_pert(n)
+  end do
+
+  end subroutine stph_rp_main_alg
+
+
+  !>@brief     Updates a given random parameter
+  !>
+  !>@details   This routine updates a given random parameter by scaling it
+  !>           by a time correlated random perturbation
+  !>
+  !>@param[in]      rand_no     Time correlated random number
+  !>@param[in]      param_min   Min value of parameter
+  !>@param[in]      param_max   Max value of parameter
+  !>@param[in]      param_0     Default value of parameter
+  !>@param[in, out] param_pert  Perturbed parameter to update
+
+  subroutine rp_update_alg(rand_no, param_min, param_max, param_0, param_pert)
+
+  implicit none
+
+  ! Arguments
+  real(kind=r_def), intent(in) :: rand_no
+  real(kind=r_def), intent(in) :: param_min
+  real(kind=r_def), intent(in) :: param_max
+  real(kind=r_def), intent(in) :: param_0
+  real(kind=r_def), intent(out) :: param_pert
+
+  if ( rand_no < 0.0_r_def ) then
+    param_pert = param_0 + (param_0 - param_min) * rand_no
+  else
+    param_pert = param_0 + (param_max - param_0) * rand_no
+  end if
+
+  end subroutine rp_update_alg
+
+end module stph_rp_main_alg_mod

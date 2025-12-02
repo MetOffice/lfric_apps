@@ -1,0 +1,44 @@
+&base_mesh
+  file_prefix     = 'resources/mesh_C12'
+  geometry        = 'spherical'
+  prepartitioned  = .false.
+  prime_mesh_name = 'unit_test'
+  topology        = 'fully_periodic'
+  fplane          = .false.
+  f_lat_deg       = 45.0
+/
+
+&formulation
+  l_multigrid = .false.
+/
+
+&extrusion
+  method           = 'uniform'
+  planet_radius    = 10.0
+  domain_height    = 10.0
+  number_of_layers = 10
+/
+
+&finite_element
+  cellshape        = 'quadrilateral'
+  element_order_h  = 0
+  element_order_v  = 0
+  rehabilitate     = .true.
+  coord_order      = 1
+  coord_system     = 'native'
+  vorticity_in_w1  = .false.
+/
+
+&planet
+  gravity        = 9.80665
+  omega          = 7.292116E-5
+  rd             = 287.05
+  cp             = 1005.0
+  p_zero         = 100000.0
+  scaling_factor = 125.0
+/
+
+&partitioning
+  partitioner         = 'cubedsphere'
+  panel_decomposition = 'auto'
+/

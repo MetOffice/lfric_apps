@@ -1,0 +1,145 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the geopotential gradient computation
+!>
+module geopotential_gradient_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  real(r_def), parameter :: gravity = 10.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use, intrinsic :: iso_fortran_env,    only : real64
+    use geopotential_gradient_kernel_mod, only : geopotential_gradient_code
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w0_m3x3_q3x3x3_size,    &
+                                                   get_w2_m3x3_q3x3x3_size
+    use get_unit_test_m3x3_dofmap_mod, only: get_w0_m3x3_dofmap,            &
+                                             get_w2_m3x3_dofmap
+    use get_unit_test_q3x3x3_basis_mod, only : get_w0_q3x3x3_diff_basis, &
+                                               get_w2_q3x3x3_basis
+    use get_unit_test_3x3x3_chi_mod, only: get_w0_3x3x3_field
+    use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                                    get_gaussian_q3x3x3_quadrature_weights_z
+    implicit none
+
+    real(r_def), parameter :: tol = 1.0e-3_r_def     ! r_def 64bit tolerance
+    real(r_def), parameter :: dx = 6000.0_r_def, &
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    integer(i_def) :: cell, k
+
+    integer(i_def) :: nlayers, nqp_h, nqp_v
+    integer(i_def) :: ndf_w0, ndf_w2
+    integer(i_def) :: undf_w0, undf_w2
+
+  ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    real(r_def), allocatable :: diff_basis_w0(:,:,:,:)
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+
+    real(r_def), allocatable :: wh(:), wv(:)
+
+   ! Test field data
+    real(r_def), allocatable :: chi_data(:,:)
+    real(r_def), allocatable :: r_u_data(:)
+    real(r_def), allocatable :: phi_data(:)
+
+    real(r_def) :: answer
+    real(r_def) :: tst, use_tol
+
+    ! Get canned data for a 3-layer mesh
+    nlayers = 3
+
+    ! Get sizes
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, unused, &
+                                  unused, unused,          &
+                                  nqp_h, nqp_v,            &
+                                  nlayers )
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+    ! Get dofmaps
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
+
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ! Create the data arrays
+    allocate(chi_data(undf_w0,3))
+    allocate(r_u_data(undf_w2))
+    allocate(phi_data(undf_w0))
+
+    cell = 1
+
+    call get_w0_3x3x3_field(chi_data(:,1), chi_data(:,2), chi_data(:,3), &
+                            dx, dy, dz, map_w0, nlayers)
+
+    ! Create the data
+    phi_data(:) = gravity*chi_data(:,3)
+    r_u_data(:) = 0.0_r_def
+
+    call geopotential_gradient_code( nlayers,                       &
+                                     r_u_data,                      &
+                                     phi_data,                      &
+                                     ndf_w2, undf_w2,               &
+                                     map_w2(:,cell), basis_w2,      &
+                                     ndf_w0, undf_w0,               &
+                                     map_w0(:,cell), diff_basis_w0, &
+                                     nqp_h, nqp_v, wh, wv           &
+                                   )
+
+    answer = -gravity*dz
+    k = 1
+    if ( r_def == real64 ) then
+       use_tol = tol
+       @assertEqual(answer, r_u_data(map_w2(5, cell)+k), use_tol)
+       @assertEqual(answer, r_u_data(map_w2(6, cell)+k), use_tol)
+    else
+       tst   = r_u_data( map_w2( 5, cell ) + k )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(answer, tst, use_tol)
+
+       tst   = r_u_data( map_w2( 6, cell ) + k )
+       use_tol = 10.0_r_def*spacing( tst )
+       @assertEqual(answer, tst, use_tol)
+    endif
+
+    deallocate(map_w0)
+    deallocate(map_w2)
+    deallocate(diff_basis_w0)
+    deallocate(basis_w2)
+    deallocate(wh)
+    deallocate(wv)
+    deallocate(chi_data)
+    deallocate(r_u_data)
+    deallocate(phi_data)
+
+  end subroutine test_all
+
+end module geopotential_gradient_kernel_mod_test

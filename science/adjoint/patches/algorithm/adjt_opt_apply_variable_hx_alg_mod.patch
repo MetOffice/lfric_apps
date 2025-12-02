@@ -1,0 +1,165 @@
+@@ -13,46 +13,49 @@
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : w2, w3, wtheta
+     use operator_mod, only : operator_type
+-    use constants_mod, only : i_def, r_def
+-    use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
+-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
++    use constants_mod, only : i_def, r_def, r_solver
++    use setop_random_alg_mod, only : setop_random_alg
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
++    use operator_mod, only: r_solver_operator_type
++    use r_solver_field_mod, only: r_solver_field_type
++    real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+     type(field_type), intent(in), optional :: panel_id
+     TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+     TYPE(function_space_type), POINTER :: vector_space_w3_ptr
+     TYPE(function_space_type), POINTER :: vector_space_wtheta_ptr
+-    type(field_type) :: lhs
+-    type(field_type) :: x
+-    type(field_type) :: mt_inv
+-    type(field_type) :: pressure
+-    type(operator_type) :: div
+-    type(operator_type) :: p3t
+-    type(operator_type) :: pt2
+-    type(operator_type) :: m3
+-    real(kind=r_def) :: sgn
+-    type(field_type) :: rhs_p
+-    real(kind=r_def) :: sgn_input
+-    type(field_type) :: lhs_input
+-    type(field_type) :: x_input
+-    type(field_type) :: mt_inv_input
+-    type(field_type) :: pressure_input
+-    type(field_type) :: rhs_p_input
++    type(r_solver_field_type) :: lhs
++    type(r_solver_field_type) :: x
++    type(r_solver_field_type) :: mt_inv
++    type(r_solver_field_type) :: pressure
++    type(r_solver_operator_type) :: div
++    type(r_solver_operator_type) :: p3t
++    type(r_solver_operator_type) :: pt2
++    type(r_solver_operator_type) :: m3
++    real(kind=r_solver) :: sgn
++    type(r_solver_field_type) :: rhs_p
++    type(r_solver_field_type) :: lhs_input
++    type(r_solver_field_type) :: x_input
++    type(r_solver_field_type) :: pressure_input
++    type(r_solver_field_type) :: rhs_p_input
+     real(kind=r_def) :: lhs_inner_prod
+     real(kind=r_def) :: x_inner_prod
+-    real(kind=r_def) :: mt_inv_inner_prod
+     real(kind=r_def) :: pressure_inner_prod
+     real(kind=r_def) :: rhs_p_inner_prod
+-    real(kind=r_def) :: inner1
++    real(kind=r_def) :: lhs_sf
++    real(kind=r_def) :: x_sf
++    real(kind=r_def) :: pressure_sf
++    real(kind=r_def) :: rhs_p_sf
++    real(kind=r_solver) :: inner1
+     real(kind=r_def) :: lhs_lhs_input_inner_prod
+     real(kind=r_def) :: x_x_input_inner_prod
+-    real(kind=r_def) :: mt_inv_mt_inv_input_inner_prod
+     real(kind=r_def) :: pressure_pressure_input_inner_prod
+     real(kind=r_def) :: rhs_p_rhs_p_input_inner_prod
+-    real(kind=r_def) :: inner2
+-    real(kind=r_def) :: MachineTol
+-    real(kind=r_def) :: relative_diff
++    real(kind=r_solver) :: inner2
++    real(kind=r_solver) :: MachineTol
++    real(kind=r_solver) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+     vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+@@ -68,48 +71,62 @@
+     call m3%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
+     call lhs_input%initialise(vector_space=vector_space_w3_ptr, name='lhs_input')
+     call x_input%initialise(vector_space=vector_space_w2_ptr, name='x_input')
+-    call mt_inv_input%initialise(vector_space=vector_space_wtheta_ptr, name='mt_inv_input')
+     call pressure_input%initialise(vector_space=vector_space_w3_ptr, name='pressure_input')
+     call rhs_p_input%initialise(vector_space=vector_space_w3_ptr, name='rhs_p_input')
+-    call RANDOM_NUMBER(sgn)
+-    sgn_input = sgn
++    ! NOTE(JC): Known issue with scalar randomisation with MPI. Each process
++    !           generates a different number. See LFRic-apps ticket #765.
++    sgn = 1.0_r_def
+     lhs_inner_prod = 0.0_r_def
+     x_inner_prod = 0.0_r_def
+-    mt_inv_inner_prod = 0.0_r_def
+     pressure_inner_prod = 0.0_r_def
+     rhs_p_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(lhs), setval_x(lhs_input, lhs), setval_random(x), setval_x(x_input, x), setval_random(mt_inv), &
+-&setval_x(mt_inv_input, mt_inv), setval_random(pressure), setval_x(pressure_input, pressure), setval_random(rhs_p), &
+-&setval_x(rhs_p_input, rhs_p), setop_random_kernel_type(div), setop_random_kernel_type(p3t), setop_random_kernel_type(pt2), &
+-&setop_random_kernel_type(m3), opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, sgn, rhs_p), &
+-&x_innerproduct_x(lhs_inner_prod, lhs), x_innerproduct_x(x_inner_prod, x), x_innerproduct_x(mt_inv_inner_prod, mt_inv), &
++&setval_random(pressure), setval_x(pressure_input, pressure), setval_random(rhs_p), &
++&setval_x(rhs_p_input, rhs_p))
++    call setop_random_alg(div)
++    call setop_random_alg(p3t)
++    call setop_random_alg(pt2)
++    call setop_random_alg(m3)
++    call invoke(opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, sgn, rhs_p), &
++&x_innerproduct_x(lhs_inner_prod, lhs), x_innerproduct_x(x_inner_prod, x), &
+ &x_innerproduct_x(pressure_inner_prod, pressure), x_innerproduct_x(rhs_p_inner_prod, rhs_p))
+-    inner1 = 0.0_r_def
+-    inner1 = inner1 + sgn * sgn
+-    inner1 = inner1 + lhs_inner_prod
+-    inner1 = inner1 + x_inner_prod
+-    inner1 = inner1 + mt_inv_inner_prod
+-    inner1 = inner1 + pressure_inner_prod
+-    inner1 = inner1 + rhs_p_inner_prod
++    write( log_scratch_space, * ) "adjt_opt_apply_variable_hx inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "lhs inner product = ", lhs_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "x inner product = ", x_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "pressure inner product = ", pressure_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "rhs_p inner product = ", rhs_p_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    lhs_sf = 1.0_r_def / (lhs_inner_prod + eps)
++    x_sf = 1.0_r_def / (x_inner_prod + eps)
++    pressure_sf = 1.0_r_def / (pressure_inner_prod + eps)
++    rhs_p_sf = 1.0_r_def / (rhs_p_inner_prod + eps)
++    inner1 = 0.0_r_solver
++    inner1 = inner1 + real( lhs_inner_prod * lhs_sf, r_solver )
++    inner1 = inner1 + real( x_inner_prod * x_sf, r_solver )
++    inner1 = inner1 + real( pressure_inner_prod * pressure_sf, r_solver )
++    inner1 = inner1 + real( rhs_p_inner_prod * rhs_p_sf, r_solver )
++    call invoke( inc_a_times_X( lhs_sf, lhs ), &
++                 inc_a_times_X( x_sf, x ),                 &
++                 inc_a_times_X( pressure_sf, pressure ),   &
++                 inc_a_times_X( rhs_p_sf, rhs_p ) )
+     lhs_lhs_input_inner_prod = 0.0_r_def
+     x_x_input_inner_prod = 0.0_r_def
+-    mt_inv_mt_inv_input_inner_prod = 0.0_r_def
+     pressure_pressure_input_inner_prod = 0.0_r_def
+     rhs_p_rhs_p_input_inner_prod = 0.0_r_def
+     call invoke(adj_opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, sgn, rhs_p), &
+ &x_innerproduct_y(lhs_lhs_input_inner_prod, lhs, lhs_input), x_innerproduct_y(x_x_input_inner_prod, x, x_input), &
+-&x_innerproduct_y(mt_inv_mt_inv_input_inner_prod, mt_inv, mt_inv_input), x_innerproduct_y(pressure_pressure_input_inner_prod, &
++&x_innerproduct_y(pressure_pressure_input_inner_prod, &
+ &pressure, pressure_input), x_innerproduct_y(rhs_p_rhs_p_input_inner_prod, rhs_p, rhs_p_input))
+-    inner2 = 0.0_r_def
+-    inner2 = inner2 + sgn * sgn_input
+-    inner2 = inner2 + lhs_lhs_input_inner_prod
+-    inner2 = inner2 + x_x_input_inner_prod
+-    inner2 = inner2 + mt_inv_mt_inv_input_inner_prod
+-    inner2 = inner2 + pressure_pressure_input_inner_prod
+-    inner2 = inner2 + rhs_p_rhs_p_input_inner_prod
+-
++    inner2 = 0.0_r_solver
++    inner2 = inner2 + real( lhs_lhs_input_inner_prod, r_solver )
++    inner2 = inner2 + real( x_x_input_inner_prod, r_solver )
++    inner2 = inner2 + real( pressure_pressure_input_inner_prod, r_solver )
++    inner2 = inner2 + real( rhs_p_rhs_p_input_inner_prod, r_solver )
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

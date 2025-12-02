@@ -1,0 +1,190 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint code of the advective update A of a variable f by a wind U
+
+module adj_wt_advective_update_alg_mod
+
+  use check_configuration_mod,              only : get_required_stencil_depth
+  use constants_mod,                        only : r_tran, i_def, l_def
+  use r_tran_field_mod,                     only : r_tran_field_type
+  use finite_element_config_mod,            only : element_order_h,            &
+                                                   element_order_v
+  use fs_continuity_mod,                    only : Wtheta
+  use function_space_mod,                   only : function_space_type
+  use function_space_collection_mod,        only : function_space_collection
+  use mesh_mod,                             only : mesh_type
+
+  use invoke_adj_poly1d_recon_lookup_mod,   only : invoke_adj_poly1d_recon_lookup
+  use adj_lookup_table_generators_alg_mod,  only : create_lookup_poly1d, &
+                                                   create_lookup_poly2d, &
+                                                   create_lookup_poly_adv_upd
+  use adj_lookup_table_mod,                 only : adj_lookup_table_type
+  use integer_field_mod,                    only : integer_field_type
+
+  use transport_config_mod,                 only : operators,                  &
+                                                   fv_horizontal_order,        &
+                                                   panel_edge_treatment,       &
+                                                   panel_edge_treatment_none,  &
+                                                   oned_reconstruction
+  use transport_enumerated_types_mod,       only : direction_3d, &
+                                                   monotone_koren
+  use log_mod,                              only : log_event,         &
+                                                   LOG_LEVEL_ERROR
+  use transport_metadata_mod,               only : transport_metadata_type
+  use invoke_adj_poly2d_recon_lookup_mod,   only : invoke_adj_poly2d_recon_lookup
+  use invoke_adj_poly_adv_upd_lookup_mod,   only : invoke_adj_poly_adv_upd_lookup
+  use transport_constants_mod,              only : get_hori_wt_mol_coeffs
+  use remap_on_extended_mesh_alg_mod,       only : remap_on_extended_mesh
+
+  implicit none
+
+  private
+
+  public :: adj_hori_wt_update_alg
+
+contains
+
+  !=============================================================================
+  !> @brief Compute the adjoint of horizontal advective update of a Wtheta field.
+  !> @param[in,out] u_grad_f            Horizontal part of u.grad(f)
+  !> @param[in]     ls_wind             Linearisation state wind field
+  !> @param[in]     wind_dir            Wind field used to determine direction in kernel
+  !> @param[in,out] field               Wtheta field to advect
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  subroutine adj_hori_wt_update_alg( u_grad_f, ls_wind, wind_dir, field, transport_metadata )
+
+    implicit none
+
+    type(r_tran_field_type),       intent(inout) :: u_grad_f
+    type(r_tran_field_type),       intent(in)    :: ls_wind
+    type(r_tran_field_type),       intent(in)    :: wind_dir
+    type(r_tran_field_type),       intent(inout) :: field
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    type(r_tran_field_type)          :: h_reconstruction
+    type(r_tran_field_type), pointer :: adv_coeffs
+
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: multidata_fs
+
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: stencil_size
+
+    type(r_tran_field_type),      target  :: remap_field, field_big_halo
+    type(r_tran_field_type),      pointer :: field_ptr
+
+    logical(kind=l_def) :: monotone
+    integer(kind=i_def) :: remap_depth
+
+    type(adj_lookup_table_type)        :: lookup_poly
+    type(adj_lookup_table_type)        :: lookup_poly_adv
+    type(integer_field_type),  pointer :: lookup_poly_field
+    type(integer_field_type),  pointer :: num_sets_poly_field
+    integer(kind=i_def)                :: nsets
+    integer(kind=i_def)                :: nindices
+
+    nullify(lookup_poly_field, num_sets_poly_field, mesh, &
+            field_ptr, multidata_fs, adv_coeffs)
+
+    mesh => ls_wind%get_mesh()
+    mesh_id = mesh%get_id()
+    if (oned_reconstruction) then
+      stencil_size = fv_horizontal_order + 1
+    else if (mod(fv_horizontal_order, 2) == 0) then
+      stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
+    else
+      stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
+    end if
+
+    adv_coeffs => get_hori_wt_mol_coeffs(mesh_id)
+
+    ! Copy field to a large halo version
+    call field_big_halo%initialise( field%get_function_space(), &
+                                    halo_depth = get_required_stencil_depth() )
+
+    ! Compute reconstruction on a Wtheta multidata field
+    ! each Wt point contains 4 values assigned to each edge,
+    ! in the order (W,S,E,N) which is the same order as a W2 field
+    multidata_fs => function_space_collection%get_fs(                          &
+        mesh, element_order_h, element_order_v, Wtheta, 4, ndata_first=.false. &
+    )
+    call h_reconstruction%initialise( multidata_fs )
+    call invoke( setval_c( field_big_halo, 0.0_r_tran ),            &
+                 setval_c( h_reconstruction, 0.0_r_tran ) )
+
+    monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
+    if ( panel_edge_treatment /= panel_edge_treatment_none                     &
+         .and. (monotone .or. oned_reconstruction) ) then
+      remap_depth = int(fv_horizontal_order/2)
+      call remap_on_extended_mesh(remap_field, field_big_halo,                 &
+                                  monotone,                                    &
+                                  transport_metadata%get_enforce_min_value(),  &
+                                  transport_metadata%get_min_value(),          &
+                                  remap_depth)
+      field_ptr => remap_field
+    else
+      field_ptr => field_big_halo
+    end if
+
+    stencil_extent = 1_i_def
+
+    ! Invoke lookup table kernel for adj_poly_adv_update.
+    call create_lookup_poly_adv_upd( lookup_poly_adv, u_grad_f, h_reconstruction, &
+                                     ls_wind, stencil_extent )
+    lookup_poly_field => lookup_poly_adv%get_lookup_field()
+    num_sets_poly_field => lookup_poly_adv%get_set_count_field()
+    nindices = lookup_poly_adv%get_nindices()
+    nsets = lookup_poly_adv%get_nsets_max()
+    call invoke_adj_poly_adv_upd_lookup( u_grad_f, h_reconstruction, &
+                                         lookup_poly_field, num_sets_poly_field, &
+                                         ls_wind, wind_dir, &
+                                         nsets, nindices, stencil_extent )
+
+    stencil_extent = fv_horizontal_order/2_i_def
+    if ( transport_metadata%get_horizontal_monotone() == monotone_koren ) then
+       call log_event( "ADJ Koren not available for cross stencil of size 5", LOG_LEVEL_ERROR )
+
+    else
+      if ( oned_reconstruction ) then
+        ! Use 1d reconstruction
+        ! create lookup table for stencil application. essentially a dry run
+        ! of the tl kernel.
+        call create_lookup_poly1d( lookup_poly, h_reconstruction, field_ptr, &
+                                   adv_coeffs, stencil_extent, fv_horizontal_order )
+        lookup_poly_field => lookup_poly%get_lookup_field()
+        num_sets_poly_field => lookup_poly%get_set_count_field()
+        nindices = lookup_poly%get_nindices()
+        nsets = lookup_poly%get_nsets_max()
+
+        call invoke_adj_poly1d_recon_lookup(h_reconstruction, field_ptr, lookup_poly_field, &
+                                            num_sets_poly_field, adv_coeffs, nsets, nindices, &
+                                            stencil_extent)
+      else
+        ! Use 2d reconstruction
+        ! Create lookup table for stencil application. Essentially a dry run
+        ! of the TL kernel.
+        call create_lookup_poly2d( lookup_poly, h_reconstruction, field_big_halo, &
+                                   adv_coeffs, stencil_size, stencil_extent )
+        lookup_poly_field => lookup_poly%get_lookup_field()
+        num_sets_poly_field => lookup_poly%get_set_count_field()
+        nindices = lookup_poly%get_nindices()
+        nsets = lookup_poly%get_nsets_max()
+
+        call invoke_adj_poly2d_recon_lookup( h_reconstruction, field_big_halo, &
+                                             lookup_poly_field, num_sets_poly_field, &
+                                             adv_coeffs, nsets, nindices, &
+                                             stencil_extent )
+      end if
+
+    end if
+
+    call invoke( inc_X_plus_Y( field, field_ptr ) )
+    ! and then setval_c( field_ptr, 0.0_r_tran ) but this can be omitted for faster runtime.
+
+  end subroutine adj_hori_wt_update_alg
+
+end module adj_wt_advective_update_alg_mod

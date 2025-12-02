@@ -1,0 +1,41 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2023 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the electric fields
+module init_electric_fields_alg_mod
+
+  use constants_mod,        only: r_def
+
+  ! Derived Types
+  use field_mod,            only: field_type
+
+  use field_collection_mod, only: field_collection_type
+
+
+  implicit none
+
+  private
+  public :: init_electric_fields_alg
+
+contains
+
+  subroutine init_electric_fields_alg(electric_fields)
+
+    implicit none
+    ! Arguments
+    type(field_collection_type), intent(in) :: electric_fields
+
+    ! Electric
+
+    type( field_type ), pointer :: flash_potential => null()
+
+    call electric_fields%get_field('flash_potential', &
+                                    flash_potential )
+
+    call invoke( setval_c( flash_potential , 0.0_r_def) )
+
+  end subroutine init_electric_fields_alg
+
+end module init_electric_fields_alg_mod

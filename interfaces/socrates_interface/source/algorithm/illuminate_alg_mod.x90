@@ -1,0 +1,142 @@
+!------------------------------------------------------------------------------
+! (c) Crown copyright 2018 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!------------------------------------------------------------------------------
+!> @brief Calculate the solar illumination angles and flux
+
+module illuminate_alg_mod
+
+use constants_mod,           only: i_def, i_timestep, r_def, l_def
+use field_mod,               only: field_type
+use field_collection_mod,    only: field_collection_type
+use fs_continuity_mod,       only: W3
+use mesh_mod,                only: mesh_type
+use io_config_mod,           only: write_diag, use_xios_io
+use sci_geometric_constants_mod,   &
+                             only: get_latitude_fv, get_longitude_fv
+use illuminate_kernel_mod,   only: illuminate_kernel_type
+use io_config_mod,           only: subroutine_timers
+use timer_mod,               only: timer
+
+implicit none
+private
+
+!------------------------------------------------------------------------------
+! Contained functions/subroutines
+!------------------------------------------------------------------------------
+public :: illuminate_alg
+
+contains
+
+!> @param[in,out] radiation_fields Fields for radiation scheme
+!> @param[in]     timestep         Model timestep number
+!> @param[in]     dt               Model timestep length
+
+subroutine illuminate_alg(radiation_fields, timestep, dt)
+
+  use xios, only: xios_date, xios_get_current_date, &
+                  xios_date_get_day_of_year, xios_date_get_second_of_day
+
+  implicit none
+
+  type( field_collection_type ), intent(inout) :: radiation_fields
+  integer(kind=i_timestep),      intent(in)    :: timestep
+  real(r_def),                   intent(in)    :: dt
+
+  type( mesh_type ),  pointer :: mesh => null()
+  type( field_type ), pointer :: latitude  => null()
+  type( field_type ), pointer :: longitude => null()
+
+  ! Unpacked fields from collections
+  type( field_type ), pointer :: cos_zenith_angle   => null()
+  type( field_type ), pointer :: lit_fraction       => null()
+  type( field_type ), pointer :: cos_zenith_angle_rts   => null()
+  type( field_type ), pointer :: lit_fraction_rts       => null()
+  type( field_type ), pointer :: stellar_irradiance_rts => null()
+  type( field_type ), pointer :: sin_stellar_declination_rts => null()
+  type( field_type ), pointer :: stellar_eqn_of_time_rts => null()
+  type( field_type ), pointer :: orographic_correction_rts => null()
+  type( field_type ), pointer :: slope_angle => null()
+  type( field_type ), pointer :: slope_aspect => null()
+  type( field_type ), pointer :: horizon_angle  => null()
+  type( field_type ), pointer :: horizon_aspect => null()
+  type( field_type ), pointer :: skyview => null()
+
+  type(xios_date) :: datetime
+  integer(i_def), save :: current_year, day_of_year
+  real(r_def), save :: second_of_day
+  logical(l_def), save :: first_call = .true.
+
+  if (.not. first_call) then
+
+    if ( subroutine_timers ) call timer("illuminate_alg")
+
+    call radiation_fields%get_field('cos_zenith_angle',cos_zenith_angle)
+    call radiation_fields%get_field('lit_fraction',lit_fraction)
+    call radiation_fields%get_field('cos_zenith_angle_rts',cos_zenith_angle_rts)
+    call radiation_fields%get_field('lit_fraction_rts',lit_fraction_rts)
+    call radiation_fields%get_field('stellar_irradiance_rts', &
+                                    stellar_irradiance_rts)
+    call radiation_fields%get_field('sin_stellar_declination_rts', &
+                                    sin_stellar_declination_rts)
+    call radiation_fields%get_field('stellar_eqn_of_time_rts', &
+                                    stellar_eqn_of_time_rts)
+    call radiation_fields%get_field('orographic_correction_rts', &
+                                    orographic_correction_rts)
+    call radiation_fields%get_field('slope_angle',slope_angle)
+    call radiation_fields%get_field('slope_aspect',slope_aspect)
+    call radiation_fields%get_field('horizon_angle',horizon_angle)
+    call radiation_fields%get_field('horizon_aspect',horizon_aspect)
+    call radiation_fields%get_field('skyview', skyview)
+
+    mesh => cos_zenith_angle%get_mesh()
+
+    latitude  => get_latitude_fv( W3, mesh%get_id() )
+    longitude => get_longitude_fv( W3, mesh%get_id() )
+
+    call invoke( illuminate_kernel_type( &
+                 cos_zenith_angle, lit_fraction, &
+                 cos_zenith_angle_rts, lit_fraction_rts, &
+                 stellar_irradiance_rts, &
+                 sin_stellar_declination_rts, &
+                 stellar_eqn_of_time_rts, &
+                 orographic_correction_rts, &
+                 slope_angle, slope_aspect, &
+                 horizon_angle, horizon_aspect, &
+                 latitude, longitude, timestep, dt, &
+                 current_year, day_of_year, second_of_day) )
+
+    if ( subroutine_timers ) call timer("illuminate_alg")
+
+    ! Output diagnostics
+    if (write_diag .and. use_xios_io) then
+      if ( subroutine_timers ) call timer("illuminate_xios")
+
+      call sin_stellar_declination_rts%write_field(&
+        'radiation__sin_stellar_declination_rts')
+      call stellar_eqn_of_time_rts%write_field( &
+        'radiation__stellar_eqn_of_time_rts')
+      call slope_angle%write_field('radiation__slope_angle')
+      call slope_aspect%write_field('radiation__slope_aspect')
+      call horizon_angle%write_field('radiation__horizon_angle')
+      call horizon_aspect%write_field('radiation__horizon_aspect')
+      call skyview%write_field('radiation__skyview')
+
+      if ( subroutine_timers ) call timer("illuminate_xios")
+    end if
+
+    nullify( mesh )
+
+  end if
+
+  ! Get date and time
+  call xios_get_current_date(datetime)
+  current_year  = int(datetime%year, i_def)
+  day_of_year   = int(xios_date_get_day_of_year(datetime), i_def) + 1_i_def
+  second_of_day = real(xios_date_get_second_of_day(datetime), r_def)
+  first_call = .false.
+
+end subroutine illuminate_alg
+
+end module illuminate_alg_mod

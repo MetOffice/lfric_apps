@@ -1,0 +1,155 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2020 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Holds methane oxidation code
+module methox_alg_mod
+
+  use clock_mod,            only: clock_type
+  use field_mod,            only: field_type
+  use mr_indices_mod,       only: nummr, imr_v
+  use io_config_mod,        only: write_diag, use_xios_io
+  use io_config_mod,        only: subroutine_timers
+  use timer_mod,            only: timer
+
+  use constants_mod,             only: r_def, i_def, pi, l_def
+  use extrusion_config_mod,      only: domain_height, number_of_layers
+  use level_heights_mod,         only: eta_theta_levels
+  use science_conversions_mod, only: seconds_per_day
+  use planet_config_mod,         only: p_zero
+
+  implicit none
+  private
+
+  ! Logical controlling whether coeffs need calculating
+  logical(kind=l_def), save :: calculate_coeffs = .true.
+
+  ! Scale height (in m) for calculating pressure
+  real(kind=r_def), parameter :: scale_ht=7000.0_r_def
+
+  ! Coefficients and pressures used in methane oxidation rate calculation
+  real(kind=r_def), parameter :: c1_methox = 19.0_r_def
+  real(kind=r_def), parameter :: c2_methox = 10.0_r_def
+  real(kind=r_def), parameter :: c3_methox = 20.0_r_def
+  real(kind=r_def), parameter :: c4_methox = 100.0_r_def
+  real(kind=r_def), parameter :: methox_const = 1.0_r_def / &
+                                                (c4_methox * seconds_per_day)
+  real(kind=r_def), parameter :: alpha_methox = c1_methox * &
+                                       log(c2_methox)/(log(c3_methox))**4_i_def
+  real(kind=r_def), parameter :: p1_methox = 50.0_r_def
+  real(kind=r_def), parameter :: p2_methox = 10000.0_r_def
+
+  ! Coefficients and pressures used in photolysis rate calculation
+  real(kind=r_def), parameter :: c1_photol = 0.3333_r_def
+  real(kind=r_def), parameter :: c2_photol = 0.01_r_def
+  real(kind=r_def), parameter :: c3_photol = 3.0_r_def
+  real(kind=r_def), parameter :: c4_photol = 100.0_r_def
+  real(kind=r_def), parameter :: c5_photol = 0.005_r_def
+  real(kind=r_def), parameter :: c6_photol = 0.01_r_def
+  real(kind=r_def), parameter :: photol_const = 1.0_r_def / &
+                                                (c3_photol * seconds_per_day)
+  real(kind=r_def), parameter :: alpha_photol = log(c1_photol+c2_photol)
+  real(kind=r_def), parameter :: p1_photol = 0.1_r_def
+  real(kind=r_def), parameter :: p2_photol = 20.0_r_def
+
+  public :: methox_alg
+
+contains
+
+  !> @brief Calculate chemical changes to water vapour due to methane oxidation
+  !>        and hydrogen photolysis, using the method used at ECMWF
+  !> @details Follows (Untch et al (ECMWF Newsletter No 82, winter
+  !>          1998/99, pp 2-8) and Simmons (pers. comm.)). The model methane
+  !>          mixing ratio is implicit, and derived from the assumption that
+  !>          2 [CH4] + [H2O] = 3.75  ppmm throughout the stratosphere.
+  !>          The methane oxidation and hydrogen photolysis rate coefficients
+  !>          vary only with pressure, which is calculated for a standard
+  !>          atmosphere assuming a surface pressure of p_zero.
+  !> @param[out] dmv_methox     m_v increment from methane oxidation
+  !> @param[in]  mr             mixing ratios
+  !> @param[in]  clock          Model time information
+  subroutine methox_alg(dmv_methox, mr, clock)
+
+    use methox_kernel_mod, only: methox_kernel_type, methox_coeff, photol_coeff
+
+    implicit none
+
+    ! Arguments
+    type( field_type ), intent(out) :: dmv_methox
+    type( field_type ), intent(in)  :: mr(nummr)
+    class(clock_type), intent(in)   :: clock
+
+    !Internal variables
+    integer(kind=i_def) :: k
+    real(kind=r_def) :: pressure, dt
+
+    if ( subroutine_timers ) call timer('methox_alg')
+
+    ! If required, calculate the rate coefficients
+    ! (assumed to vary only with pressure)
+    if (calculate_coeffs) then
+      ! Follows the approach of Simmons (pers. comm). Analytical
+      ! functions are calculated that approximately match chemical
+      ! lifetime plots shown in Brasseur and Solomon (1986) (the rate
+      ! coefficient is the reciprocal of the chemical lifetime).
+      ! It is assumed that the rate coefficients only vary with pressure.
+
+      allocate(methox_coeff(0:number_of_layers))
+      allocate(photol_coeff(0:number_of_layers))
+
+      do k = 0, number_of_layers
+
+        ! Estimate pressure using typical middle atmosphere scale height
+        pressure = p_zero * exp(-domain_height*eta_theta_levels(k)/scale_ht)
+
+        ! Calculate methane oxidation coefficient
+        if (pressure <= p1_methox) then
+          methox_coeff(k) = methox_const
+        else if (pressure > p1_methox .and. pressure < p2_methox) then
+          methox_coeff(k) = methox_const /                                  &
+                         ( 1.0_r_def +                                      &
+                           alpha_methox*((log(pressure/p1_methox))**4_i_def &
+                                        / log(p2_methox/pressure)) )
+        else
+          methox_coeff(k) = 0.0_r_def
+        end if
+
+        ! Calculate photoloysis coefficient
+        if (pressure <= p1_photol) then
+          photol_coeff(k) = photol_const
+        else if (pressure > p1_photol .and. pressure < p2_photol) then
+          photol_coeff(k) = (exp(alpha_photol - 0.5_r_def* &
+                                               (log(c4_photol) + alpha_photol) &
+                                         * (1 + cos(pi*log(pressure/p2_photol) &
+                                                     / log(c5_photol)) ) )     &
+                                         -c6_photol) / seconds_per_day
+        else
+          photol_coeff(k) = 0.0_r_def
+        end if
+
+      end do
+
+      ! Now coefficients are calculated, just use them from module in future
+      calculate_coeffs = .false.
+
+    end if
+
+    call mr(imr_v)%copy_field_properties(dmv_methox)
+
+    ! Get the current model timestep length
+    dt = real(clock%get_seconds_per_step(), r_def)
+
+    ! Calculate methane oxidation increment
+    call invoke(methox_kernel_type(dmv_methox, mr(imr_v), dt))
+
+    ! Output diagnostic if requested
+    if (write_diag .and. use_xios_io) then
+      call dmv_methox%write_field('processed__dmv_methox')
+    end if
+
+    if ( subroutine_timers ) call timer('methox_alg')
+
+  end subroutine methox_alg
+
+end module methox_alg_mod

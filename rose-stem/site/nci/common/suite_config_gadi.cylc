@@ -1,0 +1,128 @@
+{% set gadi_base = 'module load /g/data/access/ngm/modules/envs/lfric/202510/oneapi-openmpi' %}
+{% set gadi_base_coupled = 'module load /g/data/access/ngm/modules/envs/lfric-coupled/202511/oneapi-openmpi' %}
+
+{% set gadi_plot = 'module load /g/data/access/ngm/modules/analysis3/21.10' %}
+
+[runtime]
+    [[GADI_BASE]]
+        platform=gadi
+        [[[environment]]]
+            BUILD_ROOT      = ${CYLC_TASK_WORK_DIR}/${CYLC_WORKFLOW_NAME_BASE}_${USER}
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 48
+            NUMA_REGIONS_PER_NODE = 2
+            PROJECT         = \$PROJECT
+            SITE            = 'nci'
+            ROSE_LAUNCHER   = mpiexec
+
+    [[GADI_BUILD_COMMON_INTEL]]
+        [[[directives]]]
+          -l jobfs=2GB
+          -q=normal
+          -l walltime=02:00:00
+          -W umask=0022
+          -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
+
+    [[GADI_BUILD_INTEL]]
+        inherit=GADI_BASE, GADI_BUILD_COMMON_INTEL
+        {{ generate_script("pre-script", [gadi_base]) }}
+
+    [[GADI_BUILD_COUPLED_INTEL]]
+        inherit=GADI_BASE, GADI_BUILD_COMMON_INTEL
+        {{ generate_script("pre-script", [gadi_base_coupled]) }}
+
+    [[GADI_RUN_COMMON_INTEL]]
+        [[[directives]]]
+            -l jobfs=2GB
+            -q=normal
+            -W umask=0022
+            -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
+        [[[environment]]]
+            RUN_METHOD      = mpiexec
+            BIG_DATA_DIR    = '/g/data/access/projects/access/lfric/data'
+            TARGET_PLATFORM = 'nci-gadi'
+
+    [[GADI_RUN_INTEL]]
+        inherit=GADI_BASE, GADI_RUN_COMMON_INTEL
+        {{ generate_script("pre-script", [gadi_base]) }}
+
+    [[GADI_RUN_COUPLED_INTEL]]
+        inherit=GADI_BASE, GADI_RUN_COMMON_INTEL
+        {{ generate_script("pre-script", [gadi_base_coupled]) }}
+
+    [[GADI_MESH_INTEL]]
+        inherit=GADI_BASE
+        {{ generate_script("pre-script", [gadi_base]) }}
+        [[[directives]]]
+            -q=normal
+            -W umask=0022
+            -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
+
+    [[GADI_PLOT]]
+        inherit=GADI_BASE
+        {{ generate_script("pre-script", [gadi_plot]) }}
+        [[[directives]]]
+            -q=normal
+            -W umask=0022
+            -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
+
+    [[GADI_PLOT_INTEL]]
+        inherit=GADI_PLOT
+
+    [[GADI_CHECK]]
+        inherit=GADI_BASE
+        [[[directives]]]
+            -q=normal
+            -W umask=0022
+            -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
+
+    [[GADI_EXPORT-SOURCE]]
+        platform=localhost
+        pre-script="module load python3/3.12.1"
+        post-script="sed -i -e 's/FFLAGS_WARNINGS           = -warn all -warn errors -gen-interfaces nosource/FFLAGS_WARNINGS           = -warn all -gen-interfaces nosource/' $SOURCE_ROOT/lfric_core/infrastructure/build/fortran/ifort.mk"
+        [[[environment]]]
+            hostname = 'gadi.nci.org.au'
+            SITE = 'nci'
+            PLATFORM_SYNC = false
+
+    [[GADI_SCRIPTS]]
+        inherit=GADI_BASE
+
+    [[GADI_TECH_TESTS_INTEL]]
+        inherit=GADI_BASE
+        {{ generate_script("pre-script", [gadi_base]) }}
+        [[[directives]]]
+            -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
+
+    [[GADI_HOUSEKEEPING]]
+
+    [[SCRIPTS]]
+        {{ generate_script("pre-script", [gadi_base]) }}
+        [[[directives]]]
+            -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
+
+    [[GADI_LFRICINPUTS]]
+        inherit = GADI_RUN_INTEL
+        execution time limit = PT45M
+        [[[environment]]]
+            FASTMEM         = \$TMPDIR
+            CANNED_MESH_DIR = $BIG_DATA_DIR/meshes/HEAD
+            UMDIR = /g/data/access/projects/access/umdir
+        [[[directives]]]
+            -l mem=40GB
+            -l walltime=00:30:00
+
+    [[GADI_WEIGHTS]]
+        inherit = GADI_LFRICINPUTS
+        pre-script = """
+                     module purge
+                     module use /g/data/access/ngm/modules
+                     module use /g/data/hr22/modulefiles
+                     module load analysis3/21.10
+                     module load ants/0.18
+                     module list 2>&1
+                     """
+        post-script = """
+                      module purge
+                      """
+

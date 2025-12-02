@@ -1,0 +1,251 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_moist_mr_transport_alg
+module atlt_moist_mr_transport_alg_mod
+
+  use r_tran_field_mod,                    only : r_tran_field_type
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use model_clock_mod,                     only : model_clock_type
+  use finite_element_config_mod,           only : element_order_h, &
+                                                  element_order_v
+  use fs_continuity_mod,                   only : Wtheta
+  use mr_indices_mod,                      only : nummr
+  use function_space_collection_mod,       only : function_space_collection
+  use transport_metadata_collection_mod,   only : transport_metadata_collection
+  use transport_metadata_mod,              only : transport_metadata_type
+  use tl_transport_controller_mod,         only : tl_transport_controller_type
+  use transport_controller_mod,            only : transport_controller_type
+  use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
+  use inner_from_controller_rdef_alg_mod,  only : flux_pc_ref_flux_prod_rdef,     &
+                                                  flux_pc_ref_flux_inp_prod_rdef, &
+                                                  wind_pc_dir_prod_rdef,          &
+                                                  wind_pc_dir_inp_prod_rdef
+  use init_from_controller_alg_mod,        only : init_flux_pc_fieldvals, &
+                                                  init_wind_pc_fieldvals
+  use transport_enumerated_types_mod,      only : direction_3d, &
+                                                  direction_h,  &
+                                                  direction_v
+
+  implicit none
+
+  private
+  public :: atlt_moist_mr_transport_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for atl_moist_mr_transport_alg.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !> Determined by testing the equality of inner products < Mx, Mx > and < AMx, x >,
+  !> where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine atlt_moist_mr_transport_alg( mesh, model_clock )
+
+    use tl_moist_mr_transport_alg_mod,          only : tl_moist_mr_transport_alg
+    use atl_moist_mr_transport_alg_mod,         only : atl_moist_mr_transport_alg
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Arguments for tl and adj calls
+    type(field_type), dimension(:), allocatable :: mr_out
+    type(field_type), dimension(:), allocatable :: mr_in
+    type(field_type), dimension(:), allocatable :: ls_mr_in
+    integer(kind=i_def)                         :: nummr_to_transport
+    type(tl_transport_controller_type)          :: tl_transport_controller
+    type(transport_metadata_type), pointer      :: transport_metadata
+
+    ! Copies of input fields used in inner products
+    type(field_type), dimension(:), allocatable :: mr_out_inp
+    type(field_type), dimension(:), allocatable :: mr_in_inp
+
+    ! For indexing into moisture mixing ratio arrays
+    integer(kind=i_def) :: imr
+
+    ! Variables used to handle calculations for fields stored in tl_transport_controller
+    integer(kind=i_def)                                :: mesh_id
+    type(transport_controller_type),           pointer :: pert_transport_controller
+    type(transport_controller_type),           pointer :: ls_transport_controller
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_ls_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: fpc_pert_wind_ref_flux_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_1_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_field_2_inp
+    type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
+    type(r_tran_field_type)                            :: wind_pc_h_inp
+    type(r_tran_field_type)                            :: wind_pc_v_inp
+    type(r_tran_field_type)                            :: wind_pc_3d_inp
+    type(field_type)                                   :: dummy
+    type(function_space_type),                 pointer :: dummy_vs
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: mr_out_inner_prod
+    real(kind=r_def)            :: mr_out_sf
+    real(kind=r_def)            :: mr_in_inner_prod
+    real(kind=r_def)            :: mr_in_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: mo_mo_inp_inner_prod
+    real(kind=r_def)            :: mi_mi_inp_inner_prod
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def) :: machine_tol
+    real(kind=r_def) :: relative_diff
+
+    mesh_id = mesh%get_id()
+    nummr_to_transport = 4_i_def
+    call setup_test_tl_transport_controller( mesh, model_clock, tl_transport_controller, dummy, dummy_vs, 'moisture' )
+    ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
+    pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    transport_metadata => pert_transport_controller%get_transport_metadata()
+
+    ! Initialising fields
+    call init_flux_pc_fieldvals( mesh,                     &
+                                 1_i_def,                  &
+                                 fpc_ls_wind_ref_flux_inp, &
+                                 dummy_ref_field_1_inp,    &
+                                 dummy_ref_mass_1_inp,     &
+                                 ls_transport_controller )
+    call init_flux_pc_fieldvals( mesh,                       &
+                                 1_i_def,                    &
+                                 fpc_pert_wind_ref_flux_inp, &
+                                 dummy_ref_field_2_inp,      &
+                                 dummy_ref_mass_2_inp,       &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_h_inp,            &
+                                 direction_h,              &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_v_inp,            &
+                                 direction_v,              &
+                                 pert_transport_controller )
+    call init_wind_pc_fieldvals( mesh,                     &
+                                 wind_pc_3d_inp,           &
+                                 direction_3d,             &
+                                 pert_transport_controller )
+
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    allocate( mr_out(nummr) )
+    allocate( mr_in(nummr) )
+    allocate( ls_mr_in(nummr) )
+    allocate( mr_out_inp(nummr) )
+    allocate( mr_in_inp(nummr) )
+    do imr = 1, nummr
+      call mr_out(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+      call mr_in(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+      call ls_mr_in(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+
+      call mr_out_inp(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+      call mr_in_inp(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+
+      call invoke( setval_random( mr_out(imr) ),             &
+                   setval_x( mr_out_inp(imr), mr_out(imr) ), &
+                   setval_random( mr_in(imr) ),              &
+                   setval_x( mr_in_inp(imr), mr_in(imr) ),   &
+                   setval_random( ls_mr_in(imr) ) )
+    end do
+
+    ! Tangent linear
+    call tl_moist_mr_transport_alg( mr_out, mr_in, ls_mr_in, &
+                                    nummr_to_transport, tl_transport_controller, transport_metadata )
+
+    ! < Mx, Mx >
+    inner1 = 0.0_r_def
+    write(log_scratch_space, *) "atlt_moist_mr_transport inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    do imr = 1, nummr
+      mr_out_inner_prod = 0.0_r_def
+      mr_in_inner_prod = 0.0_r_def
+      call invoke( x_innerproduct_x( mr_out_inner_prod, mr_out(imr) ), &
+                   x_innerproduct_x( mr_in_inner_prod, mr_in(imr) ) )
+
+      ! Determining scale factors
+      mr_out_sf = 1.0_r_def/(mr_out_inner_prod + eps)
+      mr_in_sf = 1.0_r_def/(mr_in_inner_prod + eps)
+
+      inner1 = inner1 + mr_out_inner_prod*mr_out_sf
+      inner1 = inner1 + mr_in_inner_prod*mr_in_sf
+      write(log_scratch_space, *) "mr_out(imr = ", imr, ") inner product = ", mr_out_inner_prod
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      write(log_scratch_space, *) "mr_in(imr = ", imr, ") inner product = ", mr_in_inner_prod
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+      ! Scaling fields
+      call invoke( inc_a_times_X( mr_out_sf, mr_out(imr) ), &
+                   inc_a_times_X( mr_in_sf, mr_in(imr) ) )
+    end do
+    call flux_pc_ref_flux_prod_rdef( inner1, ls_transport_controller, 1_i_def )
+    call flux_pc_ref_flux_prod_rdef( inner1, pert_transport_controller, 1_i_def )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_h )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_v )
+    call wind_pc_dir_prod_rdef( inner1, pert_transport_controller, mesh_id, direction_3d )
+
+    ! Adjoint
+    call atl_moist_mr_transport_alg( mr_out, mr_in, ls_mr_in, &
+                                     nummr_to_transport, tl_transport_controller, transport_metadata )
+
+    ! < AMx, x >
+    inner2 = 0.0_r_def
+    do imr = 1, nummr
+      mo_mo_inp_inner_prod = 0.0_r_def
+      mi_mi_inp_inner_prod = 0.0_r_def
+      call invoke( x_innerproduct_y( mo_mo_inp_inner_prod, &
+                                     mr_out(imr),          &
+                                     mr_out_inp(imr) ),    &
+                   x_innerproduct_y( mi_mi_inp_inner_prod, &
+                                     mr_in(imr),           &
+                                     mr_in_inp(imr) ) )
+      inner2 = inner2 + mo_mo_inp_inner_prod
+      inner2 = inner2 + mi_mi_inp_inner_prod
+    end do
+    call flux_pc_ref_flux_inp_prod_rdef( inner2, ls_transport_controller, 1_i_def, fpc_ls_wind_ref_flux_inp  )
+    call flux_pc_ref_flux_inp_prod_rdef( inner2, pert_transport_controller, 1_i_def, fpc_pert_wind_ref_flux_inp  )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_h, wind_pc_h_inp )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_v, wind_pc_v_inp )
+    call wind_pc_dir_inp_prod_rdef( inner2, pert_transport_controller, mesh_id, direction_3d, wind_pc_3d_inp )
+
+    call tl_transport_controller%finalise()
+    if ( allocated(fpc_ls_wind_ref_flux_inp) )   deallocate( fpc_ls_wind_ref_flux_inp )
+    if ( allocated(fpc_pert_wind_ref_flux_inp) ) deallocate( fpc_pert_wind_ref_flux_inp )
+    if ( allocated(dummy_ref_field_1_inp) )      deallocate( dummy_ref_field_1_inp )
+    if ( allocated(dummy_ref_mass_1_inp) )       deallocate( dummy_ref_mass_1_inp )
+    if ( allocated(dummy_ref_field_2_inp) )      deallocate( dummy_ref_field_2_inp )
+    if ( allocated(dummy_ref_mass_2_inp) )       deallocate( dummy_ref_mass_2_inp )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_moist_mr_transport:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_moist_mr_transport:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+    deallocate( mr_out, mr_in, ls_mr_in, mr_out_inp, mr_in_inp )
+
+  end subroutine atlt_moist_mr_transport_alg
+
+end module atlt_moist_mr_transport_alg_mod

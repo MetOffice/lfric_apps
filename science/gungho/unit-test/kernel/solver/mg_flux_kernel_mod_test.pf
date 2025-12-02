@@ -1,0 +1,96 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2019,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the reduced sample flux kernel used for multigrid
+!>
+module mg_flux_kernel_mod_test
+  use constants_mod,   only : i_def, r_def, r_solver
+  use funit
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod,       only : get_w2_m3x3_q3x3x3_size,  &
+                                                        get_w3_m3x3_q3x3x3_size
+  use get_unit_test_q3x3x3_basis_mod,       only : get_w3_q3x3x3_basis
+  use get_unit_test_m3x3_dofmap_mod,      only : get_w2_m3x3_dofmap,       &
+                                                 get_w3_m3x3_dofmap
+
+
+  implicit none
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: mg_flux_test_type
+     private
+   contains
+     procedure test_all
+  end type mg_flux_test_type
+
+contains
+
+  @test
+  subroutine test_all( this )
+
+    use mg_flux_kernel_mod, only : mg_flux_code
+    implicit none
+
+    class(mg_flux_test_type), intent(inout) :: this
+
+    real(r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    ! fields to test
+    real(kind=r_solver), allocatable, dimension(:) :: flux, q
+
+    ! Array sizes
+    integer(kind=i_def) :: ndf_w2, undf_w2 ! flux lives in W2
+    integer(kind=i_def) :: ndf_q, undf_q   ! q lives in anyspace
+
+    integer(kind=i_def) :: dim_space, dim_space_diff
+    integer(kind=i_def) :: nqp_h, nqp_v
+    integer(kind=i_def) :: ncells, nlayers, cell
+
+    ! maps and basis functions
+    integer(kind=i_def), allocatable, dimension(:,:)     :: map_w2, map_q
+    real(kind=r_def),    allocatable, dimension(:,:,:,:) :: basis_q
+
+    nlayers = 3
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers)
+    ! allocate and ititialise some arrays for the W2 space
+    allocate( flux(undf_w2) )
+    flux(:) = 1.0_r_solver
+    call get_w2_m3x3_dofmap(map_w2)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_q, undf_q, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers)
+    allocate( q(undf_q) )
+    q(1) = 0.0_r_solver ! q is zero at base
+    q(2) = 0.5_r_solver
+    q(3) = 0.0_r_solver ! q is zero at lid
+    call get_w3_m3x3_dofmap(map_q)
+    call get_w3_q3x3x3_basis(basis_q)
+
+    call mg_flux_code(nlayers,                                          &
+                            flux(1), q(1) ,                             &
+                            ndf_w2, undf_w2, map_w2,                    &
+                            ndf_q, undf_q, map_q, basis_q               &
+                            )
+
+    @assertEqual( flux(1), 1.0_r_solver, tol )
+    @assertEqual( flux(2), 1.25_r_solver, tol )
+    @assertEqual( flux(3), 1.0_r_solver, tol )
+
+    deallocate(flux, q)
+    deallocate(map_w2, map_q)
+    deallocate(basis_q)
+
+  end subroutine test_all
+
+end module mg_flux_kernel_mod_test
+

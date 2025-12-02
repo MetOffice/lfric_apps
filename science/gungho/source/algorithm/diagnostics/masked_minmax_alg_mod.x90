@@ -1,0 +1,159 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief   Compute min and max for a masked region
+!> @details Computes and logs the minimum and maximum values for a field
+!!          in the subregion where the associated mask takes the value 1.
+
+module masked_minmax_alg_mod
+
+  use constants_mod,            only: r_def
+  use field_mod,                only: field_type
+  use sci_field_minmax_alg_mod, only: get_field_minmax
+  use function_space_mod,       only: function_space_type
+  use log_mod,                  only: log_event,         &
+                                      log_scratch_space, &
+                                      log_level
+
+  implicit none
+
+  private
+  public :: get_masked_minmax, &
+            log_field_masked_minmax
+
+contains
+
+!> @brief Write the min and max in the masked area to the log output
+!> @details The supplied binary mask must have the value 1 in the region where
+!!          the min/max is to be calculated, and 0 elsewhere.
+!> @param[in] log_lev Min max is only computed for the specified log level
+!!                    or below
+!> @param[in] label   String to add to the logging output
+!> @param[in] field   Field from which to compute the min and max
+!> @param[in] mask    Binary field, with min/max computed where mask=1
+subroutine log_field_masked_minmax( log_lev, label, field, mask )
+
+  implicit none
+  integer,            intent(in) :: log_lev
+  character(len = *), intent(in) :: label
+  type(field_type),   intent(in) :: field
+  type(field_type),   intent(in) :: mask
+  real(r_def)                    :: fmin, fmax
+
+  if ( log_lev < log_level() ) return
+
+  call get_masked_minmax( field, mask, fmin, fmax )
+
+  write( log_scratch_space, '( A, 2E16.8 )' ) &
+         "Min/max "//trim(label)//" = ", fmin, fmax
+  call log_event( log_scratch_space, log_lev )
+
+end subroutine log_field_masked_minmax
+
+!> @brief Calculate the min/max in the masked area
+!> @details The supplied binary mask must have the value 1 in the region where
+!!          the min/max is to be calculated, and 0 elsewhere.
+!> @param[in]  field       Field from which to compute the max and min
+!> @param[in]  mask        Binary field, with min/max computed where mask=1
+!> @param[out] masked_fmin Minimum of the field in the masked area
+!> @param[out] masked_fmax Maximum of the field in the masked area
+subroutine get_masked_minmax( field, mask, masked_fmin, masked_fmax )
+
+  implicit none
+
+  type( field_type ), intent(in) :: field
+  type( field_type ), intent(in) :: mask
+  real( r_def ), intent(out) :: masked_fmin
+  real( r_def ), intent(out) :: masked_fmax
+
+  type( field_type ) :: inverse_mask, masked_field
+  type( field_type ) :: scaled_mask_fmin, masked_field_fmin
+  type( field_type ) :: scaled_mask_fmax, masked_field_fmax
+
+  real( r_def ) :: temporary_fmin, temporary_fmax
+  real( r_def ) :: fmin, fmax
+
+  type( function_space_type ), pointer :: fs
+
+  ! The min is computed by first computing the max over the whole field,
+  ! then setting the values corresponding to mask = 0 to the max, and
+  ! and then computing the min over this adjusted field. Similarly to
+  ! calculate the max.
+  !   __________________________________________________________
+  !   |                                                         |
+  !   |  Calculate min/max here          region A, mask=1       |
+  !   |     ______________________________________________      |
+  !   |    |                                              |     |
+  !   |    |                                              |     |
+  !   |    |                                              |     |
+  !   |    | Ignore values here          region B, mask=0 |     |
+  !   |    |                                              |     |
+  !   |    |                                              |     |
+  !   |    |______________________________________________|     |
+  !   |                                                         |
+  !   |                                                         |
+  !   |_________________________________________________________|
+  !
+
+  !------------ Initialise the intermediate fields ---------------------
+  !
+  !         mask is 1 in region A, 0 in region B
+  ! inverse_mask is 0 in region A, 1 in region B
+  !
+
+  fs => mask%get_function_space()
+
+  call inverse_mask%initialise(fs)
+  call masked_field%initialise(fs)
+  call masked_field_fmin%initialise(fs)
+  call masked_field_fmax%initialise(fs)
+  call scaled_mask_fmin%initialise(fs)
+  call scaled_mask_fmax%initialise(fs)
+
+  call invoke( &
+       ! inverse_mask = 1 - mask
+       a_minus_X( inverse_mask, 1.0_r_def, mask ), &
+
+       ! masked_field = field * mask (i.e. Sets to 0 in region B)
+       X_times_Y( masked_field, field, mask ))
+
+  ! Calculate minmax of whole field i.e. over A and B
+  call get_field_minmax( field, fmin, fmax )
+
+  !------ Calculate the maximum in region A--------------------------
+
+  ! Set the values in region B to be the min and calculate max over whole field
+
+  call invoke ( &
+       ! fmin * inverse_mask: 0 in region A, fmin in region B
+       a_times_X( scaled_mask_fmin, fmin, inverse_mask ), &
+
+       ! Add fmin so that masked_field_fmin is fmin in region B
+       X_plus_Y( masked_field_fmin, masked_field, scaled_mask_fmin ))
+
+  call get_field_minmax( masked_field_fmin, temporary_fmin, temporary_fmax )
+
+  masked_fmax = temporary_fmax
+
+  !------ Calculate the minimum in region A--------------------------
+
+  ! Set the values in B to be the max and calculate min over whole field
+
+  call invoke ( &
+       ! fmax * inverse_mask: 0 in region A, fmax in region B
+       a_times_X( scaled_mask_fmax, fmax, inverse_mask ), &
+
+       ! Add fmax so that masked_field_fmax is fmax in region B
+       X_plus_Y( masked_field_fmax, masked_field, scaled_mask_fmax ))
+
+  call get_field_minmax( masked_field_fmax, temporary_fmin, temporary_fmax )
+
+  masked_fmin = temporary_fmin
+
+end subroutine get_masked_minmax
+
+end module masked_minmax_alg_mod
+
+

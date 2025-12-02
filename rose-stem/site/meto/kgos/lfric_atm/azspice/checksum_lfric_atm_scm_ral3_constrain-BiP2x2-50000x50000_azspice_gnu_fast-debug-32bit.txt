@@ -1,0 +1,9 @@
+Inner product checksum rho =         434FEE7A
+Inner product checksum theta =         4C47E450
+Inner product checksum u =         62E3D54D
+Inner product checksum mr1 =         3A360401
+Inner product checksum mr2 =         335D3C99
+Inner product checksum mr3 =         28AE5070
+Inner product checksum mr4 =         340087AA
+Inner product checksum mr5 =         2CAB2065
+Inner product checksum mr6 =         2C736833

@@ -1,0 +1,87 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!
+!-------------------------------------------------------------------------------
+
+module calc_exner_pointwise_mod_test
+
+  use constants_mod, only: r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: scaling  = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use feign_config_mod,        only : feign_planet_config
+
+    implicit none
+
+    call feign_planet_config( gravity=gravity, omega=omega, &
+                              rd=rd, cp=cp, p_zero=p_zero,  &
+                              scaling_factor=scaling )
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use calc_exner_pointwise_mod, only: calc_exner_pointwise, &
+                                        linear_calc_exner_pointwise
+
+    implicit none
+
+    real(r_def), parameter :: kappa = rd / cp
+
+    real(kind=r_def) :: exner, exner_exact
+    real(kind=r_def) :: rho, theta, exner_s, rho_s, theta_s
+
+    rho     = 0.5_r_def
+    theta   = 300.0_r_def
+
+    exner_exact =  ( Rd/p_zero * rho * theta ) ** (  kappa / ( 1.0_r_def - kappa ) )
+    exner = calc_exner_pointwise(rho, theta)
+
+    @assertEqual(exner_exact, exner)
+
+    rho_s   = 0.75_r_def
+    theta_s = 310.0_r_def
+    exner_s = 0.9_r_def
+
+    exner_exact = kappa / ( 1.0_r_def - kappa ) * exner_s * ( rho/rho_s + theta/theta_s )
+    exner = linear_calc_exner_pointwise(rho, theta, exner_s, rho_s, theta_s)
+
+    @assertEqual(exner_exact, exner)
+
+  end subroutine test_all
+
+end module calc_exner_pointwise_mod_test

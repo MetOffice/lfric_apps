@@ -1,0 +1,386 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Adjoint of mixed_schur_preconditioner_alg_mod
+
+module adj_mixed_schur_preconditioner_alg_mod
+
+  use vector_mod,                           only: abstract_vector_type
+  use r_solver_field_mod,                   only: r_solver_field_type
+  use constants_mod,                        only: i_def, r_def, r_solver
+  use sci_geometric_constants_mod,          only: get_face_selector_ew, &
+                                                  get_face_selector_ns
+  use integer_field_mod,                    only: integer_field_type
+  use sci_iterative_solver_mod,             only: abstract_iterative_solver_type
+  use sci_preconditioner_mod,               only: abstract_preconditioner_type
+  use sci_r_solver_field_vector_mod,        only: r_solver_field_vector_type
+  use field_indices_mod,                    only: isol_u, isol_p, &
+                                                  isol_uv, isol_w
+  use function_space_mod,                   only: function_space_type
+  use function_space_collection_mod,        only: function_space_collection
+  use io_config_mod,                        only: subroutine_timers
+  use timer_mod,                            only: timer
+  use mixed_solver_config_mod,              only: split_w
+  use log_mod,                              only: log_event,         &
+                                                  LOG_LEVEL_ERROR,   &
+                                                  LOG_LEVEL_DEBUG
+  use mesh_mod,                             only: mesh_type
+  use si_operators_alg_mod,                 only: get_m3_rho_star,  &
+                                                  get_compound_div, &
+                                                  get_div_star,     &
+                                                  get_ptheta2v,     &
+                                                  get_p3theta,      &
+                                                  get_helm_diag,    &
+                                                  get_Hb_lumped_inv
+  use solver_constants_mod,                 only: get_normalisation_r_solver
+  use fs_continuity_mod,                    only: W2, W3, Wtheta
+  use boundaries_config_mod,                only: limited_area
+  use mixed_solver_config_mod,              only: eliminate_variables, &
+                                                  eliminate_variables_analytic
+  use adj_scaled_matrix_vector_kernel_mod,  only: adj_scaled_matrix_vector_kernel_type
+  use adj_opt_apply_variable_hx_kernel_mod, only: adj_opt_apply_variable_hx_kernel_type
+  use operator_mod,                         only: r_solver_operator_type
+  use finite_element_config_mod,            only: element_order_h, element_order_v
+  use helmholtz_solver_config_mod,          only: normalise
+  use fs_continuity_mod,                    only: W2
+  use combine_w2_field_kernel_mod,          only: combine_w2_field_kernel_type
+  use split_w2_field_kernel_mod,            only: split_w2_field_kernel_type
+  use sci_enforce_bc_kernel_mod,            only: enforce_bc_kernel_type
+
+  implicit none
+
+  private
+
+  type, public, extends(abstract_preconditioner_type) :: adj_mixed_schur_preconditioner_type
+  private
+    type(r_solver_field_type)                      :: rhs_u
+    type(r_solver_field_vector_type)               :: pressure_b
+    type(r_solver_field_vector_type)               :: pressure_x
+    class(abstract_iterative_solver_type), pointer :: adj_pressure_solver
+  contains
+    procedure, public  :: apply => apply_adj_mixed_schur_preconditioner
+    procedure, private :: apply_adj_mixed_schur_preconditioner
+    procedure, public  :: adj_build_pressure_rhs
+    procedure, private :: adj_back_substitute
+    final              :: destroy_adj_mixed_schur_preconditioner
+  end type adj_mixed_schur_preconditioner_type
+
+  interface adj_mixed_schur_preconditioner_type
+    module procedure adj_mixed_schur_preconditioner_ctor
+  end interface
+
+contains
+
+  !> @brief Construct an adj_mixed_schur_preconditioner_type object
+  !> @param [in] mesh                Mesh to create function spaces on
+  !> @param [in] p_h                 Horizontal element order for function spaces
+  !> @param [in] p_v                 Vertical element order for function spaces
+  !> @param [in] adj_pressure_solver Solver object for Helmholtz system
+  function adj_mixed_schur_preconditioner_ctor( mesh, p_h, p_v, adj_pressure_solver ) &
+    result(self)
+  ! Note: name shortened from adj_mixed_schur_preconditioner_constructor as this
+  ! causes "error #5462: Global name too long"
+
+    implicit none
+
+    integer(i_def),                                intent(in) :: p_h, p_v
+    type(mesh_type),                       target, intent(in) :: mesh
+    class(abstract_iterative_solver_type), target, intent(in) :: adj_pressure_solver
+
+    type(adj_mixed_schur_preconditioner_type) :: self
+
+    type(mesh_type),           pointer :: mesh_ptr
+    type(function_space_type), pointer :: fs
+
+    call log_event( 'Constructing adjoint approximate Schur mixed preconditioner...', LOG_LEVEL_DEBUG )
+
+    mesh_ptr => mesh
+    fs => function_space_collection%get_fs( mesh_ptr, p_h, p_v, W2 )
+    call self%rhs_u%initialise(vector_space=fs)
+
+    ! Right hand side (b) and solution (x) as a one-component field-vector in the pressure space
+    self%pressure_b = r_solver_field_vector_type(1)
+    self%pressure_x = r_solver_field_vector_type(1)
+
+    fs => function_space_collection%get_fs( mesh_ptr, p_h, p_v, W3 )
+    call self%pressure_b%initialise_field( 1, fs )
+    call self%pressure_x%initialise_field( 1, fs )
+
+    ! Set pressure solver
+    self%adj_pressure_solver => adj_pressure_solver
+
+    call log_event( 'done', LOG_LEVEL_DEBUG )
+
+  end function adj_mixed_schur_preconditioner_ctor
+
+  !> @brief Adjoint of apply_mixed_schur_preconditioner
+  !> @param[in]     x Field vector containing the residuals
+  !> @param[in,out] y Field vector containing the solution to be calculated
+  subroutine apply_adj_mixed_schur_preconditioner( self, x, y )
+
+    implicit none
+
+    class(adj_mixed_schur_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),                intent(in)    :: x
+    class(abstract_vector_type),                intent(inout) :: y
+
+    type(r_solver_field_vector_type) :: yy
+    type(r_solver_field_vector_type) :: xx
+
+    type(r_solver_field_type) :: exner_inc
+
+    type(r_solver_field_type) :: pressure_b_field
+
+    if (subroutine_timers) call timer('adj_mixed_schur_preconditioner_alg')
+
+    select type(x)
+      type is(r_solver_field_vector_type)
+    select type(y)
+      type is(r_solver_field_vector_type)
+
+    call yy%copy(x)
+
+    call xx%copy(y)
+    call xx%set_scalar(0.0_r_def)
+
+    call invoke (setval_c( self%rhs_u, 0.0_r_solver ))
+
+    call exner_inc%initialise(vector_space=y%vector(isol_p)%get_function_space())
+    call invoke(setval_c( exner_inc, 0.0_r_solver ))
+    call self%pressure_x%import_field( exner_inc, 1 )
+
+    ! STEP 3: Back substitute to obtain other fields
+
+    call self%adj_back_substitute(yy)
+    ! yy is IN(OUT)
+    ! self%pressure_x is OUT
+
+    ! Switch self%pressure_x -> self%pressure_b which is input to solver
+    call self%pressure_x%export_field( pressure_b_field, 1 )
+    call self%pressure_b%import_field( pressure_b_field, 1 )
+
+    ! STEP 2: Solve Helmholtz system
+    ! Krylov solver to obtain pressure increment
+
+    ! Set initial guess to pressure increment to 0
+     call self%pressure_x%set_scalar(0.0_r_def)
+
+    ! Solve pressure system
+    call log_event( 'Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG )
+    if (subroutine_timers) call timer('adj mixed_schur solve')
+    call self%adj_pressure_solver%apply( self%pressure_x, self%pressure_b )
+    if (subroutine_timers) call timer('adj mixed_schur solve')
+
+    ! STEP 1: Build RHS for Helmholtz system
+
+    ! Switch self%pressure_x -> self%pressure_b which is input to adj_build_pressure_rhs
+    call self%pressure_x%export_field( pressure_b_field, 1 )
+    call self%pressure_b%import_field( pressure_b_field, 1 )
+
+    call self%adj_build_pressure_rhs(xx)
+    ! self%pressure_b is IN
+    ! xx is OUT
+
+    call y%copy(xx) ! y <- xx
+
+    class default
+      call log_event( "mixed_schur_preconditioner_mod: incorrect vector_type argument y", LOG_LEVEL_ERROR )
+    end select
+
+    class default
+      call log_event( "mixed_schur_preconditioner_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
+    end select
+
+    if (subroutine_timers) call timer('adj_mixed_schur_preconditioner_alg')
+
+  end subroutine apply_adj_mixed_schur_preconditioner
+
+  !> @brief Adjoint of build_pressure_rhs
+  !> @param[in] rhs0 Initial residuals of the mixed system
+  subroutine adj_build_pressure_rhs( self, rhs0 )
+
+    implicit none
+
+    class(adj_mixed_schur_preconditioner_type), intent(inout) :: self
+    type(r_solver_field_vector_type), target,   intent(in)    :: rhs0
+
+    type(r_solver_operator_type), pointer :: m3_rho_star, ptheta2, p3theta, compound_div
+    type(r_solver_field_type),    pointer :: mt_lumped_inv, h_diag, Hb_lumped_inv
+    type(r_solver_field_type)             :: rhs_d
+    real(kind=r_solver),        parameter :: minus_one = -1.0_r_solver
+    type(r_solver_field_type)             :: rhs_uvw
+    integer(kind=i_def)                   :: mesh_id
+    type(r_solver_field_type),  pointer   :: rhs_uv, rhs_p, rhs_w, rhs
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    if (subroutine_timers) call timer('adj mixed_schur rhs')
+
+    ! Options coded:
+    ! element_order_h= 0
+    ! element_order_v= 0
+    ! normalise= T
+    ! split_w= T
+
+    rhs => self%pressure_b%get_field_from_position(1)
+
+    rhs_uv => rhs0%vector(isol_uv)
+    rhs_p  => rhs0%vector(isol_p)
+    if (split_w) then
+      rhs_w  => rhs0%vector(isol_w)
+    end if
+
+    mesh_id = rhs_uv%get_mesh_id()
+
+    call rhs_uvw%initialise(vector_space=self%rhs_u%get_function_space())
+    if (split_w) then
+      face_selector_ew => get_face_selector_ew(mesh_id)
+      face_selector_ns => get_face_selector_ns(mesh_id)
+    end if
+
+    ptheta2       => get_ptheta2v()
+    p3theta       => get_p3theta()
+    m3_rho_star   => get_m3_rho_star()
+    compound_div  => get_compound_div()
+    Hb_lumped_inv => get_Hb_lumped_inv()
+
+    if (normalise) then
+      h_diag => get_helm_diag()
+      call invoke( name="adj_msp1", &
+                   inc_X_times_Y( rhs, h_diag ) )
+    end if
+
+    if (limited_area) call log_event( "adj_build_pressure_rhs: limited_area not coded", LOG_LEVEL_ERROR )
+
+    ! Compute H(rhs_u)
+    if (eliminate_variables == eliminate_variables_analytic) then
+      call log_event( "adj_build_pressure_rhs: eliminate_variables == eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
+    else
+      mt_lumped_inv => get_normalisation_r_solver( Wtheta, mesh_id )
+      call rhs_d%initialise(rhs%get_function_space())
+
+      call invoke(setval_c( rhs_d, 0.0_r_solver ))
+
+      if (element_order_h == 0 .and. element_order_v == 0) then
+        call invoke( name="schur_rhs",                                             &
+                     adj_opt_apply_variable_hx_kernel_type( rhs, self%rhs_u,       &
+                                                            mt_lumped_inv, rhs_d,  &
+                                                            compound_div, p3theta, &
+                                                            ptheta2, m3_rho_star,  &
+                                                            minus_one, rhs_p ) )
+      else
+        call log_event( "adj_build_pressure_rhs: element_orders /= 0 not coded", LOG_LEVEL_ERROR )
+      end if
+
+      call invoke( name="adj_msp2", &
+                   setval_c( rhs_d, 0.0_r_solver ) )
+
+    end if
+
+    if (limited_area) call log_event( "adj_build_pressure_rhs: limited_area not coded", LOG_LEVEL_ERROR )
+
+    call invoke(setval_c( rhs_uvw, 0.0_r_solver ))
+
+    ! Compute rhs_u terms
+    call invoke( name="adj_msp3",                            &
+                 inc_X_times_Y( self%rhs_u, Hb_lumped_inv ), &
+                 inc_X_plus_Y( rhs_uvw, self%rhs_u),         &
+                 setval_c( self%rhs_u, 0.0_r_solver ) )
+
+
+    if (split_w) then
+    call invoke( name="combine_wind",                                &
+                 split_w2_field_kernel_type( rhs_uv, rhs_w, rhs_uvw, &
+                                             face_selector_ew,       &
+                                             face_selector_ns ) )
+    else
+      call log_event( "adj_build_pressure_rhs: .not. split_w not coded", LOG_LEVEL_ERROR )
+    end if
+
+    if (subroutine_timers) call timer('adj mixed_schur rhs')
+
+  end subroutine adj_build_pressure_rhs
+
+  !> @brief Adjoint of back_substitute
+  !> @param[in,out] state Solution of the mixed system
+  subroutine adj_back_substitute( self, state )
+
+    implicit none
+
+    class(adj_mixed_schur_preconditioner_type), intent(inout) :: self
+    type(r_solver_field_vector_type),           intent(inout) :: state
+
+    type(r_solver_field_type),    pointer :: u_normalisation, Hb_lumped_inv
+    type(r_solver_operator_type), pointer :: div_star
+    type(r_solver_field_type)             :: u_inc
+    integer(kind=i_def)                   :: mesh_id
+
+    type(r_solver_field_type), pointer :: state_uv, state_p, state_w, exner_inc
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    if (subroutine_timers) call timer('adj Schur back substitute')
+
+    exner_inc => self%pressure_x%get_field_from_position(1)
+
+    mesh_id = self%rhs_u%get_mesh_id()
+
+    ! Create increment fields
+
+    ! u increment
+    call u_inc%initialise(vector_space=self%rhs_u%get_function_space())
+    u_normalisation => get_normalisation_r_solver( W2, mesh_id )
+    div_star        => get_div_star()
+    Hb_lumped_inv   => get_Hb_lumped_inv()
+    ! u' = ru + BC[HB * unorm * D * p']
+
+    if (split_w)then
+      state_uv => state%get_field_from_position(isol_uv)
+      state_w  => state%get_field_from_position(isol_w)
+      face_selector_ew => get_face_selector_ew(mesh_id)
+      face_selector_ns => get_face_selector_ns(mesh_id)
+
+      call invoke( name="split_wind",                                      &
+                   setval_c( u_inc, 0.0_r_solver ),                        &
+                   combine_w2_field_kernel_type( u_inc, state_uv, state_w, &
+                                                 face_selector_ew,         &
+                                                 face_selector_ns ),       &
+                   setval_c( state_uv, 0.0_r_solver ) )
+    else
+      call log_event( "adj_back_substitute: .not. split_w not coded", LOG_LEVEL_ERROR )
+    end if
+
+    state_p => state%get_field_from_position(isol_p)
+
+    call invoke( name="adj_msp4",                    &
+                 inc_X_plus_Y( exner_inc, state_p ), &
+                 setval_c( state_p, 0.0_r_solver ) )
+
+    if (limited_area) call log_event( "adj_back_substitute: limited_area not coded", LOG_LEVEL_ERROR )
+
+    call invoke( name = "compute_increments",                                     &
+                 enforce_bc_kernel_type(u_inc),                                   &
+                 inc_X_plus_Y( self%rhs_u, u_inc ),                               &
+                 adj_scaled_matrix_vector_kernel_type( u_inc, exner_inc,          &
+                                                       div_star, u_normalisation, &
+                                                       Hb_lumped_inv ),           &
+                 setval_c(u_inc, 0.0_r_solver) )
+
+    if (subroutine_timers) call timer('adj Schur back substitute')
+
+  end subroutine adj_back_substitute
+
+  !> @brief Destructor
+  subroutine destroy_adj_mixed_schur_preconditioner(self)
+
+    implicit none
+
+    type(adj_mixed_schur_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_adj_mixed_schur_preconditioner
+
+end module adj_mixed_schur_preconditioner_alg_mod

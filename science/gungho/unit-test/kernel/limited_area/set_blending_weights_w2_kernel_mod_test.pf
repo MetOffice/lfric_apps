@@ -1,0 +1,281 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test kernel that populates the weights for a w2 field with the blending weights
+!> obtained from the configuration.
+
+module set_blending_weights_w2_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_set_blending_weights_w2_kernel
+
+  @TestCase
+  type, extends(TestCase), public :: set_blending_weights_w2_test_type
+    private
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncells
+    integer(kind=i_def) :: ndf3, undf3
+    integer(kind=i_def) :: ndf2, undf2
+    integer(kind=i_def), allocatable :: map3(:,:)
+    integer(kind=i_def), allocatable :: map2(:,:)
+    real(kind=r_def),    allocatable :: onion_layers(:)
+    real(kind=r_def),    allocatable :: weights_w2_field(:)
+    integer(kind=i_def)              :: stencil_max
+    integer(kind=i_def), allocatable :: stencil_sizes(:,:)
+    integer(kind=i_def), allocatable :: stencil_map3(:,:,:,:)
+    integer(kind=i_def)              :: depth
+    real(kind=r_def),    allocatable :: answer(:)
+  contains
+    procedure SetUp
+    procedure tearDown
+    procedure test_set_blending_weights_w2_kernel
+  end type set_blending_weights_w2_test_type
+
+  contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap, &
+                                                    get_w3_m3x3_dofmap, &
+                                                    get_m3x3_stencil_dofmap_cross
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size, &
+                                                    get_w3_m3x3_q3x3x3_size
+    use feign_config_mod,      only : feign_boundaries_config
+    use boundaries_config_mod, only : lbc_method_onion_layer,                  &
+                                      blend_frequency_inner,                   &
+                                      transport_overwrite_freq_none
+    implicit none
+
+    class(set_blending_weights_w2_test_type), intent(inout) :: this
+
+    integer(kind=i_def) :: cell, i, j, k
+    integer(kind=i_def), allocatable :: stencil_map3_cross(:,:,:)
+
+    ! Quadrature (not used)
+    integer(kind=i_def) :: nqp_h, nqp_v
+
+    ! Dimensions (not used)
+    integer(kind=i_def) :: dim_space, dim_space_diff
+
+    ! Mesh
+    this%nlayers = 1
+
+    ! Setup W3 fields
+    call get_w3_m3x3_q3x3x3_size(this%ndf3, this%undf3, this%ncells, &
+                                 dim_space, dim_space_diff, &
+                                 nqp_h, nqp_v, &
+                                 this%nlayers)
+
+    allocate(this%map3(this%ndf3,this%ncells))
+    allocate(this%onion_layers(this%undf3))
+    allocate(this%stencil_sizes(4,this%ncells))
+    allocate(this%stencil_map3(this%ndf3,2,4,this%ncells))
+
+    call get_w3_m3x3_dofmap(this%map3, this%nlayers)
+    call get_m3x3_stencil_dofmap_cross(stencil_map3_cross, this%map3)
+
+    this%stencil_sizes(:,:) = 2
+    this%stencil_max = 2
+
+    ! Convert cross stencil into cross2D stencil
+    do cell = 1, this%ncells
+      do i = 1, this%stencil_max
+        do j = 1, 4
+          ! Index to convert from one stencil into the other
+          k = j * (i - 1) + 1
+          this%stencil_map3(1,i,j,cell) = stencil_map3_cross(1,k,cell)
+        end do
+      end do
+    end do
+
+    ! Setup W2 fields
+    call get_w2_m3x3_q3x3x3_size(this%ndf2, this%undf2, this%ncells, &
+                                 dim_space, dim_space_diff, &
+                                 nqp_h, nqp_v, &
+                                 this%nlayers)
+
+    allocate(this%map2(this%ndf2,this%ncells))
+    allocate(this%weights_w2_field(this%undf2))
+
+    call get_w2_m3x3_dofmap(this%map2, this%nlayers)
+
+    ! Set boundaries configuration
+    ! Only blending_weights is used
+    call feign_boundaries_config( blend_frequency=blend_frequency_inner,       &
+                                  blending_weights=[0.2_r_def],                &
+                                  blending_weights_w2v=[0.2_r_def],            &
+                                  boundary_e=1,                                &
+                                  boundary_n=1,                                &
+                                  boundary_s=1,                                &
+                                  boundary_w=1,                                &
+                                  edge_cells_ew=1,                             &
+                                  edge_cells_ns=1,                             &
+                                  inner_width_ew=1,                            &
+                                  inner_width_ns=1,                            &
+                                  lbc_eos_height=100,                          &
+                                  lbc_method=lbc_method_onion_layer,           &
+                                  limited_area=.false.,                        &
+                                  normal_only=.true.,                          &
+                                  outer_width_ew=1,                            &
+                                  outer_width_ns=1,                            &
+                                  output_lbcs=.false.,                         &
+                                  rim_width_ew=1,                              &
+                                  rim_width_ns=1,                              &
+                                  solver_boundary_depth=1,                     &
+                                  transport_boundary_depth=6,                  &
+                                  transport_overwrite_freq=transport_overwrite_freq_none)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use boundaries_config_mod, only: boundaries_final
+    use configuration_mod,     only: final_configuration
+
+    implicit none
+
+    class(set_blending_weights_w2_test_type), intent(inout) :: this
+
+    deallocate(this%map3)
+    deallocate(this%onion_layers)
+    deallocate(this%map2)
+    deallocate(this%weights_w2_field)
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_set_blending_weights_w2_kernel( this )
+
+    use set_blending_weights_w2_kernel_mod, only : set_blending_weights_w2_code
+
+    implicit none
+
+    class(set_blending_weights_w2_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    integer(kind=r_def) :: cell, df
+
+    !   The following describes the setup and expected answer:
+    !
+    !     +-------------+-------------+-------------+
+    !     |             |             |             |
+    !     |             |             |             |
+    !     |      1      |      1      |      1      |         Onion layers
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-------------+-------------+-------------+
+    !     |             |             |             |
+    !     |             |             |             |
+    !     |      1      |      0      |      1      |
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-------------+-------------+-------------+
+    !     |             |             |             |
+    !     |             |             |             |
+    !     |      1      |      1      |      1      |
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-------- ----+-------------+-------------+
+    !
+    !     +-------------+-------------+-------------+
+    !     |             |             |             |
+    !     |             |             |             |
+    !     |     0.2     |     0.2     |     0.2     |         W3 Blending Weights
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-------------+-------------+-------------+
+    !     |             |             |             |
+    !     |             |             |             |
+    !     |     0.2     |     0.0     |     0.2     |
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-------------+-------------+-------------+
+    !     |             |             |             |
+    !     |             |             |             |
+    !     |     0.2     |     0.2     |     0.2     |
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-------- ----+-------------+-------------+
+    !
+    !     +-----0.2-----+-----0.2-----+-----0.2-----+
+    !     |             |             |             |
+    !     |             |             |             |
+    !    0.2  0.2/0.2  0.2  0.2/0.2  0.2  0.2/0.2  0.2       W2 Blending Weights
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-----0.2-----+-----0.1-----+-----0.2-----+        Values in cells are for DoFs on
+    !     |             |             |             |        top/bottom faces (Vertical DoFs).
+    !     |             |             |             |
+    !    0.2  0.2/0.2  0.1  0.0/0.0  0.1  0.2/0.2  0.2
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-----0.2-----+-----0.1-----+-----0.2-----+
+    !     |             |             |             |
+    !     |             |             |             |
+    !    0.2  0.2/0.2  0.2  0.2/0.2  0.2  0.2/0.2  0.2
+    !     |             |             |             |
+    !     |             |             |             |
+    !     +-----0.2-----+-----0.2-----+----0.2------+
+
+    ! Set up input and output masks
+    this%weights_w2_field(:) = 0.0_r_def
+    ! 2 onion layers currently needed as blending
+    ! mask doesn't extend right to the last onion layer.
+    this%onion_layers(:) = 1.0_r_def
+    this%onion_layers(5) = 0.0_r_def
+    this%depth = 1_i_def
+
+    ! Define answer
+    allocate(this%answer(this%undf2))
+
+    this%answer(:) = 0.2_r_def
+    ! Horizontal dofs on the boundary of the inner region
+    this%answer(9) = 0.1_r_def
+    this%answer(17) = 0.1_r_def
+    this%answer(21) = 0.1_r_def
+    this%answer(22) = 0.1_r_def
+    ! Vertical dofs in the inner region
+    this%answer(23) = 0.0_r_def
+    this%answer(24) = 0.0_r_def
+
+    do cell=1,this%ncells
+      call set_blending_weights_w2_code(this%nlayers,                   &
+                                        this%weights_w2_field,          &
+                                        this%onion_layers,              &
+                                        this%stencil_sizes(:,cell),     &
+                                        this%stencil_max,               &
+                                        this%stencil_map3(:,:,:,cell),  &
+                                        this%depth,                     &
+                                        this%ndf2,                      &
+                                        this%undf2,                     &
+                                        this%map2(:,cell),              &
+                                        this%ndf3,                      &
+                                        this%undf3,                     &
+                                        this%map3(:,cell)               &
+                                        )
+    end do
+
+    ! Checking all DoFs
+    do df = 1,this%undf2
+      @assertEqual(this%answer(df), this%weights_w2_field(df), tol)
+    end do
+
+    deallocate(this%answer)
+
+  end subroutine test_set_blending_weights_w2_kernel
+
+end module set_blending_weights_w2_kernel_mod_test

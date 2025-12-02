@@ -1,0 +1,197 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> LFRic unit tests for jedi_datetime_functions_mod.
+!> LFRic unit tests use pfUnit, a Fortran unit test framework written by NASA.
+!> This particular example tests the result of a matrix vector calculation
+!> using the code from the matrix_vector_kernel_mod in the LFRic science
+!> component.
+!>
+!-------------------------------------------------------------------------------
+module jedi_lfric_datetime_functions_mod_test
+
+  ! Global use statements go here
+
+  use constants_mod, only : i_timestep, l_def
+
+  use funit
+
+  implicit none
+
+  private
+  public :: jedi_lfric_datetime_functions_test
+
+  ! The test case type, containing procedures to setup, run
+  ! and clean up after a test.
+  ! It can also contain data.
+
+  @TestCase
+  type, extends(TestCase), public :: jedi_lfric_datetime_functions_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure jedi_lfric_datetime_functions_test
+  end type jedi_lfric_datetime_functions_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The setUp subroutine is optional and is called prior to running the test.
+  !> It is used to create and initialise types / data that are used in
+  !> the tests
+  subroutine setUp( this )
+
+    implicit none
+
+    class(jedi_lfric_datetime_functions_test_type), intent(inout) :: this
+
+    ! This section should create and initialise anything needed for the test
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The tearDown subroutine is optional and called after the test.
+  !> It is used to destroy any types / data previously created by setUp()
+  subroutine tearDown( this )
+
+
+    implicit none
+
+    class(jedi_lfric_datetime_functions_test_type), intent(inout) :: this
+
+    ! This section should destroy any previously created types / data
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! pfUnit will run each subroutine preceded by the @test line
+  @test
+  !> Test the emulated jedi_datetime_functions mod
+  subroutine jedi_lfric_datetime_functions_test( this )
+
+
+    use jedi_lfric_datetime_functions_mod, only : YYYYMMDD_to_JDN,   &
+                                                JDN_to_YYYYMMDD,   &
+                                                hhmmss_to_seconds, &
+                                                seconds_to_hhmmss, &
+                                                is_valid_YYYYMMDD, &
+                                                is_leap_year,      &
+                                                is_valid_hhmmss,   &
+                                                is_valid_datetime
+
+    implicit none
+
+    class(jedi_lfric_datetime_functions_test_type), intent(inout) :: this
+
+    integer(i_timestep) :: year, returned_year
+    integer(i_timestep) :: month, returned_month
+    integer(i_timestep) :: day, returned_day
+
+    integer(i_timestep) :: julian_day_number, returned_julian_day_number
+
+    integer(i_timestep) :: hour, returned_hour
+    integer(i_timestep) :: minute, returned_minute
+    integer(i_timestep) :: second, returned_second
+
+    integer(i_timestep) :: time_seconds, returned_time_seconds
+
+    logical(l_def) :: valid
+
+    ! Test YYYYMMDD_to_JDN conversion to Julian Day Number
+    year  = 2023
+    month = 04
+    day   = 05
+
+    julian_day_number = 2460040
+
+    call YYYYMMDD_to_JDN( year, month, day, returned_julian_day_number )
+    @assertEqual( julian_day_number, returned_julian_day_number )
+
+    ! Test JDN_to_YYYYMMDD conversion to year, month, day
+    call JDN_to_YYYYMMDD( julian_day_number, returned_year, &
+                          returned_month, returned_day )
+    @assertEqual( year, returned_year )
+    @assertEqual( month, returned_month )
+    @assertEqual( day, returned_day )
+
+    ! Test hhmmss_to_seconds
+    hour   = 16
+    minute = 19
+    second = 30
+
+    time_seconds = 58770
+
+    call hhmmss_to_seconds( hour, minute, second, returned_time_seconds )
+    @assertEqual( time_seconds, returned_time_seconds )
+
+    ! Test seconds_to_hhmmss
+    call seconds_to_hhmmss( time_seconds, returned_hour, &
+                            returned_minute, returned_second )
+    @assertEqual( hour, returned_hour )
+    @assertEqual( minute, returned_minute )
+    @assertEqual( second, returned_second )
+
+    ! Logic tests
+    ! year, month, day tests
+    valid = is_valid_YYYYMMDD( year, month, day )        ! good date
+    @assertEqual( .true., valid )
+
+    valid = is_valid_YYYYMMDD( -5000, month, day ) ! bad year
+    @assertEqual( .false., valid )
+
+    valid = is_valid_YYYYMMDD( year, 13, day )     ! bad month
+    @assertEqual( .false., valid )
+    valid = is_valid_YYYYMMDD( year, 00, day )     ! bad month
+    @assertEqual( .false., valid )
+
+    valid = is_valid_YYYYMMDD( year, month, 32 )   ! bad day
+    @assertEqual( .false., valid )
+    valid = is_valid_YYYYMMDD( year, month, 00 )   ! bad day
+    @assertEqual( .false., valid )
+
+    valid = is_valid_YYYYMMDD( 2023, 02, 29 ) ! Feb non leap
+    @assertEqual( .false., valid )
+    valid = is_valid_YYYYMMDD( 2024, 02, 29 ) ! Feb leap
+    @assertEqual( .true., valid )
+
+    ! leap year tests
+    valid = is_leap_year( 2021 )
+    @assertEqual( .false., valid )
+
+    valid = is_leap_year( 2000 )
+    @assertEqual( .true., valid )
+
+    valid = is_leap_year( 2024 )
+    @assertEqual( .true., valid )
+
+    ! hour, minute, day tests
+    valid = is_valid_hhmmss( hour, minute, second )      ! good time
+    @assertEqual( .true., valid )
+
+    valid = is_valid_hhmmss( -01, minute, second ) ! bad hour
+    @assertEqual( .false., valid )
+    valid = is_valid_hhmmss( 24, minute, second )  ! bad hour
+    @assertEqual( .false., valid )
+
+    valid = is_valid_hhmmss( hour, -01, second ) ! bad minute
+    @assertEqual( .false., valid )
+    valid = is_valid_hhmmss( hour, 60, second )  ! bad minute
+    @assertEqual( .false., valid )
+
+    valid = is_valid_hhmmss( hour, minute, -01 ) ! bad second
+    @assertEqual( .false., valid )
+    valid = is_valid_hhmmss( hour, minute, 60 )  ! bad second
+    @assertEqual( .false., valid )
+
+    ! date time test
+    valid = is_valid_datetime( 2460040, 58770 )
+    @assertEqual( .true., valid )
+
+  end subroutine jedi_lfric_datetime_functions_test
+
+end module jedi_lfric_datetime_functions_mod_test

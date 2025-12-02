@@ -1,0 +1,128 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the transport metadata type
+!>
+module transport_metadata_test
+
+  use constants_mod,                  only : l_def, str_def, i_def, r_tran
+  use transport_enumerated_types_mod, only : equation_form_advective,      &
+                                             splitting_hv,                 &
+                                             scheme_split,                 &
+                                             split_method_ffsl,            &
+                                             split_method_sl,              &
+                                             monotone_none,                &
+                                             vertical_monotone_order_high, &
+                                             special_edges_monotone_none,  &
+                                             ffsl_splitting_swift
+  use transport_metadata_mod,         only : transport_metadata_type
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: transport_metadata_test_type
+    private
+
+    integer, allocatable :: dummy_for_gcc
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type transport_metadata_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(transport_metadata_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(transport_metadata_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @test
+  subroutine test_all( this )
+
+
+    implicit none
+
+    class(transport_metadata_test_type), intent(inout) :: this
+
+    ! Set parameters for metadata
+    character(len=str_def)        :: fname = 'some_field'
+    integer(kind=i_def)           :: equation_form = equation_form_advective
+    integer(kind=i_def)           :: scheme = scheme_split
+    integer(kind=i_def)           :: splitting = splitting_hv
+    integer(kind=i_def)           :: horizontal_method = split_method_ffsl
+    integer(kind=i_def)           :: vertical_method = split_method_sl
+    integer(kind=i_def)           :: horizontal_monotone = monotone_none
+    integer(kind=i_def)           :: vertical_monotone = monotone_none
+    integer(kind=i_def)           :: monotone_order = vertical_monotone_order_high
+    integer(kind=i_def)           :: special_edges_monotone = special_edges_monotone_none
+    logical(kind=l_def)           :: enforce_min_value = .true.
+    logical(kind=l_def)           :: logspace = .true.
+    real(kind=r_tran)             :: min_value = 1.9_r_tran
+    logical(kind=l_def)           :: reversible = .false.
+    integer(kind=i_def)           :: ffsl_splitting = ffsl_splitting_swift
+    integer(kind=i_def)           :: ffsl_vertical_order = 2
+    type(transport_metadata_type) :: our_metadata
+
+
+    ! Set up metadata object and then get them
+    our_metadata = transport_metadata_type(fname,                   &
+                                           equation_form,           &
+                                           splitting,               &
+                                           scheme,                  &
+                                           horizontal_method,       &
+                                           vertical_method,         &
+                                           horizontal_monotone,     &
+                                           vertical_monotone,       &
+                                           monotone_order,          &
+                                           special_edges_monotone,  &
+                                           enforce_min_value,       &
+                                           min_value,               &
+                                           logspace,                &
+                                           reversible,              &
+                                           ffsl_splitting,          &
+                                           ffsl_vertical_order)
+
+    ! Check all properties of metadata object
+    @assertEqual(fname, our_metadata%get_name())
+    @assertEqual(equation_form, our_metadata%get_equation_form())
+    @assertEqual(splitting, our_metadata%get_splitting())
+    @assertEqual(scheme, our_metadata%get_scheme())
+    @assertEqual(horizontal_method, our_metadata%get_horizontal_method())
+    @assertEqual(vertical_method, our_metadata%get_vertical_method())
+    @assertEqual(horizontal_monotone, our_metadata%get_horizontal_monotone())
+    @assertEqual(vertical_monotone, our_metadata%get_vertical_monotone())
+    @assertEqual(monotone_order, our_metadata%get_vertical_monotone_order())
+    @assertEqual(special_edges_monotone, our_metadata%get_special_edges_monotone())
+    @assertEqual(enforce_min_value, our_metadata%get_enforce_min_value())
+    @assertEqual(min_value, our_metadata%get_min_value())
+    @assertEqual(logspace, our_metadata%get_log_space())
+    @assertEqual(ffsl_splitting, our_metadata%get_ffsl_splitting())
+    @assertEqual(ffsl_vertical_order, our_metadata%get_ffsl_vertical_order())
+
+  end subroutine test_all
+
+end module transport_metadata_test

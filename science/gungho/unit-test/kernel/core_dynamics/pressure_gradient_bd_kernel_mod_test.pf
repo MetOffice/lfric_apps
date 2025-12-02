@@ -1,0 +1,247 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2019,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the pressure_gradient_bd computation
+!>
+module pressure_gradient_bd_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: pressure_gradient_bd_test_type
+    private
+
+  contains
+    procedure setup
+    procedure tearDown
+    procedure test_all
+  end type pressure_gradient_bd_test_type
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: scaling  = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use feign_config_mod,          only : feign_planet_config
+
+    implicit none
+
+    class(pressure_gradient_bd_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(pressure_gradient_bd_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use pressure_gradient_bd_kernel_mod,      only : pressure_gradient_bd_code
+
+    use get_unit_test_qfaces_mod, only: get_number_quadrature_points_per_face, &
+                                        get_w2_qfaces_cube_h_basis,            &
+                                        get_w3_qfaces_cube_h_basis,            &
+                                        get_wtheta_qfaces_cube_h_basis,        &
+                                        get_quadrature_faces_h_weights
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2_m3x3_q3x3x3_size,    &
+                                                   get_w3_m3x3_q3x3x3_size,    &
+                                                   get_wtheta_m3x3_q3x3x3_size
+    use get_unit_test_m3x3_dofmap_mod, only: get_m3x3_stencil_dofmap_cross, &
+                                             get_w2_m3x3_dofmap,            &
+                                             get_w3_m3x3_dofmap,            &
+                                             get_wtheta_m3x3_dofmap
+    use get_unit_test_planar_mesh_mod, only: get_m3x3_adjacent_face,        &
+                                             get_outward_normals_to_horizontal_faces
+
+
+    implicit none
+
+    class(pressure_gradient_bd_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol_v    = 1.0e-6_r_def
+    real(r_def), parameter :: tol_h    = 1.0e+1_r_def
+    real(r_def), parameter :: answer_v = 0.0_r_def
+    real(r_def), parameter :: answer_h = -450000.0_r_def
+
+    integer(i_def) :: cell
+
+    integer(i_def)         :: nlayers, nqp_f
+    integer(i_def)         :: ndf_wtheta, undf_wtheta
+    integer(i_def)         :: ndf_w2, undf_w2
+    integer(i_def)         :: ndf_w3, undf_w3
+    integer(i_def)         :: nfaces_qr, nfaces_re_h
+    integer(i_def)         :: k
+
+    ! Test field data
+    real(r_def),allocatable :: theta_data(:)
+    real(r_def),allocatable :: exner_data(:)
+    real(r_def),allocatable :: r_u_bd_data(:)
+    real(r_def),allocatable :: moist_dyn_data(:,:)
+
+    integer(i_def),allocatable :: cross_stencil_w3_map(:,:,:)
+    integer(i_def)             :: cross_stencil_w3_size
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    real(kind=r_def), allocatable :: wqp_f(:,:)
+
+    integer(i_def), allocatable :: adjacent_face(:,:)
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_wtheta(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+
+    real(r_def), allocatable  :: outward_normals_to_horizontal_faces(:,:)
+
+    real(r_def), allocatable :: basis_w2_face(:,:,:,:)
+    real(r_def), allocatable :: basis_w3_face(:,:,:,:)
+    real(r_def), allocatable :: basis_wtheta_face(:,:,:,:)
+
+    ! Get canned data for a 3-layer mesh
+    nlayers=3
+
+    ! Fields on 3 different function spaces are used, so get the canned information
+
+    ! Get sizes
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wtheta, undf_wtheta, unused, &
+                                      unused, unused,                  &
+                                      unused, unused,                  &
+                                      nlayers )
+
+    ! Get number of points and weights for quadrature points on
+    ! horizontal faces
+    call get_number_quadrature_points_per_face(nqp_f)
+    call get_quadrature_faces_h_weights(wqp_f)
+    ! Get number of faces in the quadrature rule from quadrature
+    ! weights array
+    nfaces_qr = size( wqp_f, 2 )
+
+    ! Get basis functions on horizontal faces
+    call get_w2_qfaces_cube_h_basis(basis_w2_face)
+    call get_w3_qfaces_cube_h_basis(basis_w3_face)
+    call get_wtheta_qfaces_cube_h_basis(basis_wtheta_face)
+
+    ! Get dofmaps
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_wtheta_m3x3_dofmap(map_wtheta)
+    call get_w3_m3x3_dofmap(map_w3)
+
+    ! The W3 field uses a cross stencil
+    call get_m3x3_stencil_dofmap_cross(cross_stencil_w3_map, map_w3)
+    ! Canned field has extent of 1 which gives size 5
+    cross_stencil_w3_size=5
+
+    ! Get canned adjacency information for the mesh
+    call get_m3x3_adjacent_face(adjacent_face)
+    ! Get canned information for the reference cube
+    call get_outward_normals_to_horizontal_faces(outward_normals_to_horizontal_faces)
+    ! Get number of reference cube horizontal faces from the horizontal
+    ! outward normals array
+    nfaces_re_h = size( outward_normals_to_horizontal_faces, 2 )
+
+    ! Create the data arrays
+    allocate(r_u_bd_data(undf_w2))
+    allocate(theta_data(undf_wtheta))
+    allocate(moist_dyn_data(undf_wtheta,3))
+    allocate(exner_data(undf_w3))
+
+    ! Initialise the data
+    r_u_bd_data(:) = 0.0_r_def
+    theta_data(:) = 300.0_r_def
+    moist_dyn_data(:,:) = 1.0_r_def
+    exner_data(:) = 1.5_r_def
+
+    ! Compute cell 1 only
+    cell = 1
+
+    ! Call the kernel
+    call pressure_gradient_bd_code( nlayers,                             &
+                                    r_u_bd_data,                         &
+                                    exner_data,                          &
+                                    cross_stencil_w3_size,               &
+                                    cross_stencil_w3_map(:,:,cell),      &
+                                    theta_data,                          &
+                                    moist_dyn_data(:,1),                 &
+                                    moist_dyn_data(:,2),                 &
+                                    moist_dyn_data(:,3),                 &
+                                    cp,                                  &
+                                    ndf_w2, undf_w2, map_w2(:,cell),     &
+                                    basis_w2_face,                       &
+                                    ndf_w3, undf_w3, map_w3(:,cell),     &
+                                    basis_w3_face,                       &
+                                    ndf_wtheta, undf_wtheta,             &
+                                    map_wtheta(:,cell),                  &
+                                    basis_wtheta_face,                   &
+                                    nfaces_re_h,                         &
+                                    outward_normals_to_horizontal_faces, &
+                                    adjacent_face(:,cell),               &
+                                    nfaces_qr, nqp_f, wqp_f )
+
+    ! Test only on level 1
+    k=1
+    ! Simple test, check that the kernel does not produce contributions on horizontal faces
+    @assertEqual( answer_v, r_u_bd_data(map_w2(5,cell)+k) , tol_v )
+    @assertEqual( answer_v, r_u_bd_data(map_w2(6,cell)+k) , tol_v )
+
+    ! Check contribution on a vertical face
+    @assertEqual( answer_h, r_u_bd_data(map_w2(2,cell)+k) , tol_h )
+
+    deallocate(basis_w2_face)
+    deallocate(basis_w3_face)
+    deallocate(basis_wtheta_face)
+    deallocate(theta_data)
+    deallocate(exner_data)
+    deallocate(r_u_bd_data)
+    deallocate(moist_dyn_data)
+    deallocate(map_w2)
+    deallocate(map_wtheta)
+    deallocate(map_w3)
+    deallocate(cross_stencil_w3_map)
+    deallocate(wqp_f)
+    deallocate(adjacent_face)
+    deallocate(outward_normals_to_horizontal_faces)
+
+  end subroutine test_all
+
+end module pressure_gradient_bd_kernel_mod_test

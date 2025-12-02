@@ -1,0 +1,340 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Timestep for JULES calling the four main science algorithms
+!!        rad_tile, jules_exp, jules_imp and jules_extra
+module jules_timestep_alg_mod
+
+  use constants_mod,             only: i_def, r_def
+  use log_mod,                   only: log_event,         &
+                                       LOG_LEVEL_INFO
+  use extrusion_mod,             only: TWOD
+
+  ! Parent of this module's semi-implicit timestep type
+  use timestep_method_mod,       only: timestep_method_type
+
+  ! Derived Types
+  use field_array_mod,            only: field_array_type
+  use field_mod,                  only: field_type
+  use field_collection_mod,       only: field_collection_type
+  use driver_modeldb_mod,         only: modeldb_type
+  use mesh_mod,                   only: mesh_type
+  use mesh_collection_mod,        only: mesh_collection
+  use model_clock_mod,            only: model_clock_type
+
+  ! Moisture species
+  use mr_indices_mod,             only: nummr, imr_v, imr_s, imr_ci
+
+  ! JULES Science routines
+  use rad_tile_alg_mod,          only: rad_tile_alg
+  use jules_exp_alg_mod,         only: jules_exp_alg
+  use jules_imp_alg_mod,         only: jules_imp_alg
+  use jules_extra_alg_mod,       only: jules_extra_alg
+
+  use um_sizes_init_mod,         only: um_sizes_init
+
+  implicit none
+
+  private
+
+  ! State object for the jules time-stepping method
+  type, extends(timestep_method_type), public :: jules_timestep_type
+
+  contains
+    private
+
+    procedure, public  :: step     => jules_alg_step
+    procedure, public  :: finalise => jules_alg_final
+    procedure, nopass  :: run_step
+
+  end type jules_timestep_type
+
+  ! Constructor for type
+  interface jules_timestep_type
+    module procedure jules_alg_init
+  end interface jules_timestep_type
+
+contains
+
+  !> Extracts data from modeldb to prepare for initialising object
+  !> @param[in] modeldb Holds the model state
+  function jules_alg_init(modeldb) result(self)
+    implicit none
+
+    type(jules_timestep_type) :: self
+
+    type(modeldb_type),           intent(in), target  :: modeldb
+
+  end function jules_alg_init
+
+  !> Extracts data from input objects to prepare for running timestep
+  !> @param[in] modeldb The gungho model data object
+  subroutine jules_alg_step( self, modeldb )
+
+    implicit none
+
+    class(jules_timestep_type), intent(inout) :: self
+
+    type(modeldb_type),              intent(in), target  :: modeldb
+
+    type(mesh_type),                 pointer :: mesh
+    type(mesh_type),                 pointer :: twod_mesh
+
+    class(model_clock_type), pointer :: model_clock
+
+    type( field_collection_type ), pointer :: prognostic_fields
+    type( field_collection_type ), pointer :: moisture_fields
+    type( field_type), pointer :: theta
+    type( field_array_type ),      pointer :: mr_array
+    type( field_type ),            pointer :: mr(:)
+
+    type( field_collection_type ), pointer :: derived_fields
+    type( field_collection_type ), pointer :: radiation_fields
+    type( field_collection_type ), pointer :: microphysics_fields
+    type( field_collection_type ), pointer :: orography_fields
+    type( field_collection_type ), pointer :: turbulence_fields
+    type( field_collection_type ), pointer :: convection_fields
+    type( field_collection_type ), pointer :: cloud_fields
+    type( field_collection_type ), pointer :: surface_fields
+    type( field_collection_type ), pointer :: soil_fields
+    type( field_collection_type ), pointer :: snow_fields
+    type( field_collection_type ), pointer :: aerosol_fields
+
+    ! Get pointers to field collections for use downstream
+    prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+    model_clock => modeldb%clock
+
+    ! Get pointers to fields for use downstream
+    call prognostic_fields%get_field('theta', theta)
+
+    ! Get timestep parameters from clock
+    moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
+    radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
+    call moisture_fields%get_field("mr", mr_array)
+    mr => mr_array%bundle
+
+    ! Get the mesh from one of the fields
+    mesh => theta%get_mesh()
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    derived_fields => modeldb%fields%get_field_collection("derived_fields")
+    microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
+    turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
+    convection_fields => modeldb%fields%get_field_collection("convection_fields")
+    cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+    surface_fields => modeldb%fields%get_field_collection("surface_fields")
+    soil_fields => modeldb%fields%get_field_collection("soil_fields")
+    snow_fields => modeldb%fields%get_field_collection("snow_fields")
+    aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+    orography_fields => modeldb%fields%get_field_collection("orography_fields")
+
+    ! Run the timestep
+    call run_step(self, modeldb,                              &
+                  theta, mr,                                  &
+                  derived_fields, radiation_fields,           &
+                  microphysics_fields,                        &
+                  orography_fields,                           &
+                  turbulence_fields, convection_fields,       &
+                  cloud_fields, surface_fields, soil_fields,  &
+                  snow_fields,                                &
+                  aerosol_fields,                             &
+                  model_clock, twod_mesh)
+
+    nullify(      model_clock, mesh,                          &
+                  moisture_fields,                            &
+                  theta, mr,                                  &
+                  derived_fields, radiation_fields,           &
+                  microphysics_fields,                        &
+                  orography_fields,                           &
+                  turbulence_fields, convection_fields,       &
+                  cloud_fields, surface_fields, soil_fields,  &
+                  snow_fields,                                &
+                  aerosol_fields,                             &
+                  mr_array)
+
+  end subroutine jules_alg_step
+
+
+  !> @details Description on how timestepping is carried out
+  !>          Timestep for standalone jules. Calls four jules science
+  !>          algorithms rad_tile, jules_exp, jules_imp and jules_extra
+  !> @param[in]     modeldb                Holds the model state
+  !> @param[in,out] theta                  Potential temperature
+  !> @param[in,out] mr                     Mixing ratios
+  !> @param[in,out] derived_fields         Group of derived fields
+  !> @param[in,out] radiation_fields       Fields for radiation scheme
+  !> @param[in,out] microphysics_fields    Fields for mphys scheme
+  !> @param[in]     orography_fields       Fields for orog drag scheme
+  !> @param[in,out] turbulence_fields      Fields for turbulence scheme
+  !> @param[in,out] convection_fields      Fields for convection scheme
+  !> @param[in,out] cloud_fields           Fields for cloud scheme
+  !> @param[in,out] surface_fields         Fields for surface scheme
+  !> @param[in,out] soil_fields            Fields for soil hydrology scheme
+  !> @param[in,out] snow_fields            Fields for snow scheme
+  !> @param[in,out] aerosol_fields         Fields for aerosol scheme
+  !> @param[in]     model_clock            Time in the model.
+  !> @param[in]     twod_mesh              The current 2d mesh
+  subroutine run_step(self, modeldb, theta, mr,                   &
+                      derived_fields, radiation_fields,           &
+                      microphysics_fields, orography_fields,      &
+                      turbulence_fields, convection_fields,       &
+                      cloud_fields, surface_fields, soil_fields,  &
+                      snow_fields, aerosol_fields,                &
+                      model_clock, twod_mesh)
+
+    implicit none
+
+    type(jules_timestep_type), intent(inout), target :: self
+    type(modeldb_type), intent(in), target  :: modeldb
+
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: theta
+    type( field_type ), intent( inout ) :: mr(nummr)
+
+    ! field collections
+    type( field_collection_type ), intent( inout ) :: derived_fields
+    type( field_collection_type ), intent( inout ) :: radiation_fields
+    type( field_collection_type ), intent( inout ) :: microphysics_fields
+    type( field_collection_type ), intent( in )    :: orography_fields
+    type( field_collection_type ), intent( inout ) :: turbulence_fields
+    type( field_collection_type ), intent( inout ) :: convection_fields
+    type( field_collection_type ), intent( inout ) :: cloud_fields
+    type( field_collection_type ), intent( inout ) :: surface_fields
+    type( field_collection_type ), intent( inout ) :: soil_fields
+    type( field_collection_type ), intent( inout ) :: snow_fields
+    type( field_collection_type ), intent( inout ) :: aerosol_fields
+
+    class(model_clock_type), intent(in) :: model_clock
+    type(mesh_type), intent(in), pointer :: twod_mesh
+
+    ! For rad_tile_alg
+    type( field_type ) :: tile_sw_diffuse_albedo, tile_sw_direct_albedo
+    type( field_type ) :: tile_swinc_diffuse_albedo, tile_swinc_direct_albedo
+    type( field_type ) :: tile_lw_albedo
+    type( field_type ) :: tile_lwinc_albedo
+
+    ! For jules_exp_alg
+    ! not required for standalone, but required for boundary layer
+    type( field_type ) :: recip_l_mo_sea, rhostar, h_blend_orog
+    type( field_type ) :: t1_sd_2d, q1_sd_2d
+
+    ! For jules_imp_alg
+    ! Diagnostic fields
+    ! related to coupled model, required for passing between loop calls
+    type( field_type ) :: latent_heat, t1p5m, q1p5m, qcl1p5m, &
+                          t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,  &
+                          t1p5m_land, q1p5m_land, qcl1p5m_land
+
+    ! For jules_imp_alg
+    ! Populated within the coupled model in bl_imp_alg
+    type( field_type ) :: qw, tl,                       &
+                          dqw1, ct_ctq1, dtl1, ftl, fqw, &
+                          rhokh, mr_ice
+
+    ! For jules_imp_alg & jules_extra_alg populated in jules_imp_alg
+    type( field_type ) :: surf_heat_flux
+    type( field_type ) :: canopy_evap
+    type( field_type ) :: water_extraction
+    type( field_type ) :: lake_evap
+    real(r_def) :: dt
+
+    type( field_type ), pointer :: zh             => null()
+    type( field_type ), pointer :: heat_flux_bl   => null()
+    type( field_type ), pointer :: moist_flux_bl  => null()
+    type( field_type ), pointer :: rhokh_bl       => null()
+    type( field_type ), pointer :: exner_in_wth => null()
+
+    integer(kind=i_def), parameter  :: outer = 1
+    integer(i_def) :: loop
+    integer(kind=i_def)   :: ncells
+
+    call turbulence_fields%get_field('zh', zh)
+    call turbulence_fields%get_field('heat_flux_bl', heat_flux_bl)
+    call turbulence_fields%get_field('rhokh_bl', rhokh_bl)
+    call turbulence_fields%get_field('moist_flux_bl', moist_flux_bl)
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+
+    call theta%copy_field_properties(qw)
+    call theta%copy_field_properties(tl)
+    call zh%copy_field_properties(dqw1)
+    call zh%copy_field_properties(dtl1)
+    call zh%copy_field_properties(ct_ctq1)
+    call heat_flux_bl%copy_field_properties(ftl)
+    call moist_flux_bl%copy_field_properties(fqw)
+    call rhokh_bl%copy_field_properties(rhokh)
+
+    ! Calculate total ice field
+    call mr(imr_s)%copy_field_properties(mr_ice)
+    call invoke(setval_X(mr_ice, mr(imr_s)) )
+
+    ncells = twod_mesh%get_last_edge_cell()
+
+    ! Call jules science algorithms
+    call um_sizes_init(ncells)
+
+    call rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
+                      tile_swinc_direct_albedo, tile_swinc_diffuse_albedo, &
+                      tile_lw_albedo, tile_lwinc_albedo, derived_fields,   &
+                      radiation_fields, orography_fields,                  &
+                      surface_fields, soil_fields, snow_fields,            &
+                      twod_mesh, model_clock%get_step())
+
+    call jules_exp_alg(modeldb, theta, mr,                                 &
+                       derived_fields, radiation_fields,                   &
+                       orography_fields,                                   &
+                       turbulence_fields, convection_fields, cloud_fields, &
+                       surface_fields, soil_fields, snow_fields,           &
+                       aerosol_fields, recip_l_mo_sea, rhostar,            &
+                       h_blend_orog, t1_sd_2d, q1_sd_2d)
+
+    ! Fields set up for jules_imp
+    ! ncells is set to 1 after jules_exp so needs to be reset
+    call um_sizes_init(ncells)
+
+    call invoke(setval_X(qw, mr(imr_v)),      &
+                X_times_Y(tl, theta, exner_in_wth))
+    call invoke(setval_X(ftl, heat_flux_bl),  &
+                setval_X(fqw, moist_flux_bl), &
+                setval_X(rhokh, rhokh_bl) )
+
+    do loop = 1,2
+      ! setting fields for jules surface routines
+      ! similar to standalone/control.F90
+      call invoke(setval_c(ct_ctq1, 0.0_r_def) )
+      call invoke(setval_c(dqw1, 0.0_r_def) )
+      call invoke(setval_c(dtl1, 0.0_r_def) )
+
+      call jules_imp_alg(mr, surf_heat_flux, canopy_evap, water_extraction,   &
+                         lake_evap, derived_fields, radiation_fields,         &
+                         turbulence_fields, cloud_fields, surface_fields,     &
+                         soil_fields, snow_fields, outer, model_clock, loop,  &
+                         qw, tl, dqw1, dtl1, ct_ctq1, ftl, fqw, rhokh,        &
+                         mr_ice, latent_heat, t1p5m, q1p5m, qcl1p5m,          &
+                         t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, t1p5m_land,       &
+                         q1p5m_land, qcl1p5m_land)
+
+    end do !loop
+
+    call jules_extra_alg(microphysics_fields, convection_fields,        &
+                         surface_fields, soil_fields, snow_fields,      &
+                         surf_heat_flux, canopy_evap,                   &
+                         water_extraction, lake_evap, dt)
+
+end subroutine run_step
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Release all claimed resources once completed.
+  !>
+  subroutine jules_alg_final(self)
+
+    implicit none
+
+    class(jules_timestep_type), intent(inout) :: self
+
+    return
+  end subroutine jules_alg_final
+end module jules_timestep_alg_mod

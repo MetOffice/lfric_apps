@@ -1,0 +1,166 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Tangent linear routine for transport of potential temperature.
+
+module tl_theta_transport_alg_mod
+
+  use constants_mod,                   only: i_def, r_def
+  use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
+  use field_mod,                       only: field_type
+  use formulation_config_mod,          only: theta_moist_source
+  use fs_continuity_mod,               only: Wtheta
+  use function_space_mod,              only: function_space_type
+  use function_space_collection_mod,   only: function_space_collection
+  use log_mod,                         only: log_event,       &
+                                             LOG_LEVEL_ERROR
+  use operator_mod,                    only: operator_type
+  use timer_mod,                       only: timer
+  use timestepping_config_mod,         only: time_method => method, &
+                                             method_semi_implicit
+  use tl_transport_field_mod,          only: tl_transport_field
+  use transport_config_mod,            only: theta_variable,             &
+                                             theta_variable_dry,         &
+                                             theta_variable_moist,       &
+                                             adjust_theta
+  use tl_transport_controller_mod,     only: tl_transport_controller_type
+  use transport_enumerated_types_mod,  only: equation_form_advective,    &
+                                             equation_form_consistent
+  use transport_metadata_mod,          only: transport_metadata_type
+
+  implicit none
+
+  private
+
+  public :: tl_theta_transport_alg
+
+contains
+
+  !> @brief Tangent linear routine for transporting potential temperature field.
+  !> @details Performs a whole transport time step for potential temperature,
+  !!          with different routines called depending on the specified options
+  !!          for transporting the potential temperature. The potential
+  !!          temperature variable to be transported will be obtained, and if
+  !!          the transport equation is conservative then this is the product
+  !!          of a potential temperature with dry density on the shifted mesh.
+  !!          Static adjustment may also be applied to the resulting profile.
+  !!          The potential temperature increment is returned.
+  !> @param[in,out] theta_out          Perturbation: Dry potential temperature
+  !!                                   after transport
+  !> @param[in,out] theta_inc          Perturbation: Dry potential temperature
+  !!                                   increment
+  !> @param[in]     theta_in           Perturbation: Dry potential temperature
+  !!                                   before transport
+  !> @param[in]     ls_theta_in        Linear state: Dry potential temperature
+  !!                                   before transport
+  !> @param[in,out] tl_transport_controller
+  !!                                   Controls transport
+  !> @param[in]     transport_metadata Contains the configuration options for
+  !!                                   transporting the potential temperature
+  subroutine tl_theta_transport_alg(theta_out, theta_inc,                      &
+                                    theta_in, ls_theta_in,                     &
+                                    tl_transport_controller,                   &
+                                    transport_metadata)
+
+    implicit none
+
+    ! Arguments
+    type(field_type),           target, intent(inout) :: theta_out
+    type(field_type),                   intent(inout) :: theta_inc
+    type(field_type),           target, intent(in)    :: theta_in
+    type(field_type),           target, intent(in)    :: ls_theta_in
+    type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
+    type(transport_metadata_type),      intent(inout) :: transport_metadata
+
+    ! Internal variables
+    real(kind=r_def)          :: one
+    type(field_type), pointer :: theta_in_ptr
+    type(field_type), pointer :: theta_out_ptr
+    type(field_type), pointer :: ls_theta_in_ptr
+
+    ! ------------------------------------------------------------------------ !
+    ! Convert to potential temperature to transport
+    ! ------------------------------------------------------------------------ !
+
+    select case ( theta_variable )
+
+      case ( theta_variable_dry )
+        ! Already have the correct variable, so just point to it
+        theta_in_ptr => theta_in
+        theta_out_ptr => theta_out
+        ls_theta_in_ptr => ls_theta_in
+
+      case default
+        call log_event('T.L. Theta variable not implemented', LOG_LEVEL_ERROR)
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Transport potential temperature depending on equation
+    ! ------------------------------------------------------------------------ !
+    select case ( transport_metadata%get_equation_form() )
+
+      ! ---------------------------------------------------------------------- !
+      ! Advective and consistent forms of transport equation
+      ! ---------------------------------------------------------------------- !
+      case ( equation_form_advective, equation_form_consistent )
+
+        ! Advective:  Simply transport all the potential temperature in Wtheta
+        ! Consistent: Transformation to densities and evaluation of fluxes is in
+        !             lowest level algorithms, so just call transport_field
+        call tl_transport_field(                                               &
+                theta_out_ptr, theta_in_ptr, ls_theta_in_ptr,                  &
+                tl_transport_controller, transport_metadata                    &
+        )
+
+    ! ------------------------------------------------------------------------ !
+    ! Default form of transport equation
+    ! ------------------------------------------------------------------------ !
+    case default
+      call log_event('T.L. Form of moisture transport equation either not ' // &
+                     'compatible or not implemented', LOG_LEVEL_ERROR)
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Return to dry theta
+    ! ------------------------------------------------------------------------ !
+
+    select case ( theta_variable )
+
+      case ( theta_variable_dry )
+        ! Nothing to do -- can't "pass" in Fortran so just set a dummy variable
+        one = 1.0_r_def
+
+      case default
+        call log_event('T.L. Theta variable not implemented', LOG_LEVEL_ERROR)
+
+    end select
+
+    ! ------------------------------------------------------------------------ !
+    ! Apply moisture source term if desired
+    ! ------------------------------------------------------------------------ !
+
+    if (theta_moist_source .and. .not. theta_variable == theta_variable_moist ) then
+      call log_event('T.L. Theta moist source not implemented', LOG_LEVEL_ERROR)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Apply static adjustment if desired
+    ! ------------------------------------------------------------------------ !
+
+    if ( adjust_theta ) then
+      call log_event('T.L. Theta adjustment not implemented', LOG_LEVEL_ERROR)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Compute increment
+    ! ------------------------------------------------------------------------ !
+
+    call invoke( X_minus_Y(theta_inc, theta_out, theta_in) )
+
+  end subroutine tl_theta_transport_alg
+
+end module tl_theta_transport_alg_mod

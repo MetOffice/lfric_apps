@@ -1,0 +1,42 @@
+--- applications/adjoint_tests/working/psyad/kernel/core_dynamics/tl_sample_eos_pressure_kernel_mod.F90.orig	2024-07-06 10:11:39.820659027 +0100
++++ applications/adjoint_tests/working/psyad/kernel/core_dynamics/tl_sample_eos_pressure_kernel_mod.F90	2024-07-06 10:12:29.711887754 +0100
+@@ -79,7 +79,7 @@
+                                  ndf_wt, undf_wt, map_wt, wt_basis             &
+                                  )
+ 
+-  use tl_calc_exner_pointwise_mod, only: tl_calc_exner_pointwise
++  !RF use tl_calc_exner_pointwise_mod, only: tl_calc_exner_pointwise
+   use sci_coordinate_jacobian_mod, only: coordinate_jacobian
+ 
+   implicit none
+@@ -111,9 +111,12 @@
+   real(kind=r_def), dimension(ndf_wt)          :: ls_theta_vd_e
+ 
+   real(kind=r_def) :: rho_cell, theta_vd_cell
+-  real(kind=r_def) :: exner_eos
+   real(kind=r_def) :: ls_rho_cell, ls_theta_vd_cell
+ 
++  !RF use planet_config_mod, only : kappa, Rd, p_zero
++  real(kind=r_def) :: kappa, Rd, p_zero
++  real(kind=r_def) :: tmp_ls_exner, tmp_exner
++
+   do k = 0, nlayers-1
+     ! Linearisation state
+     do df = 1, ndf_w3
+@@ -157,9 +160,13 @@
+       end do
+ 
+       ! Calculation
+-      call tl_calc_exner_pointwise( exner_eos, rho_cell, theta_vd_cell, &
+-                                    ls_rho_cell, ls_theta_vd_cell )
+-      exner(map_w3(df)+k) = exner_eos
++      tmp_ls_exner = ( ( Rd / p_zero ) * ls_rho_cell * ls_theta_vd_cell ) ** &
++             ( kappa / ( 1.0_r_def - kappa ) )
++
++      tmp_exner = ( kappa / ( 1.0_r_def - kappa ) ) * tmp_ls_exner * &
++          ( ( rho_cell / ls_rho_cell ) + ( theta_vd_cell / ls_theta_vd_cell )  )
++
++      exner(map_w3(df)+k) = tmp_exner
+ 
+     end do
+   end do

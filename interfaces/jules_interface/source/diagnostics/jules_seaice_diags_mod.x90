@@ -1,0 +1,71 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for jules_extra_alg
+
+module jules_seaice_diags_mod
+
+  use field_mod,                 only: field_type
+  use io_config_mod,             only: subroutine_timers
+  use timer_mod,                 only: timer
+
+  use jules_control_init_mod, only: first_sea_ice_tile,            &
+                                    n_sea_ice_tile
+
+  implicit none
+
+  private
+
+  public :: output_diags_for_jules_seaice
+
+contains
+
+  !> @brief Output diagnostics from jules_extra_alg
+  !> @param[in]     tile_fraction          Fraction of surface tiles
+  !> @param[in]     sea_ice_thickness      Sea ice thickness
+  !> @param[in]     sea_ice_temperature    Sea ice layer temperature
+  !> @param[in]     sea_ice_conductivity   Sea ice conductivity
+  !> @param[in]     sea_ice_pensolar       Penetrating solar radiation into sea ice
+  !> @param[in]     melt_pond_fraction     Melt pond fraction
+  !> @param[in]     melt_pond_depth        Melt pond depth
+
+  subroutine output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &
+                                      sea_ice_temperature, sea_ice_conductivity, &
+                                      sea_ice_pensolar, melt_pond_fraction,      &
+                                      melt_pond_depth)
+
+    use sci_multi_extract_kernel_mod, only: multi_extract_kernel_type
+
+    implicit none
+
+    ! Prognostic fields to output
+    type( field_type ), intent(in) :: tile_fraction, sea_ice_thickness,          &
+                                      sea_ice_temperature, sea_ice_conductivity, &
+                                      sea_ice_pensolar, melt_pond_fraction,      &
+                                      melt_pond_depth
+
+    ! Diagnostics locally computed here from other fields
+    type( field_type )             :: sea_ice_fraction
+
+    if ( subroutine_timers ) call timer("jules_seaice_diags")
+
+    ! Prognostic fields
+    call sea_ice_thickness%write_field('seaice__sea_ice_thickness')
+    call sea_ice_temperature%write_field('seaice__sea_ice_temperature')
+    call sea_ice_conductivity%write_field('seaice__sea_ice_conductivity')
+    call sea_ice_pensolar%write_field('seaice__sea_ice_pensolar')
+    call melt_pond_fraction%write_field('seaice__melt_pond_fraction')
+    call melt_pond_depth%write_field('seaice__melt_pond_depth')
+
+    ! Get sea ice fraction from tile fraction
+    call sea_ice_thickness%copy_field_properties(sea_ice_fraction)
+    call invoke(multi_extract_kernel_type(sea_ice_fraction, tile_fraction,     &
+                                            first_sea_ice_tile, n_sea_ice_tile))
+    call sea_ice_fraction%write_field('seaice__sea_ice_fraction')
+
+    if ( subroutine_timers ) call timer("jules_seaice_diags")
+
+  end subroutine output_diags_for_jules_seaice
+end module jules_seaice_diags_mod

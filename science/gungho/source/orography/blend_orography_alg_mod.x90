@@ -1,0 +1,85 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Apply blending to orography.
+!> @details Use the driving model to calculate the lateral boundary condition
+!!          for the orography, and to apply blending.
+
+module blend_orography_alg_mod
+
+  use constants_mod,                  only: i_def, str_def
+  use field_mod,                      only: field_type
+  use limited_area_constants_mod,     only: get_blend_mask,    &
+                                            get_lbc_mask_fv
+  use mesh_mod,                       only: mesh_type
+  implicit none
+
+  public :: blend_orography
+
+contains
+
+  !> @brief   Blend the LAM orography with the driving model orography,
+  !> @details The data around the edge of the domain is overwritten by the
+  !!          driving model LBC orography using:
+  !!          orog_new = w * orog_driving + (1-w) * orog_lam
+  !!          where the weights w are defined by the blending mask.
+  !> @param[in,out] lam_orog     Current LAM orography to be blended
+  !> @param[in]     driving_orog Driving model orography
+  !> @param[in]     mesh_name    Name of the finest mesh
+
+  subroutine blend_orography(lam_orog, driving_orog, mesh_name)
+
+    implicit none
+
+    type(field_type), intent(inout)         :: lam_orog
+    type(field_type), intent(in)            :: driving_orog
+    character(len=str_def), intent(in)      :: mesh_name
+    type(field_type), pointer               :: blend_mask, &
+                                               lbc_mask
+    type(field_type)                        :: lam_lbc, driving_lbc, inc
+    integer(kind=i_def)                     :: fs_enum
+    type(mesh_type), pointer                :: mesh
+
+    ! Define the function space required for masks.
+    fs_enum = lam_orog%which_function_space()
+    mesh    => lam_orog%get_mesh()
+
+    blend_mask    => get_blend_mask( fs_enum, mesh%get_id(), mesh_name )
+    lbc_mask      => get_lbc_mask_fv( fs_enum, mesh%get_id(), mesh_name )
+
+    ! Setup the temporary fields.
+    call lam_orog%copy_field_properties( lam_lbc )
+    call lam_orog%copy_field_properties( inc )
+    call driving_orog%copy_field_properties( driving_lbc )
+
+    ! Apply blending, as follows:
+    ! x_blended = (1-w) * x_lam + w * x_driving
+    !           = x_lam + w * (x_driving - x_lam)
+    ! where w are the blending weights.
+
+    call invoke( &
+               ! Calculate x_lam (The LAM field in the boundary region).
+               ! This is just extracting the LAM field in the LBC region.
+               ! It ensures that the code still works if e.g. the blending
+               ! mask is not applied.
+               X_times_Y( lam_lbc, lam_orog, lbc_mask ), &
+
+               X_times_Y( driving_lbc, driving_orog, lbc_mask ), &
+
+               ! Calculate x_driving - x_lam (The LBC increment).
+               X_minus_Y( inc, driving_lbc, lam_lbc ),   &
+
+               ! Calculate w * (x_driving - x_lam) (Weight the increment).
+               inc_X_times_Y( inc, blend_mask ),          &
+
+               ! Add weighted increment back on to the state.
+               inc_X_plus_Y( lam_orog, inc ) )
+
+    nullify( blend_mask, lbc_mask, mesh )
+
+  end subroutine blend_orography
+
+end module blend_orography_alg_mod

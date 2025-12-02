@@ -1,0 +1,197 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+
+!> Test the vertical_quintic_sl_kernel.
+!>
+module vertical_quintic_sl_kernel_mod_test
+
+  use constants_mod, only : i_def, l_def, r_tran
+
+  implicit none
+
+contains
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine vertical_quintic_sl_kernel_test()
+
+    use funit
+    use, intrinsic :: iso_fortran_env,   only: real64
+    use vertical_quintic_sl_kernel_mod,  only: vertical_quintic_sl_code
+    use transport_enumerated_types_mod,  only: monotone_none,                  &
+                                               monotone_strict,                &
+                                               vertical_monotone_order_high
+
+    implicit none
+
+    real(r_tran), parameter :: tol = 1.0e-12_r_tran
+    real(r_tran)            :: use_tol
+    integer(i_def), parameter :: nlayers = 5
+    integer(i_def), parameter :: ndf_w3  = 1
+    integer(i_def), parameter :: undf_w3 = nlayers
+    integer(i_def), parameter :: ndf_wc  = 1
+    integer(i_def), parameter :: undf_wc = nlayers
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+    integer(i_def), dimension(ndf_wc)  :: map_wc
+    real(r_tran),   dimension(undf_w3) :: field_in, field, field_out
+    real(r_tran),   dimension(undf_wc) :: quintic_coef_1, quintic_coef_2, &
+                                          quintic_coef_3, quintic_coef_4, &
+                                          quintic_coef_5, quintic_coef_6
+    integer(i_def), dimension(undf_wc) :: quintic_index_1, quintic_index_2, &
+                                          quintic_index_3, quintic_index_4, &
+                                          quintic_index_5, quintic_index_6
+    real(r_tran),   dimension(undf_wc) :: linear_coeff_1, linear_coeff_2
+    logical(l_def)  :: log_space
+    integer(i_def)  :: monotone, monotone_order, i
+    real(r_tran)    :: a1, a2, a3
+
+    ! Create the dof map for any number of layers
+    map_w3(:) = 1
+    map_wc(:) = 1
+
+    ! Set up field
+    field_in(:) = (/1.0_r_tran, 2.0_r_tran, 3.0_r_tran, 4.0_r_tran, 5.0_r_tran /)
+
+    ! Linear coefficients are only needed for monotonicity so are unused here
+    linear_coeff_1(:) = 1.0_r_tran
+    linear_coeff_2(:) = 1.0_r_tran
+
+    ! First test with unity coefficients so that field is unchanged
+    quintic_coef_1(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    quintic_coef_2(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    quintic_coef_3(:) = (/ 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
+    quintic_coef_4(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    quintic_coef_5(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    quintic_coef_6(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran /)
+    quintic_index_1(:) = (/ 1_i_def, 1_i_def, 1_i_def, 2_i_def, 3_i_def /)
+    quintic_index_2(:) = (/ 1_i_def, 1_i_def, 2_i_def, 3_i_def, 4_i_def /)
+    quintic_index_3(:) = (/ 1_i_def, 2_i_def, 3_i_def, 4_i_def, 5_i_def /)
+    quintic_index_4(:) = (/ 2_i_def, 3_i_def, 4_i_def, 5_i_def, 5_i_def /)
+    quintic_index_5(:) = (/ 3_i_def, 4_i_def, 5_i_def, 5_i_def, 5_i_def /)
+    quintic_index_6(:) = (/ 4_i_def, 5_i_def, 5_i_def, 5_i_def, 5_i_def /)
+
+    field(:) = field_in(:)
+    field_out(:) = field_in(:)
+    log_space = .false.
+    monotone = monotone_none
+    monotone_order = vertical_monotone_order_high
+
+    call vertical_quintic_sl_code( nlayers,                          &
+                                   field,                            &
+                                   quintic_coef_1, quintic_coef_2,   &
+                                   quintic_coef_3, quintic_coef_4,   &
+                                   quintic_coef_5, quintic_coef_6,   &
+                                   quintic_index_1, quintic_index_2, &
+                                   quintic_index_3, quintic_index_4, &
+                                   quintic_index_5, quintic_index_6, &
+                                   linear_coeff_1, linear_coeff_2,   &
+                                   monotone,                         &
+                                   monotone_order,                   &
+                                   log_space,                        &
+                                   ndf_w3, undf_w3, map_w3,          &
+                                   ndf_wc, undf_wc, map_wc )
+
+    if ( r_tran == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_tran*spacing(maxval(field_in(:)))
+    end if
+
+    do i = 1,nlayers
+      @assertEqual(field_out(i), field(i) , use_tol)
+    end do
+    quintic_index_1(:) = (/ 1_i_def, 1_i_def, 1_i_def, 2_i_def, 3_i_def /)
+    quintic_index_2(:) = (/ 1_i_def, 1_i_def, 2_i_def, 3_i_def, 4_i_def /)
+    quintic_index_3(:) = (/ 1_i_def, 2_i_def, 3_i_def, 4_i_def, 5_i_def /)
+    quintic_index_4(:) = (/ 2_i_def, 3_i_def, 4_i_def, 5_i_def, 5_i_def /)
+    quintic_index_5(:) = (/ 3_i_def, 4_i_def, 5_i_def, 5_i_def, 5_i_def /)
+    quintic_index_6(:) = (/ 4_i_def, 5_i_def, 5_i_def, 5_i_def, 5_i_def /)
+
+    ! Now test with variable coefficients
+    quintic_coef_1(:) = (/ 1.0_r_tran, 0.0_r_tran, 0.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_2(:) = (/ 0.0_r_tran, 0.25_r_tran, -0.5_r_tran, -1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_3(:) = (/ 0.0_r_tran, 0.25_r_tran, 0.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_4(:) = (/ 0.0_r_tran, 0.25_r_tran, 0.5_r_tran, -1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_5(:) = (/ 0.0_r_tran, 0.25_r_tran, 0.0_r_tran, 1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_6(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 1.0_r_tran /)
+
+    field(:) = field_in(:)
+    field_out(:) = (/1.0_r_tran, 2.5_r_tran, 3.0_r_tran, 3.0_r_tran, 5.0_r_tran /)
+
+    call vertical_quintic_sl_code( nlayers,                          &
+                                   field,                            &
+                                   quintic_coef_1, quintic_coef_2,   &
+                                   quintic_coef_3, quintic_coef_4,   &
+                                   quintic_coef_5, quintic_coef_6,   &
+                                   quintic_index_1, quintic_index_2, &
+                                   quintic_index_3, quintic_index_4, &
+                                   quintic_index_5, quintic_index_6, &
+                                   linear_coeff_1, linear_coeff_2,   &
+                                   monotone,                         &
+                                   monotone_order,                   &
+                                   log_space,                        &
+                                   ndf_w3, undf_w3, map_w3,          &
+                                   ndf_wc, undf_wc, map_wc )
+
+    if ( r_tran == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_tran*spacing(maxval(field_in(:)))
+    end if
+
+    do i = 1,nlayers
+      @assertEqual(field_out(i), field(i) , use_tol)
+    end do
+
+    ! Now test with variable coefficients and log_space
+    quintic_coef_1(:) = (/ 1.0_r_tran, 0.0_r_tran, 0.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_2(:) = (/ 0.0_r_tran, 0.25_r_tran, -0.5_r_tran, -1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_3(:) = (/ 0.0_r_tran, 0.25_r_tran, 0.5_r_tran, 1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_4(:) = (/ 0.0_r_tran, 0.25_r_tran, 0.5_r_tran, -1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_5(:) = (/ 0.0_r_tran, 0.25_r_tran, 0.0_r_tran, 1.0_r_tran, 0.0_r_tran /)
+    quintic_coef_6(:) = (/ 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 0.0_r_tran, 1.0_r_tran /)
+
+    log_space = .true.
+    field(:) = field_in(:)
+    a1 = exp( 0.25_r_tran*log( 1.0_r_tran) + 0.25_r_tran*log( 2.0_r_tran) &
+            + 0.25_r_tran*log( 3.0_r_tran) + 0.25_r_tran*log( 4.0_r_tran) )
+    a2 = exp( 0.5_r_tran*log( 1.0_r_tran) - 0.5_r_tran*log( 2.0_r_tran) &
+            + 0.5_r_tran*log( 3.0_r_tran) + 0.5_r_tran*log( 4.0_r_tran) )
+    a3 = exp( 1.0_r_tran*log( 2.0_r_tran) - 1.0_r_tran*log( 3.0_r_tran) &
+            + 1.0_r_tran*log( 4.0_r_tran) - 1.0_r_tran*log( 5.0_r_tran) &
+            + 1.0_r_tran*log( 5.0_r_tran) )
+    field_out(:) = (/1.0_r_tran, a1, a2, a3, 5.0_r_tran /)
+
+    call vertical_quintic_sl_code( nlayers,                          &
+                                   field,                            &
+                                   quintic_coef_1, quintic_coef_2,   &
+                                   quintic_coef_3, quintic_coef_4,   &
+                                   quintic_coef_5, quintic_coef_6,   &
+                                   quintic_index_1, quintic_index_2, &
+                                   quintic_index_3, quintic_index_4, &
+                                   quintic_index_5, quintic_index_6, &
+                                   linear_coeff_1, linear_coeff_2,   &
+                                   monotone,                         &
+                                   monotone_order,                   &
+                                   log_space,                        &
+                                   ndf_w3, undf_w3, map_w3,          &
+                                   ndf_wc, undf_wc, map_wc )
+
+    if ( r_tran == real64 ) then
+       use_tol = tol
+    else
+       use_tol = 10.0_r_tran*spacing(maxval(field_in(:)))
+    end if
+
+    do i = 1,nlayers
+      @assertEqual(field_out(i), field(i) , use_tol)
+    end do
+
+  end subroutine vertical_quintic_sl_kernel_test
+
+end module vertical_quintic_sl_kernel_mod_test

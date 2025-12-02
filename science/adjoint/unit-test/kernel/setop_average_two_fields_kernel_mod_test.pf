@@ -1,0 +1,103 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Tests that setop_average_two_fields_kernel_mod properly allocates data to operator data
+module setop_average_two_fields_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+
+  public :: setop_average_two_fields_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: setop_average_two_fields_test_type
+
+    private
+
+    real(kind=r_def), dimension(:,:,:), allocatable :: local_stencil
+    real(kind=r_def), dimension(:),     allocatable :: field_aspc1
+    real(kind=r_def), dimension(:),     allocatable :: field_aspc2
+
+  contains
+
+    procedure setUp
+    procedure tearDown
+
+  end type setop_average_two_fields_test_type
+
+    integer(kind=i_def),                       parameter :: nlayers = 2_i_def
+    integer(kind=i_def),                       parameter :: cell = 1_i_def
+    integer(kind=i_def),                       parameter :: ncell_3d = 1_i_def*nlayers
+    integer(kind=i_def),                       parameter :: ndf_aspc1 = 2_i_def
+    integer(kind=i_def),                       parameter :: undf_aspc1 = ndf_aspc1*nlayers
+    integer(kind=i_def), dimension(ndf_aspc1), parameter :: map_aspc1 = (/ 1_i_def, 2_i_def /)
+    integer(kind=i_def),                       parameter :: ndf_aspc2 = 3_i_def
+    integer(kind=i_def),                       parameter :: undf_aspc2 = ndf_aspc2*nlayers
+    integer(kind=i_def), dimension(ndf_aspc2), parameter :: map_aspc2 = (/ 1_i_def, 2_i_def, 3_i_def /)
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(setop_average_two_fields_test_type), intent(inout) :: this
+
+    allocate( this%local_stencil( ncell_3d, ndf_aspc1, ndf_aspc2 ) )
+    allocate( this%field_aspc1( undf_aspc1 ) )
+    allocate( this%field_aspc2( undf_aspc2 ) )
+    this%field_aspc1(:) = 1.0_r_def
+    this%field_aspc2(:) = -1.0_r_def
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(setop_average_two_fields_test_type), intent(inout) :: this
+
+    deallocate( this%local_stencil )
+    deallocate( this%field_aspc1 )
+    deallocate( this%field_aspc2 )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( context )
+
+    use setop_average_two_fields_kernel_mod, only : setop_average_two_fields_kernel_code
+
+    implicit none
+
+    class(setop_average_two_fields_test_type), intent(inout) :: context
+
+    call setop_average_two_fields_kernel_code( cell,                  &
+                                               nlayers,               &
+                                               ncell_3d,              &
+                                               context%local_stencil, &
+                                               context%field_aspc1,   &
+                                               context%field_aspc2,   &
+                                               ndf_aspc1,             &
+                                               undf_aspc1,            &
+                                               map_aspc1,             &
+                                               ndf_aspc2,             &
+                                               undf_aspc2,            &
+                                               map_aspc2 )
+
+    ! Ensure all values within range
+    @assertTrue( all(context%local_stencil == 0.0_r_def ) )
+
+   end subroutine test_all
+
+end module setop_average_two_fields_kernel_mod_test

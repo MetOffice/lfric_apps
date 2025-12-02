@@ -1,0 +1,134 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test computation of the LHS of the equation of state:
+!!        lhs_exner = m3exner*exner + Q32*u - p3theta*theta.
+module apply_elim_mixed_lp_operator_kernel_mod_test
+
+  use constants_mod, only : i_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: apply_elim_mixed_lp_operator_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type apply_elim_mixed_lp_operator_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(apply_elim_mixed_lp_operator_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(apply_elim_mixed_lp_operator_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_all( this )
+
+    use apply_elim_mixed_lp_operator_kernel_mod, only : apply_elim_mixed_lp_operator_code
+
+    implicit none
+
+    class(apply_elim_mixed_lp_operator_test_type), intent(inout) :: this
+
+    real(kind=r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    ! Mesh
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: cell = 1
+    integer(kind=i_def), parameter :: ncell = 1
+
+    ! Spaces
+    integer(kind=i_def), parameter :: ndf_wt = 2
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: ndf_w2 = 4
+    integer(kind=i_def), parameter :: undf_wt = nlayers + 1
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
+
+    ! Maps
+    integer(kind=i_def), dimension(ndf_wt) :: map_wt
+    integer(kind=i_def), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), dimension(ndf_w2) :: map_w2
+
+    ! Operators
+    real(kind=r_solver), dimension(ncell, ndf_w3, ndf_w3) :: m3exner
+    real(kind=r_solver), dimension(ncell, ndf_w3, ndf_wt) :: p3theta
+    real(kind=r_solver), dimension(ncell, ndf_w3, ndf_w2) :: q32
+
+    ! Fields
+    real(kind=r_solver), dimension(undf_w3) :: lhs_exner, exner
+    real(kind=r_solver), dimension(undf_wt) :: theta
+    real(kind=r_solver), dimension(undf_w2) :: u
+
+    integer(kind=i_def) :: df
+    real(kind=r_solver)    :: answer
+
+    map_wt = (/ 1_i_def, 2_i_def /)
+    map_w3 = (/ 1_i_def /)
+    map_w2 = (/ 1_i_def, 2_i_def, 3_i_def, 4_i_def /)
+
+    ! Set up operators
+    m3exner(1,:,:) = 1.1_r_solver
+
+    p3theta(1,:,1) = 300.0_r_solver
+    p3theta(1,:,2) = 310.1_r_solver
+
+    q32(1,:,1) = 3.0_r_solver
+    q32(1,:,2) = 3.1_r_solver
+    q32(1,:,3) = 1.1_r_solver
+    q32(1,:,4) = 2.1_r_solver
+
+    ! Set up the fields
+    theta = (/ 300.0_r_solver, 310.0_r_solver /)
+    exner = (/ 1.2_r_solver /)
+    u = (/ 0.8_r_solver, 0.1_r_solver, -3.0_r_solver, 2.5_r_solver /)
+    lhs_exner = 0.0_r_solver
+
+    ! Compute m3exner*exner - p3thetar*theta + q32*u
+    call apply_elim_mixed_lp_operator_code(cell,                    &
+                                           nlayers,                 &
+                                           lhs_exner,               &
+                                           theta, u, exner,         &
+                                           ncell, m3exner,          &
+                                           ncell, q32,              &
+                                           ncell, p3theta,          &
+                                           ndf_w3, undf_w3, map_w3, &
+                                           ndf_wt, undf_wt, map_wt, &
+                                           ndf_w2, undf_w2, map_w2)
+
+    do df = 1, ndf_w3
+      answer = m3exner(1,df,df)*exner(df)    &
+             - sum(p3theta(1,df,:)*theta(:)) &
+             + sum(q32(1,df,:)*u(:))
+      @assertEqual(answer, lhs_exner(df), tol)
+    end do
+
+  end subroutine test_all
+
+end module apply_elim_mixed_lp_operator_kernel_mod_test

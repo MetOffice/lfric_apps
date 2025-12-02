@@ -1,0 +1,88 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> This code tests precomputation of PPM coefficients.
+
+module ffsl_fourth_dldz_kernel_mod_test
+
+  use constants_mod, only : i_def, l_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( )
+
+    use, intrinsic :: iso_fortran_env,      only : real64
+    use ffsl_fourth_dldz_kernel_mod,        only : ffsl_fourth_dldz_code
+
+    implicit none
+
+    real(r_tran),   parameter :: tol       = 1.0e-12_r_tran   ! r_tran 64bit
+    integer(i_def), parameter :: nlayers   = 5
+    integer(i_def), parameter :: ndf_w3    = 1
+    integer(i_def), parameter :: ndf_w2v   = 2
+    integer(i_def), parameter :: undf_w3   = nlayers
+    integer(i_def), parameter :: undf_w2v  = nlayers+1
+    integer(i_def), dimension(ndf_w3)  :: map_w3
+    integer(i_def), dimension(ndf_w2v) :: map_w2v
+
+    real(r_tran), dimension(undf_w2v) :: dl_dz_1, dl_dz_2, dl_dz_3, dl_dz_4
+    real(r_tran), dimension(undf_w3)  :: dz
+    real(r_tran), dimension(undf_w2v) :: answer_1, answer_2, answer_3, answer_4
+
+    real(r_tran)   :: use_tol
+
+    real(r_tran), parameter :: sixth = 1.0_r_tran/6.0_r_tran
+    real(r_tran), parameter :: third  = 1.0_r_tran/3.0_r_tran
+    real(r_tran), parameter :: twelfth = 1.0_r_tran/12.0_r_tran
+
+    ! Set up maps
+    map_w3(1)= 1
+    map_w2v(:) = (/ 1, 2 /)
+
+    ! Set constant grid spacing
+    dz = (/ 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran, 1.0_r_tran /)
+    answer_1 = (/ 4.0_r_tran,  -1.0_r_tran+sixth, -2.0_r_tran*third, -2.0_r_tran*third,  0.5_r_tran, -1.0_r_tran-third /)
+    answer_2 = (/ -3.0_r_tran,  1.5_r_tran,  0.0_r_tran, 0.0_r_tran,  -1.5_r_tran,  3.0_r_tran /)
+    answer_3 = (/ 1.0_r_tran+third,  -0.5_r_tran,  2.0_r_tran*third, 2.0_r_tran*third, 1.0_r_tran-sixth, -4.0_r_tran /)
+    answer_4 = (/ -0.25_r_tran,  twelfth, -twelfth, -twelfth, 0.25_r_tran, 2.0_r_tran+twelfth /)
+
+    ! Compute edge reconstruction coefficients
+    call ffsl_fourth_dldz_code( nlayers,  &
+                                dl_dz_1,  &
+                                dl_dz_2,  &
+                                dl_dz_3,  &
+                                dl_dz_4,  &
+                                dz,       &
+                                ndf_w2v,  &
+                                undf_w2v, &
+                                map_w2v,  &
+                                ndf_w3,   &
+                                undf_w3,  &
+                                map_w3 )
+
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      ! Set tolerance based on precision of field
+      use_tol = 10.0_r_tran*spacing( maxval(dl_dz_1(:)) )
+    end if
+
+    @assertEqual(answer_1, dl_dz_1, use_tol)
+    @assertEqual(answer_2, dl_dz_2, use_tol)
+    @assertEqual(answer_3, dl_dz_3, use_tol)
+    @assertEqual(answer_4, dl_dz_4, use_tol)
+
+  end subroutine test_all
+
+end module ffsl_fourth_dldz_kernel_mod_test

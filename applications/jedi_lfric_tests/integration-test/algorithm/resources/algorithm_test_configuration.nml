@@ -1,0 +1,35 @@
+&base_mesh
+f_lat_deg=45.0,
+file_prefix='resources/mesh_C12',
+fplane=.false.,
+geometry='spherical',
+prepartitioned=.false.,
+prime_mesh_name='dynamics',
+topology='fully_periodic',
+/
+
+&extrusion
+planet_radius=6371229.0,
+domain_height=1000.0,
+method='uniform',
+number_of_layers=70,
+stretching_method='linear',
+/
+
+&finite_element
+cellshape='quadrilateral',
+element_order_h=0,
+element_order_v=0,
+rehabilitate=.true.,
+coord_order=1
+coord_system='native'
+/
+
+&partitioning
+  partitioner='cubedsphere',
+  panel_decomposition = 'auto',
+/
+
+&planet
+  scaling_factor=125.0,
+/

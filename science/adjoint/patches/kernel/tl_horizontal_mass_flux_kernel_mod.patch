@@ -1,0 +1,11 @@
+@@ -103,7 +103,9 @@
+ 
+   ! Implied direction of outward normals dotted with basis functions.
+   ! If u*u_dot_n > 0 then this is the upwind cell
+-  v_dot_n = (/ -1.0_r_def, 1.0_r_def, 1.0_r_def, -1.0_r_def /)
++  v_dot_n = 1.0_r_def
++  v_dot_n(1) = -1.0_r_def
++  v_dot_n(nfaces) = -1.0_r_def
+ 
+   ! Horizontal Flux
+   ! Reconstruction is stored on a layer first multidata field

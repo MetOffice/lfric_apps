@@ -1,0 +1,196 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the projection operator from the velocity space to
+!! the potential temperature space weighted by the potential temperature gradient.
+!>
+module weighted_proj_theta2_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: weighted_proj_theta2_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type weighted_proj_theta2_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(weighted_proj_theta2_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(weighted_proj_theta2_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all( this )
+
+    use weighted_proj_theta2_kernel_mod, &
+                             only: weighted_proj_theta2_code
+
+    use get_unit_test_m3x3_dofmap_mod, &
+                             only: get_wtheta_m3x3_dofmap
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod,                    &
+                             only: get_wtheta_m3x3_q3x3x3_size, &
+                                   get_w2_m3x3_q3x3x3_size
+
+    use get_unit_test_q3x3x3_basis_mod,                          &
+                             only: get_wtheta_q3x3x3_basis,      &
+                                   get_w2_q3x3x3_basis,          &
+                                   get_wtheta_q3x3x3_diff_basis, &
+                                   get_w2_q3x3x3_diff_basis
+
+    use get_unit_test_q3x3x3_quadrature_mod,                                  &
+                             only: get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                   get_gaussian_q3x3x3_quadrature_weights_z
+
+    implicit none
+
+    class(weighted_proj_theta2_test_type), intent(inout) :: this
+
+    real(kind=r_solver), parameter :: tol = 1.0e-6_r_solver
+
+    integer :: cell
+
+    real(kind=r_solver), dimension(2,6) :: answer
+
+    real(r_solver), allocatable :: theta_data(:)
+    real(r_solver), allocatable :: local_stencil(:,:,:)
+
+    integer(i_def) :: nlayers, ncells, ncells_3d
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: ndf_wt, undf_wt
+    integer(i_def) :: ndf_w2, undf_w2
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_wt(:,:)
+
+    real(r_def), allocatable :: wh(:)
+    real(r_def), allocatable :: wv(:)
+    real(r_def), allocatable :: basis_wt(:,:,:,:)
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_wt(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_w2(:,:,:,:)
+
+    !=====================================
+    ! Get infrastructure support data
+    !=====================================
+    nlayers = 3
+
+    ! Get sizes
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+
+    ! Get maps
+    call get_wtheta_m3x3_dofmap( map_wt )
+
+    ! Get basis functions
+    call get_wtheta_q3x3x3_basis( basis_wt )
+    call get_w2_q3x3x3_basis( basis_w2 )
+
+    call get_wtheta_q3x3x3_diff_basis( diff_basis_wt )
+    call get_w2_q3x3x3_diff_basis( diff_basis_w2 )
+
+    ! Get weights
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ncells_3d = nlayers * ncells
+
+    !=====================================
+    ! Assign data for testing
+    !=====================================
+    allocate(theta_data(undf_wt))
+    theta_data = 1.0_r_solver
+
+    allocate( local_stencil(ncells_3d, ndf_wt, ndf_w2) )
+    local_stencil(:,:,:) = 0.0_r_solver
+
+    !=====================================
+    ! Apply test on interior cell 1
+    !=====================================
+    cell = 1
+    call weighted_proj_theta2_code( cell,            &
+                                    nlayers,         &
+                                    ncells_3d,       &
+                                    local_stencil,   &
+                                    theta_data,      &
+                                    1.0_r_solver,    &
+                                    ndf_wt,          &
+                                    undf_wt,         &
+                                    map_wt(:,cell),  &
+                                    basis_wt,        &
+                                    diff_basis_wt,   &
+                                    ndf_w2,          &
+                                    basis_w2,        &
+                                    diff_basis_w2,   &
+                                    nqp_h,           &
+                                    nqp_v,           &
+                                    wh,              &
+                                    wv               &
+                                   )
+
+    call proj_operator(answer)
+    @assertEqual(answer, local_stencil(1, :, :), tol)
+
+    deallocate( theta_data )
+    deallocate( local_stencil )
+
+    deallocate( map_wt )
+    deallocate( wh )
+    deallocate( wv )
+    deallocate( basis_w2 )
+    deallocate( basis_wt )
+    deallocate( diff_basis_wt )
+    deallocate( diff_basis_w2 )
+
+  end subroutine test_all
+
+  subroutine proj_operator( proj )
+
+    use constants_mod, only: r_solver
+
+    implicit none
+
+    real(kind=r_solver), dimension(2,6), intent(inout) :: proj
+
+    proj = 0.5_r_solver*real(reshape( [       &
+                             1,  1,  -1,  -1, &
+                             -1,  -1,  1,  1, &
+                             2,  0,  0, -2    &
+                             ], shape(proj) ),r_solver)
+
+    return
+  end subroutine proj_operator
+
+end module weighted_proj_theta2_kernel_mod_test

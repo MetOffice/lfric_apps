@@ -1,0 +1,56 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+
+EXEC_PATH="${BIN_DIR}/${EXEC_NAME}"
+NAMELIST_FILE=${EXTRA_NAMELIST_FILES:=configuration.nml}
+XIOS_SERVER_EXEC_PATH="xios_server.exe"
+
+# Ensure Total ranks requested is at least 1
+#===========================================
+if [ "${TOTAL_RANKS}" = "" ] ; then
+  TOTAL_RANKS=1
+fi
+
+# Set the launcher method
+#===========================================
+if [ "${RUN_METHOD}" = "executable" ] ; then
+  LAUNCHER=""
+else
+  LAUNCHER=${RUN_METHOD}
+fi
+
+# Construct launcher options
+#===========================================
+LAUNCHER_OPTS=""
+if [ "${RUN_METHOD}" = "mpiexec" ] ; then
+  LAUNCHER_OPTS="-n ${TOTAL_RANKS} --map-by slot:PE=${OMP_NUM_THREADS} --bind-to core"
+fi
+
+# Construct XIOS server options
+#===========================================
+if [[ ! -z "${XIOS_SERVER_MODE}" && "${XIOS_SERVER_MODE}" = "True" ]] ; then
+  XIOS_EXEC=" : -n ${XIOS_SERVER_RANKS} ${XIOS_SERVER_EXEC_PATH}"
+else
+  XIOS_EXEC=""
+fi
+
+# Launch the model
+#===========================================
+EXEC_COMMAND="${LAUNCHER} ${LAUNCHER_OPTS} ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_EXEC}"
+
+echo Execute command is:
+echo ""
+echo ${EXEC_COMMAND}
+echo ""
+echo Running ...
+echo ""
+${EXEC_COMMAND}
+error=$?
+if [ ${error} != 0 ] ; then
+  echo "Execution failed, Error return code ${error}."
+fi
+
+exit ${error}

@@ -1,0 +1,9 @@
+{% do LOG.debug("Entered site/nci/kgo_variables.cylc") %}
+
+{# Set fixed release version the KGO corresponds to #}
+{% set BASE = "2020.09.1" %}
+
+{% do kgo_vars.update({
+    }) %}
+
+{% do LOG.debug("Finished in site/nci/kgo_variables.cylc") %}

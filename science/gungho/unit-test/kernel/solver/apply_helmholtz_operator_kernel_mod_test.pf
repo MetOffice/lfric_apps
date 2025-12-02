@@ -1,0 +1,249 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the application of the helmholtz operator
+!>
+module apply_helmholtz_operator_kernel_mod_test
+
+  use constants_mod, only : i_def, r_solver, l_def
+  use apply_helmholtz_operator_kernel_mod, only : apply_helmholtz_operator_code
+  use funit
+  implicit none
+
+  private
+  public :: test_lam_edge, &
+            test_lam,      &
+            test_global
+
+  @TestCase
+  type, extends(TestCase), public :: apply_helmholtz_operator_test_type
+    private
+
+    integer(i_def), allocatable :: map_w3(:)
+    integer(i_def), allocatable :: smap_w3(:,:,:)
+    integer(i_def), allocatable :: lam_smap_w3(:,:,:)
+
+    real(r_solver), allocatable :: Hp(:), p(:)
+    real(r_solver), allocatable :: HC(:), HN(:), HE(:), HS(:), HW(:)
+    real(r_solver), allocatable :: HU(:), HD(:), HUU(:), HDD(:)
+
+    real(r_solver)    :: answer, lam_answer
+    logical(l_def) :: limited_area
+    integer(i_def) :: k
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_lam_edge
+    procedure test_lam
+    procedure test_global
+  end type apply_helmholtz_operator_test_type
+
+    real(r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    ! Mesh
+    integer(i_def), parameter :: nlayers = 5
+    integer(i_def), dimension(4), parameter :: stencil_sizes = [2, 2, 2, 2]
+    integer(i_def), dimension(4), parameter :: lam_stencil_sizes = [2, 1, 2, 2]
+    integer(i_def), parameter :: max_length = 2
+
+    ! Spaces
+    integer(i_def), parameter :: ndf_w3 = 1
+    integer(i_def), parameter :: undf_w3 = ndf_w3*nlayers*5
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(apply_helmholtz_operator_test_type), intent(inout) :: this
+    integer(i_def) :: df, arm, cells
+
+    allocate(this%map_w3(ndf_w3))
+    allocate(this%smap_w3(ndf_w3,max_length,4))
+    allocate(this%lam_smap_w3(ndf_w3,max_length,4))
+    allocate(this%Hp(undf_w3))
+    allocate(this%p(undf_w3))
+    allocate(this%HC(undf_w3))
+    allocate(this%HN(undf_w3))
+    allocate(this%HE(undf_w3))
+    allocate(this%HS(undf_w3))
+    allocate(this%HW(undf_w3))
+    allocate(this%HU(undf_w3))
+    allocate(this%HD(undf_w3))
+    allocate(this%HUU(undf_w3))
+    allocate(this%HDD(undf_w3))
+
+    this%map_w3 = (/ 1_i_def /)
+    do arm=1,4
+      do cells = 1,stencil_sizes(arm)
+        do df = 1,ndf_w3
+          this%smap_w3(df,cells,arm) = (arm-1)*max_length*ndf_w3 &
+                                     +(cells-1)*ndf_w3 + df
+        end do
+      end do
+    end do
+    do arm=1,4
+      do cells = 1,lam_stencil_sizes(arm)
+        do df = 1,ndf_w3
+          this%lam_smap_w3(df,cells,arm) = (arm-1)*max_length*ndf_w3 &
+                                           +(cells-1)*ndf_w3 + df
+        end do
+      end do
+    end do
+
+    ! Set up the fields
+    do df = 1,undf_w3
+      this%p(df) = real(df,r_solver)
+    end do
+    this%HC(:)  = 2.0_r_solver
+    this%HN(:)  = 3.0_r_solver
+    this%HE(:)  = 4.0_r_solver
+    this%HS(:)  = 5.0_r_solver
+    this%HW(:)  = 6.0_r_solver
+    this%HU(:)  = 7.0_r_solver
+    this%HD(:)  = 8.0_r_solver
+    this%HUU(:) = 9.0_r_solver
+    this%HDD(:) = 10.0_r_solver
+    this%Hp(:)  = 0.0_r_solver
+
+    ! layer 3:
+    this%k = 2
+    this%answer = this%HC(2)*this%p(this%map_w3(1)+this%k)      &
+                + this%HW(2)*this%p(this%smap_w3(1,2,1)+this%k) &
+                + this%HS(2)*this%p(this%smap_w3(1,2,2)+this%k) &
+                + this%HE(2)*this%p(this%smap_w3(1,2,3)+this%k) &
+                + this%HN(2)*this%p(this%smap_w3(1,2,4)+this%k) &
+                + this%HU(2)*this%p(this%map_w3(1)+this%k+1)    &
+                + this%HUU(2)*this%p(this%map_w3(1)+this%k+2)   &
+                + this%HD(2)*this%p(this%map_w3(1)+this%k-1)    &
+                + this%HDD(2)*this%p(this%map_w3(1)+this%k-2)
+
+    this%lam_answer = this%HC(2)*this%p(this%map_w3(1)+this%k)  &
+                + this%HW(2)*this%p(this%smap_w3(1,2,1)+this%k) &
+                + this%HE(2)*this%p(this%smap_w3(1,2,3)+this%k) &
+                + this%HN(2)*this%p(this%smap_w3(1,2,4)+this%k) &
+                + this%HU(2)*this%p(this%map_w3(1)+this%k+1)    &
+                + this%HUU(2)*this%p(this%map_w3(1)+this%k+2)   &
+                + this%HD(2)*this%p(this%map_w3(1)+this%k-1)    &
+                + this%HDD(2)*this%p(this%map_w3(1)+this%k-2)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(apply_helmholtz_operator_test_type), intent(inout) :: this
+
+    deallocate(this%map_w3,      &
+               this%smap_w3,     &
+               this%lam_smap_w3, &
+               this%Hp,  &
+               this%p,   &
+               this%HC,  &
+               this%HN,  &
+               this%HE,  &
+               this%HS,  &
+               this%HW,  &
+               this%HU,  &
+               this%HD,  &
+               this%HUU, &
+               this%HDD )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_lam_edge( this )
+
+    implicit none
+
+    class(apply_helmholtz_operator_test_type), intent(inout) :: this
+
+    this%limited_area=.true.
+    ! Compute Hp = H*p
+    call apply_helmholtz_operator_code(nlayers,                      &
+                                       this%Hp,                      &
+                                       this%p,                       &
+                                       lam_stencil_sizes,            &
+                                       max_length,                   &
+                                       this%lam_smap_w3,             &
+                                       this%HC, this%HN,             &
+                                       this%HE, this%HS, this%HW,    &
+                                       this%HU, this%HUU, this%HD,   &
+                                       this%HDD,                     &
+                                       this%limited_area,            &
+                                       ndf_w3, undf_w3,              &
+                                       this%map_w3)
+
+    @assertEqual(this%lam_answer, this%Hp(this%map_w3(1)+this%k), tol)
+
+  end subroutine test_lam_edge
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_lam( this )
+
+    implicit none
+
+    class(apply_helmholtz_operator_test_type), intent(inout) :: this
+
+    this%limited_area=.true.
+    ! Compute Hp = H*p
+    call apply_helmholtz_operator_code(nlayers,                      &
+                                       this%Hp,                      &
+                                       this%p,                       &
+                                       stencil_sizes,                &
+                                       max_length,                   &
+                                       this%smap_w3,                 &
+                                       this%HC, this%HN,             &
+                                       this%HE, this%HS, this%HW,    &
+                                       this%HU, this%HUU, this%HD,   &
+                                       this%HDD,                     &
+                                       this%limited_area,            &
+                                       ndf_w3, undf_w3,              &
+                                       this%map_w3)
+
+    @assertEqual(this%answer, this%Hp(this%map_w3(1)+this%k), tol)
+
+  end subroutine test_lam
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_global( this )
+
+    implicit none
+
+    class(apply_helmholtz_operator_test_type), intent(inout) :: this
+
+    this%limited_area=.false.
+    ! Compute Hp = H*p
+    call apply_helmholtz_operator_code(nlayers,                      &
+                                       this%Hp,                      &
+                                       this%p,                       &
+                                       stencil_sizes,                &
+                                       max_length,                   &
+                                       this%smap_w3,                 &
+                                       this%HC, this%HN,             &
+                                       this%HE, this%HS, this%HW,    &
+                                       this%HU, this%HUU, this%HD,   &
+                                       this%HDD,                     &
+                                       this%limited_area,            &
+                                       ndf_w3, undf_w3,              &
+                                       this%map_w3)
+
+    @assertEqual(this%answer, this%Hp(this%map_w3(1)+this%k), tol)
+
+  end subroutine test_global
+
+end module apply_helmholtz_operator_kernel_mod_test

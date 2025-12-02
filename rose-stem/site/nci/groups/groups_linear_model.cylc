@@ -1,0 +1,58 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_linear_model.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "linear_model_gadi_developer": [
+        "linear_model_nwp_gal9-C12_gadi_intel_fast-debug-64bit",
+        "linear_model_nwp_gal9_random-C12_gadi_intel_fast-debug-64bit",
+        "linear_model_nwp_gal9_zero-C12_gadi_intel_fast-debug-64bit",
+        "linear_model_runge-kutta-C12_gadi_intel_fast-debug-64bit",
+        "linear_model_semi-implicit-C12_gadi_intel_fast-debug-64bit",
+        "linear_model_dcmip301-C24_gadi_intel_fast-debug-64bit",
+        "linear_model_gadi_canned",
+    ],
+    "linear_model_gadi": [
+        "linear_model_gadi_developer",
+    ],
+    "linear_model_gadi_build": [
+        "build_linear_model_gadi_intel_fast-debug-64bit",
+    ],
+    "linear_model_gadi_canned": [
+        "linear_model_canned_gadi_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "linear_model_developer": [
+        "scripts",
+        "linear_model_gadi_developer",
+    ],
+    "linear_model": [
+        "linear_model_developer",
+        "linear_model_gadi",
+    ],
+    "linear_model_build": [
+        "linear_model_gadi_build",
+    ],
+    "linear_model_canned": [
+        "linear_model_gadi_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.linear_model_developer) %}
+{% do site_groups.all.extend(site_groups.linear_model) %}
+{% do site_groups.build.extend(site_groups.linear_model_build) %}
+
+{# gadi Extends #}
+{% do site_groups.developer.extend(site_groups.linear_model_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.linear_model_gadi) %}
+{% do site_groups.gadi_build.extend(site_groups.linear_model_gadi_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_linear_model.cylc") %}

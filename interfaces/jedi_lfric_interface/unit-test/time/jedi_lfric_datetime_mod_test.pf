@@ -1,0 +1,189 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> LFRic unit tests jedi_lfric_datetime_mod.
+!> LFRic unit tests use pfUnit, a Fortran unit test framework written by NASA.
+!> This particular example tests the result of a matrix vector calculation
+!> using the code from the matrix_vector_kernel_mod in the LFRic science
+!> component.
+!>
+!-------------------------------------------------------------------------------
+module jedi_lfric_datetime_mod_test
+
+  ! Global use statements go here
+
+  use constants_mod, only : i_timestep, str_def, l_def
+
+  use funit
+
+  implicit none
+
+  private
+  public :: jedi_lfric_datetime_test
+
+  ! The test case type, containing procedures to setup, run
+  ! and clean up after a test.
+  ! It can also contain data.
+
+  @TestCase
+  type, extends(TestCase), public :: jedi_lfric_datetime_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure jedi_lfric_datetime_test
+  end type jedi_lfric_datetime_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The setUp subroutine is optional and is called prior to running the test.
+  !> It is used to create and initialise types / data that are used in
+  !> the tests
+  subroutine setUp( this )
+
+    implicit none
+
+    class(jedi_lfric_datetime_test_type), intent(inout) :: this
+
+    ! This section should create and initialise anything needed for the test
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The tearDown subroutine is optional and called after the test.
+  !> It is used to destroy any types / data previously created by setUp()
+  subroutine tearDown( this )
+
+
+    implicit none
+
+    class(jedi_lfric_datetime_test_type), intent(inout) :: this
+
+    ! This section should destroy any previously created types / data
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! pfUnit will run each subroutine preceded by the @test line
+  @test
+  !> Test the emulated jedi_datetime type
+  subroutine jedi_lfric_datetime_test( this )
+
+    use jedi_lfric_datetime_mod, only : jedi_datetime_type
+
+    implicit none
+
+    class(jedi_lfric_datetime_test_type), intent(inout) :: this
+
+    type(jedi_datetime_type) :: jedi_datetime
+    type(jedi_datetime_type) :: jedi_datetime_2
+    type(jedi_datetime_type) :: jedi_datetime_3
+
+    integer(i_timestep)      :: YYYYMMDD, hhmmss
+    integer(i_timestep)      :: year, month, day
+    integer(i_timestep)      :: hour, minute, second
+
+    character(str_def)       :: iso_datetime, returned_iso_datetime
+
+    integer(i_timestep) :: date, returned_date
+    integer(i_timestep) :: time, returned_time
+    logical(l_def)      :: is_less_than
+    logical(l_def)      :: is_greater_than
+
+    date = 2460040
+    time = 58770
+
+    ! Test init with YYYYMMDD and hhmmss
+    YYYYMMDD = 20230405
+    hhmmss   = 161930
+
+    call jedi_datetime%init( YYYYMMDD, hhmmss )
+    call jedi_datetime%get_date( returned_date )
+    @assertEqual( date, returned_date )
+    call jedi_datetime%get_time( returned_time )
+    @assertEqual( time, returned_time )
+
+    ! Test init with year, month, day, hour, minute, second
+    year   = 2023
+    month  = 04
+    day    = 05
+    hour   = 16
+    minute = 19
+    second = 30
+
+    call jedi_datetime%init( year, month, day, hour, minute, second )
+    call jedi_datetime%get_date( returned_date )
+    @assertEqual( date, returned_date )
+    call jedi_datetime%get_time( returned_time )
+    @assertEqual( time, returned_time )
+
+    ! Test init with iso datetime string
+    iso_datetime = '2023-04-05T16:19:30Z'
+    call jedi_datetime_2%init( iso_datetime )
+    call jedi_datetime_2%get_date( returned_date )
+    @assertEqual( date, returned_date )
+    call jedi_datetime_2%get_time( returned_time )
+    @assertEqual( time, returned_time )
+
+    ! Test init from another jedi_datetime instance
+    jedi_datetime_3 = jedi_datetime_2
+    call jedi_datetime_3%get_date( returned_date )
+    @assertEqual( date, returned_date )
+    call jedi_datetime_3%get_time( returned_time )
+    @assertEqual( time, returned_time )
+
+    ! Test adding negative amount of seconds
+    call jedi_datetime_2%add_seconds( -1 )
+    call jedi_datetime_2%get_time( returned_time )
+    @assertEqual( time - 1, returned_time )
+
+    ! Test adding seconds
+    call jedi_datetime_2%add_seconds( 2 )
+    call jedi_datetime_2%get_time( returned_time )
+    @assertEqual( time + 1, returned_time )
+
+    ! Test adding seconds (over a day)
+    call jedi_datetime_3%add_seconds( 86401 )
+    call jedi_datetime_3%get_date( returned_date )
+    @assertEqual( date + 1, returned_date )
+    call jedi_datetime_3%get_time( returned_time )
+    @assertEqual( time + 1, returned_time )
+
+    ! Test removing seconds (over a day)
+    call jedi_datetime_3%add_seconds( -172801 )
+    call jedi_datetime_3%get_date( returned_date )
+    @assertEqual( date - 1, returned_date )
+    call jedi_datetime_3%get_time( returned_time )
+    @assertEqual( time, returned_time )
+
+    ! Test is_greater_than (datetime_2 is greater than datetime)
+    is_greater_than = jedi_datetime_2 > jedi_datetime
+    @assertEqual( .true., is_greater_than )
+    is_greater_than = jedi_datetime > jedi_datetime_2
+    @assertEqual( .false., is_greater_than )
+
+    ! Test is_less_than (datetime is less than datetime_2)
+    is_less_than =  jedi_datetime < jedi_datetime_2
+    @assertEqual( .true., is_less_than )
+    is_less_than =  jedi_datetime_2 < jedi_datetime
+    @assertEqual( .false., is_less_than )
+
+    ! update datetime_3 so both have the same datetime
+    jedi_datetime_3 = jedi_datetime_2
+    is_greater_than = jedi_datetime_3 > jedi_datetime_2
+    @assertEqual( .false., is_greater_than )
+    is_less_than =  jedi_datetime_3 < jedi_datetime_2
+    @assertEqual( .false., is_less_than )
+
+    ! Test getting iso string back
+    call jedi_datetime_2%to_string( returned_iso_datetime )
+    @assertEqual( '2023-04-05 16:19:31', returned_iso_datetime )
+
+  end subroutine jedi_lfric_datetime_test
+
+end module jedi_lfric_datetime_mod_test

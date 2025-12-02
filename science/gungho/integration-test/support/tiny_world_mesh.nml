@@ -1,0 +1,20 @@
+! C3 mesh used in integration tests.
+!
+&mesh
+  mesh_file_prefix = 'tiny_world'
+  geometry         = 'spherical'
+  topology         = 'periodic'
+  n_meshes         = 1
+  mesh_names       = 'tiny'
+!  mesh_maps        =
+  partition_mesh   = .false.
+  coord_sys        = 'll'
+  rotate_mesh      = .false.
+/
+
+&cubedsphere_mesh
+  edge_cells          = 3
+  smooth_passes       = 0
+  equatorial_latitude = 0.0
+/
+

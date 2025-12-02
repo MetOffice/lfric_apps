@@ -1,0 +1,294 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the tracer 1D FFSL flux computation in the horizontal
+
+module ffsl_flux_xy_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+
+  public :: test_all
+
+contains
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use ffsl_flux_xy_kernel_mod,  only: ffsl_flux_xy_code
+    use transport_enumerated_types_mod, only: monotone_none
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
+    real(kind=r_tran)            :: answer, use_tol
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: ndf_w3_2d = 1
+    integer(kind=i_def), parameter :: ndf_w2 = 4
+    integer(kind=i_def), parameter :: stencil_max = 5
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers*(2*stencil_max-1)
+    integer(kind=i_def), parameter :: undf_w3_2d = ndf_w3*nlayers
+    integer(kind=i_def), parameter :: order = 2
+    real(kind=r_tran),   parameter :: min_val = 0.0_r_tran
+    integer(kind=i_def), parameter :: ndep = 2*stencil_max-1
+    integer(kind=i_def), parameter :: ndf_depk = 4
+    integer(kind=i_def), parameter :: ndep_half = (ndep - 1) / 2
+    integer(kind=i_def), parameter :: undf_depk = ndf_depk*ndep
+
+    integer(kind=i_def), dimension(ndf_w3)               :: map_w3
+    integer(kind=i_def), dimension(ndf_w3_2d)            :: map_w3_2d
+    integer(kind=i_def), dimension(ndf_w2)               :: map_w2
+    integer(kind=i_def), dimension(ndf_depk)             :: map_depk
+    integer(kind=i_def), dimension(4)                    :: stencil_sizes
+    integer(kind=i_def), dimension(ndf_w3,stencil_max,4) :: stencil_map
+
+    real(kind=r_tran),   dimension(undf_w3)    :: field_for_x
+    real(kind=r_tran),   dimension(undf_w3)    :: field_for_y
+    real(kind=r_tran),   dimension(undf_w2)    :: dep_pts
+    real(kind=r_tran),   dimension(undf_w2)    :: flux
+    real(kind=r_tran),   dimension(undf_w3)    :: dry_mass_for_x
+    real(kind=r_tran),   dimension(undf_w3)    :: dry_mass_for_y
+    real(kind=r_tran),   dimension(undf_w2)    :: frac_dry_flux
+    integer(kind=i_def), dimension(undf_w3_2d) :: face_selector_ew
+    integer(kind=i_def), dimension(undf_w3_2d) :: face_selector_ns
+    integer(kind=i_def), dimension(undf_depk)  :: dep_lowest_k
+    integer(kind=i_def), dimension(undf_depk)  :: dep_highest_k
+
+    real(kind=r_tran)   :: dt
+    integer(kind=i_def) :: monotone
+
+    ! Set up maps
+    stencil_sizes(:) = stencil_max
+    stencil_map(:,:,:) = reshape(                                              &
+        (/ 5, 4, 3, 2, 1,    5, 4, 3, 2, 1,                                    &
+           5, 6, 7, 8, 9,    5, 6, 7, 8, 9 /), [1, stencil_max, 4] )
+    map_w2(:) = (/ 1, 2, 3, 4 /)
+    map_w3(1) = 5
+    map_w3_2d(1) = 1
+    map_depk(:) = (/ 1, 10, 19, 28 /)
+
+    ! Set no monotonicity
+    monotone = monotone_none
+
+    ! Set up field to have quadratic profile
+    field_for_x(:) = (/ 17.0_r_tran, 10.0_r_tran, 5.0_r_tran, &
+                        2.0_r_tran,  1.0_r_tran,  2.0_r_tran, &
+                        5.0_r_tran,  10.0_r_tran, 17.0_r_tran /)
+
+    field_for_y(:) = (/ 17.0_r_tran, 10.0_r_tran, 5.0_r_tran, &
+                        2.0_r_tran,  1.0_r_tran,  2.0_r_tran, &
+                        5.0_r_tran,  10.0_r_tran, 17.0_r_tran /)
+
+    ! Initialise flux to zero before each test
+    flux(:) = 0.0_r_tran
+
+    face_selector_ew(:) = 2
+    face_selector_ns(:) = 2
+
+    ! Dry density and volume
+    dry_mass_for_x(:) = 3.0_r_tran
+    dry_mass_for_y(:) = 3.0_r_tran
+
+    ! Test with integer departure distance
+    dep_pts(:) = 1.0_r_tran
+    frac_dry_flux(:) = 0.0_r_tran
+    dt = 1.0_r_tran
+
+    ! Set up departure point indices
+    dep_lowest_k(:) = 0  ! Default is to not include any layers
+    dep_highest_k(:) = -1  ! Default is to not include any layers
+    dep_highest_k(map_depk(1) + ndep_half - 1) = 0
+    dep_highest_k(map_depk(2) + ndep_half) = 0
+    dep_highest_k(map_depk(3) + ndep_half) = 0
+    dep_highest_k(map_depk(4) + ndep_half + 1) = 0
+
+    call ffsl_flux_xy_code( nlayers,          &
+                            flux,             &
+                            field_for_x,      &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dry_mass_for_x,   &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            field_for_y,      &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dry_mass_for_y,   &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dep_pts,          &
+                            frac_dry_flux,    &
+                            dep_lowest_k,     &
+                            dep_highest_k,    &
+                            face_selector_ew, &
+                            face_selector_ns, &
+                            order,            &
+                            monotone,         &
+                            min_val,          &
+                            ndep,             &
+                            dt,               &
+                            ndf_w2,           &
+                            undf_w2,          &
+                            map_w2,           &
+                            ndf_w3,           &
+                            undf_w3,          &
+                            map_w3,           &
+                            ndf_depk,         &
+                            undf_depk,        &
+                            map_depk,         &
+                            ndf_w3_2d,        &
+                            undf_w3_2d,       &
+                            map_w3_2d )
+    ! Get correct tolerance
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing( maxval( flux(1:4) ) )
+    end if
+    answer = 6.0_r_tran
+    @assertEqual(answer, flux(1), use_tol)
+    answer = 3.0_r_tran
+    @assertEqual(answer, flux(2), use_tol)
+    answer = 3.0_r_tran
+    @assertEqual(answer, flux(3), use_tol)
+    answer = 6.0_r_tran
+    @assertEqual(answer, flux(4), use_tol)
+
+    ! Test with positive distance
+    dep_pts(:) = 0.4_r_tran
+    frac_dry_flux(:) = 1.2_r_tran
+    dt = 1.0_r_tran
+    flux(:) = 0.0_r_tran
+
+    ! Set up departure point indices
+    dep_lowest_k(:) = 0  ! Default is to not include any layers
+    dep_highest_k(:) = -1  ! Default is to not include any layers
+
+    call ffsl_flux_xy_code( nlayers,          &
+                            flux,             &
+                            field_for_x,      &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dry_mass_for_x,   &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            field_for_y,      &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dry_mass_for_y,   &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dep_pts,          &
+                            frac_dry_flux,    &
+                            dep_lowest_k,     &
+                            dep_highest_k,    &
+                            face_selector_ew, &
+                            face_selector_ns, &
+                            order,            &
+                            monotone,         &
+                            min_val,          &
+                            ndep,             &
+                            dt,               &
+                            ndf_w2,           &
+                            undf_w2,          &
+                            map_w2,           &
+                            ndf_w3,           &
+                            undf_w3,          &
+                            map_w3,           &
+                            ndf_depk,         &
+                            undf_depk,        &
+                            map_depk,         &
+                            ndf_w3_2d,        &
+                            undf_w3_2d,       &
+                            map_w3_2d )
+    answer = 1.704_r_tran
+    @assertEqual(answer, flux(1), use_tol)
+    answer = 1.224_r_tran
+    @assertEqual(answer, flux(2), use_tol)
+    answer = 1.224_r_tran
+    @assertEqual(answer, flux(3), use_tol)
+    answer = 1.704_r_tran
+    @assertEqual(answer, flux(4), use_tol)
+
+    ! Test with negative distance
+    dep_pts(:) = -0.4_r_tran
+    frac_dry_flux(:) = -1.2_r_tran
+    dt = 1.0_r_tran
+    flux(:) = 0.0_r_tran
+
+    ! Set up departure point indices
+    dep_lowest_k(:) = 0  ! Default is to not include any layers
+    dep_highest_k(:) = -1  ! Default is to not include any layers
+
+    call ffsl_flux_xy_code( nlayers,          &
+                            flux,             &
+                            field_for_x,      &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dry_mass_for_x,   &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            field_for_y,      &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dry_mass_for_y,   &
+                            stencil_sizes,    &
+                            stencil_max,      &
+                            stencil_map,      &
+                            dep_pts,          &
+                            frac_dry_flux,    &
+                            dep_lowest_k,     &
+                            dep_highest_k,    &
+                            face_selector_ew, &
+                            face_selector_ns, &
+                            order,            &
+                            monotone,         &
+                            min_val,          &
+                            ndep,             &
+                            dt,               &
+                            ndf_w2,           &
+                            undf_w2,          &
+                            map_w2,           &
+                            ndf_w3,           &
+                            undf_w3,          &
+                            map_w3,           &
+                            ndf_depk,         &
+                            undf_depk,        &
+                            map_depk,         &
+                            ndf_w3_2d,        &
+                            undf_w3_2d,       &
+                            map_w3_2d )
+    answer = -1.224_r_tran
+    @assertEqual(answer, flux(1), use_tol)
+    answer = -1.704_r_tran
+    @assertEqual(answer, flux(2), use_tol)
+    answer = -1.704_r_tran
+    @assertEqual(answer, flux(3), use_tol)
+    answer = -1.224_r_tran
+    @assertEqual(answer, flux(4), use_tol)
+
+  end subroutine test_all
+
+end module ffsl_flux_xy_kernel_mod_test

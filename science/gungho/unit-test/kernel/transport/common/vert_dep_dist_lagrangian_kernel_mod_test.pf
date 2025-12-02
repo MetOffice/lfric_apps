@@ -1,0 +1,153 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module vert_dep_dist_lagrangian_kernel_mod_test
+
+  use funit
+  use constants_mod,      only : i_def, r_def, r_tran, r_second
+
+  implicit none
+
+  private
+  public :: test_all
+
+  integer(i_def), parameter :: n_dep_pt_iterations = 3
+
+  real(r_second), parameter :: dt  = 1.0_r_second
+
+contains
+
+  @Test
+  subroutine test_all( )
+
+    use flux_direction_mod,                  only : x_direction
+    use departure_points_config_mod,         only : vertical_method_trapezoidal, &
+                                                    vertical_limit_none
+    use vert_dep_dist_lagrangian_kernel_mod, only : vert_dep_dist_lagrangian_code
+
+    implicit none
+
+    real(kind=r_tran), parameter   :: tol    = 1.0e-6_r_tran
+    real(kind=r_tran), allocatable :: u_field(:), dep_pts(:), heights(:), cfl(:)
+    integer(kind=i_def)            :: nlayers
+    integer(kind=i_def)            :: ndf_w2
+    integer(kind=i_def)            :: undf_w2
+    integer(kind=i_def)            :: map_w2(6)
+    integer(kind=i_def)            :: ndf_w2v
+    integer(kind=i_def)            :: undf_w2v
+    integer(kind=i_def)            :: map_w2v(6)
+
+    nlayers = 5
+    undf_w2 = 26
+    ndf_w2 = 6
+    map_w2 = (/ 1,6,11,16,21,22 /)
+    undf_w2v = 6
+    ndf_w2v = 2
+    map_w2v = (/ 1,2,3,4,5,6 /)
+
+    allocate(u_field(1:undf_w2v))
+    allocate(dep_pts(1:undf_w2v))
+    allocate(heights(1:undf_w2))
+    allocate(cfl(1:undf_w2v))
+
+    ! Set up uniform vertical grid
+    heights(:) = 0.0_r_def
+    heights(22) = 1.0_r_def
+    heights(23) = 2.0_r_def
+    heights(24) = 3.0_r_def
+    heights(25) = 4.0_r_def
+    heights(26) = 5.0_r_def
+
+    ! Assume a constant wind field with departure distances less than one.
+    u_field(1) = 0.0_r_tran
+    u_field(2) = 0.8_r_tran
+    u_field(3) = 0.8_r_tran
+    u_field(4) = 0.8_r_tran
+    u_field(5) = 0.8_r_tran
+    u_field(6) = 0.0_r_tran
+
+    ! Initialise dep_pts and CFL to zero
+    dep_pts(:)  = 0.0_r_tran
+    cfl(:)  = 0.0_r_tran
+
+    call vert_dep_dist_lagrangian_code( nlayers,                     &
+                                        dep_pts,                     &
+                                        cfl,                         &
+                                        u_field,                     &
+                                        u_field,                     &
+                                        heights,                     &
+                                        n_dep_pt_iterations,         &
+                                        vertical_method_trapezoidal, &
+                                        vertical_limit_none,         &
+                                        real(dt, r_tran),            &
+                                        ndf_w2v,                     &
+                                        undf_w2v,                    &
+                                        map_w2v,                     &
+                                        ndf_w2,                      &
+                                        undf_w2,                     &
+                                        map_w2 )
+
+    @assertEqual( 0.0_r_tran, dep_pts(1), tol)
+    @assertEqual( 0.5568_r_tran, dep_pts(2), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(3), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(4), tol)
+    @assertEqual( 0.8_r_tran, dep_pts(5), tol)
+    @assertEqual( 0.0_r_tran, dep_pts(6), tol)
+
+    @assertEqual( 0.0_r_tran, cfl(1), tol)
+    @assertEqual( 0.5568_r_tran, cfl(2), tol)
+    @assertEqual( 0.8_r_tran, cfl(3), tol)
+    @assertEqual( 0.8_r_tran, cfl(4), tol)
+    @assertEqual( 0.8_r_tran, cfl(5), tol)
+    @assertEqual( 0.0_r_tran, cfl(6), tol)
+
+    ! Assume a varying wind field with departure distances greater than one.
+    u_field(1) = 0.0_r_tran
+    u_field(2) = 0.8_r_tran
+    u_field(3) = 1.6_r_tran
+    u_field(4) = 1.6_r_tran
+    u_field(5) = 0.8_r_tran
+    u_field(6) = 0.0_r_tran
+
+    call vert_dep_dist_lagrangian_code( nlayers,                     &
+                                        dep_pts,                     &
+                                        cfl,                         &
+                                        u_field,                     &
+                                        u_field,                     &
+                                        heights,                     &
+                                        n_dep_pt_iterations,         &
+                                        vertical_method_trapezoidal, &
+                                        vertical_limit_none,         &
+                                        real(dt, r_tran),            &
+                                        ndf_w2v,                     &
+                                        undf_w2v,                    &
+                                        map_w2v,                     &
+                                        ndf_w2,                      &
+                                        undf_w2,                     &
+                                        map_w2 )
+
+    @assertEqual( 0.0_r_tran, dep_pts(1), tol)
+    @assertEqual( 0.5568_r_tran, dep_pts(2), tol)
+    @assertEqual( 1.1136_r_tran, dep_pts(3), tol)
+    @assertEqual( 1.4176_r_tran, dep_pts(4), tol)
+    @assertEqual( 1.2_r_tran, dep_pts(5), tol)
+    @assertEqual( 0.0_r_tran, dep_pts(6), tol)
+
+    @assertEqual( 0.0_r_tran, cfl(1), tol)
+    @assertEqual( 0.5568_r_tran, cfl(2), tol)
+    @assertEqual( 1.1136_r_tran, cfl(3), tol)
+    @assertEqual( 1.4176_r_tran, cfl(4), tol)
+    @assertEqual( 1.2_r_tran, cfl(5), tol)
+    @assertEqual( 0.0_r_tran, cfl(6), tol)
+
+    deallocate(u_field)
+    deallocate(dep_pts)
+    deallocate(heights)
+    deallocate(cfl)
+
+  end subroutine test_all
+
+end module vert_dep_dist_lagrangian_kernel_mod_test

@@ -1,0 +1,38 @@
+{% do LOG.debug("Entered site/nci/common/suite_config_lfricinputs.cylc") %}
+
+    [[LFRICINPUTS_BASE]]
+        execution retry delays = 2*PT1M
+        [[[environment]]]
+            ROSE_ORIG_HOST = {{ROSE_ORIG_HOST}}
+
+{% for tasks in [1, 2, 6, 12, 18, 24] %}
+    [[NCI_GADI_{{tasks}}_TASKS]]
+        [[[directives]]]
+            -l ncpus={{tasks}}
+    {% if tasks > 20 %}
+            -l mem=96GB
+    {% elif tasks > 17 %}
+            -l mem=64GB
+    {% endif %}
+        [[[environment]]]
+            TOTAL_RANKS = {{tasks}}
+            XIOS_SERVER_MODE=False
+{% endfor %}
+
+    [[NCI_GADI_RUN_TASKS]]
+        inherit=NCI_GADI_1_TASKS
+
+    [[NCI_GADI_NORMAL_QUEUE]]
+
+    [[ROSE_ANA_GADI]]
+        pre-script = """
+                     module use /g/data/access/ngm/modules
+                     module use /g/data/access/projects/access/modules
+                     module use /g/data/hr22/modulefiles
+                     module load rose-picker
+                     module load analysis3/21.10
+                     module load ants/0.18.0
+                     module list 2>&1
+                     """
+
+{% do LOG.debug("Finished in site/nci/common/suite_config_lfricinputs.cylc") %}

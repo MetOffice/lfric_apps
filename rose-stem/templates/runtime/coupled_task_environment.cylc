@@ -1,0 +1,73 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/coupled_task_environment.cylc") %}
+
+{# nemo/ocean environment variables #}
+
+{% set modelbasis = task_values["expt_basis"]~",0" %}
+
+{% if task_values["ocean_nodes"] > 0 %}
+    {% set ocean_ppnu =(task_values["nemo_nproc"]/task_values["ocean_nodes"]/2)|round(0,'ceil')|int %}
+            ROSE_LAUNCHER_PREOPTS_NEMO = -n {{task_values["nemo_nproc"]}} -ppn 128
+{% endif %}
+            OCEAN_SEAICE_TIMESTEPS_PER_DAY = {{task_values["ocean_seaice_timesteps_per_day"]}}
+            OCEAN_SEAICE_SECONDS_PER_TIMESTEP = {{task_values["ocean_seaice_seconds_per_timestep"]}}
+            SECONDS_PER_TIMESTEP = {{86400/task_values["ocean_seaice_seconds_per_timestep"]}}
+            MODELBASIS = {{modelbasis}}
+            CALENDAR = {{task_values["calendar"]}}
+            EXPT_CALENDAR = {{task_values["expt_calendar"]}}
+            OCEANDIR = {{task_values["oceandir"]}}
+            NEMO_IPROC = {{task_values["nemo_iproc"]}}
+            NEMO_JPROC = {{task_values["nemo_jproc"]}}
+            NEMO_NPROC = {{task_values["nemo_nproc"]}}
+            NEMO_VERSION = {{task_values["nemo_version"]}}
+            DATAM = $CYLC_WORKFLOW_SHARE_DIR/data/{{task_values["datam"]}}
+            NEMO_DATA = $CYLC_WORKFLOW_SHARE_DIR/data/{{task_values["nemo_rst"]}}
+            NEMO_RST = $CYLC_WORKFLOW_SHARE_DIR/data/{{task_values["nemo_rst"]}}
+            TASKSTART = $(isodatetime 19790101T0000Z --print-format %Y,%m,%d,%H,%M)
+            TASKEND = $(isodatetime 19790101T0000Z 19790101T0000Z --calendar={{task_values["expt_calendar"]}} --offset='PT{{task_values["expt_resub"]}}' --print-format y,m,d,h,M,s)
+            TASKLENGTH = $(isodatetime 19790101T0000Z 19790101T0000Z --calendar={{task_values["expt_calendar"]}} --offset2='PT{{task_values["expt_resub"]}}' --print-format y,m,d,h,M,s)
+            PREVIOUS_CYCLE =
+            NEMO_RESTART_MULTI =
+            NEMO_START = {{task_values["nemo_start"]}}
+            ICEBERG_RESTART_MULTI =
+            NEMO_ICEBERGS_START = {{task_values["nemo_icebergs_start"]}}
+            SI3_START = {{task_values["si3_start"]}}
+            NEMO_ANCIL_TRIP_NUMBER = {{task_values["nemo_ancil_trip_number"]}}
+
+{# river environment variables #}
+
+            ROSE_LAUNCHER_PREOPTS_RIVER = -n 1 -ppn 1
+            GSWP2_INSTALL_DIR = {{task_values["gswp_install_dir"]}}
+            RIVERS_ONLY_DRIVE_TASK = {{task_values["rivers_only_drive_task"]}}
+            RIVERS_ONLY_INSTALL_DIR = {{task_values["rivers_only_install_dir"]}}
+            RIVER_NPROC = {{task_values["river_nproc"]}}
+            RIVER_START =
+            RIV_NUMBER_ANCILLARY = {{task_values["riv_number_ancillary"]}}
+
+{# other environment variables #}
+
+            ROSE_LAUNCHER_PREOPTS_LFRIC = -n {{task_values["mpi_parts"]}} -ppn 24
+            CONFIG_NL_PATH_LFRIC  = configuration.nml
+            DIAG_MEAN_PERIOD = {{task_values["diag_mean_period"]}}
+            LFRIC_EXEC = $BIN_DIR/{{task_ns.application}}
+            LFRIC_LINK = {{task_ns.application}}
+            LFRIC_NPROC = 1
+            OCEAN_MAKE_DIR = {{task_values["ocean_make_dir"]}}
+            OCEAN_EXEC = $OCEAN_MAKE_DIR/build-ocean/bin/nemo-si3.exe
+            RIVER_MAKE_DIR = {{task_values["river_make_dir"]}}
+            RIVER_EXEC = $RIVER_MAKE_DIR/build/bin/river.exe
+            RUNID = {{task_family}}
+            UM_ANCIL_TRIP_SEQ_DIR = task_values["um_ancil_trip_seq_dir"]
+            UM_ANCIL_TRIP_STOR_DIR = task_values["um_ancil_trip_stor_dir"]
+            UM_ANCIL_TRIP_NUMBER = task_values["um_ancil_trip_number"]
+            XIOS_NPROC = {{task_values["xios_server_ranks"]}}
+    {% if task_values["xios_server_ranks"] > 0 %}
+        {% set xios_ppnu = (task_values["xios_server_ranks"]/task_values["xios_nodes"]/2)|round(0,'ceil')|int %}
+            ROSE_LAUNCHER_PREOPTS_XIOS  = -n {{task_values["xios_server_ranks"]}} -ppn {{task_values["xios_server_ranks"]}}
+    {% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/coupled_task_environment.cylc") %}

@@ -1,0 +1,163 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the creation of boundary masks
+module create_boundary_mask_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: create_boundary_mask_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type create_boundary_mask_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(create_boundary_mask_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(create_boundary_mask_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test( )
+  subroutine test_all( this )
+
+    use create_boundary_mask_kernel_mod, only: create_boundary_mask_code
+
+    implicit none
+
+    class(create_boundary_mask_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-12_r_def
+
+    ! Mesh layers, horiztonal faces per cell, stencil
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: nfaces = 4
+    integer(kind=i_def), parameter :: stencil_size = 1 + nfaces
+
+    ! Spaces
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: ndf_w2 = 6
+    integer(kind=i_def), parameter :: undf_w3 = (ndf_w3*nlayers)*stencil_size
+    integer(kind=i_def), parameter :: undf_w2 = ((ndf_w2-1)*nlayers+1)*stencil_size
+
+    ! Maps
+    integer(kind=i_def), dimension(ndf_w3)               :: map_w3
+    integer(kind=i_def), dimension(ndf_w2)               :: map_w2
+    integer(kind=i_def), dimension(ndf_w3, stencil_size) :: stencil_map
+
+    ! Fields
+    real(kind=r_def), dimension(undf_w3) :: onion_layers
+    real(kind=r_def), dimension(undf_w2) :: solver_boundary_mask
+
+    ! Scalars
+    real(kind=r_def), parameter :: rim_depth = 6
+    real(kind=r_def), parameter :: depth_to_solver_boundary = 3
+    real(kind=r_def)            :: boundary_inner_layer
+
+    integer(kind=i_def) :: df
+
+    map_w3 = (/ 1_i_def /)
+
+    do df = 1, nfaces
+      map_w2(df) = 1_i_def + (df-1)*nlayers
+    end do
+    map_w2(5) = 1_i_def + 4*nlayers
+    map_w2(6) = map_w2(5)+1_i_def
+
+    stencil_map(1,:) = [ 1, 2, 3, 4, 5 ]
+
+    ! Set up the fields values mimic part of the onion_layers
+    !            ---------
+    !            |       |
+    !            |   5   |      CROSS-Stencil: Numbers = Array Index
+    !            |       |
+    ! ++++++++++++++ X +++------
+    !      |     |       +     |      O = Inactive DoFs
+    !      |  2  O   1   X  4  |      X = Active DoFs on Solver Boundary
+    !      |     |       +     |      + = Solver Boundary
+    !      --------- O --+------
+    !            |       +
+    !            |   3   +
+    !            |       +
+    !            --------+
+    !                    +
+    !                    +
+    !
+    !            ---------
+    !            |       |
+    !            |   4   |         Numbers = Onion Layers
+    !            |       |
+    ! ++++++++++++++++++++------
+    !      |     |       +     |
+    !      |  3  |   3   +  4  |
+    !      |     |       +     |      + = Solver Boundary
+    !      --------------+------
+    !            |       +
+    !            |   3   +
+    !            |       +
+    !            --------+
+    !                    +
+    !                    +
+
+    boundary_inner_layer = rim_depth - depth_to_solver_boundary
+    onion_layers(1) = boundary_inner_layer
+    do df = 2,3
+      onion_layers(df) = boundary_inner_layer
+    end do
+    do df = 4,5
+      onion_layers(df) = boundary_inner_layer + 1.0_r_def
+    end do
+    solver_boundary_mask(:) = 0.0_r_def
+
+    ! Compute solver_boundary_mask
+    call create_boundary_mask_code(nlayers,              &
+                                   solver_boundary_mask, &
+                                   onion_layers,         &
+                                   stencil_size,         &
+                                   stencil_map,          &
+                                   boundary_inner_layer, &
+                                   ndf_w2,               &
+                                   undf_w2,              &
+                                   map_w2,               &
+                                   ndf_w3,               &
+                                   undf_w3,              &
+                                   map_w3)
+
+    @assertEqual( solver_boundary_mask(map_w2(1)), 0.0_r_def, tol )
+    @assertEqual( solver_boundary_mask(map_w2(2)), 0.0_r_def, tol )
+    @assertEqual( solver_boundary_mask(map_w2(3)), 1.0_r_def, tol )
+    @assertEqual( solver_boundary_mask(map_w2(4)), 1.0_r_def, tol )
+    @assertEqual( solver_boundary_mask(map_w2(5)), 0.0_r_def, tol )
+    @assertEqual( solver_boundary_mask(map_w2(6)), 0.0_r_def, tol )
+
+  end subroutine test_all
+
+end module create_boundary_mask_kernel_mod_test

@@ -1,0 +1,120 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module vert_dep_dist_ffsl_kernel_mod_test
+
+  use funit
+  use constants_mod,      only : i_def, r_tran
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use vert_dep_dist_ffsl_kernel_mod, only : vert_dep_dist_ffsl_code
+
+    implicit none
+
+    real(kind=r_tran),   parameter   :: tol = 1.0e-6_r_tran
+    real(kind=r_tran),   parameter   :: area = 4000.0_r_tran
+
+    integer(kind=i_def)              :: nlayers
+    integer(kind=i_def)              :: ndf_w2v, ndf_w3, k
+    integer(kind=i_def)              :: undf_w2v, undf_w3
+    integer(kind=i_def), allocatable :: map_w2v(:)
+    integer(kind=i_def), allocatable :: map_w3(:)
+    real(kind=r_tran),   allocatable :: wind(:)
+    real(kind=r_tran),   allocatable :: height_w2v(:)
+    real(kind=r_tran),   allocatable :: detj_at_w3(:)
+    real(kind=r_tran),   allocatable :: dep_pts_z(:)
+    real(kind=r_tran),   allocatable :: frac_wind(:)
+    real(kind=r_tran),   allocatable :: true_dep_pts_answer(:)
+    real(kind=r_tran),   allocatable :: true_frac_wind_answer(:)
+
+    ! Set integer values to describe mesh (single column)
+    nlayers = 9
+    undf_w2v = nlayers + 1
+    ndf_w2v = 2
+    undf_w3 = nlayers
+    ndf_w3 = 1
+
+    allocate(map_w2v(ndf_w2v))
+    allocate(map_w3(ndf_w3))
+    allocate(wind(undf_w2v))
+    allocate(height_w2v(undf_w2v))
+    allocate(detj_at_w3(undf_w3))
+    allocate(dep_pts_z(undf_w2v))
+    allocate(frac_wind(undf_w2v))
+    allocate(true_dep_pts_answer(undf_w2v))
+    allocate(true_frac_wind_answer(undf_w2v))
+
+    ! DoF maps
+    map_w3 = (/ 1 /)
+    map_w2v = (/ 1, 2 /)
+
+    ! Set up non-uniform vertical grid
+    height_w2v = (/ 0.0_r_tran, 50.0_r_tran, 160.0_r_tran, 320.0_r_tran,       &
+                   600.0_r_tran, 1000.0_r_tran, 1500.0_r_tran, 2000.0_r_tran,  &
+                   2750.0_r_tran, 3000.0_r_tran /)
+    ! Computed by considering the mass flow to match the departure points
+    wind = (/ 0.0_r_tran, 160000.0_r_tran, 480000.0_r_tran,                     &
+              256000.0_r_tran, -800000.0_r_tran, -2400000.0_r_tran,            &
+              -5100000.0_r_tran, -3500000.0_r_tran, -600000.0_r_tran,          &
+              0.0_r_tran /)
+
+    ! Calculate this as area*height_difference
+    do k = 1, undf_w3
+      detj_at_w3(k) = area*(height_w2v(k+1) - height_w2v(k))
+    end do
+
+    true_dep_pts_answer = (/ 0.0_r_tran, 0.8_r_tran, 1.2_r_tran,               &
+                            0.4_r_tran, -0.5_r_tran, -1.2_r_tran,              &
+                            -2.1_r_tran, -1.5_r_tran, -0.6_r_tran, 0.0_r_tran /)
+    true_frac_wind_answer = (/ 0.0_r_tran, 160000.0_r_tran, 40000.0_r_tran,    &
+                               256000.0_r_tran, -800000.0_r_tran,              &
+                              -400000.0_r_tran, -100000.0_r_tran,              &
+                              -500000.0_r_tran, -600000.0_r_tran, 0.0_r_tran /)
+
+
+    ! Set initial values of output fields to be zero
+    dep_pts_z(:) = 0.0_r_tran
+    frac_wind(:) = 0.0_r_tran
+
+    call vert_dep_dist_ffsl_code( nlayers,             &
+                                  dep_pts_z,           &
+                                  frac_wind,           &
+                                  wind,                &
+                                  detj_at_w3,          &
+                                  ndf_w2v,             &
+                                  undf_w2v,            &
+                                  map_w2v,             &
+                                  ndf_w3,              &
+                                  undf_w3,             &
+                                  map_w3 )
+
+    ! Check values!
+    @assertEqual( dep_pts_z, true_dep_pts_answer, tol )
+    @assertEqual( frac_wind, true_frac_wind_answer, tol )
+
+    deallocate(map_w2v)
+    deallocate(map_w3)
+    deallocate(frac_wind)
+    deallocate(dep_pts_z)
+    deallocate(height_w2v)
+    deallocate(detj_at_w3)
+    deallocate(wind)
+    deallocate(true_dep_pts_answer)
+    deallocate(true_frac_wind_answer)
+
+  end subroutine test_all
+
+end module vert_dep_dist_ffsl_kernel_mod_test

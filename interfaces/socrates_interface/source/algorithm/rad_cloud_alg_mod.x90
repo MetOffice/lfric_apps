@@ -1,0 +1,219 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Set up cloud fields for Socrates & COSP
+
+module rad_cloud_alg_mod
+
+use constants_mod,                 only: r_def, i_def, l_def
+use empty_data_mod,                only: empty_real_data, empty_integer_data
+use field_collection_mod,          only: field_collection_type
+use field_mod,                     only: field_type
+use fs_continuity_mod,             only: W3, Wtheta
+use function_space_collection_mod, only: function_space_collection
+use function_space_mod,            only: function_space_type
+use sci_geometric_constants_mod,   only: get_latitude_fv, get_longitude_fv
+use integer_field_mod,             only: integer_field_type
+use mesh_mod,                      only: mesh_type
+
+use rand_seed_kernel_mod, only: rand_seed_kernel_type
+use set_rad_cloud_kernel_mod, only: set_rad_cloud_kernel_type
+use set_n_cloud_layer_kernel_mod, only: set_n_cloud_layer_kernel_type
+use xios, only: xios_date, xios_get_current_date, &
+                xios_date_get_day_of_year, xios_date_get_second_of_day
+use radiation_config_mod, only: cloud_representation, &
+                                cloud_representation_combined, &
+                                cloud_representation_conv_strat_liq_ice, &
+                                cloud_representation_split
+use cloud_inputs_mod, only: allicetdegc, starticetkelvin
+use science_conversions_mod,   only: zero_degrees_celsius
+use casim_ice_act_kernel_mod, only: casim_ice_act_kernel_type
+use cv_run_mod,              only: l_param_conv
+use microphysics_config_mod, only: microphysics_casim
+
+implicit none
+private
+public :: rad_cloud_alg
+
+contains
+
+!> @param[in,out] rand_seed                Random seed field for cloud generator
+!> @param[in,out] n_cloud_layer            Number of cloud layers for Socrates
+!> @param[in,out] radiative_cloud_fraction Large scale cloud fraction
+!> @param[in,out] radiative_conv_fraction  Convective cloud fraction
+!> @param[in,out] conv_liquid_fraction     Convective liquid cloud fraction
+!> @param[in,out] conv_frozen_fraction     Convective frozen cloud fraction
+!> @param[in,out] conv_liquid_mmr          Convective liquid gridbox MMR
+!> @param[in,out] conv_frozen_mmr          Convective frozen gridbox MMR
+!> @param[in,out] conv_frozen_number       Convective frozen number conc
+!> @param[in]     temperature_in_wth       Temperature field in wth space
+!> @param[in]     theta                    Potential temperature in wth  
+!> @param[in]     cloud_fields             Fields for cloud scheme
+!> @param[in]     convection_fields        Fields for convection scheme
+!> @param[in]     derived_fields           Derived dynamics fields  
+!> @param[in]     rad_this_tstep           Flag for radiation timestep
+!> @param[in]     rad_inc_this_tstep       Flag for radiation increment timestep
+!> @param[in]     cosp_this_tstep          Flag for COSP this timestep
+!> @param[in]     twod_mesh                Current 2d mesh
+subroutine rad_cloud_alg(rand_seed, n_cloud_layer, &
+                         radiative_cloud_fraction, radiative_conv_fraction, &
+                         conv_liquid_fraction, conv_frozen_fraction, &
+                         conv_liquid_mmr, conv_frozen_mmr, &
+                         conv_frozen_number, temperature_in_wth, theta, &
+                         cloud_fields, convection_fields, derived_fields, &
+                         rad_this_tstep, rad_inc_this_tstep, &
+                         cosp_this_tstep, twod_mesh)
+
+  implicit none
+
+  ! Dummy variables
+  type( integer_field_type ), intent(inout) :: rand_seed
+  type( integer_field_type ), intent(inout) :: n_cloud_layer
+  type( field_type ), intent(inout) :: radiative_cloud_fraction
+  type( field_type ), intent(inout) :: radiative_conv_fraction
+  type( field_type ), intent(inout) :: conv_liquid_fraction
+  type( field_type ), intent(inout) :: conv_frozen_fraction
+  type( field_type ), intent(inout) :: conv_liquid_mmr
+  type( field_type ), intent(inout) :: conv_frozen_mmr
+  type( field_type ), intent(inout) :: conv_frozen_number
+  type( field_type ), intent(in) :: temperature_in_wth
+  type( field_type ), intent(in) :: theta
+  type( field_collection_type ), intent(in) :: cloud_fields
+  type( field_collection_type ), intent(in) :: convection_fields
+  type( field_collection_type ), intent(in) :: derived_fields
+  type( mesh_type ), pointer, intent(in) :: twod_mesh
+
+  logical( kind=l_def ), intent(in) :: rad_this_tstep, rad_inc_this_tstep
+  logical( kind=l_def ), intent(in) :: cosp_this_tstep
+
+  ! Unpacked fields from collections
+  type( field_type ), pointer :: area_fraction => null()
+  type( field_type ), pointer :: cca => null()
+  type( field_type ), pointer :: ccw => null()
+  type( field_type ), pointer :: exner_in_wth
+  type( field_type ), pointer :: rho_in_wth
+  ! Internal subroutine variables
+  type( function_space_type ),  pointer :: wtheta_space => null()
+  type( function_space_type ),  pointer :: w3_2d_space => null()
+  type( mesh_type ), pointer :: mesh => null()
+  type( field_type ), pointer :: latitude => null()
+  type( field_type ), pointer :: longitude => null()
+  type( xios_date ) :: datetime
+  integer( i_def ) :: year, day_of_year, second_of_day, number_of_wtheta_layers
+  real( r_def ) :: allicetdegc_def, starticetkelvin_def
+
+  ! Number of unique random seeds per degree latitude
+  integer( i_def ), parameter :: per_deg_lat = 100_i_def
+
+  ! Minimum cloud fraction
+  real(r_def), parameter :: cloud_fraction_min = 0.001_r_def
+
+  mesh => temperature_in_wth%get_mesh()
+  wtheta_space => function_space_collection%get_fs( mesh, 0, 0, Wtheta )
+  w3_2d_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3 )
+
+  if (rad_this_tstep .or. rad_inc_this_tstep .or. cosp_this_tstep) then
+
+    call cloud_fields%get_field('area_fraction', area_fraction)
+    call convection_fields%get_field('cca', cca)
+    call convection_fields%get_field('ccw', ccw)
+
+    ! Initialise radiative cloud fields
+    call rand_seed%initialise( w3_2d_space, name="rand_seed" )
+    call n_cloud_layer%initialise( w3_2d_space, name = "n_cloud_layer" )
+    call radiative_cloud_fraction%initialise( &
+                                  wtheta_space, name="radiative_cloud_fraction")
+    call radiative_conv_fraction%initialise( &
+                                  wtheta_space, name="radiative_conv_fraction")
+    call conv_liquid_fraction%initialise( &
+                                  wtheta_space, name="conv_liquid_fraction")
+    call conv_frozen_fraction%initialise( &
+                                  wtheta_space, name="conv_frozen_fraction")
+    call conv_liquid_mmr%initialise(wtheta_space, name="conv_liquid_mmr")
+    call conv_frozen_mmr%initialise(wtheta_space, name="conv_frozen_mmr")
+    call conv_frozen_number%initialise(wtheta_space, name="conv_frozen_number")
+
+    ! Find current time, latitude and longitude to use for random seed
+    call xios_get_current_date(datetime)
+    year = int( datetime%year, i_def )
+    day_of_year = int( xios_date_get_day_of_year(datetime), i_def )
+    second_of_day = int( xios_date_get_second_of_day(datetime), i_def )
+    latitude  => get_latitude_fv(W3, twod_mesh%get_id())
+    longitude => get_longitude_fv(W3, twod_mesh%get_id())
+
+    ! Generate a unique seed for each gridpoint (actually for each area of the
+    ! globe with a size defined by per_deg_lat) at the given time in seconds.
+    ! ------------------------------------------------------------------------
+    call invoke( rand_seed_kernel_type( &
+                   rand_seed, latitude, longitude, &
+                   year, day_of_year, second_of_day, per_deg_lat ), &
+                 name="setup_random_seed")
+
+    ! Set cloud fields to be used for radiative transfer
+    ! --------------------------------------------------
+    ! Treatment of convective cloud
+    select case (cloud_representation)
+    case ( cloud_representation_combined, &
+           cloud_representation_conv_strat_liq_ice, &
+           cloud_representation_split)
+      allicetdegc_def = real(allicetdegc, r_def)
+      starticetkelvin_def = real(starticetkelvin, r_def)
+      call invoke( set_rad_cloud_kernel_type( &
+                   radiative_cloud_fraction, radiative_conv_fraction, &
+                   conv_liquid_fraction, conv_frozen_fraction, &
+                   conv_liquid_mmr, conv_frozen_mmr, &
+                   area_fraction, cca, ccw, &
+                   temperature_in_wth, allicetdegc_def, starticetkelvin_def, &
+                   zero_degrees_celsius ), &
+                   name="set_rad_cloud" )
+
+      if (microphysics_casim .and. l_param_conv) then
+        call derived_fields%get_field('exner_in_wth', exner_in_wth)
+        call derived_fields%get_field('rho_in_wth', rho_in_wth)
+        call invoke(setval_c(conv_frozen_number, 0.0_r_def), &
+                    casim_ice_act_kernel_type(conv_frozen_mmr, &
+                                              conv_frozen_number, theta, &
+                                              exner_in_wth, rho_in_wth, &
+                                              conv_frozen_fraction) )
+      end if
+
+    case default
+      call invoke( setval_x(radiative_cloud_fraction, area_fraction), &
+                   setval_c(radiative_conv_fraction, 0.0_r_def), &
+                   name="set_rad_cloud_default" )
+    end select
+
+    ! Set the number of cloud layers to the highest cloud layer
+    number_of_wtheta_layers = mesh%get_nlayers()
+    call invoke( set_n_cloud_layer_kernel_type( &
+                 radiative_conv_fraction, &
+                 radiative_cloud_fraction, &
+                 n_cloud_layer, &
+                 cloud_fraction_min), &
+                 name = "set_n_cloud_layer" )
+  else
+    ! Initialise fields with empty data on timesteps where they are unused.
+    call rand_seed%initialise( w3_2d_space, name = &
+        "rand_seed", override_data = empty_integer_data )
+    call n_cloud_layer%initialise( w3_2d_space, name = &
+        "n_cloud_layer", override_data = empty_integer_data )
+    call radiative_cloud_fraction%initialise( wtheta_space, name = &
+        "radiative_cloud_fraction", override_data = empty_real_data )
+    call radiative_conv_fraction%initialise( wtheta_space, name = &
+        "radiative_conv_fraction", override_data = empty_real_data )
+    call conv_liquid_fraction%initialise( wtheta_space, name = &
+        "conv_liquid_fraction", override_data = empty_real_data )
+    call conv_frozen_fraction%initialise( wtheta_space, name = &
+        "conv_frozen_fraction", override_data = empty_real_data )
+    call conv_liquid_mmr%initialise( wtheta_space, name = &
+        "conv_liquid_mmr", override_data = empty_real_data )
+    call conv_frozen_mmr%initialise( wtheta_space, name = &
+        "conv_frozen_mmr", override_data = empty_real_data )
+    call conv_frozen_number%initialise( wtheta_space, name = &
+        "conv_frozen_number", override_data = empty_real_data )
+  end if
+
+end subroutine rad_cloud_alg
+end module rad_cloud_alg_mod

@@ -1,0 +1,154 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief   The tangent linear test for the kinetic energy gradient
+!!         (Taylor remainder convergence).
+!>@details Test whether a section of tangent linear code is tangent linear
+!!         to the corresponding section of nonlinear code, for the kinetic
+!!         energy gradient kernel, using the Taylor remainder convergence test.
+module tl_test_kinetic_energy_gradient_mod
+
+  use constants_mod,                  only: i_def, r_def, str_def
+  use sci_fem_constants_mod,          only: get_qr_fe
+  use sci_geometric_constants_mod,    only: get_coordinates, &
+                                            get_panel_id
+  use fs_continuity_mod,              only: W2
+  use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+  use field_mod,                      only: field_type
+  use driver_modeldb_mod,             only: modeldb_type
+  use field_collection_mod,           only: field_collection_type
+  use function_space_collection_mod,  only: function_space_collection
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use sci_assign_field_random_kernel_mod, only: assign_field_random_kernel_type
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO
+  use mesh_mod,                       only: mesh_type
+  use kinetic_energy_gradient_kernel_mod, &
+                             only: kinetic_energy_gradient_kernel_type
+  use tl_kinetic_energy_gradient_kernel_mod, &
+                             only: tl_kinetic_energy_gradient_kernel_type
+  use tl_test_convergence_rate_check,  only: convergence_rate_check
+
+  implicit none
+
+  private
+  public test_kinetic_energy_gradient
+
+  contains
+
+  !> @brief Test the tangent linear kinetic energy gradient kernel.
+  !> @param[in] modeldb   The working data set for a model run
+  !> @param[in] mesh      The current 3d mesh
+  !> @param[in] twod_mesh The current 2d mesh
+  subroutine test_kinetic_energy_gradient( modeldb, &
+                                           mesh,       &
+                                           twod_mesh )
+    implicit none
+
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(mesh_type), pointer, intent(in) :: twod_mesh
+
+    type(modeldb_type), target, intent(in) :: modeldb
+
+    character(str_def) :: label = "kinetic energy gradient"
+
+    type(field_collection_type ), pointer :: prognostic_fields => null()
+    type(field_collection_type ), pointer :: ls_fields
+
+    type( quadrature_xyoz_type ), pointer :: qr => null()
+    type( field_type ),  pointer :: chi_sph(:) => null()
+    type( field_type ),  pointer :: panel_id => null()
+
+    ! Input
+    type(field_type), pointer :: n_u => null()  ! Nonlinear: x + gamma x'
+    type(field_type), pointer :: ls_u => null() ! Linearisation state: x
+    type(field_type) :: p_u                     ! Perturbed: gamma x'
+
+    ! Output
+    type(field_type) :: n1_rhs_u ! N( x )
+    type(field_type) :: n2_rhs_u ! N( x + gamma x' )
+    type(field_type) :: p_rhs_u  ! L( gamma x' )
+
+    ! Test
+    type(field_type) :: diff     ! N( x + gamma x' ) - N( x ) - L( gamma x' )
+    type(field_type) :: random_u ! x'
+
+    real(r_def) :: norm_diff, norm_diff_prev
+    real(r_def) :: gamma
+
+    integer :: n
+
+    call log_event( "TL Test: " // trim(label), &
+                     LOG_LEVEL_INFO )
+
+    chi_sph => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    qr => get_qr_fe()
+
+    prognostic_fields => modeldb%fields%get_field_collection( &
+                                           "prognostic_fields")
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
+
+    ! Input fields
+    call prognostic_fields%get_field('u', n_u)
+    call ls_fields%get_field('ls_u', ls_u)
+    call p_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+
+    ! Output fields
+    call n1_rhs_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call n2_rhs_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call p_rhs_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+
+    ! Test fields
+    call random_u%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+    call diff%initialise( vector_space = &
+      function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2) )
+
+    ! Taylor Remainder Convergence Test
+    call invoke( setval_C( n1_rhs_u, 0.0_r_def ) )
+    call invoke( kinetic_energy_gradient_kernel_type( n1_rhs_u, ls_u, &
+                                                      chi_sph, panel_id, qr ) )
+    call invoke( assign_field_random_kernel_type( random_u, 1.0_r_def ) )
+
+    gamma = 1.e5_r_def
+    do n=1,2
+      gamma = gamma / 2.0_r_def
+      call invoke( setval_C( n2_rhs_u, 0.0_r_def ),   &
+                   setval_C( p_rhs_u, 0.0_r_def ),    &
+                   a_times_X( p_u, gamma, random_u ), &
+                   setval_X( n_u, ls_u ),             &
+                   inc_X_plus_Y( n_u, p_u ) )
+
+      call invoke( kinetic_energy_gradient_kernel_type( n2_rhs_u, n_u, &
+                                                   chi_sph, panel_id, qr ) )
+      call invoke( tl_kinetic_energy_gradient_kernel_type( p_rhs_u, p_u, ls_u, &
+                                                   chi_sph, panel_id, qr ) )
+
+      call invoke( X_minus_Y( diff, n2_rhs_u, n1_rhs_u ), &
+                   inc_X_minus_Y( diff, p_rhs_u ),        &
+                   X_innerproduct_X( norm_diff, diff ) )
+      norm_diff = sqrt(norm_diff)
+
+      write( log_scratch_space, '(A, E32.12, A, E32.12)' ) &
+             'gamma = ', gamma, ' norm = ', norm_diff
+
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+      if (n == 2) then
+        call convergence_rate_check( norm_diff, norm_diff_prev, label )
+      end if
+
+      norm_diff_prev = norm_diff
+    end do
+
+  end subroutine test_kinetic_energy_gradient
+
+end module tl_test_kinetic_energy_gradient_mod

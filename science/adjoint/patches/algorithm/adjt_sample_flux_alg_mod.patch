@@ -1,0 +1,86 @@
+@@ -14,7 +14,7 @@
+     use fs_continuity_mod, only : w0, w2
+     use constants_mod, only : i_def, r_def
+     use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -27,20 +27,17 @@
+     type(field_type) :: q
+     type(field_type) :: flux_input
+     type(field_type) :: u_input
+-    type(field_type) :: rmultiplicity_input
+-    type(field_type) :: q_input
+     real(kind=r_def) :: flux_inner_prod
+     real(kind=r_def) :: u_inner_prod
+-    real(kind=r_def) :: rmultiplicity_inner_prod
+-    real(kind=r_def) :: q_inner_prod
++    real(kind=r_def) :: flux_sf
++    real(kind=r_def) :: u_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: flux_flux_input_inner_prod
+     real(kind=r_def) :: u_u_input_inner_prod
+-    real(kind=r_def) :: rmultiplicity_rmultiplicity_input_inner_prod
+-    real(kind=r_def) :: q_q_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
+     vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+@@ -50,36 +47,31 @@
+     call q%initialise(vector_space=vector_space_w0_ptr, name='q')
+     call flux_input%initialise(vector_space=vector_space_w2_ptr, name='flux_input')
+     call u_input%initialise(vector_space=vector_space_w2_ptr, name='u_input')
+-    call rmultiplicity_input%initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity_input')
+-    call q_input%initialise(vector_space=vector_space_w0_ptr, name='q_input')
+-    flux_inner_prod = 0.0_r_def
+     u_inner_prod = 0.0_r_def
+-    rmultiplicity_inner_prod = 0.0_r_def
+-    q_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(flux), setval_x(flux_input, flux), setval_random(u), setval_x(u_input, u), &
+-&setval_random(rmultiplicity), setval_x(rmultiplicity_input, rmultiplicity), setval_random(q), setval_x(q_input, q), &
+-&sample_flux_kernel_type(flux, u, rmultiplicity, q), x_innerproduct_x(flux_inner_prod, flux), x_innerproduct_x(u_inner_prod, u), &
+-&x_innerproduct_x(rmultiplicity_inner_prod, rmultiplicity), x_innerproduct_x(q_inner_prod, q))
++&setval_random(rmultiplicity), setval_random(q), &
++&sample_flux_kernel_type(flux, u, rmultiplicity, q), x_innerproduct_x(flux_inner_prod, flux), x_innerproduct_x(u_inner_prod, u))
++    write( log_scratch_space, * ) "adjt_sample_flux_alg inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "flux inner product = ", flux_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "u inner product = ", u_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    u_sf = 1.0_r_def / (u_inner_prod + eps)
++    flux_sf = 1.0_r_def / (flux_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + flux_inner_prod
+-    inner1 = inner1 + u_inner_prod
+-    inner1 = inner1 + rmultiplicity_inner_prod
+-    inner1 = inner1 + q_inner_prod
++    inner1 = inner1 + flux_inner_prod * flux_sf
++    inner1 = inner1 + u_inner_prod * u_sf
++    call invoke( inc_a_times_X( flux_sf, flux ), &
++                 inc_a_times_X( u_sf, u ) )
+     flux_flux_input_inner_prod = 0.0_r_def
+     u_u_input_inner_prod = 0.0_r_def
+-    rmultiplicity_rmultiplicity_input_inner_prod = 0.0_r_def
+-    q_q_input_inner_prod = 0.0_r_def
+-    call invoke(adj_sample_flux_kernel_type(flux, u, rmultiplicity, q), x_innerproduct_y(flux_flux_input_inner_prod, flux, &
+-&flux_input), x_innerproduct_y(u_u_input_inner_prod, u, u_input), x_innerproduct_y(rmultiplicity_rmultiplicity_input_inner_prod, &
+-&rmultiplicity, rmultiplicity_input), x_innerproduct_y(q_q_input_inner_prod, q, q_input))
++    call invoke(adj_sample_flux_kernel_type(flux, u, rmultiplicity, q), &
++&x_innerproduct_y(flux_flux_input_inner_prod, flux, flux_input), x_innerproduct_y(u_u_input_inner_prod, u, u_input))
+     inner2 = 0.0_r_def
+     inner2 = inner2 + flux_flux_input_inner_prod
+     inner2 = inner2 + u_u_input_inner_prod
+-    inner2 = inner2 + rmultiplicity_rmultiplicity_input_inner_prod
+-    inner2 = inner2 + q_q_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

@@ -1,0 +1,341 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> LFRic unit tests jedi_duration_mod.
+!> LFRic unit tests use pfUnit, a Fortran unit test framework written by NASA.
+!> This particular example tests the result of a matrix vector calculation
+!> using the code from the matrix_vector_kernel_mod in the LFRic science
+!> component.
+!>
+!-------------------------------------------------------------------------------
+module jedi_lfric_duration_mod_test
+
+  ! Global use statements go here
+
+  use constants_mod,           only : i_timestep, str_def, l_def
+  use jedi_lfric_duration_mod, only : jedi_duration_type
+
+  use funit
+
+  implicit none
+
+  private
+  public :: jedi_lfric_duration_init_test
+  public :: jedi_lfric_duration_operators_test
+  public :: jedi_lfric_duration_comparators_test
+
+  ! The test case type, containing procedures to setup, run
+  ! and clean up after a test.
+  ! It can also contain data.
+
+  @TestCase
+  type, extends(TestCase), public :: jedi_lfric_duration_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure jedi_lfric_duration_init_test
+    procedure jedi_lfric_duration_operators_test
+    procedure jedi_lfric_duration_comparators_test
+  end type jedi_lfric_duration_test_type
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The setUp subroutine is optional and is called prior to running the test.
+  !> It is used to create and initialise types / data that are used in
+  !> the tests
+  subroutine setUp( this )
+
+    implicit none
+
+    class(jedi_lfric_duration_test_type), intent(inout) :: this
+
+    ! This section should create and initialise anything needed for the test
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The tearDown subroutine is optional and called after the test.
+  !> It is used to destroy any types / data previously created by setUp()
+  subroutine tearDown( this )
+
+
+    implicit none
+
+    class(jedi_lfric_duration_test_type), intent(inout) :: this
+
+    ! This section should destroy any previously created types / data
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! pfUnit will run each subroutine preceded by the @test line
+  @test
+  !> Test initialising the emulated jedi_duration type
+  subroutine jedi_lfric_duration_init_test( this )
+
+    implicit none
+
+    class(jedi_lfric_duration_test_type), intent(inout) :: this
+
+    type(jedi_duration_type) :: jedi_duration
+
+    character(str_def)  :: iso_string, returned_string
+    integer(i_timestep) :: second, returned_second
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test empty initialise
+    call jedi_duration%init()
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 0, returned_second )
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test initialise with ISO String and getting it back
+    iso_string = 'P1DT12H5M3S'
+    call jedi_duration%init( iso_string )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 129903, returned_second )
+
+    call jedi_duration%to_string( returned_string )
+    @assertEqual( 'P1DT12H5M3S', returned_string )
+
+    ! Negative number
+    iso_string = '-P1DT12H5M3S'
+    call jedi_duration%init( iso_string )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( -129903, returned_second )
+
+    call jedi_duration%to_string( returned_string )
+    @assertEqual( '-P1DT12H5M3S', returned_string )
+
+    ! Time only
+    iso_string = 'PT12H5M3S'
+    call jedi_duration%init( iso_string )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 43503, returned_second )
+
+    call jedi_duration%to_string( returned_string )
+    @assertEqual( 'PT12H5M3S', returned_string )
+
+    ! More than 1 digit integer for days
+    iso_string = 'P12DT12H5M3S'
+    call jedi_duration%init( iso_string )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 1080303, returned_second )
+
+    call jedi_duration%to_string( returned_string )
+    @assertEqual( 'P12DT12H5M3S', returned_string )
+
+    ! More than 1 digit integer for seconds
+    iso_string = 'P1DT12H5M300S'
+    call jedi_duration%init( iso_string )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 130200, returned_second )
+
+    call jedi_duration%to_string( returned_string )
+    @assertEqual( 'P1DT12H10M', returned_string )
+
+    ! Days only
+    iso_string = 'P1D'
+    call jedi_duration%init( iso_string )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 86400, returned_second )
+
+    call jedi_duration%to_string( returned_string )
+    @assertEqual( 'P1D', returned_string )
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Test initialise with seconds
+    second = 0
+    call jedi_duration%init( second )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 0, returned_second )
+
+    call jedi_duration%to_string( returned_string )
+    @assertEqual( 'PT0S', returned_string )
+
+    second = 50
+    call jedi_duration%init( second )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( 50, returned_second )
+
+    second = -50
+    call jedi_duration%init( second )
+    call jedi_duration%get_duration( returned_second )
+    @assertEqual( -50, returned_second )
+
+  end subroutine jedi_lfric_duration_init_test
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! pfUnit will run each subroutine preceded by the @test line
+  @test
+  !> Test operators for the emulated jedi_duration type
+  subroutine jedi_lfric_duration_operators_test( this )
+
+    implicit none
+
+    class(jedi_lfric_duration_test_type), intent(inout) :: this
+
+    type(jedi_duration_type) :: jedi_duration
+    type(jedi_duration_type) :: jedi_duration_2
+    type(jedi_duration_type) :: jedi_duration_3
+
+    type(jedi_duration_type) :: test_duration
+
+    integer(i_timestep)      :: second, returned_second
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Initialise durations
+    ! 0 seconds
+    call jedi_duration%init()
+
+    second = 10
+    call jedi_duration_2%init( second )
+
+    second = -2
+    call jedi_duration_3%init( second )
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Tests
+    ! test +
+    test_duration = jedi_duration + jedi_duration_2
+    call test_duration%get_duration( returned_second )
+    @assertEqual( 10, returned_second )
+
+    ! test -
+    test_duration = jedi_duration - jedi_duration_2
+    call test_duration%get_duration( returned_second )
+    @assertEqual( -10, returned_second )
+
+    ! test * by 0
+    test_duration = jedi_duration * jedi_duration_2
+    call test_duration%get_duration( returned_second )
+    @assertEqual( 0, returned_second )
+
+    ! test *
+    test_duration = jedi_duration_3 * jedi_duration_2
+    call test_duration%get_duration( returned_second )
+    @assertEqual( -20, returned_second )
+
+    ! test /
+    test_duration = jedi_duration_2 / jedi_duration_3
+    call test_duration%get_duration( returned_second )
+    @assertEqual( -5, returned_second )
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Tests adding etc an integer
+    ! test +
+    test_duration = jedi_duration + 10
+    call test_duration%get_duration( returned_second )
+    @assertEqual( 10, returned_second )
+
+    ! test -
+    test_duration = jedi_duration - 10
+    call test_duration%get_duration( returned_second )
+    @assertEqual( -10, returned_second )
+
+    ! test * by 0
+    test_duration = jedi_duration * 10
+    call test_duration%get_duration( returned_second )
+    @assertEqual( 0, returned_second )
+
+    ! test *
+    test_duration = jedi_duration_3 * 10
+    call test_duration%get_duration( returned_second )
+    @assertEqual( -20, returned_second )
+
+    ! test /
+    test_duration = jedi_duration_2 / (-2)
+    call test_duration%get_duration( returned_second )
+    @assertEqual( -5, returned_second )
+
+  end subroutine jedi_lfric_duration_operators_test
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  ! pfUnit will run each subroutine preceded by the @test line
+  @test
+  !> Test comparators for the emulated jedi_duration type
+  subroutine jedi_lfric_duration_comparators_test( this )
+
+    implicit none
+
+    class(jedi_lfric_duration_test_type), intent(inout) :: this
+
+    type(jedi_duration_type) :: jedi_duration
+    type(jedi_duration_type) :: jedi_duration_2
+    type(jedi_duration_type) :: jedi_duration_3
+    type(jedi_duration_type) :: jedi_duration_4
+
+    integer(i_timestep) :: second
+    logical(l_def)      :: test
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Set values
+    ! 0 seconds
+    call jedi_duration%init()
+
+    second = 10
+    call jedi_duration_2%init( second )
+
+    second = -2
+    call jedi_duration_3%init( second )
+    call jedi_duration_4%init( second )
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! tests
+    ! -2 == -2
+    test = ( jedi_duration_3 == jedi_duration_4 )
+    @assertEqual( .true., test )
+
+    ! 10 == -2
+    test = ( jedi_duration_2 == jedi_duration_4 )
+    @assertEqual( .false., test )
+
+    ! -2 /= -2
+    test = ( jedi_duration_3 /= jedi_duration_4 )
+    @assertEqual( .false., test )
+
+    ! 10 /= -2
+    test = ( jedi_duration_2 /= jedi_duration_4 )
+    @assertEqual( .true., test )
+
+    ! 0 > 10
+    test = ( jedi_duration > jedi_duration_2 )
+    @assertEqual( .false., test )
+
+    ! 0 < 10
+    test = ( jedi_duration < jedi_duration_2 )
+    @assertEqual( .true., test )
+
+    ! 0 <= 10
+    test = ( jedi_duration <= jedi_duration_2 )
+    @assertEqual( .true., test )
+
+    ! 10 <= 0
+    test = ( jedi_duration_2 <= jedi_duration )
+    @assertEqual( .false., test )
+
+    ! -2 <= -2
+    test = ( jedi_duration_3 <= jedi_duration_4 )
+    @assertEqual( .true., test )
+
+    ! 0 >= 10
+    test = ( jedi_duration >= jedi_duration_2 )
+    @assertEqual( .false., test )
+
+    ! 10 >= 0
+    test = ( jedi_duration_2 >= jedi_duration )
+    @assertEqual( .true., test )
+
+    ! -2 >= -2
+    test = ( jedi_duration_3 >= jedi_duration_4 )
+    @assertEqual( .true., test )
+
+  end subroutine jedi_lfric_duration_comparators_test
+
+end module jedi_lfric_duration_mod_test

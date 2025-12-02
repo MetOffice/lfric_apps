@@ -1,0 +1,324 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the vertical Coriolis matrix
+!>
+module compute_vert_coriolis_matrix_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, PI
+  use get_unit_test_m3x3_dofmap_mod,                                           &
+          only : get_w0_m3x3_dofmap, get_w2_m3x3_dofmap, get_w3_m3x3_dofmap,   &
+                 get_wtheta_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod,                                     &
+          only : get_w0_m3x3_q3x3x3_size, get_w2_m3x3_q3x3x3_size,             &
+                 get_w3_m3x3_q3x3x3_size, get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_q3x3x3_basis_mod, &
+          only : get_w0_q3x3x3_basis, get_w0_q3x3x3_diff_basis,                &
+                 get_w2_q3x3x3_basis, get_wtheta_q3x3x3_basis
+  use get_unit_test_q3x3x3_quadrature_mod,                                     &
+          only : get_gaussian_q3x3x3_quadrature_weights_xy,                    &
+                 get_gaussian_q3x3x3_quadrature_weights_z
+  use get_unit_test_3x3x3_chi_mod,                                             &
+          only : get_w0_3x3x3_field
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: compute_vert_coriolis_matrix_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type compute_vert_coriolis_matrix_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use base_mesh_config_mod,      only : geometry_spherical,                  &
+                                          topology_non_periodic
+    use extrusion_config_mod,      only : method_uniform,                      &
+                                          stretching_method_linear
+    use finite_element_config_mod, only : cellshape_quadrilateral,             &
+                                          coord_system_native
+    use formulation_config_mod,    only : eos_method_sampled,                  &
+                                          moisture_formulation_dry
+    use feign_config_mod,          only : feign_base_mesh_config,              &
+                                          feign_extrusion_config,              &
+                                          feign_finite_element_config,         &
+                                          feign_formulation_config,            &
+                                          feign_planet_config
+    use sci_chi_transform_mod,     only : init_chi_transforms
+
+    implicit none
+
+    class(compute_vert_coriolis_matrix_test_type), intent(inout) :: this
+
+    call feign_base_mesh_config(                                               &
+            file_prefix='foo',                                                 &
+            prime_mesh_name='unit_test',                                       &
+            geometry=geometry_spherical,                                       &
+            prepartitioned=.false.,                                            &
+            topology=topology_non_periodic,                                    &
+            fplane=.true.,                                                     &
+            f_lat_deg=45.0_r_def                                               &
+    )
+    call feign_extrusion_config(                                               &
+            planet_radius=1900000.0_r_def,                                     &
+            domain_height=0.3_r_def,                                           &
+            method=method_uniform,                                             &
+            number_of_layers=3_i_def,                                          &
+            stretching_method=stretching_method_linear,                        &
+            stretching_height=1.0_r_def,                                       &
+            eta_values=(/ 0.5_r_def /)                                         &
+    )
+    call feign_finite_element_config(                                          &
+            cellshape=cellshape_quadrilateral,                                 &
+            element_order_h=0_i_def,                                           &
+            element_order_v=0_i_def,                                           &
+            rehabilitate=.true.,                                               &
+            coord_order=0_i_def,                                               &
+            coord_system=coord_system_native,                                  &
+            vorticity_in_w1=.false.                                            &
+    )
+    call feign_formulation_config(                                             &
+            dlayer_on=.false.,                                                 &
+            dry_static_adjust=.false.,                                         &
+            exner_from_eos=.false.,                                            &
+            eos_method=eos_method_sampled,                                     &
+            init_exner_bt=.false.,                                             &
+            l_multigrid=.false.,                                               &
+            lagged_orog=.false.,                                               &
+            rotating=.true.,                                                   &
+            shallow=.false.,                                                   &
+            moisture_formulation =                                             &
+            moisture_formulation_dry,                                          &
+            moisture_in_solver=.true.,                                         &
+            p2theta_vert=.true.,                                               &
+            theta_moist_source=.false.,                                        &
+            use_physics=.false.,                                               &
+            use_wavedynamics=.false.,                                          &
+            use_multires_coupling=.false.,                                     &
+            si_momentum_equation=.true.,                                       &
+            horizontal_physics_predictor=.false.,                              &
+            horizontal_transport_predictor=.false.,                            &
+            vector_invariant=.true.                                            &
+    )
+    call feign_planet_config(                                                  &
+            gravity=10.0_r_def,                                                &
+            omega=2.7e-5_r_def,                                                &
+            rd=200.0_r_def,                                                    &
+            cp=700.0_r_def,                                                    &
+            p_zero=100000.0_r_def,                                             &
+            scaling_factor=1.0_r_def                                           &
+    )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+    use sci_chi_transform_mod,    only: final_chi_transforms
+
+    implicit none
+
+    class(compute_vert_coriolis_matrix_test_type), intent(inout) :: this
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use compute_vert_coriolis_matrix_kernel_mod, only : compute_vert_coriolis_matrix_code
+
+    implicit none
+
+    class(compute_vert_coriolis_matrix_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: radius = 1900000.0_r_def
+    real(r_def), parameter :: lon0 = 0.0_r_def
+    real(r_def), parameter :: lat0 = PI/4.0_r_def
+    real(r_def), parameter :: scaled_omega = 2.7e-5_r_def
+    real(r_def), parameter :: f_lat_rad = lat0
+    integer(i_def), parameter :: nlayers = 3
+
+    ! Cells are going to be tiny so that the coordinates hardly change in a cell
+    real(r_def), parameter :: dlon = 0.0012_r_def
+    real(r_def), parameter :: dlat = 0.00016_r_def
+    real(r_def), parameter :: dz = 0.0054_r_def
+
+    real(r_def), parameter :: tol32 = 1.0e-7_r_def
+    real(r_def), parameter :: tol64 = 1.0e-15_r_def
+
+    integer(i_def) :: k, col_idx
+    real(r_def)    :: lon_answer, tol
+
+    ! Required for calling mass matrix kernel
+    integer(i_def) :: unused
+    integer(i_def) :: ndf_w2, ndf_wt
+    integer(i_def) :: ndf_w0, undf_w0
+    integer(i_def) :: ndf_w3, undf_w3
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: ncells, ncell_3d
+
+    real(r_def),    allocatable :: chi1_data(:), chi2_data(:), chi3_data(:)
+    real(r_def),    allocatable :: panel_id(:)
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+    real(r_def),    allocatable :: w0_diff_basis(:,:,:,:)
+    real(r_def),    allocatable :: w0_basis(:,:,:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    real(r_def),    allocatable :: w2_basis(:,:,:,:)
+    integer(i_def), allocatable :: map_wt(:,:)
+    real(r_def),    allocatable :: wt_basis(:,:,:,:)
+    real(r_def),    allocatable :: wh(:), wv(:)
+    real(r_def),    allocatable :: vert_coriolis(:,:,:)
+    real(r_def),    allocatable :: answer(:,:,:)
+
+    if (r_def == real64) then
+      tol = tol64
+    else
+      tol = tol32
+    end if
+
+    ! Set up -------------------------------------------------------------------
+
+    ! Set up sizes of spaces
+    call get_w0_m3x3_q3x3x3_size(                                              &
+            ndf_w0, undf_w0, ncells, unused, unused, nqp_h, nqp_v, nlayers     &
+    )
+    ncell_3d = ncells * nlayers
+    call get_w2_m3x3_q3x3x3_size(                                              &
+            ndf_w2, unused, unused, unused, unused, unused, unused, nlayers    &
+    )
+    call get_w3_m3x3_q3x3x3_size(                                              &
+            ndf_w3, undf_w3, unused, unused, unused, unused, unused, nlayers   &
+    )
+    call get_wtheta_m3x3_q3x3x3_size(                                          &
+            ndf_wt, unused, unused, unused, unused, unused, unused, nlayers    &
+    )
+    ! Set up dofmaps
+    call get_w0_m3x3_dofmap( map_w0, nlayers )
+    call get_w2_m3x3_dofmap( map_w2, nlayers )
+    call get_w3_m3x3_dofmap( map_w3, nlayers )
+    call get_wtheta_m3x3_dofmap( map_wt, nlayers )
+    ! Set up basis functions
+    call get_w0_q3x3x3_basis( w0_basis )
+    call get_w0_q3x3x3_diff_basis( w0_diff_basis )
+    call get_w2_q3x3x3_basis( w2_basis )
+    call get_wtheta_q3x3x3_basis( wt_basis )
+    ! Set up quadrature weights
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ! Compute coordinates ------------------------------------------------------
+    allocate(chi1_data(undf_w0))
+    allocate(chi2_data(undf_w0))
+    allocate(chi3_data(undf_w0))
+    allocate(panel_id(undf_w3))
+
+    panel_id(:) = 1.0_r_def
+
+    call get_w0_3x3x3_field(                                                   &
+            chi1_data, chi2_data, chi3_data, dlon, dlat, dz, map_w0, nlayers   &
+    )
+    chi2_data(:) = chi2_data(:) + lat0
+
+    ! Set up matrix and answer -------------------------------------------------
+    allocate(vert_coriolis(ncell_3d, ndf_wt, ndf_w2))
+    allocate(answer(ncell_3d, ndf_wt, ndf_w2))
+
+    ! It is not possible to calculate an analytic answer in spherical polar
+    ! coordinates, but we can approximate the answer by considering:
+    ! \int psi k.(f x phi)*dV, for:
+    ! W2 basis vector phi ~ (x, 0, 0) and
+    ! Wtheta basis vector psi ~ (0, 0, z)
+    ! In spherical polar coords, f = (0, 2*Omega*cos(lat), 2*Omega*sin(lat))
+    ! and k = (0, 0, 1), so k.(f x phi) = 2*Omega*cos(lat) when phi = (x,0,0),
+    ! but other components are zero
+    ! Finally, \int x dx from 0 to 1 = 0.5 gives a factor of 0.25 for both psi and phi
+    ! The answer is a matrix of shape (ndf_wt, ndf_w2). Each row corresponds to
+    ! a W2 basis vector, and has two entries, for the two Wtheta basis functions
+    lon_answer = 0.25_r_def * (2.0_r_def*COS(lat0)*scaled_omega)               &
+        * (radius**2*COS(lat0)*dlon*dlat*dz) & ! volume of cell
+        / (radius*dlat*dz)                     ! area of face (contained in W2 field values)
+
+    ! Set an answer to multiple decimal places with strict tolerance to detect
+    ! any changes to the kernel.
+    ! All non-zero entries are approximately lon_answer
+    answer(:,:,:) = 0.0_r_def
+    ! W2 W basis function
+    answer(1,1,1) = 0.015387537614598537_r_def
+    answer(2,1,1) = 0.015387537658331538_r_def
+    answer(3,1,1) = 0.015387537702064540_r_def
+    answer(1,2,1) = 0.015387537629176207_r_def
+    answer(2,2,1) = 0.015387537672909207_r_def
+    answer(3,2,1) = 0.015387537716642209_r_def
+    ! W2 E basis function
+    answer(1,1,3) = 0.015387537614598542_r_def
+    answer(2,1,3) = 0.015387537658331542_r_def
+    answer(3,1,3) = 0.015387537702064542_r_def
+    answer(1,2,3) = 0.015387537629176209_r_def
+    answer(2,2,3) = 0.015387537672909207_r_def
+    answer(3,2,3) = 0.015387537716642211_r_def
+
+
+    ! Test mass matrix kernel
+    col_idx = 1
+    vert_coriolis(:,:,:) = 0.0_r_def
+    call compute_vert_coriolis_matrix_code( col_idx,       &
+                                            nlayers,       &
+                                            ncell_3d,      &
+                                            vert_coriolis, &
+                                            chi1_data,     &
+                                            chi2_data,     &
+                                            chi3_data,     &
+                                            panel_id,      &
+                                            scaled_omega,  &
+                                            f_lat_rad,     &
+                                            ndf_wt,        &
+                                            wt_basis,      &
+                                            ndf_w2,        &
+                                            w2_basis,      &
+                                            ndf_w0,        &
+                                            undf_w0,       &
+                                            map_w0,        &
+                                            w0_basis,      &
+                                            w0_diff_basis, &
+                                            ndf_w3,        &
+                                            undf_w3,       &
+                                            map_w3,        &
+                                            nqp_h,         &
+                                            nqp_v,         &
+                                            wh,            &
+                                            wv )
+
+    @assertEqual( answer, vert_coriolis, tol )
+
+    deallocate( vert_coriolis, answer )
+    deallocate( chi3_data, chi2_data, chi1_data, panel_id )
+    deallocate( wv, wh )
+    deallocate( w2_basis, map_w2 )
+    deallocate( wt_basis, map_wt )
+    deallocate( w0_diff_basis, w0_basis, map_w0 )
+    deallocate( map_w3 )
+
+  end subroutine test_all
+
+end module compute_vert_coriolis_matrix_kernel_mod_test

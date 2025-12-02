@@ -1,0 +1,22 @@
+<file_definition>
+
+  <!-- Diagnostic output file for idealised runs -->
+  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="1h" prec="4">
+      <field field_ref="chemistry__h2o"/>
+      <field field_ref="chemistry__co"/>
+      <field field_ref="chemistry__ch4"/>
+      <field field_ref="chemistry__nh3"/>
+      <field field_ref="chemistry__h2"/>
+      <field field_ref="chemistry__he"/>
+      <field field_ref="chemistry__cs"/>
+      <field field_ref="chemistry__k"/>
+      <field field_ref="chemistry__li"/>
+      <field field_ref="chemistry__na"/>
+      <field field_ref="chemistry__rb"/>
+      <field field_ref="chemistry__tio"/>
+      <field field_ref="chemistry__vo"/>
+    </field_group>
+  </file>
+
+</file_definition>

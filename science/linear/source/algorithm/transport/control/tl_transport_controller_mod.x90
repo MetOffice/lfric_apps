@@ -1,0 +1,215 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Defines an object to control transport in the tangent linear model
+!> @details This module defines the tl_transport_controller object, which is an
+!!          object used in the tangent linear model to encapsulate the
+!!          "transport_controller" objects that are used for transporting by
+!!          various combinations of wind and density.
+
+module tl_transport_controller_mod
+
+  ! Infrastructure
+  use constants_mod,                  only: i_def, l_def
+  use field_mod,                      only: field_type
+  use model_clock_mod,                only: model_clock_type
+
+  ! Transport objects
+  use transport_controller_mod,       only: transport_controller_type
+  use transport_metadata_mod,         only: transport_metadata_type
+
+  implicit none
+
+  private
+
+  ! Public types
+  type, public :: tl_transport_controller_type
+
+    private
+
+    type(transport_controller_type) :: ls_wind_ls_rho_controller
+    type(transport_controller_type) :: ls_wind_pert_rho_controller
+    type(transport_controller_type) :: pert_wind_ls_rho_controller
+
+    contains
+
+    procedure, public  :: initialise
+    procedure, public  :: before_transport_field
+    procedure, public  :: after_transport_field
+    procedure, public  :: get_ls_wind_ls_rho_controller
+    procedure, public  :: get_ls_wind_pert_rho_controller
+    procedure, public  :: get_pert_wind_ls_rho_controller
+    procedure, public  :: finalise
+    final              :: destroy_tl_transport_controller
+
+  end type tl_transport_controller_type
+
+contains
+
+  !> @brief Initialises the tl_transport_controller object
+  !> @details The tangent linear transport controller objects contains the
+  !!          transport controller objects for different combinations of linear
+  !!          and perturbed winds and densities.
+  !> @param[in] model_clock           Tracks the time within the model
+  !> @param[in] ref_field_rdef        Perturbed reference density to use for
+  !!                                  conservative transport of tracers.
+  !> @param[in] ls_ref_field_rdef     Linear reference density to use for
+  !!                                  conservative transport of tracers.
+  !> @param[in] wind_n_rdef           Perturbed wind at n-th time level.
+  !> @param[in] wind_np1_rdef         Perturbed wind at (n+1)-th time level.
+  !> @param[in] ls_wind_n_rdef        Linear wind at n-th time level.
+  !> @param[in] ls_wind_np1_rdef      Linear wind at (n+1)-th time level
+  !> @param[in] outer                 Optional, index of outer loop of the semi-
+  !!                                  implicit time step, which can be used to
+  !!                                  determine transport options that differ
+  !!                                  between different iterations
+  !> @param[in] cheap_update_step
+  !!                                  Optional, flag indicating whether this is
+  !!                                  a "cheap update" transport step, in which
+  !!                                  the transporting wind is the *difference*
+  !!                                  in wind from the previous step, rather
+  !!                                  than the full transport wind.
+  subroutine initialise(self, model_clock, ref_field_rdef, ls_ref_field_rdef,  &
+                        wind_n_rdef, wind_np1_rdef,                            &
+                        ls_wind_n_rdef, ls_wind_np1_rdef,                      &
+                        outer, cheap_update_step)
+
+    implicit none
+
+    class(tl_transport_controller_type), intent(inout) :: self
+    type(model_clock_type),              intent(in)    :: model_clock
+    type(field_type),                    intent(in)    :: wind_n_rdef
+    type(field_type),                    intent(in)    :: wind_np1_rdef
+    type(field_type),                    intent(in)    :: ls_wind_n_rdef
+    type(field_type),                    intent(in)    :: ls_wind_np1_rdef
+    type(field_type),                    intent(in)    :: ref_field_rdef
+    type(field_type),                    intent(in)    :: ls_ref_field_rdef
+    integer(kind=i_def),       optional, intent(in)    :: outer
+    logical(kind=l_def),       optional, intent(in)    :: cheap_update_step
+
+    call self%ls_wind_ls_rho_controller%initialise(                            &
+            model_clock, ls_ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,  &
+            outer=outer, cheap_update_step=cheap_update_step                   &
+    )
+    call self%ls_wind_pert_rho_controller%initialise(                          &
+            model_clock, ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,     &
+            outer=outer, cheap_update_step=cheap_update_step                   &
+    )
+    call self%pert_wind_ls_rho_controller%initialise(                          &
+            model_clock, ls_ref_field_rdef, wind_n_rdef, wind_np1_rdef,        &
+            outer=outer, cheap_update_step=cheap_update_step                   &
+    )
+
+  end subroutine initialise
+
+  !> Public finalise method for the transport controller
+  subroutine finalise(self)
+
+    implicit none
+
+    class(tl_transport_controller_type), intent(inout) :: self
+
+    call self%ls_wind_ls_rho_controller%finalise()
+    call self%ls_wind_pert_rho_controller%finalise()
+    call self%pert_wind_ls_rho_controller%finalise()
+
+  end subroutine finalise
+
+  !> Finalise for the transport controller
+  subroutine destroy_tl_transport_controller(self)
+
+    implicit none
+
+    type(tl_transport_controller_type), intent(inout) :: self
+
+    call self%finalise()
+
+  end subroutine destroy_tl_transport_controller
+
+! ============================================================================ !
+! SETTERS
+! ============================================================================ !
+
+  !> @brief Performs tasks for the transport contoller objects, before the
+  !!        transport of a field. This involves updating the pointers to the
+  !!        transport metadata object, setting the counters to zero and possibly
+  !!        altering the metadata depending on the outer loop.
+  !> @param[in] metadata  The transport metadata object
+  subroutine before_transport_field(self, metadata)
+
+    implicit none
+
+    class(tl_transport_controller_type), target, intent(inout) :: self
+    type(transport_metadata_type),       target, intent(inout) :: metadata
+
+    call self%ls_wind_ls_rho_controller%before_transport_field(metadata)
+    call self%ls_wind_pert_rho_controller%before_transport_field(metadata)
+    call self%pert_wind_ls_rho_controller%before_transport_field(metadata)
+
+  end subroutine before_transport_field
+
+  !> @brief Performs tasks for the transport controller objects, after the
+  !!        transport of a field. This involves nullifying the pointers to the
+  !!        transport metadata, after resetting its options to their original
+  !!        values.
+  subroutine after_transport_field(self)
+
+    implicit none
+
+    class(tl_transport_controller_type), target, intent(inout) :: self
+
+    call self%ls_wind_ls_rho_controller%after_transport_field()
+    call self%ls_wind_pert_rho_controller%after_transport_field()
+    call self%pert_wind_ls_rho_controller%after_transport_field()
+
+  end subroutine after_transport_field
+
+! ============================================================================ !
+! GETTERS
+! ============================================================================ !
+
+  !> @brief Returns the transport controller object that uses the linear wind
+  !!        and linear density.
+  !> @return The transport controller object
+  function get_ls_wind_ls_rho_controller(self) result(transport_controller)
+
+    implicit none
+
+    class(tl_transport_controller_type), target, intent(in) :: self
+    type(transport_controller_type),             pointer    :: transport_controller
+
+    transport_controller => self%ls_wind_ls_rho_controller
+
+  end function get_ls_wind_ls_rho_controller
+
+  !> @brief Returns the transport controller object that uses the linear wind
+  !!        and perturbed density.
+  !> @return The transport controller object
+  function get_ls_wind_pert_rho_controller(self) result(transport_controller)
+
+    implicit none
+
+    class(tl_transport_controller_type), target, intent(in) :: self
+    type(transport_controller_type),             pointer    :: transport_controller
+
+    transport_controller => self%ls_wind_pert_rho_controller
+
+  end function get_ls_wind_pert_rho_controller
+
+  !> @brief Returns the transport controller object that uses the perturbed wind
+  !!        and linear density.
+  !> @return The transport controller object
+  function get_pert_wind_ls_rho_controller(self) result(transport_controller)
+
+    implicit none
+
+    class(tl_transport_controller_type), target, intent(in) :: self
+    type(transport_controller_type),             pointer    :: transport_controller
+
+    transport_controller => self%pert_wind_ls_rho_controller
+
+  end function get_pert_wind_ls_rho_controller
+
+end module tl_transport_controller_mod

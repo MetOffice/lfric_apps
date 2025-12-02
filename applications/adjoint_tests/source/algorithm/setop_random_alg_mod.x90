@@ -1,0 +1,54 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Module containing algorithm to set an operator consistently with random values
+!> @details Operators set with setop_random_kernel_mod are insufficient for testing the adjoint
+!!          in parallel because the halo of the operator is not set properly. This module contains
+!!          a routine which sets the halo of the operator properly.
+module setop_random_alg_mod
+
+  use field_mod,                           only : field_type
+  use operator_mod,                        only : operator_type
+  use function_space_mod,                  only : function_space_type
+  use setop_average_two_fields_kernel_mod, only : setop_average_two_fields_kernel_type
+
+  implicit none
+
+  private
+  public :: setop_random_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Sets an operator with randomised field values and consistent halo
+  !> @param[in,out] operator  Operator to be set
+  subroutine setop_random_alg( operator )
+
+    implicit none
+
+    ! Arguments
+    type(operator_type), intent(inout) :: operator
+
+    ! Internal variables
+    type(function_space_type), pointer :: field_to_fs
+    type(function_space_type), pointer :: field_from_fs
+    type(field_type)                   :: field_to
+    type(field_type)                   :: field_from
+
+    field_to_fs => operator%get_fs_to()
+    field_from_fs => operator%get_fs_from()
+    call field_to%initialise( vector_space = field_to_fs )
+    call field_from%initialise( vector_space = field_from_fs )
+
+    call invoke( setval_random( field_to ),                      &
+                 setval_random( field_from ),                    &
+                 setop_average_two_Fields_kernel_type( operator, &
+                                                       field_to, &
+                                                       field_from ) )
+
+  end subroutine setop_random_alg
+
+end module setop_random_alg_mod

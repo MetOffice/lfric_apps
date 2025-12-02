@@ -1,0 +1,177 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Diagonal preconditioner for the shallow water equations system.
+!>
+!> @details This type is derived from the abstract preconditioner type and
+!!          implements a preconditioner for the mixed shallow water equations
+!!          system in the variables \f$(\mathbf{U},GP,B)\f$.
+!!
+!!          This preconditioner simply divides each of the fields by the
+!!          corresponding diagonal mass matrix.
+module swe_mixed_diag_precon_alg_mod
+
+  use constants_mod,                      only: i_def
+  use field_mod,                          only: field_type
+  use field_indices_mod,                  only: isw_u, isw_g, isw_b
+  use fs_continuity_mod,                  only: W1, W2, W3
+  use io_config_mod,                      only: subroutine_timers
+  use log_mod,                            only: log_event,       &
+                                                LOG_LEVEL_ERROR, &
+                                                LOG_LEVEL_INFO,  &
+                                                LOG_LEVEL_DEBUG, &
+                                                log_scratch_space
+  use mesh_mod,                           only: mesh_type
+  use sci_field_vector_mod,               only: field_vector_type
+  use sci_preconditioner_mod,             only: abstract_preconditioner_type
+  use shallow_water_settings_config_mod,  only: thermal_swe
+  use timer_mod,                          only: timer
+  use vector_mod,                         only: abstract_vector_type
+
+  implicit none
+
+  private
+
+  !> @brief Mixed diagonal preconditioner type.
+  !>
+  !> @details Implements mixed diagonal preconditioner which can be used in the
+  !!          iterative solver algorithms.
+  type, public, extends(abstract_preconditioner_type) :: &
+                        swe_mixed_diag_preconditioner_type
+
+     private
+     !> Diagonal mass matrices
+     type(field_type), pointer :: mm_diagonal_p, mm_diagonal_u, mm_diagonal_b
+     contains
+     ! Override the (abstract interface) for application of
+     ! a preconditioner \f$y = P.x\f$
+     procedure, public :: apply => apply_swe_mixed_diag_preconditioner
+     procedure, private :: apply_swe_mixed_diag_preconditioner
+
+     !> Destructor
+     final :: destroy_swe_mixed_diag_preconditioner
+  end type swe_mixed_diag_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface swe_mixed_diag_preconditioner_type
+     module procedure swe_mixed_diag_preconditioner_constructor
+  end interface
+
+contains
+
+  !> @brief Construct a <code> swe_mixed_diag_preconditioner_type</code> object.
+  !>
+  !> @details This constructs all required fields and builds operators.
+  !>
+  !> @param[in] state Current state (passed as a field-vector)
+  !> @return    self  The constructed preconditioner object
+  function swe_mixed_diag_preconditioner_constructor(state) result(self)
+
+    use sci_fem_constants_mod, only: get_mass_matrix_diagonal_fe
+
+    implicit none
+
+    type(field_vector_type), intent(in) :: state
+    type(swe_mixed_diag_preconditioner_type)  :: self
+
+    ! Mesh ID
+    integer(kind=i_def) :: mesh_id
+
+    call log_event('Constructing shallow water mixed diag preconditioner...', &
+                   LOG_LEVEL_INFO )
+
+    mesh_id = state%vector(isw_u)%get_mesh_id()
+
+    self%mm_diagonal_u => get_mass_matrix_diagonal_fe(W2, mesh_id)
+    self%mm_diagonal_p => get_mass_matrix_diagonal_fe(w3, mesh_id)
+    self%mm_diagonal_b => get_mass_matrix_diagonal_fe(W3, mesh_id)
+
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function swe_mixed_diag_preconditioner_constructor
+
+  !> @brief Apply the preconditioner to calculate \f$y = P.x\f$ for the
+  !!        mixed system in velocity, geopotential and buoyancy.
+  !>
+  !> @details Apply the preconditioner by dividing each of the fields in the
+  !!          field-vector by its associated mass matrix.
+  !>
+  !> @param[in,out] self Instance of type swe_mixed_preconditioner_type
+  !> @param[in]     x    Field-vector containing the residuals
+  !!                     \f$(\textbf{R}_u,R_gp,r_b)\f$
+  !> @param[in,out] y    Field-vector containing the solution
+  !!                     \f$(\textbf{U},GP,B)\f$ to be calculated
+  subroutine apply_swe_mixed_diag_preconditioner(self, x, y)
+
+    implicit none
+
+    class(swe_mixed_diag_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),               intent(in)    :: x
+    class(abstract_vector_type),               intent(inout) :: y
+
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(field_type), pointer :: x_vec_u => null(), &
+                                 x_vec_g => null(), &
+                                 x_vec_b => null(), &
+                                 y_vec_u => null(), &
+                                 y_vec_g => null(), &
+                                 y_vec_b => null()
+
+    if ( subroutine_timers ) call timer('swe_mixed_diag_preconditioner_alg')
+
+    select type(x)
+    type is(field_vector_type)
+      select type(y)
+      type is(field_vector_type)
+
+        ! Get pointers to x and y abstract types
+        x_vec_u => x%get_field_from_position(isw_u)
+        x_vec_g => x%get_field_from_position(isw_g)
+        x_vec_b => x%get_field_from_position(isw_b)
+        y_vec_u => y%get_field_from_position(isw_u)
+        y_vec_g => y%get_field_from_position(isw_g)
+        y_vec_b => y%get_field_from_position(isw_b)
+
+        call invoke( X_divideby_Y(y_vec_u,             &
+                                  x_vec_u,             &
+                                  self%mm_diagonal_u), &
+                     X_divideby_Y(y_vec_g,             &
+                                  x_vec_g,             &
+                                  self%mm_diagonal_p) )
+        if ( thermal_swe ) then
+          call invoke( X_divideby_Y(y_vec_b,           &
+                                    x_vec_b,           &
+                                    self%mm_diagonal_b) )
+        end if
+      class default
+        write(log_scratch_space, '(A)') &
+              "swe_mixed_diag_preconditioner_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      end select
+
+    class default
+      write(log_scratch_space, '(A)') &
+            "swe_mixed_diag_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    nullify( x_vec_u, x_vec_g, x_vec_b )
+    nullify( y_vec_u, y_vec_g, y_vec_b )
+
+    if ( subroutine_timers ) call timer('swe_mixed_diag_preconditioner_alg')
+
+  end subroutine apply_swe_mixed_diag_preconditioner
+
+  !> @brief Destructor
+  !>
+  !> @param[in,out] self Instance of type to be destroyed
+  subroutine destroy_swe_mixed_diag_preconditioner(self)
+    implicit none
+    type(swe_mixed_diag_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_swe_mixed_diag_preconditioner
+
+end module swe_mixed_diag_precon_alg_mod

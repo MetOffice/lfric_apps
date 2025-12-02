@@ -1,0 +1,10 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/linear_model/groups_linear_model.cylc") %}
+
+{% include "site/meto/linear_model/tasks_linear_model_"~task_ns.platform~".cylc" %}
+
+{% do LOG.debug("Finised in site/meto/linear_model/tasks_linear_model.cylc") %}

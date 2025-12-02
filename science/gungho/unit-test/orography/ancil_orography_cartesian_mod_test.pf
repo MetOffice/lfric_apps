@@ -1,0 +1,245 @@
+!-----------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------
+module ancil_orography_cartesian_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_all
+
+  integer(i_def), parameter :: nlayers = 3
+  real(r_def), parameter :: dx = 6000.0_r_def
+  real(r_def), parameter :: dy = 1000.0_r_def
+  real(r_def), parameter :: dz = 2000.0_r_def
+  real(r_def), parameter :: domain_height = nlayers*dz
+  real(r_def), parameter :: domain_surface = 0.0_r_def
+
+  real(r_def), parameter :: tol = 1.0e-12_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use base_mesh_config_mod,      only : geometry_planar, &
+                                          topology_fully_periodic
+    use extrusion_config_mod,      only : method_uniform,       &
+                                          stretching_method_linear
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+    use feign_config_mod,          only : feign_finite_element_config, &
+                                          feign_base_mesh_config, &
+                                          feign_extrusion_config
+
+    implicit none
+
+    call feign_base_mesh_config(                                     &
+                         file_prefix     = 'foo',                    &
+                         prime_mesh_name = 'unit_test',              &
+                         geometry        = geometry_planar,          &
+                         prepartitioned  = .false.,                  &
+                         topology        = topology_fully_periodic,  &
+                         fplane          = .false.,                  &
+                         f_lat_deg       = 0.0_r_def )
+
+    call feign_extrusion_config( &
+                         method           = method_uniform,          &
+                         planet_radius    = 0.0_r_def,               &
+                         domain_height    = domain_height,           &
+                         number_of_layers = nlayers,                 &
+                         stretching_height= 1.0_r_def,               &
+                         stretching_method= stretching_method_linear,&
+                         eta_values=(/0.5_r_def/) )
+
+    call feign_finite_element_config(                       &
+                         cellshape=cellshape_quadrilateral, &
+                         coord_order=0_i_def,               &
+                         coord_system=coord_system_xyz,     &
+                         element_order_h=0_i_def,           &
+                         element_order_v=0_i_def,           &
+                         rehabilitate=.true.,               &
+                         vorticity_in_w1=.false. )
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use configuration_mod, only: final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all()
+
+    use sci_average_w3_to_w0_kernel_mod, only : average_w3_to_w0_code
+    use assign_orography_field_mod, only : ancil_orography_cartesian
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                    get_w3_m3x3_q3x3x3_size, &
+                                                    get_wchi_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                    get_w3_m3x3_dofmap, &
+                                                    get_wchi_m3x3_dofmap
+
+    use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field, &
+                                                    get_wchi_3x3x3_field
+
+    use get_unit_test_w0nodal_basis_mod,     only : get_wchi_w0nodal_basis
+
+    implicit none
+
+    ! Fields
+    real(r_def), allocatable :: srf_alt_w3(:)
+    real(r_def), allocatable :: srf_alt_w0(:)
+    real(r_def), allocatable :: multipl_w0_sl(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+
+    real(r_def) :: answer
+
+    integer(i_def) :: df, cell, k
+    integer(i_def) :: err
+
+    ! Sizes
+    integer(i_def)          :: ncells, nqp_h, nqp_v
+    integer(i_def)          :: ndf_wchi, undf_wchi
+    integer(i_def)          :: dim_space_wchi, dim_space_diff_wchi
+    integer(i_def)          :: ndf_w0_sl, undf_w0_sl
+    integer(i_def)          :: dim_space_w0_sl, dim_space_diff_w0_sl
+    integer(i_def)          :: ndf_w3_sl, undf_w3_sl
+    integer(i_def)          :: dim_space_w3_sl, dim_space_diff_w3_sl
+
+    ! Dofmap
+    integer(i_def), allocatable :: map_wchi(:,:)
+    integer(i_def), allocatable :: map_w3_sl(:,:)
+    integer(i_def), allocatable :: map_w0_sl(:,:)
+
+    ! Basis
+    real(r_def), allocatable :: basis_w0_on_wchi(:,:,:)
+
+    call get_wchi_m3x3_q3x3x3_size( ndf_wchi, undf_wchi, ncells,         &
+                                  dim_space_wchi, dim_space_diff_wchi, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_wchi_m3x3_dofmap(map_wchi, nlayers)
+
+    call get_wchi_w0nodal_basis(basis_w0_on_wchi)
+
+    ! Single layer fields
+    call get_w0_m3x3_q3x3x3_size( ndf_w0_sl, undf_w0_sl, ncells,  &
+                                  dim_space_w0_sl, dim_space_diff_w0_sl, &
+                                  nqp_h, nqp_v,              &
+                                  1 )
+    call get_w0_m3x3_dofmap(map_w0_sl, 1)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_w3_sl, undf_w3_sl, ncells,         &
+                                  dim_space_w3_sl, dim_space_diff_w3_sl, &
+                                  nqp_h, nqp_v,              &
+                                  1 )
+    call get_w3_m3x3_dofmap(map_w3_sl, 1)
+
+    allocate( chi1(undf_wchi) )
+    allocate( chi2(undf_wchi) )
+    allocate( chi3(undf_wchi) )
+    allocate( srf_alt_w3(undf_w3_sl) )
+    allocate( srf_alt_w0(undf_w0_sl) )
+    allocate( multipl_w0_sl(undf_w0_sl) )
+    allocate( panel_id(undf_w3_sl) )
+
+    panel_id(:) = 1.0_r_def
+    call get_wchi_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                              0.0_r_def, map_wchi, nlayers)
+
+    srf_alt_w0(:)=0.0_r_def
+    ! Each node has 4 neighbours
+    multipl_w0_sl(:)=4.0_r_def
+
+    ! Set a single mountain in the middle of the domain
+    ! This generates the w0 surface_altitude
+    srf_alt_w3(:)=0.0_r_def
+    srf_alt_w3(5)=400.0_r_def
+    do cell = 1, ncells
+
+      call average_w3_to_w0_code(1,                  &
+                                 srf_alt_w0,         &
+                                 srf_alt_w3,         &
+                                 multipl_w0_sl,      &
+                                 ndf_w0_sl,          &
+                                 undf_w0_sl,         &
+                                 map_w0_sl(:, cell), &
+                                 ndf_w3_sl,          &
+                                 undf_w3_sl,         &
+                                 map_w3_sl(:, cell)  &
+                                 )
+    end do
+
+    ! Now test the assignment of the orography
+
+    do cell = 1, ncells
+
+      call ancil_orography_cartesian(nlayers,            &
+                                     chi1,               &
+                                     chi2,               &
+                                     chi3,               &
+                                     panel_id,           &
+                                     srf_alt_w0,         &
+                                     domain_surface,     &
+                                     domain_height,      &
+                                     ndf_wchi,           &
+                                     undf_wchi,          &
+                                     map_wchi(:, cell),  &
+                                     ndf_w3_sl,          &
+                                     undf_w3_sl,         &
+                                     map_w3_sl(:,cell),  &
+                                     ndf_w0_sl,          &
+                                     undf_w0_sl,         &
+                                     map_w0_sl(:, cell), &
+                                     basis_w0_on_wchi    &
+                                     )
+    end do
+
+    ! Test central cell
+    cell = 5
+    answer = 100.0_r_def
+
+    do df = 1,4
+      @assertEqual(answer, chi3(map_wchi(df, cell) ), tol)
+    end do
+
+    ! Test corner cell
+    cell = 3
+    answer = 0.0_r_def
+    do df = 1,3
+      @assertEqual(answer, chi3(map_wchi(df, cell) ), tol)
+    end do
+    df=4
+    answer = 100.0_r_def
+    @assertEqual(answer, chi3(map_wchi(df, cell) ), tol)
+
+    deallocate( srf_alt_w3 )
+    deallocate( srf_alt_w0 )
+    deallocate( map_wchi )
+    deallocate( map_w3_sl )
+    deallocate( chi1 )
+    deallocate( chi2 )
+    deallocate( chi3 )
+    deallocate( panel_id )
+    deallocate( basis_w0_on_wchi )
+
+  end subroutine test_all
+
+end module ancil_orography_cartesian_mod_test

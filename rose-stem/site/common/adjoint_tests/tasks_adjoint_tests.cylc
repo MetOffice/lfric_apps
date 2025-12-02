@@ -1,0 +1,48 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/adjoint_tests/tasks_adjoint_tests.cylc") %}
+
+{% if task_ns.conf_name == "default-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["default"],
+        "resolution": "C12",
+    }) %}
+
+{% elif task_ns.conf_name == "varying_ls-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["varying_ls"],
+        "resolution": "C12",
+    }) %}
+
+{% elif task_ns.conf_name == "canned" %}
+
+    {% do task_dict.update({
+        "app_name": "canned_test",
+    }) %}
+
+{% elif task.startswith("build") %}
+
+    {% do task_dict.update({
+        "wallclock": 30,
+    }) %}
+
+{% endif %}
+
+
+{# Set default values #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/adjoint_tests"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "adjoint_tests"}) %}
+    {% endif %}
+    {% if "kgo_checks" not in task_dict %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/adjoint_tests/tasks_jedi_lfric_tests.cylc") %}

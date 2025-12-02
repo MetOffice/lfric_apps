@@ -1,0 +1,518 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Initialisation of analytical LBC fields.
+module init_gungho_lbcs_alg_mod
+
+  use constants_mod,                   only: i_def, r_def, str_def, l_def
+  use driver_modeldb_mod,              only: modeldb_type
+  use field_mod,                       only: field_type
+  use integer_field_mod,               only: integer_field_type
+  use field_collection_mod,            only: field_collection_type
+  use formulation_config_mod,          only: moisture_formulation_dry
+  use fs_continuity_mod,               only: W2, W3, Wtheta
+  use sci_geometric_constants_mod,     only: get_da_at_w2,         &
+                                             get_face_selector_ew, &
+                                             get_face_selector_ns
+  use initialization_config_mod,       only: lbc_option_gungho_file, &
+                                             lbc_option_um2lfric_file
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_INFO,    &
+                                             LOG_LEVEL_DEBUG
+  use limited_area_constants_mod,      only: get_boundary_mask_fe, &
+                                             get_boundary_mask_fv, &
+                                             get_lbc_mask_fe,      &
+                                             get_lbc_mask_fv
+  use lfric_xios_read_mod,             only: read_state
+  use mesh_mod,                        only: mesh_type
+  use model_clock_mod,                 only: model_clock_type
+  use namelist_collection_mod,         only: namelist_collection_type
+  use namelist_mod,                    only: namelist_type
+  use variable_fields_mod,             only: init_variable_fields,  &
+                                             update_variable_fields
+  use linked_list_mod,                 only: linked_list_type
+  use mr_indices_mod,                  only: nummr,             &
+                                             mr_names
+  use timer_mod,                       only: timer
+  use masked_minmax_alg_mod,           only: log_field_masked_minmax
+
+  implicit none
+
+  private
+  public :: init_lbcs_analytic_alg, &
+            init_lbcs_file_alg,     &
+            update_lbcs_file_alg,   &
+            combine_lbc_winds,      &
+            define_boundary_u
+
+  contains
+
+  !> @brief   Copy the LBCs from the prognostic fields.
+  !> @details The prognostic fields have been defined analytically.
+  !!          We define the LBCs to be these initial conditions - so
+  !!          the LBCs are created by copying the prognostic fields in the
+  !!          LBC region, as defined by the LBC masks. This
+  !!          gives a standalone limited-area model that is forced only
+  !!          by the interior.
+  !> @param[in]     prognostic_fields The collection of prognostics
+  !> @param[in,out] lbc_fields        The collection of LBC fields
+  !> @param [inout] modeldb           The working data set for a model run.
+  subroutine init_lbcs_analytic_alg( prognostic_fields, lbc_fields, modeldb )
+
+    implicit none
+
+    type( field_collection_type ), intent(in)    :: prognostic_fields
+    type( field_collection_type ), intent(inout) :: lbc_fields
+    type(modeldb_type),            intent(inout) :: modeldb
+
+    type( field_type ),  pointer :: theta
+    type( field_type ),  pointer :: u
+    type( field_type ),  pointer :: rho
+    type( field_type ),  pointer :: exner
+    type( field_type ),  pointer :: mr
+
+    type( field_type ),  pointer :: lbc_theta
+    type( field_type ),  pointer :: lbc_u
+    type( field_type ),  pointer :: lbc_rho
+    type( field_type ),  pointer :: lbc_exner
+    type( field_type ),  pointer :: lbc_mr
+    type( field_type ),  pointer :: boundary_u
+
+    type( field_type ),  pointer :: w2_lbc_mask
+    type( field_type ),  pointer :: w3_lbc_mask
+    type( field_type ),  pointer :: wtheta_lbc_mask
+    type( field_type ),  pointer :: w2_boundary_mask
+
+    character(str_def)           :: lbc_name
+    integer(i_def)               :: imr
+    type(mesh_type), pointer     :: mesh
+
+    type(namelist_type), pointer :: base_mesh_nml
+    type(namelist_type), pointer :: formulation_nml
+
+    character(len=str_def)       :: prime_mesh_name
+    integer(i_def)               :: moisture_formulation
+
+
+    base_mesh_nml    => modeldb%configuration%get_namelist('base_mesh')
+    formulation_nml  => modeldb%configuration%get_namelist('formulation')
+
+    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    call formulation_nml%get_value( 'moisture_formulation', moisture_formulation )
+
+    call prognostic_fields%get_field( 'theta', theta )
+    call prognostic_fields%get_field( 'u', u )
+    call prognostic_fields%get_field( 'rho', rho )
+    call prognostic_fields%get_field( 'exner', exner )
+
+    mesh => theta%get_mesh()
+
+    if (u%get_element_order_h() > 0 .or. &
+        u%get_element_order_v() > 0) then
+      w2_lbc_mask      => get_lbc_mask_fe( W2, mesh%get_id(), prime_mesh_name )
+      w3_lbc_mask      => get_lbc_mask_fe( W3, mesh%get_id(), prime_mesh_name )
+      wtheta_lbc_mask  => get_lbc_mask_fe( wtheta, mesh%get_id(), prime_mesh_name )
+      w2_boundary_mask => get_boundary_mask_fe( W2, mesh%get_id(), prime_mesh_name )
+    else
+      w2_lbc_mask      => get_lbc_mask_fv( W2, mesh%get_id(), prime_mesh_name )
+      w3_lbc_mask      => get_lbc_mask_fv( W3, mesh%get_id(), prime_mesh_name )
+      wtheta_lbc_mask  => get_lbc_mask_fv( wtheta, mesh%get_id(), prime_mesh_name )
+      w2_boundary_mask => get_boundary_mask_fv( W2, mesh%get_id(), prime_mesh_name )
+    end if
+
+    call lbc_fields%get_field( 'lbc_theta', lbc_theta )
+    call lbc_fields%get_field( 'lbc_u', lbc_u )
+    call lbc_fields%get_field( 'lbc_rho', lbc_rho )
+    call lbc_fields%get_field( 'lbc_exner', lbc_exner )
+    call lbc_fields%get_field( 'boundary_u_driving', boundary_u )
+
+    call invoke( X_times_Y( lbc_u,      u,     w2_lbc_mask ),     &
+                 X_times_Y( lbc_rho,    rho,   w3_lbc_mask ),     &
+                 X_times_Y( lbc_exner,  exner, w3_lbc_mask ),     &
+                 X_times_Y( lbc_theta,  theta, wtheta_lbc_mask ), &
+                 X_times_Y( boundary_u, u,     w2_boundary_mask ) )
+
+    if ( moisture_formulation /= moisture_formulation_dry ) then
+      do imr = 1, nummr
+
+        lbc_name = trim( 'lbc_' // adjustl(mr_names(imr)) )
+        call prognostic_fields%get_field( mr_names(imr), mr )
+        call lbc_fields%get_field( lbc_name, lbc_mr )
+
+        call invoke( X_times_Y( lbc_mr, mr, wtheta_lbc_mask ) )
+
+      end do
+
+    end if
+
+  end subroutine init_lbcs_analytic_alg
+
+  !> @brief   Read the time-varying LBCs from a file.
+  !> @details Initialise the LBCs, that are read in and updated using
+  !!          a time-axis.
+  !> @param[in]     configuration   The application configuration object
+  !> @param[in]     lbc_times_list  The LBC time axis list
+  !> @param[in]     clock           Clock
+  !> @param[in,out] lbc_fields      The LBC field collection
+  subroutine init_lbcs_file_alg( configuration, lbc_times_list, clock, lbc_fields )
+
+    implicit none
+
+    type(namelist_collection_type), intent(in)    :: configuration
+    type(field_collection_type),    intent(inout) :: lbc_fields
+    type(linked_list_type),         intent(in)    :: lbc_times_list
+    class(model_clock_type),        intent(in)    :: clock
+    type(field_type),               pointer       :: lbc_v_u
+
+    type(namelist_type), pointer :: io_nml
+    type(namelist_type), pointer :: initialization_nml
+    logical(l_def)               :: subroutine_timers
+    integer(i_def)               :: lbc_option
+
+    io_nml => configuration%get_namelist('io')
+    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
+
+    if ( subroutine_timers ) call timer('init_lbcs')
+
+    nullify(lbc_v_u)
+
+    call read_state( lbc_fields )
+    call init_variable_fields( lbc_times_list, &
+                               clock, lbc_fields )
+
+    if ( clock%is_initialisation() ) then
+
+      initialization_nml => configuration%get_namelist('initialization')
+      call initialization_nml%get_value( 'lbc_option', lbc_option )
+
+      ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
+      select case( lbc_option )
+      case ( lbc_option_gungho_file )
+        call combine_lbc_winds( lbc_fields, extensive=.true. )
+
+      case ( lbc_option_um2lfric_file )
+        call lbc_fields%get_field( 'lbc_v_u', lbc_v_u )
+        call invoke( setval_c(lbc_v_u, 0.0_r_def) )
+        call combine_lbc_winds( lbc_fields, extensive=.false. )
+        call map_lbc_inputs( configuration, lbc_fields )
+
+      case default
+        call log_event('This lbc_option not available', LOG_LEVEL_INFO)
+      end select
+
+      ! Define boundary_u_driving
+      call define_boundary_u( configuration, lbc_fields )
+
+    end if
+
+    if ( subroutine_timers ) call timer('init_lbcs')
+
+  end subroutine init_lbcs_file_alg
+
+
+  !> @brief   Update the time-varying LBCs from a file.
+  !> @details Update the LBCs, that are read in and updated using
+  !!          a time-axis
+  !> @param[in]     configuration   The application configuration object
+  !> @param[in]     lbc_times_list  The LBC time axis list
+  !> @param[in]     clock           Clock
+  !> @param[in,out] lbc_fields      The LBC field collection
+  subroutine update_lbcs_file_alg( configuration, lbc_times_list, clock, lbc_fields )
+
+    implicit none
+
+    type(namelist_collection_type), intent(in)    :: configuration
+    type(field_collection_type),    intent(inout) :: lbc_fields
+    type(linked_list_type),         intent(in)    :: lbc_times_list
+    class(model_clock_type),        intent(in)    :: clock
+    type(field_type),               pointer       :: lbc_v_u
+
+    type(namelist_type), pointer :: io_nml
+    type(namelist_type), pointer :: initialization_nml
+    logical(l_def)               :: subroutine_timers
+    integer(i_def)               :: lbc_option
+
+    io_nml => configuration%get_namelist('io')
+    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
+
+    if ( subroutine_timers ) call timer('update_lbcs')
+
+    nullify(lbc_v_u)
+
+    call update_variable_fields( lbc_times_list, &
+                                 clock,lbc_fields )
+
+    initialization_nml => configuration%get_namelist('initialization')
+    call initialization_nml%get_value( 'lbc_option', lbc_option )
+
+    ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
+    select case( lbc_option )
+      case ( lbc_option_gungho_file )
+        call combine_lbc_winds( lbc_fields, extensive=.true. )
+
+      case ( lbc_option_um2lfric_file )
+        call lbc_fields%get_field( 'lbc_v_u', lbc_v_u )
+        call invoke( setval_c(lbc_v_u, 0.0_r_def) )
+        call combine_lbc_winds( lbc_fields, extensive=.false. )
+        call map_lbc_inputs( configuration, lbc_fields )
+
+      case default
+        call log_event('This lbc_option not available', LOG_LEVEL_INFO)
+    end select
+
+    ! Define boundary_u_driving
+    call define_boundary_u( configuration, lbc_fields )
+
+    if ( subroutine_timers ) call timer('update_lbcs')
+
+  end subroutine update_lbcs_file_alg
+
+  !> @brief   Combine horizontal and vertical winds
+  !> @details The horizontal winds are read in as W2H, and the vertical
+  !!          winds are read in as Wtheta. This combines them into a
+  !!          single W2 field.
+  !> @param[in,out] fields  The collection of lbc fields
+  subroutine combine_lbc_winds( fields, extensive )
+
+    use combine_w2_field_kernel_mod, only: combine_w2_field_kernel_type
+
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: fields
+    logical, intent(in)                          :: extensive
+    type(field_type), pointer                    :: wind
+    type(field_type), pointer                    :: h_wind
+    type(field_type), pointer                    :: v_wind
+    type(integer_field_type), pointer            :: face_selector_ew
+    type(integer_field_type), pointer            :: face_selector_ns
+
+    type( field_type ), pointer :: dA
+    integer(i_def)              :: mesh_id
+
+    write(log_scratch_space,'(A)') "Combining winds "
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    call fields%get_field("lbc_h_u", h_wind)
+    call fields%get_field("lbc_v_u", v_wind)
+    call fields%get_field("lbc_u", wind)
+
+    mesh_id = wind%get_mesh_id()
+
+    face_selector_ew => get_face_selector_ew(mesh_id)
+    face_selector_ns => get_face_selector_ns(mesh_id)
+
+    if (extensive)then
+      call invoke( combine_w2_field_kernel_type(wind, h_wind, v_wind,          &
+                                                face_selector_ew,              &
+                                                face_selector_ns) )
+    else
+      dA => get_da_at_w2(mesh_id)
+      call invoke( combine_w2_field_kernel_type(wind, h_wind, v_wind,          &
+                                                face_selector_ew,              &
+                                                face_selector_ns),             &
+                   inc_X_times_Y(wind, dA) )
+    end if
+
+  end subroutine combine_lbc_winds
+
+  !> @brief   Define the LBC wind on the solver boundary
+  !> @details Define boundary_u by applying the w2_boundary_mask
+  !!          to lbc_u
+  !> @param[in]     configuration   The application configuration object
+  !> @param[in,out] lbc_fields  The collection of lbc fields
+  subroutine define_boundary_u( configuration, lbc_fields )
+
+    implicit none
+
+    type(namelist_collection_type), intent(in)    :: configuration
+    type( field_collection_type ),  intent(inout) :: lbc_fields
+    type( field_type ), pointer :: lbc_field
+    type( field_type ), pointer :: boundary_u
+    type( field_type ), pointer :: w2_boundary_mask
+    type( field_type ), pointer :: w2_lbc_mask
+
+    type( mesh_type ), pointer :: mesh
+
+    type(namelist_type), pointer :: base_mesh_nml
+    character(len=str_def)       :: prime_mesh_name
+
+    base_mesh_nml    => configuration%get_namelist('base_mesh')
+    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+
+    call lbc_fields%get_field( 'lbc_u', lbc_field )
+    call lbc_fields%get_field( 'boundary_u_driving', boundary_u )
+
+    mesh => lbc_field%get_mesh()
+    if (lbc_field%get_element_order_h() > 0 .or.&
+        lbc_field%get_element_order_v() > 0) then
+      w2_boundary_mask => get_boundary_mask_fe( W2, mesh%get_id(), prime_mesh_name )
+      w2_lbc_mask => get_lbc_mask_fe( W2, mesh%get_id(), prime_mesh_name )
+    else
+      w2_boundary_mask => get_boundary_mask_fv( W2, mesh%get_id(), prime_mesh_name )
+      w2_lbc_mask => get_lbc_mask_fv( W2, mesh%get_id(), prime_mesh_name )
+    end if
+
+    call invoke( X_times_Y( boundary_u, lbc_field, w2_boundary_mask ) )
+
+    ! Print max and min
+    call lbc_fields%get_field( 'lbc_u', lbc_field )
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_u', &
+                                  lbc_field, w2_lbc_mask )
+
+    nullify( boundary_u, lbc_field, w2_boundary_mask, mesh )
+
+  end subroutine define_boundary_u
+
+  !> @brief   Map from LBC fields read from file to derived LBC fields.
+  !> @details LBC files from the UM contain rho*r**2 and specific humidities
+  !>          whereas LFRic needs dry rho and mixing ratios.  So manipulate
+  !>          these accordingly.
+  !> @param[in]     configuration The application configuration object
+  !> @param[in,out] lbc_fields    The collection of lbc fields
+  subroutine map_lbc_inputs( configuration, lbc_fields )
+
+    use map_fd_to_prognostics_alg_mod, only: hydrostatic_balance
+    use map_um_lbc_inputs_alg_mod,     only: map_um_lbc_inputs
+    use moist_dyn_mod,                 only: num_moist_factors, &
+                                             gas_law, total_mass, water
+    use moist_dyn_gas_kernel_mod,      only: moist_dyn_gas_kernel_type
+    use sci_sort_ref_kernel_mod,       only: sort_ref_kernel_type
+
+    implicit none
+
+    type(namelist_collection_type), intent(in)    :: configuration
+    type( field_collection_type ),  intent(inout) :: lbc_fields
+
+    type(field_type), pointer :: lbc_rho_r2
+    type(field_type), pointer :: lbc_rho
+    type(field_type), pointer :: lbc_q
+    type(field_type), pointer :: lbc_qcl
+    type(field_type), pointer :: lbc_qcf
+    type(field_type), pointer :: lbc_qrain
+    type(field_type), pointer :: lbc_m_v
+    type(field_type), pointer :: lbc_m_cl
+    type(field_type), pointer :: lbc_m_s
+    type(field_type), pointer :: lbc_m_r
+    type(field_type)          :: lbc_moist_dyn(num_moist_factors)
+    type(field_type), pointer :: lbc_theta
+    type(field_type), pointer :: lbc_exner
+    type(field_type), pointer :: lbc_u
+
+    type(mesh_type),  pointer :: mesh
+    type(field_type), pointer :: w3_lbc_mask
+    type(field_type), pointer :: wtheta_lbc_mask
+
+    ! The interior of the LBC fields for rho and exner need to have
+    ! sensible values to avoid numerical errors for kernels that
+    ! redundantly use them either in the model or from diagnostic output.
+    ! Choose a fill value for the domain interior that is an
+    ! acceptable physical value.
+    real(r_def), parameter    :: EXNER_RHO_FILL_VALUE = 0.2_r_def
+
+    integer(i_def)            :: imd
+
+    integer(i_def)            :: lbc_eos_height
+
+    type(namelist_type), pointer :: boundaries_nml
+    type(namelist_type), pointer :: base_mesh_nml
+    character(len=str_def)       :: prime_mesh_name
+
+    base_mesh_nml    => configuration%get_namelist('base_mesh')
+    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+
+    nullify( lbc_rho_r2, lbc_rho, lbc_q, lbc_qcl, lbc_qcf, lbc_qrain,    &
+             lbc_m_v, lbc_m_cl, lbc_m_s, lbc_m_r, lbc_theta, lbc_exner,  &
+             lbc_u, mesh, w3_lbc_mask )
+
+    boundaries_nml => configuration%get_namelist('boundaries')
+    call boundaries_nml%get_value( 'lbc_eos_height', lbc_eos_height )
+    nullify( boundaries_nml )
+
+    write(log_scratch_space,'(A)') &
+      'Recovering exner, and mixing ratios for LBCs.'
+
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+    call lbc_fields%get_field( 'lbc_rho_r2', lbc_rho_r2 )
+    call lbc_fields%get_field( 'lbc_rho', lbc_rho )
+    call lbc_fields%get_field( 'lbc_q', lbc_q )
+    call lbc_fields%get_field( 'lbc_qcl', lbc_qcl )
+    call lbc_fields%get_field( 'lbc_qcf', lbc_qcf )
+    call lbc_fields%get_field( 'lbc_qrain', lbc_qrain )
+    call lbc_fields%get_field( 'lbc_m_v', lbc_m_v )
+    call lbc_fields%get_field( 'lbc_m_s', lbc_m_s )
+    call lbc_fields%get_field( 'lbc_m_cl', lbc_m_cl )
+    call lbc_fields%get_field( 'lbc_m_r', lbc_m_r )
+    call lbc_fields%get_field( 'lbc_theta', lbc_theta )
+    call lbc_fields%get_field( 'lbc_exner', lbc_exner )
+    call lbc_fields%get_field( 'lbc_u', lbc_u )
+
+    mesh => lbc_exner%get_mesh()
+
+    if (lbc_u%get_element_order_h() > 0 .or. &
+        lbc_u%get_element_order_v() > 0) then
+      w3_lbc_mask => get_lbc_mask_fe(W3, mesh%get_id(), prime_mesh_name)
+      wtheta_lbc_mask => get_lbc_mask_fe(Wtheta, mesh%get_id(), prime_mesh_name)
+    else
+      w3_lbc_mask => get_lbc_mask_fv(W3, mesh%get_id(), prime_mesh_name)
+      wtheta_lbc_mask => get_lbc_mask_fv(Wtheta, mesh%get_id(), prime_mesh_name)
+    end if
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_theta', &
+                                  lbc_theta, wtheta_lbc_mask )
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_q',     &
+                                  lbc_q, wtheta_lbc_mask )
+
+    call map_um_lbc_inputs(lbc_q, lbc_qcl, lbc_qcf, lbc_qrain, lbc_rho_r2, &
+                           lbc_m_v, lbc_m_cl, lbc_m_s, lbc_m_r, lbc_rho    &
+                           )
+
+    ! Update factors for moist dynamics.
+    ! The implementation here is comparable with moisture_formulation_traditional
+    ! but since the LBCs don't necessarily use all moisture fields (i.e. that
+    ! are in the mr array), we don't use moist_dyn_factors_alg to
+    ! set this up.
+    do imd=1,3
+      call lbc_q%copy_field_properties(lbc_moist_dyn(imd))
+    end do
+    call invoke( moist_dyn_gas_kernel_type(lbc_moist_dyn(gas_law), lbc_m_v),    &
+                 setval_c( lbc_moist_dyn(total_mass), 1.0_r_def),               &
+                 inc_X_plus_Y(lbc_moist_dyn(total_mass), lbc_m_v),              &
+                 setval_c( lbc_moist_dyn(water), 1.0_r_def),                    &
+
+    ! Remove any static instability.
+                 sort_ref_kernel_type(lbc_theta),                               &
+
+    ! Initialize hydrostatically balanced exner field.
+                 setval_c(lbc_exner, EXNER_RHO_FILL_VALUE) )
+
+    call hydrostatic_balance( lbc_exner, lbc_rho, lbc_theta, &
+                              lbc_u, lbc_moist_dyn,          &
+                              lbc_eos_height, w3_lbc_mask )
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_rho',   &
+                                  lbc_rho, w3_lbc_mask )
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_exner', &
+                                  lbc_exner, w3_lbc_mask )
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_m_v',   &
+                                  lbc_m_v, wtheta_lbc_mask )
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_m_cl',  &
+                                  lbc_m_cl, wtheta_lbc_mask )
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_m_s',   &
+                                  lbc_m_s, wtheta_lbc_mask )
+
+    call log_field_masked_minmax( LOG_LEVEL_DEBUG, 'lbc_m_r',   &
+                                  lbc_m_r, wtheta_lbc_mask )
+
+end subroutine map_lbc_inputs
+
+end module init_gungho_lbcs_alg_mod

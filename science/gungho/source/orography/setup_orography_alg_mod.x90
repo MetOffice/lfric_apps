@@ -1,0 +1,335 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Algorithm to apply the orography field to all meshes.
+
+module setup_orography_alg_mod
+
+  use constants_mod,                 only: i_def, str_def, l_def
+  use extrusion_mod,                 only: TWOD, SHIFTED, DOUBLE_LEVEL
+  use field_mod,                     only: field_type
+  use function_space_mod,            only: function_space_type
+  use fs_continuity_mod,             only: W3, W0
+  use function_space_collection_mod, only: function_space_collection
+  use inventory_by_mesh_mod,         only: inventory_by_mesh_type
+  use mesh_collection_mod,           only: mesh_collection
+  use mesh_mod,                      only: mesh_type
+  use log_mod,                       only: log_event, LOG_LEVEL_ERROR, log_scratch_space
+
+
+  implicit none
+
+  public  :: setup_orography_alg
+  private :: create_map_list
+
+contains
+  !> @brief Assigns the orography field to all meshes
+  !> @details This algorithm first computes the surface altitude field on
+  !>          each mesh by mapping the surface altitude field
+  !>          from a previous mesh. Then the orography field for the
+  !>          meshes is assigned from the respective surface
+  !>          altitude field for each mesh.
+  !> @param[in]     all_mesh_names        An array of the names of all the base meshes.
+  !> @param[in]     orography_mesh_name   Name of mesh where surface altitude is read in.
+  !> @param[in,out] chi_inventory         Contains the model's coordinate fields
+  !!                                      paired with their mesh.
+  !> @param[in]     panel_id_inventory    Contains the model's panel ID fields
+  !!                                      paired with their mesh.
+  !> @param[in]     surface_altitude      Surface altitude on the orography mesh.
+  subroutine setup_orography_alg( all_mesh_names,         &
+                                  orography_mesh_name,    &
+                                  chi_inventory,          &
+                                  panel_id_inventory,     &
+                                  surface_altitude        )
+
+    use assign_orography_field_mod, only: assign_orography_field
+    use surface_altitude_alg_mod,   only: surface_altitude_alg
+    use intermesh_mappings_alg_mod, only: map_scalar_intermesh, &
+                                          map_w0_intermesh
+    use initialization_config_mod,  only: w0_orography_mapping
+
+
+    implicit none
+
+    character(str_def),           intent(in)    :: all_mesh_names(:)
+    character(str_def),           intent(in)    :: orography_mesh_name
+    type(inventory_by_mesh_type), intent(inout) :: chi_inventory
+    type(inventory_by_mesh_type), intent(in)    :: panel_id_inventory
+    type(field_type),             intent(in)    :: surface_altitude
+
+    ! local variables
+    character(str_def), allocatable    :: source_mesh_names(:)
+    character(str_def), allocatable    :: target_mesh_names(:)
+    type(mesh_type),  pointer          :: source_mesh => null()
+    type(mesh_type),  pointer          :: source_twod_mesh => null()
+    type(mesh_type),  pointer          :: target_mesh => null()
+    type(mesh_type),  pointer          :: target_twod_mesh => null()
+    type(mesh_type),  pointer          :: shifted_mesh => null()
+    type(mesh_type),  pointer          :: double_level_mesh => null()
+    integer(kind=i_def)                :: i, surface_order_h, surface_order_v
+    integer(kind=i_def)                :: num_meshes
+    type(field_type), allocatable      :: surface_altitude_list(:)
+    type(field_type), pointer          :: source_surface_altitude => null()
+    type(inventory_by_mesh_type)       :: surface_altitude_inventory
+    integer(i_def)                     :: fs_id
+    type(function_space_type), pointer :: fs => null()
+
+    num_meshes = SIZE(all_mesh_names)
+
+    surface_order_h = surface_altitude%get_element_order_h()
+    surface_order_v = surface_altitude%get_element_order_v()
+
+    allocate(surface_altitude_list(num_meshes))
+
+    ! Only create mesh map list if we have more than one mesh
+    if (num_meshes > 1) then
+      call create_map_list(all_mesh_names, orography_mesh_name, source_mesh_names, target_mesh_names)
+    end if
+
+    ! Initialise variables and add surface altitude to inventory.
+    ! Check whether field should be mapped in W3 or W0
+    call surface_altitude_inventory%initialise(name="surface_altitude", table_len=num_meshes)
+
+    source_mesh => mesh_collection%get_mesh(orography_mesh_name)
+    source_twod_mesh => mesh_collection%get_mesh(source_mesh, TWOD)
+
+    if (w0_orography_mapping) then
+      fs_id = W0
+      call surface_altitude_list(1)%initialise( vector_space =               &
+         function_space_collection%get_fs(source_twod_mesh, surface_order_h, &
+                                          surface_order_v, fs_id),           &
+                                          halo_depth = source_twod_mesh%get_halo_depth() )
+      call surface_altitude_alg(surface_altitude_list(1), surface_altitude)
+    else
+      fs_id = W3
+      call surface_altitude_list(1)%initialise( vector_space =               &
+         function_space_collection%get_fs(source_twod_mesh, surface_order_h, &
+                                          surface_order_v, fs_id),           &
+                                          halo_depth = source_twod_mesh%get_halo_depth() )
+      call invoke( setval_X(surface_altitude_list(1), surface_altitude) )
+    end if
+
+    fs  => function_space_collection%get_fs(source_twod_mesh, surface_order_h, &
+                                            surface_order_v, fs_id)
+
+    call surface_altitude_inventory%copy_field(surface_altitude_list(1), source_twod_mesh)
+
+    ! Assignment of orography from surface_altitude on orography mesh
+    call assign_orography_field(chi_inventory, panel_id_inventory, &
+                                source_mesh, surface_altitude)
+
+    ! Assign for shifted and double level meshes if they exist
+    if (mesh_collection%check_for(source_mesh, SHIFTED)) then
+      shifted_mesh => mesh_collection%get_mesh(source_mesh, SHIFTED)
+      call assign_orography_field(chi_inventory, panel_id_inventory, &
+                                  shifted_mesh, surface_altitude)
+    end if
+
+    if (mesh_collection%check_for(source_mesh, DOUBLE_LEVEL)) then
+      double_level_mesh => mesh_collection%get_mesh(source_mesh, DOUBLE_LEVEL)
+      call assign_orography_field(chi_inventory, panel_id_inventory, &
+                                  double_level_mesh, surface_altitude)
+    end if
+
+    ! Loop through other meshes in list
+    do i = 1, num_meshes - 1
+
+      source_mesh      => mesh_collection%get_mesh(source_mesh_names(i))
+      source_twod_mesh => mesh_collection%get_mesh(source_mesh, TWOD)
+
+      target_mesh      => mesh_collection%get_mesh(target_mesh_names(i))
+      target_twod_mesh => mesh_collection%get_mesh(target_mesh, TWOD)
+
+      !------------------------------------------------------------------------!
+      ! Create the surface altitude fields on the meshes
+      !------------------------------------------------------------------------!
+      fs  => function_space_collection%get_fs(target_twod_mesh, surface_order_h, &
+                                              surface_order_v, fs_id)
+      call surface_altitude_inventory%get_field(source_twod_mesh, source_surface_altitude)
+
+      call surface_altitude_list(i+1)%initialise(vector_space = fs, &
+                                                 halo_depth = target_twod_mesh%get_halo_depth())
+
+      ! We use a simple mapping from source to target meshes
+      if (w0_orography_mapping) then
+
+        call map_w0_intermesh(surface_altitude_list(i+1), &
+                              source_surface_altitude)
+      else
+
+        call map_scalar_intermesh(surface_altitude_list(i+1), &
+                                  source_surface_altitude)
+      end if
+
+      ! Add new surface altitude field to inventory for potential future mapping
+      call surface_altitude_inventory%copy_field(surface_altitude_list(i+1), target_twod_mesh)
+
+      !------------------------------------------------------------------------!
+      ! Use the surface altitude to introduce orography on meshes
+      !------------------------------------------------------------------------!
+      call assign_orography_field(chi_inventory, panel_id_inventory, target_mesh, &
+                                  surface_altitude_list(i+1))
+
+      ! Assign for shifted and double level meshes if they exist
+      if (mesh_collection%check_for(target_mesh, SHIFTED)) then
+        shifted_mesh => mesh_collection%get_mesh(target_mesh, SHIFTED)
+        call assign_orography_field(chi_inventory, panel_id_inventory, &
+                                    shifted_mesh, surface_altitude_list(i+1))
+      end if
+
+      if (mesh_collection%check_for(target_mesh, DOUBLE_LEVEL)) then
+        double_level_mesh => mesh_collection%get_mesh(target_mesh, DOUBLE_LEVEL)
+        call assign_orography_field(chi_inventory, panel_id_inventory, &
+                                    double_level_mesh, surface_altitude_list(i+1))
+      end if
+    end do
+
+    ! Tidy up
+    call surface_altitude_inventory%clear()
+    deallocate(surface_altitude_list)
+    nullify(source_mesh, source_twod_mesh, target_mesh, target_twod_mesh, &
+            source_surface_altitude)
+
+
+  end subroutine setup_orography_alg
+
+  !> @brief Iterates through list of bases meshes, and finds mesh mappings such that all meshes
+  !>        get orography assigned to them.
+  !> @details This algorithm implments a tree search like method to create a list of mappings pairs
+  !>          in order to map orography through all meshes.
+  !> @param[in]     all_mesh_names        An array of the names of all the base meshes.
+  !> @param[in]     orography_mesh_name   Name of mesh where surface altitude is read in.
+  !> @param[in,out] source_mesh_names     An ordered array of meshes to map orography from.
+  !> @param[in,out] target_mesh_names     An ordered array of meshes to map orography to.
+  subroutine create_map_list( all_mesh_names,         &
+                              orography_mesh_name,    &
+                              source_mesh_names,      &
+                              target_mesh_names       )
+
+    implicit none
+
+    character(str_def),              intent(in)       :: all_mesh_names(:)
+    character(str_def),              intent(in)       :: orography_mesh_name
+    character(str_def), allocatable, intent(inout)    :: source_mesh_names(:)
+    character(str_def), allocatable, intent(inout)    :: target_mesh_names(:)
+
+    character(str_def), allocatable  :: new_mesh_names(:)
+    integer(kind=i_def)              :: num_meshes, mesh_counter, mesh_index, &
+                                        i, j, k, i_max, next_index
+    character(str_def), allocatable  :: used_mesh_names(:)
+    integer(kind=i_def), allocatable :: ip1(:)
+    type(mesh_type),  pointer        :: mesh => null()
+    type(mesh_type),  pointer        :: target_mesh => null()
+    logical(l_def)                   :: exist, accounted_for
+
+    ! Allocate arrays
+    num_meshes = SIZE(all_mesh_names)
+    allocate(new_mesh_names(num_meshes))
+    allocate(source_mesh_names(num_meshes-1))
+    allocate(target_mesh_names(num_meshes-1))
+    allocate(used_mesh_names(num_meshes))
+    allocate(ip1(num_meshes))
+
+    ! Set up indexing
+    mesh_counter = 1
+    i = 1
+    j = 2
+
+    ! Create new ordered list, where the orography mesh is the first mesh
+    mesh_index = 1
+    new_mesh_names(1) = adjustl(trim(orography_mesh_name))
+    mesh_index = mesh_index + 1
+    ! Loop through all meshes and reorder
+    do  i = 1, num_meshes
+      if (all_mesh_names(i) /= orography_mesh_name) then
+        new_mesh_names(mesh_index) = adjustl(trim(all_mesh_names(i)))
+        mesh_index = mesh_index + 1
+      end if
+    end do
+
+    ! Set up empty character array of meshes that have been mapped to
+    do k = 1, num_meshes
+      used_mesh_names(k) = adjustl(trim('A'))
+    end do
+
+    ! First mesh to map from/to is orography mesh
+    used_mesh_names(1) = adjustl(trim(new_mesh_names(1)))
+    source_mesh_names(1) = adjustl(trim(new_mesh_names(1)))
+
+    i = 1
+    ! Loop until all meshes added
+    do while (mesh_counter < num_meshes)
+
+      ! Integers to search
+      i_max = 1
+      next_index = 1
+
+      ! Search through meshes
+      do while(next_index <= i_max)
+        ! Loop through all other meshes
+        do while(j <= num_meshes)
+          mesh => mesh_collection%get_mesh(new_mesh_names(i))
+          target_mesh => mesh_collection%get_mesh(new_mesh_names(j))
+          ! If mesh map exists
+          if (mesh%query_mesh_map(target_mesh)) then
+            ! Check if mesh has already been mapped to
+            exist = .False.
+            do k = 1, num_meshes
+              if (new_mesh_names(j) == used_mesh_names(k)) then
+                exist = .True.
+              end if
+            end do
+
+            ! If not, add to list
+            if (.not. exist) then
+              source_mesh_names(mesh_counter) = adjustl(trim(new_mesh_names(i)))
+              target_mesh_names(mesh_counter) = adjustl(trim(new_mesh_names(j)))
+              used_mesh_names(mesh_counter+1) = adjustl(trim(new_mesh_names(j)))
+              mesh_counter = mesh_counter + 1
+
+              ! Store next possible mesh to search
+              ip1(i_max) = j
+              i_max = i_max + 1
+            end if
+          end if
+          j = j + 1
+        end do
+        ! Search next mesh
+        i = ip1(next_index)
+        next_index = next_index + 1
+
+        j = 1
+
+        ! Force exit if all meshes have been mapped to
+        if (mesh_counter == num_meshes) then
+          EXIT
+        end if
+      end do
+    end do
+
+    accounted_for = .false.
+
+    ! Check all meshes are accounted for
+    do i = 2, num_meshes
+
+      do j = 1, SIZE(target_mesh_names)
+        if ( new_mesh_names(i) == target_mesh_names(j) ) then
+          accounted_for = .true.
+        end if
+      end do
+      if (.not. accounted_for) then
+        write( log_scratch_space, '(3A)' )  &
+            'Mesh', new_mesh_names(i), 'will not have orography assigned to it. Check that mesh maps are correct'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+    end do
+
+
+    deallocate(used_mesh_names)
+    deallocate(new_mesh_names)
+    deallocate(ip1)
+  end subroutine create_map_list
+
+end module setup_orography_alg_mod

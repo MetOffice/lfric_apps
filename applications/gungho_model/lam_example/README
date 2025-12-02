@@ -1,0 +1,19 @@
+Purpose:
+Test reading in and using time-varying LBC (lateral boundary condition) data from a file.
+
+Details:
+The LBC file can be considered to be a file with a time sequence of prognostic fields. The LBC fields will also have a cutout/frame - but this is not required for the purposes of testing the reading in of the file. Therefore a fake LBC file can be created from an lfric_diag.nc file from a regular gungho run. The LBC file can be read into LFRic using the time-axis infrastructure - this reads the whole 4D time series and applies time interpolation.
+
+Usage:
+1. Build gungho_model (i.e. in the top-level directory of the working copy, run './build/local_build.py -a gungho_model')
+2. Run the driving model (in lam_example/straka, run '../../bin/gungho_model config_driver.nml')
+3. Convert the lfric_diag.nc file to an lbc file (. create_lbc_file.sh lfric_diag.nc)
+4. Set the lbc directory name in config_lam.nml to your local lam_example directory name
+5. Run the limited area model (in lam_example/straka, run '../../bin/gungho_model config_lam.nml'). This will create a new lfric_diag.nc file.
+6. Compare the values of e.g. theta in lbc.nc with the values of e.g. lbc_theta in lfric_diag.nc.
+
+To update rose-stem:
+The straka/lbc.nc file created here has been added to BIG_DATA_DIR to enable running rose-app-straka_y_lam_lbcs_file.conf.
+
+Explore:
+1. To alter the lbc update frequency, alter the diagnostic_frequency in the config_driver.nml file, and alter the value create_lbc_file.sh. (Currently for the straka case, the diagnostic frequency is 2, and the timestep is 10, so the times are adjusted by 20 in the create_lbc_file.sh). The value of n_glo for the lbc_axis in the iodef file also needs to match the number of time levels in the lbc file.

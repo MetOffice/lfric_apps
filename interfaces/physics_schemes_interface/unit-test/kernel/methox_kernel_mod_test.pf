@@ -1,0 +1,116 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the methane oxidation kernel
+!>
+module methox_kernel_mod_test
+
+  use funit
+  use constants_mod,                 only : r_def, i_def
+
+  implicit none
+
+  private
+  public :: test_methox
+
+  @TestCase
+  type, extends(TestCase), public  :: methox_test_type
+    private
+    real(kind=r_def), allocatable :: answer_dmv(:), dmv(:),  &
+                                     m_v(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_methox
+  end type methox_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+  implicit none
+
+  class(methox_test_type), intent(inout) :: this
+
+  integer(kind=i_def) :: undf_wth
+
+  undf_wth = 2_i_def
+
+  allocate( this%answer_dmv(undf_wth) )
+  allocate( this%dmv(undf_wth) )
+  allocate( this%m_v(undf_wth) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+  implicit none
+
+  class(methox_test_type), intent(inout) :: this
+
+  deallocate ( this%answer_dmv, this%dmv, this%m_v)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_methox( this )
+
+  use methox_kernel_mod, only : methox_code, methox_coeff, photol_coeff
+
+  implicit none
+
+  class(methox_test_type), intent(inout) :: this
+
+  real(kind=r_def), parameter   :: tol = 1.0e-14_r_def
+
+  ! Argument list variables for methox_code
+  integer(kind=i_def), allocatable :: map_wth(:)
+  integer(kind=i_def)              :: nlayers
+  integer(kind=i_def)              :: ndf_wth
+  integer(kind=i_def)              :: undf_wth
+  real(kind=r_def)                 :: dt
+
+  nlayers  = 1_i_def
+  ndf_wth  = 1_i_def
+  undf_wth = 2_i_def
+
+  allocate(map_wth(ndf_wth))
+  map_wth(:)  = 1_i_def
+
+  allocate(methox_coeff(0:nlayers))
+  allocate(photol_coeff(0:nlayers))
+
+  methox_coeff = 2.0e-3_r_def
+  photol_coeff = 3.0e-3_r_def
+  dt = 600.0_r_def
+
+  ! Set initial fields
+  this%dmv(:) = 1.0_r_def
+  this%m_v(1) = 4.0e-6_r_def
+  this%m_v(2) = 1.0e-6_r_def
+
+  ! Set correct answer
+  this%answer_dmv(1) = 0.0_r_def
+  this%answer_dmv(2) = 1.5e-6_r_def
+
+  call methox_code( nlayers,       &
+                    this%dmv(:),   &
+                    this%m_v(:),   &
+                    dt,            &
+                    ndf_wth,       &
+                    undf_wth,      &
+                    map_wth )
+
+  @assertEqual(this%answer_dmv(:), this%dmv(:), tol )
+
+  deallocate( map_wth )
+
+  end subroutine test_methox
+
+end module methox_kernel_mod_test

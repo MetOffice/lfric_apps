@@ -1,0 +1,88 @@
+{% do LOG.debug("Entered site/uoe/common/suite_config_epic.cylc") %}
+
+{% set epic_base = 'umask 0022' %}
+
+{% set epic_compiler_gnu = 'source /home/um/UoEGCC1120SWstackBuild/RoseStemSource.sh' %}
+
+{% set epic_run = 'ulimit -s unlimited' %}
+
+{% set epic_scitools = 'export PATH=/home/um/miniforge3/envs/uoescitools-mamba-build/bin${PATH:+:$PATH}' %}
+
+{% set epic_tech = '' %}
+
+
+    [[EPIC_BASE]]
+        platform = localhost
+        [[[environment]]]
+            SITE = 'uoe'
+            BUILD_ROOT = $CYLC_WORKFLOW_RUN_DIR/share/lfric_build
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 1
+            NUMA_REGIONS_PER_NODE = 0
+            ROSE_LAUNCHER = mpiexec
+
+    [[EPIC_BUILD]]
+
+    [[EPIC_RUN]]
+        [[[environment]]]
+            ROSE_LAUNCHER_ULIMIT_OPTS = -s unlimited
+            BIG_DATA_DIR = '/data/lfric/data'
+            TARGET_PLATFORM = 'uoe-epic'
+            RUN_METHOD = mpiexec
+
+    [[EPIC_GNU]]
+        [[[environment]]]
+            COMPILER = 'gnu'
+
+    [[EPIC_BUILD_GNU]]
+        inherit=EPIC_BASE,EPIC_BUILD,EPIC_GNU
+        {{ generate_script("pre-script", [epic_base, epic_scitools, epic_compiler_gnu]) }}
+
+    [[EPIC_RUN_GNU]]
+        inherit=EPIC_BASE,EPIC_RUN,EPIC_GNU
+        {{ generate_script("pre-script", [epic_base, epic_compiler_gnu, epic_run]) }}
+
+    [[EPIC_MESH]]
+        inherit=EPIC_BASE
+
+    [[EPIC_MESH_GNU]]
+        inherit=EPIC_GNU,EPIC_MESH
+        {{ generate_script("pre-script", [epic_base,
+                                          epic_compiler_gnu,
+                                          epic_scitools,
+                                          epic_tech]) }}
+
+    [[EPIC_TECH_BASE]]
+        inherit=EPIC_BASE
+
+    [[EPIC_TECH_TESTS]]
+        inherit=EPIC_TECH_BASE
+
+    [[EPIC_TECH_TESTS_GNU]]
+        inherit=EPIC_TECH_TESTS,EPIC_GNU
+        {{ generate_script("pre-script", [epic_base, epic_compiler_gnu, epic_tech]) }}
+
+    [[EPIC_TECH]]
+        inherit=EPIC_TECH_BASE
+        {{ generate_script("pre-script", [epic_base, epic_scitools, epic_tech]) }}
+
+    [[EPIC_PLOT]]
+        inherit=EPIC_TECH_BASE
+        {{ generate_script("pre-script", [epic_scitools]) }}
+
+    [[EPIC_CHECK]]
+        inherit=EPIC_TECH
+
+    [[EPIC_SCRIPTS]]
+        inherit=EPIC_TECH
+
+    [[EPIC_EXPORT-SOURCE]]
+        inherit=UOE_ORIG
+        [[[environment]]]
+            hostname = {{ ROSE_ORIG_HOST }}
+            PLATFORM_SYNC = false
+
+    [[EPIC_HOUSEKEEPING]]
+        inherit=EPIC_TECH_BASE
+
+{% do LOG.debug("Finished in uoe/common/suite_config_epic.cylc") %}

@@ -1,0 +1,22 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/suite_config.cylc") %}
+
+    [[METO_ORIG]]
+        pre-script = "module load scitools"
+        platform = {{ROSE_ORIG_HOST}}
+
+    {# Family for lfric_coupled rivers/ocean 1st step builds #}
+    [[METO_FCM_MAKE]]
+        platform = spice
+        [[[directives]]]
+            --mem=1G
+            --ntasks=1
+
+{% include 'site/meto/common/suite_config_ex1a.cylc' %}
+{% include 'site/meto/common/suite_config_azspice.cylc' %}
+
+{% do LOG.debug("Finished in site/meto/suite_config.cylc") %}

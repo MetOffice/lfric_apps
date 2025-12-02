@@ -1,0 +1,162 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the wind initialization by sampling
+!>
+module sample_initial_u_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use funit
+
+  implicit none
+
+
+  private
+  public :: sample_initial_u_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: sample_initial_u_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type sample_initial_u_test_type
+
+  integer(i_def), parameter :: element_order_h = 0
+  integer(i_def), parameter :: element_order_v = 0
+
+  real(r_def), parameter :: u0             = 1.0_r_def
+  real(r_def), parameter :: v0             = 2.0_r_def
+  real(r_def), parameter :: sbr_angle_lat  = 0.0_r_def
+  real(r_def), parameter :: sbr_angle_lon  = 0.0_r_def
+  real(r_def), parameter :: wind_time_period = 10.0_r_def
+  real(r_def), parameter :: nl_constant = 1.0_r_def
+  real(r_def), parameter :: shear = 1.0_r_def
+  real(r_def), parameter :: wavelength = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(sample_initial_u_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(sample_initial_u_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use sample_initial_u_kernel_mod, only : sample_initial_u_code
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2_m3x3_q3x3x3_size,  &
+                                                   get_wchi_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod, only: get_w2_m3x3_dofmap,  &
+                                             get_wchi_m3x3_dofmap
+
+    use get_unit_test_3x3x3_chi_mod, only: get_wchi_3x3x3_field
+
+    implicit none
+
+    class(sample_initial_u_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: dx = 6000.0_r_def
+    real(r_def), parameter :: dy = 1000.0_r_def
+    real(r_def), parameter :: dz = 2000.0_r_def
+    real(r_def), parameter :: dzdx = 200.0_r_def
+
+    real(r_def), allocatable :: chi_data(:,:)
+    real(r_def), allocatable :: wind_data(:)
+
+    real(kind=r_def) :: answer
+
+    integer(i_def)                 :: nlayers
+    integer(i_def)                 :: ndf_wchi, ndf_w2
+    integer(i_def)                 :: undf_wchi, undf_w2
+    integer(i_def), allocatable    :: map_w2(:,:)
+    integer(i_def), allocatable    :: map_wchi(:,:)
+
+    integer(i_def) :: i, j, k, cell
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    ! Use a 3 layer mesh
+    nlayers=3
+
+    ! Get sizes
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+    call get_wchi_m3x3_q3x3x3_size( ndf_wchi, undf_wchi, unused, &
+                                    unused, unused,              &
+                                    unused, unused,              &
+                                    nlayers )
+
+
+    ! Get dofmaps
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_wchi_m3x3_dofmap(map_wchi)
+
+    ! Create the chi field
+    allocate(chi_data(undf_wchi,3))
+
+    ! Compute coordinates
+    call get_wchi_3x3x3_field(chi_data(:,1), chi_data(:,2), chi_data(:,3), &
+                              dx, dy, dz, dzdx, map_wchi, nlayers)
+
+    cell = 3
+
+    ! Create the wind field
+    allocate(wind_data(undf_w2))
+
+    ! Create the data
+    wind_data(:) = 0.0_r_def
+
+    call sample_initial_u_code( nlayers,             &
+                                wind_data,           &
+                                chi_data(:,1),       &
+                                chi_data(:,2),       &
+                                chi_data(:,3),       &
+                                u0, v0,              &
+                                ndf_w2, undf_w2,     &
+                                map_w2(:,cell),      &
+                                ndf_wchi, undf_wchi, &
+                                map_wchi(:,cell)     &
+                                )
+
+    ! Test
+    do k = 0,2
+      answer = u0*dy*dz
+      @assertEqual(answer, wind_data(map_w2(1,cell)+k), tol)
+      answer = -v0*dx*dz
+      @assertEqual(answer, wind_data(map_w2(2,cell)+k), tol)
+      answer = 0.0_r_def
+      @assertEqual(answer, wind_data(map_w2(5,cell)+k), tol)
+    end do
+
+  end subroutine test_all
+
+end module sample_initial_u_kernel_mod_test

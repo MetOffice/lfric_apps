@@ -1,0 +1,39 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/lfricinputs/tasks_lfricinputs_ex1a.cylc") %}
+
+{% if task_ns.conf_name == "lfric2um-umlam-C48L70_N512L70" %}
+
+    {% do task_dict.update({
+        "mpi_parts": 12,
+    }) %}
+
+{% elif task_ns.conf_name == "lfric2um-performance-C224L70_N512L70" %}
+
+    {% do task_dict.update({
+        "memory": [96, "GB"],
+    }) %}
+
+{% endif %}
+
+{% if task_dict %}
+    {% if "mpi_parts" not in task_dict %}
+        {% do task_dict.update({
+            "mpi_parts": 126,
+            "xproc": 9,
+            "yproc": 14,
+        }) %}
+    {% endif %}
+    {% if task_dict["app_name"] == "um2lfric" %}
+        {% do task_dict.update({
+            "xios_nodes": 1,
+            "mpi_parts_xios": 1,
+            "task_ranks_per_node": task_dict["mpi_parts"],
+        }) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/meto/lfricinputs/tasks_lfricinputs_ex1a.cylc") %}

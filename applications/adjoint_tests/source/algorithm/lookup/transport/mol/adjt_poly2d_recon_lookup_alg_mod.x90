@@ -1,0 +1,184 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for adj_poly2d_recon_lookup_kernel
+module adjt_poly2d_recon_lookup_alg_mod
+    use r_tran_field_mod,                     only : r_tran_field_type
+    use function_space_mod,                   only : function_space_type
+    use mesh_mod,                             only : mesh_type
+    use function_space_collection_mod,        only : function_space_collection
+    use fs_continuity_mod,                    only : name_from_functionspace
+    use finite_element_config_mod,            only : element_order_h, &
+                                                     element_order_v
+    use constants_mod,                        only : i_def, r_def, r_tran
+    use log_mod,                              only : log_event,       &
+                                                     LOG_LEVEL_ERROR, &
+                                                     LOG_LEVEL_INFO,  &
+                                                     LOG_LEVEL_DEBUG, &
+                                                     log_scratch_space
+    use transport_config_mod,                 only : fv_horizontal_order
+    use transport_constants_mod,              only : get_hori_wt_mol_coeffs
+
+  implicit none
+
+  public :: adjt_poly2d_recon_lookup_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for adj_poly2d_recon_lookup_kernel.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  fspace_enum  The function space to test.
+  subroutine adjt_poly2d_recon_lookup_alg( mesh, fspace_enum )
+    use poly2d_reconstruction_kernel_mod,     only : poly2d_reconstruction_kernel_type
+    use invoke_adj_poly2d_recon_lookup_mod,   only : invoke_adj_poly2d_recon_lookup
+    use adj_lookup_table_mod,                 only : adj_lookup_table_type
+    use adj_lookup_table_generators_alg_mod,  only : create_lookup_poly2d
+    use integer_field_mod,                    only : integer_field_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    integer(kind=i_def),      intent(in) :: fspace_enum
+
+    ! Internal arguments for kernels
+    type(r_tran_field_type)             :: reconstruction
+    type(r_tran_field_type)             :: tracer
+    type(r_tran_field_type)             :: dummy_ads2
+    integer(kind=i_def)                 :: stencil_extent
+    type(r_tran_field_type),    pointer :: coeff
+    integer(kind=i_def)                 :: ndata
+    integer(kind=i_def)                 :: stencil_size
+
+    ! Internal variables for initialising and saving input fields
+    integer(kind=i_def)                 :: mesh_id
+    type(function_space_type),  pointer :: vector_space_wt_md_ptr
+    type(function_space_type),  pointer :: vector_space_wtheta_ptr
+    type(r_tran_field_type)             :: reconstruction_input
+    type(r_tran_field_type)             :: tracer_input
+
+    ! Lookup table variables
+    type(adj_lookup_table_type)         :: lookup
+    type(integer_field_type),   pointer :: lookup_field
+    type(integer_field_type),   pointer :: num_sets_field
+    integer(kind=i_def)                 :: nsets
+    integer(kind=i_def)                 :: nindices
+
+    ! Inner product variables
+    real(kind=r_def)                    :: reconstruction_inner_prod
+    real(kind=r_tran)                   :: reconstruction_sf
+    real(kind=r_def)                    :: tracer_inner_prod
+    real(kind=r_tran)                   :: tracer_sf
+    real(kind=r_tran)                   :: inner1
+    real(kind=r_def)                    :: reconstruction_reconstruction_input_inner_prod
+    real(kind=r_def)                    :: tracer_tracer_input_inner_prod
+    real(kind=r_tran)                   :: inner2
+    real(kind=r_tran),        parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_tran),        parameter :: overall_tolerance = 1500.0_r_tran
+    real(kind=r_tran)                   :: machine_tol
+    real(kind=r_tran)                   :: relative_diff
+
+    nullify(coeff, vector_space_wt_md_ptr, vector_space_wtheta_ptr, &
+            lookup_field, num_sets_field)
+
+    mesh_id = mesh%get_id()
+    if (mod(fv_horizontal_order, 2) == 0) then
+      stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
+    else
+      stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
+    end if
+
+    ndata = 4
+    coeff => get_hori_wt_mol_coeffs(mesh_id)
+    stencil_extent = fv_horizontal_order/2_i_def
+    vector_space_wt_md_ptr => function_space_collection%get_fs( &
+      mesh, element_order_h, element_order_v, fspace_enum, ndata=ndata, ndata_first=.false. &
+    )
+    vector_space_wtheta_ptr => function_space_collection%get_fs( &
+      mesh, element_order_h, element_order_v, fspace_enum &
+    )
+    call reconstruction%initialise(vector_space=vector_space_wt_md_ptr, name='reconstruction')
+    call tracer%initialise(vector_space=vector_space_wtheta_ptr, name='tracer', halo_depth=2)
+    call tracer%copy_field_properties( dummy_ads2 )
+    call reconstruction_input%initialise(vector_space=vector_space_wt_md_ptr, name='reconstruction_input')
+    call tracer_input%initialise(vector_space=vector_space_wtheta_ptr, name='tracer_input', halo_depth=2)
+    reconstruction_inner_prod = 0.0_r_def
+    tracer_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(reconstruction), &
+                 setval_x(reconstruction_input, reconstruction), &
+                 setval_random(tracer), &
+                 setval_x(tracer_input, tracer), &
+                 poly2d_reconstruction_kernel_type( reconstruction, &
+                                                    tracer, stencil_extent, &
+                                                    coeff, &
+                                                    stencil_size ), &
+                 x_innerproduct_x( reconstruction_inner_prod, reconstruction ), &
+                 x_innerproduct_x( tracer_inner_prod, tracer ) )
+
+    ! Determining scale factors
+    reconstruction_sf = 1.0_r_tran/( real( reconstruction_inner_prod, r_tran ) + eps )
+    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + eps )
+
+    inner1 = 0.0_r_tran
+    inner1 = inner1 + real( reconstruction_inner_prod, r_tran )*reconstruction_sf
+    inner1 = inner1 + real( tracer_inner_prod, r_tran )*tracer_sf
+    write(log_scratch_space, *) "adjt_poly2d_recon_lookup inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "reconstruction inner product = ", real( reconstruction_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "tracer inner product = ", real( tracer_inner_prod, r_tran )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( reconstruction_sf, reconstruction ), &
+                 inc_a_times_X( tracer_sf, tracer ) )
+
+    reconstruction_reconstruction_input_inner_prod = 0.0_r_def
+    tracer_tracer_input_inner_prod = 0.0_r_def
+
+    call create_lookup_poly2d( lookup, reconstruction, tracer, coeff, &
+                               stencil_size, stencil_extent )
+    lookup_field => lookup%get_lookup_field()
+    num_sets_field => lookup%get_set_count_field()
+    nindices = lookup%get_nindices()
+    nsets = lookup%get_nsets_max()
+
+    call invoke_adj_poly2d_recon_lookup( reconstruction, tracer, &
+                                         lookup_field, num_sets_field, &
+                                         coeff, nsets, nindices, &
+                                         stencil_extent )
+
+    reconstruction_reconstruction_input_inner_prod = 0.0_r_def
+    tracer_tracer_input_inner_prod = 0.0_r_def
+    call invoke( x_innerproduct_y( reconstruction_reconstruction_input_inner_prod, &
+                                   reconstruction, &
+                                   reconstruction_input ), &
+                 x_innerproduct_y( tracer_tracer_input_inner_prod, tracer, tracer_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + real( reconstruction_reconstruction_input_inner_prod, r_tran )
+    inner2 = inner2 + real( tracer_tracer_input_inner_prod, r_tran )
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED poly2d_recon_lookup_kernel_type("//&
+        trim( name_from_functionspace(fspace_enum) )//"):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED poly2d_recon_lookup_kernel_type("//&
+        trim( name_from_functionspace(fspace_enum) )//"):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+  end subroutine adjt_poly2d_recon_lookup_alg
+end module adjt_poly2d_recon_lookup_alg_mod

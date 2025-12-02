@@ -1,0 +1,448 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_transport_control_alg
+module atlt_transport_control_alg_mod
+
+  use field_mod,                           only : field_type
+  use function_space_mod,                  only : function_space_type
+  use constants_mod,                       only : r_def, i_def, l_def
+  use log_mod,                             only : log_event,         &
+                                                  log_scratch_space, &
+                                                  LOG_LEVEL_INFO,    &
+                                                  LOG_LEVEL_DEBUG,   &
+                                                  LOG_LEVEL_ERROR
+  use mesh_mod,                            only : mesh_type
+  use model_clock_mod,                     only : model_clock_type
+  use finite_element_config_mod,           only : element_order_h, &
+                                                  element_order_v
+  use fs_continuity_mod,                   only : W2, W3, Wtheta
+  use function_space_collection_mod,       only : function_space_collection
+  use derived_config_mod,                  only : bundle_size
+  use mr_indices_mod,                      only : nummr
+  use field_indices_mod,                   only : igh_u, igh_t, &
+                                                  igh_d, igh_p
+
+  implicit none
+
+  private :: run_atlt_transport_control_alg
+  public  :: atlt_transport_control_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for atl_transport_control_alg
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  !>
+  subroutine atlt_transport_control_alg( mesh, model_clock )
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Passive arguments for tl and adj calls
+    type(field_type)    :: ls_advected_fields(bundle_size)
+    type(field_type)    :: ls_wind_np1
+    type(field_type)    :: ls_wind_n
+    type(field_type)    :: ls_mr_in(nummr)
+    ! ...               :: model_clock
+    integer(kind=i_def) :: outer
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Iterator for mixing ratios
+    integer(kind=i_def)         :: imr
+
+    ! Initialising fields
+    vector_space_wtheta_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, Wtheta )
+    vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
+    vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
+
+    call ls_advected_fields(igh_u)%initialise( vector_space = vector_space_w2_ptr )
+    call ls_advected_fields(igh_t)%initialise( vector_space = vector_space_wtheta_ptr )
+    call ls_advected_fields(igh_d)%initialise( vector_space = vector_space_w3_ptr )
+    call ls_advected_fields(igh_p)%initialise( vector_space = vector_space_w3_ptr )
+
+    call ls_wind_np1%initialise( vector_space = vector_space_w2_ptr )
+    call ls_wind_n%initialise( vector_space = vector_space_w2_ptr )
+
+    do imr = 1, nummr
+      call ls_mr_in(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+    end do
+
+    ! Init LS; some fields are inflated to avoid numerical issues
+    call invoke( setval_random( ls_advected_fields(igh_u) ),               &
+                 inc_a_times_X( 1.0E12_r_def, ls_advected_fields(igh_u) ), &
+                 setval_random( ls_advected_fields(igh_t) ),               &
+                 inc_a_times_X( 1.0E12_r_def, ls_advected_fields(igh_t) ), &
+                 setval_random( ls_advected_fields(igh_p) ),               &
+                 setval_random( ls_advected_fields(igh_d) ),               &
+                 inc_a_times_X( 1.0E12_r_def, ls_advected_fields(igh_d) ), &
+                 setval_random( ls_wind_np1 ),                             &
+                 setval_random( ls_wind_n ) )
+
+    do imr = 1, nummr
+      call invoke( setval_random( ls_mr_in(imr) ) )
+    end do
+
+    do outer = 1_i_def, 2_i_def
+      call run_atlt_transport_control_alg( vector_space_wtheta_ptr, &
+                                           vector_space_w2_ptr,     &
+                                           vector_space_w3_ptr,     &
+                                           ls_advected_fields,      &
+                                           ls_wind_np1,             &
+                                           ls_wind_n,               &
+                                           ls_mr_in,                &
+                                           model_clock,             &
+                                           outer )
+    end do
+
+
+  end subroutine atlt_transport_control_alg
+
+  !=============================================================================
+  !> @brief Runs the adjoint test for atl_transport_control_alg for a given set of parameters
+  !> @param[in]  vector_space_wtheta_ptr  Wtheta function space pointer
+  !> @param[in]  vector_space_w2_ptr      W2 function space pointer
+  !> @param[in]  vector_space_w3_ptr      W3 function space pointer
+  !> @param[in]  ls_advected_fields       Linearisation state advected fields
+  !> @param[in]  ls_wind_np1              Linearisation state wind at time np1
+  !> @param[in]  ls_wind_n                Linearisation state wind at time n
+  !> @param[in]  ls_mr_in                 Linearisation state mixing ratios
+  !> @param[in]  model_clock              The model clock
+  !> @param[in]  outer                    The outer iteration variable
+  !>
+  subroutine run_atlt_transport_control_alg( vector_space_wtheta_ptr, &
+                                             vector_space_w2_ptr,     &
+                                             vector_space_w3_ptr,     &
+                                             ls_advected_fields,      &
+                                             ls_wind_np1,             &
+                                             ls_wind_n,               &
+                                             ls_mr_in,                &
+                                             model_clock,             &
+                                             outer )
+
+    use tl_transport_control_alg_mod,  only : tl_transport_control_alg
+    use atl_transport_control_alg_mod, only : atl_transport_control_alg
+
+    implicit none
+
+    ! Arguments
+    type(function_space_type), pointer, intent(in) :: vector_space_wtheta_ptr
+    type(function_space_type), pointer, intent(in) :: vector_space_w2_ptr
+    type(function_space_type), pointer, intent(in) :: vector_space_w3_ptr
+    type(field_type),     dimension(:), intent(in) :: ls_advected_fields
+    type(field_type),                   intent(in) :: ls_wind_np1
+    type(field_type),                   intent(in) :: ls_wind_n
+    type(field_type),     dimension(:), intent(in) :: ls_mr_in
+    type(model_clock_type),             intent(in) :: model_clock
+    integer(kind=i_def),                intent(in) :: outer
+
+    ! Active arguments for tl and adj calls
+    type(field_type) :: advection_inc(bundle_size)
+    type(field_type) :: advected_fields(bundle_size)
+    type(field_type) :: wind_np1
+    type(field_type) :: wind_n
+    type(field_type) :: mr_out(nummr)
+    type(field_type) :: mr_in(nummr)
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: adv_inc_inp(bundle_size)
+    type(field_type) :: adv_flds_inp(bundle_size)
+    type(field_type) :: wnp1_inp
+    type(field_type) :: wn_inp
+    type(field_type) :: mr_out_inp(nummr)
+    type(field_type) :: mr_in_inp(nummr)
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: adv_inc_inner_prod(bundle_size)
+    real(kind=r_def)            :: adv_inc_sf(bundle_size)
+    real(kind=r_def)            :: adv_flds_inner_prod(bundle_size)
+    real(kind=r_def)            :: adv_flds_sf(bundle_size)
+    real(kind=r_def)            :: wnp1_inner_prod
+    real(kind=r_def)            :: wnp1_sf
+    real(kind=r_def)            :: wn_inner_prod
+    real(kind=r_def)            :: wn_sf
+    real(kind=r_def)            :: mr_out_inner_prod(nummr)
+    real(kind=r_def)            :: mr_out_sf(nummr)
+    real(kind=r_def)            :: mr_in_inner_prod(nummr)
+    real(kind=r_def)            :: mr_in_sf(nummr)
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: ai_ai_inp_inner_prod(bundle_size)
+    real(kind=r_def)            :: af_af_inp_inner_prod(bundle_size)
+    real(kind=r_def)            :: wnp1_wnp1_inp_inner_prod
+    real(kind=r_def)            :: wn_wn_inp_inner_prod
+    real(kind=r_def)            :: mo_mo_inp_inner_prod(nummr)
+    real(kind=r_def)            :: mi_mi_inp_inner_prod(nummr)
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Iterator for mixing ratios
+    integer(kind=i_def)         :: imr
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    call advection_inc(igh_u)%initialise( vector_space = vector_space_w2_ptr )
+    call advection_inc(igh_t)%initialise( vector_space = vector_space_wtheta_ptr )
+    call advection_inc(igh_d)%initialise( vector_space = vector_space_w3_ptr )
+    call advection_inc(igh_p)%initialise( vector_space = vector_space_w3_ptr )
+
+    call advection_inc(igh_u)%copy_field_properties( adv_inc_inp(igh_u) )
+    call advection_inc(igh_t)%copy_field_properties( adv_inc_inp(igh_t) )
+    call advection_inc(igh_d)%copy_field_properties( adv_inc_inp(igh_d) )
+    call advection_inc(igh_p)%copy_field_properties( adv_inc_inp(igh_p) )
+
+    call advected_fields(igh_u)%initialise( vector_space = vector_space_w2_ptr )
+    call advected_fields(igh_t)%initialise( vector_space = vector_space_wtheta_ptr )
+    call advected_fields(igh_d)%initialise( vector_space = vector_space_w3_ptr )
+    call advected_fields(igh_p)%initialise( vector_space = vector_space_w3_ptr )
+
+    call advected_fields(igh_u)%copy_field_properties( adv_flds_inp(igh_u) )
+    call advected_fields(igh_t)%copy_field_properties( adv_flds_inp(igh_t) )
+    call advected_fields(igh_d)%copy_field_properties( adv_flds_inp(igh_d) )
+    call advected_fields(igh_p)%copy_field_properties( adv_flds_inp(igh_p) )
+
+    call wind_np1%initialise( vector_space = vector_space_w2_ptr )
+    call wind_np1%copy_field_properties( wnp1_inp )
+    call wind_n%initialise( vector_space = vector_space_w2_ptr )
+    call wind_n%copy_field_properties( wn_inp )
+
+    do imr = 1, nummr
+      call mr_out(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+      call mr_in(imr)%initialise( vector_space = vector_space_wtheta_ptr )
+      call mr_out(imr)%copy_field_properties( mr_out_inp(imr) )
+      call mr_in(imr)%copy_field_properties( mr_in_inp(imr) )
+    end do
+
+    ! Init values
+    call invoke( setval_random( advection_inc(igh_u) ),                   & ! Advection increment
+                 setval_x( adv_inc_inp(igh_u), advection_inc(igh_u) ),    &
+                 setval_random( advection_inc(igh_t) ),                   &
+                 setval_x( adv_inc_inp(igh_t), advection_inc(igh_t) ),    &
+                 setval_random( advection_inc(igh_p) ),                   &
+                 setval_x( adv_inc_inp(igh_p), advection_inc(igh_p) ),    &
+                 setval_random( advection_inc(igh_d) ),                   &
+                 setval_x( adv_inc_inp(igh_d), advection_inc(igh_d) ),    &
+                 setval_random( advected_fields(igh_u) ),                 & ! Advected fields
+                 setval_x( adv_flds_inp(igh_u), advected_fields(igh_u) ), &
+                 setval_random( advected_fields(igh_t) ),                 &
+                 setval_x( adv_flds_inp(igh_t), advected_fields(igh_t) ), &
+                 setval_random( advected_fields(igh_p) ),                 &
+                 setval_x( adv_flds_inp(igh_p), advected_fields(igh_p) ), &
+                 setval_random( advected_fields(igh_d) ),                 &
+                 setval_x( adv_flds_inp(igh_d), advected_fields(igh_d) ), &
+                 setval_random( wind_np1 ),                               & ! Wind
+                 setval_x( wnp1_inp, wind_np1 ),                          &
+                 setval_random( wind_n ),                                 &
+                 setval_x( wn_inp, wind_n ) )
+
+    do imr = 1, nummr
+      call invoke( setval_random( mr_out(imr) ),             &
+                   setval_x( mr_out_inp(imr), mr_out(imr) ), &
+                   setval_random( mr_in(imr) ),              &
+                   setval_x( mr_in_inp(imr), mr_in(imr) ) )
+    end do
+
+    ! Tangent linear
+    call tl_transport_control_alg( advection_inc, advected_fields,   &
+                                   wind_np1, wind_n, mr_out, mr_in,  &
+                                   ls_advected_fields,               &
+                                   ls_wind_np1, ls_wind_n, ls_mr_in, &
+                                   model_clock, outer )
+
+    ! < Mx, Mx >
+    adv_inc_inner_prod = 0.0_r_def
+    adv_flds_inner_prod = 0.0_r_def
+    wnp1_inner_prod = 0.0_r_def
+    wn_inner_prod = 0.0_r_def
+    mr_out_inner_prod = 0.0_r_def
+    mr_in_inner_prod = 0.0_r_def
+
+    call invoke( x_innerproduct_x( adv_inc_inner_prod(igh_u), advection_inc(igh_u) ),    & ! Advection increment
+                 x_innerproduct_x( adv_inc_inner_prod(igh_t), advection_inc(igh_t) ),    &
+                 x_innerproduct_x( adv_inc_inner_prod(igh_p), advection_inc(igh_p) ),    &
+                 x_innerproduct_x( adv_inc_inner_prod(igh_d), advection_inc(igh_d) ),    &
+                 x_innerproduct_x( adv_flds_inner_prod(igh_u), advected_fields(igh_u) ), & ! Advected fields
+                 x_innerproduct_x( adv_flds_inner_prod(igh_t), advected_fields(igh_t) ), &
+                 x_innerproduct_x( adv_flds_inner_prod(igh_p), advected_fields(igh_p) ), &
+                 x_innerproduct_x( adv_flds_inner_prod(igh_d), advected_fields(igh_d) ), &
+                 x_innerproduct_x( wnp1_inner_prod, wind_np1 ),                          & ! Winds
+                 x_innerproduct_x( wn_inner_prod, wind_n ) )
+
+    do imr = 1, nummr
+      call invoke( x_innerproduct_x( mr_out_inner_prod(imr), mr_out(imr) ), &
+                   x_innerproduct_x( mr_in_inner_prod(imr), mr_in(imr) ) )
+    end do
+
+    ! Determining scale factors
+    adv_inc_sf(igh_u) = 1.0_r_def/(adv_inc_inner_prod(igh_u) + eps)
+    adv_inc_sf(igh_t) = 1.0_r_def/(adv_inc_inner_prod(igh_t) + eps)
+    adv_inc_sf(igh_p) = 1.0_r_def/(adv_inc_inner_prod(igh_p) + eps)
+    adv_inc_sf(igh_d) = 1.0_r_def/(adv_inc_inner_prod(igh_d) + eps)
+
+    adv_flds_sf(igh_u) = 1.0_r_def/(adv_flds_inner_prod(igh_u) + eps)
+    adv_flds_sf(igh_t) = 1.0_r_def/(adv_flds_inner_prod(igh_t) + eps)
+    adv_flds_sf(igh_p) = 1.0_r_def/(adv_flds_inner_prod(igh_p) + eps)
+    adv_flds_sf(igh_d) = 1.0_r_def/(adv_flds_inner_prod(igh_d) + eps)
+
+    wnp1_sf = 1.0_r_def/(wnp1_inner_prod + eps)
+    wn_sf = 1.0_r_def/(wn_inner_prod + eps)
+
+    do imr = 1, nummr
+      mr_out_sf(imr) = 1.0_r_def/(mr_out_inner_prod(imr) + eps)
+      mr_in_sf(imr) = 1.0_r_def/(mr_in_inner_prod(imr) + eps)
+    end do
+
+    write(log_scratch_space, *) "atlt_transport_control (outer = ", outer, ") inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    inner1 = 0.0_r_def
+    inner1 = inner1 + adv_inc_inner_prod(igh_u)*adv_inc_sf(igh_u)
+    inner1 = inner1 + adv_inc_inner_prod(igh_t)*adv_inc_sf(igh_t)
+    inner1 = inner1 + adv_inc_inner_prod(igh_p)*adv_inc_sf(igh_p)
+    inner1 = inner1 + adv_inc_inner_prod(igh_d)*adv_inc_sf(igh_d)
+    inner1 = inner1 + adv_flds_inner_prod(igh_u)*adv_flds_sf(igh_u)
+    inner1 = inner1 + adv_flds_inner_prod(igh_t)*adv_flds_sf(igh_t)
+    inner1 = inner1 + adv_flds_inner_prod(igh_p)*adv_flds_sf(igh_p)
+    inner1 = inner1 + adv_flds_inner_prod(igh_d)*adv_flds_sf(igh_d)
+    inner1 = inner1 + wnp1_inner_prod*wnp1_sf
+    inner1 = inner1 + wn_inner_prod*wn_sf
+    write(log_scratch_space, *) "advection_inc(igh_u) inner product = ", adv_inc_inner_prod(igh_u)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advection_inc(igh_t) inner product = ", adv_inc_inner_prod(igh_t)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advection_inc(igh_p) inner product = ", adv_inc_inner_prod(igh_p)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advection_inc(igh_d) inner product = ", adv_inc_inner_prod(igh_d)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advected_fields(igh_u) inner product = ", adv_flds_inner_prod(igh_u)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advected_fields(igh_t) inner product = ", adv_flds_inner_prod(igh_t)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advected_fields(igh_p) inner product = ", adv_flds_inner_prod(igh_p)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advected_fields(igh_d) inner product = ", adv_flds_inner_prod(igh_d)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind_np1 inner product = ", wnp1_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind_n inner product = ", wn_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    do imr = 1, nummr
+      inner1 = inner1 + mr_out_inner_prod(imr)*mr_out_sf(imr)
+      inner1 = inner1 + mr_in_inner_prod(imr)*mr_in_sf(imr)
+      write(log_scratch_space, *) "mr_out(imr = ", imr, ") inner product = ", mr_out_inner_prod(imr)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      write(log_scratch_space, *) "mr_in(imr = ", imr, ") inner product = ", mr_in_inner_prod(imr)
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    end do
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( adv_inc_sf(igh_u), advection_inc(igh_u) ),    &
+                 inc_a_times_X( adv_inc_sf(igh_t), advection_inc(igh_t) ),    &
+                 inc_a_times_X( adv_inc_sf(igh_p), advection_inc(igh_p) ),    &
+                 inc_a_times_X( adv_inc_sf(igh_d), advection_inc(igh_d) ),    &
+                 inc_a_times_X( adv_flds_sf(igh_u), advected_fields(igh_u) ), &
+                 inc_a_times_X( adv_flds_sf(igh_t), advected_fields(igh_t) ), &
+                 inc_a_times_X( adv_flds_sf(igh_p), advected_fields(igh_p) ), &
+                 inc_a_times_X( adv_flds_sf(igh_d), advected_fields(igh_d) ), &
+                 inc_a_times_X( wnp1_sf, wind_np1 ),                          &
+                 inc_a_times_X( wn_sf, wind_n ) )
+    do imr = 1, nummr
+      call invoke( inc_a_times_X( mr_out_sf(imr), mr_out(imr) ), &
+                   inc_a_times_X( mr_in_sf(imr), mr_in(imr) ) )
+    end do
+
+    ! Adjoint
+    call atl_transport_control_alg( advection_inc, advected_fields,   &
+                                    wind_np1, wind_n, mr_out, mr_in,  &
+                                    ls_advected_fields,               &
+                                    ls_wind_np1, ls_wind_n, ls_mr_in, &
+                                    model_clock, outer )
+
+    ! < AMx, x >
+    ai_ai_inp_inner_prod = 0.0_r_def
+    af_af_inp_inner_prod = 0.0_r_def
+    wnp1_wnp1_inp_inner_prod = 0.0_r_def
+    wn_wn_inp_inner_prod = 0.0_r_def
+    mo_mo_inp_inner_prod = 0.0_r_def
+    mi_mi_inp_inner_prod = 0.0_r_def
+
+    call invoke( x_innerproduct_y( ai_ai_inp_inner_prod(igh_u), & ! Advection increment
+                                   advection_inc(igh_u),        &
+                                   adv_inc_inp(igh_u) ),        &
+                 x_innerproduct_y( ai_ai_inp_inner_prod(igh_t), &
+                                   advection_inc(igh_t),        &
+                                   adv_inc_inp(igh_t) ),        &
+                 x_innerproduct_y( ai_ai_inp_inner_prod(igh_p), &
+                                   advection_inc(igh_p),        &
+                                   adv_inc_inp(igh_p) ),        &
+                 x_innerproduct_y( ai_ai_inp_inner_prod(igh_d), &
+                                   advection_inc(igh_d),        &
+                                   adv_inc_inp(igh_d) ),        &
+                 x_innerproduct_y( af_af_inp_inner_prod(igh_u), & ! Advection fields
+                                   advected_fields(igh_u),      &
+                                   adv_flds_inp(igh_u) ),       &
+                 x_innerproduct_y( af_af_inp_inner_prod(igh_t), &
+                                   advected_fields(igh_t),      &
+                                   adv_flds_inp(igh_t) ),       &
+                 x_innerproduct_y( af_af_inp_inner_prod(igh_p), &
+                                   advected_fields(igh_p),      &
+                                   adv_flds_inp(igh_p) ),       &
+                 x_innerproduct_y( af_af_inp_inner_prod(igh_d), &
+                                   advected_fields(igh_d),      &
+                                   adv_flds_inp(igh_d) ),       &
+                 x_innerproduct_y( wnp1_wnp1_inp_inner_prod,    & ! Winds
+                                   wind_np1,                    &
+                                   wnp1_inp ),                  &
+                 x_innerproduct_y( wn_wn_inp_inner_prod,        &
+                                   wind_n,                      &
+                                   wn_inp ) )
+    do imr = 1, nummr
+      call invoke( x_innerproduct_y( mo_mo_inp_inner_prod(imr), &
+                                     mr_out(imr),               &
+                                     mr_out_inp(imr) ),         &
+                   x_innerproduct_y( mi_mi_inp_inner_prod(imr), &
+                                     mr_in(imr),                &
+                                     mr_in_inp(imr) ) )
+    end do
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + ai_ai_inp_inner_prod(igh_u)
+    inner2 = inner2 + ai_ai_inp_inner_prod(igh_t)
+    inner2 = inner2 + ai_ai_inp_inner_prod(igh_p)
+    inner2 = inner2 + ai_ai_inp_inner_prod(igh_d)
+    inner2 = inner2 + af_af_inp_inner_prod(igh_u)
+    inner2 = inner2 + af_af_inp_inner_prod(igh_t)
+    inner2 = inner2 + af_af_inp_inner_prod(igh_p)
+    inner2 = inner2 + af_af_inp_inner_prod(igh_d)
+    inner2 = inner2 + wnp1_wnp1_inp_inner_prod
+    inner2 = inner2 + wn_wn_inp_inner_prod
+    do imr = 1, nummr
+      inner2 = inner2 + mo_mo_inp_inner_prod(imr)
+      inner2 = inner2 + mi_mi_inp_inner_prod(imr)
+    end do
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED tl_transport_control (outer = ", outer, "):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED tl_transport_control (outer = ", outer, "):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine run_atlt_transport_control_alg
+
+end module atlt_transport_control_alg_mod

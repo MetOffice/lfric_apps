@@ -1,0 +1,293 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the Microphysics scheme
+
+module mphys_alg_mod
+
+  use field_mod,            only: field_type
+  use field_collection_mod, only: field_collection_type
+  use mesh_mod,             only: mesh_type
+
+  ! xios output
+  use io_config_mod,        only: write_diag, use_xios_io
+  use mphys_diagnostics_mod,                                  &
+                            only: initialise_diags_for_mphys, &
+                                  output_diags_for_mphys
+  use constants_mod,        only: r_def, i_def
+
+  use sci_geometric_constants_mod, only: get_height_fv, get_dz_at_wtheta
+  use fs_continuity_mod,           only: W3, Wtheta
+
+  implicit none
+
+  private
+  public mphys_alg
+
+contains
+  !>@brief Run the UM Microphysics scheme
+  !>@details The UM Microphysics scheme calculates:
+  !>             1) Precipitation rates output to the surface
+  !>                and other physics schemes.
+  !>             2) Increments to the large scale prognostics
+  !>                due to cloud microphysical processes
+  !>                (e.g. latent heating and cooling).
+  !>         See UMDP26 for full scheme details
+  !>@param[in]     mr_n           Start of timestep mixing ratios
+  !>@param[in]     theta          Potential temperature (theta) in wth space
+  !>@param[in]     dry_rho_in_w3  Dry density in the w3 space
+  !>@param[in]     derived_fields Group of derived fields
+  !>@param[in,out] microphysics_fields    Fields for mphys scheme
+  !>@param[in]     cloud_fields           Fields for cloud scheme
+  !>@param[in]     aerosol_fields         Fields for aerosol scheme
+  !>@param[in]     turbulence_fields      Fields for turbulence scheme
+  !>@param[in]     orography_fields       Fields for orog drag scheme
+  !>@param[in]     f_arr                  Fractional standard dev params
+  !>@param[in,out] dmr_mphys      Mixing ratio increment due to microphysics
+  !>@param[in,out] dtheta_mphys   Potential temperature increment in wth space
+  !>@param[in,out] dcfl_mphys     Increment to liquid cloud fraction
+  !>@param[in,out] dcff_mphys     Increment to frozen cloud fraction
+  !>@param[in,out] dbcf_mphys     Increment to bulk cloud fraction
+  !>@param[in]     dt             The model timestep length
+  subroutine mphys_alg( mr_n, theta, dry_rho_in_w3, derived_fields,            &
+                        microphysics_fields, cloud_fields, aerosol_fields,     &
+                        turbulence_fields, orography_fields, f_arr,            &
+                        dmr_mphys, dtheta_mphys,                               &
+                        dcfl_mphys, dcff_mphys, dbcf_mphys, dt )
+
+    use pc2_conv_coupling_kernel_mod, only: pc2_conv_coupling_kernel_type
+    use lsp_prognostic_tnuc_kernel_mod, only: lsp_prognostic_tnuc_kernel_type
+    use mphys_kernel_mod, only: mphys_kernel_type
+    use mphys_turb_gen_kernel_mod, only: mphys_turb_gen_kernel_type
+    use mr_indices_mod,   only: imr_v, imr_cl, imr_r, imr_ci, imr_s, imr_g, nummr
+    use cloud_config_mod, only: mphys_erosion
+    use microphysics_config_mod, only: turb_gen_mixph, prog_tnuc
+
+    use io_config_mod,             only: subroutine_timers
+    use timer_mod,                 only: timer
+    use log_mod,                   only: log_event, LOG_LEVEL_DEBUG
+
+    implicit none
+
+    type( field_type ), intent( in )    :: mr_n ( nummr ), theta, dry_rho_in_w3
+
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(in)    :: microphysics_fields
+    type( field_collection_type ), intent(in)    :: cloud_fields
+    type( field_collection_type ), intent(in)    :: aerosol_fields
+    type( field_collection_type ), intent(in)    :: turbulence_fields
+    type( field_collection_type ), intent(in)    :: orography_fields
+    type( field_type ),            intent(in)    :: f_arr
+    real( kind=r_def ),            intent(in)    :: dt
+
+    type( field_type ), intent( inout ) :: dmr_mphys ( nummr )
+    type( field_type ), intent( inout ) :: dtheta_mphys
+    type( field_type ), intent( inout ) :: dcfl_mphys, dcff_mphys, dbcf_mphys
+
+    ! Temporary unpacked fields from collections
+    type( field_type ), pointer :: exner_in_wth        => null()
+    type( field_type ), pointer :: u_in_w3             => null()
+    type( field_type ), pointer :: v_in_w3             => null()
+    type( field_type ), pointer :: wetrho_in_w3        => null()
+    type( field_type ), pointer :: rho_in_wth          => null()
+
+    type( field_type ), pointer :: bcf_in              => null()
+    type( field_type ), pointer :: cfl_in              => null()
+    type( field_type ), pointer :: cff_in              => null()
+
+    type( field_type ), pointer :: dmv_mphys           => null()
+    type( field_type ), pointer :: ls_rain             => null()
+    type( field_type ), pointer :: ls_snow             => null()
+    type( field_type ), pointer :: ls_graup            => null()
+    type( field_type ), pointer :: lsca_2d             => null()
+    type( field_type ), pointer :: ls_rain_3d          => null()
+    type( field_type ), pointer :: ls_snow_3d          => null()
+    type( field_type ), pointer :: autoconv            => null()
+    type( field_type ), pointer :: accretion           => null()
+    type( field_type ), pointer :: rim_cry             => null()
+    type( field_type ), pointer :: rim_agg             => null()
+    type( field_type ), pointer :: tnuc                => null()
+    type( field_type ), pointer :: precfrac
+    type( field_type ), pointer :: ni_mphys
+    type( field_type ), pointer :: ns_mphys
+
+    type( field_type ), pointer :: cloud_drop_no_conc  => null()
+    type( field_type ), pointer :: n_acc_ins           => null()
+    type( field_type ), pointer :: n_cor_ins           => null()
+    type( field_type ), pointer :: murk                => null()
+
+    type( field_type ), pointer :: wvar   => null()
+
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: dz_in_wth => null()
+
+    type( field_type ), pointer :: sd_orog            => null()
+
+    type( field_type ) :: superc_liq
+    type( field_type ) :: superc_rain
+
+    type( field_type ) :: sfwater
+    type( field_type ) :: sfrain
+    type( field_type ) :: sfsnow
+
+    type( field_type ) :: refl_tot
+    type( field_type ) :: refl_1km
+
+    type( field_type ) :: pressure_inc
+
+    type(mesh_type), pointer :: mesh => null()
+
+    if ( subroutine_timers ) call timer("mphys_alg")
+
+    call log_event( 'slow_physics: Running Microphysics', LOG_LEVEL_DEBUG )
+
+    mesh => theta%get_mesh()
+
+    height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    height_w3  => get_height_fv( W3, mesh%get_id() )
+
+    call theta%copy_field_properties(dcfl_mphys)
+    call theta%copy_field_properties(dcff_mphys)
+    call theta%copy_field_properties(dbcf_mphys)
+    call invoke( setval_c(dcfl_mphys,   0.0_r_def), &
+                 setval_c(dcff_mphys,   0.0_r_def), &
+                 setval_c(dbcf_mphys,   0.0_r_def), &
+                 setval_c(dtheta_mphys, 0.0_r_def) )
+
+    ! Unpack fields
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
+
+    call cloud_fields%get_field('bulk_fraction', bcf_in)
+    call cloud_fields%get_field('liquid_fraction', cfl_in)
+    call cloud_fields%get_field('frozen_fraction', cff_in)
+
+    call microphysics_fields%get_field('ls_rain', ls_rain)
+    call microphysics_fields%get_field('ls_snow', ls_snow)
+    call microphysics_fields%get_field('ls_graup', ls_graup)
+    call microphysics_fields%get_field('lsca_2d', lsca_2d)
+    call microphysics_fields%get_field('ls_rain_3d', ls_rain_3d)
+    call microphysics_fields%get_field('ls_snow_3d', ls_snow_3d)
+    call microphysics_fields%get_field('autoconv', autoconv)
+    call microphysics_fields%get_field('accretion', accretion)
+    call microphysics_fields%get_field('rim_cry', rim_cry)
+    call microphysics_fields%get_field('rim_agg', rim_agg)
+    call microphysics_fields%get_field('tnuc', tnuc)
+    call microphysics_fields%get_field('precfrac', precfrac)
+    call microphysics_fields%get_field('ni_mphys',ni_mphys)
+    call microphysics_fields%get_field('ns_mphys',ns_mphys)
+
+    call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc)
+    call aerosol_fields%get_field('murk', murk)
+
+    call turbulence_fields%get_field('wvar', wvar)
+
+    call orography_fields%get_field('sd_orog', sd_orog)
+
+    call initialise_diags_for_mphys(superc_liq, superc_rain,                   &
+                                    sfwater, sfrain, sfsnow,                   &
+                                    refl_tot, refl_1km)
+
+    if (mphys_erosion) then
+      call exner_in_wth%copy_field_properties(pressure_inc)
+      call invoke( pc2_conv_coupling_kernel_type(theta, mr_n(imr_v),           &
+                                                 mr_n(imr_cl),                 &
+                                                 cfl_in, cff_in, bcf_in,       &
+                                                 exner_in_wth, pressure_inc,   &
+                                                 dtheta_mphys,                 &
+                                                 dmr_mphys(imr_v),             &
+                                                 dmr_mphys(imr_cl),            &
+                                                 dcfl_mphys, dcff_mphys,       &
+                                                 dbcf_mphys, dt) )
+    end if
+
+    if (prog_tnuc) then
+
+      call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+      call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+      call invoke ( lsp_prognostic_tnuc_kernel_type (n_acc_ins,      &
+                                                     n_cor_ins,      &
+                                                     theta,          &
+                                                     exner_in_wth,   &
+                                                     tnuc)  )
+    end if
+
+    call invoke( mphys_kernel_type ( mr_n(imr_v), mr_n(imr_cl), mr_n(imr_s),   &
+                                     mr_n(imr_r), mr_n(imr_g),                 &
+                                     bcf_in, cfl_in, cff_in,                   &
+                                     u_in_w3, v_in_w3,                         &
+                                     theta, exner_in_wth,                      &
+                                     wetrho_in_w3, dry_rho_in_w3,              &
+                                     height_w3, height_wth,                    &
+                                     cloud_drop_no_conc, murk,                 &
+                                     sd_orog,                                  &
+                                     dmr_mphys(imr_v),  dmr_mphys(imr_cl),     &
+                                     dmr_mphys(imr_s), dmr_mphys(imr_r),       &
+                                     dmr_mphys(imr_g), ls_rain, ls_snow,       &
+                                     ls_graup, lsca_2d, precfrac,              &
+                                     ls_rain_3d, ls_snow_3d,                   &
+                                     autoconv, accretion,                      &
+                                     rim_cry, rim_agg,                         &
+                                     dtheta_mphys, dcfl_mphys, dcff_mphys,     &
+                                     dbcf_mphys, f_arr, tnuc, superc_liq,      &
+                                     superc_rain,                              &
+                                     sfwater, sfrain, sfsnow,                  &
+                                     refl_tot, refl_1km ) )
+
+    if (turb_gen_mixph) then
+      dz_in_wth => get_dz_at_wtheta( mesh%get_id() )
+      call invoke( mphys_turb_gen_kernel_type(theta, mr_n(imr_v), mr_n(imr_cl),&
+                                              mr_n(imr_ci), mr_n(imr_s),       &
+                                              ns_mphys, ni_mphys,              &
+                                              cfl_in, cff_in, bcf_in,          &
+                                              exner_in_wth, rho_in_wth, wvar,  &
+                                              dz_in_wth,                       &
+                                              dtheta_mphys, dmr_mphys(imr_v),  &
+                                              dmr_mphys(imr_cl),               &
+                                              dmr_mphys(imr_ci),               &
+                                              dmr_mphys(imr_s),                &
+                                              dcfl_mphys, dcff_mphys,          &
+                                              dbcf_mphys) )
+    end if
+
+    ! Save mv increment for stochastic physics
+    call microphysics_fields%get_field('dmv_mphys', dmv_mphys)
+    call invoke(setval_X(dmv_mphys, dmr_mphys(imr_v)))
+
+    if ( subroutine_timers ) call timer("mphys_alg")
+
+    ! Output microphysics diagnostics
+    if (write_diag .and. use_xios_io) then
+
+        call output_diags_for_mphys( exner_in_wth,                 &
+                                     dtheta_mphys,                 &
+                                     dmr_mphys(imr_v),             &
+                                     dmr_mphys(imr_cl),            &
+                                     dmr_mphys(imr_ci),            &
+                                     dmr_mphys(imr_r),             &
+                                     dmr_mphys(imr_g),             &
+                                     dmr_mphys(imr_s),             &
+                                     dcfl_mphys,                   &
+                                     dcff_mphys,                   &
+                                     dbcf_mphys,                   &
+                                     superc_liq, superc_rain,      &
+                                     ls_rain, ls_snow, ls_graup,   &
+                                     lsca_2d,                      &
+                                     ls_rain_3d, ls_snow_3d,       &
+                                     autoconv, accretion,          &
+                                     rim_cry, rim_agg, tnuc,       &
+                                     sfwater, sfrain, sfsnow,      &
+                                     refl_tot, refl_1km )
+
+    end if
+
+    nullify( mesh )
+  end subroutine mphys_alg
+
+end module mphys_alg_mod

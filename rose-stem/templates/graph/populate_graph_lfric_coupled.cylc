@@ -1,0 +1,94 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/populate_graph_lfric_coupled.cylc") %}
+{% do LOG.debug("Task: "~task) %}
+
+{# Define the graph points specific to lfric_coupled builds #}
+
+{# ######################### #}
+{# Define the names of tasks #}
+{# ######################### #}
+
+{% set build_drivers_task = "fcm_make_"~
+                            task_ns.application~
+                            "_drivers_"~
+                            task_ns.platform~"_"~
+                            task_values["build_conf"] %}
+{% if build_drivers_task not in tasks_to_run %}
+    {% do tasks_to_run.update({build_drivers_task: task_values}) %}
+{% endif %}
+
+{% set build2_drivers_task = "fcm_make2_"~
+                             task_ns.application~
+                             "_drivers_"~
+                             task_ns.platform~"_"~
+                             task_values["build_conf"] %}
+{% if build2_drivers_task not in tasks_to_run %}
+    {% do tasks_to_run.update({build2_drivers_task: task_values}) %}
+{% endif %}
+
+{% set build_river_task = "fcm_make_"~
+                          task_ns.application~
+                          "_river_"~
+                          task_ns.platform~"_"~
+                          task_values["build_conf"] %}
+{% if build_river_task not in tasks_to_run %}
+    {% do tasks_to_run.update({build_river_task: task_values}) %}
+{% endif %}
+
+{% set build_ocean_task = "fcm_make_"~
+                          task_ns.application~
+                          "_ocean_"~
+                          task_ns.platform~"_"~
+                          task_values["build_conf"] %}
+{% if build_ocean_task not in tasks_to_run %}
+    {% do tasks_to_run.update({build_ocean_task: task_values}) %}
+{% endif %}
+
+{% set build2_ocean_task = "fcm_make2_"~
+                           task_ns.application~
+                           "_ocean_"~
+                           task_ns.platform~"_"~
+                           task_values["build_conf"] %}
+{% if build2_ocean_task not in tasks_to_run %}
+    {% do tasks_to_run.update({build2_ocean_task: task_values}) %}
+{% endif %}
+
+{% set export_source_task = "export-source_"~task_ns.platform %}
+
+{# ################ #}
+{# Create the Graph #}
+{# ################ #}
+
+{% do graph_sections.append([
+    export_source_task, "fcm_make_drivers"
+    ]) %}
+{% do graph_sections.append([
+    "fcm_make_drivers", "fcm_make2_drivers"
+    ]) %}
+{% do graph_sections.append([
+    export_source_task, build_ocean_task
+    ]) %}
+{% do graph_sections.append([
+    build_ocean_task, build2_ocean_task
+    ]) %}
+{% do graph_sections.append([
+    export_source_task, build_river_task
+    ]) %}
+{% if application_run_task %}
+    {% do graph_sections.append([
+        "fcm_make2_drivers", application_run_task
+        ]) %}
+    {% do graph_sections.append([
+        build2_ocean_task, application_run_task
+        ]) %}
+    {% do graph_sections.append([
+        build_river_task, application_run_task
+        ]) %}
+{% endif %}
+
+
+{% do LOG.debug("Finished in templates/graph/populate_graph_lfric_coupled.cylc") %}

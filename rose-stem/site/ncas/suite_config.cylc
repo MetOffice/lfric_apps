@@ -1,0 +1,21 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/ncas/suite_config.cylc") %}
+
+    [[NCAS_ORIG]]
+        platform = localhost
+
+{% include 'site/ncas/common/suite_config_ex.cylc' %}
+
+
+{% if "lfricinputs" in requested_applications %}
+    {% include 'site/ncas/common/suite_config_lfricinputs.cylc' %}
+{% endif %}
+{% if "lfric_coupled" in requested_applications %}
+    {% include 'site/ncas/common/suite_config_lfric_coupled.cylc' %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/ncas/suite_config.cylc") %}

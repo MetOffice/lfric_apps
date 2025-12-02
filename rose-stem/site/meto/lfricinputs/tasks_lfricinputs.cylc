@@ -1,0 +1,16 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/lfricinputs/tasks_lfricinputs.cylc") %}
+
+{% include 'site/'+SITE+'/lfricinputs/tasks_lfricinputs_'~task_ns.platform~'.cylc' %}
+
+{% if "perftools" in task_ns.compiler %}
+    {% do task_dict.update({
+        "kgo_checks": [],
+        "plot_str": "", }) %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/meto/lfricinputs/tasks_lfricinputs.cylc") %}

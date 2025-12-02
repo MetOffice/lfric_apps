@@ -1,0 +1,32 @@
+@@ -1,4 +1,4 @@
+-module adj_average_w2b_to_w2_kernel_mod
++module adj_sci_average_w2b_to_w2_kernel_mod
+   use argument_mod, only : arg_type, cell_column, gh_field, gh_inc, gh_read, gh_readwrite, gh_real
+   use constants_mod, only : i_def, r_def
+   use fs_continuity_mod, only : w2, w2broken
+@@ -43,14 +43,14 @@
+     horizontal_dofs(4) = w
+     field_w2_broken(map_w2_broken(t) + nlayers - 1) = field_w2_broken(map_w2_broken(t) + nlayers - 1) + field_w2(map_w2(t) + &
+ &nlayers - 1)
+-    field_w2(map_w2(t) + nlayers - 1) = 0.0
++    field_w2(map_w2(t) + nlayers - 1) = 0.0_r_def
+     do k = nlayers - 1, 1, -1
+-      field_w2_broken(k + map_w2_broken(b)) = field_w2_broken(k + map_w2_broken(b)) + 0.5 * field_w2(map_w2(b) + k)
+-      field_w2_broken(k + map_w2_broken(t) - 1) = field_w2_broken(k + map_w2_broken(t) - 1) + 0.5 * field_w2(map_w2(b) + k)
+-      field_w2(map_w2(b) + k) = 0.0
++      field_w2_broken(k + map_w2_broken(b)) = field_w2_broken(k + map_w2_broken(b)) + 0.5_r_def * field_w2(map_w2(b) + k)
++      field_w2_broken(k + map_w2_broken(t) - 1) = field_w2_broken(k + map_w2_broken(t) - 1) + 0.5_r_def * field_w2(map_w2(b) + k)
++      field_w2(map_w2(b) + k) = 0.0_r_def
+     enddo
+     field_w2_broken(map_w2_broken(b)) = field_w2_broken(map_w2_broken(b)) + field_w2(map_w2(b))
+-    field_w2(map_w2(b)) = 0.0
++    field_w2(map_w2(b)) = 0.0_r_def
+     do j = SIZE(horizontal_dofs), 1, -1
+       df = horizontal_dofs(j)
+       do k = nlayers - 1, 0, -1
+@@ -61,4 +61,4 @@
+ 
+   end subroutine adj_average_w2b_to_w2_code
+ 
+-end module adj_average_w2b_to_w2_kernel_mod
++end module adj_sci_average_w2b_to_w2_kernel_mod

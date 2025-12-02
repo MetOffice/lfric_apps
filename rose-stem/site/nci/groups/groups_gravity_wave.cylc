@@ -1,0 +1,70 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_gravity_wave.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "gravity_wave_gadi_developer": [
+        "gravity_wave_default-C24_gadi_intel_fast-debug-64bit",
+        "gravity_wave_default-C24_gadi_intel_full-debug-64bit",
+        "gravity_wave_multigrid-C24_MG_gadi_intel_fast-debug-64bit",
+        "gravity_wave_limited_300x4-BiP300x4-1000x2000_gadi_intel_fast-debug-64bit",
+        "gravity_wave_limited_spherical_50x50_LAM50x50-2x2_gadi_intel_fast-debug-64bit",
+        "gravity_wave_limited_c24-C24_gadi_intel_fast-debug-64bit",
+        "gravity_wave_limited_c24_rec-C24_gadi_intel_fast-debug-64bit",
+        "gravity_wave_gadi_unit_tests",
+        "gravity_wave_gadi_canned",
+    ],
+    "gravity_wave_gadi": [
+        "gravity_wave_gadi_developer",
+    ],
+    "gravity_wave_gadi_unit_tests": [
+        "gravity_wave_unit_tests_gadi_intel_64bit",
+    ],
+    "gravity_wave_gadi_canned": [
+        "gravity_wave_canned_gadi_intel_fast-debug-64bit",
+    ],
+    "gravity_wave_gadi_build": [
+        "build_gravity_wave_gadi_intel_fast-debug-64bit",
+        "build_gravity_wave_gadi_intel_full-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "gravity_wave_developer": [
+        "scripts",
+        "gravity_wave_gadi_developer",
+        "gravity_wave_unit_tests",
+    ],
+    "gravity_wave": [
+        "gravity_wave_developer",
+        "gravity_wave_gadi",
+    ],
+    "gravity_wave_unit_tests": [
+        "gravity_wave_gadi_unit_tests",
+    ],
+    "gravity_wave_build": [
+        "gravity_wave_gadi_build",
+    ],
+    "gravity_wave_canned": [
+        "gravity_wave_gadi_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.gravity_wave_developer) %}
+{% do site_groups.all.extend(site_groups.gravity_wave) %}
+{% do site_groups.unit_tests.extend(site_groups.gravity_wave_unit_tests) %}
+{% do site_groups.build.extend(site_groups.gravity_wave_build) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.gravity_wave_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.gravity_wave_gadi) %}
+{% do site_groups.gadi_unit_tests.extend(site_groups.gravity_wave_gadi_unit_tests) %}
+{% do site_groups.gadi_build.extend(site_groups.gravity_wave_gadi_build) %}
+
+{% do LOG.debug("Finished iin site/meto/groups/groups_gravity_wave.cylc") %}

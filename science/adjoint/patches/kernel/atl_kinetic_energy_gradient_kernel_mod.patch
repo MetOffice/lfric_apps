@@ -1,0 +1,51 @@
+@@ -1,11 +1,11 @@
+-module adj_kinetic_energy_gradient_kernel_mod
++module atl_kinetic_energy_gradient_kernel_mod
+   use argument_mod, only : any_discontinuous_space_3, any_space_9, arg_type, cell_column, func_type, gh_basis, gh_diff_basis, &
+ &gh_field, gh_inc, gh_quadrature_xyoz, gh_read, gh_real
+   use constants_mod, only : i_def, r_def
+   use fs_continuity_mod, only : w2
+   use kernel_mod, only : kernel_type
+   implicit none
+-  type, public, extends(kernel_type) :: adj_kinetic_energy_gradient_kernel_type
++  type, public, extends(kernel_type) :: atl_kinetic_energy_gradient_kernel_type
+   type(ARG_TYPE) :: META_ARGS(5) = (/ &
+     arg_type(gh_field, gh_real, gh_read, w2), &
+     arg_type(gh_field, gh_real, gh_inc, w2), &
+@@ -18,15 +18,15 @@
+   INTEGER :: GH_SHAPE = gh_quadrature_xyoz
+   INTEGER :: OPERATES_ON = cell_column
+   CONTAINS
+-    PROCEDURE, NOPASS :: adj_kinetic_energy_gradient_code
+-END TYPE adj_kinetic_energy_gradient_kernel_type
++    PROCEDURE, NOPASS :: atl_kinetic_energy_gradient_code
++END TYPE atl_kinetic_energy_gradient_kernel_type
+ 
+   private
+ 
+-  public :: adj_kinetic_energy_gradient_code
++  public :: atl_kinetic_energy_gradient_code
+ 
+   contains
+-  subroutine adj_kinetic_energy_gradient_code(nlayers, r_u, u, ls_u, chi_1, chi_2, chi_3, panel_id, ndf_w2, undf_w2, map_w2, &
++  subroutine atl_kinetic_energy_gradient_code(nlayers, r_u, u, ls_u, chi_1, chi_2, chi_3, panel_id, ndf_w2, undf_w2, map_w2, &
+ &w2_basis, w2_diff_basis, ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, &
+ &wqp_v)
+     use sci_coordinate_jacobian_mod, only : coordinate_jacobian
+@@ -75,7 +75,6 @@
+     real(kind=r_def) :: dv
+     real(kind=r_def), dimension(3) :: mul1
+     real(kind=r_def), dimension(3) :: mul2
+-    integer :: i
+     real(kind=r_def) :: res_dot_product
+     integer :: idx
+     integer :: idx_1
+@@ -153,6 +152,6 @@
+       enddo
+     enddo
+ 
+-  end subroutine adj_kinetic_energy_gradient_code
++  end subroutine atl_kinetic_energy_gradient_code
+ 
+-end module adj_kinetic_energy_gradient_kernel_mod
++end module atl_kinetic_energy_gradient_kernel_mod

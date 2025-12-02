@@ -1,0 +1,66 @@
+!-------------------------------------------------------------------------------
+!(c) Crown copyright 2019 Met Office. All rights reserved.
+!The file LICENCE, distributed with this code, contains details of the terms
+!under which the code may be used.
+!-------------------------------------------------------------------------------
+!>@brief Prepares the orography fields
+module init_orography_fields_alg_mod
+
+  use constants_mod,        only: r_def
+
+  ! Derived Types
+  use field_mod,            only: field_type
+  use field_collection_mod, only: field_collection_type
+
+  implicit none
+
+  private
+  public :: init_orography_fields_alg
+
+contains
+
+  !> @brief Initialises orographic fields
+  !> @details The orography fields need to be initialised so that they have a
+  !>          value when passed on to the physics at the first time step,
+  !>          in case no restart file is used.
+  !> @param[in,out] orography_fields Orography related fields
+  subroutine init_orography_fields_alg(orography_fields)
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent( inout ) :: orography_fields
+
+   ! Ancillary fields
+    type( field_type ), pointer :: sd_orog              => null()
+    type( field_type ), pointer :: grad_xx_orog         => null()
+    type( field_type ), pointer :: grad_xy_orog         => null()
+    type( field_type ), pointer :: grad_yy_orog         => null()
+    type( field_type ), pointer :: silhouette_area_orog => null()
+    type( field_type ), pointer :: peak_to_trough_orog  => null()
+
+    ! Standard deviation of orography
+    call orography_fields%get_field('sd_orog', sd_orog)
+    ! (dh/dx)*(dh/dx) of orography
+    call orography_fields%get_field('grad_xx_orog', grad_xx_orog)
+    ! (dh/dx)*(dh/dy) of orography
+    call orography_fields%get_field('grad_xy_orog', grad_xy_orog)
+    ! (dh/dy)*(dh/dy) of orography
+    call orography_fields%get_field('grad_yy_orog', grad_yy_orog)
+    ! Silhouette area of orography
+    call orography_fields%get_field('silhouette_area_orog', silhouette_area_orog)
+    ! Half of peak-to-trough height over root(2) of orography
+    call orography_fields%get_field('peak_to_trough_orog', peak_to_trough_orog)
+
+    ! Initialise the orography fields to fixed values for use in SCM
+    ! testing or when no ancil file is read
+    call invoke( setval_c(sd_orog,              1000.0_r_def), &
+                 setval_c(grad_xx_orog,         1.0e-2_r_def), &
+                 setval_c(grad_xy_orog,         1.0e-3_r_def), &
+                 setval_c(grad_yy_orog,         1.0e-2_r_def), &
+                 setval_c(silhouette_area_orog, 1.0e-1_r_def), &
+                 setval_c(peak_to_trough_orog,  200.0_r_def) )
+
+  end subroutine init_orography_fields_alg
+
+end module init_orography_fields_alg_mod

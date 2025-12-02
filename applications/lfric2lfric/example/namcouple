@@ -1,0 +1,71 @@
+# Control file for OASIS3-MCT.
+# Oasis reads this file at run-time.  
+#  
+# Description: This file defines the fields used in coupling between:   
+# 
+#    HadGEM3 atmos/ocean models (not cice in this instance).  
+#    Atmos component: UM atmos   
+#    Ocean component: ORCA1, ORCA025  
+#    Ice component:   CICE model integrated into NEMO component 
+#  
+#    This version includes special UM compatible notation in order to define
+#    transients based on interrogating this file. The line preceeding the
+#    definition of each transient must contain notation to define the following:
+#
+#           OCNT indicates the source component (OCN) and grid type (T)
+#           ATMT indicates the target component (ATM) and grid type (T)
+#           OO indicates the order of field exchange. A negative value (e.g. -28) switches 
+#              this field off, excluding it from coupling definitions or exchanges.
+#              If this value is positive, it must be unique. 
+#           RR is an integer indicating the field reference which the 
+#              component models may use to associate the transient with a 
+#              particular model field. 
+#
+# UM compatibility: UM vn8.3 and earlier. If employed by a pre-UM8.3 job   
+#          then lines featuring TRANSDEF directives: will be ignored.  
+# OASIS3-MCT compatible version.
+#
+# Author: R. Hill  
+# Date  : 24/02/2014  
+#  
+# Any line beginning with # is ignored. Blank lines are not allowed.  
+#  
+#########################################################################  
+ $NFIELDS  
+# This is the total number of fields being exchanged.   
+# For the definition of the fields, see under $STRINGS keyword  
+#  
+          1 
+ $END  
+###########################################################################  
+ $RUNTIME  
+# This gives you the total simulated time for this run in seconds   
+   50000
+ $END  
+###########################################################################  
+ $NLOGPRT  
+# Debugging output level: 0 -> 30  
+# Timer activation level: 0 -> 3  
+  30 0 
+ $END  
+###########################################################################  
+ $STRINGS  
+#  
+# The above variables are the general parameters for the experiment.  
+# Everything below has to do with the fields being exchanged.  
+#  
+############################################################################  
+#  
+#   
+############################################################################
+#                      SOURCE(face) --->>> DESTINATION(face)
+#                  -------------------------
+############################################################################
+src_face dst_face 1 1 1 lfric2lfric_restart_oa.nc EXPORTED
+ 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1
+ R  0  R 0
+#
+ MAPPING
+ weight_file_face_to_face.nc
+#  
+$END

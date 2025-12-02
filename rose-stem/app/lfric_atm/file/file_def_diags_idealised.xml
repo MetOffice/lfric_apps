@@ -1,0 +1,54 @@
+<file_definition>
+
+  <!-- Diagnostic output file for idealised runs -->
+  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="instant" freq_op="1h" prec="4">
+      <field field_ref="theta" />
+      <field field_ref="processed__temperature" />
+      <field field_ref="processed__virtual_theta" />
+      <field field_ref="m_v" />
+      <field field_ref="m_cl" />
+      <field field_ref="m_cf" />
+      <field field_ref="m_r" />
+      <field field_ref="processed__m_tot" />
+      <field field_ref="processed__tot_col_m_cl" />
+      <field field_ref="rho" />
+      <field field_ref="wetrho_in_w3" />
+      <field field_ref="processed__pressure_in_w3" />
+      <field field_ref="processed__pressure_in_wth" />
+      <field field_ref="u_in_w3" />
+      <field field_ref="v_in_w3" />
+      <field field_ref="w_in_wth" />
+      <field field_ref="radiation__sw_heating_rate" />
+      <field field_ref="radiation__lw_heating_rate" />
+      <field field_ref="radiation__sw_direct_toa" />
+      <field field_ref="radiation__sw_up_toa" />
+      <field field_ref="radiation__lw_up_toa" />
+      <field field_ref="radiation__sw_down_surf" />
+      <field field_ref="radiation__sw_up_surf" />
+      <field field_ref="radiation__lw_down_surf" />
+      <field field_ref="radiation__lw_up_surf" />
+      <field field_ref="microphysics__ls_prec" />
+      <field field_ref="processed__total_prec" />
+      <field field_ref="cloud__bulk_fraction" />
+      <field field_ref="cloud__area_fraction" />
+      <field field_ref="cloud__combined_cloud_amount" />
+      <field field_ref="cloud__cloud_amount_maxrnd" />
+      <field field_ref="cloud__cloud_base_altitude" />
+      <field field_ref="convection__conv_rain" />
+      <field field_ref="convection__massflux_up" />
+      <field field_ref="convection__cv_top" />
+      <field field_ref="convection__cv_base" />
+      <field field_ref="turbulence__zh" />
+      <field field_ref="surface__tile_temperature" />
+      <field field_ref="surface__grid_surface_temperature" />
+      <field field_ref="surface__z0m" />
+      <field field_ref="surface__grid_latent_heat" />
+      <field field_ref="surface__tile_heat_flux" />
+      <field field_ref="snow__grid_snow_mass" />
+      <field field_ref="forcing__dtheta_force" />
+      <field field_ref="forcing__dt_force" />
+    </field_group>
+  </file>
+
+</file_definition>

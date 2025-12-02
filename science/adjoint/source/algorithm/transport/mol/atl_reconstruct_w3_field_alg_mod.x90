@@ -1,0 +1,211 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Adjoint reconstruction of a W3 field at W2 points for use in the transport scheme.
+
+module atl_reconstruct_w3_field_alg_mod
+
+  use constants_mod,                  only: r_def, i_def, l_def
+  use field_mod,                      only: field_type
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use function_space_collection_mod,  only: function_space_collection
+  use function_space_mod,             only: function_space_type
+  use mesh_mod,                       only: mesh_type
+  use fs_continuity_mod,              only: W3
+  use atl_poly1d_vert_w3_reconstruction_kernel_mod, &
+                                      only: atl_poly1d_vert_w3_reconstruction_init, &
+                                            atl_poly1d_vert_w3_reconstruction_final
+  use invoke_atl_poly1d_vert_w3_recon_mod, &
+                                      only: invoke_atl_poly1d_vert_w3_recon_kernel_type
+  use transport_config_mod,           only: operators,           &
+                                            fv_horizontal_order, &
+                                            fv_vertical_order,   &
+                                            operators_fv,        &
+                                            operators_fem,       &
+                                            oned_reconstruction
+  use log_mod,                        only: log_event, &
+                                            LOG_LEVEL_ERROR
+  use transport_enumerated_types_mod, only: direction_v,               &
+                                            direction_h,               &
+                                            direction_3d,              &
+                                            monotone_koren
+  use transport_metadata_mod,         only: transport_metadata_type
+  use adj_sci_combine_multidata_field_kernel_mod, &
+                                      only: adj_combine_multidata_field_kernel_type
+  use adj_reconstruct_w3_field_alg_mod, &
+                                      only: adj_hori_w3_reconstruct_alg
+  use transport_constants_mod,        only: get_vert_w3_mol_coeffs, &
+                                            get_reversible_vert_w3_mol_coeffs
+
+  implicit none
+
+  private
+
+  public :: atl_reconstruct_w3_field_alg
+  public :: atl_vert_w3_reconstruct_alg
+
+contains
+
+
+  !=============================================================================
+  !> @brief Reconstruct a W3 field at W2 points for adjoint app.
+  !> @param[in,out] field_new           ACTIVE  Reconstructed field at W2 points
+  !> @param[in,out] field_old           ACTIVE  Initial W3 field
+  !> @param[in]     ls_field_old        PASSIVE Initial W3 field
+  !> @param[in]     direction           Splitting direction (h, v, or 3d) to
+  !!                                    compute reconstruction
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine atl_reconstruct_w3_field_alg( field_new, field_old, ls_field_old, &
+                                           direction, transport_metadata, final_rk_stage )
+
+    implicit none
+
+    type(field_type),              intent(inout) :: field_old
+    type(field_type),              intent(in)    :: ls_field_old
+    type(field_type),              intent(inout) :: field_new
+    integer(kind=i_def),           intent(in)    :: direction
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    type(mesh_type),              pointer :: mesh
+    type(field_type)                      :: field_new_h, field_new_v
+    type(function_space_type),    pointer :: w3md_v_fs
+    type(function_space_type),    pointer :: w3md_h_fs
+
+    integer(kind=i_def), parameter :: ndata_h = 4
+    integer(kind=i_def), parameter :: ndata_v = 2
+    integer(kind=i_def), parameter :: ndata   = 6
+    logical(kind=l_def), parameter :: ndata_first = .false.
+
+    mesh => field_new%get_mesh()
+
+    select case(operators)
+
+      case default
+        call log_event( "Gungho: Unrecognized option for operator.", LOG_LEVEL_ERROR )
+
+      case(operators_fv)
+
+        select case ( direction )
+        case ( direction_3d )
+
+          w3md_h_fs => function_space_collection%get_fs(                       &
+              mesh, element_order_h, element_order_v, W3, ndata_h,             &
+              ndata_first=ndata_first                                          &
+          )
+          w3md_v_fs => function_space_collection%get_fs(                       &
+              mesh, element_order_h, element_order_v, W3, ndata_v,             &
+              ndata_first=ndata_first                                          &
+          )
+
+          call field_new_h%initialise( vector_space=w3md_h_fs )
+          call field_new_v%initialise( vector_space=w3md_v_fs )
+
+          ! Combine horizontal and vertical components of W3 multidata field
+          call invoke( name="combine_w3_recon",                                       &
+                       setval_c( field_new_h, 0.0_r_def ),                            &
+                       setval_c( field_new_v, 0.0_r_def ),                            &
+                       adj_combine_multidata_field_kernel_type( field_new, ndata,     &
+                                                                field_new_h, ndata_h, &
+                                                                field_new_v, ndata_v, &
+                                                                ndata_first ) )
+
+          ! Reconstruct W3 field separately in horizontal and vertical
+          call atl_vert_w3_reconstruct_alg( field_new_v, field_old,           &
+                                            ls_field_old, transport_metadata, &
+                                            final_rk_stage )
+          call adj_hori_w3_reconstruct_alg( field_new_h, field_old, &
+                                            transport_metadata )
+
+        case ( direction_h )
+          call adj_hori_w3_reconstruct_alg( field_new, field_old, &
+                                            transport_metadata )
+        case ( direction_v )
+          call atl_vert_w3_reconstruct_alg( field_new, field_old, &
+                                            ls_field_old, transport_metadata, &
+                                            final_rk_stage )
+        case default
+          call log_event('A.T.L.: W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
+        end select
+
+      case(operators_fem)
+        call log_event( "No Tangent linear for operators_fem", LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine atl_reconstruct_w3_field_alg
+
+!=============================================================================
+  !> @brief Adjoint of tangent linear reconstruction of a W3 field in W2v
+  !> @param[in,out] field_new           The resulting vertical W2 field
+  !> @param[in,out] field_old           The input W3 field
+  !> @param[in]     ls_field_old        The linearised input W3 field
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine atl_vert_w3_reconstruct_alg( field_new, field_old,             &
+                                          ls_field_old, transport_metadata, &
+                                          final_rk_stage )
+
+    implicit none
+
+    type(field_type),              intent(inout) :: field_new
+    type(field_type),              intent(inout) :: field_old
+    type(field_type),              intent(in)    :: ls_field_old
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    type(mesh_type),     pointer :: mesh
+    integer(kind=i_def)          :: mesh_id
+    integer(kind=i_def)          :: ndata_v
+    type(field_type),    pointer :: vert_flux_coeffs
+    integer(kind=i_def)          :: vertical_order
+    logical(kind=l_def)          :: logspace
+    logical(kind=l_def)          :: reversible
+    integer(kind=i_def)          :: monotonicity
+
+    integer(kind=i_def), allocatable, dimension(:,:,:) :: stencil
+
+    reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
+    logspace = transport_metadata%get_log_space()
+    monotonicity = transport_metadata%get_vertical_monotone()
+
+    mesh => field_new%get_mesh()
+    mesh_id = mesh%get_id()
+
+    if ( reversible ) then
+      ndata_v = fv_vertical_order
+      vert_flux_coeffs => get_reversible_vert_w3_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order - 1_i_def
+    else
+      ndata_v = 2*(fv_vertical_order + 1)
+      vert_flux_coeffs => get_vert_w3_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order
+    end if
+
+    if ( monotonicity == monotone_koren ) then
+      call log_event('A.T.L. vertical Koren not implemented', LOG_LEVEL_ERROR)
+
+    else
+      ! Compute offset stencil used for vertical reconstruction
+      call atl_poly1d_vert_w3_reconstruction_init( vertical_order, &
+                                                   mesh%get_nlayers(), &
+                                                   stencil )
+      ! The logspace interpolation makes this different to non-linear kernel
+      call invoke_atl_poly1d_vert_w3_recon_kernel_type( field_new,        &
+                                                        field_old,        &
+                                                        ls_field_old,     &
+                                                        vert_flux_coeffs, &
+                                                        ndata_v,          &
+                                                        vertical_order,   &
+                                                        logspace,         &
+                                                        stencil )
+      ! Free up offset stencil
+      call atl_poly1d_vert_w3_reconstruction_final( stencil )
+    end if
+
+  end subroutine atl_vert_w3_reconstruct_alg
+
+end module atl_reconstruct_w3_field_alg_mod

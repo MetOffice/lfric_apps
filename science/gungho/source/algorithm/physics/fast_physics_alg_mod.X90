@@ -1,0 +1,418 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@brief Calls to the fast physics schemes
+module fast_physics_alg_mod
+
+  use section_choice_config_mod, only: boundary_layer, boundary_layer_um, &
+                                       convection, convection_um,         &
+                                       surface, surface_jules,            &
+                                       cloud, cloud_um,                   &
+                                       cloud_evap_condense,               &
+                                       stochastic_physics,                &
+                                       stochastic_physics_um
+
+  use driver_water_constants_mod, &
+                                 only: heat_capacity_h2o_vapour, &
+                                       heat_capacity_h2o,        &
+                                       gas_constant_h2o
+
+  use model_clock_mod,      only: model_clock_type
+  use constants_mod,        only: i_def,r_def, l_def
+  use log_mod,              only: LOG_LEVEL_INFO, LOG_LEVEL_ERROR, log_event, &
+                                  log_scratch_space
+  use print_field_stats_alg_mod, only: print_field_stats_alg
+  use io_config_mod,        only: subroutine_timers, &
+                                  write_conservation_diag
+  use timer_mod,            only: timer
+
+  use physics_config_mod,   only: blayer_placement, blayer_placement_fast, &
+                                  convection_placement,                    &
+                                  convection_placement_fast,               &
+                                  stochastic_physics_placement,            &
+                                  stochastic_physics_placement_fast,       &
+                                  smagorinsky_placement,                   &
+                                  smagorinsky_placement_fast,              &
+                                  evap_condense_placement,                 &
+                                  evap_condense_placement_fast
+
+  use formulation_config_mod,                               &
+                            only: moisture_formulation,     &
+                                  moisture_formulation_dry, &
+                                  theta_moist_source
+  use convection_config_mod,only: cv_scheme, cv_scheme_lambert_lewis, &
+                                  cv_scheme_gregory_rowntree,         &
+                                  cv_scheme_comorph
+  use cloud_config_mod,     only: scheme, scheme_pc2, cloud_call_b4_conv
+  use stochastic_physics_config_mod,                       &
+                            only: blpert_type, blpert_type_off
+  use planet_config_mod,    only: p_zero, cp, Rd
+
+  ! Derived Types
+  use field_mod,            only: field_type
+  use sci_field_bundle_builtins_mod, &
+                            only: clone_bundle
+  use field_collection_mod, only: field_collection_type
+  ! Moisture species
+  use mr_indices_mod,       only: nummr, imr_v, imr_cl
+  use sci_enforce_lower_bound_kernel_mod, &
+                            only: enforce_lower_bound_kernel_type
+  use moisture_conservation_alg_mod, &
+                            only: moisture_conservation_alg
+  use mixing_config_mod,    only: smagorinsky
+  use smagorinsky_alg_mod,  only: smagorinsky_alg
+  use timestepping_config_mod, &
+                            only : outer_iterations
+  use evap_condense_kernel_mod, &
+                            only: evap_condense_kernel_type
+#ifdef UM_PHYSICS
+  use cld_alg_mod,     only: cld_alg
+  ! UM BL scheme
+  use bl_imp_alg_mod,  only: bl_imp_alg
+  ! UM conv scheme
+  use conv_ll_alg_mod, only: conv_ll_alg
+  use conv_gr_alg_mod, only: conv_gr_alg
+  use conv_comorph_alg_mod, only: conv_comorph_alg
+  use pc2_conv_coupling_alg_mod, only: pc2_conv_coupling_alg
+  ! Jules surface schemes
+  use jules_extra_alg_mod, only: jules_extra_alg
+  ! Stochastic physics
+  use stph_main_alg_mod, only: stph_main_alg
+  use blpert_main_alg_mod, only: blpert_main_alg
+#endif
+
+  implicit none
+
+
+contains
+
+  !> @details Collection of procedures for subgrid physics that act
+  !>          within the outer loop of the solver.
+  !>          This routine passes increments for u and theta out as these
+  !>          need converting back to FE representation before being seen
+  !>          by the solver. All other prognostics (moisture, cloud, etc)
+  !>          are updated in-situ here.
+  !> @param[in,out] du                  Increment to wind field
+  !> @param[in,out] dtheta              Increment to theta field
+  !> @param[in,out] mr                  Mixing ratios to be updated
+  !> @param[in]     theta               Theta field at start of timestep
+  !> @param[in]     rho                 Rho on w3 space
+  !> @param[in]     u_n                 Wind field at start of timestep
+  !> @param[in]     exner               Exner pressure on w3 space
+  !> @param[in]     mr_n                Mixing ratios at start of timestep
+  !> @param[in]     derived_fields      Group of derived fields
+  !> @param[in]     radition_fields     Fields for radiation scheme
+  !> @param[in]     microphysics_fields Fields for microphysics scheme
+  !> @param[in]     orography_fields    Fields for orographic drag scheme
+  !> @param[in,out] turbulence_fields   Fields for turbulence scheme
+  !> @param[in,out] convection_fields   Fields for convection scheme
+  !> @param[in,out] cloud_fields        Fields for cloud scheme
+  !> @param[in,out] surface_fields      Fields for surface scheme
+  !> @param[in,out] soil_fields         Fields for soil hydrology scheme
+  !> @param[in,out] snow_fields         Fields for snow scheme
+  !> @param[in,out] chemistry_fields    Fields for chemistry scheme
+  !> @param[in,out] aerosol_fields      Fields for aerosol scheme
+  !> @param[in,out] stph_fields         Fields for stochastic physics scheme
+  !> @param[in]     outer               Outer loop counter
+  !> @param[in]     clock               The clock object
+  !> @param[in]     dt                  The model timestep length
+  !!                                    diagnostics
+    subroutine fast_physics(du, dtheta, mr, theta, rho, u_n, exner, mr_n, &
+                            derived_fields, radiation_fields,             &
+                            microphysics_fields, orography_fields,                &
+                            turbulence_fields, convection_fields, cloud_fields,   &
+                            surface_fields, soil_fields, snow_fields,             &
+                            chemistry_fields, aerosol_fields, stph_fields,        &
+                            outer, clock, dt)
+
+    implicit none
+
+    ! Fields
+    type( field_type ), intent( inout ) :: du, dtheta
+    type( field_type ), intent( in )    :: u_n, theta, rho, exner
+
+    ! Field bundles
+    type( field_type ), intent( inout ) :: mr(nummr)  ! Latest value, to update
+    type( field_type ), intent( in )    :: mr_n(nummr)! Start of timestep
+                                                      ! Do not alter
+
+    ! Field groups
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(in)    :: radiation_fields
+    type( field_collection_type ), intent(in)    :: microphysics_fields
+    type( field_collection_type ), intent(in)    :: orography_fields
+    type( field_collection_type ), intent(inout) :: turbulence_fields
+    type( field_collection_type ), intent(inout) :: convection_fields
+    type( field_collection_type ), intent(inout) :: cloud_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+    type( field_collection_type ), intent(inout) :: soil_fields
+    type( field_collection_type ), intent(inout) :: snow_fields
+    type( field_collection_type ), intent(inout) :: chemistry_fields
+    type( field_collection_type ), intent(inout) :: aerosol_fields
+    type( field_collection_type ), intent(inout) :: stph_fields
+
+    ! scalars
+    integer(kind=i_def),     intent(in) :: outer
+    class(model_clock_type), intent(in) :: clock
+    real(kind=r_def),        intent(in) :: dt
+
+    ! Local fields...
+    ! ...for boundary layer
+    type( field_type ) :: dtheta_bl, du_bl
+    ! ...for evaporation condensation
+    type( field_type ) :: dtheta_cld
+    type( field_type ) :: dmr_cld(nummr)
+
+#ifdef UM_PHYSICS
+    ! ...for boundary layer stochastic perturbation
+    type( field_type ) :: dtheta_blpert
+    type( field_type ) :: dmv_blpert
+
+    ! ...surface fields passed from BL to Jules
+    type( field_type ) :: surf_heat_flux
+    type( field_type ) :: canopy_evap
+    type( field_type ) :: water_extraction
+    type( field_type ) :: lake_evap
+
+    ! ...surface fields passed from BL to Stochastic Perturbation scheme
+    type( field_type ) :: theta_star_surf
+    type( field_type ) :: qv_star_surf
+
+    ! Temporary field to unpack from field collection
+    type( field_type ), pointer :: dmv_conv => null()
+    type( field_type ), pointer :: du_stph => null()
+    type( field_type ), pointer :: dtheta_stph => null()
+    type( field_type ), pointer :: dmv_stph => null()
+
+    type( field_type ), pointer :: departure_exner_wth
+#endif
+    type( field_type), pointer :: theta_star => null()
+    type( field_type), pointer :: u_star => null()
+    type( field_type), pointer :: exner_in_wth => null()
+
+    ! Flags to indicate whether scheme has run and increments need adding
+    logical(kind=l_def) :: boundary_layer_done, stph_done, blpert_done, &
+                           evap_condense_done
+
+    ! Flag to indicate that moisture mixing ratio fields are being used
+    logical(kind=l_def) :: use_moisture
+    real( kind=r_def )  :: Rv, cpv, cl
+
+    integer(i_def) :: i_mr
+
+    if ( subroutine_timers ) call timer("fast_physics")
+
+    use_moisture = ( moisture_formulation /= moisture_formulation_dry )
+
+    if (write_conservation_diag .and. outer == outer_iterations .and. &
+        use_moisture ) then
+      call moisture_conservation_alg( rho, mr, 'Before fast' )
+    end if
+
+    !--------------------------------------------------------------------
+    ! Initialisation of fields and flags
+    !--------------------------------------------------------------------
+    call invoke( setval_c(dtheta, 0.0_r_def), &
+                 setval_c(du, 0.0_r_def) )
+    boundary_layer_done = .false.
+    stph_done= .false.
+    blpert_done= .false.
+    evap_condense_done = .false.
+
+#ifdef UM_PHYSICS
+    ! Balance cloud before the rest of fast physics
+    if (cloud_call_b4_conv) then
+      call derived_fields%get_field('theta_star', theta_star)
+      call cld_alg( dtheta, mr,                                              &
+                    theta_star, exner, rho,                                  &
+                    derived_fields, turbulence_fields,                       &
+                    cloud_fields, convection_fields,                         &
+                    theta, mr_n,                                             &
+                    clock%get_step(), dt, .true. )
+      ! Add the cloud balancing increment to theta_star so that BL and conv
+      ! are seeing balanced state. This increment is retained for use by
+      ! the dynamics in dtheta.
+      call invoke(inc_X_plus_Y(theta_star, dtheta))
+      ! Reset departure_exner to the arrival point value so that later
+      ! call to pc2_pressure_forcing is not double-counting
+      call cloud_fields%get_field('departure_exner_wth', departure_exner_wth)
+      call derived_fields%get_field('exner_in_wth', exner_in_wth)
+      call invoke( setval_X(departure_exner_wth,exner_in_wth) )
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM convection scheme
+    !--------------------------------------------------------------------
+    if (convection == convection_um .and.                       &
+        convection_placement == convection_placement_fast) then
+      if ( cv_scheme == cv_scheme_lambert_lewis ) then
+        ! Call the UM Lambert-Lewis convection scheme
+        call conv_ll_alg(mr, exner, derived_fields, convection_fields,    &
+                         outer)
+      else if ( cv_scheme == cv_scheme_gregory_rowntree ) then
+        ! Call the UM Gregory Rowntree convection scheme
+        call conv_gr_alg(mr, rho, exner, derived_fields,                  &
+                         turbulence_fields, convection_fields,            &
+                         cloud_fields, surface_fields, chemistry_fields,  &
+                         aerosol_fields, microphysics_fields, outer)
+      else if ( cv_scheme == cv_scheme_comorph ) then
+        ! Call the Comorph convection scheme
+        call conv_comorph_alg(mr, mr_n, rho, exner, theta, derived_fields,&
+                         turbulence_fields, convection_fields,            &
+                         cloud_fields, surface_fields, chemistry_fields,  &
+                         aerosol_fields, microphysics_fields, outer)
+      end if
+
+      if ( cloud == cloud_um .and. scheme == scheme_pc2 ) then
+        ! Update the cloud fields if using PC2
+        call pc2_conv_coupling_alg( mr, derived_fields,                  &
+                                    convection_fields, cloud_fields, dt )
+      else
+        ! Without PC2, just update vapour field
+        call convection_fields%get_field('dmv_conv', dmv_conv)
+        call invoke( inc_X_plus_Y(mr(imr_v), dmv_conv) )
+      end if
+
+    end if
+
+    !--------------------------------------------------------------------
+    ! UM implicit boundary layer and Jules surface schemes
+    !--------------------------------------------------------------------
+    if (boundary_layer == boundary_layer_um .and. &
+        blayer_placement == blayer_placement_fast) then
+      call du%copy_field_properties(du_bl)
+      call bl_imp_alg(dtheta_bl, du_bl, mr,                               &
+                      surf_heat_flux, canopy_evap, water_extraction,      &
+                      lake_evap, theta_star_surf, qv_star_surf,           &
+                      theta, exner, mr_n, rho,                            &
+                      derived_fields, radiation_fields, orography_fields, &
+                      turbulence_fields, convection_fields, cloud_fields, &
+                      surface_fields, soil_fields, snow_fields,           &
+                      microphysics_fields, aerosol_fields, outer, clock)
+      boundary_layer_done=.true. ! Collect this increment later on
+
+    !--------------------------------------------------------------------
+    ! Jules surface and sub-surface (snow and hydrology)
+    !--------------------------------------------------------------------
+      if ( surface == surface_jules .and. &
+           outer == outer_iterations ) then
+        call jules_extra_alg(microphysics_fields, convection_fields,        &
+                             surface_fields, soil_fields, snow_fields,      &
+                             surf_heat_flux, canopy_evap,                   &
+                             water_extraction, lake_evap, dt)
+
+      end if ! jules
+    end if ! fast_bl
+
+    !--------------------------------------------------------------------
+    ! Add Stochastic physics
+    !--------------------------------------------------------------------
+
+    if (stochastic_physics == stochastic_physics_um .and. &
+        stochastic_physics_placement == stochastic_physics_placement_fast) then
+      call stph_fields%get_field('dmv_stph', dmv_stph)
+      call stph_fields%get_field('dtheta_stph', dtheta_stph)
+      call stph_fields%get_field('du_stph', du_stph)
+      ! We only calculate stochastic increments on the first outer loop
+      ! The increments are stored in module scope for subsequent iterations
+      if ( outer == 1_i_def )then
+        call stph_main_alg( du_stph, dtheta_stph, dmv_stph,                  &
+                          dtheta_bl, mr(imr_v), rho, u_n, convection_fields, &
+                          microphysics_fields, radiation_fields,             &
+                          derived_fields, orography_fields, clock)
+      end if
+      stph_done=.true. ! Collect this increment later on
+
+      if (blpert_type /= blpert_type_off) then
+        call dtheta_stph%copy_field_properties(dtheta_blpert)
+        call dmv_stph%copy_field_properties(dmv_blpert)
+        call blpert_main_alg(dtheta_blpert, dmv_blpert, mr(imr_v),           &
+                             theta_star_surf, qv_star_surf,                  &
+                             turbulence_fields, stph_fields, outer, clock)
+        blpert_done = .true.
+      end if
+    end if
+
+#endif
+
+    if (evap_condense_placement == evap_condense_placement_fast .and. &
+        cloud == cloud_evap_condense) then
+      call derived_fields%get_field('exner_in_wth', exner_in_wth)
+      call clone_bundle(mr, dmr_cld, nummr)
+      call dtheta%copy_field_properties(dtheta_cld)
+      if (theta_moist_source) then
+        ! More accurate thermodynamic approximations
+        Rv = gas_constant_h2o
+        cpv = heat_capacity_h2o_vapour
+        cl = heat_capacity_h2o
+      else
+        ! Do not include moist contributions to thermodynamic variables
+        Rv = 0.0_r_def
+        cpv = 0.0_r_def
+        cl = 0.0_r_def
+      end if
+      call invoke( evap_condense_kernel_type(dtheta_cld, theta,                &
+                                             dmr_cld(imr_v), dmr_cld(imr_cl),  &
+                                             mr(imr_v), mr(imr_cl),            &
+                                             exner_in_wth,                     &
+                                             Rd, Rv, cp, cpv, cl, p_zero) )
+      evap_condense_done = .true.
+    end if
+
+    !=====================================================================
+    ! Update the main fields and increments to pass out
+    !=====================================================================
+    if (boundary_layer_done) then
+      ! N.B. as currently coded, the convection increments are added in the
+      ! boundary layer as part of the implicit solution
+      call invoke(inc_X_plus_Y(du, du_bl), &
+                  inc_X_plus_Y(dtheta, dtheta_bl) )
+    end if
+
+#ifdef UM_PHYSICS
+    if (stph_done) then
+      ! Adding stochastic physics theta, mv and winds
+      ! as part of the implicit solution
+      ! Note that these are stored from the first outer loop call
+      ! and then applied on subsequent outer loops
+      call invoke(inc_X_plus_Y(dtheta, dtheta_stph), &
+                  inc_X_plus_Y(mr(imr_v), dmv_stph), &
+                  inc_X_plus_Y(du, du_stph) )
+    end if
+
+    if (blpert_done) then
+      call invoke(inc_X_plus_Y(dtheta, dtheta_blpert), &
+                  inc_X_plus_Y(mr(imr_v), dmv_blpert) )
+    end if
+#endif
+
+    if (smagorinsky .and. smagorinsky_placement == smagorinsky_placement_fast) then
+      call derived_fields%get_field('theta_star', theta_star)
+      call derived_fields%get_field('u_star', u_star)
+      call smagorinsky_alg(dtheta, du, mr, theta_star, u_star, &
+                           derived_fields, rho, dt)
+    end if
+
+    call print_field_stats_alg(dtheta, LOG_LEVEL_INFO, printmin=-20.0_r_def, &
+                               printmax=20.0_r_def, name='dtheta fast')
+    if (evap_condense_done) then
+      call invoke(inc_X_plus_Y(dtheta,      dtheta_cld),     &
+                  inc_X_plus_Y(mr(imr_v),   dmr_cld(imr_v)), &
+                  inc_X_plus_Y(mr(imr_cl),  dmr_cld(imr_cl)))
+    end if
+    if ( use_moisture ) then
+      do i_mr = 1, nummr
+        call invoke( enforce_lower_bound_kernel_type (mr(i_mr), 0.0_r_def) )
+      end do
+
+      if (write_conservation_diag .and. outer == outer_iterations) &
+        call moisture_conservation_alg( rho, mr, 'After fast' )
+    end if
+
+    if ( subroutine_timers ) call timer("fast_physics")
+
+  end subroutine fast_physics
+
+end module fast_physics_alg_mod

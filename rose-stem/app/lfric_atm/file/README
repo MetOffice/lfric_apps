@@ -1,0 +1,52 @@
+Guide to xml files
+
+All models start with an iodef file:
+- iodef_gal_clim - for GAL physical climate configuration
+- iodef_gal_clim_chem - for GAL Earth-system configuration (with chemistry)
+- iodef_gal_nwp - for GAL NWP configurations up to C224
+- iodef_gal_nwp_hres - for GAL NWP configurations of C896 or similar
+- iodef_gal_nwp_oper - GAL NWP with operational diagnostic load
+- iodef_gal_nwp_cycling - for an NWP cycling suite with data assimilation
+- iodef_ls_and_jedi - for an NWP configuration giving output for JADA
+- iodef_gal_nwp_coarse_aero - for an NWP config with coarse aerosol
+- iodef_ral - for RAL limited area configuration
+- iodef_ral_ls_and_jedi - for RAL with output for JADA
+- iodef_idealised - for idealised setups
+- iodef_idealised_flexchem - for exoplanet runs with flexible chemistry
+- iodef_test - for test suite use only
+
+Each iodef file is then constructed from multiple file definitions, to
+determine the input and output fields
+
+Diagnostics:
+- file_def_diags_gal_clim - standard climate valnote diagnostics
+- file_def_diags_gal_clim_chem - with extra chemistry diagnostics for Earth sys
+- file_def_diags_gal_nwp - standard NWP case study diagnostics
+- file_def_diags_oper_nwp_gl - operational NWP suite diagnostics
+- file_def_diags_ver - diagnostics required for verification
+- file_def_diags_var_ops - diagnostics required for VAR DA and OPS
+- file_def_diags_ls_and_jedi - diagnostics required for JEDI DA
+- file_def_diags_name - diagnostics required for driving NAME model
+- file_def_diags_ral - standard RNS diagnostic list
+- file_def_diags_ral_ls_and_jedi - diagnostics for regional DA
+- file_def_initial_diags - diagnostics before the model starts timestepping
+- file_def_diags_idealised - diagnostic list for idealised simulations
+- file_def_diags_idealised1 - with output every timestep
+- file_def_diags_flexchem - diagnostics for exoplanet chemistry runs
+
+Pressure level diagnostic output levels are defined in axis_def_plev
+
+Input files:
+- file_def_iau - definition of the incremental analysis update file
+- file_def_lbcs - lateral boundary conditions file
+
+Ancillary files:
+- file_def_ancil_main - main ancils used by all (Earth) runs
+- file_def_ancil_gal - global specific ancillaries
+- file_def_ancil_ral - regional specific ancillaries
+- file_def_ancil_hadisst - SST & sea-ice ancils from HadISST monthly climatology
+- file_def_ancil_reynolds - SST & sea-ice from daily Reynolds timeseries
+- file_def_ancil_surf - SST & sea-ice from OSTIA via surf
+- file_def_ancil_idealised - idealised ancils for flexible chemistry
+
+Checkpoint-restart definition uses file_def_check_restart

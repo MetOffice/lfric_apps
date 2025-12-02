@@ -1,0 +1,839 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Test the sl support functions
+
+module sl_support_mod_test
+
+  use constants_mod,                  only: i_def, r_tran
+
+  implicit none
+
+contains
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine compute_linear_coeffs_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use sl_support_mod,                 only: compute_linear_coeffs
+
+    implicit none
+
+    real(kind=r_tran)   :: z_grid(5), z_interp(5), dz(5), tol
+    real(kind=r_tran)   :: cl(5,2)
+    integer(kind=i_def) :: k_dep(5)
+    integer(kind=i_def) :: ni, ng
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Parameters
+    ni = 5_i_def
+    ng = 5_i_def
+
+    ! Set up cell centres on uniform grid
+    dz(:) = 1.0_r_tran
+    z_grid(1) = 0.5_r_tran
+    z_grid(2) = 1.5_r_tran
+    z_grid(3) = 2.5_r_tran
+    z_grid(4) = 3.5_r_tran
+    z_grid(5) = 4.5_r_tran
+
+    ! Set interpolated location
+    z_interp(1) = 0.5_r_tran
+    z_interp(2) = 0.8_r_tran
+    z_interp(3) = 2.5_r_tran
+    z_interp(4) = 3.3_r_tran
+    z_interp(5) = 4.5_r_tran
+
+    ! Departure indices
+    k_dep(1) = 1
+    k_dep(2) = 1
+    k_dep(3) = 2
+    k_dep(4) = 3
+    k_dep(5) = 4
+
+    ! Run subroutine
+    call compute_linear_coeffs(k_dep, z_interp, z_grid, dz, cl, ng)
+
+    ! Test the linear coefficients
+    @assertEqual(1.0_r_tran, cl(1,1), tol)
+    @assertEqual(0.0_r_tran, cl(1,2), tol)
+    @assertEqual(0.7_r_tran, cl(2,1), tol)
+    @assertEqual(0.3_r_tran, cl(2,2), tol)
+    @assertEqual(0.0_r_tran, cl(3,1), tol)
+    @assertEqual(1.0_r_tran, cl(3,2), tol)
+    @assertEqual(0.2_r_tran, cl(4,1), tol)
+    @assertEqual(0.8_r_tran, cl(4,2), tol)
+    @assertEqual(0.0_r_tran, cl(5,1), tol)
+    @assertEqual(1.0_r_tran, cl(5,2), tol)
+
+  end subroutine compute_linear_coeffs_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine compute_cubic_coeffs_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use sl_support_mod,                 only: compute_cubic_coeffs
+
+    implicit none
+
+    real(kind=r_tran)   :: z_grid(5), z_interp(5), dz(5), tol
+    real(kind=r_tran)   :: cc(5,4)
+    integer(kind=i_def) :: sc(5,4)
+    integer(kind=i_def) :: k_dep(5)
+    integer(kind=i_def) :: ni, ng
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Parameters
+    ni = 5_i_def
+    ng = 5_i_def
+
+    ! Set up cell centres on uniform grid
+    dz(:) = 1.0_r_tran
+    z_grid(1) = 0.5_r_tran
+    z_grid(2) = 1.5_r_tran
+    z_grid(3) = 2.5_r_tran
+    z_grid(4) = 3.5_r_tran
+    z_grid(5) = 4.5_r_tran
+
+    ! Set interpolated location
+    z_interp(1) = 0.5_r_tran
+    z_interp(2) = 0.8_r_tran
+    z_interp(3) = 2.5_r_tran
+    z_interp(4) = 3.3_r_tran
+    z_interp(5) = 4.5_r_tran
+
+    ! Departure indices
+    k_dep(1) = 1
+    k_dep(2) = 1
+    k_dep(3) = 2
+    k_dep(4) = 3
+    k_dep(5) = 4
+
+    ! Run subroutine
+    call compute_cubic_coeffs(k_dep, z_interp, z_grid, dz, sc, cc, ng)
+
+    ! Test the indices
+    @assertEqual(1, sc(1,1))
+    @assertEqual(1, sc(1,2))
+    @assertEqual(2, sc(1,3))
+    @assertEqual(3, sc(1,4))
+    @assertEqual(1, sc(2,1))
+    @assertEqual(1, sc(2,2))
+    @assertEqual(2, sc(2,3))
+    @assertEqual(3, sc(2,4))
+    @assertEqual(1, sc(3,1))
+    @assertEqual(2, sc(3,2))
+    @assertEqual(3, sc(3,3))
+    @assertEqual(4, sc(3,4))
+    @assertEqual(2, sc(4,1))
+    @assertEqual(3, sc(4,2))
+    @assertEqual(4, sc(4,3))
+    @assertEqual(5, sc(4,4))
+    @assertEqual(3, sc(5,1))
+    @assertEqual(4, sc(5,2))
+    @assertEqual(5, sc(5,3))
+    @assertEqual(5, sc(5,4))
+
+    ! Test the cubic coefficients
+    @assertEqual(0.0_r_tran, cc(1,1), tol)
+    @assertEqual(1.0_r_tran, cc(1,2), tol)
+    @assertEqual(0.0_r_tran, cc(1,3), tol)
+    @assertEqual(0.0_r_tran, cc(1,4), tol)
+    @assertEqual(0.0_r_tran, cc(2,1), tol)
+    @assertEqual(0.7_r_tran, cc(2,2), tol)
+    @assertEqual(0.3_r_tran, cc(2,3), tol)
+    @assertEqual(0.0_r_tran, cc(2,4), tol)
+    @assertEqual(0.0_r_tran, cc(3,1), tol)
+    @assertEqual(0.0_r_tran, cc(3,2), tol)
+    @assertEqual(1.0_r_tran, cc(3,3), tol)
+    @assertEqual(0.0_r_tran, cc(3,4), tol)
+    @assertEqual(-0.032_r_tran, cc(4,1), tol)
+    @assertEqual(0.216_r_tran, cc(4,2), tol)
+    @assertEqual(0.864_r_tran, cc(4,3), tol)
+    @assertEqual(-0.048_r_tran, cc(4,4), tol)
+    @assertEqual(0.0_r_tran, cc(5,1), tol)
+    @assertEqual(0.0_r_tran, cc(5,2), tol)
+    @assertEqual(1.0_r_tran, cc(5,3), tol)
+    @assertEqual(0.0_r_tran, cc(5,4), tol)
+
+  end subroutine compute_cubic_coeffs_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine compute_cubic_hermite_coeffs_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use sl_support_mod,                 only: compute_cubic_hermite_coeffs
+
+    implicit none
+
+    real(kind=r_tran)   :: z_grid(5), z_interp(5), dz(5), tol
+    real(kind=r_tran)   :: cc(5,4)
+    integer(kind=i_def) :: sc(5,4)
+    integer(kind=i_def) :: k_dep(5)
+    integer(kind=i_def) :: ni, ng
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Parameters
+    ni = 5_i_def
+    ng = 5_i_def
+
+    ! Set up cell centres on uniform grid
+    dz(:) = 1.0_r_tran
+    z_grid(1) = 0.5_r_tran
+    z_grid(2) = 1.5_r_tran
+    z_grid(3) = 2.5_r_tran
+    z_grid(4) = 3.5_r_tran
+    z_grid(5) = 4.5_r_tran
+
+    ! Set interpolated location
+    z_interp(1) = 0.5_r_tran
+    z_interp(2) = 0.8_r_tran
+    z_interp(3) = 2.5_r_tran
+    z_interp(4) = 3.3_r_tran
+    z_interp(5) = 4.5_r_tran
+
+    ! Departure indices
+    k_dep(1) = 1
+    k_dep(2) = 1
+    k_dep(3) = 2
+    k_dep(4) = 3
+    k_dep(5) = 4
+
+    ! Run subroutine
+    call compute_cubic_hermite_coeffs(k_dep, z_interp, z_grid, dz, sc, cc, ng)
+
+    ! Test the indices
+    @assertEqual(1, sc(1,1))
+    @assertEqual(1, sc(1,2))
+    @assertEqual(2, sc(1,3))
+    @assertEqual(3, sc(1,4))
+    @assertEqual(1, sc(2,1))
+    @assertEqual(1, sc(2,2))
+    @assertEqual(2, sc(2,3))
+    @assertEqual(3, sc(2,4))
+    @assertEqual(1, sc(3,1))
+    @assertEqual(2, sc(3,2))
+    @assertEqual(3, sc(3,3))
+    @assertEqual(4, sc(3,4))
+    @assertEqual(2, sc(4,1))
+    @assertEqual(3, sc(4,2))
+    @assertEqual(4, sc(4,3))
+    @assertEqual(5, sc(4,4))
+    @assertEqual(3, sc(5,1))
+    @assertEqual(4, sc(5,2))
+    @assertEqual(5, sc(5,3))
+    @assertEqual(5, sc(5,4))
+
+    ! Test the cubic Hermite coefficients
+    @assertEqual(0.0_r_tran, cc(1,1), tol)
+    @assertEqual(1.0_r_tran, cc(1,2), tol)
+    @assertEqual(0.0_r_tran, cc(1,3), tol)
+    @assertEqual(0.0_r_tran, cc(1,4), tol)
+    @assertEqual(0.0_r_tran, cc(2,1), tol)
+    @assertEqual(0.6685_r_tran, cc(2,2), tol)
+    @assertEqual(0.363_r_tran, cc(2,3), tol)
+    @assertEqual(-0.0315_r_tran, cc(2,4), tol)
+    @assertEqual(0.0_r_tran, cc(3,1), tol)
+    @assertEqual(0.0_r_tran, cc(3,2), tol)
+    @assertEqual(1.0_r_tran, cc(3,3), tol)
+    @assertEqual(0.0_r_tran, cc(3,4), tol)
+    @assertEqual(-0.016_r_tran, cc(4,1), tol)
+    @assertEqual(0.168_r_tran, cc(4,2), tol)
+    @assertEqual(0.912_r_tran, cc(4,3), tol)
+    @assertEqual(-0.064_r_tran, cc(4,4), tol)
+    @assertEqual(0.0_r_tran, cc(5,1), tol)
+    @assertEqual(0.0_r_tran, cc(5,2), tol)
+    @assertEqual(1.0_r_tran, cc(5,3), tol)
+    @assertEqual(0.0_r_tran, cc(5,4), tol)
+
+  end subroutine compute_cubic_hermite_coeffs_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine compute_quintic_coeffs_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use sl_support_mod,                 only: compute_quintic_coeffs
+
+    implicit none
+
+    real(kind=r_tran)   :: z_grid(6), z_interp(6), dz(6), tol
+    real(kind=r_tran)   :: cq(6,6)
+    integer(kind=i_def) :: sq(6,6)
+    integer(kind=i_def) :: k_dep(6)
+    integer(kind=i_def) :: ni, ng
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Parameters
+    ni = 6_i_def
+    ng = 6_i_def
+
+    ! Set up cell centres on uniform grid
+    dz(:) = 1.0_r_tran
+    z_grid(1) = 0.5_r_tran
+    z_grid(2) = 1.5_r_tran
+    z_grid(3) = 2.5_r_tran
+    z_grid(4) = 3.5_r_tran
+    z_grid(5) = 4.5_r_tran
+    z_grid(6) = 5.5_r_tran
+
+    ! Set interpolated location
+    z_interp(1) = 0.5_r_tran
+    z_interp(2) = 0.8_r_tran
+    z_interp(3) = 3.1_r_tran
+    z_interp(4) = 4.2_r_tran
+    z_interp(5) = 5.3_r_tran
+    z_interp(6) = 5.5_r_tran
+
+    ! Departure indices
+    k_dep(1) = 1
+    k_dep(2) = 1
+    k_dep(3) = 3
+    k_dep(4) = 4
+    k_dep(5) = 5
+    k_dep(6) = 5
+
+    ! Run subroutine
+    call compute_quintic_coeffs(k_dep, z_interp, z_grid, dz, sq, cq, ng)
+
+    ! Test the indices
+    @assertEqual(1, sq(1,1))
+    @assertEqual(1, sq(1,2))
+    @assertEqual(1, sq(1,3))
+    @assertEqual(2, sq(1,4))
+    @assertEqual(3, sq(1,5))
+    @assertEqual(4, sq(1,6))
+    @assertEqual(1, sq(2,1))
+    @assertEqual(1, sq(2,2))
+    @assertEqual(1, sq(2,3))
+    @assertEqual(2, sq(2,4))
+    @assertEqual(3, sq(2,5))
+    @assertEqual(4, sq(2,6))
+    @assertEqual(1, sq(3,1))
+    @assertEqual(2, sq(3,2))
+    @assertEqual(3, sq(3,3))
+    @assertEqual(4, sq(3,4))
+    @assertEqual(5, sq(3,5))
+    @assertEqual(6, sq(3,6))
+    @assertEqual(2, sq(4,1))
+    @assertEqual(3, sq(4,2))
+    @assertEqual(4, sq(4,3))
+    @assertEqual(5, sq(4,4))
+    @assertEqual(6, sq(4,5))
+    @assertEqual(6, sq(5,4))
+    @assertEqual(3, sq(5,1))
+    @assertEqual(4, sq(5,2))
+    @assertEqual(5, sq(5,3))
+    @assertEqual(6, sq(5,4))
+    @assertEqual(6, sq(5,5))
+    @assertEqual(6, sq(6,5))
+    @assertEqual(3, sq(6,1))
+    @assertEqual(4, sq(6,2))
+    @assertEqual(5, sq(6,3))
+    @assertEqual(6, sq(6,4))
+    @assertEqual(6, sq(6,5))
+    @assertEqual(6, sq(6,6))
+
+    ! Test the quintic coefficients
+    @assertEqual(0.0_r_tran, cq(1,1), tol)
+    @assertEqual(0.0_r_tran, cq(1,2), tol)
+    @assertEqual(1.0_r_tran, cq(1,3), tol)
+    @assertEqual(0.0_r_tran, cq(1,4), tol)
+    @assertEqual(0.0_r_tran, cq(1,5), tol)
+    @assertEqual(0.0_r_tran, cq(1,6), tol)
+    @assertEqual(0.0_r_tran, cq(2,1), tol)
+    @assertEqual(0.0_r_tran, cq(2,2), tol)
+    @assertEqual(0.7_r_tran, cq(2,3), tol)
+    @assertEqual(0.3_r_tran, cq(2,4), tol)
+    @assertEqual(0.0_r_tran, cq(2,5), tol)
+    @assertEqual(0.0_r_tran, cq(2,6), tol)
+    @assertEqual(0.010752_r_tran, cq(3,1), tol)
+    @assertEqual(-0.08736_r_tran, cq(3,2), tol)
+    @assertEqual(0.46592_r_tran, cq(3,3), tol)
+    @assertEqual(0.69888_r_tran, cq(3,4), tol)
+    @assertEqual(-0.09984_r_tran, cq(3,5), tol)
+    @assertEqual(0.011648_r_tran, cq(3,6), tol)
+    @assertEqual(0.0_r_tran, cq(4,1), tol)
+    @assertEqual(-0.0455_r_tran, cq(4,2), tol)
+    @assertEqual(0.3315_r_tran, cq(4,3), tol)
+    @assertEqual(0.7735_r_tran, cq(4,4), tol)
+    @assertEqual(-0.0595_r_tran, cq(4,5), tol)
+    @assertEqual(0.0_r_tran, cq(4,6), tol)
+    @assertEqual(0.0_r_tran, cq(5,1), tol)
+    @assertEqual(0.0_r_tran, cq(5,2), tol)
+    @assertEqual(0.2_r_tran, cq(5,3), tol)
+    @assertEqual(0.8_r_tran, cq(5,4), tol)
+    @assertEqual(0.0_r_tran, cq(5,5), tol)
+    @assertEqual(0.0_r_tran, cq(5,6), tol)
+    @assertEqual(0.0_r_tran, cq(6,1), tol)
+    @assertEqual(0.0_r_tran, cq(6,2), tol)
+    @assertEqual(0.0_r_tran, cq(6,3), tol)
+    @assertEqual(1.0_r_tran, cq(6,4), tol)
+    @assertEqual(0.0_r_tran, cq(6,5), tol)
+    @assertEqual(0.0_r_tran, cq(6,6), tol)
+
+  end subroutine compute_quintic_coeffs_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine monotone_cubic_sl_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use sl_support_mod,                 only: monotone_cubic_sl,               &
+                                              compute_cubic_coeffs,            &
+                                              compute_linear_coeffs
+    use transport_enumerated_types_mod, only: monotone_strict,                 &
+                                              monotone_relaxed,                &
+                                              vertical_monotone_order_linear,  &
+                                              vertical_monotone_order_high,    &
+                                              vertical_monotone_order_constant
+
+    implicit none
+
+    real(kind=r_tran)   :: z_grid(5), z_interp(5), dz(5), tol
+    real(kind=r_tran)   :: f_grid(5), f_interp(5), f_interp_test(5)
+    real(kind=r_tran)   :: f_local(5,4), linear_coef_1(5), linear_coef_2(5)
+    real(kind=r_tran)   :: cc(5,4), cl(5,2)
+    integer(kind=i_def) :: sc(5,4)
+    integer(kind=i_def) :: k_dep(5)
+    integer(kind=i_def) :: ni, ng, j, k
+    integer(kind=i_def) :: monotone, monotone_order
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Parameters
+    ni = 5_i_def
+    ng = 5_i_def
+
+    ! Set up cell centres on uniform grid
+    dz(:) = 1.0_r_tran
+    z_grid(1) = 0.5_r_tran
+    z_grid(2) = 1.5_r_tran
+    z_grid(3) = 2.5_r_tran
+    z_grid(4) = 3.5_r_tran
+    z_grid(5) = 4.5_r_tran
+
+    ! Set interpolated location
+    z_interp(1) = 0.5_r_tran
+    z_interp(2) = 0.8_r_tran
+    z_interp(3) = 2.5_r_tran
+    z_interp(4) = 3.3_r_tran
+    z_interp(5) = 4.5_r_tran
+
+    ! Departure indices
+    k_dep(1) = 1
+    k_dep(2) = 1
+    k_dep(3) = 2
+    k_dep(4) = 3
+    k_dep(5) = 4
+
+    ! Get cubic and linear coefficients
+    call compute_cubic_coeffs(k_dep, z_interp, z_grid, dz, sc, cc, ng)
+    call compute_linear_coeffs(k_dep, z_interp, z_grid, dz, cl, ng)
+
+    linear_coef_1(:) = cl(:,1)
+    linear_coef_2(:) = cl(:,2)
+
+    ! Set up grid data
+    f_grid(1) = 4.0_r_tran
+    f_grid(2) = 1.0_r_tran
+    f_grid(3) = 4.0_r_tran
+    f_grid(4) = 4.0_r_tran
+    f_grid(5) = 1.0_r_tran
+
+    do j = 1, 4
+      do k = 1, ng
+        f_local(k,j) = f_grid(sc(k,j))
+      end do
+    end do
+
+    ! Set up interpolated data
+    f_interp(1) =  cc(1,1)*f_grid(sc(1,1))+cc(1,2)*f_grid(sc(1,2)) &
+                 + cc(1,3)*f_grid(sc(1,3))+cc(1,4)*f_grid(sc(1,4))
+    f_interp(2) =  cc(2,1)*f_grid(sc(2,1))+cc(2,2)*f_grid(sc(2,2)) &
+                 + cc(2,3)*f_grid(sc(2,3))+cc(2,4)*f_grid(sc(2,4))
+    f_interp(3) =  cc(3,1)*f_grid(sc(3,1))+cc(3,2)*f_grid(sc(3,2)) &
+                 + cc(3,3)*f_grid(sc(3,3))+cc(3,4)*f_grid(sc(3,4))
+    f_interp(4) =  cc(4,1)*f_grid(sc(4,1))+cc(4,2)*f_grid(sc(4,2)) &
+                 + cc(4,3)*f_grid(sc(4,3))+cc(4,4)*f_grid(sc(4,4))
+    f_interp(5) =  cc(5,1)*f_grid(sc(5,1))+cc(5,2)*f_grid(sc(5,2)) &
+                 + cc(5,3)*f_grid(sc(5,3))+cc(5,4)*f_grid(sc(5,4))
+    ! Strict monotonicity should set the index 4 value to 4
+    ! and leave the others unchanged for all orders
+
+    ! Test strict monotone and constant order -----------------------
+    monotone = monotone_strict
+    monotone_order = vertical_monotone_order_constant
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_cubic_sl(                                                    &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+
+    ! Test strict monotone and linear order -----------------------
+    monotone = monotone_strict
+    monotone_order = vertical_monotone_order_linear
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_cubic_sl(                                                    &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+
+    ! Test strict monotone and high order -----------------------
+    monotone = monotone_strict
+    monotone_order = vertical_monotone_order_high
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_cubic_sl(                                                    &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+
+    ! Test relaxed monotone and constant order -----------------------
+    ! Relaxed monotonicity should leave the values unchanged
+    monotone = monotone_relaxed
+    monotone_order = vertical_monotone_order_constant
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_cubic_sl(                                                    &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(4.24_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+
+    ! Test relaxed monotone and linear order -----------------------
+    monotone = monotone_relaxed
+    monotone_order = vertical_monotone_order_linear
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_cubic_sl(                                                    &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(4.24_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+
+    ! Test relaxed monotone and high order -----------------------
+    monotone = monotone_relaxed
+    monotone_order = vertical_monotone_order_high
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_cubic_sl(                                                    &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(4.24_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+
+  end subroutine monotone_cubic_sl_test
+
+  !------------------------------------------------------------------
+
+  @test
+  subroutine monotone_quintic_sl_test()
+    use funit
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use sl_support_mod,                 only: monotone_quintic_sl,             &
+                                              compute_quintic_coeffs,          &
+                                              compute_linear_coeffs
+    use transport_enumerated_types_mod, only: monotone_strict,                 &
+                                              monotone_relaxed,                &
+                                              vertical_monotone_order_linear,  &
+                                              vertical_monotone_order_high,    &
+                                              vertical_monotone_order_constant
+
+    implicit none
+
+    real(kind=r_tran)   :: z_grid(6), z_interp(6), dz(6), tol
+    real(kind=r_tran)   :: f_grid(6), f_interp(6), f_interp_test(6)
+    real(kind=r_tran)   :: f_local(6,6), linear_coef_1(6), linear_coef_2(6)
+    real(kind=r_tran)   :: cc(6,6), cl(6,2)
+    integer(kind=i_def) :: sc(6,6)
+    integer(kind=i_def) :: k_dep(6)
+    integer(kind=i_def) :: ni, ng, j, k
+    integer(kind=i_def) :: monotone, monotone_order
+
+    ! Set tolerance
+    if ( r_tran == real64 ) then
+      tol = 1.0e-12_r_tran
+    else
+      tol = 1.0e-6_r_tran
+    end if
+
+    ! Parameters
+    ni = 6_i_def
+    ng = 6_i_def
+
+    ! Set up cell centres on uniform grid
+    dz(:) = 1.0_r_tran
+    z_grid(1) = 0.5_r_tran
+    z_grid(2) = 1.5_r_tran
+    z_grid(3) = 2.5_r_tran
+    z_grid(4) = 3.5_r_tran
+    z_grid(5) = 4.5_r_tran
+    z_grid(6) = 5.5_r_tran
+
+    ! Set interpolated location
+    z_interp(1) = 0.5_r_tran
+    z_interp(2) = 0.8_r_tran
+    z_interp(3) = 3.1_r_tran
+    z_interp(4) = 4.2_r_tran
+    z_interp(5) = 5.3_r_tran
+    z_interp(6) = 5.5_r_tran
+
+    ! Departure indices
+    k_dep(1) = 1
+    k_dep(2) = 1
+    k_dep(3) = 3
+    k_dep(4) = 4
+    k_dep(5) = 5
+    k_dep(6) = 5
+
+    ! Get quintic and linear coefficients
+    call compute_quintic_coeffs(k_dep, z_interp, z_grid, dz, sc, cc, ng)
+    call compute_linear_coeffs(k_dep, z_interp, z_grid, dz, cl, ng)
+
+    linear_coef_1(:) = cl(:,1)
+    linear_coef_2(:) = cl(:,2)
+
+    ! Set up grid data
+    f_grid(1) = 4.0_r_tran
+    f_grid(2) = 1.0_r_tran
+    f_grid(3) = 4.0_r_tran
+    f_grid(4) = 4.0_r_tran
+    f_grid(5) = 1.0_r_tran
+    f_grid(6) = 1.0_r_tran
+
+    do j = 1, 6
+      do k = 1, ng
+        f_local(k,j) = f_grid(sc(k,j))
+      end do
+    end do
+
+    ! Set up interpolated data
+    f_interp(1) =  cc(1,1)*f_grid(sc(1,1))+cc(1,2)*f_grid(sc(1,2)) &
+                 + cc(1,3)*f_grid(sc(1,3))+cc(1,4)*f_grid(sc(1,4)) &
+                 + cc(1,5)*f_grid(sc(1,5))+cc(1,6)*f_grid(sc(1,6))
+    f_interp(2) =  cc(2,1)*f_grid(sc(2,1))+cc(2,2)*f_grid(sc(2,2)) &
+                 + cc(2,3)*f_grid(sc(2,3))+cc(2,4)*f_grid(sc(2,4)) &
+                 + cc(2,5)*f_grid(sc(2,5))+cc(2,6)*f_grid(sc(2,6))
+    f_interp(3) =  cc(3,1)*f_grid(sc(3,1))+cc(3,2)*f_grid(sc(3,2)) &
+                 + cc(3,3)*f_grid(sc(3,3))+cc(3,4)*f_grid(sc(3,4)) &
+                 + cc(3,5)*f_grid(sc(3,5))+cc(3,6)*f_grid(sc(3,6))
+    f_interp(4) =  cc(4,1)*f_grid(sc(4,1))+cc(4,2)*f_grid(sc(4,2)) &
+                 + cc(4,3)*f_grid(sc(4,3))+cc(4,4)*f_grid(sc(4,4)) &
+                 + cc(4,5)*f_grid(sc(4,5))+cc(4,6)*f_grid(sc(4,6))
+    f_interp(5) =  cc(5,1)*f_grid(sc(5,1))+cc(5,2)*f_grid(sc(5,2)) &
+                 + cc(5,3)*f_grid(sc(5,3))+cc(5,4)*f_grid(sc(5,4)) &
+                 + cc(5,5)*f_grid(sc(5,5))+cc(5,6)*f_grid(sc(5,6))
+    f_interp(6) =  cc(6,1)*f_grid(sc(6,1))+cc(6,2)*f_grid(sc(6,2)) &
+                 + cc(6,3)*f_grid(sc(6,3))+cc(6,4)*f_grid(sc(6,4)) &
+                 + cc(6,5)*f_grid(sc(6,5))+cc(6,6)*f_grid(sc(6,6))
+    ! Strict monotonicity should set the index 3 value to 4
+    ! and leave the others unchanged for all orders
+
+    ! Test strict monotone and constant order -------------------------
+    monotone = monotone_strict
+    monotone_order = vertical_monotone_order_constant
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_quintic_sl(                                                  &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(1.858_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(6), tol)
+
+    ! Test strict monotone and linear order -------------------------
+    monotone = monotone_strict
+    monotone_order = vertical_monotone_order_linear
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_quintic_sl(                                                  &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(1.858_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(6), tol)
+
+    ! Test strict monotone and high order -------------------------
+    monotone = monotone_strict
+    monotone_order = vertical_monotone_order_high
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_quintic_sl(                                                  &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.0_r_tran, f_interp_test(3), tol)
+    @assertEqual(1.858_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(6), tol)
+
+    ! Test relaxed monotone and constant order -------------------------
+    ! Relaxed monotonicity should leave the values unchanged
+    monotone = monotone_relaxed
+    monotone_order = vertical_monotone_order_constant
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_quintic_sl(                                                  &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.526656_r_tran, f_interp_test(3), tol)
+    @assertEqual(1.858_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(6), tol)
+
+    ! Test relaxed monotone and linear order -------------------------
+    monotone = monotone_relaxed
+    monotone_order = vertical_monotone_order_linear
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_quintic_sl(                                                  &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.526656_r_tran, f_interp_test(3), tol)
+    @assertEqual(1.858_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(6), tol)
+
+    ! Test relaxed monotone and high order -------------------------
+    monotone = monotone_relaxed
+    monotone_order = vertical_monotone_order_high
+
+    ! Run subroutine to test
+    f_interp_test = f_interp
+    call monotone_quintic_sl(                                                  &
+            f_interp_test, f_local, linear_coef_1, linear_coef_2,              &
+            monotone, monotone_order, ng                                       &
+    )
+
+    ! Test the interpolated values
+    @assertEqual(4.0_r_tran, f_interp_test(1), tol)
+    @assertEqual(3.1_r_tran, f_interp_test(2), tol)
+    @assertEqual(4.526656_r_tran, f_interp_test(3), tol)
+    @assertEqual(1.858_r_tran, f_interp_test(4), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(5), tol)
+    @assertEqual(1.0_r_tran, f_interp_test(6), tol)
+
+  end subroutine monotone_quintic_sl_test
+
+  !------------------------------------------------------------------
+
+end module sl_support_mod_test

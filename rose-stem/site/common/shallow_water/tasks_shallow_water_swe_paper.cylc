@@ -1,0 +1,312 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/shallow_water/tasks_shallow_water_swe_paper.cylc") %}
+
+{# ####################### #}
+{# paper_plots Group Tasks #}
+{# ####################### #}
+
+{% if task_ns.conf_name == "paper_galewsky_vi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_vi"],
+        "resolution": "C24",
+        "DT": 1800,
+        "tsteps": 288,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 144:576 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_galewsky_vi-C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_vi"],
+        "resolution": "C48",
+        "DT": 900,
+        "tsteps": 576,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 144:576 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_vortex_sphere_vi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_sphere_vi"],
+        "resolution": "C24",
+        "DT": 1800,
+        "tsteps": 720,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_vortex_sphere_vi-C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_sphere_vi"],
+        "resolution": "C48",
+        "DT": 900,
+        "tsteps": 1440,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson2_vi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson2_vi"],
+        "resolution": "C24",
+        "DT": 3600,
+        "tsteps": 360,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot:wind 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson2_vi-C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson2_vi"],
+        "resolution": "C48",
+        "DT": 1800,
+        "tsteps": 720,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot:wind 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson2_vi-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson2_vi"],
+        "resolution": "C96",
+        "DT": 900,
+        "tsteps": 1440,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot:wind 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson5_vi-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson5_vi"],
+        "resolution": "C24",
+        "DT": 3600,
+        "tsteps": 360,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson5_vi-C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson5_vi"],
+        "resolution": "C48",
+        "DT": 1800,
+        "tsteps": 720,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson5_vi-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson5_vi"],
+        "resolution": "C96",
+        "DT": 900,
+        "tsteps": 1440,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{# ############################ #}
+{# paper_comparison Group Tasks #}
+{# ############################ #}
+
+{% elif task_ns.conf_name == "paper_galewsky_hr-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_hr"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 1152,
+        "mpi_parts": 96,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1152:2304 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_galewsky_hr-C192" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_hr"],
+        "resolution": "C192",
+        "DT": 225,
+        "tsteps": 2304,
+        "mpi_parts": 96,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1152:2304 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_galewsky_hr_vi-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_hr_vi"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 1152,
+        "mpi_parts": 96,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1152:2304 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_galewsky_hr_vi-C192" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["galewsky_hr_vi"],
+        "resolution": "C192",
+        "DT": 225,
+        "tsteps": 2304,
+        "mpi_parts": 96,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1152:2304 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+
+{% elif task_ns.conf_name == "paper_vortex_sphere-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_sphere"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 2880,
+        "mpi_parts": 54,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1440:5760 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_vortex_sphere-C192" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_sphere"],
+        "resolution": "C192",
+        "DT": 225,
+        "tsteps": 5760,
+        "mpi_parts": 54,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1440:5760 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_vortex_sphere_vi-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_sphere_vi"],
+        "resolution": "C96",
+        "DT": 450,
+        "tsteps": 2880,
+        "mpi_parts": 54,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1440:5760 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_vortex_sphere_vi-C192" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["vortex_sphere_vi"],
+        "resolution": "C192",
+        "DT": 225,
+        "tsteps": 5760,
+        "mpi_parts": 54,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_swe.py diagShallowWater $NODAL_DATA_DIR C q 1440:5760 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+{% elif task_ns.conf_name == "paper_williamson2-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson2"],
+        "resolution": "C24",
+        "DT": 3600,
+        "tsteps": 360,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot:wind 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson2-C48" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson2"],
+        "resolution": "C48",
+        "DT": 1800,
+        "tsteps": 720,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot:wind 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "paper_williamson2-C96" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["williamson2"],
+        "resolution": "C96",
+        "DT": 900,
+        "tsteps": 1440,
+        "mpi_parts": 6,
+        "threads": 3,
+        "use_xios": false,
+        "plot_str": "plot_error.py diagShallowWater $NODAL_DATA_DIR C geopot:wind 360:1440 $PLOT_DIR",
+        "kgo_checks": [],
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/shallow_water/tasks_shallow_water_swe_paper.cylc") %}

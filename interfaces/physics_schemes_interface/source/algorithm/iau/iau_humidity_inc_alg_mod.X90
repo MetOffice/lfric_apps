@@ -1,0 +1,193 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Apply specific humidity increments to update the moisture fields.
+!> @details Inputs are specific humidity increments and the full prognostic
+!>          mixing ratio fields.
+!>
+module iau_humidity_inc_alg_mod
+
+  use constants_mod,                  only : r_def, i_def
+  use field_collection_mod,           only : field_collection_type
+  use field_mod,                      only : field_type
+  use integer_field_mod,              only : integer_field_type
+  use q_limit_test_kernel_mod,        only : q_limit_test_kernel_type
+  use saturation_limit_kernel_mod,    only : saturation_limit_kernel_type
+  use tropopause_limits_kernel_mod,   only : tropopause_limits_kernel_type
+  use moist_dyn_mod,                  only : num_moist_factors, total_mass
+
+  implicit none
+
+  public  :: iau_humidity_inc,    &
+             iau_humidity_checks
+
+contains
+
+  !> @brief   Apply specific humidity increments to update the moisture fields
+  !> @details Inputs are aggregated specific humidity increments and the full
+  !>          prognostic mixing ratio fields. The following steps are used to
+  !>          increment:
+  !>          Step 1: Calculate time level n specific quantities
+  !>          Step 2: Increment to get the time level n+1 quantities
+  !>          Step 3: Convert back to time level n+1 mixing ratios
+  !> @param[in]     q_tot_inc     Vapour specific humidity total increment
+  !> @param[in]     qcl_tot_inc   Liquid specific humidity total increment
+  !> @param[in]     qcf_tot_inc   Frozen specific humidity total increment
+  !> @param[in]     moist_dyn     Moist_dynamics factors (for 1+sum(m_x))
+  !> @param[in,out] m_v           Vapour mixing ratio
+  !> @param[in,out] m_cl          Liquid mixing ratio
+  !> @param[in,out] m_ci          Frozen mixing ratio
+  !> @param[in,out] m_r           Rain mixing ratio
+  !> @param[in,out] m_s           Snow mixing ratio
+  !> @param[in,out] m_g           Graupel mixing ratio
+  !> @param[in,out] cloud_fields  The cloud scheme
+  !> @param[out]    one_minus_qs  One minus total water content
+  subroutine iau_humidity_inc( q_tot_inc, qcl_tot_inc, qcf_tot_inc, moist_dyn, &
+                               m_v, m_cl, m_ci, m_r, m_s, m_g, one_minus_qs,   &
+                               cloud_fields )
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent(inout)   :: cloud_fields
+    type( field_type ), intent(in)    :: q_tot_inc, qcl_tot_inc, qcf_tot_inc
+    type( field_type ), intent(in)    :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(inout) :: m_v, m_cl, m_ci, m_r, m_s, m_g
+    type( field_type ), intent(out)   :: one_minus_qs
+
+    ! Internal fields
+    type( field_type )                :: q_v
+    type( field_type )                :: q_cl
+    type( field_type )                :: q_ci
+    type( field_type )                :: q_r
+    type( field_type )                :: q_s
+    type( field_type )                :: q_g
+
+    ! Pointers to the cloud fields
+    type( field_type ), pointer :: area_fraction   => null()
+    type( field_type ), pointer :: bcf => null()
+    type( field_type ), pointer :: cff => null()
+    type( field_type ), pointer :: cfl => null()
+
+    ! Create local fields
+    call m_v % copy_field_properties( q_v )
+    call m_v % copy_field_properties( q_cl )
+    call m_v % copy_field_properties( q_ci )
+    call m_v % copy_field_properties( q_r )
+    call m_v % copy_field_properties( q_s )
+    call m_v % copy_field_properties( q_g )
+    call m_v % copy_field_properties( one_minus_qs )
+
+    ! Cloud_fields
+    call cloud_fields % get_field( 'area_fraction', area_fraction )
+    call cloud_fields % get_field( 'bulk_fraction', bcf )
+    call cloud_fields % get_field( 'frozen_fraction', cff )
+    call cloud_fields % get_field( 'liquid_fraction', cfl )
+
+    ! Step 1: Calculate time level n specific quantities and save q_v for
+    !         later use
+    ! q_x^n = m_x^n/(moist_dyn(total_mass))
+    call invoke( X_divideby_Y( q_v, m_v, moist_dyn(total_mass) ),    &
+                 X_divideby_Y( q_cl, m_cl, moist_dyn(total_mass) ),  &
+                 X_divideby_Y( q_ci, m_ci, moist_dyn(total_mass) ),  &
+                 X_divideby_Y( q_r, m_r, moist_dyn(total_mass) ),    &
+                 X_divideby_Y( q_s, m_s, moist_dyn(total_mass) ),    &
+                 X_divideby_Y( q_g, m_g, moist_dyn(total_mass) ),    &
+    ! Step 2: Increment to get the time level n+1 quantities
+    ! q_x^n+1 = q_x^n + q_x_inc
+                 inc_X_plus_Y( q_v, q_tot_inc ),    &
+                 inc_X_plus_Y( q_cl, qcl_tot_inc ), &
+                 inc_X_plus_Y( q_s, qcf_tot_inc ),  &
+    ! Step 3: Apply the lower limits to the updated qv, qcl and qci
+                 q_limit_test_kernel_type( q_v, q_cl, q_s,         &
+                                           area_fraction,          &
+                                           bcf,                    &
+                                           cff,                    &
+                                           cfl ),                  &
+    ! Step 4a: Calculate sum of updated specfic quantities (1-Sum q_x)
+                 setval_c( one_minus_qs, 1.0_r_def ),       &
+                 inc_X_minus_Y( one_minus_qs, q_v ),        &
+                 inc_X_minus_Y( one_minus_qs, q_cl ),       &
+                 inc_X_minus_Y( one_minus_qs, q_ci ),       &
+                 inc_X_minus_Y( one_minus_qs, q_r ),        &
+                 inc_X_minus_Y( one_minus_qs, q_s ),        &
+                 inc_X_minus_Y( one_minus_qs, q_g ),        &
+    ! Step 4b: Convert back to time level n+1 mixing ratios
+                 X_divideby_Y( m_v, q_v, one_minus_qs ),    &
+                 X_divideby_Y( m_cl, q_cl, one_minus_qs ),  &
+                 X_divideby_Y( m_ci, q_ci, one_minus_qs ),  &
+                 X_divideby_Y( m_r, q_r, one_minus_qs ),    &
+                 X_divideby_Y( m_s, q_s, one_minus_qs ),    &
+                 X_divideby_Y( m_g, q_g, one_minus_qs )     &
+                 )
+    nullify( area_fraction, bcf, cff, cfl )
+
+  end subroutine iau_humidity_inc
+
+  !> @brief   Apply specific humidity increments to update the moisture fields.
+  !> @details Inputs are specific humidity increments and the full prognostic
+  !>          mixing ratio fields. The following steps are used to increment
+  !>          Step 0: Calculate sum of mixing ratios (1+Sum m_x)
+  !>          Step 1: Calculate time level n specific quantities and save q_v
+  !>                  for later use
+  !>          Step 2: Remove supersturation wrt water
+  !>          Step 3: Apply limits depending on whether in or above troposphere
+  !>          Step 4a: Calculate sum of updated specfic quantities (1-Sum q_x)
+  !>          Step 4b: Convert back to time level n+1 mixing ratios
+  !> @param[in,out] m_v           Vapour mixing ratio
+  !> @param[in,out] m_cl          Liquid mixing ratio
+  !> @param[in,out] m_ci          Frozen mixing ratio
+  !> @param[in,out] m_r           Rain mixing ratio
+  !> @param[in,out] m_s           Snow mixing ratio
+  !> @param[in,out] m_g           Graupel mixing ratio
+  !> @param[in]     mv_earlier    Saved vapour mixing ratio
+  !> @param[in,out] cloud_fields  The cloud scheme
+  !> @param[in]     temperature   Temperature on theta levels
+  !> @param[in]     pressure      Pressure on theta levels
+  !> @param[in]     trop_level    Tropopause level
+  subroutine iau_humidity_checks( m_v, m_cl, m_ci, m_r, m_s, m_g , cloud_fields, &
+                                  mv_earlier, temperature, pressure, trop_level )
+
+    implicit none
+
+    ! Arguments
+    type(field_collection_type), intent(inout)   :: cloud_fields
+    type(integer_field_type),    intent(in)      :: trop_level
+    type(field_type),            intent(in)      :: temperature, pressure
+    type(field_type),            intent(inout)   :: m_v, m_cl, m_ci, m_r, m_s, m_g
+    type(field_type),            intent(in)      :: mv_earlier
+
+    ! Pointers to the cloud fields
+    type( field_type ), pointer :: area_fraction   => null()
+    type( field_type ), pointer :: bcf   => null()
+    type( field_type ), pointer :: cff => null()
+    type( field_type ), pointer :: cfl => null()
+
+    ! Cloud_fields
+    call cloud_fields % get_field( 'area_fraction', area_fraction )
+    call cloud_fields % get_field( 'bulk_fraction', bcf )
+    call cloud_fields % get_field( 'frozen_fraction', cff )
+    call cloud_fields % get_field( 'liquid_fraction', cfl )
+
+    ! Step 1: Remove supersaturation wrt water
+    call invoke( saturation_limit_kernel_type( m_v, temperature, pressure ), &
+
+    ! Step 2: Apply limits depending on whether in or above troposphere
+                 tropopause_limits_kernel_type( m_v, m_cl, m_ci, m_r, m_s, m_g,&
+                                                cfl,                           &
+                                                cff,                           &
+                                                area_fraction,                 &
+                                                bcf,                           &
+                                                mv_earlier,                    &
+                                                temperature, pressure,         &
+                                                trop_level )                   &
+               )
+
+    nullify( area_fraction, bcf, cff, cfl )
+
+  end subroutine iau_humidity_checks
+
+end module iau_humidity_inc_alg_mod

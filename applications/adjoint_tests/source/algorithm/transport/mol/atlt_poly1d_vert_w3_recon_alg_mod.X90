@@ -1,0 +1,199 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_poly1d_vert_w3_reconstruction_kernel
+module atlt_poly1d_vert_w3_recon_alg_mod
+
+  use field_mod,                         only : field_type
+  use function_space_mod,                only : function_space_type
+  use mesh_mod,                          only : mesh_type
+  use function_space_collection_mod,     only : function_space_collection
+  use finite_element_config_mod,         only : element_order_h, element_order_v
+  use fs_continuity_mod,                 only : W3
+  use constants_mod,                     only : i_def, l_def, r_def
+  use log_mod,                           only : log_event,       &
+                                                LOG_LEVEL_ERROR, &
+                                                LOG_LEVEL_DEBUG, &
+                                                LOG_LEVEL_INFO,  &
+                                                log_scratch_space
+  use transport_config_mod,              only : fv_vertical_order
+  use transport_constants_mod,           only : get_vert_w3_mol_coeffs, &
+                                                get_reversible_vert_w3_mol_coeffs
+  use transport_metadata_collection_mod, only : transport_metadata_collection
+  use transport_metadata_mod,            only : transport_metadata_type
+
+  implicit none
+
+  private
+
+  public :: atlt_poly1d_vert_w3_recon_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for atl_poly1d_vert_w3_reconstruction_kernel.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  subroutine atlt_poly1d_vert_w3_recon_alg( mesh )
+
+    use tl_poly1d_vert_w3_reconstruction_kernel_mod,  only : tl_poly1d_vert_w3_reconstruction_kernel_type, &
+                                                             tl_poly1d_vert_w3_reconstruction_init,        &
+                                                             tl_poly1d_vert_w3_reconstruction_final
+    use atl_poly1d_vert_w3_reconstruction_kernel_mod, only : atl_poly1d_vert_w3_reconstruction_init,        &
+                                                             atl_poly1d_vert_w3_reconstruction_final
+    use invoke_atl_poly1d_vert_w3_recon_mod,          only : invoke_atl_poly1d_vert_w3_recon_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type)                                   :: reconstruction
+    type(field_type)                                   :: tracer
+    type(field_type)                                   :: ls_tracer
+    type(field_type),                          pointer :: coeff
+    integer(kind=i_def)                                :: ndata
+    integer(kind=i_def)                                :: global_order
+    logical(kind=l_def)                                :: logspace
+    integer(kind=i_def), allocatable, dimension(:,:,:) :: stencil
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: reconstruction_input
+    type(field_type) :: tracer_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_w3_md_ptr
+
+    ! Inner products
+    real(kind=r_def)            :: reconstruction_inner_prod
+    real(kind=r_def)            :: reconstruction_sf
+    real(kind=r_def)            :: tracer_inner_prod
+    real(kind=r_def)            :: tracer_sf
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: reconstruction_reconstruction_input_inner_prod
+    real(kind=r_def)            :: tracer_tracer_input_inner_prod
+    real(kind=r_def)            :: inner2
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def) :: machine_tol
+    real(kind=r_def) :: relative_diff
+
+    ! Misc
+    type(transport_metadata_type), pointer :: transport_metadata
+    integer(kind=i_def)                    :: mesh_id
+    integer(kind=i_def)                    :: nlayers
+    logical(kind=l_def)                    :: reversible
+
+    transport_metadata => transport_metadata_collection%get_transport_metadata('density')
+    reversible = ( transport_metadata%get_reversible() )
+    logspace = transport_metadata%get_log_space()
+    mesh_id = mesh%get_id()
+    nlayers = mesh%get_nlayers()
+
+    ! Compute vertical components of mass flux
+    if ( reversible ) then
+      ndata = fv_vertical_order
+      coeff => get_reversible_vert_w3_mol_coeffs(mesh_id)
+      global_order = fv_vertical_order - 1_i_def
+    else
+      ndata = 2*(fv_vertical_order + 1)
+      coeff => get_vert_w3_mol_coeffs(mesh_id)
+      global_order = fv_vertical_order
+    end if
+
+    vector_space_w3_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, w3                           &
+    )
+    vector_space_w3_md_ptr => function_space_collection%get_fs(              &
+        mesh, element_order_h, element_order_v, w3, ndata = ndata            &
+    )
+    call reconstruction%initialise(vector_space=vector_space_w3_md_ptr, name='reconstruction')
+    call tracer%initialise(vector_space=vector_space_w3_ptr, name='tracer')
+    call ls_tracer%initialise(vector_space=vector_space_w3_ptr, name='ls_tracer')
+    call reconstruction_input%initialise(vector_space=vector_space_w3_md_ptr, name='reconstruction_input')
+    call tracer_input%initialise(vector_space=vector_space_w3_ptr, name='tracer_input')
+
+    reconstruction_inner_prod = 0.0_r_def
+    tracer_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call tl_poly1d_vert_w3_reconstruction_init(global_order, nlayers)
+    call invoke( setval_random( reconstruction ),                               &
+                 setval_x( reconstruction_input, reconstruction ),              &
+                 setval_random( tracer ),                                       &
+                 setval_x( tracer_input, tracer ),                              &
+                 setval_random( ls_tracer ),                                    &
+                 tl_poly1d_vert_w3_reconstruction_kernel_type( reconstruction,  &
+                                                               tracer,          &
+                                                               ls_tracer,       &
+                                                               coeff,           &
+                                                               ndata,           &
+                                                               global_order,    &
+                                                               logspace ),      &
+                 x_innerproduct_x( reconstruction_inner_prod, reconstruction ), &
+                 x_innerproduct_x( tracer_inner_prod, tracer ) )
+
+    ! Determining scale factors
+    reconstruction_sf = 1.0_r_def/(reconstruction_inner_prod + eps)
+    tracer_sf = 1.0_r_def/(tracer_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + reconstruction_inner_prod*reconstruction_sf
+    inner1 = inner1 + tracer_inner_prod*tracer_sf
+    write(log_scratch_space, *) "atlt_poly1d_vert_w3_recon inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "reconstruction inner product = ", reconstruction_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "tracer inner product = ", tracer_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( reconstruction_sf, reconstruction ), &
+                 inc_a_times_X( tracer_sf, tracer ) )
+
+    reconstruction_reconstruction_input_inner_prod = 0.0_r_def
+    tracer_tracer_input_inner_prod = 0.0_r_def
+    call atl_poly1d_vert_w3_reconstruction_init(global_order, nlayers, stencil)
+    call invoke_atl_poly1d_vert_w3_recon_kernel_type( reconstruction,    &
+                                                      tracer,            &
+                                                      ls_tracer,         &
+                                                      coeff,             &
+                                                      ndata,             &
+                                                      global_order,      &
+                                                      logspace,          &
+                                                      stencil )
+    call invoke( x_innerproduct_y( reconstruction_reconstruction_input_inner_prod, &
+                                   reconstruction,                                 &
+                                   reconstruction_input ),                         &
+                 x_innerproduct_y( tracer_tracer_input_inner_prod,                 &
+                                   tracer,                                         &
+                                   tracer_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + reconstruction_reconstruction_input_inner_prod
+    inner2 = inner2 + tracer_tracer_input_inner_prod
+
+    call tl_poly1d_vert_w3_reconstruction_final()
+    call atl_poly1d_vert_w3_reconstruction_final( stencil )
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_poly1d_vert_w3_reconstruction_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write(log_scratch_space, *) "FAILED tl_poly1d_vert_w3_reconstruction_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_poly1d_vert_w3_recon_alg
+
+end module atlt_poly1d_vert_w3_recon_alg_mod

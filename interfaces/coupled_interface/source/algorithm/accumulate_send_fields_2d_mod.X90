@@ -1,0 +1,375 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Handles the accumulation of 2d fields that will be coupled.
+
+module accumulate_send_fields_2d_mod
+
+  use clock_mod,                     only: clock_type
+  use constants_mod,                 only: str_def, i_def, r_def
+  use convert_to_celsius_kernel_mod, only: convert_to_celsius_kernel_type
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use sci_field_minmax_alg_mod,      only: log_field_minmax
+  use fs_continuity_mod,             only: W3
+  use function_space_mod,            only: function_space_type
+  use function_space_collection_mod, only: function_space_collection
+  use io_config_mod,                 only: checkpoint_read
+  use log_mod,                       only: log_event,       &
+                                           LOG_LEVEL_INFO,  &
+                                           LOG_LEVEL_DEBUG, &
+                                           LOG_LEVEL_ERROR, &
+                                           log_scratch_space
+  use mesh_mod,                      only: mesh_type
+  use sci_multi_extract_kernel_mod,  only: multi_extract_kernel_type
+  use process_send_fields_2d_mod,    only: cpl_reset_field
+
+#if defined(UM_PHYSICS)
+  use cv_run_mod,                    only: l_param_conv
+  use jules_control_init_mod,        only: n_sea_tile, first_sea_tile,   &
+                                           first_sea_ice_tile,           &
+                                           n_sea_ice_tile
+  use driver_water_constants_mod,    only: latent_heat_h2o_condensation, &
+                                           latent_heat_h2o_fusion
+#endif
+
+  implicit none
+
+  private
+
+  public accumulate_send_fields_2d
+  contains
+
+  !> @brief Accumulates data into coupling fields
+  !> @param[in, out] fld coupling field
+  !> @param[in] depository field collection - all fields
+  !> @param[in] acc_step The number of accumulation steps
+  !> @param[in] clock
+  subroutine accumulate_send_fields_2d(fld, depository, acc_step, clock, &
+                                       ldump_prep)
+
+    implicit none
+    type( field_type ), pointer, intent(inout)   :: fld
+    type( field_collection_type ), intent(in)    :: depository
+    real(r_def), pointer,          intent(in)    :: acc_step
+    class(clock_type), intent(in)                :: clock
+    logical,                     intent(in)      :: ldump_prep
+    ! Local variables
+    type(mesh_type), pointer                     :: mesh
+    type(function_space_type), pointer           :: cpl_fs
+    type(function_space_type), pointer           :: sice_fs
+    type( field_type ), pointer                  :: dep_fld
+    type( field_type ), pointer                  :: fld_ptr1
+    type( field_type ), pointer                  :: fld_ptr2
+    type( field_type ), pointer                  :: fld_ptr3
+    type( field_type ), pointer                  :: fld_ptr4
+    type( field_type ), pointer                  :: sea_frac_previous_ptr
+    type( field_type ), pointer                  :: sea_ice_frac_previous_ptr
+    ! Workspace used for coupling field calculations
+    type( field_type )                           :: cpl_field1
+    type( field_type )                           :: cpl_field2
+    type( field_type )                           :: cpl_field3
+    type( field_type )                           :: cpl_field4
+    type( field_type )                           :: cpl_field5
+    type( field_type )                           :: cpl_field1_si
+    type( field_type )                           :: cpl_field2_si
+    type( field_type )                           :: cpl_field3_si
+
+    character(str_def)                           :: fld_name
+
+    ! Reciprocal of number of accumulated time steps
+    real(r_def)                                  :: r_acc_step
+
+    call depository%get_field("sea_ice_frac_previous",sea_ice_frac_previous_ptr)
+    call depository%get_field("sea_frac_previous",sea_frac_previous_ptr)
+
+    fld_name = fld%get_name()
+
+    mesh => fld%get_mesh()
+    cpl_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+    sice_fs => function_space_collection%get_fs(mesh, 0, 0, W3, &
+                                           ndata=n_sea_ice_tile)
+
+    ! Extract the depository version of the field
+    call depository%get_field(trim(fld_name), dep_fld)
+
+    ! We need to detect if this is the first step after a start/restart.
+    ! If it is then we can either load coupling fields from a
+    ! checkpoint file, if one exists, or we can simply initialise all
+    ! coupling fields to zero if there are no initial values to work with.
+    if (clock%get_step() ==  clock%get_first_step() ) then
+
+      if (checkpoint_read) then
+        ! Take fields from restart dump.
+        ! There should actually be nothing to do here since all relevant fields
+        ! should be naturally populated from from the dump read process, so
+        ! we merely output a message to that effect.
+        call log_field_minmax( LOG_LEVEL_DEBUG, &
+                               'process_send_fields_2d: from restart', fld )
+      else
+        ! Initialise coupling fields to zero in the absence of an initial dump.
+        call cpl_reset_field(fld, depository)
+        write(log_scratch_space, '(2A)' ) "process_send_fields_2d: variable ", &
+                                  trim(fld_name)//": set to 0"
+        call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+      endif
+    else
+      ! Accumulate coupling field contributions.
+      select case(fld_name)
+        case ("lf_taux")
+          call depository%get_field("taux_ssi", fld_ptr1)
+          call invoke(inc_X_plus_Y( dep_fld, fld_ptr1 ) )
+        case ("lf_tauy")
+          call depository%get_field("tauy_ssi", fld_ptr1)
+          call invoke(inc_X_plus_Y( dep_fld, fld_ptr1 ) )
+        case ("lf_solar")
+          call depository%get_field("sw_up_tile", fld_ptr1)
+          call depository%get_field("sw_down_surf", fld_ptr2)
+          ! Initialise temporary fields
+          call cpl_field1%initialise(vector_space=cpl_fs, name="cpl_field1_W3")
+          call cpl_field2%initialise(vector_space=cpl_fs, name="cpl_field2_W3")
+          call cpl_field3%initialise(vector_space=cpl_fs, name="cpl_field3_W3")
+          call invoke(                                                      &
+                ! Extract SW up (SW_up = cpl_field1)
+                multi_extract_kernel_type(cpl_field1, fld_ptr1,             &
+                                    first_sea_tile, n_sea_tile),            &
+                ! Use SW down (SW_down = fld_ptr2)
+                ! Now we need to combine the above fluxes
+                ! net_SW_down = SW_down - SW_up
+                ! (net_SW_down = cpl_field3)
+                X_minus_Y(cpl_field3, fld_ptr2, cpl_field1),                &
+                ! Scale by sea area fraction so that this flux is an
+                ! average over the whole marine portion of the grid box
+                ! (net_SW_scaled = cpl_field2)
+                X_times_Y( cpl_field2, cpl_field3, sea_frac_previous_ptr ), &
+                ! Add the total to the accumulation
+                inc_X_plus_Y( dep_fld, cpl_field2 ) )
+        case ("lf_heatflux")
+          call depository%get_field("lw_up_tile", fld_ptr1)
+          call depository%get_field("lw_down_surf", fld_ptr2)
+          call depository%get_field("tile_heat_flux", fld_ptr3)
+          call depository%get_field("tile_moisture_flux", fld_ptr4)
+          ! Initialise temporary fields
+          call cpl_field1%initialise(vector_space=cpl_fs, name="cpl_field1_W3")
+          call cpl_field2%initialise(vector_space=cpl_fs, name="cpl_field2_W3")
+          call cpl_field3%initialise(vector_space=cpl_fs, name="cpl_field3_W3")
+          call cpl_field4%initialise(vector_space=cpl_fs, name="cpl_field4_W3")
+          call cpl_field5%initialise(vector_space=cpl_fs, name="cpl_field5_W3")
+          ! Concoct our heatflux value from various contributing fields.
+          call invoke(                                                      &
+                ! Extract LW up (LW_up = cpl_field1)
+                multi_extract_kernel_type(cpl_field1, fld_ptr1,             &
+                                   first_sea_tile, n_sea_tile),             &
+                ! Use LW down (LW_down = fld_ptr2)
+                ! Extract heat flux (heat_flux = cpl_field3)
+                multi_extract_kernel_type(cpl_field3, fld_ptr3,             &
+                                   first_sea_tile, n_sea_tile),             &
+                ! Extract evaporative mass flux
+                ! (evap_mass = cpl_field2)
+                multi_extract_kernel_type(cpl_field2, fld_ptr4,             &
+                                   first_sea_tile, n_sea_tile),             &
+                ! Convert evaporative mass flux to energy flux
+                ! (evap_energy = cpl_field4)
+                a_times_X(cpl_field4, latent_heat_h2o_condensation,         &
+                                   cpl_field2),                             &
+                ! Now we need to combine the above fluxes
+                ! net_heat_down = LW_down - LW_up - heat_flux - evap_energy
+                ! (net_heat_down = cpl_field5)
+                X_minus_Y(cpl_field5, fld_ptr2, cpl_field1),                &
+                inc_X_minus_Y(cpl_field5, cpl_field3),                      &
+                inc_X_minus_Y(cpl_field5, cpl_field4),                      &
+                ! Scale by sea area fraction so that this flux is an
+                ! average over the whole marine portion of the grid box
+                ! (net_heat_scaled = cpl_field2)
+                X_times_Y( cpl_field2, cpl_field5, sea_frac_previous_ptr ), &
+                ! Add the total to the accumulation
+                inc_X_plus_Y( dep_fld, cpl_field2 ) )
+        case ("lf_train")
+          !large scale rain
+          call depository%get_field("ls_rain", fld_ptr1)
+          if(l_param_conv) then
+            ! Initialise temporary field
+            call cpl_field1%initialise(vector_space=cpl_fs, name="cpl_field1_W3")
+            !convective rain
+            call depository%get_field("conv_rain", fld_ptr2)
+            !total
+            call invoke(X_plus_Y( cpl_field1, fld_ptr1, fld_ptr2), &
+                        inc_X_plus_Y( dep_fld, cpl_field1 ) )
+          else
+            call invoke(inc_X_plus_Y( dep_fld, fld_ptr1 ) )
+          endif
+        case ("lf_tsnow")
+          !large scale snow
+          call depository%get_field("ls_snow", fld_ptr1)
+          if(l_param_conv) then
+            ! Initialise temporary field
+            call cpl_field1%initialise(vector_space=cpl_fs, name="cpl_field1_W3")
+            !convective snow
+            call depository%get_field("conv_snow", fld_ptr2)
+            !total
+            call invoke(X_plus_Y( cpl_field1, fld_ptr1, fld_ptr2), &
+                        inc_X_plus_Y( dep_fld, cpl_field1 ) )
+          else
+            call invoke(inc_X_plus_Y( dep_fld, fld_ptr1 ) )
+          endif
+        case ("lf_w10")
+          !10m wind
+          call depository%get_field("wspd10m", fld_ptr1)
+          call invoke(inc_X_plus_Y( dep_fld, fld_ptr1 ) )
+        case ("lf_evap")
+          call depository%get_field("tile_moisture_flux", fld_ptr1)
+          ! Initialise temporary fields
+          call cpl_field1%initialise(vector_space=cpl_fs, name="cpl_field1_W3")
+          call cpl_field2%initialise(vector_space=cpl_fs, name="cpl_field2_W3")
+          ! Extract the oceanic evaporation from the ocean tile
+          call invoke( multi_extract_kernel_type(cpl_field1, fld_ptr1,   &
+                                           first_sea_tile, n_sea_tile ), &
+             ! Convert oceanic evaporation to be as a fraction of the marine
+             ! portion of the grid box
+             ! evaporation_marine_fraction(cpl_field2) =
+             ! evaporation(cpl_field1) * sea_fraction_of_marine(sea_frac_previous)
+             X_times_Y( cpl_field2, cpl_field1, sea_frac_previous_ptr ), &
+             ! Add the total to the accumulation
+             inc_X_plus_Y( dep_fld, cpl_field2 ) )
+        case ("lf_topmelt")
+          call depository%get_field("snowice_melt", fld_ptr1)
+          ! Initialise temporary fields
+          call cpl_field1_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field1_sea_ice_W3" )
+          call cpl_field2_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field2_sea_ice_W3" )
+          call cpl_field3_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field3_sea_ice_W3" )
+          ! Extract the sea ice top melt from the snowice_melt which is on
+          ! all tiles
+          call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                       first_sea_ice_tile, n_sea_ice_tile ), &
+             ! Convert top melt into an equivalent energy flux
+             ! (i.e. from kg m-2 s-1 to W m-2)
+             ! top_melt_flux(cpl_field2_si) =
+             !                latent_heat_h2o_fusion * top_melt(cpl_field1_si)
+             a_times_X( cpl_field2_si, latent_heat_h2o_fusion,               &
+                                             cpl_field1_si ),                &
+             ! Convert top melt to be as a fraction of the marine portion
+             ! of the grid box
+             ! top_melt_marine_fraction(cpl_field3_si) =
+             !               top_melt_flux(cpl_field2_si) *
+             !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+             X_times_Y( cpl_field3_si, cpl_field2_si,                        &
+                                                sea_ice_frac_previous_ptr ), &
+             ! Add the total to the accumulation
+             inc_X_plus_Y( dep_fld, cpl_field3_si ) )
+        case ("lf_iceheatflux")
+          call depository%get_field("surf_ht_flux", fld_ptr1)
+          ! Initialise temporary fields
+          call cpl_field1_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field1_sea_ice_W3" )
+          call cpl_field2_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field2_sea_ice_W3" )
+          ! Extract the sea ice surface to sub-surface heat flux from the
+          ! surf_ht_flux which is on all tiles
+          call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                       first_sea_ice_tile, n_sea_ice_tile ), &
+             ! Convert surface heat flux to be as a fraction of the marine
+             ! portion of the grid box.
+             ! surf_heat_marine_fraction(cpl_field2_si) =
+             !               surf_ht_flux(cpl_field1_si) *
+             !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+             X_times_Y( cpl_field2_si, cpl_field1_si,                        &
+                                                sea_ice_frac_previous_ptr ), &
+             ! Add the total to the accumulation
+             inc_X_plus_Y( dep_fld, cpl_field2_si ))
+        case ("lf_sublimation")
+          call depository%get_field("snowice_sublimation", fld_ptr1)
+          ! Initialise temporary fields
+          call cpl_field1_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field1_sea_ice_W3" )
+          call cpl_field2_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field2_sea_ice_W3" )
+          ! Extract the sea ice sublimation from the snowice_sublimation
+          ! which is on all tiles
+          call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                       first_sea_ice_tile, n_sea_ice_tile ), &
+             ! Convert sublimation to be as a fraction of the marine
+             ! portion of the grid box
+             ! sublimation_marine_fraction(cpl_field2_si) =
+             !               sublimation(cpl_field1_si) *
+             !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+             X_times_Y( cpl_field2_si, cpl_field1_si,                        &
+                                                sea_ice_frac_previous_ptr ), &
+             ! Add the total to the accumulation
+             inc_X_plus_Y( dep_fld, cpl_field2_si ) )
+        case ("lf_iceskint")
+          call depository%get_field("tile_temperature", fld_ptr1)
+          ! Initialise temporary fields
+          call cpl_field1_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field1_sea_ice_W3" )
+          call cpl_field2_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field2_sea_ice_W3" )
+          ! Extract the sea ice skin temperature from the tile temperature
+          call invoke( multi_extract_kernel_type(cpl_field1_si, fld_ptr1,    &
+                                       first_sea_ice_tile, n_sea_ice_tile ), &
+             ! Convert from Kelvin to Celsius
+             ! (NEMO is expecting the data in Celsius)
+             convert_to_celsius_kernel_type(cpl_field2_si, cpl_field1_si,    &
+                                            n_sea_ice_tile),                 &
+             ! Add the total to the accumulation
+             inc_X_plus_Y( dep_fld, cpl_field2_si ) )
+        case ("lf_pensolar")
+          call depository%get_field('sea_ice_pensolar', fld_ptr1)
+          ! Initialise temporary field
+          call cpl_field1_si%initialise( vector_space = sice_fs, &
+                                        name="cpl_field1_sea_ice_W3" )
+          ! Convert penetrating solar to be as a fraction of the marine
+          ! portion of the grid box
+          ! penetrating_solar_marine_fraction(cpl_field2_si) =
+          !               sea_ice_penetrating_solar(fld_ptr1) *
+          !               sea_ice_fraction_of_marine(sea_ice_frac_previous)
+          call invoke( X_times_Y( cpl_field1_si, fld_ptr1,                   &
+                                                sea_ice_frac_previous_ptr ), &
+             ! Add the total to the accumulation
+             inc_X_plus_Y( dep_fld, cpl_field1_si ) )
+        case ("lf_rsurf")
+          !surface river runoff
+          call depository%get_field("surface_runoff", fld_ptr1)
+          call invoke(inc_X_plus_Y( dep_fld, fld_ptr1) )
+        case ("lf_rsub")
+          !sub-surface river runoff
+          call depository%get_field("sub_surface_runoff", fld_ptr1)
+          call invoke(inc_X_plus_Y( dep_fld, fld_ptr1 ) )
+        case default
+          write(log_scratch_space, '(3A)' )                              &
+                            "ERROR: accumulate_send_fields_2d, field: ", &
+                            trim(fld_name), ": can not be found"
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+
+    endif
+
+      ! If this is the last accumulation before the end of the run, then
+      ! there will be no coupling exchange with these values. They must be
+      ! preserved in the restart dump in the exact form in which they will be
+      ! used on the first coupling exchange of any future cycle or new run which starts
+      ! from that dump. We can NOT simply allow the accumulated values to
+      ! be stored because:
+      ! a) any subsequent run using the dump would have to be clairvoyant
+      !    enough to know the coupling frequency and timestep used in the
+      !    run which generated a given dump
+      ! b) any run wishing to use the dump would be constrained to use
+      !    the same timestep and coupling frequency as the run which generated the dump
+      ! c) it would be impossible to alter timestep or coupling frequencies when starting
+      !    from an existing dump without wrecking the values used for coupling.
+
+      if (ldump_prep) then
+        ! Multiply fields to be saved by the reciprocal of acc_step
+        r_acc_step = 1.0_r_def/acc_step
+        call invoke(inc_a_times_X( r_acc_step, dep_fld ))
+      endif
+
+
+  end subroutine accumulate_send_fields_2d
+
+end module accumulate_send_fields_2d_mod

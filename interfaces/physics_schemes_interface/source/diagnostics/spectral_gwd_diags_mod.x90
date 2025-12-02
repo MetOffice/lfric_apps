@@ -1,0 +1,95 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Processes diagnostics for spectral_gwd_alg
+
+module spectral_gwd_diags_mod
+
+  use constants_mod,       only: l_def
+  use field_mod,           only: field_type
+  use io_config_mod,       only: subroutine_timers
+  use timer_mod,           only: timer
+
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  ! Logical indicating whether diagnostics are requested
+
+  ! Total stress from spectral gravity wave drag
+  logical( l_def ) :: tau_east_spectral_gwd_flag
+  logical( l_def ) :: tau_south_spectral_gwd_flag
+  logical( l_def ) :: tau_west_spectral_gwd_flag
+  logical( l_def ) :: tau_north_spectral_gwd_flag
+
+  public :: initialise_diags_for_spectral_gwd
+  public :: output_diags_for_spectral_gwd
+
+contains
+
+  !> @brief Initialise fields for locally-computed diagnostics
+  subroutine initialise_diags_for_spectral_gwd(                &
+                                theta, tau_east_spectral_gwd,  &
+                                tau_south_spectral_gwd,        &
+                                tau_west_spectral_gwd,         &
+                                tau_north_spectral_gwd)
+
+    implicit none
+
+    ! Fields passed in to copy properties from
+    type( field_type ), intent(in)    :: theta
+
+    ! Diagnostic fields to initialise
+    type( field_type ), intent(inout) ::               &
+        tau_east_spectral_gwd, tau_south_spectral_gwd, &
+        tau_west_spectral_gwd, tau_north_spectral_gwd
+
+    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+
+    ! 3D fields in wtheta space
+    tau_east_spectral_gwd_flag = init_diag(tau_east_spectral_gwd, 'spectral_gwd__tau_east_spectral_gwd')
+    tau_south_spectral_gwd_flag = init_diag(tau_south_spectral_gwd, 'spectral_gwd__tau_south_spectral_gwd')
+    tau_west_spectral_gwd_flag = init_diag(tau_west_spectral_gwd, 'spectral_gwd__tau_west_spectral_gwd')
+    tau_north_spectral_gwd_flag = init_diag(tau_north_spectral_gwd, 'spectral_gwd__tau_north_spectral_gwd')
+
+    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+
+  end subroutine initialise_diags_for_spectral_gwd
+
+  !> @brief Output diagnostics from spectral_gwd_alg
+  subroutine output_diags_for_spectral_gwd(                              &
+                   du_spectral_gwd, dv_spectral_gwd, dtemp_spectral_gwd, &
+                   dtheta_spectral_gwd, tau_east_spectral_gwd,           &
+                   tau_south_spectral_gwd, tau_west_spectral_gwd,        &
+                   tau_north_spectral_gwd)
+
+    implicit none
+
+    ! Prognostic fields to output
+    type( field_type ), intent(in)    :: du_spectral_gwd, dv_spectral_gwd, dtemp_spectral_gwd,&
+                                         dtheta_spectral_gwd, tau_east_spectral_gwd,          &
+                                         tau_south_spectral_gwd, tau_west_spectral_gwd,       &
+                                         tau_north_spectral_gwd
+
+    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+
+    ! Prognostic fields
+    call du_spectral_gwd%write_field('spectral_gwd__du_spectral_gwd')
+    call dv_spectral_gwd%write_field('spectral_gwd__dv_spectral_gwd')
+    call dtemp_spectral_gwd%write_field('spectral_gwd__dtemp_spectral_gwd')
+    call dtheta_spectral_gwd%write_field('spectral_gwd__dtheta_spectral_gwd')
+
+    ! Diagnostics locally computed within the kernel
+    if (tau_east_spectral_gwd_flag) call tau_east_spectral_gwd%write_field()
+    if (tau_south_spectral_gwd_flag) call tau_south_spectral_gwd%write_field()
+    if (tau_west_spectral_gwd_flag) call tau_west_spectral_gwd%write_field()
+    if (tau_north_spectral_gwd_flag) call tau_north_spectral_gwd%write_field()
+
+    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+
+  end subroutine output_diags_for_spectral_gwd
+end module spectral_gwd_diags_mod

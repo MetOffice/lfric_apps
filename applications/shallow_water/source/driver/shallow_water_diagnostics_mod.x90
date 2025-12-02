@@ -1,0 +1,120 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Outputs the diagnostics from the shallow water miniapp.
+!!
+!> @details Calls the routine that generates diagnostic output for all
+!!          fields used by the shallow water miniapp.
+
+module shallow_water_diagnostics_mod
+
+  use constants_mod,                     only: i_def
+  use driver_modeldb_mod,                only: modeldb_type
+  use field_mod,                         only: field_type
+  use field_collection_mod,              only: field_collection_type
+  use log_mod,                           only: log_event, LOG_LEVEL_INFO
+  use mesh_mod,                          only: mesh_type
+  use diagnostics_io_mod,                only: write_scalar_diagnostic, &
+                                               write_vector_diagnostic
+  use shallow_water_settings_config_mod, only: thermal_swe
+  use swe_init_fields_alg_mod,           only: swe_init_vorticity_alg
+
+  implicit none
+
+  private
+
+  public :: shallow_water_diagnostics
+
+contains
+
+  !> @brief Outputs the diagnostics from the shallow water miniapp.
+  !> @details Outputs the wind, total geopotential, potential vorticity,
+  !!          and the optional buoyancy. The surface geopotential is output
+  !!          if the initial_flag equals 1.
+  !> @param [in]     mesh               The primary mesh
+  !> @param [in,out] modeldb            Model database that contains a list of
+  !>                                    fields that will be written to
+  !>                                    diagnostic output
+  !> @param [in]     nodal_output_on_w3 Flag that determines if vector fields
+  !!                                    should be projected to W3
+  !> @param [in]     initial_flag       Output surface geopot if flag = 1
+  !>
+  subroutine shallow_water_diagnostics( mesh,               &
+                                        modeldb,            &
+                                        nodal_output_on_w3, &
+                                        initial_flag        )
+
+    implicit none
+
+    type(mesh_type),         intent(in), pointer :: mesh
+    type(modeldb_type),      intent(in), target  :: modeldb
+    logical,                 intent(in)          :: nodal_output_on_w3
+    integer(i_def),          intent(in)          :: initial_flag
+
+    type( field_collection_type ), pointer :: prognostic_fields => null()
+
+    type(field_type), pointer :: wind => null()
+    type(field_type), pointer :: buoyancy => null()
+    type(field_type), pointer :: geopot => null()
+    type(field_type), pointer :: q => null()
+    type(field_type), pointer :: tracer_const => null()
+    type(field_type), pointer :: tracer_pv => null()
+    type(field_type), pointer :: tracer_step => null()
+    type(field_type), pointer :: s_geopot
+    type(field_type)          :: total_geopot
+    type(field_type)          :: surface_geopot
+
+    ! Get pointers to field collections for use downstream
+    prognostic_fields => modeldb%fields%get_field_collection("prognostics")
+
+    ! Can't just iterate through the collection as some fields are scalars
+    ! and some fields are vectors, so explicitly extract all fields from
+    ! the collection and output each of them
+    call prognostic_fields%get_field('wind', wind)
+    call prognostic_fields%get_field('buoyancy', buoyancy)
+    call prognostic_fields%get_field('geopot', geopot)
+    call prognostic_fields%get_field('q', q)
+    call prognostic_fields%get_field('tracer_const', tracer_const)
+    call prognostic_fields%get_field('tracer_pv', tracer_pv)
+    call prognostic_fields%get_field('tracer_step', tracer_step)
+    call prognostic_fields%get_field('s_geopot', s_geopot)
+
+    ! Calculation and output of diagnostics
+    call total_geopot%initialise( vector_space=geopot%get_function_space() )
+    call invoke( X_plus_Y(total_geopot, geopot, s_geopot) )
+
+    if (initial_flag == 1) then
+
+      ! Output surface geopotential
+      call surface_geopot%initialise( vector_space=geopot%get_function_space() )
+      call invoke( X_minus_Y(surface_geopot, total_geopot, geopot) )
+      call write_scalar_diagnostic('s_geopot', surface_geopot, &
+                                  modeldb%clock, mesh, nodal_output_on_w3)
+
+    end if
+
+    call write_vector_diagnostic('wind', wind, &
+                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic('geopot', total_geopot, &
+                                 modeldb%clock, mesh, nodal_output_on_w3)
+    if ( thermal_swe ) then
+      call write_scalar_diagnostic('buoyancy', buoyancy, &
+                                  modeldb%clock, mesh, nodal_output_on_w3)
+    end if
+    call write_scalar_diagnostic('q', q, &
+                                 modeldb%clock, mesh, nodal_output_on_w3)
+
+    ! Output tracers
+    call write_scalar_diagnostic('tracer_const', tracer_const, &
+                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic('tracer_pv', tracer_pv, &
+                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic('tracer_step', tracer_step, &
+                                 modeldb%clock, mesh, nodal_output_on_w3)
+
+  end subroutine shallow_water_diagnostics
+
+end module shallow_water_diagnostics_mod

@@ -1,0 +1,318 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Reconstruct a W3 field at W2 points for use in the transport scheme.
+!> @todo There are number of workarounds in this algorithm for aspects which
+!!       aren't yet supported by PSyclone/LFRic:
+!!       1. Issue #868 Multidata fields are not natively supported in PSyclone.
+!!                     Currently we treat these as normal fields but need to
+!!                     additionally pass in ndata_h or ndata_v to the kernels
+!!                     as extra integer arguments.
+!!       2. Issue #1246 Region stencils require both the global maximum size of
+!!                      the stencil and local column size of the stencil.
+!!                      PSyclone currently only passes in the local size and so
+!!                      until this is resolved we also pass in the global maximum
+!!                      size as an integer argument.
+module reconstruct_w3_field_alg_mod
+
+  use check_configuration_mod,        only: get_required_stencil_depth
+  use sci_combine_multidata_field_kernel_mod, &
+                                      only: combine_multidata_field_kernel_type
+  use constants_mod,                  only: r_def, i_def, l_def, str_def
+  use r_tran_field_mod,               only: r_tran_field_type
+  use field_mod,                      only: field_type
+  use fs_continuity_mod,              only: W2, W2h, W2v, W3, Wtheta
+  use function_space_collection_mod,  only: function_space_collection
+  use function_space_mod,             only: function_space_type
+  use sci_geometric_constants_mod,    only: get_height_fv
+  use poly1d_reconstruction_kernel_mod, &
+                                      only: poly1d_reconstruction_kernel_type
+  use poly1d_vert_w3_reconstruction_kernel_mod, &
+                             only: poly1d_vert_w3_reconstruction_kernel_type, &
+                                   poly1d_vert_w3_reconstruction_init,        &
+                                   poly1d_vert_w3_reconstruction_final
+  use poly2d_reconstruction_kernel_mod, &
+                                      only: poly2d_reconstruction_kernel_type
+  use remap_on_extended_mesh_alg_mod, only: remap_on_extended_mesh
+  use transport_config_mod,           only: operators,                         &
+                                            fv_horizontal_order,               &
+                                            fv_vertical_order,                 &
+                                            operators_fv,                      &
+                                            oned_reconstruction,               &
+                                            panel_edge_treatment,              &
+                                            panel_edge_treatment_none
+  use transport_constants_mod,        only: get_element_order_h_transport, &
+                                            get_element_order_v_transport
+  use log_mod,                        only: log_event,         &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO
+  use mesh_collection_mod,            only: mesh_collection
+  use mesh_mod,                       only: mesh_type
+  use transport_enumerated_types_mod, only: direction_v,                  &
+                                            direction_h,                  &
+                                            direction_3d,                 &
+                                            monotone_none,                &
+                                            monotone_koren
+  use transport_metadata_mod,         only: transport_metadata_type
+  use polyv_w3_koren_kernel_mod,      only: polyv_w3_koren_kernel_type
+  use polyh_w3_koren_kernel_mod,      only: polyh_w3_koren_kernel_type
+
+  use io_config_mod,                  only: subroutine_timers
+  use timer_mod,                      only: timer
+
+  implicit none
+
+  private
+
+  public :: reconstruct_w3_field_alg
+  public :: hori_w3_reconstruct_alg
+  public :: vert_w3_reconstruct_alg
+
+contains
+
+  !=============================================================================
+  !> @brief Reconstruct a W3 field at W2 points.
+  !> @details Reconstruct a W3 field (field_old) at W2 points (field_new) using
+  !!          desired spatial reconstruction.
+  !!          Options for this are either FE or FV reconstructions.
+  !> @param[in,out] field_new           Reconstructed field at W2 points
+  !> @param[in]     field_old           Initial W3 field
+  !> @param[in]     direction           Splitting direction (h, v, or 3d) to
+  !!                                    compute reconstruction
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine reconstruct_w3_field_alg(field_new, field_old, direction, &
+                                      transport_metadata, final_rk_stage)
+
+    implicit none
+
+    type(r_tran_field_type), target, intent(in)    :: field_old
+    type(r_tran_field_type),         intent(inout) :: field_new
+    integer(kind=i_def),             intent(in)    :: direction
+    type(transport_metadata_type),   intent(in)    :: transport_metadata
+    logical(kind=l_def),             intent(in)    :: final_rk_stage
+
+    type(mesh_type),              pointer :: mesh => null()
+    type(r_tran_field_type)               :: field_new_h, field_new_v
+    type(function_space_type),    pointer :: w3md_v_fs => null()
+    type(function_space_type),    pointer :: w3md_h_fs => null()
+
+    integer(kind=i_def) :: k_h, k_v
+
+    integer(kind=i_def), parameter :: ndata_h = 4
+    integer(kind=i_def), parameter :: ndata_v = 2
+    integer(kind=i_def), parameter :: ndata   = 6
+    logical(kind=l_def), parameter :: ndata_first = .false.
+
+    mesh => field_new%get_mesh()
+
+    k_h = get_element_order_h_transport()
+    k_v = get_element_order_v_transport()
+
+    select case ( direction )
+      case ( direction_3d )
+
+        w3md_h_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3, &
+                                                       ndata_h,            &
+                                                       ndata_first = ndata_first )
+        w3md_v_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3, &
+                                                       ndata_v,            &
+                                                       ndata_first = ndata_first )
+
+        call field_new_h%initialise( vector_space=w3md_h_fs )
+        call field_new_v%initialise( vector_space=w3md_v_fs )
+
+        ! Reconstruct W3 field separately in horizontal and vertical
+        call hori_w3_reconstruct_alg(field_new_h, field_old, &
+                                     transport_metadata)
+        call vert_w3_reconstruct_alg(field_new_v, field_old, &
+                                     transport_metadata, final_rk_stage)
+
+        ! Combine horizontal and vertical components of W3 multidata field
+        call invoke( combine_multidata_field_kernel_type(field_new, ndata, &
+                                                         field_new_h, ndata_h, &
+                                                         field_new_v, ndata_v, ndata_first) )
+        nullify( w3md_h_fs, w3md_v_fs )
+
+      case ( direction_h )
+        call hori_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata)
+      case ( direction_v )
+        call vert_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata, final_rk_stage)
+      case default
+        call log_event('W3 reconstruction at W2: direction not recognised', LOG_LEVEL_ERROR)
+    end select
+
+    nullify( mesh )
+
+  end subroutine reconstruct_w3_field_alg
+
+  !> @brief Reconstructs a W3 field in the horizontal component of W2
+  !> @param[in,out] field_new           The resulting horizontal W2 field
+  !> @param[in]     field_old           The input W3 field
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  subroutine hori_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata)
+
+    use transport_constants_mod, only: get_hori_w3_mol_coeffs
+
+    implicit none
+
+    type(r_tran_field_type),       intent(inout) :: field_new
+    type(r_tran_field_type),       intent(in)    :: field_old
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+
+    type(mesh_type),              pointer :: mesh
+    type(r_tran_field_type),      pointer :: flux_coeffs
+    type(r_tran_field_type),      target  :: remap_field, field_old_big_halo
+    type(r_tran_field_type),      pointer :: field_ptr
+
+    integer(kind=i_def) :: mesh_id
+    integer(kind=i_def) :: stencil_extent
+    integer(kind=i_def) :: stencil_size
+    logical(kind=l_def) :: monotone
+    integer(kind=i_def) :: remap_depth
+
+    if ( subroutine_timers ) call timer('transport.w3_hori_recon')
+
+    mesh => field_new%get_mesh()
+    mesh_id = mesh%get_id()
+
+    ! Get extents and data sizes for this mesh
+    stencil_extent = fv_horizontal_order/2_i_def
+    if (oned_reconstruction) then
+      stencil_size = fv_horizontal_order + 1
+    else if (mod(fv_horizontal_order, 2) == 0) then
+      stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
+    else
+      stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
+    end if
+
+    flux_coeffs => get_hori_w3_mol_coeffs(mesh_id)
+
+    ! Copy field to a large halo version
+    call field_old_big_halo%initialise( field_old%get_function_space(), &
+                                        halo_depth = get_required_stencil_depth() )
+    call invoke( setval_X( field_old_big_halo, field_old ) )
+
+    monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
+    if ( panel_edge_treatment /= panel_edge_treatment_none                     &
+         .and. (monotone .or. oned_reconstruction) ) then
+      remap_depth = int(fv_horizontal_order/2)
+      call remap_on_extended_mesh(remap_field, field_old_big_halo,             &
+                                  monotone,                                    &
+                                  transport_metadata%get_enforce_min_value(),  &
+                                  transport_metadata%get_min_value(),          &
+                                  remap_depth)
+      field_ptr => remap_field
+    else
+      field_ptr => field_old_big_halo
+    end if
+
+    if ( transport_metadata%get_horizontal_monotone() == monotone_koren ) then
+      ! Compute horizontal components of mass flux with the koren scheme
+      call invoke( name="w3_koren_hor_reconstruction",           &
+              polyh_w3_koren_kernel_type( field_new,             &
+                                          field_ptr,             &
+                                          stencil_extent ) )
+
+    else if ( oned_reconstruction ) then
+      ! Use 1d flux reconstruction
+      call invoke( name="w3_1dh_reconstruction", &
+                  poly1d_reconstruction_kernel_type( field_new,             &
+                                                     field_ptr,             &
+                                                     stencil_extent,        &
+                                                     flux_coeffs,           &
+                                                     fv_horizontal_order ) )
+    else
+      call invoke( name="w3_2dh_reconstruction", &
+                  poly2d_reconstruction_kernel_type( field_new,             &
+                                                     field_old_big_halo,    &
+                                                     stencil_extent,        &
+                                                     flux_coeffs,           &
+                                                     stencil_size) )
+    end if
+
+    if ( subroutine_timers ) call timer('transport.w3_hori_recon')
+
+  end subroutine hori_w3_reconstruct_alg
+
+  !> @brief Reconstructs a W3 field in the vertical component of W2
+  !> @param[in,out] field_new           The resulting vertical W2 field
+  !> @param[in]     field_old           The input W3 field
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine vert_w3_reconstruct_alg(field_new, field_old, &
+                                     transport_metadata, final_rk_stage)
+
+    use transport_constants_mod, only: get_vert_w3_mol_coeffs,                 &
+                                       get_reversible_vert_w3_mol_coeffs
+
+    implicit none
+
+    type(r_tran_field_type),       intent(inout) :: field_new
+    type(r_tran_field_type),       intent(in)    :: field_old
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    type(mesh_type),         pointer :: mesh
+    integer(kind=i_def)              :: mesh_id
+    integer(kind=i_def)              :: ndata_v
+    type(r_tran_field_type), pointer :: vert_flux_coeffs
+    type(field_type),        pointer :: height_tr
+    integer(kind=i_def)              :: vertical_order
+    logical(kind=l_def)              :: logspace
+    logical(kind=l_def)              :: reversible
+    integer(kind=i_def)              :: monotonicity
+
+    if ( subroutine_timers ) call timer('transport.w3_vert_recon')
+
+    reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
+    logspace = transport_metadata%get_log_space()
+    monotonicity = transport_metadata%get_vertical_monotone()
+
+    mesh => field_new%get_mesh()
+    mesh_id = mesh%get_id()
+
+    if ( reversible ) then
+      ndata_v = fv_vertical_order
+      vert_flux_coeffs => get_reversible_vert_w3_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order - 1_i_def
+    else
+      ndata_v = 2*(fv_vertical_order + 1)
+      vert_flux_coeffs => get_vert_w3_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order
+    end if
+
+    if ( monotonicity == monotone_koren ) then
+      height_tr => get_height_fv( Wtheta, mesh%get_id() )
+      call invoke(name="w3_vert_reconstruction_koren",                         &
+                  polyv_w3_koren_kernel_type( field_new,                       &
+                                              field_old,                       &
+                                              height_tr,                       &
+                                              reversible,                      &
+                                              logspace) )
+    else
+      ! Compute offset stencil used for vertical reconstruction
+      call poly1d_vert_w3_reconstruction_init(vertical_order, &
+                                              mesh%get_nlayers())
+      call invoke(name="w3_1dv_reconstruction",                          &
+        poly1d_vert_w3_reconstruction_kernel_type( field_new, field_old, &
+                                                   vert_flux_coeffs,     &
+                                                   ndata_v,              &
+                                                   vertical_order,       &
+                                                   logspace) )
+      ! Free up offset stencil
+      call poly1d_vert_w3_reconstruction_final()
+
+    end if
+
+    if ( subroutine_timers ) call timer('transport.w3_vert_recon')
+
+  end subroutine vert_w3_reconstruct_alg
+
+end module reconstruct_w3_field_alg_mod

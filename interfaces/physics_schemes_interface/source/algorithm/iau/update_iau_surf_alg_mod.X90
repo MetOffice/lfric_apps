@@ -1,0 +1,158 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Update the land surface fields with IAU surface increments.
+!> @details Increments to soil temperature, snow temperature, skin temperature
+!>          and soil moisture, produced by land surface data assimilation
+!>          system, are added to prognostic fields.
+module update_iau_surf_alg_mod
+
+  use constants_mod,               only : r_def, i_def
+  use field_mod,                   only : field_type
+  use field_collection_mod,        only : field_collection_type
+  use log_mod,                     only : log_event,       &
+                                          log_level_debug, &
+                                          log_level_info
+  use printing_iau_mod,            only : print_minmax_iau_surf, &
+                                          print_minmax_surf
+  use sci_weighted_ave_kernel_mod, only : weighted_ave_kernel_type
+  use jules_control_init_mod,      only : n_land_tile
+  use limit_soil_moist_kernel_mod, only : limit_soil_moist_kernel_type
+  use surf_inc_update_kernel_mod,  only : surf_inc_update_kernel_type
+  use nlsizes_namelist_mod,        only : sm_levels
+  use driver_water_constants_mod,  only : T_freeze_h2o, density_h2o
+  use jules_control_init_mod,      only : n_land_tile
+  use jules_physics_init_mod,      only : snow_lev_tile
+  use jules_snow_mod,              only : nsmax
+
+  implicit none
+
+  private
+  public :: add_surf_inc_alg
+
+  contains
+
+  !> @brief   Update the land surface fields with IAU surface increments
+  !> @details Inputs are increments of soil temperature, soil moisture,
+  !>          tile temperature, and snow temperature. These are applied to
+  !>          the equivalent full prognostic fields and certain constraints
+  !>          applied to the updated prognostic fields.
+  !> @param[in]      iau_surf_fields  The collection of iau land surf fields
+  !> @param[in,out]  surface_fields   The collection of surface fields
+  !> @param[in,out]  soil_fields      The collection of soil fields
+  !> @param[in,out]  snow_fields      The collection of snow fields
+  subroutine add_surf_inc_alg ( iau_surf_fields, surface_fields, soil_fields, &
+                                snow_fields )
+
+    implicit none
+
+    ! Arguments
+    type( field_collection_type ), intent(in)    :: iau_surf_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
+    type( field_collection_type ), intent(inout) :: soil_fields
+    type( field_collection_type ), intent(inout) :: snow_fields
+
+    ! Internal variables
+    integer(kind=i_def) :: n
+
+    ! Prognostic fields needed for surf iau
+    type( field_type ), pointer :: soil_moist_wilt        => null()
+    type( field_type ), pointer :: soil_moist_sat         => null()
+    type( field_type ), pointer :: soil_moist_crit        => null()
+    type( field_type ), pointer :: soil_temperature       => null()
+    type( field_type ), pointer :: soil_moisture          => null()
+    type( field_type ), pointer :: snow_layer_temp        => null()
+    type( field_type ), pointer :: tile_temperature       => null()
+    type( field_type ), pointer :: tile_snow_mass         => null()
+    type( field_type ), pointer :: tile_fraction          => null()
+
+    ! increments coming from the surf read file
+    type( field_type ), pointer :: soil_temperature_inc       => null()
+    type( field_type ), pointer :: soil_moisture_inc          => null()
+    type( field_type ), pointer :: snow_layer_temp_inc        => null()
+    type( field_type ), pointer :: tile_temperature_inc       => null()
+
+    ! local field
+    type(field_type)            :: grid_snow_mass
+
+    call log_event( '- Minmax surface fields before iau -', log_level_debug )
+    call print_minmax_surf( soil_fields,    &
+                            surface_fields, &
+                            snow_fields,    &
+                            log_level_debug &
+                           )
+
+    call log_event( '- Minmax IAU surface increment fields -', &
+                    log_level_info )
+    call print_minmax_iau_surf( iau_surf_fields, log_level_info )
+
+    ! Get fields needed for surf IAU
+    call soil_fields%get_field( 'soil_moist_wilt', soil_moist_wilt )
+    call soil_fields%get_field( 'soil_moist_sat', soil_moist_sat )
+    call soil_fields%get_field( 'soil_moist_crit', soil_moist_crit )
+    call soil_fields%get_field( 'soil_temperature', soil_temperature )
+    call soil_fields%get_field( 'soil_moisture', soil_moisture )
+    call snow_fields%get_field( 'snow_layer_temp', snow_layer_temp )
+    call surface_fields%get_field( 'tile_temperature', tile_temperature )
+    call snow_fields%get_field( 'tile_snow_mass', tile_snow_mass )
+    call surface_fields%get_field( 'tile_fraction', tile_fraction )
+
+    ! Get fields needed for surf IAU incs
+    call iau_surf_fields%get_field( 'soil_temperature_inc', soil_temperature_inc )
+    call iau_surf_fields%get_field( 'soil_moisture_inc', soil_moisture_inc )
+    call iau_surf_fields%get_field &
+         ( 'snow_layer_temp_inc', snow_layer_temp_inc )
+    call iau_surf_fields%get_field( 'tile_temperature_inc', tile_temperature_inc )
+
+    ! Soil moisture should only be updated in snow-free (neglible snow depth)
+    ! conditions, so soil moisture incs are set to zero if snow is present.
+    ! First need to calculate a grid-box mean snow amount from tiled values
+
+    !create local field to hold grid-box mean values
+    call soil_moist_wilt%copy_field_properties( grid_snow_mass )
+    call invoke ( weighted_ave_kernel_type( grid_snow_mass, tile_snow_mass, &
+                                          tile_fraction, 1, n_land_tile ) )
+
+    ! Update surface prognostic fields with surface increments
+    call invoke ( surf_inc_update_kernel_type( soil_moist_sat,       &
+                                               grid_snow_mass,       &
+                                               soil_temperature_inc, &
+                                               soil_temperature,     &
+                                               soil_moisture_inc,    &
+                                               soil_moisture,        &
+                                               tile_temperature_inc, &
+                                               tile_temperature,     &
+                                               snow_layer_temp_inc,  &
+                                               snow_layer_temp,      &
+                                               n_land_tile,          &
+                                               snow_lev_tile,        &
+                                               nsmax,                &
+                                               sm_levels,            &
+                                               T_freeze_h2o ) )
+
+    ! Apply limits to updated soil moisture
+    call invoke ( limit_soil_moist_kernel_type( soil_moist_wilt, &
+                                                soil_moist_sat,  &
+                                                soil_moisture,   &
+                                                sm_levels,       &
+                                                density_h2o ) )
+
+    call log_event( '- Minmax surface fields after iau -', log_level_debug )
+    call print_minmax_surf( soil_fields,    &
+                            surface_fields, &
+                            snow_fields,    &
+                            log_level_debug &
+                           )
+
+    nullify( soil_moist_wilt,soil_moist_sat,soil_temperature, &
+             soil_moisture,snow_layer_temp,tile_temperature,  &
+             tile_snow_mass, tile_fraction )
+    nullify( soil_temperature_inc,soil_moisture_inc,          &
+             snow_layer_temp_inc,tile_temperature_inc )
+
+  end subroutine add_surf_inc_alg
+
+end module update_iau_surf_alg_mod

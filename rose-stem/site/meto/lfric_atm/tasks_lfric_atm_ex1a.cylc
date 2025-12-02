@@ -1,0 +1,87 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/lfric_atm/tasks_lfric_atm_ex1a.cylc") %}
+
+{% if task_ns.conf_name == "nwp_gal9-C48_MG" %}
+    {% do task_dict.update({
+        "memory": [40, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [36, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "nwp_gal9_debug-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [36, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9-C12" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "ral3-seuk_ls_and_jedi" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"]
+    }) %}
+
+{% elif task_ns.conf_name == "ral3_ens-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "ral3_mixmol-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "comp_tran_ref_3d_l120-BiP64x64-1500x1500_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% elif task_ns.conf_name == "thai_ben1-C48_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
+{% endif %}
+
+{% if "perftools" in task_ns.compiler %}
+    {% do task_dict.update({
+        "kgo_checks": [],
+        "plot_str": "", }) %}
+{% endif %}
+
+{% do LOG.debug("Finised in site/meto/lfric_atm/tasks_lfric_atm_ex1a.cylc") %}

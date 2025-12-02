@@ -1,0 +1,539 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+!> @brief Provides various runtime-constants for the linear solver.
+!!
+!> @details This module controls the set-up of various objects relating to
+!!          the linear solver. These objects are constant throughout a run,
+!!          and so can be pre-computed. Getters provide access to the objects.
+!-------------------------------------------------------------------------------
+
+module solver_constants_mod
+
+  ! Infrastructure
+  use constants_mod,                      only: i_def, r_def, l_def, str_def
+  use copy_field_alg_mod,                 only: copy_field
+  use sci_geometric_constants_mod,        only: get_coordinates,               &
+                                                get_panel_id
+  use sci_fem_constants_mod,              only: get_qr_fe
+  use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: W2, W3, Wtheta
+  use function_space_collection_mod,      only: function_space_collection
+  use function_space_mod,                 only: function_space_type
+  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
+  use io_config_mod,                      only: subroutine_timers
+  use log_mod,                            only: log_event, LOG_LEVEL_ERROR
+  use mesh_collection_mod,                only: mesh_collection
+  use mesh_mod,                           only: mesh_type
+  use operator_mod,                       only: operator_type, &
+                                                r_solver_operator_type
+  use quadrature_xyoz_mod,                only: quadrature_xyoz_type
+  use r_solver_field_mod,                 only: r_solver_field_type
+  use timer_mod,                          only: timer
+
+  ! Configuration
+  use finite_element_config_mod,          only: element_order_h, &
+                                                element_order_v
+
+  ! Kernels
+  use sci_operator_algebra_kernel_mod,    only: operator_setval_x_kernel_type
+  use sci_operator_x_times_y_kernel_mod,  only: operator_x_times_y_kernel_type
+
+  implicit none
+
+  private
+
+  ! Variables private to this module that can only be accessed by public
+  ! functions returning pointers to them
+
+  ! ========================================================================== !
+  ! Inventories for use in the rest of the model
+  ! ========================================================================== !
+  ! Geometric objects
+  type(inventory_by_mesh_type) :: detj_at_w3_r_solver_inventory
+
+  ! Mass matrices and inverses
+  type(inventory_by_mesh_type), target :: mm_w3_inv_r_solver_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_r_solver_inventory
+  type(inventory_by_mesh_type), target :: mm_wtheta_r_solver_inventory
+
+  ! Combined divergence and inverse mass matrix operators
+  type(inventory_by_mesh_type), target :: im3_div_r_solver_inventory
+
+  ! Special dynamical core r_solver matrices
+  type(inventory_by_mesh_type), target :: mm_w2_si_r_solver_inventory
+
+  ! Normalisations
+  type(inventory_by_mesh_type)         :: w2_normalisation_inventory
+  type(inventory_by_mesh_type), target :: w2_normalisation_r_solver_inventory
+  type(inventory_by_mesh_type), target :: wt_normalisation_r_solver_inventory
+
+  ! ========================================================================== !
+  ! Public functions for accessing the module contents
+  ! ========================================================================== !
+
+  public :: final_solver_constants
+  public :: get_mass_matrix_r_solver
+  public :: get_inverse_mass_matrix_r_solver
+  public :: get_normalisation
+  public :: get_normalisation_r_solver
+  public :: get_detj_at_w3_r_solver
+  public :: get_w2_mass_matrix_r_solver
+  public :: get_im3_div_r_solver
+
+contains
+
+  ! ========================================================================== !
+  ! GETTERS FOR R_SOLVER FORMS OF GEOMETRIC OBJECTS
+  ! ========================================================================== !
+
+  !> @brief Returns the Det(J) values at W3 dof locations
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The Det(J) field
+  function get_detj_at_w3_r_solver(mesh_id) result(detj_r_solver)
+
+    use sci_calc_detj_at_w3_kernel_mod, only: calc_detj_at_w3_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    integer(kind=i_def)                   :: halo_depth
+    type(r_solver_field_type),    pointer :: detj_r_solver
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(function_space_type),    pointer :: w3_fs
+
+    ! Check inventory is initialised
+    if (.not. detj_at_w3_r_solver_inventory%is_initialised()) then
+      ! Initialise all inventories together
+      call detj_at_w3_r_solver_inventory%initialise(name='detj_at_w3_r_solver')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = detj_at_w3_r_solver_inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+
+      ! Create the object as it doesn't exist yet
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+
+      w3_fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                                element_order_v, W3)
+      call detj_at_w3_r_solver_inventory%add_field(detj_r_solver, w3_fs, mesh)
+
+      halo_depth = 0  ! No need to calculate into halos
+      call invoke( calc_detj_at_w3_kernel_type(detj_r_solver, chi, panel_id,   &
+                                               halo_depth) )
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+    end if
+
+    ! Get existing constant
+    call detj_at_w3_r_solver_inventory%get_field(mesh, detj_r_solver)
+
+  end function get_detj_at_w3_r_solver
+
+  ! ========================================================================== !
+  ! GETTERS FOR R_SOLVER FORMS OF MASS MATRICES
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to a r_solver mass matrix.
+  !> @param[in] space   The space of the desired mass matrix
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The mass matrix operator
+  function get_mass_matrix_r_solver(space, mesh_id) result(mm_r_solver)
+
+    use sci_fem_constants_mod, only: get_mass_matrix_fe
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(function_space_type),    pointer :: fs
+    type(operator_type),          pointer :: mm_r_def
+    type(r_solver_operator_type), pointer :: mm_r_solver
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+
+    ! Point to appropriate inventory for this space
+    select case (space)
+      case (W2)
+        inventory => mm_w2_r_solver_inventory
+        inventory_name = 'mass_matrix_r_solver_w2'
+      case (Wtheta)
+        inventory => mm_wtheta_r_solver_inventory
+        inventory_name = 'mass_matrix_r_solver_wtheta'
+      case default
+        mm_r_solver => null()
+        call log_event( "r_solver mass matrix operator does not exist", LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      mm_r_def => get_mass_matrix_fe(space, mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, space)
+      call inventory%add_operator(mm_r_solver, fs, fs, mesh)
+
+      call invoke( operator_setval_x_kernel_type(mm_r_solver, mm_r_def) )
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+    end if
+
+    ! Return existing constant
+    call inventory%get_operator(mesh, mm_r_solver)
+
+  end function get_mass_matrix_r_solver
+
+  !> @brief Returns a pointer to the inverse r_solver mass matrix operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The inverse mass matrix operator at r_solver precision
+  function get_inverse_mass_matrix_r_solver(space, mesh_id) result(mm_inv_r_solver)
+
+    use sci_fem_constants_mod, only: get_inverse_mass_matrix_fe
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(function_space_type),    pointer :: fs
+    type(operator_type),          pointer :: mm_inv_r_def
+    type(r_solver_operator_type), pointer :: mm_inv_r_solver
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+
+    ! Point to appropriate inventory for this space
+    select case (space)
+      case (W3)
+        inventory => mm_w3_inv_r_solver_inventory
+        inventory_name = 'mm_w3_inv_r_solver'
+      case default
+        mm_inv_r_def => null()
+        call log_event( "Inverse r_solver mass matrix does not exist", LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      mm_inv_r_def => get_inverse_mass_matrix_fe(space, mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, space)
+      call inventory%add_operator(mm_inv_r_solver, fs, fs, mesh)
+
+      call invoke( operator_setval_x_kernel_type(mm_inv_r_solver, mm_inv_r_def) )
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+    end if
+
+    ! Return existing constant
+    call inventory%get_operator(mesh, mm_inv_r_solver)
+
+  end function get_inverse_mass_matrix_r_solver
+
+  ! ========================================================================== !
+  ! GETTERS FOR R_SOLVER FORMS OF OTHER OPERATORS
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to a generalised W2 mass matrix operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The semi-implicit W2 mass matrix operator
+  function get_w2_mass_matrix_r_solver(w2_op_name, mesh_id) result(mm_r_solver)
+
+    use dycore_constants_mod, only: get_w2_mass_matrix, w2_si_matrix
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: w2_op_name
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(function_space_type),    pointer :: fs
+    type(operator_type),          pointer :: mm_r_def
+    type(r_solver_operator_type), pointer :: mm_r_solver
+    type(inventory_by_mesh_type), pointer :: inventory
+
+    ! Determine which inventory to point to
+    select case (w2_op_name)
+      case(w2_si_matrix)
+        inventory => mm_w2_si_r_solver_inventory
+      case default
+        mm_r_solver => null()
+        call log_event('r_solver dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. mm_w2_si_r_solver_inventory%is_initialised()) then
+      call mm_w2_si_r_solver_inventory%initialise(name='mm_w2_si_r_solver')
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      mm_r_def => get_w2_mass_matrix(w2_op_name, mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, W2)
+      call inventory%add_operator(mm_r_solver, fs, fs, mesh)
+
+      call invoke( operator_setval_x_kernel_type(mm_r_solver, mm_r_def) )
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+    end if
+
+    ! Return existing constant
+    call inventory%get_operator(mesh, mm_r_solver)
+
+  end function get_w2_mass_matrix_r_solver
+
+  !> @brief Returns a pointer to the inv_m3 * div operator
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The inverse mass matrix and div operator
+  function get_im3_div_r_solver(mesh_id) result(im3_div_r_solver)
+
+    use sci_fem_constants_mod, only: get_div
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    type(r_solver_operator_type), pointer :: im3_div_r_solver
+    type(r_solver_operator_type), pointer :: mm_w3_inv_r_solver
+    type(operator_type),          pointer :: div
+    type(r_solver_operator_type)          :: div_r_solver
+    logical(kind=l_def)                   :: constant_exists
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(quadrature_xyoz_type),   pointer :: qr
+    type(function_space_type),    pointer :: w3_fs
+    type(function_space_type),    pointer :: w2_fs
+
+    ! Initialise inventory if it hasn't been done so already
+    if (.not. im3_div_r_solver_inventory%is_initialised()) then
+      call im3_div_r_solver_inventory%initialise(name="im3_div_r_solver")
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = im3_div_r_solver_inventory%paired_object_exists(mesh_id)
+
+    ! Create constant if it doesn't already exist
+    if (.not. constant_exists) then
+      chi => get_coordinates(mesh_id)
+      panel_id => get_panel_id(mesh_id)
+      qr => get_qr_fe()
+      div => get_div(mesh_id)
+      mm_w3_inv_r_solver => get_inverse_mass_matrix_r_solver(W3, mesh_id)
+
+      w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                 element_order_v, W2 )
+      w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                 element_order_v, W3 )
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+        call div_r_solver%initialise( w3_fs, w2_fs )
+        call im3_div_r_solver_inventory%add_operator(im3_div_r_solver, w3_fs, w2_fs, mesh)
+        ! @TODO #416: may be able to optimise memory by calculating div
+        ! at r_solver precision directly
+        call invoke( operator_setval_x_kernel_type(div_r_solver, div),         &
+                     operator_x_times_y_kernel_type(im3_div_r_solver,          &
+                                                    mm_w3_inv_r_solver,        &
+                                                    div_r_solver) )
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+    end if
+
+    call im3_div_r_solver_inventory%get_operator(mesh, im3_div_r_solver)
+
+  end function get_im3_div_r_solver
+
+  ! ========================================================================== !
+  ! GETTERS FOR NORMALISATIONS
+  ! ========================================================================== !
+
+  !> @brief Returns a pointer to the normalisation of prognostic fields
+  !> @param[in] space   The space of the normalisation field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The normalisation field
+  function get_normalisation(space, mesh_id) result(normalisation)
+
+    use sci_fem_constants_mod,       only: get_inverse_lumped_mass_matrix_fe
+    use w2_normalisation_kernel_mod, only: w2_normalisation_kernel_type
+    use sci_multiplicity_kernel_mod, only: multiplicity_kernel_type
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(field_type),             pointer :: normalisation
+    type(field_type)                      :: nodal_multiplicity
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(function_space_type),    pointer :: fs
+    integer(kind=i_def),        parameter :: i_minus_one = -1_i_def
+
+    ! Special case, Wtheta normalisation is the lumped inverse mass matrix
+    select case (space)
+      case (Wtheta)
+        normalisation => get_inverse_lumped_mass_matrix_fe(Wtheta, mesh_id)
+
+      case (W2)
+        ! Check if inventories is initialised
+        if (.not. w2_normalisation_inventory%is_initialised()) then
+          call w2_normalisation_inventory%initialise(name='w2_normalisation')
+        end if
+
+        mesh => mesh_collection%get_mesh(mesh_id)
+        constant_exists = w2_normalisation_inventory%paired_object_exists(mesh_id)
+
+        ! Create constant if it doesn't already exist
+        if (.not. constant_exists) then
+          chi => get_coordinates(mesh_id)
+          panel_id => get_panel_id(mesh_id)
+          fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                                 element_order_v, space)
+
+          if ( subroutine_timers ) call timer('runtime_constants.fem')
+
+          call nodal_multiplicity%initialise( fs )
+          call w2_normalisation_inventory%add_field(normalisation, fs, mesh)
+
+          call invoke( setval_c(nodal_multiplicity, 0.0_r_def),                &
+                       setval_c(normalisation, 0.0_r_def),                     &
+                       multiplicity_kernel_type(nodal_multiplicity),           &
+                       w2_normalisation_kernel_type(normalisation,             &
+                                                    chi, panel_id,             &
+                                                    nodal_multiplicity),       &
+                       inc_X_powint_n(normalisation, i_minus_one) )
+
+          if ( subroutine_timers ) call timer('runtime_constants.fem')
+        end if
+
+      ! Return constant
+      call w2_normalisation_inventory%get_field(mesh, normalisation)
+
+    case default
+      call log_event("Normalisation does not exist for given space", LOG_LEVEL_ERROR)
+      stop
+    end select
+
+  end function get_normalisation
+
+  !> @brief Returns a pointer to the r_solver normalisation of prognostic fields
+  !> @param[in] space   The space of the normalisation field
+  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @return The normalisation field
+  function get_normalisation_r_solver(space, mesh_id) result(normalisation_r_solver)
+
+    implicit none
+
+    integer(kind=i_def),       intent(in) :: space
+    integer(kind=i_def),       intent(in) :: mesh_id
+    type(mesh_type),              pointer :: mesh
+    logical(kind=l_def)                   :: constant_exists
+    type(function_space_type),    pointer :: fs
+    type(field_type),             pointer :: normalisation_r_def
+    type(r_solver_field_type),    pointer :: normalisation_r_solver
+    type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: inventory_name
+
+    ! Point to appropriate inventory for this space
+    select case (space)
+      case (W2)
+        inventory => w2_normalisation_r_solver_inventory
+        inventory_name = 'w2_normalisation_r_solver'
+      case (Wtheta)
+        inventory => wt_normalisation_r_solver_inventory
+        inventory_name = 'wtheta_normalisation_r_solver'
+      case default
+        normalisation_r_solver => null()
+        call log_event("r_solver normalisation does not exist for given space", LOG_LEVEL_ERROR)
+        stop
+    end select
+
+    ! Initialise inventory if this is the first time getting this constant
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=inventory_name)
+    end if
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh_id)
+
+    if (.not. constant_exists) then
+      ! Create constant if it doesn't already exist
+      normalisation_r_def => get_normalisation(space, mesh_id)
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+
+      fs => function_space_collection%get_fs(mesh, element_order_h, &
+                                             element_order_v, space)
+      call inventory%add_field(normalisation_r_solver, fs, mesh)
+
+      call copy_field(normalisation_r_def, normalisation_r_solver)
+
+      if ( subroutine_timers ) call timer('runtime_constants.solver')
+    end if
+
+    ! Return existing constant
+    call inventory%get_field(mesh, normalisation_r_solver)
+
+  end function get_normalisation_r_solver
+
+  ! ========================================================================== !
+  ! FINALISE
+  ! ========================================================================== !
+  !> @brief Explicitly reclaim memory from module scope variables
+  subroutine final_solver_constants()
+
+    implicit none
+
+    call w2_normalisation_inventory%clear()
+    call mm_w2_r_solver_inventory%clear()
+    call mm_w2_si_r_solver_inventory%clear()
+    call mm_wtheta_r_solver_inventory%clear()
+    call mm_w3_inv_r_solver_inventory%clear()
+    call detj_at_w3_r_solver_inventory%clear()
+    call im3_div_r_solver_inventory%clear()
+    call w2_normalisation_r_solver_inventory%clear()
+    call wt_normalisation_r_solver_inventory%clear()
+
+  end subroutine final_solver_constants
+
+end module solver_constants_mod

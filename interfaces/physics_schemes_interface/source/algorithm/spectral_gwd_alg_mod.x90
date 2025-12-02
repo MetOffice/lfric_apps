@@ -1,0 +1,165 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2019 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the spectral gravity wave drag scheme
+
+module spectral_gwd_alg_mod
+   use constants_mod, only: i_def
+   use field_mod, only: field_type
+   use field_collection_mod, only: field_collection_type
+   use io_config_mod,        only: subroutine_timers
+   use timer_mod,            only: timer
+   use log_mod,              only: log_event, LOG_LEVEL_DEBUG
+   use mesh_mod,             only: mesh_type
+   use fs_continuity_mod,    only: W3, Wtheta
+
+  ! XIOS output
+  use io_config_mod, only: write_diag, &
+                           use_xios_io
+  use spectral_gwd_diags_mod, only: initialise_diags_for_spectral_gwd, &
+                                    output_diags_for_spectral_gwd
+
+  implicit none
+
+  private
+  public :: spectral_gwd_alg
+
+contains
+
+  !> @brief Run the spectral gravity wave drag scheme
+  !> @param[in,out] du_spectral_gwd      Increment to zonal wind field
+  !> @param[in,out] dv_spectral_gwd      Increment to meridional wind field
+  !> @param[in,out] dtheta_spectral_gwd  Increment to theta field
+  !> @param[in]     derived fields       Group of derived fields
+  !> @param[in]     microphysics_fields  Fields for mphys scheme
+  !> @param[in]     convection_fields    Fields for convection scheme
+  !> @param[in]     theta                Potential temperature in wtheta
+  !> @param[in]     u                    Wind in W2
+  subroutine spectral_gwd_alg(du_spectral_gwd, dv_spectral_gwd,         &
+                              dtheta_spectral_gwd,                      &
+                              derived_fields, microphysics_fields,      &
+                              convection_fields, theta, u)
+
+    ! spectral_gwd kernels
+    use spectral_gwd_kernel_mod,     only: spectral_gwd_kernel_type
+    use sci_geometric_constants_mod, only: get_latitude_fv, get_height_fv
+    use um_sizes_init_mod,           only: um_sizes_init
+
+   implicit none
+
+    type( field_type ), intent( inout ) :: du_spectral_gwd
+    type( field_type ), intent( inout ) :: dv_spectral_gwd
+    type( field_type ), intent( inout ) :: dtheta_spectral_gwd
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: microphysics_fields
+    type( field_collection_type ), intent(in) :: convection_fields
+    type( field_type ), intent(in) :: theta, u
+
+    ! Local fields
+    ! Increments from spectral gravity wave drag to ...
+    type( field_type ) :: dtemp_spectral_gwd ! ... temperature
+
+    type( field_type ) :: totalppn ! total surface precipitation
+
+    ! Flux from spectral gravity wave drag ...
+    type( field_type ) :: tau_east_spectral_gwd  ! ... eastward component
+    type( field_type ) :: tau_south_spectral_gwd ! ... southward component
+    type( field_type ) :: tau_west_spectral_gwd  ! ... westward component
+    type( field_type ) :: tau_north_spectral_gwd ! ... northward component
+
+    ! Temporary unpacked fields from collections
+    type( field_type ), pointer :: u_in_w3 => null()
+    type( field_type ), pointer :: v_in_w3 => null()
+    type( field_type ), pointer :: exner_in_wth => null()
+    type( field_type ), pointer :: wetrho_in_w3 => null()
+
+    type( field_type ), pointer :: ls_rain => null()
+    type( field_type ), pointer :: ls_snow => null()
+    type( field_type ), pointer :: conv_rain => null()
+    type( field_type ), pointer :: conv_snow => null()
+
+    type( field_type ), pointer :: latitude_w3 => null()
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+
+    type( mesh_type ), pointer :: mesh      => null()
+    type( mesh_type ), pointer :: twod_mesh => null()
+    integer( kind=i_def ) :: ncells
+
+    if ( subroutine_timers ) call timer("spectral_gwd_alg")
+
+    call log_event( 'slow_physics: Running spectral gravity wave drag', LOG_LEVEL_DEBUG )
+
+    ! Unpack fields
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+
+    call microphysics_fields%get_field('ls_rain', ls_rain)
+    call microphysics_fields%get_field('ls_snow', ls_snow)
+    call convection_fields%get_field('conv_rain', conv_rain)
+    call convection_fields%get_field('conv_snow', conv_snow)
+
+
+    mesh      => theta%get_mesh()
+    twod_mesh => ls_rain%get_mesh()
+
+    latitude_w3 => get_latitude_fv(W3, twod_mesh%get_id())
+    height_wth  => get_height_fv(Wtheta, mesh%get_id())
+    height_w3   => get_height_fv(W3, mesh%get_id())
+
+    call u_in_w3%copy_field_properties(du_spectral_gwd)
+    call v_in_w3%copy_field_properties(dv_spectral_gwd)
+    call dtheta_spectral_gwd%copy_field_properties(dtemp_spectral_gwd)
+    call ls_rain%copy_field_properties(totalppn)
+
+     ! Initialise diagnostics
+     call initialise_diags_for_spectral_gwd(                   &
+                                theta, tau_east_spectral_gwd,  &
+                                tau_south_spectral_gwd,        &
+                                tau_west_spectral_gwd,         &
+                                tau_north_spectral_gwd)
+
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init(ncells)
+
+    call invoke(                                                            &
+                ! Add precipitation
+                X_plus_Y(totalppn, ls_rain, ls_snow),                       &
+                inc_X_plus_Y(totalppn, conv_rain),                          &
+                inc_X_plus_Y(totalppn, conv_snow),                          &
+
+                ! Call spectral gravity wave drag kernel
+                spectral_gwd_kernel_type (du_spectral_gwd, dv_spectral_gwd, &
+                            dtemp_spectral_gwd, u_in_w3, v_in_w3,           &
+                            wetrho_in_w3, exner_in_wth, theta,              &
+                            height_w3, height_wth, totalppn, latitude_w3,   &
+                            tau_east_spectral_gwd, tau_south_spectral_gwd,  &
+                            tau_west_spectral_gwd, tau_north_spectral_gwd), &
+
+                ! Convert temperature to potential temperature
+                X_divideby_Y ( dtheta_spectral_gwd, dtemp_spectral_gwd,     &
+                               exner_in_wth) )
+
+    call um_sizes_init(1_i_def)
+
+    if ( subroutine_timers ) call timer("spectral_gwd_alg")
+
+    if (write_diag .and. use_xios_io) then
+
+      call output_diags_for_spectral_gwd(                              &
+                 du_spectral_gwd, dv_spectral_gwd, dtemp_spectral_gwd, &
+                 dtheta_spectral_gwd, tau_east_spectral_gwd,           &
+                 tau_south_spectral_gwd, tau_west_spectral_gwd,        &
+                 tau_north_spectral_gwd)
+
+    end if
+
+    nullify( mesh, twod_mesh )
+
+  end subroutine spectral_gwd_alg
+
+end module spectral_gwd_alg_mod

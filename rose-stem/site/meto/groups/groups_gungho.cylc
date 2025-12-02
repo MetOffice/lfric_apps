@@ -1,0 +1,84 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_gungho.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "gungho_azspice_developer": [
+        "gungho_azspice_unit_tests",
+        "gungho_azspice_integration_tests",
+    ],
+    "gungho_azspice": [
+        "gungho_azspice_developer",
+    ],
+    "gungho_azspice_unit_tests": [
+        "gungho_unit_tests_azspice_gnu_64bit",
+    ],
+    "gungho_azspice_integration_tests": [
+        "gungho_integration_tests_azspice_gnu_64bit",
+    ],
+    }) %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "gungho_ex1a_developer": [
+        "gungho_ex1a_unit_tests",
+        "gungho_ex1a_integration_tests",
+    ],
+    "gungho_ex1a": [
+        "gungho_ex1a_developer",
+    ],
+    "gungho_ex1a_unit_tests": [
+        "gungho_unit_tests_ex1a_gnu_64bit",
+    ],
+    "gungho_ex1a_integration_tests": [
+        "gungho_integration_tests_ex1a_gnu_64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "gungho_developer": [
+        "scripts",
+        "gungho_azspice_developer",
+        "gungho_ex1a_developer",
+        "gungho_integration_tests",
+        "gungho_unit_tests",
+    ],
+    "gungho": [
+        "gungho_developer",
+        "gungho_azspice",
+        "gungho_ex1a",
+    ],
+    "gungho_unit_tests": [
+        "gungho_azspice_unit_tests",
+        "gungho_ex1a_unit_tests",
+    ],
+    "gungho_integration_tests": [
+        "gungho_azspice_integration_tests",
+        "gungho_ex1a_integration_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.gungho_developer) %}
+{% do site_groups.all.extend(site_groups.gungho) %}
+{% do site_groups.unit_tests.extend(site_groups.gungho_unit_tests) %}
+{% do site_groups.integration_tests.extend(site_groups.gungho_integration_tests) %}
+
+{# Azspice Extends #}
+{% do site_groups.azspice_developer.extend(site_groups.gungho_azspice_developer) %}
+{% do site_groups.azspice.extend(site_groups.gungho_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.gungho_azspice_unit_tests) %}
+{% do site_groups.azspice_integration_tests.extend(site_groups.gungho_azspice_integration_tests) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.gungho_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.gungho_ex1a) %}
+{% do site_groups.ex1a_unit_tests.extend(site_groups.gungho_ex1a_unit_tests) %}
+{% do site_groups.ex1a_integration_tests.extend(site_groups.gungho_ex1a_integration_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_gungho.cylc") %}

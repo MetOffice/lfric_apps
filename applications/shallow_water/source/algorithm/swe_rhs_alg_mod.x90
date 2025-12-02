@@ -1,0 +1,228 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Wrapper algorithm to compute the rhs of the prognostic
+!!       equations for the shallow water miniapp.
+module swe_rhs_alg_mod
+
+  ! Constants
+  use constants_mod,                  only: r_def, l_def, i_def
+  use sci_fem_constants_mod,          only: get_mass_matrix_fe, &
+                                            get_div
+  use fs_continuity_mod,              only: W1, W2, W3
+  use sci_geometric_constants_mod,    only: get_coordinates, &
+                                            get_panel_id
+  use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_ERROR
+  use dycore_constants_mod,           only: get_coriolis
+  use reference_element_mod,          only: reference_element_type
+
+  ! Derived Types
+  use derived_config_mod,             only: bundle_size
+  use field_mod,                      only: field_type
+  use mesh_mod,                       only: mesh_type
+  use operator_mod,                   only: operator_type
+  use sci_field_vector_mod,           only: field_vector_type
+
+  ! Quadrature and Psykal Lite
+  use quadrature_face_mod,            only: quadrature_face_type
+  use quadrature_rule_gaussian_mod,   only: quadrature_rule_gaussian_type
+  use quadrature_xyoz_mod,            only: quadrature_xyoz_type
+
+  ! Configuration Options
+  use base_mesh_config_mod,           only: geometry, &
+                                            geometry_spherical
+  use finite_element_config_mod,      only: element_order_h, element_order_v
+  use formulation_config_mod,         only: rotating
+  use shallow_water_settings_config_mod,                                     &
+                                      only: thermal_swe,                     &
+                                            momentum_form,                   &
+                                            momentum_form_vector_invariant,  &
+                                            momentum_form_momentum
+
+  ! Other
+  use field_indices_mod,              only: isw_u, isw_g, isw_b
+
+  implicit none
+
+  private
+
+  public :: swe_rhs_alg
+
+contains
+
+  !>@brief A wrapper algorithm for computing the rhs of the prognostic
+  !!       shallow water equations.
+  !>@details An algorithm to compute the rhs of the wind, geopotential, and
+  !!         (if required) buoyancy equations for the shallow water miniapp.
+  !> @param[in,out] rhs      The state vector to compute
+  !> @param[in]     alpha_dt The offcentering parameter multiplied by the time step
+  !> @param[in]     state    The current model prognostic state
+  !> @param[in]     s_geopot The surface geopotential
+  subroutine swe_rhs_alg( rhs,      &
+                          alpha_dt, &
+                          state,    &
+                          s_geopot )
+
+    use sci_enforce_bc_kernel_mod, &
+                                 only: enforce_bc_kernel_type
+    use kinetic_energy_gradient_kernel_mod, &
+                                 only: kinetic_energy_gradient_kernel_type
+    use matrix_vector_kernel_mod, &
+                                 only: matrix_vector_kernel_type
+    use swe_buoyancy_gradient_volume_kernel_mod, &
+                                 only: swe_buoyancy_gradient_volume_kernel_type
+    use swe_buoyancy_gradient_facet_kernel_mod, &
+                                 only: swe_buoyancy_gradient_facet_kernel_type
+    use transpose_matrix_vector_kernel_mod, &
+                                 only: transpose_matrix_vector_kernel_type
+
+    implicit none
+
+    ! Form of state and rhs is [u, geopot, buoyancy]
+    type(field_vector_type), intent(inout) :: rhs
+    real(kind=r_def),        intent(in)    :: alpha_dt
+    type(field_vector_type), intent(in)    :: state
+    type(field_type),        intent(in)    :: s_geopot
+
+    ! Quadrature
+    type(quadrature_xyoz_type)             :: qr
+    type(quadrature_face_type)             :: qrf
+    type(quadrature_rule_gaussian_type)    :: gaussian_quadrature
+    class(reference_element_type), pointer :: reference_element => null()
+
+    ! Mesh
+    type(mesh_type),  pointer :: mesh => null()
+    type(field_type), pointer :: chi(:) => null()
+    type(field_type), pointer :: panel_id => null()
+
+    ! Operators and mass matrices
+    type(operator_type), pointer :: coriolis => null()
+    type(operator_type), pointer :: div      => null()
+    type(operator_type), pointer :: mm_vel   => null()
+    type(operator_type), pointer :: mm_wb    => null()
+
+    ! Useful fields and constants
+    type(field_type)    :: rhs_u
+    type(field_type)    :: total_geopot
+    type(field_type)    :: buoyancy
+    real(kind=r_def)    :: minus_alpha_dt
+    integer(kind=i_def) :: buoyancy_stencil
+
+    ! Get mesh and operators
+    mesh     => rhs%vector(isw_g)%get_mesh()
+    chi      => get_coordinates(mesh%get_id())
+    div      => get_div(mesh%get_id())
+    coriolis => get_coriolis(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+
+    ! Quadrature set up
+    reference_element => mesh%get_reference_element()
+    qr  = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
+                               element_order_v+2, gaussian_quadrature)
+    qrf = quadrature_face_type(element_order_h+2, element_order_v+2, &
+                               .true., .false.,                      &
+                               reference_element, gaussian_quadrature)
+
+    ! Initialise variables
+    call rhs_u%initialise( vector_space=rhs%vector(isw_u)%get_function_space() )
+    call total_geopot%initialise( vector_space=rhs%vector(isw_g)%get_function_space() )
+
+    ! Get mass matrices
+    mm_vel => get_mass_matrix_fe(W2,mesh%get_id())
+    mm_wb  => get_mass_matrix_fe(W3,mesh%get_id())
+
+    ! Set constants
+    minus_alpha_dt = - alpha_dt
+    buoyancy_stencil = 1_i_def
+
+    ! Build RHS
+    call rhs%set_scalar(0.0_r_def)
+    call invoke( X_plus_Y( total_geopot, state%vector(isw_g), s_geopot ) )
+    if ( thermal_swe ) then
+      ! Thermal SWE forcing terms
+      if ( geometry == geometry_spherical ) then
+         call log_event("RHS thermal SW kernels only work for planar geometry",LOG_LEVEL_ERROR)
+      else
+        ! Volume integral
+        call buoyancy%initialise( state%vector(isw_b)%get_function_space(), &
+                                  halo_depth = 2 )
+        call invoke( setval_X( buoyancy, state%vector(isw_b) ),      &
+                     swe_buoyancy_gradient_volume_kernel_type(       &
+                                                rhs%vector(isw_u),   &
+                                                total_geopot,        &
+                                                state%vector(isw_b), &
+                                                qr ) )
+        ! Facet integral
+        call invoke( swe_buoyancy_gradient_facet_kernel_type(      &
+                                                rhs%vector(isw_u), &
+                                                total_geopot,      &
+                                                buoyancy,          &
+                                                buoyancy_stencil,  &
+                                                qrf ) )
+
+        ! Add buoyancy time dependency
+        call invoke( matrix_vector_kernel_type( rhs%vector(isw_b),   &
+                                                state%vector(isw_b), &
+                                                mm_wb ) )
+      end if
+    else
+      ! Compute geopotential gradient term
+      call invoke( transpose_matrix_vector_kernel_type( rhs%vector(isw_u), &
+                                                        total_geopot,      &
+                                                        div ) )
+    end if
+
+    ! Calculate kinetic energy gradient for vector invariant form of equations
+    ! or standard RHS for momentum form
+
+    select case (momentum_form)
+
+    case(momentum_form_vector_invariant)
+
+      call invoke(                                                &
+        ! Compute divergence free velocity term
+        kinetic_energy_gradient_kernel_type( rhs%vector(isw_u),   &
+                                             state%vector(isw_u), &
+                                             chi, panel_id, qr ), &
+        ! Scale rhs
+        inc_a_times_X( minus_alpha_dt, rhs%vector(isw_u) ),       &
+        ! Add time dependencies
+        matrix_vector_kernel_type( rhs%vector(isw_u),             &
+                                   state%vector(isw_u),           &
+                                   mm_vel ),                      &
+        enforce_bc_kernel_type( rhs%vector(isw_u) ),              &
+        inc_X_plus_Y( rhs%vector(isw_g), state%vector(isw_g) ) )
+
+    case(momentum_form_momentum)
+
+      call invoke(                                          &
+        ! Scale rhs
+        inc_a_times_X( minus_alpha_dt, rhs%vector(isw_u) ), &
+        ! Add time dependencies
+        matrix_vector_kernel_type( rhs%vector(isw_u),       &
+                                   state%vector(isw_u),     &
+                                   mm_vel ),                &
+        enforce_bc_kernel_type( rhs%vector(isw_u) ),        &
+        inc_X_plus_Y( rhs%vector(isw_g), state%vector(isw_g) ) )
+
+      ! Include Coriolis term for momentum form
+      if ( rotating ) then
+        call invoke( setval_c( rhs_u, 0.0_r_def ),                   &
+                     matrix_vector_kernel_type( rhs_u,               &
+                                                state%vector(isw_u), &
+                                                coriolis ),          &
+                     enforce_bc_kernel_type( rhs_u ),                &
+                     inc_X_plus_bY( rhs%vector(isw_u), minus_alpha_dt, rhs_u ) )
+      end if
+
+    end select ! (momentum_form)
+
+  end subroutine swe_rhs_alg
+
+end module swe_rhs_alg_mod

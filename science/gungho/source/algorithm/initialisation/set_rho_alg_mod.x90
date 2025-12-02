@@ -1,0 +1,73 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!>@brief Setting of rho field
+module set_rho_alg_mod
+
+  use constants_mod,                   only: r_def, i_def
+  use finite_element_config_mod,       only: nqp_h_exact, &
+                                             nqp_v_exact
+  use sci_geometric_constants_mod,     only: get_coordinates, &
+                                             get_panel_id
+  ! PsyKAl PSYClone kernels
+  use set_rho_kernel_mod,              only: set_rho_kernel_type
+
+  ! Derived Types
+  use field_mod,                       only: field_type
+  use mesh_mod,                        only: mesh_type
+  use quadrature_xyoz_mod,             only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
+
+  implicit none
+
+  private
+  public :: set_rho_alg
+
+contains
+  !> @details An algorithm for setting rho field
+  !> @param[inout] rho Density field
+  !> @param[in] timestep Loop counter for timestep iterations
+  !> @param[in] dt The model timestep length
+subroutine set_rho_alg( rho, timestep, dt )
+
+    implicit none
+
+    ! Mesh id, timestep
+    integer(i_def),  intent(in) :: timestep
+    real(r_def),     intent(in) :: dt
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: rho
+
+    type( quadrature_xyoz_type ) :: qr
+    type( quadrature_rule_gaussian_type ) :: quadrature_rule
+    ! Coordinate fields
+    type( field_type ), pointer :: chi(:) => null(), &
+                                   panel_id => null()
+
+    real(kind=r_def)    :: time
+
+    integer(kind=i_def) :: element_order_h, element_order_v
+
+    type( mesh_type ), pointer :: mesh => null()
+
+    mesh => rho%get_mesh()
+
+    element_order_h = rho%get_element_order_h()
+    element_order_v = rho%get_element_order_v()
+
+    qr = quadrature_xyoz_type(element_order_h + 3, element_order_h + 3, &
+                              element_order_v + 3, quadrature_rule)
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+    ! Set rho according to formulation
+    time = real(timestep,r_def)*dt
+    call invoke( set_rho_kernel_type ( rho, chi, panel_id, time, qr ) )
+
+    nullify( chi, panel_id )
+
+  end subroutine set_rho_alg
+
+end module set_rho_alg_mod

@@ -1,0 +1,38 @@
+{% do LOG.debug("Entered site/nci/macros/macros_gadi.cylc") %}
+
+{# Macros here have largely been copied from the UM for now #}
+
+{% macro set_task_resources(mpi_ranks,
+                            memory,
+                            threads=1,
+                            xios_nodes=0,
+                            ocean_nodes=0,
+                            river_nodes=0,
+                            ranks_per_node=0,
+                            ranks_depth_pad=1) %}
+
+    {% set cpus_per_node = 48 %}
+    {% if threads > 1 %}
+            {% set num_nodes = ((mpi_ranks|int * threads|int + xios_nodes|int)/(cpus_per_node|int)) | round (0, 'ceil') | int %}
+            -l ncpus={{num_nodes|int * cpus_per_node|int}}
+    {% else %}
+            -l ncpus={{mpi_ranks|int * threads|int + xios_nodes|int}}
+    {% endif %}
+
+    {% set gb_per_core = 4 %}
+    {% set total_mem = gb_per_core*(mpi_ranks|int * threads|int + xios_nodes|int) %}
+    {% if total_mem > memory[0] %}
+        {{ set_memory([total_mem, "GB"]) }}
+    {% else %}
+        {{ set_memory(memory) }}
+    {% endif %}
+{% endmacro %}
+
+
+{% macro set_memory(mem) %}
+    {% set value = mem[0] %}
+ 	{% set unit = mem[1] %}
+            -l mem={{value}}{{unit[:1]}}
+{% endmacro %}
+
+{% do LOG.debug("Finished in site/nci/macros/macros_gadi.cylc") %}

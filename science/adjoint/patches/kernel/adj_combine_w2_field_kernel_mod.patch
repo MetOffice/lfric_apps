@@ -1,0 +1,35 @@
+@@ -1,19 +1,19 @@
+ module adj_combine_w2_field_kernel_mod
+   use argument_mod, only : any_discontinuous_space_2, any_discontinuous_space_3, arg_type, cell_column, gh_field, gh_integer, &
+-&gh_read, gh_real, gh_write
++&gh_read, gh_real, gh_readwrite, gh_inc
+   use constants_mod, only : i_def, l_def, r_double, r_single
+   use fs_continuity_mod, only : w2, w2h, w2v
+   use kernel_mod, only : kernel_type
+   use reference_element_mod, only : n
+   implicit none
+-  interface combine_w2_field_code
++  interface adj_combine_w2_field_code
+     module procedure :: adj_combine_w2_field_code_r_single, adj_combine_w2_field_code_r_double
+-  end interface combine_w2_field_code
++  end interface adj_combine_w2_field_code
+   type, public, extends(kernel_type) :: adj_combine_w2_field_kernel_type
+   type(ARG_TYPE) :: META_ARGS(5) = (/ &
+-    arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_2), &
+-    arg_type(gh_field, gh_real, gh_read, w2h), &
+-    arg_type(gh_field, gh_real, gh_read, w2v), &
++    arg_type(gh_field, gh_real, gh_readwrite, any_discontinuous_space_2), &
++    arg_type(gh_field, gh_real, gh_inc, w2h), &
++    arg_type(gh_field, gh_real, gh_readwrite, w2v), &
+     arg_type(gh_field, gh_integer, gh_read, any_discontinuous_space_3), &
+     arg_type(gh_field, gh_integer, gh_read, any_discontinuous_space_3)/)
+   INTEGER :: OPERATES_ON = cell_column
+@@ -21,7 +21,7 @@
+ 
+   private
+ 
+-  public :: combine_w2_field_code
++  public :: adj_combine_w2_field_code
+ 
+   contains
+   subroutine adj_combine_w2_field_code_r_double(nlayers, uvw, uv, w, face_selector_ew, face_selector_ns, ndf_w2, undf_w2, map_w2, &

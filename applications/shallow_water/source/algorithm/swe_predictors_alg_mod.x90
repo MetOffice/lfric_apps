@@ -1,0 +1,112 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Algorithm to set predictors for transport in shallow water.
+!> @details The semi-implicit time stepping method requires the Eulerian transported
+!!          geopot and wind to be modified by a predictor to ensure stability.
+!!          The predictors help mimic the semi-implicit semi-Lagrangian discretisation,
+!!          and have the form:
+!!         \f[ \mathbf{u}_P = RHS_\mathbf{u} \f]
+!!         \f[ \Phi_P = \rho \times (1 - \beta \Delta{t} \nabla \cdot \mathbf{u}) \f]
+
+module swe_predictors_alg_mod
+
+  ! Constants and types
+  use constants_mod,              only: r_def
+  use sci_fem_constants_mod,      only: get_im3_div_fe
+  use field_indices_mod,          only: isw_u, isw_g
+  use field_mod,                  only: field_type
+  use operator_mod,               only: operator_type
+  use sci_field_vector_mod,       only: field_vector_type
+
+  ! Configurations
+  use derived_config_mod,         only: bundle_size
+  use transport_config_mod,       only: use_density_predictor, &
+                                        cap_density_predictor
+
+  ! Algorithms and Kernels
+  use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+  use sci_mass_matrix_solver_alg_mod, only: mass_matrix_solver_alg
+
+  implicit none
+
+  private
+  public :: swe_predictors_alg
+
+contains
+
+  !===========================================================================!
+  !> @brief Applies predictors to wind and geopotential for the shallow water model.
+  !> @details The wind and geopotential fields need predictors to work with
+  !!          the semi-implicit time stepping scheme. The divergence factor,
+  !!          used in the geopotential predictor, can be capped to lie between
+  !!          two given values.
+  !!
+  !> @param[in,out] advected_state The state variables that will be transported
+  !> @param[in]     wind           The wind at time n
+  !> @param[in]     rhs_n          The RHS terms for u at time n
+  !> @param[in]     minus_beta_dt  The time n centring parameter multiplied
+  !!                               by the model timestep length
+  subroutine swe_predictors_alg( advected_state, &
+                                 wind,           &
+                                 rhs_n,          &
+                                 minus_beta_dt )
+
+    implicit none
+
+    ! Arguments
+    type( field_vector_type ), intent(inout) :: advected_state
+    type( field_type ), intent(in)           :: wind
+    type( field_type ), intent(in)           :: rhs_n
+    real( kind=r_def ), intent(in)           :: minus_beta_dt
+
+    ! Fields and values needed for the geopotential predictor
+    type(field_type) :: divergence
+    type(field_type) :: div_factor
+    real(kind=r_def) :: df_min
+    real(kind=r_def) :: df_max
+
+    ! Divergence operator
+    type(operator_type), pointer :: im3_div => null()
+
+    ! Predictor of the wind field (u-beta*dt*rhs)
+    call mass_matrix_solver_alg(advected_state%vector(isw_u), rhs_n)
+
+    ! Geopotential predictor
+    if ( use_density_predictor ) then
+      ! Predictor of geopotential - the increment becomes:
+      ! d(phi)/dt + div(div_factor*phi u) = 0
+      ! div_factor = 1 - beta*dt*m3_inv*div*wind_n
+
+      ! Get div operator
+      im3_div  => get_im3_div_fe(advected_state%vector(isw_g)%get_mesh_id())
+
+      ! Initialise fields used in divergence factor computation
+      call divergence%initialise( advected_state%vector(isw_g)%get_function_space() )
+      call div_factor%initialise( advected_state%vector(isw_g)%get_function_space() )
+
+      ! Set min/max values divergence factor can take
+      df_min = 1.0_r_def-cap_density_predictor
+      df_max = 1.0_r_def+cap_density_predictor
+
+      ! Compute divergence factor and apply predictor to geopotential
+      call invoke( name = "compute_density_predictor",                   &
+                   dg_matrix_vector_kernel_type(divergence,              &
+                                                wind,                    &
+                                                im3_div),                &
+                   setval_c(div_factor, 1.0_r_def),                      &
+                   inc_X_plus_bY(div_factor, minus_beta_dt, divergence), &
+                   ! Ensure div_factor lies in the range df_min < div_factor < df_max
+                   inc_max_aX(df_min,div_factor),                        &
+                   inc_min_aX(df_max,div_factor),                        &
+                   inc_X_times_Y(advected_state%vector(isw_g), div_factor) )
+
+      nullify( im3_div )
+    end if
+
+  end subroutine swe_predictors_alg
+
+end module swe_predictors_alg_mod

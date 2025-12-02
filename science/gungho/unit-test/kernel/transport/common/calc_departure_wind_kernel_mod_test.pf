@@ -1,0 +1,146 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the horizontal departure wind computation
+
+module calc_departure_wind_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+
+  public :: test_all
+
+  @TestCase
+  type, public, extends(TestCase) :: calc_departure_wind_test_type
+    private
+  contains
+    procedure test_all
+  end type calc_departure_wind_test_type
+
+contains
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env,  only: real64
+    use calc_departure_wind_kernel_mod, only: calc_departure_wind_code
+
+    implicit none
+
+    class(calc_departure_wind_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran   ! r_tran 64-bit
+    real(kind=r_tran)            :: answer, use_tol
+
+    ! DOF and stencil parameters
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_w3 = 1
+    integer(kind=i_def), parameter :: ndf_w2 = 4
+    integer(kind=i_def), parameter :: stencil_size = 5
+    integer(kind=i_def), parameter :: stencil_extent = 1
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers*stencil_size
+
+    ! Maps
+    integer(kind=i_def), dimension(ndf_w3)              :: map_w3
+    integer(kind=i_def), dimension(ndf_w2)              :: map_w2
+    integer(kind=i_def), dimension(ndf_w3,stencil_size) :: stencil_map
+
+    ! Fields
+    real(kind=r_tran), dimension(undf_w2) :: adv_wind
+    real(kind=r_tran), dimension(undf_w2) :: dep_wind
+    real(kind=r_tran), dimension(undf_w3) :: detj
+
+    ! Set up maps
+    stencil_map(1,:) = (/ 1, 2, 3, 4, 5 /)
+    map_w2(:) = (/ 1, 2, 3, 4 /)
+    map_w3(1) = 1
+
+    ! Set Det(J)
+    detj(:) = (/ 2.0_r_tran, 4.0_r_tran, 5.0_r_tran, &
+                  20.0_r_tran, 40.0_r_tran  /)
+
+    ! Set advecting wind so that we divide by Det(J) in the centre cell
+    adv_wind(:) = (/ -20.0_r_tran, 20.0_r_tran, 20.0_r_tran, -20.0_r_tran  /)
+
+    ! Initialise dep_wind to zero before each test
+    dep_wind(:) = 0.0_r_tran
+
+    call calc_departure_wind_code( nlayers,      &
+                                   dep_wind,     &
+                                   adv_wind,     &
+                                   detj,         &
+                                   stencil_size, &
+                                   stencil_map,  &
+                                   ndf_w2,       &
+                                   undf_w2,      &
+                                   map_w2,       &
+                                   ndf_w2,       &
+                                   undf_w2,      &
+                                   map_w2,       &
+                                   ndf_w3,       &
+                                   undf_w3,      &
+                                   map_w3 )
+
+    ! Get correct tolerance
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing( maxval( dep_wind(1:4) ) )
+    end if
+    answer = -10.0_r_tran
+    @assertEqual(answer, dep_wind(1), use_tol)
+    answer = 10.0_r_tran
+    @assertEqual(answer, dep_wind(2), use_tol)
+    answer = 10.0_r_tran
+    @assertEqual(answer, dep_wind(3), use_tol)
+    answer = -10.0_r_tran
+    @assertEqual(answer, dep_wind(4), use_tol)
+
+    ! Set advecting wind so that we divide by Det(J) in the stencil cells
+    adv_wind(:) = (/ 20.0_r_tran, -20.0_r_tran, -20.0_r_tran, 20.0_r_tran  /)
+
+    ! Initialise dep_wind to zero before each test
+    dep_wind(:) = 0.0_r_tran
+
+    call calc_departure_wind_code( nlayers,      &
+                                   dep_wind,     &
+                                   adv_wind,     &
+                                   detj,         &
+                                   stencil_size, &
+                                   stencil_map,  &
+                                   ndf_w2,       &
+                                   undf_w2,      &
+                                   map_w2,       &
+                                   ndf_w2,       &
+                                   undf_w2,      &
+                                   map_w2,       &
+                                   ndf_w3,       &
+                                   undf_w3,      &
+                                   map_w3 )
+
+    ! Get correct tolerance
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_tran*spacing( maxval( dep_wind(1:4) ) )
+    end if
+    answer = 5.0_r_tran
+    @assertEqual(answer, dep_wind(1), use_tol)
+    answer = -4.0_r_tran
+    @assertEqual(answer, dep_wind(2), use_tol)
+    answer = -1.0_r_tran
+    @assertEqual(answer, dep_wind(3), use_tol)
+    answer = 0.5_r_tran
+    @assertEqual(answer, dep_wind(4), use_tol)
+
+  end subroutine test_all
+
+end module calc_departure_wind_kernel_mod_test

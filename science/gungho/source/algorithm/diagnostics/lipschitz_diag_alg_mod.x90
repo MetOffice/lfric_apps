@@ -1,0 +1,305 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief   Computes diagnostics relating to the Lipschitz numbers.
+
+module lipschitz_diag_alg_mod
+
+  ! Constants and types
+  use constants_mod,                   only: r_def, r_tran, l_def, i_def, str_def
+  use r_tran_field_mod,                only: r_tran_field_type
+  use function_space_mod,              only: function_space_type
+  use mesh_mod,                        only: mesh_type
+  use integer_field_mod,               only: integer_field_type
+
+  use sci_geometric_constants_mod,     only: get_face_selector_ew,             &
+                                             get_face_selector_ns
+  use sci_field_minmax_alg_mod,        only: get_field_minmax
+  use log_mod,                         only: LOG_LEVEL_INFO,                   &
+                                             LOG_LEVEL_DEBUG,                  &
+                                             LOG_LEVEL_ERROR,                  &
+                                             log_scratch_space,                &
+                                             log_event,                        &
+                                             log_at_level
+  use fs_continuity_mod,               only: W3, W2V, W2H
+  use function_space_collection_mod,   only: function_space_collection
+  use transport_constants_mod,         only: get_detj_at_w3_r_tran
+
+  use fv_divergence_x_kernel_mod,      only: fv_divergence_x_kernel_type
+  use fv_divergence_y_kernel_mod,      only: fv_divergence_y_kernel_type
+  use fv_divergence_z_kernel_mod,      only: fv_divergence_z_kernel_type
+  use split_w2_field_kernel_mod,       only: split_w2_field_kernel_type
+
+  use print_field_stats_alg_mod,       only: print_field_stats_alg_rtran
+
+  implicit none
+
+  private
+  public :: lipschitz_diag_alg
+  public :: lipschitz_computation_alg
+  public :: lipschitz_splitting_alg
+
+contains
+
+  !===========================================================================!
+  !> @brief Computes Lipschitz diagnostics for a given splitting
+  !> @param[in] splitting      Directional splitting to compute diagnostics for
+  !> @param[in] wind           Transporting wind
+  !> @param[in] dt_r_tran      The time step
+  !> @param[in] log_level_in   Logging level to be used
+  subroutine lipschitz_diag_alg(splitting, wind, dt_r_tran, log_level_in)
+
+    implicit none
+
+    ! Arguments
+    integer(kind=i_def),       intent(in) :: splitting
+    type(r_tran_field_type),   intent(in) :: wind
+    real(kind=r_tran),         intent(in) :: dt_r_tran
+    integer(kind=i_def),       intent(in) :: log_level_in
+
+    type(mesh_type),            pointer :: mesh
+    type(function_space_type),  pointer :: w3_fs
+    type(r_tran_field_type)             :: lipschitz_x
+    type(r_tran_field_type)             :: lipschitz_y
+    type(r_tran_field_type)             :: lipschitz_z
+    real(kind=r_tran)                   :: max_lipschitz
+
+    mesh => wind%get_mesh()
+    w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+    call lipschitz_x%initialise( w3_fs )
+    call lipschitz_y%initialise( w3_fs )
+    call lipschitz_z%initialise( w3_fs )
+
+    ! ------------------------------------------------------------------------ !
+    ! Calculate 1D Lipschitz numbers
+    ! ------------------------------------------------------------------------ !
+
+    call lipschitz_computation_alg(                                            &
+            lipschitz_x, lipschitz_y, lipschitz_z, wind, dt_r_tran             &
+    )
+
+    ! ------------------------------------------------------------------------ !
+    ! Print stats for x, y and z Lipschitz numbers
+    ! ------------------------------------------------------------------------ !
+
+    call print_field_stats_alg_rtran(                                          &
+            lipschitz_x, log_level_in, -0.5_r_tran, 0.5_r_tran, 'lipschitz_x'  &
+    )
+    call print_field_stats_alg_rtran(                                          &
+            lipschitz_y, log_level_in, -0.5_r_tran, 0.5_r_tran, 'lipschitz_y'  &
+    )
+    call print_field_stats_alg_rtran(                                          &
+            lipschitz_z, log_level_in, -0.5_r_tran, 0.5_r_tran, 'lipschitz_z'  &
+    )
+
+    ! ------------------------------------------------------------------------ !
+    ! Calculate the splitting's Lipschitz numbers
+    ! ------------------------------------------------------------------------ !
+
+    call lipschitz_splitting_alg(                                              &
+            max_lipschitz, splitting, log_level_in,                            &
+            lipschitz_x, lipschitz_y, lipschitz_z                              &
+    )
+
+
+  end subroutine lipschitz_diag_alg
+
+  !===========================================================================!
+  !> @brief Computes the Lipschitz numbers for a given splitting
+  !> @param[out]    max_lipschitz  Maximum Lipschitz number, to be computed
+  !> @param[in]     splitting      Directional splitting to use
+  !> @param[in]     log_level_in   Logging level to be used
+  !> @param[in]     lipschitz_x    Lipschitz number in x
+  !> @param[in]     lipschitz_y    Lipschitz number in y
+  !> @param[in]     lipschitz_z    Lipschitz number in z
+  subroutine lipschitz_splitting_alg(max_lipschitz, splitting, log_level_in,   &
+                                     lipschitz_x, lipschitz_y, lipschitz_z)
+
+    use split_transport_utils_mod,      only: get_splitting_factor,            &
+                                              get_splitting_direction,         &
+                                              get_num_split_steps,             &
+                                              get_splitting_name
+    use transport_enumerated_types_mod, only: direction_h, direction_v
+
+    implicit none
+
+    ! Arguments
+    real(kind=r_tran),       intent(out) :: max_lipschitz
+    integer(kind=i_def),     intent(in)  :: splitting
+    integer(kind=i_def),     intent(in)  :: log_level_in
+    type(r_tran_field_type), intent(in)  :: lipschitz_x
+    type(r_tran_field_type), intent(in)  :: lipschitz_y
+    type(r_tran_field_type), intent(in)  :: lipschitz_z
+
+    ! Internal variables
+    type(r_tran_field_type) :: lipschitz_s, lipschitz_sx, lipschitz_sy
+
+    type(mesh_type),            pointer :: mesh
+    type(function_space_type),  pointer :: w3_fs
+
+    integer(kind=i_def)    :: step, direction
+    real(kind=r_tran)      :: lip_min, lip_max, time_factor
+    character(len=str_def) :: step_name
+    character(len=str_def) :: field_name
+
+    mesh => lipschitz_x%get_mesh()
+    w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+    call lipschitz_s%initialise(w3_fs)
+    call lipschitz_sx%initialise(w3_fs)
+    call lipschitz_sy%initialise(w3_fs)
+
+    ! Initialise Lipschitz field
+    call invoke( setval_c(lipschitz_s, 0.0_r_tran) )
+    max_lipschitz = 0.0_r_tran
+
+    write(log_scratch_space,'(A)')                                             &
+        'Transport: Lipschitz diagnostics for splitting ' //                   &
+        adjustl(trim(get_splitting_name(splitting)))
+    call log_event(log_scratch_space, log_level_in)
+
+    ! Compute Lipschitz numbers for each step in the splitting
+    ! No need to measure anything for last step, since this just gives 3D number
+    do step = 1, get_num_split_steps(splitting) - 1
+      direction = get_splitting_direction(splitting, step)
+      time_factor = get_splitting_factor(splitting, step)
+      select case (direction)
+      case (direction_h)
+        ! Compute Lipschitz numbers for this step
+        call invoke( aX_plus_bY(lipschitz_sx, 1.0_r_tran, lipschitz_s,         &
+                                time_factor, lipschitz_x),                     &
+                     aX_plus_bY(lipschitz_sy, 1.0_r_tran, lipschitz_s,         &
+                                time_factor, lipschitz_y),                     &
+                     inc_X_plus_bY(lipschitz_s, time_factor, lipschitz_x),     &
+                     inc_X_plus_bY(lipschitz_s, time_factor, lipschitz_y) )
+
+        ! Work out maximum
+        call get_field_minmax(lipschitz_sx, lip_min, lip_max)
+        max_lipschitz = MAX(max_lipschitz, lip_max)
+        call get_field_minmax(lipschitz_sy, lip_min, lip_max)
+        max_lipschitz = MAX(max_lipschitz, lip_max)
+        call get_field_minmax(lipschitz_s, lip_min, lip_max)
+        max_lipschitz = MAX(max_lipschitz, lip_max)
+
+        ! Diagnostics
+        if (log_at_level(log_level_in)) then
+          write(step_name, '(I4)') step
+
+          field_name = 'lipschitz_sx' // adjustl(trim(step_name))
+          call print_field_stats_alg_rtran(                                    &
+                  lipschitz_sx, log_level_in, -0.5_r_tran, 0.5_r_tran,         &
+                  field_name                                                   &
+          )
+
+          field_name = 'lipschitz_sy' // adjustl(trim(step_name))
+          call print_field_stats_alg_rtran(                                    &
+                  lipschitz_sy, log_level_in, -0.5_r_tran, 0.5_r_tran,         &
+                  field_name                                                   &
+          )
+
+          field_name = 'lipschitz_s' // adjustl(trim(step_name))
+          call print_field_stats_alg_rtran(                                    &
+                  lipschitz_s, log_level_in, -0.5_r_tran, 0.5_r_tran,          &
+                  field_name                                                   &
+          )
+        end if
+
+      case (direction_v)
+        ! Compute Lipschitz number for this step
+        call invoke( inc_X_plus_bY(lipschitz_s, time_factor, lipschitz_z) )
+        call get_field_minmax(lipschitz_s, lip_min, lip_max)
+        max_lipschitz = MAX(max_lipschitz, lip_max)
+
+        ! Diagnostics
+        if (log_at_level(log_level_in)) then
+          write(step_name, '(I4)') step
+
+          field_name = 'lipschitz_s' // adjustl(trim(step_name))
+          call print_field_stats_alg_rtran(                                    &
+                  lipschitz_s, log_level_in, -0.5_r_tran, 0.5_r_tran,          &
+                  field_name                                                   &
+          )
+        end if
+
+      case default
+        call log_event(                                                        &
+                'lipschitz_splitting_alg: unknown direction', LOG_LEVEL_ERROR  &
+        )
+      end select
+    end do
+
+  end subroutine lipschitz_splitting_alg
+
+  !===========================================================================!
+  !> @brief Computes the 1D Lipschitz numbers for a given wind
+  !> @param[in,out] lipschitz_x    The Lipschitz number in x
+  !> @param[in,out] lipschitz_y    The Lipschitz number in y
+  !> @param[in,out] lipschitz_z    The vertical Lipschitz number
+  !> @param[in]     wind           The advecting wind
+  !> @param[in]     dt             The time step
+  subroutine lipschitz_computation_alg(lipschitz_x, lipschitz_y,   &
+                                       lipschitz_z, wind, dt)
+
+    implicit none
+
+    ! Arguments
+    type(r_tran_field_type), intent(inout) :: lipschitz_x
+    type(r_tran_field_type), intent(inout) :: lipschitz_y
+    type(r_tran_field_type), intent(inout) :: lipschitz_z
+    type(r_tran_field_type), intent(in)    :: wind
+    real(kind=r_tran),       intent(in)    :: dt
+
+    type(mesh_type),            pointer :: mesh
+    type(function_space_type),  pointer :: w2h_fs, w2v_fs
+
+    type(r_tran_field_type)             :: wind_w2h, wind_w2v
+    type(integer_field_type),   pointer :: face_selector_ew
+    type(integer_field_type),   pointer :: face_selector_ns
+    type(r_tran_field_type),    pointer :: detj
+
+    mesh => wind%get_mesh()
+    w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
+    w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
+
+    call wind_w2h%initialise( w2h_fs )
+    call wind_w2v%initialise( w2v_fs )
+
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+    detj => get_detj_at_w3_r_tran(mesh%get_id())
+
+    ! ------------------------------------------------------------------------ !
+    ! Calculate x, y and z Lipschitz numbers
+    ! ------------------------------------------------------------------------ !
+
+    if (wind%get_element_order_h() == 0 .and. &
+        wind%get_element_order_v() == 0) then
+      call invoke( split_w2_field_kernel_type(wind_w2h, wind_w2v, wind,        &
+                                              face_selector_ew,                &
+                                              face_selector_ns),               &
+                   fv_divergence_x_kernel_type(lipschitz_x, wind_w2h,          &
+                                               detj),                          &
+                   fv_divergence_y_kernel_type(lipschitz_y, wind_w2h,          &
+                                               detj),                          &
+                   fv_divergence_z_kernel_type(lipschitz_z, wind_w2v,          &
+                                               detj),                          &
+                   inc_a_times_X(dt, lipschitz_x),                             &
+                   inc_a_times_X(dt, lipschitz_y),                             &
+                   inc_a_times_X(dt, lipschitz_z) )
+    else
+      ! This is not available for higher order elements
+      call invoke ( setval_c(lipschitz_x, 0.0_r_tran), &
+                    setval_c(lipschitz_y, 0.0_r_tran), &
+                    setval_c(lipschitz_z, 0.0_r_tran) )
+      call log_event( "Lipschitz number computation is only available " // &
+                      "for element_order_h=0 and element_order_v=0", &
+                       LOG_LEVEL_INFO )
+    end if
+
+  end subroutine lipschitz_computation_alg
+
+end module lipschitz_diag_alg_mod

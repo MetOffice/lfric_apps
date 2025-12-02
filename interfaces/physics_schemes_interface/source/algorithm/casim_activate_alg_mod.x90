@@ -1,0 +1,126 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Interface to the CASIM activation scheme
+
+module casim_activate_alg_mod
+
+  use constants_mod,                 only: i_def, r_def
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use mr_indices_mod,                only: nummr, imr_cl, imr_ci
+  use io_config_mod,                 only: subroutine_timers, write_diag, &
+                                           use_xios_io
+  use timer_mod,                     only: timer
+  use log_mod,                       only: log_event, LOG_LEVEL_INFO
+  use mesh_mod,                      only: mesh_type
+  use sci_geometric_constants_mod,   only: get_height_fv
+  use fs_continuity_mod,             only: Wtheta
+  use section_choice_config_mod,     only: convection, convection_um
+  use microphysics_config_mod,       only: casim_cdnc_opt, &
+                                           casim_cdnc_opt_fixed
+
+  implicit none
+
+  private
+  public casim_activate_alg
+
+contains
+
+  !>@brief Run the UM CASIM activation scheme
+  !>@details The UM activation scheme for the
+  !>         CASIM microphysics. Activates liquid cloud droplets,
+  !>         and adjust vapour and temperature, as described in CASIM
+  !>         documentation.
+  !>@param[in] mr                      (in) Mixing ratios, in theta space
+  !>@param[in]     cloud_fields        (in) Fields for cloud fractions
+  !>@param[in,out] microphysics_fields (in,out) Fields for mphys scheme
+  !>@param[in]     initialise          Flag to use routine to initialise fields
+  subroutine casim_activate_alg(theta, mr,                                     &
+                                derived_fields,                                &
+                                cloud_fields,                                  &
+                                microphysics_fields,                           &
+                                convection_fields, initialise)
+
+    use casim_activate_kernel_mod,  only: casim_activate_kernel_type
+    use casim_ice_act_kernel_mod,  only: casim_ice_act_kernel_type
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
+    type( field_collection_type ), intent(in) :: convection_fields
+    type( field_collection_type ), intent(inout) :: microphysics_fields
+
+    type( field_type ), intent( in ), target :: mr(nummr)
+    type( field_type ), intent( in ) :: theta
+
+    logical, intent(in) :: initialise
+
+    type( field_type ), pointer :: cf_liq
+    type( field_type ), pointer :: cf_fro
+    type( field_type ), pointer :: nl_mphys
+    type( field_type ), pointer :: ni_mphys
+    type( field_type ), pointer :: height_wth
+    type( field_type ), pointer :: exner_wth
+    type( field_type ), pointer :: rho_wth
+    type( field_type ), pointer :: mci_init
+
+    type( mesh_type ), pointer :: mesh
+
+    if ( subroutine_timers ) call timer('casim_activate_alg')
+
+    ! For fixed CDNC or if we want to initialise the CDNC
+    if (casim_cdnc_opt == casim_cdnc_opt_fixed .or. initialise) then
+
+      call cloud_fields%get_field('liquid_fraction', cf_liq)
+      call microphysics_fields%get_field('nl_mphys', nl_mphys)
+
+      mesh => cf_liq%get_mesh()
+      height_wth => get_height_fv(Wtheta, mesh%get_id())
+
+      call invoke( casim_activate_kernel_type( mr(imr_cl),                     &
+                                               cf_liq,                         &
+                                               height_wth,                     &
+                                               nl_mphys)   )
+      if (write_diag .and. use_xios_io .and. .not. initialise) then
+        call nl_mphys%write_field('casim__nl_mphys_act')
+      end if
+
+    end if
+
+    ! If convection has provided an increment to ice or we want to
+    ! initialise the ice
+    if (convection == convection_um .or. initialise) then
+
+      call derived_fields%get_field('exner_in_wth', exner_wth)
+      call derived_fields%get_field('rho_in_wth', rho_wth)
+      call microphysics_fields%get_field('ni_mphys', ni_mphys)
+      call cloud_fields%get_field('frozen_fraction', cf_fro)
+
+      ! At model initialisation, use the ice mass to initialise the ice number
+      ! Otherwise, we use the positive convection increment to initialise
+      ! the ice number detrained from convection. We are assuming that anything
+      ! detrained from convection is small ice.
+      if (initialise) then
+        mci_init => mr(imr_ci)
+      else
+        call convection_fields%get_field('dms_conv', mci_init)
+      end if
+
+      call invoke(casim_ice_act_kernel_type( mci_init, ni_mphys, theta,      &
+                                             exner_wth, rho_wth, cf_fro) )
+
+      if (write_diag .and. use_xios_io .and. .not. initialise) then
+        call ni_mphys%write_field('casim__ni_mphys_act')
+      end if
+
+    end if
+
+    if ( subroutine_timers ) call timer('casim_activate_alg')
+
+  end subroutine casim_activate_alg
+
+end module casim_activate_alg_mod

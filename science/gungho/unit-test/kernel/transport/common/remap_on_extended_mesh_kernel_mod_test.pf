@@ -1,0 +1,143 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the remapping of scalar fields on the cubed-sphere panel extension
+module remap_on_extended_mesh_kernel_mod_test
+
+  use constants_mod, only: l_def, i_def, r_tran
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: remap_on_extended_mesh_test_type
+    private
+  contains
+    procedure test_all
+  end type remap_on_extended_mesh_test_type
+
+contains
+
+  @Test
+  subroutine test_all( this )
+
+    use remap_on_extended_mesh_kernel_mod, only: remap_on_extended_mesh_code
+    use coord_transform_mod,               only: alphabetar2llr
+
+    implicit none
+
+    class(remap_on_extended_mesh_test_type), intent(inout) :: this
+
+    real(r_tran), parameter :: tol = 1.0e-5_r_tran
+
+    integer(i_def), parameter :: nlayers = 1
+    integer(i_def), parameter :: ndata   = 2
+    integer(i_def), parameter :: ncells = 4
+    integer(i_def), parameter :: ndf_ws = 1
+    integer(i_def), parameter :: undf_ws = ncells*ndf_ws*nlayers
+    integer(i_def), parameter :: ndf_pid = 1
+    integer(i_def), parameter :: undf_pid = 1 + ndf_pid*nlayers
+    integer(i_def), parameter :: ndf_wr = 1
+    integer(i_def), parameter :: undf_wr = ndf_wr*ndata
+
+    integer(i_def), dimension(ndf_ws)  :: map_ws
+    integer(i_def), dimension(ndf_wr)  :: map_wr
+    integer(i_def), dimension(ndf_pid) :: map_pid
+
+    integer(i_def), dimension(4) :: stencil_size
+    integer(i_def), parameter    :: max_length = 2
+    integer(i_def), dimension(ndf_ws,  max_length, 4) :: stencil
+
+    real(r_tran),   dimension(undf_ws)  :: remap_field, field
+    real(r_tran),   dimension(undf_wr)  :: remap_weights
+    integer(i_def), dimension(undf_wr)  :: remap_indices
+    real(r_tran),   dimension(undf_pid) :: panel_id
+
+    real(r_tran) :: minvalue
+    logical(l_def), parameter :: monotone = .false.
+    logical(l_def) :: enforce_minvalue
+
+    ! Remap from panel 2 to panel 1
+    stencil_size(:) = 2
+    stencil_size(3) = 1
+
+    ! Stencil shape is:
+    !     | 4 |
+    ! | 2 | 1 |
+    !     | 3 |
+
+    map_ws(1) = 1
+    stencil(1,1,:) = map_ws(1)
+    stencil(1,2,1) = 2
+    stencil(1,2,2) = 3
+    stencil(1,2,3) = -1
+    stencil(1,2,4) = 4
+
+    ! First entry of panel_id is assumed to be the owned panel
+    ! so the map points to the second entry
+    map_pid(1) = 2
+
+    panel_id(1) = 1.0_r_tran
+    panel_id(2) = 2.0_r_tran
+
+    ! Remapping weights, assume a linear (1/2,1/2) computation
+    ! between cells1 & 3
+    map_wr(:) = 1
+    remap_weights(:) = 0.5_r_tran
+    remap_indices(1) = 1
+    remap_indices(2) = 2
+
+    ! Set field
+    field(:) = -10.0_r_tran
+    field(1) = 2.0_r_tran
+    field(3) = 6.0_r_tran
+    remap_field(:) = 0.0_r_tran
+
+    enforce_minvalue = .false.
+    minvalue = 0.0_r_tran
+
+    call remap_on_extended_mesh_code(nlayers,                               &
+                                     remap_field,                           &
+                                     field,                                 &
+                                     stencil_size, stencil, max_length,     &
+                                     remap_weights, remap_indices,          &
+                                     panel_id,                              &
+                                     ndata,                                 &
+                                     monotone, enforce_minvalue, minvalue,  &
+                                     ndf_ws, undf_ws, map_ws,               &
+                                     ndf_wr, undf_wr, map_wr,               &
+                                     ndf_pid, undf_pid, map_pid             &
+                                    )
+
+    @assertEqual(4.0_r_tran, remap_field(1), tol)
+
+    ! Test enforcement of a minimum value
+    enforce_minvalue = .true.
+    minvalue = 5.0_r_tran
+
+    call remap_on_extended_mesh_code(nlayers,                               &
+                                     remap_field,                           &
+                                     field,                                 &
+                                     stencil_size, stencil, max_length,     &
+                                     remap_weights, remap_indices,          &
+                                     panel_id,                              &
+                                     ndata,                                 &
+                                     monotone, enforce_minvalue, minvalue,  &
+                                     ndf_ws, undf_ws, map_ws,               &
+                                     ndf_wr, undf_wr, map_wr,               &
+                                     ndf_pid, undf_pid, map_pid             &
+                                    )
+
+    @assertEqual(minvalue, remap_field(1), tol)
+
+
+
+  end subroutine test_all
+
+end module remap_on_extended_mesh_kernel_mod_test

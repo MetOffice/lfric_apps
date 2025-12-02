@@ -1,0 +1,414 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! For further details please refer to the file LICENCE which you should have
+! received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> @brief Vertical preconditioner for the pressure equation.
+!>
+!> @details This preconditioner calculates \f$y = Px = H_z^{-1}x\f$ where
+!!          \f$H_z\f$ is the vertical part of the Helmholtz operator (scaled
+!!          by the inverse pressure mass matrix), i.e.
+!!
+!!  \f[
+!!  H_z = 1 + M_3^{-1}\left(\omega_c^2 \Delta_h
+!!                       + \omega_c^2/(1+\omega_N^2) D_z M_{u,z,inv} D_z^T)
+!!                    \right)
+!!  \f]
+!!  and \f$\Delta_h = \diag(D_h M_{u,h,inv} D_h^T) \f$. The lumped inverse mass
+!!  matrices are given by \f$M_{u,*,inv}\f$.
+!>
+
+module gw_pressure_precon_alg_mod
+
+  use fs_continuity_mod,       only : W3
+  use vector_mod,              only : abstract_vector_type
+  use r_solver_field_mod,      only : r_solver_field_type
+  use log_mod,                 only : log_event, &
+                                      LOG_LEVEL_INFO, &
+                                      LOG_LEVEL_ERROR, &
+                                      log_scratch_space
+  use columnwise_operator_mod, only : columnwise_operator_type
+  use constants_mod,           only : i_def, r_solver, l_def
+  use operator_mod,            only : operator_type
+  use operator_mod,            only : r_solver_operator_type
+  use sci_hierarchical_preconditioner_mod, &
+                               only : abstract_hierarchical_preconditioner_type
+  use sci_r_solver_field_vector_mod, &
+                               only : r_solver_field_vector_type
+
+  ! Columnwise operator kernels
+  use sci_columnwise_op_app_kernel_mod, &
+                               only : columnwise_op_app_kernel_type
+  use sci_columnwise_op_appinv_kernel_mod, &
+                               only : columnwise_op_appinv_kernel_type
+
+  implicit none
+
+  type, public, extends(abstract_hierarchical_preconditioner_type) :: gw_pressure_preconditioner_type
+
+     integer(kind=i_def) :: level
+     integer(kind=i_def) :: mesh_id
+     !> Constant \f$\omega_c^2 = (\alpha\Delta t c)^2\f$
+     real(kind=r_solver) :: omega2_c
+     !> Constant \f$\omega_N^2 = (\alpha\Delta t N)^2\f$
+     real(kind=r_solver) :: omega2_N
+     !> vertical Helmholtz operator
+     type(columnwise_operator_type) :: Hz_cma
+
+   contains
+     ! Build the vertical part \f$H_z\f$ of the Helmholtz matrix
+     procedure, private :: build_Hz
+     ! overide the (abstract interface) for application of a preconditioner
+     ! \f$y = P.x\f$
+     procedure, public :: apply => apply_gw_pressure_preconditioner
+     procedure, private :: apply_gw_pressure_preconditioner
+     procedure, public  :: gw_pressure_preconditioner_assign
+     procedure, public  :: coarsen => coarsen_gw_pressure_preconditioner
+     procedure, private :: coarsen_gw_pressure_preconditioner
+
+     final              :: destroy_gw_pressure_preconditioner
+
+     !> Override default assignment for gw_pressure_preconditioner_type pairs.
+     generic            :: assignment(=) => gw_pressure_preconditioner_assign
+
+  end type gw_pressure_preconditioner_type
+
+  ! Overload the default structure constructor
+  interface gw_pressure_preconditioner_type
+     module procedure gw_pressure_preconditioner_constructor
+  end interface
+
+contains
+
+  !> @brief Construct a <code> gw_pressure_preconditioner_type</code> object.
+  !>
+  !> @param[in] level Multigrid level
+  !> @return self The constructed preconditioner object
+  function gw_pressure_preconditioner_constructor(level) result(self)
+
+    use log_mod,                           only: log_event, LOG_LEVEL_INFO
+    use timestepping_config_mod,           only: dt, alpha
+    use gravity_wave_constants_config_mod, only: cs_square
+    use initial_temperature_config_mod,    only: bvf_square
+    use runtime_tools_mod,                 only: get_hierarchical_mesh_id
+    implicit none
+
+    type(gw_pressure_preconditioner_type) :: self
+    integer(kind=i_def), intent(in)       :: level
+
+    call log_event( 'Constructing pressure preconditioner...', &
+         LOG_LEVEL_INFO )
+
+    ! Set scaling constants
+    self%omega2_c = real(alpha**2*dt**2*cs_square, r_solver)
+    self%omega2_N = real(alpha**2*dt**2*bvf_square, r_solver)
+    self%level = level
+    self%mesh_id = get_hierarchical_mesh_id(level)
+
+    call self%build_Hz()
+
+    call log_event( 'done', LOG_LEVEL_INFO )
+
+  end function gw_pressure_preconditioner_constructor
+
+  !> @brief Build the vertical Helmholtz matrix \f$H_z\f$ in CMA representation.
+  !>
+  !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
+  subroutine build_Hz(self)
+
+    use sci_fem_constants_mod,                  only : get_qr_fe
+    use solver_constants_mod,                   only : get_inverse_mass_matrix_r_solver
+    use field_mod,                              only : field_type
+    use finite_element_config_mod,              only : element_order_h, &
+                                                       element_order_v
+    use fs_continuity_mod,                      only : W3, W2h, W2v
+    use function_space_mod,                     only : function_space_type
+    use function_space_collection_mod,          only : function_space_collection
+    use sci_geometric_constants_mod,            only : get_coordinates, get_panel_id
+    use mesh_mod,                               only : mesh_type
+    use mesh_collection_mod,                    only : mesh_collection
+    use quadrature_xyoz_mod,                    only : quadrature_xyoz_type
+    use sci_transpose_matrix_kernel_mod,        only : transpose_matrix_kernel_type
+    use sci_enforce_operator_bc_kernel_mod, &
+                                only : enforce_operator_bc_kernel_type
+    use sci_columnwise_op_asm_kernel_mod, &
+                                only : columnwise_op_asm_kernel_type
+    use sci_columnwise_op_asm_diag_hmht_kernel_mod, &
+                                only : columnwise_op_asm_diag_hmht_kernel_type
+    use sci_columnwise_op_mul_kernel_mod, &
+                                only : columnwise_op_mul_kernel_type
+    use sci_columnwise_op_scaledadd_kernel_mod, &
+                                only : columnwise_op_scaledadd_kernel_type
+    use sci_columnwise_op_asm_m2v_lumped_inv_krnl_mod, &
+                              only : columnwise_op_asm_m2v_lumped_inv_krnl_type
+    use sci_operator_algebra_kernel_mod, &
+                                only : operator_setval_x_kernel_type
+    use sci_compute_div_operator_kernel_mod, &
+                                only : compute_div_operator_kernel_type
+    use sci_compute_mass_matrix_kernel_w_scalar_mod, &
+                                only : compute_mass_matrix_kernel_w_scalar_type
+    use sci_compute_mass_matrix_kernel_w2_mod, &
+                                only : compute_mass_matrix_kernel_w2_type
+
+    implicit none
+
+    ! Instance of type
+    class(gw_pressure_preconditioner_type), intent(inout) :: self
+
+    ! Pointers to mass matrices and derivative operators
+    type(mesh_type),              pointer :: mesh => null()
+    type(function_space_type),    pointer :: w3_fs => null()
+    type(function_space_type),    pointer :: w2v_fs => null()
+    type(function_space_type),    pointer :: w2h_fs => null()
+    type(field_type),             pointer :: chi(:) => null()
+    type(field_type),             pointer :: panel_id => null()
+    type(quadrature_xyoz_type),   pointer :: qr => null()
+    type(operator_type)                   :: mm
+    type(operator_type)                   :: div_v_r_def
+    type(operator_type)                   :: div_h_r_def
+    type(r_solver_operator_type)          :: mm_w3
+    type(r_solver_operator_type), pointer :: mm_w3_inv
+    type(r_solver_operator_type)          :: mm_w2v_noBC
+    type(r_solver_operator_type)          :: mm_w2h
+    type(r_solver_operator_type)          :: div_v
+    type(r_solver_operator_type)          :: div_h
+    ! Need a copy of vertical velocity matrix to enforce boundary conditions
+    type(r_solver_operator_type)          :: mm_w2v
+    type(r_solver_operator_type)          :: grad_v
+    ! CMA representation of vertical weak derivatives, mass matrix and
+    ! temporary matrices
+    type(columnwise_operator_type) :: div_v_cma
+    type(columnwise_operator_type) :: grad_v_cma
+    type(columnwise_operator_type) :: mm_w3_cma
+    type(columnwise_operator_type) :: mm_w3_inv_cma
+    type(columnwise_operator_type) :: mm_w2v_cma
+    type(columnwise_operator_type) :: mm_w2v_inv_diag_cma
+    type(columnwise_operator_type) :: diag_DhMDht_cma
+    type(columnwise_operator_type) :: tmp_1, tmp_2, tmp_3, tmp_4
+    ! Scaling constants for invoke calls
+    real(kind=r_solver) :: alpha, beta
+    integer(kind=i_def) :: mesh_id
+    logical(kind=l_def) :: extend_mesh
+
+    mesh_id = self%mesh_id
+
+    ! Set pointers to vertical operators
+    mesh => mesh_collection%get_mesh(mesh_id)
+    qr => get_qr_fe()
+    w3_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                               element_order_v, W3 )
+    w2v_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                element_order_v, W2V )
+    w2h_fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                                element_order_v, W2H )
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    call div_v_r_def%initialise( w3_fs, w2v_fs )
+    call invoke( compute_div_operator_kernel_type( div_v_r_def, chi,    &
+                                                   panel_id, qr ) )
+    call div_v%initialise( div_v_r_def%get_fs_to(), div_v_r_def%get_fs_from() )
+    call invoke( operator_setval_x_kernel_type( div_v, div_v_r_def ) )
+    call grad_v%initialise( div_v%get_fs_from(), div_v%get_fs_to() )
+    call div_h_r_def%initialise( w3_fs, w2h_fs )
+    call invoke( compute_div_operator_kernel_type( div_h_r_def, chi,    &
+                                                   panel_id, qr ) )
+    call div_h%initialise( div_h_r_def%get_fs_to(), div_h_r_def%get_fs_from() )
+    call invoke( operator_setval_x_kernel_type( div_h, div_h_r_def ) )
+
+    ! W3 mass matrix
+    call mm_w3%initialise( w3_fs, w3_fs )
+    call invoke( name="create_W3_mass_matrix",                                  &
+                 compute_mass_matrix_kernel_w_scalar_type(mm_w3, chi, panel_id, &
+                                                          extend_mesh, qr) )
+    mm_w3_inv => get_inverse_mass_matrix_r_solver(W3, mesh_id)
+
+    ! Take a copy of the vertical mass matrix since we need to apply the BCs
+    call mm%initialise( w2v_fs, w2v_fs )
+    call mm_w2v_noBC%initialise( mm%get_fs_to(), mm%get_fs_from() )
+    call invoke( compute_mass_matrix_kernel_w2_type(mm, chi, panel_id, qr), &
+                 operator_setval_x_kernel_type( mm_w2v_noBC, mm ) )
+    mm_w2v = mm_w2v_noBC%deep_copy()
+    ! Now apply BCs
+    call invoke( enforce_operator_bc_kernel_type( mm_w2v ) )
+
+    ! Get horizontal velocity mass matrix
+    call mm%initialise( w2h_fs, w2h_fs )
+    call mm_w2h%initialise( mm%get_fs_to(), mm%get_fs_from() )
+    call invoke( compute_mass_matrix_kernel_w2_type(mm, chi, panel_id, qr), &
+                 operator_setval_x_kernel_type( mm_w2h, mm ) )
+
+    ! Construct weak gradient as transpose of divergence
+    call invoke( transpose_matrix_kernel_type( div_v, grad_v ) )
+
+    ! Build individual CMA operators
+    call mm_w3_cma%initialise( mm_w3%get_fs_to(), &
+                               mm_w3%get_fs_from() )
+    call mm_w3_inv_cma%initialise( mm_w3_inv%get_fs_to(), &
+                                   mm_w3_inv%get_fs_from() )
+    call mm_w2v_cma%initialise( mm_w2v%get_fs_to(), &
+                                mm_w2v%get_fs_from() )
+    call div_v_cma%initialise( div_v%get_fs_to(), &
+                               div_v%get_fs_from() )
+    call grad_v_cma%initialise( grad_v%get_fs_to(), &
+                                grad_v%get_fs_from() )
+    call mm_w2v_inv_diag_cma%initialise( mm_w2v%get_fs_to(),   &
+                                         mm_w2v%get_fs_from(), &
+                                         1, 1, 0, 0)
+    call diag_DhMDht_cma%initialise( mm_w3%get_fs_to(), &
+                                     mm_w3%get_fs_from() )
+
+    call invoke(                                                       &
+                 ! Pressure mass matrix M_3
+                 columnwise_op_asm_kernel_type( mm_w3,                 &
+                                                mm_w3_cma ),           &
+                 ! Inverse mass matrix M_3
+                 columnwise_op_asm_kernel_type( mm_w3_inv,             &
+                                                mm_w3_inv_cma ),       &
+                 ! Vertical divergence D_z
+                 columnwise_op_asm_kernel_type( div_v,                 &
+                                                div_v_cma ),           &
+                 ! Weak vertical gradient D_z^T
+                 columnwise_op_asm_kernel_type( grad_v,                &
+                                                grad_v_cma ),          &
+                 ! Lumped inverse vertical velocity mass matrix M_{u,z,inv}
+                 columnwise_op_asm_m2v_lumped_inv_krnl_type( mm_w2v, &
+                                                             mm_w2v_inv_diag_cma ), &
+                 ! Delta_h = diag_h(D_h.M_{u,h,inv}.D_h^T)
+                 columnwise_op_asm_diag_hmht_kernel_type( div_h,       &
+                                                          mm_w2h,      &
+                                                          diag_DhMDhT_cma ) )
+
+    ! Assemble everything into the vertical Helmholtz operator
+
+    ! STEP 1: tmp_1 = M_{u,z,inv}.D_z^T
+    ! STEP 2: tmp_2 = D_z.tmp_1 = D_z.M_{u,z,inv}.D_z^T
+    ! STEP 3: tmp_3 = \omega_c^2*\Delta_h + \omega_c^2/(1+\omega_N^2)*tmp_2
+    !               = \omega_c^2*\Delta_h
+    !               + \omega_c^2/(1+\omega_N^2)*D_z.M_{u,z,inv}.D_z^T
+    ! STEP 4: tmp_4 = M_3 + tmp_3
+    ! STEP 5: H_z = M_3^{-1} tmp_4
+
+    ! Construct CMAs of the right size
+    tmp_1 = mm_w2v_inv_diag_cma%columnwise_operator_product( grad_v_cma )
+    tmp_2 = div_v_cma%columnwise_operator_product( tmp_1 )
+    tmp_3 = diag_DhMDhT_cma%columnwise_operator_sum( tmp_2 )
+    tmp_4 = mm_w3_cma%columnwise_operator_sum( tmp_3 )
+    self%Hz_cma = mm_w3_inv_cma%columnwise_operator_product( tmp_4 )
+    ! Calculate scaling constants (can not use expressions in invoke call)
+    alpha = self%omega2_c
+    beta = self%omega2_c/(1.0_r_solver + self%omega2_N)
+    ! Populate CMAs and construct vertical Helmholtz operator
+    call invoke(                                                            &
+                 ! STEP 1
+                 columnwise_op_mul_kernel_type (       mm_w2v_inv_diag_cma, &
+                                                       grad_v_cma,          &
+                                                       tmp_1 ),             &
+                 ! STEP 2
+                 columnwise_op_mul_kernel_type (       div_v_cma,           &
+                                                       tmp_1,               &
+                                                       tmp_2 ),             &
+                 ! STEP 3
+                 columnwise_op_scaledadd_kernel_type ( diag_DhMDhT_cma,     &
+                                                       tmp_2,               &
+                                                       tmp_3,               &
+                                                       alpha,               &
+                                                       beta ),              &
+                 ! STEP 4
+                 columnwise_op_scaledadd_kernel_type ( mm_w3_cma,           &
+                                                       tmp_3,               &
+                                                       tmp_4,               &
+                                                       1.0_r_solver,        &
+                                                       1.0_r_solver ),      &
+                 ! STEP 5
+                 columnwise_op_mul_kernel_type (       mm_w3_inv_cma,       &
+                                                       tmp_4,               &
+                                                       self%Hz_cma ) )
+
+  end subroutine build_Hz
+
+  !> @brief Apply the preconditioner to calculate \f$y = P.x = x\f$.
+  !>
+  !> @details Apply the vertical preconditioner \f$y = H_z^{-1}x\f$.
+  !>
+  !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
+  !> @param[in] x Field vector containing the right hand side of the pressure
+  !> @param[in,out] y Field vector containing the solution
+  subroutine apply_gw_pressure_preconditioner(self, x, y)
+
+    implicit none
+    class(gw_pressure_preconditioner_type), intent(inout) :: self
+    class(abstract_vector_type),            intent(in)    :: x
+    class(abstract_vector_type),            intent(inout) :: y
+
+    ! Workaround for PSyclone to get pointers of the correct type for x and y
+    type(r_solver_field_type), pointer :: x_vec => null(), y_vec => null()
+
+    select type(x)
+    type is(r_solver_field_vector_type)
+      select type(y)
+      type is(r_solver_field_vector_type)
+        ! Get pointers to x and y abstract types
+        x_vec => x%get_field_from_position(1)
+        y_vec => y%get_field_from_position(1)
+        ! Multiply by inverse of vertical operator \f$ H_z \f$
+        call invoke( setval_c(y_vec, 0.0_r_solver),           &
+                     columnwise_op_appinv_kernel_type( y_vec, &
+                                                       x_vec, &
+                                                       self%Hz_cma ) )
+      class default
+        write(log_scratch_space, '(A)') &
+              "gw_pressure_preconditioner_mod: incorrect vector_type argument y"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+     end select
+    class default
+      write(log_scratch_space, '(A)') "gw_pressure_preconditioner_mod: incorrect vector_type argument x"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+
+    nullify( x_vec, y_vec )
+
+  end subroutine apply_gw_pressure_preconditioner
+
+  !> @brief Performs a deep copy between gw_pressure_preconditioner_type pairs
+  !!        (for overriding the "=" operator).
+  !>
+  !> @param[out] dest   gw_pressure_preconditioner_type lhs
+  !> @param[in]  source gw_pressure_preconditioner_type rhs
+  subroutine gw_pressure_preconditioner_assign(dest, source)
+
+    implicit none
+    class(gw_pressure_preconditioner_type), intent(in)  :: source
+    class(gw_pressure_preconditioner_type), intent(out) :: dest
+
+    ! Deep copy of the contents of the pressure_operator_type
+    dest%level = source%level
+    dest%omega2_c = source%omega2_c
+    dest%omega2_N = source%omega2_N
+    dest%Hz_cma = source%Hz_cma
+
+  end subroutine gw_pressure_preconditioner_assign
+
+  !> @brief Construct a coarsened version of the preconditioner on the next
+  !!        level of the multigrid hierarchy.
+  !>
+  !> @param[in,out] self Instance of type gw_pressure_preconditioner_type
+  !> @param[in,out] other Coarsed version on next multigrid level
+  subroutine coarsen_gw_pressure_preconditioner(self, other)
+    implicit none
+    class(gw_pressure_preconditioner_type), intent(inout) :: self
+    class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
+    allocate(other, &
+             source=gw_pressure_preconditioner_type(self%level+1))
+  end subroutine coarsen_gw_pressure_preconditioner
+
+  !> @brief Destructor
+  !>
+  !> @param[in,out] self Instance of type to be destroyed
+  subroutine destroy_gw_pressure_preconditioner(self)
+    implicit none
+    type(gw_pressure_preconditioner_type), intent(inout) :: self
+
+  end subroutine destroy_gw_pressure_preconditioner
+
+end module gw_pressure_precon_alg_mod
+

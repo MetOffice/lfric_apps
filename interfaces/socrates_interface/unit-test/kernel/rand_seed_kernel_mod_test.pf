@@ -1,0 +1,113 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the Socrates random seed generation kernel
+!>
+module rand_seed_kernel_mod_test
+
+  use funit
+  use constants_mod,                 only : r_def, i_def
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
+
+  implicit none
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_rand_seed()
+
+    use rand_seed_kernel_mod, only: rand_seed_code
+
+    implicit none
+
+    integer(i_def) :: nlayers
+    integer(i_def) :: ndf
+    integer(i_def) :: undf
+    integer(i_def) :: cells
+    integer(i_def) :: dim_space
+    integer(i_def) :: dim_space_diff
+    integer(i_def) :: nqp_h
+    integer(i_def) :: nqp_v
+
+    integer(i_def), allocatable :: map(:,:)
+
+    integer(i_def) :: day_of_year
+    integer(i_def) :: seeds_per_degree, year, second_of_day
+    integer(i_def), allocatable :: rand_seed(:)
+    real(r_def), allocatable :: latitude(:)
+    real(r_def), allocatable :: longitude(:)
+    integer(i_def), allocatable :: answer(:)
+    integer(i_def) :: i
+
+    nlayers = 1
+
+    call get_w3_m3x3_q3x3x3_size( ndf, undf, cells,   &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, nlayers)
+    call get_w3_m3x3_dofmap(map, nlayers)
+
+    allocate(latitude(1:undf))
+    allocate(longitude(1:undf))
+    allocate(rand_seed(1:undf))
+    allocate(answer(1:undf))
+
+    year = 2016_i_def
+    day_of_year = int(0.64583333333333337_r_def, i_def)
+    second_of_day = 55800_i_def
+    seeds_per_degree = 100_i_def
+
+    rand_seed = 0.0_i_def
+    latitude = (/ -0.71034320705214671_r_def, &
+                  -0.69302560228462484_r_def, &
+                  -0.66647727353443620_r_def, &
+                  -0.63004214423428107_r_def, &
+                  -0.58291718248679303_r_def, &
+                   0.67857107305215703_r_def, &
+                   0.73667620561177549_r_def, &
+                   0.78234684765065376_r_def,  &
+                   0.81611377222091430_r_def /)
+
+    longitude = (/ -1.3744467859455347_r_def,  &
+                   -1.2435470920459597_r_def,  &
+                   -1.1126473981463851_r_def,  &
+                   -0.98174770424681046_r_def,  &
+                   -0.85084801034723556_r_def,   &
+                   -0.78539816339744828_r_def,  &
+                   -0.91971520823560149_r_def,  &
+                   -1.0585401290423051_r_def,  &
+                   -1.2014829997934164_r_def /)
+
+  do i=1, cells
+
+    call rand_seed_code( nlayers, rand_seed, latitude, longitude, year, &
+                         day_of_year, second_of_day, seeds_per_degree, ndf, &
+                         undf, map(:,i))
+
+  end do
+
+  answer = (/ 364269130_i_def, &
+              377769229_i_def, &
+              391269381_i_def, &
+              404769590_i_def, &
+              418287860_i_def, &
+              425027087_i_def, &
+              411185420_i_def, &
+              396875682_i_def, &
+              382133875_i_def /)
+
+
+  @assertEqual(answer, rand_seed)
+
+  deallocate(map)
+  deallocate(latitude)
+  deallocate(longitude)
+  deallocate(rand_seed)
+  deallocate(answer)
+
+  end subroutine test_rand_seed
+
+end module rand_seed_kernel_mod_test

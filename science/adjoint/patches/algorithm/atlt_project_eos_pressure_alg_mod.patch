@@ -1,0 +1,205 @@
+@@ -4,20 +4,22 @@
+ 
+   contains
+   subroutine atlt_project_eos_pressure_alg(mesh, chi, panel_id)
++    use sci_assign_field_random_range_alg_mod, only : assign_field_random_range
+     use field_mod, only : field_type
+     use function_space_mod, only : function_space_type
+     use mesh_mod, only : mesh_type
+     use function_space_collection_mod, only : function_space_collection
+     use tl_project_eos_pressure_kernel_mod, only : tl_project_eos_pressure_kernel_type
+-    use adj_project_eos_pressure_kernel_mod, only : adj_project_eos_pressure_kernel_type
++    use atl_project_eos_pressure_kernel_mod, only : atl_project_eos_pressure_kernel_type
+     use finite_element_config_mod, only : element_order_h, element_order_v
+     use fs_continuity_mod, only : w0, w3, wtheta
+     use operator_mod, only : operator_type
+     use quadrature_xyoz_mod, only : quadrature_xyoz_type
+     use constants_mod, only : i_def, r_def
+     use quadrature_rule_gaussian_mod, only : quadrature_rule_gaussian_type
+-    use setop_random_kernel_mod, only : setop_random_kernel_type
+-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space
++    use setop_random_alg_mod, only : setop_random_alg
++    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
++    use adjoint_test_parameters_mod, only : ls_rho_range, ls_theta_range, ls_md1_range
+     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+     type(mesh_type), pointer, intent(in) :: mesh
+     type(field_type), dimension(3), intent(in), optional :: chi
+@@ -32,8 +34,6 @@
+     type(field_type) :: ls_rho
+     type(field_type) :: ls_theta
+     type(field_type) :: ls_moist_dyn_gas
+-    type(field_type), dimension(3) :: chi3
+-    type(field_type) :: panel_id_1
+     type(operator_type) :: m3_inv
+     type(quadrature_xyoz_type) :: qr_xyoz
+     type(quadrature_rule_gaussian_type) :: quadrature_rule
+@@ -41,33 +41,23 @@
+     type(field_type) :: rho_input
+     type(field_type) :: theta_input
+     type(field_type) :: moist_dyn_gas_input
+-    type(field_type) :: ls_rho_input
+-    type(field_type) :: ls_theta_input
+-    type(field_type) :: ls_moist_dyn_gas_input
+-    type(field_type), dimension(3) :: chi3_input
+-    type(field_type) :: panel_id_1_input
+     real(kind=r_def) :: exner_inner_prod
+     real(kind=r_def) :: rho_inner_prod
+     real(kind=r_def) :: theta_inner_prod
+     real(kind=r_def) :: moist_dyn_gas_inner_prod
+-    real(kind=r_def) :: ls_rho_inner_prod
+-    real(kind=r_def) :: ls_theta_inner_prod
+-    real(kind=r_def) :: ls_moist_dyn_gas_inner_prod
+-    real(kind=r_def), dimension(3) :: chi3_inner_prod
+-    real(kind=r_def) :: panel_id_1_inner_prod
++    real(kind=r_def) :: exner_sf
++    real(kind=r_def) :: rho_sf
++    real(kind=r_def) :: theta_sf
++    real(kind=r_def) :: moist_dyn_gas_sf
+     real(kind=r_def) :: inner1
+     real(kind=r_def) :: exner_exner_input_inner_prod
+     real(kind=r_def) :: rho_rho_input_inner_prod
+     real(kind=r_def) :: theta_theta_input_inner_prod
+     real(kind=r_def) :: moist_dyn_gas_moist_dyn_gas_input_inner_prod
+-    real(kind=r_def) :: ls_rho_ls_rho_input_inner_prod
+-    real(kind=r_def) :: ls_theta_ls_theta_input_inner_prod
+-    real(kind=r_def) :: ls_moist_dyn_gas_ls_moist_dyn_gas_input_inner_prod
+-    real(kind=r_def), dimension(3) :: chi3_chi3_input_inner_prod
+-    real(kind=r_def) :: panel_id_1_panel_id_1_input_inner_prod
+     real(kind=r_def) :: inner2
+     real(kind=r_def) :: MachineTol
+     real(kind=r_def) :: relative_diff
++    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+ 
+     vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
+     vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+@@ -79,95 +69,65 @@
+     call ls_rho%initialise(vector_space=vector_space_w3_ptr, name='ls_rho')
+     call ls_theta%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta')
+     call ls_moist_dyn_gas%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas')
+-    call chi3(1_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call chi3(2_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call chi3(3_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3')
+-    call panel_id_1%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1')
+     call m3_inv%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
+     qr_xyoz = quadrature_xyoz_type(element_order_h + 3,element_order_h + 3,element_order_v + 3,quadrature_rule)
+     call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
+     call rho_input%initialise(vector_space=vector_space_w3_ptr, name='rho_input')
+     call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
+     call moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='moist_dyn_gas_input')
+-    call ls_rho_input%initialise(vector_space=vector_space_w3_ptr, name='ls_rho_input')
+-    call ls_theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_theta_input')
+-    call ls_moist_dyn_gas_input%initialise(vector_space=vector_space_wtheta_ptr, name='ls_moist_dyn_gas_input')
+-    call chi3_input(1_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call chi3_input(2_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call chi3_input(3_i_def)%initialise(vector_space=vector_space_w0_ptr, name='chi3_input')
+-    call panel_id_1_input%initialise(vector_space=vector_space_w3_ptr, name='panel_id_1_input')
+     exner_inner_prod = 0.0_r_def
+     rho_inner_prod = 0.0_r_def
+     theta_inner_prod = 0.0_r_def
+     moist_dyn_gas_inner_prod = 0.0_r_def
+-    ls_rho_inner_prod = 0.0_r_def
+-    ls_theta_inner_prod = 0.0_r_def
+-    ls_moist_dyn_gas_inner_prod = 0.0_r_def
+-    chi3_inner_prod(1_i_def) = 0.0_r_def
+-    chi3_inner_prod(2_i_def) = 0.0_r_def
+-    chi3_inner_prod(3_i_def) = 0.0_r_def
+-    panel_id_1_inner_prod = 0.0_r_def
+-
+     ! Initialise arguments and call the tangent-linear kernel.
+     call invoke(setval_random(exner), setval_x(exner_input, exner), setval_random(rho), setval_x(rho_input, rho), &
+-&setval_random(theta), setval_x(theta_input, theta), setval_random(moist_dyn_gas), setval_x(moist_dyn_gas_input, moist_dyn_gas), &
+-&setval_random(ls_rho), setval_x(ls_rho_input, ls_rho), setval_random(ls_theta), setval_x(ls_theta_input, ls_theta), &
+-&setval_random(ls_moist_dyn_gas), setval_x(ls_moist_dyn_gas_input, ls_moist_dyn_gas), setval_random(chi3(1_i_def)), &
+-&setval_x(chi3_input(1_i_def), chi3(1_i_def)), setval_random(chi3(2_i_def)), setval_x(chi3_input(2_i_def), chi3(2_i_def)), &
+-&setval_random(chi3(3_i_def)), setval_x(chi3_input(3_i_def), chi3(3_i_def)), setval_random(panel_id_1), setval_x(panel_id_1_input, &
+-&panel_id_1), setop_random_kernel_type(m3_inv), tl_project_eos_pressure_kernel_type(exner, rho, theta, moist_dyn_gas, ls_rho, &
+-&ls_theta, ls_moist_dyn_gas, chi3, panel_id_1, m3_inv, qr_xyoz), x_innerproduct_x(exner_inner_prod, exner), &
++&setval_random(theta), setval_x(theta_input, theta), setval_random(moist_dyn_gas), setval_x(moist_dyn_gas_input, moist_dyn_gas))
++
++    call setop_random_alg(m3_inv)
++    call assign_field_random_range( ls_rho, ls_rho_range(1), ls_rho_range(2) )
++    call assign_field_random_range( ls_theta, ls_theta_range(1), ls_theta_range(2) )
++    call assign_field_random_range( ls_moist_dyn_gas, ls_md1_range(1), ls_md1_range(2) )
++
++    call invoke(tl_project_eos_pressure_kernel_type(exner, rho, theta, moist_dyn_gas, ls_rho, &
++&ls_theta, ls_moist_dyn_gas, chi, panel_id, m3_inv, qr_xyoz), x_innerproduct_x(exner_inner_prod, exner), &
+ &x_innerproduct_x(rho_inner_prod, rho), x_innerproduct_x(theta_inner_prod, theta), x_innerproduct_x(moist_dyn_gas_inner_prod, &
+-&moist_dyn_gas), x_innerproduct_x(ls_rho_inner_prod, ls_rho), x_innerproduct_x(ls_theta_inner_prod, ls_theta), &
+-&x_innerproduct_x(ls_moist_dyn_gas_inner_prod, ls_moist_dyn_gas), x_innerproduct_x(chi3_inner_prod(1_i_def), chi3(1_i_def)), &
+-&x_innerproduct_x(chi3_inner_prod(2_i_def), chi3(2_i_def)), x_innerproduct_x(chi3_inner_prod(3_i_def), chi3(3_i_def)), &
+-&x_innerproduct_x(panel_id_1_inner_prod, panel_id_1))
++&moist_dyn_gas))
++    write( log_scratch_space, * ) "atlt_project_eos_pressure inner products:"
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "moist_dyn_gas inner product = ", moist_dyn_gas_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "exner inner product = ", exner_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "rho inner product = ", rho_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    write( log_scratch_space, * ) "theta inner product = ", theta_inner_prod
++    call log_event( log_scratch_space, log_level_debug )
++    moist_dyn_gas_sf = 1.0_r_def / (moist_dyn_gas_inner_prod + eps)
++    exner_sf = 1.0_r_def / (exner_inner_prod + eps)
++    rho_sf = 1.0_r_def / (rho_inner_prod + eps)
++    theta_sf = 1.0_r_def / (theta_inner_prod + eps)
+     inner1 = 0.0_r_def
+-    inner1 = inner1 + exner_inner_prod
+-    inner1 = inner1 + rho_inner_prod
+-    inner1 = inner1 + theta_inner_prod
+-    inner1 = inner1 + moist_dyn_gas_inner_prod
+-    inner1 = inner1 + ls_rho_inner_prod
+-    inner1 = inner1 + ls_theta_inner_prod
+-    inner1 = inner1 + ls_moist_dyn_gas_inner_prod
+-    inner1 = inner1 + chi3_inner_prod(1_i_def)
+-    inner1 = inner1 + chi3_inner_prod(2_i_def)
+-    inner1 = inner1 + chi3_inner_prod(3_i_def)
+-    inner1 = inner1 + panel_id_1_inner_prod
++    inner1 = inner1 + moist_dyn_gas_inner_prod * moist_dyn_gas_sf
++    inner1 = inner1 + exner_inner_prod * exner_sf
++    inner1 = inner1 + rho_inner_prod * rho_sf
++    inner1 = inner1 + theta_inner_prod * theta_sf
++    call invoke( inc_a_times_X( moist_dyn_gas_sf, moist_dyn_gas ), &
++                 inc_a_times_X( exner_sf, exner ),                 &
++                 inc_a_times_X( rho_sf, rho ),                     &
++                 inc_a_times_X( theta_sf, theta ) )
+     exner_exner_input_inner_prod = 0.0_r_def
+     rho_rho_input_inner_prod = 0.0_r_def
+     theta_theta_input_inner_prod = 0.0_r_def
+     moist_dyn_gas_moist_dyn_gas_input_inner_prod = 0.0_r_def
+-    ls_rho_ls_rho_input_inner_prod = 0.0_r_def
+-    ls_theta_ls_theta_input_inner_prod = 0.0_r_def
+-    ls_moist_dyn_gas_ls_moist_dyn_gas_input_inner_prod = 0.0_r_def
+-    chi3_chi3_input_inner_prod(1_i_def) = 0.0_r_def
+-    chi3_chi3_input_inner_prod(2_i_def) = 0.0_r_def
+-    chi3_chi3_input_inner_prod(3_i_def) = 0.0_r_def
+-    panel_id_1_panel_id_1_input_inner_prod = 0.0_r_def
+-    call invoke(adj_project_eos_pressure_kernel_type(exner, rho, theta, moist_dyn_gas, ls_rho, ls_theta, ls_moist_dyn_gas, chi3, &
+-&panel_id_1, m3_inv, qr_xyoz), x_innerproduct_y(exner_exner_input_inner_prod, exner, exner_input), &
++    call invoke(atl_project_eos_pressure_kernel_type(exner, rho, theta, moist_dyn_gas, ls_rho, ls_theta, ls_moist_dyn_gas, chi, &
++&panel_id, m3_inv, qr_xyoz), x_innerproduct_y(exner_exner_input_inner_prod, exner, exner_input), &
+ &x_innerproduct_y(rho_rho_input_inner_prod, rho, rho_input), x_innerproduct_y(theta_theta_input_inner_prod, theta, theta_input), &
+-&x_innerproduct_y(moist_dyn_gas_moist_dyn_gas_input_inner_prod, moist_dyn_gas, moist_dyn_gas_input), &
+-&x_innerproduct_y(ls_rho_ls_rho_input_inner_prod, ls_rho, ls_rho_input), x_innerproduct_y(ls_theta_ls_theta_input_inner_prod, &
+-&ls_theta, ls_theta_input), x_innerproduct_y(ls_moist_dyn_gas_ls_moist_dyn_gas_input_inner_prod, ls_moist_dyn_gas, &
+-&ls_moist_dyn_gas_input), x_innerproduct_y(chi3_chi3_input_inner_prod(1_i_def), chi3(1_i_def), chi3_input(1_i_def)), &
+-&x_innerproduct_y(chi3_chi3_input_inner_prod(2_i_def), chi3(2_i_def), chi3_input(2_i_def)), &
+-&x_innerproduct_y(chi3_chi3_input_inner_prod(3_i_def), chi3(3_i_def), chi3_input(3_i_def)), &
+-&x_innerproduct_y(panel_id_1_panel_id_1_input_inner_prod, panel_id_1, panel_id_1_input))
++&x_innerproduct_y(moist_dyn_gas_moist_dyn_gas_input_inner_prod, moist_dyn_gas, moist_dyn_gas_input))
+     inner2 = 0.0_r_def
+     inner2 = inner2 + exner_exner_input_inner_prod
+     inner2 = inner2 + rho_rho_input_inner_prod
+     inner2 = inner2 + theta_theta_input_inner_prod
+     inner2 = inner2 + moist_dyn_gas_moist_dyn_gas_input_inner_prod
+-    inner2 = inner2 + ls_rho_ls_rho_input_inner_prod
+-    inner2 = inner2 + ls_theta_ls_theta_input_inner_prod
+-    inner2 = inner2 + ls_moist_dyn_gas_ls_moist_dyn_gas_input_inner_prod
+-    inner2 = inner2 + chi3_chi3_input_inner_prod(1_i_def)
+-    inner2 = inner2 + chi3_chi3_input_inner_prod(2_i_def)
+-    inner2 = inner2 + chi3_chi3_input_inner_prod(3_i_def)
+-    inner2 = inner2 + panel_id_1_panel_id_1_input_inner_prod
+-
+     ! Test the inner-product values for equality, allowing for the precision of the active variables
+     MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+     relative_diff = ABS(inner1 - inner2) / MachineTol

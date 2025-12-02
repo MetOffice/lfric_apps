@@ -1,0 +1,159 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the V2 buoyancy gradient volume integral kernel.
+!>
+
+module swe_buoyancy_gradient_volume_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: swe_buoyancy_gradient_volume_kernel_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type swe_buoyancy_gradient_volume_kernel_test_type
+
+contains
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(swe_buoyancy_gradient_volume_kernel_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(swe_buoyancy_gradient_volume_kernel_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use swe_buoyancy_gradient_volume_kernel_mod,   only: swe_buoyancy_gradient_volume_code
+
+    use get_unit_test_q3x3x3_basis_mod,      only: get_w2_q3x3x3_diff_basis, &
+                                                   get_w3_q3x3x3_basis
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2_m3x3_q3x3x3_size,  &
+                                                   get_w3_m3x3_q3x3x3_size
+    use get_unit_test_m3x3_dofmap_mod,       only: get_w2_m3x3_dofmap,       &
+                                                   get_w3_m3x3_dofmap
+
+    use get_unit_test_q3x3x3_quadrature_mod,                &
+          only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+                 get_gaussian_q3x3x3_quadrature_weights_z
+
+    implicit none
+
+    class(swe_buoyancy_gradient_volume_kernel_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_def), parameter :: answer = 0.5_r_def
+
+    integer(i_def) :: cell, k
+
+    integer(i_def) :: nlayers, nqp_h, nqp_v
+    integer(i_def) :: ndf_w3, ndf_w2
+    integer(i_def) :: undf_w3, undf_w2
+
+    real(r_def), allocatable :: wqp_h(:), wqp_v(:)
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(i_def) :: unused
+
+    integer(i_def), allocatable :: map_w3(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    real(r_def), allocatable :: diff_basis_w2(:,:,:,:)
+    real(r_def), allocatable :: basis_w3(:,:,:,:)
+
+    ! Test field data
+    real(r_def), allocatable :: geopot_data(:)
+    real(r_def), allocatable :: r_u_data(:)
+    real(r_def), allocatable :: buoyancy_data(:)
+
+    ! Get canned data for a 3-layer mesh
+    nlayers = 3
+
+    ! Get sizes
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, unused, &
+                                  unused, unused,          &
+                                  nqp_h, nqp_v,            &
+                                  nlayers )
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+    ! Get dofmaps
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_w2_m3x3_dofmap(map_w2)
+
+    call get_w2_q3x3x3_diff_basis(diff_basis_w2)
+    call get_w3_q3x3x3_basis(basis_w3)
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wqp_h)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wqp_v)
+
+    ! Create the data arrays
+    allocate(r_u_data(undf_w2))
+    allocate(geopot_data(undf_w3))
+    allocate(buoyancy_data(undf_w3))
+
+    ! Create the data
+    geopot_data(:) = 1.0_r_def
+    buoyancy_data(:) = 1.0_r_def
+    ! Initialise output as zero
+    r_u_data(:) = 0.0_r_def
+
+    ! Compute cell 1 only
+    cell = 1
+
+    call swe_buoyancy_gradient_volume_code(nlayers, r_u_data, geopot_data, buoyancy_data, &
+                                           ndf_w2, undf_w2, map_w2, diff_basis_w2,        &
+                                           ndf_w3, undf_w3, map_w3, basis_w3,             &
+                                           nqp_h, nqp_v, wqp_h, wqp_v )
+
+    ! Test only on level 0
+    k=0
+    ! As geopot = buoyancy = 1, then the kernel integrates -1/2 div basis
+    @assertEqual( -answer, r_u_data(map_w2(1,cell)+k) , tol )
+    @assertEqual(  answer, r_u_data(map_w2(2,cell)+k) , tol )
+    @assertEqual(  answer, r_u_data(map_w2(3,cell)+k) , tol )
+    @assertEqual( -answer, r_u_data(map_w2(4,cell)+k) , tol )
+    @assertEqual( -answer, r_u_data(map_w2(5,cell)+k) , tol )
+    @assertEqual(  answer, r_u_data(map_w2(6,cell)+k) , tol )
+
+    deallocate(map_w2)
+    deallocate(map_w3)
+    deallocate(diff_basis_w2)
+    deallocate(basis_w3)
+    deallocate(wqp_h)
+    deallocate(wqp_v)
+    deallocate(geopot_data)
+    deallocate(r_u_data)
+    deallocate(buoyancy_data)
+
+  end subroutine test_all
+
+end module swe_buoyancy_gradient_volume_kernel_mod_test

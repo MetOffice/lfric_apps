@@ -1,0 +1,239 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Tangent linear for the advective update A of a variable f by a wind U
+!!        Nonlinear code is A = U.grad(f)
+!!        Linear code is    A = U.grad(ls_f) + ls_U.grad(f)
+!> @todo There are number of workarounds in this algorithm for aspects which
+!!       aren't yet supported by PSyclone/LFRic:
+!!       1. Issue #868 Multidata fields are not natively supported in PSyclone.
+!!                     Currently we treat these as normal fields but need to
+!!                     additionally pass in ndata_h or ndata_v to the kernels
+!!                     as extra integer arguments.
+!!       2. Issue #1246 Region stencils require both the global maximum size of
+!!                      the stencil and local column size of the stencil.
+!!                      PSyclone currently only passes in the local size and so
+!!                      until this is resolved we also pass in the global maximum
+!!                      size as an integer argument.
+module tl_wt_advective_update_alg_mod
+
+  use constants_mod,                      only: r_def, i_def, l_def
+  use sci_fem_constants_mod,              only: get_inverse_lumped_mass_matrix_fe
+  use field_mod,                          only: field_type
+  use finite_element_config_mod,          only: element_order_h, element_order_v
+  use fs_continuity_mod,                  only: Wtheta, W2H, W2V
+  use function_space_mod,                 only: function_space_type
+  use function_space_collection_mod,      only: function_space_collection
+  use mesh_mod,                           only: mesh_type
+  use transport_config_mod,               only: operators,            &
+                                                fv_horizontal_order,  &
+                                                fv_vertical_order,    &
+                                                operators_fv,         &
+                                                operators_fem,        &
+                                                consistent_metric
+  use log_mod,                            only: log_event,         &
+                                                LOG_LEVEL_ERROR
+  use tl_poly1d_vert_adv_kernel_mod,      only: tl_poly1d_vert_adv_kernel_type
+  use transport_enumerated_types_mod,     only: direction_v,                  &
+                                                direction_h,                  &
+                                                direction_3d,                 &
+                                                monotone_koren
+  use transport_metadata_mod,             only: transport_metadata_type
+  use wt_advective_update_alg_mod,        only: hori_wt_update_alg
+
+  implicit none
+
+  private
+
+  public :: tl_wt_advective_update_alg
+  public :: tl_vert_wt_update_alg
+
+contains
+
+  !=============================================================================
+  !> @brief Compute advective update of a Wtheta field for tangent linear app.
+  !> @details Compute tangent linear advective update using desired spatial
+  !!          reconstruction. Options for this are either FE or FV reconstructions.
+  !> @param[in,out] rhs                 ACTIVE Change in Advective increment
+  !> @param[in]     adv_field           ACTIVE Change in Field to advect
+  !> @param[in]     wind                ACTIVE Change in Advecting wind field
+  !> @param[in]     ls_adv_field        Lin state for Field to advect
+  !> @param[in]     ls_wind             Lin state for Advecting wind field
+  !> @param[in]     dt                  Timestep
+  !> @param[in]     direction           Direction of the transport
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine tl_wt_advective_update_alg(rhs, adv_field, wind,    &
+                                        ls_adv_field, ls_wind,   &
+                                        dt, direction,           &
+                                        transport_metadata, final_rk_stage)
+
+
+    use reference_element_mod,          only: reference_element_type
+    use mesh_mod,                       only: mesh_type
+    use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+    use integer_field_mod,              only: integer_field_type
+    use sci_geometric_constants_mod,    only: get_face_selector_ew,            &
+                                              get_face_selector_ns
+
+    implicit none
+
+    type(field_type),              intent(in)    :: adv_field, wind
+    type(field_type),              intent(in)    :: ls_adv_field, ls_wind
+    type(field_type),              intent(inout) :: rhs
+    real(kind=r_def),              intent(in)    :: dt
+    integer(kind=i_def),           intent(in)    :: direction
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    type(field_type)                       :: u_grad_f
+    type(field_type)                       :: wind_v
+    type(field_type)                       :: wind_h
+    type(field_type)                       :: ls_wind_v
+    type(field_type)                       :: ls_wind_h
+    type(function_space_type),     pointer :: w2h_fs, w2v_fs
+    type(integer_field_type),      pointer :: face_selector_ew
+    type(integer_field_type),      pointer :: face_selector_ns
+    type(field_type),              pointer :: mt_lumped_inv
+    type(mesh_type),               pointer :: mesh
+
+    mesh => wind%get_mesh()
+    call u_grad_f%initialise( adv_field%get_function_space() )
+    call invoke( setval_c(u_grad_f, 0.0_r_def) )
+
+    select case( operators )
+
+    case default
+      call log_event( "Gungho: Unrecognised option for wtheta reconstruction.", LOG_LEVEL_ERROR )
+
+    case( operators_fv )
+
+      select case ( direction )
+
+      case ( direction_3d )
+        w2h_fs => function_space_collection%get_fs(                            &
+            mesh, element_order_h, element_order_v, W2H                        &
+        )
+        w2v_fs => function_space_collection%get_fs(                            &
+            mesh, element_order_h, element_order_v, W2V                        &
+        )
+        face_selector_ew => get_face_selector_ew(mesh%get_id())
+        face_selector_ns => get_face_selector_ns(mesh%get_id())
+        call wind_h%initialise(w2h_fs)
+        call wind_v%initialise(w2v_fs)
+        call ls_wind_h%initialise(w2h_fs)
+        call ls_wind_v%initialise(w2v_fs)
+        call invoke( split_w2_field_kernel_type(wind_h, wind_v, wind,          &
+                                                face_selector_ew,              &
+                                                face_selector_ns),             &
+                     split_w2_field_kernel_type(ls_wind_h, ls_wind_v, ls_wind, &
+                                                face_selector_ew,              &
+                                                face_selector_ns))
+
+        ! Horizontal update
+        call hori_wt_update_alg(u_grad_f, ls_wind_h, ls_wind_h, adv_field, transport_metadata)
+        call hori_wt_update_alg(u_grad_f, wind_h, ls_wind_h, ls_adv_field, transport_metadata)
+
+        if ( consistent_metric ) then
+          call log_event( "TL: consistent metric not implemented", LOG_LEVEL_ERROR )
+        end if
+
+        call tl_vert_wt_update_alg(u_grad_f, wind_v, adv_field, &
+                                   ls_wind_v, ls_adv_field,     &
+                                   transport_metadata, final_rk_stage)
+
+      case ( direction_h )
+        call hori_wt_update_alg(u_grad_f, ls_wind, ls_wind, adv_field, transport_metadata)
+        call hori_wt_update_alg(u_grad_f, wind, ls_wind, ls_adv_field, transport_metadata)
+
+      case ( direction_v )
+        call tl_vert_wt_update_alg(u_grad_f, wind, adv_field, &
+                                   ls_wind, ls_adv_field,     &
+                                   transport_metadata, final_rk_stage)
+      case default
+        call log_event('T.L. advective update: direction not recognised', LOG_LEVEL_ERROR)
+      end select
+
+
+    case(operators_fem)
+      call log_event( "TL: fem not available", LOG_LEVEL_ERROR )
+    end select
+
+    mt_lumped_inv => get_inverse_lumped_mass_matrix_fe(Wtheta, mesh%get_id())
+
+    ! Scale by lumped inverse mass matrix
+    call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv) )
+
+  end subroutine tl_wt_advective_update_alg
+
+  !=============================================================================
+  !> @brief Tangent Linear vertical advective update of a Wtheta field.
+  !> @param[in,out] u_grad_f            Vertical part of u.grad(f)
+  !> @param[in]     wind                Advecting wind field
+  !> @param[in]     field               Wtheta field to advect
+  !> @param[in]     ls_wind             Linearised advecting wind field
+  !> @param[in]     ls_field            Linearised Wtheta field to advect
+  !> @param[in]     transport_metadata  Contains transport configuration options
+  !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
+  subroutine tl_vert_wt_update_alg(u_grad_f, wind, field, ls_wind, ls_field, &
+                                   transport_metadata, final_rk_stage)
+
+    use tl_poly1d_vert_adv_kernel_mod,  only: tl_poly1d_vert_adv_kernel_type
+    use transport_constants_mod,        only: get_vert_wt_mol_coeffs,          &
+                                              get_reversible_vert_wt_mol_coeffs
+
+    implicit none
+
+    type(field_type),              intent(in)    :: field, wind
+    type(field_type),              intent(in)    :: ls_field, ls_wind
+    type(field_type),              intent(inout) :: u_grad_f
+    type(transport_metadata_type), intent(in)    :: transport_metadata
+    logical(kind=l_def),           intent(in)    :: final_rk_stage
+
+    integer(kind=i_def)          :: mesh_id
+    integer(kind=i_def)          :: vertical_order
+    integer(kind=i_def)          :: ndata_v
+    type(mesh_type),     pointer :: mesh
+    type(field_type),    pointer :: vert_adv_coeffs
+    logical(kind=l_def)          :: logspace
+    logical(kind=l_def)          :: reversible
+    integer(kind=i_def)          :: monotonicity
+
+    reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
+    logspace = transport_metadata%get_log_space()
+    monotonicity = transport_metadata%get_vertical_monotone()
+
+    mesh => wind%get_mesh()
+    mesh_id = mesh%get_id()
+
+    if ( reversible ) then
+      vert_adv_coeffs => get_reversible_vert_wt_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order
+    else
+      vert_adv_coeffs => get_vert_wt_mol_coeffs(mesh_id)
+      vertical_order = fv_vertical_order + 1_i_def
+    end if
+
+    ndata_v = 2_i_def*(vertical_order + 1_i_def)
+
+    if ( monotonicity == monotone_koren ) then
+      call log_event('T.L. Wtheta advective update not implemented with Koren scheme', LOG_LEVEL_ERROR)
+
+    else
+      call invoke( tl_poly1d_vert_adv_kernel_type(u_grad_f,        &
+                                                  wind,            &
+                                                  field,           &
+                                                  ls_wind,         &
+                                                  ls_field,        &
+                                                  vert_adv_coeffs, &
+                                                  ndata_v,         &
+                                                  vertical_order,  &
+                                                  logspace ) )
+    end if
+
+  end subroutine tl_vert_wt_update_alg
+
+end module tl_wt_advective_update_alg_mod

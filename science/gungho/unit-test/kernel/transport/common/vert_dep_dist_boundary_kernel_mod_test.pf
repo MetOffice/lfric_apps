@@ -1,0 +1,74 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+module vert_dep_dist_boundary_kernel_mod_test
+
+  use funit
+  use constants_mod,      only : i_def, r_tran
+
+  implicit none
+
+  private
+  public :: test_all
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use vert_dep_dist_boundary_kernel_mod, only : vert_dep_dist_boundary_code
+
+    implicit none
+
+    real(kind=r_tran),   parameter   :: tol = 1.0e-6_r_tran
+
+    integer(kind=i_def)              :: nlayers
+    integer(kind=i_def)              :: ndf_w2v
+    integer(kind=i_def)              :: undf_w2v
+    integer(kind=i_def), allocatable :: map_w2v(:)
+    real(kind=r_tran),   allocatable :: dep_pts_z(:)
+    real(kind=r_tran),   allocatable :: true_dep_pts_answer(:)
+
+    ! Set integer values to describe mesh (single column)
+    nlayers = 9
+    undf_w2v = nlayers + 1
+    ndf_w2v = 2
+
+    allocate(map_w2v(ndf_w2v))
+    allocate(dep_pts_z(undf_w2v))
+    allocate(true_dep_pts_answer(undf_w2v))
+
+    ! DoF maps
+    map_w2v = (/ 1, 2 /)
+
+    ! Make a departure points field, with some values going out of the domain
+    ! One value going out of the bottom, one going out of the top
+    dep_pts_z = (/ 0.0_r_tran, 1.8_r_tran, 1.2_r_tran,               &
+                   0.4_r_tran, -0.5_r_tran, -1.2_r_tran,             &
+                  -2.1_r_tran, -1.5_r_tran, -2.6_r_tran, 0.0_r_tran /)
+
+    true_dep_pts_answer = (/ 0.0_r_tran, 1.0_r_tran, 1.2_r_tran,               &
+                             0.4_r_tran, -0.5_r_tran, -1.2_r_tran,             &
+                            -2.1_r_tran, -1.5_r_tran, -1.0_r_tran, 0.0_r_tran /)
+
+    call vert_dep_dist_boundary_code( nlayers,             &
+                                      dep_pts_z,           &
+                                      ndf_w2v,             &
+                                      undf_w2v,            &
+                                      map_w2v )
+
+    ! Check values!
+    @assertEqual( dep_pts_z, true_dep_pts_answer, tol )
+
+    deallocate(map_w2v)
+    deallocate(dep_pts_z)
+    deallocate(true_dep_pts_answer)
+
+  end subroutine test_all
+
+end module vert_dep_dist_boundary_kernel_mod_test

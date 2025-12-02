@@ -1,0 +1,155 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/graph/generate_graph.cylc") %}
+
+{# Generate the graph based on the requested tasks #}
+
+{% set graph_sections = [] %}
+
+{# Cylc can sometimes fail to setup symlinks properly on remote platforms #}
+{# See the Warning Box at #}
+{# https://cylc.github.io/cylc-doc/nightly_8.3/html/7-to-8/major-changes/cylc-install.html#admonition-5 #}
+{# The solution is to run a "dummy" task on that platform first #}
+{# Set the export-source task to depend on these tasks, 1 per platform #}
+{# Some fcm_make tasks for lfricinputs and coupled have this set in their files #}
+{% set remote_init_task = "remote-init_" %}
+{% for platform in requested_platforms %}
+    {% do tasks_to_run.update({remote_init_task~platform: {} }) %}
+    {% do graph_sections.append([
+        "remote-init_"~platform,
+        "export-source",
+    ]) %}
+{% endfor %}
+
+{% for task in requested_tasks %}
+    {% do LOG.debug("Task: "~task) %}
+    {% if task in scripts_list %}
+
+        {# Generate graph if task is a script #}
+        {% include "templates/graph/populate_graph_scripts.cylc" %}
+
+    {% elif "unit_tests" in task or "integration_tests" in task %}
+
+        {# Generate graph if task is a unit/integration test #}
+        {% include "templates/graph/populate_graph_technical-tests.cylc" %}
+
+    {% else %}
+    {# Generate graph for all other tasks #}
+
+        {% set task_ns = namespace(application="",
+                                   conf_name="",
+                                   platform="",
+                                   compiler="",
+                                   extras="") %}
+        {{ split_task_name(task, task_ns) }}
+        {% set task_values = requested_tasks[task] %}
+
+        {% if task_values["custom_task"] %}
+
+            {# If using a custom graph, populate using the sites custom task file #}
+            {# Task must be defined in the custom task files for this site #}
+            {% set found_task = namespace(bool=false) %}
+            {% include "site/"~SITE~"/custom_tasks/populate_graph_custom.cylc" %}
+            {% if not found_task.bool %}
+                {{ raise("The task "~task~" is set to be a custom task but a "
+                         "definition could not be found in your sites custom "
+                         "graph file.") }}
+            {% endif %}
+
+        {% elif task_ns.application == "lfricinputs" %}
+
+            {# lfricinputs graphs are different due to building from fcm_make #}
+            {% include "templates/graph/populate_graph_lfricinputs.cylc" %}
+
+        {% else %}
+
+            {# Otherwise populate the graph using the templating #}
+            {% include "templates/graph/populate_graph_sections.cylc" %}
+
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+{# Loop over all tasks and check if we're running #}
+{# a kgo check task, any scintelapi task and a script #}
+{# These bits of info are needed later #}
+{# For kgo tests, ignore -v- tasks, eg. nrun-v-crun #}
+{% set running_kgo = namespace(bool=false) %}
+{% set running_gen_weights = namespace(bool=false) %}
+{% set running_scripts = namespace(bool=false) %}
+{% for t in tasks_to_run %}
+    {% if t.startswith("check") and "-v-" not in t %}
+        {% set running_kgo.bool = true %}
+    {% endif %}
+    {% if "um2lfric" in t or "lfric2um" in t %}
+        {% set running_gen_weights.bool = true %}
+    {% endif %}
+    {% if t in scripts_list %}
+        {% set running_scripts.bool = true %}
+    {% endif %}
+{% endfor %}
+
+{# If any kgo task fails, run the check_kgo_groups script #}
+{# to check appropriate groups have been run #}
+{# Note: the ? indicates an optional output #}
+{# Only do this at meto #}
+{% if SITE == "meto" and running_kgo.bool %}
+    {% do graph_sections.append([
+        "KGO_CHECKS:fail-any?",
+        "kgo_groups_checker"]) %}
+    {% if "kgo_groups_checker" not in tasks_to_run %}
+        {% do tasks_to_run.update({"kgo_groups_checker": {} }) %}
+    {% endif %}
+{% endif %}
+
+
+{# Set Housekeeping task if housekeeping is true - default value #}
+{# One housekeeping task per platform being run on #}
+{# Waits for all tasks on that platform to finish before ruuning #}
+{% if HOUSEKEEPING %}
+    {% for platform in requested_platforms %}
+        {% if "housekeeping_platform" in site_vars %}
+            {% set housekeeping_task = "housekeep_"~site_vars["housekeeping_platform"] %}
+        {% else %}
+            {% set housekeeping_task = "housekeep_"~platform %}
+        {% endif %}
+        {% do tasks_to_run.update({housekeeping_task: {} }) %}
+        {% do graph_sections.append([
+            platform|upper~":succeed-all?",
+            housekeeping_task]) %}
+        {% do graph_sections.append([
+            "BUILD_"~platform|upper~":succeed-all?",
+            housekeeping_task]) %}
+        {% if platform == site_vars["scripts_platform"] %}
+            {% if running_scripts.bool %}
+                {% do graph_sections.append([
+                    "SCRIPTS"~":succeed-all?",
+                    housekeeping_task]) %}
+            {% endif %}
+            {% if running_gen_weights.bool %}
+                {% do graph_sections.append([
+                    "GENERATE_WEIGHTS:succeed-all?",
+                    housekeeping_task
+                    ]) %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+
+{# Graph now defined as lists - convert this to the graph string #}
+{% set graph_str = namespace(str="") %}
+{% for line in graph_sections %}
+    {% if line|length > 1 %}
+        {% set graph_str.str = graph_str.str~line[0]~"=>"~line[1]~"\n" %}
+    {% else %}
+        {% set graph_str.str = graph_str.str~line[0]~"\n" %}
+    {% endif %}
+{% endfor %}
+        {# This line must be indented by 8 spaces #}
+        R1 = """ {{graph_str.str}} """
+
+{% do LOG.debug("Finished in templates/graph/generate_graph.cylc") %}

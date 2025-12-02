@@ -1,0 +1,102 @@
+#!/bin/sh
+#-----------------------------------------------------------------------------
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+
+EXEC_PATH="${BIN_DIR}/${EXEC_NAME}${PAT_EXE_EXTEN}"
+NAMELIST_FILE=configuration.nml
+XIOS_SERVER_EXEC_PATH="xios_server.exe"
+SLURM_MPMD_FILE="lfric_xios_mpmd"
+
+
+# Ensure Total ranks requested is at least 1
+#===========================================
+if [ "${TOTAL_RANKS}" = "" ] ; then
+  TOTAL_RANKS=1
+fi
+
+# Set the launcher method
+#===========================================
+if [ "${RUN_METHOD}" = "executable" ] ; then
+  LAUNCHER=""
+else
+  LAUNCHER=${RUN_METHOD}
+fi
+
+
+# Construct launcher options
+#===========================================
+LAUNCHER_OPTS=""
+if [ "${RUN_METHOD}" = "aprun" ] ; then
+  CORES_PER_NUMA_REGION="$(( CORES_PER_NODE / NUMA_REGIONS_PER_NODE ))"
+  POTENTIAL_MPI_TASKS_PER_NUMA_REGION="$(( ( CORES_PER_NUMA_REGION * HYPERTHREADS ) / OMP_NUM_THREADS ))"
+  MPI_TASKS_PER_NUMA_REGION="$(( POTENTIAL_MPI_TASKS_PER_NUMA_REGION > TOTAL_RANKS?TOTAL_RANKS:POTENTIAL_MPI_TASKS_PER_NUMA_REGION ))"
+  LAUNCHER_OPTS="-cc depth -n ${TOTAL_RANKS} -S ${MPI_TASKS_PER_NUMA_REGION} -d ${OMP_NUM_THREADS} -j ${HYPERTHREADS}"
+elif [ "${RUN_METHOD}" = "mpiexec" ] ; then
+  if [ "${SITE_MPI_LAUNCHER_OPTS}" != "" ] ; then
+    LAUNCHER_OPTS=${SITE_MPI_LAUNCHER_OPTS}
+  else
+    LAUNCHER_OPTS="-n ${TOTAL_RANKS}"
+  fi
+elif [ "${RUN_METHOD}" = "srun" ] ; then
+  if [ "${TARGET_PLATFORM}" = "ncas-ex" ] ; then
+    if (( "${CORES_PER_NODE_OVERRIDE}" > "0" )) ; then
+      NODES="$(( (TOTAL_RANKS+CORES_PER_NODE_OVERRIDE-1) / CORES_PER_NODE_OVERRIDE ))"
+    else
+      NODES="$(( (TOTAL_RANKS*OMP_NUM_THREADS+CORES_PER_NODE*HYPERTHREADS-1) / CORES_PER_NODE*HYPERTHREADS ))"
+    fi
+    CPUS_PER_TASK="$(( NODES*CORES_PER_NODE*HYPERTHREADS / TOTAL_RANKS ))"
+    if [[ ! -z "${XIOS_SERVER_MODE}" && "${XIOS_SERVER_MODE}" = "True" ]] ; then
+      LAUNCHER_OPTS="--het-group=0 --distribution=block:block --hint=nomultithread --nodes=${NODES} --ntasks=${TOTAL_RANKS} --cpus-per-task=${CPUS_PER_TASK}"
+    else
+      LAUNCHER_OPTS="--distribution=block:block --hint=nomultithread --nodes=${NODES} --ntasks=${TOTAL_RANKS} --cpus-per-task=${CPUS_PER_TASK}"
+    fi
+  else
+    LAUNCHER_OPTS="--ntasks ${TOTAL_RANKS}"
+  fi
+elif [ "${RUN_METHOD}" = "executable" ] ; then
+  LAUNCHER_OPTS=""
+fi
+
+# Construct XIOS server options
+#===========================================
+if [[ ! -z "${XIOS_SERVER_MODE}" && "${XIOS_SERVER_MODE}" = "True" ]] ; then
+  if [ "${RUN_METHOD}" = "srun" ] ; then
+    if [ "${TARGET_PLATFORM}" = "ncas-ex" ] ; then
+      XIOS_CPUS_PER_TASK="$(( xios_nodes*CORES_PER_NODE / XIOS_SERVER_RANKS ))"
+      XIOS_EXEC=" : --het-group=1 --distribution=block:block --hint=nomultithread --nodes=${xios_nodes} --ntasks=${XIOS_SERVER_RANKS} --cpus-per-task=${XIOS_CPUS_PER_TASK} ${XIOS_SERVER_EXEC_PATH}"
+    else
+      echo "0-$((TOTAL_RANKS-XIOS_SERVER_RANKS-1)) ${EXEC_PATH} ${NAMELIST_FILE}" > ${SLURM_MPMD_FILE}
+      echo "$((TOTAL_RANKS-XIOS_SERVER_RANKS))-$((TOTAL_RANKS-1)) ${XIOS_SERVER_EXEC_PATH}" >> ${SLURM_MPMD_FILE}
+      LAUNCHER_OPTS="--multi-prog ${SLURM_MPMD_FILE}"
+      EXEC_PATH=""
+      NAMELIST_FILE=""
+      XIOS_EXEC=""
+    fi
+  else
+    XIOS_CORES_PER_NODE="$(( (mpi_parts_xios+xios_nodes-1) / xios_nodes ))"
+    XIOS_CORES_PER_NUMA="$(( (XIOS_CORES_PER_NODE+NUMA_REGIONS_PER_NODE-1) / NUMA_REGIONS_PER_NODE ))"
+    XIOS_EXEC=" : -n ${XIOS_SERVER_RANKS} -S ${XIOS_CORES_PER_NUMA} ${XIOS_SERVER_EXEC_PATH}"
+  fi
+else
+  XIOS_EXEC=""
+fi
+
+# Launch the model
+#===========================================
+EXEC_COMMAND="${LAUNCHER} ${LAUNCHER_OPTS} ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_EXEC}"
+
+echo Execute command is:
+echo ""
+echo ${EXEC_COMMAND}
+echo ""
+echo Running ...
+echo ""
+${EXEC_COMMAND}
+error=$?
+if [ ${error} != 0 ] ; then
+  echo "Execution failed, Error return code ${error}."
+fi
+
+exit ${error}

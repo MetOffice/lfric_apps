@@ -1,0 +1,46 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_lfric_coupled.cylc") %}
+
+{# EX1A Groups #}
+{% do site_groups.update({
+    "lfric_coupled_ex1a_developer": [
+        "lfric_coupled_nwp_gal9-C48_ex1a_cce_fast-debug-64bit",
+    ],
+    "lfric_coupled_ex1a": [
+        "lfric_coupled_ex1a_developer",
+    ],
+    "lfric_coupled_ex1a_build": [
+        "build_lfric_coupled_ex1a_cce_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "lfric_coupled_developer": [
+        "scripts",
+        "lfric_coupled_ex1a_developer",
+    ],
+    "lfric_coupled": [
+        "lfric_coupled_developer",
+        "lfric_coupled_ex1a",
+    ],
+    "lfric_coupled_build": [
+        "lfric_coupled_ex1a_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.lfric_coupled_developer) %}
+{% do site_groups.all.extend(site_groups.lfric_coupled) %}
+{% do site_groups.build.extend(site_groups.lfric_coupled_build) %}
+
+{# EX1A Extends #}
+{% do site_groups.ex1a_developer.extend(site_groups.lfric_coupled_ex1a_developer) %}
+{% do site_groups.ex1a.extend(site_groups.lfric_coupled_ex1a) %}
+{% do site_groups.ex1a_build.extend(site_groups.lfric_coupled_ex1a_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_lfric_coupled.cylc") %}

@@ -1,0 +1,152 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test kernel that computes a mask with 1s on the cells located on edge of the
+!! domain and 0 elsewhere for W3 space.
+
+module create_edge_mask_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_create_edge_mask_kernel
+
+  @TestCase
+  type, extends(TestCase), public :: create_edge_mask_test_type
+    private
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ncells
+    integer(kind=i_def) :: ndf3, undf3
+    integer(kind=i_def), allocatable :: map3(:,:)
+    integer(kind=i_def), allocatable :: stencil_map3(:,:,:)
+    integer(kind=i_def)              :: stencil_size
+    integer(kind=i_def)              :: stencil_depth
+    real(kind=r_def),    allocatable :: mask_in(:)
+    real(kind=r_def),    allocatable :: mask_out(:)
+    real(kind=r_def),    allocatable :: answer(:)
+  contains
+    procedure SetUp
+    procedure tearDown
+    procedure test_create_edge_mask_kernel
+  end type create_edge_mask_test_type
+
+  contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap, &
+                                                    get_m3x3_stencil_dofmap_cross
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w3_m3x3_q3x3x3_size
+    implicit none
+
+    class(create_edge_mask_test_type), intent(inout) :: this
+
+    ! Quadrature (not used)
+    integer(kind=i_def) :: nqp_h, nqp_v
+
+    ! Dimensions (not used)
+    integer(kind=i_def) :: dim_space, dim_space_diff
+
+    ! Mesh
+    this%nlayers = 1
+
+    ! Setup W3 fields
+    call get_w3_m3x3_q3x3x3_size(this%ndf3, this%undf3, this%ncells, &
+                                 dim_space, dim_space_diff, &
+                                 nqp_h, nqp_v, &
+                                 this%nlayers)
+
+    allocate(this%map3(this%ndf3,this%ncells))
+    allocate(this%mask_in(this%undf3))
+    allocate(this%mask_out(this%undf3))
+
+    call get_w3_m3x3_dofmap(this%map3, this%nlayers)
+    call get_m3x3_stencil_dofmap_cross(this%stencil_map3, this%map3)
+
+    this%stencil_size=size(this%stencil_map3, dim=2)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(create_edge_mask_test_type), intent(inout) :: this
+
+    deallocate(this%map3)
+    deallocate(this%mask_in)
+    deallocate(this%mask_out)
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_create_edge_mask_kernel( this )
+
+    use create_edge_mask_kernel_mod, only : create_edge_mask_code
+
+    implicit none
+
+    class(create_edge_mask_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    integer(kind=r_def) :: cell, df
+    integer(kind=i_def) :: local_stencil_size
+
+    ! Set up input and output masks
+    this%mask_out(:) = 0.0_r_def
+    this%mask_in(:) = 0.0_r_def
+    this%stencil_depth = 1_i_def
+
+    ! Define answer
+    ! 3x3 cell domain, central cell is cell id = 5
+    allocate(this%answer(this%undf3))
+
+    this%answer(:) = 1.0_r_def
+    this%answer(5) = 0.0_r_def
+
+    do cell=1,this%ncells
+      ! as an example, force the stencil size to be smaller in outer rim
+      ! (need to do this as unit-tests setup is on a periodic domain)
+      select case(cell)
+      case(5)
+        ! Cell in domain centre
+        local_stencil_size = this%stencil_size
+      case(2,4,6,8)
+        ! Cell on domain side
+        local_stencil_size = this%stencil_size - 1
+      case(1,3,7,9)
+        ! Cell on domain corner
+        local_stencil_size = this%stencil_size - 2
+      end select
+      call create_edge_mask_code(this%nlayers,       &
+                                 this%mask_out,      &
+                                 this%mask_in,       &
+                                 local_stencil_size, &
+                                 this%stencil_map3(:,:,cell), &
+                                 this%stencil_depth, &
+                                 this%ndf3,          &
+                                 this%undf3,         &
+                                 this%map3(:,cell)   &
+                                 )
+    end do
+
+    ! Checking all DoFs
+    do df = 1,this%undf3
+      @assertEqual(this%mask_out(df),this%answer(df), tol)
+    end do
+
+    deallocate(this%answer)
+
+  end subroutine test_create_edge_mask_kernel
+
+end module create_edge_mask_kernel_mod_test

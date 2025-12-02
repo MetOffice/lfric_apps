@@ -1,0 +1,40 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/lfricinputs/tasks_scintelapi.cylc") %}
+
+{% if task_ns.conf_name == "scintelapi-basic-C48L38_C48L38" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["basic"],
+        "resolution": "C48",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C48",
+        "source_grid_levs": "38",
+        "source_grid_type": "global",
+        "target_grid_res": "C48",
+        "target_grid_levs": "38",
+        "target_grid_type": "global",
+        "source_dump": "$BIG_DATA_DIR/start_dumps/aquaplanet/Llama/aquaplanet_N48L38_C48L38.nc",
+    }) %}
+
+{% elif task_ns.conf_name == "scintelapi-basicgal-C12L70-mixingratio" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mixingratio"],
+        "resolution": "C12",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C12",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "C12",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "$UMDIR/standard_jobs/lfricinputs/inputs/basicgal_mixing_ratio.nc",
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/lfricinputs/tasks_scintelapi.cylc") %}

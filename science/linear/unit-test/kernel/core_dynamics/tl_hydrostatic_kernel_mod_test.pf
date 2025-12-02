@@ -1,0 +1,266 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Test the tangent linear of the hydrostatic computation.
+module tl_hydrostatic_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
+                                                  get_w2_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
+                                                  get_w2_m3x3_dofmap, &
+                                                  get_w3_m3x3_dofmap
+
+  use get_unit_test_q3x3x3_quadrature_mod,             &
+     only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+            get_gaussian_q3x3x3_quadrature_weights_z
+
+  use get_unit_test_q3x3x3_basis_mod, only: get_w0_q3x3x3_basis,            &
+                                            get_w0_q3x3x3_diff_basis,       &
+                                            get_w2_q3x3x3_basis,            &
+                                            get_w2_q3x3x3_diff_basis,       &
+                                            get_w3_q3x3x3_basis
+
+  use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
+  use funit
+
+  implicit none
+
+  private
+  public :: tl_hydrostatic_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: tl_hydrostatic_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type tl_hydrostatic_test_type
+
+  real(r_def), parameter :: gravity  = 10.0_r_def
+  real(r_def), parameter :: radius   = 6000000.0_r_def
+  real(r_def), parameter :: omega    = 8.0E-5_r_def
+  real(r_def), parameter :: p_zero   = 100000.0_r_def
+  real(r_def), parameter :: rd       = 300.0_r_def
+  real(r_def), parameter :: cp       = 1000.0_r_def
+  real(r_def), parameter :: scaling  = 1.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(tl_hydrostatic_test_type), intent(inout) :: this
+
+    ! The kernel uses cp
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(tl_hydrostatic_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use tl_hydrostatic_kernel_mod,     only: tl_hydrostatic_code
+
+    implicit none
+
+    class(tl_hydrostatic_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: dx = 6000.0_r_def
+    real(r_def), parameter :: dy = 1000.0_r_def
+    real(r_def), parameter :: dz = 2000.0_r_def
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def  ! r_def 64bit
+    real(r_def)            :: answer, use_tol
+
+    ! Fields
+    real(r_def), allocatable :: r_u(:)
+    real(r_def), allocatable :: exner(:)
+    real(r_def), allocatable :: theta(:)
+    real(r_def), allocatable :: ls_exner(:)
+    real(r_def), allocatable :: ls_theta(:)
+    real(r_def), allocatable :: chi1(:), chi2(:), chi3(:)
+    real(r_def), allocatable :: moist_dyn1(:), moist_dyn2(:), moist_dyn3(:)
+    real(r_def), allocatable :: ls_moist_dyn1(:), ls_moist_dyn2(:), ls_moist_dyn3(:)
+
+    integer(i_def) :: k, cell
+
+    ! Sizes
+    integer(i_def)              :: nlayers, ncells
+    integer(i_def)              :: ndf_w0, ndf_w2, ndf_w3
+    integer(i_def)              :: undf_w0, undf_w2, undf_w3
+    integer(i_def)              :: dim_space, dim_space_diff
+    integer(i_def)              :: nqp_h, nqp_v
+
+    ! Dofmaps
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_w3(:,:)
+
+    ! Basis functions
+    real(r_def),    allocatable :: basis_w0(:,:,:,:)
+    real(r_def),    allocatable :: basis_w2(:,:,:,:)
+    real(r_def),    allocatable :: basis_w3(:,:,:,:)
+    real(r_def),    allocatable :: diff_basis_w0(:,:,:,:)
+    real(r_def),    allocatable :: diff_basis_w2(:,:,:,:)
+
+    ! Weights
+    real(r_def),    allocatable :: wh(:)
+    real(r_def),    allocatable :: wv(:)
+
+    nlayers = 3
+    call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v,              &
+                                  nlayers )
+
+    call get_w0_m3x3_dofmap(map_w0)
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_w3_m3x3_dofmap(map_w3)
+
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ! Compute coordinates
+    allocate(chi1(undf_w0))
+    allocate(chi2(undf_w0))
+    allocate(chi3(undf_w0))
+
+    call get_w0_3x3x3_field(chi1, chi2, chi3, dx, dy, dz, &
+                            map_w0, nlayers)
+
+    ! Get canned basis functions
+    call get_w3_q3x3x3_basis(basis_w3)
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_w2_q3x3x3_diff_basis(diff_basis_w2)
+    call get_w0_q3x3x3_basis(basis_w0)
+    call get_w0_q3x3x3_diff_basis(diff_basis_w0)
+
+    ! Create the data
+    allocate( r_u( undf_w2 ) )
+    allocate( exner( undf_w3 ) )
+    allocate( ls_exner( undf_w3 ) )
+    allocate( theta( undf_w0 ) )
+    allocate( ls_theta( undf_w0 ) )
+    allocate( moist_dyn1( undf_w0 ) )
+    allocate( moist_dyn2( undf_w0 ) )
+    allocate( moist_dyn3( undf_w0 ) )
+    allocate( ls_moist_dyn1( undf_w0 ) )
+    allocate( ls_moist_dyn2( undf_w0 ) )
+    allocate( ls_moist_dyn3( undf_w0 ) )
+
+    do k = 0, nlayers-1
+      exner( map_w3( 1, : ) + k ) = real( scaling * dz * (k+1) )
+      ls_exner( map_w3( 1, : ) + k ) = real( scaling * dz * (k+1) )
+    end do
+    r_u(:) = 0.0_r_def
+    cell = 3
+
+    theta(:) = 1.0_r_def
+    ls_theta(:) = 300.0_r_def
+    moist_dyn1(:) = 1.0_r_def
+    moist_dyn2(:) = 1.0_r_def
+    moist_dyn3(:) = 1.0_r_def
+    ls_moist_dyn1(:) = 1.0_r_def
+    ls_moist_dyn2(:) = 1.0_r_def
+    ls_moist_dyn3(:) = 1.0_r_def
+
+    ! ls_theta_v = ls_theta * ls_mg/ls_mt = 300 * 1/1 = 300
+    ! theta_v = ls_theta_v * ( theta/ls_theta + mg/ls_mg - mt/ls_mt)
+    !         = 300 * ( 1/300 + 1- 1) =1
+    ! exner_1 = ls_exner_1 = scaling * dz (k+1) = scaling * 2 * dz  (for k=1)
+    ! exner_2 = ls_exner_2 = scaling * dz (k+2) = scaling * 3 * dz
+
+    ! r_u = - cp \nabla \Pi ls_theta_v  - cp \nabla ls_Pi theta_v)
+    ! As in this case exner=ls_exner,
+    ! r_u = - cp * (exner2 - exner_1) (ls_theta_v + theta_v)
+    ! r_u = - 1000 * 1 * ( 3dz - 2dz) ( 300 + 1) = - 1000 * 2000 * 301
+    !     = - 602000000
+
+    k = 1
+    answer = -602000000.0_r_def
+
+    call tl_hydrostatic_code( nlayers,                         &
+                              r_u,                             &
+                              exner,                           &
+                              theta,                           &
+                              moist_dyn1,                      &
+                              moist_dyn2,                      &
+                              moist_dyn3,                      &
+                              ls_exner,                        &
+                              ls_theta,                        &
+                              ls_moist_dyn1,                   &
+                              ls_moist_dyn2,                   &
+                              ls_moist_dyn3,                   &
+                              cp,                              &
+                              ndf_w2, undf_w2,                 &
+                              map_w2(:, cell),                 &
+                              basis_w2, diff_basis_w2,         &
+                              ndf_w3, undf_w3,                 &
+                              map_w3(:, cell), basis_w3,       &
+                              ndf_w0, undf_w0,                 &
+                              map_w0(:, cell),                 &
+                              basis_w0, diff_basis_w0,         &
+                              nqp_h, nqp_v, wh, wv             &
+                              )
+
+    if ( r_def == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 10.0_r_def*spacing( maxval( r_u ) )
+    end if
+    @assertEqual(answer/(cp*dz), r_u(map_w2(5, cell)+k)/(cp*dz), use_tol)
+    @assertEqual(answer/(cp*dz), r_u(map_w2(6, cell)+k)/(cp*dz), use_tol)
+
+    deallocate( r_u )
+    deallocate( exner )
+    deallocate( theta )
+    deallocate( chi1 )
+    deallocate( chi2 )
+    deallocate( chi3 )
+    deallocate( moist_dyn1 )
+    deallocate( moist_dyn2 )
+    deallocate( moist_dyn3 )
+    deallocate( map_w0 )
+    deallocate( map_w2 )
+    deallocate( map_w3 )
+    deallocate( basis_w0 )
+    deallocate( basis_w2 )
+    deallocate( basis_w3 )
+    deallocate( diff_basis_w0 )
+    deallocate( diff_basis_w2 )
+    deallocate( wh )
+    deallocate( wv )
+
+  end subroutine test_all
+
+end module tl_hydrostatic_kernel_mod_test

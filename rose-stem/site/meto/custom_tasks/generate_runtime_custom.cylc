@@ -1,0 +1,19 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/custom_tasks/generate_runtime_custom.cylc") %}
+
+{# This file is for defining custom runtimes for tasks that don't fit into #}
+{# the templating scheme. #}
+
+{# The task names should follow the templating naming convention, ie, #}
+{# "build_<task>", "run_<task>", "plot_<task>" etc. #}
+
+{# For meto, this file calls sub-files to enable different tasks for each platform, #}
+{# other sites may only have one platform so only use this file. #}
+
+{% include "site/meto/custom_tasks/generate_runtime_custom_"~task_ns.platform~".cylc" %}
+
+{% do LOG.debug("Finished in site/meto/custom_tasks/generate_runtime_custom.cylc") %}

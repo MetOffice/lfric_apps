@@ -1,0 +1,164 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/gungho_model/tasks_gungho_model_exoplanet.cylc") %}
+
+{# ###################### #}
+{# Exoplanet Group Tasks #}
+{# ###################### #}
+
+{% if task_ns.conf_name == "exo-hs-C24_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["held-suarez", "io_clim"],
+        "resolution": "C24_MG",
+        "DT": 3600,
+        "mpi_parts": 54,
+        "tsteps": 21600,
+        "crun": 3,
+        "crun_compare": false,
+        "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR held-suarez earth dcmip 30 31"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-hs-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["held-suarez", "io_clim"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "mpi_parts": 216,
+        "tsteps": 43200,
+        "crun": 3,
+        "crun_compare": false,
+         "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR held-suarez earth dcmip 30 31"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-el-C24_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["earth-like", "io_clim"],
+        "resolution": "C24_MG",
+        "DT": 3600,
+        "mpi_parts": 54,
+        "tsteps": 28800,
+        "crun": 4,
+        "crun_compare": false,
+        "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR earth-like earth uniform 32 33"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-el-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["earth-like", "io_clim"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "mpi_parts": 216,
+        "tsteps": 57600,
+        "crun": 4,
+        "crun_compare": false,
+        "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR earth-like earth uniform 32 33"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-tle-C24_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["tidally-locked-earth", "io_clim"],
+        "resolution": "C24_MG",
+        "DT": 3600,
+        "mpi_parts": 54,
+        "tsteps": 28800,
+        "crun": 4,
+        "crun_compare": false,
+        "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR tidally-locked-earth earth uniform 32 33"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-tle-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["tidally-locked-earth", "io_clim"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "mpi_parts": 216,
+        "tsteps": 57600,
+        "crun": 4,
+        "crun_compare": false,
+        "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR tidally-locked-earth earth uniform 32 33"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-shj-C24_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["shallow-hot-jupiter", "io_clim"],
+        "resolution": "C24_MG",
+        "DT": 2400,
+        "mpi_parts": 54,
+        "tsteps": 43200,
+        "crun": 4,
+        "crun_compare": false,
+        "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR shallow-hot-jupiter shallow-hot-jupiter uniform 32 33"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-shj-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["shallow-hot-jupiter", "io_clim"],
+        "resolution": "C48_MG",
+        "DT": 1200,
+        "mpi_parts": 216,
+        "tsteps": 86400,
+        "crun": 4,
+        "crun_compare": false,
+        "wallclock": 120,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR shallow-hot-jupiter shallow-hot-jupiter uniform 32 33"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-dhj-C24_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["deep-hot-jupiter", "io_clim"],
+        "resolution": "C24_MG",
+        "DT": 30,
+        "mpi_parts": 54,
+        "tsteps": 2880,
+        "crun": 2,
+        "crun_compare": false,
+        "wallclock": 180,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR deep-hot-jupiter deep-hot-jupiter uniform 32 33"
+    }) %}
+
+{% elif task_ns.conf_name == "exo-dhj-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["deep-hot-jupiter", "io_clim"],
+        "resolution": "C48_MG",
+        "DT": 30,
+        "mpi_parts": 216,
+        "tsteps": 2880,
+        "crun": 2,
+        "crun_compare": false,
+        "wallclock": 180,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR deep-hot-jupiter deep-hot-jupiter uniform 32 33"
+    }) %}
+
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/gungho_model/tasks_gungho_model_exoplanet.cylc") %}

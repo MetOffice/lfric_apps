@@ -1,0 +1,52 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_solver.cylc") %}
+
+{# gadi Groups #}
+{% do site_groups.update({
+    "solver_gadi_developer": [
+        "solver_bicgstab-C24_gadi_intel_fast-debug-64bit",
+        "solver_cg-C24_gadi_intel_fast-debug-64bit",
+        "solver_fgmres-C24_gadi_intel_fast-debug-64bit",
+        "solver_gcr-C24_gadi_intel_fast-debug-64bit",
+        "solver_gmres-C24_gadi_intel_fast-debug-64bit",
+        "solver_jacobi-C24_gadi_intel_fast-debug-64bit",
+        "solver_prec_only-C24_gadi_intel_fast-debug-64bit",
+    ],
+    "solver_gadi": [
+        "solver_gadi_developer",
+    ],
+    "solver_gadi_build": [
+        "build_solver_gadi_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "solver_developer": [
+        "scripts",
+        "solver_gadi_developer",
+    ],
+    "solver": [
+        "solver_developer",
+        "solver_gadi",
+    ],
+    "solver_build": [
+        "solver_gadi_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.solver_developer) %}
+{% do site_groups.all.extend(site_groups.solver) %}
+{% do site_groups.build.extend(site_groups.solver_build) %}
+
+{# gadi Extends #}
+{% do site_groups.gadi_developer.extend(site_groups.solver_gadi_developer) %}
+{% do site_groups.gadi.extend(site_groups.solver_gadi) %}
+{% do site_groups.gadi_build.extend(site_groups.solver_gadi_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_solver.cylc") %}

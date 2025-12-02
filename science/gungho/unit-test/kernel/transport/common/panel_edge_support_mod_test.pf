@@ -1,0 +1,222 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Tests support routines for handling of cubed sphere panel edges
+
+module panel_edge_support_mod_test
+
+  use constants_mod,                  only: i_def, l_def
+
+  implicit none
+
+  public :: crosses_panel_edge_test
+  public :: crosses_rotated_panel_edge_test
+  public :: rotated_panel_neighbour_test
+
+contains
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine crosses_panel_edge_test()
+    use funit
+    use panel_edge_support_mod,         only: crosses_panel_edge
+
+    implicit none
+
+    integer(kind=i_def) :: edge_dist_left, edge_dist_right
+    integer(kind=i_def) :: extent_size, panel_id, direction
+    integer(kind=i_def) :: order, num_faces_to_check, dof_L, dof_R
+    integer(kind=i_def) :: ndep, ndf_depk, undf_depk
+    logical(kind=l_def) :: crosses_edge, only_rotated
+    integer(kind=i_def), dimension(4) :: map_depk
+    integer(kind=i_def),  allocatable :: dep_highest_k(:)
+
+    ! Variables that will be the same for all tests
+    direction = 1
+    dof_L = 1
+    dof_R = 3
+    ndf_depk = 4
+    extent_size = 5
+    ndep = 2*extent_size+1
+    panel_id = 1
+    only_rotated = .false.
+    num_faces_to_check = 2
+    undf_depk = ndf_depk*ndep
+    order = 2
+    map_depk = (/ 1, 1+ndep, 1+2*ndep, 1+3*ndep /)
+
+    allocate(dep_highest_k(undf_depk))
+
+    ! Test 1: not near panel edge in either direction
+    edge_dist_left = 50
+    edge_dist_right = 10
+    dep_highest_k(:) = 1
+
+    crosses_edge = crosses_panel_edge(                                         &
+        edge_dist_left, edge_dist_right, extent_size, order,                   &
+        num_faces_to_check, only_rotated, panel_id, direction, dof_L, dof_R,   &
+        dep_highest_k, ndep, ndf_depk, undf_depk, map_depk                     &
+    )
+
+    @assertFalse(crosses_edge)
+
+    ! Test 2: immediately near an edge (left)
+    edge_dist_left = 2
+    edge_dist_right = 6
+    dep_highest_k(:) = 1
+
+    crosses_edge = crosses_panel_edge(                                         &
+        edge_dist_left, edge_dist_right, extent_size, order,                   &
+        num_faces_to_check, only_rotated, panel_id, direction, dof_L, dof_R,   &
+        dep_highest_k, ndep, ndf_depk, undf_depk, map_depk                     &
+    )
+
+    @assertTrue(crosses_edge)
+
+    ! Test 3: immediately near an edge (right)
+    edge_dist_left = 7
+    edge_dist_right = 2
+    dep_highest_k(:) = 1
+
+    crosses_edge = crosses_panel_edge(                                         &
+        edge_dist_left, edge_dist_right, extent_size, order,                   &
+        num_faces_to_check, only_rotated, panel_id, direction, dof_L, dof_R,   &
+        dep_highest_k, ndep, ndf_depk, undf_depk, map_depk                     &
+    )
+
+    @assertTrue(crosses_edge)
+
+    ! Test 4: near edge, but integer calculation doesn't cross it
+    edge_dist_left = 7
+    edge_dist_right = 4
+    ! Corresponds to positive flow (when the edge is to the right)
+    dep_highest_k(:) = -1
+    dep_highest_k(map_depk(1)+2) = 1
+    dep_highest_k(map_depk(1)+3) = 1
+    dep_highest_k(map_depk(1)+4) = 1
+    dep_highest_k(map_depk(3)+2) = 1
+    dep_highest_k(map_depk(3)+3) = 1
+    dep_highest_k(map_depk(3)+4) = 1
+
+    crosses_edge = crosses_panel_edge(                                         &
+        edge_dist_left, edge_dist_right, extent_size, order,                   &
+        num_faces_to_check, only_rotated, panel_id, direction, dof_L, dof_R,   &
+        dep_highest_k, ndep, ndf_depk, undf_depk, map_depk                     &
+    )
+
+    @assertFalse(crosses_edge)
+
+    ! Test 5: near edge, and integer calculation does cross it
+    edge_dist_left = 4
+    edge_dist_right = 7
+    ! Corresponds to positive flow
+    dep_highest_k(:) = -1
+    dep_highest_k(map_depk(1)+2) = 1
+    dep_highest_k(map_depk(1)+3) = 1
+    dep_highest_k(map_depk(1)+4) = 1
+    dep_highest_k(map_depk(3)+2) = 1
+    dep_highest_k(map_depk(3)+3) = 1
+    dep_highest_k(map_depk(3)+4) = 1
+
+    crosses_edge = crosses_panel_edge(                                         &
+        edge_dist_left, edge_dist_right, extent_size, order,                   &
+        num_faces_to_check, only_rotated, panel_id, direction, dof_L, dof_R,   &
+        dep_highest_k, ndep, ndf_depk, undf_depk, map_depk                     &
+    )
+
+    @assertTrue(crosses_edge)
+
+    deallocate(dep_highest_k)
+
+  end subroutine crosses_panel_edge_test
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine crosses_rotated_panel_edge_test()
+    use funit
+    use panel_edge_support_mod,         only: crosses_rotated_panel_edge
+
+    implicit none
+
+    integer(kind=i_def) :: edge_dist_left, edge_dist_right
+    integer(kind=i_def) :: extent_size, panel_id, direction
+    logical(kind=l_def) :: crosses_edge
+
+    ! Test 1: not near panel edge in either direction
+    edge_dist_left = 50
+    edge_dist_right = 6
+    extent_size = 4
+    panel_id = 1
+    direction = 1
+    crosses_edge = crosses_rotated_panel_edge(                                 &
+        edge_dist_left, edge_dist_right, extent_size, panel_id, direction      &
+    )
+
+    @assertFalse(crosses_edge)
+
+    ! Test 2: near non-rotated panel edge
+    edge_dist_left = 2
+    edge_dist_right = 9
+    extent_size = 5
+    panel_id = 2
+    direction = 1
+    crosses_edge = crosses_rotated_panel_edge(                                 &
+        edge_dist_left, edge_dist_right, extent_size, panel_id, direction      &
+    )
+
+    @assertFalse(crosses_edge)
+
+    ! Test 3: near rotated panel edge
+    edge_dist_left = 2
+    edge_dist_right = 9
+    extent_size = 5
+    panel_id = 1
+    direction = 1
+    crosses_edge = crosses_rotated_panel_edge(                                 &
+        edge_dist_left, edge_dist_right, extent_size, panel_id, direction      &
+    )
+
+    @assertTrue(crosses_edge)
+
+  end subroutine crosses_rotated_panel_edge_test
+
+  !-----------------------------------------------------------------------------
+
+  @test
+  subroutine rotated_panel_neighbour_test()
+    use funit
+    use panel_edge_support_mod,         only: rotated_panel_neighbour
+
+    implicit none
+
+    integer(kind=i_def) :: rotation_flag, panel_id, direction
+
+    ! Test 1: no rotation
+    panel_id = 1
+    direction = 3
+    rotation_flag = rotated_panel_neighbour(panel_id, direction)
+
+    @assertEqual(rotation_flag, 0)
+
+    ! Test 2: anti-clockwise rotation
+    panel_id = 1
+    direction = 1
+    rotation_flag = rotated_panel_neighbour(panel_id, direction)
+
+    @assertEqual(rotation_flag, -1)
+
+    ! Test 3: clockwise rotation
+    panel_id = 1
+    direction = 2
+    rotation_flag = rotated_panel_neighbour(panel_id, direction)
+
+    @assertEqual(rotation_flag, 1)
+
+  end subroutine rotated_panel_neighbour_test
+
+end module panel_edge_support_mod_test

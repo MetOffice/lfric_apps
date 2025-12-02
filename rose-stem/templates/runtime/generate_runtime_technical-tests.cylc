@@ -1,0 +1,83 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/generate_runtime_technical-tests.cylc") %}
+
+{# Generate runtime sections for integration/unit tests build and run parts #}
+
+{% set src_path = tasks_to_run[task]["application_dir"] %}
+{% if "unit_test" in task %}
+    {% set mode = "unit-tests" %}
+{% else %}
+    {% set mode = "integration-tests" %}
+{% endif %}
+
+{% if task.startswith("build") %}
+{# generate the runtime section for unit/integration build tasks #}
+
+{# Set the family inheritance for this task #}
+    {% set inherit = namespace(str="") %}
+    {% set inherit.str = "BUILD_"~task_ns.application|upper~"_"~task_ns.platform|upper %}
+    {% for family in task_values["build_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    {# Build Script #}
+    {% set build_script_str = "rm -rf $WORKING_DIR ; "~
+                              "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/build" %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script={{build_script_str}}
+        execution time limit = PT{{task_values["build_wallclock"]}}M
+
+        [[[environment]]]
+            SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
+            APPS_ROOT_DIR = $SOURCE_ROOT/lfric_apps
+            CORE_ROOT_DIR = $SOURCE_ROOT/lfric_core
+            PHYSICS_ROOT = $SOURCE_ROOT
+            WORKING_DIR = {{working_dir}}/{{mode}}
+            RDEF_PRECISION = {{task_values["precision"]["rdef"]}}
+            BIN_DIR = {{bin_dir}}
+
+        [[[directives]]]
+    {{ set_task_resources(task_values["build_cpus"], task_values["build_memory"]) }}
+
+
+{% else %}
+{# generate the runtime section for unit/integration run tasks #}
+
+    {# Define a cylc family for this task #}
+    [[{{task_family|upper}}]]
+        inherit={{task_ns.application|upper}}_{{task_ns.platform|upper}}
+
+    {# Set the family inheritance for this task #}
+    {% set inherit = namespace(str="") %}
+    {% set inherit.str = task_family|upper %}
+    {% for family in task_values["techtests_families"] %}
+        {% set inherit.str = inherit.str~","~family|upper %}
+    {% endfor %}
+
+    {# Run script #}
+    {% set run_script_str = "make -C $SOURCE_DIRECTORY -j 6 "~mode~"/rerun" %}
+
+    [[{{task}}]]
+        inherit={{inherit.str|upper}}
+        script={{run_script_str}}
+        execution time limit = PT{{task_values["tech-tests_wallclock"]}}M
+
+        [[[environment]]]
+            SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
+            APPS_ROOT_DIR = $SOURCE_ROOT/lfric_apps
+            CORE_ROOT_DIR = $SOURCE_ROOT/lfric_core
+            WORKING_DIR = {{working_dir}}/{{mode}}
+            BIN_DIR = {{bin_dir}}
+
+        [[[directives]]]
+    {{ set_task_resources(task_values["tech-tests_cpus"], task_values["tech-tests_memory"]) }}
+
+{% endif %}
+
+{% do LOG.debug("Finished in templates/runtime/generate_runtime_technical-tests.cylc") %}

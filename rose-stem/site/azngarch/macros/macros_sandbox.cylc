@@ -1,0 +1,55 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/azngarch/macros/macros_sandbox.cylc") %}
+
+{% set cores_per_node = 96 %}
+
+{# Macro to set wallclock, input is in minutes #}
+{% macro set_wallclock(time) %}
+            --time=00:{{time|int}}:00
+{% endmacro %}
+
+{% macro set_task_resources(mpi_ranks,
+                        memory,
+                        threads=1,
+                        xios_nodes=0,
+                        ocean_nodes=0,
+                        river_nodes=0,
+                        ranks_per_node=0,
+                        ranks_depth_pad=1) %}
+
+    {# Max ranks that physically fit on a node, given threads-per-rank #}
+    {% set max_fit = (cores_per_node // threads) | int %}
+
+    {# Apply user cap #}
+    {% if ranks_per_node and ranks_per_node > 0 %}
+        {% set eff_rpn = [ranks_per_node|int, max_fit]|min %}
+    {% else %}
+        {% set eff_rpn = max_fit %}
+    {% endif %}
+    {# Ensure at least 1 #}
+    {% if eff_rpn < 1 %}
+        {% set eff_rpn = 1 %}
+    {% endif %}
+
+    {# Nodes needed: ceil(mpi_ranks / eff_rpn) #}
+    {% set nnodes = ((mpi_ranks + eff_rpn - 1) // eff_rpn) | int %}
+        --nodes={{ nnodes }}
+        --ntasks={{ mpi_ranks|int }}
+        --cpus-per-task={{ threads|int }}
+        --ntasks-per-node={{ (eff_rpn if mpi_ranks >= eff_rpn else mpi_ranks)|int }}
+        --hint=nomultithread
+        --distribution=block:block
+       {{ set_memory(memory) }}
+{% endmacro %}
+
+{% macro set_memory(mem) %}
+    {% set value = mem[0]|int %}
+    {% set unit = mem[1] %}
+        --mem-per-cpu={{value}}{{unit[:1]}}
+{% endmacro %}
+
+{% do LOG.debug("Finished in site/azngarch/macros/macros_sandbox.cylc") %}

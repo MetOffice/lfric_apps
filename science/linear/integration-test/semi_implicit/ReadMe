@@ -1,0 +1,1 @@
+The semi_implicit_configuration.nml matches the configuration from rose-app-semi-implicit.conf, in gungho. Except with the addition of ls_option='analytic', and moisture_formulation='traditional'

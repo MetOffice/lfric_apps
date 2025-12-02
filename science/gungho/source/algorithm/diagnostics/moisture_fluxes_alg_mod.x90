@@ -1,0 +1,171 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!>@ brief Compute the moisture mass increments due to surface inflow and outflow fluxes.
+
+module moisture_fluxes_alg_mod
+
+  use compute_bottom_mass_from_flux_kernel_mod,   &
+                                only: compute_bottom_mass_from_flux_kernel_type
+  use constants_mod,            only: r_def, i_def
+  use function_space_collection_mod, &
+                                only: function_space_collection
+  use field_collection_mod,     only: field_collection_type
+  use field_mod,                only: field_type
+  use fs_continuity_mod,        only: W3
+  use function_space_mod,       only: function_space_type
+  use log_mod,                  only: log_event,         &
+                                      log_scratch_space, &
+                                      LOG_LEVEL_INFO
+  use io_config_mod,            only: subroutine_timers
+  use timer_mod,                only: timer
+  use sci_multi_extract_kernel_mod, &
+                                only: multi_extract_kernel_type
+
+  implicit none
+
+  private
+
+  public :: moisture_fluxes_alg
+
+contains
+  !> @brief Compute the moisture masses from source and sink fluxes.
+  !> @details Computes \int F * dt * dA, where F is source/sink flux of moisture,
+  !> dt is the time step and dA is the area of the bottom face of the column.
+  !> This is first calculated column by column, and then summed to give a global value
+  !> for each type of flux.
+  !> The physical processes contributing fluxes that we consider are:
+  !> 1. Evaporation from the sea in the boundary layer scheme.
+  !>    (N.B. this can be extended to include moisture fluxes from other tiles
+  !>    once these are included. Currently they are not initialised to zero so
+  !>    cannot be included. Then we will sum over tiles.)
+  !> 2. Precipitation associated with the convection scheme (rain and snow).
+  !> 3. Precipitation associated with the microphysics scheme (rain and snow).
+  !> @param[in] microphysics_fields Bundle of microphysics fields
+  !> @param[in] convection_fields Bundle of convection fields
+  !> @param[in] turbulence_fields Bundle of turbulence fields
+  !> @param[in] area W2 field with areas of faces
+  !> @param[in] dt The model timestep length
+  subroutine moisture_fluxes_alg( microphysics_fields, &
+                                  convection_fields,   &
+                                  turbulence_fields,   &
+                                  area,                &
+                                  dt                   &
+                                )
+
+    implicit none
+
+    type(field_collection_type), intent( in ) :: microphysics_fields
+    type(field_collection_type), intent( in ) :: convection_fields
+    type(field_collection_type), intent( in ) :: turbulence_fields
+    type(field_type),            intent( in ) :: area
+    real(kind=r_def),            intent( in ) :: dt
+
+    ! Local variables
+    type(function_space_type), pointer        :: fs_2d => null()
+    type(field_type)                          :: mass
+    type(field_type)                          :: fqw_total
+    type(field_type), pointer                 :: ls_rain  => null()
+    type(field_type), pointer                 :: ls_snow  => null()
+    type(field_type), pointer                 :: ls_graup => null()
+    type(field_type), pointer                 :: conv_rain  => null()
+    type(field_type), pointer                 :: conv_snow  => null()
+    type(field_type), pointer                 :: moist_flux_bl => null()
+    real(kind=r_def)                          :: bl_source_mass, mp_sink_mass, conv_sink_mass
+    real(kind=r_def)                          :: ls_rain_mass, ls_snow_mass, ls_graup_mass
+    real(kind=r_def)                          :: conv_rain_mass, conv_snow_mass
+    integer(kind=i_def)                       :: mesh
+
+
+    if ( subroutine_timers ) call timer('moisture_fluxes_alg')
+
+    mesh = area%get_mesh_id()
+    call microphysics_fields%get_field('ls_rain', ls_rain)
+    call microphysics_fields%get_field('ls_snow', ls_snow)
+    call microphysics_fields%get_field('ls_graup', ls_graup)
+    call convection_fields%get_field('conv_rain', conv_rain)
+    call convection_fields%get_field('conv_snow', conv_snow)
+    call turbulence_fields%get_field('moist_flux_bl', moist_flux_bl)
+    fs_2d => ls_rain%get_function_space()
+
+    call ls_rain%copy_field_properties(fqw_total)
+
+    ! Initialise Mass field
+    call mass%initialise( vector_space = fs_2d )
+
+    ! Obtain total moisture fluxes from the surface
+    call invoke( multi_extract_kernel_type(fqw_total, moist_flux_bl, 1, 1) )
+
+    ! Compute bl source flux
+    call invoke( setval_c(mass, 0.0_r_def),                             &
+                 compute_bottom_mass_from_flux_kernel_type( mass,       &
+                                                            fqw_total,  &
+                                                            area,       &
+                                                            dt          &
+                                                          ),            &
+                 sum_X(bl_source_mass, mass),                           &
+    ! Compute microphysics sink mass
+                 setval_c(mass, 0.0_r_def),                             &
+                 compute_bottom_mass_from_flux_kernel_type( mass,       &
+                                                            ls_rain,    &
+                                                            area,       &
+                                                            dt          &
+                                                          ),            &
+                 sum_X(ls_rain_mass, mass),                             &
+                 setval_c(mass, 0.0_r_def),                             &
+                 compute_bottom_mass_from_flux_kernel_type( mass,       &
+                                                            ls_snow,    &
+                                                            area,       &
+                                                            dt          &
+                                                          ),            &
+                 sum_X(ls_snow_mass, mass),                             &
+                 setval_c(mass, 0.0_r_def),                             &
+                 compute_bottom_mass_from_flux_kernel_type( mass,       &
+                                                            ls_graup,   &
+                                                            area,       &
+                                                            dt          &
+                                                          ),            &
+                 sum_X(ls_graup_mass, mass),                            &
+    ! Compute convective preciptation sink mass
+                 setval_c(mass, 0.0_r_def),                             &
+                 compute_bottom_mass_from_flux_kernel_type( mass,       &
+                                                            conv_rain,  &
+                                                            area,       &
+                                                            dt          &
+                                                          ),            &
+                 sum_X(conv_rain_mass, mass),                           &
+                 setval_c(mass, 0.0_r_def),                             &
+                 compute_bottom_mass_from_flux_kernel_type( mass,       &
+                                                            conv_snow,  &
+                                                            area,       &
+                                                            dt          &
+                                                          ),            &
+                 sum_X(conv_snow_mass, mass)                            &
+                )
+
+    mp_sink_mass = ls_rain_mass + ls_snow_mass + ls_graup_mass
+    conv_sink_mass = conv_rain_mass + conv_snow_mass
+
+    write( log_scratch_space, '(A, E32.12)' ) &
+          'Conservation: boundary layer moisture flux in ', bl_source_mass
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    write( log_scratch_space, '(A, E32.12)' ) &
+          'Conservation: microphysics moisture flux out ', mp_sink_mass
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    write( log_scratch_space, '(A, E32.12)' ) &
+          'Conservation: convective moisture flux out ', conv_sink_mass
+
+    call log_event( log_scratch_space, LOG_LEVEL_INFO )
+
+    nullify( fs_2d )
+    nullify( ls_rain, ls_snow, ls_graup, conv_rain, conv_snow, moist_flux_bl )
+
+    if ( subroutine_timers ) call timer('moisture_fluxes_alg')
+
+  end subroutine moisture_fluxes_alg
+
+end module moisture_fluxes_alg_mod

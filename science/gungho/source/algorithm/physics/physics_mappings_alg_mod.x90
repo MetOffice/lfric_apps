@@ -1,0 +1,318 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2017 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!>@brief A wrapper for mappings of FE fields to physics fields
+module physics_mappings_alg_mod
+
+  use base_mesh_config_mod,             only: geometry, &
+                                              geometry_spherical
+  use constants_mod,                    only: r_def, i_def, l_def
+  use sci_fem_constants_mod,            only: get_rmultiplicity_fv, get_qr_fv
+  use field_mod,                        only: field_type
+  use finite_element_config_mod,        only: coord_system, &
+                                              coord_system_native
+  use fs_continuity_mod,                only: W3, WTHETA, W2, W2H
+  use function_space_mod,               only: function_space_type
+  use function_space_collection_mod,    only: function_space_collection
+  use sci_galerkin_projection_alg_mod,  only: galerkin_projection_algorithm
+  use sci_geometric_constants_mod,      only: get_height_fv, get_panel_id, &
+                                              get_coordinates,             &
+                                              get_face_selector_ew,        &
+                                              get_face_selector_ns
+  use integer_field_mod,                only: integer_field_type
+  use log_mod,                          only: LOG_LEVEL_ERROR, log_event, &
+                                              LOG_LEVEL_DEBUG
+  use mesh_mod,                         only: mesh_type
+  use quadrature_xyoz_mod,              only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,     only: quadrature_rule_gaussian_type
+  use physics_config_mod,               only: sample_physics_scalars, &
+                                              sample_physics_winds
+  use sci_sample_w3_to_wtheta_kernel_mod, &
+                                        only: sample_w3_to_wtheta_kernel_type
+  use sci_sample_wtheta_to_w3_kernel_mod, &
+                                        only: sample_wtheta_to_w3_kernel_type
+  use sci_convert_hdiv_field_kernel_mod, &
+                                        only: convert_hdiv_field_kernel_type
+  use sci_dg_convert_hdiv_field_kernel_mod, &
+                                        only: dg_convert_hdiv_field_kernel_type
+  use sci_convert_hdiv_native_kernel_mod, &
+                                        only: convert_hdiv_native_kernel_type
+  use sci_dg_convert_hdiv_native_kernel_mod, &
+                                        only: dg_convert_hdiv_native_kernel_type
+  use sci_convert_cart2sphere_vector_kernel_mod, &
+                                        only: convert_cart2sphere_vector_kernel_type
+  use sci_nodal_xyz_coordinates_kernel_mod, &
+                                        only: nodal_xyz_coordinates_kernel_type
+  use sci_field_minmax_alg_mod,         only: log_field_minmax
+
+  implicit none
+
+  private
+
+  public :: map_physics_scalars, map_physics_winds, split_wind_alg
+
+contains
+
+  !> @details An algorithm to map native FE scalar fields to the appropriate
+  !>          location for the FD physics codes
+  !> @param[in,out] target_field Field in the target space
+  !> @param[in]     source_field Field in the source (native) space
+  subroutine map_physics_scalars(target_field, source_field)
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: target_field
+    type( field_type ), intent( in )    :: source_field
+
+    ! quadrature rule
+    type( quadrature_xyoz_type ), pointer :: qr
+    type( field_type )                    :: projected_field(1)
+    type( field_type ), pointer           :: height_w3
+    type( field_type ), pointer           :: height_wt
+    type(field_type), pointer             :: chi(:)
+    type(field_type), pointer             :: panel_id
+    type( mesh_type ),  pointer           :: mesh
+    integer( kind=i_def )                 :: space_dim
+
+    call log_field_minmax( LOG_LEVEL_DEBUG, 'source field', source_field )
+
+    ! Currently only coded for fields on the same mesh.
+    !
+    mesh     => source_field%get_mesh()
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+
+    if ( sample_physics_scalars ) then
+      ! Determine situation from number of DoFs
+      ! First check that both fields are lowest order
+      if (.not. ((target_field%get_element_order_h() == 0) .and. &
+                 (target_field%get_element_order_v() == 0) .and. &
+                 (source_field%get_element_order_h() == 0) .and. &
+                 (source_field%get_element_order_v() == 0))) then
+        call log_event('sample_physics_scalars only works with the lowest order spaces', &
+                       LOG_LEVEL_ERROR)
+      end if
+
+      ! Now determine situation depending on function spaces
+      if (( target_field%which_function_space() == WTHETA ) &
+           .and. ( source_field%which_function_space() == W3 ) ) then
+        ! Target is lowest order Wtheta, source is lowest order W3
+        height_w3 => get_height_fv(W3, mesh%get_id() )
+        height_wt => get_height_fv(WTHETA, mesh%get_id() )
+        call invoke( sample_w3_to_wtheta_kernel_type(target_field, source_field, &
+                                                     height_wt, height_w3 ) )
+
+      elseif (( target_field%which_function_space() == W3 ) &
+              .and. ( source_field%which_function_space() == WTHETA )) then
+        ! Target is lowest order W3, source is lowest order Wtheta
+        call invoke( sample_wtheta_to_w3_kernel_type(target_field, source_field) )
+      else
+        call log_event('sample_physics_scalars only works with lowest order W3 and Wtheta fields', &
+                       LOG_LEVEL_ERROR)
+      end if
+
+    else
+      ! Do galerkin projection
+      space_dim = 1_i_def
+      qr => get_qr_fv()
+      call projected_field(1)%initialise( vector_space = target_field%get_function_space() )
+      call galerkin_projection_algorithm( projected_field, source_field, &
+                                          chi, panel_id, qr )
+      call invoke( setval_X(target_field, projected_field(1)) )
+    end if
+
+    call log_field_minmax( LOG_LEVEL_DEBUG, 'target field', target_field )
+
+  end subroutine map_physics_scalars
+
+  !> @details An algorithm to map native FE wind fields to the appropriate
+  !>          location for the FD physics codes
+  !> @param[inout] u1_field Component of wind in the target space
+  !> @param[inout] u2_field Component of wind in the target space
+  !> @param[inout] u3_field Component of wind in the target space
+  !> @param[in]    source_field Wind field in the source (native) space
+  subroutine map_physics_winds(u1_field, u2_field, u3_field, source_field)
+
+    implicit none
+
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: u1_field, u2_field, u3_field
+    type( field_type ), intent( in )    :: source_field
+    type( field_type )                  :: wind_map(3), physical_chi(3)
+    type( field_type ), pointer         :: chi(:)
+    type( field_type ), pointer         :: panel_id
+    ! quatrature rule
+    type( quadrature_xyoz_type ), pointer :: qr
+    type( field_type )                    :: projected_field(3)
+    type( mesh_type ), pointer            :: mesh
+    logical( kind=l_def )                 :: optimised_conversion
+
+    mesh =>  source_field%get_mesh()
+
+    ! get chi field
+    chi      => get_coordinates( mesh%get_id() )
+    panel_id => get_panel_id( mesh%get_id() )
+
+    if (sample_physics_winds) then
+
+      call u1_field%copy_field_properties(wind_map(1))
+      call u1_field%copy_field_properties(wind_map(2))
+      call u1_field%copy_field_properties(wind_map(3))
+      call invoke( setval_c(wind_map(1), 0.0_r_def), &
+                   setval_c(wind_map(2), 0.0_r_def), &
+                   setval_c(wind_map(3), 0.0_r_def)  &
+                   )
+
+      optimised_conversion = (                                                 &
+        coord_system == coord_system_native                                    &
+        .and. u1_field%get_element_order_h() == 0                              &
+        .and. u1_field%get_element_order_v() == 0                              &
+      )
+      if (optimised_conversion) then
+        call invoke( dg_convert_hdiv_native_kernel_type(wind_map, source_field, chi, panel_id) )
+      else
+        call invoke( dg_convert_hdiv_field_kernel_type(wind_map, source_field, chi, panel_id) )
+      end if
+
+      if ( geometry == geometry_spherical ) then
+        call u1_field%copy_field_properties(physical_chi(1))
+        call u1_field%copy_field_properties(physical_chi(2))
+        call u1_field%copy_field_properties(physical_chi(3))
+        call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id) )
+        call invoke( convert_cart2sphere_vector_kernel_type(wind_map, physical_chi) )
+      end if
+
+      call invoke( name = "copy_wind_fields",       &
+                   setval_X(u1_field, wind_map(1)), &
+                   setval_X(u2_field, wind_map(2)), &
+                   setval_X(u3_field, wind_map(3)) )
+
+    else
+
+      ! This method remains for posterity, but should be used with caution.
+      qr => get_qr_fv()
+
+      call projected_field(1)%initialise( vector_space = u1_field%get_function_space() )
+      call projected_field(2)%initialise( vector_space = u2_field%get_function_space() )
+      call projected_field(3)%initialise( vector_space = u3_field%get_function_space() )
+      call galerkin_projection_algorithm( projected_field, source_field, &
+                                          chi, panel_id, qr )
+      call invoke( name = "copy_wind_fields2",             &
+                   setval_X(u1_field, projected_field(1)), &
+                   setval_X(u2_field, projected_field(2)), &
+                   setval_X(u3_field, projected_field(3)) )
+    end if
+
+  end subroutine map_physics_winds
+
+  !> @details Splits a 3D wind field into Horizontal (on W2H) and Vertical (on W2V)
+  !>          fields after projecting to physical space using the Piola transform
+  !> @param[in,out] u1_wind  Meridional wind component
+  !> @param[in,out] u2_wind  Zonal wind component
+  !> @param[in,out] u3_wind  Vertical wind component
+  !> @param[in] wind         3D wind field
+  !> @param[in] mesh         Mesh
+  subroutine split_wind_alg(u1_wind, u2_wind, u3_wind, &
+                            wind, mesh)
+
+    use sci_extract_w_kernel_mod,  only: extract_w_kernel_type
+    use sci_extract_uv_kernel_mod, only: extract_uv_kernel_type
+
+    implicit none
+
+    type(field_type), intent(inout)  :: u1_wind, u2_wind, u3_wind
+    type(field_type), intent(in)     :: wind
+    type(mesh_type),  intent(in), pointer :: mesh
+
+    type(field_type), pointer    :: chi(:)
+    type(field_type), pointer    :: panel_id
+    type(field_type)             :: physical_wind(3)
+    type(field_type)             :: physical_chi(3)
+    type(field_type), pointer    :: w2_rmultiplicity
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    integer(i_def)               :: i, fs_id
+    logical(l_def)               :: optimised_conversion
+
+    ! get chi field
+    chi => get_coordinates(mesh%get_id())
+    panel_id => get_panel_id(mesh%get_id())
+
+    ! Create intermediate fields
+    do i = 1,3
+      call wind%copy_field_properties(physical_wind(i))
+      call wind%copy_field_properties(physical_chi(i))
+      call invoke( setval_c(physical_wind(i), 0.0_r_def) )
+    end do
+
+    w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() )
+
+    call invoke( setval_c(u1_wind, 0.0_r_def), &
+                 setval_c(u2_wind, 0.0_r_def), &
+                 setval_c(u3_wind, 0.0_r_def) )
+
+    ! Convert coordinate field to physical space
+
+    call invoke( nodal_xyz_coordinates_kernel_type(physical_chi, chi, panel_id) )
+
+    ! Convert 3D wind field to 3 components using the Piola transform
+
+    optimised_conversion = (                                                   &
+      coord_system == coord_system_native                                      &
+      .and. wind%get_element_order_h() == 0                                    &
+      .and. wind%get_element_order_v() == 0                                    &
+    )
+    if (optimised_conversion) then
+      call invoke( convert_hdiv_native_kernel_type(physical_wind, wind, chi, panel_id) )
+    else
+      call invoke( convert_hdiv_field_kernel_type(physical_wind, wind, chi, panel_id) )
+    end if
+
+    ! Scale fields by the reciprocal of multiplicity
+    do i = 1,3
+      call invoke( inc_X_times_Y(physical_wind(i), w2_rmultiplicity) )
+    end do
+
+    ! Convert to standard SI units (m/s) in orthogonal directions
+
+    if ( geometry == geometry_spherical ) then
+        call invoke( convert_cart2sphere_vector_kernel_type(physical_wind, physical_chi) )
+    end if
+
+    ! Extract vertical wind into W2V and u,v winds into W2H
+
+    fs_id = wind%which_function_space()
+
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+    select case( fs_id )
+      case ( W2 )
+        call invoke( extract_w_kernel_type(u3_wind, physical_wind(3)),  &
+                     extract_uv_kernel_type(u1_wind, physical_wind(1),  &
+                                            face_selector_ew,           &
+                                            face_selector_ns),          &
+                     extract_uv_kernel_type(u2_wind, physical_wind(2),  &
+                                            face_selector_ew,           &
+                                            face_selector_ns) )
+      case ( W2H )
+        call invoke( setval_c(u3_wind, 0.0_r_def),                      &
+                     extract_uv_kernel_type(u1_wind, physical_wind(1),  &
+                                            face_selector_ew,           &
+                                            face_selector_ns),          &
+                     extract_uv_kernel_type(u2_wind, physical_wind(2),  &
+                                            face_selector_ew,           &
+                                            face_selector_ns) )
+      case default
+        call log_event("Not possible to extract winds for this function space", &
+                        LOG_LEVEL_ERROR )
+    end select
+
+  end subroutine split_wind_alg
+
+end module physics_mappings_alg_mod

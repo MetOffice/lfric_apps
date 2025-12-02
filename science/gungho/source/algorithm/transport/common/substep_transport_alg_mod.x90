@@ -1,0 +1,324 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2024 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Routine for setting up the substepping of the transport
+
+module substep_transport_alg_mod
+
+  ! Constants and types
+  use check_configuration_mod,           only: check_any_splitting_hvh, &
+                                               check_any_splitting_vhv
+  use constants_mod,                     only: i_def, l_def, r_def, r_tran
+  use field_mod,                         only: field_type
+  use fs_continuity_mod,                 only: W2H, W2V, W3
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use log_mod,                           only: log_event,         &
+                                               log_scratch_space, &
+                                               LOG_LEVEL_INFO,    &
+                                               LOG_LEVEL_ERROR,   &
+                                               LOG_LEVEL_DEBUG,   &
+                                               LOG_LEVEL_WARNING
+  use mesh_mod,                          only: mesh_type
+  use r_tran_field_mod,                  only: r_tran_field_type
+  use transport_constants_mod,           only: get_detj_at_w3_r_tran
+
+  ! Algorithms and kernels
+  use calc_departure_wind_kernel_mod,    only: calc_departure_wind_kernel_type
+  use hori_dep_dist_eulerian_kernel_mod, only: hori_dep_dist_eulerian_kernel_type
+  use lipschitz_diag_alg_mod,            only: lipschitz_computation_alg
+  use sci_field_minmax_alg_mod,          only: get_field_minmax
+
+  ! Configs
+  use departure_points_config_mod,       only: horizontal_limit, &
+                                               horizontal_limit_cap
+  use transport_config_mod,              only: dep_pt_stencil_extent,  &
+                                               substep_transport,      &
+                                               substep_transport_off,  &
+                                               substep_transport_two,  &
+                                               substep_transport_four, &
+                                               substep_transport_adaptive
+
+  implicit none
+
+  private
+
+  public :: substep_transport_alg
+  public :: adaptive_vhv_splitting_alg
+
+contains
+
+  !> @brief Set up the number of substeps when substepping transport
+  !> @details This routine determines the number of substeps required
+  !!          (based on estimated horizontal Courant or Lipschitz numbers)
+  !!          when substepping the transport
+  !> @param[in,out] substeps   Number of substeps
+  !> @param[in]     wind       The advecting wind
+  !> @param[in]     dt         Transport time step
+  !> @param[in]     lip3_max   Maximum Lipschitz number in 3D
+  subroutine substep_transport_alg(substeps, &
+                                   wind,     &
+                                   dt,       &
+                                   lip3_max )
+
+    implicit none
+
+    ! Arguments
+    integer(kind=i_def),     intent(inout) :: substeps
+    type(r_tran_field_type), intent(in)    :: wind
+    real(kind=r_tran),       intent(in)    :: dt
+    real(kind=r_tran),       intent(in)    :: lip3_max
+
+    ! Departure distance and Lipschitz fields
+    type(r_tran_field_type) :: dep_distance
+    type(r_tran_field_type) :: dep_wind
+    type(r_tran_field_type) :: lipschitz_x
+    type(r_tran_field_type) :: lipschitz_y
+    type(r_tran_field_type) :: lipschitz_z
+    type(r_tran_field_type) :: lipschitz_z2
+    type(r_tran_field_type) :: lipschitz_z2x
+    type(r_tran_field_type) :: lipschitz_z2y
+    type(r_tran_field_type) :: lipschitz_z2xy
+
+    ! Splitting check for computing departure distance
+
+    ! Number of substeps from departure distance and Lipschitz
+    integer(kind=i_def) :: steps_courant, steps_lipschitz
+
+    ! Time step constants
+    real(kind=r_tran) :: half_dt, dep_dt
+
+    ! Maximum values of departure distances and extent
+    real(kind=r_tran) :: dep_min, dep_max, max_dep_distance, max_hori_dep, min_hori_dep
+    real(kind=r_tran) :: lip_min, lip_max, lipxyz_max
+    real(kind=r_tran) :: lipx_max, lipy_max, lipz_max, lipxy_max
+    real(kind=r_tran) :: stencil_extent, extent_ratio
+
+    ! Function space and mesh
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2v_fs
+    type(function_space_type), pointer :: w3_fs
+    type(mesh_type),           pointer :: mesh
+    type(r_tran_field_type),   pointer :: detj_at_w3
+
+    ! Select substep_transport option
+
+    select case ( substep_transport )
+
+    case ( substep_transport_adaptive )
+      ! Set substepping based on Lipschitz and departure points
+
+      ! Get model time step
+      half_dt = 0.5_r_tran * dt
+
+      ! Get the stencil extent from the configuration
+      stencil_extent = real(dep_pt_stencil_extent, r_tran)
+
+      ! Get mesh and function spaces
+      mesh => wind%get_mesh()
+      w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+      w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
+      w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
+
+      ! Initialise fields
+      detj_at_w3 => get_detj_at_w3_r_tran(mesh%get_id())
+      call dep_distance%initialise( w2h_fs )
+      call dep_wind%initialise( vector_space = w2h_fs )
+      call lipschitz_x%initialise( w3_fs )
+      call lipschitz_y%initialise( w3_fs )
+      call lipschitz_z%initialise( w3_fs )
+      call lipschitz_z2%initialise( w3_fs )
+      call lipschitz_z2x%initialise( w3_fs )
+      call lipschitz_z2y%initialise( w3_fs )
+      call lipschitz_z2xy%initialise( w3_fs )
+      call invoke( setval_c(dep_distance, 0.0_r_tran), &
+                   setval_c(dep_wind, 0.0_r_tran) )
+
+      ! Set number of sub steps to 1 initially
+      steps_courant   = 1_i_def
+      steps_lipschitz = 1_i_def
+
+      ! Compute horizontal departure points using Eulerian time-averaged method
+      if (check_any_splitting_hvh()) then
+        dep_dt = half_dt
+      else
+        dep_dt = dt
+      end if
+      call invoke( calc_departure_wind_kernel_type(dep_wind, wind,  &
+                                                   detj_at_w3, 1),  &
+                   hori_dep_dist_eulerian_kernel_type(dep_distance, &
+                                                      dep_wind,     &
+                                                      dep_dt) )
+
+      if ( horizontal_limit == horizontal_limit_cap ) then
+        ! Cap the horizontal departure points to lie within the stencil extent
+        max_hori_dep = stencil_extent
+        min_hori_dep = -max_hori_dep
+        call invoke( inc_max_aX(min_hori_dep, dep_distance), &
+                     inc_min_aX(max_hori_dep, dep_distance) )
+      end if
+
+      ! Get the required maximum stencil extent from the departure distance
+      call get_field_minmax(dep_distance, dep_min, dep_max)
+      max_dep_distance = max( abs(dep_max), abs(dep_min) )
+
+      ! Compute substeps based on the ratio of the max departure distance
+      ! and the stencil extent
+      extent_ratio = max_dep_distance/stencil_extent
+      steps_courant = ceiling(extent_ratio, i_def)
+
+      ! Compute substepping based on the maximum Lipschitz number
+      call lipschitz_computation_alg(                                          &
+              lipschitz_x, lipschitz_y, lipschitz_z, wind, dt                  &
+      )
+
+      if (check_any_splitting_vhv()) then
+        ! Calculate VHV Lipschitz numbers
+        call invoke( a_times_X(lipschitz_z2, 0.5_r_tran,     &
+                               lipschitz_z),                 &
+                     X_plus_Y(lipschitz_z2x, lipschitz_z2,   &
+                              lipschitz_x),                  &
+                     X_plus_Y(lipschitz_z2y, lipschitz_z2,  &
+                              lipschitz_y),                  &
+                     X_plus_Y(lipschitz_z2xy, lipschitz_z2x, &
+                              lipschitz_y) )
+        ! Base maximum Lipschitz on VHV values
+        call get_field_minmax(lipschitz_z2, lip_min, lipz_max)
+        call get_field_minmax(lipschitz_z2x, lip_min, lipx_max)
+        call get_field_minmax(lipschitz_z2y, lip_min, lipy_max)
+        call get_field_minmax(lipschitz_z2xy, lip_min, lipxy_max)
+        lipxyz_max = max(lipz_max, lipx_max, lipy_max, lipxy_max)
+      else
+        call get_field_minmax(lipschitz_z, lip_min, lipz_max)
+        call get_field_minmax(lipschitz_x, lip_min, lipx_max)
+        call get_field_minmax(lipschitz_y, lip_min, lipy_max)
+        lipxyz_max = max(lipz_max, lipx_max, lipy_max)
+      end if
+
+      ! Get maximum Lipschitz numbers
+      lip_max = max( lipxyz_max, lip3_max )
+
+      ! Compute substeps based on the max Lipschitz number
+      ! Enforce threshold of 0.95
+      if (lip_max > 0.95_r_tran) then
+        steps_lipschitz = max( ceiling(lip_max, i_def), 2 )
+      else
+        steps_lipschitz = 1
+      end if
+
+      ! Set number of substeps
+      substeps = max( steps_courant, steps_lipschitz )
+
+      ! Limit this to 3 so model doesn't run forever...
+      if (substeps > 3) then
+        write(log_scratch_space, '(A,I4,A)')                                   &
+            'Transport: Number of calculated substeps for stability is ',      &
+            substeps, '. Limiting this to 3 to avoid running indefinitely'
+        call log_event(log_scratch_space, LOG_LEVEL_WARNING)
+        substeps = 3
+      end if
+
+    case ( substep_transport_off )
+      ! Set number of substeps to 1
+      substeps = 1_i_def
+
+    case ( substep_transport_two )
+      ! Set number of substeps to 2 for debugging
+      substeps = 2_i_def
+
+    case ( substep_transport_four )
+      ! Set number of substeps to 4 for debugging
+      substeps = 4_i_def
+
+    case default
+      call log_event('Unrecognised substep_transport option', &
+                      LOG_LEVEL_ERROR)
+
+    end select
+
+  end subroutine substep_transport_alg
+
+  !> @brief Computes the Lipschitz numbers for various directional splittings
+  !!        that could be used in the transport scheme in the case that the
+  !!        V-H-V splitting has Lipschitz numbers that exceed 1.
+  !> @param[out] max_lipschitz   Maximum Lipschitz number of best splitting
+  !> @param[out] splitting       Enumerator for best splitting to use
+  !> @param[in]  wind            Transporting Wind field
+  !> @param[in]  dt              Transport time step
+  subroutine adaptive_vhv_splitting_alg(max_lipschitz, splitting, wind, dt)
+
+    use lipschitz_diag_alg_mod,         only: lipschitz_computation_alg,       &
+                                              lipschitz_splitting_alg
+    use transport_enumerated_types_mod, only: splitting_strang_hvh,            &
+                                              splitting_vhvhv_third,           &
+                                              splitting_vhvhv_quarter
+
+    implicit none
+
+    ! Arguments
+    real(kind=r_tran),       intent(out) :: max_lipschitz
+    integer(kind=i_def),     intent(out) :: splitting
+    type(r_tran_field_type), intent(in)  :: wind
+    real(kind=r_tran),       intent(in)  :: dt
+
+    ! Local variables
+    type(function_space_type), pointer :: w3_fs
+    type(mesh_type),           pointer :: mesh
+    type(r_tran_field_type)            :: lipschitz_x, lipschitz_y, lipschitz_z
+    real(kind=r_tran)                  :: max_lipschitz_tmp
+
+    mesh => wind%get_mesh()
+    w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
+
+    call lipschitz_x%initialise( w3_fs )
+    call lipschitz_y%initialise( w3_fs )
+    call lipschitz_z%initialise( w3_fs )
+
+    ! ------------------------------------------------------------------------ !
+    ! Calculate 1D Lipschitz numbers
+    ! ------------------------------------------------------------------------ !
+
+    call lipschitz_computation_alg(                                            &
+            lipschitz_x, lipschitz_y, lipschitz_z, wind, dt                    &
+    )
+
+    ! ------------------------------------------------------------------------ !
+    ! Calculate Lipschitz numbers for different splittings
+    ! ------------------------------------------------------------------------ !
+
+    splitting = splitting_strang_hvh
+    call lipschitz_splitting_alg(                                              &
+            max_lipschitz, splitting_strang_hvh, LOG_LEVEL_DEBUG,              &
+            lipschitz_x, lipschitz_y, lipschitz_z                              &
+    )
+
+    if (max_lipschitz < 0.95_r_tran) then
+      ! This splitting is stable, so use it as it will be cheaper than VHVHV
+      splitting = splitting_strang_hvh
+
+    else
+      ! Try VHVHV splittings
+      call lipschitz_splitting_alg(                                            &
+              max_lipschitz_tmp, splitting_vhvhv_third, LOG_LEVEL_DEBUG,       &
+              lipschitz_x, lipschitz_y, lipschitz_z                            &
+      )
+      if (max_lipschitz_tmp < max_lipschitz) then
+        splitting = splitting_vhvhv_third
+        max_lipschitz = max_lipschitz_tmp
+      end if
+
+      call lipschitz_splitting_alg(                                            &
+              max_lipschitz_tmp, splitting_vhvhv_quarter, LOG_LEVEL_DEBUG,     &
+              lipschitz_x, lipschitz_y, lipschitz_z                            &
+      )
+      if (max_lipschitz_tmp < max_lipschitz) then
+        splitting = splitting_vhvhv_quarter
+        max_lipschitz = max_lipschitz_tmp
+      end if
+    end if
+
+  end subroutine adaptive_vhv_splitting_alg
+
+end module substep_transport_alg_mod

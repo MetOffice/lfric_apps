@@ -1,0 +1,114 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/common/gravity_wave/tasks_gravity_wave.cylc") %}
+
+{% if task_ns.conf_name == "default-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["default"],
+        "resolution": "C24",
+        "DT": 100,
+        "tsteps": 36,
+        "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR uniform 10 11 gw-default buoyancy 0:0:6",
+    }) %}
+
+{% elif task_ns.conf_name == "multigrid-C24_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["multigrid"],
+        "resolution": "C24_MG",
+        "DT": 100,
+        "tsteps": 36,
+        "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR uniform 10 11 gw-multigrid buoyancy 0:0:6",
+    }) %}
+
+{% elif task_ns.conf_name == "limited_300x4-BiP300x4-1000x2000" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["limited_300x4"],
+        "resolution": "BiP300x4-1000x2000",
+        "DT": 1,
+        "tsteps": 200,
+        "use_xios": false,
+        "plot_str": "slices.py diagGravityWave $NODAL_DATA_DIR buoyancy:wind:pressure T000200 150 0 6 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "p1_75x4-BiP75x4-4000x2000" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["p1_75x4"],
+        "resolution": "BiP75x4-4000x2000",
+        "DT": 10,
+        "tsteps": 200,
+        "wallclock": 15,
+        "use_xios": false,
+        "plot_str": "slices.py diagGravityWave $NODAL_DATA_DIR buoyancy:wind:pressure T000200 150 0 6 $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "limited_spherical_50x50_LAM50x50-2x2" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["limited_spherical_50x50"],
+        "resolution": "LAM50x50-2x2",
+        "DT": 1,
+        "tsteps": 200,
+        "wallclock": 12,
+        "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR buoyancy xy:xz -1 linear lam_gw",
+    }) %}
+
+{% elif task_ns.conf_name == "limited_c24-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["limited_c24"],
+        "resolution": "C24",
+        "DT": 100,
+        "tsteps": 22,
+        "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR uniform 10 11 gw-limited-c24 buoyancy:wind1:wind2:wind3:pressure 120:0:6",
+    }) %}
+
+{% elif task_ns.conf_name == "limited_c24_rec-C24" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["limited_c24_rec"],
+        "resolution": "C24",
+        "DT": 100,
+        "tsteps": 22,
+        "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR uniform 10 11 gw-limited-c24-rec buoyancy:wind1:wind2:wind3:pressure 120:0:6",
+    }) %}
+
+{% elif task_ns.conf_name == "unit_tests" %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
+{% elif task_ns.conf_name == "canned" %}
+
+    {% do task_dict.update({
+        "app_name": "canned_test",
+        "kgo_checks": [],
+    }) %}
+
+{% elif task.startswith("build") %}
+
+    {% do task_dict.update({
+        "wallclock": 30,
+    }) %}
+
+{% endif %}
+
+{# Set default values for Gravity Wave tasks #}
+{% if task_dict %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/gravity_wave"}) %}
+    {% if "app_name" not in task_dict %}
+        {% do task_dict.update({"app_name": "gravity_wave"}) %}
+    {% endif %}
+    {% if "kgo_checks" not in task_dict %}
+        {% do task_dict.update({"kgo_checks": ["checksum"]}) %}
+    {% endif %}
+{% endif %}
+
+{% do LOG.debug("Finished in site/common/gravity_wave/tasks_gravity_wave.cylc") %}

@@ -1,0 +1,417 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing adjoint tests for the adj_transport_controller routines
+module adjt_transport_controller_alg_mod
+
+  use constants_mod,                      only : i_def, r_def, l_def
+  use field_mod,                          only : field_type
+  use r_tran_field_mod,                   only : r_tran_field_type
+  use log_mod,                            only : log_event,         &
+                                                 log_scratch_space, &
+                                                 LOG_LEVEL_INFO,    &
+                                                 LOG_LEVEL_DEBUG,   &
+                                                 LOG_LEVEL_ERROR
+  use mesh_mod,                           only : mesh_type
+  use model_clock_mod,                    only : model_clock_type
+  use function_space_collection_mod,      only : function_space_collection
+  use function_space_mod,                 only : function_space_type
+  use finite_element_config_mod,          only : element_order_h, &
+                                                 element_order_v
+  use fs_continuity_mod,                  only : W2, W3
+  use init_from_controller_alg_mod,       only : init_ctrlr_fieldvals
+  use inner_from_controller_rdef_alg_mod, only : ctrlr_ref_field_prod_rdef,         &
+                                                 ctrlr_ref_field_inp_prod_rdef,     &
+                                                 ctrlr_wind_npdt_prod_rdef,         &
+                                                 ctrlr_wind_npdt_inp_prod_rdef,     &
+                                                 ctrlr_transporting_wind_prod_rdef, &
+                                                 ctrlr_transporting_wind_inp_prod_rdef
+
+  implicit none
+
+  private :: run_adjt_ls_w_pert_r_init_alg
+  private :: run_adjt_pert_w_ls_r_init_alg
+  public  :: adjt_ls_wind_pert_rho_initialiser_alg
+  public  :: adjt_pert_wind_ls_rho_initialiser_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief   Adjoint test for initialisation of the ls_wind_pert_rho transport_controller object.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine adjt_ls_wind_pert_rho_initialiser_alg( mesh, model_clock )
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Passive arguments for tl and adj calls
+    type(field_type)                :: ls_wind_n_rdef
+    type(field_type)                :: ls_wind_np1_rdef
+    integer(kind=i_def)             :: outer
+    logical(kind=l_def)             :: cheap_update_step
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Initialising fields
+    vector_space_w2_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W2                           &
+    )
+
+    vector_space_w3_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W3                           &
+    )
+
+    call ls_wind_n_rdef%initialise( vector_space = vector_space_w2_ptr )
+    call ls_wind_np1_rdef%initialise( vector_space = vector_space_w2_ptr )
+
+    ! Initialise values
+    call invoke( setval_random( ls_wind_n_rdef ),                &
+                 setval_random( ls_wind_np1_rdef ) )
+    cheap_update_step = .false._l_def
+
+    do outer = 1_i_def, 2_i_def
+      call run_adjt_ls_w_pert_r_init_alg( vector_space_w3_ptr, &
+                                          model_clock,         &
+                                          ls_wind_n_rdef,      &
+                                          ls_wind_np1_rdef,    &
+                                          outer,               &
+                                          cheap_update_step )
+    end do
+
+  end subroutine adjt_ls_wind_pert_rho_initialiser_alg
+
+  !=============================================================================
+  !> @brief   Runs the adjoint test for initialisation of the ls_wind_pert_rho transport_controller object
+  !!          for a given set of parameters.
+  !> @param[in]  vector_space_w3_ptr  W3 function space pointer
+  !> @param[in]  model_clock          The model clock
+  !> @param[in]  ls_wind_n_rdef       The LS wind field at timestep n and rdef precision
+  !> @param[in]  ls_wind_np1_rdef     The LS wind field at timestep n + 1 and rdef precision
+  !> @param[in]  outer                The outer iteration variable
+  !> @param[in]  cheap_update_step    Boolean to determine whether or not to do cheap update
+  !>
+  subroutine run_adjt_ls_w_pert_r_init_alg( vector_space_w3_ptr, &
+                                            model_clock,         &
+                                            ls_wind_n_rdef,      &
+                                            ls_wind_np1_rdef,    &
+                                            outer,               &
+                                            cheap_update_step )
+
+    use transport_controller_mod,     only : transport_controller_type
+    use adj_transport_controller_mod, only : adj_ls_wind_pert_rho_initialiser
+
+    implicit none
+
+    ! Arguments
+    type(function_space_type), pointer, intent(in) :: vector_space_w3_ptr
+    type(model_clock_type),             intent(in) :: model_clock
+    type(field_type),                   intent(in) :: ls_wind_n_rdef
+    type(field_type),                   intent(in) :: ls_wind_np1_rdef
+    integer(kind=i_def),                intent(in) :: outer
+    logical(kind=l_def),                intent(in) :: cheap_update_step
+
+    ! Active arguments for tl and adj calls
+    type(transport_controller_type) :: ls_wind_pert_rho_controller
+    type(field_type)                :: ref_field_rdef
+
+    ! Copies of input fields used in inner products
+    type(field_type)                :: ref_field_rdef_inp
+
+    ! Variables relating to member variables for transport_controller
+    type(r_tran_field_type) :: ctrlr_ref_field_inp
+    type(r_tran_field_type) :: dummy_wn
+    type(r_tran_field_type) :: dummy_wnp1
+    type(r_tran_field_type) :: dummy_tw
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: ref_field_inner_prod
+    real(kind=r_def)            :: ref_field_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: rf_rf_inp_inner_prod
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    call ref_field_rdef%initialise( vector_space = vector_space_w3_ptr )
+    call ref_field_rdef%copy_field_properties( ref_field_rdef_inp )
+
+    call invoke( setval_random( ref_field_rdef ),                &
+                 setval_X( ref_field_rdef_inp, ref_field_rdef ) )
+
+    ! Initialise transport_controller object
+    ref_field_inner_prod = 0.0_r_def
+    call ls_wind_pert_rho_controller%initialise( model_clock,      &
+                                                 ref_field_rdef,   &
+                                                 ls_wind_n_rdef,   &
+                                                 ls_wind_np1_rdef, &
+                                                 outer,            &
+                                                 cheap_update_step )
+
+    call init_ctrlr_fieldvals( ctrlr_ref_field_inp, &
+                               dummy_wn,            &
+                               dummy_wnp1,          &
+                               dummy_tw,            &
+                               ls_wind_pert_rho_controller )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( ref_field_inner_prod, &
+                                   ref_field_rdef ) )
+
+    ! Determining scale factors
+    ref_field_sf = 1.0_r_def/(ref_field_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + ref_field_inner_prod*ref_field_sf
+    write(log_scratch_space, *) "adjt_ls_wind_pert_rho_initialiser inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "ref_field_rdef inner product = ", ref_field_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    call ctrlr_ref_field_prod_rdef( inner1, ls_wind_pert_rho_controller )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( ref_field_sf, ref_field_rdef ) )
+
+    ! Adjoint
+    rf_rf_inp_inner_prod = 0.0_r_def
+    call adj_ls_wind_pert_rho_initialiser( ls_wind_pert_rho_controller, &
+                                           ref_field_rdef )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( rf_rf_inp_inner_prod, &
+                                   ref_field_rdef,       &
+                                   ref_field_rdef_inp ) )
+    inner2 = 0.0_r_def
+    inner2 = inner2 + rf_rf_inp_inner_prod
+    call ctrlr_ref_field_inp_prod_rdef( inner2, ls_wind_pert_rho_controller, ctrlr_ref_field_inp )
+
+    call ls_wind_pert_rho_controller%finalise()
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED ls_wind_pert_rho_initialiser(outer = ", outer, "):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED ls_wind_pert_rho_initialiser(outer = ", outer, "):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine run_adjt_ls_w_pert_r_init_alg
+
+  !=============================================================================
+  !> @brief   Adjoint test for initialisation of the pert_wind_ls_rho transport_controller object.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  !> @param[in]  model_clock  The model clock
+  subroutine adjt_pert_wind_ls_rho_initialiser_alg( mesh, model_clock )
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(model_clock_type),   intent(in) :: model_clock
+
+    ! Passive arguments for tl and adj calls
+    type(field_type)                :: ls_ref_field_rdef
+    integer(kind=i_def)             :: outer
+    logical(kind=l_def)             :: cheap_update_step
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+
+    ! Initialising fields
+    vector_space_w2_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W2                           &
+    )
+
+    vector_space_w3_ptr => function_space_collection%get_fs(                 &
+        mesh, element_order_h, element_order_v, W3                           &
+    )
+
+    call ls_ref_field_rdef%initialise( vector_space = vector_space_w3_ptr )
+
+    ! Initialise values
+    call invoke( setval_random( ls_ref_field_rdef ) )
+    cheap_update_step = .false._l_def
+
+    do outer = 1_i_def, 2_i_def
+      call run_adjt_pert_w_ls_r_init_alg( vector_space_w2_ptr, &
+                                          model_clock,         &
+                                          ls_ref_field_rdef,   &
+                                          outer,               &
+                                          cheap_update_step )
+    end do
+
+  end subroutine adjt_pert_wind_ls_rho_initialiser_alg
+
+  !=============================================================================
+  !> @brief   Runs the adjoint test for initialisation of the pert_wind_ls_rho transport_controller object
+  !!          for a given set of parameters.
+  !> @param[in]  vector_space_w2_ptr  W2 function space pointer
+  !> @param[in]  model_clock          The model clock
+  !> @param[in]  ls_ref_field_rdef    The LS reference field at rdef precision
+  !> @param[in]  outer                The outer iteration variable
+  !> @param[in]  cheap_update_step    Boolean to determine whether or not to do cheap update
+  !>
+  subroutine run_adjt_pert_w_ls_r_init_alg( vector_space_w2_ptr, &
+                                            model_clock,         &
+                                            ls_ref_field_rdef,   &
+                                            outer,               &
+                                            cheap_update_step )
+
+    use transport_controller_mod,     only : transport_controller_type
+    use adj_transport_controller_mod, only : adj_pert_wind_ls_rho_initialiser
+
+    implicit none
+
+    ! Arguments
+    type(function_space_type), pointer, intent(in) :: vector_space_w2_ptr
+    type(model_clock_type),             intent(in) :: model_clock
+    type(field_type),                   intent(in) :: ls_ref_field_rdef
+    integer(kind=i_def),                intent(in) :: outer
+    logical(kind=l_def),                intent(in) :: cheap_update_step
+
+    ! Active arguments for tl and adj calls
+    type(transport_controller_type) :: pert_wind_ls_rho_controller
+    type(field_type)                :: wind_n_rdef
+    type(field_type)                :: wind_np1_rdef
+
+    ! Copies of input fields used in inner products
+    type(field_type)                :: wind_n_rdef_inp
+    type(field_type)                :: wind_np1_rdef_inp
+
+    ! Variables relating to member variables for transport_controller
+    type(r_tran_field_type) :: dummy_rf
+    type(r_tran_field_type) :: ctrlr_wind_n_inp
+    type(r_tran_field_type) :: ctrlr_wind_np1_inp
+    type(r_tran_field_type) :: ctrlr_transporting_wind_inp
+
+    ! Inner products
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: wind_n_inner_prod
+    real(kind=r_def)            :: wind_n_sf
+    real(kind=r_def)            :: wind_np1_inner_prod
+    real(kind=r_def)            :: wind_np1_sf
+    real(kind=r_def)            :: inner2
+    real(kind=r_def)            :: wn_wn_inp_inner_prod
+    real(kind=r_def)            :: wnp1_wnp1_inp_inner_prod
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    call wind_n_rdef%initialise( vector_space = vector_space_w2_ptr )
+    call wind_np1_rdef%initialise( vector_space = vector_space_w2_ptr )
+
+    call wind_n_rdef%copy_field_properties( wind_n_rdef_inp )
+    call wind_np1_rdef%copy_field_properties( wind_np1_rdef_inp )
+
+    ! Initialise values
+    call invoke( setval_random( wind_n_rdef ),             &
+                 setval_X( wind_n_rdef_inp, wind_n_rdef ), &
+                 setval_random( wind_np1_rdef ),           &
+                 setval_X( wind_np1_rdef_inp, wind_np1_rdef ) )
+
+    ! Initialise transport_controller object
+    wind_n_inner_prod = 0.0_r_def
+    wind_np1_inner_prod = 0.0_r_def
+    call pert_wind_ls_rho_controller%initialise( model_clock,       &
+                                                 ls_ref_field_rdef, &
+                                                 wind_n_rdef,       &
+                                                 wind_np1_rdef,     &
+                                                 outer,             &
+                                                 cheap_update_step )
+
+    call init_ctrlr_fieldvals( dummy_rf,                    &
+                               ctrlr_wind_n_inp,            &
+                               ctrlr_wind_np1_inp,          &
+                               ctrlr_transporting_wind_inp, &
+                               pert_wind_ls_rho_controller )
+
+    ! < Mx, Mx >
+    call invoke( x_innerproduct_x( wind_n_inner_prod,   &
+                                   wind_n_rdef ),       &
+                 x_innerproduct_x( wind_np1_inner_prod, &
+                                   wind_np1_rdef ) )
+
+    ! Determining scale factors
+    wind_n_sf = 1.0_r_def/(wind_n_inner_prod + eps)
+    wind_np1_sf = 1.0_r_def/(wind_np1_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + wind_n_inner_prod*wind_n_sf
+    inner1 = inner1 + wind_np1_inner_prod*wind_np1_sf
+    write(log_scratch_space, *) "adjt_pert_wind_ls_rho_initialiser inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind_n_rdef inner product = ", wind_n_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind_np1_rdef inner product = ", wind_np1_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    call ctrlr_wind_npdt_prod_rdef( inner1, pert_wind_ls_rho_controller, 0_i_def )
+    call ctrlr_wind_npdt_prod_rdef( inner1, pert_wind_ls_rho_controller, 1_i_def )
+    call ctrlr_transporting_wind_prod_rdef( inner1, pert_wind_ls_rho_controller )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( wind_n_sf, wind_n_rdef ), &
+                 inc_a_times_X( wind_np1_sf, wind_np1_rdef ) )
+
+    ! Adjoint
+    wn_wn_inp_inner_prod = 0.0_r_def
+    wnp1_wnp1_inp_inner_prod = 0.0_r_def
+    call adj_pert_wind_ls_rho_initialiser( pert_wind_ls_rho_controller, &
+                                           model_clock,                 &
+                                           wind_n_rdef,                 &
+                                           wind_np1_rdef )
+
+    ! < AMx, x >
+    call invoke( x_innerproduct_y( wn_wn_inp_inner_prod,     &
+                                   wind_n_rdef,              &
+                                   wind_n_rdef_inp ),        &
+                 x_innerproduct_y( wnp1_wnp1_inp_inner_prod, &
+                                   wind_np1_rdef,            &
+                                   wind_np1_rdef_inp )  )
+    inner2 = 0.0_r_def
+    inner2 = inner2 + wn_wn_inp_inner_prod
+    inner2 = inner2 + wnp1_wnp1_inp_inner_prod
+    call ctrlr_wind_npdt_inp_prod_rdef( inner2, pert_wind_ls_rho_controller, 0_i_def, ctrlr_wind_n_inp )
+    call ctrlr_wind_npdt_inp_prod_rdef( inner2, pert_wind_ls_rho_controller, 1_i_def, ctrlr_wind_np1_inp )
+    call ctrlr_transporting_wind_inp_prod_rdef( inner2, pert_wind_ls_rho_controller, ctrlr_transporting_wind_inp )
+
+    call pert_wind_ls_rho_controller%finalise()
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs( inner1 ), abs( inner2 ) ) )
+    relative_diff = abs( inner1 - inner2 ) / machine_tol
+    if ( relative_diff < overall_tolerance ) then
+      write( log_scratch_space, * ) "PASSED pert_wind_ls_rho_initialiser(outer = ", outer, "):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write( log_scratch_space, * ) "FAILED pert_wind_ls_rho_initialiser(outer = ", outer, "):", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine run_adjt_pert_w_ls_r_init_alg
+
+end module adjt_transport_controller_alg_mod

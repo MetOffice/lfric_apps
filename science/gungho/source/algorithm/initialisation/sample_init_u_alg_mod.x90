@@ -1,0 +1,129 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Initialise wind components by sampling specified profiles
+module sample_init_u_alg_mod
+
+  use constants_mod,                 only: i_def, l_def, rmdi
+  use field_mod,                     only: field_type
+  use fs_continuity_mod,             only: W3, Wtheta
+  use sci_geometric_constants_mod,   only: get_height_fe, &
+                                           get_height_fv, &
+                                           get_panel_id
+  use initial_wind_config_mod,       only: profile_data_u,     &
+                                           profile_data_v,     &
+                                           profile_data_w,     &
+                                           profile_heights_uv, &
+                                           profile_heights_w,  &
+                                           profile_size_uv,    &
+                                           profile_size_w
+  use log_mod,                       only: log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_INFO
+  use map_fd_to_prognostics_alg_mod, only: set_wind
+  !> @todo Data passed to the kernel via module 'use' statements.
+  !>       When PSyclone supports passing of arrays into kernels (issue #1312),
+  !>       these data should be passed through the argument list of the invoke.
+  use profile_interp_kernel_mod,     only: profile_interp_kernel_type, &
+                                           profile_size,               &
+                                           profile_data,               &
+                                           profile_heights
+  use function_space_collection_mod, only: function_space_collection
+  use mesh_mod,                      only: mesh_type
+
+  implicit none
+
+  private
+
+  !-------------------------------------------------------------------------------
+  ! Contained functions/subroutines
+  !-------------------------------------------------------------------------------
+  public :: sample_init_u_alg
+
+contains
+
+  subroutine sample_init_u_alg( u )
+
+    implicit none
+
+    type( field_type ), intent( inout ) :: u
+
+    integer( kind=i_def ) :: mesh_id
+    integer( kind=i_def ) :: element_order_h
+    integer( kind=i_def ) :: element_order_v
+    logical( kind=l_def ) :: profile_extrap
+
+    type( mesh_type ),  pointer :: mesh => null()
+    type( field_type ), pointer :: panel_id => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: height_w3  => null()
+
+    type( field_type ) :: u_in_w3
+    type( field_type ) :: v_in_w3
+    type( field_type ) :: w_in_wth
+
+    mesh_id = u%get_mesh_id()
+    mesh => u%get_mesh()
+    element_order_h = u%get_element_order_h()
+    element_order_v = u%get_element_order_v()
+
+    panel_id => get_panel_id( mesh_id )
+    if ( element_order_h > 0 .or. element_order_v > 0 ) then
+      height_wth => get_height_fe( Wtheta, mesh_id )
+      height_w3 => get_height_fe( W3, mesh_id )
+    else
+      height_wth => get_height_fv( Wtheta, mesh_id )
+      height_w3 => get_height_fv( W3, mesh_id )
+    end if
+
+    call u_in_w3%initialise( vector_space =                              &
+                function_space_collection%get_fs( mesh, element_order_h, &
+                                                  element_order_v, W3 ) )
+
+    call v_in_w3%initialise( vector_space =                              &
+                function_space_collection%get_fs( mesh, element_order_h, &
+                                                  element_order_v, W3 ) )
+
+    call w_in_wth%initialise( vector_space =                             &
+                function_space_collection%get_fs( mesh, element_order_h, &
+                                                  element_order_v, Wtheta ) )
+
+    profile_extrap = .true.
+
+    profile_size = profile_size_uv
+    if ( profile_size == 1) then
+      call invoke( setval_c( u_in_w3, profile_data_u(1) ) )
+      call invoke( setval_c( v_in_w3, profile_data_v(1) ) )
+    else
+      profile_heights(1:profile_size) = profile_heights_uv(1:profile_size)
+      profile_data(1:profile_size) = profile_data_u(1:profile_size)
+      call invoke( setval_c( u_in_w3, rmdi ),                      &
+                   profile_interp_kernel_type( u_in_w3, height_w3, &
+                                               profile_extrap ) )
+      profile_data(1:profile_size) = profile_data_v(1:profile_size)
+      call invoke( setval_c( v_in_w3, rmdi ),                      &
+                   profile_interp_kernel_type( v_in_w3, height_w3, &
+                                               profile_extrap ) )
+    end if
+
+    profile_size = profile_size_w
+    if ( profile_size == 1) then
+      call invoke( setval_c( w_in_wth, profile_data_w(1) ) )
+    else
+      profile_heights(1:profile_size) = profile_heights_w(1:profile_size)
+      profile_data(1:profile_size) = profile_data_w(1:profile_size)
+      call invoke( setval_c( w_in_wth, rmdi ),                       &
+                   profile_interp_kernel_type( w_in_wth, height_wth, &
+                                               profile_extrap ) )
+    end if
+
+    call set_wind( u, u_in_w3, v_in_w3, w_in_wth )
+
+    nullify( panel_id )
+    nullify( height_w3, height_wth )
+
+  end subroutine sample_init_u_alg
+
+end module sample_init_u_alg_mod

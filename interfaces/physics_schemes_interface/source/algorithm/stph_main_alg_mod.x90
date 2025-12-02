@@ -1,0 +1,103 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Interface to the Stochastic Physics schemes
+
+module stph_main_alg_mod
+
+  use constants_mod,            only: r_def, i_def
+  !types
+  use field_mod,                only: field_type
+  use clock_mod,                only: clock_type
+  use field_collection_mod,     only: field_collection_type
+  ! xios output and timers
+  use io_config_mod,            only: write_diag, use_xios_io, &
+                                      subroutine_timers
+  use timer_mod,                only: timer
+
+  implicit none
+
+  private
+
+  public stph_main_alg
+
+ contains
+  !>@brief Run the UM Stochastic Physics schemes
+  !>@details The UM Stochastic Physics schemes:
+  !>             1) SPT
+  !>             2) SKEB2
+  !>         See UMDP-081 for full scheme details
+  !>@param[in,out]     du_stph                 Stochastic Physics increments for winds
+  !>@param[in,out]     dtheta_stph             Stochastic Physics increments for theta
+  !>@param[in,out]     dmv_stph                Stochastic Physics increment for Water vapour Mixing ratio
+  !>@param[in]         dtheta                  increments for theta
+  !>@param[in]         mv                      Updated Water vapour Mixing ratio
+  !>@param[in]         rho                     Rho on w3 space
+  !>@param[in]         u                       Prognostic wind field on W2
+  !>@param[in]         convection_fields       Fields from convection scheme
+  !>@param[in]         microphysics_fields     Fields from microphysics scheme
+  !>@param[in]         radiation_fields        Fields from radiationmicrophysics scheme
+  !>@param[in]         derived_fields          Fields from grid transformations
+  !>@param[in]         orography_fields        Fields from orography
+  !>@param[in]         clock                   Model time information
+  subroutine stph_main_alg( du_stph, dtheta_stph, dmv_stph,        &
+                            dtheta, mv, rho, u,                   &
+                            convection_fields,                     &
+                            microphysics_fields, radiation_fields, &
+                            derived_fields, orography_fields, clock)
+
+  ! Stochastic Physics namelist
+  use stochastic_physics_config_mod,  only: use_spt, use_skeb
+
+  ! Call algorithms for SPT and SKEB respectivelt
+  use spt_main_alg_mod,         only: spt_main_alg
+  use skeb_main_alg_mod,        only: skeb_main_alg
+
+  implicit none
+
+  ! Fields
+  type( field_type ), intent( inout ) :: du_stph
+  type( field_type ), intent( inout ) :: dtheta_stph
+  type( field_type ), intent( inout ) :: dmv_stph
+  type( field_type ), intent(in) :: dtheta
+  type( field_type ), intent(in) :: mv
+  type( field_type ), intent(in) :: rho
+  type( field_type ), intent(in) :: u
+
+  ! Collections
+  type( field_collection_type ), intent(in) :: convection_fields
+  type( field_collection_type ), intent(in) :: microphysics_fields
+  type( field_collection_type ), intent(in) :: radiation_fields
+
+  type( field_collection_type ), intent(in) :: derived_fields
+  type( field_collection_type ), intent(in) :: orography_fields
+
+  ! classes
+  class(clock_type), intent(in)   :: clock
+
+  if ( subroutine_timers ) call timer("stph_main_alg")
+
+  call invoke(setval_c(du_stph, 0.0_r_def),      &
+              setval_c(dtheta_stph,  0.0_r_def), &
+              setval_c(dmv_stph, 0.0_r_def))
+
+  !!!! DO SPT
+  if (use_spt) then
+    call spt_main_alg(dtheta_stph, dmv_stph, dtheta, mv,     &
+                      convection_fields,                     &
+                      microphysics_fields, radiation_fields, &
+                      derived_fields, orography_fields,clock)
+  end if
+
+  !!!! DO SKEB
+  if (use_skeb) then
+    call skeb_main_alg(du_stph, rho, u, convection_fields, derived_fields,clock)
+  end if
+
+  if ( subroutine_timers ) call timer("stph_main_alg")
+
+  end subroutine stph_main_alg
+end module stph_main_alg_mod

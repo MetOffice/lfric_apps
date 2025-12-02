@@ -1,0 +1,111 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Surface emissions and mixing of murk
+
+module murk_alg_mod
+
+  use constants_mod,                 only: r_def, i_def
+  use integer_field_mod,             only: integer_field_type
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use tracer_emission_alg_mod,       only: tracer_emission_alg
+  use aerosol_config_mod,            only: murk_source_scaling
+  use sci_geometric_constants_mod,   only: get_height_fv
+  use physics_constants_mod,         only: get_rdz_w3
+  use fs_continuity_mod,             only: W3, Wtheta
+  use mesh_mod,                      only: mesh_type
+  use um_sizes_init_mod,             only: um_sizes_init
+
+  implicit none
+
+  private
+  public murk_alg
+
+contains
+
+  !>@details Add emissions source to murk tracer, then mix using
+  !>         UM routine tr_mix
+  !>@param[in]     aerosol_fields    Contains murk
+  !>@param[in]     derived_fields    Contains dry density
+  !>@param[in]     turbulence_fields Contains things needed for mixing
+  subroutine murk_alg(aerosol_fields, derived_fields, turbulence_fields)
+
+    use tracer_mix_kernel_mod, only: tracer_mix_kernel_type
+
+    implicit none
+
+    type( field_collection_type ), intent(in) :: aerosol_fields
+    type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: turbulence_fields
+
+    real(r_def), parameter :: amplitude = 0.7_r_def
+
+    type(mesh_type),    pointer :: mesh => null()
+    type( field_type ), pointer :: height_w3 => null()
+    type( field_type ), pointer :: height_wth => null()
+    type( field_type ), pointer :: rdz_w3 => null()
+
+    type( field_type ), pointer :: murk => null()
+    type( field_type ), pointer :: murk_source => null()
+
+    type( field_type ), pointer :: rhokh_bl        => null()
+    type( field_type ), pointer :: dtrdz_tq_bl     => null()
+    type( field_type ), pointer :: zh_nonloc       => null()
+    type( field_type ), pointer :: zhsc            => null()
+    type( integer_field_type ), pointer :: level_ent => null()
+    type( integer_field_type ), pointer :: level_ent_dsc => null()
+    type( field_type ), pointer :: ent_we_lim      => null()
+    type( field_type ), pointer :: ent_t_frac      => null()
+    type( field_type ), pointer :: ent_zrzi        => null()
+    type( field_type ), pointer :: ent_we_lim_dsc  => null()
+    type( field_type ), pointer :: ent_t_frac_dsc  => null()
+    type( field_type ), pointer :: ent_zrzi_dsc    => null()
+
+    integer(i_def) :: ncells
+
+    call aerosol_fields%get_field('murk',murk)
+    call aerosol_fields%get_field('murk_source',murk_source)
+
+    call turbulence_fields%get_field('rhokh_bl', rhokh_bl)
+    call turbulence_fields%get_field('dtrdz_tq_bl', dtrdz_tq_bl)
+    call turbulence_fields%get_field('zh_nonloc', zh_nonloc)
+    call turbulence_fields%get_field('zhsc', zhsc)
+    call turbulence_fields%get_field('level_ent', level_ent)
+    call turbulence_fields%get_field('level_ent_dsc', level_ent_dsc)
+    call turbulence_fields%get_field('ent_we_lim', ent_we_lim)
+    call turbulence_fields%get_field('ent_t_frac', ent_t_frac)
+    call turbulence_fields%get_field('ent_zrzi', ent_zrzi)
+    call turbulence_fields%get_field('ent_we_lim_dsc', ent_we_lim_dsc)
+    call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
+    call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
+
+    mesh       => murk%get_mesh()
+    height_wth => get_height_fv( Wtheta, mesh%get_id() )
+    height_w3  => get_height_fv( W3, mesh%get_id() )
+    rdz_w3     => get_rdz_w3( mesh%get_id() )
+
+    ! Call emission routine to add source to murk field
+    call tracer_emission_alg(murk, murk_source, derived_fields, &
+                             amplitude, murk_source_scaling)
+
+    ! Switch UM to running i-first on whole domain
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init(ncells)
+
+    ! Call tracer mixing routine for murk field
+    call invoke(tracer_mix_kernel_type(murk, height_w3, height_wth, rdz_w3, &
+                                       rhokh_bl, dtrdz_tq_bl, zh_nonloc,    &
+                                       zhsc, level_ent, level_ent_dsc,      &
+                                       ent_we_lim, ent_t_frac, ent_zrzi,    &
+                                       ent_we_lim_dsc, ent_t_frac_dsc,      &
+                                       ent_zrzi_dsc) )
+
+    ! Switch UM back to columns
+    call um_sizes_init(1_i_def)
+
+  end subroutine murk_alg
+
+end module murk_alg_mod

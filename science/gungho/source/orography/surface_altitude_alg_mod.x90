@@ -1,0 +1,51 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2020 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Algorithm to construct w0 surface_altitude field from the input
+!>        surface_altitude on W3
+
+module surface_altitude_alg_mod
+
+  ! Derived Types
+  use field_mod,            only: field_type
+  use field_collection_mod, only: field_collection_type
+  use constants_mod,        only: r_def
+
+  implicit none
+
+contains
+
+  !> @brief Construct a w0 surface_altitude field from in put w3 field
+  !> @details The surface_altitude_w0 field is constructed using
+  !>          average_w3_to_w0 with weights set to be the w0 multiplicity
+  !> @param[in,out] surface_altitude_w0 Surface altitude on W0
+  !> @param[in]     surface_altitude_w3 Surface altitude on W3
+  subroutine surface_altitude_alg(surface_altitude_w0, surface_altitude_w3)
+
+    use sci_average_w3_to_w0_kernel_mod, only : average_w3_to_w0_kernel_type
+    use sci_multiplicity_kernel_mod,    only : multiplicity_kernel_type
+
+    implicit none
+
+    type( field_type ), intent(inout)  :: surface_altitude_w0
+    type( field_type ), intent(in)     :: surface_altitude_w3
+
+    ! local variables
+    type( field_type )           :: multiplicity_w0
+
+    ! Create the multiplicity field from surface_altitude_w0 template
+    call surface_altitude_w0%copy_field_properties(multiplicity_w0)
+
+    !Invoke kernels
+    call invoke(setval_c( surface_altitude_w0, 0.0_r_def ),               &
+                setval_c( multiplicity_w0, 0.0_r_def ),                   &
+                multiplicity_kernel_type( multiplicity_w0 ),              &
+                average_w3_to_w0_kernel_type( surface_altitude_w0,        &
+                                              surface_altitude_w3,        &
+                                              multiplicity_w0 ) )
+
+  end subroutine surface_altitude_alg
+
+end module surface_altitude_alg_mod

@@ -1,0 +1,42 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Simple algorithm to help the development of jedi_lfric
+module jedi_lfric_increment_alg_mod
+
+  use constants_mod,                  only: r_def
+  use log_mod,                        only: log_event,         &
+                                            LOG_LEVEL_INFO
+  use field_mod,                      only: field_type
+
+  implicit none
+
+  private
+
+  public :: jedi_lfric_increment_alg
+
+contains
+
+  !> @brief  An algorithm for testing jedi_lfric
+  !> @param[inout] field  A prognostic field object
+  subroutine jedi_lfric_increment_alg(field)
+
+    implicit none
+
+    real(r_def) :: increment = 1.0_r_def
+
+    ! Prognostic fields
+    type( field_type ), intent( inout ) :: field
+
+    call log_event( "jedi_lfric: Running algorithm", LOG_LEVEL_INFO )
+
+    call invoke( inc_a_plus_x( increment, field ) )
+
+    call log_event( "jedi_lfric: finished algorithm", LOG_LEVEL_INFO )
+
+  end subroutine jedi_lfric_increment_alg
+
+end module jedi_lfric_increment_alg_mod

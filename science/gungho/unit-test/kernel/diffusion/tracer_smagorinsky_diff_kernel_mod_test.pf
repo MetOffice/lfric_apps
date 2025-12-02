@@ -1,0 +1,176 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2018 Met Office. All rights reserved.
+! For further details please refer to the file COPYRIGHT.txt
+! which you should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+module tracer_smagorinsky_diff_kernel_mod_test
+
+  use constants_mod,                 only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size,     &
+                                                  get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap,          &
+                                                  get_wtheta_m3x3_dofmap,      &
+                                                  get_m3x3_stencil_dofmap_cross
+   use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: tracer_smagorinsky_diff_test_type
+    private
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type tracer_smagorinsky_diff_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use sci_chi_transform_mod,     only : init_chi_transforms
+    use feign_config_mod,          only : feign_finite_element_config,   &
+                                          feign_mixing_config
+    use mixing_config_mod,         only : method_3d_smag, smag_l_calc,   &
+                                          smag_l_calc_UseDx
+    use finite_element_config_mod, only : cellshape_quadrilateral, &
+                                          coord_system_xyz
+
+    implicit none
+
+    class(tracer_smagorinsky_diff_test_type), intent(inout) :: this
+
+    call feign_mixing_config( viscosity     = .false.,           &
+                              viscosity_mu  = 0.0_r_def,         &
+                              smagorinsky   = .false.,           &
+                              mix_factor    = 0.2_r_def,         &
+                              method        = method_3d_smag,    &
+                              smag_l_calc   = smag_l_calc_UseDx, &
+                              leonard_term  = .false.,           &
+                              leonard_kl    = 1.0_r_def )
+
+    call feign_finite_element_config(      &
+        cellshape=cellshape_quadrilateral, &
+        coord_order=0_i_def,               &
+        coord_system=coord_system_xyz,     &
+        element_order_h=0_i_def,           &
+        element_order_v=0_i_def,           &
+        rehabilitate=.true.,               &
+        vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use sci_chi_transform_mod,    only: final_chi_transforms
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(tracer_smagorinsky_diff_test_type), intent(inout) :: this
+
+    ! Finalise namelists
+    call final_chi_transforms()
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use tracer_smagorinsky_diff_kernel_mod, only : tracer_smagorinsky_diff_code
+
+    implicit none
+
+    class(tracer_smagorinsky_diff_test_type), intent(inout) :: this
+
+    integer(i_def) :: nlayers, ncells
+    integer(i_def) :: ndf_w2, undf_w2, &
+                      ndf_wt, undf_wt
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: nqp_h, nqp_v
+
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_wt(:,:)
+    integer(i_def), allocatable :: stencil_map_wt(:,:,:)
+
+    real(r_def), allocatable :: theta(:), dx_at_w2(:)
+    real(r_def), allocatable :: theta_inc(:)
+    real(r_def), allocatable :: visc_h_blend(:)
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: dx = 1000.0_r_def, &
+                              dy = 1000.0_r_def, &
+                              dz = 2000.0_r_def
+
+    real(r_def) :: answer
+
+    integer(i_def) :: icell, i, j, k
+    integer(i_def) :: cell
+    cell = 5
+
+    ! Variables for testing tracer_smagorinsky_diff
+    ! Get sizes of everything
+    nlayers=3
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells, &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, &
+                                  nlayers )
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells, &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, &
+                                      nlayers )
+
+    ! Setup maps
+    call get_w2_m3x3_dofmap(map_w2)
+    call get_wtheta_m3x3_dofmap(map_wt)
+    call get_m3x3_stencil_dofmap_cross(stencil_map_wt, map_wt)
+
+    ! Create the data
+    allocate(theta(undf_wt))
+    allocate(dx_at_w2(undf_w2))
+    allocate(theta_inc(undf_wt))
+    allocate(visc_h_blend(undf_wt))
+    theta(:) = 300.0_r_def
+    dx_at_w2(:) = dx
+    theta_inc(:) = 0.0_r_def
+    visc_h_blend(:) = 1.0_r_def
+
+    ! Call the kernel
+    call tracer_smagorinsky_diff_code( nlayers,              &
+                               theta_inc,                    &
+                               theta,                        &
+                               5, stencil_map_wt(:,:,cell),  &
+                               visc_h_blend,                 &
+                               dx_at_w2,                     &
+                               ndf_wt, undf_wt,              &
+                               map_wt(:,cell),               &
+                               ndf_w2, undf_w2,              &
+                               map_w2(:,cell)                &
+                              )
+
+     answer = 0.0_r_def
+     @assertEqual(answer, theta_inc(map_wt(1,cell) ), tol)
+
+    deallocate(map_w2)
+    deallocate(map_wt)
+    deallocate(stencil_map_wt)
+    deallocate(theta)
+    deallocate(theta_inc)
+    deallocate(visc_h_blend)
+    deallocate(dx_at_w2)
+
+  end subroutine test_all
+
+end module tracer_smagorinsky_diff_kernel_mod_test

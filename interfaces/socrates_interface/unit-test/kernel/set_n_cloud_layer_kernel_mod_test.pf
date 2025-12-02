@@ -1,0 +1,115 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the Socrates random seed generation kernel
+!>
+module set_n_cloud_layer_kernel_mod_test
+
+  use funit
+  use constants_mod,                       only : r_def, i_def
+  use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap, &
+                                                  get_w3_m3x3_dofmap
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size, &
+                                                  get_w3_m3x3_q3x3x3_size
+
+  implicit none
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_set_n_cloud_layer()
+
+    use set_n_cloud_layer_kernel_mod, only: set_n_cloud_layer_code
+
+    implicit none
+
+    integer(i_def) :: nlayers_3d, nlayers_2d
+    integer(i_def) :: ndf_3d, ndf_2d
+    integer(i_def) :: undf_3d, undf_2d
+    integer(i_def) :: cells_3d, cells_2d
+    integer(i_def) :: dim_space_3d, dim_space_2d
+    integer(i_def) :: dim_space_diff_3d, dim_space_diff_2d
+    integer(i_def) :: nqp_h_3d, nqp_h_2d
+    integer(i_def) :: nqp_v_3d, nqp_v_2d
+
+    integer(i_def), allocatable :: map_3d(:,:), map_2d(:,:)
+
+    integer(i_def), allocatable :: n_cloud_layers(:)
+    real(r_def), allocatable :: conv_frac(:)
+    real(r_def), allocatable :: cloud_frac(:)
+    real(r_def), parameter :: cloud_frac_min = 0.001_r_def
+    integer(i_def), allocatable :: answer(:)
+    integer(i_def) :: i
+
+    nlayers_3d = 6
+    nlayers_2d = 1
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_3d, undf_3d, cells_3d,   &
+                                      dim_space_3d, dim_space_diff_3d, &
+                                      nqp_h_3d, nqp_v_3d, nlayers_3d)
+    call get_wtheta_m3x3_dofmap(map_3d, nlayers_3d)
+
+    call get_w3_m3x3_q3x3x3_size( ndf_2d, undf_2d, cells_2d,   &
+                                  dim_space_2d, dim_space_diff_2d, &
+                                  nqp_h_2d, nqp_v_2d, nlayers_2d)
+    call get_w3_m3x3_dofmap(map_2d, nlayers_2d)
+
+    allocate(conv_frac(1:undf_3d))
+    allocate(cloud_frac(1:undf_3d))
+    allocate(n_cloud_layers(1:undf_2d))
+    allocate(answer(1:undf_2d))
+
+    cloud_frac = (/ 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0031_r_def, 0.0022_r_def, 0.0009_r_def, &
+                    0.0000_r_def, 0.0006_r_def, 0.0006_r_def, 0.00015_r_def, 0.0003_r_def, 0.00026_r_def, 0.000_r_def, &
+                    0.0000_r_def, 0.0006_r_def, 0.0016_r_def, 0.00015_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, &
+                    0.0000_r_def, 0.0000_r_def, 0.00091_r_def, 0.0001_r_def, 0.0012_r_def, 0.0000_r_def, 0.0000_r_def, &
+                    0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0031_r_def, 0.0022_r_def, 0.0009_r_def, 0.0000_r_def, &
+                    0.0000_r_def, 0.0006_r_def, 0.0006_r_def, 0.00015_r_def, 0.0003_r_def, 0.00026_r_def, 0.0000_r_def, &
+                    0.0000_r_def, 0.0006_r_def, 0.0016_r_def, 0.00015_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, &
+                    0.0000_r_def, 0.0000_r_def, 0.00091_r_def, 0.0001_r_def, 0.0012_r_def, 0.0000_r_def, 0.0000_r_def, &
+                    0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def /)
+
+    conv_frac = (/ 0.0000_r_def, 0.0000_r_def, 0.0026_r_def, 0.00015_r_def, 0.00031_r_def, 0.00012_r_def, 0.0000_r_def, &
+                   0.0000_r_def, 0.0005_r_def, 0.0001_r_def, 0.00015_r_def, 0.0005_r_def, 0.00016_r_def, 0.000_r_def, &
+                   0.0000_r_def, 0.0006_r_def, 0.002_r_def, 0.00011_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, &
+                   0.0000_r_def, 0.0000_r_def, 0.00012_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, &
+                   0.0000_r_def, 0.0026_r_def, 0.00015_r_def, 0.00031_r_def, 0.00012_r_def, 0.0000_r_def, 0.0000_r_def, &
+                   0.0000_r_def, 0.00005_r_def, 0.0001_r_def, 0.00015_r_def, 0.0005_r_def, 0.00016_r_def, 0.000_r_def, &
+                   0.0000_r_def, 0.0006_r_def, 0.002_r_def, 0.00011_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, &
+                   0.0000_r_def, 0.0000_r_def, 0.00012_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, &
+                   0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def, 0.0000_r_def /)
+
+  n_cloud_layers = 0_i_def
+
+  do i=1, cells_2d
+    call set_n_cloud_layer_code( nlayers_3d, conv_frac, cloud_frac, &
+                                      n_cloud_layers, cloud_frac_min, &
+                                      ndf_3d, undf_3d, map_3d(:,i), &
+                                      ndf_2d, undf_2d, map_2d(:,i) )
+  end do
+
+  answer = (/ 5_i_def, &
+              1_i_def, &
+              2_i_def, &
+              4_i_def, &
+              4_i_def, &
+              0_i_def, &
+              2_i_def, &
+              4_i_def, &
+              0_i_def /)
+
+  @assertEqual(answer, n_cloud_layers)
+
+  deallocate(conv_frac)
+  deallocate(cloud_frac)
+  deallocate(n_cloud_layers)
+  deallocate(answer)
+  deallocate(map_2d)
+  deallocate(map_3d)
+
+  end subroutine test_set_n_cloud_layer
+
+end module set_n_cloud_layer_kernel_mod_test

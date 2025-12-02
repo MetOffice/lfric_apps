@@ -1,0 +1,169 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_w3h_advective_update_kernel
+module atlt_w3h_advective_update_alg_mod
+
+  use field_mod, only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod,     only : element_order_h, element_order_v
+  use fs_continuity_mod,             only : W2, W3
+  use operator_mod,                  only : operator_type
+  use constants_mod,                 only : i_def, r_def
+  use log_mod,                       only : log_event,       &
+                                            LOG_LEVEL_ERROR, &
+                                            LOG_LEVEL_INFO,  &
+                                            LOG_LEVEL_DEBUG, &
+                                            log_scratch_space
+  use sci_fem_constants_mod,         only : get_inverse_mass_matrix_fe
+
+  implicit none
+
+  public :: atlt_w3h_advective_update_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for atl_w3h_advective_update_kernel.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  mesh         The model mesh
+  subroutine atlt_w3h_advective_update_alg( mesh )
+
+    use tl_w3h_advective_update_kernel_mod,  only : tl_w3h_advective_update_kernel_type
+    use atl_w3h_advective_update_kernel_mod, only : atl_w3h_advective_update_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Internal arguments for kernels
+    type(field_type)             :: advective_increment
+    type(field_type)             :: tracer
+    type(field_type)             :: ls_wind
+    type(field_type)             :: wind
+    integer(kind=i_def)          :: stencil_extent
+    type(operator_type), pointer :: m3_inv
+
+    ! Internal variables for initialising and saving input fields
+    integer(kind=i_def)                :: ndata
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_w3_md_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(field_type)                   :: advective_increment_input
+    type(field_type)                   :: wind_input
+
+    ! Inner product variables
+    real(kind=r_def)            :: advective_increment_inner_prod
+    real(kind=r_def)            :: advective_increment_sf
+    real(kind=r_def)            :: wind_inner_prod
+    real(kind=r_def)            :: wind_sf
+    real(kind=r_def)            :: inner1
+    real(kind=r_def)            :: advective_increment_advective_increment_input_inner_prod
+    real(kind=r_def)            :: wind_wind_input_inner_prod
+    real(kind=r_def)            :: inner2
+    real(kind=r_def), parameter :: eps = 1e-30_r_def
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    stencil_extent = 1_i_def
+    ndata = 6_i_def
+    vector_space_w3_md_ptr => function_space_collection%get_fs(                &
+        mesh, element_order_h, element_order_v, W3, ndata, ndata_first=.false. &
+    )
+    vector_space_w3_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W3                             &
+    )
+    vector_space_w2_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W2                             &
+    )
+
+    ! Stencil fields need bigger halos due to atl_w3h being a stencil operation with GH_INC.
+    call advective_increment%initialise( vector_space=vector_space_w3_ptr, name='advective_increment', &
+                                           halo_depth=1_i_def )
+    call tracer%initialise( vector_space=vector_space_w3_md_ptr, name='tracer ', &
+                              halo_depth=stencil_extent + 1_i_def )
+    call ls_wind%initialise( vector_space=vector_space_w2_ptr, name='ls_wind', &
+                               halo_depth=stencil_extent + 1_i_def )
+    call wind%initialise( vector_space=vector_space_w2_ptr, name='wind' )
+    call advective_increment_input%initialise( vector_space=vector_space_w3_ptr, name='advective_increment_input' )
+    call wind_input%initialise( vector_space=vector_space_w2_ptr, name='wind_input' )
+    m3_inv => get_inverse_mass_matrix_fe( W3, mesh%get_id() )
+
+    advective_increment_inner_prod = 0.0_r_def
+    wind_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(advective_increment), setval_x(advective_increment_input, advective_increment), &
+                 setval_random(tracer), &
+                 setval_random(ls_wind), &
+                 setval_random(wind), inc_X_minus_a(wind, 0.5_r_def), inc_a_times_X(1e6_r_def, wind), setval_x(wind_input, wind), &
+                 tl_w3h_advective_update_kernel_type( advective_increment, &
+                                                      tracer, stencil_extent, &
+                                                      ls_wind, stencil_extent, &
+                                                      wind, &
+                                                      m3_inv ), &
+                 x_innerproduct_x(advective_increment_inner_prod, advective_increment), &
+                 x_innerproduct_x(wind_inner_prod, wind) )
+
+    ! Determining scale factors
+    advective_increment_sf = 1.0_r_def/(advective_increment_inner_prod + eps)
+    wind_sf = 1.0_r_def/(wind_inner_prod + eps)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + advective_increment_inner_prod*advective_increment_sf
+    inner1 = inner1 + wind_inner_prod*wind_sf
+    write(log_scratch_space, *) "atlt_w3h_advective_update inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "advective_increment inner product = ", advective_increment_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write(log_scratch_space, *) "wind inner product = ", wind_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    ! Scaling fields
+    call invoke( inc_a_times_X( wind_sf, wind ), &
+                 inc_a_times_X( advective_increment_sf, advective_increment ) )
+
+    advective_increment_advective_increment_input_inner_prod = 0.0_r_def
+    wind_wind_input_inner_prod = 0.0_r_def
+
+    call invoke( atl_w3h_advective_update_kernel_type( advective_increment, &
+                                                       tracer,              &
+                                                       stencil_extent,      &
+                                                       ls_wind,             &
+                                                       stencil_extent,      &
+                                                       wind,                &
+                                                       m3_inv ),            &
+                 x_innerproduct_y( advective_increment_advective_increment_input_inner_prod, &
+                                   advective_increment,                                      &
+                                   advective_increment_input ),                              &
+                 x_innerproduct_y( wind_wind_input_inner_prod, &
+                                   wind,                       &
+                                   wind_input ) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + advective_increment_advective_increment_input_inner_prod
+    inner2 = inner2 + wind_wind_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing( max( abs(inner1), abs(inner2) ) )
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_w3h_advective_update_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    else
+      write(log_scratch_space, *) "FAILED tl_w3h_advective_update_kernel_type:", inner1, inner2, relative_diff
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+
+  end subroutine atlt_w3h_advective_update_alg
+
+end module atlt_w3h_advective_update_alg_mod

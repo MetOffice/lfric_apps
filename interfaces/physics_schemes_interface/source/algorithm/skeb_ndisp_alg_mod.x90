@@ -1,0 +1,260 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright 2022 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+!> @brief Interface to the compute the numerical dissipation for SKEB
+
+module skeb_ndisp_alg_mod
+    ! Use intrinsic data types and spaces
+    use constants_mod,        only: r_def, i_def
+    use fs_continuity_mod,    only: W1, W2H, W2, W3
+    ! USE types
+    use field_mod,            only: field_type
+    use field_collection_mod, only: field_collection_type
+    use function_space_mod,   only: function_space_type
+    use integer_field_mod,    only: integer_field_type
+    use mesh_mod,             only: mesh_type
+    use operator_mod,         only: operator_type
+    ! use collections
+    use function_space_collection_mod,  only: function_space_collection
+    ! xios output and timers
+    use io_config_mod,             only: subroutine_timers, write_diag, &
+                                         use_xios_io
+    use timer_mod,                 only: timer
+    ! configs and loging
+    use base_mesh_config_mod,      only: geometry, &
+                                         geometry_spherical
+    use initialise_diagnostics_mod, only: diagnostic_to_be_sampled
+
+    implicit none
+
+    private
+
+    public skeb_ndisp_alg
+
+ contains
+  !>@brief Compute the biharmonic numerical dissipation
+  !>@details The SKEB backscatters the energy lost by dissipation of
+  !>         dynamical core processes such as the interpolation to the
+  !>         departure point. This function computes the energy dissipated
+  !>         via a Biharmonic dissipation function
+  !>
+  !>         Steps:
+  !>         1)  Initialize feilds and operators
+  !>         2)  calculate horizontal divergence & vertical component of vorticity
+  !>         3)  Calculate gradients of vorticity and divergence
+  !>         4)  Do Norm of gradients of vorticity and divergence
+  !>         5)  Scale by k_amp
+  !>@param[in]         u            Wind on W2
+  !>@param[in,out]     ndisp        Numerical dissipation
+
+  subroutine skeb_ndisp_alg(u, ndisp)
+
+  ! timestep and constant
+  use timestepping_config_mod,   only: dt
+  use planet_constants_mod,      only: planet_radius
+  use constants_mod,             only: degrees_to_radians
+  use um_domain_init_mod,        only: model_wavenumber_max
+
+  ! Gemoetrical and vectorial operators
+  use sci_geometric_constants_mod,    only: get_coordinates,      &
+                                            get_panel_id,         &
+                                            get_face_selector_ew, &
+                                            get_face_selector_ns
+
+  use sci_fem_constants_mod,          only: get_div_h,               &
+                                            get_div,                 &
+                                            get_curl_fv,             &
+                                            get_inverse_mass_matrix_fv
+
+  ! Kernels to compute vectorial operations
+  use sci_set_w1h_dofs_kernel_mod,        only: set_w1h_dofs_kernel_type
+  use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
+  use sci_extract_uv_kernel_mod,          only: extract_uv_kernel_type
+  use dg_matrix_vector_kernel_mod,        only: dg_matrix_vector_kernel_type
+  use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
+  use strong_curl_kernel_mod,             only: strong_curl_kernel_type
+  use sci_mass_matrix_solver_alg_mod,     only: mass_matrix_solver_alg
+  use sci_dg_convert_hdiv_field_kernel_mod, only: dg_convert_hdiv_field_kernel_type
+
+  ! kernels to compute norm in different spaces
+  use sci_dot_product_of_components_kernel_mod, only :  dot_product_of_components_kernel_type
+
+
+  implicit none
+  !!!! Arguments
+  ! Fields
+  type( field_type ), intent(in)    :: u
+  type( field_type ), intent(inout) :: ndisp
+
+  !!!! Internal variables
+  ! operators
+  type(operator_type),        pointer :: div_h => null()
+  type(operator_type),        pointer :: curl => null()
+  type(operator_type),        pointer :: m3_inv => null()
+  ! space functions
+  type(function_space_type) , pointer :: w1_fs => null()
+  type(function_space_type) , pointer :: w2h_fs => null()
+  type(function_space_type) , pointer :: w2_fs => null()
+  type(function_space_type) , pointer :: w3_fs => null()
+
+  ! from operators
+  type(field_type),         pointer :: chi(:) => null()
+  type(field_type),         pointer :: panel_id => null()
+  type(integer_field_type), pointer :: face_selector_ew => null()
+  type(integer_field_type), pointer :: face_selector_ns => null()
+
+  ! Horizontal wind and Divergence of Horizontal Wind
+  type(field_type) :: u_h, r_div_u, div_u_h, grad_div_u
+
+  type(field_type) :: r_u
+  type(field_type) :: norm_xi, norm_gu
+  type(field_type) :: physical_grad_div(3), physical_grad_xi(3)
+
+  ! Vorticity
+  type(field_type) :: xi, r_xi, grad_perp_xi
+
+  ! mesh
+  type(mesh_type),  pointer :: mesh => null()
+
+  ! Scalars
+  real(kind=r_def) :: k_amp, delta_x
+
+  ! Integers
+  integer(kind=i_def) :: i
+
+  !!!!!!!!!! END OF VARIABLE DEFINITION, START OF CODE !!!!!!!!!!
+
+  if ( subroutine_timers ) call timer("skeb_ndisp_alg")
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  1)  Initialize feilds and operators  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! Create mesh
+  mesh     => u%get_mesh()
+  ! Create function spaces
+  w1_fs => function_space_collection%get_fs( mesh, 0, 0, W1 )
+  w2h_fs => function_space_collection%get_fs( mesh, 0, 0, W2H )
+  w2_fs => function_space_collection%get_fs( mesh, 0, 0, W2 )
+  w3_fs => function_space_collection%get_fs( mesh, 0, 0, W3 )
+  ! other variables from operators
+  chi      => get_coordinates( mesh%get_id() )
+  panel_id => get_panel_id( mesh%get_id() )
+
+  ! Initialise fields
+  call u_h%initialise( vector_space = w2h_fs )
+  call r_div_u%initialise( vector_space = w3_fs )
+  call div_u_h%initialise( vector_space = w3_fs )
+  call xi%initialise( vector_space = w1_fs )
+  call r_xi%initialise( vector_space = w1_fs  )
+  call r_u%initialise( vector_space = w2h_fs  )
+  call grad_div_u%initialise( vector_space = w2h_fs  )
+  call ndisp%copy_field_properties(norm_gu)
+  call ndisp%copy_field_properties(norm_xi)
+  call grad_perp_xi%initialise( vector_space = w2_fs  )
+  do i = 1,3
+    call physical_grad_div(i)%initialise( vector_space = w3_fs  )
+    call physical_grad_xi(i)%initialise( vector_space = w3_fs  )
+    call invoke( setval_c(physical_grad_div(i), 0.0_r_def), &
+                 setval_c(physical_grad_xi(i), 0.0_r_def)   )
+  end do
+
+  ! Initialise Operators
+  div_h            => get_div_h(mesh%get_id())
+  m3_inv           => get_inverse_mass_matrix_fv(W3, mesh%get_id())
+  curl             => get_curl_fv(mesh%get_id())
+  face_selector_ew => get_face_selector_ew(mesh%get_id())
+  face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  2)  calculate horizontal divergence & vertical component of vorticity  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! Calculate horizontal divergence of wind in W3, div_u_h
+  call invoke( setval_c(u_h, 0.0_r_def),                                  &
+               ! Extract wind horizontal coords
+               extract_uv_kernel_type( u_h, u,                            &
+                                       face_selector_ew,                  &
+                                       face_selector_ns ),                &
+               ! Do divergence: apply diverge operator (div_h) to horizontal
+               ! wind u_h, output is r_div_u on W3
+               dg_matrix_vector_kernel_type( r_div_u, u_h, div_h ),       &
+               ! Convert to pointwise W3 field for output
+               dg_matrix_vector_kernel_type( div_u_h, r_div_u , m3_inv ), &
+  ! Calculate vertical component of vorticity in W1, xi
+               setval_c(r_xi, 0.0_r_def),                                 &
+               ! Compute vorticity: curl of u, output: r_xi
+               transpose_matrix_vector_kernel_type(r_xi, u, curl),        &
+               ! Enforce BC
+               enforce_bc_kernel_type(r_xi),                              &
+               setval_c(xi, 0.0_r_def) )
+
+  ! Integrate quadrature points
+  call mass_matrix_solver_alg(xi, r_xi)
+  ! Set horizontal components to be zero to mimic W1V
+  call invoke( set_w1h_dofs_kernel_type(xi, 0.0_r_def) )
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  3)  Calculate gradients of vorticity and divergence  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  ! Calculate gradients of vorticity and divergence,
+  !  using grad_perp_xi and  grad_div_u respectively.
+
+  ! Compute strong curl of vertical component of vorticity (grad_perp(xi)) in W2
+  call invoke( strong_curl_kernel_type(grad_perp_xi, xi), &
+               inc_a_times_X(0.5_r_def, grad_perp_xi),    &
+  ! Compute weak gradient of div(u_h) in W2H grad_div_u
+               setval_c(r_u, 0.0_r_def),                                 &
+               ! Do gradient of the horizontal wind divergence (div grad u_h),
+               ! output as r_u
+               transpose_matrix_vector_kernel_type(r_u, div_u_h, div_h), &
+               inc_a_times_X(-1.0_r_def, r_u),                           &
+               enforce_bc_kernel_type(r_u),                              &
+               setval_c(grad_div_u, 0.0_r_def) )
+
+  ! Integrate quadrature
+  call mass_matrix_solver_alg(grad_div_u, r_u)
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  4)  Do Norm of gradients of vorticity and divergence  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  call invoke( setval_c(norm_gu, 0.0_r_def),                                      &
+               setval_c(norm_xi, 0.0_r_def),                                      &
+               dg_convert_hdiv_field_kernel_type(physical_grad_xi,                &
+                                                 grad_perp_xi, chi, panel_id),    &
+               dg_convert_hdiv_field_kernel_type(physical_grad_div,               &
+                                                 grad_div_u, chi, panel_id),      &
+               dot_product_of_components_kernel_type(norm_gu, physical_grad_div), &
+               dot_product_of_components_kernel_type(norm_xi, physical_grad_xi),  &
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!  5)  Scale by k_amp  !!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!
+               X_plus_Y(ndisp, norm_gu, norm_xi) )
+
+  ! create delta x (use get_delta in the future)
+  delta_x = planet_radius * &
+       SIN(360.0_r_def / (2*model_wavenumber_max) * degrees_to_radians)
+  k_amp = 3.0_r_def * delta_x**4 / (128.0_r_def*dt)
+
+  call invoke(inc_a_times_X(K_amp, ndisp) )
+
+  if (write_diag .and. use_xios_io) then
+    k_amp = delta_x**4
+    if (diagnostic_to_be_sampled('stochastic__norm_div')) then
+      call invoke( inc_a_times_X(K_amp, norm_gu) )
+      call norm_gu%write_field('stochastic__norm_div')
+    end if
+    if (diagnostic_to_be_sampled('stochastic__norm_xi')) then
+      call invoke( inc_a_times_X(K_amp, norm_xi) )
+      call norm_xi%write_field('stochastic__norm_xi')
+    end if
+  end if
+
+  if ( subroutine_timers ) call timer("skeb_ndisp_alg")
+
+  end subroutine skeb_ndisp_alg
+end module skeb_ndisp_alg_mod

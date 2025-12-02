@@ -1,0 +1,116 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2023 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief  Test the functionality of ffsl_unify_flux_mod
+
+module ffsl_unify_flux_mod_test
+
+
+  use constants_mod, only: i_def, r_tran, r_def
+  use funit
+
+
+  implicit none
+
+  private
+  public :: ffsl_unify_flux_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: ffsl_unify_flux_test_type
+    private
+  contains
+
+    procedure test_all
+
+  end type ffsl_unify_flux_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use ffsl_unify_flux_kernel_mod, only: ffsl_unify_flux_kernel_code
+
+    implicit none
+
+    class(ffsl_unify_flux_test_type), intent(inout) :: this
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ncols = 5
+    integer(kind=i_def), parameter :: ndf_w2 = 4
+    integer(kind=i_def), parameter :: undf_w2 = ncols*ndf_w2*nlayers
+    integer(kind=i_def), parameter :: ndf_w2b = 4
+    integer(kind=i_def), parameter :: undf_w2b = ncols*ndf_w2b*nlayers
+    integer(kind=i_def), parameter :: ndf_pid = 1
+    integer(kind=i_def), parameter :: undf_pid = ncols*ndf_pid*nlayers
+
+    integer(kind=i_def), dimension(ndf_w2)  :: map_w2
+    integer(kind=i_def), dimension(ndf_w2b) :: map_w2b
+    integer(kind=i_def), dimension(ndf_pid) :: map_pid
+
+    integer(kind=i_def), parameter                       :: smap_max = 2
+    integer(kind=i_def), dimension(4)                    :: smap_size
+    integer(kind=i_def), dimension(ndf_w2b, smap_max, 4) :: smap_w2b
+    integer(kind=i_def), dimension(ndf_pid, smap_max, 4) :: smap_pid
+
+    real(kind=r_tran), dimension(undf_w2 ) :: flux
+    real(kind=r_tran), dimension(undf_w2b) :: flux_b
+    real(kind=r_def),  dimension(undf_pid) :: panel_id
+
+    integer(kind=i_def) :: cell, df
+
+    smap_size(:) = smap_max
+
+    map_w2 = (/ 1, 2, 3, 4 /)
+    map_w2b = map_w2
+    map_pid = (/ 1 /)
+
+    do cell = 1, ncols-1
+      smap_w2b(:, 1, cell) = map_w2b
+      smap_w2b(:, 2, cell) = map_w2b + cell*ndf_w2b
+      smap_pid(:, 1, cell) = map_pid
+      smap_pid(:, 2, cell) = map_pid + cell*ndf_pid
+    end do
+
+    panel_id = real( (/ 1, 4, 6, 2, 5 /), r_def )
+
+    flux_b(:) = 1.0_r_tran
+    flux_b(1) = 2.0_r_tran
+    flux_b(2) = 2.0_r_tran
+    flux_b(3) = 2.0_r_tran
+    flux_b(4) = 2.0_r_tran
+
+    flux = 0.0_r_tran
+
+    call ffsl_unify_flux_kernel_code( nlayers,   &
+                                      flux,      &
+                                      flux_b,    &
+                                      smap_size, &
+                                      smap_max,  &
+                                      smap_w2b,  &
+                                      panel_id,  &
+                                      smap_size, &
+                                      smap_max,  &
+                                      smap_pid,  &
+                                      ndf_w2,    &
+                                      undf_w2,   &
+                                      map_w2,    &
+                                      ndf_w2b,   &
+                                      undf_w2b,  &
+                                      map_w2b,   &
+                                      ndf_pid,   &
+                                      undf_pid,  &
+                                      map_pid )
+  @assertEqual(1.5_r_tran, flux(1), tol)
+  @assertEqual(1.5_r_tran, flux(2), tol)
+  @assertEqual(1.5_r_tran, flux(3), tol)
+  @assertEqual(1.5_r_tran, flux(4), tol)
+
+  end subroutine test_all
+
+end module ffsl_unify_flux_mod_test

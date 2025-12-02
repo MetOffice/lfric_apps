@@ -1,0 +1,251 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module for lookup tables for stencil adjoints
+module adj_lookup_table_mod
+
+  use constants_mod,                 only : i_def
+  use extrusion_mod,                 only : TWOD
+  use finite_element_config_mod,     only : element_order_h, element_order_v
+  use function_space_collection_mod, only : function_space_collection
+  use function_space_mod,            only : function_space_type
+  use integer_field_mod,             only : integer_field_type
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR
+  use mesh_collection_mod,           only : mesh_collection
+  use mesh_mod,                      only : mesh_type
+
+
+  implicit none
+
+  !> @brief Adjoint lookup table type.
+  !> @details Container for adjoint lookup table fields. This type is populated by a generation
+  !!          kernel, which populates each adjoint lookup table.
+  !!          The role of the table is to store the transposed set of indices for a given
+  !!          linear kernel, so that it can be used in an adjoint kernel. In particular,
+  !!          for use with adjoint stencil kernels.
+  type, public :: adj_lookup_table_type
+    private
+
+    !> Field containing the lookup table. Packed sets of indices.
+    type(integer_field_type) :: lookup_field
+    !> Field containing the number of sets stored per cell/item in the lookup table.
+    type(integer_field_type) :: set_count_field
+    !> Maximum possible number of sets of indices stored per cell.
+    integer(kind=i_def)      :: nsets_max
+    !> Number of indices stored within each set of indices.
+    integer(kind=i_def)      :: nindices
+    !> Base number of elements per cell. Matches the ndata of the field used in the forward kernel.
+    integer(kind=i_def)      :: ndata
+
+    contains
+
+    procedure,  public :: initialise => adj_lookup_table_initialiser
+    procedure,  public :: get_lookup_field
+    procedure,  public :: get_set_count_field
+    procedure,  public :: get_nsets_max
+    procedure,  public :: get_nindices
+    procedure,  public :: get_ndata
+    procedure,  public :: finalise => adj_lookup_table_finaliser
+  end type adj_lookup_table_type
+
+  contains
+
+  !=============================================================================
+  !> @brief Initialise a lookup table. The structure of a lookup table depends on the
+  !!        specific kernel usage.
+  !> @param [in,out] self           Lookup table
+  !> @param [in]     nindices       Number of indices needed for a single recorded access.
+  !> @param [in]     nsets_max      Maximum number of accesses ("sets" of indices).
+  !> @param [in]     mesh           Mesh object.
+  !> @param [in]     fs             Functionspace to initialise the lookup table on.
+  !> @param [in]     stencil_depth  Depth of this stencil into the halo.
+  !> @param [in]     ndata          Optional - number of multidata points per dof.
+  subroutine adj_lookup_table_initialiser( self, &
+                                           nindices, &
+                                           nsets_max, &
+                                           mesh, &
+                                           fs, &
+                                           stencil_depth, &
+                                           ndata )
+
+    implicit none
+
+    ! Arguments
+    class(adj_lookup_table_type), intent(inout) :: self
+    integer(kind=i_def),             intent(in) :: nindices
+    integer(kind=i_def),             intent(in) :: nsets_max
+    type(mesh_type),        pointer, intent(in) :: mesh
+    integer(kind=i_def),             intent(in) :: fs
+    integer(kind=i_def),             intent(in) :: stencil_depth
+    integer(kind=i_def),   optional, intent(in) :: ndata
+
+    ! Internal variables
+    type(function_space_type),          pointer :: vector_space_lookup_ptr
+    type(function_space_type),          pointer :: vector_space_set_count_ptr
+    integer(kind = i_def)                       :: ntotal
+    type(mesh_type),                    pointer :: twod_mesh
+
+    nullify( vector_space_set_count_ptr, vector_space_lookup_ptr, twod_mesh )
+
+    self%nindices = nindices
+    self%nsets_max = nsets_max
+
+    ! For kernels that require a lookup with multidata fields.
+    if ( present(ndata) ) then
+      self%ndata = ndata
+    else
+      self%ndata = 1_i_def
+    end if
+
+    ! Store indexing fields on the 2D mesh. Problematic stencils
+    ! are applied horizontally so no vertical information is required.
+    twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+
+    ! The lookup table is packed with the structure:
+    ! [[[[ndata], ... number of indices], ... number of sets], ... number of cells]
+    ntotal = self%ndata*nindices*nsets_max
+    vector_space_lookup_ptr => function_space_collection%get_fs( twod_mesh,       &
+                                                                 element_order_h, &
+                                                                 element_order_v, &
+                                                                 fs,              &
+                                                                 ndata=ntotal )
+
+    vector_space_set_count_ptr => function_space_collection%get_fs( twod_mesh,       &
+                                                                    element_order_h, &
+                                                                    element_order_v, &
+                                                                    fs,              &
+                                                                    ndata=self%ndata )
+
+
+    ! NOTE: Halo with twice the depth needed, as table is generated on halo points,
+    !       which will attempt to access a stencil which reaches to `stencil_depth*2`.
+    call self%lookup_field%initialise( vector_space=vector_space_lookup_ptr, &
+                                       halo_depth=stencil_depth*2 )
+    call self%set_count_field%initialise( vector_space=vector_space_set_count_ptr, &
+                                          halo_depth=stencil_depth*2 )
+
+    ! Set initial values for the lookup fields.
+    ! -1 has intentionally been chosen for the lookup itself, to show
+    ! when an unwritten index is read from when adjointing, as this would be a silent error.
+    !
+    ! Similarly the set count should start at 0 for each cell.
+    call invoke( name = "init_lookup", &
+                 int_setval_c( self%lookup_field, -1_i_def ), &
+                 int_setval_c( self%set_count_field, 0_i_def ) )
+
+  end subroutine adj_lookup_table_initialiser
+
+  !=============================================================================
+  !> @brief Return a pointer to the integer lookup table field.
+  !> @param [in]     self           Lookup table
+  !> @return lookup_field The lookup table field.
+  function get_lookup_field( self ) result( lookup_field )
+
+    implicit none
+
+    ! Arguments
+    class(adj_lookup_table_type), target, intent(in) :: self
+
+    ! Returns
+    type(integer_field_type), pointer :: lookup_field
+
+    nullify(lookup_field)
+    lookup_field => self%lookup_field
+
+  end function get_lookup_field
+
+  !=============================================================================
+  !> @brief Return a pointer to the integer set counter field.
+  !> @details Each dof in this field keeps a tally of the number of sets recorded
+  !!          for a particular entry in the lookup table.
+  !> @param [in]     self           Lookup table
+  !> @return lookup_field The set counter field.
+  function get_set_count_field( self ) result( set_count_field )
+
+    implicit none
+
+    ! Arguments
+    class(adj_lookup_table_type), target, intent(in) :: self
+
+    ! Returns
+    type(integer_field_type), pointer :: set_count_field
+
+    nullify(set_count_field)
+    set_count_field => self%set_count_field
+
+  end function get_set_count_field
+
+  !=============================================================================
+  !> @brief Return the maximum number of index sets for a given entry in the table.
+  !> @param [in]     self           Lookup table
+  !> @return nsets_max Max number of index sets.
+  function get_nsets_max( self ) result( nsets_max )
+
+    implicit none
+
+    ! Arguments
+    class(adj_lookup_table_type), intent(in) :: self
+
+    ! Returns
+    integer(kind=i_def) :: nsets_max
+
+    nsets_max = self%nsets_max
+
+  end function get_nsets_max
+
+  !=============================================================================
+  !> @brief Return the number of indices per index set in the lookup table.
+  !> @param [in]     self           Lookup table
+  !> @return nsets_max Max number of index sets.
+  function get_nindices( self ) result( nindices )
+
+    implicit none
+
+    ! Arguments
+    class(adj_lookup_table_type), intent(in) :: self
+
+    ! Returns
+    integer(kind=i_def) :: nindices
+
+    nindices = self%nindices
+
+  end function get_nindices
+
+  !=============================================================================
+  !> @brief Return the ndata set for this lookup table.
+  !> @param [in]     self           Lookup table
+  !> @return ndata ndata value for this lookup table.
+  function get_ndata( self ) result( ndata )
+
+    implicit none
+
+    ! Arguments
+    class(adj_lookup_table_type), intent(in) :: self
+
+    ! Returns
+    integer(kind=i_def) :: ndata
+
+    ndata = self%ndata
+
+  end function get_ndata
+
+  !=============================================================================
+  !> @brief Destructor.
+  !> @param [in,out]     self           Lookup table
+  subroutine adj_lookup_table_finaliser( self )
+
+    implicit none
+
+    ! Arguments
+    class(adj_lookup_table_type), intent(inout) :: self
+
+    ! Pass
+
+  end subroutine adj_lookup_table_finaliser
+
+end module adj_lookup_table_mod

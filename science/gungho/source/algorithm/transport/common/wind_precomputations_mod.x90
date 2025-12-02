@@ -1,0 +1,1659 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Defines the "wind precomputation" object, used in transport schemes
+!> @details This module controls the pre-computation of various fields relating
+!!          to the transporting wind field that are used in the transport of
+!!          multiple fields, and so costs are saved by computing them once and
+!!          re-using them.
+!!          The fields are stored in a single "wind_precomputations" object,
+!!          which is passed to the transport algorithms, allowing different
+!!          model instances to have different objects.
+!!          This differs from the "flux precomputation" object because:
+!!          - entities relate to the transporting wind (not reference flux)
+!!          - it can handle multiple splittings at once
+!!          - the time step used is that for a single transport *substep*
+!!          - entities are computed and stored based on the different possible
+!!            split steps. e.g. if the possible splittings are HVH and VH, then
+!!            entities will be computed for full and half vertical/horizontal
+!!            steps
+!!          - it is used for the MoL, SL and non-3D-unity FFSL schemes
+
+module wind_precomputations_alg_mod
+
+  use constants_mod,                  only: i_def, l_def, str_def, imdi,       &
+                                            r_tran, EPS_R_TRAN
+  use extrusion_mod,                  only: SHIFTED, TWOD
+  use sci_field_minmax_alg_mod,       only: get_field_minmax,                  &
+                                            log_field_minmax
+  use flux_precomputations_alg_mod,   only: flux_precomputations_type
+  use fs_continuity_mod,              only: W2, W2h, W2v, W3, Wtheta
+  use function_space_mod,             only: function_space_type
+  use function_space_collection_mod,  only: function_space_collection
+  use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
+                                            get_face_selector_ns
+  use integer_field_mod,              only: integer_field_type
+  use io_config_mod,                  only: subroutine_timers
+  use local_mesh_mod,                 only: local_mesh_type
+  use log_mod,                        only: log_event,                         &
+                                            log_scratch_space,                 &
+                                            LOG_LEVEL_ERROR,                   &
+                                            LOG_LEVEL_DEBUG,                   &
+                                            LOG_LEVEL_INFO,                    &
+                                            log_level
+  use mesh_mod,                       only: mesh_type
+  use mesh_collection_mod,            only: mesh_collection
+  use r_tran_field_mod,               only: r_tran_field_type
+  use runtime_tools_mod,              only: check_initialised_field
+  use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+  use split_transport_utils_mod,      only: get_splitting_fraction,            &
+                                            get_fraction_from_idx,             &
+                                            get_fraction_idx,                  &
+                                            get_num_split_steps
+  use timer_mod,                      only: timer
+  use transport_enumerated_types_mod, only: direction_h,                       &
+                                            direction_v,                       &
+                                            direction_3d
+  use transport_constants_mod,        only: get_element_order_h_transport,     &
+                                            get_element_order_v_transport
+
+
+  implicit none
+
+  private
+
+  ! Public types
+  type, public :: wind_precomputations_type
+
+    private
+
+    integer(kind=i_def)                   :: local_mesh_id
+    integer(kind=i_def),      allocatable :: mesh_ids(:)
+    logical(kind=l_def)                   :: is_initialised_flag = .false.
+    real(kind=r_tran)                     :: dt_substep
+    real(kind=r_tran),        allocatable :: max_courant_hori(:,:)
+    real(kind=r_tran),        allocatable :: max_courant_vert(:,:)
+    real(kind=r_tran),        allocatable :: max_courant_3d(:)
+    logical(kind=l_def),      allocatable :: courant_computed(:)
+    type(r_tran_field_type),  allocatable :: dep_courant_vert(:)
+    ! Wind fields
+    type(r_tran_field_type),  allocatable :: wind_n(:)
+    type(r_tran_field_type),  allocatable :: wind_np1(:)
+    type(r_tran_field_type),  allocatable :: wind_3d(:)
+    type(r_tran_field_type),  allocatable :: horizontal_wind(:)
+    type(r_tran_field_type),  allocatable :: vertical_wind(:)
+    ! MoL quantities
+    integer(kind=i_def),      allocatable :: num_mol_hori_substeps(:,:)
+    integer(kind=i_def),      allocatable :: num_mol_vert_substeps(:,:)
+    integer(kind=i_def),      allocatable :: num_mol_3d_substeps(:)
+    ! SL coefficients and indices
+    type(r_tran_field_type),  allocatable :: vert_w3_cubic_coeff(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_wt_cubic_coeff(:,:,:)
+    type(integer_field_type), allocatable :: vert_w3_cubic_index(:,:,:)
+    type(integer_field_type), allocatable :: vert_wt_cubic_index(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_w3_herm_cubic_coeff(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_wt_herm_cubic_coeff(:,:,:)
+    type(integer_field_type), allocatable :: vert_w3_herm_cubic_index(:,:,:)
+    type(integer_field_type), allocatable :: vert_wt_herm_cubic_index(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_w3_quintic_coeff(:,:,:)
+    type(integer_field_type), allocatable :: vert_w3_quintic_index(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_wt_quintic_coeff(:,:,:)
+    type(integer_field_type), allocatable :: vert_wt_quintic_index(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_w3_linear_coeff(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_wt_linear_coeff(:,:,:)
+    ! Departure distances (for non-3D-unity FFSL)
+    type(r_tran_field_type),  allocatable :: dep_dist_xy(:,:)
+    type(r_tran_field_type),  allocatable :: dep_dist_z(:,:)
+    integer(kind=i_def),      allocatable :: dep_stencil_extent(:,:)
+    ! Flux pre-computations for non-3D-unity FFSL and departure points
+    type(flux_precomputations_type), allocatable :: split_ffsl_precomputations(:)
+
+    contains
+
+    procedure, public  :: get_local_mesh_id
+    procedure, public  :: get_prime_extrusion_mesh_id
+    procedure, public  :: is_initialised
+    procedure, public  :: get_mesh_id_from_idx
+    procedure, public  :: get_wind
+    procedure, public  :: get_wind_npdt
+    procedure, public  :: get_number_mol_substeps
+    procedure, public  :: get_dt_mol_substep
+    procedure, public  :: get_vert_sl_coeff
+    procedure, public  :: get_vert_sl_index
+    procedure, public  :: get_dep_dist_z
+    procedure, public  :: get_dep_dist_xy
+    procedure, public  :: get_frac_wind_z
+    procedure, public  :: get_frac_wind_xy
+    procedure, public  :: get_dep_lowest_k
+    procedure, public  :: get_dep_highest_k
+    procedure, public  :: get_dep_stencil_extent_xy
+    procedure, public  :: get_adv_unity_x
+    procedure, public  :: get_adv_unity_y
+    procedure, public  :: get_adv_unity_z
+    procedure, public  :: get_adv_detj_x
+    procedure, public  :: get_adv_detj_y
+    procedure, public  :: get_adv_detj_xy
+    procedure, public  :: get_dep_courant_vert
+    procedure, private :: get_split_ffsl_precomputations
+    procedure, private :: compute_courant
+    procedure, private :: compute_sl_coefficients
+    procedure, private :: idx_from_mesh_id
+    procedure, public  :: initialise => wind_precomputations_initialiser
+    procedure, public  :: finalise
+    final              :: destroy_wind_precomputations
+
+  end type wind_precomputations_type
+
+  !-----------------------------------------------------------------------------
+  ! Constructors
+  !-----------------------------------------------------------------------------
+
+contains
+
+  !> @brief Constructs the wind_precomputations object from a 3D transporting
+  !!        wind field. Splits this wind field into horizontal and vertical
+  !!        components.
+  !> @param[in] prime_mesh         The prime extrusion mesh
+  !> @param[in] dt_substep         Time interval for a transport substep
+  !> @param[in] transporting_wind  The 3D transporting wind field
+  !> @param[in] wind_n             Optional, wind field at start of current time
+  !!                               step, used for computing departure points
+  !> @param[in] wind_np1           Optional, latest estimate of wind field at
+  !!                               end of current time step, used for computing
+  !!                               departure points
+  subroutine wind_precomputations_initialiser(self, prime_mesh, dt_substep,    &
+                                              transporting_wind,               &
+                                              wind_n, wind_np1 )
+
+    use map_w2_to_sh_w2_alg_mod,   only: map_w2_to_sh_w2_alg
+    use split_transport_utils_mod, only: get_max_num_fractions, use_shifted_mesh
+
+    implicit none
+
+    ! Arguments
+    class(wind_precomputations_type),  intent(inout) :: self
+    type(mesh_type),                   intent(in)    :: prime_mesh
+    real(kind=r_tran),                 intent(in)    :: dt_substep
+    type(r_tran_field_type),           intent(in)    :: transporting_wind
+    type(r_tran_field_type), optional, intent(in)    :: wind_n
+    type(r_tran_field_type), optional, intent(in)    :: wind_np1
+
+    ! Local variables
+    integer(kind=i_def)            :: i
+    integer(kind=i_def)            :: k_h, k_v
+    type(local_mesh_type), pointer :: local_mesh
+    type(mesh_type),       pointer :: shifted_mesh
+    type(mesh_type),       pointer :: mesh
+    integer(kind=i_def)            :: num_meshes
+    integer(kind=i_def)            :: num_fractions
+
+    type(function_space_type), pointer :: w2_fs
+    type(function_space_type), pointer :: w2h_fs
+    type(function_space_type), pointer :: w2v_fs
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+
+    if ( subroutine_timers ) call timer('transport.wind_precomp_init')
+
+    ! ------------------------------------------------------------------------ !
+    ! Get correct element order arguments
+    ! ------------------------------------------------------------------------ !
+    k_h = get_element_order_h_transport()
+    k_v = get_element_order_v_transport()
+
+    ! ------------------------------------------------------------------------ !
+    ! Set mesh IDs and indices
+    ! ------------------------------------------------------------------------ !
+    local_mesh => prime_mesh%get_local_mesh()
+    self%local_mesh_id = local_mesh%get_id()
+    self%dt_substep = dt_substep
+
+    if (use_shifted_mesh()) then
+      num_meshes = 2
+      shifted_mesh => mesh_collection%get_mesh(prime_mesh, SHIFTED)
+      allocate(self%mesh_ids(num_meshes))
+      self%mesh_ids(1) = prime_mesh%get_id()
+      self%mesh_ids(2) = shifted_mesh%get_id()
+
+    else
+      num_meshes = 1
+      allocate(self%mesh_ids(num_meshes))
+      self%mesh_ids(1) = prime_mesh%get_id()
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Allocate fields based on possible splittings
+    ! ------------------------------------------------------------------------ !
+    num_fractions = get_max_num_fractions()
+
+    ! Core variables for just prime/shifted mesh
+    allocate( self%wind_3d( num_meshes ) )
+    allocate( self%horizontal_wind( num_meshes ) )
+    allocate( self%vertical_wind( num_meshes ) )
+
+    ! MoL variables for just prime/shifted mesh
+    allocate( self%max_courant_3d( num_meshes ) )
+    allocate( self%num_mol_3d_substeps( num_meshes ) )
+
+    ! MoL variables for prime/shifted mesh and splitting type
+    allocate( self%max_courant_hori( num_meshes, num_fractions ) )
+    allocate( self%max_courant_vert( num_meshes, num_fractions ) )
+    allocate( self%num_mol_hori_substeps( num_meshes, num_fractions ) )
+    allocate( self%num_mol_vert_substeps( num_meshes, num_fractions ) )
+    allocate( self%courant_computed( num_meshes ) )
+    allocate( self%dep_courant_vert( num_meshes ) )
+
+    ! SL indices and coefficients (third index is for the number of coeffs/indices)
+    allocate( self%vert_w3_linear_coeff( num_meshes, num_fractions, 2 ) )
+    allocate( self%vert_wt_linear_coeff( num_meshes, num_fractions, 2 ) )
+    allocate( self%vert_w3_cubic_coeff( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_w3_cubic_index( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_wt_cubic_coeff( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_wt_cubic_index( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_w3_herm_cubic_coeff( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_w3_herm_cubic_index( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_wt_herm_cubic_coeff( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_wt_herm_cubic_index( num_meshes, num_fractions, 4 ) )
+    allocate( self%vert_w3_quintic_coeff( num_meshes, num_fractions, 6 ) )
+    allocate( self%vert_w3_quintic_index( num_meshes, num_fractions, 6 ) )
+    allocate( self%vert_wt_quintic_coeff( num_meshes, num_fractions, 6 ) )
+    allocate( self%vert_wt_quintic_index( num_meshes, num_fractions, 6 ) )
+
+    ! Departure distances for SL and non 3D-unity FFSL
+    allocate( self%dep_dist_xy( num_meshes, num_fractions ) )
+    allocate( self%dep_dist_z( num_meshes, num_fractions ) )
+    allocate( self%dep_stencil_extent( num_meshes, num_fractions ) )
+
+    ! Flux pre-computations, used for non 3D-unity FFSL and departure distances
+    ! One for each split-step fraction
+    allocate( self%split_ffsl_precomputations( num_fractions ) )
+
+    ! ------------------------------------------------------------------------ !
+    ! Store and split wind
+    ! ------------------------------------------------------------------------ !
+
+    ! Store the wind field
+    call transporting_wind%copy_field_properties(self%wind_3d(1))
+    call invoke( setval_X(self%wind_3d(1), transporting_wind) )
+
+    if (num_meshes == 2) then
+      ! Compute the transporting wind on the shifted mesh
+      w2_fs => function_space_collection%get_fs(                               &
+          shifted_mesh, k_h, k_v, W2                                           &
+      )
+      call self%wind_3d(2)%initialise( w2_fs )
+      call map_w2_to_sh_w2_alg(self%wind_3d(2), self%wind_3d(1))
+    end if
+
+    ! Split the wind into horizontal and vertical components
+    do i = 1, num_meshes
+      mesh => mesh_collection%get_mesh(self%mesh_ids(i))
+      w2h_fs => function_space_collection%get_fs(                              &
+          mesh, k_h, k_v, W2H                                                  &
+      )
+      w2v_fs => function_space_collection%get_fs(                              &
+          mesh, k_h, k_v, W2V                                                  &
+      )
+      face_selector_ew => get_face_selector_ew(mesh%get_id())
+      face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+      call self%horizontal_wind(i)%initialise(w2h_fs)
+      call self%vertical_wind(i)%initialise(w2v_fs)
+
+      call invoke( split_w2_field_kernel_type(self%horizontal_wind(i),         &
+                                              self%vertical_wind(i),           &
+                                              self%wind_3d(i),                 &
+                                              face_selector_ew,                &
+                                              face_selector_ns) )
+    end do
+
+    ! Store start-of-time step wind (if provided, otherwise use 3D wind)
+    ! We need both wind_n and wind_np1 for general departure point methods,
+    ! so these both need storing. However, some apps may not provide these, and
+    ! if not we set self%wind_n and self%wind_np1 to be the transporting wind
+    allocate( self%wind_n( num_meshes ) )
+    call transporting_wind%copy_field_properties(self%wind_n(1))
+    if (present(wind_n)) then
+      call invoke( setval_X(self%wind_n(1), wind_n) )
+    else
+      call invoke( setval_X(self%wind_n(1), self%wind_3d(1)) )
+    end if
+
+    if (num_meshes == 2) then
+      ! Compute the transporting wind on the shifted mesh
+      call self%wind_n(2)%initialise( w2_fs )
+      call map_w2_to_sh_w2_alg(self%wind_n(2), self%wind_n(1))
+    end if
+
+    ! Store end-of-time step wind (if provided, otherwise use 3D wind)
+    allocate( self%wind_np1( num_meshes ) )
+    call transporting_wind%copy_field_properties(self%wind_np1(1))
+
+    if (present(wind_np1)) then
+      call invoke( setval_X(self%wind_np1(1), wind_np1) )
+    else
+      call invoke( setval_X(self%wind_np1(1), self%wind_3d(1)) )
+    end if
+
+    if (num_meshes == 2) then
+      ! Compute the transporting wind on the shifted mesh
+      call self%wind_np1(2)%initialise( w2_fs )
+      call map_w2_to_sh_w2_alg(self%wind_np1(2), self%wind_np1(1))
+    end if
+
+    ! Set logicals for "computed" variables to be false
+    self%courant_computed(:) = .false.
+    self%is_initialised_flag = .true.
+
+    if ( subroutine_timers ) call timer('transport.wind_precomp_init')
+
+  end subroutine wind_precomputations_initialiser
+
+  !> Finalizer for the wind precomputation
+  subroutine destroy_wind_precomputations(self)
+
+    implicit none
+
+    type(wind_precomputations_type), intent(inout) :: self
+
+    call self%finalise()
+
+  end subroutine destroy_wind_precomputations
+
+  !> @brief Finalises the wind precomputations object
+  subroutine finalise(self)
+
+    implicit none
+
+    class(wind_precomputations_type), intent(inout) :: self
+
+    self%is_initialised_flag = .false.
+    if ( allocated( self%mesh_ids ) )                   deallocate( self%mesh_ids )
+    if ( allocated( self%wind_n ) )                     deallocate( self%wind_n )
+    if ( allocated( self%wind_np1 ) )                   deallocate( self%wind_np1 )
+    if ( allocated( self%wind_3d ) )                    deallocate( self%wind_3d )
+    if ( allocated( self%horizontal_wind ) )            deallocate( self%horizontal_wind )
+    if ( allocated( self%vertical_wind ) )              deallocate( self%vertical_wind )
+    if ( allocated( self%max_courant_hori ) )           deallocate( self%max_courant_hori )
+    if ( allocated( self%max_courant_vert ) )           deallocate( self%max_courant_vert )
+    if ( allocated( self%max_courant_3d ) )             deallocate( self%max_courant_3d )
+    if ( allocated( self%courant_computed ) )           deallocate( self%courant_computed )
+    if ( allocated( self%dep_courant_vert ) )           deallocate( self%dep_courant_vert )
+    if ( allocated( self%num_mol_hori_substeps ) )      deallocate( self%num_mol_hori_substeps )
+    if ( allocated( self%num_mol_vert_substeps ) )      deallocate( self%num_mol_vert_substeps )
+    if ( allocated( self%num_mol_3d_substeps ) )        deallocate( self%num_mol_3d_substeps )
+    if ( allocated( self%vert_w3_linear_coeff ) )       deallocate( self%vert_w3_linear_coeff )
+    if ( allocated( self%vert_wt_linear_coeff ) )       deallocate( self%vert_wt_linear_coeff )
+    if ( allocated( self%vert_w3_cubic_coeff ) )        deallocate( self%vert_w3_cubic_coeff )
+    if ( allocated( self%vert_wt_cubic_coeff ) )        deallocate( self%vert_wt_cubic_coeff )
+    if ( allocated( self%vert_w3_cubic_index ) )        deallocate( self%vert_w3_cubic_index )
+    if ( allocated( self%vert_wt_cubic_index ) )        deallocate( self%vert_wt_cubic_index )
+    if ( allocated( self%vert_w3_herm_cubic_coeff ) )   deallocate( self%vert_w3_herm_cubic_coeff )
+    if ( allocated( self%vert_wt_herm_cubic_coeff ) )   deallocate( self%vert_wt_herm_cubic_coeff )
+    if ( allocated( self%vert_w3_herm_cubic_index ) )   deallocate( self%vert_w3_herm_cubic_index )
+    if ( allocated( self%vert_wt_herm_cubic_index ) )   deallocate( self%vert_wt_herm_cubic_index )
+    if ( allocated( self%vert_w3_quintic_coeff ) )      deallocate( self%vert_w3_quintic_coeff )
+    if ( allocated( self%vert_w3_quintic_index ) )      deallocate( self%vert_w3_quintic_index )
+    if ( allocated( self%vert_wt_quintic_coeff ) )      deallocate( self%vert_wt_quintic_coeff )
+    if ( allocated( self%vert_wt_quintic_index ) )      deallocate( self%vert_wt_quintic_index )
+    if ( allocated( self%dep_dist_xy ) )                deallocate( self%dep_dist_xy )
+    if ( allocated( self%dep_dist_z ) )                 deallocate( self%dep_dist_z )
+    if ( allocated( self%dep_stencil_extent ) )         deallocate( self%dep_stencil_extent )
+    if ( allocated( self%split_ffsl_precomputations ) ) deallocate( self%split_ffsl_precomputations )
+
+  end subroutine finalise
+
+! ============================================================================ !
+! GETTERS FOR INFORMATION ABOUT THIS OBJECT
+! ============================================================================ !
+
+  !> @brief   Public function for getting mesh_id corresponding to array index
+  !> @details Used by the adjoint model
+  !> @param[in] idx       Array index for the desired mesh
+  !> @return The ID of the corresponding mesh
+  function get_mesh_id_from_idx(self, idx) result(mesh_id)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def),                      intent(in) :: idx
+    integer(kind=i_def)                                  :: mesh_id
+
+    mesh_id = self%mesh_ids(idx)
+
+  end function get_mesh_id_from_idx
+
+  !> @brief Returns the local mesh id for the object
+  !> @return The identifier for the underlying local mesh
+  function get_local_mesh_id(self) result(local_mesh_id)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def)                                  :: local_mesh_id
+
+    local_mesh_id = self%local_mesh_id
+
+  end function get_local_mesh_id
+
+  !> @brief Returns the mesh id for the prime extrusion mesh for this object
+  !> @return The identifier for the prime extrusion mesh
+  function get_prime_extrusion_mesh_id(self) result(prime_mesh_id)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def)                                  :: prime_mesh_id
+
+    prime_mesh_id = self%mesh_ids(1)
+
+  end function get_prime_extrusion_mesh_id
+
+  !> @brief Returns whether the object has been initialised
+  !> @return A logical indicating if the object has been initialised
+  function is_initialised(self) result(is_initialised_flag)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(in) :: self
+    logical(kind=l_def)                                  :: is_initialised_flag
+
+    is_initialised_flag = self%is_initialised_flag
+
+  end function is_initialised
+
+! ============================================================================ !
+! GETTERS FOR TRANSPORTING WIND
+! ============================================================================ !
+
+  !> @brief Returns a pointer to the transporting wind for a direction
+  !> @param[in] mesh_id    The ID of the mesh to get the object for
+  !> @param[in] direction  The enumerator for the direction
+  !> @return The transporting wind for that mesh and specified direction
+  function get_wind(self, mesh_id, direction) result(transporting_wind)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def),                      intent(in) :: mesh_id
+    integer(kind=i_def),                      intent(in) :: direction
+    type(r_tran_field_type),                  pointer    :: transporting_wind
+    character(str_def)                                   :: field_name
+    integer(kind=i_def)                                  :: idx
+
+    field_name = 'transporting_wind'
+    idx = self%idx_from_mesh_id(mesh_id)
+
+    select case (direction)
+    case (direction_3d)
+      transporting_wind => self%wind_3d(idx)
+    case (direction_h)
+      transporting_wind => self%horizontal_wind(idx)
+    case (direction_v)
+      transporting_wind => self%vertical_wind(idx)
+    case default
+      call log_event('get_wind: Direction not recognised', LOG_LEVEL_ERROR)
+    end select
+
+    ! These fields are initialised in the initialise method, so need to check
+    ! if that has been done
+    call check_initialised_field(transporting_wind, field_name, mesh_id)
+
+  end function get_wind
+
+  !> @brief   Returns a pointer to the wind at time n plus delta_t
+  !> @details Used by the adjoint model
+  !> @param[in] mesh_id    The ID of the mesh to get the object for
+  !> @param[in] delta_t    Enumerator to select either wind_np1 or wind_n
+  !> @return The time n plus delta_t wind for that mesh
+  function get_wind_npdt(self, mesh_id, delta_t) result(wind_npdt)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def),                      intent(in) :: mesh_id
+    type(r_tran_field_type),                  pointer    :: wind_npdt
+    integer(kind=i_def)                                  :: delta_t
+    integer(kind=i_def)                                  :: idx
+
+    idx = self%idx_from_mesh_id(mesh_id)
+
+    select case(delta_t)
+      case(0_i_def)
+        wind_npdt => self%wind_n(idx)
+      case(1_i_def)
+        wind_npdt => self%wind_np1(idx)
+      case default
+        call log_event( "Bad value: delta_t enumerator must be either 0 or 1", LOG_LEVEL_ERROR )
+    end select
+
+  end function get_wind_npdt
+
+! ============================================================================ !
+! GETTERS FOR MOL PRE-COMPUTATIONS
+! ============================================================================ !
+
+  !> @brief Computes number of MoL substeps for a splitting step
+  !> @param[in] mesh_id   Identifier of mesh
+  !> @param[in] direction Enumerator for the direction
+  !> @param[in] splitting Enumerator for splitting
+  !> @param[in] step      Step of the splitting to return
+  !> @return number_mol_substeps Number of MoL substeps to perform
+  function get_number_mol_substeps(self, mesh_id, direction, splitting, step) result(num_mol_substeps)
+
+    implicit none
+
+    class(wind_precomputations_type), intent(inout) :: self
+    integer(kind=i_def),              intent(in)    :: mesh_id
+    integer(kind=i_def),              intent(in)    :: direction
+    integer(kind=i_def),              intent(in)    :: splitting
+    integer(kind=i_def),              intent(in)    :: step
+
+    ! Internal variables
+    integer(kind=i_def) :: num_mol_substeps
+    integer(kind=i_def) :: mesh_idx, frac_idx
+
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    ! Compute Courant number, if this hasn't already been done
+    if (.not. self%courant_computed(mesh_idx)) then
+      call self%compute_courant(mesh_id)
+    end if
+
+    ! Get the number of substeps for this direction
+    select case (direction)
+    case (direction_3d)
+      num_mol_substeps = self%num_mol_3d_substeps(mesh_idx)
+
+    case (direction_h)
+      frac_idx = get_fraction_idx(splitting, step)
+      num_mol_substeps = self%num_mol_hori_substeps(mesh_idx, frac_idx)
+
+    case (direction_v)
+      frac_idx = get_fraction_idx(splitting, step)
+      num_mol_substeps = self%num_mol_vert_substeps(mesh_idx, frac_idx)
+
+    case default
+      call log_event(                                                          &
+              'get_number_mol_substeps: Direction not recognised',             &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end select
+
+  end function get_number_mol_substeps
+
+  !> @brief Computes the time interval for a MoL substep
+  !> @param[in] mesh_id   Identifier of mesh
+  !> @param[in] direction Enumerator for the direction
+  !> @param[in] splitting Enumerator for splitting
+  !> @param[in] step      Step of the splitting to return
+  !> @return The time interval for a MoL substep
+  function get_dt_mol_substep(self, mesh_id, direction, splitting, step) result(dt_mol_substep)
+
+    use split_transport_utils_mod, only: get_splitting_factor
+
+    implicit none
+
+    class(wind_precomputations_type), intent(inout) :: self
+    integer(kind=i_def),              intent(in)    :: mesh_id
+    integer(kind=i_def),              intent(in)    :: direction
+    integer(kind=i_def),              intent(in)    :: splitting
+    integer(kind=i_def),              intent(in)    :: step
+
+    ! Internal variables
+    real(kind=r_tran)   :: dt_mol_substep, step_factor
+    integer(kind=i_def) :: num_mol_substeps
+
+    num_mol_substeps = self%get_number_mol_substeps(mesh_id, direction, splitting, step)
+
+    ! Get the time interval for this step
+    step_factor = get_splitting_factor(splitting, step)
+    dt_mol_substep = self%dt_substep * step_factor / REAL(num_mol_substeps, r_tran)
+
+  end function get_dt_mol_substep
+
+! ============================================================================ !
+! GETTERS FOR VERTICAL SEMI-LAGRANGIAN PRE-COMPUTATIONS
+! ============================================================================ !
+
+  !> @brief Returns a pointer to the vertical interpolation coefficients
+  !!        for semi-Lagrangian transport of a W3 or Wtheta field
+  !!        The returned array has size of the number of coefficients
+  !> @param[in] mesh_id   ID of Mesh to get the coefficients for
+  !> @param[in] space     Function space to get the coefficients for
+  !> @param[in] order     Enumerator of reconstruction in the SL scheme
+  !> @param[in] splitting Enumerator of splitting for the SL scheme
+  !> @param[in] step      Step in the splitting to get the coefficients for
+  !> @return The SL interpolation coefficients
+  function get_vert_sl_coeff(self, mesh_id, space, order, splitting, step) result(coeffs)
+
+    use transport_config_mod,          only: vertical_sl_order_linear,         &
+                                             vertical_sl_order_cubic,          &
+                                             vertical_sl_order_quintic,        &
+                                             vertical_sl_order_cubic_hermite
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: space
+    integer(kind=i_def),                      intent(in)    :: order
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: coeffs(:)
+
+    integer(kind=i_def) :: mesh_idx, frac_idx
+
+    ! Get indices of the stored coefficients
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    frac_idx = get_fraction_idx(splitting, step)
+
+    ! Point to the appropriate SL coefficients depending on the provided args
+    select case (space)
+    case (W3)
+      select case (order)
+      case (vertical_sl_order_cubic)
+        coeffs => self%vert_w3_cubic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_cubic_hermite)
+        coeffs => self%vert_w3_herm_cubic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_quintic)
+        coeffs => self%vert_w3_quintic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_linear)
+        coeffs => self%vert_w3_linear_coeff(mesh_idx, frac_idx, :)
+      case default
+        call log_event(                                                        &
+                "get_vert_sl_coeff: order not implemented", LOG_LEVEL_ERROR    &
+        )
+      end select
+
+    case (Wtheta)
+      select case (order)
+      case (vertical_sl_order_cubic)
+        coeffs => self%vert_wt_cubic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_cubic_hermite)
+        coeffs => self%vert_wt_herm_cubic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_quintic)
+        coeffs => self%vert_wt_quintic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_linear)
+        coeffs => self%vert_wt_linear_coeff(mesh_idx, frac_idx, :)
+      case default
+        call log_event(                                                        &
+                "get_vert_sl_coeff: order not implemented", LOG_LEVEL_ERROR    &
+        )
+      end select
+
+    case default
+      call log_event(                                                          &
+              "get_vert_sl_coeff: space not implemented", LOG_LEVEL_ERROR      &
+      )
+    end select
+
+    ! Check if coefficients have been computed, based on if they are initialised
+    if (.not. coeffs(1)%is_initialised()) then
+      call self%compute_sl_coefficients(mesh_id, space, order, splitting, step)
+    end if
+
+  end function get_vert_sl_coeff
+
+  !> @brief Returns a pointer to the vertical interpolation indices
+  !!        for semi-Lagrangian transport of a W3/Wtheta field
+  !!        The returned array has size of the number of coefficients
+  !> @param[in] mesh_id    ID of Mesh to get the coefficients for
+  !> @param[in] space      Function space to get the coefficients for
+  !> @param[in] order      Enumerator of reconstruction in the SL scheme
+  !> @param[in] splitting  Enumerator of splitting for the SL scheme
+  !> @param[in] step       Step in the splitting to get the coefficients for
+  !> @return The SL interpolation coefficients
+  function get_vert_sl_index(self, mesh_id, space, order, splitting, step) result(sl_indices)
+
+    use fs_continuity_mod,             only: W3, Wtheta
+    use transport_config_mod,          only: vertical_sl_order_cubic,     &
+                                             vertical_sl_order_quintic,   &
+                                             vertical_sl_order_cubic_hermite
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: space
+    integer(kind=i_def),                      intent(in)    :: order
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(integer_field_type),                 pointer       :: sl_indices(:)
+
+    integer(kind=i_def) :: mesh_idx, frac_idx
+
+    ! Get indices of the stored coefficients
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    frac_idx = get_fraction_idx(splitting, step)
+
+    ! Point to the appropriate SL coefficients depending on the provided args
+    select case (space)
+    case (W3)
+      select case (order)
+      case (vertical_sl_order_cubic)
+        sl_indices => self%vert_w3_cubic_index(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_cubic_hermite)
+        sl_indices => self%vert_w3_herm_cubic_index(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_quintic)
+        sl_indices => self%vert_w3_quintic_index(mesh_idx, frac_idx, :)
+      case default
+        call log_event(                                                        &
+                "get_vert_sl_index: order not implemented", LOG_LEVEL_ERROR    &
+        )
+      end select
+
+    case (Wtheta)
+      select case (order)
+      case (vertical_sl_order_cubic)
+        sl_indices => self%vert_wt_cubic_index(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_cubic_hermite)
+        sl_indices => self%vert_wt_herm_cubic_index(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_quintic)
+        sl_indices => self%vert_wt_quintic_index(mesh_idx, frac_idx, :)
+      case default
+        call log_event(                                                        &
+                "get_vert_sl_index: order not implemented", LOG_LEVEL_ERROR    &
+        )
+      end select
+
+    case default
+      call log_event(                                                          &
+              "get_vert_sl_index: space not implemented", LOG_LEVEL_ERROR      &
+      )
+    end select
+
+    ! Check if indices have been computed, based on if they are initialised
+    if (.not. sl_indices(1)%is_initialised()) then
+      call self%compute_sl_coefficients(mesh_id, space, order, splitting, step)
+    end if
+
+  end function get_vert_sl_index
+
+! ============================================================================ !
+! GETTERS FOR NON-3D-UNITY FFSL
+! ============================================================================ !
+
+  !> @brief Returns a pointer to the horizontal departure distances at W2h DoFs
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @param[in] outer_step  Whether to return field for FFSL outer step
+  !> @return The departure distances at W2h DoFs
+  function get_dep_dist_xy(self, mesh_id, splitting, step, outer_step) result(dep_dist_xy)
+
+    use calc_dep_pts_alg_mod,           only: calc_hori_dep_pts
+    use departure_points_config_mod,    only: horizontal_method,               &
+                                              horizontal_method_ffsl
+    use transport_config_mod,           only: dep_pt_stencil_extent
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),                      intent(in)    :: outer_step
+    type(r_tran_field_type),                  pointer       :: dep_dist_xy
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+    integer(kind=i_def)                                     :: mesh_idx
+    integer(kind=i_def)                                     :: frac_idx
+    type(mesh_type),                          pointer       :: mesh
+    type(mesh_type),                          pointer       :: twod_mesh
+    type(function_space_type),                pointer       :: w2h_fs
+    type(function_space_type),                pointer       :: depk_fs
+    type(r_tran_field_type)                                 :: dummy_frac_wind
+    type(integer_field_type)                                :: dummy_lowest_k
+    type(integer_field_type)                                :: dummy_highest_k
+    integer(kind=i_def)                                     :: frac
+    integer(kind=i_def)                                     :: ndata
+    integer(kind=i_def)                                     :: stencil_extent
+    real(kind=r_tran)                                       :: dt_split_step
+    real(kind=r_tran)                                       :: dep_min, dep_max
+
+    ! If departure points calculated using "FFSL" method, get these from the
+    ! flux precomputations object
+    if (horizontal_method == horizontal_method_ffsl) then
+      split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+      flux_step = 1  ! Horizontal step is designated as step 1
+      dep_dist_xy => split_ffsl_precomp%get_dep_dist(                          &
+              mesh_id, flux_step, outer_step=outer_step                        &
+      )
+
+    ! Otherwise, the departure points are those stored in this object
+    else
+
+      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+
+      ! Check if they have been computed, based on if they are initialised
+      mesh_idx = self%idx_from_mesh_id(mesh_id)
+      frac_idx = get_fraction_idx(splitting, step)
+      if (.not. self%dep_dist_xy(mesh_idx, frac_idx)%is_initialised()) then
+        frac = get_splitting_fraction(splitting, step)
+        dt_split_step = self%dt_substep / REAL(frac, r_tran)
+
+        mesh => mesh_collection%get_mesh(mesh_id)
+        w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
+
+        call self%dep_dist_xy(mesh_idx, frac_idx)%initialise(w2h_fs)
+        call dummy_frac_wind%initialise(w2h_fs)
+
+        ndata = 2*dep_pt_stencil_extent + 1
+        twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
+        depk_fs => function_space_collection%get_fs(twod_mesh, 0, 0, W2H, ndata)
+        call dummy_lowest_k%initialise(depk_fs)
+        call dummy_highest_k%initialise(depk_fs)
+
+        call calc_hori_dep_pts(                                                &
+                self%dep_dist_xy(mesh_idx, frac_idx), dummy_frac_wind,         &
+                dummy_lowest_k, dummy_highest_k,                               &
+                self%wind_n(mesh_idx), self%wind_np1(mesh_idx), dt_split_step  &
+        )
+
+        ! Compute stencil extent for departure points
+        call get_field_minmax(self%dep_dist_xy(mesh_idx, frac_idx), dep_min, dep_max)
+        stencil_extent = INT(MAX(ABS(dep_max), ABS(dep_min)), i_def) + 1
+        self%dep_stencil_extent(mesh_idx, frac_idx) = stencil_extent
+      end if
+
+      dep_dist_xy => self%dep_dist_xy(mesh_idx, frac_idx)
+
+      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+    end if
+
+  end function get_dep_dist_xy
+
+  !> @brief Returns a pointer to the z departure distances at W2v DoFs
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The departure distances for the z direction at W2v DoFs
+  function get_dep_dist_z(self, mesh_id, splitting, step) result(dep_dist_z)
+
+    use calc_dep_pts_alg_mod,           only: calc_vert_dep_pts
+    use departure_points_config_mod,    only: vertical_method,                 &
+                                              vertical_method_timeaverage
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: dep_dist_z
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+    integer(kind=i_def)                                     :: mesh_idx
+    integer(kind=i_def)                                     :: frac_idx
+    type(mesh_type),                          pointer       :: mesh
+    type(function_space_type),                pointer       :: w2v_fs
+    type(r_tran_field_type)                                 :: dummy_frac_wind
+    type(r_tran_field_type)                                 :: dummy_cfl
+    integer(kind=i_def)                                     :: frac
+    real(kind=r_tran)                                       :: dt_split_step
+    logical(kind=l_def)                                     :: compute_dep_cfl
+
+    ! If departure points calculated using "FFSL" method, get these from the
+    ! flux precomputations object
+    if (vertical_method == vertical_method_timeaverage) then
+      split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+      flux_step = 2  ! Vertical step is designated as step 2
+      dep_dist_z => split_ffsl_precomp%get_dep_dist(mesh_id, flux_step)
+
+    ! Otherwise, the departure points are those stored in this object
+    else
+      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+
+      ! Check if they have been computed, based on if they are initialised
+      mesh_idx = self%idx_from_mesh_id(mesh_id)
+      frac_idx = get_fraction_idx(splitting, step)
+      if (.not. self%dep_dist_z(mesh_idx, frac_idx)%is_initialised()) then
+        compute_dep_cfl = .false.
+        frac = get_splitting_fraction(splitting, step)
+        dt_split_step = self%dt_substep / REAL(frac, r_tran)
+
+        mesh => mesh_collection%get_mesh(mesh_id)
+        w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
+
+        call self%dep_dist_z(mesh_idx, frac_idx)%initialise(w2v_fs)
+        call dummy_frac_wind%initialise(w2v_fs)
+        call dummy_cfl%initialise(w2v_fs)
+
+        call calc_vert_dep_pts(                                                &
+                self%dep_dist_z(mesh_idx, frac_idx), dummy_frac_wind,          &
+                dummy_cfl, self%wind_n(mesh_idx), self%wind_np1(mesh_idx),     &
+                dt_split_step, compute_dep_cfl                                 &
+        )
+      end if
+
+      dep_dist_z => self%dep_dist_z(mesh_idx, frac_idx)
+
+      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+    end if
+
+  end function get_dep_dist_z
+
+  !> @brief Returns a pointer to the fractional horizontal wind flux
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @param[in] outer_step  Whether to return field for FFSL outer step
+  !> @return The fractional wind flux at W2h DOFs
+  function get_frac_wind_xy(self, mesh_id, splitting, step, outer_step) result(frac_wind_xy)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),                      intent(in)    :: outer_step
+    type(r_tran_field_type),                  pointer       :: frac_wind_xy
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    frac_wind_xy => split_ffsl_precomp%get_frac_flux(                          &
+            mesh_id, flux_step, outer_step=outer_step                          &
+    )
+
+  end function get_frac_wind_xy
+
+  !> @brief Returns a pointer to the lowest-k for dep points
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @param[in] outer_step  Whether to return field for FFSL outer step
+  !> @return The field of indices for integer flux sums
+  function get_dep_lowest_k(self, mesh_id, splitting, step, outer_step) result(dep_lowest_k)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),                      intent(in)    :: outer_step
+    type(integer_field_type),                 pointer       :: dep_lowest_k
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    dep_lowest_k => split_ffsl_precomp%get_dep_lowest_k(                       &
+            mesh_id, flux_step, outer_step=outer_step                          &
+    )
+
+  end function get_dep_lowest_k
+
+  !> @brief Returns a pointer to the highest-k for dep points
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @param[in] outer_step  Whether to return field for FFSL outer step
+  !> @return The field of indices for integer flux sums
+  function get_dep_highest_k(self, mesh_id, splitting, step, outer_step) result(dep_highest_k)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),                      intent(in)    :: outer_step
+    type(integer_field_type),                 pointer       :: dep_highest_k
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    dep_highest_k => split_ffsl_precomp%get_dep_highest_k(                     &
+            mesh_id, flux_step, outer_step=outer_step                          &
+    )
+
+  end function get_dep_highest_k
+
+  !> @brief Returns a pointer to the fractional vertical wind
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The fractional vertical wind at W2v DOFs
+  function get_frac_wind_z(self, mesh_id, splitting, step) result(frac_wind_z)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: frac_wind_z
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 2  ! Vertical step is designated as step 2
+    frac_wind_z => split_ffsl_precomp%get_frac_flux(                           &
+            mesh_id, flux_step, outer_step=.false.                             &
+    )
+
+  end function get_frac_wind_z
+
+  !> @brief Returns a pointer to the detj_at_w3 field transported in x
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The cell volume after transport in x
+  function get_adv_detj_x(self, mesh_id, splitting, step) result(adv_detj_x)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: adv_detj_x
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    adv_detj_x => split_ffsl_precomp%get_ref_mass_x(mesh_id, flux_step)
+
+  end function get_adv_detj_x
+
+  !> @brief Returns a pointer to the detj_at_w3 field transported in y
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The cell volume after transport in y
+  function get_adv_detj_y(self, mesh_id, splitting, step) result(adv_detj_y)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: adv_detj_y
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    adv_detj_y => split_ffsl_precomp%get_ref_mass_y(mesh_id, flux_step)
+
+  end function get_adv_detj_y
+
+  !> @brief Returns a pointer to the detj_at_w3 field transported in x and y
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The cell volume after transport in x and y
+  function get_adv_detj_xy(self, mesh_id, splitting, step) result(adv_detj_xy)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: adv_detj_xy
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    adv_detj_xy => split_ffsl_precomp%get_ref_mass(mesh_id, flux_step+1)
+
+  end function get_adv_detj_xy
+
+  !> @brief Returns a pointer to the transport of unity in x
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The update of transport of unity in x
+  function get_adv_unity_x(self, mesh_id, splitting, step) result(adv_unity_x)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: adv_unity_x
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    adv_unity_x => split_ffsl_precomp%get_ref_field_x(mesh_id, flux_step)
+
+  end function get_adv_unity_x
+
+  !> @brief Returns a pointer to the transport of unity in y
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The update of transport of unity in y
+  function get_adv_unity_y(self, mesh_id, splitting, step) result(adv_unity_y)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: adv_unity_y
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 1  ! Horizontal step is designated as step 1
+    adv_unity_y => split_ffsl_precomp%get_ref_field_y(mesh_id, flux_step)
+
+  end function get_adv_unity_y
+
+  !> @brief Returns a pointer to the transport of unity in z
+  !> @param[in] mesh_id     The ID of the mesh to get the field for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @return The update of transport of unity in z
+  function get_adv_unity_z(self, mesh_id, splitting, step) result(adv_unity_z)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    type(r_tran_field_type),                  pointer       :: adv_unity_z
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+
+    split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+    flux_step = 2  ! Vertical step is designated as step 2
+    adv_unity_z => split_ffsl_precomp%get_ref_field(mesh_id, flux_step+1)
+
+  end function get_adv_unity_z
+
+  !> @brief Returns the required stencil size for SL/FFSL transport
+  !!        based on the maximum horizontal departure distance
+  !> @param[in] mesh_id     The ID of the mesh to get the object for
+  !> @param[in] splitting   Enumerator for the splitting type
+  !> @param[in] step        Transport step to get the field for
+  !> @param[in] outer_step  Whether to return value for outer step
+  !> @return The required stencil depth
+  function get_dep_stencil_extent_xy(self, mesh_id, splitting, step,           &
+                                     outer_step) result(dep_stencil_extent)
+
+    use departure_points_config_mod,    only: horizontal_method,               &
+                                              horizontal_method_ffsl
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+    logical(kind=l_def),                      intent(in)    :: outer_step
+    integer(kind=i_def)                                     :: dep_stencil_extent
+    type(flux_precomputations_type),          pointer       :: split_ffsl_precomp
+    integer(kind=i_def)                                     :: flux_step
+    integer(kind=i_def)                                     :: mesh_idx
+    integer(kind=i_def)                                     :: frac_idx
+    type(r_tran_field_type),                  pointer       :: dep_dist_xy
+
+    ! If departure points calculated using "FFSL" method, get these from the
+    ! flux precomputations object
+    if (horizontal_method == horizontal_method_ffsl) then
+      split_ffsl_precomp => self%get_split_ffsl_precomputations(splitting, step)
+      flux_step = 1  ! Horizontal step is designated as step 1
+      dep_stencil_extent = split_ffsl_precomp%get_dep_stencil_extent(          &
+              mesh_id, flux_step, outer_step=outer_step                        &
+      )
+    ! Otherwise, the departure points are those stored in this object
+    else
+      ! Check if they have been computed, based on whether the horizontal
+      ! departure distances are initialised
+      mesh_idx = self%idx_from_mesh_id(mesh_id)
+      frac_idx = get_fraction_idx(splitting, step)
+
+      ! Try to get the departure distance, which will force it to be created,
+      ! and the stencil extent to be calculated
+      dep_dist_xy => self%get_dep_dist_xy(mesh_id, splitting, step, outer_step)
+
+      dep_stencil_extent = self%dep_stencil_extent(mesh_idx, frac_idx)
+    end if
+
+  end function get_dep_stencil_extent_xy
+
+  !> @brief Returns a pointer to vertical departure distances used to calculate
+  !!        the Courant number
+  !> @param[in] mesh_id   Identifier of mesh to return the field for
+  !> @return Vertical departure distances for calculating Courant numbers in W2v
+  function get_dep_courant_vert(self, mesh_id) result(dep_courant_vert)
+
+    use calc_dep_pts_alg_mod, only: calc_vert_dep_pts
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+
+    ! Interval variables
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w2v_fs
+    type(r_tran_field_type),   pointer :: dep_courant_vert
+    integer(kind=i_def)                :: mesh_idx
+    integer(kind=i_def)                :: k_h, k_v
+    type(r_tran_field_type)            :: dep_dist_z
+    type(r_tran_field_type)            :: frac_vert_wind
+    logical(kind=l_def)                :: compute_cfl_dep
+
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+
+    ! Has the field already been computed? If not, compute it now
+    if (.not. self%dep_courant_vert(mesh_idx)%is_initialised()) then
+      if ( subroutine_timers ) call timer('transport.dep_dist_courant')
+
+      ! Calculate vertical departure distance
+      mesh => mesh_collection%get_mesh(mesh_id)
+      mesh_idx = self%idx_from_mesh_id(mesh_id)
+      k_h = get_element_order_h_transport()
+      k_v = get_element_order_v_transport()
+      w2v_fs => function_space_collection%get_fs(                              &
+          mesh, k_h, k_v, W2V                                                  &
+      )
+      call dep_dist_z%initialise(w2v_fs)
+      call frac_vert_wind%initialise(w2v_fs)
+      call self%dep_courant_vert(mesh_idx)%initialise(w2v_fs)
+
+      compute_cfl_dep = .true.
+      call calc_vert_dep_pts(                                                  &
+              dep_dist_z, frac_vert_wind, self%dep_courant_vert(mesh_idx),     &
+              self%wind_n(mesh_idx), self%wind_np1(mesh_idx), self%dt_substep, &
+              compute_cfl_dep                                                  &
+      )
+      if ( subroutine_timers ) call timer('transport.dep_dist_courant')
+    end if
+
+    dep_courant_vert => self%dep_courant_vert(mesh_idx)
+
+  end function get_dep_courant_vert
+
+! ============================================================================ !
+! PRIVATE GETTER TO RETURN FLUX PRECOMPUTATION
+! ============================================================================ !
+
+  !> @brief Returns the flux precomputations object for a mesh and step fraction
+  !!        This object is used to compute departure distances, fractional winds
+  !!        and the transport of the reference unity field when FFSL is used
+  !!        for an individual transport step (and not 3D FFSL)
+  !> @param[in] splitting Enumerator for the splitting to get the object for
+  !> @param[in] step      The step of the splitting to get the object for
+  function get_split_ffsl_precomputations(self, splitting, step) result(split_ffsl_precomp)
+
+    use transport_config_mod,           only: dep_pt_stencil_extent
+    use transport_enumerated_types_mod, only: splitting_hv
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+
+    type(flux_precomputations_type), pointer :: split_ffsl_precomp
+    type(mesh_type),                 pointer :: mesh
+    integer(kind=i_def)                      :: mesh_idx, frac_idx
+    integer(kind=i_def)                      :: frac
+    real(kind=r_tran)                        :: dt_precomp
+    type(r_tran_field_type)                  :: wind_flux
+
+    mesh_idx = 1
+    frac_idx = get_fraction_idx(splitting, step)
+
+    if (.not. self%split_ffsl_precomputations(frac_idx)%is_initialised()) then
+      mesh => mesh_collection%get_mesh(self%mesh_ids(1))
+
+      ! Use full wind multiplied by dt for this fraction of step
+      frac = get_splitting_fraction(splitting, step)
+      dt_precomp = self%dt_substep / REAL(frac, r_tran)
+      call self%wind_3d(mesh_idx)%copy_field_properties(wind_flux)
+      call invoke( a_times_X(wind_flux, dt_precomp, self%wind_3d(mesh_idx)) )
+
+      ! Initialise with HV splitting, so time step is dt for each direction
+      call self%split_ffsl_precomputations(frac_idx)%initialise(               &
+              mesh, splitting=splitting_hv, num_substeps=1,                    &
+              wind=self%wind_3d(mesh_idx), dt=dt_precomp,                      &
+              flux=wind_flux, reset_unity=.true.,                              &
+              max_courant_num=dep_pt_stencil_extent                            &
+      )
+    end if
+
+    ! Return existing object
+    split_ffsl_precomp => self%split_ffsl_precomputations(frac_idx)
+
+  end function get_split_ffsl_precomputations
+
+! ============================================================================ !
+! PRIVATE ROUTINES FOR PERFORMING PRE-COMPUTATIONS
+! ============================================================================ !
+
+  !> @brief Private routine to compute Courant number
+  !> @param[in] mesh_id   ID of mesh to compute Courant number for
+  subroutine compute_courant(self, mesh_id)
+
+    use calc_dep_pts_alg_mod,      only: select_detj_at_w2
+    use calc_max_cfl_kernel_mod,   only: calc_max_cfl_kernel_type
+    use transport_config_mod,      only: max_vert_cfl_calc,                    &
+                                         max_vert_cfl_calc_uniform,            &
+                                         max_vert_cfl_calc_dep_point,          &
+                                         cfl_mol_1d_stab,                      &
+                                         cfl_mol_2d_stab,                      &
+                                         cfl_mol_3d_stab
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+
+    integer(kind=i_def)                :: mesh_idx, frac_idx
+    integer(kind=i_def)                :: k_h, k_v
+    real(kind=r_tran)                  :: frac_real
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: w2_fs, w3_fs, w2h_fs, w2v_fs
+    type(integer_field_type),  pointer :: face_selector_ew, face_selector_ns
+    type(r_tran_field_type),   pointer :: wind_3d
+    type(r_tran_field_type),   pointer :: dep_courant_vert
+    type(r_tran_field_type)            :: detj_at_w2_transport
+    type(r_tran_field_type)            :: courant_3d, courant_hori, courant_vert
+    type(r_tran_field_type)            :: sum_courant_3d, sum_courant_hori
+    real(kind=r_tran)                  :: min_courant_vert, max_courant_vert
+    real(kind=r_tran)                  :: min_courant_hori, max_courant_hori
+    real(kind=r_tran)                  :: min_courant_3d, max_courant_3d
+    real(kind=r_tran)                  :: cfl_limit
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    k_h = get_element_order_h_transport()
+    k_v = get_element_order_v_transport()
+    w2_fs => function_space_collection%get_fs(                                 &
+        mesh, k_h, k_v, W2                                                     &
+    )
+    w3_fs => function_space_collection%get_fs(                                 &
+        mesh, k_h, k_v, W3                                                     &
+    )
+    w2h_fs => function_space_collection%get_fs(                                &
+        mesh, k_h, k_v, W2H                                                    &
+    )
+    w2v_fs => function_space_collection%get_fs(                                &
+        mesh, k_h, k_v, W2V                                                    &
+    )
+    face_selector_ew => get_face_selector_ew(mesh_id)
+    face_selector_ns => get_face_selector_ns(mesh_id)
+    wind_3d => self%get_wind(mesh_id, direction_3d)
+
+    if ( subroutine_timers ) call timer('transport.compute_courant')
+
+    ! ------------------------------------------------------------------------ !
+    ! Determine Courant number field
+    ! ------------------------------------------------------------------------ !
+    ! Initialise fields
+    call courant_hori%initialise(w2h_fs)
+    call courant_vert%initialise(w2v_fs)
+    call courant_3d%initialise(w2_fs)
+    call sum_courant_hori%initialise(w3_fs)
+    call sum_courant_3d%initialise(w3_fs)
+    call detj_at_w2_transport%initialise(w2_fs)
+
+    ! First calculate pointwise directional Courant number ---------------------
+    call select_detj_at_w2(self%wind_3d(mesh_idx), detj_at_w2_transport)
+
+    call invoke( X_divideby_Y(courant_3d, wind_3d, detj_at_w2_transport),      &
+                 inc_a_times_X(self%dt_substep, courant_3d),                   &
+                 split_w2_field_kernel_type(courant_hori, courant_vert,        &
+                                            courant_3d,                        &
+                                            face_selector_ew, face_selector_ns) )
+
+    ! Determine the maximum vertical Courant: choice of method -----------------
+    select case (max_vert_cfl_calc)
+    ! Calculate the maximum vertical cfl for substepping
+    case (max_vert_cfl_calc_uniform)
+      ! For each face, only use the volume of the adjacent upwind cell
+      ! Use existing vertical Courant number
+      call get_field_minmax(courant_vert, min_courant_vert, max_courant_vert)
+
+    case(max_vert_cfl_calc_dep_point)
+      ! Determine Courant number using departure dist (before they are capped)
+      ! Replace vertical Courant number with departure distances
+      dep_courant_vert => self%get_dep_courant_vert(mesh_id)
+      call invoke( setval_X(courant_vert, dep_courant_vert) )
+      call get_field_minmax(dep_courant_vert, min_courant_vert, max_courant_vert)
+
+    case default
+      call log_event(                                                          &
+              'wind_precomputations: maximum vertical CFL method not defined', &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end select
+
+    ! Take maximum absolute value
+    max_courant_vert = MAX(ABS(max_courant_vert), ABS(min_courant_vert))
+
+    ! Determine the 2D and 3D Courant numbers: depends on element --------------
+    if (k_h == 0_i_def .and. k_v == 0_i_def) then
+      ! Get the total CFL at each cell - this only works for element_order = 0
+      ! Sum different components
+      call invoke( calc_max_cfl_kernel_type(sum_courant_3d, sum_courant_hori,  &
+                                            courant_hori, courant_vert) )
+
+      call get_field_minmax(sum_courant_hori, min_courant_hori, max_courant_hori)
+      call get_field_minmax(sum_courant_3d, min_courant_3d, max_courant_3d )
+
+      max_courant_hori = MAX(ABS(max_courant_hori), ABS(min_courant_hori))
+      max_courant_3d = MAX(ABS(max_courant_3d), ABS(min_courant_3d))
+    else
+      ! For higher order elements, just take the maximum of components
+      ! This is stable for finite element transport
+      call get_field_minmax(courant_hori, min_courant_hori, max_courant_hori)
+
+      max_courant_hori = MAX(ABS(max_courant_hori), ABS(min_courant_hori))
+      max_courant_3d = MAX(max_courant_hori, max_courant_vert)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Logging
+    ! ------------------------------------------------------------------------ !
+    if (mesh_idx == 1) then
+      write(log_scratch_space, '(A, E16.8)')                                   &
+          'Transport: max horizontal MoL Courant ', max_courant_hori
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      write(log_scratch_space, '(A, E16.8)')                                   &
+          'Transport: max vertical MoL Courant ', max_courant_vert
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      write(log_scratch_space, '(A, E16.8)')                                   &
+          'Transport: max total MoL Courant ', max_courant_3d
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Set Courant number and num MoL substeps for each splitting-fraction
+    ! ------------------------------------------------------------------------ !
+    ! Vertical Courant number
+    cfl_limit = REAL(cfl_mol_1d_stab, r_tran) + EPS_R_TRAN
+    do frac_idx = 1, SIZE(self%num_mol_vert_substeps(mesh_idx,:))
+      frac_real = REAL(get_fraction_from_idx(frac_idx), r_tran)
+      self%max_courant_vert(mesh_idx, frac_idx) = max_courant_vert / frac_real
+      self%num_mol_vert_substeps(mesh_idx, frac_idx) =                         &
+          1 + INT(self%max_courant_vert(mesh_idx, frac_idx) / cfl_limit, i_def)
+    end do
+
+    ! Horizontal Courant number
+    cfl_limit = REAL(cfl_mol_2d_stab, r_tran) + EPS_R_TRAN
+    do frac_idx = 1, SIZE(self%num_mol_hori_substeps(mesh_idx,:))
+      frac_real = REAL(get_fraction_from_idx(frac_idx), r_tran)
+      self%max_courant_hori(mesh_idx, frac_idx) =  max_courant_hori / frac_real
+      self%num_mol_hori_substeps(mesh_idx, frac_idx) =                         &
+          1 + INT(self%max_courant_hori(mesh_idx, frac_idx) / cfl_limit, i_def)
+    end do
+
+    ! 3D Courant number (only one per mesh so no loop through fractions)
+    cfl_limit = REAL(cfl_mol_3d_stab, r_tran) + EPS_R_TRAN
+    self%max_courant_3d(mesh_idx) = max_courant_3d
+    self%num_mol_3d_substeps(mesh_idx) =                                       &
+        1 + INT(max_courant_3d / cfl_limit, i_def)
+
+    self%courant_computed(mesh_idx) = .true.
+
+    if ( subroutine_timers ) call timer('transport.compute_courant')
+
+  end subroutine compute_courant
+
+  !> @brief Private routine to pre-compute indices and coefficients for vert SL
+  !> @param[in] mesh_id   ID of Mesh to get the coefficients for
+  !> @param[in] space     Function space to get the coefficients for
+  !> @param[in] order     Enumerator of reconstruction in the SL scheme
+  !> @param[in] splitting Enumerator of splitting for the SL scheme
+  !> @param[in] step      Step in the splitting to get the coefficients for
+  subroutine compute_sl_coefficients(self, mesh_id, space, order, splitting, step)
+
+    use compute_sl_coefficients_alg_mod, only: compute_sl_coefficients_alg
+    use transport_config_mod,            only: vertical_sl_order_linear,       &
+                                               vertical_sl_order_cubic,        &
+                                               vertical_sl_order_quintic,      &
+                                               vertical_sl_order_cubic_hermite
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(inout) :: self
+    integer(kind=i_def),                      intent(in)    :: mesh_id
+    integer(kind=i_def),                      intent(in)    :: space
+    integer(kind=i_def),                      intent(in)    :: order
+    integer(kind=i_def),                      intent(in)    :: splitting
+    integer(kind=i_def),                      intent(in)    :: step
+
+    integer(kind=i_def)                :: i, mesh_idx, frac_idx
+    integer(kind=i_def)                :: num_coeffs
+    type(mesh_type),           pointer :: mesh
+    type(function_space_type), pointer :: fs
+    type(r_tran_field_type),   pointer :: dep_dist_z
+    type(r_tran_field_type),   pointer :: coeffs(:)
+    type(integer_field_type),  pointer :: sl_indices(:)
+
+    mesh => mesh_collection%get_mesh(mesh_id)
+    fs => function_space_collection%get_fs(mesh, 0, 0, space)
+
+    ! Get indices of the stored coefficients
+    mesh_idx = self%idx_from_mesh_id(mesh_id)
+    frac_idx = get_fraction_idx(splitting, step)
+    dep_dist_z => self%get_dep_dist_z(mesh_id, splitting, step)
+
+    if ( subroutine_timers ) call timer('transport.compute_sl_coeffs')
+
+    ! Points to appropriate coefficients and indices ---------------------------
+    select case (space)
+    case (W3)
+      select case (order)
+      case (vertical_sl_order_linear)
+        coeffs => self%vert_w3_linear_coeff(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_cubic)
+        coeffs => self%vert_w3_cubic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_w3_cubic_index(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_cubic_hermite)
+        coeffs => self%vert_w3_herm_cubic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_w3_herm_cubic_index(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_quintic)
+        coeffs => self%vert_w3_quintic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_w3_quintic_index(mesh_idx, frac_idx, :)
+
+      case default
+        call log_event(                                                        &
+                "compute_sl_coefficients: order not implemented",              &
+                LOG_LEVEL_ERROR                                                &
+        )
+      end select
+
+    case (Wtheta)
+      select case (order)
+      case (vertical_sl_order_linear)
+        coeffs => self%vert_wt_linear_coeff(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_cubic)
+        coeffs => self%vert_wt_cubic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_wt_cubic_index(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_cubic_hermite)
+        coeffs => self%vert_wt_herm_cubic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_wt_herm_cubic_index(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_quintic)
+        coeffs => self%vert_wt_quintic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_wt_quintic_index(mesh_idx, frac_idx, :)
+
+      case default
+        call log_event(                                                        &
+                "compute_sl_coefficients: order not implemented",              &
+                LOG_LEVEL_ERROR                                                &
+        )
+      end select
+
+    case default
+      call log_event(                                                          &
+              "compute_sl_coefficients: space not implemented",                &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end select
+
+    num_coeffs = SIZE(coeffs)
+
+    ! Initialise variables
+    do i = 1, num_coeffs
+      call coeffs(i)%initialise(fs)
+      if (order /= vertical_sl_order_linear) then
+        call sl_indices(i)%initialise(fs)
+      end if
+    end do
+
+    ! Compute coefficients -----------------------------------------------------
+    call compute_sl_coefficients_alg(coeffs, sl_indices, dep_dist_z, order)
+
+    if ( subroutine_timers ) call timer('transport.compute_sl_coeffs')
+
+  end subroutine compute_sl_coefficients
+
+! ============================================================================ !
+! UTILITIES
+! ============================================================================ !
+
+  !> @brief Private function for getting array index corresponding to mesh_id
+  !> @param[in] mesh_id   Identifier of mesh to find
+  function idx_from_mesh_id(self, mesh_id) result(idx)
+
+    implicit none
+
+    class(wind_precomputations_type), target, intent(in) :: self
+    integer(kind=i_def),                      intent(in) :: mesh_id
+    integer(kind=i_def)                                  :: idx
+    integer(kind=i_def)                                  :: i
+
+    idx = imdi
+    do i = 1, SIZE(self%mesh_ids)
+      if ( mesh_id == self%mesh_ids(i) ) idx = i
+    end do
+
+    if ( idx == imdi ) then
+      write(log_scratch_space, '(A,I4)')                                       &
+          'wind_precomputations does not contain mesh: ', mesh_id
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end function idx_from_mesh_id
+
+end module wind_precomputations_alg_mod

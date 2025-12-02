@@ -1,0 +1,251 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2023,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+!> Test the physical consistency of specific humidity in IAU applications
+!>
+module q_limit_test_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+
+  public :: q_limit_test_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: q_limit_test_test_type
+
+    private
+
+    ! Fields and dof_map
+    real(r_def),    allocatable :: q_wth(:)
+    real(r_def),    allocatable :: qcl_wth(:)
+    real(r_def),    allocatable :: qcf_wth(:)
+    real(r_def),    allocatable :: area_frac_wth(:)
+    real(r_def),    allocatable :: bulk_frac_wth(:)
+    real(r_def),    allocatable :: frozen_frac_wth(:)
+    real(r_def),    allocatable :: liquid_frac_wth(:)
+    integer(i_def), allocatable :: map_wtheta(:)
+
+    ! Inputs that affect code coverage
+    real(r_def),    allocatable :: q_wth_inp(:)
+    real(r_def),    allocatable :: qcl_wth_inp(:)
+    real(r_def),    allocatable :: qcf_wth_inp(:)
+    real(r_def),    allocatable :: frozen_frac_wth_inp(:)
+    real(r_def),    allocatable :: liquid_frac_wth_inp(:)
+
+    ! KGOs
+    real(r_def),    allocatable :: q_wth_out(:)
+    real(r_def),    allocatable :: qcl_wth_out(:)
+    real(r_def),    allocatable :: qcf_wth_out(:)
+    real(r_def),    allocatable :: area_frac_wth_out(:)
+    real(r_def),    allocatable :: bulk_frac_wth_out(:)
+    real(r_def),    allocatable :: frozen_frac_wth_out(:)
+    real(r_def),    allocatable :: liquid_frac_wth_out(:)
+
+  contains
+
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+
+  end type q_limit_test_test_type
+
+  integer(i_def), parameter :: nlayers = 5
+  integer(i_def), parameter :: ndf_wtheta = 2
+  ! Implicit extra layer is implied in q_limit_test_kernel_mod.F90
+  integer(i_def), parameter :: undf_wtheta = ( nlayers + 1_i_def ) * ndf_wtheta
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(q_limit_test_test_type), intent(inout) :: this
+
+    allocate( this%q_wth( undf_wtheta ) )
+    allocate( this%qcl_wth( undf_wtheta ) )
+    allocate( this%qcf_wth( undf_wtheta ) )
+    allocate( this%area_frac_wth( undf_wtheta ) )
+    allocate( this%bulk_frac_wth( undf_wtheta ) )
+    allocate( this%frozen_frac_wth( undf_wtheta ) )
+    allocate( this%liquid_frac_wth( undf_wtheta ) )
+    allocate( this%map_wtheta( ndf_wtheta ) )
+
+    ! Each layer features a batch of these field inputs
+    ! such that each branch of the kernel logic is visited
+    allocate( this%q_wth_inp( nlayers + 1 ) )
+    allocate( this%qcl_wth_inp( nlayers + 1 ) )
+    allocate( this%qcf_wth_inp( nlayers + 1 ) )
+    allocate( this%frozen_frac_wth_inp( nlayers + 1 ) )
+    allocate( this%liquid_frac_wth_inp( nlayers + 1 ) )
+
+    ! Each layer corresponds to a kgo
+    allocate( this%q_wth_out( nlayers + 1 ) )
+    allocate( this%qcl_wth_out( nlayers + 1 ) )
+    allocate( this%qcf_wth_out( nlayers + 1 ) )
+    allocate( this%area_frac_wth_out( nlayers + 1 ) )
+    allocate( this%bulk_frac_wth_out( nlayers + 1 ) )
+    allocate( this%frozen_frac_wth_out( nlayers + 1 ) )
+    allocate( this%liquid_frac_wth_out( nlayers + 1 ) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+    implicit none
+
+    class(q_limit_test_test_type), intent(inout) :: this
+
+    deallocate( this%q_wth )
+    deallocate( this%qcl_wth )
+    deallocate( this%qcf_wth )
+    deallocate( this%area_frac_wth )
+    deallocate( this%bulk_frac_wth )
+    deallocate( this%frozen_frac_wth )
+    deallocate( this%liquid_frac_wth )
+    deallocate( this%map_wtheta )
+
+    deallocate( this%q_wth_inp )
+    deallocate( this%qcl_wth_inp )
+    deallocate( this%qcf_wth_inp )
+    deallocate( this%frozen_frac_wth_inp )
+    deallocate( this%liquid_frac_wth_inp )
+
+    deallocate( this%q_wth_out )
+    deallocate( this%qcl_wth_out )
+    deallocate( this%qcf_wth_out )
+    deallocate( this%area_frac_wth_out )
+    deallocate( this%bulk_frac_wth_out )
+    deallocate( this%frozen_frac_wth_out )
+    deallocate( this%liquid_frac_wth_out )
+
+  end subroutine tearDown
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( this )
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use q_limit_test_kernel_mod,        only : q_limit_test_code
+
+    implicit none
+
+    class(q_limit_test_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def   ! r_def 64bit
+    real(r_def)            :: answer, use_tol
+    integer(i_def)         :: k, df
+
+    this%map_wtheta = (/ 1_i_def, 1_i_def + nlayers + 1_i_def /)
+
+    this%q_wth_inp = (/ 0.0_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def /)
+    this%qcl_wth_inp = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.5_r_def /)
+    this%qcf_wth_inp = (/ 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+    this%frozen_frac_wth_inp = (/ 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.0_r_def /)
+    this%liquid_frac_wth_inp = (/ 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.0_r_def /)
+
+    this%q_wth_out = (/ 1e-8_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def, 0.5_r_def /)
+    this%qcl_wth_out = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.5_r_def /)
+    this%qcf_wth_out = (/ 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.5_r_def /)
+    this%area_frac_wth_out = (/ 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    this%bulk_frac_wth_out = (/ 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+    this%frozen_frac_wth_out = (/ 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def /)
+    this%liquid_frac_wth_out = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def /)
+
+
+    ! Create the data
+    do k = 0, nlayers
+      do df = 1, ndf_wtheta
+        this%q_wth( this%map_wtheta(df) + k ) = this%q_wth_inp( k + 1 )
+        this%qcl_wth( this%map_wtheta(df) + k ) = this%qcl_wth_inp( k + 1 )
+        this%qcf_wth( this%map_wtheta(df) + k ) = this%qcf_wth_inp( k + 1 )
+        this%frozen_frac_wth( this%map_wtheta(df) + k ) = this%frozen_frac_wth_inp( k + 1 )
+        this%liquid_frac_wth( this%map_wtheta(df) + k ) = this%liquid_frac_wth_inp( k + 1 )
+      end do
+    end do
+    this%area_frac_wth = 0.5_r_def
+    this%bulk_frac_wth = 0.5_r_def
+
+    ! Test kernel
+    call q_limit_test_code( nlayers,                          &
+                            this%q_wth,                       &
+                            this%qcl_wth,                     &
+                            this%qcf_wth,                     &
+                            this%area_frac_wth,               &
+                            this%bulk_frac_wth,               &
+                            this%frozen_frac_wth,             &
+                            this%liquid_frac_wth,             &
+                            ndf_wtheta,                       &
+                            undf_wtheta,                      &
+                            this%map_wtheta                   &
+                          )
+
+    ! kgo checks for modifiable inputs
+    do k = 0, nlayers
+      answer = this%q_wth_out( k + 1 )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( this%q_wth( this%map_wtheta(1) + k ), answer, use_tol )
+
+      answer = this%qcl_wth_out( k + 1 )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%qcl_wth( this%map_wtheta(1) + k ), use_tol )
+
+      answer = this%qcf_wth_out( k + 1 )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%qcf_wth( this%map_wtheta(1) + k ), use_tol )
+
+      answer = this%area_frac_wth_out( k + 1 )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%area_frac_wth( this%map_wtheta(1) + k ), use_tol )
+
+      answer = this%bulk_frac_wth_out( k + 1 )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%bulk_frac_wth( this%map_wtheta(1) + k ), use_tol )
+
+      answer = this%frozen_frac_wth_out( k + 1 )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%frozen_frac_wth( this%map_wtheta(1) + k ), use_tol )
+
+      answer = this%liquid_frac_wth_out( k + 1 )
+      if ( r_def == real64 ) then
+        use_tol = tol
+      else
+        use_tol = 10.0_r_def * spacing( answer )
+      end if
+      @assertEqual( answer, this%liquid_frac_wth( this%map_wtheta(1) + k ), use_tol )
+    end do
+
+  end subroutine test_all
+
+end module q_limit_test_kernel_mod_test

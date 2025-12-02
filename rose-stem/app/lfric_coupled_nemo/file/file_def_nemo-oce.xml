@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+
+<!--
+============================================================================================================
+=                                           output files definition                                        =
+=                                            Define your own filesfor ocean dynamics context                                         =
+=                                         put the variables you want...                                    =
+============================================================================================================
+    -->
+   
+    <file_definition type="one_file" name="@expname@_@freq@_@startdate@_@enddate@" sync_freq="1d" min_digits="4">
+    
+      <file_group id="1ts" output_freq="1ts"  output_level="10" enabled=".TRUE."/> <!-- 1 time step files -->
+
+      <file_group id="1h" output_freq="1h"  output_level="10" enabled=".TRUE."/> <!-- 1h files -->
+
+      <file_group id="2h" output_freq="2h"  output_level="10" enabled=".TRUE."/> <!-- 2h files -->
+
+      <file_group id="3h" output_freq="3h"  output_level="10" enabled=".TRUE."/> <!-- 3h files -->     
+
+      <file_group id="4h" output_freq="4h"  output_level="10" enabled=".TRUE."/> <!-- 4h files -->
+
+      <file_group id="6h" output_freq="6h"  output_level="10" enabled=".TRUE."/> <!-- 6h files -->     
+    
+
+      <file_group id="1m" output_freq="1mo" output_level="10" split_freq="1mo" enabled=".TRUE."> <!-- real monthly files -->
+
+        <file id="file8" name_suffix="_grid_T" >
+	  <field field_ref="e3t"          name="thkcello"  />
+          <field field_ref="ssh"          name="zos"       />
+          <field field_ref="ssh2"         name="zossq"     />
+          <field field_ref="mldzint_1"    name="somxzint1"  />
+	  <field field_ref="qt"           name="hfds"       />
+	  <field field_ref="qsr3d"        name="rsdo"       />
+	  <field field_ref="empmr"        name="sowaflup"   />
+          <field field_ref="ice_cover"    name="soicecov"   />
+          <field field_ref="berg_melt"       name="ficeberg"               />
+          <field field_ref="berg_melt_qlat"  name="berg_latent_heat_flux"  />
+	  <field field_ref="emp_oce"      name="soemp_oce"  />
+	  <field field_ref="emp_ice"      name="soemp_ice"  />
+	  <field field_ref="snowpre"      name="snowpre"    />
+	  <field field_ref="precip"       name="soprecip"   />
+	  <field field_ref="fmmflx"       name="fsitherm"   />
+	  <field field_ref="runoffs"      name="friver"     />
+	  <field field_ref="erp"          name="so_erp"     />
+	  <field field_ref="saltflx"      name="sfdsi"      />
+	  <field field_ref="qlatisf"      name="sohflisf"  />
+	  <field field_ref="qhcisf"       name="sohfcisf"   />
+	  <field field_ref="fwfisf"       name="sowflisf"   />
+        </file>
+
+	<file id="file9" name_suffix="_grid_U" description="ocean U grid variables" >
+	  <field field_ref="e3u"          name="thkcello"   />
+          <field field_ref="ssu"          name="sozocrtx"   />
+          <field field_ref="uoce"         name="uo"      operation="average" freq_op="1mo"  cell_methods="time: mean (thickness weighted)"   > @uoce_e3u / @e3u </field>
+          <field field_ref="uoce"         name="u2o" standard_name="square_of_sea_water_x_velocity" long_name="UU"  operation="average" freq_op="1mo"  cell_methods="time: mean (thickness weighted)"   > @uoce2_e3u / @e3u </field>
+	  <field field_ref="utau"         name="tauuo"      />
+	</file>
+	
+	<file id="file10" name_suffix="_grid_V" description="ocean V grid variables" >
+	  <field field_ref="e3v"          name="thkcello"  />
+          <field field_ref="ssv"          name="somecrty"  />
+          <field field_ref="voce"         name="vo"      operation="average" freq_op="1mo"  cell_methods="time: mean (thickness weighted)"   > @voce_e3v / @e3v </field>
+          <field field_ref="voce"         name="v2o" standard_name="square_of_sea_water_y_velocity" long_name="VV"  operation="average" freq_op="1mo" cell_methods="time: mean (thickness weighted)"   > @voce2_e3v / @e3v </field>
+	  <field field_ref="vtau"         name="tauvo"     />
+	</file>
+	
+	<file id="file11" name_suffix="_grid_W" description="ocean W grid variables" >
+	  <field field_ref="e3w" long_name="W-cell thickness"  />
+	  <field field_ref="woce"         name="wo"            />
+	  <field field_ref="avt"          name="difvho"        />
+	  <field field_ref="avm"          name="difvmo"        />
+	</file>
+
+
+      </file_group>
+
+      <file_group id="2m" output_freq="2mo" output_level="10" enabled=".TRUE."/> <!-- real 2m files -->
+      <file_group id="3m" output_freq="3mo" output_level="10" enabled=".TRUE."/> <!-- real 3m files -->
+      <file_group id="4m" output_freq="4mo" output_level="10" enabled=".TRUE."/> <!-- real 4m files -->
+      <file_group id="6m" output_freq="6mo" output_level="10" enabled=".TRUE."/> <!-- real 6m files -->
+
+
+      <file_group id="2y"  output_freq="2y" output_level="10" enabled=".TRUE."/> <!-- real 2y files -->
+      <file_group id="5y"  output_freq="5y" output_level="10" enabled=".TRUE."/> <!-- real 5y files -->
+      <file_group id="10y" output_freq="10y" output_level="10" enabled=".TRUE."/> <!-- real 10y files -->
+
+   </file_definition>
+    
+
+
+

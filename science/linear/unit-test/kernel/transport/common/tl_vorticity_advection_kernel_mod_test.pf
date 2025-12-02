@@ -1,0 +1,383 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2021 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!>@brief Test the tangent linear of the vorticity advection.
+module tl_vorticity_advection_kernel_mod_test
+
+  use constants_mod,         only: i_def, r_def
+  use funit
+
+  use finite_element_config_mod, &
+                             only : cellshape_quadrilateral, &
+                                    coord_system_xyz
+  use feign_config_mod,      only : feign_finite_element_config
+  use sci_chi_transform_mod, only : init_chi_transforms, &
+                                    final_chi_transforms
+
+  use tl_vorticity_advection_kernel_mod, &
+                             only: tl_vorticity_advection_code
+
+  use get_unit_test_m3x3_dofmap_mod,                   &
+                             only: get_w0_m3x3_dofmap, &
+                                   get_w1_m3x3_dofmap, &
+                                   get_w2_m3x3_dofmap, &
+                                   get_w3_m3x3_dofmap
+
+  use get_unit_test_m3x3_q3x3x3_sizes_mod,                  &
+                             only: get_w0_m3x3_q3x3x3_size, &
+                                   get_w1_m3x3_q3x3x3_size, &
+                                   get_w2_m3x3_q3x3x3_size, &
+                                   get_w3_m3x3_q3x3x3_size
+
+  use get_unit_test_q3x3x3_basis_mod,                        &
+                             only: get_w0_q3x3x3_diff_basis, &
+                                   get_w1_q3x3x3_basis,      &
+                                   get_w2_q3x3x3_basis,      &
+                                   get_w0_q3x3x3_basis
+
+  use get_unit_test_q3x3x3_quadrature_mod,                                    &
+                             only: get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                   get_gaussian_q3x3x3_quadrature_weights_z
+
+  use get_unit_test_3x3x3_chi_mod, &
+                             only : get_w0_3x3x3_field
+
+  implicit none
+
+  private
+  public :: tl_vorticity_advection_test_type, &
+            test_analytical, &
+            test_computed_output
+
+  @TestCase
+  type, extends(TestCase) :: tl_vorticity_advection_test_type
+    private
+
+    real(r_def) :: answer
+
+    real(r_def), allocatable :: r_u_data(:)
+    real(r_def), allocatable :: xi_data(:)
+    real(r_def), allocatable :: mass_flux_data(:)
+    real(r_def), allocatable :: ls_xi_data(:)
+    real(r_def), allocatable :: ls_mass_flux_data(:)
+
+    real(r_def), allocatable :: basis_r_u(:,:,:,:)
+    real(r_def), allocatable :: basis_xi(:,:,:,:)
+    real(r_def), allocatable :: basis_chi(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_chi(:,:,:,:)
+
+    integer(i_def), allocatable :: map_chi(:,:)
+    integer(i_def), allocatable :: map_r_u(:,:)
+    integer(i_def), allocatable :: map_xi(:,:)
+
+    integer(i_def) :: ndf_chi, undf_chi
+    integer(i_def) :: ndf_r_u, undf_r_u
+    integer(i_def) :: ndf_xi, undf_xi
+
+    integer(i_def) :: nqp_h, nqp_v
+    integer(i_def) :: ncells
+    integer(i_def) :: dim_space, dim_space_diff
+
+    real(r_def), allocatable :: wh(:)
+    real(r_def), allocatable :: wv(:)
+
+    real(r_def), allocatable :: chi_data(:,:)
+    real(r_def), allocatable :: panel_id(:)
+
+    real(r_def), allocatable :: basis_w1(:,:,:,:)
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+    real(r_def), allocatable :: basis_w0(:,:,:,:)
+    real(r_def), allocatable :: diff_basis_w0(:,:,:,:)
+
+    integer(i_def), allocatable :: map_w0(:,:)
+    integer(i_def), allocatable :: map_w1(:,:)
+    integer(i_def), allocatable :: map_w2(:,:)
+    integer(i_def), allocatable :: map_pid(:,:)
+
+    integer(i_def) :: ndf_w0, undf_w0
+    integer(i_def) :: ndf_w1, undf_w1
+    integer(i_def) :: ndf_w2, undf_w2
+    integer(i_def) :: ndf_pid, undf_pid
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_analytical
+    procedure test_computed_output
+
+  end type tl_vorticity_advection_test_type
+
+  real(r_def), parameter :: tol = 1.0e-9_r_def
+  real(r_def), parameter :: dx = 6000.0_r_def, &
+                            dy = 1000.0_r_def, &
+                            dz = 2000.0_r_def
+  integer(i_def), parameter :: nlayers = 3
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(tl_vorticity_advection_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=0_i_def,           &
+             element_order_v=0_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+    call init_chi_transforms()
+
+    ! Get infrastructure support data
+    !=====================================
+
+    ! Get w0
+    call get_w0_m3x3_q3x3x3_size( this%ndf_w0, &
+                                  this%undf_w0, &
+                                  this%ncells,   &
+                                  this%dim_space, &
+                                  this%dim_space_diff, &
+                                  this%nqp_h, &
+                                  this%nqp_v, &
+                                  nlayers )
+
+    call get_w0_m3x3_dofmap( this%map_w0 )
+    call get_w0_q3x3x3_diff_basis( this%basis_w0 )
+    call get_w0_q3x3x3_diff_basis( this%diff_basis_w0 )
+
+    ! Get w1
+    call get_w1_m3x3_q3x3x3_size( this%ndf_w1, &
+                                  this%undf_w1, &
+                                  this%ncells,  &
+                                  this%dim_space, &
+                                  this%dim_space_diff, &
+                                  this%nqp_h, &
+                                  this%nqp_v, &
+                                  nlayers )
+    call get_w1_m3x3_dofmap( this%map_w1 )
+    call get_w1_q3x3x3_basis( this%basis_w1 )
+
+    ! Get w2
+    call get_w2_m3x3_q3x3x3_size( this%ndf_w2, &
+                                  this%undf_w2, &
+                                  this%ncells,   &
+                                  this%dim_space, &
+                                  this%dim_space_diff, &
+                                  this%nqp_h, &
+                                  this%nqp_v, &
+                                  nlayers )
+    call get_w2_m3x3_dofmap( this%map_w2 )
+    call get_w2_q3x3x3_basis( this%basis_w2 )
+
+    ! Get panel_id function space entities
+    call get_w3_m3x3_q3x3x3_size( this%ndf_pid, &
+                                  this%undf_pid, &
+                                  this%ncells,   &
+                                  this%dim_space, &
+                                  this%dim_space_diff, &
+                                  this%nqp_h, &
+                                  this%nqp_v, &
+                                  1 )
+    call get_w3_m3x3_dofmap( this%map_pid, 1 )
+
+    ! Get weights
+    call get_gaussian_q3x3x3_quadrature_weights_xy(this%wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(this%wv)
+
+    ! Compute coordinates
+    allocate(this%chi_data(3,this%undf_w0))
+    allocate(this%panel_id(this%undf_pid))
+
+    this%panel_id(:) = 1.0_r_def
+    call get_w0_3x3x3_field(this%chi_data(1,:), &
+                            this%chi_data(2,:), &
+                            this%chi_data(3,:), &
+                            dx, dy, dz, &
+                            this%map_w0, &
+                            nlayers)
+
+    ! Assign chi
+    this%ndf_chi  = this%ndf_w0
+    this%undf_chi = this%undf_w0
+    allocate( this%map_chi, source=this%map_w0 )
+    allocate( this%basis_chi, source=this%diff_basis_w0 )
+    allocate( this%diff_basis_chi, source=this%diff_basis_w0 )
+
+    ! Assign r_u
+    this%ndf_r_u  = this%ndf_w2
+    this%undf_r_u = this%undf_w2
+    allocate( this%map_r_u,   source=this%map_w2 )
+    allocate( this%basis_r_u, source=this%basis_w2 )
+
+    ! Assign Xi
+    this%ndf_xi  = this%ndf_w1
+    this%undf_xi = this%undf_w1
+    allocate( this%map_xi,   source=this%map_w1 )
+    allocate( this%basis_xi, source=this%basis_w1 )
+
+    ! Assign Data
+    allocate( this%r_u_data(this%undf_r_u) )
+    allocate( this%xi_data(this%undf_xi) )
+    allocate( this%mass_flux_data(this%undf_w2) )
+    allocate( this%ls_xi_data(this%undf_xi) )
+    allocate( this%ls_mass_flux_data(this%undf_w2) )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(tl_vorticity_advection_test_type), intent(inout) :: this
+
+    deallocate( this%r_u_data )
+    deallocate( this%mass_flux_data )
+    deallocate( this%xi_data )
+    deallocate( this%map_chi )
+    deallocate( this%map_r_u )
+    deallocate( this%map_xi )
+    deallocate( this%map_pid )
+    deallocate( this%basis_r_u )
+    deallocate( this%basis_xi )
+    deallocate( this%diff_basis_chi )
+
+    deallocate( this%wh )
+    deallocate( this%wv )
+    deallocate( this%chi_data )
+    deallocate( this%basis_w1 )
+    deallocate( this%basis_w2 )
+    deallocate( this%diff_basis_w0 )
+    deallocate( this%map_w0 )
+    deallocate( this%map_w1 )
+    deallocate( this%map_w2 )
+
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_analytical( this )
+
+    implicit none
+
+    class(tl_vorticity_advection_test_type), intent(inout) :: this
+    integer:: k, cell
+
+    !=====================================
+    ! Apply test on interior cell 1
+    cell = 1
+    this%r_u_data = 0.0_r_def
+    this%xi_data = 0.0_r_def
+    this%mass_flux_data = 2.0_r_def
+    this%ls_xi_data = 0.0_r_def
+    this%ls_mass_flux_data = 2.0_r_def
+    this%answer = 0.0_r_def
+
+    call tl_vorticity_advection_code( nlayers,                    &
+                                      this%r_u_data,              &
+                                      this%mass_flux_data,        &
+                                      this%xi_data,               &
+                                      this%ls_mass_flux_data,     &
+                                      this%ls_xi_data,            &
+                                      this%chi_data(1,:),         &
+                                      this%chi_data(2,:),         &
+                                      this%chi_data(3,:),         &
+                                      this%panel_id,              &
+                                      this%ndf_r_u,               &
+                                      this%undf_r_u,              &
+                                      this%map_r_u(:,cell),       &
+                                      this%basis_r_u,             &
+                                      this%ndf_xi,                &
+                                      this%undf_xi,               &
+                                      this%map_xi(:,cell),        &
+                                      this%basis_xi,              &
+                                      this%ndf_chi,               &
+                                      this%undf_chi,              &
+                                      this%map_chi(:,cell),       &
+                                      this%basis_chi,             &
+                                      this%diff_basis_chi,        &
+                                      this%ndf_pid,               &
+                                      this%undf_pid,              &
+                                      this%map_pid(:,cell),       &
+                                      this%nqp_h,                 &
+                                      this%nqp_v,                 &
+                                      this%wh,                    &
+                                      this%wv )
+
+    do k = 0,2
+      @assertEqual(this%answer, this%r_u_data(this%map_r_u(5,cell)+k), tol)
+      @assertEqual(this%answer, this%r_u_data(this%map_r_u(6,cell)+k), tol)
+    end do
+
+  end subroutine test_analytical
+
+  @Test
+  subroutine test_computed_output( this )
+
+    implicit none
+
+    class(tl_vorticity_advection_test_type), intent(inout) :: this
+    integer:: k, cell
+
+    !=====================================
+    ! Apply test on interior cell 1, for non-zero input
+    cell = 1
+    this%r_u_data = 0.0_r_def
+    this%xi_data  = 10.0_r_def
+    this%mass_flux_data = 10.0_r_def
+    this%ls_xi_data  = 10.0_r_def
+    this%ls_mass_flux_data = 10.0_r_def
+
+    call tl_vorticity_advection_code( nlayers,                     &
+                                      this%r_u_data,               &
+                                      this%mass_flux_data,         &
+                                      this%xi_data,                &
+                                      this%ls_mass_flux_data,      &
+                                      this%ls_xi_data,             &
+                                      this%chi_data(1,:),          &
+                                      this%chi_data(2,:),          &
+                                      this%chi_data(3,:),          &
+                                      this%panel_id,               &
+                                      this%ndf_r_u,                &
+                                      this%undf_r_u,               &
+                                      this%map_r_u(:,cell),        &
+                                      this%basis_r_u,              &
+                                      this%ndf_xi,                 &
+                                      this%undf_xi,                &
+                                      this%map_xi(:,cell),         &
+                                      this%basis_xi,               &
+                                      this%ndf_chi,                &
+                                      this%undf_chi,               &
+                                      this%map_chi(:,cell),        &
+                                      this%basis_chi,              &
+                                      this%diff_basis_chi,         &
+                                      this%ndf_pid,                &
+                                      this%undf_pid,               &
+                                      this%map_pid(:,cell),        &
+                                      this%nqp_h,                  &
+                                      this%nqp_v,                  &
+                                      this%wh,                     &
+                                      this%wv )
+
+    ! Answer from known output, rather than calculated analytically
+    k = 1
+    this%answer = 2.0555555555555369E-4_r_def
+    @assertEqual(this%answer, this%r_u_data(this%map_r_u(5,cell)+k), tol)
+    @assertEqual(this%answer, this%r_u_data(this%map_r_u(6,cell)+k), tol)
+
+  end subroutine test_computed_output
+
+end module tl_vorticity_advection_kernel_mod_test

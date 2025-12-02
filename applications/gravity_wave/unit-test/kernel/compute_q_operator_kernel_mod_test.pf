@@ -1,0 +1,160 @@
+!-----------------------------------------------------------------------------
+! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
+! For further details please refer to the file LICENCE.original which you
+! should have received as part of this distribution.
+!-----------------------------------------------------------------------------
+
+!> Test the qergence operator computation
+!>
+module compute_q_operator_kernel_mod_test
+
+    use constants_mod,                 only : i_def, r_def
+    use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: compute_q_operator_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type compute_q_operator_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    use finite_element_config_mod, only: cellshape_quadrilateral, &
+                                         coord_system_xyz
+    use feign_config_mod,          only: feign_finite_element_config
+
+    implicit none
+
+    class(compute_q_operator_test_type), intent(inout) :: this
+
+    call feign_finite_element_config(           &
+             cellshape=cellshape_quadrilateral, &
+             coord_order=0_i_def,               &
+             coord_system=coord_system_xyz,     &
+             element_order_h=1_i_def,           &
+             element_order_v=1_i_def,           &
+             rehabilitate=.true.,               &
+             vorticity_in_w1=.false. )
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    use configuration_mod,        only: final_configuration
+
+    implicit none
+
+    class(compute_q_operator_test_type), intent(inout) :: this
+
+    call final_configuration()
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use compute_q_operator_kernel_mod, only : compute_q_operator_code, &
+                                              compute_q_operator_init
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w2_m3x3_q3x3x3_size, &
+                                                   get_wtheta_m3x3_q3x3x3_size
+    use get_unit_test_q3x3x3_basis_mod, only : get_w2_q3x3x3_basis, &
+                                               get_wtheta_q3x3x3_basis
+    use get_unit_test_q3x3x3_quadrature_mod, only : get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                                    get_gaussian_q3x3x3_quadrature_weights_z
+    implicit none
+
+    class(compute_q_operator_test_type), intent(inout) :: this
+
+    real(r_def), dimension(6,2) :: answer
+    real(r_def), parameter :: tol = 1.0e-6_r_def
+
+    integer(i_def) :: nlayers, cell, ncells, nqp_h, nqp_v
+
+    integer(i_def) :: ndf_w2, ndf_wt
+
+    ! Dummy variable for passing into multi-getter routines where item is not
+    ! needed
+    integer(i_def) :: unused
+
+    real(r_def), allocatable :: basis_w2(:,:,:,:)
+    real(r_def), allocatable :: basis_wt(:,:,:,:)
+
+    real(r_def), allocatable :: wh(:), wv(:)
+
+    real(r_def), allocatable :: q(:,:,:)
+    real(r_def) :: dz_test(3) = [2000.0_r_def, 2000.0_r_def, 2000.0_r_def]
+
+    ! Get canned data for a 3-layer mesh
+    nlayers = 3
+
+    ! Get sizes
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, unused, ncells, &
+                                  unused, unused,         &
+                                  nqp_h, nqp_v,           &
+                                  nlayers )
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, unused, unused, &
+                                      unused, unused,         &
+                                      unused, unused,         &
+                                      nlayers )
+
+    call get_w2_q3x3x3_basis(basis_w2)
+    call get_wtheta_q3x3x3_basis(basis_wt)
+    call get_gaussian_q3x3x3_quadrature_weights_xy(wh)
+    call get_gaussian_q3x3x3_quadrature_weights_z(wv)
+
+    ! Create the data arrays
+    allocate(q(ncells,ndf_w2,ndf_wt))
+
+    call compute_q_operator_init(dz_test, nlayers)
+    cell = 1
+    q = 0.0_r_def
+    call compute_q_operator_code( cell,              &
+                                  nlayers,           &
+                                  ncells,            &
+                                  q,                 &
+                                  ndf_w2, basis_w2,  &
+                                  ndf_wt, basis_wt,  &
+                                  nqp_h,nqp_v,wh,wv  &
+                                  )
+
+    call q_operator(answer)
+    @assertEqual(answer, q(1, :, :)/dz_test(1), tol)
+
+    deallocate(basis_w2)
+    deallocate(basis_wt)
+    deallocate(wh)
+    deallocate(wv)
+    deallocate(q)
+
+  end subroutine test_all
+
+  subroutine q_operator( q )
+    use constants_mod, only: r_def
+    implicit none
+
+    real(kind=r_def), dimension(2,6), intent(inout) :: q
+
+  q = real(reshape( [ &
+   0, 0, 0, 0, 2, 1, &
+   0, 0, 0, 0, 1, 2 &
+ ], shape(q) ),r_def)/6.0_r_def
+
+    return
+  end subroutine q_operator
+
+end module compute_q_operator_kernel_mod_test
