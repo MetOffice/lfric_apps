@@ -74,6 +74,13 @@ Code Reviewer: <!-- CR id, filled by SSD -->
 - [ ] Where appropriate I have updated documentation related to this change and
       confirmed that it builds correctly
 
+## PSyclone Approval
+
+- [ ] If you have edited any psyclone related code (eg. PsyKAl-lite, Kernal
+      inteface, optimisation scripts, LFRic data structure code) then please
+      contact the
+      [tooscollabdevteam@metoffice.gov.uk](tooscollabdevteam@metoffice.gov.uk)
+
 # Sci/Tech Review
 
 <!-- To be completed by the Sci/Tech Reviewer -->
