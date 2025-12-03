@@ -40,6 +40,10 @@
     {% set script_str.name = script_str.name~" --opt-conf-key=suite_controlled" %}
 {% endif %}
 
+{% if task_ns.application == "lfric_coupled" %}
+    {% set script_str.name = script_str.name~" --path=$CYLC_WORKFLOW_SHARE_DIR/fcm_make_drivers/extract/drivers/Coupled_Drivers" %}
+{% endif %}
+
 {# The PANEL_DECOMP variable expects it to be quoted #}
 {% set panel_decomp = "'"~task_values["panel_decomp"]~"'" %}
 
