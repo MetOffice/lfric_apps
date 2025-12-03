@@ -98,10 +98,10 @@ _Please alert the code reviewer via a tag when you have approved the SR_
 <!-- To be completed by the Code Reviewer -->
 
 - [ ] All dependencies have been resolved
-- [ ] Related Issues are properly linked and addressed
-- [ ] CLA compliance is confirmed
-- [ ] Code quality standards are met
-- [ ] Tests are adequate and passing
+- [ ] Related Issues have been properly linked and addressed
+- [ ] CLA compliance has been confirmed
+- [ ] Code quality standards have been met
+- [ ] Tests are adequate and have passed
 - [ ] Documentation is complete and accurate
 - [ ] Security considerations have been addressed
 - [ ] Performance impact is acceptable
