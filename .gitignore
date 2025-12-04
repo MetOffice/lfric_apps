@@ -48,3 +48,10 @@ documentation/build
 __pycache__
 *.pyc
 .pytest_cache
+
+# LFRic CL Builds
+applications/**/bin
+applications/**/working
+applications/**/example*/
+science/**/bin
+science/**/working
