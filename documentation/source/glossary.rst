@@ -13,15 +13,9 @@
 Glossary
 ##################
 .. glossary::
+
+  checkpoint dump
+    See :ref:`here <checkpoint_index>`
+
   LFRic application
     A program that uses LFRic Core.
-
-
-
-
-
-
-
-
-
-
