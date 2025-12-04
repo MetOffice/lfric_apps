@@ -1,0 +1,27 @@
+# Handle line endings automatically for files detected as text
+# and leave all files detected as binary untouched.
+*     text=auto
+
+# Binaries
+*.nc    binary
+*.png   binary
+
+# Fortran files
+*.f   text diff=fortran
+*.for text diff=fortran
+*.f90 text diff=fortran
+*.F90 text diff=fortran
+*.f95 text diff=fortran
+*.f03 text diff=fortran
+*.x90 text diff=fortran
+*.X90 text diff=fortran
+*.t90 text diff=fortran
+*.T90 text diff=fortran
+*.pf  text diff=fortran
+*.PF  text diff=fortran
+
+# Enable syntax highlighting for files with `.pf` extensions.
+#
+*.pf linguist-language=fortran-free-form
+*.pf linguist-detectable=true
+*.pf linguist-documentation=false
