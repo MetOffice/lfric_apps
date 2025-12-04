@@ -25,3 +25,23 @@
 *.pf linguist-language=fortran-free-form
 *.pf linguist-detectable=true
 *.pf linguist-documentation=false
+
+*.PF linguist-language=fortran-free-form
+*.PF linguist-detectable=true
+*.PF linguist-documentation=false
+
+*.x90 linguist-language=fortran-free-form
+*.x90 linguist-detectable=true
+*.x90 linguist-documentation=false
+
+*.X90 linguist-language=fortran-free-form
+*.X90 linguist-detectable=true
+*.X90 linguist-documentation=false
+
+*.t90 linguist-language=fortran-free-form
+*.t90 linguist-detectable=true
+*.t90 linguist-documentation=false
+
+*.T90 linguist-language=fortran-free-form
+*.T90 linguist-detectable=true
+*.T90 linguist-documentation=false
