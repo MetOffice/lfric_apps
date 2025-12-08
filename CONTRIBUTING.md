@@ -15,6 +15,11 @@ Please see the
 Agreement of the CLA can be shown by adding yourself to the CONTRIBUTORS file
 alongside this one, and is a requirement for contributing to this project.
 
+## Code of Conduct
+
+Please be aware of and follow the
+[Momentum Code of Coduct](https://github.com/MetOffice/Momentum/blob/main/docs/CODE_OF_CONDUCT.md)
+
 ## Working Practices
 
 This project is managed as part of the Simulation Systems group of repositories.
@@ -24,9 +29,6 @@ Please follow the Simulation Systems
 
 Questions are encouraged in the Simulation Systems
 [Discussions.](https://github.com/MetOffice/simulation-systems/discussions)
-
-Please be aware of and follow the Simulation Systems
-[Code of Conduct.](https://metoffice.github.io/simulation-systems/FurtherDetails/code_of_conduct.html)
 
 Please be aware of and follow the Simulation Systems
 [AI Policy.](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html)
