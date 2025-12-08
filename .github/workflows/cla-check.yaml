@@ -1,0 +1,12 @@
+name: CLA Check
+
+on:
+    pull_request_target:
+
+jobs:
+    cla_check:
+        uses: MetOffice/growss/.github/workflows/cla-check.yaml@main
+
+        # Optional
+        with:
+            runner: 'ubuntu-24.04'
