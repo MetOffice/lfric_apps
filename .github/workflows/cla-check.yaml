@@ -5,6 +5,6 @@ on:
 
 jobs:
   cla:
-    uses: MetOffice/growss/.github/workflows/cla-check.yaml@develop
+    uses: MetOffice/growss/.github/workflows/cla-check.yaml@main
     with:
       runner: 'ubuntu-24.04'
