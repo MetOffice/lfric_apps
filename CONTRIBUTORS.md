@@ -5,5 +5,6 @@
      located alongside this one.
 -->
 
-<!-- Format: GitHub Username (alphabetical order), Name, Affiliation -->
-james-bruten-mo, James Bruten, Met Office
+| GitHub user | Real Name | Affiliation | Date |
+| ----------- | --------- | ----------- | ---- |
+| james-bruten-mo | James Bruten | Met Office | 2025-12-09 |
