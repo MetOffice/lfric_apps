@@ -59,11 +59,6 @@
                          "graph file.") }}
             {% endif %}
 
-        {% elif task_ns.application == "lfricinputs" %}
-
-            {# lfricinputs graphs are different due to building from fcm_make #}
-            {% include "templates/graph/populate_graph_lfricinputs.cylc" %}
-
         {% else %}
 
             {# Otherwise populate the graph using the templating #}

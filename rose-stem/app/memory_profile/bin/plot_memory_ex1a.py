@@ -168,7 +168,7 @@ def plot_run_job(run, out_filename):
         jefr = jef.read()
         # re pattern for max_mem_{process} for mem per rank
         mem_per_rank_rep = re.compile('(([a-z]+[0-9]+) ([0-9]+): '
-                                      'max_mem_([a-zA-Z_]+)_([0-9]+)kb)+')
+                                      'max_mem_([a-zA-Z0-9_]+)_([0-9]+)kb)+')
         mem_per_rank = mem_per_rank_rep.findall(jefr)
         mem_per_rank.sort(key=lambda x: (x[1], int(x[2])))
         mem_per_rank = [{'node': m[1], 'rank': int(m[2]), 'exec': m[3],
@@ -214,8 +214,8 @@ def plot_run_job(run, out_filename):
         col = "black"
         xval = nodes.index(m['node'])
         y = m['memkB']*KB_TO_MIB
-        if m['exec'] == 'lfric' or m['exec'] == 'lfric_atm':
-            label = 'lfric_atm'
+        if m['exec'] == 'lfric' or m['exec'] == 'lfric_atm'  or m['exec'] == 'lfric2um' or m['exec'] == 'um2lfric':
+            label = m['exec']
             col = 'green'
             if lfirst:
                 lfirst = False
@@ -245,7 +245,8 @@ def plot_run_job(run, out_filename):
 
     # Calculate summary statistics to append to the title.
     all_lf = [m['memkB']*KB_TO_MIB for m in mem_per_rank
-              if m['exec'] == 'lfric_atm' or m['exec'] == 'lfric']
+              if m['exec'] == 'lfric_atm' or m['exec'] == 'lfric' or
+              m['exec'] == 'lfric2um' or m['exec'] == 'um2lfric']
     all_x = [m['memkB']*KB_TO_MIB for m in mem_per_rank
              if m['exec'] == 'xios_server' or m['exec'] == 'xios']
     all_n = [int(int(m['memMiB'])/1024) for m in mem_per_node]

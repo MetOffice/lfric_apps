@@ -23,6 +23,9 @@
         {% set app_name = task_ns.conf_name.split("-")[0] %}
         {% do task_dict.update({"app_name": app_name}) %}
     {% endif %}
+    {% if "kgo_checks" not in task_dict %}
+        {% do task_dict.update({"kgo_checks": ["rose_ana"]}) %}
+    {% endif %}
 {% endif %}
 
 {% do LOG.debug("Finished in site/common/lfricinputs/tasks_lfricinputs.cylc") %}
