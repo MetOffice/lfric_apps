@@ -45,7 +45,8 @@ CONTAINS
     ! Local variables
 
     ! These flags tell us which results are requested at this time step.
-    LOGICAL(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag
+    LOGICAL(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag, &
+            aviation_snow_probability_flag
 
     ! The array of pressure levels.
     INTEGER(I_DEF) :: nplev
@@ -58,8 +59,9 @@ CONTAINS
     ! Approximate equality tolerance - is there a common variable somewhere?
     REAL(R_DEF), PARAMETER :: plev_tol = 0.1_r_def
 
-    ! The two output fields we produce.
-    TYPE( field_type ) :: aviation_thick_850, aviation_thick_500
+    ! The output fields we produce.
+    TYPE( field_type ) :: aviation_thick_850, aviation_thick_500, &
+            aviation_snow_probability
 
     INTEGER(I_DEF) :: i
 
@@ -69,8 +71,12 @@ CONTAINS
       init_diag(aviation_thick_850, 'aviation__geopot_thickness_850')
     aviation_thick_500_flag = &
       init_diag(aviation_thick_500, 'aviation__geopot_thickness_500')
-    IF ( aviation_thick_850_flag .OR. aviation_thick_500_flag ) THEN
-      WRITE(log_scratch_space, '(A)') 'Section 20 thickness is on'
+    aviation_snow_probability_flag = &
+      init_diag(aviation_snow_probability, 'aviation__snow_probability')
+    IF ( aviation_thick_850_flag .OR. &
+         aviation_thick_500_flag .OR. &
+         aviation_snow_probability_flag) THEN
+      WRITE(log_scratch_space, '(A)') 'Section 20 diags requested'
       CALL log_event(log_scratch_space, LOG_LEVEL_DEBUG)
     ELSE
       ! Nothing requested at this time step.
@@ -95,23 +101,21 @@ CONTAINS
     plevs = get_axis_values('pressure_levels',nplev)
 
     ! Find the level indices for our three pressures of interest.
-    ! Leave as -1 if not requested, telling the kernel not to calculate it.
-    ! Assumes hPa. Should we worry about other units?
     i1000 = -1
     i850  = -1
     i500  = -1
     DO i = 1, nplev
 
       ! 1000?
-      IF ( abs(plevs(i) - 100000.0_r_def) < plev_tol ) THEN
+      IF (abs(plevs(i) - 100000.0_r_def) < plev_tol) THEN
         i1000 = i
 
       ! 850?
-      ELSE IF ( abs(plevs(i) - 85000.0_r_def) < plev_tol ) THEN
+      ELSE IF (abs(plevs(i) - 85000.0_r_def) < plev_tol) THEN
         i850 = i
 
       ! 500?
-      ELSE IF ( abs(plevs(i) - 50000.0_r_def) < plev_tol ) THEN
+      ELSE IF (abs(plevs(i) - 50000.0_r_def) < plev_tol) THEN
         i500 = i
 
       END IF
@@ -124,16 +128,20 @@ CONTAINS
         RETURN
     END IF
 
-    IF (aviation_thick_850_flag .AND. i850 == -1) THEN
-      WRITE(log_scratch_space, '(A)') 'could not find 850hPa'
-      CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      RETURN
+    IF (aviation_thick_850_flag .OR. aviation_snow_probability_flag) THEN
+      IF (i850 == -1) THEN
+        WRITE(log_scratch_space, '(A)') 'could not find 850hPa'
+        CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        RETURN
+      END IF
     END IF
 
-    IF (aviation_thick_500_flag .AND. i500 == -1) THEN
-      WRITE(log_scratch_space, '(A)') 'could not find 500hPa'
-      CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      RETURN
+    IF (aviation_thick_500_flag) THEN
+      IF (i500 == -1) THEN
+        WRITE(log_scratch_space, '(A)') 'could not find 500hPa'
+        CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        RETURN
+      END IF
     END IF
 
     ! Call the kernel to subtract the levels.
@@ -141,11 +149,11 @@ CONTAINS
     CALL invoke( &
       setval_c(aviation_thick_850, 1.0_r_def), &
       setval_c(aviation_thick_500, 1.0_r_def), &
-      aviation_diags_kernel_type(&
-        aviation_thick_850, aviation_thick_500, &
-        plev_geopot, &
-        aviation_thick_850_flag, aviation_thick_500_flag, &
-        i1000, i850, i500) &
+      setval_c(aviation_snow_probability, 0.0_r_def), &
+      aviation_diags_kernel_type( &
+        aviation_thick_850, aviation_thick_500, aviation_snow_probability, &
+        plev_geopot, aviation_thick_850_flag, aviation_thick_500_flag, &
+        aviation_snow_probability_flag, i1000, i850, i500) &
     )
 
     ! Write the fields
