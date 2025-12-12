@@ -1,0 +1,140 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief   The main entry point for calculating the S20 Aviation diagnostics
+!> @details 
+module aviation_diags_alg_mod
+
+    use constants_mod,              only: r_def, i_def, l_def
+    use field_mod,                  only: field_type
+    use io_config_mod,              only: use_xios_io
+    use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+    use lfric_xios_diag_mod,        only: get_axis_dimension, get_axis_values
+    use log_mod,                    only: log_event, log_scratch_space, &
+                                          LOG_LEVEL_ALWAYS, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+
+    use aviation_diags_kernel_mod,  only: aviation_diags_kernel_type
+
+    ! logging output units
+    use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
+
+    implicit none
+
+    private
+    public :: aviation_diags_alg
+  
+contains
+
+    !> @brief Algorithm to calculate the S20 Aviation Diagnostics
+    !> @param
+    subroutine aviation_diags_alg(plev_geopot)
+
+        implicit none
+
+        !!!
+        !!! Thickness - move to a separate function when we start producing more fields
+        !!!
+
+        ! we calculate the result from this input field
+        type(field_type), intent(in) :: plev_geopot
+
+        ! these flags tell us if we want results for this time step
+        logical(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag
+
+        ! pressure levels
+        integer(i_def) :: nplev
+        real(r_def), allocatable :: plevs(:)
+        integer(i_def) :: plevs_alloc_stat
+
+        ! level indices for the three pressure levels we want to read
+        integer(i_def) :: i1000, i850, i500
+
+        ! approximate equality tolerance - is this overkill?
+        real(r_def), parameter :: plev_tol = 0.1_r_def
+
+        ! the two output fields we produce
+        type( field_type ) :: aviation_thick_850, aviation_thick_500
+
+        integer(i_def) :: i
+
+        ! check the flags
+        aviation_thick_850_flag = init_diag(aviation_thick_850, 'aviation__geopot_thickness_850')
+        aviation_thick_500_flag = init_diag(aviation_thick_500, 'aviation__geopot_thickness_500')
+        if ( aviation_thick_850_flag .or. aviation_thick_500_flag ) then
+            write(log_scratch_space,*) 'Thickness is on'
+            call log_event(log_scratch_space, LOG_LEVEL_INFO)
+            flush(output_unit)
+            flush(error_unit)
+        else
+            return
+        end if
+
+        ! get the pressure levels
+        nplev = get_axis_dimension('pressure_levels')
+        if (nplev <= 0) then
+            write(log_scratch_space,*) 'No pressure levels (nplev)=', nplev
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            return
+        end if
+
+        allocate(plevs(nplev), stat=plevs_alloc_stat)
+        if (plevs_alloc_stat /= 0) then
+            write(log_scratch_space,*) 'allocate(plevs) failed, stat=', plevs_alloc_stat
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            return
+        end if
+        plevs = get_axis_values('pressure_levels',nplev)
+
+        ! get level indices for our three pressures of interest - should we worry about other units?
+        i1000 = -1
+        i850  = -1
+        i500  = -1
+        do i = 1, nplev
+            if ( abs(plevs(i) - 100000.0_r_def) < plev_tol ) then
+                i1000 = i
+            else if ( aviation_thick_850_flag .and. abs(plevs(i) - 85000.0_r_def) < plev_tol ) then
+                i850 = i
+            else if ( aviation_thick_500_flag .and. abs(plevs(i) - 50000.0_r_def) < plev_tol ) then
+                i500 = i
+            end if
+        end do
+
+        ! check we found the levels we need
+        if (i1000 == -1) then
+            write(log_scratch_space,*) 'could not find 1000hPa'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            return
+        end if
+
+        if (aviation_thick_850_flag .and. i850 == -1) then
+            write(log_scratch_space,*) 'could not find 850hPa'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            return
+        end if
+
+        if (aviation_thick_500_flag .and. i500 == -1) then
+            write(log_scratch_space,*) 'could not find 500hPa'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            return
+        end if
+
+        ! call the kernel to subtract the levels
+        call invoke( &
+            setval_c(aviation_thick_850, 1.0_r_def), &
+            aviation_diags_kernel_type(aviation_thick_850, aviation_thick_500, plev_geopot, i1000, i850, i500) &
+        )
+
+        ! write the fields
+        if (aviation_thick_850_flag) call aviation_thick_850%write_field()
+        if (aviation_thick_500_flag) call aviation_thick_500%write_field()
+
+        if (allocated(plevs)) then
+            deallocate(plevs)
+        end if
+
+    end subroutine aviation_diags_alg
+  
+  end module aviation_diags_alg_mod
