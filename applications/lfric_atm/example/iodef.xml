@@ -97,6 +97,8 @@
 	<file id="lf_diag_aviation" name="lf_diag_aviation" output_freq="6h" convention="UGRID" enabled=".TRUE.">
 		<field field_ref="aviation__geopot_thickness_850"/>
 		<field field_ref="aviation__geopot_thickness_500"/>
+		<field field_ref="aviation__conv_cloud_base_icao_height"/>
+		<field field_ref="aviation__conv_cloud_top_icao_height"/>
 	</file>
 
       <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
