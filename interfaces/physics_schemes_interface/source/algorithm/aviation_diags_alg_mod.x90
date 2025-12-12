@@ -12,8 +12,9 @@
 !
 MODULE aviation_diags_alg_mod
 
-  USE constants_mod,              ONLY: r_def, i_def, l_def
+  USE constants_mod,              ONLY: r_def, i_def, l_def, RMDI
   USE field_mod,                  ONLY: field_type
+  USE field_collection_mod,       ONLY: field_collection_type
   USE io_config_mod,              ONLY: USE_xios_io
   USE initialise_diagnostics_mod, ONLY: init_diag => init_diagnostic_field
 
@@ -22,7 +23,8 @@ MODULE aviation_diags_alg_mod
                                         LOG_LEVEL_ALWAYS, LOG_LEVEL_ERROR, &
                                         LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
 
-  USE aviation_diags_kernel_mod,  ONLY: aviation_diags_kernel_type
+  USE diags_geopot_kernel_mod,  ONLY: diags_geopot_kernel_type
+  USE diags_icao_heights_kernel_mod,  ONLY: diags_icao_heights_kernel_type
 
   IMPLICIT NONE
 
@@ -32,15 +34,31 @@ PUBLIC :: aviation_diags_alg
 CONTAINS
 
   ! Algorithm to calculate the section 20 aviation diagnostics.
-  SUBROUTINE aviation_diags_alg(plev_geopot)
+  SUBROUTINE aviation_diags_alg(plev_geopot, convection_fields)
 
     IMPLICIT NONE
 
     ! Arguments
-
-    ! We calculate the result from this input field.
     TYPE(field_type), INTENT(IN) :: plev_geopot
+    TYPE(field_collection_type), INTENT(INOUT) :: convection_fields
 
+
+    ! Calculate thickness from geopotential height at pressure levels.
+    CALL from_plev_geopot(plev_geopot)
+
+
+    ! Calculate icao heights of top and base of cloud from their pressures.
+    CALL icao_heights(convection_fields)
+
+
+  END SUBROUTINE aviation_diags_alg
+
+  SUBROUTINE from_plev_geopot(plev_geopot)
+    ! Calculate diagnostics from plvel_geopot.
+    ! - Thickness from geopotential height at pressure levels.
+
+    ! Arguments
+    TYPE(field_type), INTENT(IN) :: plev_geopot
 
     ! Local variables
 
@@ -141,7 +159,7 @@ CONTAINS
     CALL invoke( &
       setval_c(aviation_thick_850, 1.0_r_def), &
       setval_c(aviation_thick_500, 1.0_r_def), &
-      aviation_diags_kernel_type(&
+      diags_geopot_kernel_type( &
         aviation_thick_850, aviation_thick_500, &
         plev_geopot, &
         aviation_thick_850_flag, aviation_thick_500_flag, &
@@ -157,6 +175,79 @@ CONTAINS
       DEALLOCATE(plevs)
     END IF
 
-  END SUBROUTINE aviation_diags_alg
+  END SUBROUTINE from_plev_geopot
+
+
+  SUBROUTINE icao_heights(convection_fields)
+    ! Calculate iaco heights of top and base of cloud from their pressures.
+
+    ! Arguments
+    TYPE(field_collection_type), INTENT(INOUT) :: convection_fields
+
+    ! Locals
+
+    ! Pressure fields to unpack.
+    type(field_type), pointer :: conv_cloud_base_pressure
+    type(field_type), pointer :: conv_cloud_top_pressure
+
+    ! Height fields to create and write.
+    TYPE(field_type) :: conv_cloud_base_icao_height
+    TYPE(field_type) :: conv_cloud_top_icao_height
+
+    ! Request flags.
+    LOGICAL(l_def) :: base_height_flag
+    LOGICAL(l_def) :: top_height_flag
+
+    ! which heights are requested this time step?
+    top_height_flag = init_diag( &
+      conv_cloud_top_icao_height, 'aviation__conv_cloud_top_icao_height')
+
+    base_height_flag = init_diag( &
+      conv_cloud_base_icao_height, 'aviation__conv_cloud_base_icao_height')
+
+    if (base_height_flag .or. top_height_flag) then
+      WRITE(log_scratch_space, '(A)') 'Section 20 cloud ICAO heights on'
+      CALL log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    else
+      ! nothing requested at this time step
+      return
+    end if
+
+
+    ! cloud base
+    IF (base_height_flag) THEN
+      call convection_fields%get_field( &
+              'convection__pres_cv_base', conv_cloud_base_pressure)
+      call invoke( &
+        setval_c(conv_cloud_base_icao_height, RMDI), &
+        diags_icao_heights_kernel_type(conv_cloud_base_icao_height, &
+          conv_cloud_base_pressure))
+
+      call conv_cloud_base_icao_height%write_field()
+
+      ! Is it necessary/safe to remove this field now?
+      ! Did the get trigger an unpack which we need to now remove?
+      ! Based on https://code.metoffice.gov.uk/trac/lfric_apps/ticket/189
+      ! call convection_fields%remove_field('convection__pres_cv_base')
+
+    END IF
+
+    ! could top
+    IF (top_height_flag) THEN
+      call convection_fields%get_field( &
+              'convection__pres_cv_top', conv_cloud_top_pressure)
+      call invoke( &
+        setval_c(conv_cloud_top_icao_height, RMDI), &
+        diags_icao_heights_kernel_type(conv_cloud_top_icao_height, &
+          conv_cloud_top_pressure))
+
+      call conv_cloud_base_icao_height%write_field()
+
+      ! Is it necessary/safe to remove this field now?
+      ! call convection_fields%remove_field('convection__pres_cv_top')
+
+    END IF
+
+  END SUBROUTINE icao_heights
 
 END MODULE aviation_diags_alg_mod

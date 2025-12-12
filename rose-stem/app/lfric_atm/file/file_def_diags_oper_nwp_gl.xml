@@ -196,6 +196,8 @@
     <field_group operation="instant" freq_op="3h">
       <field field_ref="aviation__geopot_thickness_850"/>
       <field field_ref="aviation__geopot_thickness_500"/>
+      <field field_ref="aviation__conv_cloud_base_icao_height"/>
+      <field field_ref="aviation__conv_cloud_top_icao_height"/>
     </field_group>
 
   </file>    

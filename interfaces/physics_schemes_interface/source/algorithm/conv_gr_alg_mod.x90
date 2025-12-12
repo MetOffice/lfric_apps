@@ -27,6 +27,8 @@ module conv_gr_alg_mod
   use log_mod,              only: log_event, LOG_LEVEL_DEBUG
   use mesh_mod,             only: mesh_type
 
+  use initialise_diagnostics_mod, only : diag_samp => diagnostic_to_be_sampled
+
   implicit none
 
   private
@@ -62,14 +64,14 @@ contains
     type( field_type ), intent( inout )     :: mr(nummr)
     type( field_type ), intent( in )        :: rho, exner
 
-    type( field_collection_type ), intent(in) :: derived_fields
-    type( field_collection_type ), intent(in) :: turbulence_fields
-    type( field_collection_type ), intent(in) :: convection_fields
-    type( field_collection_type ), intent(in) :: cloud_fields
-    type( field_collection_type ), intent(in) :: surface_fields
-    type( field_collection_type ), intent(in) :: chemistry_fields
-    type( field_collection_type ), intent(in) :: aerosol_fields
-    type( field_collection_type ), intent(in) :: microphysics_fields
+    type( field_collection_type ), intent(in)    :: derived_fields
+    type( field_collection_type ), intent(in)    :: turbulence_fields
+    type( field_collection_type ), intent(inout) :: convection_fields
+    type( field_collection_type ), intent(in)    :: cloud_fields
+    type( field_collection_type ), intent(in)    :: surface_fields
+    type( field_collection_type ), intent(in)    :: chemistry_fields
+    type( field_collection_type ), intent(in)    :: aerosol_fields
+    type( field_collection_type ), intent(in)    :: microphysics_fields
 
     integer(kind=i_def), intent(in)         :: outer
 
@@ -766,6 +768,20 @@ contains
                                   cca_unadjusted,        &
                                   dth_conv_noshal,       &
                                   dmv_conv_noshal)
+
+
+      ! Aviation dependencies to activate pres_cv_base and pres_cv_top
+      if (diag_samp('aviation__conv_cloud_base_icao_height')) then
+        if (.not. convection_fields%field_exists('convection__pres_cv_base')) then
+          call convection_fields%add_field(pres_cv_base)
+        end if
+      end if
+
+      if (diag_samp('aviation__conv_cloud_top_icao_height')) then
+        if (.not. convection_fields%field_exists('convection__pres_cv_top')) then
+          call convection_fields%add_field(pres_cv_top)
+        end if
+      end if
 
     end if
 
