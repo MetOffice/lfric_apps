@@ -989,6 +989,9 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__geopot_thickness_850" name="aviation_geopot_thickness_850" standard_name="atmosphere_layer_thickness_expressed_as_geopotential_height_difference" long_name="geopotential_height_thickness_between_1000hPa_and_850hPa" unit="m" domain_ref="face"/>
+  <field id="aviation__geopot_thickness_500" name="aviation_geopot_thickness_500" standard_name="atmosphere_layer_thickness_expressed_as_geopotential_height_difference" long_name="geopotential_height_thickness_between_1000hPa_and_500hPa" unit="m" domain_ref="face"/>
 </field_group>
 
 <!-- Integer diagnostic group -->
