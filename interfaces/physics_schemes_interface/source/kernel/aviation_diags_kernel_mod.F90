@@ -26,9 +26,10 @@ module aviation_diags_kernel_mod
 
   ! The aviation diagnostics kernel type.
   type, extends(kernel_type) :: aviation_diags_kernel_type
-    type(arg_type), dimension(8) :: meta_args = (/ &
+    type(arg_type), dimension(10) :: meta_args = (/ &
 
       ! Output fields.
+      arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
       arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
       arg_type(gh_field, gh_real, gh_write, any_discontinuous_space_1), &
 
@@ -36,6 +37,7 @@ module aviation_diags_kernel_mod
       arg_type(gh_field, gh_real, gh_read, any_discontinuous_space_2), &
 
       ! Request flags.
+      arg_type(gh_scalar, gh_logical, gh_read), &
       arg_type(gh_scalar, gh_logical, gh_read), &
       arg_type(gh_scalar, gh_logical, gh_read), &
 
@@ -55,23 +57,27 @@ contains
 
   subroutine aviation_diags_kernel_code(nlayers,     &
              ! Output fields.
-             thickness_850, thickness_500,           &
+             thickness_850, thickness_500, snow_probability, &
 
              ! Source field.
              plev_geopot,                            &
 
              ! Request flags.
-             thickness_850_flag, thickness_500_flag, &
+             thickness_850_flag, thickness_500_flag, snow_probability_flag, &
 
-             ! Level incides.
+             ! Level indices.
              i1000, i850, i500,                      &
 
              ! Kernel stuff.
              result_ndf, result_undf, result_map,    &
              source_ndf, source_undf, source_map)
 
-    ! Subtract geopotential heights at 850 and 500 hPa from that at 1000 hPa
-    ! to calculate thickness fields.
+    ! Thickness:
+    ! Subtract geopotential heights at 850 and 500 hPa from that at 1000 hPa.
+    !
+    ! Snow probability:
+    ! Implement Boyden (1964), using 850 and 1000 hPa.
+    ! See https://github.com/MetOffice/Section20/issues/21
 
     implicit none
 
@@ -93,15 +99,18 @@ contains
 
     ! Arguments (algorithm)
 
-    ! Output thickness fields.
+    ! Output fields.
     real(kind=r_def), intent(out), dimension(result_undf) :: thickness_850
     real(kind=r_def), intent(out), dimension(result_undf) :: thickness_500
+    real(kind=r_def), intent(out), dimension(result_undf) :: snow_probability
 
     ! Geopotential height at pressure levels.
     real(kind=r_def), intent(in), dimension(source_undf) :: plev_geopot
 
     ! Request flags.
-    logical(kind=l_def), intent(in) :: thickness_850_flag, thickness_500_flag
+    logical(kind=l_def), intent(in) :: thickness_850_flag
+    logical(kind=l_def), intent(in) :: thickness_500_flag
+    logical(kind=l_def), intent(in) :: snow_probability_flag
 
     ! Level indices.
     integer(kind=i_def), intent(in) :: i1000, i850, i500
@@ -109,13 +118,14 @@ contains
 
     ! Local variables
     integer(kind=i_def) :: df
-    real(kind=r_def) :: gph_1000
-
+    real(kind=r_def) :: gph_1000, gph_850, gph_500
 
     ! Process every DOF in this cell.
     do df = 1, result_ndf
 
       gph_1000 = plev_geopot(source_map(df) + i1000-1)
+      gph_850 = plev_geopot(source_map(df) + i850-1)
+      gph_500 = plev_geopot(source_map(df) + i500-1)
 
       if (thickness_850_flag .and. i850 /= -1) then
         thickness_850(result_map(df)) = &
@@ -125,6 +135,11 @@ contains
       if (thickness_500_flag .and. i500 /= -1) then
         thickness_500(result_map(df)) = &
           plev_geopot(source_map(df)+i500-1) - gph_1000
+      end if
+
+      if(snow_probability_flag) then
+        snow_probability(result_map(df)) = &
+          5220.0 + 3.86666*gph_1000 - 4.0*gph_850
       end if
 
     end do

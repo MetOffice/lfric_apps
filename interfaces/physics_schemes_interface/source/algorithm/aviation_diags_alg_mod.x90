@@ -59,7 +59,8 @@ contains
     ! Local variables
 
     ! These flags tell us which results are requested at this time step.
-    logical(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag
+    logical(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag, &
+            aviation_snow_probability_flag
 
     ! The array of pressure levels.
     integer(i_def) :: nplev
@@ -72,8 +73,9 @@ contains
     ! Approximate equality tolerance - is there a common variable somewhere?
     real(r_def), parameter :: plev_tol = 0.1_r_def
 
-    ! The two output fields we produce.
-    type( field_type ) :: aviation_thick_850, aviation_thick_500
+    ! The output fields we produce.
+    type( field_type ) :: aviation_thick_850, aviation_thick_500, &
+            aviation_snow_probability
 
     integer(i_def) :: i
 
@@ -81,14 +83,18 @@ contains
 
 
     ! Check the request flags.
+    aviation_snow_probability_flag = &
+      init_diag(aviation_snow_probability, 'aviation__snow_probability')
     aviation_thick_850_flag = &
-      init_diag(aviation_thick_850, 'aviation__geopot_thickness_850')
+      init_diag(aviation_thick_850, 'aviation__geopot_thickness_850', &
+        activate=aviation_snow_probability_flag)
     aviation_thick_500_flag = &
       init_diag(aviation_thick_500, 'aviation__geopot_thickness_500')
 
     ! Anything to do?
-    if ( .not. (aviation_thick_850_flag .or. aviation_thick_500_flag) ) then
-      ! Nothing requested at this time step.
+    if ( .not. (aviation_thick_850_flag .or. &
+                aviation_thick_500_flag .or. &
+                aviation_snow_probability_flag) ) then
       return
     end if
 
@@ -96,10 +102,17 @@ contains
       return
     endif
 
-    ! Initialise required fields to 1. Todo: Why 1 and not 0?
+    ! Initialise required fields to 1.
+    if ( aviation_snow_probability_flag ) then
+      message = 'Section 20: snow probability requested'
+      call log_event( message, log_level_debug )
+      call invoke( setval_c(aviation_snow_probability, 0.0_r_def))
+    end if
+
     if ( aviation_thick_850_flag ) then
       message = 'Section 20: geopot thick 850 requested'
       call log_event( message, log_level_debug )
+      ! Todo: Why 1 and not 0?
       call invoke( setval_c(aviation_thick_850, 1.0_r_def))
     end if
 
@@ -108,7 +121,6 @@ contains
       call log_event( message, log_level_debug )
       call invoke( setval_c(aviation_thick_500, 1.0_r_def))
     end if
-
 
     ! Get the array of pressure levels.
     nplev = get_axis_dimension('pressure_levels')
@@ -134,15 +146,15 @@ contains
     do i = 1, nplev
 
       ! 1000?
-      if ( abs(plevs(i) - 100000.0_r_def) < plev_tol ) then
+      if (abs(plevs(i) - 100000.0_r_def) < plev_tol) then
         i1000 = i
 
       ! 850?
-      else if ( abs(plevs(i) - 85000.0_r_def) < plev_tol ) then
+      else if (abs(plevs(i) - 85000.0_r_def) < plev_tol) then
         i850 = i
 
       ! 500?
-      else if ( abs(plevs(i) - 50000.0_r_def) < plev_tol ) then
+      else if (abs(plevs(i) - 50000.0_r_def) < plev_tol) then
         i500 = i
 
       end if
@@ -173,11 +185,12 @@ contains
       aviation_thick_850, aviation_thick_500,           &
       plev_geopot,                                      &
       aviation_thick_850_flag, aviation_thick_500_flag, &
-      i1000, i850, i500))
+      aviation_snow_probability_flag, i1000, i850, i500))
 
     ! Write the fields
     if (aviation_thick_850_flag) call aviation_thick_850%write_field()
     if (aviation_thick_500_flag) call aviation_thick_500%write_field()
+    if (aviation_snow_probability_flag) call aviation_snow_probability%write_field()
 
     ! Clean up.
     if (allocated(plevs)) then
