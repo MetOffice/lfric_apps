@@ -31,3 +31,24 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn30_t48(MacroUpgrade):
+    """Upgrade macro for ticket #48 by Juan M Castillo."""
+
+    BEFORE_TAG = "vn3.0"
+    AFTER_TAG = "vn3.0_t48"
+
+    def upgrade(self, config, meta_config=None):
+        self.add_setting(config, ["namelist:lfric2lfric", "mode"], "'ics'")
+        self.add_setting(
+            config,
+            ["namelist:lfric2lfric", "source_file_lbc"],
+            "'source_file_lbc'",
+        )
+        self.add_setting(
+            config,
+            ["namelist:lfric2lfric", "weight_file_lbc"],
+            "'weight_file_lbc'",
+        )
+
+        return config, self.reports

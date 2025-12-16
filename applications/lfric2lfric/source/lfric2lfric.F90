@@ -29,6 +29,7 @@ program lfric2lfric
                                     log_level_trace, &
                                     log_scratch_space
   use lfric_mpi_mod,          only: global_mpi
+  use model_clock_mod,        only: model_clock_type
 
   use lfric2lfric_mod,        only: lfric2lfric_required_namelists
   use lfric2lfric_driver_mod, only: initialise, run, finalise
@@ -45,6 +46,8 @@ program lfric2lfric
   ! Coupler objects
   type(coupling_type)          :: coupler
 #endif
+  ! Clock for OASIS exchanges
+  type(model_clock_type),    allocatable :: oasis_clock
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
 
@@ -79,9 +82,9 @@ program lfric2lfric
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call log_event( 'Initialising ' // program_name // ' ...', log_level_trace )
-  call initialise( modeldb )
+  call initialise( modeldb, oasis_clock )
 
-  call run( modeldb )
+  call run( modeldb, oasis_clock )
 
   call log_event( 'Finalising ' // program_name // ' ...', log_level_trace )
   call finalise( program_name, modeldb )

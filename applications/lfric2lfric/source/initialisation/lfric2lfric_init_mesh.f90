@@ -289,7 +289,6 @@ subroutine init_mesh( configuration,           &
                                    decomposition_dst,    &
                                    partitioner_dst )
 
-
     ! Read in all global meshes from input file
     !===========================================================
     if (mesh_file(dst) == mesh_file(src)) then
@@ -305,14 +304,14 @@ subroutine init_mesh( configuration,           &
                             local_rank, total_ranks,       &
                             decomposition_dst,             &
                             stencil_depth,                 &
-                            generate_inner_halos(dst),    &
+                            generate_inner_halos(dst),     &
                             partitioner_dst )
 
     call create_local_mesh( mesh_names(src:src),           &
                             local_rank, total_ranks,       &
                             decomposition_src,             &
                             stencil_depth,                 &
-                            generate_inner_halos(src),    &
+                            generate_inner_halos(src),     &
                             partitioner_src )
 
     ! Read in the global intergrid mesh mappings,
