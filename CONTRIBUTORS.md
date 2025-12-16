@@ -1,8 +1,10 @@
 # Contributors
 
-| GitHub user | Real Name | Affiliation | Date |
-| ----------- | --------- | ----------- | ---- |
-| james-bruten-mo | James Bruten | Met Office | 2025-12-09 |
-| jennyhickson | Jenny Hickson | Met Office | 2025-12-10 |
-| mo-marqh | mark Hedley | Met Office | 2025-12-11 |
-| DrTVockerodtMO | Terence Vockerodt | Met Office | 2025-12-16 |
+<<<<<<< HEAD
+| GitHub user     | Real Name         | Affiliation | Date       |
+| --------------- | ----------------- | ----------- | ---------- |
+| james-bruten-mo | James Bruten      | Met Office  | 2025-12-09 |
+| jennyhickson    | Jenny Hickson     | Met Office  | 2025-12-10 |
+| mo-marqh        | mark Hedley       | Met Office  | 2025-12-11 |
+| yaswant         | Yaswant Pradhan   | Met Office  | 2025-12-16 |
+| DrTVockerodtMO  | Terence Vockerodt | Met Office  | 2025-12-18 |
