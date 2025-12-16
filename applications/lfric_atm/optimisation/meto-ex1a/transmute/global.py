@@ -49,7 +49,7 @@ def trans(psyir):
         if "safe_pure_calls" in file_overrides.keys():
             safe_pure_calls = file_overrides["safe_pure_calls"]
 
-# test - remove
+# test - to be removed
 
     # Set the pure calls if needed
     if safe_pure_calls:
