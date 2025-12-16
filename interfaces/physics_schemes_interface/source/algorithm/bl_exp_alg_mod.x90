@@ -67,7 +67,7 @@ contains
   !>@param[in,out] surface_fields      Fields for surface scheme
   !>@param[in]     recip_l_mo_sea      Inverse Obukhov length over sea only
   !>@param[in]     rhostar             Surface density
-  !>@param[in      h_blend_orog        Orographic blending height
+  !>@param[in]     h_blend_orog        Orographic blending height
   !>@param[in]     t1_sd_2d            StDev of level 1 temperature
   !>@param[in]     q1_sd_2d            StDev of level 1 humidity
   !>@param[in]     model_clock         Time in the model

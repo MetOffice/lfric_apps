@@ -81,7 +81,6 @@ def trans(psyir):
                 impure_calls = [c for c in loop.walk(Call) if not c.is_pure]
                 for call in impure_calls:
                     if call.routine.symbol.name in SAFE_IMPURE_CALLS:
-                        print(call.routine.name)
                         call.routine.symbol.is_pure = True
                 omp_transform_par_do.apply(loop, options)
 
