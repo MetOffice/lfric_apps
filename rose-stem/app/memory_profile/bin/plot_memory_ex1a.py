@@ -127,14 +127,14 @@ def plot_run_job(run, out_filename):
         if wclock_rep.match(jofr) is not None:
             wclock, = wclock_rep.findall(jofr)
     if wclock == "missing":
-        #wclock = "missing"
+        # wclock = "missing"
         # 2025-06-04T13:50:31Z INFO - started
         # 2025-06-04T14:48:33Z INFO - succeeded
         start_pattern = re.compile(r'([0-9\-:T]+)Z INFO - started')
         astart, = start_pattern.findall(jofr)
         success_pattern = re.compile(r'([0-9\-:T]+)Z INFO - succeeded')
         asuccess, = success_pattern.findall(jofr)
-        wt = datetime.datetime.fromisoformat(asuccess)-datetime.datetime.fromisoformat(astart)
+        wt = datetime.datetime.fromisoformat(asuccess) - datetime.datetime.fromisoformat(astart)
         wclock = str(wt)
 
     if mpiprocs is not None:
@@ -205,8 +205,8 @@ def plot_run_job(run, out_filename):
     # Assign a label and colour, then plot this element as a stacked bar
     # updating the stacking container and adding labels.
     # handle minimal legend for multi-bar stack with these flags
-    lfirst=True
-    xfirst=True
+    lfirst = True
+    xfirst = True
     lfh = None
     xfh = None
     for m in mem_per_rank:
@@ -214,13 +214,14 @@ def plot_run_job(run, out_filename):
         col = "black"
         xval = nodes.index(m['node'])
         y = m['memkB']*KB_TO_MIB
-        if m['exec'] == 'lfric' or m['exec'] == 'lfric_atm'  or m['exec'] == 'lfric2um' or m['exec'] == 'um2lfric':
+        if (m['exec'] == 'lfric' or m['exec'] == 'lfric_atm' or
+            m['exec'] == 'lfric2um' or m['exec'] == 'um2lfric'):
             label = m['exec']
             col = 'green'
             if lfirst:
                 lfirst = False
-                lfh = ax.bar(xval, y, width=width, bottom=bottom[xval], color=col,
-                             label=label, edgecolor='black')
+                lfh = ax.bar(xval, y, width=width, bottom=bottom[xval],
+                             color=col, label=label, edgecolor='black')
             else:
                 ax.bar(xval, y, width=width, bottom=bottom[xval], color=col,
                        label=label, edgecolor='black')
@@ -229,8 +230,8 @@ def plot_run_job(run, out_filename):
             col = 'blue'
             if xfirst:
                 xfirst = False
-                xfh = ax.bar(xval, y, width=width, bottom=bottom[xval], color=col,
-                             label=label, edgecolor='black')
+                xfh = ax.bar(xval, y, width=width, bottom=bottom[xval],
+                             color=col, label=label, edgecolor='black')
             else:
                 ax.bar(xval, y, width=width, bottom=bottom[xval], color=col,
                        label=label, edgecolor='black')
@@ -302,6 +303,7 @@ def plot_run_job(run, out_filename):
     fig.savefig(out_filename + '.png')
     with open(out_filename + '.json', 'w', encoding="utf-8") as jsonout:
         jsonout.write(json.dumps(run_stats))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
