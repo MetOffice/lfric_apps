@@ -299,7 +299,7 @@
     {% include "templates/graph/populate_graph_lfric_coupled.cylc" %}
 {% endif %}
 
-{# lfric2lfric graphs require generate_weights tasks before the application run #}
+{# lfric2lfric, lfric2um, and um2lfric graphs require generate_weights tasks before the application run #}
 {% if (task_ns.application == "lfric2lfric" and task_ns.conf_name.startswith("oasis")) or
     (task_ns.application == "lfricinputs" and ("scintelapi" not in task_ns.conf_name)) %}
     {% include "templates/graph/populate_gen_weights_graph.cylc" %}
