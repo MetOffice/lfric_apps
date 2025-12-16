@@ -12,10 +12,14 @@ import os
 from typing import Sequence, Optional, Tuple, Set
 
 from psyclone.psyir.nodes import (
+    Node,
     Loop,
     Call,
     Assignment,
     Reference,
+    Routine,
+    Return,
+    IfBlock,
     OMPParallelDirective,
     OMPDoDirective,
     OMPParallelDoDirective,
@@ -30,6 +34,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol,
     ImportInterface,
     UnsupportedFortranType,
+    INTEGER_TYPE,
     CHARACTER_TYPE,
 )
 from psyclone.transformations import (
@@ -599,3 +604,211 @@ def match_lhs_assignments(node, names):
         if assignment.lhs.name in names:
             lhs_names.append(assignment.lhs.name)
     return lhs_names
+
+
+def loop_replacement_of(routine_itr,
+                        target_name: str,
+                        init_at_start=True):
+    ''' 
+    This transformation checks that the loop iterator we are on is the one
+    we want, and then changes it to be of length 1 instead - The intent
+    is to primarily target the UM j loops with this call, but it is
+    generic.
+
+    Parameters
+    ----------
+    routine_itr : Routine iteration from a loop which walks the psyir routines
+    target_name : A loop of a given type
+    init_at_start : Do we want a initialisation at the start? Default True.
+
+    Returns
+    ----------
+    None : Note the tree has been modified
+    '''
+
+    do_once=False
+    # Get the loops from the provided routine and walk
+    loops=routine_itr.walk(Loop)
+    for loop in routine_itr.walk(Loop):
+        # if the loop is of the target type
+        if str(loop.loop_type) == target_name:
+
+            # Only init once in the routine at the start
+            if not do_once and init_at_start:
+                parent = routine_itr
+                assign = Assignment.create(Reference(loop.variable),
+                    Literal("1", INTEGER_TYPE))
+                parent.children.insert(0, assign)
+                do_once = True
+
+            # Get a parent table reference to move the loop body
+            try:
+                parent_table = loop.parent.scope.symbol_table
+            except AttributeError as err:
+                print(f"Could not store Parent table \n"
+                        f"because:\n{err}")
+                parent_table = False
+
+            # if the loop parent table is a vaild reference
+            if parent_table:
+                parent_table.merge(loop.loop_body.symbol_table)
+                # Move the body of the loop after the loop
+                for statement in reversed(loop.loop_body.children):
+                    loop.parent.addchild(statement.detach(),
+                                                loop.position + 1)
+                tmp = loop.detach()
+
+
+def remove_unspanable_nodes(
+    routine_itr, 
+    timer_routine_names, 
+    remove_loop_type):
+    '''
+    A method to help reduce the number of nodes found in a routine list.
+    This will remove some nodes that we do not ever wish to parallelise over.
+    This includes:
+    * The first and last timer calipers from the list: timer_routine_names.
+    * Ideally the final, but any return statement.
+    * Any variables which have had their loops removed, and are initialised.
+
+    Parameters
+    ----------
+    routine_itr : Routine iteration from a loop which walks the psyir routines.
+    timer_routine_names : Timer caliper list of names.
+    remove_loop_type : lhs only holds the variable name, keep this simple.
+
+    Returns
+    ----------
+    Node list: A list of nodes from the given routine without the above nodes.
+    '''
+
+    routine_children = routine_itr.children
+    return_copy_span = []
+    delete_node_indexes = []
+
+    #For debugging, remove before commit
+    # print("Origonal copy")
+    # for index, routine_child in enumerate(routine_children):
+    #     print(index)
+    #     print(type(routine_child))
+    #     if isinstance(routine_child,Assignment):
+    #         print(routine_child.lhs.name)
+
+    # Remove calipers
+    for index, routine_child in enumerate(routine_children):
+
+        for routine in routine_child.walk(Reference):
+            try:
+                if str(routine.name) in timer_routine_names:
+                    delete_node_indexes.append(index)
+                    break
+            except:
+                continue
+
+    # Remove the return statement
+    for index in range ((len(routine_children)-1),0,-1):
+    #for index, routine_child in enumerate(routine_children):
+        if isinstance(routine_children[index], Return):
+            delete_node_indexes.append(index)
+            break
+
+    # Remove indexes at the start until we get to the first non assignment loop
+    for index, routine_child in enumerate(routine_children):
+        # Check if it is an assignment
+        # If so check whether the lhs name is in the remove_loop_type list
+        if isinstance(routine_child, Assignment):
+            if str(routine_child.lhs.name) in remove_loop_type:
+                delete_node_indexes.append(index)
+        elif index not in delete_node_indexes:
+            break
+
+    # A safer way is to build up a list of elements to remove
+    # Then remove the elements all at once.
+    delete_node_indexes.sort()
+    for index, routine_child in enumerate(routine_children):
+        if index not in delete_node_indexes:
+            return_copy_span.append(routine_child)
+
+    #For debugging, remove before commit
+    # print("Spanning over:")
+    # for index, routine_child in enumerate(return_copy_span):
+    #     print(index)
+    #     print(type(routine_child))
+    #     if isinstance(routine_child,Assignment):
+    #         print(routine_child.lhs.name)
+
+    return return_copy_span
+
+
+def get_ancestors(
+    node, node_type=Loop, inclusive=False, exclude=(), depth=None
+):
+    """
+    Lifted from PSyTran.
+    Get all ancestors of a Node with a given type.
+
+    :arg node: the Node to search for ancestors of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg inclusive: if ``True``, the current node is included.
+    :type inclusive: :py:class:`bool`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+    :kwarg depth: specify a depth for the ancestors to have.
+    :type depth: :py:class:`int`
+
+    :returns: list of ancestors according to specifications.
+    :rtype: :py:class:`list`
+    """
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    assert isinstance(
+        inclusive, bool
+    ), f"Expected a bool, not '{type(inclusive)}'."
+    assert isinstance(node_type, tuple) or issubclass(node_type, Node)
+    if depth is not None:
+        assert isinstance(depth, int), f"Expected an int, not '{type(depth)}'."
+    ancestors = []
+    node = node.ancestor(node_type, excluding=exclude, include_self=inclusive)
+    while node is not None:
+        ancestors.append(node)
+        node = node.ancestor(node_type, excluding=exclude)
+    if depth is not None:
+        ancestors = [a for a in ancestors if a.depth == depth]
+    return ancestors
+
+
+def loop_init_under(loop, check_loop_value):
+    '''
+    Check if a the loop type of the loopr is in the provided dictionary.
+    If so, check against the threshold value and return True if the loop
+    initialisation is equal too or less than value than that in the dictionary.
+    The default is that the loop is assumed to be safe unless otherwise found.
+    '''
+    is_safe_loop = True
+    if loop.loop_type in check_loop_value:
+        loop_litterals = loop.walk(Literal)
+        if (int(loop_litterals[0].value) <=
+            int(check_loop_value[str(loop.loop_type)])):
+            is_safe_loop = True
+        else:
+            is_safe_loop = False
+    return is_safe_loop
+
+
+def ancestor_loop_init_over(loop, loop_ancestor_type, check_loop_value):
+    '''
+    Check if a the loop type of the direct/immediate loop ancestor is in
+    the provided dictionary. If so, check against the threshold value
+    and return True if the ancestor above has loop which is initialised
+    with a larger value than that in the dictionary.
+    The default is that we shouldn't be nesting directives over loops,
+    and so we are confirming whether it is safe to nest given the ancestor.
+    '''
+    nest_loop = False
+    if loop_ancestor_type in check_loop_value:
+        loop_litterals = loop.ancestor(Loop).walk(Literal)
+        if (int(loop_litterals[0].value) >
+            int(check_loop_value[str(loop_ancestor_type)])):
+            nest_loop = True
+    return nest_loop
