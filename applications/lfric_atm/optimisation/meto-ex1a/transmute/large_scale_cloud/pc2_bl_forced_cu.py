@@ -17,6 +17,7 @@ from transmute_psytrans.transmute_functions import (
     get_outer_loops,
     get_compiler,
     first_priv_red_init,
+    OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC,
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC
 )
 
@@ -31,12 +32,16 @@ def trans(psyir):
                    if not loop.ancestor(Loop)]
 
     # Apply OpenMP parallel do directives and use workaround for
-    # firstprivate variable issue
+    # firstprivate variable issue; replicate dynamic and static
+    # schedules of the original implementation
     try:
-        for loop in outer_loops:
+        for idx, loop in enumerate(outer_loops):
             if get_compiler() == 'cce':
                 first_priv_red_init(loop, ["cf_base", "cf_forced", "dcfl",
                                            "dqcl", "qcl_forced", "qcl_tol"])
-            OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop.walk(Loop)[1])
+            if idx == 0:
+                OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(loop.walk(Loop)[1])
+            else:
+                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop.walk(Loop)[1])
     except (TransformationError, IndexError) as err:
         logging.warning("OMPParallelLoopTrans failed: %s", err)
