@@ -88,6 +88,7 @@
 	  <field id="read_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="snow_layers_and_tiles"/>
 	  <field id="read_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" axis_ref="snow_layers_and_tiles"/>
 	  <field id="read_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" axis_ref="snow_layers_and_tiles"/>
+	</field_group>
       </file>
 
     </file_definition>
