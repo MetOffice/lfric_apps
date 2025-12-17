@@ -76,14 +76,10 @@
             -W umask=0022
             -l storage=gdata/access+gdata/hr22+gdata/ki32+scratch/access+gdata/{{environ.get('PROJECT','NO_PROJECT')}}
 
-    [[export-source]]
-        pre-script="module load python3/3.12.1"
-        post-script="""
-                    sed -i -e 's/FFLAGS_WARNINGS           = -warn all -warn errors -gen-interfaces nosource/FFLAGS_WARNINGS           = -warn all -gen-interfaces nosource/' $SOURCE_ROOT/core/infrastructure/build/fortran/ifort.mk
-                    """
-
     [[GADI_EXPORT-SOURCE]]
         platform=localhost
+        pre-script="module load python3/3.12.1"
+        post-script="sed -i -e 's/FFLAGS_WARNINGS           = -warn all -warn errors -gen-interfaces nosource/FFLAGS_WARNINGS           = -warn all -gen-interfaces nosource/' $SOURCE_ROOT/lfric_core/infrastructure/build/fortran/ifort.mk"
         [[[environment]]]
             hostname = 'gadi.nci.org.au'
             SITE = 'nci'

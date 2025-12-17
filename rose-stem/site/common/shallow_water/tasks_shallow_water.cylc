@@ -123,61 +123,85 @@
 {# Nightly Group Tasks #}
 {# ################### #}
 
-{% elif task_ns.conf_name == "galewsky_vi-C96" %}
+{% elif task_ns.conf_name == "galewsky_vi-C96" or task_ns.conf_name == "galewsky_vi-C48" %}
 
     {% do task_dict.update({
         "opt_confs": ["galewsky_vi"],
-        "resolution": "C96",
         "DT": 450,
         "tsteps": 1152,
         "mpi_parts": 6,
         "threads": 3,
         "use_xios": false,
         "kgo_checks": [],
+        "wallclock": 30,
         "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "galewsky_vi_koren-C96" %}
+    {% if "C48" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C48"}) %}
+    {% elif "C96" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C96"}) %}
+    {% endif %}
+
+{% elif task_ns.conf_name == "galewsky_vi_koren-C96" or task_ns.conf_name == "galewsky_vi_koren-C48" %}
 
     {% do task_dict.update({
         "opt_confs": ["galewsky_vi_koren"],
-        "resolution": "C96",
         "DT": 450,
         "tsteps": 1152,
         "mpi_parts": 6,
         "threads": 3,
         "use_xios": false,
         "kgo_checks": [],
+        "wallclock": 30,
         "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "galewsky_vi_ffsl-C96" %}
+    {% if "C48" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C48"}) %}
+    {% elif "C96" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C96"}) %}
+    {% endif %}
+
+{% elif task_ns.conf_name == "galewsky_vi_ffsl-C96" or task_ns.conf_name == "galewsky_vi_ffsl-C48" %}
 
     {% do task_dict.update({
         "opt_confs": ["galewsky_vi_ffsl"],
-        "resolution": "C96",
         "DT": 450,
         "tsteps": 1152,
         "mpi_parts": 6,
         "threads": 3,
         "use_xios": false,
         "kgo_checks": [],
+        "wallclock": 30,
         "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "galewsky_vi_mono-C96" %}
+    {% if "C48" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C48"}) %}
+    {% elif "C96" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C96"}) %}
+    {% endif %}
+
+{% elif task_ns.conf_name == "galewsky_vi_mono-C96" or task_ns.conf_name == "galewsky_vi_mono-C48" %}
 
     {% do task_dict.update({
         "opt_confs": ["galewsky_vi_mono"],
-        "resolution": "C96",
         "DT": 450,
         "tsteps": 1152,
         "mpi_parts": 6,
         "threads": 3,
         "use_xios": false,
         "kgo_checks": [],
+        "wallclock": 30,
         "plot_str": "plot_swe_shallow_water.py diagShallowWater $NODAL_DATA_DIR C q:tracer_const:tracer_pv:tracer_step 288:1152 $PLOT_DIR",
     }) %}
+
+    {% if "C48" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C48"}) %}
+    {% elif "C96" in task_ns.conf_name %}
+        {% do task_dict.update({"resolution": "C96"}) %}
+    {% endif %}
 
 {% elif task_ns.conf_name == "thermal-BiP32x32-1x1" %}
 
@@ -249,7 +273,7 @@
 
 {# Set default values for Shallow Water tasks #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/applications/shallow_water"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/shallow_water"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "shallow_water"}) %}
     {% endif %}

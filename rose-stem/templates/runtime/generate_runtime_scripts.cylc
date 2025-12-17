@@ -33,14 +33,7 @@
     [[{{task}}]]
         execution time limit = PT15M
 
-{% if "export_simsys_scripts" in task %}
-
-        inherit=EXPORT-SOURCE
-        script="rose task-run --app-key=export_simsys_scripts"
-        [[[environment]]]
-            github_branch={{SIMSYS_BRANCH}}
-
-{% elif "config_dump_checker" in task %}
+{% if "config_dump_checker" in task %}
 
         inherit={{inherit.str|upper}}
         script="rose task-run --app-key=check_config_dump"
@@ -115,16 +108,14 @@
         inherit={{local_build_inherit|upper}}
         execution time limit = PT25M
         script = """
-                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/apps $CYLC_TASK_WORK_DIR/apps_local_build_source
-                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/core $CYLC_TASK_WORK_DIR/core_local_build_source
+                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_apps $CYLC_TASK_WORK_DIR/apps_local_build_source
+                 cp -r $CYLC_WORKFLOW_SHARE_DIR/source/lfric_core $CYLC_TASK_WORK_DIR/core_local_build_source
                  cd $CYLC_TASK_WORK_DIR/apps_local_build_source
-                 python3 build/local_build.py -a gungho_model -c $CYLC_TASK_WORK_DIR/core_local_build_source
+                 python3 build/local_build.py gungho_model -c $CYLC_TASK_WORK_DIR/core_local_build_source
                  cd $CYLC_TASK_WORK_DIR
                  rm -rf $CYLC_TASK_WORK_DIR/apps_local_build_source
                  rm -rf $CYLC_TASK_WORK_DIR/core_local_build_source
                  """
-        [[[environment]]]
-            SOURCE_LFRIC_APPS = {{HOST_SOURCE_LFRIC_APPS}}
 
 {% endif %}
 

@@ -4,10 +4,6 @@
         execution retry delays = 2*PT1M
         [[[environment]]]
             ROSE_ORIG_HOST = {{ROSE_ORIG_HOST}}
-            HOST_SOURCE_LFRIC_APPS = {{SOURCE_LFRIC_APPS}}
-            SOURCE_LFRIC_APPS_REV = {{SOURCE_LFRIC_APPS_REV}}
-            SOURCE_LFRIC_CORE = {{lfric_core_source}}
-            SOURCE_SHUMLIB = {{shumlib_source}}
 
 {% for tasks in [1, 2, 6, 12, 18, 24] %}
     [[NCI_GADI_{{tasks}}_TASKS]]
