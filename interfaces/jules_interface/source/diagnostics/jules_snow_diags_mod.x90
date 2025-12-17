@@ -7,13 +7,12 @@
 
 module jules_snow_diags_mod
 
-  use constants_mod,             only: l_def
-  use field_mod,                 only: field_type
-  use io_config_mod,             only: subroutine_timers
-  use timer_mod,                 only: timer
+  use constants_mod,               only: l_def
+  use field_mod,                   only: field_type
+  use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
 
-  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
+  use initialise_diagnostics_mod,  only : init_diag => init_diagnostic_field
 
   implicit none
 
@@ -44,15 +43,16 @@ contains
     ! Diagnostic fields to initialise
     type( field_type ), intent(inout) :: grid_snow_mass
     type( field_type ), intent(inout) :: grid_snowmelt
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("jules_snow_diags")
+    if ( LPROF ) call start_timing( id, 'jules_snow_diags' )
 
     ! 2D fields
     grid_snow_mass_flag = init_diag(grid_snow_mass, 'snow__grid_snow_mass')
     if (grid_snow_mass_flag) call invoke( setval_c(grid_snow_mass, 0.0_r_def) )
     grid_snowmelt_flag = init_diag(grid_snowmelt, 'snow__grid_snowmelt')
 
-    if ( subroutine_timers ) call timer("jules_snow_diags")
+    if ( LPROF ) call stop_timing( id, 'jules_snow_diags' )
 
   end subroutine initialise_diags_for_jules_snow
 
@@ -98,9 +98,9 @@ contains
 
     ! Diagnostics locally computed here from other fields
     type( field_type ), intent(inout) :: grid_snowmelt
+    integer( tik )                    :: id
 
-
-    if ( subroutine_timers ) call timer("jules_snow_diags")
+    if ( LPROF ) call start_timing( id, 'jules_snow_diags' )
 
     ! Prognostic fields
     call tile_snow_mass%write_field('snow__snow_mass')
@@ -126,7 +126,7 @@ contains
       call grid_snow_mass%write_field()
     end if
 
-    if ( subroutine_timers ) call timer("jules_snow_diags")
+    if ( LPROF ) call stop_timing( id, 'jules_snow_diags' )
 
   end subroutine output_diags_for_jules_snow
 end module jules_snow_diags_mod
