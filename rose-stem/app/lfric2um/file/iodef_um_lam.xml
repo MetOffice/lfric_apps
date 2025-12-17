@@ -52,6 +52,7 @@
 
       <!-- File definition for lfric checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
+       <field_group read_access=".TRUE.">
 	<field id="read_ew_wind" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
 	<field id="read_ns_wind" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
 	<field id="read_upward_wind" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
@@ -63,6 +64,7 @@
         <field id="read_rho_r2" name="rho_r2" long_name="density*R*R" unit="1" grid_ref="half_level_face_grid" operation="instant" />
         <field id="read_qcl" name="qcl" long_name="cloud condensate specific liquid content" unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
         <field id="read_exner" name="exner" long_name="exner pressure" unit="kg m-1 s-2" grid_ref="half_level_face_grid" operation="instant" />
+	</field_group>
       </file>
 
     </file_definition>
