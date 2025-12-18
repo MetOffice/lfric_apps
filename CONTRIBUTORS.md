@@ -6,4 +6,4 @@
 | jennyhickson    | Jenny Hickson     | Met Office  | 2025-12-10 |
 | mo-marqh        | mark Hedley       | Met Office  | 2025-12-11 |
 | yaswant         | Yaswant Pradhan   | Met Office  | 2025-12-16 |
-| DrTVockerodtMo  | Terence Vockerodt | Met Office  | 2025-12-18
+| DrTVockerodtMO  | Terence Vockerodt | Met Office  | 2025-12-18 |
