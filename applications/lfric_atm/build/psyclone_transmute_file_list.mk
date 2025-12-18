@@ -14,21 +14,26 @@
 
 # Choose which files to Pre-proccess and PSyclone from physics_schemes / other source (e.g. UKCA)
 
-export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod \
+export PSYCLONE_PHYSICS_FILES = \
                                 bm_tau_kernel_mod \
                                 gw_ussp_mod \
                                 lw_kernel_mod \
+                                mphys_kernel_mod \
                                 pc2_initiation_kernel_mod \
                                 pc2_conv_coupling_kernel_mod \
                                 sw_kernel_mod \
-	                        ukca_aero_ctl \
-				ukca_abdulrazzak_ghan \
+                                ukca_aero_ctl \
                                 ukca_chemistry_ctl_full_mod \
                                 ukca_main1-ukca_main1 \
                                 sw_rad_tile_kernel_mod \
 				jules_imp_kernel_mod \
 				jules_exp_kernel_mod \
 				jules_extra_kernel_mod
+
+# List to use PSyclone explicitly without any opt script
+# This will remove hand written (OMP) directives in the source
+# Used by both methods, specify_include and specify_exclude
+export PSYCLONE_PASS_NO_SCRIPT = ukca_abdulrazzak_ghan
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_exclude #####
 # For GPU, we may want to use more generic local.py transformation scripts and psyclone by directory.
