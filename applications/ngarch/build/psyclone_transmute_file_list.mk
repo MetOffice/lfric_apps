@@ -16,6 +16,9 @@
 
 export PSYCLONE_PHYSICS_FILES = gw_ussp_mod \
                                 bm_tau_kernel_mod \
+                                pc2_bl_forced_cu \
+                                pc2_bm_initiate \
+                                pc2_initiation_ctl \
                                 pc2_conv_coupling_kernel_mod \
                                 pc2_initiation_kernel_mod
 
