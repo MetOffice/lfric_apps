@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief   The main entry point for calculating the S20 Aviation diagnostics
-!> @details 
+!> @details
 module aviation_diags_alg_mod
 
     use constants_mod,              only: r_def, i_def, l_def
@@ -25,7 +25,7 @@ module aviation_diags_alg_mod
 
     private
     public :: aviation_diags_alg
-  
+
 contains
 
     !> @brief Algorithm to calculate the S20 Aviation Diagnostics
@@ -136,5 +136,5 @@ contains
         end if
 
     end subroutine aviation_diags_alg
-  
+
   end module aviation_diags_alg_mod

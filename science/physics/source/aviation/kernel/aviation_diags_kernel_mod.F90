@@ -42,7 +42,6 @@ contains
           plev_geopot, i1000, i850, i500, &
           result_ndf, result_undf, result_map, &
           source_ndf, source_undf, source_map)
-    USE constants_mod
 
     IMPLICIT NONE
 
