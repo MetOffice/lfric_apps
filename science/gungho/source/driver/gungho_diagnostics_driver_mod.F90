@@ -95,7 +95,7 @@ contains
     type( field_type ),            pointer :: moist_dyn(:) => null()
     type( field_collection_type ), pointer :: derived_fields
 
-    ! For the S20 Aviation diagnostics
+    ! Used by the S20 Aviation diagnostics
 #ifdef UM_PHYSICS
     type( field_type ) :: plev_geopot  ! Set by pres_lev_diags_alg().
 #endif

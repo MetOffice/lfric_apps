@@ -10,7 +10,8 @@ module aviation_diags_kernel_mod
   use argument_mod,         only: arg_type,            &
                                   GH_FIELD, GH_SCALAR, &
                                   GH_READ, GH_WRITE, GH_INTEGER, &
-                                  GH_REAL, CELL_COLUMN
+                                  GH_REAL, CELL_COLUMN, &
+                                  ANY_DISCONTINUOUS_SPACE_1, ANY_DISCONTINUOUS_SPACE_2
 !  use fs_continuity_mod,    only: WTHETA, W3
   use kernel_mod,           only: kernel_type
   use constants_mod,        only: r_def, i_def
@@ -20,10 +21,10 @@ module aviation_diags_kernel_mod
   type, extends(kernel_type) :: aviation_diags_kernel_type
     type(arg_type), dimension(6) :: meta_args = (/ &
             ! output
-            arg_type(gh_field, gh_real, gh_write, any_space_1), &
-            arg_type(gh_field, gh_real, gh_write, any_space_1), &
+            arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
+            arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
             ! source field
-            arg_type(gh_field, gh_real, gh_read, any_space_2), &
+            arg_type(gh_field, gh_real, gh_read, ANY_DISCONTINUOUS_SPACE_2), &
             ! level indices
             arg_type(gh_scalar, gh_integer, gh_read), &
             arg_type(gh_scalar, gh_integer, gh_read), &
