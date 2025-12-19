@@ -1,14 +1,19 @@
 !-------------------------------------------------------------------------------
-! (C) Crown copyright 2025 Met Office. All rights reserved.
+! (c) Crown copyright 2021 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+!> @brief Aviation diagnostics
+
 module aviation_diags_kernel_mod
 
-  use argument_mod
-  use fs_continuity_mod
-  use kernel_mod
-  use constants_mod
+  use argument_mod,         only: arg_type,            &
+                                  GH_FIELD, GH_SCALAR, &
+                                  GH_READ, GH_WRITE, GH_INTEGER, &
+                                  GH_REAL, CELL_COLUMN
+!  use fs_continuity_mod,    only: WTHETA, W3
+  use kernel_mod,           only: kernel_type
+  use constants_mod,        only: r_def, i_def
 
   implicit none
 

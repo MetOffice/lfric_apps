@@ -36,7 +36,7 @@ project_src_dir[2]="${BASE_SRC_DIR}lfric_apps/applications/lfricinputs/source/sc
 declare -a kernel_src_flag
 kernel_src_flag[0]="-d ${BASE_SRC_DIR}lfric_apps/science/gungho/source/kernel -d ${BASE_SRC_DIR}lfric_core/components/science/source/kernel"
 kernel_src_flag[1]="-d ${BASE_SRC_DIR}lfric_core/components/science/source/kernel"
-kernel_src_flag[2]="-d ${BASE_SRC_DIR}lfric_core/science/physics/source/aviation/kernel"
+kernel_src_flag[2]="-d ${BASE_SRC_DIR}lfric_apps/science/physics/source/aviation/kernel"
 kernel_src_flag[3]=
 
 
