@@ -84,7 +84,7 @@ contains
     integer(kind=i_def) :: k
     real(kind=r_def) :: pressure, dt
 
-    if ( subroutine_timers ) call timer('methox_alg')
+    if ( subroutine_timers ) call timer('methane_oxidation')
 
     ! If required, calculate the rate coefficients
     ! (assumed to vary only with pressure)
@@ -143,12 +143,14 @@ contains
     ! Calculate methane oxidation increment
     call invoke(methox_kernel_type(dmv_methox, mr(imr_v), dt))
 
+    if ( subroutine_timers ) call timer('methane_oxidation')
+
     ! Output diagnostic if requested
     if (write_diag .and. use_xios_io) then
+      if ( subroutine_timers ) call timer('diags.methane_oxidation')
       call dmv_methox%write_field('processed__dmv_methox')
+      if ( subroutine_timers ) call timer('diags.methane_oxidation')
     end if
-
-    if ( subroutine_timers ) call timer('methox_alg')
 
   end subroutine methox_alg
 

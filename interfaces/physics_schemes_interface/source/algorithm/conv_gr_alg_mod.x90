@@ -268,7 +268,7 @@ contains
 
     type( mesh_type ), pointer  :: mesh => null()
 
-    if ( subroutine_timers ) call timer("conv_gr_alg")
+    if ( subroutine_timers ) call timer("convection.gr")
 
     call log_event( 'Running GR convection scheme', LOG_LEVEL_DEBUG )
 
@@ -700,7 +700,7 @@ contains
                           cca_unadjusted, dth_conv_noshal, dmv_conv_noshal )  &
                                            ) ! end of invoke
 
-    if ( subroutine_timers ) call timer("conv_gr_alg")
+    if ( subroutine_timers ) call timer("convection.gr")
 
     ! output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then

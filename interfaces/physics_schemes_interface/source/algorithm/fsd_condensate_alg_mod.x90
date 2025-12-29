@@ -53,7 +53,7 @@ contains
 
     type( mesh_type), pointer :: mesh
 
-    if ( subroutine_timers ) call timer("fsd_condensate_alg")
+    if ( subroutine_timers ) call timer("cloud.fsd_condensate")
 
     ! Unpack fields
     call cloud_fields%get_field('area_fraction', area_fraction)
@@ -79,7 +79,7 @@ contains
 
     nullify( mesh )
 
-    if ( subroutine_timers ) call timer("fsd_condensate_alg")
+    if ( subroutine_timers ) call timer("cloud.fsd_condensate")
 
   end subroutine fsd_condensate_alg
 

@@ -81,7 +81,7 @@ contains
     real(kind=r_def), parameter :: upperheight=2000.0_r_def
     integer(kind=i_def), parameter :: sten_size = 1
 
-    if ( subroutine_timers ) call timer('pmsl_alg')
+    if ( subroutine_timers ) call timer('diags.pmsl')
 
     pmsl_flag = init_diag(pmsl, 'processed__pmsl')
     pmsl_unsmooth_flag = init_diag(pmsl_unsmooth, 'processed__pmsl_unsmooth', &
@@ -151,7 +151,7 @@ contains
 
     end if
 
-    if ( subroutine_timers ) call timer('pmsl_alg')
+    if ( subroutine_timers ) call timer('diags.pmsl')
 
   end subroutine pmsl_alg
 

@@ -70,7 +70,7 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
 
   if (.not. first_call) then
 
-    if ( subroutine_timers ) call timer("illuminate_alg")
+    if ( subroutine_timers ) call timer("radiation.illuminate")
 
     call radiation_fields%get_field('cos_zenith_angle',cos_zenith_angle)
     call radiation_fields%get_field('lit_fraction',lit_fraction)
@@ -107,11 +107,11 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
                  latitude, longitude, timestep, dt, &
                  current_year, day_of_year, second_of_day) )
 
-    if ( subroutine_timers ) call timer("illuminate_alg")
+    if ( subroutine_timers ) call timer("radiation.illuminate")
 
     ! Output diagnostics
     if (write_diag .and. use_xios_io) then
-      if ( subroutine_timers ) call timer("illuminate_xios")
+      if ( subroutine_timers ) call timer("diags.illuminate")
 
       call sin_stellar_declination_rts%write_field(&
         'radiation__sin_stellar_declination_rts')
@@ -123,7 +123,7 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
       call horizon_aspect%write_field('radiation__horizon_aspect')
       call skyview%write_field('radiation__skyview')
 
-      if ( subroutine_timers ) call timer("illuminate_xios")
+      if ( subroutine_timers ) call timer("diags.illuminate")
     end if
 
     nullify( mesh )

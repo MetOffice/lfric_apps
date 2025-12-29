@@ -70,7 +70,7 @@ contains
 
     type( mesh_type ), pointer :: mesh
 
-    if ( subroutine_timers ) call timer('casim_activate_alg')
+    if ( subroutine_timers ) call timer('microphysics.casim_activate')
 
     ! For fixed CDNC or if we want to initialise the CDNC
     if (casim_cdnc_opt == casim_cdnc_opt_fixed .or. initialise) then
@@ -119,7 +119,7 @@ contains
 
     end if
 
-    if ( subroutine_timers ) call timer('casim_activate_alg')
+    if ( subroutine_timers ) call timer('microphysics.casim_activate')
 
   end subroutine casim_activate_alg
 

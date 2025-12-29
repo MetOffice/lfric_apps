@@ -206,10 +206,10 @@ contains
     type( field_type ) :: aod_ukca_cor_ins
     type( field_type ) :: aaod_ukca_cor_ins
 
-    if ( subroutine_timers ) call timer('radaer_alg')
-
     ! Call on radiation time steps only
     if (mod(timestep-1_i_def, n_radaer_step*n_radstep) == 0) then
+
+      if ( subroutine_timers ) call timer('aerosol.radaer')
 
       mesh      => theta_in_wth%get_mesh()
       dz_in_wth => get_dz_at_wtheta(mesh%get_id())
@@ -476,6 +476,7 @@ contains
                                    source_mask=lit_fraction_rts_aero,          &
                                    lowest_order_flag=lowest_order_aero_flag )
       end if
+      if ( subroutine_timers ) call timer('aerosol.radaer')
 
       ! Diagnostic output
       if ( write_diag .and. use_xios_io ) then
@@ -497,8 +498,6 @@ contains
       end if
 
     end if
-
-    if ( subroutine_timers ) call timer('radaer_alg')
 
   end subroutine radaer_alg
 

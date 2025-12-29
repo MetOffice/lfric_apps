@@ -261,7 +261,7 @@ contains
   type( field_type ) :: land_surface_temperature, grid_canopy_evap, &
        grid_surface_temperature, grid_latent_heat, grid_sublimation
 
-  if ( subroutine_timers ) call timer("jules_imp_diags")
+  if ( subroutine_timers ) call timer("diags.jules_imp")
 
   ! Output prognostic fields - always output these on 2nd loop
   if (loop == 2) then
@@ -341,7 +341,7 @@ contains
 
   end if
 
-  if ( subroutine_timers ) call timer("jules_imp_diags")
+  if ( subroutine_timers ) call timer("diags.jules_imp")
 
   end subroutine output_diags_for_jules_imp
 end module jules_imp_diags_mod
