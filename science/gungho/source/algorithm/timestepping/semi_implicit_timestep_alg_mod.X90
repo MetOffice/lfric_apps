@@ -48,8 +48,7 @@ module semi_implicit_timestep_alg_mod
                                         moisture_formulation,     &
                                         moisture_formulation_dry, &
                                         exner_from_eos
-  use io_config_mod,              only: subroutine_timers,                    &
-                                        write_conservation_diag, write_diag,  &
+  use io_config_mod,              only: write_conservation_diag, write_diag,  &
                                         use_xios_io, diagnostic_frequency,    &
                                         checkpoint_read
   use initialization_config_mod,  only: init_option,                 &
@@ -147,7 +146,7 @@ module semi_implicit_timestep_alg_mod
 #endif
   use cld_incs_mod,               only: cld_incs_init, cld_incs_output
 
-  use timer_mod,                  only: timer
+  use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use ageofair_alg_mod,           only: ageofair_update
 
   implicit none
@@ -662,8 +661,9 @@ contains
     logical(l_def)               :: microphysics_casim
     logical(l_def)               :: murk_lbc
     real(r_def)                  :: tau_r
+    integer(tik)                 :: id
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( LPROF ) call start_timing( id, 'semi_implicit_timestep_alg' )
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
@@ -979,7 +979,7 @@ contains
           if ( limited_area .and. inner == 1 .and. outer == 1 ) then
             call lam_solver_lbc(self%state(igh_u), lbc_fields, prime_mesh_name)
             call calc_rhs_lbc(self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name, &
-                              tau_r, subroutine_timers)
+                              tau_r)
           end if
 
           !--------------------------------------------------------------------
@@ -1156,7 +1156,7 @@ contains
 
     nullify( mm_wt, mm_vel )
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( LPROF ) call stop_timing( id, 'semi_implicit_timestep_alg' )
 
   end subroutine run_step
 

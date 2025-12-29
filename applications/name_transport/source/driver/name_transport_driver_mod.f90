@@ -45,7 +45,8 @@ module name_transport_driver_mod
   use sci_geometric_constants_mod,        only: get_chi_inventory,      &
                                                 get_panel_id_inventory, &
                                                 get_height_fe
-  use timer_mod,                          only: timer
+  use timing_mod,                         only: start_timing, stop_timing, &
+                                                tik, LPROF
 
   ! Transport algorithms
   use name_transport_init_fields_alg_mod, only: name_transport_init_fields_alg
@@ -367,7 +368,6 @@ contains
     use base_mesh_config_mod,     only: prime_mesh_name
     use io_config_mod,            only: diagnostic_frequency, &
                                         nodal_output_on_w3,   &
-                                        subroutine_timers,    &
                                         write_diag
     use sci_field_minmax_alg_mod, only: log_field_minmax
 
@@ -376,6 +376,7 @@ contains
     class(model_clock_type), intent(in) :: model_clock
 
     type(mesh_type), pointer :: mesh
+    integer(tik)             :: id
 
     ! Get mesh
     mesh => mesh_collection%get_mesh(prime_mesh_name)
@@ -392,13 +393,13 @@ contains
       'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    if ( subroutine_timers ) call timer( 'name transport step' )
+    if ( LPROF ) call start_timing( id, 'name_transport_step' )
 
     ! Transport field
     call name_transport_step( model_clock, wind, tracer_con, &
                               density, transport_density )
 
-    if ( subroutine_timers ) call timer( 'name transport step' )
+    if ( LPROF ) call stop_timing( id, 'name_transport_step' )
 
     ! Print min/max of fields after transport step
     if (transport_density) then

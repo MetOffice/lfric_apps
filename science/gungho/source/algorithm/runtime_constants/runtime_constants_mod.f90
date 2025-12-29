@@ -14,15 +14,13 @@ module runtime_constants_mod
   use base_mesh_config_mod,    only: prime_mesh_name
   use constants_mod,           only: i_def, l_def
   use formulation_config_mod,  only: l_multigrid
-  use io_config_mod,           only: subroutine_timers
   use log_mod,                 only: log_event, LOG_LEVEL_INFO, &
                                      LOG_LEVEL_ERROR
   use mesh_collection_mod,     only: mesh_collection
   use mesh_mod,                only: mesh_type
   use model_clock_mod,         only: model_clock_type
   use multigrid_config_mod,    only: chain_mesh_tags
-  use timer_mod,               only: timer
-
+  use timing_mod,              only: start_timing, stop_timing, tik, LPROF
   implicit none
 
   private
@@ -46,8 +44,9 @@ contains
     integer(kind=i_def)              :: i
     integer(kind=i_def), allocatable :: mg_mesh_ids(:)
     integer(kind=i_def)              :: num_mg_meshes
+    integer(tik)                     :: id
 
-    if ( subroutine_timers ) call timer('runtime_constants_alg')
+    if ( LPROF ) call start_timing( id, 'runtime_constants_alg' )
 
     !==========================================================================!
     ! Turn all the meshes and coordinate fields into lists
@@ -81,7 +80,7 @@ contains
     ! code structure
     call runge_kutta_init()
 
-    if ( subroutine_timers ) call timer('runtime_constants_alg')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants_alg' )
 
   end subroutine create_runtime_constants
 

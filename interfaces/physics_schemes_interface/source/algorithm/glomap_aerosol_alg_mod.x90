@@ -13,11 +13,11 @@ module glomap_aerosol_alg_mod
   use field_collection_mod,            only: field_collection_type
   use multires_coupling_config_mod,    only: lowest_order_aero_flag, &
                                              coarse_rad_aerosol
-  use io_config_mod,                   only: subroutine_timers,                &
-                                             use_xios_io,                      &
+  use io_config_mod,                   only: use_xios_io,            &
                                              write_diag
   use mr_indices_mod,                  only: imr_ci, imr_v, nummr, imr_s
-  use timer_mod,                       only: timer
+  use timing_mod,                      only: start_timing, stop_timing, &
+                                             tik, LPROF
   use radiation_config_mod,            only: n_radstep
   use aerosol_config_mod,              only: n_radaer_step
   use microphysics_config_mod,         only: microphysics_casim
@@ -142,9 +142,10 @@ contains
     type( field_type ), pointer :: rh_crit_aero            => null()
     type( field_type ), pointer :: cloud_drop_no_conc_aero => null()
     type( field_type ), target  :: cf_bulk_coarse, cf_liquid_coarse, rh_crit_coarse, cloud_drop_no_conc_coarse
-    type( field_type ) :: mr_ice
+    type( field_type )          :: mr_ice
+    integer(tik)                :: id_alg, id_xios
 
-    if ( subroutine_timers ) call timer('glomap_aerosol_alg')
+    if ( LPROF ) call start_timing( id_alg, 'glomap_aerosol_alg' )
 
     ! Unpack fields from aerosol_fields
     call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)
@@ -320,10 +321,10 @@ contains
     if ( coarse_rad_aerosol ) then
       call map_scalar_intermesh(cloud_drop_no_conc, cloud_drop_no_conc_aero, lowest_order_flag=lowest_order_aero_flag)
     end if
-    if ( subroutine_timers ) call timer('glomap_aerosol_alg')
+    if ( LPROF ) call stop_timing( id_alg, 'glomap_aerosol_alg' )
 
     if ( write_diag .and. use_xios_io ) then
-      if ( subroutine_timers ) call timer("glomap_aerosol_xios")
+      if ( LPROF ) call start_timing( id_xios, 'glomap_aerosol_xios' )
 
       ! Diagnostic output
       call n_nuc_sol%write_field('aerosol__n_nuc_sol')
@@ -377,7 +378,7 @@ contains
         call cloud_drop_no_conc_aero%write_field('aerosol__cloud_drop_no_conc')
       end if
 
-      if ( subroutine_timers ) call timer("glomap_aerosol_xios")
+      if ( LPROF ) call stop_timing( id_xios, 'glomap_aerosol_xios' )
     end if
 
   end subroutine glomap_aerosol_alg

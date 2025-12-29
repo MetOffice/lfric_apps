@@ -9,10 +9,10 @@ module moist_mr_transport_alg_mod
 
   use constants_mod,                  only: i_def, r_def
   use field_mod,                      only: field_type
-  use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event, LOG_LEVEL_ERROR
   use mr_indices_mod,                 only: nummr
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
   use transport_enumerated_types_mod, only: equation_form_advective,           &
                                             equation_form_conservative,        &
                                             equation_form_consistent
@@ -61,8 +61,9 @@ contains
     ! Internal variables
     integer(kind=i_def) :: imr
     integer(kind=i_def) :: equation_form
+    integer(tik)        :: id
 
-    if ( subroutine_timers ) call timer('transport.moisture')
+    if ( LPROF ) call start_timing( id, 'transport.moisture' )
 
     ! If performing advective transport in the first outer loop, then the
     ! transport metadata needs setting here to make that choice
@@ -132,7 +133,7 @@ contains
       call invoke( setval_X(mr_out_rdef(imr), mr_in_rdef(imr)) )
     end do
 
-    if ( subroutine_timers ) call timer('transport.moisture')
+    if ( LPROF ) call stop_timing( id, 'transport.moisture' )
 
   end subroutine moist_mr_transport_alg
 

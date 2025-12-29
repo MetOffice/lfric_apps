@@ -35,7 +35,6 @@ module wind_precomputations_alg_mod
   use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
                                             get_face_selector_ns
   use integer_field_mod,              only: integer_field_type
-  use io_config_mod,                  only: subroutine_timers
   use local_mesh_mod,                 only: local_mesh_type
   use log_mod,                        only: log_event,                         &
                                             log_scratch_space,                 &
@@ -52,7 +51,8 @@ module wind_precomputations_alg_mod
                                             get_fraction_from_idx,             &
                                             get_fraction_idx,                  &
                                             get_num_split_steps
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
   use transport_enumerated_types_mod, only: direction_h,                       &
                                             direction_v,                       &
                                             direction_3d
@@ -188,6 +188,7 @@ contains
     type(mesh_type),       pointer :: mesh
     integer(kind=i_def)            :: num_meshes
     integer(kind=i_def)            :: num_fractions
+    integer(tik)                   :: id
 
     type(function_space_type), pointer :: w2_fs
     type(function_space_type), pointer :: w2h_fs
@@ -195,7 +196,7 @@ contains
     type(integer_field_type),  pointer :: face_selector_ew
     type(integer_field_type),  pointer :: face_selector_ns
 
-    if ( subroutine_timers ) call timer('transport.wind_precomp_init')
+    if ( LPROF ) call start_timing( id, 'transport.wind_precomp_init' )
 
     ! ------------------------------------------------------------------------ !
     ! Get correct element order arguments
@@ -347,7 +348,7 @@ contains
     self%courant_computed(:) = .false.
     self%is_initialised_flag = .true.
 
-    if ( subroutine_timers ) call timer('transport.wind_precomp_init')
+    if ( LPROF ) call stop_timing( id, 'transport.wind_precomp_init' )
 
   end subroutine wind_precomputations_initialiser
 
@@ -813,6 +814,7 @@ contains
     integer(kind=i_def)                                     :: stencil_extent
     real(kind=r_tran)                                       :: dt_split_step
     real(kind=r_tran)                                       :: dep_min, dep_max
+    integer(tik)                                            :: id
 
     ! If departure points calculated using "FFSL" method, get these from the
     ! flux precomputations object
@@ -826,7 +828,7 @@ contains
     ! Otherwise, the departure points are those stored in this object
     else
 
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( LPROF ) call start_timing( id, 'transport.dep_dist_reset_unity' )
 
       ! Check if they have been computed, based on if they are initialised
       mesh_idx = self%idx_from_mesh_id(mesh_id)
@@ -861,7 +863,7 @@ contains
 
       dep_dist_xy => self%dep_dist_xy(mesh_idx, frac_idx)
 
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( LPROF ) call stop_timing( id, 'transport.dep_dist_reset_unity' )
     end if
 
   end function get_dep_dist_xy
@@ -895,6 +897,7 @@ contains
     integer(kind=i_def)                                     :: frac
     real(kind=r_tran)                                       :: dt_split_step
     logical(kind=l_def)                                     :: compute_dep_cfl
+    integer(tik)                                            :: id
 
     ! If departure points calculated using "FFSL" method, get these from the
     ! flux precomputations object
@@ -905,7 +908,7 @@ contains
 
     ! Otherwise, the departure points are those stored in this object
     else
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( LPROF ) call start_timing( id, 'transport.dep_dist_reset_unity' )
 
       ! Check if they have been computed, based on if they are initialised
       mesh_idx = self%idx_from_mesh_id(mesh_id)
@@ -931,7 +934,7 @@ contains
 
       dep_dist_z => self%dep_dist_z(mesh_idx, frac_idx)
 
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( LPROF ) call stop_timing( id, 'transport.dep_dist_reset_unity' )
     end if
 
   end function get_dep_dist_z
@@ -1253,12 +1256,13 @@ contains
     type(r_tran_field_type)            :: dep_dist_z
     type(r_tran_field_type)            :: frac_vert_wind
     logical(kind=l_def)                :: compute_cfl_dep
+    integer(tik)                       :: id
 
     mesh_idx = self%idx_from_mesh_id(mesh_id)
 
     ! Has the field already been computed? If not, compute it now
     if (.not. self%dep_courant_vert(mesh_idx)%is_initialised()) then
-      if ( subroutine_timers ) call timer('transport.dep_dist_courant')
+      if ( LPROF ) call start_timing( id, 'transport.dep_dist_courant' )
 
       ! Calculate vertical departure distance
       mesh => mesh_collection%get_mesh(mesh_id)
@@ -1278,7 +1282,7 @@ contains
               self%wind_n(mesh_idx), self%wind_np1(mesh_idx), self%dt_substep, &
               compute_cfl_dep                                                  &
       )
-      if ( subroutine_timers ) call timer('transport.dep_dist_courant')
+      if ( LPROF ) call stop_timing( id, 'transport.dep_dist_courant' )
     end if
 
     dep_courant_vert => self%dep_courant_vert(mesh_idx)
@@ -1376,6 +1380,7 @@ contains
     real(kind=r_tran)                  :: min_courant_hori, max_courant_hori
     real(kind=r_tran)                  :: min_courant_3d, max_courant_3d
     real(kind=r_tran)                  :: cfl_limit
+    integer(tik)                       :: id
 
     mesh => mesh_collection%get_mesh(mesh_id)
     mesh_idx = self%idx_from_mesh_id(mesh_id)
@@ -1397,7 +1402,7 @@ contains
     face_selector_ns => get_face_selector_ns(mesh_id)
     wind_3d => self%get_wind(mesh_id, direction_3d)
 
-    if ( subroutine_timers ) call timer('transport.compute_courant')
+    if ( LPROF ) call start_timing( id, 'transport.compute_courant' )
 
     ! ------------------------------------------------------------------------ !
     ! Determine Courant number field
@@ -1509,7 +1514,7 @@ contains
 
     self%courant_computed(mesh_idx) = .true.
 
-    if ( subroutine_timers ) call timer('transport.compute_courant')
+    if ( LPROF ) call stop_timing( id, 'transport.compute_courant' )
 
   end subroutine compute_courant
 
@@ -1543,6 +1548,7 @@ contains
     type(r_tran_field_type),   pointer :: dep_dist_z
     type(r_tran_field_type),   pointer :: coeffs(:)
     type(integer_field_type),  pointer :: sl_indices(:)
+    integer(tik)                       :: id
 
     mesh => mesh_collection%get_mesh(mesh_id)
     fs => function_space_collection%get_fs(mesh, 0, 0, space)
@@ -1552,7 +1558,7 @@ contains
     frac_idx = get_fraction_idx(splitting, step)
     dep_dist_z => self%get_dep_dist_z(mesh_id, splitting, step)
 
-    if ( subroutine_timers ) call timer('transport.compute_sl_coeffs')
+    if ( LPROF ) call start_timing( id, 'transport.compute_sl_coeffs' )
 
     ! Points to appropriate coefficients and indices ---------------------------
     select case (space)
@@ -1624,7 +1630,7 @@ contains
     ! Compute coefficients -----------------------------------------------------
     call compute_sl_coefficients_alg(coeffs, sl_indices, dep_dist_z, order)
 
-    if ( subroutine_timers ) call timer('transport.compute_sl_coeffs')
+    if ( LPROF ) call stop_timing( id, 'transport.compute_sl_coeffs' )
 
   end subroutine compute_sl_coefficients
 

@@ -89,9 +89,8 @@ module slow_physics_alg_mod
   use formulation_config_mod,    only: moisture_formulation,     &
                                        moisture_formulation_dry, &
                                        theta_moist_source
-  use io_config_mod,             only: subroutine_timers,        &
-                                       write_conservation_diag
-  use timer_mod,                 only: timer
+  use io_config_mod,             only: write_conservation_diag
+  use timing_mod,                only: start_timing, stop_timing, tik, LPROF
   use external_forcing_alg_mod,  only: external_forcing_alg
   use evap_condense_kernel_mod,  only: evap_condense_kernel_type
   use physics_mappings_alg_mod,  only: map_physics_scalars
@@ -364,8 +363,8 @@ contains
     type(mesh_type),        pointer :: aerosol_mesh      => null()
     type(mesh_type),        pointer :: aerosol_twod_mesh => null()
 #endif
-
-    if ( subroutine_timers ) call timer("slow_physics")
+    integer(tik)                    :: id
+    if ( LPROF ) call start_timing( id, 'slow_physics' )
 
     !--------------------------------------------------------------------
     ! Initialisation of fields and flags
@@ -1175,8 +1174,7 @@ contains
       if (write_conservation_diag) &
         call moisture_conservation_alg( rho, mr, 'After slow' )
     end if
-
-    if ( subroutine_timers ) call timer("slow_physics")
+    if ( LPROF ) call stop_timing( id, 'slow_physics' )
 
   end subroutine slow_physics
 

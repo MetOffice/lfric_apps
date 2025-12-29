@@ -10,9 +10,7 @@ module methox_alg_mod
   use field_mod,            only: field_type
   use mr_indices_mod,       only: nummr, imr_v
   use io_config_mod,        only: write_diag, use_xios_io
-  use io_config_mod,        only: subroutine_timers
-  use timer_mod,            only: timer
-
+  use timing_mod,           only: start_timing, stop_timing, tik, LPROF
   use constants_mod,             only: r_def, i_def, pi, l_def
   use extrusion_config_mod,      only: domain_height, number_of_layers
   use level_heights_mod,         only: eta_theta_levels
@@ -83,8 +81,9 @@ contains
     !Internal variables
     integer(kind=i_def) :: k
     real(kind=r_def) :: pressure, dt
+    integer(tik)     :: id
 
-    if ( subroutine_timers ) call timer('methox_alg')
+    if ( LPROF ) call start_timing( id, 'methox_alg' )
 
     ! If required, calculate the rate coefficients
     ! (assumed to vary only with pressure)
@@ -148,7 +147,7 @@ contains
       call dmv_methox%write_field('processed__dmv_methox')
     end if
 
-    if ( subroutine_timers ) call timer('methox_alg')
+    if ( LPROF ) call stop_timing( id, 'methox_alg' )
 
   end subroutine methox_alg
 

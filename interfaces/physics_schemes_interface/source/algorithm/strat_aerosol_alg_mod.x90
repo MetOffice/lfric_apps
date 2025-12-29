@@ -12,8 +12,7 @@ use field_mod,                only: field_type
 use integer_field_mod,        only: integer_field_type
 use field_collection_mod,     only: field_collection_type
 use strat_aerosol_kernel_mod, only: strat_aerosol_kernel_type
-use io_config_mod,            only: subroutine_timers
-use timer_mod,                only: timer
+use timing_mod,               only: start_timing, stop_timing, tik, LPROF
 use function_space_mod,       only: function_space_type
 use function_space_collection_mod, &
                               only: function_space_collection
@@ -47,8 +46,9 @@ subroutine strat_aerosol_alg( aerosol_fields, trop_level, exner )
   type( field_type )          :: sulphuric_aero
   type(function_space_type), pointer :: wth_aero     => null()
   type(mesh_type),           pointer :: aerosol_mesh => null()
-
-  if ( subroutine_timers ) call timer("strat_aerosol_alg")
+  integer(tik)                       :: id
+               
+  if ( LPROF ) call start_timing( id, 'strat_aerosol_alg' )
 
   if (coarse_rad_aerosol) then
     ! Initialise potentially coarse aerosol field
@@ -63,7 +63,7 @@ subroutine strat_aerosol_alg( aerosol_fields, trop_level, exner )
     call invoke( strat_aerosol_kernel_type( sulphuric, trop_level, exner ) )
   end if
 
-  if ( subroutine_timers ) call timer("strat_aerosol_alg")
+  if ( LPROF ) call stop_timing( id, 'strat_aerosol_alg' )
 
 end subroutine strat_aerosol_alg
 end module strat_aerosol_alg_mod

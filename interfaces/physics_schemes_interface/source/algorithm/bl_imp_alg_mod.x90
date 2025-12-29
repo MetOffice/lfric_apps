@@ -21,8 +21,7 @@ module bl_imp_alg_mod
   use timestepping_config_mod,       only: outer_iterations
   use um_sizes_init_mod,             only: um_sizes_init
 
-  use io_config_mod, only: subroutine_timers
-  use timer_mod,     only: timer
+  use timing_mod,    only: start_timing, stop_timing, tik, LPROF
   ! xios output
   use io_config_mod, only: write_diag, use_xios_io, diagnostic_frequency
   use bl_imp_diags_mod, only: initialise_diags_for_bl_imp,   &
@@ -220,8 +219,10 @@ contains
     type( mesh_type ), pointer :: mesh => null()
     integer(i_def) :: loop, ncells
     logical(l_def) :: diag_step, flag_blpert
+    integer(tik)   :: id
 
-    if ( subroutine_timers ) call timer("bl_imp_alg")
+
+    if ( LPROF ) call start_timing( id, 'bl_imp_alg' )
 
     call log_event( 'Running implicit Boundary layer', LOG_LEVEL_DEBUG )
 
@@ -330,7 +331,7 @@ contains
     call u_physics%copy_field_properties(du_conv_w2)
     if ( cv_scheme == cv_scheme_gregory_rowntree .or. &
          cv_scheme == cv_scheme_comorph ) then
-      if ( subroutine_timers ) call timer("bl_imp_alg")
+      if ( LPROF ) call stop_timing( id, 'bl_imp_alg' )
       call theta%copy_field_properties(dw_conv)
       call invoke(setval_c(dw_conv, 0.0_r_def) )
       call set_wind(du_conv_w2, du_conv, dv_conv, dw_conv)
@@ -338,7 +339,7 @@ contains
       ! Set wind provides output in dynamics quantites, need to remove
       ! dA scaling for physics
       call invoke(inc_X_divideby_Y(du_conv_w2, dA) )
-      if ( subroutine_timers ) call timer("bl_imp_alg")
+      if ( LPROF ) call start_timing( id, 'bl_imp_alg' )
     else
       call invoke(setval_c(du_conv_w2, 0.0_r_def) )
     end if
@@ -476,7 +477,7 @@ contains
                   setval_X(moist_flux_bl,fqw) )
     end if
 
-    if ( subroutine_timers ) call timer("bl_imp_alg")
+    if ( LPROF ) call stop_timing( id, 'bl_imp_alg' )
 
     ! Calculate and output fields on last iteration only
     if (use_xios_io .and. outer == outer_iterations) then

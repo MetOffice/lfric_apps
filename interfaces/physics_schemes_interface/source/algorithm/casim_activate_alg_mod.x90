@@ -11,9 +11,9 @@ module casim_activate_alg_mod
   use field_mod,                     only: field_type
   use field_collection_mod,          only: field_collection_type
   use mr_indices_mod,                only: nummr, imr_cl, imr_ci
-  use io_config_mod,                 only: subroutine_timers, write_diag, &
-                                           use_xios_io
-  use timer_mod,                     only: timer
+  use io_config_mod,                 only: write_diag, use_xios_io
+  use timing_mod,                    only: start_timing, stop_timing, &
+                                           tik, LPROF
   use log_mod,                       only: log_event, LOG_LEVEL_INFO
   use mesh_mod,                      only: mesh_type
   use sci_geometric_constants_mod,   only: get_height_fv
@@ -69,8 +69,9 @@ contains
     type( field_type ), pointer :: mci_init
 
     type( mesh_type ), pointer :: mesh
+    integer( tik )             :: id
 
-    if ( subroutine_timers ) call timer('casim_activate_alg')
+    if ( LPROF ) call start_timing( id, 'casim_activate_alg' )
 
     ! For fixed CDNC or if we want to initialise the CDNC
     if (casim_cdnc_opt == casim_cdnc_opt_fixed .or. initialise) then
@@ -119,7 +120,7 @@ contains
 
     end if
 
-    if ( subroutine_timers ) call timer('casim_activate_alg')
+    if ( LPROF ) call stop_timing( id, 'casim_activate_alg' )
 
   end subroutine casim_activate_alg
 

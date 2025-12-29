@@ -20,7 +20,6 @@ module atlt_si_timestep_alg_mod
   use reference_element_mod,                   only: T
   use formulation_config_mod,                  only: moisture_formulation, &
                                                      moisture_formulation_dry
-  use io_config_mod,                           only: subroutine_timers
   use derived_config_mod,                      only: bundle_size
   use fs_continuity_mod,                       only: Wtheta, W2, W3
   use moist_dyn_factors_alg_mod,               only: moist_dyn_factors_alg
@@ -30,7 +29,8 @@ module atlt_si_timestep_alg_mod
   use mr_indices_mod,                          only: nummr
   use moist_dyn_mod,                           only: num_moist_factors, gas_law
   use field_indices_mod,                       only: igh_u, igh_t, igh_d, igh_p
-  use timer_mod,                               only: timer
+  use timing_mod,                              only: start_timing, stop_timing, &
+                                                     tik, LPROF
   use tl_si_timestep_alg_mod,                  only: tl_semi_implicit_alg_init, &
                                                      tl_semi_implicit_alg_step, &
                                                      tl_semi_implicit_alg_final
@@ -115,8 +115,9 @@ contains
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
     real(kind=r_def), parameter :: eps = 1e-30_r_def
+    integer(kind=tik)           :: id
 
-    if (subroutine_timers) call timer('atlt_si_timestep_alg')
+    if ( LPROF ) call start_timing( id, 'atlt_si_timestep_alg' )
 
     ! --------------------------------------------------------------------------
     ! Setup
@@ -370,7 +371,7 @@ contains
     call tl_semi_implicit_alg_final()
     call atl_si_timestep%finalise()
 
-    if (subroutine_timers) call timer('atlt_si_timestep_alg')
+    if ( LPROF ) call stop_timing( id, 'atlt_si_timestep_alg' )
 
   end subroutine atlt_si_timestep_alg
 

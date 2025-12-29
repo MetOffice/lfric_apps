@@ -30,7 +30,6 @@ module adj_mixed_operator_alg_mod
   use function_space_collection_mod,               only: function_space_collection
   use function_space_mod,                          only: function_space_type
   use integer_field_mod,                           only: integer_field_type
-  use io_config_mod,                               only: subroutine_timers
   use limited_area_constants_mod,                  only: get_mask_r_solver
   use log_mod,                                     only: log_event,         &
                                                          LOG_LEVEL_ERROR
@@ -54,7 +53,9 @@ module adj_mixed_operator_alg_mod
                                                          get_eliminated_q32
   use solver_constants_mod,                        only: get_w2_mass_matrix_r_solver, &
                                                          get_normalisation_r_solver
-  use timer_mod,                                   only: timer
+  use timing_mod,                                  only: start_timing, &
+                                                         stop_timing, &
+                                                         tik, LPROF
   use vector_mod,                                  only: abstract_vector_type
 
   implicit none
@@ -103,8 +104,9 @@ contains
 
     type(r_solver_field_vector_type)    :: x_in
     integer(kind=i_def) ::  state_size
+    integer(tik)        :: id
 
-    if (subroutine_timers) call timer('adj_mixed_operator')
+    if ( LPROF ) call start_timing( id, 'adj_mixed_operator' )
 
     ! Extract mesh ID
     select type (y)
@@ -257,7 +259,7 @@ contains
       call log_event( "mixed_operator_alg_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
     end select
 
-    if (subroutine_timers) call timer('adj_mixed_operator')
+    if ( LPROF ) call stop_timing( id, 'adj_mixed_operator' )
 
   end subroutine apply_adj_mixed_operator
 

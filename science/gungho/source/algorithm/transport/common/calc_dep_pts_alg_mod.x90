@@ -28,7 +28,8 @@ module calc_dep_pts_alg_mod
                                                LOG_LEVEL_ERROR
   use mesh_mod,                          only: mesh_type
   use r_tran_field_mod,                  only: r_tran_field_type
-  use timer_mod,                         only: timer
+  use timing_mod,                        only: start_timing, stop_timing, &
+                                               tik, LPROF
 
   ! Configs
   use departure_points_config_mod,       only: horizontal_method,              &
@@ -49,7 +50,6 @@ module calc_dep_pts_alg_mod
                                                vertical_limit_boundary,        &
                                                vertical_limit_exponential,     &
                                                vertical_sorting
-  use io_config_mod,                     only: subroutine_timers
   use transport_config_mod,              only: dep_pt_stencil_extent,   &
                                                calculate_detj,          &
                                                calculate_detj_averaged, &
@@ -158,8 +158,9 @@ contains
     type(r_tran_field_type) :: wind_adv
     type(r_tran_field_type) :: dep_wind
     type(r_tran_field_type) :: dep_wind_np1
+    integer(tik)            :: id
 
-    if ( subroutine_timers ) call timer( 'transport.hori_dep_pts' )
+    if ( LPROF ) call start_timing( id, 'transport.hori_dep_pts' )
 
     ! Get function space, mesh, and Det(J) at W3
     w2_fs  => wind_n%get_function_space()
@@ -280,7 +281,7 @@ contains
 
     nullify( w2_fs, w2h_fs, mesh, detj_at_w3, face_selector_ew, face_selector_ns )
 
-    if ( subroutine_timers ) call timer( 'transport.hori_dep_pts' )
+    if ( LPROF ) call stop_timing( id, 'transport.hori_dep_pts' )
 
   end subroutine calc_hori_dep_pts
 
@@ -472,9 +473,10 @@ contains
     type(function_space_type), pointer :: w2v_fs
     type(mesh_type),           pointer :: mesh
 
-    real(kind=r_tran)                    :: half
+    real(kind=r_tran)                  :: half
+    integer(tik)                       :: id
 
-    if ( subroutine_timers ) call timer( 'transport.vert_dep_pts' )
+    if ( LPROF ) call start_timing( id, 'transport.vert_dep_pts' )
 
     ! Get function spaces
     mesh  => wind_n%get_mesh()
@@ -558,7 +560,7 @@ contains
       call log_event('Vertical departure point method not recognised', LOG_LEVEL_ERROR)
     end select
 
-    if ( subroutine_timers ) call timer( 'transport.vert_dep_pts' )
+    if ( LPROF ) call stop_timing( id, 'transport.vert_dep_pts' )
 
   end subroutine calc_vert_dep_pts
 

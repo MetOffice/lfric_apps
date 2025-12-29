@@ -9,8 +9,8 @@ module pres_lev_diags_alg_mod
 
   use field_mod,               only: field_type
   use field_collection_mod,    only: field_collection_type
-  use io_config_mod,           only: write_diag, use_xios_io,subroutine_timers
-  use timer_mod,               only: timer
+  use io_config_mod,           only: write_diag, use_xios_io
+  use timing_mod,              only: start_timing, stop_timing, tik, LPROF
   use constants_mod,           only: r_def, i_def, l_def, str_def
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
                                         diag_samp => diagnostic_to_be_sampled
@@ -82,8 +82,9 @@ contains
          plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+    integer(tik) :: id
 
-    if ( subroutine_timers ) call timer('pres_lev_diags_alg')
+    if ( LPROF ) call start_timing( id, 'pres_lev_diags_alg' )
 
     nplev = get_axis_dimension('pressure_levels')
     allocate(plevs(nplev))
@@ -279,7 +280,7 @@ contains
 
     deallocate(plevs)
 
-    if ( subroutine_timers ) call timer('pres_lev_diags_alg')
+    if ( LPROF ) call stop_timing( id, 'pres_lev_diags_alg' )
 
   end subroutine pres_lev_diags_alg
 

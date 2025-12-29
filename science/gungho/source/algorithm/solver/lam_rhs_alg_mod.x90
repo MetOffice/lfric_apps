@@ -15,7 +15,7 @@ module lam_rhs_alg_mod
   use dg_inc_matrix_vector_kernel_mod, &
                                    only: dg_inc_matrix_vector_kernel_type
   use sci_enforce_bc_kernel_mod,   only: enforce_bc_kernel_type
-  use timer_mod,                   only: timer
+  use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
   use derived_config_mod,          only: bundle_size
   use si_operators_alg_mod,        only: get_rho_at_u
   use sci_fem_constants_mod,       only: get_im3_div_fe
@@ -88,9 +88,8 @@ contains
   !> @param[in]     model_clock Time in the model
   !> @param[in]     finest_mesh_name Name of the finest mesh
   !> @param[in]     tau_r Relaxation parameter for density in semi-implicit method
-  !> @param[in]     subroutine_timers Enable output of subroutine runtimes
   subroutine calc_rhs_lbc( rhs, lbc_fields, model_clock, finest_mesh_name, &
-                           tau_r, subroutine_timers )
+                           tau_r )
 
     implicit none
 
@@ -99,7 +98,6 @@ contains
     class(model_clock_type),     intent(in)    :: model_clock
     character(len=str_def),      intent(in)    :: finest_mesh_name
     real(r_def),                 intent(in)    :: tau_r
-    logical(l_def),              intent(in)    :: subroutine_timers
 
     type(field_type),    pointer :: boundary_u => null()
     type(operator_type), pointer :: mm_vel     => null(), &
@@ -119,9 +117,9 @@ contains
     integer(i_def)               :: mesh_id
 
     type(r_solver_field_type), pointer :: r_solver_rho_at_u => null()
+    integer(tik)                 :: id
 
-
-    if ( subroutine_timers ) call timer('rhs_lbc')
+    if ( LPROF ) call start_timing( id, 'rhs_lbc' )
 
     mesh_id = rhs(igh_u)%get_mesh_id()
 
@@ -190,7 +188,7 @@ contains
     nullify ( div, mt_lumped_inv, m2_diag, mm_vel )
     nullify ( r_solver_rho_at_u )
 
-    if ( subroutine_timers ) call timer('rhs_lbc')
+    if ( LPROF ) call stop_timing( id, 'rhs_lbc' )
 
   end subroutine calc_rhs_lbc
 

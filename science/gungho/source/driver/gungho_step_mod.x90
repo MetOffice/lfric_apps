@@ -57,6 +57,8 @@ module gungho_step_mod
   use compute_total_energy_alg_mod,   only : compute_total_energy_alg
   use compute_total_mass_alg_mod,     only : compute_total_mass_alg
   use sci_field_minmax_alg_mod,       only : log_field_minmax
+  use timing_mod,                     only : start_timing, stop_timing, &
+                                             tik, LPROF
 
   implicit none
 
@@ -110,6 +112,9 @@ module gungho_step_mod
 
     real( r_def )    :: dt
     logical( l_def ) :: use_moisture
+    integer( tik )   :: id
+
+    if ( LPROF ) call start_timing( id, 'gungho_timestep' )
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )
@@ -220,6 +225,7 @@ module gungho_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write( log_scratch_space, '("\", A, "/ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
+    if ( LPROF ) call stop_timing( id, 'gungho_timestep' )
 
   end subroutine gungho_step
 

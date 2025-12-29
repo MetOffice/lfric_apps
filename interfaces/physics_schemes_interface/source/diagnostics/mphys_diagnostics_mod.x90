@@ -9,8 +9,7 @@ module mphys_diagnostics_mod
 
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
-  use io_config_mod,       only: subroutine_timers
-  use timer_mod,           only: timer
+  use timing_mod,          only: start_timing, stop_timing, tik, LPROF
 
   use initialise_diagnostics_mod,    only : init_diag => init_diagnostic_field
 
@@ -60,8 +59,9 @@ contains
     type( field_type ), intent(inout) :: sfsnow
     type( field_type ), intent(inout) :: refl_tot
     type( field_type ), intent(inout) :: refl_1km
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("mphys_diagnostics")
+    if ( LPROF ) call start_timing( id, 'mphys_diagnostics' )
 
     superc_liq_flag = init_diag(superc_liq, 'microphysics__superc_liq')
     superc_rain_flag = init_diag(superc_rain, 'microphysics__superc_rain')
@@ -71,7 +71,7 @@ contains
     refl_tot_flag = init_diag(refl_tot, 'microphysics__refl_tot')
     refl_1km_flag = init_diag(refl_1km, 'microphysics__refl_1km')
 
-    if ( subroutine_timers ) call timer("mphys_diagnostics")
+    if ( LPROF ) call stop_timing( id, 'mphys_diagnostics' )
 
   end subroutine
 
@@ -125,11 +125,12 @@ contains
                                         refl_1km
 
     type ( field_type ) :: dt_mphys
+    integer( tik )      :: id
 
     !--------------------------------------
     ! End of declarations
     !--------------------------------------
-    if ( subroutine_timers ) call timer ("mphys_diagnostics")
+    if ( LPROF ) call start_timing( id, 'mphys_diagnostics' )
 
     !--------------------------------------
     ! Output locally computed 3D diagnostics
@@ -194,7 +195,7 @@ contains
 
     call tnuc%write_field('microphysics__tnuc')
 
-    if ( subroutine_timers ) call timer ("mphys_diagnostics")
+    if ( LPROF ) call stop_timing( id, 'mphys_diagnostics' )
 
   end subroutine output_diags_for_mphys
 

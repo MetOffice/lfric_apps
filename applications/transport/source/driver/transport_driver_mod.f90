@@ -51,7 +51,8 @@ module transport_driver_mod
   use mr_indices_mod,                   only: nummr
   use namelist_mod,                     only: namelist_type
   use runtime_constants_mod,            only: create_runtime_constants
-  use timer_mod,                        only: timer
+  use timing_mod,                       only: start_timing, stop_timing, &
+                                              tik, LPROF
   use transport_init_fields_alg_mod,    only: transport_init_fields_alg
   use transport_control_alg_mod,        only: transport_prerun_setup,          &
                                               transport_init, transport_step,  &
@@ -464,7 +465,6 @@ contains
     use formulation_config_mod, only: use_multires_coupling
     use io_config_mod,          only: diagnostic_frequency, &
                                       nodal_output_on_w3,   &
-                                      subroutine_timers,    &
                                       write_diag
     use multires_coupling_config_mod, only: aerosol_mesh_name
     use sci_field_minmax_alg_mod,     only: log_field_minmax
@@ -475,6 +475,7 @@ contains
 
     type(mesh_type), pointer :: mesh
     type(mesh_type), pointer :: aerosol_mesh
+    integer(tik)             :: id
 
     call log_event( 'Miniapp will run with default precision set as:', LOG_LEVEL_INFO )
     write(log_scratch_space, '(I1)') kind(1.0_r_def)
@@ -504,7 +505,7 @@ contains
       'Start of timestep ', model_clock%get_step()
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
-    if ( subroutine_timers ) call timer( 'transport step' )
+    if ( LPROF ) call start_timing( id, 'transport_step' )
 
     call transport_step( model_clock,                          &
                          wind, density, theta, tracer_con,     &
@@ -512,7 +513,7 @@ contains
                          w3_aerosol, wt_aerosol, aerosol_wind, &
                          nummr_to_transport )
 
-    if ( subroutine_timers ) call timer( 'transport step' )
+    if ( LPROF ) call stop_timing( id, 'transport_step' )
 
     ! Write out conservation diagnostics
     call mass_conservation( model_clock%get_step(), density, mr, &

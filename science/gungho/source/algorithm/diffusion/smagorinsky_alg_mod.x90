@@ -25,9 +25,8 @@ module smagorinsky_alg_mod
   use log_mod,                   only: log_event,         &
                                        LOG_LEVEL_INFO
   use mesh_mod,                  only: mesh_type
-  use io_config_mod,             only: subroutine_timers, &
-                                       write_conservation_diag
-  use timer_mod,                 only: timer
+  use io_config_mod,             only: write_conservation_diag
+  use timing_mod,                only: start_timing, stop_timing, tik, LPROF
   use moisture_conservation_alg_mod,   &
                                  only: moisture_conservation_alg
   use sci_geometric_constants_mod,     &
@@ -91,8 +90,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     logical :: use_moisture
     real( r_def ) :: one_third
+    integer(tik)  :: id
 
-    if ( subroutine_timers ) call timer("smagorinsky_alg")
+    if ( LPROF ) call start_timing( id, 'smagorinsky_alg' )
 
     call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_INFO )
 
@@ -231,7 +231,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     nullify( height_w1, height_w2 )
 
-    if ( subroutine_timers ) call timer("smagorinsky_alg")
+    if ( LPROF ) call stop_timing( id, 'smagorinsky_alg' )
 
   end subroutine smagorinsky_alg
 

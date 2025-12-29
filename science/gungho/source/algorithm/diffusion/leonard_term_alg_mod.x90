@@ -21,8 +21,7 @@ module leonard_term_alg_mod
 
   use mixing_config_mod,          only: leonard_kl
 
-  use io_config_mod,              only: subroutine_timers
-  use timer_mod,                  only: timer
+  use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use log_mod,                    only: log_event, LOG_LEVEL_INFO
   use model_clock_mod,            only: model_clock_type
 
@@ -94,6 +93,8 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     ! local variables
     integer(kind=i_def) :: mesh_id
     integer(kind=i_def), parameter :: stencil_depth = 1
+    integer(tik)       :: id
+
     ! Leonard term parameter
     type( field_type ) :: kl
     ! liquid + ice water potential temperature
@@ -103,7 +104,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     ! w increment
     type( field_type ) :: vel_w2v_inc_leonard
 
-    if ( subroutine_timers ) call timer("leonard_term_alg")
+    if ( LPROF ) call start_timing( id, 'leonard_term_alg' )
 
     mesh_id = theta%get_mesh_id()
 
@@ -221,7 +222,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
 
     nullify( height_w1, height_w2, height_w3, height_wth )
 
-    if ( subroutine_timers ) call timer("leonard_term_alg")
+    if ( LPROF ) call stop_timing( id, 'leonard_term_alg' )
 
   end subroutine leonard_term_alg
 

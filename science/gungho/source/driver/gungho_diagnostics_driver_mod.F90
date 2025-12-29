@@ -48,8 +48,9 @@ module gungho_diagnostics_driver_mod
   use sci_geometric_constants_mod,      &
                                  only : get_panel_id, get_height_fe, &
                                         get_height_fv, get_da_msl_proj
-  use io_config_mod,             only : subroutine_timers, use_xios_io, write_fluxes
+  use io_config_mod,             only : use_xios_io, write_fluxes
   use timer_mod,                 only : timer
+  use timing_mod,                only : start_timing, stop_timing, tik, LPROF
   use transport_config_mod,      only : transport_ageofair
   use driver_modeldb_mod,        only : modeldb_type
 
@@ -136,9 +137,8 @@ contains
     procedure(write_interface), pointer  :: tmp_write_ptr => null()
 
     integer :: i
-
-    if ( subroutine_timers ) call timer('gungho_diagnostics_driver')
-
+    integer(tik)  :: id
+    if ( LPROF ) call start_timing( id, 'gungho_diagnostics_driver' )
     call log_event("Gungho: writing diagnostic output", LOG_LEVEL_DEBUG)
 
     ! Get pointers to field collections for use downstream
@@ -333,8 +333,7 @@ contains
       call write_divergence_diagnostic( u, modeldb%clock, mesh )
       call write_hydbal_diagnostic( theta, moist_dyn, exner, mesh )
     end if
-
-    if ( subroutine_timers ) call timer('gungho_diagnostics_driver')
+    if ( LPROF ) call stop_timing( id, 'gungho_diagnostics_driver' )
   end subroutine gungho_diagnostics_driver
 
 end module gungho_diagnostics_driver_mod

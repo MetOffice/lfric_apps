@@ -16,9 +16,7 @@ use io_config_mod,           only: write_diag, use_xios_io
 use sci_geometric_constants_mod,   &
                              only: get_latitude_fv, get_longitude_fv
 use illuminate_kernel_mod,   only: illuminate_kernel_type
-use io_config_mod,           only: subroutine_timers
-use timer_mod,               only: timer
-
+use timing_mod,              only: start_timing, stop_timing, tik, LPROF
 implicit none
 private
 
@@ -63,14 +61,15 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
   type( field_type ), pointer :: horizon_aspect => null()
   type( field_type ), pointer :: skyview => null()
 
-  type(xios_date) :: datetime
+  type(xios_date)      :: datetime
   integer(i_def), save :: current_year, day_of_year
-  real(r_def), save :: second_of_day
+  real(r_def), save    :: second_of_day
   logical(l_def), save :: first_call = .true.
+  integer(tik)         :: id_alg, id_xios
 
   if (.not. first_call) then
 
-    if ( subroutine_timers ) call timer("illuminate_alg")
+    if ( LPROF ) call start_timing( id_alg, 'illuminate_alg' )
 
     call radiation_fields%get_field('cos_zenith_angle',cos_zenith_angle)
     call radiation_fields%get_field('lit_fraction',lit_fraction)
@@ -107,11 +106,11 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
                  latitude, longitude, timestep, dt, &
                  current_year, day_of_year, second_of_day) )
 
-    if ( subroutine_timers ) call timer("illuminate_alg")
+    if ( LPROF ) call stop_timing( id_alg, 'illuminate_alg' )
 
     ! Output diagnostics
     if (write_diag .and. use_xios_io) then
-      if ( subroutine_timers ) call timer("illuminate_xios")
+      if ( LPROF ) call start_timing( id_xios, 'illuminate_xios' )
 
       call sin_stellar_declination_rts%write_field(&
         'radiation__sin_stellar_declination_rts')
@@ -123,7 +122,7 @@ subroutine illuminate_alg(radiation_fields, timestep, dt)
       call horizon_aspect%write_field('radiation__horizon_aspect')
       call skyview%write_field('radiation__skyview')
 
-      if ( subroutine_timers ) call timer("illuminate_xios")
+      if ( LPROF ) call stop_timing( id_xios, 'illuminate_xios' )
     end if
 
     nullify( mesh )

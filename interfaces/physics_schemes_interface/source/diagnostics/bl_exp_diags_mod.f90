@@ -10,8 +10,7 @@ module bl_exp_diags_mod
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use integer_field_mod,   only: integer_field_type
-  use io_config_mod,       only: subroutine_timers
-  use timer_mod,           only: timer
+  use timing_mod,          only: start_timing, stop_timing, tik, LPROF
   use initialise_diagnostics_mod,     only : init_diag => init_diagnostic_field
 
   implicit none
@@ -35,13 +34,14 @@ contains
 
     type( field_type ), intent(inout) :: zht
     type( field_type ), intent(inout) :: oblen
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("bl_exp_diags")
+    if ( LPROF ) call start_timing( id, 'bl_exp_diags' )
 
     zht_flag = init_diag(zht, 'turbulence__zht')
     oblen_flag = init_diag(oblen, 'turbulence__oblen')
 
-    if ( subroutine_timers ) call timer("bl_exp_diags")
+    if ( LPROF ) call stop_timing( id, 'bl_exp_diags' )
 
   end subroutine initialise_diags_for_bl_exp
 
@@ -90,9 +90,9 @@ contains
                                          ent_zrzi_dsc, oblen, bl_weight_1dbl
     type(integer_field_type), intent(in) :: level_ent, level_ent_dsc, ntml,    &
                                             cumulus, bl_type_ind
+    integer( tik )  :: id
 
-
-    if ( subroutine_timers ) call timer("bl_exp_diags")
+    if ( LPROF ) call start_timing( id, 'bl_exp_diags' )
 
     ! Prognostic fields from turbulence collection
     call ntml%write_field('turbulence__ntml')
@@ -121,7 +121,7 @@ contains
     if (zht_flag) call zht%write_field()
     if (oblen_flag) call oblen%write_field()
 
-    if ( subroutine_timers ) call timer("bl_exp_diags")
+    if ( LPROF ) call stop_timing( id, 'bl_exp_diags' )
 
   end subroutine output_diags_for_bl_exp
 end module bl_exp_diags_mod

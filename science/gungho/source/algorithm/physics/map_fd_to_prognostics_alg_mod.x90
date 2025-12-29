@@ -45,7 +45,6 @@ module map_fd_to_prognostics_alg_mod
                                              get_geopotential
   use fs_continuity_mod,               only: W3, W2, W2broken, Wtheta
   use sci_sort_ref_kernel_mod,         only: sort_ref_kernel_type
-  use timer_mod,                       only: timer
   use combine_w2_field_kernel_mod,     only: combine_w2_field_kernel_type
   use idealised_config_mod,            only: perturb_init,     &
                                              perturb_magnitude
@@ -62,7 +61,6 @@ module map_fd_to_prognostics_alg_mod
                                        topology_fully_periodic
   use formulation_config_mod,    only: rotating, shallow
   use finite_element_config_mod, only: coord_system, coord_system_native
-  use io_config_mod,             only: subroutine_timers
   use physics_config_mod,        only: sample_physics_winds, &
                                        sample_physics_winds_correction
   use planet_config_mod,         only: gravity, p_zero, kappa, rd, cp
@@ -230,6 +228,8 @@ contains
     use sci_w3_to_w2_average_kernel_mod, only: w3_to_w2_average_kernel_type
     use sci_w3_to_w2_correction_kernel_mod, &
                                          only: w3_to_w2_correction_kernel_type
+    use timing_mod,                      only: start_timing, stop_timing, &
+                                               tik, LPROF
 
     implicit none
 
@@ -249,8 +249,9 @@ contains
     type( function_space_type ), pointer :: w2b_fs
 
     type( mesh_type ), pointer :: mesh
+    integer(tik)               :: id
 
-    if ( subroutine_timers ) call timer("set_wind")
+    if ( LPROF ) call start_timing( id, 'set_wind' )
 
     mesh => u%get_mesh()
 
@@ -326,7 +327,7 @@ contains
       call mass_matrix_solver_alg(u, r_u)
     end if
 
-    if ( subroutine_timers ) call timer("set_wind")
+    if ( LPROF ) call stop_timing( id, 'set_wind' )
 
   end subroutine set_wind
 
