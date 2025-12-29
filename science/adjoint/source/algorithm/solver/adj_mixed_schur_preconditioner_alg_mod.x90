@@ -133,7 +133,7 @@ contains
 
     type(r_solver_field_type) :: pressure_b_field
 
-    if (subroutine_timers) call timer('adj_mixed_schur_preconditioner_alg')
+    if (subroutine_timers) call timer('adj_mixed_solver.schur_precon')
 
     select type(x)
       type is(r_solver_field_vector_type)
@@ -169,9 +169,9 @@ contains
 
     ! Solve pressure system
     call log_event( 'Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG )
-    if (subroutine_timers) call timer('adj mixed_schur solve')
+    if (subroutine_timers) call timer('adj_schur_precon.pressure_solver')
     call self%adj_pressure_solver%apply( self%pressure_x, self%pressure_b )
-    if (subroutine_timers) call timer('adj mixed_schur solve')
+    if (subroutine_timers) call timer('adj_schur_precon.pressure_solver')
 
     ! STEP 1: Build RHS for Helmholtz system
 
@@ -193,7 +193,7 @@ contains
       call log_event( "mixed_schur_preconditioner_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
     end select
 
-    if (subroutine_timers) call timer('adj_mixed_schur_preconditioner_alg')
+    if (subroutine_timers) call timer('adj_mixed_solver.schur_precon')
 
   end subroutine apply_adj_mixed_schur_preconditioner
 
@@ -217,7 +217,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    if (subroutine_timers) call timer('adj mixed_schur rhs')
+    if (subroutine_timers) call timer('adj_schur_precon.rhs')
 
     ! Options coded:
     ! element_order_h= 0
@@ -300,7 +300,7 @@ contains
       call log_event( "adj_build_pressure_rhs: .not. split_w not coded", LOG_LEVEL_ERROR )
     end if
 
-    if (subroutine_timers) call timer('adj mixed_schur rhs')
+    if (subroutine_timers) call timer('adj_schur_precon.rhs')
 
   end subroutine adj_build_pressure_rhs
 
@@ -323,7 +323,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    if (subroutine_timers) call timer('adj Schur back substitute')
+    if (subroutine_timers) call timer('adj_schur_precon.back_sub')
 
     exner_inc => self%pressure_x%get_field_from_position(1)
 
@@ -370,7 +370,7 @@ contains
                                                        Hb_lumped_inv ),           &
                  setval_c(u_inc, 0.0_r_solver) )
 
-    if (subroutine_timers) call timer('adj Schur back substitute')
+    if (subroutine_timers) call timer('adj_schur_precon.back_sub')
 
   end subroutine adj_back_substitute
 

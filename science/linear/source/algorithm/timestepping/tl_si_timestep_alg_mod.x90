@@ -397,7 +397,7 @@ contains
     type( namelist_type ), pointer :: mixed_solver_nml
     real( kind=r_def )             :: mixed_solver_a_tol
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( subroutine_timers ) call timer('tl_semi_implicit_timestep')
 
     cast_dt = real(modeldb%clock%get_seconds_per_step(), r_def)
 
@@ -891,7 +891,7 @@ contains
 
     nullify( mm_wt, mm_vel, qr )
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( subroutine_timers ) call timer('tl_semi_implicit_timestep')
 
   end subroutine tl_semi_implicit_alg_step
 

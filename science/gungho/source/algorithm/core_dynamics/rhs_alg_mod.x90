@@ -163,7 +163,7 @@ contains
     integer(kind=i_def), parameter :: req_stencil_depth = 1
     integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
 
-    if ( subroutine_timers ) call timer('rhs_alg')
+    if ( subroutine_timers ) call timer('dynamics.rhs_alg')
 
     mesh_id = base_state(igh_u)%get_mesh_id()
 
@@ -233,7 +233,7 @@ contains
              geopotential, u, theta, rho, exner, &
              u_base, theta_base, rho_base )
 
-    if ( subroutine_timers ) call timer('rhs_alg')
+    if ( subroutine_timers ) call timer('dynamics.rhs_alg')
 
   end subroutine rhs_default_alg
 

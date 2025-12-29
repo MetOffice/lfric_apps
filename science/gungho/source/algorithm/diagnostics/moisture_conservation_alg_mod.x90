@@ -77,7 +77,7 @@ contains
     type(mesh_type), pointer :: mesh => null()
     type(mesh_type), pointer :: shifted_mesh => null()
 
-    if ( subroutine_timers ) call timer('moisture_conservation_alg')
+    if ( subroutine_timers ) call timer('diags.moisture_conservation')
 
     element_order_h = rho_d%get_element_order_h()
     element_order_v = rho_d%get_element_order_v()
@@ -126,7 +126,7 @@ contains
 
 
     nullify( chi, panel_id, w3_fs, w3_fs, mesh, shifted_mesh, chi_shifted )
-    if ( subroutine_timers ) call timer('moisture_conservation_alg')
+    if ( subroutine_timers ) call timer('diags.moisture_conservation')
 
   end subroutine moisture_conservation_alg
 

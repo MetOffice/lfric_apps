@@ -250,7 +250,7 @@ contains
 
     type( mesh_type ), pointer :: mesh
 
-    if ( subroutine_timers ) call timer("set_wind")
+    if ( subroutine_timers ) call timer("mappings.set_wind")
 
     mesh => u%get_mesh()
 
@@ -326,7 +326,7 @@ contains
       call mass_matrix_solver_alg(u, r_u)
     end if
 
-    if ( subroutine_timers ) call timer("set_wind")
+    if ( subroutine_timers ) call timer("mappings.set_wind")
 
   end subroutine set_wind
 

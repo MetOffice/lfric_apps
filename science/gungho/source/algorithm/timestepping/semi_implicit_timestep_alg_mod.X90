@@ -663,7 +663,7 @@ contains
     logical(l_def)               :: murk_lbc
     real(r_def)                  :: tau_r
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( subroutine_timers ) call timer('semi_implicit_timestep')
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
@@ -1156,7 +1156,7 @@ contains
 
     nullify( mm_wt, mm_vel )
 
-    if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
+    if ( subroutine_timers ) call timer('semi_implicit_timestep')
 
   end subroutine run_step
 

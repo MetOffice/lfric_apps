@@ -256,7 +256,7 @@ contains
     type(field_type) :: ls_exner_big_halo, &
                         exner_big_halo
 
-    if ( subroutine_timers ) call timer('tl_rk_alg')
+    if ( subroutine_timers ) call timer('tl_runge_kutta_timestep')
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
@@ -508,7 +508,7 @@ contains
     nullify( geopotential, chi, panel_id, m3_inv, &
              mesh, reference_element, qr )
 
-    if ( subroutine_timers ) call timer('tl_rk_alg')
+    if ( subroutine_timers ) call timer('tl_runge_kutta_timestep')
 
   end subroutine tl_rk_alg_step
 

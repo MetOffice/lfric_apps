@@ -92,7 +92,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     logical :: use_moisture
     real( r_def ) :: one_third
 
-    if ( subroutine_timers ) call timer("smagorinsky_alg")
+    if ( subroutine_timers ) call timer("smagorinsky")
 
     call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_INFO )
 
@@ -231,7 +231,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     nullify( height_w1, height_w2 )
 
-    if ( subroutine_timers ) call timer("smagorinsky_alg")
+    if ( subroutine_timers ) call timer("smagorinsky")
 
   end subroutine smagorinsky_alg
 
