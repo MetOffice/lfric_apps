@@ -263,7 +263,7 @@ contains
     type(transport_controller_type)          :: transport_controller
     type(transport_controller_type)          :: aerosol_transport_controller
 
-    if ( subroutine_timers ) call timer('gungho_transport_control')
+    if ( subroutine_timers ) call timer('dynamics.transport')
 
     ! ======================================================================== !
     ! Pre-transport initialisation tasks
@@ -555,7 +555,7 @@ contains
     call transport_controller%finalise()
     call aerosol_transport_controller%finalise()
 
-    if ( subroutine_timers ) call timer('gungho_transport_control')
+    if ( subroutine_timers ) call timer('dynamics.transport')
 
   end subroutine gungho_transport_control_alg
 

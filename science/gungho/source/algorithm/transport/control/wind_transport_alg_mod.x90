@@ -103,8 +103,6 @@ contains
     type(function_space_type),  pointer :: w2b_fs
     logical(kind=l_def)                 :: optimised_conversion
 
-    if ( subroutine_timers ) call timer('transport.wind')
-
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
 
@@ -261,8 +259,6 @@ contains
       end select
 
     end if ! si_momentum_equation
-
-    if ( subroutine_timers ) call timer('transport.wind')
 
   end subroutine wind_transport_alg
 

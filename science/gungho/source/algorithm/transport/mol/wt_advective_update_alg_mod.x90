@@ -114,7 +114,7 @@ contains
     logical(kind=l_def) :: monotone
     integer(kind=i_def) :: remap_depth
 
-    if ( subroutine_timers ) call timer('transport.wt_hori_recon')
+    if ( subroutine_timers ) call timer('mol.wt_hori_recon')
 
     mesh => wind%get_mesh()
     mesh_id = mesh%get_id()
@@ -196,7 +196,7 @@ contains
                                              wind,                 &
                                              wind_dir, stencil_extent))
 
-    if ( subroutine_timers ) call timer('transport.wt_hori_recon')
+    if ( subroutine_timers ) call timer('mol.wt_hori_recon')
 
   end subroutine hori_wt_update_alg
 
@@ -231,7 +231,7 @@ contains
     logical(kind=l_def)              :: reversible
     integer(kind=i_def)              :: monotonicity
 
-    if ( subroutine_timers ) call timer('transport.wt_vert_recon')
+    if ( subroutine_timers ) call timer('mol.wt_vert_recon')
 
     reversible = ( transport_metadata%get_reversible() .and. final_rk_stage )
     logspace = transport_metadata%get_log_space()
@@ -268,7 +268,7 @@ contains
                                                logspace ) )
     end if
 
-    if ( subroutine_timers ) call timer('transport.wt_vert_recon')
+    if ( subroutine_timers ) call timer('mol.wt_vert_recon')
 
   end subroutine vert_wt_update_alg
 

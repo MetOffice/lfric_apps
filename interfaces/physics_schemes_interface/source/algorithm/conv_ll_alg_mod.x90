@@ -60,7 +60,7 @@ contains
     type( field_type ), pointer :: conv_rain => null()
     type( field_type ), pointer :: conv_snow => null()
 
-    if ( subroutine_timers ) call timer("conv_ll_alg")
+    if ( subroutine_timers ) call timer("convection.ll")
 
     call log_event( 'Running LL convection scheme', LOG_LEVEL_INFO )
 
@@ -82,15 +82,19 @@ contains
 
                 ! bulk fraction change is just the liquid change
                 setval_X(dbcf_conv,dcfl_conv) )
+    if ( subroutine_timers ) call timer("convection.ll")
+
 
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then
+      if ( subroutine_timers ) call timer("diags.convection")
+
       call dt_conv%write_field('convection__dt_conv')
       call dmv_conv%write_field('convection__dmv_conv')
       call conv_rain%write_field('convection__conv_rain')
       call conv_snow%write_field('convection__conv_snow')
-    end if
 
-    if ( subroutine_timers ) call timer("conv_ll_alg")
+      if ( subroutine_timers ) call timer("diags.convection")
+    end if
 
   end subroutine conv_ll_alg
 

@@ -322,7 +322,7 @@ contains
     type(mesh_type), pointer                           :: mesh
     character(len=str_def)                             :: prime_mesh_name
 
-    if (subroutine_timers) call timer('atl_si_timestep_type::step')
+    if (subroutine_timers) call timer('atl_semi_implicit_timestep')
 
     cast_dt = real( modeldb%clock%get_seconds_per_step(), r_def )
 
@@ -737,7 +737,7 @@ contains
                  setval_X( rho, self%state(igh_d) ),   &
                  setval_X( exner, self%state(igh_p) ) )
 
-    if (subroutine_timers) call timer('atl_si_timestep_type::step')
+    if (subroutine_timers) call timer('atl_semi_implicit_timestep')
 
   end subroutine step
 

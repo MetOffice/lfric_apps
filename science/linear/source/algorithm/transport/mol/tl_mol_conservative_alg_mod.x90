@@ -116,7 +116,7 @@ module tl_mol_conservative_alg_mod
     type(flux_precomputations_type), pointer :: ls_wind_flux_precomp
     type(flux_precomputations_type), pointer :: pert_wind_flux_precomp
 
-    if ( subroutine_timers ) call timer('tl_mol_conservative_alg')
+    if ( subroutine_timers ) call timer('tl_transport.mol_conservative')
 
     ! ------------------------------------------------------------------------ !
     ! Extract transport objects and initialise temporary fields
@@ -411,7 +411,7 @@ module tl_mol_conservative_alg_mod
     if ( allocated(rk_weights) ) deallocate(rk_weights)
     if ( allocated(stored_ls_field) ) deallocate(stored_ls_field)
 
-    if ( subroutine_timers ) call timer('tl_mol_conservative_alg')
+    if ( subroutine_timers ) call timer('tl_transport.mol_conservative')
 
   end subroutine tl_mol_conservative_alg
 

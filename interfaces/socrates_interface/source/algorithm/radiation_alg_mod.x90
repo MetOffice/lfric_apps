@@ -498,7 +498,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
 
   end if
 
-  if ( subroutine_timers ) call timer("sw_radiation")
+  if ( subroutine_timers ) call timer("radiation.sw")
 
   if (rad_this_tstep) then
     ! --------------------------------------------------
@@ -603,8 +603,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
   call log_field_alg( sw_up_tile,          LOG_LEVEL_DEBUG )
   call log_field_alg( sw_up_blue_tile,     LOG_LEVEL_DEBUG )
 
-  if ( subroutine_timers ) call timer("sw_radiation")
-  if ( subroutine_timers ) call timer("lw_radiation")
+  if ( subroutine_timers ) call timer("radiation.sw")
+  if ( subroutine_timers ) call timer("radiation.lw")
 
   if (rad_this_tstep) then
     ! --------------------------------------------------
@@ -686,7 +686,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
   call log_field_alg( lw_down_surf,         LOG_LEVEL_DEBUG )
   call log_field_alg( lw_up_tile,           LOG_LEVEL_DEBUG )
 
-  if ( subroutine_timers ) call timer("lw_radiation")
+  if ( subroutine_timers ) call timer("radiation.lw")
 
   ! first calculate the total temperature increment
   dt_again=dt

@@ -173,7 +173,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    if ( subroutine_timers ) call timer('mixed_operator')
+    if ( subroutine_timers ) call timer('mixed_solver.operator')
 
     ! Extract mesh ID
     select type (y)
@@ -359,7 +359,7 @@ contains
        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
 
-    if ( subroutine_timers ) call timer('mixed_operator')
+    if ( subroutine_timers ) call timer('mixed_solver.operator')
 
   end subroutine apply_mixed_operator
 

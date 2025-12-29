@@ -267,7 +267,7 @@ contains
     type( mesh_type ), pointer  :: mesh
     integer(i_def) :: ncells
 
-    if ( subroutine_timers ) call timer("conv_comorph_alg")
+    if ( subroutine_timers ) call timer("convection.comorph")
 
     call log_event( 'Running Comorph convection scheme', LOG_LEVEL_DEBUG )
 
@@ -630,7 +630,7 @@ contains
 
     call um_sizes_init(1_i_def)
 
-    if ( subroutine_timers ) call timer("conv_comorph_alg")
+    if ( subroutine_timers ) call timer("convection.comorph")
 
     ! output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then

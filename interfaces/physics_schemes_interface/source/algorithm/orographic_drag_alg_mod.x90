@@ -97,7 +97,7 @@ contains
     type( mesh_type ), pointer :: mesh => null()
 
 
-    if ( subroutine_timers ) call timer("orographic_drag_alg")
+    if ( subroutine_timers ) call timer("orographic_drag")
 
     call log_event( 'slow_physics: Running Orographic drag', LOG_LEVEL_DEBUG )
 
@@ -177,7 +177,7 @@ contains
                 X_divideby_Y (dtheta_orographic_drag, dtemp_orographic_drag, &
                               exner_in_wth) )
 
-    if ( subroutine_timers ) call timer("orographic_drag_alg")
+    if ( subroutine_timers ) call timer("orographic_drag")
 
     if (write_diag .and. use_xios_io) then
 

@@ -369,6 +369,8 @@ contains
 
     class(wind_precomputations_type), intent(inout) :: self
 
+    if ( subroutine_timers ) call timer('transport.wind_precomp_final')
+
     self%is_initialised_flag = .false.
     if ( allocated( self%mesh_ids ) )                   deallocate( self%mesh_ids )
     if ( allocated( self%wind_n ) )                     deallocate( self%wind_n )
@@ -402,6 +404,8 @@ contains
     if ( allocated( self%dep_dist_z ) )                 deallocate( self%dep_dist_z )
     if ( allocated( self%dep_stencil_extent ) )         deallocate( self%dep_stencil_extent )
     if ( allocated( self%split_ffsl_precomputations ) ) deallocate( self%split_ffsl_precomputations )
+
+    if ( subroutine_timers ) call timer('transport.wind_precomp_final')
 
   end subroutine finalise
 
@@ -826,7 +830,7 @@ contains
     ! Otherwise, the departure points are those stored in this object
     else
 
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( subroutine_timers ) call timer('transport.wind_precomp')
 
       ! Check if they have been computed, based on if they are initialised
       mesh_idx = self%idx_from_mesh_id(mesh_id)
@@ -861,7 +865,7 @@ contains
 
       dep_dist_xy => self%dep_dist_xy(mesh_idx, frac_idx)
 
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( subroutine_timers ) call timer('transport.wind_precomp')
     end if
 
   end function get_dep_dist_xy
@@ -905,7 +909,7 @@ contains
 
     ! Otherwise, the departure points are those stored in this object
     else
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( subroutine_timers ) call timer('transport.wind_precomp')
 
       ! Check if they have been computed, based on if they are initialised
       mesh_idx = self%idx_from_mesh_id(mesh_id)
@@ -931,7 +935,7 @@ contains
 
       dep_dist_z => self%dep_dist_z(mesh_idx, frac_idx)
 
-      if ( subroutine_timers ) call timer('transport.dep_dist_reset_unity')
+      if ( subroutine_timers ) call timer('transport.wind_precomp')
     end if
 
   end function get_dep_dist_z
@@ -1258,7 +1262,7 @@ contains
 
     ! Has the field already been computed? If not, compute it now
     if (.not. self%dep_courant_vert(mesh_idx)%is_initialised()) then
-      if ( subroutine_timers ) call timer('transport.dep_dist_courant')
+      if ( subroutine_timers ) call timer('transport.wind_precomp')
 
       ! Calculate vertical departure distance
       mesh => mesh_collection%get_mesh(mesh_id)
@@ -1278,7 +1282,7 @@ contains
               self%wind_n(mesh_idx), self%wind_np1(mesh_idx), self%dt_substep, &
               compute_cfl_dep                                                  &
       )
-      if ( subroutine_timers ) call timer('transport.dep_dist_courant')
+      if ( subroutine_timers ) call timer('transport.wind_precomp')
     end if
 
     dep_courant_vert => self%dep_courant_vert(mesh_idx)
@@ -1397,7 +1401,7 @@ contains
     face_selector_ns => get_face_selector_ns(mesh_id)
     wind_3d => self%get_wind(mesh_id, direction_3d)
 
-    if ( subroutine_timers ) call timer('transport.compute_courant')
+    if ( subroutine_timers ) call timer('transport.wind_precomp')
 
     ! ------------------------------------------------------------------------ !
     ! Determine Courant number field
@@ -1509,7 +1513,7 @@ contains
 
     self%courant_computed(mesh_idx) = .true.
 
-    if ( subroutine_timers ) call timer('transport.compute_courant')
+    if ( subroutine_timers ) call timer('transport.wind_precomp')
 
   end subroutine compute_courant
 
@@ -1552,7 +1556,7 @@ contains
     frac_idx = get_fraction_idx(splitting, step)
     dep_dist_z => self%get_dep_dist_z(mesh_id, splitting, step)
 
-    if ( subroutine_timers ) call timer('transport.compute_sl_coeffs')
+    if ( subroutine_timers ) call timer('transport.wind_precomp')
 
     ! Points to appropriate coefficients and indices ---------------------------
     select case (space)
@@ -1624,7 +1628,7 @@ contains
     ! Compute coefficients -----------------------------------------------------
     call compute_sl_coefficients_alg(coeffs, sl_indices, dep_dist_z, order)
 
-    if ( subroutine_timers ) call timer('transport.compute_sl_coeffs')
+    if ( subroutine_timers ) call timer('transport.wind_precomp')
 
   end subroutine compute_sl_coefficients
 

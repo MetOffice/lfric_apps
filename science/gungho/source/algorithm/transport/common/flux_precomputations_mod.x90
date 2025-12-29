@@ -867,7 +867,7 @@ contains
       face_selector_ew => get_face_selector_ew(self%mesh_ids(2))
       face_selector_ns => get_face_selector_ns(self%mesh_ids(2))
 
-      if ( subroutine_timers ) call timer('transport.get_ref_flux')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
 
       ! Transform fluxes to the shifted mesh, with case depending on fs_id
       select case (fs_id)
@@ -894,7 +894,7 @@ contains
                                       self%ref_flux(1, step_idx)) )
       end select
 
-      if ( subroutine_timers ) call timer('transport.get_ref_flux')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
     end if
 
     ! Point to existing field
@@ -961,7 +961,7 @@ contains
       ! Obtain reference field from mass
       ref_mass => self%get_ref_mass(mesh_id, step)
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
 
       call self%ref_field(mesh_idx, step)%initialise(w3_fs, halo_depth=halo_depth)
 
@@ -973,7 +973,7 @@ contains
                                   detj_w3) )
       end if
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
     end if
 
     ! Return existing field
@@ -1079,7 +1079,7 @@ contains
         ref_flux => self%get_ref_flux(mesh_id, step-1)
         call increment%initialise(w3_fs)
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
 
         ! Take divergence of flux to get increment
         fs_id = ref_flux%which_function_space()
@@ -1140,14 +1140,14 @@ contains
                                              depth=transport_boundary_depth)
         end if
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
 
       ! ---------------------------------------------------------------------- !
       ! 2. The density from this step (multiplied by cell volumes)
       ! ---------------------------------------------------------------------- !
       else if (self%ref_field(mesh_idx, step)%is_initialised()) then
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
         detj_w3 => get_detj_at_w3_r_tran(mesh_id)
         if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
           call invoke_deep_X_times_Y(self%ref_mass(mesh_idx, step),            &
@@ -1157,13 +1157,13 @@ contains
                                  self%ref_field(mesh_idx, step), detj_w3) )
         end if
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
 
       ! ---------------------------------------------------------------------- !
       ! 3. If on the shifted mesh, obtain the mass by shifting the mass
       ! ---------------------------------------------------------------------- !
       else if (mesh_idx == 2) then
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
         ref_mass_prime => self%get_ref_mass(self%mesh_ids(1), step, negative_check_flag)
         if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
           ! Original field has already been remapped, so can perform a "deep"
@@ -1176,7 +1176,7 @@ contains
           call invoke( shift_mass_w3_kernel_type(self%ref_mass(2, step),       &
                                                  ref_mass_prime) )
         end if
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
       end if
 
       ! Check if the computed reference mass is negative -----------------------
@@ -1246,7 +1246,7 @@ contains
       detj_w3 => get_detj_at_w3_r_tran(mesh_id)
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
 
       call self%ref_field_x(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
 
@@ -1257,7 +1257,7 @@ contains
         call invoke( X_divideby_Y(self%ref_field_x(mesh_idx, step_idx),        &
                                   ref_mass, detj_w3) )
       end if
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
     end if
 
     ! Return existing field
@@ -1310,7 +1310,7 @@ contains
       detj_w3 => get_detj_at_w3_r_tran(mesh_id)
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
 
       call self%ref_field_y(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
 
@@ -1321,7 +1321,7 @@ contains
         call invoke( X_divideby_Y(self%ref_field_y(mesh_idx, step_idx),        &
                                   ref_mass, detj_w3) )
       end if
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
     end if
 
     ! Return existing field
@@ -1666,7 +1666,7 @@ contains
         mesh => mesh_collection%get_mesh(mesh_id)
         dep_dist => self%get_dep_dist(mesh_id, step, outer_step_local)
 
-        if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
 
         ! We can shorten the stencil extent to the Courant number
         call get_field_minmax(dep_dist, dep_min, dep_max)
@@ -1684,7 +1684,7 @@ contains
           self%max_stencil_extent_computed = .true.
         end if
 
-        if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+        if ( subroutine_timers ) call timer('transport.flux_precomp')
       end if
 
     ! INNER STEP EXTENTS -------------------------------------------------------
@@ -1703,7 +1703,7 @@ contains
       mesh => mesh_collection%get_mesh(mesh_id)
       dep_dist => self%get_dep_dist(mesh_id, step, outer_step_local)
 
-      if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
 
       ! We can shorten the stencil extent to the Courant number
       call get_field_minmax(dep_dist, dep_min, dep_max)
@@ -1721,7 +1721,7 @@ contains
         self%max_stencil_extent_computed = .true.
       end if
 
-      if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+      if ( subroutine_timers ) call timer('transport.flux_precomp')
     end if
 
   end function get_dep_stencil_extent
@@ -1835,7 +1835,7 @@ contains
     ref_flux => self%get_ref_flux(mesh_id, step)
     w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
-    if ( subroutine_timers ) call timer('transport.get_ref_mass_xy')
+    if ( subroutine_timers ) call timer('transport.flux_precomp')
 
     call self%ref_mass_x(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
     call self%ref_mass_y(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
@@ -1891,7 +1891,7 @@ contains
       )
     end if
 
-    if ( subroutine_timers ) call timer('transport.get_ref_mass_xy')
+    if ( subroutine_timers ) call timer('transport.flux_precomp')
 
   end subroutine compute_ref_mass_x_and_y
 
@@ -1937,7 +1937,7 @@ contains
     end if
     ref_flux => self%get_ref_flux(mesh_id, step)
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( subroutine_timers ) call timer('transport.flux_precomp')
 
     w2_fs => ref_flux%get_function_space()
     call self%dep_dist(mesh_idx, step_idx)%initialise(w2_fs)
@@ -1979,7 +1979,7 @@ contains
       )
     end if
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( subroutine_timers ) call timer('transport.flux_precomp')
 
   end subroutine compute_dep_dist_inner
 
@@ -2021,7 +2021,7 @@ contains
     ref_mass_x => self%get_ref_mass_x(mesh_id, step)
     ref_mass_y => self%get_ref_mass_y(mesh_id, step)
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( subroutine_timers ) call timer('transport.flux_precomp')
 
     if (direction /= direction_h) then
       write(log_scratch_space, '(A,I8,A)')                                     &
@@ -2059,7 +2059,7 @@ contains
       )
     end if
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( subroutine_timers ) call timer('transport.flux_precomp')
 
   end subroutine compute_dep_dist_outer
 

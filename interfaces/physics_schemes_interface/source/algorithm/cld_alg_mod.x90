@@ -128,7 +128,7 @@ contains
     integer(i_def) :: i_mr, ncells
     character(str_def) :: name_ext
 
-    if ( subroutine_timers ) call timer('cld_alg')
+    if ( subroutine_timers ) call timer('cloud')
 
     call log_event( 'End-of-timestep cloud update', LOG_LEVEL_DEBUG )
 
@@ -263,7 +263,7 @@ contains
       end if
     end if
 
-    if ( subroutine_timers ) call timer('cld_alg')
+    if ( subroutine_timers ) call timer('cloud')
 
     if ( write_diag .and. use_xios_io .and. &
          mod(step,diagnostic_frequency) == 0 .and. &

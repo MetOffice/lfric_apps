@@ -104,7 +104,7 @@ contains
     type(r_solver_field_vector_type)    :: x_in
     integer(kind=i_def) ::  state_size
 
-    if (subroutine_timers) call timer('adj_mixed_operator')
+    if (subroutine_timers) call timer('adj_mixed_solver.operator')
 
     ! Extract mesh ID
     select type (y)
@@ -257,7 +257,7 @@ contains
       call log_event( "mixed_operator_alg_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
     end select
 
-    if (subroutine_timers) call timer('adj_mixed_operator')
+    if (subroutine_timers) call timer('adj_mixed_solver.operator')
 
   end subroutine apply_adj_mixed_operator
 

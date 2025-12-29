@@ -117,7 +117,7 @@ module stph_fp_main_alg_mod
   integer(i_def)     :: fs_id
   ! iterators in for loops
   integer(kind=i_def) :: n, m, n_row, k
-  if ( subroutine_timers ) call timer("stph_fp_main_alg")
+  if ( subroutine_timers ) call timer("spt.forcing_pattern")
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  1)  Apply the First Auto-regressive process (1AR) !!
@@ -203,7 +203,7 @@ module stph_fp_main_alg_mod
                                         level_bottom, level_top,          &
                                         wavenumber_min, wavenumber_max)
 
-  if ( subroutine_timers ) call timer("stph_fp_main_alg")
+  if ( subroutine_timers ) call timer("spt.forcing_pattern")
 
   end subroutine stph_fp_main_alg
 

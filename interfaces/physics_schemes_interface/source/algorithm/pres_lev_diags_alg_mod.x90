@@ -83,7 +83,7 @@ contains
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
 
-    if ( subroutine_timers ) call timer('pres_lev_diags_alg')
+    if ( subroutine_timers ) call timer('diags.pressure_lev')
 
     nplev = get_axis_dimension('pressure_levels')
     allocate(plevs(nplev))
@@ -279,7 +279,7 @@ contains
 
     deallocate(plevs)
 
-    if ( subroutine_timers ) call timer('pres_lev_diags_alg')
+    if ( subroutine_timers ) call timer('diags.pressure_lev')
 
   end subroutine pres_lev_diags_alg
 

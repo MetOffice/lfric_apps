@@ -46,7 +46,7 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
   type(function_space_type),  pointer :: vector_space => null()
   procedure(write_interface), pointer :: write_diag_behaviour => null()
 
-  if ( subroutine_timers ) call timer("locate_tropopause_alg")
+  if ( subroutine_timers ) call timer("locate_tropopause")
 
   height_wth => get_height_fv(Wtheta, theta%get_mesh_id())
 
@@ -56,14 +56,14 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
   call invoke( locate_tropopause_kernel_type( theta, exner_in_wth, &
                                               height_wth, trop_level ) )
 
-  if ( subroutine_timers ) call timer("locate_tropopause_alg")
+  if ( subroutine_timers ) call timer("locate_tropopause")
 
   if (write_diag .and. use_xios_io) then
-    if ( subroutine_timers ) call timer("locate_tropopause_xios")
+    if ( subroutine_timers ) call timer("diags.locate_tropopause")
     write_diag_behaviour => write_field_generic
     call trop_level%set_write_behaviour(write_diag_behaviour)
     call trop_level%write_field('processed__trop_level')
-    if ( subroutine_timers ) call timer("locate_tropopause_xios")
+    if ( subroutine_timers ) call timer("diags.locate_tropopause")
   end if
 
 end subroutine locate_tropopause_alg
