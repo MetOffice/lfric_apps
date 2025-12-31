@@ -1,7 +1,7 @@
 <file_definition>
 
   <!-- Main diagnostic output file for regional runs -->
-  <file id="lfric_diagnostics" name="lfric_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_diagnostics" name="results/lfric_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
     <field_group id="diags_ts_profile" operation="instant" freq_op="1h" prec="4">
       <field field_ref="theta" />                        <!-- s00i004 -->
       <field field_ref="m_v" />                          <!-- s00i391 -->
