@@ -5,7 +5,11 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/macros/macros_ex1a.cylc") %}
 
-{% set ex1a_cores_per_node = 128 %}
+{% if site_vars.node_type == "genoa" %}
+    {% set ex1a_cores_per_node = 192 %}
+{% else %}
+    {% set ex1a_cores_per_node = 128 %}
+{% endif %}
 {% set ex1a_socket_per_node = 2 %}
 
 {% macro normal_queue(mpi_ranks,
@@ -74,7 +78,7 @@
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
-                         xios_nodes|int }}
+                         xios_nodes|int }}:coretype={{site_vars.node_type}}:mem={{site_vars.node_mem}}GB
 {% endmacro %}
 
 

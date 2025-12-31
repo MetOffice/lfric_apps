@@ -84,6 +84,11 @@ def plot_run_job(run, out_filename):
     if matcher:
         mpiprocs = int(matcher.group(2))
 
+    if not os.path.exists(os.path.join(run, 'job.out')):
+        time.sleep(5)
+        if not os.path.exists(os.path.join(run, 'job.out')):
+            raise FileNotFoundError(f'{run}/job.out does not exist')
+
     with open(os.path.join(run, 'job.out'), encoding="utf-8") as jof:
         jofr = jof.read()
         # re pattern to find max memory usage report by node
