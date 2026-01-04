@@ -91,9 +91,10 @@ contains
   !> @param[in]     dlayer_rhs      Use damping layer in rhs yes/no
   !> @param[in]     compute_rhs_t_d Compute rhs for the potential temperature
   !!                                and density
+  !> @param[in]     stepper_name    Enumerator for timestepper
   !> @param[in]     model_clock     Time in the model
   subroutine rhs_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                      compute_rhs_t_d, dlayer_rhs, model_clock )
+                      compute_rhs_t_d, dlayer_rhs, stepper_name, model_clock )
 
     implicit none
 
@@ -107,6 +108,7 @@ contains
     type(field_type),             intent(inout) :: rhs(bundle_size)
     logical(kind=l_def),          intent(in)    :: compute_eos
     logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
+    integer(kind=i_def),          intent(in)    :: stepper_name
     class(model_clock_type),      intent(in)    :: model_clock
 
     if (   (rhs(igh_u)%get_element_order_h() == 0) &
@@ -114,10 +116,10 @@ contains
      .and. (.not. si_momentum_equation)            &
      .and. (eos_method == eos_method_sampled) ) then
       call rhs_default_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                            compute_rhs_t_d, dlayer_rhs, model_clock )
+                            compute_rhs_t_d, dlayer_rhs, stepper_name, model_clock )
     else
       call rhs_general_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                            compute_rhs_t_d, dlayer_rhs, model_clock )
+                            compute_rhs_t_d, dlayer_rhs, stepper_name, model_clock )
     end if
 
   end subroutine rhs_alg
@@ -125,7 +127,7 @@ contains
   !> @brief rhs algorithm for the default setup ( lowest order elements,
   !!        explicit momentum advection, global and sampled eos)
   subroutine rhs_default_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                              compute_rhs_t_d, dlayer_rhs, model_clock )
+                              compute_rhs_t_d, dlayer_rhs, stepper_name, model_clock )
 
     implicit none
 
@@ -139,6 +141,7 @@ contains
     type(field_type),             intent(inout) :: rhs(bundle_size)
     logical(kind=l_def),          intent(in)    :: compute_eos
     logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
+    integer(kind=i_def),          intent(in)    :: stepper_name
     class(model_clock_type),      intent(in)    :: model_clock
 
     type(operator_type), pointer :: mm_vel    => null(), &
@@ -172,7 +175,9 @@ contains
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+      mm_vel => get_w2_mass_matrix(                                            &
+          w2_damping_layer_matrix, stepper_name, mesh_id, model_clock          &
+      )
     else
       mm_vel => get_mass_matrix_fv(W2, mesh_id)
     end if
@@ -239,7 +244,7 @@ contains
 
   !> @brief rhs algorithm for any generic setup
   subroutine rhs_general_alg( rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                              compute_rhs_t_d, dlayer_rhs, model_clock )
+                              compute_rhs_t_d, dlayer_rhs, stepper_name, model_clock )
 
     implicit none
 
@@ -253,6 +258,7 @@ contains
     type(field_type),             intent(inout) :: rhs(bundle_size)
     logical(kind=l_def),          intent(in)    :: compute_eos
     logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
+    integer(kind=i_def),          intent(in)    :: stepper_name
     class(model_clock_type),      intent(in)    :: model_clock
 
     type(operator_type), pointer :: mm_vel    => null(), &
@@ -302,7 +308,9 @@ contains
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+      mm_vel => get_w2_mass_matrix(                                            &
+          w2_damping_layer_matrix, stepper_name, mesh_id, model_clock          &
+      )
     else
       mm_vel => get_mass_matrix_fe(W2, mesh_id)
     end if

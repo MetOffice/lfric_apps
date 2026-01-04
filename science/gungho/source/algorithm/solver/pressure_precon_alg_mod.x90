@@ -36,7 +36,8 @@ module pressure_precon_alg_mod
 
   type, public, extends(abstract_hierarchical_preconditioner_type) :: pressure_preconditioner_type
 
-   integer(kind=i_def) :: level
+    integer(kind=i_def) :: level
+    integer(kind=i_def) :: stepper_name
 
    contains
      procedure, public :: apply => apply_pressure_preconditioner
@@ -61,19 +62,22 @@ contains
 
   !> @brief Construct a <code> pressure_preconditioner_type</code> object.
   !>
-  !> @param[in] level Multigrid level
+  !> @param[in] level         Multigrid level
+  !> @param[in] stepper_name  Enumerator for timestepper
   !> @return self The constructed preconditioner object
-  function pressure_preconditioner_constructor(level) result(self)
+  function pressure_preconditioner_constructor(level, stepper_name) result(self)
 
     use log_mod, only: log_event, LOG_LEVEL_INFO
     implicit none
 
     integer(kind=i_def), intent(in)    :: level
+    integer(kind=i_def), intent(in)    :: stepper_name
     type(pressure_preconditioner_type) :: self
 
     call log_event( 'Constructing pressure preconditioner...', &
          LOG_LEVEL_INFO )
     self%level = level
+    self%stepper_name = stepper_name
     call log_event( 'done', LOG_LEVEL_INFO )
 
   end function pressure_preconditioner_constructor
@@ -117,7 +121,7 @@ contains
        select type(y)
        type is(r_solver_field_vector_type)
           ! Multiply by inverse of vertical operator \f$ H_z \f$
-          tri => get_tri_precon(self%level)
+          tri => get_tri_precon(self%stepper_name, self%level)
           x_vec => x%get_field_from_position(1)
           y_vec => y%get_field_from_position(1)
           call invoke( tri_solve_kernel_type(y_vec, x_vec, tri) )

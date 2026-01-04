@@ -45,13 +45,6 @@ module gungho_step_mod
   use moisture_fluxes_alg_mod,        only : moisture_fluxes_alg
   use timestep_method_mod,        only : timestep_method_type, &
                                          get_timestep_method_from_collection
-  use rk_alg_timestep_mod,        only : rk_timestep_type
-  use semi_implicit_timestep_alg_mod, &
-                                  only : semi_implicit_timestep_type
-  use timestepping_config_mod,        only : method, &
-                                             method_semi_implicit, &
-                                             method_rk,            &
-                                             method_no_timestepping
   use update_energy_correction_alg_mod, &
                                   only : update_energy_correction_alg
   use compute_total_energy_alg_mod,   only : compute_total_energy_alg

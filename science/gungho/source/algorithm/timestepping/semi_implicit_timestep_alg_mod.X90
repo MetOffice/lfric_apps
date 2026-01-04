@@ -24,6 +24,9 @@ module semi_implicit_timestep_alg_mod
                                        copy_bundle,       &
                                        set_bundle_scalar
 
+  use conditional_collection_copy_mod, &
+                                 only: conditional_collection_copy
+
   ! Parent of this module's semi-implicit timestep type
   use timestep_method_mod,       only: timestep_method_type
 
@@ -117,6 +120,7 @@ module semi_implicit_timestep_alg_mod
   use mixing_alg_mod,             only: mixing_alg
   use si_diagnostics_mod,         only: output_diags_for_si
   use predictors_alg_mod,         only: predictors_alg
+  use dycore_constants_mod,       only: stepper_siqn
 
   ! LAM
   use limited_area_lbc_alg_mod,   only: lam_solver_lbc, &
@@ -183,7 +187,6 @@ module semi_implicit_timestep_alg_mod
     procedure, public  :: finalise => semi_implicit_alg_final
     procedure, nopass  :: run_init
     procedure, nopass  :: run_step
-    procedure, nopass  :: conditional_collection_copy
 
   end type semi_implicit_timestep_type
 
@@ -481,7 +484,7 @@ contains
     !--------------------------------------------------------------------
     ! Operators for si solves
     !--------------------------------------------------------------------
-    call create_si_operators( mesh )
+    call create_si_operators( mesh, stepper_siqn )
 
     ! If using checkpointed reference state, then calculate semi-implicit
     ! operators using the checkpointed reference state
@@ -493,7 +496,10 @@ contains
       call prognostic_fields%get_field('theta_ref', theta_ref)
       call prognostic_fields%get_field('rho_ref', rho_ref)
       call prognostic_fields%get_field('exner_ref', exner_ref)
-      call compute_si_operators(theta_ref, rho_ref, exner_ref, model_clock, moist_dyn_ref)
+      call compute_si_operators(                                               &
+          theta_ref, rho_ref, exner_ref, model_clock, moist_dyn_ref,           &
+          stepper_siqn                                                         &
+      )
       nullify(theta_ref, rho_ref, exner_ref, moist_dyn_ref, moist_dyn_ref_array)
     end if
 
@@ -501,7 +507,7 @@ contains
       call gungho_transport_control_alg_init( mesh )
 
       ! Construct semi-implicit solver
-      call semi_implicit_solver_alg_init( self%state )
+      call semi_implicit_solver_alg_init( self%state, stepper_siqn )
     end if
 
     nullify(mesh)
@@ -807,7 +813,8 @@ contains
     call rhs_alg( self%rhs_n, varbeta*cast_dt,                    &
                   self%state_after_slow, self%state_n, moist_dyn, &
                   compute_eos=.false., compute_rhs_t_d=.true.,    &
-                  dlayer_rhs=.false., model_clock=model_clock )
+                  dlayer_rhs=.false., stepper_name=stepper_siqn,  &
+                  model_clock=model_clock )
 
     call copy_bundle(self%state_after_slow, self%advected_state,  bundle_size)
     ! Set the moisture to be transported to point to the moisture after slow physics
@@ -839,8 +846,10 @@ contains
         call gungho_transport_control_alg(                                     &
                 self%rhs_adv, self%advected_state, self%state(igh_u),          &
                 self%state_n(igh_u), mr, mr_to_adv, model_clock,               &
-                outer, cheap_update, self%adv_inc_prev, self%wind_prev,        &
-                self%state_after_slow(igh_d), self%total_dry_flux,             &
+                outer, stepper_siqn,                                           &
+                cheap_update, self%adv_inc_prev, self%wind_prev,               &
+                self%state_after_slow(igh_d), self%state_after_slow(igh_d),    &
+                self%total_dry_flux,                                           &
                 adv_tracer_all_outer, adv_tracer_all_outer_after_slow,         &
                 adv_tracer_last_outer, adv_tracer_last_outer_after_slow,       &
                 con_tracer_all_outer, con_tracer_all_outer_after_slow,         &
@@ -885,7 +894,9 @@ contains
         call rhs_alg( self%rhs_np1, -varalpha*cast_dt,            &
                       self%state, self%state, moist_dyn,          &
                       compute_eos=.true., compute_rhs_t_d=.true., &
-                      dlayer_rhs=dlayer_on, model_clock=model_clock )
+                      dlayer_rhs=dlayer_on,                       &
+                      stepper_name=stepper_siqn,                  &
+                      model_clock=model_clock )
       else
         if (self%use_moisture) call copy_bundle(self%mr_after_slow, mr, nummr)
       end if
@@ -971,7 +982,9 @@ contains
           if (inner > 1) call rhs_alg( self%rhs_np1, -varalpha*cast_dt,             &
                                        self%state, self%state, moist_dyn,           &
                                        compute_eos=.true., compute_rhs_t_d=.false., &
-                                       dlayer_rhs=dlayer_on, model_clock=model_clock )
+                                       dlayer_rhs=dlayer_on,                        &
+                                       stepper_name=stepper_siqn,                   &
+                                       model_clock=model_clock )
 
           !--------------------------------------------------------------------
           ! Compute the LAM LBCs and RHS
@@ -979,7 +992,7 @@ contains
           if ( limited_area .and. inner == 1 .and. outer == 1 ) then
             call lam_solver_lbc(self%state(igh_u), lbc_fields, prime_mesh_name)
             call calc_rhs_lbc(self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name, &
-                              tau_r, subroutine_timers)
+                              tau_r, stepper_siqn, subroutine_timers)
           end if
 
           !--------------------------------------------------------------------
@@ -1015,11 +1028,12 @@ contains
           !--------------------------------------------------------------------
           ! Solve semi-implicit system: A*inc = rhs, and incement state by inc
           !--------------------------------------------------------------------
-          call semi_implicit_solver_alg_step( self%state, self%rhs_np1, &
-                                              moist_dyn(gas_law),       &
-                                              mr,                       &
-                                              write_moisture_diag,      &
-                                              first_iteration=(inner==1) )
+          call semi_implicit_solver_alg_step( self%state, self%rhs_np1,   &
+                                              moist_dyn(gas_law),         &
+                                              mr,                         &
+                                              write_moisture_diag,        &
+                                              first_iteration=(inner==1), &
+                                              stepper_name=stepper_siqn )
 
           ! If not already done update factors for moist dynamics
           if ( .not. guess_np1 .and. self%use_moisture ) &
@@ -1194,72 +1208,4 @@ contains
     return
   end subroutine semi_implicit_alg_final
 
-  !============================================================================!
-  !> @brief Make a deep copy of a subset of a field collection, based on a
-  !>        list of fields provided by another collection
-  !> @param[out] generic_fields_copied  New collection written with fields
-  !>                                    saved at some point in time
-  !> @param[in]  generic_fields_to_copy collection we want to save fields from
-  !> @param[in]  field_list             list of fields to be saved
-  subroutine conditional_collection_copy(generic_fields_copied,  &
-                                         generic_fields_to_copy, &
-                                         field_list)
-
-    use field_collection_mod,          only: field_collection_type
-    use field_collection_iterator_mod, only: field_collection_iterator_type
-
-    implicit none
-
-    type(field_collection_type), intent(out) :: generic_fields_copied
-    type(field_collection_type), intent(in)  :: generic_fields_to_copy
-    type(field_collection_type), intent(in)  :: field_list
-
-    ! Iterator for field collection
-    type(field_collection_iterator_type) :: iterator
-
-    ! One of the single fields out of the generic_fields_to_copy collection
-    class( field_parent_type ), pointer :: abstract_field_ptr
-    type(field_type), pointer :: single_generic_field
-
-    ! The saved version of single_generic_field
-    type(field_type) :: copied_generic_field
-
-    logical(kind=l_def) :: l_copy
-
-    nullify(abstract_field_ptr)
-    nullify(single_generic_field)
-
-    call generic_fields_copied%initialise(name='fields_copied')
-
-    if ( generic_fields_to_copy%get_length() > 0 ) then
-
-      call iterator%initialise(generic_fields_to_copy)
-
-      do
-        if ( .not.iterator%has_next() ) exit
-
-        abstract_field_ptr => iterator%next()
-        select type(abstract_field_ptr)
-        type is (field_type)
-          single_generic_field => abstract_field_ptr
-        end select
-
-        l_copy = field_list%field_exists(single_generic_field%get_name())
-
-        if ( l_copy ) then
-
-          ! We copy the field we want to save into a new field
-          call single_generic_field%copy_field_properties(copied_generic_field)
-          call invoke( setval_X(copied_generic_field, single_generic_field) )
-
-          ! We add it to the field collection passed in
-          call generic_fields_copied%add_field(copied_generic_field)
-
-        end if ! ( l_copy )
-
-      end do
-
-    end if
-
-  end subroutine conditional_collection_copy
 end module semi_implicit_timestep_alg_mod

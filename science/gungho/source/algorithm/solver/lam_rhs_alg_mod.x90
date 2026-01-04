@@ -19,8 +19,11 @@ module lam_rhs_alg_mod
   use derived_config_mod,          only: bundle_size
   use si_operators_alg_mod,        only: get_rho_at_u
   use sci_fem_constants_mod,       only: get_im3_div_fe
-  use dycore_constants_mod,        only: get_w2_mass_matrix, &
-                                         w2_si_matrix
+  use dycore_constants_mod,        only: get_w2_mass_matrix,                   &
+                                         w2_si_matrix,                         &
+                                         stepper_siqn,                         &
+                                         stepper_tr,                           &
+                                         stepper_bdf2
   use limited_area_constants_mod,  only: get_mask_fe
   use fs_continuity_mod,           only: W2, W3, Wtheta
   use field_mod,                   only: field_type
@@ -88,9 +91,10 @@ contains
   !> @param[in]     model_clock Time in the model
   !> @param[in]     finest_mesh_name Name of the finest mesh
   !> @param[in]     tau_r Relaxation parameter for density in semi-implicit method
+  !> @param[in]     stepper_name Enumerator for timestepper
   !> @param[in]     subroutine_timers Enable output of subroutine runtimes
   subroutine calc_rhs_lbc( rhs, lbc_fields, model_clock, finest_mesh_name, &
-                           tau_r, subroutine_timers )
+                           tau_r, stepper_name, subroutine_timers )
 
     implicit none
 
@@ -99,6 +103,7 @@ contains
     class(model_clock_type),     intent(in)    :: model_clock
     character(len=str_def),      intent(in)    :: finest_mesh_name
     real(r_def),                 intent(in)    :: tau_r
+    integer(i_def),              intent(in)    :: stepper_name
     logical(l_def),              intent(in)    :: subroutine_timers
 
     type(field_type),    pointer :: boundary_u => null()
@@ -115,6 +120,7 @@ contains
                                     w3_mask     => null(), &
                                     wtheta_mask => null()
     real(r_def)                  :: dt
+    real(r_def)                  :: gamma
     real(r_def)                  :: tau_r_dt
     integer(i_def)               :: mesh_id
 
@@ -126,7 +132,16 @@ contains
     mesh_id = rhs(igh_u)%get_mesh_id()
 
     dt = real(model_clock%get_seconds_per_step(), r_def)
-    tau_r_dt = tau_r*dt
+
+    select case (stepper_name)
+    case (stepper_siqn)
+      tau_r_dt = tau_r*dt
+    case (stepper_tr)
+      gamma = 1.0_r_def - 0.5_r_def * SQRT(2.0_r_def)
+      tau_r_dt = 2.0_r_def*gamma*dt
+    case (stepper_bdf2)
+      tau_r_dt = dt
+    end select
 
     ! Get the LBC data
     call lbc_fields%get_field('boundary_u_diff', boundary_u)
@@ -140,7 +155,7 @@ contains
     div => get_im3_div_fe(mesh_id)
 
     ! m2 (or dl) + tau_u*dt*coriolis (lagged if required)
-    mm_vel => get_w2_mass_matrix(w2_si_matrix, mesh_id, model_clock)
+    mm_vel => get_w2_mass_matrix(w2_si_matrix, stepper_name, mesh_id, model_clock)
 
     ! Obtain operators from SI operators
     r_solver_rho_at_u => get_rho_at_u()

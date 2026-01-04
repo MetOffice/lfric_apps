@@ -133,33 +133,35 @@ module mixed_schur_preconditioner_alg_mod
   type, public, extends(abstract_preconditioner_type) :: &
                         mixed_schur_preconditioner_type
 
-     private
+    private
 
-     !> modified right-hand \f$\textbf{R}_u^*\f$
-     type(r_solver_field_type) :: rhs_u
-     !> 1-component field vector for right hand side in pressure system
-     type(r_solver_field_vector_type) :: pressure_b
-     !> 1-component field vector for solution of pressure system
-     type(r_solver_field_vector_type) :: pressure_x
-     !> Pressure (Helmholtz) solver object
-     class(abstract_iterative_solver_type), pointer :: &
-        pressure_solver
+      !> modified right-hand \f$\textbf{R}_u^*\f$
+      type(r_solver_field_type) :: rhs_u
+      !> 1-component field vector for right hand side in pressure system
+      type(r_solver_field_vector_type) :: pressure_b
+      !> 1-component field vector for solution of pressure system
+      type(r_solver_field_vector_type) :: pressure_x
+      !> Pressure (Helmholtz) solver object
+      class(abstract_iterative_solver_type), pointer :: &
+         pressure_solver
 
-     contains
-     ! Override the (abstract interface) for application of
-     ! a preconditioner \f$y = P.x\f$
-     procedure, public :: apply => apply_mixed_schur_preconditioner
-     procedure, private :: apply_mixed_schur_preconditioner
+      integer(kind=i_def) :: stepper_name
 
-     !> Private methods
-     !> Build the right-hand-side for the Helmholtz equation
-     procedure, private :: build_pressure_rhs
-     !> Reconstruct the velocity and buoyancy from the solution of the
-     !> Helmholtz equation
-     procedure, private :: back_substitute
+    contains
+      ! Override the (abstract interface) for application of
+      ! a preconditioner \f$y = P.x\f$
+      procedure, public :: apply => apply_mixed_schur_preconditioner
+      procedure, private :: apply_mixed_schur_preconditioner
 
-     !> Destructor
-     final :: destroy_mixed_schur_preconditioner
+      !> Private methods
+      !> Build the right-hand-side for the Helmholtz equation
+      procedure, private :: build_pressure_rhs
+      !> Reconstruct the velocity and buoyancy from the solution of the
+      !> Helmholtz equation
+      procedure, private :: back_substitute
+
+      !> Destructor
+      final :: destroy_mixed_schur_preconditioner
   end type mixed_schur_preconditioner_type
 
   ! Overload the default structure constructor
@@ -182,10 +184,12 @@ contains
   !> @param [in] mesh            Mesh to create function spaces on
   !> @param [in] element_order_h Horizontal element order for function spaces
   !> @param [in] element_order_v Vertical element order for function spaces
+  !> @param [in] stepper_name    Enumerator for timestepper
   !> @param [in] pressure_solver Solver object for Helmholtz system
   !> @return self the constructed preconditioner object
   function mixed_schur_preconditioner_constructor(mesh, element_order_h, &
                                                   element_order_v,       &
+                                                  stepper_name,          &
                                                   pressure_solver)       &
                                                   result(self)
 
@@ -197,6 +201,7 @@ contains
 
     integer(i_def),                                intent(in) :: element_order_h
     integer(i_def),                                intent(in) :: element_order_v
+    integer(i_def),                                intent(in) :: stepper_name
     type(mesh_type),                       target, intent(in) :: mesh
     class(abstract_iterative_solver_type), target, intent(in) :: pressure_solver
 
@@ -225,6 +230,8 @@ contains
 
     ! Set pressure solver
     self%pressure_solver => pressure_solver
+
+    self%stepper_name = stepper_name
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
@@ -362,11 +369,11 @@ contains
       call invoke( setval_X( rhs_uvw, rhs_uv ) )
     end if
 
-    ptheta2       => get_ptheta2v()
-    p3theta       => get_p3theta()
-    m3_rho_star   => get_m3_rho_star()
-    compound_div  => get_compound_div()
-    Hb_lumped_inv => get_Hb_lumped_inv()
+    ptheta2       => get_ptheta2v(self%stepper_name)
+    p3theta       => get_p3theta(self%stepper_name)
+    m3_rho_star   => get_m3_rho_star(self%stepper_name)
+    compound_div  => get_compound_div(self%stepper_name)
+    Hb_lumped_inv => get_Hb_lumped_inv(self%stepper_name)
 
     ! Compute rhs_u terms
     call invoke( name = "compute_elim_helmholtz_ru",           &
@@ -379,7 +386,7 @@ contains
     ! Compute H(rhs_u)
     if ( eliminate_variables == eliminate_variables_analytic ) then
       ! r_pi = rhs_pi - Q32*rhs_u
-      q32_op => get_eliminated_q32()
+      q32_op => get_eliminated_q32(self%stepper_name)
       call r_p%initialise( rhs%get_function_space() )
       call invoke( dg_matrix_vector_kernel_type(r_p, self%rhs_u, q32_op), &
                    X_minus_Y(rhs, rhs_p, r_p ) )
@@ -410,7 +417,7 @@ contains
     end if
 
     if ( normalise ) then
-       h_diag => get_helm_diag()
+       h_diag => get_helm_diag(self%stepper_name)
        call invoke( inc_X_times_Y(rhs, h_diag) )
     end if
 
@@ -463,8 +470,8 @@ contains
 
     ! u increment
     u_normalisation => get_normalisation_r_solver(W2, mesh_id)
-    div_star        => get_div_star()
-    Hb_lumped_inv   => get_Hb_lumped_inv()
+    div_star        => get_div_star(self%stepper_name)
+    Hb_lumped_inv   => get_Hb_lumped_inv(self%stepper_name)
     ! u' = ru + BC[HB * unorm * D * p']
     if ( split_w ) then
       state_uv => state%get_field_from_position( isol_uv )

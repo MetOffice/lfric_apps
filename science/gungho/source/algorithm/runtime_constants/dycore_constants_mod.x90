@@ -54,9 +54,15 @@ module dycore_constants_mod
   type(inventory_by_mesh_type)         :: geopotential_inventory
   type(inventory_by_mesh_type)         :: coriolis_inventory
   type(inventory_by_mesh_type)         :: vert_coriolis_inventory
-  type(inventory_by_mesh_type), target :: mm_w2_dl_inventory
-  type(inventory_by_mesh_type), target :: mm_w2_si_inventory
-  type(inventory_by_mesh_type), target :: mm_w2_dl_lagged_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_siqn_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_si_siqn_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_lagged_siqn_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_tr_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_si_tr_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_lagged_tr_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_bdf2_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_si_bdf2_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_dl_lagged_bdf2_inventory
 
   ! ========================================================================== !
   ! Public enumerated types for selecting W2 mass matrices
@@ -65,6 +71,11 @@ module dycore_constants_mod
   integer(kind=i_def), parameter, public :: w2_damping_layer_matrix  = 2370
   integer(kind=i_def), parameter, public :: w2_lagged_damping_layer_matrix = 4374
   integer(kind=i_def), parameter, public :: w2_si_matrix = 891
+
+  ! Timestepping enumerators
+  integer(kind=i_def), parameter, public :: stepper_tr  = -46
+  integer(kind=i_def), parameter, public :: stepper_bdf2 = 657
+  integer(kind=i_def), parameter, public :: stepper_siqn = 222
 
   ! ========================================================================== !
   ! Public functions for accessing the module contents
@@ -249,6 +260,8 @@ contains
   end function get_geopotential
 
   !> @brief Returns a pointer to a generalised W2 mass matrix operator
+  !> @param[in] w2_op_name The enumerated name of the W2 mass matrix operator
+  !> @param[in] stepper_name The name of the time stepper being used
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @param[in] model_clock The model clock object
   !!            @TODO #490:
@@ -256,7 +269,8 @@ contains
   !!            to pass it from all parts of the model (in particular from the
   !!            apply method in the mixed operator)
   !> @return A generalised W2 mass matrix operator for the dynamical core
-  function get_w2_mass_matrix(w2_op_name, mesh_id, model_clock) result(dynamics_mm_w2)
+  function get_w2_mass_matrix(w2_op_name, stepper_name, mesh_id, model_clock)  &
+      result(dynamics_mm_w2)
 
     use compute_dl_matrix_kernel_mod, only: compute_dl_matrix_kernel_type
     use damping_layer_config_mod,     only: dl_base, dl_str
@@ -274,6 +288,7 @@ contains
     implicit none
 
     integer(kind=i_def),               intent(in) :: w2_op_name
+    integer(kind=i_def),               intent(in) :: stepper_name
     integer(kind=i_def),               intent(in) :: mesh_id
     class(model_clock_type), optional, intent(in) :: model_clock
     type(mesh_type),                      pointer :: mesh
@@ -292,18 +307,38 @@ contains
     type(quadrature_xyoz_type),           pointer :: qr
     real(kind=r_def)                              :: const
     real(kind=r_second)                           :: dt
+    real(kind=r_second)                           :: dt_to_use
+    real(kind=r_second)                           :: gamma
     type(operator_type),                  pointer :: coriolis
 
     ! Check inventories are initialised
-    if (.not. mm_w2_si_inventory%is_initialised()) then
-      ! Initialise all inventories together
-      call mm_w2_si_inventory%initialise(name='mm_w2_si')
-      call mm_w2_dl_inventory%initialise(name='mm_w2_dl')
-      call mm_w2_dl_lagged_inventory%initialise(name='mm_w2_dl_lagged')
-      if (present(model_clock)) then
-        dt_stored = model_clock%get_seconds_per_step()
+    select case (stepper_name)
+    case (stepper_siqn)
+      if (.not. mm_w2_si_siqn_inventory%is_initialised()) then
+        ! Initialise all inventories together
+        call mm_w2_si_siqn_inventory%initialise(name='mm_w2_si')
+        call mm_w2_dl_siqn_inventory%initialise(name='mm_w2_dl')
+        call mm_w2_dl_lagged_siqn_inventory%initialise(name='mm_w2_dl_lagged')
+        if (present(model_clock)) then
+          dt_stored = model_clock%get_seconds_per_step()
+        end if
       end if
-    end if
+
+    case (stepper_tr, stepper_bdf2)
+      if (.not. mm_w2_si_tr_inventory%is_initialised()) then
+        ! Initialise all inventories together
+        call mm_w2_si_tr_inventory%initialise(name='mm_w2_si_tr')
+        call mm_w2_dl_tr_inventory%initialise(name='mm_w2_dl_tr')
+        call mm_w2_dl_lagged_tr_inventory%initialise(name='mm_w2_dl_lagged_tr')
+        call mm_w2_si_bdf2_inventory%initialise(name='mm_w2_si_bdf2')
+        call mm_w2_dl_bdf2_inventory%initialise(name='mm_w2_dl_bdf2')
+        call mm_w2_dl_lagged_bdf2_inventory%initialise(name='mm_w2_dl_lagged_bdf2')
+        if (present(model_clock)) then
+          dt_stored = model_clock%get_seconds_per_step()
+        end if
+      end if
+
+    end select
 
     ! Check this constant is still valid -- is the model time step the same?
     ! Can only do this if model_clock is present
@@ -320,15 +355,57 @@ contains
 
     ! Determine which inventory to point to
     select case (w2_op_name)
-      case(w2_damping_layer_matrix)
-        inventory => mm_w2_dl_inventory
-      case(w2_lagged_damping_layer_matrix)
-        ! @TODO #416: this should be an inventory of r_solver operators
-        ! as the r_def operators are not used anywhere
-        inventory => mm_w2_dl_lagged_inventory
-      case(w2_si_matrix)
-        inventory => mm_w2_si_inventory
+    case (w2_damping_layer_matrix)
+      select case (stepper_name)
+      case (stepper_siqn)
+        inventory => mm_w2_dl_siqn_inventory
+      case (stepper_tr)
+        inventory => mm_w2_dl_tr_inventory
+      case (stepper_bdf2)
+        inventory => mm_w2_dl_bdf2_inventory
       case default
+        dynamics_mm_w2 => null()
+        call log_event(                                                        &
+            'Dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR          &
+        )
+        stop
+      end select
+
+    case (w2_lagged_damping_layer_matrix)
+      ! @TODO #416: this should be an inventory of r_solver operators
+      ! as the r_def operators are not used anywhere
+      select case (stepper_name)
+      case (stepper_siqn)
+        inventory => mm_w2_dl_lagged_siqn_inventory
+      case (stepper_tr)
+        inventory => mm_w2_dl_lagged_tr_inventory
+      case (stepper_bdf2)
+        inventory => mm_w2_dl_lagged_bdf2_inventory
+      case default
+        dynamics_mm_w2 => null()
+        call log_event(                                                        &
+            'Dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR          &
+        )
+        stop
+      end select
+
+    case (w2_si_matrix)
+      select case (stepper_name)
+      case (stepper_siqn)
+        inventory => mm_w2_si_siqn_inventory
+      case (stepper_tr)
+        inventory => mm_w2_si_tr_inventory
+      case (stepper_bdf2)
+        inventory => mm_w2_si_bdf2_inventory
+      case default
+        dynamics_mm_w2 => null()
+        call log_event(                                                        &
+            'Dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR          &
+        )
+        stop
+      end select
+
+    case default
         dynamics_mm_w2 => null()
         call log_event('Dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR)
         stop
@@ -339,8 +416,17 @@ contains
 
     if (.not. constant_exists) then
       ! Create the relevant W2 mass matrices
-      fs => function_space_collection%get_fs(mesh, element_order_h, &
-                                             element_order_v, W2)
+      fs => function_space_collection%get_fs(                                  &
+          mesh, element_order_h, element_order_v, W2                           &
+      )
+
+      select case (stepper_name)
+      case (stepper_siqn, stepper_bdf2)
+        dt_to_use = dt_stored
+      case (stepper_tr)
+        gamma = 1.0_r_second - 0.5_r_second*SQRT(2.0_r_second)
+        dt_to_use = 2.0_r_second*gamma*dt_stored
+      end select
 
       ! Each matrix is built on a previous matrix. Generally either all three
       ! matrices are needed, or only the S.I. matrix (the final in the chain)
@@ -379,7 +465,7 @@ contains
                                                      planet_radius,            &
                                                      element_order_h,          &
                                                      element_order_v,          &
-                                                     dt_stored,                &
+                                                     dt_to_use,                &
                                                      qr) )
           if ( subroutine_timers ) call timer('runtime_constants.dycore')
         else
@@ -435,7 +521,17 @@ contains
         call mm_w2_si_inventory%add_operator(mm_w2_si, fs, fs, mesh)
 
         if ( rotating ) then
-          const = tau_u * real(dt_stored, r_def)
+          select case (stepper_name)
+          case (stepper_siqn)
+            const = tau_u * real(dt_stored, r_def)
+          case (stepper_tr)
+            ! tau_u = gamma
+            const = gamma * real(dt_stored, r_def)
+          case (stepper_bdf2)
+            ! tau_u = gamma2
+            gamma2 = 0.5_r_def*(1.0_r_def - 2.0_r_def*gamma)/(1.0_r_def - gamma)
+            const = gamma2 * real(dt_stored, r_def)
+          end select
         else
           const = 0.0_r_def
         end if
@@ -470,9 +566,15 @@ contains
     call geopotential_inventory%clear()
     call vert_coriolis_inventory%clear()
     call coriolis_inventory%clear()
-    call mm_w2_dl_inventory%clear()
-    call mm_w2_dl_lagged_inventory%clear()
-    call mm_w2_si_inventory%clear()
+    call mm_w2_dl_siqn_inventory%clear()
+    call mm_w2_si_siqn_inventory%clear()
+    call mm_w2_dl_lagged_siqn_inventory%clear()
+    call mm_w2_dl_tr_inventory%clear()
+    call mm_w2_si_tr_inventory%clear()
+    call mm_w2_dl_lagged_tr_inventory%clear()
+    call mm_w2_dl_bdf2_inventory%clear()
+    call mm_w2_si_bdf2_inventory%clear()
+    call mm_w2_dl_lagged_bdf2_inventory%clear()
     dt_stored = 0.0_r_second
 
   end subroutine final_dycore_constants

@@ -85,6 +85,7 @@ module gungho_model_mod
   use rk_alg_timestep_mod,        only : rk_timestep_type
   use semi_implicit_timestep_alg_mod, &
                                   only : semi_implicit_timestep_type
+  use tr_bdf2_timestep_alg_mod,   only : tr_bdf2_timestep_type
   use setup_orography_alg_mod,    only : setup_orography_alg
   use idealised_config_mod,       only : perturb_init, perturb_seed
   use initial_temperature_config_mod, only : perturb, perturb_random
@@ -929,44 +930,43 @@ contains
 
   !---------------------------------------------------------------------------
   !> @brief Initialises the gungho application
-  !>
-  !> @param[in] mesh  The primary mesh
+  !> @param[in]     mesh    The primary mesh
   !> @param[in,out] modeldb The working data set for the model run
-  !>
   subroutine initialise_model( mesh, modeldb )
 
-    use timestepping_config_mod, only: method,                 &
-                                       method_semi_implicit,   &
-                                       method_rk,              &
-                                       method_no_timestepping, &
+    use timestepping_config_mod, only: method,                                 &
+                                       method_semi_implicit,                   &
+                                       method_tr_bdf2,                         &
+                                       method_rk,                              &
+                                       method_no_timestepping,                 &
                                        method_jules
 
-    use io_config_mod,          only: write_conservation_diag, &
-                                      write_minmax_tseries
-    use formulation_config_mod, only: moisture_formulation, &
-                                      moisture_formulation_dry
+    use io_config_mod,           only: write_conservation_diag,                &
+                                       write_minmax_tseries
+    use formulation_config_mod,  only: moisture_formulation,                   &
+                                       moisture_formulation_dry
     implicit none
 
-    type( mesh_type ),    intent(in),    pointer :: mesh
-    type( modeldb_type ), intent(inout), target  :: modeldb
+    type(mesh_type),    intent(in),    pointer :: mesh
+    type(modeldb_type), intent(inout), target  :: modeldb
 
-    type( field_collection_type ), pointer :: prognostic_fields => null()
-    type( field_collection_type ), pointer :: moisture_fields => null()
-    type( field_array_type ), pointer      :: mr_array
-    type( field_type ),            pointer :: mr(:) => null()
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_array_type),      pointer :: mr_array
+    type(field_type),            pointer :: mr(:)
 
-    type( field_type), pointer :: theta => null()
-    type( field_type), pointer :: u => null()
-    type( field_type), pointer :: rho => null()
-    type( field_type), pointer :: exner => null()
+    type(field_type), pointer :: theta
+    type(field_type), pointer :: u
+    type(field_type), pointer :: rho
+    type(field_type), pointer :: exner
 
-    class(timestep_method_type), pointer  :: timestep_method => null()
+    class(timestep_method_type), pointer  :: timestep_method
 
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
 
     ! Get pointers to field collections for use downstream
-    prognostic_fields => modeldb%fields%get_field_collection( &
-                                                         "prognostic_fields")
+    prognostic_fields =>                                                       &
+        modeldb%fields%get_field_collection("prognostic_fields")
 
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
     call moisture_fields%get_field("mr", mr_array)
@@ -984,61 +984,50 @@ contains
       call minmax_tseries(u, 'u', mesh)
     end if
 
-    select case( method )
-      case( method_semi_implicit )  ! Semi-Implicit
-        ! Initialise the semi-implicit timestep method
-        allocate( timestep_method, source=semi_implicit_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-        ! Output initial conditions
-        if ( write_conservation_diag ) then
-         call conservation_algorithm( rho,              &
-                                      u,                &
-                                      theta,            &
-                                      mr,               &
-                                      exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+    select case ( method )
+      case ( method_semi_implicit, method_tr_bdf2, method_rk )
+        ! Initialise the timestep method
+        if (method == method_semi_implicit) then
+          allocate(timestep_method, source=semi_implicit_timestep_type(modeldb))
+        else if (method == method_tr_bdf2) then
+          allocate(timestep_method, source=tr_bdf2_timestep_type(modeldb))
+        else if (method == method_rk) then
+          allocate(timestep_method, source=rk_timestep_type(modeldb))
         end if
-      case( method_rk )             ! RK
-        ! Initialise the Runge-Kutta timestep method
-        allocate( timestep_method, source=rk_timestep_type(modeldb) )
+
         ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
+        call modeldb%values%add_key_value(                                     &
+                'timestep_method', timestep_method                             &
+        )
 
         ! Output initial conditions
         if ( write_conservation_diag ) then
-          call conservation_algorithm( rho,              &
-                                       u,                &
-                                       theta,            &
-                                       mr,               &
-                                       exner )
-         if ( use_moisture ) &
-           call moisture_conservation_alg( rho,              &
-                                           mr,               &
-                                           'Before timestep' )
+          call conservation_algorithm(rho, u, theta, mr, exner)
+          if ( use_moisture ) then
+            call moisture_conservation_alg(rho, mr, 'Before timestep')
+          end if
         end if
-      case( method_no_timestepping )
+
+      case ( method_no_timestepping )
         ! Initialise a null-timestep method
         allocate( timestep_method, source=no_timestep_type() )
         ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-        write( log_scratch_space, &
-                    '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
-                    ' Prognostic fields not evolved'
+        call modeldb%values%add_key_value(                                     &
+                'timestep_method', timestep_method                             &
+        )
+        write( log_scratch_space, '(A, A)' )                                   &
+            'CAUTION: Running with no timestepping. ' //                       &
+            ' Prognostic fields not evolved'
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+
 #ifdef UM_PHYSICS
-      case( method_jules )  ! jules
+      case ( method_jules )  ! jules
         ! Initialise the jules timestep method
         allocate( timestep_method, source=jules_timestep_type(modeldb) )
         ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                      timestep_method)
+        call modeldb%values%add_key_value(                                     &
+                'timestep_method', timestep_method                             &
+        )
 #endif
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &

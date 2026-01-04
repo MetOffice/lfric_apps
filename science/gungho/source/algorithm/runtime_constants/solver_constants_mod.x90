@@ -64,7 +64,9 @@ module solver_constants_mod
   type(inventory_by_mesh_type), target :: im3_div_r_solver_inventory
 
   ! Special dynamical core r_solver matrices
-  type(inventory_by_mesh_type), target :: mm_w2_si_r_solver_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_si_siqn_r_solver_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_si_tr_r_solver_inventory
+  type(inventory_by_mesh_type), target :: mm_w2_si_bdf2_r_solver_inventory
 
   ! Normalisations
   type(inventory_by_mesh_type)         :: w2_normalisation_inventory
@@ -268,15 +270,20 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns a pointer to a generalised W2 mass matrix operator
+  !> @param[in] w2_op_name The type of W2 mass matrix operator to get
+  !> @param[in] stepper_name The time stepper being used
   !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The semi-implicit W2 mass matrix operator
-  function get_w2_mass_matrix_r_solver(w2_op_name, mesh_id) result(mm_r_solver)
+  function get_w2_mass_matrix_r_solver(w2_op_name, stepper_name, mesh_id)      &
+      result(mm_r_solver)
 
-    use dycore_constants_mod, only: get_w2_mass_matrix, w2_si_matrix
+    use dycore_constants_mod, only: get_w2_mass_matrix, w2_si_matrix,          &
+                                    stepper_siqn, stepper_tr, stepper_bdf2
 
     implicit none
 
     integer(kind=i_def),       intent(in) :: w2_op_name
+    integer(kind=i_def),       intent(in) :: stepper_name
     integer(kind=i_def),       intent(in) :: mesh_id
     type(mesh_type),              pointer :: mesh
     logical(kind=l_def)                   :: constant_exists
@@ -284,20 +291,40 @@ contains
     type(operator_type),          pointer :: mm_r_def
     type(r_solver_operator_type), pointer :: mm_r_solver
     type(inventory_by_mesh_type), pointer :: inventory
+    character(len=str_def)                :: name
 
     ! Determine which inventory to point to
     select case (w2_op_name)
-      case(w2_si_matrix)
-        inventory => mm_w2_si_r_solver_inventory
+    case (w2_si_matrix)
+      select case (stepper_name)
+      case (stepper_siqn)
+        name = 'mm_w2_si_siqn_r_solver'
+        inventory => mm_w2_si_siqn_r_solver_inventory
+      case (stepper_tr)
+        name = 'mm_w2_si_tr_r_solver'
+        inventory => mm_w2_si_tr_r_solver_inventory
+      case (stepper_bdf2)
+        name = 'mm_w2_si_bdf2_r_solver'
+        inventory => mm_w2_si_bdf2_r_solver_inventory
       case default
         mm_r_solver => null()
-        call log_event('r_solver dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR)
+        call log_event(                                                        &
+            'r_solver dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR &
+        )
         stop
+      end select
+
+    case default
+      mm_r_solver => null()
+      call log_event(                                                          &
+          'r_solver dynamics W2 mass matrix does not exist', LOG_LEVEL_ERROR   &
+      )
+      stop
     end select
 
     ! Initialise inventory if this is the first time getting this constant
-    if (.not. mm_w2_si_r_solver_inventory%is_initialised()) then
-      call mm_w2_si_r_solver_inventory%initialise(name='mm_w2_si_r_solver')
+    if (.not. inventory%is_initialised()) then
+      call inventory%initialise(name=name)
     end if
 
     mesh => mesh_collection%get_mesh(mesh_id)
@@ -305,7 +332,7 @@ contains
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      mm_r_def => get_w2_mass_matrix(w2_op_name, mesh_id)
+      mm_r_def => get_w2_mass_matrix(w2_op_name, stepper_name, mesh_id)
 
       if ( subroutine_timers ) call timer('runtime_constants.solver')
 
@@ -526,7 +553,9 @@ contains
 
     call w2_normalisation_inventory%clear()
     call mm_w2_r_solver_inventory%clear()
-    call mm_w2_si_r_solver_inventory%clear()
+    call mm_w2_si_siqn_r_solver_inventory%clear()
+    call mm_w2_si_tr_r_solver_inventory%clear()
+    call mm_w2_si_bdf2_r_solver_inventory%clear()
     call mm_wtheta_r_solver_inventory%clear()
     call mm_w3_inv_r_solver_inventory%clear()
     call detj_at_w3_r_solver_inventory%clear()

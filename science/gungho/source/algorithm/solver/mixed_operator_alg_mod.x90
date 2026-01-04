@@ -63,7 +63,6 @@ module mixed_operator_alg_mod
   use split_w2_field_kernel_mod,   only: split_w2_field_kernel_type
   use vector_mod,                  only: abstract_vector_type
   use formulation_config_mod,      only: p2theta_vert
-  use model_clock_mod,             only: model_clock_type
 
   implicit none
 
@@ -73,6 +72,9 @@ module mixed_operator_alg_mod
                         mixed_operator_type
 
     private
+      ! Enumerator for timestepping scheme
+      integer(kind=i_def) :: stepper_name
+
 
    contains
     !> Over-ride the abstract interface
@@ -86,7 +88,24 @@ module mixed_operator_alg_mod
     final              :: destroy_mixed_operator
   end type mixed_operator_type
 
+  interface mixed_operator_type
+    module procedure mixed_operator_constructor
+  end interface
+
 contains
+
+  !> @brief Constructor for the mixed operator
+  !> @param[in] stepper_name    Enumerator for the timestepping scheme
+  function mixed_operator_constructor(stepper_name) result(self)
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: stepper_name
+    type(mixed_operator_type)       :: self
+
+    self%stepper_name = stepper_name
+
+  end function mixed_operator_constructor
 
   !> @brief Applies the mixed operator to the vector, \f$ y = M x \f$.
   !>
@@ -97,7 +116,6 @@ contains
 
     use boundaries_config_mod,              only: limited_area
     use io_config_mod,                      only: subroutine_timers
-    use timestepping_config_mod,            only: dt, tau_r
     use timer_mod,                          only: timer
     use field_indices_mod,                  only: isol_u, isol_p, &
                                                   isol_w, isol_uv
@@ -200,14 +218,16 @@ contains
     mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh%get_id())
     m2_diag       => get_normalisation_r_solver(W2, mesh%get_id())
     ! mm_vel = m2 (or dl) + tau_u*dt*coriolis
-    mm_vel => get_w2_mass_matrix_r_solver(w2_si_matrix, mesh%get_id())
+    mm_vel => get_w2_mass_matrix_r_solver(                                     &
+        w2_si_matrix, self%stepper_name, mesh%get_id()                         &
+    )
 
     ! Obtain operators from SI operators
-    p2theta       => get_p2theta()
-    div_star      => get_div_star()
-    ptheta2       => get_ptheta2()
-    m3_exner_star => get_m3_exner_star()
-    p3theta       => get_p3theta()
+    p2theta       => get_p2theta(self%stepper_name)
+    div_star      => get_div_star(self%stepper_name)
+    ptheta2       => get_ptheta2(self%stepper_name)
+    m3_exner_star => get_m3_exner_star(self%stepper_name)
+    p3theta       => get_p3theta(self%stepper_name)
 
     select type (x)
     type is (r_solver_field_vector_type)
@@ -254,7 +274,7 @@ contains
          select case ( eliminate_variables )
 
          case ( eliminate_variables_discrete )
-           q32_op => get_eliminated_q32()
+           q32_op => get_eliminated_q32(self%stepper_name)
            if ( optimised_operator ) then
              call invoke( name="apply_mixed_operator_new",                                      &
                           setval_c( yvec_uv, 0.0_r_solver ),                                    &
@@ -296,8 +316,8 @@ contains
            ! For analytic elimination:
            ! Q32 = tau*dt*M3^rho * D * rho^ref + <v,k * dpi/dz * dtheta/dz * k.v>
            ! and x_t = 0
-           q32_op => get_eliminated_q32()
-           q22_op => get_eliminated_q22()
+           q32_op => get_eliminated_q32(self%stepper_name)
+           q22_op => get_eliminated_q22(self%stepper_name)
            call q22u%initialise( vector_space = u_fs )
            call invoke( name="analytic_elim_mixed_lhs",                                            &
                         setval_c( x_t, 0.0_r_solver ),                                             &

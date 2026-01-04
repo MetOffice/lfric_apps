@@ -62,6 +62,8 @@ module multigrid_preconditioner_alg_mod
     type(r_solver_field_vector_type), dimension(:), allocatable :: r_mg
     !> Mask on all levels
     type(r_solver_field_vector_type), dimension(:), allocatable :: mask_mg
+    !> Stepper name
+    integer(kind=i_def) :: stepper_name
 
     !> Jacobi smoothing parameter, before
     integer(kind=i_def) :: n_presmooth
@@ -100,15 +102,17 @@ contains
   !> @param[in] H_op Pressure operator on finest level
   !> @param[in] Hz_prec Pressure preconditioner on finest level
   !> @return self The constructed multigrid_preconditioner type
-  function multigrid_preconditioner_constructor(p_fs, &
-                                                H_op, &
-                                                Hz_prec) result(self)
+  function multigrid_preconditioner_constructor(stepper_name, p_fs,            &
+                                                H_op, Hz_prec) result(self)
+
     use multigrid_config_mod, only : smooth_relaxation, &
                                      n_presmooth,       &
                                      n_postsmooth,      &
                                      n_coarsesmooth,    &
                                      multigrid_chain_nitems
     implicit none
+
+    integer(kind=i_def),       intent(in) :: stepper_name
     type(function_space_type), intent(in) :: p_fs
     class(abstract_hierarchical_linear_operator_type) :: H_op
     class(abstract_hierarchical_preconditioner_type) :: Hz_prec
@@ -119,6 +123,7 @@ contains
     self%n_postsmooth   = n_postsmooth
     self%n_coarsesmooth = n_coarsesmooth
     self%n_level        = multigrid_chain_nitems
+    self%stepper_name   = stepper_name
 
     write(log_scratch_space,'(A,I0,A,":",F3.1,3(":",I0))') &
          "Multigrid_preconditioner_constructor[",self%n_level,"]: setting smoothing parameters", &

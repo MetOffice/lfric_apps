@@ -56,6 +56,7 @@ module pressure_operator_alg_mod
   private
      !> Level of the operator (used for multigrid)
      integer(kind=i_def) :: level
+     integer(kind=i_def) :: stepper_name
      contains
      !> Over-ride the abstract interface
      !> param[in]     self A linear operator
@@ -89,18 +90,21 @@ contains
   !!          inverse \f$ \tilde{H}_b^{-1} \f$ as well as other operators
   !!          such as div and grad for the Helmholtz operator application.
   !>
-  !> @param[in] level The mesh level the space is on
+  !> @param[in] level        The mesh level the space is on
+  !> @param[in] stepper_name The name of the time stepper
   !> @return Instance of the Helmholtz operator
-  function pressure_operator_constructor(level) result(self)
+  function pressure_operator_constructor(level, stepper_name) result(self)
     implicit none
 
     type(pressure_operator_type)    :: self
     integer(kind=i_def), intent(in) :: level
+    integer(kind=i_def), intent(in) :: stepper_name
 
     call log_event( 'Constructing pressure operator...', LOG_LEVEL_INFO )
 
     ! Temporaries required in operator application
     self%level = level
+    self%stepper_name = stepper_name
 
     call log_event( 'done', LOG_LEVEL_INFO )
 
@@ -179,7 +183,7 @@ contains
         y_vec => y%get_field_from_position(1)
         if ( x_vec%get_element_order_h() == 0 .and. &
              x_vec%get_element_order_v() == 0 ) then
-          Helmholtz_operator => get_helmholtz_operator(self%level)
+          Helmholtz_operator => get_helmholtz_operator(self%stepper_name, self%level)
 
           lam_mesh=.false.
           if (limited_area .and. topology==topology_non_periodic) lam_mesh=.true.
@@ -192,14 +196,14 @@ contains
                                                             lam_mesh) )
           nullify( Helmholtz_operator )
         else
-          m3_exner_star   => get_m3_exner_star(self%level)
-          div_star        => get_div_star(self%level)
-          compound_div    => get_compound_div(self%level)
-          ptheta2         => get_ptheta2v(self%level)
+          m3_exner_star   => get_m3_exner_star(self%stepper_name, self%level)
+          div_star        => get_div_star(self%stepper_name, self%level)
+          compound_div    => get_compound_div(self%stepper_name, self%level)
+          ptheta2         => get_ptheta2v(self%stepper_name, self%level)
           mt_lumped_inv   => get_normalisation_r_solver(Wtheta, mesh_id)
-          p3theta         => get_p3theta(self%level)
+          p3theta         => get_p3theta(self%stepper_name, self%level)
           u_normalisation => get_normalisation_r_solver(W2, mesh_id)
-          hb_lumped_inv   => get_hb_lumped_inv(self%level)
+          hb_lumped_inv   => get_hb_lumped_inv(self%stepper_name, self%level)
           call grad_p%initialise( hb_lumped_inv%get_function_space() )
           if ( limited_area ) then
             w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
@@ -227,7 +231,7 @@ contains
                                                        m3_exner_star, one) )
           end if
           if ( normalise ) then
-            h_diag => get_helm_diag(self%level)
+            h_diag => get_helm_diag(self%stepper_name, self%level)
             call invoke( inc_X_times_Y(y_vec, h_diag) )
           end if
 
@@ -272,7 +276,7 @@ contains
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
 
     allocate(coarse_operator, &
-             source=pressure_operator_type(self%level+1))
+             source=pressure_operator_type(self%level+1, self%stepper_name))
   end subroutine coarsen_pressure_operator
 
   !> @brief Finalizer for the Helmholtz operator.
