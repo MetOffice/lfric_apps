@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: cazld00001C:/var/tmp/persistent/mike.hobson/w/lfric_core
-    ref: check_config_name
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 5d4d72f0e35f00e71b1757df6beadec21ece97f0
 
 moci:
     source: git@github.com:MetOffice/moci.git
