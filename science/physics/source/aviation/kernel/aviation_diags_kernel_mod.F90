@@ -3,93 +3,108 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-!> @brief Aviation diagnostics
+!
+! Section 20 aviation diagnostics kernel.
+!
+MODULE aviation_diags_kernel_mod
 
-module aviation_diags_kernel_mod
+  IMPLICIT NONE
 
-  use argument_mod,         only: arg_type,            &
+  USE argument_mod,         ONLY: arg_type,            &
                                   GH_FIELD, GH_SCALAR, &
                                   GH_READ, GH_WRITE, GH_INTEGER, &
                                   GH_REAL, CELL_COLUMN, &
-                                  ANY_DISCONTINUOUS_SPACE_1, ANY_DISCONTINUOUS_SPACE_2
-!  use fs_continuity_mod,    only: WTHETA, W3
-  use kernel_mod,           only: kernel_type
-  use constants_mod,        only: r_def, i_def
+                                  ANY_DISCONTINUOUS_SPACE_1, &
+                                  ANY_DISCONTINUOUS_SPACE_2
+  USE kernel_mod,           ONLY: kernel_type
+  USE constants_mod,        ONLY: r_def, i_def
 
-  implicit none
+  ! The aviation diagnostics kernel type.
+  TYPE, EXTENDS(kernel_type) :: aviation_diags_kernel_type
+    TYPE(arg_type), DIMENSION(6) :: meta_args = (/ &
 
-  type, extends(kernel_type) :: aviation_diags_kernel_type
-    type(arg_type), dimension(6) :: meta_args = (/ &
-            ! output
-            arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
-            arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
-            ! source field
-            arg_type(gh_field, gh_real, gh_read, ANY_DISCONTINUOUS_SPACE_2), &
-            ! level indices
-            arg_type(gh_scalar, gh_integer, gh_read), &
-            arg_type(gh_scalar, gh_integer, gh_read), &
-            arg_type(gh_scalar, gh_integer, gh_read) &
-            /)
-    integer :: operates_on = cell_column
-  contains
-    procedure, nopass :: code => aviation_diags_kernel_code
-  end type aviation_diags_kernel_type
+      ! Output fields.
+      arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
+      arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
 
-contains
+      ! Source field.
+      arg_type(gh_field, gh_real, gh_read, ANY_DISCONTINUOUS_SPACE_2), &
+
+      ! Level indices.
+      arg_type(gh_scalar, gh_integer, gh_read), &
+      arg_type(gh_scalar, gh_integer, gh_read), &
+      arg_type(gh_scalar, gh_integer, gh_read) &
+      /)
+
+    INTEGER :: operates_on = cell_column
+
+    CONTAINS
+      PROCEDURE, NOPASS :: code => aviation_diags_kernel_code
+    END TYPE aviation_diags_kernel_type
+
+CONTAINS
 
   SUBROUTINE aviation_diags_kernel_code(nlayers, &
-          thickness_850, thickness_500, &
-          plev_geopot, i1000, i850, i500, &
-          result_ndf, result_undf, result_map, &
-          source_ndf, source_undf, source_map)
+             thickness_850, thickness_500, &
+             plev_geopot, i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    ! Subtract geopotential heights at 850 and 500 hPa from that at 1000 hPa
+    ! to calculate thickness fields.
 
     IMPLICIT NONE
 
+    ! Arguments (kernel)
 
-    ! kernel params
+    ! The number of layers in a column.
+    INTEGER(KIND=i_def), INTENT(IN) :: nlayers
 
-    ! the number of layers in a column
-    INTEGER(KIND=i_def), intent(in) :: nlayers
+    ! Number of degrees of freedom (columns) in the cell we're processing.
+    INTEGER(KIND=i_def), INTENT(IN) :: result_ndf, source_ndf
 
-    ! number of degrees of freedom for the particular column
-    INTEGER(KIND=i_def), intent(in) :: result_ndf, source_ndf
+    ! Number of unique degrees of freedom in the fields.
+    INTEGER(KIND=i_def), INTENT(IN) :: result_undf, source_undf
 
-    ! number of unique degrees of freedom
-    INTEGER(KIND=i_def), intent(in) :: result_undf, source_undf
-
-    ! degrees of freedom map (dofmap) which indicates the location of the required values in the field array
-    INTEGER(KIND=i_def), intent(in), dimension(result_ndf) :: result_map
-    INTEGER(KIND=i_def), intent(in), dimension(source_ndf) :: source_map
-
-
-    ! algorithm params
-
-    ! Level indices. For i850 and i500, -1 = not requested.
-    INTEGER(KIND=i_def), intent(in) :: i1000, i850, i500
+    ! Degrees of freedom maps. Offsets to the bottom of each column.
+    INTEGER(KIND=i_def), INTENT(IN), DIMENSION(result_ndf) :: result_map
+    INTEGER(KIND=i_def), INTENT(IN), DIMENSION(source_ndf) :: source_map
 
 
-    ! input and output fields
-    REAL(KIND=r_def), intent(inout), dimension(result_undf) :: thickness_850, thickness_500
-    REAL(KIND=r_def), intent(in), dimension(source_undf) :: plev_geopot  ! geopotential height at pressure levels
+    ! Arguments (algorithm)
+
+    ! Output thickness fields.
+    REAL(KIND=r_def), INTENT(OUT), DIMENSION(result_undf) :: thickness_850
+    REAL(KIND=r_def), INTENT(OUT), DIMENSION(result_undf) :: thickness_500
+
+    ! Geopotential height at pressure levels.
+    REAL(KIND=r_def), INTENT(IN), DIMENSION(source_undf) :: plev_geopot
+
+    ! Level indices. For i850 and i500, -1 means "not requested".
+    INTEGER(KIND=i_def), INTENT(IN) :: i1000, i850, i500
 
 
-    ! local variables
+    ! Local variables
     INTEGER(KIND=i_def) :: df
 
 
-    ! process every dof in this cell
-    do df = 1, result_ndf
+    ! Process every DOF in this cell.
+    DO df = 1, result_ndf
 
-      if (i850 /= -1) then
-        thickness_850(result_map(df)) = plev_geopot(source_map(df)+i850-1) - plev_geopot(source_map(df)+i1000-1)
-      end if
+      IF (i850 /= -1) THEN
+        thickness_850(result_map(df)) = &
+          plev_geopot(source_map(df)+i850-1) - &
+          plev_geopot(source_map(df)+i1000-1)
+      END IF
 
-      if (i500 /= -1) then
-        thickness_500(result_map(df)) = plev_geopot(source_map(df)+i500-1) - plev_geopot(source_map(df)+i1000-1)
-      end if
+      IF (i500 /= -1) THEN
+        thickness_500(result_map(df)) = &
+          plev_geopot(source_map(df)+i500-1) - &
+          plev_geopot(source_map(df)+i1000-1)
+      END IF
 
-    end do
+    END DO
 
   END SUBROUTINE aviation_diags_kernel_code
 
-end module aviation_diags_kernel_mod
+END MODULE aviation_diags_kernel_mod
