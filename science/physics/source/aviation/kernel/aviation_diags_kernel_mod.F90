@@ -8,8 +8,6 @@
 !
 MODULE aviation_diags_kernel_mod
 
-  IMPLICIT NONE
-
   USE argument_mod,         ONLY: arg_type,            &
                                   GH_FIELD, GH_SCALAR, &
                                   GH_READ, GH_WRITE, GH_INTEGER, &
@@ -18,6 +16,8 @@ MODULE aviation_diags_kernel_mod
                                   ANY_DISCONTINUOUS_SPACE_2
   USE kernel_mod,           ONLY: kernel_type
   USE constants_mod,        ONLY: r_def, i_def
+
+  IMPLICIT NONE
 
   ! The aviation diagnostics kernel type.
   TYPE, EXTENDS(kernel_type) :: aviation_diags_kernel_type

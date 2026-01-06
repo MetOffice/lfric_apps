@@ -11,8 +11,6 @@
 !
 MODULE aviation_diags_alg_mod
 
-  IMPLICIT NONE
-
   USE constants_mod,              ONLY: r_def, i_def, l_def
   USE field_mod,                  ONLY: field_type
   USE io_config_mod,              ONLY: USE_xios_io
@@ -24,6 +22,8 @@ MODULE aviation_diags_alg_mod
                                         LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
 
   USE aviation_diags_kernel_mod,  ONLY: aviation_diags_kernel_type
+
+  IMPLICIT NONE
 
 PRIVATE
 PUBLIC :: aviation_diags_alg

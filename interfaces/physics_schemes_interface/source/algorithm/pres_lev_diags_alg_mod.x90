@@ -86,6 +86,9 @@ contains
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag,    &
          aviation_thickness_flag
 
+    ! For code tidiness, combines all flags requiring plev_geopot.
+    logical(l_def) :: plev_gepot_required
+
     if ( subroutine_timers ) call timer('pres_lev_diags_alg')
 
     nplev = get_axis_dimension('pressure_levels')
@@ -259,12 +262,16 @@ contains
     end if
 
     ! Geopotential height on pressure levels
-    aviation_thickness_flag = &
-            diag_samp('aviation__geopot_thickness_850') .or. diag_samp('aviation__geopot_thickness_500')
+    aviation_thickness_flag = diag_samp('aviation__geopot_thickness_850') .or. &
+                              diag_samp('aviation__geopot_thickness_500')
     plev_geopot_clim_flag = diag_samp('plev__geopot_clim')
     plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', &
             activate=plev_geopot_clim_flag .or. aviation_thickness_flag)
-    if ((plev_geopot_flag .or. plev_geopot_clim_flag .or. aviation_thickness_flag) .and. use_xios_io) then
+
+    plev_gepot_required = plev_geopot_flag .or. &
+                          plev_geopot_clim_flag .or. &
+                          aviation_thickness_flag
+    if (plev_gepot_required .and. use_xios_io) then
 
       height_w3 => get_height_fv(W3, exner_w3%get_mesh_id())
       call invoke_geo_on_pres_kernel_type(height_w3, exner_w3, theta_wth, &
