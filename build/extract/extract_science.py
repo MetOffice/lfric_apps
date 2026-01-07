@@ -79,13 +79,13 @@ def extract_files(dependency: str, values: Dict, files: List[str], working: Path
     working_dep = working / dependency
 
     # make the working directory location
-    working_dep.mkdir(parents=True)
+    working_dep.mkdir(parents=True, exist_ok=True)
 
     for extract_file in files:
         source_file = temp_dep / extract_file
         dest_file = working_dep / extract_file
         run_command(f"mkdir -p {dest_file.parents[0]}")
-        copy_command = f"cp -r {source_file} {dest_file}"
+        copy_command = f"cp -r -u --preserve=timestamps {source_file} {dest_file}"
         run_command(copy_command)
 
     rmtree(tempdir)
@@ -117,6 +117,8 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args: argparse.Namespace = parse_args()
+
+    print('extract_science args:', args)
 
     extract_lists: Dict = load_yaml(args.extract)
     dependencies: Dict = load_yaml(args.dependencies)
