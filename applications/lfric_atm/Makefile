@@ -43,6 +43,15 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(APPS_ROOT_DIR)/interfaces/jules_interface \
                                $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
 
+# If the COUPLED compiler directive has been set then add appropriate
+#  coupled model settings
+ifdef COUPLED
+  ifeq ("$(COUPLED)","True")
+    export INTERNAL_DEPENDENCIES += $(CORE_ROOT_DIR)/components/coupling
+    export PRE_PROCESS_MACROS += MCT COUPLED
+  endif
+endif
+
 META_VN             ?= HEAD
 export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
 

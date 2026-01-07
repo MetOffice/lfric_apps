@@ -17,6 +17,9 @@
 program lfric_atm
 
   use cli_mod,                only: get_initial_filename
+#ifdef MCT
+  use coupler_mod,            only: set_cpl_name
+#endif
   use driver_collections_mod, only: init_collections, final_collections
   use driver_comm_mod,        only: init_comm, final_comm
   use driver_config_mod,      only: init_config, final_config
@@ -66,6 +69,9 @@ program lfric_atm
 
   call modeldb%io_contexts%initialise(application_name, 100)
 
+#ifdef MCT
+  call set_cpl_name(modeldb, cpl_component_name)
+#endif
   call init_comm( application_name, modeldb )
   call get_initial_filename( filename )
   call init_config( filename, gungho_required_namelists, &
