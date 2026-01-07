@@ -118,8 +118,6 @@ def parse_args() -> argparse.Namespace:
 def main():
     args: argparse.Namespace = parse_args()
 
-    print('extract_science args:', args)
-
     extract_lists: Dict = load_yaml(args.extract)
     dependencies: Dict = load_yaml(args.dependencies)
 
