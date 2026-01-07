@@ -50,7 +50,6 @@ module adj_lookup_table_mod
     procedure,  public :: adj_lookup_table_assign
     procedure,  public :: finalise => adj_lookup_table_finaliser
     generic,    public :: assignment(=) => adj_lookup_table_assign
-
   end type adj_lookup_table_type
 
   contains
