@@ -17,9 +17,7 @@ from psyclone.psyir.nodes import (
     Call,
     Assignment,
     Reference,
-    Routine,
     Return,
-    IfBlock,
     OMPParallelDirective,
     OMPDoDirective,
     OMPParallelDoDirective,
@@ -609,7 +607,7 @@ def match_lhs_assignments(node, names):
 def loop_replacement_of(routine_itr,
                         target_name: str,
                         init_at_start=True):
-    ''' 
+    '''
     This transformation checks that the loop iterator we are on is the one
     we want, and then changes it to be of length 1 instead - The intent
     is to primarily target the UM j loops with this call, but it is
@@ -626,9 +624,8 @@ def loop_replacement_of(routine_itr,
     None : Note the tree has been modified
     '''
 
-    do_once=False
+    do_once = False
     # Get the loops from the provided routine and walk
-    loops=routine_itr.walk(Loop)
     for loop in routine_itr.walk(Loop):
         # if the loop is of the target type
         if str(loop.loop_type) == target_name:
@@ -636,7 +633,8 @@ def loop_replacement_of(routine_itr,
             # Only init once in the routine at the start
             if not do_once and init_at_start:
                 parent = routine_itr
-                assign = Assignment.create(Reference(loop.variable),
+                assign = Assignment.create(
+                    Reference(loop.variable),
                     Literal("1", INTEGER_TYPE))
                 parent.children.insert(0, assign)
                 do_once = True
@@ -645,8 +643,8 @@ def loop_replacement_of(routine_itr,
             try:
                 parent_table = loop.parent.scope.symbol_table
             except AttributeError as err:
-                print(f"Could not store Parent table \n"
-                        f"because:\n{err}")
+                logging.warning(
+                    "Could not store Parent table because:\n %s", err)
                 parent_table = False
 
             # if the loop parent table is a vaild reference
@@ -654,15 +652,18 @@ def loop_replacement_of(routine_itr,
                 parent_table.merge(loop.loop_body.symbol_table)
                 # Move the body of the loop after the loop
                 for statement in reversed(loop.loop_body.children):
-                    loop.parent.addchild(statement.detach(),
-                                                loop.position + 1)
-                tmp = loop.detach()
+                    loop.parent.addchild(
+                        statement.detach(),
+                        loop.position + 1)
+                # pylint: disable=unused-variable
+                tmp = loop.detach()  # noqa: F841
 
 
 def remove_unspanable_nodes(
-    routine_itr, 
-    timer_routine_names, 
-    remove_loop_type):
+    routine_itr,
+    timer_routine_names,
+    remove_loop_type
+):
     '''
     A method to help reduce the number of nodes found in a routine list.
     This will remove some nodes that we do not ever wish to parallelise over.
@@ -689,16 +690,16 @@ def remove_unspanable_nodes(
     for index, routine_child in enumerate(routine_children):
 
         for routine in routine_child.walk(Reference):
+            # pylint: disable=bare-except
             try:
                 if str(routine.name) in timer_routine_names:
                     delete_node_indexes.append(index)
                     break
-            except:
+            except:  # noqa: E722
                 continue
 
-    # Remove the return statement
-    for index in range ((len(routine_children)-1),0,-1):
-    #for index, routine_child in enumerate(routine_children):
+    # Remove the final return statement
+    for index in range((len(routine_children)-1), 0, -1):
         if isinstance(routine_children[index], Return):
             delete_node_indexes.append(index)
             break
@@ -759,4 +760,3 @@ def get_ancestors(
     if depth is not None:
         ancestors = [a for a in ancestors if a.depth == depth]
     return ancestors
-
