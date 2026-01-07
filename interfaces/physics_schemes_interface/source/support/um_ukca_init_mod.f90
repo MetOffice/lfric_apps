@@ -848,7 +848,7 @@ contains
     integer :: i_ukca_light_param=1            ! Internal Price-Rind scheme
     integer :: i_ukca_quasinewton_start=2, i_ukca_quasinewton_end=3
     integer :: i_ukca_scenario=ukca_strat_lbc_env
-    integer::  i_ukca_mode_seg_size=4          ! GLOMAP-mode segment size
+    integer::  i_ukca_mode_seg_size            ! GLOMAP-mode segment size
     real(r_um) :: linox_scale_in
 
     character(len=ukca_photol_varname_len) :: adjusted_fname  ! intermediate spc/ filename copy
@@ -937,6 +937,7 @@ contains
     end if
 
     ! Set default GLOMAP segment size if no factor supplied
+    i_ukca_mode_seg_size = 4    ! Current working seg size for LFRic
     if ( ukca_mode_seg_size /= imdi ) THEN
       i_ukca_mode_seg_size = ukca_mode_seg_size
     end if
@@ -1797,7 +1798,7 @@ contains
 
     ! Some default values - either standard values in UM, or the only ones
     ! currently supported in the LFRic-side implementation.
-    integer::  i_ukca_mode_seg_size = 4          ! GLOMAP-mode segment size
+    integer::  i_ukca_mode_seg_size          ! GLOMAP-mode segment size
 
     ! Set up proto-GA configuration based on GA9.
     ! The ASAD Newton-Raphson Offline Oxidants scheme (ukca_chem_offline)
@@ -1811,6 +1812,7 @@ contains
     ! logicals, .true. by convention in UKCA, are not overridden.)
 
     ! Set default GLOMAP segment size if no factor supplied
+    i_ukca_mode_seg_size = 4    ! Current working seg size for LFRic
     if ( ukca_mode_seg_size /= imdi ) THEN
       i_ukca_mode_seg_size = ukca_mode_seg_size
     end if
