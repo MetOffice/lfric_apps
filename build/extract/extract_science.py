@@ -84,7 +84,7 @@ def extract_files(dependency: str, values: Dict, files: List[str], working: Path
     for extract_file in files:
         source_file = temp_dep / extract_file
         dest_file = working_dep / extract_file
-        run_command(f"mkdir -p {dest_file.parents[0]}")
+        dest_file.parent.mkdir(parents=True, exist_ok=True)
         copy_command = f"cp -r -u --preserve=timestamps {source_file} {dest_file}"
         run_command(copy_command)
 
