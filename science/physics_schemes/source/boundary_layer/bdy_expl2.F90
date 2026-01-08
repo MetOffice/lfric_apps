@@ -2002,11 +2002,10 @@ end if  ! blending_option
 !-----------------------------------------------------------------------
 call ex_coef (                                                                 &
 ! in levels/logicals
-   bl_levels,k_log_layr,nSCMDpkgs,L_SCMDiags,BL_diag,                          &
+   bl_levels,k_log_layr,BL_diag,                                               &
 ! in fields
-   sigma_h,flandg,dbdz,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,               &
-   h_blend_orog,zhpar,ntpar,ntml_nl,ntdsc,nbdsc,u_p,v_p,u_s,fb_surf,           &
-   qw,tl,l_shallow_cth,rmlmax2, rneutml_sq, delta_smag,                        &
+   sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhpar,ntpar,        &
+   ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,delta_smag,            &
 ! in/out fields
    cumulus,weight_1dbl,                                                        &
 ! out fields
