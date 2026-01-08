@@ -291,11 +291,6 @@ real(kind=r_bl) :: a_ent_2 = rmdi ! suggested 0.056
 ! 13 Improved method to calculate cloud-top radiative flux jump
 logical :: l_new_kcloudtop = .false.
 
-! 14 Switch for alternative TKE and variance diagnostics
-integer :: var_diags_opt = imdi
-integer, parameter :: original_vars = 0
-integer, parameter :: split_tke_and_inv = 1
-
 ! 15 Multiplicative tuning factor in TKE diagnosis, usually 1.0
 real(kind=r_bl) :: tke_diag_fac = rmdi
 
@@ -525,7 +520,7 @@ namelist/run_bl/ i_bl_vn, sbl_op, cbl_op, cbl_mix_fac_nml,                     &
     l_use_surf_in_ri, lambda_min_nml, ritrans, c_gust,                         &
     dzrad_disc_opt, num_sweeps_bflux, l_converge_ga,                           &
     local_fa, Keep_Ri_FA, l_bl_mix_qcf, l_conv_tke, l_use_var_fixes,           &
-    l_reset_neg_q, var_diags_opt, tke_diag_fac, i_interp_local,                &
+    l_reset_neg_q, tke_diag_fac, i_interp_local,                               &
     sg_orog_mixing, fric_heating, calc_prob_of_vis, z_nl_bl_levels,            &
     idyndiag, zhloc_depth_fac, flux_grad, entr_smooth_dec,                     &
     sc_diag_opt, kprof_cu, bl_res_inv, blending_option,                        &
@@ -625,8 +620,6 @@ call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,I4)') 'num_sweeps_bflux = ',num_sweeps_bflux
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_converge_ga = ',l_converge_ga
-call umprint(linebuffer,src='bl_option_mod')
-write(linebuffer,'(A,I4)') 'var_diags_opt = ',var_diags_opt
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_use_var_fixes = ',l_use_var_fixes
 call umprint(linebuffer,src='bl_option_mod')
