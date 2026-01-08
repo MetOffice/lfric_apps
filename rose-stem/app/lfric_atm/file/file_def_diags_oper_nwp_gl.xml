@@ -1,7 +1,14 @@
 <file_definition>
 
+  <!-- Initial fields to actually output by default -->
+  <file id="lfric_initial" name="results/lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+    <field_group operation="once" freq_op="1ts">
+      <field field_ref="init_area_at_msl" />
+    </field_group>
+  </file>
+
   <!-- Diagnostic standard level fields - Hourly -->
-  <file id="lfric_gl_std_levs_diags_1hr" name="lfric_gl_std_levs_diags_1hr" output_freq="1h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_gl_std_levs_diags_1hr" name="results/lfric_gl_std_levs_diags_1hr" output_freq="1h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
     <field_group operation="instant" freq_op="1h" prec="4">
       <field field_ref="snow__grid_snow_mass"/>
       <field field_ref="turbulence__zh"/>
@@ -132,7 +139,7 @@
   </file>
   
   <!-- Diagnostic standard level fields - 3 Hourly -->
-  <file id="lfric_gl_std_levs_diags_3hr" name="lfric_gl_std_levs_diags_3hr" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_gl_std_levs_diags_3hr" name="results/lfric_gl_std_levs_diags_3hr" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
     
     <field_group operation="instant" freq_op="3h" prec="4">
       <field field_ref="surface__grid_moisture_flux"/>
@@ -194,7 +201,7 @@
   </file>    
   
   
-  <file id="lfric_gl_model_levs_diags_1hr" name="lfric_gl_model_levs_diags_1hr" output_freq="1h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_gl_model_levs_diags_1hr" name="results/lfric_gl_model_levs_diags_1hr" output_freq="1h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
     <!-- Full model level diagnostics - not being interpolated to pressure levels -->
     <field_group operation="instant" freq_op="1h" prec="4">
       <field field_ref="theta"/>
@@ -231,7 +238,7 @@
     </field_group>
   </file> 
   
-  <file id="lfric_gl_model_levs_diags_3hr" name="lfric_gl_model_levs_diags_3hr" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_gl_model_levs_diags_3hr" name="results/lfric_gl_model_levs_diags_3hr" output_freq="3h" split_freq="3h" split_end_offset="0h" split_freq_format="%y%mo%d%h" convention="UGRID" enabled=".TRUE.">
   
     <field_group operation="instant" freq_op="3h" prec="4"> 
        <field field_ref="processed__qcf"/>

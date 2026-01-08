@@ -1,7 +1,7 @@
 <file_definition>
   <!-- OPS Background Error file -->
   <!-- Time profile is every 10mins from T+0 to T+1.5 -->
-  <file id="lfric_bg_for_hofx" name="seuk_lfric_bg_for_hofx" output_freq="10mi" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_bg_for_hofx" name="results/seuk_lfric_bg_for_hofx" output_freq="10mi" convention="UGRID" enabled=".TRUE.">
     <field_group freq_op="10mi" operation="instant" prec="4">
       <field field_ref="m_v"/>
       <field field_ref="m_cl"/>
