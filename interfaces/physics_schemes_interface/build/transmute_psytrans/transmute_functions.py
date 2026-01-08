@@ -9,6 +9,7 @@ eventually live in the PSyTran repo. See Ticket #906.
 '''
 import logging
 import os
+from itertools import dropwhile, takewhile
 from typing import Sequence, Optional, Tuple, Set
 
 from psyclone.psyir.nodes import (
@@ -599,3 +600,69 @@ def match_lhs_assignments(node, names):
         if assignment.lhs.name in names:
             lhs_names.append(assignment.lhs.name)
     return lhs_names
+
+
+def add_omp_parallel_region(
+    start_node,
+    end_node,
+    *,
+    end_offset=0,
+    include_end=False,
+    ignore_loops=None,
+    loop_trans_options=None,
+):
+    """Add OMPParallelDirective around a span of nodes and OMPDoDirective around loops
+
+    A parallel region will be created from siblings of start_node up to
+    end_node.
+
+    An end_offset may be used to add or remove nodes from the end of the region,
+    and loops to be ignored can be supplied through ignore_loops.
+
+    If end_node is not a sibling of start_node, loops and directives should be
+    added up to the absolute position of end_node, although the interaction with
+    offsets and include_end may be unexpected.
+    """
+    if ignore_loops in (None, [None]):
+        ignore_loops = []
+
+    schedule = start_node.siblings
+
+    if end_offset != 0:
+        local_idx = end_node.siblings.index(end_node)
+        end_node = end_node.siblings[local_idx + end_offset]
+
+    start_pos = start_node.abs_position
+    end_pos = end_node.abs_position
+    if include_end:
+        end_pos += 1
+
+    nodes_from_start = dropwhile(lambda node: node.abs_position < start_pos, schedule)
+    all_nodes = list(takewhile(lambda node: node.abs_position < end_pos, nodes_from_start))
+
+    OMP_PARALLEL_REGION_TRANS.apply(
+        all_nodes,
+        options={
+            "node-type-check": False,
+        },
+    )
+
+    for loop in start_node.parent.walk(Loop):
+        # Identify each loop in the OMPParallelDirective and add OMPDoDirective to outer loops
+
+        # Don't attempt to nest parallel directives or loops outside the parallel region
+        if loop.ancestor(OMPDoDirective) is not None or loop.ancestor(OMPParallelDirective) is None:
+            continue
+
+        if loop in ignore_loops:
+            continue
+
+        # OMPDoDirective for outer loops inside OMPParallelDirective region
+        try:
+            OMP_DO_LOOP_TRANS_STATIC.apply(
+                loop,
+                options=loop_trans_options,
+            )
+        except TransformationError as e:
+            logging.warning(e)
+

@@ -31,3 +31,16 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn30_t788(MacroUpgrade):
+    """Upgrade macro for ticket #788 by Fred Wobus."""
+
+    BEFORE_TAG = "vn3.0"
+    AFTER_TAG = "vn3.0_t788"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-lfric_atm
+        """Set segmentation size for Gregory-Rowntree convection kernel"""
+        self.add_setting(config, ["namelist:physics", "conv_gr_segment"], "16")
+
+        return config, self.reports
