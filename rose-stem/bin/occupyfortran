@@ -26,7 +26,6 @@ VALID_APPS = [
     "science/adjoint",
     "science/gungho",
     "science/linear",
-    "science/physics",
     "science/physics_schemes",
 ]
 

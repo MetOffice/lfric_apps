@@ -24,8 +24,7 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
-                               $(APPS_ROOT_DIR)/science/gungho \
-                               $(APPS_ROOT_DIR)/science/physics
+                               $(APPS_ROOT_DIR)/science/gungho
 
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)
