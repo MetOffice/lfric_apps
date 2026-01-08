@@ -71,7 +71,7 @@ contains
     type( mesh_type ),  pointer :: mesh => null()
     integer( kind=i_def ) :: ncells
 
-    if ( subroutine_timers ) call timer('bm_tau_alg')
+    if ( subroutine_timers ) call timer('cloud.bm_tau')
 
     call cloud_fields%get_field('frozen_fraction', cf_fro)
     call cloud_fields%get_field('tau_dec_bm', tau_dec_bm)
@@ -102,7 +102,7 @@ contains
 
     call um_sizes_init(1_i_def)
 
-    if ( subroutine_timers ) call timer('bm_tau_alg')
+    if ( subroutine_timers ) call timer('cloud.bm_tau')
 
   end subroutine bm_tau_alg
 

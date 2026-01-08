@@ -221,7 +221,7 @@ contains
     integer(i_def) :: loop, ncells
     logical(l_def) :: diag_step, flag_blpert
 
-    if ( subroutine_timers ) call timer("bl_imp_alg")
+    if ( subroutine_timers ) call timer("bl.implicit")
 
     call log_event( 'Running implicit Boundary layer', LOG_LEVEL_DEBUG )
 
@@ -330,7 +330,7 @@ contains
     call u_physics%copy_field_properties(du_conv_w2)
     if ( cv_scheme == cv_scheme_gregory_rowntree .or. &
          cv_scheme == cv_scheme_comorph ) then
-      if ( subroutine_timers ) call timer("bl_imp_alg")
+      if ( subroutine_timers ) call timer("bl.implicit")
       call theta%copy_field_properties(dw_conv)
       call invoke(setval_c(dw_conv, 0.0_r_def) )
       call set_wind(du_conv_w2, du_conv, dv_conv, dw_conv)
@@ -338,7 +338,7 @@ contains
       ! Set wind provides output in dynamics quantites, need to remove
       ! dA scaling for physics
       call invoke(inc_X_divideby_Y(du_conv_w2, dA) )
-      if ( subroutine_timers ) call timer("bl_imp_alg")
+      if ( subroutine_timers ) call timer("bl.implicit")
     else
       call invoke(setval_c(du_conv_w2, 0.0_r_def) )
     end if
@@ -476,7 +476,7 @@ contains
                   setval_X(moist_flux_bl,fqw) )
     end if
 
-    if ( subroutine_timers ) call timer("bl_imp_alg")
+    if ( subroutine_timers ) call timer("bl.implicit")
 
     ! Calculate and output fields on last iteration only
     if (use_xios_io .and. outer == outer_iterations) then

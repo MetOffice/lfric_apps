@@ -127,7 +127,7 @@ module skeb_ndisp_alg_mod
 
   !!!!!!!!!! END OF VARIABLE DEFINITION, START OF CODE !!!!!!!!!!
 
-  if ( subroutine_timers ) call timer("skeb_ndisp_alg")
+  if ( subroutine_timers ) call timer("skeb.ndisp")
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  1)  Initialize feilds and operators  !!
@@ -242,8 +242,13 @@ module skeb_ndisp_alg_mod
 
   call invoke(inc_a_times_X(K_amp, ndisp) )
 
+  if ( subroutine_timers ) call timer("skeb.ndisp")
+
   if (write_diag .and. use_xios_io) then
     k_amp = delta_x**4
+    ! Stop SKEB timer
+    if ( subroutine_timers ) call timer("stoch_phys.skeb")
+    if ( subroutine_timers ) call timer("diags.skeb")
     if (diagnostic_to_be_sampled('stochastic__norm_div')) then
       call invoke( inc_a_times_X(K_amp, norm_gu) )
       call norm_gu%write_field('stochastic__norm_div')
@@ -252,9 +257,10 @@ module skeb_ndisp_alg_mod
       call invoke( inc_a_times_X(K_amp, norm_xi) )
       call norm_xi%write_field('stochastic__norm_xi')
     end if
+    if ( subroutine_timers ) call timer("diags.skeb")
+    ! Restart SKEB timer
+    if ( subroutine_timers ) call timer("stoch_phys.skeb")
   end if
-
-  if ( subroutine_timers ) call timer("skeb_ndisp_alg")
 
   end subroutine skeb_ndisp_alg
 end module skeb_ndisp_alg_mod

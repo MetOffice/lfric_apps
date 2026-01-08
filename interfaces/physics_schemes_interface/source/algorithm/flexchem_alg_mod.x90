@@ -54,7 +54,7 @@ contains
     type( field_type ), pointer :: tio
     type( field_type ), pointer :: vo
 
-    if ( subroutine_timers ) call timer('flexchem_alg')
+    if ( subroutine_timers ) call timer('chemistry.flexchem')
 
     call log_event( 'Running flexible chemistry scheme', LOG_LEVEL_INFO )
 
@@ -81,6 +81,9 @@ contains
                                               ) )
     end if
 
+    if ( subroutine_timers ) call timer('chemistry.flexchem')
+
+    if ( subroutine_timers ) call timer('diags.flexchem')
     ! Diagnostics
     call h2o%write_field('chemistry__h2o')
     call co%write_field('chemistry__co')
@@ -96,7 +99,7 @@ contains
     call tio%write_field('chemistry__tio')
     call vo%write_field('chemistry__vo')
 
-    if ( subroutine_timers ) call timer('flexchem_alg')
+    if ( subroutine_timers ) call timer('diags.flexchem')
 
   end subroutine flexchem_alg
 

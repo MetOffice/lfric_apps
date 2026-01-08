@@ -103,7 +103,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     ! w increment
     type( field_type ) :: vel_w2v_inc_leonard
 
-    if ( subroutine_timers ) call timer("leonard_term_alg")
+    if ( subroutine_timers ) call timer("leonard_terms")
 
     mesh_id = theta%get_mesh_id()
 
@@ -221,7 +221,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
 
     nullify( height_w1, height_w2, height_w3, height_wth )
 
-    if ( subroutine_timers ) call timer("leonard_term_alg")
+    if ( subroutine_timers ) call timer("leonard_terms")
 
   end subroutine leonard_term_alg
 
