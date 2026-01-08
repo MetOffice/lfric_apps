@@ -81,6 +81,7 @@ def extract_files(dependency: str, values: Dict, files: List[str], working: Path
     # make the working directory location
     working_dep.mkdir(parents=True, exist_ok=True)
 
+    # copy new and updated files
     for extract_file in files:
         source_file = temp_dep / extract_file
         dest_file = working_dep / extract_file
