@@ -503,12 +503,6 @@ real(kind=r_bl), parameter :: sc_cftol=0.1_r_bl
 ! Switch for coupled gradient method in Equilibrium SBL model
 logical, parameter :: L_SBLco = .true.
 
-! LambdaM=2*LambdaH (operational setting)
-logical, parameter :: l_lambdam2     = .false.
-
-! Lambdas not reduced above NTML_LOCAL+1
-logical, parameter :: l_full_lambdas = .false.
-
 ! logical for whether to skip calculations based on start of timestep
 ! quantities when using semi-lagrangian cycling with Endgame
 ! This is set to true in dynamics_input_mod as Endgame always uses it,

@@ -77,7 +77,7 @@ use bl_option_mod, only:                                                       &
     off, max_t_grad, a_grad_adj, sg_orog_mixing, l_use_surf_in_ri,             &
     h_scale, t_drain, idyndiag, DynDiag_ZL, l_noice_in_turb,                   &
     DynDiag_ZL_corrn, DynDiag_ZL_CuOnly, DynDiag_Ribased,                      &
-    RiCrit_sharp, zhloc_depth_fac, non_local_bl, on, l_full_lambdas,           &
+    RiCrit_sharp, zhloc_depth_fac, non_local_bl, on,                           &
     nl_bl_levels, local_fa, free_trop_layers, to_sharp_across_1km,             &
     sbl_op, equilibrium_sbl, one_third, two_thirds, blending_option,           &
     blend_except_cu, blend_cth_shcu_only, sg_shear, sg_shear_enh_lambda,       &
@@ -2066,27 +2066,6 @@ do k = 2, bl_levels
           !  Include mixing length, ELH, in RHOKH.
           !  Code moved from EX_COEF to avoid interpolation
           !------------------------------------------------------------
-          if ( k >= ntml_local(i,j)+2 .and. l_full_lambdas .and.               &
-               local_fa == to_sharp_across_1km ) then
-            ! Assuming only LOCAL_FA = "to_sharp_across_1km" option
-            ! will have L_FULL_LAMBDAS.
-            ! If other LOCAL_FA options are coded here then
-            ! changes must be included in section 2.1 of ex_coef
-            if (l_rp2) then
-              lambdah = max ( lambda_min ,                                     &
-                              par_mezcla_rp(rp_idx)*zh_local(i,j) )
-            else
-              lambdah = max ( lambda_min , 0.15_r_bl*zh_local(i,j) )
-            end if
-            z_scale = 1000.0_r_bl
-            weight1 = one_half*( one -                                         &
-                        tanh(3.0_r_bl*((z_uv(i,j,k)/z_scale )-one) ) )
-            lambdah = lambdah * weight1                                        &
-                         + lambda_min*( one -  weight1)
-            ! no need to do log profile correction as klog_layr eq 2
-            vkz = vkman * ( z_uv(i,j,k) + z0m_eff_gb(i,j) )
-            elh_rho(i,j,k) = vkz / (one + vkz/lambdah )
-          end if
           ! Reinstate UKV drainage flow bug here, where lambdah was not
           ! enhanced as intended (and as was done in ex_coef)!
           if (sg_orog_mixing == sg_shear_enh_lambda) then
@@ -2096,7 +2075,7 @@ do k = 2, bl_levels
             else
               lambdah = max ( lambda_min , 0.15_r_bl*zh_local(i,j) )
             end if
-            if (k >= ntml_local(i,j)+2 .and. .not. l_full_lambdas) then
+            if (k >= ntml_local(i,j)+2) then
               lambdah = lambda_min
             end if
             if (k <= k_log_layr) then
