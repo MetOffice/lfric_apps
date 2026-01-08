@@ -18,7 +18,6 @@ module atl_transport_field_mod
                                               direction_3d,               &
                                               equation_form_conservative, &
                                               equation_form_advective
-  use adj_trans_lookup_cache_mod,       only: adj_trans_lookup_cache_type
   use atl_mol_conservative_alg_mod,     only: atl_mol_conservative_alg
   use atl_mol_advective_alg_mod,        only: atl_mol_advective_alg
   use transport_controller_mod,         only: transport_controller_type
@@ -35,16 +34,15 @@ contains
 
   !=============================================================================
   !> @brief Adjoint of central routine for transporting fields in tangent-linear field.
-  !> @param[in,out] field_np1                ACTIVE  Field to return at end of transport step
-  !> @param[in,out] field_n                  ACTIVE  Field at the start of the transport step
-  !> @param[in]     ls_field_n               PASSIVE Linear field at the start of step
-  !> @param[in,out] tl_transport_controller  Object controlling transport by perturbed wind
-  !> @param[in]     transport_metadata       Contains the configuration options for
-  !!                                         transporting these fields
-  !> @param[in]     adj_lookup_table_cache   Lookup table cache
-  subroutine atl_transport_field(field_np1, field_n, ls_field_n,              &
-                                 tl_transport_controller, transport_metadata, &
-                                 adj_lookup_table_cache)
+  !> @param[in,out] field_np1   ACTIVE  Field to return at end of transport step
+  !> @param[in,out] field_n     ACTIVE  Field at the start of the transport step
+  !> @param[in]     ls_field_n  PASSIVE Linear field at the start of step
+  !> @param[in,out] tl_transport_controller
+  !!                            Object controlling transport by perturbed wind
+  !> @param[in]     transport_metadata  Contains the configuration options for
+  !!                                    transporting these fields
+  subroutine atl_transport_field(field_np1, field_n, ls_field_n,               &
+                                 tl_transport_controller, transport_metadata)
 
     implicit none
 
@@ -54,7 +52,6 @@ contains
     type(field_type),                   intent(in)    :: ls_field_n
     type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
     type(transport_metadata_type),      intent(inout) :: transport_metadata
-    type(adj_trans_lookup_cache_type),  intent(in)    :: adj_lookup_table_cache
 
     ! Internal variables
     type(transport_counter_type),    pointer :: transport_counter
@@ -89,13 +86,13 @@ contains
       ! Choose form of transport equation
       select case ( transport_metadata%get_equation_form() )
       case ( equation_form_conservative )
-        call atl_mol_conservative_alg(                                                          &
-                field_np1, field_n, ls_field_n, tl_transport_controller, adj_lookup_table_cache &
+        call atl_mol_conservative_alg(                                         &
+                field_np1, field_n, ls_field_n, tl_transport_controller        &
         )
 
       case ( equation_form_advective )
-        call atl_mol_advective_alg(                                                             &
-                field_np1, field_n, ls_field_n, tl_transport_controller, adj_lookup_table_cache &
+        call atl_mol_advective_alg(                                            &
+                field_np1, field_n, ls_field_n, tl_transport_controller        &
         )
 
       case default
