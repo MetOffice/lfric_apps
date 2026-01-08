@@ -6,6 +6,7 @@
 !> @brief Module containing adjoint test for adj_w3h_adv_upd_lookup_lookup_kernel
 module adjt_w3h_adv_upd_lookup_alg_mod
 
+  use adj_trans_lookup_cache_mod,      only : adj_trans_lookup_cache_type
   use integer_field_mod,               only : integer_field_type
   use r_tran_field_mod,                only : r_tran_field_type
   use fs_continuity_mod,               only : W3, W2
@@ -35,26 +36,25 @@ module adjt_w3h_adv_upd_lookup_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  mesh               The model mesh
-  !> @param[in]  lookup_collection  Lookup table collection object containing read and write indices
-  !!                                for stencil adjoints
-  subroutine adjt_w3h_adv_upd_lookup_alg( mesh )
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  adj_lookup_table_cache  The lookup table cache
+  subroutine adjt_w3h_adv_upd_lookup_alg( mesh, adj_lookup_table_cache )
 
     use w3h_advective_update_kernel_mod,     only : w3h_advective_update_kernel_type
     use invoke_adj_w3h_adv_upd_lookup_mod,   only : invoke_adj_w3h_adv_upd_lookup_kernel_type
-    use adj_lookup_table_generators_alg_mod, only : create_lookup_w3h_adv_upd
 
     implicit none
 
     ! Arguments
-    type(mesh_type),               pointer, intent(in) :: mesh
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Internal arguments for kernels
     type(r_tran_field_type)              :: advective_increment
     type(r_tran_field_type)              :: tracer
     type(r_tran_field_type)              :: wind
     type(operator_type),         pointer :: m3_inv
-    type(adj_lookup_table_type)          :: lookup_w3h_adv_upd
+    type(adj_lookup_table_type), pointer :: lookup_w3h_adv_upd
     type(integer_field_type),    pointer :: lookup_w3h_adv_upd_field
     type(integer_field_type),    pointer :: set_count_w3h_adv_upd_field
     integer(kind=i_def)                  :: nsets
@@ -78,14 +78,14 @@ module adjt_w3h_adv_upd_lookup_alg_mod
     real(kind=r_def)             :: adv_inc_adv_inc_inp_inner_prod
     real(kind=r_def)             :: tracer_tracer_input_inner_prod
     real(kind=r_tran)            :: inner2
-    real(kind=r_tran), parameter :: eps = 1e-30_r_def
+    real(kind=r_tran), parameter :: eps = 1.0e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
     real(kind=r_tran)            :: machine_tol
     real(kind=r_tran)            :: relative_diff
 
-    nullify(m3_inv, lookup_w3h_adv_upd_field, set_count_w3h_adv_upd_field, &
+    nullify(m3_inv, lookup_w3h_adv_upd, lookup_w3h_adv_upd_field, set_count_w3h_adv_upd_field, &
             vector_space_w3_md_ptr, vector_space_w3_ptr, vector_space_w2_ptr)
 
     vector_space_w3_md_ptr => function_space_collection%get_fs(                &
@@ -98,7 +98,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
         mesh, element_order_h, element_order_v, W2                             &
     )
     call advective_increment%initialise( vector_space=vector_space_w3_ptr, name='advective_increment' )
-    call tracer%initialise( vector_space=vector_space_w3_md_ptr, name='tracer ')
+    call tracer%initialise( vector_space=vector_space_w3_md_ptr, name='tracer' )
     call wind%initialise( vector_space=vector_space_w2_ptr, name='wind' )
     call advective_increment_input%initialise( vector_space=vector_space_w3_ptr, name='advective_increment_input' )
     call tracer_input%initialise( vector_space=vector_space_w3_md_ptr, name='tracer_input' )
@@ -146,8 +146,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
     adv_inc_adv_inc_inp_inner_prod = 0.0_r_def
     tracer_tracer_input_inner_prod = 0.0_r_def
 
-    call create_lookup_w3h_adv_upd( lookup_w3h_adv_upd, advective_increment, tracer, wind, &
-                                    m3_inv, stencil_extent )
+    lookup_w3h_adv_upd => adj_lookup_table_cache%get_lookup_w3h_adv_upd()
     lookup_w3h_adv_upd_field => lookup_w3h_adv_upd%get_lookup_field()
     set_count_w3h_adv_upd_field => lookup_w3h_adv_upd%get_set_count_field()
     nsets = lookup_w3h_adv_upd%get_nsets_max()
