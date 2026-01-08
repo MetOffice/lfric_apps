@@ -8,5 +8,4 @@
 | yaswant         | Yaswant Pradhan | Met Office  | 2025-12-16 |
 | oakleybrunt     | Oakley Brunt    | Met Office  | 2025-12-19 |
 | bblay-mo        | Byron Blay      | Met Office  | 2026-01-07 |
-
-| harry-shepherd | Harry Shepherd | Met Office | 2026-01-08 |
+| harry-shepherd  | Harry Shepherd  | Met Office  | 2026-01-08 |
