@@ -116,13 +116,11 @@ contains
     use limited_area_constants_mod,         only: get_mask_r_solver
     use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
     use function_space_mod,                 only: function_space_type
-    use fs_continuity_mod,                  only: W2, W2h, W2v, W3, Wtheta
+    use fs_continuity_mod,                  only: W2, W2h, W2v, W3, Wtheta, W2Hbroken
     use function_space_collection_mod,      only: function_space_collection
 
     use apply_mixed_lu_operator_kernel_mod, &
                                  only: apply_mixed_lu_operator_kernel_type
-    use apply_mixed_operator_kernel_mod, &
-                                 only: apply_mixed_operator_kernel_type
     use apply_elim_mixed_lp_operator_kernel_mod, &
                                  only: apply_elim_mixed_lp_operator_kernel_type
     use matrix_vector_kernel_mod, &
@@ -131,7 +129,12 @@ contains
                                  only: dg_inc_matrix_vector_kernel_type
     use apply_mixed_operator_kernel_mod, &
                                  only: apply_mixed_operator_kernel_type
-
+    use apply_split_mixed_operator_kernel_mod, &
+                                 only: apply_u_mixed_operator_kernel_type, &
+                                       apply_w_mixed_operator_kernel_type, &
+                                       apply_wp_mixed_operator_kernel_type, &
+                                       apply_p_mixed_operator_kernel_type
+    use assemble_w2h_from_w2hb_kernel_mod, only: assemble_w2h_from_w2hb_kernel_type
     implicit none
 
     class(mixed_operator_type),  intent(inout) :: self
@@ -148,7 +151,8 @@ contains
                                              m2_diag
     type(r_solver_field_type)             :: x_uvw, y_uvw
     type(function_space_type), pointer    :: u_fs, &
-                                             t_fs
+                                             t_fs, &
+                                             w2hb_fs
     integer(i_def)                        :: p_h, p_v
     type(r_solver_field_type), pointer    :: w2_mask, &
                                              w3_mask
@@ -173,7 +177,9 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    if ( subroutine_timers ) call timer('mixed_operator')
+    type(r_solver_field_type) :: y_uv_broken
+
+    if ( subroutine_timers ) call timer('mixed_solver.operator')
 
     ! Extract mesh ID
     select type (y)
@@ -256,13 +262,46 @@ contains
          case ( eliminate_variables_discrete )
            q32_op => get_eliminated_q32()
            if ( optimised_operator ) then
-             call invoke( name="apply_mixed_operator_new",                                      &
-                          setval_c( yvec_uv, 0.0_r_solver ),                                    &
-                          apply_mixed_operator_kernel_type( yvec_uv, yvec_w, yvec_p,            &
-                                                            xvec_uv, xvec_w, xvec_p,            &
-                                                            ptheta2, mt_lumped_inv,             &
-                                                            mm_vel, p2theta, div_star, m2_diag, &
-                                                            m3_exner_star, q32_op, p3theta )  )
+             if ( .false. ) then
+               call invoke( name="apply_mixed_operator_new",                                      &
+                            setval_c( yvec_uv, 0.0_r_solver ),                                    &
+                            apply_mixed_operator_kernel_type( yvec_uv, yvec_w, yvec_p,            &
+                                                              xvec_uv, xvec_w, xvec_p,            &
+                                                              ptheta2, mt_lumped_inv,             &
+                                                              mm_vel, p2theta, div_star, m2_diag, &
+                                                              m3_exner_star, q32_op, p3theta )  )
+             else
+
+               ! Create broken y_uv
+               w2hb_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
+               call y_uv_broken%initialise( w2hb_fs )
+               if ( .false. ) then
+               call invoke( name="apply_split_mixed_operator",                                        &
+                            apply_u_mixed_operator_kernel_type( y_uv_broken,                          &
+                                                                xvec_uv, xvec_w, xvec_p,              &
+                                                                mm_vel, div_star, m2_diag ),          &
+                            apply_w_mixed_operator_kernel_type( yvec_w,                               &
+                                                                xvec_uv, xvec_w, xvec_p,              &
+                                                                ptheta2, mt_lumped_inv,               &
+                                                                mm_vel, p2theta, div_star, m2_diag ), &
+                            apply_p_mixed_operator_kernel_type( yvec_p,                               &
+                                                                xvec_uv, xvec_w, xvec_p,              &
+                                                                ptheta2, mt_lumped_inv,               &
+                                                                m3_exner_star, q32_op, p3theta ) )
+               else
+               call invoke( name="apply_split_mixed_operator2",                                        &
+                            apply_u_mixed_operator_kernel_type( y_uv_broken,                          &
+                                                                xvec_uv, xvec_w, xvec_p,              &
+                                                                mm_vel, div_star, m2_diag ),          &
+                            apply_wp_mixed_operator_kernel_type( yvec_w, yvec_p,                      &
+                                                                xvec_uv, xvec_w, xvec_p,              &
+                                                                ptheta2, mt_lumped_inv,               &
+                                                                mm_vel, p2theta, div_star, m2_diag,   &
+                                                                m3_exner_star, q32_op, p3theta ) )
+               end if
+               call invoke( setval_c( yvec_uv, 0.0_r_solver ),                                        &
+                            assemble_w2h_from_w2hb_kernel_type(yvec_uv, y_uv_broken)  )
+             end if
            else
            ! Create theta' field
            t_fs => function_space_collection%get_fs( mesh, p_h, p_v, Wtheta )
@@ -359,7 +398,7 @@ contains
        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
 
-    if ( subroutine_timers ) call timer('mixed_operator')
+    if ( subroutine_timers ) call timer('mixed_solver.operator')
 
   end subroutine apply_mixed_operator
 
