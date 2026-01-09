@@ -43,7 +43,7 @@ contains
   !> @param[in]  exner_w3        Exner pressure
   !> @param[in]  mr              Mixing ratio bundle
   !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
-  !> @param[out] plev_geopot     Geopotential height on pressure levels, to be created.
+  !> @param[out] plev_geopot     Geopotential height on pressure levels
   subroutine pres_lev_diags_alg(derived_fields, theta_wth, exner_w3, &
                                 mr, moist_dyn, plev_geopot)
 
