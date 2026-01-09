@@ -6,6 +6,9 @@
   <!-- In this version we have ONE context  -->
   <context id="gungho_atm">
 
+    <!-- Include scalar definitions -->
+    <scalar_definition src="./metadata/scalar_def_main.xml"/>
+
     <!-- Include variable definitions -->
     <variable_definition src="./metadata/variable_def_main.xml" />
 

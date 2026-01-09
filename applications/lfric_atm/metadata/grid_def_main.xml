@@ -3,96 +3,115 @@
   <grid id="node_grid">
     <domain domain_ref="node"/>
     <axis axis_ref="vert_axis_full_levels"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="half_level_face_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_half_levels"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="half_level_edge_grid">
     <domain domain_ref="edge"/>
     <axis axis_ref="vert_axis_half_levels"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_aero_modes">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="aero_modes"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_sw_bands_aero_modes">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="sw_bands_aero_modes"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_lw_bands_aero_modes">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="lw_bands_aero_modes"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_photolysis_pathways">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="photolysis_pathways"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_photol_species">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="photol_species"/>
+    <scalar scalar_ref="frt"/>
   </grid>  
   <grid id="3D_monthly_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="monthly_climatology"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_time_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="lbc_axis"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="half_level_face_time_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_half_levels"/>
     <axis axis_ref="lbc_axis"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="half_level_edge_time_grid">
     <domain domain_ref="edge"/>
     <axis axis_ref="vert_axis_half_levels"/>
     <axis axis_ref="lbc_axis"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <!-- N.B. time axis must be before multidata axis -->
   <grid id="pft_monthly_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="monthly_climatology"/>
     <axis axis_ref="plant_func_types"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_cloud_subcols">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="cloud_subcols"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_sw_bands">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="sw_bands"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_lw_bands">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="lw_bands"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_sw_bands_monthly">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="monthly_climatology"/>
     <axis axis_ref="sw_bands"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_face_grid_lw_bands_monthly">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
     <axis axis_ref="monthly_climatology"/>
     <axis axis_ref="lw_bands"/>
+    <scalar scalar_ref="frt"/>
   </grid>
 
   <!-- for SURF ancillary style files -->
@@ -100,15 +119,18 @@
     <domain domain_ref="face"/>
     <axis axis_ref="snow_layers_and_tiles"/>
     <axis axis_ref="one_time_axis"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="one_time_tile_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="land_tiles"/>
     <axis axis_ref="one_time_axis"/>
+    <scalar scalar_ref="frt"/>
   </grid>
 
   <grid id="scalar_grid">
     <axis axis_ref="scalar_axis"/>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="random_seed_grid">
     <axis axis_ref="random_seed_size"/>
@@ -119,18 +141,21 @@
     <axis axis_ref="vert_axis_full_levels" >
       <zoom_axis begin="0" n="1"/>
     </axis>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="full_level_1_face_zoom">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels" >
       <zoom_axis begin="1" n="1"/>
     </axis>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="half_level_1_face_zoom">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_half_levels" >
       <zoom_axis begin="0" n="1"/>
     </axis>
+    <scalar scalar_ref="frt"/>
   </grid>
 
   <!-- Reduce filters -->
@@ -139,11 +164,13 @@
     <scalar id="zmax">
       <reduce_axis operation="max" />
     </scalar>
+    <scalar scalar_ref="frt"/>
   </grid>
   <grid id="vert_sum_face_grid">
     <domain domain_ref="face"/>
     <scalar>
       <reduce_axis operation="sum" />
     </scalar>
+    <scalar scalar_ref="frt"/>
   </grid>
 </grid_definition>
