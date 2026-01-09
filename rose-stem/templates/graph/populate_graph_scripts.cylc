@@ -65,14 +65,6 @@
         task
         ]) %}
 
-    {% if "macro_chains_checker" in task or "validate_rose_meta" in task %}
-        {# The macro chains checker relies on the export of SimSys_Scripts #}
-        {% do graph_sections.append([
-            "export_simsys_scripts",
-            task
-            ]) %}
-    {% endif %}
-
     {% set task_values = requested_tasks[task] %}
     {% if task not in tasks_to_run %}
         {% do tasks_to_run.update({task: task_values}) %}

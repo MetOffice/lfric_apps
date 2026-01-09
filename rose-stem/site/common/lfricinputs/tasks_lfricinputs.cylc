@@ -18,7 +18,7 @@
 {% endif %}
 
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/applications/lfricinputs"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/lfricinputs"}) %}
     {% if "app_name" not in task_dict %}
         {% set app_name = task_ns.conf_name.split("-")[0] %}
         {% do task_dict.update({"app_name": app_name}) %}

@@ -14,7 +14,7 @@
 
 program shallow_water
 
-  use cli_mod,                   only: get_initial_filename
+  use cli_mod,                   only: parse_command_line
   use driver_collections_mod,    only: init_collections, final_collections
   use driver_comm_mod,           only: init_comm, final_comm
   use driver_config_mod,         only: init_config, final_config
@@ -40,6 +40,8 @@ program shallow_water
   type(modeldb_type)        :: modeldb
   character(:), allocatable :: filename
 
+  call parse_command_line( filename )
+
   modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
@@ -56,7 +58,6 @@ program shallow_water
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call init_comm( program_name, modeldb )
-  call get_initial_filename( filename )
   call init_config( filename, shallow_water_required_namelists, &
                     modeldb%configuration )
   call init_logger( global_mpi%get_comm(), program_name )

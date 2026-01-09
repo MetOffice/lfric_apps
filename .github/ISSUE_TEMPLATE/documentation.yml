@@ -1,0 +1,31 @@
+name: Documentation Issue
+description: Report an issue with the LFRic Apps documentation or suggest an improvement.
+labels: ["documentation"]
+type: task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to help improve the LFRic Apps documentation.
+  - type: input
+    id: linked-issues
+    attributes:
+      label: Are there any linked Issues or Pull Requests?
+      description: Please tell us about any other issues that might be associated with this issue or PRs that may be affected.
+      placeholder: e.g. "#12, MetOffice/lfric_apps#33, ticket:1981"
+    validations:
+      required: false
+  - type: textarea
+    id: issue-brief
+    attributes:
+      label: Brief description
+      description: Please give a brief description of the issue or improvement.
+      placeholder: Brief description of issue.
+    validations:
+      required: true
+  - type: textarea
+    id: detailed-description
+    attributes:
+      label: Further details of the issue.
+      description: Please give a detailed description of the issue to help with development including any requirements and links to additional literature.
+
