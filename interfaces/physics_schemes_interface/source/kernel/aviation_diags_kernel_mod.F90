@@ -9,7 +9,7 @@
 MODULE aviation_diags_kernel_mod
 
   USE argument_mod,         ONLY: arg_type,            &
-                                  GH_FIELD, GH_SCALAR, &
+                                  GH_FIELD, GH_SCALAR, GH_LOGICAL, &
                                   GH_READ, GH_WRITE, GH_INTEGER, &
                                   GH_REAL, CELL_COLUMN, &
                                   ANY_DISCONTINUOUS_SPACE_1, &
@@ -21,7 +21,7 @@ MODULE aviation_diags_kernel_mod
 
   ! The aviation diagnostics kernel type.
   TYPE, EXTENDS(kernel_type) :: aviation_diags_kernel_type
-    TYPE(arg_type), DIMENSION(6) :: meta_args = (/ &
+    TYPE(arg_type), DIMENSION(8) :: meta_args = (/ &
 
       ! Output fields.
       arg_type(gh_field, gh_real, gh_write, ANY_DISCONTINUOUS_SPACE_1), &
@@ -29,6 +29,10 @@ MODULE aviation_diags_kernel_mod
 
       ! Source field.
       arg_type(gh_field, gh_real, gh_read, ANY_DISCONTINUOUS_SPACE_2), &
+
+      ! Request flags.
+      arg_type(gh_scalar, gh_logical, gh_read), &
+      arg_type(gh_scalar, gh_logical, gh_read), &
 
       ! Level indices.
       arg_type(gh_scalar, gh_integer, gh_read), &
@@ -45,8 +49,19 @@ MODULE aviation_diags_kernel_mod
 CONTAINS
 
   SUBROUTINE aviation_diags_kernel_code(nlayers, &
+             ! Output fields.
              thickness_850, thickness_500, &
-             plev_geopot, i1000, i850, i500, &
+
+             ! Source field.
+             plev_geopot, &
+
+             ! Request flags.
+             thickness_850_flag, thickness_500_flag, &
+
+             ! Level incides.
+             i1000, i850, i500, &
+
+             ! Kernel stuff.
              result_ndf, result_undf, result_map, &
              source_ndf, source_undf, source_map)
 
@@ -86,21 +101,22 @@ CONTAINS
 
     ! Local variables
     INTEGER(KIND=i_def) :: df
+    REAL(KIND=r_def) :: gph_1000
 
 
     ! Process every DOF in this cell.
     DO df = 1, result_ndf
 
+      gph_1000 = plev_geopot(source_map(df) + i1000-1)
+
       IF (i850 /= -1) THEN
         thickness_850(result_map(df)) = &
-          plev_geopot(source_map(df)+i850-1) - &
-          plev_geopot(source_map(df)+i1000-1)
+          plev_geopot(source_map(df)+i850-1) - gph_1000
       END IF
 
       IF (i500 /= -1) THEN
         thickness_500(result_map(df)) = &
-          plev_geopot(source_map(df)+i500-1) - &
-          plev_geopot(source_map(df)+i1000-1)
+          plev_geopot(source_map(df)+i500-1) - gph_1000
       END IF
 
     END DO

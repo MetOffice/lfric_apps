@@ -107,16 +107,16 @@ CONTAINS
 
       ! 850?
       ELSE IF ( abs(plevs(i) - 85000.0_r_def) < plev_tol ) THEN
-        IF (aviation_thick_850_flag) i850 = i
+        i850 = i
 
       ! 500?
       ELSE IF ( abs(plevs(i) - 50000.0_r_def) < plev_tol ) THEN
-        IF (aviation_thick_500_flag) i500 = i
+        i500 = i
 
       END IF
     END DO
 
-    ! Check we found the levels, if requested.
+    ! Check we found the required levels.
     IF (i1000 == -1) THEN
         WRITE(log_scratch_space, '(A)') 'could not find 1000hPa'
         CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
@@ -139,8 +139,12 @@ CONTAINS
     ! Todo: Comment why we initialise to 1.0 and not 0.0. I can't remember.
     CALL invoke( &
       setval_c(aviation_thick_850, 1.0_r_def), &
-      aviation_diags_kernel_type(aviation_thick_850, aviation_thick_500, &
-        plev_geopot, i1000, i850, i500) &
+      setval_c(aviation_thick_500, 1.0_r_def), &
+      aviation_diags_kernel_type(&
+        aviation_thick_850, aviation_thick_500, &
+        plev_geopot, &
+        aviation_thick_850_flag, aviation_thick_500_flag, &
+        i1000, i850, i500) &
     )
 
     ! Write the fields
