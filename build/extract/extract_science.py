@@ -1,3 +1,8 @@
+##############################################################################
+# (c) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
 import argparse
 import subprocess
 import os
@@ -58,7 +63,8 @@ def clone_dependency(values: Dict, temp_dep: Path) -> None:
         run_command(command)
 
 
-def extract_files(dependency: str, values: Dict, files: List[str], working: Path):
+def extract_files(
+        dependency: str, values: Dict, files: List[str], working: Path):
     """
     Clone the dependency to a temporary location
     Then copy the desired files to the working directory
@@ -86,7 +92,8 @@ def extract_files(dependency: str, values: Dict, files: List[str], working: Path
         source_file = temp_dep / extract_file
         dest_file = working_dep / extract_file
         dest_file.parent.mkdir(parents=True, exist_ok=True)
-        copy_command = f"cp -r -u --preserve=timestamps {source_file} {dest_file}"
+        copy_command = \
+            f"cp -r -u --preserve=timestamps {source_file} {dest_file}"
         run_command(copy_command)
 
     rmtree(tempdir)
@@ -105,7 +112,8 @@ def parse_args() -> argparse.Namespace:
         help="The dependencies file for the apps working copy.",
     )
     parser.add_argument(
-        "-w", "--working", default=".", help="Location to perform extract steps in."
+        "-w", "--working", default=".",
+        help="Location to perform extract steps in."
     )
     parser.add_argument(
         "-e",
