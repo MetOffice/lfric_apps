@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2022 Met Office. All rights reserved.
+! (c) Crown copyright 2026 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -59,15 +59,15 @@ contains
 !> @param[in] undf_w2_broken Number of (local) unique degrees of freedom for W2 broken
 !> @param[in] map_w2_broken Dofmap for the cell at the base of the column for W2 broken
 subroutine assemble_w2h_from_w2hb_code( nlayers,          &
-                                   field_w2,         &
-                                   field_w2_broken,  &
-                                   ndf_w2,           &
-                                   undf_w2,          &
-                                   map_w2,           &
-                                   ndf_w2_broken,    &
-                                   undf_w2_broken,   &
-                                   map_w2_broken     &
-                                 )
+                                        field_w2,         &
+                                        field_w2_broken,  &
+                                        ndf_w2,           &
+                                        undf_w2,          &
+                                        map_w2,           &
+                                        ndf_w2_broken,    &
+                                        undf_w2_broken,   &
+                                        map_w2_broken     &
+                                      )
 
   implicit none
 
@@ -78,8 +78,8 @@ subroutine assemble_w2h_from_w2hb_code( nlayers,          &
   integer(kind=i_def), dimension(ndf_w2_broken),  intent(in) :: map_w2_broken
   integer(kind=i_def), dimension(ndf_w2),         intent(in) :: map_w2
 
-  real(kind=r_solver),    dimension(undf_w2),     intent(inout) :: field_w2
-  real(kind=r_solver),    dimension(undf_w2_broken), intent(in) :: field_w2_broken
+  real(kind=r_solver), dimension(undf_w2),        intent(inout) :: field_w2
+  real(kind=r_solver), dimension(undf_w2_broken), intent(in)    :: field_w2_broken
 
   ! Internal variables
   integer(kind=i_def) :: df, k
