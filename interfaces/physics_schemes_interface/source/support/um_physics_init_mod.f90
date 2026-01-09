@@ -338,7 +338,7 @@ contains
          lem_adjust, interactive_fluxes, specified_fluxes_only,            &
          except_disc_inv, ntml_level_corrn, free_trop_layers, sharpest,    &
          lem_stability, sg_shear_enh_lambda, l_new_kcloudtop, buoy_integ,  &
-         l_reset_dec_thres, DynDiag_ZL_CuOnly, var_diags_opt,              &
+         l_reset_dec_thres, DynDiag_ZL_CuOnly,                             &
          i_interp_local, i_interp_local_gradients,                         &
          split_tke_and_inv, l_noice_in_turb, l_use_var_fixes,              &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
@@ -767,7 +767,6 @@ contains
       end select
 
       ! Switch for alternative TKE and variance diagnostics
-      var_diags_opt = split_tke_and_inv
       tke_diag_fac  = 1.0_r_bl
       l_use_var_fixes = .true.
       zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
