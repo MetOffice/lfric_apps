@@ -1,0 +1,62 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Sphinx
+documentation/build
+
+# Jetbrains
+.idea
+
+# vscode
+.vscode
+
+#  vi/vim
+*~
+*.swp
+*.swo
+
+# Emacs backup files
+.#*
+\#*#
+
+# Python
+__pycache__
+*.pyc
+.pytest_cache
+
+# LFRic CL Builds
+applications/**/bin
+applications/**/working
+applications/**/example*/
+science/**/bin
+science/**/working

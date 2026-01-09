@@ -105,11 +105,6 @@
     {% endif %}
 {% endif %}
 
-{# Add task to export github scripts from SimSys_Scripts repo #}
-{# Runtime section in runtime/generate_runtime_scripts #}
-{% do graph_sections.append(["export_simsys_scripts"]) %}
-{% do tasks_to_run.update({"export_simsys_scripts": {} }) %}
-
 
 {# Set Housekeeping task if housekeeping is true - default value #}
 {# One housekeeping task per platform being run on #}

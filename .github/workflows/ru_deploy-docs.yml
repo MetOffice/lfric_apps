@@ -1,0 +1,28 @@
+# ------------------------------------------------------------------------------
+#  (c) Crown copyright Met Office. All rights reserved.
+#  The file LICENCE, distributed with this code, contains details of the terms
+#  under which the code may be used.
+# ------------------------------------------------------------------------------
+
+name: Deploy Docs
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Configure GitHub Pages
+        id: configure
+        uses: actions/configure-pages@v4
+      - name: Deploy GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
