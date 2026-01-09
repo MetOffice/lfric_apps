@@ -27,7 +27,7 @@ module tl_mol_conservative_alg_mod
   use runge_kutta_init_mod,           only: get_rk_transport_weights
   use split_transport_utils_mod,      only: get_num_split_steps, &
                                             get_splitting_direction
-  use transport_constants_mod,        only: get_directional_im3_div
+  use transport_constants_mod,        only: get_directional_im3_div_r_tran
   use transport_controller_mod,       only: transport_controller_type
   use tl_transport_controller_mod,    only: tl_transport_controller_type
   use transport_counter_mod,          only: transport_counter_type
@@ -106,7 +106,9 @@ module tl_mol_conservative_alg_mod
     type(field_type),            allocatable :: rk_field(:)
     real(kind=r_def),            allocatable :: rk_weights(:,:)
     type(transport_metadata_type),   pointer :: transport_metadata
+    type(transport_metadata_type),   pointer :: ls_transport_metadata
     type(transport_counter_type),    pointer :: transport_counter
+    type(transport_counter_type),    pointer :: ls_transport_counter
     type(transport_controller_type), pointer :: transport_controller
     type(transport_controller_type), pointer :: ls_transport_controller
     type(transport_controller_type), pointer :: pert_transport_controller
@@ -126,11 +128,18 @@ module tl_mol_conservative_alg_mod
     transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    
     transport_metadata => pert_transport_controller%get_transport_metadata()
+    ls_transport_metadata => transport_controller%get_transport_metadata()
+    
     transport_counter => pert_transport_controller%get_transport_counter()
+    ls_transport_counter => transport_controller%get_transport_counter()
+    
     flux_precomputations => transport_controller%get_flux_precomputations()
+    
     ls_wind_flux_precomp => ls_transport_controller%get_flux_precomputations()
     pert_wind_flux_precomp => pert_transport_controller%get_flux_precomputations()
+    
     ls_wind_precomputations => ls_transport_controller%get_wind_precomputations()
     pert_wind_precomputations => pert_transport_controller%get_wind_precomputations()
 
@@ -146,7 +155,7 @@ module tl_mol_conservative_alg_mod
     dt_mol_substep = ls_wind_precomputations%get_dt_mol_substep(               &
             mesh%get_id(), direction, splitting, step                          &
     )
-    div => get_directional_im3_div(mesh_id, direction)
+    div => get_directional_im3_div_r_tran(mesh_id, direction)
 
     call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
     allocate( rk_field(nstage) )
@@ -248,7 +257,7 @@ module tl_mol_conservative_alg_mod
 
         call advective_and_flux_alg(flux_step, adv_inc, rhs_field, ls_field_n, &
                                     ls_advecting_wind, direction,              &
-                                    transport_metadata, final_rk_stage,        &
+                                    ls_transport_metadata, final_rk_stage,     &
                                     dt_mol_substep, do_flux, do_advective)
 
         if ( do_flux ) then
@@ -291,7 +300,7 @@ module tl_mol_conservative_alg_mod
     ! increment, and may be adjusted to enforce min value or in blending zone
     call end_of_conservative_step_alg(                                         &
             ls_field_np1, ls_field, ls_sum_flux, flux_precomputations,         &
-            transport_counter, transport_metadata                              &
+            ls_transport_counter, ls_transport_metadata                        &
     )
 
     ! ======================================================================== !

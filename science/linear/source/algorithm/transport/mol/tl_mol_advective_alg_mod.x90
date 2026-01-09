@@ -73,7 +73,10 @@ contains
     type(field_type),            allocatable :: rk_field(:)
     real(kind=r_def),            allocatable :: rk_weights(:,:)
     type(transport_metadata_type),   pointer :: transport_metadata
+    type(transport_metadata_type),   pointer :: ls_transport_metadata
     type(transport_counter_type),    pointer :: transport_counter
+    type(transport_counter_type),    pointer :: ls_transport_counter
+    type(transport_controller_type), pointer :: transport_controller
     type(transport_controller_type), pointer :: ls_transport_controller
     type(transport_controller_type), pointer :: pert_transport_controller
     type(wind_precomputations_type), pointer :: ls_wind_precomputations
@@ -83,10 +86,17 @@ contains
     ! Extract transport objects and initialise temporary fields
     ! ------------------------------------------------------------------------ !
     mesh => field%get_mesh()
+    
+    transport_controller => tl_transport_controller%get_ls_wind_ls_rho_controller()
     ls_transport_controller => tl_transport_controller%get_ls_wind_pert_rho_controller()
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
+    
     transport_metadata => pert_transport_controller%get_transport_metadata()
+    ls_transport_metadata => transport_controller%get_transport_metadata()
+    
     transport_counter => pert_transport_controller%get_transport_counter()
+    ls_transport_counter => transport_controller%get_transport_counter()
+    
     ls_wind_precomputations => ls_transport_controller%get_wind_precomputations()
     pert_wind_precomputations => pert_transport_controller%get_wind_precomputations()
 
@@ -153,9 +163,9 @@ contains
         end do
 
         ! Compute update: rhs = u.grad(rhs_field)
-        call advective_and_flux_alg(dummy, rhs, rhs_field, ls_field_n,  &
-                                    ls_advecting_wind, direction,       &
-                                    transport_metadata, final_rk_stage, &
+        call advective_and_flux_alg(dummy, rhs, rhs_field, ls_field_n,     &
+                                    ls_advecting_wind, direction,          &
+                                    ls_transport_metadata, final_rk_stage, &
                                     dt_mol_substep, .false., .true. )
 
         ! Update field: f = f^n - dt*rhs
@@ -165,8 +175,8 @@ contains
     end do
 
     ! End of step: if necessary enforce min val and overwrite in blending zone
-    call end_of_advective_step_alg(                                            &
-            ls_field_np1, ls_field_n, transport_counter, transport_metadata    &
+    call end_of_advective_step_alg(                                               &
+            ls_field_np1, ls_field_n, ls_transport_counter, ls_transport_metadata &
     )
 
     ! --------------------------------------------------------------------------
