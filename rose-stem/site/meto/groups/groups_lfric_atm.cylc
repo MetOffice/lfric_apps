@@ -9,6 +9,9 @@
 {# Azspice Test Groups #}
 {# ###################################################################### #}
 {% do site_groups.update({
+    "lfric_atm_solver": [
+        "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-32bit",
+        ],
     "lfric_atm_nwp_azspice_developer": [
         "lfric_atm_nwp_gal9-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal9-C12_azspice_gnu_fast-debug-64bit",

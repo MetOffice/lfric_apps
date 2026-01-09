@@ -28,14 +28,14 @@ private
 
 type, public, extends(kernel_type) :: apply_u_mixed_operator_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                        &
+  type(arg_type) :: meta_args(7) = (/                       &
        arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W2broken),  & ! lhs_uv
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2h),        & ! uv'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2v),        & ! w'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),         & ! exner'
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W2),     & ! Mu^{c,d}
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W3),     & ! grad
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2)          & ! norm_u
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2h),       & ! uv'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2v),       & ! w'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),        & ! exner'
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W2),    & ! Mu^{c,d}
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W3),    & ! grad
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2)         & ! norm_u
        /)
   integer :: operates_on = CELL_COLUMN
   contains
