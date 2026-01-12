@@ -65,9 +65,6 @@ contains
     character(str_def) :: prime_mesh_name
     character(str_def) :: context_name
 
-    character(str_max_filename) :: iau_addinf_path
-    character(str_max_filename) :: iau_bcorr_path
-
     logical(l_def) :: use_xios_io
 
     procedure(callback_clock_arg), pointer :: before_close
@@ -80,8 +77,6 @@ contains
     time_origin     = modeldb%config%time%calendar_origin()
     time_start      = modeldb%config%time%calendar_start()
     prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
-    iau_addinf_path = modeldb%config%files%iau_addinf_path()
-    iau_bcorr_path  = modeldb%config%files%iau_bcorr_path()
     use_xios_io     = modeldb%config%io%use_xios_io()
 
     ! get filename and set up context name for this file
