@@ -9,13 +9,14 @@
 Wrapper script for makefiles when doing a local build
 Will export a copy of lfric_core using a defined source and rsync it to a
 working dir so that incremental builds can occur.
-It then runs the makefile for the application being made.
+It then runs the makefile for the project being made.
 """
 
 import os
 import sys
 import subprocess
 import argparse
+import yaml
 
 
 def subprocess_run(command):
@@ -55,60 +56,65 @@ def determine_core_source(root_dir):
 
     # Read through the dependencies file and populate revision and source
     # variables for requested repo
-    with open(os.path.join(root_dir, "dependencies.sh"), "r") as dep_file:
-        for line in dep_file:
-            line = line.strip()
-            if line.startswith("export lfric_core_rev"):
-                rev = line.split("=")[1].strip()
-            if line.startswith("export lfric_core_sources"):
-                source = line.split("=")[1].strip()
-        # If source not set then default to trunk
-        if not source:
-            source = "fcm:lfric.xm_tr"
-        # If a revision set then append to source
-        # Defaults to the head of the source
-        if rev:
-            source = f"{source}@{rev}"
-    return source
+    with open(os.path.join(root_dir, "dependencies.yaml"), "r") as stream:
+        dependencies = yaml.safe_load(stream)
+    return dependencies["lfric_core"]
 
 
-def determine_application_path(application, root_dir):
+def determine_project_path(project, root_dir):
     """
-    Determine the path to the makefile for the lfric_apps application being
+    Determine the path to the makefile for the lfric_apps project being
     built. Defaults to the makefile in the top level if none provided.
     Returns a relative path from this file to the makefile directory
     """
 
-    # Find the application in either science/ interfaces/ or applications/
+    # Find the project in either science/ interfaces/ or applications/
     for drc in ["science/", "interfaces/", "applications/"]:
         path = os.path.join(root_dir, drc)
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
-            if item_path and item == application:
+            if item_path and item == project:
                 return item_path
 
     sys.exit(
-        f"The application {application} could not be found in either the "
+        f"The project {project} could not be found in either the "
         "science/ or applications/ directories in this working copy."
     )
 
 
+def clone_dependency(values, temp_dep):
+    """
+    Clone the physics dependencies into a temporary directory
+    """
+
+    source = values["source"]
+    ref = values["ref"]
+
+    commands = (
+        f"git -C {temp_dep} init",
+        f"git -C {temp_dep} remote add origin {source}",
+        f"git -C {temp_dep} fetch origin {ref}",
+        f"git -C {temp_dep} checkout FETCH_HEAD"
+    )
+    for command in commands:
+        subprocess_run(command)
+
+
 def get_lfric_core(core_source, working_dir):
     """
-    Export the lfric_core source if the source is an fcm url
+    Clone the lfric_core source if the source is a git url
     rsync this export into the working dir as the lfric_core source - done so
     incremental builds can still be used.
     If core_source is a local working copy just rsync from there.
     """
 
-    if core_source.startswith("fcm:"):
-        print(f"Exporting lfric_core source from {core_source}")
+    if core_source["source"].endswith(".git"):
+        print("Cloning LFRic Core from Github")
         lfric_core_loc = f"{working_dir}/scratch/core"
-        export_command = f"fcm export --force -q {core_source} {lfric_core_loc}"
-        subprocess_run(export_command)
+        clone_dependency(core_source["source"], core_source["ref"], lfric_core_loc)
         print("rsyncing the exported lfric_core source")
     else:
-        lfric_core_loc = core_source
+        lfric_core_loc = core_source["source"]
         print("rsyncing the local lfric_core source")
 
     rsync_command = f"rsync -acvzq {lfric_core_loc}/ {working_dir}/lfric_core"
@@ -117,8 +123,8 @@ def get_lfric_core(core_source, working_dir):
 
 def build_makefile(
     root_dir,
-    application_path,
-    application,
+    project_path,
+    project,
     working_dir,
     ncores,
     target,
@@ -128,17 +134,17 @@ def build_makefile(
     verbose,
 ):
     """
-    Call the make command to build lfric_apps application
+    Call the make command to build lfric_apps project
     """
 
     if target == "clean":
         working_path = working_dir
     else:
-        working_path = os.path.join(working_dir, f"{target}_{application}")
+        working_path = os.path.join(working_dir, f"{target}_{project}")
 
-    print(f"Calling make command for makefile at {application_path}")
+    print(f"Calling make command for makefile at {project_path}")
     make_command = (
-        f"make {target} -C {application_path} -j {ncores} "
+        f"make {target} -C {project_path} -j {ncores} "
         f"WORKING_DIR={working_path} "
         f"CORE_ROOT_DIR={working_dir}/lfric_core "
         f"APPS_ROOT_DIR={root_dir} "
@@ -150,7 +156,7 @@ def build_makefile(
     if um_fcm_platform:
         make_command += f"UM_FCM_TARGET_PLATFORM={um_fcm_platform} "
     if verbose:
-        make_command += f"VERBOSE=1 "
+        make_command += "VERBOSE=1 "
 
     subprocess_run(make_command)
 
@@ -164,24 +170,21 @@ def main():
         description="Wrapper for build makefiles for lfric_apps."
     )
     parser.add_argument(
+        "project",
+        help="project to build. Will search in both "
+        "science and projects dirs.",
+    )
+    parser.add_argument(
         "-c",
         "--core_source",
         default=None,
-        help="Source for lfric_core. Defaults to looking in "
-        "dependencies file.",
-    )
-    parser.add_argument(
-        "-a",
-        "--application",
-        required=True,
-        help="Application to build. Will search in both "
-        "science and applications dirs.",
+        help="Source for lfric_core. Defaults to looking in " "dependencies file.",
     )
     parser.add_argument(
         "-w",
         "--working_dir",
         default=None,
-        help="Working directory where builds occur. Default to the application "
+        help="Working directory where builds occur. Default to the project "
         "directory in the working copy.",
     )
     parser.add_argument(
@@ -194,8 +197,7 @@ def main():
         "-t",
         "--target",
         default="build",
-        help="The makefile target, eg. unit-tests, clean, etc. Default "
-        "of build.",
+        help="The makefile target, eg. unit-tests, clean, etc. Default " "of build.",
     )
     parser.add_argument(
         "-o",
@@ -222,7 +224,7 @@ def main():
     parser.add_argument(
         "-v",
         "--verbose",
-        action='store_true',
+        action="store_true",
         help="Request verbose output from the makefile ",
     )
     args = parser.parse_args()
@@ -231,11 +233,11 @@ def main():
     root_dir = get_root_path()
 
     # Work out path for the makefile that we are building
-    application_path = determine_application_path(args.application, root_dir)
+    project_path = determine_project_path(args.project, root_dir)
 
-    # Set the working dir default of the application directory
+    # Set the working dir default of the project directory
     if not args.working_dir:
-        args.working_dir = os.path.join(application_path, "working")
+        args.working_dir = os.path.join(project_path, "working")
     else:
         # If the working dir doesn't end in working, set that here
         if not args.working_dir.strip("/").endswith("working"):
@@ -247,16 +249,18 @@ def main():
 
     # Determine the core source if not provided
     if args.core_source is None:
-        args.core_source = determine_core_source(root_dir)
+        core_source = determine_core_source(root_dir)
+    else:
+        core_source = {"source": args.core_source}
 
     # Export and rsync the lfric_core source
-    get_lfric_core(args.core_source, args.working_dir)
+    get_lfric_core(core_source, args.working_dir)
 
     # Build the makefile
     build_makefile(
         root_dir,
-        application_path,
-        args.application,
+        project_path,
+        args.project,
         args.working_dir,
         args.ncores,
         args.target,

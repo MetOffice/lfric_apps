@@ -56,7 +56,6 @@ def get_precision(build_string):
     # Construct the output string defining the precision
     # Potentially change the default such that it is the most common
     # This ensures that all tasks with the same build get the same build string
-    values_list = list(precisions.values())
     precision_string = f"{default}bit"
     for precision_type in types:
         num = precisions[precision_type[0]]

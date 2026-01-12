@@ -39,7 +39,7 @@ if __name__ == "__main__":
     command = f"cylc lint {source} -n S007 -n S012 -n S013 -n S014"
     result = run_command(command)
     try:
-        nissues = int(re.search("found (\d+) issue", result.stdout).group(1))
+        nissues = int(re.search(r"found (\d+) issue", result.stdout).group(1))
         print(result.stdout, file=sys.stderr)
         sys.exit(
             f"{nissues} Errors were detected - please fix them and run again"

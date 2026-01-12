@@ -20,9 +20,7 @@
 
 extract:
 	# Retrieve and preprocess the UKCA and CASIM code
-	$Q. $(APPS_ROOT_DIR)/dependencies.sh \
-	   && fcm make -C $(SCRATCH_DIR) -f $(APPS_ROOT_DIR)/build/extract/extract.cfg
-	# Note that if wanting to modify UM source this should be done via the
-	# UM repository either through a working copy or branch
-	$Qrsync -acvz $(SCRATCH_DIR)/extract/ $(WORKING_DIR)/science/
+	python $(APPS_ROOT_DIR)/build/extract/extract_science.py -d $(APPS_ROOT_DIR)/dependencies.yaml -w $(SCRATCH_DIR) -e $(APPS_ROOT_DIR)/build/extract/extract.yaml
+	$Qrsync -acvz $(SCRATCH_DIR)/ukca $(WORKING_DIR)/science/
+	$Qrsync -acvz $(SCRATCH_DIR)/casim $(WORKING_DIR)/science/
 

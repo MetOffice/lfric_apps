@@ -32,7 +32,13 @@
 {# EX1A Groups #}
 {% do site_groups.update({
     "linear_model_ex1a_developer": [
+<<<<<<< HEAD
         "linear_model_nwp_gal9-C224_MG_ex1a_gnu_production-32bit",
+=======
+        "linear_model_nwp_gal9-C12_MG_ex1a_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9_random-C12_MG_ex1a_gnu_fast-debug-64bit",
+        "linear_model_nwp_gal9_zero-C12_MG_ex1a_gnu_fast-debug-64bit",
+>>>>>>> origin/stable
         "linear_model_runge-kutta-C12_ex1a_gnu_fast-debug-64bit",
         "linear_model_semi-implicit-C12_ex1a_gnu_fast-debug-64bit",
         "linear_model_dcmip301-C24_ex1a_gnu_fast-debug-64bit",
@@ -59,6 +65,9 @@
     "linear_model_ex1a_canned": [
         "linear_model_canned_ex1a_gnu_fast-debug-64bit",
     ],
+    "linear_model_ex1a_weekly": [
+        "linear_model_nwp_gal9-C224_MG_ex1a_gnu_fast-debug-64bit",
+    ],
     }) %}
 
 {# Platform Generic Groups #}
@@ -80,6 +89,9 @@
     "linear_model_canned": [
         "linear_model_azspice_canned",
         "linear_model_ex1a_canned",
+    ],
+    "linear_model_weekly": [
+        "linear_model_ex1a_weekly",
     ],
     }) %}
 

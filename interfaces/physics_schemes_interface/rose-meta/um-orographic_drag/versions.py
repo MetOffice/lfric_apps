@@ -2,7 +2,7 @@ import sys
 
 from metomi.rose.upgrade import MacroUpgrade
 
-from .version21_22 import *
+from .version22_30 import *
 
 
 class UpgradeError(Exception):

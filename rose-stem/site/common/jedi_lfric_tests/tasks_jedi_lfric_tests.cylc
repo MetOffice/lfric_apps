@@ -255,7 +255,7 @@
 
 {# Set default values #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/applications/jedi_lfric_tests"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/jedi_lfric_tests"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "jedi_lfric_tests"}) %}
     {% endif %}
