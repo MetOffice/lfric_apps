@@ -17,6 +17,7 @@
 program lfric_atm
 
   use cli_mod,                only: parse_command_line
+  use constants_mod,           only: l_def
   use driver_collections_mod, only: init_collections, final_collections
   use driver_comm_mod,        only: init_comm, final_comm
   use driver_config_mod,      only: init_config, final_config
@@ -29,7 +30,8 @@ program lfric_atm
   use gungho_driver_mod,      only: initialise, step, finalise
   use lfric_mpi_mod,          only: global_mpi
 
-  use timing_mod,             only: init_timing, start_timing, stop_timing, final_timing, tik, LPROF
+  use timing_mod,             only: init_timing, start_timing, &
+                                    stop_timing, final_timing, tik, LPROF
 
   implicit none
 
@@ -39,7 +41,8 @@ program lfric_atm
   character(*), parameter :: application_name = "lfric_atm"
   character(:), allocatable :: filename
   integer(tik)              :: timing_handle_global
-  logical :: lsubroutine_timers
+
+  logical(l_def) :: lsubroutine_timers
 
   call parse_command_line( filename )
 
