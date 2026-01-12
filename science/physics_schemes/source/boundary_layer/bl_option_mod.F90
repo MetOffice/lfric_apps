@@ -297,13 +297,6 @@ real(kind=r_bl) :: tke_diag_fac = rmdi
 ! 16 Include convective effects in TKE diagnostic
 logical :: l_conv_tke = .false.
 
-! 17 Use separate rhokm_ent arrays to hold momentum entrainment coefficients
-!    (preferred)
-logical :: l_use_var_fixes = .false.
-! Use fixes (separate rhokm_ent variables instead of rhokm array,
-! don't create DSC layers when no top-driven turbulence and
-! set zh to max(zh, zsml_top), not just ntml to keep consistent
-
 ! 18 Switch to ignore cloud ice (qcf) in the BL scheme
 logical :: l_noice_in_turb = .false.
 
@@ -519,7 +512,7 @@ logical :: l_calc_tau_at_p = .false.
 namelist/run_bl/ i_bl_vn, sbl_op, cbl_op, cbl_mix_fac_nml,                     &
     l_use_surf_in_ri, lambda_min_nml, ritrans, c_gust,                         &
     dzrad_disc_opt, num_sweeps_bflux, l_converge_ga,                           &
-    local_fa, Keep_Ri_FA, l_bl_mix_qcf, l_conv_tke, l_use_var_fixes,           &
+    local_fa, Keep_Ri_FA, l_bl_mix_qcf, l_conv_tke,                            &
     l_reset_neg_q, tke_diag_fac, i_interp_local,                               &
     sg_orog_mixing, fric_heating, calc_prob_of_vis, z_nl_bl_levels,            &
     idyndiag, zhloc_depth_fac, flux_grad, entr_smooth_dec,                     &
@@ -620,8 +613,6 @@ call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,I4)') 'num_sweeps_bflux = ',num_sweeps_bflux
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_converge_ga = ',l_converge_ga
-call umprint(linebuffer,src='bl_option_mod')
-write(linebuffer,'(A,L1)') 'l_use_var_fixes = ',l_use_var_fixes
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,ES12.4)') 'tke_diag_fac = ',tke_diag_fac
 call umprint(linebuffer,src='bl_option_mod')

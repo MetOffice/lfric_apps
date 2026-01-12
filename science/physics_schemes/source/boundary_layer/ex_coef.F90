@@ -48,8 +48,7 @@ use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
    lambda_fac, beta_bl, beta_fa, rlinfac, linear0,                             &
    to_sharp_across_1km, ntml_level_corrn, free_trop_layers, two_thirds,        &
    blending_option, blend_except_cu, blend_gridindep_fa, blend_cth_shcu_only,  &
-   extended_tail, sg_shear_enh_lambda, l_use_var_fixes,                        &
-   split_tke_and_inv, zero, one, one_half
+   extended_tail, sg_shear_enh_lambda, zero, one, one_half
 use conversions_mod, only: pi => pi_bl
 use gen_phys_inputs_mod, only: l_mr_physics
 
@@ -547,7 +546,7 @@ end if
 !     dominate (if ISHEAR_BL=1 selected)
 !-----------------------------------------------------------------------
 !$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP SHARED( pdims, ishear_bl, l_use_var_fixes, ntml_local, ntpar, cumulus,   &
+!$OMP SHARED( pdims, ishear_bl, ntml_local, ntpar, cumulus,                    &
 !$OMP         ntml_nl, zh_local, z_uv, bl_levels, lambda_min, rlambda_fac,     &
 !$OMP         turb_length, blending_option, rmlmax2)      &
 !$OMP private( i, j, k )
@@ -590,7 +589,7 @@ end if
 
 if (local_fa == free_trop_layers) then
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
-!$OMP SHARED( pdims, bl_levels, ntml_local, ri, ricrit, z_uv, l_use_var_fixes, &
+!$OMP SHARED( pdims, bl_levels, ntml_local, ri, ricrit, z_uv,                  &
 !$OMP         turb_length, rlambda_fac, lambda_min )                           &
 !$OMP private( i, j, k, subcrit, kb, kt, kl, turb_length_layer )
   do j = pdims%j_start, pdims%j_end
@@ -611,17 +610,10 @@ if (local_fa == free_trop_layers) then
           ! turb_length(k) is held, with Ri(k), on th-level(k-1)
           !---------------------------------------------------------
           turb_length_layer   = z_uv(i,j,kt) - z_uv(i,j,kb-1)
-          if (l_use_var_fixes) then
-            do kl = kb, kt
-              turb_length(i,j,kl) = max( turb_length(i,j,kl),                  &
-                          min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
-            end do
-          else
-            do kl = kb, kt
-              turb_length(i,j,kl) = max( lambda_min*rlambda_fac,               &
-                          min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
-            end do
-          end if
+          do kl = kb, kt
+            turb_length(i,j,kl) = max( turb_length(i,j,kl),                  &
+                        min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
+          end do
         end if
 
       end do
