@@ -1,0 +1,54 @@
+##############################################################################
+# (c) Crown copyright 2024 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+# This file contains a list of all linked external repositories containing code
+# and data required to build lfric applications and run the entire test suite
+#
+# Each section is the name of the repository
+# source: Is either the url to the repository (the upstream or
+#         a fork) or a path to a local clone with format `host:/path/to/clone`
+# ref: Is a valid git reference. This can either be a commit hash, a tag or a
+#      branch name
+#
+# The entry for this repository will have blank values for both source and ref
+# by default, which will cause the test suite to use the source code from the
+# local clone. These can be filled to set a different source if desired.
+
+casim:
+    source: git@github.com:MetOffice/casim.git
+    ref: 2025.12.1
+
+jules:
+    source: git@github.com:MetOffice/jules.git
+    ref: 2025.12.1
+
+lfric_apps:
+    source:
+    ref:
+
+lfric_core:
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 2025.12.1
+
+moci:
+    source: git@github.com:MetOffice/moci.git
+    ref: 2025.12.1
+
+SimSys_Scripts:
+    source: git@github.com:MetOffice/SimSys_Scripts.git
+    ref: 2025.12.1
+
+socrates:
+    source: git@github.com:MetOffice/socrates.git
+    ref: 2025.12.1
+
+socrates-spectral:
+    source: git@github.com:MetOffice/socrates-spectral.git
+    ref: 2025.12.1
+
+ukca:
+    source: git@github.com:MetOffice/ukca.git
+    ref: 2025.12.1

@@ -22,27 +22,6 @@
         {% do task_dict.update({"wallclock": 120}) %}
     {% endif %}
 
-{% elif task_ns.conf_name == "williamson2_vi-C24" %}
-    {% do task_dict.update({"wallclock": 60}) %}
-
-{% elif task_ns.conf_name == "williamson5-C24" %}
-    {% do task_dict.update({"wallclock": 60}) %}
-
-{% elif task_ns.conf_name == "williamson5_vi-C24" %}
-    {% do task_dict.update({"wallclock": 60}) %}
-
-{% elif "C24" in task_ns.conf_name %}
-    {% do task_dict.update({"wallclock": 40}) %}
-
-{% elif "C96" in task_ns.conf_name %}
-    {% do task_dict.update({"wallclock": 60}) %}
-
-{% elif "BiP32x32-1x1" in task_ns.conf_name %}
-    {% do task_dict.update({"wallclock": 40}) %}
-
-{% elif "BiP64x64-1x1" in task_ns.conf_name %}
-    {% do task_dict.update({"wallclock": 60}) %}
-
 {% endif %}
 
 {% do LOG.debug("Finised in site/meto/shallow_water/tasks_shallow_water_azspice.cylc") %}
