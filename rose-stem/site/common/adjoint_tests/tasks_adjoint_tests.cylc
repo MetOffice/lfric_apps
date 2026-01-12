@@ -19,6 +19,13 @@
         "resolution": "C12",
     }) %}
 
+{% elif task_ns.conf_name == "64bit-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["64bit"],
+        "resolution": "C12",
+    }) %}
+
 {% elif task_ns.conf_name == "canned" %}
 
     {% do task_dict.update({
