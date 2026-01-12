@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2021 Met Office. All rights reserved.
+! (C) Crown copyright 2026 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 !>@details The default is to run all available tests - which
 !!         test whether the linear code is tangent linear to the
 !!         corresponding nonlinear code.
-program semi_implicit
+program nwp_gal9
 
   use driver_collections_mod,  only: init_collections, final_collections
   use driver_time_mod,         only: init_time, final_time
@@ -22,13 +22,16 @@ program semi_implicit
                                      LOG_LEVEL_ERROR, &
                                      LOG_LEVEL_INFO
   use linear_driver_mod,       only: initialise, finalise
-  use tl_test_driver_mod,      only: run_timesteps_random
+  use tl_test_driver_mod,      only: run_timesteps,               &
+                                     run_transport_control,       &
+                                     run_semi_imp_alg,            &
+                                     run_rhs_alg
 
   implicit none
 
   ! Model run working data set
   type(modeldb_type) :: modeldb
-  character(*), parameter :: application_name = 'semi_implicit'
+  character(*), parameter :: application_name = 'nwp_gal9'
   character(:), allocatable :: filename
 
   ! Variables used for parsing command line arguments
@@ -38,6 +41,9 @@ program semi_implicit
 
   ! Flags which determine the tests that will be carried out
   logical :: do_test_timesteps = .false.
+  logical :: do_test_transport_control = .false.
+  logical :: do_test_semi_imp_alg = .false.
+  logical :: do_test_rhs_alg = .false.
 
   ! Usage message to print
   character(len=256) :: usage_message
@@ -97,6 +103,12 @@ program semi_implicit
   select case (trim(test_flag))
   case ("test_timesteps")
      do_test_timesteps = .true.
+  case ("test_transport_control")
+     do_test_transport_control = .true.
+  case ("test_semi_imp_alg")
+     do_test_semi_imp_alg = .true.
+  case ("test_rhs_alg")
+     do_test_rhs_alg = .true.
   case default
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
@@ -110,7 +122,16 @@ program semi_implicit
   call initialise( application_name, modeldb )
 
   if (do_test_timesteps) then
-    call run_timesteps_random(modeldb)
+    call run_timesteps(modeldb)
+  endif
+  if (do_test_transport_control) then
+    call run_transport_control(modeldb)
+  endif
+  if (do_test_rhs_alg) then
+    call run_rhs_alg(modeldb)
+  endif
+  if (do_test_semi_imp_alg) then
+    call run_semi_imp_alg(modeldb)
   endif
 
   call finalise( application_name, modeldb )
@@ -120,4 +141,4 @@ program semi_implicit
   call final_config()
   call final_comm( modeldb )
 
-end program semi_implicit
+end program nwp_gal9
