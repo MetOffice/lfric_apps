@@ -15,7 +15,7 @@ MODULE aviation_diags_kernel_mod
                                   ANY_DISCONTINUOUS_SPACE_1, &
                                   ANY_DISCONTINUOUS_SPACE_2
   USE kernel_mod,           ONLY: kernel_type
-  USE constants_mod,        ONLY: r_def, i_def
+  USE constants_mod,        ONLY: r_def, i_def, l_def
 
   IMPLICIT NONE
 
@@ -94,6 +94,9 @@ CONTAINS
 
     ! Geopotential height at pressure levels.
     REAL(KIND=r_def), INTENT(IN), DIMENSION(source_undf) :: plev_geopot
+
+    ! Request flags.
+    LOGICAL(KIND=l_def), INTENT(IN) :: thickness_850_flag, thickness_500_flag
 
     ! Level indices. For i850 and i500, -1 means "not requested".
     INTEGER(KIND=i_def), INTENT(IN) :: i1000, i850, i500
