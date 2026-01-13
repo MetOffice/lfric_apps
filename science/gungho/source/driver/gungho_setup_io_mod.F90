@@ -116,6 +116,8 @@ module gungho_setup_io_mod
                                        ls_option_file,            &
                                        sst_source,                &
                                        sst_source_start_dump,     &
+                                       sea_ice_source,            &
+                                       sea_ice_source_start_dump, &
                                        coarse_aerosol_ancil,      &
                                        coarse_orography_ancil,    &
                                        coarse_ozone_ancil,        &
@@ -358,6 +360,7 @@ module gungho_setup_io_mod
         end if
 
         ! Set sea surface temperature ancil filename from namelist
+        ! This can still be needed for coupled models for inland lakes
         if (sst_source /= sst_source_start_dump) then
           if (sst_ancil_path(1:1) == '/') then
             write(ancil_fname,'(A)') trim(sst_ancil_path)
@@ -371,7 +374,8 @@ module gungho_setup_io_mod
         end if
 
         ! Set sea ice ancil filename from namelist
-        if (.not. l_couple_sea_ice) then
+        ! This can still be needed for coupled models for inland lakes
+        if (sea_ice_source /= sea_ice_source_start_dump) then
           if (sea_ice_ancil_path(1:1) == '/') then
             write(ancil_fname,'(A)') trim(sea_ice_ancil_path)
           else

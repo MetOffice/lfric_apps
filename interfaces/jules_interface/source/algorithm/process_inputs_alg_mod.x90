@@ -15,7 +15,10 @@ module process_inputs_alg_mod
 
   use initialization_config_mod,  only: sst_source, sst_source_start_dump, &
                                         init_option, init_option_fd_start_dump, &
-                                        snow_source, snow_source_surf
+                                        snow_source, snow_source_surf, &
+                                        sea_ice_source, &
+                                        sea_ice_source_start_dump, &
+                                        sea_ice_source_surf
   use io_config_mod,              only: checkpoint_read
   use section_choice_config_mod,  only: surface, surface_jules, &
                                         radiation, radiation_socrates
@@ -26,6 +29,8 @@ module process_inputs_alg_mod
   use process_ssi_kernel_mod,     only: process_ssi_kernel_type
   use process_soil_kernel_mod,    only: process_soil_kernel_type
   use process_snow_kernel_mod,    only: process_snow_kernel_type
+  use initial_ice_conductivity_kernel_mod, &
+                                  only: initial_ice_conductivity_kernel_type
   use jules_snow_mod,             only: nsmax
   use jules_control_init_mod,     only: n_land_tile, &
                                         first_sea_tile, n_sea_tile, &
@@ -37,6 +42,8 @@ module process_inputs_alg_mod
   use set_topography_kernel_mod,  only: set_topography_kernel_type
   use sci_geometric_constants_mod,      &
                                   only: get_latitude_fv
+  use log_mod,                    only : log_event, log_scratch_space,  &
+                                         LOG_LEVEL_ERROR
 
   implicit none
 
@@ -70,6 +77,7 @@ contains
     type( field_type ), pointer :: land_tile_fraction => null()
     type( field_type ), pointer :: sea_ice_fraction   => null()
     type( field_type ), pointer :: sea_ice_thickness  => null()
+    type( field_type ), pointer :: sea_ice_conductivity  => null()
     type( field_type ), pointer :: tile_fraction      => null()
 
     type( field_type ), pointer :: tstar_sea        => null()
@@ -126,11 +134,19 @@ contains
 
     integer( i_def ) :: n_horizon_angle, n_horizon_layer
 
+    if (checkpoint_read) then
+      ! This algorithm should only be called on a new run
+      ! i.e. checkpoint_read==.false.)
+      ! Add a check here in case anyone adds code that breaks this
+      write(log_scratch_space,'(A)')                                         &
+         'process_input_args: should not be called if checkpoint_read==.true.'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
     if (surface == surface_jules) then
 
       ! Only needed on cold start from UM
-      if (init_option == init_option_fd_start_dump .and. &
-           .not. checkpoint_read) then
+      if (init_option == init_option_fd_start_dump) then
         call ancil_fields%get_field('land_area_fraction', land_area_fraction)
         call ancil_fields%get_field('land_tile_fraction', land_tile_fraction)
         call fd_fields%get_field('land_tile_temp', land_tile_temp)
@@ -139,10 +155,11 @@ contains
         call surface_fields%get_field('canopy_water', canopy_water)
       end if
 
-      ! For coupled models the sea ice fraction comes from the input
-      ! dump but for atmosphere only models they are provided by an
-      ! ancillary file
-      if (l_couple_sea_ice) then
+      ! For coupled models the sea ice fraction usually comes from the input
+      ! dump. 
+      ! For atmosphere only models or coupled models with inland lakes it is 
+      ! provided by an ancillary file
+      if (sea_ice_source == sea_ice_source_start_dump) then
         call fd_fields%get_field('sea_ice_fraction', sea_ice_fraction)
       else
         call ancil_fields%get_field('sea_ice_fraction', sea_ice_fraction)
@@ -157,8 +174,7 @@ contains
       end if
       call surface_fields%get_field('tile_temperature', tile_temperature)
 
-      if (init_option == init_option_fd_start_dump .and. &
-           .not. checkpoint_read) then
+      if (init_option == init_option_fd_start_dump) then
         call soil_fields%get_field('soil_moist_sat', soil_moist_sat)
         call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
         call soil_fields%get_field('mean_topog_index', mean_topog_index)
@@ -176,8 +192,8 @@ contains
         call soil_fields%get_field('frozen_soil_moisture', frozen_soil_moisture)
       end if
 
-      if ( (init_option == init_option_fd_start_dump .and. &
-           .not. checkpoint_read) .or. (snow_source == snow_source_surf)) then
+      if ( (init_option == init_option_fd_start_dump) .or. &
+            (snow_source == snow_source_surf)) then
         ! need to add .or. use_surf_analysis here
         call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
         call snow_fields%get_field('tile_snow_rgrain', tile_snow_rgrain)
@@ -213,8 +229,7 @@ contains
       latitude => get_latitude_fv( W3, twod_mesh%get_id() )
 
       ! Surface fields
-      if (init_option == init_option_fd_start_dump .and. &
-           .not. checkpoint_read) then
+      if (init_option == init_option_fd_start_dump) then
         ! These only need processing when cold-starting from the UM
         call invoke(process_land_kernel_type( land_area_fraction,             &
                                             land_tile_fraction,               &
@@ -235,9 +250,20 @@ contains
                   multi_insert_kernel_type(tile_temperature, tstar_sea,       &
                                            first_sea_tile, n_sea_tile ))
 
+      ! In a coupled model with inland lakes we need to initialise the sea-ice
+      ! conductivity. This will be overwritten by values from SI3 except at
+      ! lake points.
+      if ((sea_ice_source == sea_ice_source_surf ) .and.                     &
+           (l_couple_sea_ice)) then
+           call surface_fields%get_field('sea_ice_conductivity',              &
+                                          sea_ice_conductivity)
+           call invoke(initial_ice_conductivity_kernel_type(sea_ice_fraction, &
+                                                         sea_ice_thickness,   &
+                                                         sea_ice_conductivity))
+      endif
+
       ! Soil fields
-      if (init_option == init_option_fd_start_dump .and. &
-           .not. checkpoint_read) then
+      if (init_option == init_option_fd_start_dump) then
         ! These only need processing when cold-starting from the UM
         call invoke(process_soil_kernel_type( soil_moist_sat,                 &
                                             soil_moist_wilt,                  &
@@ -256,8 +282,8 @@ contains
       end if
 
       ! Snow fields
-      if ((init_option == init_option_fd_start_dump .and. &
-           .not. checkpoint_read) .or. snow_source == snow_source_surf) then
+      if ((init_option == init_option_fd_start_dump) .or. &
+            (snow_source == snow_source_surf)) then
         ! These only need processing when cold-starting from the UM
         call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
                                               1, n_land_tile),                   &
@@ -284,8 +310,7 @@ contains
 
     if (radiation == radiation_socrates .and. &
         topography /= topography_flat .and. &
-        init_option == init_option_fd_start_dump .and. &
-        .not. checkpoint_read) then
+        init_option == init_option_fd_start_dump) then
 
       call ancil_fields%get_field('grad_x_orog', grad_x_orog)
       call ancil_fields%get_field('grad_y_orog', grad_y_orog)

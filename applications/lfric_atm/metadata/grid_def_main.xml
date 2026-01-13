@@ -101,6 +101,11 @@
     <axis axis_ref="snow_layers_and_tiles"/>
     <axis axis_ref="one_time_axis"/>
   </grid>
+  <grid id="one_time_seaice_grid">
+    <domain domain_ref="face"/>
+    <axis axis_ref="one_time_axis"/>
+    <axis axis_ref="sea_ice_categories"/>
+  </grid>
   <grid id="one_time_tile_grid">
     <domain domain_ref="face"/>
     <axis axis_ref="land_tiles"/>

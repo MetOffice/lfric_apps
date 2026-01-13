@@ -8,8 +8,8 @@
 
   <file id="sea_ice_ancil" name="sea_ice_ancil" mode="read" output_freq="1d" convention="UGRID" cyclic="true" enabled=".FALSE.">
     <field id="sea_ice_time" name="time" unit="hours" operation="once" axis_ref="one_time_axis"/>
-    <field id="sea_ice_fraction_data" name="sea_ice_area_fraction" long_name="sea_ice_fraction" unit="1" operation="instant" domain_ref="face" axis_ref="one_time_axis" />
-       <field id="sea_ice_thickness_data" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" domain_ref="face" axis_ref="one_time_axis"/>
+    <field id="sea_ice_fraction_data" name="sea_ice_area_fraction" long_name="sea_ice_fraction" unit="1" operation="instant" grid_ref="one_time_seaice_grid" />
+    <field id="sea_ice_thickness_data" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" operation="instant" grid_ref="one_time_seaice_grid"/>
   </file>
 
 </file_definition>
