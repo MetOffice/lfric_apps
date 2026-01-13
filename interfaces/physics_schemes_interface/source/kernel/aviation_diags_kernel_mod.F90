@@ -6,6 +6,10 @@
 !
 ! Section 20 aviation diagnostics kernel.
 !
+! Code Owner: Please refer to the UM file CodeOwners.txt
+! This file currently belongs in section: physics_schemes_interface
+! whilst discussions are ongoing about its final location.
+!
 MODULE aviation_diags_kernel_mod
 
   USE argument_mod,         ONLY: arg_type,            &
