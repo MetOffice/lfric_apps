@@ -8,4 +8,4 @@
 | yaswant         | Yaswant Pradhan | Met Office  | 2025-12-16 |
 | oakleybrunt     | Oakley Brunt    | Met Office  | 2025-12-19 |
 | harry-shepherd | Harry Shepherd | Met Office | 2026-01-08 |
-| thomasbendall   | Thomas Bendall  | Met Office  | 2025-12-18 |
+| tommbendall     | Thomas Bendall  | Met Office  | 2026-01-13 |
