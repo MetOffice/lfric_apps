@@ -339,8 +339,7 @@ contains
          except_disc_inv, ntml_level_corrn, free_trop_layers, sharpest,    &
          lem_stability, sg_shear_enh_lambda, l_new_kcloudtop, buoy_integ,  &
          l_reset_dec_thres, DynDiag_ZL_CuOnly,                             &
-         i_interp_local, i_interp_local_gradients,                         &
-         split_tke_and_inv, l_noice_in_turb,                               &
+         i_interp_local, i_interp_local_gradients, l_noice_in_turb,        &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
