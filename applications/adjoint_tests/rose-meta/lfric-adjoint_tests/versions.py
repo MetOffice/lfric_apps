@@ -31,3 +31,21 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn30_t108(MacroUpgrade):
+    # Upgrade macro for #108 by Christine Johnson
+
+    BEFORE_TAG = "vn3.0"
+    AFTER_TAG = "vn3.0_t108"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands from rose-meta/lfric-linear
+        scaling = self.get_setting_value(
+            config, ["namelist:planet", "scaling_factor"]
+        )
+        if "125.0" in scaling:
+            self.add_setting(config, ["namelist:linear", "mol_efficiency"], ".false.")
+        else:
+            self.add_setting(config, ["namelist:linear", "mol_efficiency"], ".true.")
+
+        return config, self.reports

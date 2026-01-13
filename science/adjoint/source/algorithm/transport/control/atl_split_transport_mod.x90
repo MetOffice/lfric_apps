@@ -34,6 +34,7 @@ module atl_split_transport_mod
   use end_of_transport_step_alg_mod,    only: end_of_conservative_step_alg,    &
                                               end_of_consistent_step_alg,      &
                                               end_of_advective_step_alg
+  use linear_config_mod,                only: transport_efficiency 
 
   implicit none
 
@@ -61,28 +62,25 @@ contains
     implicit none
 
     ! Arguments
-    type(r_tran_field_type),         intent(inout) :: field_np1
-    type(r_tran_field_type), target, intent(inout) :: field_n
-    type(r_tran_field_type), target, intent(in)    :: ls_field_n
+    type(r_tran_field_type),            intent(inout) :: field_np1
+    type(r_tran_field_type), target,    intent(inout) :: field_n
+    type(r_tran_field_type), target,    intent(in)    :: ls_field_n
     type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
 
     ! Internal variables
-    integer(kind=i_def)                    :: num_split_steps
-    integer(kind=i_def)                    :: split_step_count
-    type(r_tran_field_type), allocatable   :: ls_field_np1(:)
-    type(r_tran_field_type),       target  :: field_tmp
-    type(r_tran_field_type),       pointer :: field_ptr
-    type(transport_counter_type),  pointer :: transport_counter
-    type(transport_counter_type),  pointer :: ls_transport_counter
-    type(transport_metadata_type), pointer :: transport_metadata
+    integer(kind=i_def)                      :: num_split_steps
+    integer(kind=i_def)                      :: split_step_count
+    type(r_tran_field_type), allocatable     :: ls_field_np1(:)
+    type(r_tran_field_type),         target  :: field_tmp
+    type(r_tran_field_type),         pointer :: field_ptr
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_counter_type),    pointer :: ls_transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
     type(transport_controller_type), pointer :: pert_transport_controller
     type(transport_controller_type), pointer :: ls_transport_controller
-    logical :: efficiency
     real(kind=r_tran)            :: dt_substep
     integer(kind=i_def)          :: num_substeps
     
-    efficiency = .false.
-        
     ! ------------------------------------------------------------------------ !
     ! NONLINEAR (LS)
     ! ------------------------------------------------------------------------ !
@@ -98,7 +96,7 @@ contains
        call field_n%copy_field_properties(ls_field_np1(split_step_count))
     end do
 
-    if ( .not. efficiency ) then
+    if ( .not. transport_efficiency ) then
 
       ! When we have multiple split steps, we need an intermediate field for the
       ! field at the start of each substeps
@@ -200,15 +198,15 @@ contains
     implicit none
 
     ! Arguments
-    type(r_tran_field_type),         intent(inout) :: field_np1
-    type(r_tran_field_type),         intent(inout) :: field_n
-    type(r_tran_field_type),         intent(in)    :: ls_field_n
+    type(r_tran_field_type),            intent(inout) :: field_np1
+    type(r_tran_field_type),            intent(inout) :: field_n
+    type(r_tran_field_type),            intent(in)    :: ls_field_n
     type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
 
     ! Internal variables
-    integer(kind=i_def)                    :: method, direction
-    type(transport_counter_type),  pointer :: transport_counter
-    type(transport_metadata_type), pointer :: transport_metadata
+    integer(kind=i_def)                      :: method, direction
+    type(transport_counter_type),    pointer :: transport_counter
+    type(transport_metadata_type),   pointer :: transport_metadata
     type(transport_controller_type), pointer :: pert_transport_controller
     
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()

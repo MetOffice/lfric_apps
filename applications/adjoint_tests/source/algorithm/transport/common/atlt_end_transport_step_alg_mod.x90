@@ -27,7 +27,8 @@ module atlt_end_transport_step_alg_mod
   use transport_controller_mod,            only : transport_controller_type
   use flux_precomputations_alg_mod,        only : flux_precomputations_type
   use transport_counter_mod,               only : transport_counter_type
-  use split_transport_utils_mod,           only : get_num_split_steps
+  use split_transport_utils_mod,           only : get_num_split_steps, &
+                                                  get_direction_w2_fs
   use setup_test_alg_mod,                  only : setup_test_tl_transport_controller
   use transport_metadata_collection_mod,   only : transport_metadata_collection
   use transport_metadata_mod,              only : transport_metadata_type
@@ -234,7 +235,9 @@ module atlt_end_transport_step_alg_mod
     type(r_tran_field_type), dimension(:), allocatable :: dummy_ref_mass_2_inp
 
     ! Variables for initialising fields
+    integer(kind=i_def)                :: splitting
     integer(kind=i_def)                :: num_split_steps
+    integer(kind=i_def)                :: fs_id
     type(function_space_type), pointer :: vector_space_w2_ptr
     type(function_space_type), pointer :: vector_space_w3_ptr
 
@@ -286,19 +289,16 @@ module atlt_end_transport_step_alg_mod
                                  dummy_ref_mass_2_inp,       &
                                  pert_transport_controller )
 
-    ! if split scheme, w2v else w2
-    num_split_steps = get_num_split_steps(transport_metadata%get_splitting())
-    if (num_split_steps > 1) then
-      vector_space_w2_ptr => function_space_collection%get_fs(               &
-          mesh, element_order_h, element_order_v, W2V                        &
-          )
-    else
-      vector_space_w2_ptr => function_space_collection%get_fs(               &
-          mesh, element_order_h, element_order_v, W2                         &
-          )
-    end if
-    vector_space_w3_ptr => function_space_collection%get_fs(                 &
-        mesh, element_order_h, element_order_v, W3                           &
+    ! W2 function space appropriate for splitting (fs on the last step)
+    splitting = transport_metadata%get_splitting()                             
+    num_split_steps = get_num_split_steps(splitting)
+    fs_id = get_direction_w2_fs(splitting, num_split_steps)
+    vector_space_w2_ptr => function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, fs_id        &
+    )
+    
+    vector_space_w3_ptr => function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, W3           &
     )
 
     call field_np1%initialise( vector_space = vector_space_w3_ptr )
