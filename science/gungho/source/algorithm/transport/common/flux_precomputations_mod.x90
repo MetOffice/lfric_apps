@@ -84,7 +84,7 @@ module flux_precomputations_alg_mod
   use transport_enumerated_types_mod, only: direction_h,                       &
                                             direction_v,                       &
                                             direction_3d
-  
+
   implicit none
 
   private

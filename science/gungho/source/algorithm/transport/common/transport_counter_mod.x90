@@ -380,7 +380,7 @@ contains
 
   end subroutine dec_split_step_counter
 
-  
+
   !> @brief Increments the counter of transport split steps
   subroutine inc_split_step_counter(self)
 

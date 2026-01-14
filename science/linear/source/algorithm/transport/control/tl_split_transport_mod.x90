@@ -102,7 +102,7 @@ contains
       ! field at the start of each substeps
       ! field_ptr points to the field at the start of each split step
       call invoke( setval_X(ls_field_np1(1), ls_field_n) )
-    
+
       if (num_split_steps > 1) then
         call field_n%copy_field_properties(field_tmp)
         call invoke( setval_X(field_tmp, ls_field_n) )
@@ -127,7 +127,7 @@ contains
 
     else
        ! Assume that the linearisation state does not evolve during the split transport
-       do split_step_count = 1, num_split_steps + 1 
+       do split_step_count = 1, num_split_steps + 1
         call invoke( setval_X(ls_field_np1(split_step_count), ls_field_n) )
       end do
    end if
@@ -135,7 +135,7 @@ contains
    dt_substep = ls_transport_counter%get_dt_substep()
    num_substeps = ls_transport_counter%get_num_substeps()
    call ls_transport_counter%initialise(transport_metadata, dt_substep, num_substeps )
-   
+
     ! ------------------------------------------------------------------------ !
     ! LINEAR
     ! ------------------------------------------------------------------------ !
@@ -146,7 +146,7 @@ contains
 
     ! Initialise fields
     num_split_steps = get_num_split_steps(transport_metadata%get_splitting())
-    
+
     ! When we have multiple split steps, we need an intermediate field for the
     ! field at the start of each substeps
     ! field_ptr points to the field at the start of each split step
@@ -159,7 +159,7 @@ contains
     end if
 
     do split_step_count = 1, num_split_steps
-       
+
       call tl_split_transport_field(                             &
            field_np1, field_ptr, ls_field_np1(split_step_count), &
            tl_transport_controller                               &
