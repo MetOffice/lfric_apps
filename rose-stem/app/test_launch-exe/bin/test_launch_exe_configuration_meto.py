@@ -157,7 +157,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_nwp_gal9_mgnoukca_C48_MG_ex1a_cce_fast_debug_64bit(self, monkeypatch):
+    def test_run_lfric_atm_nwp_gal9_mg_C48_MG_ex1a_cce_fast_debug_64bit(self, monkeypatch):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
