@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2025 Met Office. All rights reserved.
+! (C) Crown copyright 2026 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -35,11 +35,8 @@ module adj_trans_lookup_cache_mod
       !> Lookup table for adj_w3h_advective_update_kernel.
       type(adj_lookup_table_type)                            :: lookup_w3h_adv_upd
 
-      !> Lookup table for adj_apply_helmholtz_operator_kernel.
-      type(adj_lookup_table_type), allocatable, dimension(:) :: lookup_apply_hho
-
       !> Number of function spaces for lookup_poly2d.
-      integer(kind=i_def)                                    :: n_fs_poly2d = 0_i_def
+      integer(kind=i_def)                                    :: n_fs_poly2d
 
       !> Flag to state whether or not cache is initialised
       logical(kind=l_def)                                    :: is_initialised = .false._l_def
