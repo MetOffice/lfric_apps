@@ -28,7 +28,8 @@ export PSYCLONE_PHYSICS_FILES = mphys_kernel_mod \
                                 sw_rad_tile_kernel_mod \
 				jules_imp_kernel_mod \
 				jules_exp_kernel_mod \
-				jules_extra_kernel_mod
+				jules_extra_kernel_mod \
+                                bdy_expl2
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_exclude #####
 # For GPU, we may want to use more generic local.py transformation scripts and psyclone by directory.

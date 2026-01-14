@@ -235,6 +235,11 @@
         "lfric_atm_nwp_gal9_noukca_3n_2T-C192_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_gal9_noukca_3n_4T-C192_MG_ex1a_cce_fast-debug-32bit",
     ],
+    "ex1a_omp_C192_cce_production": [
+        "lfric_atm_nwp_gal9_noukca_3n_1T-C192_MG_ex1a_cce_production-32bit",
+        "lfric_atm_nwp_gal9_noukca_3n_2T-C192_MG_ex1a_cce_production-32bit",
+        "lfric_atm_nwp_gal9_noukca_3n_4T-C192_MG_ex1a_cce_production-32bit",
+    ],
     "ex1a_omp_gnu": [
         "lfric_atm_nwp_gal9_noukca_1T-C12_ex1a_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal9_noukca_2T-C12_ex1a_gnu_fast-debug-32bit",

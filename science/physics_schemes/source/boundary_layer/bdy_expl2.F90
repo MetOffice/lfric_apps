@@ -19,12 +19,11 @@ module bdy_expl2_mod
 
 use fm_drag_mod, only: fm_drag
 
-use tuning_segments_mod, only:                                                 &
-    l_autotune_segments,                                                       &
-    bl_segment_size
-
+use tuning_segments_mod, only: bl_segment_size
 
 use um_types, only: r_bl
+
+use timer_mod, only: timer
 
 implicit none
 
@@ -634,8 +633,9 @@ real(kind=r_bl) ::                                                             &
                                 ! (qw - qsat(Tl))/(1 + Lc/cp dqsat/dT)
                                 ! gradient of this is used for estimating
                                 ! saturated fraction on rho-levels
-   qs_tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
+   qs_tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,1:bl_levels)
                                 ! qsat(Tl) on current level
+                                ! Vectorised over levels (k) for open-mp ease
 
 real(kind=r_bl) ::                                                             &
    frac_sat, frac_dry, frac_edg, frac_lev, qc_tot, bt_rh, bq_rh
@@ -781,7 +781,7 @@ real(kind=r_bl) ::                                                             &
 real(kind=r_bl) ::                                                             &
  b2, sh, exner, root6, delta_x, var_fac, sl_var, qw_var, sl_qw,                &
  sgm(tdims%i_start:tdims%i_end),                                               &
- qsw_arr(tdims%i_start:tdims%i_end),                                           &
+ qsw_arr(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,1:bl_levels-1),   &
  max_rhcpt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),               &
  min_rhcpt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
 
@@ -800,10 +800,17 @@ integer ::                                                                     &
 
 
 integer ::                                                                     &
- omp_block,                                                                    &
-                 ! for open mp blocking
- jj
-                 ! for indexing over open mp block
+ pdims_omp_block, pdims_seg_block,                                                         &
+                  ! for pdims open-mp blocking
+ tdims_omp_block, tdims_seg_block,                                                         &
+                  ! for tdims open mp blocking
+ ii,                                                                           &
+                  ! for indexing over open-mp block
+ max_threads,                                                                  &
+                  ! Hold the number of threads for open-mp
+ seg_slice_start, seg_slice_end,                                               &
+                  ! Segmentaion of calls into qstat, start and end
+ bl_segment_range ! Range of segmentaion, derived from start and end
 
 real(kind=r_bl), parameter :: max_abs_obkhov = 1.0e6_r_bl
                  ! Maximum permitted magnitude of the Obukhov
@@ -824,8 +831,11 @@ integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+call timer('bdy_expl2')
 
-!Set up automatic segment tuning
+! Set up blocking for OMP sections
+max_threads = 1
+!$ max_threads = omp_get_max_threads()
 
 !-----------------------------------------------------------------------
 ! 1) Set various diagnostics and switches
@@ -922,9 +932,17 @@ call btq_int (                                                                 &
 !-----------------------------------------------------------------------
 ! Calculate lapse rates
 !-----------------------------------------------------------------------
-!$OMP  PARALLEL DEFAULT(SHARED) private(i, j, k, weight1,  weight2,            &
+! Sub divide pdims domain len over the number of threads
+pdims_omp_block = ceiling(real(pdims%i_len)/max_threads)
+! Pick the smallest option. 
+! Work should be split accross the threads, this provides a cap.
+! In the occurence where the pdims domain len is very small, it will be seleted.
+! Otherwise bl_segment_size will be selected.
+pdims_seg_block = min(bl_segment_size, pdims_omp_block, pdims%i_len)
+!$OMP  PARALLEL DEFAULT(SHARED) private(ii, i, j, k, weight1,  weight2,        &
 !$OMP  weight3, zpr, dzv, dzu, l, slope, dsldzm_ga,                            &
-!$OMP  qs_tl, frac_sat, frac_dry, frac_edg, frac_lev, qc_tot, bt_rh, bq_rh )
+!$OMP  qs_tl, frac_sat, frac_dry, frac_edg, frac_lev, qc_tot, bt_rh, bq_rh,    &
+!$OMP  seg_slice_start, seg_slice_end, bl_segment_range)
 !$OMP do SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
@@ -976,22 +994,39 @@ if ( .not. l_use_surf_in_ri .and. (var_diags_opt > original_vars .or.          &
 else ! l_use_surf_in_ri = true
 !$OMP do SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
-    if (l_noice_in_turb) then
-      ! use qsat_wat
-      if ( l_mr_physics ) then
-        call qsat_wat_mix(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len)
-                                                                     ! No halos
-      else
-        call qsat_wat(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len) ! No halos
-      end if
-    else ! l_noice_in_turb
-      ! use qsat
-      if ( l_mr_physics ) then
-        call qsat_mix(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len) ! No halos
-      else
-        call qsat(qssurf(:,j),tstar(:,j),pstar(:,j),pdims%i_len) ! No halos
-      end if
-    end if ! l_noice_in_turb
+    do ii = pdims%i_start, pdims%i_end, pdims_seg_block
+      seg_slice_start  = ii
+      seg_slice_end = MIN(((ii+pdims_seg_block)-1), pdims%i_end)
+      bl_segment_range = (seg_slice_end - seg_slice_start) + 1
+
+      if (l_noice_in_turb) then
+        ! use qsat_wat
+        if ( l_mr_physics ) then
+          call qsat_wat_mix(qssurf(seg_slice_start:seg_slice_end,j), &
+                            tstar(seg_slice_start:seg_slice_end,j),  &
+                            pstar(seg_slice_start:seg_slice_end,j),  &
+                            bl_segment_range) ! No halos
+        else
+          call qsat_wat(qssurf(seg_slice_start:seg_slice_end,j),  &
+                        tstar(seg_slice_start:seg_slice_end,j),   &              
+                        pstar(seg_slice_start:seg_slice_end,j),   &
+                        bl_segment_range) ! No halos
+        end if
+      else ! l_noice_in_turb
+        ! use qsat
+        if ( l_mr_physics ) then
+          call qsat_mix(qssurf(seg_slice_start:seg_slice_end,j),  &
+                        tstar(seg_slice_start:seg_slice_end,j),   &
+                        pstar(seg_slice_start:seg_slice_end,j),   &
+                        bl_segment_range) ! No halos
+        else
+          call qsat(qssurf(seg_slice_start:seg_slice_end,j),  &
+                    tstar(seg_slice_start:seg_slice_end,j),   &
+                    pstar(seg_slice_start:seg_slice_end,j),   &
+                    bl_segment_range) ! No halos
+        end if
+      end if ! l_noice_in_turb
+    end do ! ii
   end do ! j
 !$OMP end do NOWAIT
   k=1
@@ -1084,23 +1119,35 @@ case (i_interp_local_cf_dbdz)
   ! Calculate total-water supersaturation qw - qsat(Tl), on theta-levels
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels
-    ! Calculate qsat(Tl)...
-    if ( l_mr_physics ) then
-      call qsat_mix( qs_tl, tl(:,:,k), p_theta_levels(:,:,k),                  &
-                     tdims%i_len, tdims%j_len )
-    else
-      call qsat( qs_tl, tl(:,:,k), p_theta_levels(:,:,k),                      &
-                 tdims%i_len, tdims%j_len )
-    end if
+    do ii = tdims%i_start, tdims%i_end, bl_segment_size
+      seg_slice_start  = ii
+      seg_slice_end = MIN(((ii+bl_segment_size)-1), tdims%i_end)
+      bl_segment_range = (seg_slice_end - seg_slice_start) + 1
+
+      ! Calculate qsat(Tl)...
+      if ( l_mr_physics ) then
+        call qsat_mix(qs_tl(seg_slice_start:seg_slice_end,:,k),                &
+                      tl(seg_slice_start:seg_slice_end,:,k),                   &
+                      p_theta_levels(seg_slice_start:seg_slice_end,:,k),       &
+                      bl_segment_range,                                        &
+                      tdims%j_len )
+      else
+        call qsat(qs_tl(seg_slice_start:seg_slice_end,:,k),                    &
+                  tl(seg_slice_start:seg_slice_end,:,k),                       &
+                  p_theta_levels(seg_slice_start:seg_slice_end,:,k),           &
+                  bl_segment_range,                                            &
+                  tdims%j_len )
+      end if
+    end do ! ii
     ! ...then subtract from qw to get supersaturation, and multiply by
     !    1/(1 + Lc/cp dqsat/dT)
     !    in order to compare with values of qcl+qcf.
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        supersat(i,j,k) = a_qs(i,j,k) * ( qw(i,j,k) - qs_tl(i,j) )
-      end do
-    end do
-  end do
+        supersat(i,j,k) = a_qs(i,j,k) * ( qw(i,j,k) - qs_tl(i,j,k) )
+      end do !j
+    end do !i
+  end do !k
 !$OMP end do
 
   ! Calculate dbdz on rho-levels, so between th-levels k-1 and k
@@ -1258,7 +1305,6 @@ else
 !$OMP end do
 
   else
-
     ! On entry, visc_m is 3D shear(k) on theta-level(k)
 
 !$OMP do SCHEDULE(STATIC)
@@ -1512,10 +1558,7 @@ end if
 !       with coastal tiling, the scheme operates only at points
 !       where the land fraction is below 0.5.
 
-omp_block = pdims%j_end
-!$ omp_block = ceiling(real(pdims%j_end)/omp_get_max_threads())
-
-!$OMP PARALLEL DEFAULT(SHARED) private(i, j, k, jj, ntop, z_scale)
+!$OMP PARALLEL DEFAULT(SHARED) private(i, j, k, ii, ntop, z_scale)
 
 !$OMP do SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
@@ -1636,10 +1679,10 @@ else if (idyndiag == DynDiag_Ribased ) then
   !---------------------------------------------------------------
 
 !$OMP do SCHEDULE(STATIC)
-  do jj = pdims%j_start, pdims%j_end, omp_block
+  do ii = pdims%i_start, pdims%i_end, pdims_omp_block
     do k = 2, bl_levels
-      do j = jj, min(jj+omp_block-1,pdims%j_end)
-        do i = pdims%i_start, pdims%i_end
+      do j = pdims%j_start, pdims%j_end
+        do i = ii, min(((ii+pdims_omp_block)-1),pdims%i_end)
           if ( .not. topbl(i,j) .and.                                          &
             (ri_ga(i,j,k) >  RiCrit_sharp .or. k > bl_levels-1) ) then
             topbl(i,j) = .true.
@@ -2928,20 +2971,40 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
   ! ftl is on rho-level k
   ! rhokm is on theta-level K-1
 
+  ! Sub divide tdims domain len over the number of threads.
+  tdims_omp_block = ceiling(real(tdims%i_len)/max_threads)
+  ! Pick the smallest option. 
+  ! Work should be split accross the threads, this provides a cap.
+  ! In the occurence where the tdims domain len is very small, it will be seleted.
+  ! Otherwise bl_segment_size will be selected.
+  tdims_seg_block = min(bl_segment_size, tdims_omp_block, tdims%i_len)
   ! level 2 needs special treatment because of the surface
 
 !$OMP PARALLEL DEFAULT(SHARED)                                                 &
-!$OMP private(k,j,i,km,kp,sh,exner,sgm,qsw_arr,weight1,weight2,weight3,var_fac,&
-!$OMP         sl_var,qw_var,sl_qw,delta_x)
+!$OMP private(k,j,i,ii,km,kp,sh,exner,sgm,qsw_arr,weight1,weight2,weight3,     &
+!$OMP         var_fac,sl_var,qw_var,sl_qw,delta_x,                             &
+!$OMP         seg_slice_start, seg_slice_end, bl_segment_range)
   k = 2
 !$OMP do SCHEDULE(STATIC)
   do j = tdims%j_start, tdims%j_end
+    do ii = tdims%i_start, tdims%i_end, tdims_seg_block
+      seg_slice_start  = ii
+      seg_slice_end = MIN(((ii+tdims_seg_block)-1), tdims%i_end)
+      bl_segment_range = (seg_slice_end - seg_slice_start) + 1
 
-    if ( l_mr_physics ) then
-      call qsat_wat_mix(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
-    else
-      call qsat_wat(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
-    end if
+      if ( l_mr_physics ) then
+        call qsat_wat_mix(qsw_arr(seg_slice_start:seg_slice_end, j, k-1),       &
+                          tl(seg_slice_start:seg_slice_end,j,k-1),              &
+                          p_theta_levels(seg_slice_start:seg_slice_end,j,k-1),  &
+                          bl_segment_range )
+      else
+        call qsat_wat(qsw_arr(seg_slice_start:seg_slice_end, j, k-1),            &
+                      tl(seg_slice_start:seg_slice_end,j,k-1),                   &
+                      p_theta_levels(seg_slice_start:seg_slice_end,j,k-1),       &
+                      bl_segment_range )
+      end if
+
+    end do ! ii
 
     if (var_diags_opt == original_vars) then
 
@@ -3038,7 +3101,7 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
                                  log( 0.001_r_bl * delta_x ) )
         ! full expression
         rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),             &
-                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
+                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i,j,k-1))))
       end do !i
     end if
   end do   !j
@@ -3049,13 +3112,24 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
   do k = 3, bl_levels-1
 !$OMP do SCHEDULE(STATIC)
     do j = tdims%j_start, tdims%j_end
+      do ii = tdims%i_start, tdims%i_end, tdims_seg_block
+        seg_slice_start  = ii
+        seg_slice_end = MIN(((ii+tdims_seg_block)-1), tdims%i_end)
+        bl_segment_range = (seg_slice_end - seg_slice_start) + 1
 
-      if ( l_mr_physics ) then
-        call qsat_wat_mix(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),         &
-                          tdims%i_len)
-      else
-        call qsat_wat(qsw_arr,tl(:,j,k-1),p_theta_levels(:,j,k-1),tdims%i_len)
-      end if
+        if ( l_mr_physics ) then
+          call qsat_wat_mix(qsw_arr(seg_slice_start:seg_slice_end, j, k-1),      &
+                            tl(seg_slice_start:seg_slice_end,j,k-1),             &
+                            p_theta_levels(seg_slice_start:seg_slice_end,j,k-1), &
+                            bl_segment_range)
+        else
+          call qsat_wat(qsw_arr(seg_slice_start:seg_slice_end, j, k-1),          &
+                        tl(seg_slice_start:seg_slice_end,j,k-1),                 &
+                        p_theta_levels(seg_slice_start:seg_slice_end,j,k-1),     &
+                        bl_segment_range)
+        end if
+
+      end do ! ii
 
       if (var_diags_opt == original_vars) then
 
@@ -3098,7 +3172,7 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
             sgm(i) = sqrt ( max( sgm(i), zero ) )
             ! calculate rhcrit, with appropriate limits
             rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),         &
-                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
+                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i,j,k-1))))
           end do !i
         end if
 
@@ -3156,7 +3230,7 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
             sgm(i) = sqrt ( max( sgm(i), zero ) )
             ! calculate rhcrit, with appropriate limits
             rhcpt(i,j,k-1) = min( max_rhcpt(i,j), max( min_rhcpt(i,j),         &
-                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i))))
+                      one - root6 * sgm(i) / (a_qs(i,j,k-1) * qsw_arr(i,j,k-1))))
           end do !i
         end if
 
@@ -3232,7 +3306,7 @@ end if ! i_cld_vn == i_cld_bimodal
 
 !If autotuning is active, decide what to do with the
 !trial segment size and report the current status.
-
+call timer('bdy_expl2')
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 return
 end subroutine bdy_expl2
