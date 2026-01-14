@@ -8,3 +8,4 @@
 | yaswant         | Yaswant Pradhan | Met Office  | 2025-12-16 |
 | oakleybrunt     | Oakley Brunt    | Met Office  | 2025-12-19 |
 | harry-shepherd | Harry Shepherd | Met Office | 2026-01-08 |
+| ricky-lv426 | Ricky Olivier | University of Exeter | 2026-01-12 |
