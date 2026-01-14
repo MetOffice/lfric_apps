@@ -33,6 +33,7 @@ number_of_steps=9,
 time_step='P0DT1H0M0S',
 /
 &jedi_lfric_settings
+adjoint_test_tolerance=1.0e-4,
 forecast_length='P0DT6H0M0S',
 /
 
