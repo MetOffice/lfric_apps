@@ -65,7 +65,7 @@ contains
     type( field_type ), intent(inout) :: sskew_bm, svar_bm, svar_tb
     logical(l_def), intent(in) :: call_b4_conv
 
-    if ( subroutine_timers ) call timer("cld_diags")
+    if ( subroutine_timers ) call timer("diags.cloud")
 
     if (call_b4_conv) then
       ! No diagnostics output in mid-timestep call
@@ -79,7 +79,7 @@ contains
       svar_tb_flag = init_diag(svar_tb, 'cloud__svar_tb')
     end if
 
-    if ( subroutine_timers ) call timer("cld_diags")
+    if ( subroutine_timers ) call timer("diags.cloud")
 
   end subroutine initialise_diags_for_cld
 
@@ -147,7 +147,7 @@ contains
     character(str_def) :: name
     logical( l_def ) :: ignore
 
-    if ( subroutine_timers ) call timer("cld_diags")
+    if ( subroutine_timers ) call timer("diags.cloud")
 
     ! 2D fields
     cld_amount_max_flag = init_diag(cld_amount_max, 'cloud__cloud_amount_max')
@@ -366,7 +366,7 @@ contains
     if (cloud_fraction_below_1000feet_asl_flag) call &
        cloud_fraction_below_1000feet_asl%write_field()
 
-    if ( subroutine_timers ) call timer("cld_diags")
+    if ( subroutine_timers ) call timer("diags.cloud")
 
   end subroutine output_diags_for_cld
 end module cld_diags_mod

@@ -467,7 +467,7 @@ contains
 
     type( field_type ) :: mr_ice
 
-    if ( subroutine_timers ) call timer('aerosol_ukca_alg')
+    if ( subroutine_timers ) call timer('ukca')
 
     call log_event( 'Running UKCA aerosol', LOG_LEVEL_DEBUG )
 
@@ -1457,7 +1457,10 @@ contains
       call log_field_minmax( LOG_LEVEL_DEBUG, ' CH4 Aft Chem ', ch4 )
     end if
 
+    if ( subroutine_timers ) call timer('ukca')
+
     if ( write_diag .and. use_xios_io ) then
+      if ( subroutine_timers ) call timer('diags.ukca')
       ! Diagnostic output
 
       ! Chemistry diagnostics
@@ -1652,11 +1655,10 @@ contains
       call pvol_du_acc_ins%write_field('aerosol__pvol_du_acc_ins')
       call pvol_du_cor_ins%write_field('aerosol__pvol_du_cor_ins')
 
+    if ( subroutine_timers ) call timer('diags.ukca')
     end if      ! write diag
 
     nullify( mesh )
-
-    if ( subroutine_timers ) call timer('aerosol_ukca_alg')
 
   end subroutine aerosol_ukca_alg
 

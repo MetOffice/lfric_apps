@@ -90,7 +90,7 @@ contains
 
     real(kind=r_def) :: l2
 
-    if ( subroutine_timers ) call timer("map_physics_fields")
+    if ( subroutine_timers ) call timer("mappings.map_physics_fields")
 
     mesh => u%get_mesh()
 
@@ -177,7 +177,7 @@ contains
                   setval_X(v_in_w3_star, v_in_w3) )
     end if
 
-    if ( subroutine_timers ) call timer("map_physics_fields")
+    if ( subroutine_timers ) call timer("mappings.map_physics_fields")
 
   end subroutine map_physics_fields_alg
 

@@ -41,7 +41,7 @@ contains
                              output_dw_force
     type( field_type ) :: du_force, dv_force, dw_force
 
-    if ( subroutine_timers ) call timer("write_forcing_diagnostics")
+    if ( subroutine_timers ) call timer("diags.external_forcing")
 
     if ( output_wind_inc ) then
       !
@@ -92,7 +92,7 @@ contains
 
     end if
 
-    if ( subroutine_timers ) call timer("write_forcing_diagnostics")
+    if ( subroutine_timers ) call timer("diags.external_forcing")
 
   end subroutine write_forcing_diagnostics
 

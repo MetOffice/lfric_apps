@@ -167,7 +167,7 @@ contains
     type( mesh_type ), pointer :: mesh => null()
     integer(i_def) :: loop, ncells
 
-    if ( subroutine_timers ) call timer("jules_imp_alg")
+    if ( subroutine_timers ) call timer("jules.implicit")
 
     call log_event( 'Running implicit Jules', LOG_LEVEL_DEBUG )
 
@@ -305,7 +305,7 @@ contains
                                        ocn_cpl_point) )
 
 
-    if ( subroutine_timers ) call timer("jules_imp_alg")
+    if ( subroutine_timers ) call timer("jules.implicit")
 
     ! Output the BL diagnostics
     if (use_xios_io .and. write_diag .and. outer == outer_iterations) then

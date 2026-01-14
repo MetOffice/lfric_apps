@@ -47,7 +47,7 @@ contains
     !----------------------------------------------------
     ! End of declarations; start of subroutine execution
     !----------------------------------------------------
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( subroutine_timers ) call timer("diags.electric")
 
     gwp_flag         = init_diag(gwp, 'electric__gwp')
     tiwp_flag        = init_diag(tiwp, 'electric__tiwp')
@@ -56,7 +56,7 @@ contains
     fr2_mc_flag      = init_diag(fr2_mc, 'electric__total_column_ice_flash_rate')
     storm_field_flag = init_diag(storm_field, 'electric__storm_field_indicator')
 
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( subroutine_timers ) call timer("diags.electric")
 
   end subroutine initialise_main_diags_for_electric
 
@@ -88,7 +88,7 @@ contains
     !----------------------------------------------------
     ! End of declarations; start of subroutine execution
     !----------------------------------------------------
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( subroutine_timers ) call timer("diags.electric")
 
     call flash_potential%write_field('electric__flash_potential')
     call num_flashes%write_field('electric__num_lightning_flashes')
@@ -100,6 +100,6 @@ contains
     if (fr2_mc_flag) call fr2_mc%write_field()
     if (storm_field_flag) call storm_field%write_field()
 
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( subroutine_timers ) call timer("diags.electric")
   end subroutine output_main_diags_for_electric
 end module electric_main_diags_mod

@@ -574,7 +574,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
+    if ( subroutine_timers ) call timer('dynamics.solver')
 
     ! Input fields are r_def fields so preliminary work uses field_types
     mesh_id = state(igh_p)%get_mesh_id()
@@ -669,14 +669,14 @@ contains
     end if
 
     ! Solve the semi-implicit operator
-    if ( subroutine_timers ) call timer('mixed_solver')
+    if ( subroutine_timers ) call timer('solver.mixed_solver')
     call log_event( "Gungho: mixed solve:", LOG_LEVEL_DEBUG )
     ! Create field vectors out of field arrays
     call construct_solver_state(vector_inc, rhs_rsol, import_fields = .false.)
     call construct_solver_state(vector_rhs, rhs_rsol, import_fields = .true.)
     call vector_inc%set_scalar(0.0_r_def)
     call mixed_solver%apply(vector_inc, vector_rhs)
-    if ( subroutine_timers ) call timer('mixed_solver')
+    if ( subroutine_timers ) call timer('solver.mixed_solver')
 
     ! Get the pressure increment
     inc_exner_rsol => vector_inc%get_field_from_position(isol_p)
@@ -742,7 +742,7 @@ contains
     if ( write_moisture_diag )  &
       call moisture_conservation_alg( state(igh_d), mr, 'After solve' )
 
-    if ( subroutine_timers ) call timer('semi_implicit_solver_alg')
+    if ( subroutine_timers ) call timer('dynamics.solver')
 
   end subroutine semi_implicit_solver_alg_step
 

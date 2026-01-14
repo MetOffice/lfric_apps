@@ -129,7 +129,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     type(function_space_type), pointer :: vector_space_w3_ptr
     type(field_type) :: dummy_w3
 
-    if ( subroutine_timers ) call timer('atl_rhs_alg')
+    if ( subroutine_timers ) call timer('atl_dynamics.rhs_alg')
 
     mesh => base_state(igh_u)%get_mesh()
 
@@ -298,7 +298,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
                  setval_c( rhs(igh_t), 0.0_r_def ) )
     ! End of adjoint
 
-    if ( subroutine_timers ) call timer('atl_rhs_alg')
+    if ( subroutine_timers ) call timer('atl_dynamics.rhs_alg')
 
   end subroutine atl_rhs_alg
 
