@@ -284,7 +284,7 @@ module spt_main_alg_mod
   call invoke( setval_c(fp_spt, 0.0_r_def))
 
   ! Create forcing pattern for SPT
-  call stph_fp_main_alg(spt_level_bottom, spt_level_top,          &
+  call stph_fp_main_alg(spt_level_bottom, spt_level_top, 0,       &
                         1, stph_n_max, stph_spectral_dim,         &
                         spt_alpha, spt_power_law,                 &
                         spt_spectral_coeffc, spt_spectral_coeffs, &

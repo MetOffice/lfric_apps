@@ -47,6 +47,9 @@ module stph_fp_main_alg_mod
 
   !>@param[in]         level_bottom            Bottom level of the stochastic scheme
   !>@param[in]         level_top               Top level of the stochastic scheme
+  !>@param[in]         level_offset            Level offset, allowing this to be
+  !!                                           applied to W3 and Wtheta fields.
+  !!                                           Set 0 Wtheta, 1 for W3.
   !>@param[in]         wavenumber_min          Minimum wavenumber applied to build the FP
   !>@param[in]         wavenumber_max          Maximum wavenumber applied to build the FP
   !>@param[in]         spectral_dim            Dimension of spectral coeffients arrays
@@ -79,8 +82,8 @@ module stph_fp_main_alg_mod
 
   !!!! Arguments
   ! Scalars with scheme levels, wavenumbers and spectral dimensions
-  integer(kind=i_def), intent(in) :: level_bottom, level_top,          &
-                                     wavenumber_min, wavenumber_max,   &
+  integer(kind=i_def), intent(in) :: level_bottom, level_top, level_offset,    &
+                                     wavenumber_min, wavenumber_max,           &
                                      spectral_dim
 
   ! spectral coefficients power law and decorrelation
@@ -151,12 +154,13 @@ module stph_fp_main_alg_mod
       my_phi_stph = ATAN2(spectral_coeffs(n_row+m), &
                           spectral_coeffc(n_row+m))
       ! Max shift ranges from 0 <-> pi  for wavenos 1 <-> wavenumber_max
-      my_phishft_stph = (wavenumber_max - max(n,m)) * pi / (wavenumber_max-1)
+      my_phishft_stph = (wavenumber_max - max(n,m)) * pi                       &
+                        / (wavenumber_max - wavenumber_min)
 
       do k = level_bottom, level_top
 
           ! Apply vertical scaling Level 1 = no change -> 12km Level = max change (=pi)
-          kr = (domain_height*eta_theta_levels(k))/12.0e3_r_def
+          kr = (domain_height*eta_theta_levels(k + lev_offset))/12.0e3_r_def
 
           ! Create coeff with phase shift
           coeffc_phase(k, n_row+m) = my_coeff_rad * cos(my_phi_stph +    &
