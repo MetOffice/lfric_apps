@@ -917,11 +917,11 @@ subroutine create_model_data( modeldb,      &
             call depository%remove_field("grad_y_orog")
           end if
           if (ancil_option == ancil_option_fixed) then
-            if (sst_source /= sst_source_start_dump) then
-              call ancil_fields%remove_field("tstar_sea")
-              call depository%remove_field("tstar_sea")
-            end if
             if (.not. l_esm_couple) then
+              if (sst_source /= sst_source_start_dump) then
+                call ancil_fields%remove_field("tstar_sea")
+                call depository%remove_field("tstar_sea")
+              end if
               call ancil_fields%remove_field("sea_ice_fraction")
               call depository%remove_field("sea_ice_fraction")
             end if
