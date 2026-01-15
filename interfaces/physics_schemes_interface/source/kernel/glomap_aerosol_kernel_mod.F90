@@ -35,13 +35,12 @@ private
 
 type, public, extends(kernel_type) :: glomap_aerosol_kernel_type
   private
-  type(arg_type) :: meta_args(66) = (/                &
+  type(arg_type) :: meta_args(65) = (/                &
        arg_type(GH_SCALAR, GH_LOGICAL, GH_READ),      & ! rad_this_tstep
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cf_bulk
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! cf_liquid
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rh_crit
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! m_v
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! m_cf
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_nuc_sol
@@ -120,7 +119,6 @@ contains
 !!                                     in potential temperature space
 !> @param[in]     cf_bulk             Bulk cloud fraction
 !> @param[in]     cf_liquid           Liquid cloud fraction
-!> @param[in]     rh_crit             Critical rel humidity
 !> @param[in]     m_v                 aka q
 !> @param[in]     m_cf                aka qcf
 !> @param[in]     n_nuc_sol           Climatology aerosol field
@@ -195,7 +193,6 @@ subroutine glomap_aerosol_code( nlayers,                                       &
                                 exner_in_wth,                                  &
                                 cf_bulk,                                       &
                                 cf_liquid,                                     &
-                                rh_crit,                                       &
                                 m_v,                                           &
                                 m_cf,                                          &
                                 n_nuc_sol,                                     &
@@ -268,6 +265,7 @@ subroutine glomap_aerosol_code( nlayers,                                       &
 
   use glomap_clim_interface_mod,          only: glomap_clim_interface
 
+  use cloud_inputs_mod,                   only: rhcrit
   use planet_constants_mod,               only: p_zero, kappa
 
   use ukca_config_specification_mod,      only: i_sussbcocdu_7mode
@@ -295,7 +293,6 @@ subroutine glomap_aerosol_code( nlayers,                                       &
   real(kind=r_def), intent(in),  dimension(undf_wth) :: exner_in_wth
   real(kind=r_def), intent(in),  dimension(undf_wth) :: cf_bulk
   real(kind=r_def), intent(in),  dimension(undf_wth) :: cf_liquid
-  real(kind=r_def), intent(in),  dimension(undf_wth) :: rh_crit
   real(kind=r_def), intent(in),  dimension(undf_wth) :: m_v
   real(kind=r_def), intent(in),  dimension(undf_wth) :: m_cf
   real(kind=r_def), intent(in),  dimension(undf_wth) :: n_nuc_sol
@@ -487,7 +484,7 @@ subroutine glomap_aerosol_code( nlayers,                                       &
     qcf_um(k)            = m_cf(map_wth(1) + k)
     cloud_blk_frac_um(k) = cf_bulk(map_wth(1) + k)
     cloud_liq_frac_um(k) = cf_liquid(map_wth(1) + k)
-    rh_crit_um(k)        = rh_crit(map_wth(1) + k)
+    rh_crit_um(k)        = rhcrit(k)
   end do
 
   !-----------------------------------------------------------------------
