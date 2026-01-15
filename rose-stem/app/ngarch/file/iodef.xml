@@ -7,6 +7,9 @@
 
     <variable_definition src="$METADATA/variable_def_main.xml"/>
     <axis_definition src="$METADATA/axis_def_main.xml"/>
+    <!-- Include scalar definitions -->
+    <scalar_definition src="$METADATA/scalar_def_main.xml"/>
+
     <!-- Pressure level axes definitions -->
     <axis_definition>
       <axis id="pressure_levels" name="pressure_levels" n_glo="29" value="(0,28)[100000 95000 92500 90000 85000 70000 60000 50000 40000 30000 25000 20000 15000 10000 7000 5000 3000 2000 1000 700 500 300 200 100 70 50 30 20 10]"/>
