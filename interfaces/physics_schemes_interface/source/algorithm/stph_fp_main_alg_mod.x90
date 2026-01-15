@@ -160,7 +160,7 @@ module stph_fp_main_alg_mod
       do k = level_bottom, level_top
 
           ! Apply vertical scaling Level 1 = no change -> 12km Level = max change (=pi)
-          kr = (domain_height*eta_theta_levels(k + lev_offset))/12.0e3_r_def
+          kr = (domain_height*eta_theta_levels(k + level_offset))/12.0e3_r_def
 
           ! Create coeff with phase shift
           coeffc_phase(k, n_row+m) = my_coeff_rad * cos(my_phi_stph +    &
