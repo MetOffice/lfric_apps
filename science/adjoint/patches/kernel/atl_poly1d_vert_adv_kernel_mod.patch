@@ -189,6 +189,3 @@
  
 -end module adj_poly1d_vert_adv_kernel_mod
 +end module atl_poly1d_vert_adv_kernel_mod
- 
--end module adj_poly1d_vert_adv_kernel_mod
-+end module atl_poly1d_vert_adv_kernel_mod
