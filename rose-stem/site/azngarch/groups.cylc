@@ -9,6 +9,7 @@
     "scripts": [
         "config_dump_checker",
         "style_checker",
+        "fortitude_linter",
         "extract_checker",
         "site_validator",
         "validate_rose_meta",
