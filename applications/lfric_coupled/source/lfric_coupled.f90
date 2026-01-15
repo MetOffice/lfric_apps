@@ -16,7 +16,7 @@
 
 program lfric_coupled
 
-  use cli_mod,                only : get_initial_filename
+  use cli_mod,                only : parse_command_line
   use coupler_mod,            only : set_cpl_name
   use driver_collections_mod, only : init_collections, final_collections
   use driver_comm_mod,        only : init_comm, final_comm
@@ -37,6 +37,8 @@ program lfric_coupled
   character(*), parameter :: cpl_component_name = "lfric"
 
   character(:), allocatable :: filename
+
+  call parse_command_line( filename )
 
   modeldb%mpi => global_mpi
 
@@ -63,7 +65,7 @@ program lfric_coupled
 
   call set_cpl_name(modeldb, cpl_component_name)
   call init_comm( application_name, modeldb )
-  call get_initial_filename( filename )
+
   call init_config( filename, gungho_required_namelists, &
                     modeldb%configuration )
   call init_logger( modeldb%mpi%get_comm(), application_name )

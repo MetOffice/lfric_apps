@@ -46,7 +46,7 @@
 !       contact darth@metofice.gov.uk for advice.
 program jedi_id_tlm_tests
 
-  use cli_mod,                      only : get_initial_filename
+  use cli_mod,                      only : parse_command_line
   use constants_mod,                only : PRECISION_REAL, i_def, str_def, r_def
   use field_collection_mod,         only : field_collection_type
   use log_mod,                      only : log_event, log_scratch_space, &
@@ -96,7 +96,7 @@ program jedi_id_tlm_tests
   character(*), parameter :: program_name = "jedi_id_tlm_tests"
 
   ! Infrastructure configuration
-  call get_initial_filename( filename )
+  call parse_command_line( filename )
 
   ! Run object - handles initialization and finalization of required
   ! infrastructure. Initialize external libraries such as XIOS

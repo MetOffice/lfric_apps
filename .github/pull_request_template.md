@@ -22,26 +22,19 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 
 ## Code Quality Checklist
 
-(_Some checks are automatically carried out via the CI pipeline_)
-
 - [ ] I have performed a self-review of my own code
-- [ ] My code follows the project's style guidelines
-      [style guidelines](https://metoffice.github.io/lfric_core/how_to_contribute/index.html#how-to-contribute-index)
-- [ ] Comments have been included that aid undertanding and enhance the
-      readability of the code
+- [ ] My code follows the project's [style guidelines](https://metoffice.github.io/lfric_core/how_to_contribute/index.html#how-to-contribute-index)
+- [ ] Comments have been included that aid understanding and enhance the readability of the code
 - [ ] My changes generate no new warnings
+- [ ] All automated checks in the CI pipeline have completed successfully
 
 ## Testing
 
-- [ ] I have tested this change locally, using the LFRic Apps rose-stem suite
-- [ ] If any tests fail (rose-stem or CI) the reason is understood and
-      acceptable (eg. kgo changes)
-- [ ] I have added tests to cover new functionality as appropriate (eg. system
-      tests, unit tests, etc.)
-- [ ] Any new tests have been assigned an appropriate amount of compute resource
-      and have tests been allocated to an appropriate testing group (i.e. the
-      developer tests are for jobs which use a small amount of compute resource
-      and complete in a matter of minutes)
+- [ ] I have tested this change locally, using the LFRic Core rose-stem suite
+- [ ] If required (e.g. API changes) I have also run the LFRic Apps test suite using this branch
+- [ ] If any tests fail (rose-stem or CI) the reason is understood and acceptable (e.g. kgo changes)
+- [ ] I have added tests to cover new functionality as appropriate (e.g. system tests, unit tests, etc.)
+- [ ] Any new tests have been assigned an appropriate amount of compute resource and have been allocated to an appropriate testing group (i.e. the developer tests are for jobs which use a small amount of compute resource and complete in a matter of minutes)
 
 <!-- Describe other testing performed (if applicable) -->
 
@@ -57,30 +50,21 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 
 ## Performance Impact
 
-- [ ] Performance of the code has been considered and, if applicable, suitable
-      performance measurements have been conducted
+- [ ] Performance of the code has been considered and, if applicable, suitable performance measurements have been conducted
 
 ## AI Assistance and Attribution
 
-- [ ] Some of the content of this change has been produced with the assistance
-      of _Generative AI tool name_ (e.g., Met Office Github Copilot Enterprise,
-      Github Copilot Personal, ChatGPT GPT-4, etc) and I have followed the
-      [Simulation Systems AI policy](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html)
-      (including attribution labels)
+- [ ] Some of the content of this change has been produced with the assistance of _Generative AI tool name_ (e.g., Met Office Github Copilot Enterprise, Github Copilot Personal, ChatGPT GPT-4, etc) and I have followed the [Simulation Systems AI policy](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html) (including attribution labels)
 
 <!-- If AI has been used, please provide more details here -->
 
 ## Documentation
 
-- [ ] Where appropriate I have updated documentation related to this change and
-      confirmed that it builds correctly
+- [ ] Where appropriate I have updated documentation related to this change and confirmed that it builds correctly
 
 ## PSyclone Approval
 
-- [ ] If you have edited any psyclone related code (eg. PsyKAl-lite, Kernal
-      inteface, optimisation scripts, LFRic data structure code) then please
-      contact the
-      [tooscollabdevteam@metoffice.gov.uk](tooscollabdevteam@metoffice.gov.uk)
+- [ ] If you have edited any PSyclone-related code (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code) then please contact the [TCD Team](tooscollabdevteam@metoffice.gov.uk)
 
 # Sci/Tech Review
 
@@ -92,7 +76,7 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 - [ ] Documentation is sufficient (do documentation papers need updating)
 - [ ] Sufficient testing has been completed
 
-_Please alert the code reviewer via a tag when you have approved the SR_
+(_Please alert the code reviewer via a tag when you have approved the SR_)
 
 # Code Review
 
