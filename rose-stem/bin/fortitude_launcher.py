@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 ##############################################################################
-# (c) Crown copyright 2026 Met Office. All rights reserved.
+# (c) Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
+
 """
-Launch stylist on list of directories. Run on all and print outputs. Fail if any
+Launch fortitude on list of directories. Run on all and print outputs. Fail if any
 style changes required.
 """
 
