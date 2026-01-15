@@ -59,10 +59,10 @@ module stph_fp_main_alg_mod
   !>@param[in,out]     spectral_coeffs         Imaginary Spectral coefficients
   !>@param[i,out]      fp                      Forcing pattern
 
-  subroutine stph_fp_main_alg(level_bottom, level_top,          &
-                              wavenumber_min, wavenumber_max,   &
-                              spectral_dim, alpha, power_law,   &
-                              spectral_coeffc, spectral_coeffs, &
+  subroutine stph_fp_main_alg(level_bottom, level_top, level_offset, &
+                              wavenumber_min, wavenumber_max,        &
+                              spectral_dim, alpha, power_law,        &
+                              spectral_coeffc, spectral_coeffs,      &
                               fp)
 
   ! TO DO after PSyclone ticket 1312
