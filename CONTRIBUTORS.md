@@ -10,3 +10,4 @@
 | oakleybrunt     | Oakley Brunt      | Met Office  | 2025-12-19 |
 | harry-shepherd  | Harry Shepherd    | Met Office  | 2026-01-08 |
 | DrTVockerodtMO  | Terence Vockerodt | Met Office  | 2026-01-08 |
+| tom-j-h         | Tom Hill          | Met Office  | 2026-01-14 |

@@ -194,10 +194,10 @@ program jedi_id_tlm_tests
   ! Apply the Adjoint dot product test: <I11,I21> == <I12,I22>
 
   ! Evaluate dot product of increments I11 and I21 <I11,I21>
-  dot_product_1 = increment_11%dot_product_with(increment_21)
+  dot_product_1 = real(increment_11%dot_product_with(increment_21), r_def)
 
   ! Evaluate dot product of increments I12 and I22 <I12,I22>
-  dot_product_2 = increment_12%dot_product_with(increment_22)
+  dot_product_2 = real(increment_12%dot_product_with(increment_22), r_def)
 
   ! <I11,I21> == <I12,I22>
   !    The two dot products should be nearly identical. The tolerance is
