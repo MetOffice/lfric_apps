@@ -1,0 +1,13 @@
+##############################################################################
+# (c) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+[check]
+
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]          #check these file types
+
+select = ["S101"]
+
+output-format = "grouped"                #group results by file
