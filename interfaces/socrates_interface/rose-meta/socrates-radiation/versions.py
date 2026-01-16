@@ -18,6 +18,19 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
+class vnXX_txxx(MacroUpgrade):
+    # Upgrade macro for #135 by James Manners
+
+    BEFORE_TAG = "vn3.0"
+    AFTER_TAG = "vn3.0_t135"
+
+    def upgrade(self, config, meta_config=None):
+        self.add_setting(
+            config, ["namelist:cosp", "n_cosp_step"], "1"
+        )
+        return config, self.reports
+
+
 """
 Copy this template and complete to add your macro
 
