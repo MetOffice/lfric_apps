@@ -11,3 +11,4 @@
 | DrTVockerodtMO  | Terence Vockerodt | Met Office  | 2026-01-08 |
 | MetBenjaminWent | Benjamin Went     | Met Office  | 2026-01-15 |
 | timgraham-Met   | Tim Graham        | Met Office  | 2026-01-15 |
+| cjohnson-pi     | Christine Johnson | Met Office  | 2026-01-16 |

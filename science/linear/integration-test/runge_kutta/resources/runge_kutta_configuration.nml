@@ -139,6 +139,7 @@ write_minmax_tseries=.false.,
 &linear
 fixed_ls=.false.
 pert_option='random',
+transport_efficiency=.false.
 /
 &logging
 run_log_level='info',
