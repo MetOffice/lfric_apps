@@ -266,7 +266,7 @@ subroutine opt_apply_variable_hx_code_r_single(cell,                    &
   real(kind=r_single), dimension(ncell_3d_4,1,1), intent(in) :: m3
 
   ! Internal variables
-  integer(kind=i_def)            :: k, ik, df, nl
+  integer(kind=i_def)            :: k, ik
   real(kind=r_single), dimension(2) :: t_e
   real(kind=r_single)               :: div_u
   real(kind=r_single), dimension(0:nlayers-1) :: t_e1_vec, t_e2_vec
@@ -280,50 +280,9 @@ subroutine opt_apply_variable_hx_code_r_single(cell,                    &
   integer(kind=i_def) :: map_wt1
   integer(kind=i_def) :: map_wt2
 
-  real(kind=r_single), dimension(0:nlayers-1,ndf_w2) :: u_col
-  real(kind=r_single), dimension(0:nlayers-1,2)      :: t_col
-
   ! Compute D * u + P3t * Mt^-1 * ( Pt2 * u )
   ! Hard wired optimisation for desired configuration (p=0 elements with pt2
   ! only acting on vertical components of u )
-
-  if ( .true. ) then
-
-  nl = nlayers-1
-  ik = (cell-1)*nlayers + 1
-
-  do df = 1, ndf_w2
-    u_col(:,df) = x(map_w2(df):map_w2(df)+nl)
-  end do
-
-  t_col(0,1) = mt_inv(map_wt(1)) * p3t(ik,1,1)                       &
-                 *(pt2(ik,1,5)*u_col(0,5) + pt2(ik,1,6)*u_col(0,6))
-  t_col(0,2) = mt_inv(map_wt(2)) * p3t(ik,1,2)                       &
-                 *(pt2(ik,2,5)*u_col(0,5) + pt2(ik+1,1,5)*u_col(1,5) &
-                 + pt2(ik,2,6)*u_col(0,6) + pt2(ik+1,1,6)*u_col(1,6))
-
-  t_col(1:nl-1,1) = mt_inv(map_wt(1)+1:map_wt(1)+nl-1) * p3t(ik+1:ik+nl-1,1,1)                 &
-                 *(pt2(ik+1:ik+nl-1,1,5)*u_col(1:nl-1,5) + pt2(ik:ik+nl-2,2,5)*u_col(0:nl-2,5) &
-                 + pt2(ik+1:ik+nl-1,1,6)*u_col(1:nl-1,6) + pt2(ik:ik+nl-2,2,6)*u_col(0:nl-2,6))
-  t_col(1:nl-1,2) = mt_inv(map_wt(2)+1:map_wt(2)+nl-1) * p3t(ik+1:ik+nl-1,1,2)                 &
-                 *(pt2(ik+1:ik+nl-1,2,5)*u_col(1:nl-1,5) + pt2(ik+2:ik+nl,1,5)*u_col(2:nl,5)   &
-                 + pt2(ik+1:ik+nl-1,2,6)*u_col(1:nl-1,6) + pt2(ik+2:ik+nl,1,6)*u_col(2:nl,6))
-
-  t_col(nl,1) = mt_inv(map_wt(1)+nl) * p3t(ik+nl,1,1)                          &
-                 *(pt2(ik+nl,1,5)*u_col(nl,5) + pt2(ik+nl-1,2,5)*u_col(nl-1,5) &
-                 + pt2(ik+nl,1,6)*u_col(nl,6) + pt2(ik+nl-1,2,6)*u_col(nl-1,6))
-  t_col(nl,2) = mt_inv(map_wt(2)+nl) * p3t(ik+nl,1,2)                          &
-                 *(pt2(ik+nl,2,5)*u_col(nl,5) + pt2(ik+nl,2,6)*u_col(nl,6))
-
-  lhs(map_w3(1):map_w3(1)+nl) = rhs_p(map_w3(1):map_w3(1)+nl)                     &
-                              + m3(ik:ik+nl,1,1)*pressure(map_w3(1):map_w3(1)+nl) &
-                              + sgn*(t_col(:,1) + t_col(:,2))
-  do df = 1, ndf_w2
-    lhs(map_w3(1):map_w3(1)+nl) = lhs(map_w3(1):map_w3(1)+nl) &
-                                + sgn*div(ik:ik+nl,1,df)*u_col(:,df)
-  end do
-
-  else
 
   map_w21 = map_w2(1)
   map_w22 = map_w2(2)
@@ -385,8 +344,6 @@ subroutine opt_apply_variable_hx_code_r_single(cell,                    &
         + div(ik,1,5)*x(map_w25+k) + div(ik,1,6)*x(map_w26+k)
   lhs(map_w31+k) = m3(ik,1,1)*pressure(map_w31+k) &
                    + sgn*(div_u + (t_e(1) + t_e(2))) + rhs_p(map_w3(1)+k)
-
-  end if
 
 end subroutine opt_apply_variable_hx_code_r_single
 
