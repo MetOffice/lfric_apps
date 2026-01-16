@@ -3,8 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Maps a field from W2 broken to W2.
-!> @details "Unbreaks" a W2 field by averaging values on either side of
+!> @brief Maps a field from W2h broken to W2h.
+!> @details "Unbreaks" a W2h field by averaging values on either side of
 !>          broken facets.
 !>          This kernel only works for the lowest-order elements.
 module assemble_w2h_from_w2hb_kernel_mod
@@ -46,52 +46,49 @@ module assemble_w2h_from_w2hb_kernel_mod
 
 contains
 
-!> @brief Converts a broken W2 field into a continuous W2 field
+!> @brief Converts a broken W2h field into a continuous W2h field
 !>
 !> @param[in] nlayers Number of layers in the mesh
-!> @param[in,out] field_w2 Field in the W2 space to be returned.
-!> @param[in] field_w2_broken Original field in W2 broken to be used.
-!> @param[in] rmultiplicity_w2 Reciprocal of nodal multiplicity field for W2
-!> @param[in] ndf_w2 Number of degrees of freedom per cell for W2
-!> @param[in] undf_w2 Number of (local) unique degrees of freedom for W2
-!> @param[in] map_w2 Dofmap for the cell at the base of the column for W2
-!> @param[in] ndf_w2_broken Number of degrees of freedom per cell for W2 broken
-!> @param[in] undf_w2_broken Number of (local) unique degrees of freedom for W2 broken
-!> @param[in] map_w2_broken Dofmap for the cell at the base of the column for W2 broken
+!> @param[in,out] field_w2h Field in the W2h space to be returned.
+!> @param[in] field_w2h_broken Original field in W2h broken to be used.
+!> @param[in] ndf_w2h Number of degrees of freedom per cell for W2h
+!> @param[in] undf_w2h Number of (local) unique degrees of freedom for W2h
+!> @param[in] map_w2h Dofmap for the cell at the base of the column for W2h
+!> @param[in] ndf_w2h_broken Number of degrees of freedom per cell for W2h broken
+!> @param[in] undf_w2h_broken Number of (local) unique degrees of freedom for W2h broken
+!> @param[in] map_w2h_broken Dofmap for the cell at the base of the column for W2h broken
 subroutine assemble_w2h_from_w2hb_code( nlayers,          &
-                                        field_w2,         &
-                                        field_w2_broken,  &
-                                        ndf_w2,           &
-                                        undf_w2,          &
-                                        map_w2,           &
-                                        ndf_w2_broken,    &
-                                        undf_w2_broken,   &
-                                        map_w2_broken     &
+                                        field_w2h,        &
+                                        field_w2h_broken, &
+                                        ndf_w2h,          &
+                                        undf_w2h,         &
+                                        map_w2h,          &
+                                        ndf_w2h_broken,   &
+                                        undf_w2h_broken,  &
+                                        map_w2h_broken    &
                                       )
 
   implicit none
 
   ! Arguments
   integer(kind=i_def),                            intent(in) :: nlayers
-  integer(kind=i_def),                            intent(in) :: ndf_w2_broken, ndf_w2
-  integer(kind=i_def),                            intent(in) :: undf_w2_broken, undf_w2
-  integer(kind=i_def), dimension(ndf_w2_broken),  intent(in) :: map_w2_broken
-  integer(kind=i_def), dimension(ndf_w2),         intent(in) :: map_w2
+  integer(kind=i_def),                            intent(in) :: ndf_w2h_broken, ndf_w2h
+  integer(kind=i_def),                            intent(in) :: undf_w2h_broken, undf_w2h
+  integer(kind=i_def), dimension(ndf_w2h_broken), intent(in) :: map_w2h_broken
+  integer(kind=i_def), dimension(ndf_w2h),        intent(in) :: map_w2h
 
-  real(kind=r_solver), dimension(undf_w2),        intent(inout) :: field_w2
-  real(kind=r_solver), dimension(undf_w2_broken), intent(in)    :: field_w2_broken
+  real(kind=r_solver), dimension(undf_w2h),        intent(inout) :: field_w2h
+  real(kind=r_solver), dimension(undf_w2h_broken), intent(in)    :: field_w2h_broken
 
   ! Internal variables
   integer(kind=i_def) :: df, k
 
-  ! Loop over horizontal W2 DoFs
-  ! Contribution from broken field is based on multiplicity
-  do df = 1, ndf_w2
+  ! Loop over horizontal W2h DoFs
+  do df = 1, ndf_w2h
     ! Loop over layers of mesh
     do k = 0, nlayers - 1
-      field_w2(map_w2(df)+k) = field_w2(map_w2(df)+k)              &
-        + field_w2_broken(map_w2_broken(df)+k)
-
+      field_w2h(map_w2h(df)+k) = field_w2h(map_w2h(df)+k) &
+        + field_w2h_broken(map_w2h_broken(df)+k)
     end do
   end do
 
