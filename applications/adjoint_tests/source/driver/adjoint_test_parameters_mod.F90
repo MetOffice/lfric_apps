@@ -28,12 +28,12 @@ module adjoint_test_parameters_mod
   ! if the ls is not realistic. ls can still be
   ! randomly assigned, but in a sensible range
   ! to prevent these issues.
-  real(r_def), dimension(2), parameter :: ls_u_range = (/ 0.1_r_def, 10.0_r_def /)
+  real(r_def), dimension(2), parameter :: ls_u_range = (/ 0.0_r_def, 10.0_r_def /)
   real(r_def), dimension(2), parameter :: ls_theta_range = (/ 280.0_r_def, 340.0_r_def /)
-  real(r_def), dimension(2), parameter :: ls_rho_range = (/ 0.1_r_def, 1.0_r_def /)
-  real(r_def), dimension(2), parameter :: ls_exner_range = (/ 0.1_r_def, 1.0_r_def /)
-  real(r_def), dimension(2), parameter :: ls_md1_range = (/ 0.1_r_def, 1.0_r_def /)
-  real(r_def), dimension(2), parameter :: ls_md2_range = (/ 0.1_r_def, 1.0_r_def /)
-  real(r_def), dimension(2), parameter :: ls_md3_range = (/ 0.1_r_def, 1.0_r_def /)
+  real(r_def), dimension(2), parameter :: ls_rho_range = (/ 0.0_r_def, 1.0_r_def /)
+  real(r_def), dimension(2), parameter :: ls_exner_range = (/ 0.0_r_def, 1.0_r_def /)
+  real(r_def), dimension(2), parameter :: ls_md1_range = (/ 0.0_r_def, 1.0_r_def /)
+  real(r_def), dimension(2), parameter :: ls_md2_range = (/ 0.0_r_def, 1.0_r_def /)
+  real(r_def), dimension(2), parameter :: ls_md3_range = (/ 0.0_r_def, 1.0_r_def /)
 
 end module adjoint_test_parameters_mod

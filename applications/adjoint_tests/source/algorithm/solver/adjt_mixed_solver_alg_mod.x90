@@ -195,7 +195,6 @@ contains
     call create_mixed_preconditioner( rhs, pressure_solver, mixed_preconditioner )
     call create_mixed_solver( mixed_preconditioner, mixed_operator, mixed_solver )
 
-    adj_pressure_operator = adj_pressure_operator_type(level=1_i_def)
     call create_adj_pressure_preconditioner( rhs, adj_pressure_operator, adj_pressure_preconditioner )
     call create_adj_pressure_solver( adj_pressure_operator, adj_pressure_preconditioner, adj_pressure_solver )
     call create_adj_mixed_preconditioner( rhs, adj_pressure_solver, adj_mixed_preconditioner )
