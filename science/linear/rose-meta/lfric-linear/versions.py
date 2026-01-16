@@ -38,17 +38,16 @@ class vn30_t108(MacroUpgrade):
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-linear
-        # Commands from rose-meta/lfric-linear
-        scaling = self.get_setting_value(
-            config, ["namelist:planet", "scaling_factor"]
+        fixed_ls = self.get_setting_value(
+            config, ["namelist:linear", "fixed_ls"]
         )
-        if "125.0" in scaling:
+        if ".true." in fixed_ls:
             self.add_setting(
-                config, ["namelist:linear", "transport_efficiency"], ".false."
+                config, ["namelist:linear", "transport_efficiency"], ".true.."
             )
         else:
             self.add_setting(
-                config, ["namelist:linear", "transport_efficiency"], ".true."
+                config, ["namelist:linear", "transport_efficiency"], ".false."
             )
 
         return config, self.reports
