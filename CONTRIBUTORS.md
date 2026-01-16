@@ -11,4 +11,4 @@
 | harry-shepherd  | Harry Shepherd    | Met Office  | 2026-01-08 |
 | DrTVockerodtMO  | Terence Vockerodt | Met Office  | 2026-01-08 |
 | mo-lucy-gordon  | Lucy Gordon       | Met Office  | 2026-01-14 |
-
+| MetBenjaminWent | Benjamin Went     | Met Office  | 2026-01-15 |
