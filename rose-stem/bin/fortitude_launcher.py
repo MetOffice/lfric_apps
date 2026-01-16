@@ -52,8 +52,8 @@ if __name__ == "__main__":
             app_path = os.path.join(args.source, top_dir, app)
             config_path = os.path.join(app_path, "fortitude.toml")
             if not os.path.exists(os.path.join(config_path)):
-                print('''Using universal config (toml) file.
-                      (Some apps use their own config file.)''')
+                print("Using universal config (toml) file."
+                      " (Some apps use their own config file.)")
                 config_path = os.path.join(
                     args.source,
                     "rose-stem",
@@ -80,8 +80,8 @@ if __name__ == "__main__":
 
     if failed_apps:
         error_message = ""
-        print('''\n\n\nSummary: Fortitude found errors in
-              the following repositories:\n''', file=sys.stderr)
+        print("\n\n\nSummary: Fortitude found errors in"
+              " the following repositories:\n", file=sys.stderr)
         for failed in failed_apps:
             error_message += f"{failed}\n"
         sys.exit(error_message)
