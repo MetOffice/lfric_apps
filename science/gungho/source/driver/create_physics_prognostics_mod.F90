@@ -1533,6 +1533,14 @@ contains
       call processor%apply(make_spec('surf_wetness', main%aerosol,             &
            empty=is_empty, ckp=checkpoint_flag))
     end if
+
+    if (aerosol == aerosol_um .and. (glomap_mode == glomap_mode_ukca .or.             &
+                                     glomap_mode == glomap_mode_dust_and_clim )) then
+      checkpoint_flag = .true.
+    else
+      checkpoint_flag = .false.
+    end if
+
     call processor%apply(make_spec('soil_clay', main%aerosol,                  &
         ckp=checkpoint_flag))
     call processor%apply(make_spec('soil_sand', main%aerosol,                  &
@@ -1776,8 +1784,13 @@ contains
     end if
 
     ! Fields on dust space, might need checkpointing
-    ! vector_space => function_space_collection%get_fs(twod_mesh, 0, 0, W3,
-    !     get_ndata_val('dust_divisions'))
+    if (aerosol == aerosol_um .and. (glomap_mode == glomap_mode_ukca .or.             &
+                                     glomap_mode == glomap_mode_dust_and_clim )) then
+      checkpoint_flag = .true.
+    else
+      checkpoint_flag = .false.
+    end if
+
     call processor%apply(make_spec('dust_mrel', main%aerosol,                   &
           ckp=checkpoint_flag))
 
