@@ -808,9 +808,6 @@ integer ::                                                                     &
 real(kind=r_bl), parameter :: max_abs_obkhov = 1.0e6_r_bl
                  ! Maximum permitted magnitude of the Obukhov
                  ! length (m).
-real(kind=r_bl), parameter :: small_sh = 0.01_r_bl
-                 ! Minimum  value of sh used in
-                 ! original_vars variance diagnostics
 real(kind=r_bl), parameter :: small_tke = 1.0e-6_r_bl
                  ! Minimum required value of TKE before
                  ! variance diagnostics are calculated
