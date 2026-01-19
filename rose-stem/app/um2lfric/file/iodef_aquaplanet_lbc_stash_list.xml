@@ -5,6 +5,10 @@
 
   <context id = "gungho_atm">
 
+    <scalar_definition>
+      <scalar id="frt" name="forecast_reference_time" standard_name="forecast_reference_time"/>
+    </scalar_definition>
+
     <axis_definition>
       <axis id="vert_axis_half_levels" name="half_levels"/>
       <axis id="vert_axis_full_levels" name="full_levels"/>
@@ -18,30 +22,37 @@
       <grid id="node_grid">
         <domain domain_ref="node"/>
         <axis axis_ref="vert_axis_full_levels"/>
+	<scalar scalar_ref="frt"/>
       </grid>
       <grid id="half_level_face_grid">
         <domain domain_ref="face"/>
         <axis axis_ref="vert_axis_half_levels"/>
+	<scalar scalar_ref="frt"/>
       </grid>
       <grid id="full_level_face_grid">
         <domain domain_ref="face"/>
         <axis axis_ref="vert_axis_full_levels"/>
+	<scalar scalar_ref="frt"/>
       </grid>
       <grid id="half_level_edge_grid">
         <domain domain_ref="edge"/>
         <axis axis_ref="vert_axis_half_levels"/>
+	<scalar scalar_ref="frt"/>
       </grid>
       <grid id="soil_levels_face_grid">
         <domain domain_ref="face"/>
         <axis axis_ref="soil_levels"/>
+	<scalar scalar_ref="frt"/>
       </grid>
       <grid id="land_tiles_face_grid">
         <domain domain_ref="face"/>
         <axis axis_ref="land_tiles"/>
+	<scalar scalar_ref="frt"/>
       </grid>
       <grid id="snow_layers_face_grid">
         <domain domain_ref="face"/>
         <axis axis_ref="snow_layers_and_tiles"/>
+	<scalar scalar_ref="frt"/>
       </grid>
     </grid_definition>
 

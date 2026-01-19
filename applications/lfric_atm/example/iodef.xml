@@ -5,6 +5,8 @@
 
   <context id = "gungho_atm">
 
+    <scalar_definition src="../metadata/scalar_def_main.xml"/>
+
     <variable_definition src="../metadata/variable_def_main.xml"/>
     <axis_definition src="../metadata/axis_def_main.xml"/>
     <!-- Pressure level axes definitions -->
