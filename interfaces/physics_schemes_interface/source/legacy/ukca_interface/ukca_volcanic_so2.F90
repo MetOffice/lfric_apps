@@ -152,8 +152,9 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Functionality is not currently implemented in LFRic.
 errcode = 1
-call ereport(RoutineName, errcode,                                             &
-      'Functionality not available -'//RoutineName//' should not be called')
+cmessage = 'Volcanic SO2 emissions not yet implemented.' //                    &
+           'Logical l_ukca_so2ems_expvolc should be set to .false.'
+call ereport(RoutineName, errcode, cmessage)
 
 ! Allocate true_latitude, true_longitude arrays and initialise temporarily.
 ! These should be subsequently populated from LFRic w3 fields.
