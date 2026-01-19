@@ -11,7 +11,7 @@
 
 program gravity_wave
 
-  use cli_mod,                 only: get_initial_filename
+  use cli_mod,                 only: parse_command_line
   use driver_modeldb_mod,      only: modeldb_type
   use driver_collections_mod,  only: init_collections, final_collections
   use driver_comm_mod,         only: init_comm, final_comm
@@ -32,11 +32,12 @@ program gravity_wave
   character(*), parameter   :: program_name = "gravity_wave"
   character(:), allocatable :: filename
 
+  call parse_command_line( filename )
+
   call modeldb%configuration%initialise( program_name, table_len=10 )
 
   modeldb%mpi => global_mpi
   call init_comm( program_name, modeldb )
-  call get_initial_filename( filename )
   call init_config( filename, gravity_wave_required_namelists, &
                     modeldb%configuration )
   deallocate( filename )
