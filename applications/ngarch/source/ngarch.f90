@@ -8,7 +8,7 @@
 !> @details Runs a GungHo model with a custom step method
 program ngarch
 
-  use cli_mod,                     only : get_initial_filename
+  use cli_mod,                     only : parse_command_line
   use driver_collections_mod,      only : init_collections, final_collections
   use constants_mod,               only : precision_real
   use driver_comm_mod,             only : init_comm, final_comm
@@ -31,6 +31,8 @@ program ngarch
   type( modeldb_type )        :: modeldb
   character(*), parameter     :: application_name = "ngarch"
   character(:), allocatable   :: filename
+
+  call parse_command_line( filename )
 
   call modeldb%configuration%initialise( application_name, table_len=10 )
   call modeldb%values%initialise( 'values', 5 )
@@ -56,7 +58,6 @@ program ngarch
 
   modeldb%mpi => global_mpi
   call init_comm( application_name, modeldb )
-  call get_initial_filename( filename )
   call init_config( filename,                  &
                     ngarch_required_namelists, &
                     modeldb%configuration )
