@@ -6,7 +6,7 @@
 
 !> Test the assembly of a W2h field from a W2hb field
 !>
-module assemble_w2h_from_w2hb_mod_test
+module assemble_w2h_from_w2hb_kernel_mod_test
 
   use constants_mod, only : i_def, r_solver
   use funit
@@ -80,4 +80,4 @@ contains
 
   end subroutine test_all
 
-end module assemble_w2h_from_w2hb_mod_test
+end module assemble_w2h_from_w2hb_kernel_mod_test
