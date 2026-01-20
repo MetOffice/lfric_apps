@@ -244,6 +244,54 @@
         "threads": 4,
     }) %}
 
+{% elif task_ns.conf_name == "tlm_tests_nwp_gal9-4OMP-C224_MG" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_tests",
+        "opt_confs": ["nwp_gal9_c224", "rrt_equals_dt", "strict_solver"],
+        "resolution": "C224_MG",
+        "ancil_resolution": "C224",
+        "DT": 1800,
+        "tsteps": 13,
+        "mpi_parts": 1176,
+        "threads": 4,
+        "xios_nodes": 4,
+        "mpi_parts_xios" : 16,
+        "wallclock": 10,
+    }) %}
+
+{% elif task_ns.conf_name == "tlm_tests_nwp_gal9-real_increment-4OMP-C224_MG" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_tests",
+        "opt_confs": ["nwp_gal9_c224", "rrt_equals_dt", "strict_solver"],
+        "resolution": "C224_MG",
+        "ancil_resolution": "C224",
+        "DT": 1800,
+        "tsteps": 13,
+        "mpi_parts": 1176,
+        "threads": 4,
+        "xios_nodes": 4,
+        "mpi_parts_xios" : 16,
+        "wallclock": 10,
+    }) %}
+
+{% elif task_ns.conf_name == "tlm_tests_nwp_gal9-strict_solver-4OMP-C224_MG" %}
+
+    {% do task_dict.update({
+        "app_name": "jedi_tlm_tests",
+        "opt_confs": ["nwp_gal9_c224", "rrt_equals_dt", "strict_solver"],
+        "resolution": "C224_MG",
+        "ancil_resolution": "C224",
+        "DT": 1800,
+        "tsteps": 13,
+        "mpi_parts": 1176,
+        "threads": 4,
+        "xios_nodes": 4,
+        "mpi_parts_xios" : 16,
+        "wallclock": 10,
+    }) %}
+
 {% elif task_ns.conf_name == "integration_tests" %}
 
     {% do task_dict.update({
@@ -280,7 +328,10 @@
         "tlm_tests_nwp_gal9-dry-4OMP-C12_MG",
         "tlm_tests_nwp_gal9-dry-1PE-C12_MG",
         "tlm_tests_nwp_gal9-dry-1PE-4OMP-C12_MG",
-        "tlm_tests_nwp_gal9-strict_solver-4OMP-C12_MG"
+        "tlm_tests_nwp_gal9-strict_solver-4OMP-C12_MG",
+        "tlm_tests_nwp_gal9-4OMP-C224_MG",
+        "tlm_tests_nwp_gal9-real_increment-4OMP-C224_MG",
+        "tlm_tests_nwp_gal9-strict_solver-4OMP-C224_MG"
     ] %}
 
     {% if task_ns.conf_name not in no_kgo %}
