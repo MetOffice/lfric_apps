@@ -3,7 +3,6 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
-
 # Summary
 # =======
 #
@@ -44,6 +43,19 @@
 #
 #   * fulldom_size_name:      name of variable holding full-domain size
 #   * asad_call_name:         name of the top-level ASAD solver routine
+#
+# OpenMP can also be added to the chunked loop by setting the environment
+# variable UKCA_FULL_CHUNK_OMP to True. By default it will be turned on
+# provided the chunk size is not equal to domain size, i.e. loop of length 1
+#
+# OpenMP parallelism is then added to the chunking loop using an omp parllel do
+# directive to allow for top level parallelism on the ASAD solver. Importantly
+# a call to ukca_reallocate_asad_arrays which reallocates the THREADPRIVATE
+# arrays. This is done within the parallel region to account for the potential
+# for chunk_size to be different between iterations, i.e. smaller last
+# iteration. Dynamic scheduling has been selected based upon the number of
+# solver iterations varying between chunks depending on the complexity of the
+# chemistry.
 #
 # Example
 # =======
@@ -98,16 +110,40 @@
 # =======
 
 import os
-
-from psyclone.version import (__MAJOR__, __MINOR__, __MICRO__)
+import logging
 from psyclone.psyir.nodes import (
-    ArrayReference, Assignment, BinaryOperation, Call, IntrinsicCall,
-    Literal, Loop, Routine, Reference, Schedule)
+    ArrayReference,
+    Assignment,
+    BinaryOperation,
+    Call,
+    IfBlock,
+    IntrinsicCall,
+    Literal,
+    Loop,
+    Reference,
+    Routine,
+    Schedule,
+    UnaryOperation,
+)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, REAL_TYPE, CHARACTER_TYPE, Symbol, DataSymbol, ArrayType,
-    RoutineSymbol)
+    CHARACTER_TYPE,
+    INTEGER_TYPE,
+    REAL_TYPE,
+    ArrayType,
+    ContainerSymbol,
+    DataSymbol,
+    ImportInterface,
+    RoutineSymbol,
+    Symbol,
+)
 from psyclone.psyir.transformations.reference2arrayrange_trans import (
-    Reference2ArrayRangeTrans)
+    Reference2ArrayRangeTrans,
+)
+from psyclone.transformations import OMPParallelLoopTrans, TransformationError
+from psyclone.version import __MAJOR__, __MICRO__, __MINOR__
+
+# Conditonal imports
+# ==================
 
 psy_version = (__MAJOR__, __MINOR__, __MICRO__)
 
@@ -128,9 +164,22 @@ asad_call_name = "asad_cdrive"
 # Name of the routine in which to apply the transformation
 routine_name = "ukca_chemistry_ctl_full"
 
+# Source and name of the reallocation routine
+asad_realloc_routine = ("ukca_chemistry_ctl_col_mod",
+                        "ukca_reallocate_asad_arrays")
+
+
+# Utility
+# ==============
+def get_bool_env(var_name: str, default: bool = False) -> bool:
+    val = os.getenv(var_name)
+    if val is None:
+        return default
+    return val.strip().lower() in ('1', 'true', 't', 'yes', 'y', 'on')
+
+
 # Transformation
 # ==============
-
 
 def trans(psyir):
     desired_chunk_size = os.getenv("UKCA_FULL_CHUNK_SIZE")
@@ -148,6 +197,12 @@ def trans(psyir):
         # Message to print (via umPrint) when chunking enabled
         message_text = ("UKCA full-domain chunking enabled with " +
                         "a chunk size of " + desired_chunk_size)
+
+    use_omp = get_bool_env("UKCA_FULL_CHUNK_OMP", True)
+    if desired_chunk_size is None and use_omp:
+        logging.WARNING(
+            "Turning off omp as chunk size is set to full domain size")
+        use_omp = False
 
     # Locate correct routine within which to apply the transformation
     for routine in psyir.walk(Routine):
@@ -348,3 +403,66 @@ def trans(psyir):
         # -------------------------
 
         loop.parent.addchild(assign_desired_chunk_size, index=loop.position)
+
+        if use_omp:
+            # Add import for ASAD reallocation routine
+            # ----------------------------------------
+
+            asad_realloc_mod_sym = ContainerSymbol(asad_realloc_routine[0])
+            routine.symbol_table.add(asad_realloc_mod_sym)
+            asad_realloc_routine_sym = Symbol(asad_realloc_routine[1])
+            asad_realloc_routine_sym.interface = ImportInterface(
+                asad_realloc_mod_sym)
+            routine.symbol_table.add(asad_realloc_routine_sym)
+
+            # Add Reallocation Call to within Loop
+            # ------------------------------------
+            # Create reallocation call
+            realloc_call = Call()
+            realloc_call.addchild(Reference(RoutineSymbol(
+                asad_realloc_routine[1])))
+            realloc_call.addchild(Reference(chunk_size_var))
+
+            # Create conditional reallocation call
+            realloc_block = IfBlock.create(
+                BinaryOperation.create(
+                    BinaryOperation.Operator.OR,
+                    UnaryOperation.create(
+                        UnaryOperation.Operator.NOT,
+                        IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.ALLOCATED,
+                            [Reference(
+                                Symbol(next(iter(asad_vars.keys()))))])),
+                    BinaryOperation.create(
+                        BinaryOperation.Operator.NE,
+                        Reference(chunk_size_var),
+                        IntrinsicCall.create(
+                            IntrinsicCall.Intrinsic.SIZE,
+                            [Reference(Symbol(next(iter(asad_vars.keys())))),
+                                ("dim", Literal("1", INTEGER_TYPE))]))),
+                [realloc_call])
+
+            loop.loop_body.addchild(realloc_block, index=2)
+
+            # Added OMP transformation on desired loop
+            # ----------------------------------------
+
+            omp_tans = OMPParallelLoopTrans(omp_schedule="static")
+            opts = {
+                # some non-PURE subroutines called within this loop
+                "force": True,
+                # several WRITE statements used for diagnostics
+                "node-type-check": False,
+            }
+
+            try:
+                omp_tans.apply(
+                    loop, options=opts,
+                )
+
+            except TransformationError as err:
+                err_msg = ("ukca_chemistry_ctl_full_mod.py: Error: "
+                           "could not apply OMP transformation "
+                           f"to loop: {err.message_text}")
+
+                raise TransformationError(err_msg) from err
