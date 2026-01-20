@@ -83,7 +83,6 @@ contains
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
     real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
-    !real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     if (subroutine_timers) call timer('adjt_mixed_operator_alg')
 

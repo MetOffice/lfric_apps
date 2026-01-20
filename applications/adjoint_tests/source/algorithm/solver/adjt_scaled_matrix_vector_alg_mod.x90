@@ -77,7 +77,6 @@ module adjt_scaled_matrix_vector_alg_mod
     real(kind=r_def)            :: machine_tolerance
     real(kind=r_def)            :: relative_diff
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
-    !real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Setup
 
