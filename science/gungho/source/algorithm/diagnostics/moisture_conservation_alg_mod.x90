@@ -26,8 +26,8 @@ module moisture_conservation_alg_mod
   use quadrature_rule_gaussian_mod,    only: quadrature_rule_gaussian_type
   use sci_geometric_constants_mod,     only: get_coordinates, &
                                              get_panel_id
-  use io_config_mod,                   only: subroutine_timers
-  use timer_mod,                       only: timer
+  use timing_mod,                      only: start_timing, stop_timing, &
+                                             tik, LPROF
 
   implicit none
 
@@ -76,8 +76,9 @@ contains
 
     type(mesh_type), pointer :: mesh => null()
     type(mesh_type), pointer :: shifted_mesh => null()
+    integer(tik)             :: id
 
-    if ( subroutine_timers ) call timer('moisture_conservation_alg')
+    if ( LPROF ) call start_timing( id, 'moisture_conservation_alg' )
 
     element_order_h = rho_d%get_element_order_h()
     element_order_v = rho_d%get_element_order_v()
@@ -126,7 +127,7 @@ contains
 
 
     nullify( chi, panel_id, w3_fs, w3_fs, mesh, shifted_mesh, chi_shifted )
-    if ( subroutine_timers ) call timer('moisture_conservation_alg')
+    if ( LPROF ) call stop_timing( id, 'moisture_conservation_alg' )
 
   end subroutine moisture_conservation_alg
 

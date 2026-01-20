@@ -9,8 +9,7 @@ module spectral_gwd_diags_mod
 
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
-  use io_config_mod,       only: subroutine_timers
-  use timer_mod,           only: timer
+  use timing_mod,          only: start_timing, stop_timing, tik, LPROF
 
   use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field
 
@@ -47,8 +46,9 @@ contains
     type( field_type ), intent(inout) ::               &
         tau_east_spectral_gwd, tau_south_spectral_gwd, &
         tau_west_spectral_gwd, tau_north_spectral_gwd
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+    if ( LPROF ) call start_timing( id, 'spectral_gwd_diags' )
 
     ! 3D fields in wtheta space
     tau_east_spectral_gwd_flag = init_diag(tau_east_spectral_gwd, 'spectral_gwd__tau_east_spectral_gwd')
@@ -56,7 +56,7 @@ contains
     tau_west_spectral_gwd_flag = init_diag(tau_west_spectral_gwd, 'spectral_gwd__tau_west_spectral_gwd')
     tau_north_spectral_gwd_flag = init_diag(tau_north_spectral_gwd, 'spectral_gwd__tau_north_spectral_gwd')
 
-    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+    if ( LPROF ) call stop_timing( id, 'spectral_gwd_diags' )
 
   end subroutine initialise_diags_for_spectral_gwd
 
@@ -74,8 +74,9 @@ contains
                                          dtheta_spectral_gwd, tau_east_spectral_gwd,          &
                                          tau_south_spectral_gwd, tau_west_spectral_gwd,       &
                                          tau_north_spectral_gwd
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+    if ( LPROF ) call start_timing( id, 'spectral_gwd_diags' )
 
     ! Prognostic fields
     call du_spectral_gwd%write_field('spectral_gwd__du_spectral_gwd')
@@ -89,7 +90,7 @@ contains
     if (tau_west_spectral_gwd_flag) call tau_west_spectral_gwd%write_field()
     if (tau_north_spectral_gwd_flag) call tau_north_spectral_gwd%write_field()
 
-    if ( subroutine_timers ) call timer("spectral_gwd_diags")
+    if ( LPROF ) call stop_timing( id, 'spectral_gwd_diags' )
 
   end subroutine output_diags_for_spectral_gwd
 end module spectral_gwd_diags_mod
