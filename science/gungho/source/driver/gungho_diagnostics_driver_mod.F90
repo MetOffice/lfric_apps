@@ -166,10 +166,6 @@ contains
                                  modeldb%clock, mesh, nodal_output_on_w3)
     call write_scalar_diagnostic('exner', exner, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('height_w3', height_w3, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('height_wth', height_wth, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
 
     ! Write out heights of function space DoFs to initial file, if requested
     if (use_xios_io .and. modeldb%clock%is_initialisation()) then
