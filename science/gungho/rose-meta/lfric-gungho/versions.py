@@ -17,6 +17,19 @@ class UpgradeError(Exception):
 
     __str__ = __repr__
 
+class vn30_txxx(MacroUpgrade):
+    # Upgrade macro for <TICKET> by James Kent
+
+    BEFORE_TAG = "vn3.0"
+    AFTER_TAG = "vn3.0_txxx"
+
+    def upgrade(self, config, meta_config=None):
+        # Add adjust_tracer_equation to transport namelist
+        self.add_setting(
+            config, ["namelist:transport", "adjust_tracer_equation"], ".false."
+        )
+
+        return config, self.reports
 
 """
 Copy this template and complete to add your macro

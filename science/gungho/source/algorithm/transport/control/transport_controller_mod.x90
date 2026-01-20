@@ -681,6 +681,7 @@ contains
               LOG_LEVEL_ERROR                                                  &
             )
           end if
+        end if
 
       else
         call log_event(                                                        &
@@ -714,7 +715,7 @@ contains
     if (self%outer_set) then
       call self%metadata%update_metadata(                                      &
               self%outer, self%adaptive_splitting, self%reference_splitting,   &
-              self%make_tracers_advective
+              self%make_tracers_Advective                                      &
       )
       call self%counter%initialise(                                            &
               self%metadata, self%dt_substep, self%num_substeps, self%outer    &
