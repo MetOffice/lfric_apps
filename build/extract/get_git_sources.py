@@ -28,7 +28,7 @@ def get_source(
         if use_mirrors:
             mirror_loc = Path(mirror_loc) / "MetOffice" / repo
             print(f"Cloning/Updating {repo} from mirror {mirror_loc} at ref {ref}")
-            clone_repo_mirror(source, repo, mirror_loc, dest)
+            clone_repo_mirror(source, ref, repo, mirror_loc, dest)
         else:
             print(f"Cloning/Updating {repo} from {source} at ref {ref}")
             clone_repo(source, ref, dest)
