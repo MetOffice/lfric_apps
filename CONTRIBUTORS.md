@@ -2,6 +2,7 @@
 | GitHub user     | Real Name         | Affiliation | Date       |
 | --------------- | ----------------- | ----------- | ---------- |
 | james-bruten-mo | James Bruten      | Met Office  | 2025-12-09 |
+| jedbakerMO      | Jed Baker         | Met Office  | 2025-12-29 |
 | jennyhickson    | Jenny Hickson     | Met Office  | 2025-12-10 |
 | mike-hobson     | Mike Hobson       | Met Office  | 2025-12-17 |
 | mo-marqh        | mark Hedley       | Met Office  | 2025-12-11 |

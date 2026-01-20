@@ -25,8 +25,7 @@ use sw_mts_kernel_mod,       only: sw_mts_kernel_type
 use lw_kernel_mod,           only: lw_kernel_type
 use lw_inc_kernel_mod,       only: lw_inc_kernel_type
 use lw_mts_kernel_mod,       only: lw_mts_kernel_type
-use io_config_mod,           only: subroutine_timers
-use timer_mod,               only: timer
+use timing_mod,              only: start_timing, stop_timing, tik, LPROF
 use log_mod,                 only: log_event, LOG_LEVEL_DEBUG, LOG_LEVEL_INFO
 use log_field_alg_mod,       only: log_field_alg
 use lfric_xios_write_mod,    only: write_field_generic
@@ -278,6 +277,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
     sw_direct_uv_surf_rts, sw_direct_uv_clear_surf_rts, &
     sw_up_uv_surf_rts, sw_up_uv_clear_surf_rts, &
     photolysis_rates_rts
+  integer( tik )     :: id_sw, id_lw
 
   call log_event( 'slow_physics: Running Radiation', LOG_LEVEL_DEBUG )
 
@@ -498,8 +498,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
 
   end if
 
-  if ( subroutine_timers ) call timer("sw_radiation")
-
+  if ( LPROF ) call start_timing( id_sw, 'sw_radiation' )
   if (rad_this_tstep) then
     ! --------------------------------------------------
     ! Radiation time-step: full calculation of SW fluxes
@@ -603,8 +602,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
   call log_field_alg( sw_up_tile,          LOG_LEVEL_DEBUG )
   call log_field_alg( sw_up_blue_tile,     LOG_LEVEL_DEBUG )
 
-  if ( subroutine_timers ) call timer("sw_radiation")
-  if ( subroutine_timers ) call timer("lw_radiation")
+  if ( LPROF ) call stop_timing( id_sw, 'sw_radiation' )
+  if ( LPROF ) call start_timing( id_lw, 'lw_radiation' )
 
   if (rad_this_tstep) then
     ! --------------------------------------------------
@@ -686,7 +685,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
   call log_field_alg( lw_down_surf,         LOG_LEVEL_DEBUG )
   call log_field_alg( lw_up_tile,           LOG_LEVEL_DEBUG )
 
-  if ( subroutine_timers ) call timer("lw_radiation")
+  if ( LPROF ) call stop_timing( id_lw, 'lw_radiation' )
 
   ! first calculate the total temperature increment
   dt_again=dt

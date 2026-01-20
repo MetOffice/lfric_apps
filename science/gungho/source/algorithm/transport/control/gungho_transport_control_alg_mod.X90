@@ -34,6 +34,8 @@ module gungho_transport_control_alg_mod
   use check_configuration_mod,           only: check_any_shifted,    &
                                                check_transport_name, &
                                                check_any_eqn_consistent
+  use timing_mod,                        only: start_timing, stop_timing, &
+                                               tik, LPROF
 
   implicit none
 
@@ -209,8 +211,6 @@ contains
                                                coarse_collection_transport_alg
     use transport_field_mod,             only: transport_field
     use wind_transport_alg_mod,          only: wind_transport_alg
-    use io_config_mod,                   only: subroutine_timers
-    use timer_mod,                       only: timer
 
     implicit none
 
@@ -262,9 +262,13 @@ contains
     type(transport_metadata_type),   pointer :: transport_metadata
     type(transport_controller_type)          :: transport_controller
     type(transport_controller_type)          :: aerosol_transport_controller
+    integer(tik)                             :: id_cont, id_dens
+    integer(tik)                             :: id_moisture, id_temp
+    integer(tik)                             :: id_trac_adv, id_trac_con
+    integer(tik)                             :: id_trac_last_adv
+    integer(tik)                             :: id_trac_last_con
 
-    if ( subroutine_timers ) call timer('gungho_transport_control')
-
+    if ( LPROF ) call start_timing( id_cont, 'gungho_transport_control' )
     ! ======================================================================== !
     ! Pre-transport initialisation tasks
     ! ======================================================================== !
@@ -322,6 +326,7 @@ contains
     ! ------------------------------------------------------------------------ !
     ! Transport dry density
     call log_event( "Transporting density...", LOG_LEVEL_DEBUG)
+    if ( LPROF ) call start_timing( id_dens, 'control_density_transport' )
     transport_metadata =>                                                      &
         transport_metadata_collection%get_transport_metadata('density')
 
@@ -339,6 +344,7 @@ contains
       flux_this_outer => flux_precomputations%get_total_ref_flux()
       call invoke( inc_X_plus_Y(total_dry_flux, flux_this_outer) )
     end if
+    if ( LPROF ) call stop_timing( id_dens, 'control_density_transport' )
 
     ! Check negative reference fields at this point
     if (check_any_eqn_consistent()) then
@@ -365,6 +371,8 @@ contains
     ! ------------------------------------------------------------------------ !
     ! Transport moisture mixing ratio fields
     if ( moisture_formulation /= moisture_formulation_dry ) then
+      if ( LPROF ) call start_timing( id_moisture, &
+                                      'control_moisture_transport' )
       ! Write out moisture diagnostics
       if ( do_moisture_diagnostics ) then
         call moisture_conservation_alg( rho_d_n, mr_in, 'Before transport' )
@@ -380,13 +388,14 @@ contains
               mr_out, mr_in, nummr_to_transport,                               &
               transport_controller, transport_metadata                         &
       )
-
+      if ( LPROF ) call stop_timing( id_moisture, 'control_moisture_transport' )
       ! ---------------------------------------------------------------------- !
       ! Transport tracers which are active in fast physics, and therefore need
       ! transporting on every outer iteration
       if (present(adv_tracer_all_outer)                                        &
           .and. check_transport_name('adv_tracer') ) then
-
+        if ( LPROF ) call start_timing( id_trac_adv, &
+                                        'control_advective_tracer_transport' )
         call log_event(                                                        &
                  "Transporting advective tracers (all)...", LOG_LEVEL_DEBUG    &
         )
@@ -397,10 +406,13 @@ contains
                 adv_tracer_all_outer, adv_tracer_all_outer_after_slow,         &
                 transport_controller, transport_metadata                       &
         )
+        if ( LPROF ) call stop_timing( id_trac_adv, &
+                                       'control_advective_tracer_transport' )
       end if
       if (present(con_tracer_all_outer)                                        &
           .and. check_transport_name('con_tracer') ) then
-
+        if ( LPROF ) call start_timing( id_trac_con, &
+                                        'control_conservative_tracer_transport' )
         call log_event(                                                        &
                 "Transporting conservative tracers (all)...", LOG_LEVEL_DEBUG  &
         )
@@ -411,6 +423,8 @@ contains
                 con_tracer_all_outer, con_tracer_all_outer_after_slow,         &
                 transport_controller, transport_metadata                       &
         )
+        if ( LPROF ) call stop_timing( id_trac_con, &
+                                       'control_conservative_tracer_transport' )
       end if
     end if
 
@@ -419,6 +433,8 @@ contains
     ! (must be after moisture but before last_outer tracers due to cheap update)
     ! Note: the theta increment is pointwise
     call log_event( "Transporting potential temperature...", LOG_LEVEL_DEBUG)
+    if ( LPROF ) call start_timing( id_temp, &
+                                    'control_potential_temperature_transport' )
     transport_metadata =>                                                      &
         transport_metadata_collection%get_transport_metadata('potential_temperature')
 
@@ -426,6 +442,8 @@ contains
             fields_np1(igh_t), advection_inc(igh_t), advected_fields(igh_t),   &
             mr_out, mr_in, transport_controller, transport_metadata            &
     )
+    if ( LPROF ) call stop_timing( id_temp, &
+                                   'control_potential_temperature_transport' )
 
     ! ======================================================================== !
     ! TRANSPORT OF PROGNOSTICS: LAST OUTER LOOP
@@ -479,7 +497,8 @@ contains
       ! Advective tracers
       if (present(adv_tracer_last_outer)                                       &
           .and. check_transport_name('adv_tracer') ) then
-
+        if ( LPROF ) call start_timing( id_trac_last_adv, &
+                                        'control_last_advective_tracer_transport' )
         call log_event(                                                        &
                 "Transporting advective tracers (last)...", LOG_LEVEL_DEBUG    &
         )
@@ -492,13 +511,16 @@ contains
                 adv_tracer_last_outer, adv_tracer_last_outer_after_slow,       &
                 transport_controller, transport_metadata                       &
         )
+        if ( LPROF ) call stop_timing( id_trac_last_adv, &
+                                       'control_last_advective_tracer_transport' )
       end if
 
       ! ---------------------------------------------------------------------- !
       ! Conservative tracers
       if (present(con_tracer_last_outer)                                       &
           .and. check_transport_name('con_tracer') ) then
-
+        if ( LPROF ) call start_timing( id_trac_last_con, &
+                                        'control_last_conservative_tracer_transport' )
         call log_event(                                                        &
                 "Transporting conservative tracers (last)...", LOG_LEVEL_DEBUG &
         )
@@ -518,6 +540,8 @@ contains
                   transport_controller, transport_metadata                     &
           )
         end if
+        if ( LPROF ) call stop_timing( id_trac_last_con, &
+                                       'control_last_conservative_tracer_transport' )
       end if
     end if
 
@@ -555,7 +579,7 @@ contains
     call transport_controller%finalise()
     call aerosol_transport_controller%finalise()
 
-    if ( subroutine_timers ) call timer('gungho_transport_control')
+    if ( LPROF ) call stop_timing( id_cont, 'gungho_transport_control' )
 
   end subroutine gungho_transport_control_alg
 

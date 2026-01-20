@@ -100,8 +100,8 @@ module mixed_schur_preconditioner_alg_mod
   use sci_r_solver_field_vector_mod,   only: r_solver_field_vector_type
   use field_indices_mod,               only: isol_u, isol_p, &
                                              isol_uv, isol_w
-  use io_config_mod,                   only: subroutine_timers
-  use timer_mod,                       only: timer
+  use timing_mod,                      only: start_timing, stop_timing, &
+                                             tik, LPROF
   use mixed_solver_config_mod,         only: split_w
   use log_mod,                         only: log_event,       &
                                              LOG_LEVEL_ERROR, &
@@ -248,8 +248,11 @@ contains
     class(mixed_schur_preconditioner_type), intent(inout) :: self
     class(abstract_vector_type),            intent(in)    :: x
     class(abstract_vector_type),            intent(inout) :: y
+    integer(tik)                                          :: id_precon, &
+                                                             id_solve
 
-    if ( subroutine_timers ) call timer('mixed_schur_preconditioner_alg')
+    if ( LPROF ) call start_timing( id_precon, &
+                                    'mixed_schur_preconditioner_alg' )
 
     select type(x)
     type is(r_solver_field_vector_type)
@@ -260,7 +263,7 @@ contains
 
          ! STEP 2: Solve Helmholtz system
          ! Krylov solver to obtain pressure increment
-         if ( subroutine_timers ) call timer('mixed_schur solve')
+         if ( LPROF ) call start_timing( id_solve, 'mixed_schur_solve' )
 
          ! Set initial guess to pressure incremenet to 0
          call self%pressure_x%set_scalar(0.0_r_def)
@@ -269,7 +272,7 @@ contains
          call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG)
          call self%pressure_solver%apply(self%pressure_x, self%pressure_b)
 
-         if ( subroutine_timers ) call timer('mixed_schur solve')
+         if ( LPROF ) call stop_timing( id_solve, 'mixed_schur_solve' )
 
           ! STEP 3: Back substitute to obtain other fields
           call self%back_substitute(y)
@@ -285,7 +288,7 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
 
-    if ( subroutine_timers ) call timer('mixed_schur_preconditioner_alg')
+    if ( LPROF ) call stop_timing( id_precon, 'mixed_schur_preconditioner_alg' )
 
   end subroutine apply_mixed_schur_preconditioner
 
@@ -336,8 +339,9 @@ contains
 
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
+    integer(tik)                      :: id
 
-    if ( subroutine_timers ) call timer('mixed_schur rhs')
+    if ( LPROF ) call start_timing( id, 'mixed_schur_rhs' )
 
     rhs => self%pressure_b%get_field_from_position(1)
 
@@ -414,7 +418,7 @@ contains
        call invoke( inc_X_times_Y(rhs, h_diag) )
     end if
 
-    if ( subroutine_timers ) call timer('mixed_schur rhs')
+    if ( LPROF ) call stop_timing( id, 'mixed_schur_rhs' )
 
   end subroutine build_pressure_rhs
 
@@ -452,8 +456,9 @@ contains
                                           exner_inc
 
     type(r_solver_field_type), target :: dummy_field
+    integer(tik)                      :: id
 
-    if ( subroutine_timers ) call timer('Schur back substitute')
+    if ( LPROF ) call start_timing( id, 'schur_back_substitute' )
 
     exner_inc => self%pressure_x%get_field_from_position(1)
 
@@ -502,7 +507,7 @@ contains
     state_p => state%get_field_from_position(isol_p)
     call invoke( setval_X(state_p, exner_inc) )
 
-    if ( subroutine_timers ) call timer('Schur back substitute')
+    if ( LPROF ) call stop_timing( id, 'schur_back_substitute' )
 
   end subroutine back_substitute
 
