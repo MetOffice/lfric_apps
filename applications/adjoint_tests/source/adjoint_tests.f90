@@ -35,11 +35,11 @@ program adjoint_tests
 
   character(*), parameter      :: application_name = "adjoint_tests"
   character(:), allocatable    :: filename
-  
+
   type(namelist_type), pointer :: io_nml
-  
+
   logical :: lsubroutine_timers
-  
+
   call parse_command_line( filename )
   modeldb%mpi => global_mpi
 

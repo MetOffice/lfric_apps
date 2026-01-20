@@ -44,8 +44,10 @@ program shallow_water
 
   type(namelist_type), pointer :: io_nml
   logical                      :: lsubroutine_timers
-  
+
   call parse_command_line( filename )
+
+  modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
 
