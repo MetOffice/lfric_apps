@@ -1122,7 +1122,7 @@ contains
          exner_rho_minus_one, exner_theta_levels
 
     ! single level real fields
-    real(r_um), dimension(ncells,1) ::                                &
+    real(r_um), dimension(ncells,1) ::                                       &
          p_star, zhpar, zh, wstar, wthvs, zlcl_uv, entrain_coef,             &
          qsat_lcl, delthvu, flandg, uw0, vw0, it_lcca, it_cca_2d, it_cclwp,  &
          it_cclwp0, it_conv_rain, it_conv_snow, it_precip_dp, it_precip_sh,  &
@@ -1132,12 +1132,12 @@ contains
          delta_smag, tnuc_nlcl_um
 
     ! single level integer fields
-    integer(i_um), dimension(ncells,1) :: ntml, ntpar, lcbase,        &
+    integer(i_um), dimension(ncells,1) :: ntml, ntpar, lcbase,               &
          it_lcbase,it_lctop, it_ccb, it_cct, it_ccb0, it_cct0, it_kterm_deep,&
          it_kterm_shall, it_cg_term, it_lcbase0, freeze_lev, ccb, cct, lctop
 
     ! single level logical fields
-    logical, dimension(ncells,1) :: land_sea_mask, cumulus,           &
+    logical, dimension(ncells,1) :: land_sea_mask, cumulus,                  &
                                            l_shallow, l_congestus,           &
                                            it_mid_level, l_mid
 
@@ -1167,7 +1167,7 @@ contains
 
     real(r_um), dimension(ncells,1,nlayers) :: conv_prog_precip_conv
 
-    real(r_um), dimension(ncells,1) :: zlcl, t1_sd, q1_sd, w_max,     &
+    real(r_um), dimension(ncells,1) :: zlcl, t1_sd, q1_sd, w_max,            &
          deep_flag, past_conv_ht, ql_ad, ind_cape_reduced,                   &
          it_wstar_dn, g_ccp, h_ccp, ccp_strength
 
@@ -1175,8 +1175,8 @@ contains
 
     ! Water tracer fields which are not currently used but are required by
     ! UM routine
-    real(r_um), dimension(ncells,nlayers,n_wtrac) :: q_wtrac, qcl_wtrac, qcf_wtrac,           &
-          dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac
+    real(r_um), dimension(ncells,nlayers,n_wtrac) :: q_wtrac, qcl_wtrac,     &
+          qcf_wtrac, dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac
     real(r_um), dimension(ncells,n_wtrac) :: rain_wtrac, snow_wtrac
 
     ! Current assumptions about setup based on GA9
@@ -2326,7 +2326,7 @@ contains
         end if
         if (.not. associated(mid_cfl_limited, empty_real_data) ) then
           do i = 1, ncells
-          mid_cfl_limited(map_2d(1,i)) = mid_cfl_limited(map_2d(1,i)) +           &
+          mid_cfl_limited(map_2d(1,i)) = mid_cfl_limited(map_2d(1,i)) +             &
                                 it_md_cfl_limited(i,1) *one_over_conv_calls
           end do
         end if
@@ -2364,14 +2364,14 @@ contains
                                   +(dbcfbydt(i,1,k) * timestep_conv)
           dtheta_conv(i,1,k)   = dtheta_conv(i,1,k)                     &
                                       + dthbydt(i,1,k) * timestep_conv
-          dt_conv(map_wth(1,i) + k)   = dt_conv(map_wth(1,i) + k)               &
-                                      + dthbydt(i,1,k) * timestep_conv      &
+          dt_conv(map_wth(1,i) + k)   = dt_conv(map_wth(1,i) + k)       &
+                                      + dthbydt(i,1,k) * timestep_conv  &
                                       * exner_theta_levels(i,1,k)
-          dmv_conv(map_wth(1,i) + k)  =  dmv_conv(map_wth(1,i) + k)             &
+          dmv_conv(map_wth(1,i) + k)  =  dmv_conv(map_wth(1,i) + k)     &
                                        + dqbydt(i,1,k) * timestep_conv
-          dmcl_conv(map_wth(1,i) + k) =  dmcl_conv(map_wth(1,i) + k)            &
+          dmcl_conv(map_wth(1,i) + k) =  dmcl_conv(map_wth(1,i) + k)    &
                                        + dqclbydt(i,1,k) * timestep_conv
-          dms_conv(map_wth(1,i) + k) =  dms_conv(map_wth(1,i) + k)              &
+          dms_conv(map_wth(1,i) + k) =  dms_conv(map_wth(1,i) + k)      &
                                        + dqcfbydt(i,1,k) * timestep_conv
 
           ! Update diagnostics
@@ -2381,10 +2381,10 @@ contains
                                          it_dwn_flux(i,1,k)*one_over_conv_calls
 
           conv_rain_3d(map_wth(1,i) + k) = conv_rain_3d(map_wth(1,i) + k) +        &
-                                         it_conv_rain_3d(i,1,k) *              &
+                                         it_conv_rain_3d(i,1,k) *                  &
                                          one_over_conv_calls
           conv_snow_3d(map_wth(1,i) + k) = conv_snow_3d(map_wth(1,i) + k) +        &
-                                         it_conv_snow_3d(i,1,k) *              &
+                                         it_conv_snow_3d(i,1,k) *                  &
                                          one_over_conv_calls
         end do
       end do

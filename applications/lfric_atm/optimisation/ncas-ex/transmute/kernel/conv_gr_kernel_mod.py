@@ -1,9 +1,12 @@
-##############################################################################
+# -----------------------------------------------------------------------------
 # (C) Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
-
+# -----------------------------------------------------------------------------
+"""
+PSyclone script for applying OpenMP transformations specific to the
+Gregory-Rowntree convection kernel.
+"""
 import logging
 
 from psyclone.psyir.nodes import (
@@ -62,10 +65,16 @@ def trans(psyir: Routine):
         except StopIteration:
             logger.error("Call-number loop not found in routine.")
             return
-        first_loop = next(filter(lambda node: isinstance(node, Loop), routine.children))
+        first_loop = next(
+            filter(lambda node: isinstance(node, Loop), routine.children)
+        )
 
         case_loop = next(
-            filter(lambda loop: "ntra_fld" in str(loop.stop_expr), routine.walk(Loop)), None
+            filter(
+                lambda loop: "ntra_fld" in str(loop.stop_expr),
+                routine.walk(Loop),
+            ),
+            None,
         )
 
         loops_to_ignore = [case_loop]
@@ -73,7 +82,9 @@ def trans(psyir: Routine):
         # Ignore nested wtrac loops except inner-most (i) loops to agree with old script
         for loop in filter(is_wtrac_loop, routine.walk(Loop)):
             loops_to_ignore.extend(
-                inner_loop for inner_loop in loop.walk(Loop) if inner_loop.variable.name != "i"
+                inner_loop
+                for inner_loop in loop.walk(Loop)
+                if inner_loop.variable.name != "i"
             )
 
         add_omp_parallel_region(
@@ -137,7 +148,8 @@ def trans(psyir: Routine):
                     options=default_trans_options
                     | {
                         "ignore_dependencies_for": (
-                            ignore_dependencies_block2_after_numseg + ignore_dependencies_block3
+                            ignore_dependencies_block2_after_numseg
+                            + ignore_dependencies_block3
                         ),
                     },
                 )
@@ -171,7 +183,9 @@ def is_callnumber_loop(node: Node):
     return (
         isinstance(node, Loop)
         and node.variable.name == "call_number"
-        and any(ref.name == "n_conv_calls" for ref in node.stop_expr.walk(Reference))
+        and any(
+            ref.name == "n_conv_calls" for ref in node.stop_expr.walk(Reference)
+        )
     )
 
 
@@ -371,4 +385,3 @@ ignore_dependencies_block3 = [
     "dmv_conv_noshal",
     "tke_bl",
 ]
-

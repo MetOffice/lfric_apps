@@ -32,11 +32,11 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
-class vn30_t788(MacroUpgrade):
-    """Upgrade macro for ticket #788 by Fred Wobus."""
+class vn30_t99(MacroUpgrade):
+    """Upgrade macro for ticket #99 by Fred Wobus."""
 
     BEFORE_TAG = "vn3.0"
-    AFTER_TAG = "vn3.0_t788"
+    AFTER_TAG = "vn3.0_t99"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-lfric_atm
