@@ -21,7 +21,7 @@ contains
   @Test
   subroutine test_all( )
 
-    use assemble_w2h_from_w2hb_mod, only: assemble_w2h_from_w2hb_code
+    use assemble_w2h_from_w2hb_kernel_mod, only: assemble_w2h_from_w2hb_code
 
     implicit none
 

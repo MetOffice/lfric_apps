@@ -91,7 +91,6 @@ contains
                                      ndf_w2h, undf_w2h, map_w2h, &
                                      ndf_w2v, undf_w2v, map_w2v, &
                                      ndf_w3, undf_w3, map_w3,    &
-                                     ndf_wt, undf_wt, map_wt,    &
                                      ndf_w2, undf_w2, map_w2)
     do df = 1,ndf_w2h
       answer = Nu(df)*(Mu(df,df,1)*uv(df) - Grad(df,1,1)*p(1))

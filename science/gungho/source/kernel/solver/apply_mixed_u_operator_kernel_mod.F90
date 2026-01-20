@@ -76,41 +76,41 @@ contains
 !> @param[in]     undf_w2       Unique number of degrees of freedom for the 3d wind space
 !> @param[in]     map_w2        Dofmap for the cell at the base of the column for the 3d wind space
 
-subroutine apply_mixed_u_operator_code(cell,                       &
-                                       nlayers,                    &
-                                       lhs_uv,                     &
-                                       wind_uv, wind_w, exner,     &
-                                       ncell1, mu_cd,              &
-                                       ncell2, grad,               &
-                                       norm_u,                     &
+subroutine apply_mixed_u_operator_code(cell,                          &
+                                       nlayers,                       &
+                                       lhs_uv,                        &
+                                       wind_uv, wind_w, exner,        &
+                                       ncell1, mu_cd,                 &
+                                       ncell2, grad,                  &
+                                       norm_u,                        &
                                        ndf_w2hb, undf_w2hb, map_w2hb, &
-                                       ndf_w2h, undf_w2h, map_w2h, &
-                                       ndf_w2v, undf_w2v, map_w2v, &
-                                       ndf_w3, undf_w3, map_w3,    &
+                                       ndf_w2h, undf_w2h, map_w2h,    &
+                                       ndf_w2v, undf_w2v, map_w2v,    &
+                                       ndf_w3, undf_w3, map_w3,       &
                                        ndf_w2, undf_w2, map_w2)
 
   implicit none
 
   ! Arguments
-  integer(kind=i_def),                     intent(in) :: cell, nlayers
-  integer(kind=i_def),                     intent(in) :: ncell1, ncell2
-  integer(kind=i_def),                     intent(in) :: undf_w2, ndf_w2
-  integer(kind=i_def),                     intent(in) :: undf_w2h, ndf_w2h
-  integer(kind=i_def),                     intent(in) :: undf_w2hb, ndf_w2hb
-  integer(kind=i_def),                     intent(in) :: undf_w2v, ndf_w2v
-  integer(kind=i_def),                     intent(in) :: undf_w3, ndf_w3
+  integer(kind=i_def),                      intent(in) :: cell, nlayers
+  integer(kind=i_def),                      intent(in) :: ncell1, ncell2
+  integer(kind=i_def),                      intent(in) :: undf_w2, ndf_w2
+  integer(kind=i_def),                      intent(in) :: undf_w2h, ndf_w2h
+  integer(kind=i_def),                      intent(in) :: undf_w2hb, ndf_w2hb
+  integer(kind=i_def),                      intent(in) :: undf_w2v, ndf_w2v
+  integer(kind=i_def),                      intent(in) :: undf_w3, ndf_w3
   integer(kind=i_def), dimension(ndf_w2hb), intent(in) :: map_w2hb
-  integer(kind=i_def), dimension(ndf_w2h), intent(in) :: map_w2h
-  integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
-  integer(kind=i_def), dimension(ndf_w2),  intent(in) :: map_w2
-  integer(kind=i_def), dimension(ndf_w3),  intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_w2h),  intent(in) :: map_w2h
+  integer(kind=i_def), dimension(ndf_w2v),  intent(in) :: map_w2v
+  integer(kind=i_def), dimension(ndf_w2),   intent(in) :: map_w2
+  integer(kind=i_def), dimension(ndf_w3),   intent(in) :: map_w3
 
   ! Fields
   real(kind=r_solver), dimension(undf_w2hb), intent(inout) :: lhs_uv
-  real(kind=r_solver), dimension(undf_w2h), intent(in)    :: wind_uv
-  real(kind=r_solver), dimension(undf_w2v), intent(in)    :: wind_w
-  real(kind=r_solver), dimension(undf_w2),  intent(in)    :: norm_u
-  real(kind=r_solver), dimension(undf_w3),  intent(in)    :: exner
+  real(kind=r_solver), dimension(undf_w2h),  intent(in)    :: wind_uv
+  real(kind=r_solver), dimension(undf_w2v),  intent(in)    :: wind_w
+  real(kind=r_solver), dimension(undf_w2),   intent(in)    :: norm_u
+  real(kind=r_solver), dimension(undf_w3),   intent(in)    :: exner
 
   ! Operators
   real(kind=r_solver), dimension(ncell1, ndf_w2, ndf_w2), intent(in) :: mu_cd
@@ -139,7 +139,7 @@ subroutine apply_mixed_u_operator_code(cell,                       &
       iw2  = map_w2(df)
       lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
                             + norm_u(iw2:iw2+nm1)*  &
-                              mu_cd(ij:ij+nm1, df, df2)*wind_uv(map_w2h(df2):map_w2h(df)+nm1)
+                              mu_cd(ij:ij+nm1, df, df2)*wind_uv(map_w2h(df2):map_w2h(df2)+nm1)
     end do
   end do
   do df2 = 1, ndf_w2v

@@ -60,14 +60,15 @@ contains
     real(r_solver), dimension(ndf_w3, ndf_w2, ncell) :: Q32
 
     ! Fields
-    real(r_solver), dimension(undf_w2)  :: Nu, u
+    real(r_solver), dimension(undf_w2)  :: Nu
     real(r_solver), dimension(undf_w2h) :: uv
     real(r_solver), dimension(undf_w2v) :: Lw, w
     real(r_solver), dimension(undf_wt)  :: invMt
     real(r_solver), dimension(undf_w3)  :: p, Lp
     real(r_solver), dimension(undf_wt)  :: t
+    real(r_solver), dimension(ndf_w2)   :: u
 
-    integer(i_def) :: df, dfv
+    integer(i_def) :: df, dfv, k
     real(r_solver) :: answer
 
     map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
@@ -133,7 +134,7 @@ contains
     k = 2
     do dfv = 1,ndf_w2v
       df = ndf_w2h+dfv
-      answer = Nu(df+k)*(Mu(df,df,k)*uv(df) - sum(P2t(df,:,k)*t(:)) - Grad(df,1,k)*p(1+k))
+      answer = Nu(df+k)*(Mu(df,df,k)*uv(df) - sum(P2t(df,:,k)*t(3:4)) - Grad(df,1,k)*p(1+k))
       @assertEqual(answer, Lw(dfv+k), tol)
     end do
 
