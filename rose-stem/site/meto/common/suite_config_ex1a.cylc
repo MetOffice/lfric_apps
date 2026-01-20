@@ -10,6 +10,7 @@
 {% set ex1a_compiler_gnu =  'module switch cpe/22.11 cpe/23.05 ; ' ~
                             'module load PrgEnv-gnu ; '~
                             'module load gcc/12.2.0 ; '~
+                            'module load cray-mpich/8.1.27 ; '~
                             'module load lfric-gnu/12.2.0/3.0+ || true' %}
 
 {% set ex1a_compiler_cce =  'module switch PrgEnv-cray PrgEnv-cray/8.4.0 ; ' ~
