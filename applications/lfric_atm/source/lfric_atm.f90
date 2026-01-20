@@ -16,7 +16,7 @@
 
 program lfric_atm
 
-  use cli_mod,                only: get_initial_filename
+  use cli_mod,                only: parse_command_line
   use driver_collections_mod, only: init_collections, final_collections
   use driver_comm_mod,        only: init_comm, final_comm
   use driver_config_mod,      only: init_config, final_config
@@ -42,7 +42,11 @@ program lfric_atm
   character(:), allocatable    :: filename
   integer(tik)                 :: id_setup
   type(namelist_type), pointer :: io_nml
-  logical                      :: lsubroutine_timers
+
+  logical :: lsubroutine_timers
+
+  call parse_command_line( filename )
+
   modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( application_name, &
@@ -68,7 +72,7 @@ program lfric_atm
   call modeldb%io_contexts%initialise(application_name, 100)
 
   call init_comm( application_name, modeldb )
-  call get_initial_filename( filename )
+
   call init_config( filename, gungho_required_namelists, &
                     modeldb%configuration )
   call init_logger( modeldb%mpi%get_comm(), application_name )
