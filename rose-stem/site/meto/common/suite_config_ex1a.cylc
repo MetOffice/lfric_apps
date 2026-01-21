@@ -44,6 +44,7 @@
             NUMA_REGIONS_PER_NODE = 2
             LUSTRE_FILESYSTEM = true
             ROSE_LAUNCHER = 'mpiexec'
+            OMP_STACKSIZE=1g
 
     [[EX1A_BUILD]]
         [[[environment]]]
