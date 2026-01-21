@@ -17,11 +17,11 @@ class UpgradeError(Exception):
 
     __str__ = __repr__
 
-class vn30_txxx(MacroUpgrade):
-    # Upgrade macro for <TICKET> by James Kent
+class vn30_t171(MacroUpgrade):
+    # Upgrade macro for #171 by James Kent
 
     BEFORE_TAG = "vn3.0"
-    AFTER_TAG = "vn3.0_txxx"
+    AFTER_TAG = "vn3.0_t171"
 
     def upgrade(self, config, meta_config=None):
         # Add adjust_tracer_equation to transport namelist
