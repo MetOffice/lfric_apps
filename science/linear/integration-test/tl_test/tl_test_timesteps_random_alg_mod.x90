@@ -224,7 +224,7 @@ module tl_test_timesteps_random_alg_mod
     gamma_exner = 6.5e-1_r_def
 
     if ( use_moisture ) then
-      gamma_mr = 1.e-2_r_def
+      gamma_mr = 1.e-3_r_def
     else
       gamma_mr = 0.0_r_def
     end if

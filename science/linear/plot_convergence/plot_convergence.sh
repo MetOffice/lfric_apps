@@ -47,7 +47,7 @@ build(){
     else
         echo "$exe does not exist, so now building the executable"
         cd ../../../build
-        python3 local_build.py -a linear -t integration-tests
+        python3 local_build.py linear -t integration-tests
 
       if [$? -ne 0 ]; then
           echo "Error building the executable"
