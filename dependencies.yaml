@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: aa328242675491338ddb888d4d747b5e02d3754c
+    source:  git@github.com:thomasmelvin/lfric_core.git
+    ref: decompose_across_panels
 
 moci:
     source: git@github.com:MetOffice/moci.git
