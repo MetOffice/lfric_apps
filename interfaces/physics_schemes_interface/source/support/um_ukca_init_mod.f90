@@ -30,7 +30,7 @@ module um_ukca_init_mod
                                        top_bdy_opt_overwrt_only_top_lev,       &
                                        top_bdy_opt_overwrt_co_no_o3_top,       &
                                        top_bdy_opt_overwrt_co_no_o3_h2o_top,   &
-                                       ! Variables related to initialisation of photolysis    
+                                       ! Variables related to initialisation of photolysis
                                        photol_scheme, photol_scheme_off,       &
                                        photol_scheme_fastjx,                   &
                                        photol_scheme_prescribed, fastjx_mode,  &
@@ -580,7 +580,7 @@ module um_ukca_init_mod
   integer(kind=i_um), allocatable :: jind(:)     ! Index of species from files
   character(len=photol_jlabel_len), allocatable :: jlabel(:)  ! Copy of species
                                     ! names to match those from files
-  real(kind=r_um), pointer :: ratj_jfacta(:)   ! Quantum yield                                    
+  real(kind=r_um), pointer :: ratj_jfacta(:)   ! Quantum yield
   real(kind=r_um), allocatable :: jfacta(:)    ! copy of quantum yield in correct units
 
   character(len=photol_jlabel_len), allocatable :: titlej(:)
@@ -659,7 +659,7 @@ contains
                                      c3_grass, c4_grass,                       &
                                      shrub, urban, lake, soil, ice
 
-  ! UM modules used  
+  ! UM modules used
   use cv_run_mod,           only: l_param_conv
 
   implicit none
@@ -709,14 +709,14 @@ contains
 
     if ( chem_timestep < 0_i_def ) then
       i_chem_timestep = default_chem_timestep
-    else 
+    else
       if ( chem_timestep < i_timestep .or.                                     &
                 mod(chem_timestep, i_timestep) /= 0_i_def ) then
         write(log_scratch_space, '(A,I0,A,A)')'Incorrect chem_timestep found ',  &
         chem_timestep,' This cannot be less than model timestep and has to ',  &
         'be fully divisible. (Check: namelist:chemistry)'
         call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-      else 
+      else
         i_chem_timestep = int(chem_timestep, i_um)
       end if
     end if
@@ -848,11 +848,11 @@ contains
     integer :: i_ukca_light_param=1            ! Internal Price-Rind scheme
     integer :: i_ukca_quasinewton_start=2, i_ukca_quasinewton_end=3
     integer :: i_ukca_scenario=ukca_strat_lbc_env
-    integer::  i_ukca_mode_seg_size=4          ! GLOMAP-mode segment size
-    real(r_um) :: linox_scale_in    
-    
+    integer::  i_ukca_mode_seg_size            ! GLOMAP-mode segment size
+    real(r_um) :: linox_scale_in
+
     character(len=ukca_photol_varname_len) :: adjusted_fname  ! intermediate spc/ filename copy
-    
+
     ! Variables for UKCA error handling
     integer :: ukca_errcode
     character(len=ukca_maxlen_message) :: ukca_errmsg
@@ -937,8 +937,9 @@ contains
     end if
 
     ! Set default GLOMAP segment size if no factor supplied
+    i_ukca_mode_seg_size = 4    ! Current working seg size for LFRic
     if ( ukca_mode_seg_size /= imdi ) THEN
-      i_ukca_mode_seg_size = ukca_mode_seg_size 
+      i_ukca_mode_seg_size = ukca_mode_seg_size
     end if
 
     call ukca_setup( ukca_errcode,                                             &
@@ -1102,7 +1103,7 @@ contains
             'Mismatch in expected and registered photolysis reactions: ',      &
              n_phot_spc, jppj,'. Check definitions in ukca_photol_param_mod'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end if    
+        end if
       else if ( photol_scheme == photol_scheme_fastjx ) then
 
         ! Read spectral data files, allocate arrays and set up
@@ -1122,7 +1123,7 @@ contains
           jlabel(i)=adjusted_fname(1:photol_jlabel_len)
           write(log_scratch_space,'(A,I6,E12.3,A12)')'FJX_JFACTA ', i,         &
             jfacta(i),jlabel(i)
-          call log_event(log_scratch_space, LOG_LEVEL_INFO)        
+          call log_event(log_scratch_space, LOG_LEVEL_INFO)
         end do
 
         ! call wrapper routine that reads FastJX spectral and solar cycle data
@@ -1149,11 +1150,11 @@ contains
       ! include future schemes
       select case (photol_scheme)
       case(photol_scheme_fastjx)
-        i_photol_scheme = photol_fastjx      
-      case default  
-        i_photol_scheme = photol_off      
+        i_photol_scheme = photol_fastjx
+      case default
+        i_photol_scheme = photol_off
       end select
-    
+
       ! Call Photolysis setup routine to initialise Photolysis
       ! Hardwired options, CCA field defined on full_face_level_grid, so
       ! l_3d_cca = .true. and n_cca_lev = number_of_layers (model_levels)
@@ -1210,11 +1211,11 @@ contains
         if (ukca_errcode /= 0) then
           write( log_scratch_space, '(A,I0,A,A,A,A)' ) 'Photolysis error ',    &
             ukca_errcode, ' in ', ukca_errproc, ': ', ukca_errmsg
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )      
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
         ! Obtain the list of environment fields required by Photolysis
         n_phot_flds_req = 0
-        
+
         call photol_get_environ_varlist(ukca_errcode,                          &
               varnames_scalar_real_ptr=photol_fldnames_scalar_real,            &
               varnames_flat_integer_ptr=photol_fldnames_flat_integer,          &
@@ -1242,7 +1243,7 @@ contains
       ! Deallocate fastjx spectral data arrays as no longer needed
       if ( photol_scheme == photol_scheme_fastjx )                             &
         call deallocate_fastjx_filevars()
-  
+
     end if   ! Strattrop and l_ukca_photolysis
 
     ! Switch on optional UM microphysics diagnostics required by UKCA
@@ -1763,7 +1764,7 @@ contains
   end subroutine set_ukca_field_lists
 
   subroutine aerosol_ukca_dust_only_init( row_length, rows, model_levels,      &
-                                          bl_levels, timestep, l_param_conv )
+                                          bl_levels, timestep, l_param_conv  )
 
     implicit none
 
@@ -1795,6 +1796,10 @@ contains
     character(len=ukca_maxlen_message) :: ukca_errmsg
     character(len=ukca_maxlen_procname) :: ukca_errproc
 
+    ! Some default values - either standard values in UM, or the only ones
+    ! currently supported in the LFRic-side implementation.
+    integer::  i_ukca_mode_seg_size          ! GLOMAP-mode segment size
+
     ! Set up proto-GA configuration based on GA9.
     ! The ASAD Newton-Raphson Offline Oxidants scheme (ukca_chem_offline)
     ! is substituted for the Explicit backward-Euler scheme used in GA9
@@ -1805,6 +1810,12 @@ contains
     ! from the LFRic context. Unlike GA9, all fixes that are controlled by
     ! temporary logicals will be on. (i.e. the defaults for these
     ! logicals, .true. by convention in UKCA, are not overridden.)
+
+    ! Set default GLOMAP segment size if no factor supplied
+    i_ukca_mode_seg_size = 4    ! Current working seg size for LFRic
+    if ( ukca_mode_seg_size /= imdi ) THEN
+      i_ukca_mode_seg_size = ukca_mode_seg_size
+    end if
 
     call ukca_setup( ukca_errcode,                                             &
 
@@ -1842,6 +1853,7 @@ contains
            ! General GLOMAP configuration options
            !
            i_mode_nzts=15,                                                     &
+           ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
            i_mode_setup=6,                                                     &
            i_mode_nucscav=i_mode_nucscav,                                      &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
@@ -2048,7 +2060,7 @@ subroutine allocate_fastjx_filevars()
 ! ----------------------------------------------------------------------
 ! Description:
 !
-! allocate arrays that will hold data from FastJX spectral files. 
+! allocate arrays that will hold data from FastJX spectral files.
 ! ----------------------------------------------------------------------
 
 implicit none
