@@ -47,13 +47,7 @@ def extract_files(dependency: str, values: Dict, files: List[str], working: Path
     Then delete the temporary directory
     """
 
-    use_mirrors: bool = (os.getenv('LOCAL_BUILD_MIRRORS', 'False') == 'True')
     mirror_loc: Path = os.getenv("MIRROR_LOC", "")
-    if not mirror_loc and use_mirrors:
-        raise KeyError(
-            "Use Mirrors is set true, but the MIRROR_LOC environment variable hasn't"
-            "been set"
-        )
 
     if (
         "PHYSICS_ROOT" not in os.environ
@@ -65,7 +59,7 @@ def extract_files(dependency: str, values: Dict, files: List[str], working: Path
             values["ref"],
             clone_loc,
             dependency,
-            use_mirrors,
+            bool(mirror_loc),
             mirror_loc
         )
     else:

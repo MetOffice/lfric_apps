@@ -47,7 +47,7 @@ def get_root_path():
     Get the root path of the current working copy
     """
 
-    return Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return Path(__file__).absolute().parent.parent
 
 
 def determine_core_source(root_dir):
@@ -154,7 +154,8 @@ def main():
         "-w",
         "--working_dir",
         default=None,
-        help="Working directory where builds occur. Default to the project "
+        type=Path,
+        help="Working directory where builds occur. Defaults to the project "
         "directory in the working copy.",
     )
     parser.add_argument(
@@ -193,8 +194,7 @@ def main():
 
     # If using mirrors, set environment variable for science extract step
     if args.mirrors:
-        os.environ["USE_MIRRORS"] = "True"
-        os.environ["LOCAL_BUILD_MIRRORS"] = args.mirror_loc
+        os.environ["USE_MIRRORS"] = args.mirror_loc
 
     # Find the root directory of the working copy
     root_dir = get_root_path()
@@ -207,7 +207,7 @@ def main():
         args.working_dir = Path(project_path) / "working"
     else:
         # If the working dir doesn't end in working, set that here
-        if not args.working_dir.strip("/").endswith("working"):
+        if not args.working_dir.name == "working":
             args.working_dir = Path(args.working_dir) / "working"
     # Ensure that working_dir is an absolute path and make the directory
     args.working_dir = args.working_dir.resolve()

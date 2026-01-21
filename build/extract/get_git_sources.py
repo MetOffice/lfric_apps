@@ -4,7 +4,7 @@
 # which you should have received as part of this distribution.
 # *****************************COPYRIGHT*******************************
 """
-Clone sources for a rose-stem run for use with git bdiff module in scripts
+Helper functions for cloning git sources in command line builds
 """
 
 import re
@@ -66,25 +66,40 @@ def run_command(
 
 
 def clone_repo_mirror(
-    source: str, repo_ref: str, parent: str, mirror_loc: Path, loc: Path
+    repo_source: str, repo_ref: str, parent: str, mirror_loc: Path, loc: Path
 ) -> None:
     """
     Clone a repo source using a local git mirror.
     Assume the mirror is set up as per the Met Office
+    - repo_source: ssh url of the source repository
+    - repo_ref: git ref for the source. An empty string will get the default branch
+    - parent: Owner of the github repository being cloned (required to construct the
+              mirror path)
+    - mirror_loc: path to the local git mirrors
+    - loc: path to clone the repository to
     """
 
-    # Remove if this clone already exists
-    if not loc.exists():
+    # If the repository exists and isn't a git repo, exit now as we don't want to
+    # overwrite it
+    if loc.exists():
+        if not Path(loc / ".git").exists():
+            raise RuntimeError(
+                f"The destination for the clone of {repo_source} already exists but "
+                "isn't a git directory. Exiting so as to not overwrite it."
+            )
+
+    # Clone if the repo doesn't exist
+    else:
         command = f"git clone {mirror_loc} {loc}"
         run_command(command)
 
-    # If not provided a ref, return
+    # If not provided a ref, pull the latest repository and return
     if not repo_ref:
         run_command(f"git -C {loc} pull")
         return
 
-    source = source.removeprefix("git@github.com:")
-    user = source.split("/")[0]
+    repo_source = repo_source.removeprefix("git@github.com:")
+    user = repo_source.split("/")[0]
     # Check that the user is different to the Upstream User
     if user in parent.split("/")[0]:
         user = None
@@ -107,9 +122,11 @@ def clone_repo(repo_source: str, repo_ref: str, loc: Path) -> None:
     """
     Clone the repo and checkout the provided ref
     Only if a remote source
+    - repo_source: ssh url of the source repository
+    - repo_ref: git ref for the source. An empty string will get the default branch
+    - loc: path to clone the repository to
     """
 
-    # Remove if this clone already exists
     if not loc.exists():
         # Create a clean clone location
         loc.mkdir(parents=True)
