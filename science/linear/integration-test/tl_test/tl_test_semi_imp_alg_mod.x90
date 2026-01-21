@@ -242,9 +242,9 @@ module tl_test_semi_imp_alg_mod
     do i = 1, nummr
       call invoke( &
            setval_X( r_mr(i), theta ), &
-           inc_a_times_X( 0.000001, r_mr(i) ), &
+           inc_a_times_X( 0.000001_r_def, r_mr(i) ), &
            setval_X( ls_mr(i), ls_theta ), &
-           inc_a_times_X( 0.000001, ls_mr(i) ))
+           inc_a_times_X( 0.000001_r_def, ls_mr(i) ))
     end do
 
     ! Set the prognostic fields to be the linearisation state

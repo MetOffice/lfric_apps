@@ -123,7 +123,7 @@ module gungho_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
-    
+
     if ( encorr_usage /= encorr_usage_none ) then
       call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
       call modeldb%values%get_value( 'total_energy', total_energy )
