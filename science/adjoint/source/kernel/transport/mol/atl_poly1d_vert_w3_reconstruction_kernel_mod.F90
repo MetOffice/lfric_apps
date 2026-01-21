@@ -136,11 +136,14 @@ subroutine atl_poly1d_vert_w3_reconstruction_code( nlayers,        &
     do f = 1, 0, -1
       do k = nlayers - 1, 0, -1
         ls_new_tracer = 1.0_r_def
+        do p = 1, vertical_order + 1
+          ik = f * global_order + f + k * ndata + p + map_c(1) - 1
+          ls_new_tracer = ls_new_tracer * MAX(eps, ABS(ls_tracer(ij + stencil(p,k,f)))) ** coeff(ik)
+        end do
         new_tracer = new_tracer + ls_new_tracer * reconstruction(map_md(1) + f * nlayers + k)
         reconstruction(map_md(1) + f * nlayers + k) = 0.0_r_def
         do p = vertical_order + 1, 1, -1
           ik = f * global_order + f + k * ndata + p + map_c(1) - 1
-          ls_new_tracer = ls_new_tracer * MAX(eps, ABS(ls_tracer(ij + stencil(p,k,f)))) ** coeff(ik)
           tracer(ij + stencil(p,k,f)) = tracer(ij + stencil(p,k,f)) + coeff(ik) * new_tracer / SIGN(MAX(eps, ls_tracer(ij + &
 &stencil(p,k,f))), ls_tracer(ij + stencil(p,k,f)))
         enddo
