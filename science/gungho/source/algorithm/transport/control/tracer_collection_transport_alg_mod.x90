@@ -208,7 +208,6 @@ contains
 
     ! Transport runtime and form of transport equation
     integer(kind=i_def) :: equation_form
-    integer(tik)        :: id
 
     ! If performing advective transport in the first outer loop, then the
     ! transport metadata needs setting here to make that choice
