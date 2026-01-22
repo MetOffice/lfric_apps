@@ -81,7 +81,8 @@ contains
     logical(l_def) :: prepartitioned
     logical        :: apply_partition_check
 
-    integer(i_def) :: stencil_depth
+    integer(i_def), allocatable :: stencil_depths
+
     integer(i_def) :: geometry
     integer(i_def) :: method
     integer(i_def) :: number_of_layers
@@ -191,7 +192,9 @@ contains
     !=======================================================================
     ! 1.3 Initialise mesh objects and assign InterGrid maps
     !=======================================================================
-    stencil_depth = get_required_stencil_depth()
+    allocate( stencil_depths(size(base_mesh_names)) )
+    call get_required_stencil_depth(stencil_depths, base_mesh_names)
+
     apply_partition_check = .false.
     if ( .not. prepartitioned .and. l_multigrid ) then
       apply_partition_check = .true.
@@ -201,7 +204,7 @@ contains
                     modeldb%mpi%get_comm_rank(),  &
                     modeldb%mpi%get_comm_size(),  &
                     base_mesh_names,              &
-                    extrusion, stencil_depth,     &
+                    extrusion, stencil_depths,    &
                     apply_partition_check )
 
     allocate( twod_names, source=base_mesh_names )
@@ -237,6 +240,10 @@ contains
 
     nullify(chi_inventory, panel_id_inventory)
     deallocate(base_mesh_names)
+    deallocate(twod_names)
+    deallocate(extrusion)
+    deallocate(extrusion_2d)
+    deallocate(stencil_depths)
 
   end subroutine initialise_infrastructure
 

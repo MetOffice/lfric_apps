@@ -130,7 +130,7 @@ program cma_test
   type(namelist_type), pointer :: base_mesh_nml
   type(namelist_type), pointer :: planet_nml
 
-  integer(i_def)     :: stencil_depth
+  integer(i_def)     :: stencil_depth(1)
   character(str_def) :: file_prefix
   character(str_def) :: prime_mesh_name
   real(r_def)        :: radius
@@ -289,7 +289,7 @@ program cma_test
                                                 domain_height,    &
                                                 scaled_radius ) )
 
-  stencil_depth = get_required_stencil_depth()
+  stencil_depth = get_required_stencil_depth(base_mesh_names)
   check_partitions = .false.
   call init_mesh( configuration,              &
                   local_rank, total_ranks,    &

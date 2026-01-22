@@ -6,7 +6,7 @@
 
 module check_configuration_mod
 
-  use constants_mod,        only: i_def, l_def
+  use constants_mod,        only: i_def, l_def, str_def
   use mixing_config_mod,    only: viscosity,                                   &
                                   viscosity_mu
   use transport_config_mod, only: operators,                                   &
@@ -48,7 +48,7 @@ module check_configuration_mod
                                   substep_transport,                           &
                                   substep_transport_off,                       &
                                   adjust_vhv_wind,                             &
-                                  ffsl_unity_3d,                   &
+                                  ffsl_unity_3d,                               &
                                   wind_mono_top
   use transport_enumerated_types_mod,                                          &
                             only: scheme_mol_3d,                               &
@@ -612,26 +612,37 @@ contains
   end subroutine check_configuration
 
 
-  !> @brief   Determine required stencil depth for the current configuration.
+  !> @brief   Determine required stencil depth for the current configuration,
+  !!          for each mesh.
   !> @details Depending on the choice of science schemes the required local
   !>          mesh needs to support the anticipated stencils. This function
   !>          returns required stencil depth that needs to be supported.
-  !> @return  stencil_depth
+  !> @param[in,out] stencil_depths    Array of stencil depths for each base mesh
+  !> @param[in]     base_mesh_names   Array of base mesh names
   !>
   !===========================================================================
-  function get_required_stencil_depth() result(stencil_depth)
+  subroutine get_required_stencil_depth(stencil_depths, base_mesh_names)
+
+    use base_mesh_config_mod,         only: prime_mesh_name
+    use formulation_config_mod,       only: use_multires_coupling
+    use multires_coupling_config_mod, only: aerosol_mesh_name,                 &
+                                            coarse_aerosol_transport
 
     implicit none
 
-    integer(kind=i_def) :: stencil_depth
-    integer(kind=i_def) :: sl_depth, special_edge_pts
+    integer(kind=i_def),    intent(inout) :: stencil_depths(:)
+    character(len=str_def), intent(in)    :: base_mesh_names(:)
+
+    integer(kind=i_def) :: i
+    integer(kind=i_def) :: transport_depth, sl_depth
+    integer(kind=i_def) :: special_edge_pts
     logical(kind=l_def) :: any_horz_dep_pts
 
-    stencil_depth = 2
+    transport_depth = 2
 
     if (operators == operators_fv) then
       ! Need larger halos for fv operators
-      stencil_depth  = max( stencil_depth, fv_horizontal_order/2 )
+      transport_depth  = max( transport_depth, fv_horizontal_order/2 )
     end if
 
     any_horz_dep_pts = check_horz_dep_pts()
@@ -661,16 +672,33 @@ contains
 
       if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
         if ( panel_edge_high_order ) then
-          sl_depth = max( sl_depth, 3 )
+          transport_depth = max( sl_depth, 3 )
         else
           sl_depth = max( sl_depth, 2 )
         end if
       end if
 
-      stencil_depth = max( stencil_depth, sl_depth )
+      transport_depth = max( transport_depth, sl_depth )
     end if
 
-  end function get_required_stencil_depth
+    ! Loop through meshes to determine whether transport takes place on it
+    do i = 1, size(base_mesh_names)
+      if (trim(base_mesh_names(i)) == trim(prime_mesh_name)) then
+        ! Assume transport always occurs on prime mesh
+        stencil_depths(i) = transport_depth
+
+      else if (use_multires_coupling .and. coarse_aerosol_transport .and.      &
+               trim(base_mesh_names(i)) == trim(aerosol_mesh_name)) then
+        ! Coarse mesh transport for aerosols
+        stencil_depths(i) = transport_depth
+
+      else
+        ! No transport on this mesh, so set stencil depth to 2
+        stencil_depths(i) = 2
+      end if
+    end do
+
+  end subroutine get_required_stencil_depth
 
   !> @brief   Determine whether any of the transport schemes are MoL
   !> @details Loops through the transport schemes specified for different

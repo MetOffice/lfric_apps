@@ -86,7 +86,7 @@ program solver
 
   character(str_def) :: prime_mesh_name
 
-  integer(i_def) :: stencil_depth
+  integer(i_def) :: stencil_depth(1)
   integer(i_def) :: geometry
   integer(i_def) :: method
   integer(i_def) :: number_of_layers
