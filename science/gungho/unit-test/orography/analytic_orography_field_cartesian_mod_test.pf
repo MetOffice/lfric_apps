@@ -58,7 +58,7 @@ contains
     use base_mesh_config_mod,          only : geometry_planar,    &
                                               topology_fully_periodic
     use finite_element_config_mod,     only : cellshape_quadrilateral, &
-                                              coord_system_xyz
+                                              coord_system_xyz, coord_space_wchi
     use feign_config_mod,              only : feign_finite_element_config,   &
                                               feign_base_mesh_config,        &
                                               feign_extrusion_config,        &
@@ -94,6 +94,8 @@ contains
 
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
+                                      coord_order_multigrid=1_i_def,     &
+                                      coord_space=coord_space_wchi,      &
                                       coord_system=coord_system_xyz,     &
                                       element_order_h=0_i_def,           &
                                       element_order_v=0_i_def,           &
@@ -183,6 +185,7 @@ contains
     real(r_def), parameter    :: tol = 1.0e-3_r_def
     real(r_def)               :: height_flat_surface, height_domain_top
     real(r_def)               :: chi_1(undf), chi_2(undf), chi_3(undf)
+    real(r_def)               :: chi_1_in(undf), chi_2_in(undf), chi_3_in(undf)
     real(r_def)               :: panel_id(undf)
     real(r_def)               :: eta(0:nlayers)
     real(r_def)               :: vertex_coords_2d(3,1), chi_surf, chi_test
@@ -235,13 +238,17 @@ contains
     do i = 1, undf
       chi_3(i) = eta2z_linear(eta(i-1), height_flat_surface, height_domain_top)
     end do
+    chi_1_in(:) = chi_1(:)
+    chi_2_in(:) = chi_2(:)
+    chi_3_in(:) = chi_3(:)
     panel_id(:) = 1.0_r_def
     ! Test Cartesian orography assignment
-    call analytic_orography_cartesian( nlayers, ndf, undf, map, &
-                                       ndf, undf, map,          &
-                                       height_flat_surface,     &
-                                       height_domain_top,       &
-                                       chi_1, chi_2, chi_3,     &
+    call analytic_orography_cartesian( nlayers, ndf, undf, map,      &
+                                       ndf, undf, map,               &
+                                       height_flat_surface,          &
+                                       height_domain_top,            &
+                                       chi_1_in, chi_2_in, chi_3_in, &
+                                       chi_1, chi_2, chi_3,          &
                                        panel_id )
 
     ! Test selected chi_3
