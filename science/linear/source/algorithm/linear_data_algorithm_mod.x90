@@ -590,6 +590,7 @@ module linear_data_algorithm_mod
                                                 init_mr_fields
     use initial_theta_ref_kernel_mod,     only: initial_theta_ref_kernel_type
     use idealised_config_mod,             only: test
+    use sci_assign_field_random_kernel_mod, only: assign_field_random_kernel_type
 
     implicit none
 
@@ -602,6 +603,7 @@ module linear_data_algorithm_mod
 
     type( field_type ), pointer :: ls_mr(:) => null()
     type( field_type ), pointer :: ls_moist_dyn(:) => null()
+    type( field_type ), pointer :: ls_land_fraction => null()
 
     type( field_collection_type ), pointer :: ls_fields
 
@@ -621,6 +623,7 @@ module linear_data_algorithm_mod
     call ls_fields%get_field('ls_u', ls_u)
     call ls_fields%get_field('ls_rho', ls_rho)
     call ls_fields%get_field('ls_exner', ls_exner)
+    call ls_fields%get_field('ls_land_fraction', ls_land_fraction )
 
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
     call moisture_fields%get_field("ls_mr",ls_mr_array)
@@ -645,7 +648,9 @@ module linear_data_algorithm_mod
     call init_rho_field( ls_rho, ls_theta, ls_exner, ls_moist_dyn, initial_time )
     call init_mr_fields( ls_mr, ls_theta, ls_exner, ls_rho, ls_moist_dyn )
 
-    nullify( ls_theta, ls_rho, ls_u, ls_exner, ls_moist_dyn, ls_mr )
+    call invoke( assign_field_random_kernel_type( ls_land_fraction, 1.0_r_def ))
+
+    nullify( ls_theta, ls_rho, ls_u, ls_exner, ls_moist_dyn, ls_mr, ls_land_fraction )
     nullify( chi, panel_id )
 
   end subroutine linear_init_reference_ls

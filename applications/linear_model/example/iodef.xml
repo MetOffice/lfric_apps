@@ -52,6 +52,11 @@
       <axis axis_ref="vert_axis_half_levels"/>
       <axis axis_ref="ls_axis"/>
     </grid>
+    <grid id="one_level_face_time_grid">
+      <domain domain_ref="face"/>
+      <axis axis_ref="1"/>
+      <axis axis_ref="ls_axis"/>
+    </grid>
    </grid_definition>
 
    <field_definition prec="8" >
@@ -361,6 +366,7 @@
        <field id="ls_exner_data" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_time_grid" operation="once"/>
        <field id="ls_h_u_data" name="h_u" long_name="horizontal_wind" unit="m s-1" grid_ref="half_level_edge_time_grid" operation="once"/>
        <field id="ls_v_u_data" name="v_u" long_name="vertical_wind" standard_name="vertical_wind" unit="m s-1" grid_ref="full_level_face_time_grid" operation="once"/>
+       <field id="ls_land_fraction_data" name="land_area_fraction" long_name="land_area_fraction" unit="1" grid_ref="one_level_face_time_grid" operation="once" />
        </file>
 
     </file_definition>

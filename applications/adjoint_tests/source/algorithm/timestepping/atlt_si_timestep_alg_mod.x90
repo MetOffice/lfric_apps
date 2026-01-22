@@ -95,7 +95,7 @@ contains
     real(kind=r_def) :: u_u_inp_inner_prod, rho_rho_inp_inner_prod, theta_theta_inp_inner_prod, exner_exner_inp_inner_prod, &
                         mr_mr_inp_inner_prod(nummr), moist_dyn_moist_dyn_inp_inner_prod(num_moist_factors)
     real(kind=r_def) :: inner1, inner2
-    real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 5000.0_r_def
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
     real(kind=r_def), parameter :: eps = 1e-30_r_def

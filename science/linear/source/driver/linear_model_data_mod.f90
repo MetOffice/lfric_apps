@@ -71,23 +71,24 @@ contains
   !> @param[inout] modeldb   The working data set for a model run
   !> @param[in]    mesh      The current 3d mesh
   !>
-  subroutine linear_create_ls( modeldb, mesh )
+  subroutine linear_create_ls( modeldb, mesh, twod_mesh )
 
     implicit none
 
     type( modeldb_type ), target, intent(inout) :: modeldb
 
     type( mesh_type ), pointer, intent(in) :: mesh
+    type( mesh_type ),     pointer, intent(in) :: twod_mesh
 
     select case( ls_option )
 
       case( ls_option_analytic )
 
-        call linear_create_ls_analytic( modeldb, mesh )
+        call linear_create_ls_analytic( modeldb, mesh, twod_mesh  )
 
       case( ls_option_file )
 
-        call linear_create_ls_file( modeldb, mesh )
+        call linear_create_ls_file( modeldb, mesh, twod_mesh )
 
       case default
 
@@ -106,13 +107,14 @@ contains
   !> @param[inout] modeldb   The working data set for a model run
   !> @param[in]    mesh      The current 3d mesh
   !>
-  subroutine linear_create_ls_analytic( modeldb, mesh )
+  subroutine linear_create_ls_analytic( modeldb, mesh, twod_mesh )
 
     implicit none
 
     type( modeldb_type ), target, intent(inout) :: modeldb
 
     type( mesh_type ), pointer, intent(in) :: mesh
+    type( mesh_type ),     pointer, intent(in) :: twod_mesh
 
     type( field_collection_type ), pointer :: depository
     type( field_collection_type ), pointer :: prognostics
@@ -170,6 +172,9 @@ contains
                         imr=imr )
     end do
 
+    call setup_field( ls_fields, depository, prognostics, "ls_land_fraction", W3, &
+                      twod_mesh, checkpoint_restart_flag )
+
   end subroutine linear_create_ls_analytic
 
   !> @brief   Create the fields in the ls fields field collection to be setup
@@ -180,13 +185,14 @@ contains
   !> @param[inout] modeldb   The working data set for a model run
   !> @param[in]    mesh      The current 3d mesh
   !>
-  subroutine linear_create_ls_file( modeldb, mesh )
+  subroutine linear_create_ls_file( modeldb, mesh, twod_mesh )
 
     implicit none
 
     type( modeldb_type ), target, intent(inout) :: modeldb
 
     type( mesh_type ), pointer, intent(in) :: mesh
+    type( mesh_type ), pointer, intent(in) :: twod_mesh
 
     type( field_collection_type ), pointer :: depository
     type( field_collection_type ), pointer :: prognostics
@@ -242,6 +248,8 @@ contains
                       mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
     call setup_field( ls_fields, depository, prognostics, "ls_theta", Wtheta, &
                       mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
+    call setup_field( ls_fields, depository, prognostics, "ls_land_fraction", W3, &
+                      twod_mesh, checkpoint_restart_flag, time_axis=ls_time_axis )
 
     if ( ls_read_w2h ) then
       call setup_field( ls_fields, depository, prognostics, "ls_h_u", W2h,      &

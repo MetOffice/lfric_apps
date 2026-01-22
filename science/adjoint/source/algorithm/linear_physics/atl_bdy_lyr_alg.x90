@@ -1,0 +1,283 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief (Adjoint of) given TL state(igh_u) compute boundary layer increment u_bl_inc
+module atl_bdy_lyr_alg_mod
+
+  use constants_mod,                       only: r_def, i_def, l_def
+  use field_collection_mod,                only: field_collection_type
+  use integer_field_mod,                   only: integer_field_type
+  use log_mod,                             only: log_event,         &
+                                                 log_scratch_space, &
+                                                 LOG_LEVEL_ERROR,   &
+                                                 LOG_LEVEL_DEBUG
+  use driver_modeldb_mod,                  only: modeldb_type
+  use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
+  use sci_geometric_constants_mod,         only: get_height_fe, get_coordinates,     &
+                                                 get_panel_id, &
+                                                 get_face_selector_ew, &
+                                                 get_face_selector_ns
+  use sci_fem_constants_mod,               only: get_mass_matrix_fe,    &
+                                                 get_inverse_mass_matrix_fe, &
+                                                 get_rmultiplicity_fe
+  use dycore_constants_mod,                only: get_coriolis,       &
+                                                 get_w2_mass_matrix, &
+                                                 w2_damping_layer_matrix
+  use  sci_field_bundle_builtins_mod,      only: clone_bundle,      &
+                                                 bundle_axpy,       &
+                                                 add_bundle,        &
+                                                 copy_bundle,       &
+                                                 set_bundle_scalar, &
+                                                 bundle_is_zero
+  use field_mod,                           only: field_type
+
+  use formulation_config_mod,              only: rotating,             &
+                                                 si_momentum_equation, &
+                                                 vector_invariant,     &
+                                                 eos_method,           &
+                                                 eos_method_sampled,   &
+                                                 eos_method_projected
+  use linear_config_mod,                  only: log_layer,            &
+                                                Blevs_m,              &
+                                                e_folding_levs_m,     &
+                                                u_land_m,             &
+                                                u_sea_m,              &
+                                                z_land_m,             &
+                                                z_sea_m,              &
+                                                L_0_m
+                                               
+  use planet_config_mod,                   only: cp, kappa, rd, p_zero
+  use tl_kinetic_energy_gradient_kernel_mod, &
+                                           only: tl_kinetic_energy_gradient_kernel_type
+  use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
+  use dg_inc_matrix_vector_kernel_mod,     only: dg_inc_matrix_vector_kernel_type
+  use operator_mod,                        only: operator_type
+  use tl_hydrostatic_kernel_mod,           only: tl_hydrostatic_kernel_type
+  use tl_pressure_gradient_bd_kernel_mod,  only: tl_pressure_gradient_bd_kernel_type
+  use quadrature_xyoz_mod,                 only: quadrature_xyoz_type
+  use quadrature_face_mod,                 only: quadrature_face_type
+  use quadrature_rule_gaussian_mod,        only: quadrature_rule_gaussian_type
+  use derived_config_mod,                  only: bundle_size
+  use field_indices_mod,                   only: igh_u, igh_t, igh_d, igh_p
+  use io_config_mod,                       only: subroutine_timers
+  use timer_mod,                           only: timer
+  use tl_rhs_project_eos_kernel_mod,       only: tl_rhs_project_eos_kernel_type
+  use tl_rhs_sample_eos_kernel_mod,        only: tl_rhs_sample_eos_kernel_type
+  use moist_dyn_mod,                       only: num_moist_factors, gas_law
+  use dg_matrix_vector_kernel_mod,         only: dg_matrix_vector_kernel_type
+  use reference_element_mod,               only: reference_element_type
+  use mesh_mod,                            only: mesh_type
+  use tl_vorticity_advection_kernel_mod,   only: tl_vorticity_advection_kernel_type
+  use compute_vorticity_alg_mod,           only: compute_vorticity_alg
+  use fs_continuity_mod,                   only: W1, W2, W3, Wtheta
+  use function_space_collection_mod,       only: function_space_collection
+  use sci_field_minmax_alg_mod,            only: get_field_minmax
+
+  use tl_compute_qe_kernel_mod,            only: tl_compute_qe_kernel_type
+  use tl_compute_aubu_kernel_mod,          only: tl_compute_aubu_kernel_type
+  use atl_bl_inc_kernel_mod,               only: atl_bl_inc_kernel_type
+
+  implicit none
+
+  private
+  public :: atl_bdy_lyr_alg
+
+contains
+
+!>@brief (Adjoint of) given TL state(igh_u) compute boundary layer increment u_bl_inc
+!>@param[in,out] modeldb  The modeldb instance
+!>@param[in,out] u_bl_inc Increment to be computed
+!>@param[in,out] state    The current TL model prognostic state
+!>@param[in]     ls_state The current linearisation state
+!>@param[in]     dt       The TL model timestep length
+subroutine atl_bdy_lyr_alg(modeldb, u_bl_inc, state, ls_state, dt)
+
+    implicit none
+
+
+    type(modeldb_type), target, intent(inout) :: modeldb
+
+    ! Form of state and rhs is [u,theta,rho,exner]
+    type(field_type), target,     intent(inout) :: state(bundle_size)
+    type(field_type), target,     intent(in)    :: ls_state(bundle_size)
+    real(kind=r_def),             intent(in)    :: dt
+
+    type( field_type ),             intent(inout)  :: u_bl_inc
+
+
+    real(kind=r_def)                 :: alpha_dt
+    logical(kind=l_def)              :: dlayer_rhs
+    logical(kind=l_def)              :: compute_eos
+
+    type(operator_type), pointer :: mm_vel     => null(), &
+                                    mm_wtheta  => null(), &
+                                    mm_w3_inv  => null()
+    type(field_type), pointer :: chi(:)        => null(), &
+                                 panel_id      => null(), &
+                                 geopotential  => null(), &
+                                 u             => null(), &
+                                 theta         => null(), &
+                                 rho           => null(), &
+                                 u_base        => null(), &
+                                 theta_base    => null(), &
+                                 rho_base      => null(), &
+                                 exner         => null(), &
+                                 ls_u          => null(), &
+                                 ls_theta      => null(), &
+                                 ls_rho        => null(), &
+                                 ls_exner      => null()
+
+
+    class(reference_element_type), pointer :: reference_element => null()
+    type (mesh_type),              pointer :: mesh => null()
+
+    type( field_type ), pointer :: height_w1  => null()
+    type( field_type ), pointer :: height_w2  => null()
+    type( field_type ), pointer :: height_w3  => null()
+    type( field_type ), pointer :: height_wth  => null()
+    type( field_type ), pointer :: w2_rmultiplicity => null()
+
+    type( field_type )          :: state_initial(bundle_size)
+
+    type( field_collection_type ), pointer :: ls_fields
+    type( field_type), pointer ::  ls_land_fraction => null()
+
+    type( field_type) ::  Q 
+    type( field_type) ::  E
+    type( field_type) ::  auv 
+    type( field_type) ::  buv_inv
+
+    type(integer_field_type), pointer :: face_selector_ew => null()
+    type(integer_field_type), pointer :: face_selector_ns => null()
+
+    integer(kind=i_def), parameter :: exner_stencil_depth = 1
+    real(kind=r_def)    :: fmin
+    real(kind=r_def)    :: fmax
+    real(kind=r_def)    :: ip
+    
+    if ( subroutine_timers ) call timer('atl_bdy_lyr_alg')
+    
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
+
+    call ls_fields%get_field('ls_land_fraction', ls_land_fraction)
+
+    mesh => state(igh_u)%get_mesh()
+
+    mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh%get_id())
+    chi          => get_coordinates(mesh%get_id())
+    panel_id     => get_panel_id(mesh%get_id())
+
+
+    height_w1  => get_height_fe(W1, mesh%get_id())
+    height_w2  => get_height_fe(W2, mesh%get_id())
+    height_w3 => get_height_fe(W3, mesh%get_id())
+    height_wth => get_height_fe(Wtheta,mesh%get_id() )
+
+    w2_rmultiplicity => get_rmultiplicity_fe( W2, mesh%get_id() )
+
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+
+    dlayer_rhs = .false.
+    alpha_dt = 0.5_r_def * dt
+    compute_eos = .false.
+
+    u     => state(igh_u)
+    theta => state(igh_t)
+    rho   => state(igh_d)
+    exner => state(igh_p)
+
+    u_base     => state(igh_u)
+    theta_base => state(igh_t)
+    rho_base   => state(igh_d)
+
+    ls_u     => ls_state(igh_u)
+    ls_theta => ls_state(igh_t)
+    ls_rho   => ls_state(igh_d)
+    ls_exner => ls_state(igh_p)
+
+      call clone_bundle(state,state_initial , bundle_size)
+      call copy_bundle(state, state_initial, bundle_size)
+
+      call rho%copy_field_properties( Q )
+      call rho%copy_field_properties( E )
+
+      call invoke(setval_c(Q,0.0_r_def),&
+                  setval_c(E,0.0_r_def) )
+
+      call u%copy_field_properties( auv )
+      call u%copy_field_properties( buv_inv )
+                  
+      call invoke(setval_c(auv,0.0_r_def),&
+                  setval_c(buv_inv,0.0_r_def) )
+
+      call get_field_minmax(ls_land_fraction, fmin, fmax )
+      write( log_scratch_space, '(a,1x,3(e12.5,1x))') 'atl_bdy_lyr_alg, ms,min,max ls_land_fraction=',ip,fmin, fmax
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+     call invoke ( tl_compute_qe_kernel_type(Q,                    &
+                                             E,                    &
+                                             ls_state(igh_d),      &
+                                             height_w3, height_wth,&
+                                             ls_land_fraction,     &
+                                             log_layer,            &
+                                             Blevs_m,              &
+                                             e_folding_levs_m,     &
+                                             u_land_m,             &
+                                             u_sea_m,              &
+                                             z_land_m,             &
+                                             z_sea_m,              &
+                                             L_0_m ) )                                       
+                                        
+      call get_field_minmax( Q, fmin, fmax )
+      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'atl_bdy_lyr_alg, min,max Q=',fmin, fmax
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+      call get_field_minmax( E, fmin, fmax )
+      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'atl_bdy_lyr_alg, min,max E=',fmin, fmax
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+     call invoke ( tl_compute_aubu_kernel_type(auv,                  &
+                                               buv_inv,              &
+                                               Q,                    &
+                                               E,                    &
+                                               height_w2,            &
+                                               w2_rmultiplicity,     &
+                                               dt,                   &
+                                               Blevs_m ) )     
+                                        
+      call get_field_minmax( Auv, fmin, fmax )
+      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'atl_bdy_lyr_alg, min,max Auv=',fmin, fmax
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+      call get_field_minmax( buv_inv, fmin, fmax )
+      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'atl_bdy_lyr_alg, min,max buv_inv=',fmin, fmax
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+      call get_field_minmax( state(igh_u), fmin, fmax )
+      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'atl_bdy_lyr_alg, min,max state(igh_u) before atl_bl_inc=',fmin, fmax
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    call invoke ( atl_bl_inc_kernel_type( u_bl_inc,            &
+                                         state(igh_u),         &
+                                         auv,buv_inv,          &
+                                         face_selector_ew,     &
+                                         face_selector_ns,     &
+                                         Blevs_m ) )
+
+      call get_field_minmax( state(igh_u), fmin, fmax )
+      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'atl_bdy_lyr_alg, min,max state(igh_u) after atl_bl_inc=',fmin, fmax
+      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    nullify( mm_vel, mm_wtheta, mm_w3_inv,       &
+             chi, panel_id,                      &
+             geopotential, u, theta, rho, exner, &
+             mesh, reference_element )
+
+    if ( subroutine_timers ) call timer('atl_bdy_lyr_alg')
+
+  end subroutine atl_bdy_lyr_alg
+
+end module atl_bdy_lyr_alg_mod

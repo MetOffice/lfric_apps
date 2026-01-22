@@ -35,6 +35,7 @@ module jedi_lfric_linear_fields_mod
   integer( kind=i_def ), parameter :: element_order_h = 0
   integer( kind=i_def ), parameter :: element_order_v = 0
   integer( kind=i_def ), parameter :: nvars = 10
+  integer( kind=i_def ), parameter :: ls_nvars = 11
   character( len=str_def ), parameter, public :: &
                                      variable_names(nvars) =  (/'theta   ', &
                                                                 'exner   ', &
@@ -46,6 +47,18 @@ module jedi_lfric_linear_fields_mod
                                                                 'm_cl    ', &
                                                                 'm_r     ', &
                                                                 'm_s     '/)
+  character( len=str_def ), parameter, public :: &
+                                   ls_variable_names(nvars) =  (/'theta        ', &
+                                                                'exner        ', &
+                                                                'rho          ', &
+                                                                'u_in_w3      ', &
+                                                                'v_in_w3      ', &
+                                                                'w_in_wth     ', &
+                                                                'm_v          ', &
+                                                                'm_cl         ', &
+                                                                'm_r          ', &
+                                                                'm_s          ', &
+                                                                'land_fraction'/)
 
   integer( kind=i_def ), parameter, public :: &
                             variable_function_spaces(nvars) = (/Wtheta, &
@@ -58,6 +71,18 @@ module jedi_lfric_linear_fields_mod
                                                                 Wtheta, &
                                                                 Wtheta, &
                                                                 Wtheta/)
+  integer( kind=i_def ), parameter, public :: &
+                         ls_variable_function_spaces(nvars) = (/Wtheta, &
+                                                                W3,     &
+                                                                W3,     &
+                                                                W3,     &
+                                                                W3,     &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                W3/)
 
   public :: create_linear_fields
 
