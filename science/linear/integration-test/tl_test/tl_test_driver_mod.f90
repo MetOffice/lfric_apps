@@ -142,7 +142,7 @@ contains
                             aerosol_twod_mesh )
 
     ! Instantiate the linearisation state
-    call linear_create_ls( modeldb, mesh )
+    call linear_create_ls( modeldb, mesh, twod_mesh )
 
     ! Initialise the fields stored in the model_data prognostics. This needs
     ! to be done before initialise_model.
