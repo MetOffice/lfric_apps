@@ -38,9 +38,9 @@ subroutine ex_coef (                                                           &
 use atm_fields_bounds_mod, only: pdims, tdims, pdims_s
 use bl_diags_mod, only: strnewbldiag
 use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
-   sg_orog_mixing, ricrit_sharp, pr_max,            &
+   sg_orog_mixing, ricrit_sharp, pr_max,                                       &
    local_fa,Prandtl,ishear_bl,L_SBLco,Muw_SBL,Mwt_SBL,sbl_op,                  &
-   LockMailhot2004, depth_based, lem_stability, lem_std, lem_conven,           &
+   LockMailhot2004, lem_stability, lem_std, lem_conven,                        &
    lem_adjust, cbl_mix_fac_nml,                                                &
    off, on, sharpest, sharp_sea_long_land, sharp_sea_mes_land,                 &
    louis_tails, sharp_sea_louis_land, long_tails, mes_tails, ritrans,          &
@@ -48,7 +48,7 @@ use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
    lambda_fac, beta_bl, beta_fa, rlinfac, linear0,                             &
    to_sharp_across_1km, ntml_level_corrn, free_trop_layers, two_thirds,        &
    blending_option, blend_except_cu, blend_gridindep_fa, blend_cth_shcu_only,  &
-   extended_tail, sg_shear_enh_lambda, zero, one, one_half
+   extended_tail, zero, one, one_half
 use conversions_mod, only: pi => pi_bl
 use gen_phys_inputs_mod, only: l_mr_physics
 
@@ -335,7 +335,6 @@ dm=g0/em                 ! Used in calc of stability function FM.
 !---------------------------------------------------------------
 pr_n = one
 if (Prandtl == LockMailhot2004) pr_n = 0.7_r_bl
-if (sbl_op  ==  depth_based)    pr_n = 0.7_r_bl
 ! Use pr_n=0.7 if any LEM stability function selected
 if (sbl_op == lem_stability .or. cbl_op == lem_std                             &
                             .or. cbl_op == lem_conven                          &
@@ -894,7 +893,6 @@ end if
 !  Sharp_sea_long_land    SHARPEST over sea ; Long tails over land
 !  Mes_tails              MESOSCALE model: Louis/SHARPEST blend
 !  Louis_tails            Louis function
-!  Depth_based            Boundary layer depth based formulation
 !  Sharp_sea_mes_land     SHARP over sea; Mes over land
 !  Sharp_sea_Louis_land   SHARP over sea; Louis over land
 ! ----------------------------------------------------------------
@@ -1017,19 +1015,6 @@ do k = 2, bl_levels
         if (ri(i,j,k) >= zero) then
           func(i,j)=one / ( one + one_half * g0 * ri(i,j,k) )
           func(i,j)=func(i,j)*func(i,j)
-        end if
-      end do
-    end do
-
-    !--------------------------------------------
-    ! long TAILS FOR use WITH DEPTH BASED SCHEME
-    !--------------------------------------------
-  case (depth_based)
-        ! long TAILS
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        if (ri(i,j,k) >= zero) then
-          func(i,j)=one / ( one + g0 * ri(i,j,k) )
         end if
       end do
     end do
