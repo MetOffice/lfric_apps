@@ -125,7 +125,7 @@ contains
     character(len=str_def), allocatable :: chain_mesh_tags(:)
     character(len=str_def)              :: aerosol_mesh_name
     character(len=str_def)              :: prime_mesh_name
-    integer(kind=i_def),    allocatable :: stencil_depths
+    integer(kind=i_def),    allocatable :: stencil_depths(:)
 
     logical(kind=l_def) :: use_multires_coupling
     logical(kind=l_def) :: l_multigrid
@@ -284,7 +284,9 @@ contains
     ! 1.3a Initialise prime/2d meshes
     ! ---------------------------------------------------------
     allocate(stencil_depths(num_base_meshes))
-    call get_required_stencil_depth(stencil_depths, base_mesh_names)
+    call get_required_stencil_depth(                                           &
+        stencil_depths, base_mesh_names, modeldb%configuration                 &
+    )
 
     apply_partition_check = .false.
     if ( .not. prepartitioned .and. &

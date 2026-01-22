@@ -176,7 +176,7 @@ subroutine init_mesh( configuration,           &
   end if
 
   ! Set up stencil depths
-  if ( size(stencils_depths) == 1 ) then
+  if ( size(stencil_depths) == 1 ) then
     ! Single stencil depth specified, apply to all meshes
     do i = 1, size(mesh_names)
       stencil_depths(i) = stencil_depths_in(1)

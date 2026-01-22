@@ -71,6 +71,9 @@ module check_configuration_mod
                                   monotone_qm_pos,                             &
                                   ffsl_splitting_swift, &
                                   ffsl_splitting_cosmic
+  use namelist_collection_mod,                                                 &
+                            only : namelist_collection_type
+  use namelist_mod,         only : namelist_type
 
   implicit none
 
@@ -619,24 +622,65 @@ contains
   !>          returns required stencil depth that needs to be supported.
   !> @param[in,out] stencil_depths    Array of stencil depths for each base mesh
   !> @param[in]     base_mesh_names   Array of base mesh names
-  !>
+  !> @param[in]     configuration     The configuration object
   !===========================================================================
-  subroutine get_required_stencil_depth(stencil_depths, base_mesh_names)
-
-    use base_mesh_config_mod,         only: prime_mesh_name
-    use formulation_config_mod,       only: use_multires_coupling
-    use multires_coupling_config_mod, only: aerosol_mesh_name,                 &
-                                            coarse_aerosol_transport
+  subroutine get_required_stencil_depth(stencil_depths, base_mesh_names, configuration)
 
     implicit none
 
-    integer(kind=i_def),    intent(inout) :: stencil_depths(:)
-    character(len=str_def), intent(in)    :: base_mesh_names(:)
+    integer(kind=i_def),            intent(inout) :: stencil_depths(:)
+    character(len=str_def),         intent(in)    :: base_mesh_names(:)
+    type(namelist_collection_type), intent(in)    :: configuration
+
 
     integer(kind=i_def) :: i
     integer(kind=i_def) :: transport_depth, sl_depth
     integer(kind=i_def) :: special_edge_pts
     logical(kind=l_def) :: any_horz_dep_pts
+
+    ! Configuration variables
+    type(namelist_type), pointer :: base_mesh_nml
+    type(namelist_type), pointer :: formulation_nml
+    type(namelist_type), pointer :: multires_coupling_nml
+    type(namelist_type), pointer :: transport_nml
+    character(len=str_def)       :: prime_mesh_name
+    character(len=str_def)       :: aerosol_mesh_name
+    logical(kind=l_def)          :: use_multires_coupling
+    logical(kind=l_def)          :: coarse_aerosol_transport
+    integer(kind=i_def)          :: operators
+    integer(kind=i_def)          :: fv_horizontal_order
+    integer(kind=i_def)          :: panel_edge_treatment
+    logical(kind=l_def)          :: panel_edge_high_order
+    integer(kind=i_def)          :: dep_pt_stencil_extent
+    integer(kind=i_def)          :: ffsl_inner_order
+    integer(kind=i_def)          :: ffsl_outer_order
+
+    ! ------------------------------------------------------------------------ !
+    ! Get configuration variables
+    ! ------------------------------------------------------------------------ !
+
+    base_mesh_nml => configuration%get_namelist('base_mesh')
+    formulation_nml => configuration%get_namelist('formulation')
+    transport_nml => configuration%get_namelist('transport')
+
+    call base_mesh_nml%get_value('prime_mesh_name', prime_mesh_name)
+    call formulation_nml%get_value('use_multires_coupling', use_multires_coupling)
+    call transport_nml%get_value('operators', operators)
+    call transport_nml%get_value('fv_horizontal_order', fv_horizontal_order)
+    call transport_nml%get_value('panel_edge_treatment', panel_edge_treatment)
+    call transport_nml%get_value('panel_edge_high_order', panel_edge_high_order)
+    call transport_nml%get_value('dep_pt_stencil_extent', dep_pt_stencil_extent)
+    call transport_nml%get_value('ffsl_inner_order', ffsl_inner_order)
+    call transport_nml%get_value('ffsl_outer_order', ffsl_outer_order)
+    if (use_multires_coupling) then
+      multires_coupling_nml => configuration%get_namelist('multires_coupling')
+      call multires_coupling_nml%get_value('aerosol_mesh_name', aerosol_mesh_name)
+      call multires_coupling_nml%get_value('coarse_aerosol_transport', coarse_aerosol_transport)
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Set default depth
+    ! ------------------------------------------------------------------------ !
 
     transport_depth = 2
 
@@ -645,9 +689,13 @@ contains
       transport_depth  = max( transport_depth, fv_horizontal_order/2 )
     end if
 
+    ! ------------------------------------------------------------------------ !
+    ! Determine depth when using a semi-Lagrangian scheme
+    ! ------------------------------------------------------------------------ !
+
     any_horz_dep_pts = check_horz_dep_pts()
 
-    if ( any_horz_dep_pts ) then
+    if (any_horz_dep_pts) then
       ! When an SL scheme is used, the halo depth should be large enough to
       ! encompass the largest anticipated Courant number (effectively the
       ! departure distance in the SL scheme), plus any extra cells required for
@@ -657,8 +705,8 @@ contains
       ! - the order of reconstruction
       ! - whether special edge treatment is used (this shifts the stencil by 1)
 
-      if ( panel_edge_treatment == panel_edge_treatment_special_edges          &
-           .AND. panel_edge_high_order ) then
+      if (panel_edge_treatment == panel_edge_treatment_special_edges           &
+           .AND. panel_edge_high_order) then
         special_edge_pts = 1
       else
         special_edge_pts = 0
@@ -670,8 +718,8 @@ contains
         + special_edge_pts                          & ! special edge treatment
       )
 
-      if ( panel_edge_treatment == panel_edge_treatment_remapping ) then
-        if ( panel_edge_high_order ) then
+      if (panel_edge_treatment == panel_edge_treatment_remapping) then
+        if (panel_edge_high_order) then
           transport_depth = max( sl_depth, 3 )
         else
           sl_depth = max( sl_depth, 2 )
@@ -680,6 +728,10 @@ contains
 
       transport_depth = max( transport_depth, sl_depth )
     end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Set depth for each mesh
+    ! ------------------------------------------------------------------------ !
 
     ! Loop through meshes to determine whether transport takes place on it
     do i = 1, size(base_mesh_names)

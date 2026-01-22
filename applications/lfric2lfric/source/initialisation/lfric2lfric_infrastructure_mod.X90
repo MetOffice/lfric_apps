@@ -21,7 +21,6 @@ module lfric2lfric_infrastructure_mod
   use driver_fem_mod,              only: init_fem
   use driver_io_mod,               only: init_io, &
                                          filelist_populator
-  use check_configuration_mod,     only: get_required_stencil_depth
   use extrusion_mod,               only: extrusion_type,         &
                                          uniform_extrusion_type, &
                                          prime_extrusion,        &
@@ -169,7 +168,7 @@ contains
     integer(kind=i_def)     :: origin_domain
     integer(kind=i_def)     :: target_domain
 
-    integer(kind=i_def)     :: stencil_depth
+    integer(kind=i_def)     :: stencil_depth(1)
     integer(kind=i_def)     :: source_geometry
     integer(i_def)          :: regrid_method
     real(kind=r_def)        :: domain_bottom
@@ -315,7 +314,7 @@ contains
     !-----------------------------------------------------------------------
     ! Create the required meshes
     !-----------------------------------------------------------------------
-    stencil_depth = get_required_stencil_depth()
+    stencil_depth = 2
     call init_mesh( modeldb%configuration,       &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &

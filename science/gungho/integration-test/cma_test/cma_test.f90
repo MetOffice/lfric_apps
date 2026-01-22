@@ -19,7 +19,6 @@ program cma_test
 
   use, intrinsic :: iso_fortran_env,  only : real64
 
-  use check_configuration_mod,        only : get_required_stencil_depth
   use cma_test_algorithm_mod,         only : cma_test_init,                  &
                                              test_cma_apply_mass_p,          &
                                              test_cma_apply_mass_v,          &
@@ -289,7 +288,7 @@ program cma_test
                                                 domain_height,    &
                                                 scaled_radius ) )
 
-  stencil_depth = get_required_stencil_depth(base_mesh_names)
+  stencil_depth = 2
   check_partitions = .false.
   call init_mesh( configuration,              &
                   local_rank, total_ranks,    &

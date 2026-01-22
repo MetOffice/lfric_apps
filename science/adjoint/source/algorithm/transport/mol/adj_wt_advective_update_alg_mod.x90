@@ -7,7 +7,6 @@
 
 module adj_wt_advective_update_alg_mod
 
-  use check_configuration_mod,              only : get_required_stencil_depth
   use constants_mod,                        only : r_tran, i_def, l_def
   use r_tran_field_mod,                     only : r_tran_field_type
   use finite_element_config_mod,            only : element_order_h,            &
@@ -104,7 +103,7 @@ contains
 
     ! Copy field to a large halo version
     call field_big_halo%initialise( field%get_function_space(), &
-                                    halo_depth = get_required_stencil_depth() )
+                                    halo_depth=mesh%get_halo_depth() )
 
     ! Compute reconstruction on a Wtheta multidata field
     ! each Wt point contains 4 values assigned to each edge,

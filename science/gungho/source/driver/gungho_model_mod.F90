@@ -673,7 +673,9 @@ contains
     end if
 
     allocate(stencil_depths(size(base_mesh_names)))
-    call get_required_stencil_depth(stencil_depths, base_mesh_names)
+    call get_required_stencil_depth(                                           &
+        stencil_depths, base_mesh_names, modeldb%configuration                 &
+    )
 
     call init_mesh( modeldb%configuration,        &
                     modeldb%mpi%get_comm_rank(),  &
@@ -924,6 +926,7 @@ contains
             chi_inventory, panel_id_inventory, files_init_ptr,     &
             orography_mesh, orography_twod_mesh)
     deallocate(base_mesh_names)
+    deallocate(stencil_depths)
     if (allocated(meshes_to_shift))  deallocate(meshes_to_shift)
     if (allocated(meshes_to_double)) deallocate(meshes_to_double)
 
