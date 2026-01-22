@@ -48,7 +48,7 @@ module jedi_lfric_linear_fields_mod
                                                                 'm_r     ', &
                                                                 'm_s     '/)
   character( len=str_def ), parameter, public :: &
-                                   ls_variable_names(nvars) =  (/'theta        ', &
+                               ls_variable_names(ls_nvars) =  (/'theta        ', &
                                                                 'exner        ', &
                                                                 'rho          ', &
                                                                 'u_in_w3      ', &
@@ -72,7 +72,7 @@ module jedi_lfric_linear_fields_mod
                                                                 Wtheta, &
                                                                 Wtheta/)
   integer( kind=i_def ), parameter, public :: &
-                         ls_variable_function_spaces(nvars) = (/Wtheta, &
+                      ls_variable_function_spaces(ls_nvars) = (/Wtheta, &
                                                                 W3,     &
                                                                 W3,     &
                                                                 W3,     &
@@ -109,12 +109,12 @@ subroutine create_linear_fields( mesh, linear_fields )
   integer                         :: i
 
   ! Setup the field_collection
-  call linear_fields%initialise(name = 'linear_state_trajectory', table_len = nvars)
+  call linear_fields%initialise(name = 'linear_state_trajectory', table_len = ls_nvars)
 
   ! Create and add the fields defined in the list of variable names
-  do i = 1, nvars
+  do i = 1, ls_nvars
 
-    variable_name = trim(variable_names(i))
+    variable_name = trim(ls_variable_names(i))
 
     call field%initialise( &
            vector_space = function_space_collection%get_fs(mesh,               &
