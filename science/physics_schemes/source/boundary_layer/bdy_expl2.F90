@@ -46,7 +46,7 @@ subroutine bdy_expl2 (                                                         &
 ! in cloud/moisture data :
  cf_bulk,q,qcf,qcl,t,qw,tl,                                                    &
 ! in everything not covered so far :
- rad_hr,micro_tends,fb_surf,u_s,pstar,tstar,h_blend_orog,                      &
+ rad_hr,micro_tends,fb_surf,u_s,pstar,tstar,                                   &
  zh_prev,zhpar,z_lcl,ho2r2_orog,sd_orog,wtrac_as,                              &
 ! 2 in 3 INOUT for Smagorinsky
  delta_smag, max_diff, rneutml_sq, visc_m, visc_h,                             &
@@ -257,9 +257,6 @@ real(kind=r_bl), intent(in) ::                                                 &
                                   ! in Surface pressure (Pascals).
  tstar(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                   &
                                   ! in Surface temperature (K).
- h_blend_orog(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),            &
-                                  ! in Blending height used as part
-                                  ! of effective roughness scheme
  zh_prev(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                 &
                                   ! in boundary layer height from
                                   !    previous timestep
