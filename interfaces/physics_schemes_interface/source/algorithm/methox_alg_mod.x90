@@ -81,9 +81,9 @@ contains
     !Internal variables
     integer(kind=i_def) :: k
     real(kind=r_def) :: pressure, dt
-    integer(tik)     :: id
+    integer(tik)     :: id_alg, id_diags
 
-    if ( LPROF ) call start_timing( id, 'methox_alg' )
+    if ( LPROF ) call start_timing( id_alg, 'methane_oxidation' )
 
     ! If required, calculate the rate coefficients
     ! (assumed to vary only with pressure)
@@ -142,12 +142,14 @@ contains
     ! Calculate methane oxidation increment
     call invoke(methox_kernel_type(dmv_methox, mr(imr_v), dt))
 
+    if ( LPROF ) call stop_timing( id_alg, 'methane_oxidation' )
+
     ! Output diagnostic if requested
     if (write_diag .and. use_xios_io) then
+      if ( LPROF ) call start_timing( id_diags, 'diags.methox' )
       call dmv_methox%write_field('processed__dmv_methox')
+      if ( LPROF ) call stop_timing( id_diags, 'diags.methox' )
     end if
-
-    if ( LPROF ) call stop_timing( id, 'methox_alg' )
 
   end subroutine methox_alg
 

@@ -82,7 +82,7 @@ contains
     integer(kind=i_def), parameter :: sten_size = 1
     integer(tik)                   :: id
 
-    if ( LPROF ) call start_timing( id, 'pmsl_alg' )
+    if ( LPROF ) call start_timing( id, 'diags.pmsl' )
 
     pmsl_flag = init_diag(pmsl, 'processed__pmsl')
     pmsl_unsmooth_flag = init_diag(pmsl_unsmooth, 'processed__pmsl_unsmooth', &
@@ -152,7 +152,7 @@ contains
 
     end if
 
-    if ( LPROF ) call stop_timing( id, 'pmsl_alg' )
+    if ( LPROF ) call stop_timing( id, 'diags.pmsl' )
 
   end subroutine pmsl_alg
 
