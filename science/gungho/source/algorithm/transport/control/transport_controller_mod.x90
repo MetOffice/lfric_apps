@@ -666,7 +666,8 @@ contains
             ! Use advective form for tracer transport instead of consistent form
             call log_event(                                                    &
               'Reference field for tracer transport is negative, so ' //       &
-              'making all tracers advective for this step.', LOG_LEVEL_INFO    &
+              'making all tracers advective for this step. This will ' //      &
+              'make tracer transport non-conservative. ', LOG_LEVEL_INFO       &
             )
             self%make_tracers_advective = .true.
           else
