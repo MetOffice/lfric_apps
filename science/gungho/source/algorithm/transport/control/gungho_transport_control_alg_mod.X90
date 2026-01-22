@@ -268,7 +268,7 @@ contains
     integer(tik)                             :: id_trac_last_adv
     integer(tik)                             :: id_trac_last_con
 
-    if ( LPROF ) call start_timing( id_cont, 'gungho_transport_control' )
+    if ( LPROF ) call start_timing( id_cont, 'dynamics.transport' )
     ! ======================================================================== !
     ! Pre-transport initialisation tasks
     ! ======================================================================== !
@@ -579,7 +579,7 @@ contains
     call transport_controller%finalise()
     call aerosol_transport_controller%finalise()
 
-    if ( LPROF ) call stop_timing( id_cont, 'gungho_transport_control' )
+    if ( LPROF ) call stop_timing( id_cont, 'dynamics.transport' )
 
   end subroutine gungho_transport_control_alg
 
