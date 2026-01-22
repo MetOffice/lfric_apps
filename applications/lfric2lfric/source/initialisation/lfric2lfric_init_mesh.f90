@@ -98,7 +98,7 @@ subroutine init_mesh( configuration,           &
   integer(kind=i_def),   intent(in) :: total_ranks
   character(len=*),      intent(in) :: mesh_names(2)
   class(extrusion_type), intent(in) :: extrusion
-  integer(kind=i_def),   intent(in) :: stencil_depths_in
+  integer(kind=i_def),   intent(in) :: stencil_depths_in(:)
   integer(kind=i_def),   intent(in) :: regrid_method
 
   ! Parameters
@@ -124,6 +124,7 @@ subroutine init_mesh( configuration,           &
   integer(kind=i_def)              :: mesh_selection(2)
 
   ! Local variables
+  integer(kind=i_def)                 :: i
   character(len=str_max_filename)     :: mesh_file(2)
   integer(kind=i_def)                 :: stencil_depths(2)
 
@@ -183,7 +184,7 @@ subroutine init_mesh( configuration,           &
     end do
   else if ( size(stencil_depths) == size(mesh_names) ) then
     ! Stencil depths specified per mesh
-    stencil_depths = stencil_depths_in
+    stencil_depths(:) = stencil_depths_in(:)
   else
     write(log_scratch_space, '(A)')                   &
         'Number of stencil depths specified does not '// &

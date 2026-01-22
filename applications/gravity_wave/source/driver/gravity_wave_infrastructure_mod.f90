@@ -191,7 +191,7 @@ contains
     !=======================================================================
     ! 1.3 Initialise mesh objects and assign InterGrid maps
     !=======================================================================
-    stencil_depth = 1
+    stencil_depth = 2
     apply_partition_check = .false.
     if ( .not. prepartitioned .and. l_multigrid ) then
       apply_partition_check = .true.
