@@ -9,11 +9,6 @@ module tl_bdy_lyr_alg_mod
   use constants_mod,                       only: r_def, i_def, l_def
   use field_collection_mod,                only: field_collection_type
   use integer_field_mod,                   only: integer_field_type
-  use log_mod,                             only: log_event,         &
-                                                 log_scratch_space, &
-                                                 LOG_LEVEL_ERROR,   &
-                                                 LOG_LEVEL_DEBUG,   &
-                                                 LOG_LEVEL_INFO
   use driver_modeldb_mod,                  only: modeldb_type
   use sci_enforce_bc_kernel_mod,           only: enforce_bc_kernel_type
   use sci_geometric_constants_mod,         only: get_height_fe, get_coordinates,     &
@@ -74,8 +69,6 @@ module tl_bdy_lyr_alg_mod
   use compute_vorticity_alg_mod,           only: compute_vorticity_alg
   use fs_continuity_mod,                   only: W1, W2, W3, Wtheta
   use function_space_collection_mod,       only: function_space_collection
-  use sci_field_minmax_alg_mod,            only: get_field_minmax
-
   use tl_compute_qe_kernel_mod,            only: tl_compute_qe_kernel_type
   use tl_compute_aubu_kernel_mod,          only: tl_compute_aubu_kernel_type
   use tl_bl_inc_kernel_mod,                only: tl_bl_inc_kernel_type
@@ -163,9 +156,6 @@ subroutine tl_bdy_lyr_alg(modeldb, u_bl_inc, state, ls_state, dt)
     type(integer_field_type), pointer :: face_selector_ns => null()
 
     integer(kind=i_def), parameter :: exner_stencil_depth = 1
-    real(kind=r_def)    :: fmin
-    real(kind=r_def)    :: fmax
-    real(kind=r_def)    :: ip
 
     if ( subroutine_timers ) call timer('tl_bdy_lyr_alg')
 
@@ -224,11 +214,6 @@ subroutine tl_bdy_lyr_alg(modeldb, u_bl_inc, state, ls_state, dt)
       call invoke(setval_c(auv,0.0_r_def),&
                   setval_c(buv_inv,0.0_r_def) )
 
-      call invoke (x_innerproduct_x(ip,ls_land_fraction))
-      call get_field_minmax(ls_land_fraction, fmin, fmax )
-      write( log_scratch_space, '(a,1x,3(e12.5,1x))') 'tl_bdy_lyr_alg, ms,min,max ls_land_fraction=',ip,fmin, fmax
-      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-
      call invoke ( tl_compute_qe_kernel_type(Q,                    &
                                              E,                    &
                                              ls_state(igh_d),      &
@@ -252,20 +237,12 @@ subroutine tl_bdy_lyr_alg(modeldb, u_bl_inc, state, ls_state, dt)
                                                dt,                   &
                                                Blevs_m ) )
 
-      call get_field_minmax( state(igh_u), fmin, fmax )
-      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'tl_bdy_lyr_alg, min,max state(igh_u) before tl_bl_inc=',fmin, fmax
-      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
-
     call invoke ( tl_bl_inc_kernel_type( u_bl_inc,             &
                                          state(igh_u),         &
                                          auv,buv_inv,          &
                                          face_selector_ew,     &
                                          face_selector_ns,     &
                                          Blevs_m ) )
-
-      call get_field_minmax(u_bl_inc , fmin, fmax )
-      write( log_scratch_space, '(a,1x,2(e12.5,1x))') 'tl_bdy_lyr_alg, min,max u_bl_inc=',fmin, fmax
-      call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     nullify( mm_vel, mm_wtheta, mm_w3_inv,       &
              chi, panel_id,                      &
