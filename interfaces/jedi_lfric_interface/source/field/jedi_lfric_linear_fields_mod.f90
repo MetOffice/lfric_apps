@@ -120,7 +120,7 @@ subroutine create_linear_fields( mesh, linear_fields )
            vector_space = function_space_collection%get_fs(mesh,               &
                                                            element_order_h,    &
                                                            element_order_v,    &
-                                                           variable_function_spaces(i)), &
+                                                           ls_variable_function_spaces(i)), &
            name = variable_name )
 
     call linear_fields%add_field( field )
