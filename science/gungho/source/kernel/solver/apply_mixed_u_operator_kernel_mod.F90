@@ -148,7 +148,7 @@ subroutine apply_mixed_u_operator_code(cell,                          &
       iw2  = map_w2(df)
       lhs_uv(iw2h:iw2h+nm1) = lhs_uv(iw2h:iw2h+nm1) &
                             + norm_u(iw2:iw2+nm1)*  &
-                              mu_cd(ij:ij+nm1, df, ndf_w2h+df2)*wind_w(map_w2v(df2):map_w2v(df)+nm1)
+                              mu_cd(ij:ij+nm1, df, ndf_w2h+df2)*wind_w(map_w2v(df2):map_w2v(df2)+nm1)
     end do
   end do
 

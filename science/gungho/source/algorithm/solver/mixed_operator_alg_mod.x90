@@ -267,7 +267,7 @@ contains
              ! The second step computes the vertical wind (yvec_w) & pressure (yvec_p) lhs, since these
              ! are horizontally discontinuous fields then there are no further halo exchanges required.
              ! Alternatively this code could be computed in a single kernel
-             ! (apply_mixed_operator_kernel_type), however this appears to have poorer cache usage, 
+             ! (apply_mixed_operator_kernel_type), however this appears to have poorer cache usage,
              ! resulting in an increased computation time
 
              ! Create broken y_uv

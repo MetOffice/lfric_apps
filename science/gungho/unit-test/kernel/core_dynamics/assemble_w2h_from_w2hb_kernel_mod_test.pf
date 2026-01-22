@@ -41,6 +41,8 @@ contains
     real(r_solver), dimension( undf_w2hb ) :: field_w2hb
     real(r_solver), dimension( undf_w2h )  :: answer
 
+    integer(i_def) :: cell
+
     ! Assume a biperiodic mesh with two cells
     ! Locations of W2 dofs
     ! |---|---|
@@ -60,21 +62,22 @@ contains
 
     field_w2hb = (/ 1.0_r_solver, 2.0_r_solver, 3.0_r_solver, 4.0_r_solver /)
 
-
-    call assemble_w2h_from_w2hb_code( nlayers,    &
-                                      field_w2h,  &
-                                      field_w2hb, &
-                                      ndf_w2h,    &
-                                      undf_w2h,   &
-                                      map_w2h,    &
-                                      ndf_w2hb,   &
-                                      undf_w2hb,  &
-                                      map_w2hb    &
-                                      )
+    do cell = 1, ncells
+      call assemble_w2h_from_w2hb_code( nlayers,         &
+                                        field_w2h,       &
+                                        field_w2hb,      &
+                                        ndf_w2h,         &
+                                        undf_w2h,        &
+                                        map_w2h(:,cell), &
+                                        ndf_w2hb,        &
+                                        undf_w2hb,       &
+                                        map_w2hb(:,cell) &
+                                        )
+    end do
 
     ! field_w2h should equal it's initial value plus the two
     ! adjacent w2hb values
-    answer = (/ 6.0_r_solver, 11.0_r_solver /)
+    answer = (/ 8.0_r_solver, 9.0_r_solver /)
 
     @assertEqual(answer, field_w2h, tol)
 

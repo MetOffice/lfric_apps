@@ -193,7 +193,7 @@ subroutine apply_mixed_wp_operator_code(cell,                       &
     iw2  = map_w2(ndf_w2h+df)
     lhs_w(iw2v:iw2v+nm1) = lhs_w(iw2v:iw2v+nm1) &
                          + norm_u(iw2:iw2+nm1)*( &
-                         - p2t(ij:ij+nm1, ndf_w2h+df, 1)*t_col(0:nm1) &
+                         - p2t(ij:ij+nm1, ndf_w2h+df, 1)*t_col(0:nm1)   &
                          - p2t(ij:ij+nm1, ndf_w2h+df, 2)*t_col(1:nm1+1) &
                          - grad(ij:ij+nm1, ndf_w2h+df, 1)*exner(iw3:iw3+nm1))
 
