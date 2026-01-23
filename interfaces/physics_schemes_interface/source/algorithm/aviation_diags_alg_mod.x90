@@ -241,7 +241,7 @@ CONTAINS
         diags_icao_heights_kernel_type(conv_cloud_top_icao_height, &
           conv_cloud_top_pressure))
 
-      call conv_cloud_base_icao_height%write_field()
+      call conv_cloud_top_icao_height%write_field()
 
       ! Is it necessary/safe to remove this field now?
       ! call convection_fields%remove_field('convection__pres_cv_top')
