@@ -17,7 +17,6 @@ program name_transport
   use driver_log_mod,            only: init_logger, final_logger
   use driver_modeldb_mod,        only: modeldb_type
   use driver_time_mod,           only: init_time, final_time
-  use driver_timer_mod,          only: init_timers, final_timers
   use lfric_mpi_mod,             only: global_mpi
   use log_mod,                   only: log_event,       &
                                        log_level_debug, &
@@ -30,12 +29,16 @@ program name_transport
   use name_transport_driver_mod, only: initialise_name_transport, &
                                        step_name_transport,       &
                                        finalise_name_transport
-
+  use namelist_mod,              only: namelist_type
+  use timing_mod,                only: init_timing, final_timing
+  use io_config_mod,             only: timer_output_path
   implicit none
 
   type(modeldb_type) :: modeldb
   character(*), parameter   :: program_name = "name_transport"
   character(:), allocatable :: filename
+  type(namelist_type), pointer :: io_nml
+  logical                      :: lsubroutine_timers
 
   call parse_command_line( filename )
 
@@ -53,7 +56,10 @@ program name_transport
   write(log_scratch_space, '("        i_def kind = ", I0)') kind(1_i_def)
   call log_event( log_scratch_space , log_level_info )
 
-  call init_timers( program_name )
+  io_nml => modeldb%configuration%get_namelist('io')
+  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
+  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, program_name, timer_output_path )
+  nullify( io_nml )
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )
@@ -75,7 +81,7 @@ program name_transport
 
   call final_time( modeldb )
   call final_collections()
-  call final_timers( program_name )
+  call final_timing( program_name )
   call final_logger( program_name )
   call final_config()
   call final_comm( modeldb )

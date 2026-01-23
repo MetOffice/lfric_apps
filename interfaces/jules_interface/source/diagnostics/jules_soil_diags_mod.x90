@@ -7,12 +7,11 @@
 
 module jules_soil_diags_mod
 
-  use constants_mod,             only: l_def
-  use field_mod,                 only: field_type
-  use io_config_mod,             only: subroutine_timers
-  use timer_mod,                 only: timer
+  use constants_mod,               only: l_def
+  use field_mod,                   only: field_type
+  use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
-  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
 
   implicit none
 
@@ -55,8 +54,9 @@ contains
     type( field_type ), intent(inout) :: grid_canopy_water
     type( field_type ), intent(inout) :: throughfall
     type( field_type ), intent(inout) :: grid_throughfall
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("jules_soil_diags")
+    if ( LPROF ) call start_timing( id, 'jules_soil_diags' )
 
     ! 2D fields
     soil_moisture_content_flag = init_diag(soil_moisture_content, 'soil__soil_moisture_content')
@@ -72,7 +72,7 @@ contains
     ! Initialise field to that sea and sea-ice tiles have zero values
     if (throughfall_flag) call invoke(setval_c(throughfall, 0.0_r_def))
 
-    if ( subroutine_timers ) call timer("jules_soil_diags")
+    if ( LPROF ) call stop_timing( id, 'jules_soil_diags' )
 
   end subroutine initialise_diags_for_jules_soil
 
@@ -126,8 +126,9 @@ contains
     ! Diagnostics locally computed here from other fields
     type( field_type ), intent(inout) :: grid_canopy_water
     type( field_type ), intent(inout) :: grid_throughfall
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("jules_soil_diags")
+    if ( LPROF ) call start_timing( id, 'jules_soil_diags' )
 
     ! Prognostic fields
     call canopy_water%write_field('surface__canopy_water')
@@ -160,7 +161,7 @@ contains
     call surface_runoff%write_field('soil__surface_runoff')
     call sub_surface_runoff%write_field('soil__sub_surface_runoff')
 
-    if ( subroutine_timers ) call timer("jules_soil_diags")
+    if ( LPROF ) call stop_timing( id, 'jules_soil_diags' )
 
   end subroutine output_diags_for_jules_soil
 end module jules_soil_diags_mod
