@@ -10,11 +10,13 @@ module multigrid_preconditioner_alg_mod
 
   use base_mesh_config_mod,    only: prime_mesh_name
   use boundaries_config_mod,   only: limited_area
-  use constants_mod,           only: i_def, r_solver, l_def
+  use constants_mod,           only: i_def, r_solver, l_def, r_def
   use function_space_mod,      only: function_space_type
   use function_space_chain_mod, &
-                               only: function_space_chain_type, &
-                                     multigrid_function_space_chain
+                               only: function_space_chain_type,          &
+                                     multigrid_function_space_chain,     &
+                                     w2h_multigrid_function_space_chain, &
+                                     w2v_multigrid_function_space_chain
   use log_mod,                 only: log_event, &
                                      LOG_LEVEL_INFO, &
                                      LOG_LEVEL_ERROR, &
@@ -30,6 +32,9 @@ module multigrid_preconditioner_alg_mod
                                only: abstract_hierarchical_preconditioner_type
   use sci_preconditioner_mod,  only: abstract_preconditioner_type
   use vector_mod,              only: abstract_vector_type
+  use field_indices_mod,       only: isol_p, isol_w, isol_uv
+
+  use psykal_lite_mod, only: print_dofs
 
   implicit none
 
@@ -40,18 +45,20 @@ module multigrid_preconditioner_alg_mod
      !> on each level of the multigrid hierarchy. The concrete types are deduced
      !> from the type of the operator/preconditioner that is passed to the constructor
      !> of the multigrid type.
-     class(abstract_hierarchical_linear_operator_type), allocatable :: H_operator
-     class(abstract_hierarchical_preconditioner_type),  allocatable :: Hz_preconditioner
+     class(abstract_hierarchical_linear_operator_type), allocatable :: Linear_operator
+     class(abstract_hierarchical_preconditioner_type),  allocatable :: Linear_preconditioner
   end type linear_operators_type
 
   type, public, extends(abstract_preconditioner_type) :: multigrid_preconditioner_type
     private
     !> Number of multigrid levels
     integer(kind=i_def) :: n_level
+    !> Number of fields in the multigrid system
+    integer(kind=i_def) :: n_fields
     !> relaxation parameter
     real(kind=r_solver) :: rho_smooth
     !> Function space ids
-    integer(kind=i_def), dimension(:), allocatable :: fs_id
+    integer(kind=i_def), dimension(:,:), allocatable :: fs_id
     !> Mesh ids
     integer(kind=i_def), dimension(:), allocatable :: mesh_id
     !> Solution on all levels
@@ -69,7 +76,7 @@ module multigrid_preconditioner_alg_mod
     integer(kind=i_def) :: n_postsmooth
     !> Jacobi smoothing parameter, for coarsest mesh
     integer(kind=i_def) :: n_coarsesmooth
-    !> Helmholtz operator and precondition for tridiagonal solve on each multigrid level
+    !> Linear operator and precondition for solve on each multigrid level
     type(linear_operators_type), allocatable, dimension(:) :: linear_operators
   contains
     !> Construct fields on all multigrid levels
@@ -96,22 +103,26 @@ contains
   !!          and calling the subroutine which constructs the multigrid fields,
   !!          operators and preconditioners on all levels of the multigrid hierarchy.
   !>
-  !> @param[in] p_fs Function space of the pressure field
-  !> @param[in] H_op Pressure operator on finest level
-  !> @param[in] Hz_prec Pressure preconditioner on finest level
+  !> @param[in] fine_fs_ids IDs of the function spaces on the fine mesh
+  !> @param[in] n_fields Number of fields in the multigrid system
+  !> @param[in] MG_op Operator on finest level
+  !> @param[in] MG_prec Preconditioner on finest level
   !> @return self The constructed multigrid_preconditioner type
-  function multigrid_preconditioner_constructor(p_fs, &
-                                                H_op, &
-                                                Hz_prec) result(self)
+  function multigrid_preconditioner_constructor(fine_fs_ids, &
+                                                n_fields, &
+                                                MG_op, &
+                                                MG_prec) result(self)
     use multigrid_config_mod, only : smooth_relaxation, &
                                      n_presmooth,       &
                                      n_postsmooth,      &
                                      n_coarsesmooth,    &
                                      multigrid_chain_nitems
     implicit none
-    type(function_space_type), intent(in) :: p_fs
-    class(abstract_hierarchical_linear_operator_type) :: H_op
-    class(abstract_hierarchical_preconditioner_type) :: Hz_prec
+
+    integer(kind=i_def),                      intent(in) :: n_fields
+    integer(kind=i_def), dimension(n_fields), intent(in) :: fine_fs_ids
+    class(abstract_hierarchical_linear_operator_type) :: MG_op
+    class(abstract_hierarchical_preconditioner_type) :: MG_prec
     type(multigrid_preconditioner_type) :: self
 
     self%rho_smooth     = real(smooth_relaxation, r_solver)
@@ -119,6 +130,10 @@ contains
     self%n_postsmooth   = n_postsmooth
     self%n_coarsesmooth = n_coarsesmooth
     self%n_level        = multigrid_chain_nitems
+    self%n_fields       = n_fields
+
+    allocate( self%fs_id(self%n_fields, self%n_level) )
+    self%fs_id(:,1) = fine_fs_ids
 
     write(log_scratch_space,'(A,I0,A,":",F3.1,3(":",I0))') &
          "Multigrid_preconditioner_constructor[",self%n_level,"]: setting smoothing parameters", &
@@ -126,7 +141,7 @@ contains
     call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
     ! Construct fields and operators on all multigrid levels
-    call self%construct_multigrid_fields(p_fs, H_op, Hz_prec)
+    call self%construct_multigrid_fields(MG_op, MG_prec)
 
   end function multigrid_preconditioner_constructor
 
@@ -137,41 +152,45 @@ contains
   !!          guarantees that they are allocated with the correct concrete type.
   !>
   !> @param[in,out] self Instance of type multigrid_preconditioner_type
-  !> @param[in] p_fs Function space of pressure field
-  !> @param[in] H_operator_fine Pressure operator on finest level
-  !> @param[in] Hz_preconditioner_fine Pressure preconditioner on finest level
+  !> @param[in] Linear_operator_fine Pressure operator on finest level
+  !> @param[in] Linear_preconditioner_fine Pressure preconditioner on finest level
   subroutine construct_multigrid_fields(self,                  &
-                                        p_fs,                  &
-                                        H_operator_fine,       &
-                                        Hz_preconditioner_fine )
+                                        Linear_operator_fine,  &
+                                        Linear_preconditioner_fine )
     use limited_area_constants_mod, only: get_mask_r_solver
-    use fs_continuity_mod,          only: W3
+    use fs_continuity_mod,          only: W3, W2h, W2v
 
     implicit none
     class(multigrid_preconditioner_type),              intent(inout) :: self
-    type(function_space_type), target,                 intent(in)    :: p_fs
-    class(abstract_hierarchical_linear_operator_type), intent(in)    :: H_operator_fine
-    class(abstract_hierarchical_preconditioner_type),  intent(in)    :: Hz_preconditioner_fine
-    type(function_space_type), pointer :: fs => null()
-    integer(kind=i_def) :: fs_fine_id
+    class(abstract_hierarchical_linear_operator_type), intent(in)    :: Linear_operator_fine
+    class(abstract_hierarchical_preconditioner_type),  intent(in)    :: Linear_preconditioner_fine
+
+    type(function_space_type), pointer :: p_fs, w_fs, uv_fs
     integer(kind=i_def) :: level
     type(r_solver_field_type), pointer :: mask => null(), &
                                           mask_mg_ptr => null()
 
     write(log_scratch_space,'(A,I1,A)') &
-         "construct_multigrid_preconditioner:make fields and operator on ", &
+         "construct_multigrid_preconditioner: make fields and operator on ", &
          self%n_level," levels"
     call log_event(log_scratch_space,LOG_LEVEL_INFO)
 
-    ! Extract ids
-    fs => p_fs
-    fs_fine_id = fs%get_id()
-
     ! Point the function space chain to the current, fine level function space
-    call multigrid_function_space_chain%set_current(fs_fine_id)
+    !write(6,*) 'pressure function space id:', self%fs_id(isol_p, 1)
+    call multigrid_function_space_chain%set_current(self%fs_id(isol_p, 1))
+    p_fs => multigrid_function_space_chain%get_current()
+
+    if ( self%n_fields == 3) then
+      ! Multiple fields so this is a mixed system multigrid
+      !write(6,*) 'w2v function space id:', self%fs_id(isol_w, 1)
+      !write(6,*) 'w2h function space id:', self%fs_id(isol_uv, 1)
+      call w2v_multigrid_function_space_chain%set_current(self%fs_id(isol_w, 1))
+      call w2h_multigrid_function_space_chain%set_current(self%fs_id(isol_uv, 1))
+      w_fs => w2v_multigrid_function_space_chain%get_current()
+      uv_fs => w2h_multigrid_function_space_chain%get_current()
+    end if
 
     ! Allocate memory on all multigrid levels
-    allocate( self%fs_id(self%n_level) )
     allocate( self%mesh_id(self%n_level) )
     allocate( self%u_mg( self%n_level ) )
     allocate( self%b_mg( self%n_level ) )
@@ -179,43 +198,66 @@ contains
     allocate( self%linear_operators(self%n_level) )
     allocate( self%mask_mg( self%n_level ) )
 
-    ! Set function space- and mesh ids as well as fields on all levels
-    self%fs_id(1) = fs_fine_id
     ! Create operators on the finest level; the concrete types will be deduced from
     ! the passed operator and preconditioner
-    allocate(self%linear_operators(1)%H_operator, &
-             source=H_operator_fine)
-    allocate(self%linear_operators(1)%Hz_preconditioner, &
-             source=Hz_preconditioner_fine)
+    allocate(self%linear_operators(1)%Linear_operator, &
+             source=Linear_operator_fine)
+    allocate(self%linear_operators(1)%Linear_preconditioner, &
+             source=Linear_preconditioner_fine)
     do level = 1, self%n_level
-       self%fs_id(level) = fs%get_id()
-       self%mesh_id(level) = fs%get_mesh_id()
+       !write(6,*) 'Creating MG fields on level ',level,' with nfields = ',self%n_fields
+       self%fs_id(isol_p, level) = p_fs%get_id()
+       self%mesh_id(level) = p_fs%get_mesh_id()
        ! Construct fields on a particular level
-       self%u_mg(level) = r_solver_field_vector_type( 1 )
-       self%b_mg(level) = r_solver_field_vector_type( 1 )
-       self%r_mg(level) = r_solver_field_vector_type( 1 )
-       call self%u_mg(level)%initialise_field( 1, fs )
-       call self%b_mg(level)%initialise_field( 1, fs )
-       call self%r_mg(level)%initialise_field( 1, fs )
+       self%u_mg(level) = r_solver_field_vector_type( self%n_fields )
+       self%b_mg(level) = r_solver_field_vector_type( self%n_fields )
+       self%r_mg(level) = r_solver_field_vector_type( self%n_fields )
+       call self%u_mg(level)%initialise_field( isol_p, p_fs )
+       call self%b_mg(level)%initialise_field( isol_p, p_fs )
+       call self%r_mg(level)%initialise_field( isol_p, p_fs )
+       if ( self%n_fields == 3 ) then
+          ! Multiple fields so this is a mixed system multigrid
+          self%fs_id(isol_w, level) = w_fs%get_id()
+          self%fs_id(isol_uv, level) = uv_fs%get_id()
+          call self%u_mg(level)%initialise_field( isol_w, w_fs )
+          call self%u_mg(level)%initialise_field( isol_uv, uv_fs )
+          call self%b_mg(level)%initialise_field( isol_w, w_fs )
+          call self%b_mg(level)%initialise_field( isol_uv, uv_fs )
+          call self%r_mg(level)%initialise_field( isol_w, w_fs )
+          call self%r_mg(level)%initialise_field( isol_uv, uv_fs )
+       end if
        if (level > 1) then
           ! Coarsen linear operator
-          call self%linear_operators(level-1)%H_operator%coarsen( &
-                  self%linear_operators(level)%H_operator )
+          call self%linear_operators(level-1)%Linear_operator%coarsen( &
+                  self%linear_operators(level)%Linear_operator )
           ! Coarsen preconditioner
-          call self%linear_operators(level-1)%Hz_preconditioner%coarsen( &
-                  self%linear_operators(level)%Hz_preconditioner)
+          call self%linear_operators(level-1)%Linear_preconditioner%coarsen( &
+                  self%linear_operators(level)%Linear_preconditioner)
        end if
        if (limited_area) then
-         self%mask_mg(level) = r_solver_field_vector_type( 1 )
-         call self%mask_mg(level)%initialise_field( 1,fs )
+         self%mask_mg(level) = r_solver_field_vector_type( self%n_fields )
+         call self%mask_mg(level)%initialise_field( self%n_fields, p_fs )
          mask => get_mask_r_solver( W3, self%mesh_id(level), prime_mesh_name )
-         mask_mg_ptr => self%mask_mg(level)%get_field_from_position(1)
+         mask_mg_ptr => self%mask_mg(level)%get_field_from_position(isol_p)
          call invoke( setval_X( mask_mg_ptr, mask ))
+         if ( self%n_fields == 3 ) then
+           ! Multiple fields so this is a mixed system multigrid
+           mask => get_mask_r_solver( W2v, self%mesh_id(level) )
+           mask_mg_ptr => self%mask_mg(level)%get_field_from_position(isol_w)
+           call invoke( setval_X( mask_mg_ptr, mask ))
+           mask => get_mask_r_solver( W2h, self%mesh_id(level) )
+           mask_mg_ptr => self%mask_mg(level)%get_field_from_position(isol_uv)
+           call invoke( setval_X( mask_mg_ptr, mask ))
+         end if
        end if
        ! If we are not yet on the coarsest level point the function space
        ! chain to the function space on the next coarser level
        if ( level < self%n_level ) &
-         fs => multigrid_function_space_chain%get_next()
+         p_fs => multigrid_function_space_chain%get_next()
+        if ( self%n_fields == 3 ) then
+          w_fs => w2v_multigrid_function_space_chain%get_next()
+          uv_fs => w2h_multigrid_function_space_chain%get_next()
+        end if
     end do
   end subroutine construct_multigrid_fields
 
@@ -228,16 +270,18 @@ contains
   !> @param[in] level Current multigrid level
   !> @param[in] initial_solution_is_zero Can we implicitly assume that the
   !!                                     solution is zero?
-  recursive subroutine vcycle(self,level,initial_solution_is_zero)
+  recursive subroutine vcycle(self, level, initial_solution_is_zero)
 
     use sci_restrict_scalar_unweighted_kernel_mod, &
-                                    only: restrict_scalar_unweighted_kernel_type
+                                     only: restrict_scalar_unweighted_kernel_type
+    use sci_restrict_w2h_kernel_mod, only: restrict_w2h_kernel_type
     use sci_prolong_scalar_unweighted_kernel_mod, &
-                                    only: prolong_scalar_unweighted_kernel_type
+                                     only: prolong_scalar_unweighted_kernel_type
     use sci_restrict_scalar_masked_kernel_mod, &
-                                    only: restrict_scalar_masked_kernel_type
+                                     only: restrict_scalar_masked_kernel_type
     use sci_prolong_scalar_masked_kernel_mod, &
-                                    only: prolong_scalar_masked_kernel_type
+                                     only: prolong_scalar_masked_kernel_type
+    use intermesh_mappings_alg_mod,  only: map_w2h_intermesh_rsolver
 
     implicit none
 
@@ -251,53 +295,77 @@ contains
                                           bvec_mg_coarse => null(), &
                                           uvec_mg_coarse => null(), &
                                           mask => null()
-
+    integer(kind=i_def) :: n
+    real(kind=r_def) :: error
     ! Call smoother on coarsest level
     if (level == self%n_level) then
-      call self%smooth(self%n_coarsesmooth,level,.true.)
+      call self%smooth(self%n_coarsesmooth, level, .true.)
     else
       ! Presmooth solution u^{(ell)}
 
       call self%smooth(self%n_presmooth, level, initial_solution_is_zero)
 
       ! Calculate residual r^{(ell)} = b^{(ell)} - H.u^{(ell)}
-      call self%linear_operators(level)%H_operator%apply(self%u_mg(level), &
-                                                         self%r_mg(level) )
+      call self%linear_operators(level)%Linear_operator%apply(self%u_mg(level), &
+                                                              self%r_mg(level) )
 
-      rvec_mg => self%r_mg(level)%get_field_from_position(1)
-      bvec_mg => self%b_mg(level)%get_field_from_position(1)
-      bvec_mg_coarse => self%b_mg(level+1)%get_field_from_position(1)
+      do n = 1, self%n_fields
+        rvec_mg => self%r_mg(level)%get_field_from_position(n)
+        bvec_mg => self%b_mg(level)%get_field_from_position(n)
+        bvec_mg_coarse => self%b_mg(level+1)%get_field_from_position(n)
 
-      call invoke( inc_aX_plus_y (-1.0_r_solver, rvec_mg, bvec_mg) )
-      ! Restrict b^{(ell+1)} = R r^{(ell)}
-      if (limited_area) then
-        mask => self%mask_mg(level)%get_field_from_position(1)
-        call invoke( name='masked_restriction',                         &
-                     restrict_scalar_masked_kernel_type(bvec_mg_coarse, &
-                                                        rvec_mg,        &
-                                                        mask ))
-      else
-        call invoke( name='unweighted_restriction',                     &
-                     restrict_scalar_unweighted_kernel_type(bvec_mg_coarse, rvec_mg) )
+        call invoke( inc_aX_plus_y (-1.0_r_solver, rvec_mg, bvec_mg) )
 
-      end if
+        ! Restrict b^{(ell+1)} = R r^{(ell)}
+        if (limited_area) then
+          mask => self%mask_mg(level)%get_field_from_position(n)
+          call invoke( name='masked_restriction',                         &
+                       restrict_scalar_masked_kernel_type(bvec_mg_coarse, &
+                                                          rvec_mg,        &
+                                                          mask ))
+        else
+          if ( n == isol_uv ) then
+            call map_w2h_intermesh_rsolver(bvec_mg_coarse, rvec_mg)
+          else
+            call invoke( name='unweighted_restriction',                     &
+                         restrict_scalar_unweighted_kernel_type(bvec_mg_coarse, rvec_mg) )
+
+          end if
+        end if
+        call invoke( X_innerproduct_X(error, rvec_mg) )
+        write(6,*) 'Pre Restriction: ',level, n, error
+        call invoke( X_innerproduct_X(error, bvec_mg_coarse) )
+        write(6,*) 'Post Restriction: ',level, n, error
+      end do
       ! Recursive call to V-cycle
       call self%vcycle(level+1,.true.)
 
       ! Prolong and add solution from coarser level
       ! u^{(ell)} = u^{(ell)} + P u^{(ell+1)}
-      uvec_mg => self%u_mg(level)%get_field_from_position(1)
-      uvec_mg_coarse => self%u_mg(level+1)%get_field_from_position(1)
-      if (limited_area) then
-        mask => self%mask_mg(level)%get_field_from_position(1)
-        call invoke( name='masked_prolong',                            &
-                     prolong_scalar_masked_kernel_type(uvec_mg,        &
-                                                       uvec_mg_coarse, &
-                                                       mask ) )
-      else
-        call invoke( name='unweighted_prolong',                        &
-                     prolong_scalar_unweighted_kernel_type(uvec_mg, uvec_mg_coarse) )
-      endif
+      do n = 1, self%n_fields
+        uvec_mg => self%u_mg(level)%get_field_from_position(n)
+        uvec_mg_coarse => self%u_mg(level+1)%get_field_from_position(n)
+
+        call print_dofs(uvec_mg_coarse, 'Coarse field', 12)
+        if (limited_area) then
+          mask => self%mask_mg(level)%get_field_from_position(n)
+          call invoke( name='masked_prolong',                            &
+                       prolong_scalar_masked_kernel_type(uvec_mg,        &
+                                                         uvec_mg_coarse, &
+                                                         mask ) )
+        else
+          if ( n == isol_uv ) then
+            call map_w2h_intermesh_rsolver(uvec_mg, uvec_mg_coarse)
+          else
+            call invoke( name='unweighted_prolong',                        &
+                         prolong_scalar_unweighted_kernel_type(uvec_mg, uvec_mg_coarse) )
+          end if
+        endif
+        call invoke( X_innerproduct_X(error, uvec_mg_coarse) )
+        write(6,*) 'Pre Prolongation: ',level, n, error
+        call invoke( X_innerproduct_X(error, uvec_mg) )
+        write(6,*) 'Post Prolongation: ',level, n, error
+      end do
       ! Postsmooth u^{(ell)}
       call self%smooth(self%n_postsmooth, level, .false.)
 
@@ -323,20 +391,35 @@ contains
                                           y_vec => null(), &
                                           bvec_mg => null(), &
                                           uvec_mg => null()
+
+    integer(kind=i_def) :: n
+
+    call log_event('Applying multigrid preconditioner', log_level_info)
+
     select type(x)
     type is(r_solver_field_vector_type)
        select type(y)
        type is(r_solver_field_vector_type)
           ! Copy in RHS on finest level
-          x_vec => x%get_field_from_position(1)
-          bvec_mg => self%b_mg(1)%get_field_from_position(1)
-          call invoke(setval_X(bvec_mg, x_vec ))
+          do n = 1, self%n_fields
+            !write(6,*) 'copy x_vec: ', n     
+            x_vec => x%get_field_from_position(n)
+            bvec_mg => self%b_mg(1)%get_field_from_position(n)
+            !fs => x_vec%get_function_space()
+            !write(6,*) 'x_fs undf = ', fs%get_undf()
+            !fs => bvec_mg%get_function_space()
+            !write(6,*) 'b_fs undf = ', fs%get_undf()
+            !flush(6)
+            call invoke(setval_X(bvec_mg, x_vec ))
+          end do
           ! Solve using a multigrid V-cycle
           call self%vcycle(1, .true.)
           ! Copy out solution on finest level
-          y_vec => y%get_field_from_position(1)
-          uvec_mg => self%u_mg(1)%get_field_from_position(1)
-          call invoke(setval_X(y_vec, uvec_mg ))
+          do n = 1, self%n_fields
+            y_vec => y%get_field_from_position(n)
+            uvec_mg => self%u_mg(1)%get_field_from_position(n)
+            call invoke(setval_X(y_vec, uvec_mg ))
+          end do
        class default
           write(log_scratch_space, '(A)') &
                 "multigrid_preconditioner_mod: incorrect vector_type argument y"
@@ -367,34 +450,75 @@ contains
   !!                                     \f$ u^{(\ell)} \f$ is zero before
   !!                                     the first iteration?
   subroutine smooth(self,nsmooth,level,initial_solution_is_zero)
+     use mixed_solver_config_mod, only: mixed_solver_a_tol,          &
+                                        si_tolerance,                &
+                                        mixed_gcrk => gcrk,          &
+                                        si_monitor_convergence =>    &
+                                              monitor_convergence,   &
+                                        si_fail_on_non_converged =>  &
+                                              fail_on_non_converged, &
+                                        si_maximum_iterations
+    use sci_iterative_solver_mod, only: block_gcr_type, &
+                                        abstract_iterative_solver_type
+
     implicit none
     class(multigrid_preconditioner_type), intent(inout) :: self
     integer(kind=i_def), intent(in) :: nsmooth
     integer(kind=i_def), intent(in) :: level
     logical(kind=l_def), intent(in) :: initial_solution_is_zero
-    type(function_space_type), pointer :: fs => null()
+    type(function_space_type), pointer :: fs
 
     type(r_solver_field_vector_type) :: res
-    type(r_solver_field_type), pointer :: uvec_mg => null(), &
-                                          rvec_mg => null(), &
-                                          bvec_mg => null()
+    type(r_solver_field_type), pointer :: uvec_mg, &
+                                          rvec_mg, &
+                                          bvec_mg
     real(kind=r_solver) :: const
-    integer(kind=i_def) :: i, i_first
+    real(kind=r_def), allocatable :: error(:), error0(:)
+    integer(kind=i_def) :: i, i_first, n
+
+    class( abstract_iterative_solver_type ), allocatable :: coarse_level_solver
+
+
+    if ( level == self%n_level .and. .false. ) then
+      ! Iterative solve on coarsest level
+      allocate( coarse_level_solver,                                 &
+                source = block_gcr_type( self%linear_operators(level)%Linear_operator,      &
+                                         self%linear_operators(level)%Linear_preconditioner, &
+                                         mixed_gcrk,              &
+                                         si_tolerance,            &
+                                         mixed_solver_a_tol,      &
+                                         si_maximum_iterations,   &
+                                         si_monitor_convergence,  &
+                                         si_fail_on_non_converged ) )
+      call self%u_mg(level)%set_scalar(0.0_r_def)
+      call coarse_level_solver%apply(self%u_mg(level), self%b_mg(level))
+    else
+
+    allocate( error(self%n_fields), error0(self%n_fields) )
 
     ! Construct temporary fields (we probably do not want to construct them
     ! in every smoother application in the future)
-    fs => self%u_mg(level)%vector(1)%get_function_space()
-    res = r_solver_field_vector_type( 1 )
-    call res%initialise_field( 1, fs )
+    res = r_solver_field_vector_type( self%n_fields )
+    do i = 1, self%n_fields
+      uvec_mg => self%u_mg(level)%get_field_from_position(i)
+      fs => uvec_mg%get_function_space()
+      call res%initialise_field( i, fs )
+    end do
+    do n = 1, self%n_fields
+       rvec_mg => self%b_mg(level)%get_field_from_position(n)
+       call invoke( X_innerproduct_X(error0(n), rvec_mg) )
+    end do
 
     if (initial_solution_is_zero) then
        ! First iteration
-       call self%linear_operators(level)%Hz_preconditioner%apply(self%b_mg(level), &
-                                                                 self%r_mg(level))
+       call self%linear_operators(level)%Linear_preconditioner%apply(self%b_mg(level), &
+                                                                     self%r_mg(level))
        const = self%rho_smooth
-       uvec_mg => self%u_mg(level)%get_field_from_position(1)
-       rvec_mg => self%r_mg(level)%get_field_from_position(1)
-       call invoke(a_times_X(uvec_mg, const, rvec_mg))
+       do n = 1, self%n_fields
+         uvec_mg => self%u_mg(level)%get_field_from_position(n)
+         rvec_mg => self%r_mg(level)%get_field_from_position(n)
+         call invoke(a_times_X(uvec_mg, const, rvec_mg))
+       end do
        i_first = 2
     else
        i_first = 1
@@ -405,17 +529,34 @@ contains
     const = -self%rho_smooth
     do i = i_first, nsmooth
        ! Calculate res = H.u^{(ell)} - b^{(ell)}
-       call self%linear_operators(level)%H_operator%apply(self%u_mg(level), res)
-       bvec_mg => self%b_mg(level)%get_field_from_position(1)
-       rvec_mg => res%get_field_from_position(1)
-       call invoke( inc_X_minus_Y (rvec_mg, bvec_mg))
+       call self%linear_operators(level)%Linear_operator%apply(self%u_mg(level), res)
+       do n = 1, self%n_fields
+         bvec_mg => self%b_mg(level)%get_field_from_position(n)
+         rvec_mg => res%get_field_from_position(n)
+         call invoke( inc_X_minus_Y (rvec_mg, bvec_mg))
+       end do
             ! Calculate r^{(ell)} = H_z^{-1}.(H.u^{(ell)} - b^{(ell)})
-       call self%linear_operators(level)%Hz_preconditioner%apply(res, self%r_mg(level))
+       call self%linear_operators(level)%Linear_preconditioner%apply(res, self%r_mg(level))
             ! Calculate u^{(ell)} = u^{(ell)} - rho*H_z^{-1}.(H.u^{(ell)} - b^{(ell)})
-       uvec_mg => self%u_mg(level)%get_field_from_position(1)
-       rvec_mg => self%r_mg(level)%get_field_from_position(1)
-       call invoke(inc_X_plus_bY (uvec_mg, const, rvec_mg) )
+       do n = 1, self%n_fields
+         uvec_mg => self%u_mg(level)%get_field_from_position(n)
+         rvec_mg => self%r_mg(level)%get_field_from_position(n)
+         call invoke(inc_X_plus_bY (uvec_mg, const, rvec_mg) )
+         rvec_mg => res%get_field_from_position(n)
+         call invoke( X_innerproduct_X(error(n), rvec_mg) )
+         call print_dofs(rvec_mg, 'Residual field', 12)
+         call print_dofs(uvec_mg, 'Smoothed field', 12)
+       end do
+       if ( self%n_fields == 1 ) then
+         write(log_scratch_space,'(A,2I4,2E16.8)') 'Smoothing Error: ',level,i,error0, error!/error0
+       else
+         write(log_scratch_space,'(A,2I4,6E16.8)') 'Smoothing Error: ',level,i,error0, error!/error0
+       end if
+       call log_event(log_scratch_space, LOG_LEVEL_INFO)
     end do
+
+
+    end if
 
   end subroutine smooth
 
@@ -429,8 +570,8 @@ contains
 
     if (allocated(self%linear_operators)) then
        do level = 1, self%n_level
-          deallocate(self%linear_operators(level)%H_operator)
-          deallocate(self%linear_operators(level)%Hz_preconditioner)
+          deallocate(self%linear_operators(level)%Linear_operator)
+          deallocate(self%linear_operators(level)%Linear_preconditioner)
        end do
        deallocate(self%linear_operators)
     end if

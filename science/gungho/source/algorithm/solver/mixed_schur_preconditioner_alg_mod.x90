@@ -96,7 +96,8 @@ module mixed_schur_preconditioner_alg_mod
                                              get_face_selector_ns
   use integer_field_mod,               only: integer_field_type
   use sci_iterative_solver_mod,        only: abstract_iterative_solver_type
-  use sci_preconditioner_mod,          only: abstract_preconditioner_type
+  use sci_hierarchical_preconditioner_mod, &
+                                       only: abstract_hierarchical_preconditioner_type
   use sci_r_solver_field_vector_mod,   only: r_solver_field_vector_type
   use field_indices_mod,               only: isol_u, isol_p, &
                                              isol_uv, isol_w
@@ -106,6 +107,7 @@ module mixed_schur_preconditioner_alg_mod
   use log_mod,                         only: log_event,       &
                                              LOG_LEVEL_ERROR, &
                                              LOG_LEVEL_DEBUG, &
+                                             LOG_LEVEL_INFO,  &
                                              log_scratch_space
   use mesh_mod,                        only: mesh_type
   use si_operators_alg_mod,            only: get_m3_rho_star, &
@@ -122,6 +124,11 @@ module mixed_schur_preconditioner_alg_mod
   use boundaries_config_mod,           only: limited_area
   use mixed_solver_config_mod,         only: eliminate_variables,          &
                                              eliminate_variables_analytic
+  use create_pressure_preconditioner_mod, only: create_pressure_preconditioner
+  use create_pressure_solver_mod,         only: create_pressure_solver
+  use pressure_operator_alg_mod,          only: pressure_operator_type
+  use sci_preconditioner_mod,             only: abstract_preconditioner_type
+
   implicit none
 
   private
@@ -130,7 +137,7 @@ module mixed_schur_preconditioner_alg_mod
   !>
   !> @details Implements mixed preconditioner which can be used in the
   !!          iterative solver algorithms.
-  type, public, extends(abstract_preconditioner_type) :: &
+  type, public, extends(abstract_hierarchical_preconditioner_type) :: &
                         mixed_schur_preconditioner_type
 
      private
@@ -141,9 +148,17 @@ module mixed_schur_preconditioner_alg_mod
      type(r_solver_field_vector_type) :: pressure_b
      !> 1-component field vector for solution of pressure system
      type(r_solver_field_vector_type) :: pressure_x
+     !> Pressure (Helmholtz) operator
+     type( pressure_operator_type ) :: pressure_operator
+     !> Pressure (Helmholtz) preconditioner
+     class( abstract_preconditioner_type ), allocatable :: &
+        pressure_preconditioner
      !> Pressure (Helmholtz) solver object
-     class(abstract_iterative_solver_type), pointer :: &
+     class(abstract_iterative_solver_type), allocatable :: &
         pressure_solver
+
+     !> Level of the operator (used for multigrid)
+     integer(kind=i_def) :: level
 
      contains
      ! Override the (abstract interface) for application of
@@ -157,6 +172,14 @@ module mixed_schur_preconditioner_alg_mod
      !> Reconstruct the velocity and buoyancy from the solution of the
      !> Helmholtz equation
      procedure, private :: back_substitute
+     !> Returns a version of the preconditioner on the next-coarser level
+     procedure, public  :: coarsen => coarsen_mixed_schur_preconditioner
+     procedure, private :: coarsen_mixed_schur_preconditioner
+     !> Copy a mixed_schur_preconditioner_type object
+     procedure, public :: mixed_schur_preconditioner_assign
+
+     !> Override default assignment for pressure_operator_type pairs.
+     generic :: assignment(=) => mixed_schur_preconditioner_assign
 
      !> Destructor
      final :: destroy_mixed_schur_preconditioner
@@ -182,11 +205,10 @@ contains
   !> @param [in] mesh            Mesh to create function spaces on
   !> @param [in] element_order_h Horizontal element order for function spaces
   !> @param [in] element_order_v Vertical element order for function spaces
-  !> @param [in] pressure_solver Solver object for Helmholtz system
   !> @return self the constructed preconditioner object
   function mixed_schur_preconditioner_constructor(mesh, element_order_h, &
                                                   element_order_v,       &
-                                                  pressure_solver)       &
+                                                  level)                 &
                                                   result(self)
 
     use function_space_mod,            only: function_space_type
@@ -198,15 +220,16 @@ contains
     integer(i_def),                                intent(in) :: element_order_h
     integer(i_def),                                intent(in) :: element_order_v
     type(mesh_type),                       target, intent(in) :: mesh
-    class(abstract_iterative_solver_type), target, intent(in) :: pressure_solver
+    integer(i_def),                                intent(in) :: level
 
     type(mixed_schur_preconditioner_type)  :: self
 
     type(mesh_type),           pointer :: mesh_ptr
     type(function_space_type), pointer :: fs
 
-    call log_event( 'Constructing approximate Schur mixed preconditioner...', &
-                    LOG_LEVEL_DEBUG )
+    write(log_scratch_space, '(A,I3)') &
+         'mixed_schur_preconditioner_alg_mod: constructing mixed Schur preconditioner on level ', level
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     mesh_ptr => mesh
     fs => function_space_collection%get_fs( mesh_ptr, element_order_h, &
@@ -223,12 +246,45 @@ contains
     call self%pressure_b%initialise_field( 1, fs )
     call self%pressure_x%initialise_field( 1, fs )
 
-    ! Set pressure solver
-    self%pressure_solver => pressure_solver
+    self%level = level
 
+    ! Create solver for the pressure system on the next multigrid level
+    call create_pressure_preconditioner( fs%get_id(), self%pressure_operator, &
+                                         self%pressure_preconditioner, self%level )
+    call create_pressure_solver( self%pressure_operator, self%pressure_preconditioner, &
+                                 self%pressure_solver )
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
   end function mixed_schur_preconditioner_constructor
+
+  !> @brief Performs a deep copy between mixed_schur_preconditioner_type pairs
+  !!        (for overriding the "=" operator).
+  !>
+  !> @param[out] dest   mixed_schur_preconditioner_type lhs
+  !> @param[in]  source mixed_schur_preconditioner_type rhs
+  subroutine mixed_schur_preconditioner_assign(dest, source)
+
+    implicit none
+    class(mixed_schur_preconditioner_type), intent(in)  :: source
+    class(mixed_schur_preconditioner_type), intent(out) :: dest
+
+    ! Deep copy of the contents of the pressure_operator_type
+    dest%level = source%level
+
+    call dest%rhs_u%initialise( vector_space = source%rhs_u%get_function_space() )
+
+    dest%pressure_b = r_solver_field_vector_type(1)
+    dest%pressure_x = r_solver_field_vector_type(1)
+    call dest%pressure_b%initialise_field( 1, source%pressure_b%vector(1)%get_function_space() )
+    call dest%pressure_x%initialise_field( 1, source%pressure_x%vector(1)%get_function_space() )
+
+    ! Copy the pressure solver
+    dest%pressure_operator = source%pressure_operator
+    allocate(dest%pressure_preconditioner, source = source%pressure_preconditioner)
+    call create_pressure_solver( dest%pressure_operator, dest%pressure_preconditioner, &
+                                 dest%pressure_solver )
+    
+  end subroutine mixed_schur_preconditioner_assign
 
   !> @brief Apply the preconditioner to calculate \f$y = P.x\f$ for the mixed
   !!        system in velocity, pressure, density and potential temperature.
@@ -250,7 +306,6 @@ contains
     class(abstract_vector_type),            intent(inout) :: y
 
     if ( subroutine_timers ) call timer('mixed_schur_preconditioner_alg')
-
     select type(x)
     type is(r_solver_field_vector_type)
        select type(y)
@@ -362,11 +417,11 @@ contains
       call invoke( setval_X( rhs_uvw, rhs_uv ) )
     end if
 
-    ptheta2       => get_ptheta2v()
-    p3theta       => get_p3theta()
-    m3_rho_star   => get_m3_rho_star()
-    compound_div  => get_compound_div()
-    Hb_lumped_inv => get_Hb_lumped_inv()
+    ptheta2       => get_ptheta2v(self%level)
+    p3theta       => get_p3theta(self%level)
+    m3_rho_star   => get_m3_rho_star(self%level)
+    compound_div  => get_compound_div(self%level)
+    Hb_lumped_inv => get_Hb_lumped_inv(self%level)
 
     ! Compute rhs_u terms
     call invoke( name = "compute_elim_helmholtz_ru",           &
@@ -379,7 +434,7 @@ contains
     ! Compute H(rhs_u)
     if ( eliminate_variables == eliminate_variables_analytic ) then
       ! r_pi = rhs_pi - Q32*rhs_u
-      q32_op => get_eliminated_q32()
+      q32_op => get_eliminated_q32(self%level)
       call r_p%initialise( rhs%get_function_space() )
       call invoke( dg_matrix_vector_kernel_type(r_p, self%rhs_u, q32_op), &
                    X_minus_Y(rhs, rhs_p, r_p ) )
@@ -463,8 +518,8 @@ contains
 
     ! u increment
     u_normalisation => get_normalisation_r_solver(W2, mesh_id)
-    div_star        => get_div_star()
-    Hb_lumped_inv   => get_Hb_lumped_inv()
+    div_star        => get_div_star(self%level)
+    Hb_lumped_inv   => get_Hb_lumped_inv(self%level)
     ! u' = ru + BC[HB * unorm * D * p']
     if ( split_w ) then
       state_uv => state%get_field_from_position( isol_uv )
@@ -514,5 +569,41 @@ contains
     type(mixed_schur_preconditioner_type), intent(inout) :: self
 
   end subroutine destroy_mixed_schur_preconditioner
+
+  !> @brief Construct a coarsened version of the preconditioner on the next
+  !!        level of the multigrid hierarchy.
+  !>
+  !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
+  !> @param[in,out] other Coarsed version on next multigrid level
+  subroutine coarsen_mixed_schur_preconditioner(self, other)
+    use function_space_mod,                 only: function_space_type
+    use function_space_chain_mod,           only: multigrid_function_space_chain
+
+    implicit none
+    class(mixed_schur_preconditioner_type), intent(inout) :: self
+    class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
+
+    type(function_space_type), pointer :: fs
+    type(r_solver_field_type), pointer :: b_vec
+    
+    b_vec => self%pressure_b%get_field_from_position(1)      
+    fs => b_vec%get_function_space()
+
+    ! Get the next function space in the multigrid hierarchy
+    call multigrid_function_space_chain%set_current( fs%get_id() )
+    fs => multigrid_function_space_chain%get_next( )
+
+    ! Create the mixed Schur preconditioner on the next level
+    write(log_scratch_space, '(A,I3,A,I3)') &
+         "Coarsening mixed Schur preconditioner from level ", &
+         self%level, " to level ", self%level+1
+    call log_event( log_scratch_space, LOG_LEVEL_INFO)
+
+    other = mixed_schur_preconditioner_type( &
+                        fs%get_mesh(),                 &
+                        fs%get_element_order_h(),      &
+                        fs%get_element_order_v(),      &
+                        self%level+1)
+  end subroutine coarsen_mixed_schur_preconditioner
 
 end module mixed_schur_preconditioner_alg_mod

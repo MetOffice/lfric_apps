@@ -39,6 +39,26 @@ contains
 
 !> Non pointwise Kernels
 
+  subroutine print_dofs(field, msg, ndofs)
+
+    type(r_solver_field_type), intent(in) :: field
+    type(r_solver_field_proxy_type) :: field_proxy
+    character(len=*), intent(in) :: msg
+
+    integer(kind=i_def), intent(in) :: ndofs
+
+    integer(kind=i_def) :: df, ndf
+
+    field_proxy = field%get_proxy()
+
+    ndf = field_proxy%vspace%get_last_dof_owned()
+
+    do df = 1, ndofs
+      write(6,*) trim(msg),df,ndf,field_proxy%data(df)
+    end do
+
+  end subroutine print_dofs
+
 !-------------------------------------------------------------------------------
   subroutine invoke_compute_dof_level_kernel(level)
 

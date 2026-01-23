@@ -33,9 +33,9 @@ module field_indices_mod
   integer, parameter :: isw_q = 4  ! vorticity
 
   ! For Semi-Implicit Solver
-  integer, parameter :: isol_u = 1       ! wind
+  integer, parameter :: isol_u = 2       ! wind
   integer, parameter :: isol_uv = isol_u ! uv wind if split - must be the same as isol_u
-  integer, parameter :: isol_p = 2       ! Exner pressure
+  integer, parameter :: isol_p = 1       ! Exner pressure
   integer, parameter :: isol_w = 3       ! w wind if split
 
 contains

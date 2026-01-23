@@ -112,6 +112,7 @@ contains
     type(r_solver_field_type), pointer :: tri(:) => null()
     type(r_solver_field_type), pointer :: x_vec => null(), &
                                           y_vec => null()
+
     select type(x)
     type is(r_solver_field_vector_type)
        select type(y)

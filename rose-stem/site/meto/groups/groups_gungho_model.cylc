@@ -67,6 +67,14 @@
 
 {# EX1A groups #}
 {% do site_groups.update({
+    "gungho_model_ex1a_test": [
+        "gungho_model_baroclinic-C24_MG_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_baroclinic-mixed-mg-C24_MG_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_baroclinic-C24_MG_ex1a_cce_fast-debug-64bit",
+        "gungho_model_baroclinic-mixed-mg-C24_MG_ex1a_cce_fast-debug-64bit",
+        "gungho_model_baroclinic-C48_MG_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_baroclinic-mixed-mg-C48_MG_ex1a_gnu_fast-debug-64bit",
+    ],
     "gungho_model_ex1a_developer": [
         "gungho_model_agnesi_hyd_cart-BiP120x8-2000x2000_ex1a_gnu_fast-debug-64bit",
         "gungho_model_baroclinic-C24_MG_ex1a_gnu_fast-debug-64bit",

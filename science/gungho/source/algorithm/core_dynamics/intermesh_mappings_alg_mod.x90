@@ -55,6 +55,8 @@ module intermesh_mappings_alg_mod
   private :: prolong_rho_reversible    ! Conservative and reversible prolong for W3 fields
   public  :: map_rho_intermesh         ! Public routine for conservative W3 fields
   public  :: map_w2_intermesh          ! Routine for mapping any W2 field
+  public  :: map_w2h_intermesh         ! Routine for mapping any W2h field
+  public  :: map_w2h_intermesh_rsolver ! Routine for mapping any W2h rsolver field
   public  :: map_w0_intermesh          ! Routine for mapping any W0 field
   private :: restrict_mr               ! Conservative restriction for mixing ratio
   private :: inject_mr                 ! Conservative injection for mixing ratio
@@ -565,6 +567,105 @@ contains
     end if
 
   end subroutine map_w2_intermesh
+
+  !> @details An algorithm for mapping W2h vector fields
+  !> @param[in,out] target_field  Target W2h field
+  !> @param[in]     source_field  Source W2h field
+  subroutine map_w2h_intermesh( target_field, source_field )
+
+    use sci_prolong_w2h_kernel_mod,     only: prolong_w2h_kernel_type
+    use sci_restrict_w2h_kernel_mod,    only: restrict_w2h_kernel_type
+    use sci_mapping_constants_mod,      only: get_intermesh_weights_w2h
+
+    implicit none
+
+    type(field_type),    intent(in)    :: source_field
+    type(field_type),    intent(inout) :: target_field
+
+    type(field_type),          pointer :: weights
+    type(mesh_type),           pointer :: source_mesh
+    type(mesh_type),           pointer :: target_mesh
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    integer(kind=i_def)                :: source_ncells
+    integer(kind=i_def)                :: target_ncells
+
+    ! Get source and target meshes
+    source_mesh => source_field%get_mesh()
+    target_mesh => target_field%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    ! Map W2 vector field from source to target
+    if ( source_ncells > target_ncells ) then
+      face_selector_ew => get_face_selector_ew(target_mesh%get_id())
+      face_selector_ns => get_face_selector_ns(target_mesh%get_id())
+      call invoke( restrict_w2h_kernel_type(target_field, source_field, &
+                                            face_selector_ew, face_selector_ns) )
+
+    else if ( source_ncells < target_ncells ) then
+      weights => get_intermesh_weights_w2h(target_mesh, source_mesh)
+      ! Prolong kernel increments target_field, so need to set it to be 0 first
+      call invoke( setval_c(target_field, 0.0_r_def), &
+                   prolong_w2h_kernel_type(target_field, source_field, weights) )
+
+    else
+      call invoke( setval_X(target_field, source_field) )
+    end if
+
+  end subroutine map_w2h_intermesh
+
+  !> @details An algorithm for mapping W2h rsolver fields
+  !> @param[in,out] target_field  Target W2h rsolver field
+  !> @param[in]     source_field  Source W2h rsolver field
+  subroutine map_w2h_intermesh_rsolver( target_field_rsolver, source_field_rsolver)
+
+    use sci_prolong_w2h_kernel_mod,     only: prolong_w2h_kernel_type
+    use sci_restrict_w2h_kernel_mod,    only: restrict_w2h_kernel_type
+    use sci_mapping_constants_mod,      only: get_intermesh_weights_w2h
+    use r_solver_field_mod,             only: r_solver_field_type
+
+    implicit none
+
+    type(r_solver_field_type),    intent(in)    :: source_field_rsolver
+    type(r_solver_field_type),    intent(inout) :: target_field_rsolver
+
+    type(field_type),          pointer :: weights
+    type(mesh_type),           pointer :: source_mesh
+    type(mesh_type),           pointer :: target_mesh
+    type(integer_field_type),  pointer :: face_selector_ew
+    type(integer_field_type),  pointer :: face_selector_ns
+    integer(kind=i_def)                :: source_ncells
+    integer(kind=i_def)                :: target_ncells
+
+    ! Get source and target meshes
+    source_mesh => source_field_rsolver%get_mesh()
+    target_mesh => target_field_rsolver%get_mesh()
+
+    ! Figure out which of the meshes has fewer cells
+    source_ncells = source_mesh%get_ncells()
+    target_ncells = target_mesh%get_ncells()
+
+    ! Map W2 vector field from source to target
+    if ( source_ncells > target_ncells ) then
+      face_selector_ew => get_face_selector_ew(target_mesh%get_id())
+      face_selector_ns => get_face_selector_ns(target_mesh%get_id())
+      call invoke( restrict_w2h_kernel_type(target_field_rsolver, source_field_rsolver, &
+                                            face_selector_ew, face_selector_ns) )
+
+    else if ( source_ncells < target_ncells ) then
+      weights => get_intermesh_weights_w2h(target_mesh, source_mesh)
+      ! Prolong kernel increments target_field, so need to set it to be 0 first
+      call invoke( setval_c(target_field_rsolver, 0.0_r_def), &
+                   prolong_w2h_kernel_type(target_field_rsolver, source_field_rsolver, weights) )
+
+    else
+      call invoke( setval_X(target_field_rsolver, source_field_rsolver) )
+    end if
+
+  end subroutine map_w2h_intermesh_rsolver
 
 
   !> @details An algorithm for mapping W0 scalar fields

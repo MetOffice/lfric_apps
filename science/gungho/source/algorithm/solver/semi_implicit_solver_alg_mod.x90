@@ -39,6 +39,9 @@ module semi_implicit_solver_alg_mod
                                                 igh_p, igh_t, igh_d,             &
                                                 igh_u, igh_w, igh_uv
   use copy_field_alg_mod,                 only: copy_field
+  use function_space_mod,                 only: function_space_type
+  use function_space_collection_mod,      only: function_space_collection
+  use fs_continuity_mod,                  only: W2v, W2h
 
   ! Pointers
   use sci_geometric_constants_mod,        only: get_face_selector_ew, &
@@ -47,9 +50,6 @@ module semi_implicit_solver_alg_mod
   ! Algorithms
   use mixed_operator_alg_mod,             only: mixed_operator_type
   use mixed_schur_preconditioner_alg_mod, only: mixed_schur_preconditioner_type
-  use pressure_operator_alg_mod,          only: pressure_operator_type
-  use pressure_precon_alg_mod,            only: pressure_preconditioner_type
-  use pressure_diag_precon_alg_mod,       only: pressure_diag_preconditioner_type
   use multigrid_preconditioner_alg_mod,   only: multigrid_preconditioner_type
   use sci_null_preconditioner_alg_mod,    only: null_preconditioner_type
 
@@ -82,14 +82,6 @@ module semi_implicit_solver_alg_mod
   class( abstract_preconditioner_type ),   allocatable :: mixed_preconditioner
   class( abstract_iterative_solver_type ), allocatable :: mixed_solver
 
-  !> Operator, preconditioner and iterative solver for
-  !> Helmholtz (pressure) problem
-  type( pressure_operator_type )                       :: pressure_operator
-  class( abstract_preconditioner_type ),   allocatable :: pressure_preconditioner
-  class( abstract_iterative_solver_type ), allocatable :: pressure_solver
-
-  public  :: create_pressure_preconditioner
-  public  :: create_pressure_solver
   public  :: create_mixed_preconditioner
   public  :: create_mixed_solver
   public  :: semi_implicit_solver_alg_init
@@ -97,185 +89,18 @@ module semi_implicit_solver_alg_mod
   public  :: semi_implicit_solver_alg_step
   private :: construct_solver_state
 contains
-!=============================================================================!
-  !> @brief Create operator and preconditioner for (Helmholtz) pressure problem
-  !> @details Called by init method of this module, but also by adj_semi_implicit_solver_alg_mod,
-  !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
-  !> @param[in]  state                       Prognostic state for the solver
-  !> @param[out] pressure_operator_out       Output (Helmholtz) pressure operator
-  !> @param[out] pressure_preconditioner_out Output (Helmholtz) pressure preconditioner
-  subroutine create_pressure_preconditioner( state, pressure_operator_out, pressure_preconditioner_out )
-
-    use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
-                                             preconditioner_none,                        &
-                                             preconditioner_diagonal,                    &
-                                             preconditioner_tridiagonal,                 &
-                                             preconditioner_multigrid
-
-    implicit none
-
-    ! Prognostic fields
-    type(field_type), dimension(bundle_size), intent(in) :: state
-
-    ! Output operator and preconditioner for (Helmholtz) pressure problem
-    type(pressure_operator_type),                     intent(out) :: pressure_operator_out
-    class(abstract_preconditioner_type), allocatable, intent(out) :: pressure_preconditioner_out
-
-    ! Vertical pressure preconditioner
-    type(pressure_preconditioner_type) :: Hz_preconditioner
-
-    pressure_operator_out = pressure_operator_type(level=1_i_def)
-
-    call log_event( "create_pressure_preconditioner: starting", LOG_LEVEL_INFO )
-
-    ! Allocate pressure preconditioner of correct type
-    select case(helmholtz_preconditioner)
-    case(PRECONDITIONER_NONE)
-      allocate( pressure_preconditioner_out, &
-                source = null_preconditioner_type() )
-    case(PRECONDITIONER_DIAGONAL)
-      allocate( pressure_preconditioner_out, &
-                source = pressure_diag_preconditioner_type() )
-    case(PRECONDITIONER_TRIDIAGONAL)
-      allocate( pressure_preconditioner_out, &
-                source = pressure_preconditioner_type(level=1_i_def) )
-    case(PRECONDITIONER_MULTIGRID)
-      Hz_preconditioner = pressure_preconditioner_type(level=1_i_def)
-      allocate( pressure_preconditioner_out, &
-                source = multigrid_preconditioner_type( state(igh_p)%get_function_space(), &
-                                                        pressure_operator_out,             &
-                                                        Hz_preconditioner ) )
-    case default
-      call log_event( "Unknown pressure preconditioner specified", LOG_LEVEL_ERROR)
-    end select
-
-    call log_event( "create_pressure_preconditioner: done", LOG_LEVEL_INFO )
-
-  end subroutine create_pressure_preconditioner
-
-!=============================================================================!
-  !> @brief Create iterative solver for (Helmholtz) pressure problem
-  !> @details Called by init method of this module, but also by
-  !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
-  !> @param[in]  pressure_operator_in       Input (Helmholtz) pressure operator
-  !> @param[in]  pressure_preconditioner_in Input (Helmholtz) pressure preconditioner
-  !> @param[out] pressure_solver_out        Output (Helmholtz) pressure solver
-  subroutine create_pressure_solver( pressure_operator_in, pressure_preconditioner_in, pressure_solver_out )
-
-    use helmholtz_solver_config_mod,   only: si_pressure_maximum_iterations,         &
-                                             helmholtz_gcrk => gcrk,                 &
-                                             si_pressure_tolerance,                  &
-                                             si_pressure_a_tol,                      &
-                                             helmholtz_method => method,             &
-                                             method_cg,                              &
-                                             method_bicgstab,                        &
-                                             method_gmres,                           &
-                                             method_fgmres,                          &
-                                             method_gcr,                             &
-                                             method_prec_only,                       &
-                                             method_jacobi,                          &
-                                             si_pressure_monitor_convergence =>      &
-                                                              monitor_convergence,   &
-                                             si_pressure_fail_on_non_converged =>    &
-                                                              fail_on_non_converged, &
-                                             si_pressure_jacobi_relaxation =>        &
-                                                             jacobi_relaxation
-
-    implicit none
-
-    ! Input operator and preconditioner for (Helmholtz) pressure problem
-    type(pressure_operator_type),                     intent(in) :: pressure_operator_in
-    class(abstract_preconditioner_type), allocatable, intent(in) :: pressure_preconditioner_in
-
-    ! Output iterative solver for (Helmholtz) pressure problem
-    class(abstract_iterative_solver_type), allocatable, intent(out) :: pressure_solver_out
-
-    call log_event( "create_pressure_solver: starting", LOG_LEVEL_INFO )
-
-    ! Allocate pressure solver of correct type
-    select case( helmholtz_method )
-    case (METHOD_BICGSTAB)
-      allocate( pressure_solver_out,                                     &
-                source = bicgstab_type( pressure_operator_in,            &
-                                        pressure_preconditioner_in,      &
-                                        si_pressure_tolerance,           &
-                                        si_pressure_a_tol,               &
-                                        si_pressure_maximum_iterations,  &
-                                        si_pressure_monitor_convergence, &
-                                        si_pressure_fail_on_non_converged ) )
-    case(METHOD_CG)
-      allocate( pressure_solver_out,                                               &
-                source = conjugate_gradient_type( pressure_operator_in,            &
-                                                  pressure_preconditioner_in,      &
-                                                  si_pressure_tolerance,           &
-                                                  si_pressure_a_tol,               &
-                                                  si_pressure_maximum_iterations,  &
-                                                  si_pressure_monitor_convergence, &
-                                                  si_pressure_fail_on_non_converged ) )
-    case(METHOD_GMRES)
-      allocate( pressure_solver_out,                                  &
-                source = gmres_type( pressure_operator_in,            &
-                                     pressure_preconditioner_in,      &
-                                     helmholtz_gcrk,                  &
-                                     si_pressure_tolerance,           &
-                                     si_pressure_a_tol,               &
-                                     si_pressure_maximum_iterations,  &
-                                     si_pressure_monitor_convergence, &
-                                     si_pressure_fail_on_non_converged ) )
-    case(METHOD_FGMRES)
-      allocate( pressure_solver_out,                                   &
-                source = fgmres_type( pressure_operator_in,            &
-                                      pressure_preconditioner_in,      &
-                                      helmholtz_gcrk,                  &
-                                      si_pressure_tolerance,           &
-                                      si_pressure_a_tol,               &
-                                      si_pressure_maximum_iterations,  &
-                                      si_pressure_monitor_convergence, &
-                                      si_pressure_fail_on_non_converged ) )
-    case(METHOD_GCR)
-      allocate( pressure_solver_out,                                &
-                source = gcr_type( pressure_operator_in,            &
-                                   pressure_preconditioner_in,      &
-                                   helmholtz_gcrk,                  &
-                                   si_pressure_tolerance,           &
-                                   si_pressure_a_tol,               &
-                                   si_pressure_maximum_iterations,  &
-                                   si_pressure_monitor_convergence, &
-                                   si_pressure_fail_on_non_converged ) )
-    case(METHOD_PREC_ONLY)
-      allocate( pressure_solver_out,                                         &
-                source = precondition_only_type( pressure_operator_in,       &
-                                                 pressure_preconditioner_in, &
-                                                 si_pressure_monitor_convergence) )
-    case(METHOD_JACOBI)
-      allocate( pressure_solver_out,                                     &
-                source = jacobi_type( pressure_operator_in,              &
-                                      pressure_preconditioner_in,        &
-                                      si_pressure_tolerance,             &
-                                      si_pressure_a_tol,                 &
-                                      si_pressure_maximum_iterations,    &
-                                      si_pressure_monitor_convergence,   &
-                                      si_pressure_fail_on_non_converged, &
-                                      si_pressure_jacobi_relaxation ) )
-    case default
-      call log_event("Unknown pressure solver specified",LOG_LEVEL_ERROR)
-    end select
-
-    call log_event( "create_pressure_solver: done", LOG_LEVEL_INFO )
-
-  end subroutine create_pressure_solver
 
 !=============================================================================!
   !> @brief Create preconditioner for mixed problem
   !> @details Called by init method of this module, but also by
   !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
   !> @param[in]  state                    Prognostic state for the solver
-  !> @param[in]  pressure_solver_in       Input (Helmholtz) pressure solver
   !> @param[out] mixed_preconditioner_out Output mixed preconditioner
-  subroutine create_mixed_preconditioner( state, pressure_solver_in, mixed_preconditioner_out )
+  subroutine create_mixed_preconditioner( state, mixed_preconditioner_out )
 
-    use mixed_solver_config_mod,       only: si_preconditioner,          &
-                                             si_preconditioner_pressure, &
+    use mixed_solver_config_mod,       only: si_preconditioner,           &
+                                             si_preconditioner_pressure,  &
+                                             si_preconditioner_multigrid, &
                                              si_preconditioner_none
 
     implicit none
@@ -283,11 +108,16 @@ contains
     ! Prognostic fields
     type(field_type), dimension(bundle_size), intent(in) :: state
 
-    ! Input solver for (Helmholtz) pressure problem
-    class(abstract_iterative_solver_type), allocatable, intent(in) :: pressure_solver_in
-
     ! Output preconditioner for mixed problem
     class(abstract_preconditioner_type), allocatable, intent(out) :: mixed_preconditioner_out
+
+    type(mixed_schur_preconditioner_type) :: mixed_multigrid_preconditioner
+    type(mixed_operator_type) :: mixed_multigrid_operator
+    integer(kind=i_def) :: nfields
+    type(function_space_type), pointer :: fs
+    integer(kind=i_def) :: fs_ids(3)
+    integer(kind=i_def) :: element_order_h, element_order_v
+    type(mesh_type), pointer :: mesh
 
     call log_event( "create_mixed_preconditioner: starting", LOG_LEVEL_INFO )
 
@@ -299,8 +129,35 @@ contains
                   state(igh_u)%get_mesh(),                &
                   state(igh_u)%get_element_order_h(),     &
                   state(igh_u)%get_element_order_v(),     &
-                  pressure_solver_in ) )
+                  level = 1_i_def ) )
 
+    case(SI_PRECONDITIONER_MULTIGRID)
+      mixed_multigrid_preconditioner = mixed_schur_preconditioner_type( &
+                  state(igh_u)%get_mesh(),                &
+                  state(igh_u)%get_element_order_h(),     &
+                  state(igh_u)%get_element_order_v(),     &
+                  level = 1_i_def )
+      mixed_multigrid_operator = mixed_operator_type(level=1_i_def)
+      nfields = 3_i_def
+      ! Function space IDs for the mixed operator (W3, W2H, W2V)
+      fs => state(igh_p)%get_function_space()
+      fs_ids(isol_p) = fs%get_id()
+      element_order_h = state(igh_u)%get_element_order_h()
+      element_order_v = state(igh_u)%get_element_order_v()
+      mesh => state(igh_u)%get_mesh()
+      fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                              element_order_v, W2h )
+      fs_ids(isol_uv) = fs%get_id()    
+      fs => function_space_collection%get_fs( mesh, element_order_h, &
+                                              element_order_v, W2v )
+      fs_ids(isol_w) = fs%get_id()                                        
+      allocate( mixed_preconditioner_out, &
+                source = multigrid_preconditioner_type( fs_ids,                    &
+                                                        nfields,                   &
+                                                        mixed_multigrid_operator,  &
+                                                        mixed_multigrid_preconditioner ) )
+
+      nullify(fs, mesh)
     case(SI_PRECONDITIONER_NONE)
       allocate( mixed_preconditioner_out, &
                 source = null_preconditioner_type() )
@@ -349,6 +206,8 @@ contains
     class(abstract_iterative_solver_type), allocatable, intent(out)   :: mixed_solver_out
 
     call log_event( "create_mixed_solver: starting", LOG_LEVEL_INFO )
+
+    mixed_operator_out = mixed_operator_type(level=1_i_def)
 
     ! Allocate mixed solver of correct type
     select case(si_method)
@@ -443,14 +302,15 @@ contains
     ! Prognostic fields
     type( field_type ), dimension(bundle_size), intent( in ) :: state
 
+    type( function_space_type ), pointer :: p_fs
+
     write(log_scratch_space,'(A)')                          &
         'SI solver built with '//trim(PRECISION_R_SOLVER)// &
         '-bit real numbers'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
-    call create_pressure_preconditioner( state, pressure_operator, pressure_preconditioner )
-    call create_pressure_solver( pressure_operator, pressure_preconditioner, pressure_solver )
-    call create_mixed_preconditioner( state, pressure_solver, mixed_preconditioner )
+    p_fs => state(igh_p)%get_function_space()
+    call create_mixed_preconditioner( state, mixed_preconditioner )
     call create_mixed_solver( mixed_preconditioner, mixed_operator, mixed_solver )
 
     call log_event( "semi_implicit_solver_alg_init: Initialised semi-implicit solver", LOG_LEVEL_INFO )
@@ -471,14 +331,6 @@ contains
     ! Deallocate mixed solver object
     if (allocated(mixed_solver)) then
        deallocate(mixed_solver)
-    end if
-    ! Deallocate pressure preconditioner object
-    if (allocated(pressure_preconditioner)) then
-       deallocate(pressure_preconditioner)
-    end if
-    ! Deallocate pressure solver object
-    if (allocated(pressure_solver)) then
-       deallocate(pressure_solver)
     end if
 
   end subroutine semi_implicit_solver_alg_final
@@ -752,8 +604,6 @@ contains
   !>@param[in]     bundle_state  Field bundle to copy
   !>@param[in]     import fields Import (copy) data from field_bundle
   subroutine construct_solver_state(vector_state, bundle_state, import_fields)
-    use function_space_collection_mod, only: function_space_collection
-    use fs_continuity_mod,             only: W2v, W2h
 
     implicit none
 

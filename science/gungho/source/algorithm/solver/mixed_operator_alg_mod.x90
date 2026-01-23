@@ -57,7 +57,8 @@ module mixed_operator_alg_mod
                                          eliminate_variables, &
                                          eliminate_variables_analytic, &
                                          eliminate_variables_discrete
-  use sci_linear_operator_mod,     only: abstract_linear_operator_type
+  use sci_hierarchical_linear_operator_mod, &
+                                  only: abstract_hierarchical_linear_operator_type
   use sci_r_solver_field_vector_mod, &
                                    only: r_solver_field_vector_type
   use split_w2_field_kernel_mod,   only: split_w2_field_kernel_type
@@ -69,10 +70,13 @@ module mixed_operator_alg_mod
 
   private
 
-  type, public, extends(abstract_linear_operator_type) :: &
+  type, public, extends(abstract_hierarchical_linear_operator_type) :: &
                         mixed_operator_type
 
     private
+
+    !> Level of the operator (used for multigrid)
+     integer(kind=i_def) :: level
 
    contains
     !> Over-ride the abstract interface
@@ -82,11 +86,33 @@ module mixed_operator_alg_mod
     procedure, public  :: apply => apply_mixed_operator
     !> Applies the operator as LMA matrix matrix-vector kernels in all blocks
     procedure, private :: apply_mixed_operator
+    !> Returns a version of the operator on the next-coarser space
+    procedure, public  :: coarsen => coarsen_mixed_operator
+    procedure, private :: coarsen_mixed_operator
     !> Destroys the object
     final              :: destroy_mixed_operator
   end type mixed_operator_type
 
+  interface mixed_operator_type
+    module procedure mixed_operator_constructor
+  end interface
+
 contains
+
+  !> @brief Construct new instance of the mixed operator on a specified mesh level.
+  !>
+  !> @param[in] level The mesh level the space is on
+  !> @return Instance of the Helmholtz operator
+  function mixed_operator_constructor(level) result(self)
+    implicit none
+
+    type(mixed_operator_type)       :: self
+    integer(kind=i_def), intent(in) :: level
+
+    ! Temporaries required in operator application
+    self%level = level
+
+  end function mixed_operator_constructor
 
   !> @brief Applies the mixed operator to the vector, \f$ y = M x \f$.
   !>
@@ -203,11 +229,11 @@ contains
     mm_vel => get_w2_mass_matrix_r_solver(w2_si_matrix, mesh%get_id())
 
     ! Obtain operators from SI operators
-    p2theta       => get_p2theta()
-    div_star      => get_div_star()
-    ptheta2       => get_ptheta2()
-    m3_exner_star => get_m3_exner_star()
-    p3theta       => get_p3theta()
+    p2theta       => get_p2theta(self%level)
+    div_star      => get_div_star(self%level)
+    ptheta2       => get_ptheta2(self%level)
+    m3_exner_star => get_m3_exner_star(self%level)
+    p3theta       => get_p3theta(self%level)
 
     select type (x)
     type is (r_solver_field_vector_type)
@@ -254,7 +280,7 @@ contains
          select case ( eliminate_variables )
 
          case ( eliminate_variables_discrete )
-           q32_op => get_eliminated_q32()
+           q32_op => get_eliminated_q32(self%level)
            if ( optimised_operator ) then
              call invoke( name="apply_mixed_operator_new",                                      &
                           setval_c( yvec_uv, 0.0_r_solver ),                                    &
@@ -296,8 +322,8 @@ contains
            ! For analytic elimination:
            ! Q32 = tau*dt*M3^rho * D * rho^ref + <v,k * dpi/dz * dtheta/dz * k.v>
            ! and x_t = 0
-           q32_op => get_eliminated_q32()
-           q22_op => get_eliminated_q22()
+           q32_op => get_eliminated_q32(self%level)
+           q22_op => get_eliminated_q22(self%level)
            call q22u%initialise( vector_space = u_fs )
            call invoke( name="analytic_elim_mixed_lhs",                                            &
                         setval_c( x_t, 0.0_r_solver ),                                             &
@@ -369,5 +395,20 @@ contains
     implicit none
     type(mixed_operator_type), intent(inout) :: self
   end subroutine destroy_mixed_operator
+
+  !> @brief Return a coarsened version of the operator on the
+  !!        next level of the multigrid hierarchy.
+  !>
+  !>@param[in]     self            Instance of pressure_operator_type
+  !>@param[in,out] coarse_operator Coarsened version of the operator on the next multigrid level
+  subroutine coarsen_mixed_operator(self, coarse_operator)
+    implicit none
+    class(mixed_operator_type), intent(in) :: self
+    class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
+
+    allocate(coarse_operator, &
+             source=mixed_operator_type(self%level+1))
+
+  end subroutine coarsen_mixed_operator
 
 end module mixed_operator_alg_mod
