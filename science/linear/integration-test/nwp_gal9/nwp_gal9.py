@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ##############################################################################
-# (c) Crown copyright 2021 Met Office. All rights reserved.
+# (c) Crown copyright 2026 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
 '''
-Run the linear model integration tests for the semi-implicit configuration
+Run the linear model integration tests for the default (nwp_gal9) configuration
 
 '''
 import os
@@ -27,7 +27,7 @@ class TLTest(LFRicLoggingTest):
         if 'MPIEXEC_BROKEN' in os.environ:
             TLTest.set_mpiexec_broken()
         super(TLTest, self).__init__([sys.argv[1],
-                                      'resources/semi_implicit_configuration.nml',
+                                      'resources/nwp_gal9_configuration.nml',
                                       'test_' + self._flag],
                                      processes=1,
                                      name='tl_test.Log')
@@ -63,6 +63,32 @@ class TLTest(LFRicLoggingTest):
                 success = True
         return success
 
+class tl_test_semi_imp_alg(TLTest):
+    '''
+    Test the semi implicit timestep
+    '''
+    def __init__(self):
+        flag = "semi_imp_alg"
+        super(tl_test_semi_imp_alg, self).__init__(flag)
+
+
+class tl_test_rhs_alg(TLTest):
+    '''
+    Test the right hand side forcing for the mixed solver
+    '''
+    def __init__(self):
+        flag = "rhs_alg"
+        super(tl_test_rhs_alg, self).__init__(flag)
+
+class tl_test_transport_control(TLTest):
+    '''
+    Test the transport
+    '''
+    def __init__(self):
+        flag = "transport_control"
+        super(tl_test_transport_control, self).__init__(flag)
+
+
 class tl_test_timesteps(TLTest):
     '''
     Test running over multiple timesteps
@@ -72,4 +98,8 @@ class tl_test_timesteps(TLTest):
         super(tl_test_timesteps, self).__init__(flag)
 
 if __name__ == '__main__':
-    TestEngine.run( tl_test_timesteps() )
+    TestEngine.run(tl_test_rhs_alg())
+    TestEngine.run(tl_test_transport_control())
+    TestEngine.run(tl_test_semi_imp_alg())
+    TestEngine.run(tl_test_timesteps())
+ 
