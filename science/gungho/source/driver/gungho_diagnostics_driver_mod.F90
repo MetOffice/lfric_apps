@@ -59,6 +59,7 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
+  use aviation_diags_alg_mod,    only : aviation_diags_alg
 #endif
 
   implicit none
@@ -94,6 +95,11 @@ contains
     type( field_type ),            pointer :: mr(:) => null()
     type( field_type ),            pointer :: moist_dyn(:) => null()
     type( field_collection_type ), pointer :: derived_fields
+
+    ! For S20 Aviation diagnostics
+#ifdef UM_PHYSICS
+    type( field_type ) :: plev_geopot  ! Set by pres_lev_diags_alg().
+#endif
 
     type( field_type), pointer :: theta => null()
     type( field_type), pointer :: u => null()
@@ -315,9 +321,11 @@ contains
       ! Call PMSL algorithm
       call pmsl_alg(exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
-      call pres_lev_diags_alg(derived_fields, theta, exner, mr, moist_dyn)
+      call pres_lev_diags_alg(derived_fields, theta, exner, mr, moist_dyn, plev_geopot)
       ! Wet bulb freezing level
       call freeze_lev_alg(theta, mr, moist_dyn, exner_in_wth)
+      ! Aviation diagnostics
+      call aviation_diags_alg(plev_geopot, modeldb%fields%get_field_collection("convection_fields"))
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
