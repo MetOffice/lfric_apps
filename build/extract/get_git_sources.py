@@ -131,6 +131,8 @@ def clone_repo(repo_source: str, repo_ref: str, loc: Path) -> None:
         # Create a clean clone location
         loc.mkdir(parents=True)
 
+        # This process is equivalent to doing a git clone
+        # It saves a small amount of space by not fetching all refs
         commands = (
             f"git -C {loc} init",
             f"git -C {loc} remote add origin {repo_source}",
