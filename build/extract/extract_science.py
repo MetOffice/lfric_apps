@@ -53,7 +53,7 @@ def extract_files(dependency: str, values: Dict, files: List[str], working: Path
         "PHYSICS_ROOT" not in os.environ
         or not Path(os.environ["PHYSICS_ROOT"]).exists()
     ):
-        clone_loc = working / ".." / "scratch" / dependency
+        clone_loc = working.parent / "scratch" / dependency
         get_source(
             values["source"],
             values["ref"],
