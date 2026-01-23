@@ -610,7 +610,7 @@ if (local_fa == free_trop_layers) then
           !---------------------------------------------------------
           turb_length_layer   = z_uv(i,j,kt) - z_uv(i,j,kb-1)
           do kl = kb, kt
-            turb_length(i,j,kl) = max( turb_length(i,j,kl),                  &
+            turb_length(i,j,kl) = max( turb_length(i,j,kl),                    &
                         min(turb_length_layer,lambda_max_nml*rlambda_fac)   )
           end do
         end if
