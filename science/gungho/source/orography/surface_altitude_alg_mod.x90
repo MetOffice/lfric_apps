@@ -9,42 +9,293 @@
 module surface_altitude_alg_mod
 
   ! Derived Types
-  use field_mod,            only: field_type
-  use field_collection_mod, only: field_collection_type
-  use constants_mod,        only: r_def
+  use constants_mod,                    only: r_def, i_def, l_def, EPS
+  use field_mod,                        only: field_type
+  use field_collection_mod,             only: field_collection_type
+  use fs_continuity_mod,                only: W0, W1, W2, W3
+  use function_space_collection_mod,    only: function_space_collection
+  use function_space_mod,               only: function_space_type
+  use integer_field_mod,                only: integer_field_type
+  use log_mod,                          only: log_event, LOG_LEVEL_ERROR,      &
+                                              LOG_LEVEL_WARNING
+  use mesh_mod,                         only: mesh_type
+  use operator_mod,                     only: operator_type
+  use orography_config_mod,             only: w0_method,                       &
+                                              w0_method_average,               &
+                                              w0_method_project,               &
+                                              w0_method_spectral
+  use quadrature_xyoz_mod,              only: quadrature_xyoz_type
+  use quadrature_rule_gaussian_mod,     only: quadrature_rule_gaussian_type
+  use solver_config_mod,                only: monitor_convergence,             &
+                                              fail_on_non_converged,           &
+                                              tolerance,                       &
+                                              maximum_iterations,              &
+                                              gcrk
+  use sci_field_vector_mod,             only: field_vector_type
+  use sci_iterative_solver_mod,         only: abstract_iterative_solver_type,  &
+                                              gmres_type
+  use sci_mass_matrix_operator_alg_mod, only: mass_matrix_operator_type
+  use sci_null_preconditioner_alg_mod,  only: null_preconditioner_type
+  use sci_preconditioner_mod,           only: abstract_preconditioner_type
+  use transport_constants_mod,          only: get_panel_edge_dist
+
 
   implicit none
 
 contains
 
-  !> @brief Construct a w0 surface_altitude field from in put w3 field
+  !> @brief Construct a w0 surface_altitude field from input w3 field
   !> @details The surface_altitude_w0 field is constructed using
   !>          average_w3_to_w0 with weights set to be the w0 multiplicity
   !> @param[in,out] surface_altitude_w0 Surface altitude on W0
   !> @param[in]     surface_altitude_w3 Surface altitude on W3
-  subroutine surface_altitude_alg(surface_altitude_w0, surface_altitude_w3)
+  !> @param[in]     chi                 Array of coordinate fields, before they
+  !!                                    have been adjusted to take into account
+  !!                                    the orography
+  !> @param[in]     panel_id            Field containing the mesh panel ID
+  subroutine surface_altitude_alg(surface_altitude_w0, surface_altitude_w3,    &
+                                  chi, panel_id)
 
-    use sci_average_w3_to_w0_kernel_mod, only : average_w3_to_w0_kernel_type
-    use sci_multiplicity_kernel_mod,    only : multiplicity_kernel_type
+    use sci_average_w3_to_w0_kernel_mod, only: average_w3_to_w0_kernel_type
+    use sci_multiplicity_kernel_mod,     only: multiplicity_kernel_type
+    use sci_compute_mass_matrix_kernel_w_scalar_mod,                           &
+                                         only: compute_mass_matrix_kernel_w_scalar_type
+    use sci_mass_matrix_scalarvec_kernel_mod,                                  &
+                                         only: mass_matrix_scalarvec_kernel_type
+    use sci_gp_rhs_kernel_mod,           only: gp_rhs_kernel_type
+    use sci_gp_scalarvec_rhs_kernel_mod, only: gp_scalarvec_rhs_kernel_type
+    use w0_orography_combine_kernel_mod,                                       &
+                                         only: w0_orography_combine_kernel_type
 
     implicit none
 
-    type( field_type ), intent(inout)  :: surface_altitude_w0
-    type( field_type ), intent(in)     :: surface_altitude_w3
+    type(field_type), intent(inout)  :: surface_altitude_w0
+    type(field_type), intent(in)     :: surface_altitude_w3
+    type(field_type), intent(in)     :: chi(:)
+    type(field_type), intent(in)     :: panel_id
 
     ! local variables
-    type( field_type )           :: multiplicity_w0
+    class(abstract_preconditioner_type),   allocatable :: preconditioner
+    class(abstract_iterative_solver_type), allocatable :: solver
 
-    ! Create the multiplicity field from surface_altitude_w0 template
-    call surface_altitude_w0%copy_field_properties(multiplicity_w0)
+    type(field_vector_type)                :: vec_x, vec_y
+    type(field_type)                       :: multiplicity_w0
+    type(field_type)                       :: surface_altitude_w0_avg
+    type(field_type)                       :: surface_altitude_w0_k0
+    type(field_type)                       :: surface_altitude_w1_k0
+    type(field_type)                       :: dummy_w2_k0
+    type(field_type)                       :: projection_rhs
+    type(field_type)                       :: projection_rhs_w0
+    type(field_type)                       :: projection_rhs_w1
+    type(operator_type),           target  :: projection_lhs
+    type(operator_type),           target  :: projection_lhs_w0
+    type(operator_type),           target  :: projection_lhs_w1
+    type(mass_matrix_operator_type)        :: projection_lhs_operator
+    type(mass_matrix_operator_type)        :: projection_lhs_operator_w0
+    type(mass_matrix_operator_type)        :: projection_lhs_operator_w1
+    type(mesh_type),               pointer :: mesh
+    type(function_space_type),     pointer :: w0_fs, w0_k0_fs
+    type(function_space_type),     pointer :: w1_k0_fs, w2_k0_fs
+    integer(kind=i_def)                    :: element_order_h, element_order_v
+    type(quadrature_xyoz_type)             :: qr
+    type(quadrature_rule_gaussian_type)    :: gaussian_quadrature
 
-    !Invoke kernels
-    call invoke(setval_c( surface_altitude_w0, 0.0_r_def ),               &
-                setval_c( multiplicity_w0, 0.0_r_def ),                   &
-                multiplicity_kernel_type( multiplicity_w0 ),              &
-                average_w3_to_w0_kernel_type( surface_altitude_w0,        &
-                                              surface_altitude_w3,        &
-                                              multiplicity_w0 ) )
+    real(kind=r_def),    parameter :: solver_a_tol = 10.0_r_def*TINY(1.0_r_def)
+    logical(kind=l_def), parameter :: extended_mesh = .false.
+
+    w0_fs => surface_altitude_w0%get_function_space()
+    call surface_altitude_w0_avg%initialise(w0_fs)
+    call multiplicity_w0%initialise(w0_fs)
+
+    element_order_h = surface_altitude_w0%get_element_order_h()
+    element_order_v = surface_altitude_w0%get_element_order_v()
+
+    ! For all methods, need to average surface altitude from W3 to W0 points
+    ! This requires the multiplicity field at W0, so compute that here
+    call invoke( setval_c(surface_altitude_w0_avg, 0.0_r_def),                 &
+                 setval_c(multiplicity_w0, 0.0_r_def),                         &
+                 multiplicity_kernel_type(multiplicity_w0),                    &
+                 average_w3_to_w0_kernel_type(surface_altitude_w0_avg,         &
+                                              surface_altitude_w3,             &
+                                              multiplicity_w0) )
+
+    if (w0_method == w0_method_average) then
+      ! Simply use the averaged field as the output
+      call invoke( setval_X(surface_altitude_w0, surface_altitude_w0_avg) )
+
+    else if (w0_method == w0_method_project                                    &
+             .or. element_order_h /= 1 .or. element_order_v /= 1) then
+      ! W0 field is obtained from W3 field by solving a matrix-vector problem
+      ! Much of the code for these methods is the same, so handled together here
+      call projection_rhs%initialise(w0_fs)
+      call projection_lhs%initialise(w0_fs, w0_fs)
+
+      mesh => surface_altitude_w0%get_mesh()
+
+      ! Check the input orography order is 2 (quadratic coordinates)
+      if (w0_method == w0_method_spectral) then
+        call log_event(                                                        &
+                'surface_altitude_alg: Spectral projection method only ' //    &
+                'implemented for orography order 2, dropping to project ' //   &
+                'method for mesh: ' // trim(mesh%get_mesh_name()),             &
+                LOG_LEVEL_WARNING                                              &
+        )
+      end if
+
+      ! Both projection methods are very similar, and use the same kernels
+      ! Assemble LHS matrix and RHS vector for matrix-vector problem
+      element_order_h = surface_altitude_w0%get_element_order_h()
+      element_order_v = surface_altitude_w0%get_element_order_v()
+      qr = quadrature_xyoz_type(                                               &
+          element_order_h+2, element_order_h+2, element_order_v+2,             &
+          gaussian_quadrature                                                  &
+      )
+      call invoke(                                                             &
+          setval_c(projection_rhs, 0.0_r_def),                                 &
+          gp_rhs_kernel_type(                                                  &
+              projection_rhs, surface_altitude_w3, chi, panel_id, qr           &
+          ),                                                                   &
+          compute_mass_matrix_kernel_w_scalar_type(                            &
+              projection_lhs, chi, panel_id, extended_mesh, qr                 &
+          ),                                                                   &
+          setval_c(surface_altitude_w0, 0.0_r_def)                             &
+      )
+
+      ! Solve matrix-vector problems -------------------------------------------
+      ! Create mass matrix operator for LHS
+      projection_lhs_operator = mass_matrix_operator_type(                     &
+          projection_lhs, .false.                                              &
+      )
+
+      ! Set up solver for problem
+      allocate(null_preconditioner_type :: preconditioner)
+      allocate(gmres_type :: solver)
+
+      preconditioner = null_preconditioner_type()
+      solver = gmres_type(                                                     &
+          projection_lhs_operator, preconditioner, gcrk, tolerance,            &
+          solver_a_tol, maximum_iterations, monitor_convergence,               &
+          fail_on_non_converged                                                &
+      )
+
+      ! Turn fields into field_vector types
+      vec_x = field_vector_type(1)
+      vec_y = field_vector_type(1)
+      call vec_y%import_field(projection_rhs, 1)
+      call vec_x%import_field(surface_altitude_w0, 1)
+
+      ! Apply solver and export result back to surface_altitude_w0
+      call solver%apply(vec_x, vec_y)
+      call vec_x%export_field(surface_altitude_w0, 1)
+
+      if (allocated(preconditioner)) deallocate(preconditioner)
+      if (allocated(solver)) deallocate(solver)
+
+    else if (w0_method == w0_method_spectral) then
+      ! Project separately into lowest-order W0 and W1
+      mesh => surface_altitude_w0%get_mesh()
+      w0_k0_fs => function_space_collection%get_fs(mesh, 0, 0, W0)
+      w1_k0_fs => function_space_collection%get_fs(mesh, 0, 0, W1)
+      w2_k0_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
+
+      call surface_altitude_w0_k0%initialise(w0_k0_fs)
+      call surface_altitude_w1_k0%initialise(w1_k0_fs)
+      call dummy_w2_k0%initialise(w2_k0_fs)
+      call projection_rhs_w0%initialise(w0_k0_fs)
+      call projection_lhs_w0%initialise(w0_k0_fs, w0_k0_fs)
+      call projection_rhs_w1%initialise(w1_k0_fs)
+      call projection_lhs_w1%initialise(w1_k0_fs, w1_k0_fs)
+
+      ! Both projection methods are very similar, and use the same kernels
+      ! Assemble LHS matrix and RHS vector for matrix-vector problem
+      qr = quadrature_xyoz_type(3, 3, 3, gaussian_quadrature)
+      call invoke(                                                             &
+          setval_c(projection_rhs_w0, 0.0_r_def),                              &
+          setval_c(projection_rhs_w1, 0.0_r_def),                              &
+          gp_rhs_kernel_type(                                                  &
+              projection_rhs_w0, surface_altitude_w3, chi, panel_id, qr        &
+          ),                                                                   &
+          compute_mass_matrix_kernel_w_scalar_type(                            &
+              projection_lhs_w0, chi, panel_id, extended_mesh, qr              &
+          ),                                                                   &
+          gp_scalarvec_rhs_kernel_type(                                        &
+              projection_rhs_w1, surface_altitude_w3, chi, panel_id, qr        &
+          ),                                                                   &
+          mass_matrix_scalarvec_kernel_type(                                   &
+              projection_lhs_w1, chi, panel_id, qr                             &
+          ),                                                                   &
+          setval_c(surface_altitude_w0_k0, 0.0_r_def),                &
+          setval_c(surface_altitude_w1_k0, 0.0_r_def) )
+
+      ! Solve matrix-vector problems -------------------------------------------
+      ! Create mass matrix operator for LHS
+      projection_lhs_operator_w0 = mass_matrix_operator_type(                  &
+          projection_lhs_w0, .false.                                           &
+      )
+      projection_lhs_operator_w1 = mass_matrix_operator_type(                  &
+          projection_lhs_w1, .false.                                           &
+      )
+
+      ! Set up solver for problem
+      allocate(null_preconditioner_type :: preconditioner)
+      allocate(gmres_type :: solver)
+
+      preconditioner = null_preconditioner_type()
+      solver = gmres_type(                                                     &
+          projection_lhs_operator_w0, preconditioner, gcrk, tolerance,         &
+          solver_a_tol, maximum_iterations, monitor_convergence,               &
+          fail_on_non_converged                                                &
+      )
+
+      ! Turn fields into field_vector types
+      vec_x = field_vector_type(1)
+      vec_y = field_vector_type(1)
+      call vec_y%import_field(projection_rhs_w0, 1)
+      call vec_x%import_field(surface_altitude_w0_k0, 1)
+
+      ! Apply solver and export result back to surface_altitude_w0
+      call solver%apply(vec_x, vec_y)
+      call vec_x%export_field(surface_altitude_w0_k0, 1)
+
+      if (allocated(solver)) deallocate(solver)
+      allocate(gmres_type :: solver)
+
+      preconditioner = null_preconditioner_type()
+      solver = gmres_type(                                                     &
+          projection_lhs_operator_w1, preconditioner, gcrk, tolerance,         &
+          solver_a_tol, maximum_iterations, monitor_convergence,               &
+          fail_on_non_converged                                                &
+      )
+
+      ! Turn fields into field_vector types
+      vec_x = field_vector_type(1)
+      vec_y = field_vector_type(1)
+      call vec_y%import_field(projection_rhs_w1, 1)
+      call vec_x%import_field(surface_altitude_w1_k0, 1)
+
+      ! Apply solver and export result back to surface_altitude_w1
+      call solver%apply(vec_x, vec_y)
+      call vec_x%export_field(surface_altitude_w1_k0, 1)
+
+      if (allocated(preconditioner)) deallocate(preconditioner)
+      if (allocated(solver)) deallocate(solver)
+
+      ! Combine the two projected fields into the final W0 field
+      call invoke(                                                             &
+          setval_c(surface_altitude_w0, 0.0_r_def),                            &
+          w0_orography_combine_kernel_type(                                    &
+              surface_altitude_w0, surface_altitude_w0_k0,                     &
+              surface_altitude_w1_k0, dummy_w2_k0, surface_altitude_w3,        &
+              surface_altitude_w0_avg                                          &
+          )                                                                    &
+      )
+
+    else
+      call log_event(                                                          &
+              'surface_altitude_alg: Unknown w0_method option',                &
+              LOG_LEVEL_ERROR                                                  &
+      )
+    end if
 
   end subroutine surface_altitude_alg
 

@@ -7,16 +7,32 @@
 
 module setup_orography_alg_mod
 
-  use constants_mod,                 only: i_def, str_def, l_def
+  ! Infrastructure
+  use constants_mod,                 only: i_def, str_def, l_def, r_def
   use extrusion_mod,                 only: TWOD, SHIFTED, DOUBLE_LEVEL
   use field_mod,                     only: field_type
   use function_space_mod,            only: function_space_type
   use fs_continuity_mod,             only: W3, W0
   use function_space_collection_mod, only: function_space_collection
+  use inventory_by_local_mesh_mod,   only: inventory_by_local_mesh_type
   use inventory_by_mesh_mod,         only: inventory_by_mesh_type
+  use local_mesh_mod,                only: local_mesh_type
+  use log_mod,                       only: log_event, LOG_LEVEL_ERROR,         &
+                                           log_scratch_space, LOG_LEVEL_INFO
   use mesh_collection_mod,           only: mesh_collection
   use mesh_mod,                      only: mesh_type
-  use log_mod,                       only: log_event, LOG_LEVEL_ERROR, log_scratch_space
+
+  ! Configs
+  use base_mesh_config_mod,          only: prime_mesh_name
+  use orography_config_mod,          only: orography_order
+
+  ! Other algorithms
+  use sci_field_minmax_alg_mod,      only: log_field_minmax
+  use surface_altitude_alg_mod,      only: surface_altitude_alg
+
+  ! Kernels
+  use sample_field_kernel_mod,       only: sample_field_kernel_type
+  use sci_multiplicity_kernel_mod,   only: multiplicity_kernel_type
 
 
   implicit none
@@ -31,24 +47,27 @@ contains
   !>          from a previous mesh. Then the orography field for the
   !>          meshes is assigned from the respective surface
   !>          altitude field for each mesh.
-  !> @param[in]     all_mesh_names        An array of the names of all the base meshes.
-  !> @param[in]     orography_mesh_name   Name of mesh where surface altitude is read in.
+  !> @param[in]     all_mesh_names        An array of the names of all the
+  !!                                      model's base meshes.
+  !> @param[in]     orography_mesh_name   Name of mesh which defines the
+  !!                                      orography. The surface altitude is
+  !!                                      read into this mesh.
   !> @param[in,out] chi_inventory         Contains the model's coordinate fields
   !!                                      paired with their mesh.
   !> @param[in]     panel_id_inventory    Contains the model's panel ID fields
   !!                                      paired with their mesh.
-  !> @param[in]     surface_altitude      Surface altitude on the orography mesh.
-  subroutine setup_orography_alg( all_mesh_names,         &
-                                  orography_mesh_name,    &
-                                  chi_inventory,          &
-                                  panel_id_inventory,     &
-                                  surface_altitude        )
+  !> @param[in]     surf_alt_w3           Surface altitude on the orography mesh
+  subroutine setup_orography_alg( all_mesh_names,                              &
+                                  orography_mesh_name,                         &
+                                  chi_inventory,                               &
+                                  panel_id_inventory,                          &
+                                  surf_alt_w3 )
 
     use assign_orography_field_mod, only: assign_orography_field
     use surface_altitude_alg_mod,   only: surface_altitude_alg
     use intermesh_mappings_alg_mod, only: map_scalar_intermesh, &
                                           map_w0_intermesh
-    use initialization_config_mod,  only: w0_orography_mapping
+    use orography_config_mod,       only: w0_multigrid_mapping
 
 
     implicit none
@@ -57,152 +76,264 @@ contains
     character(str_def),           intent(in)    :: orography_mesh_name
     type(inventory_by_mesh_type), intent(inout) :: chi_inventory
     type(inventory_by_mesh_type), intent(in)    :: panel_id_inventory
-    type(field_type),             intent(in)    :: surface_altitude
+    type(field_type),             intent(in)    :: surf_alt_w3
 
     ! local variables
-    character(str_def), allocatable    :: source_mesh_names(:)
-    character(str_def), allocatable    :: target_mesh_names(:)
-    type(mesh_type),  pointer          :: source_mesh => null()
-    type(mesh_type),  pointer          :: source_twod_mesh => null()
-    type(mesh_type),  pointer          :: target_mesh => null()
-    type(mesh_type),  pointer          :: target_twod_mesh => null()
-    type(mesh_type),  pointer          :: shifted_mesh => null()
-    type(mesh_type),  pointer          :: double_level_mesh => null()
-    integer(kind=i_def)                :: i, surface_order_h, surface_order_v
-    integer(kind=i_def)                :: num_meshes
-    type(field_type), allocatable      :: surface_altitude_list(:)
-    type(field_type), pointer          :: source_surface_altitude => null()
-    type(inventory_by_mesh_type)       :: surface_altitude_inventory
-    integer(i_def)                     :: fs_id
-    type(function_space_type), pointer :: fs => null()
+    integer(kind=i_def)                   :: i, fs_id
+    integer(kind=i_def)                   :: num_meshes
+    integer(kind=i_def)                   :: halo_depth
+    integer(kind=i_def)                   :: w0_order
+    character(len=str_def),   allocatable :: source_mesh_names(:)
+    character(len=str_def),   allocatable :: target_mesh_names(:)
+    type(mesh_type),              pointer :: source_mesh
+    type(mesh_type),              pointer :: source_twod_mesh
+    type(mesh_type),              pointer :: target_mesh
+    type(mesh_type),              pointer :: target_twod_mesh
+    type(mesh_type),              pointer :: shifted_mesh
+    type(mesh_type),              pointer :: double_level_mesh
+    type(local_mesh_type),        pointer :: local_mesh
+    type(field_type)                      :: ones
+    type(field_type)                      :: multiplicity_w0
+    type(field_type)                      :: rmultiplicity_w0
+    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: panel_id
+    type(field_type),             pointer :: surf_alt_w0_ptr
+    type(field_type),             target  :: surf_alt_w0
+    type(field_type),             target  :: surf_alt_w0_k0
+    type(field_type), target, allocatable :: surf_alt_list(:)
+    type(field_type),             pointer :: source_surf_alt
+    type(inventory_by_local_mesh_type)    :: surf_alt_inventory
+    type(function_space_type),    pointer :: w0_fs, w3_fs, fs
 
     num_meshes = SIZE(all_mesh_names)
 
-    surface_order_h = surface_altitude%get_element_order_h()
-    surface_order_v = surface_altitude%get_element_order_v()
-
-    allocate(surface_altitude_list(num_meshes))
+    allocate(surf_alt_list(num_meshes))
 
     ! Only create mesh map list if we have more than one mesh
     if (num_meshes > 1) then
-      call create_map_list(all_mesh_names, orography_mesh_name, source_mesh_names, target_mesh_names)
+      call create_map_list(                                                    &
+          all_mesh_names, orography_mesh_name,                                 &
+          source_mesh_names, target_mesh_names                                 &
+      )
     end if
 
     ! Initialise variables and add surface altitude to inventory.
-    ! Check whether field should be mapped in W3 or W0
-    call surface_altitude_inventory%initialise(name="surface_altitude", table_len=num_meshes)
+    call surf_alt_inventory%initialise(                                        &
+            name="surface_altitude", table_len=num_meshes                      &
+    )
 
     source_mesh => mesh_collection%get_mesh(orography_mesh_name)
     source_twod_mesh => mesh_collection%get_mesh(source_mesh, TWOD)
+    local_mesh => source_mesh%get_local_mesh()
+    halo_depth = source_twod_mesh%get_halo_depth()
 
-    if (w0_orography_mapping) then
-      fs_id = W0
-      call surface_altitude_list(1)%initialise( vector_space =               &
-         function_space_collection%get_fs(source_twod_mesh, surface_order_h, &
-                                          surface_order_v, fs_id),           &
-                                          halo_depth = source_twod_mesh%get_halo_depth() )
-      call surface_altitude_alg(surface_altitude_list(1), surface_altitude)
-    else
-      fs_id = W3
-      call surface_altitude_list(1)%initialise( vector_space =               &
-         function_space_collection%get_fs(source_twod_mesh, surface_order_h, &
-                                          surface_order_v, fs_id),           &
-                                          halo_depth = source_twod_mesh%get_halo_depth() )
-      call invoke( setval_X(surface_altitude_list(1), surface_altitude) )
+    ! Check method is valid
+    if (w0_multigrid_mapping .and. orography_order > 1 .and.                   &
+        trim(orography_mesh_name) /= trim(prime_mesh_name)) then
+      call log_event(                                                          &
+          'Orography order greater than 1 and W0 multigrid mapping is ' //     &
+          'only possible when orography is defined on prime mesh',             &
+          LOG_LEVEL_ERROR                                                      &
+      )
     end if
 
-    fs  => function_space_collection%get_fs(source_twod_mesh, surface_order_h, &
-                                            surface_order_v, fs_id)
+    ! ======================================================================== !
+    ! Set orography on "orography_mesh"
+    ! ======================================================================== !
 
-    call surface_altitude_inventory%copy_field(surface_altitude_list(1), source_twod_mesh)
+    ! Obtain surface altitude field in W0 on orography mesh
+    w0_order = MAX(orography_order - 1, 0)
+    w0_fs => function_space_collection%get_fs(                                 &
+          source_twod_mesh, w0_order, w0_order, W0                             &
+    )
+    call surf_alt_w0%initialise(w0_fs, halo_depth=halo_depth)
+    call chi_inventory%get_field_array(source_mesh, chi)
+    call panel_id_inventory%get_field(source_mesh, panel_id)
+
+    ! Compute surface altitude in W0 space
+    call surface_altitude_alg(surf_alt_w0, surf_alt_w3, chi, panel_id)
+
+    call log_field_minmax(LOG_LEVEL_INFO, 'srf_alt_w3', surf_alt_w3)
+    call log_field_minmax(LOG_LEVEL_INFO, 'srf_alt_w0', surf_alt_w0)
+
+    ! ------------------------------------------------------------------------ !
+    ! Set the first surface altitude in the inventory
+    ! ------------------------------------------------------------------------ !
+
+    if (w0_multigrid_mapping) then
+      fs_id = W0
+      w0_order = 0  ! Higher-order W0 mapping not implemented
+      call surf_alt_list(1)%initialise(w0_fs, halo_depth=halo_depth)
+      call invoke( setval_X(surf_alt_list(1), surf_alt_w0) )
+    else
+      fs_id = W3
+      w3_fs => surf_alt_w3%get_function_space()
+      call surf_alt_list(1)%initialise(w3_fs, halo_depth=halo_depth)
+      call invoke( setval_X(surf_alt_list(1), surf_alt_w3) )
+    end if
+
+    ! Copy the first field into the inventory
+    call surf_alt_inventory%copy_field(surf_alt_list(1), local_mesh)
+
+    ! ------------------------------------------------------------------------ !
+    ! Adjust coordinates to account for orography (on orography mesh)
+    ! ------------------------------------------------------------------------ !
 
     ! Assignment of orography from surface_altitude on orography mesh
-    call assign_orography_field(chi_inventory, panel_id_inventory, &
-                                source_mesh, surface_altitude)
+    call assign_orography_field(                                               &
+        chi_inventory, panel_id_inventory, source_mesh, surf_alt_w0            &
+    )
 
     ! Assign for shifted and double level meshes if they exist
     if (mesh_collection%check_for(source_mesh, SHIFTED)) then
       shifted_mesh => mesh_collection%get_mesh(source_mesh, SHIFTED)
-      call assign_orography_field(chi_inventory, panel_id_inventory, &
-                                  shifted_mesh, surface_altitude)
+      call assign_orography_field(                                             &
+          chi_inventory, panel_id_inventory, shifted_mesh, surf_alt_w0         &
+      )
     end if
 
     if (mesh_collection%check_for(source_mesh, DOUBLE_LEVEL)) then
       double_level_mesh => mesh_collection%get_mesh(source_mesh, DOUBLE_LEVEL)
-      call assign_orography_field(chi_inventory, panel_id_inventory, &
-                                  double_level_mesh, surface_altitude)
+      call assign_orography_field(                                             &
+          chi_inventory, panel_id_inventory, double_level_mesh, surf_alt_w0    &
+      )
     end if
+
+    ! ======================================================================== !
+    ! Calculate orography for other meshes by mapping surface altitude
+    ! ======================================================================== !
 
     ! Loop through other meshes in list
     do i = 1, num_meshes - 1
 
-      source_mesh      => mesh_collection%get_mesh(source_mesh_names(i))
+      source_mesh => mesh_collection%get_mesh(source_mesh_names(i))
       source_twod_mesh => mesh_collection%get_mesh(source_mesh, TWOD)
-
-      target_mesh      => mesh_collection%get_mesh(target_mesh_names(i))
+      target_mesh => mesh_collection%get_mesh(target_mesh_names(i))
       target_twod_mesh => mesh_collection%get_mesh(target_mesh, TWOD)
+      local_mesh => source_twod_mesh%get_local_mesh()
+      halo_depth = target_twod_mesh%get_halo_depth()
 
-      !------------------------------------------------------------------------!
-      ! Create the surface altitude fields on the meshes
-      !------------------------------------------------------------------------!
-      fs  => function_space_collection%get_fs(target_twod_mesh, surface_order_h, &
-                                              surface_order_v, fs_id)
-      call surface_altitude_inventory%get_field(source_twod_mesh, source_surface_altitude)
+      fs => function_space_collection%get_fs(                                  &
+          target_twod_mesh, w0_order, w0_order, fs_id                          &
+      )
+      call surf_alt_inventory%get_field(local_mesh, source_surf_alt)
 
-      call surface_altitude_list(i+1)%initialise(vector_space = fs, &
-                                                 halo_depth = target_twod_mesh%get_halo_depth())
+      call surf_alt_list(i+1)%initialise(fs, halo_depth=halo_depth)
 
       ! We use a simple mapping from source to target meshes
-      if (w0_orography_mapping) then
+      if (w0_multigrid_mapping) then
+        ! -------------------------------------------------------------------- !
+        ! Restrict/prolong
+        ! -------------------------------------------------------------------- !
+        ! If orography_order > 1 need to first map this to lower-order W0
+        if (orography_order > 1 .and.                                          &
+            source_mesh_names(i) == orography_mesh_name) then
 
-        call map_w0_intermesh(surface_altitude_list(i+1), &
-                              source_surface_altitude)
-      else
+          w0_fs => function_space_collection%get_fs(target_twod_mesh, 0, 0, W0)
+          call surf_alt_w0_k0%initialise(w0_fs)
+          call ones%initialise(w0_fs)
+          call multiplicity_w0%initialise(w0_fs)
+          call rmultiplicity_w0%initialise(w0_fs)
 
-        call map_scalar_intermesh(surface_altitude_list(i+1), &
-                                  source_surface_altitude)
+          call invoke(                                                         &
+              ! First need to compute rmultiplicity in W0
+              setval_c(ones, 1.0_r_def),                                       &
+              setval_c(multiplicity_w0, 0.0_r_def),                            &
+              multiplicity_kernel_type(multiplicity_w0),                       &
+              X_divideby_Y(rmultiplicity_w0, ones, multiplicity_w0),           &
+              ! Obtain lowest-order W0 field through sampling
+              setval_c(surf_alt_w0_k0, 0.0_r_def),                             &
+              sample_field_kernel_type(                                        &
+                  surf_alt_w0_k0, rmultiplicity_w0, source_surf_alt            &
+              )                                                                &
+          )
+          ! Restrict/prolong W0 field
+          call map_w0_intermesh(surf_alt_list(i+1), surf_alt_w0_k0)
+
+        else
+          ! Restrict/prolong W0 field
+          call map_w0_intermesh(surf_alt_list(i+1), source_surf_alt)
+        end if
+
+        surf_alt_w0_ptr => surf_alt_list(i+1)
+
+      else  ! W3 mapping
+        ! -------------------------------------------------------------------- !
+        ! Restrict/prolong W3 field
+        ! -------------------------------------------------------------------- !
+        call map_scalar_intermesh(surf_alt_list(i+1), source_surf_alt)
+
+        ! -------------------------------------------------------------------- !
+        ! Obtain surface altitude in W0 space
+        ! -------------------------------------------------------------------- !
+        w0_fs => function_space_collection%get_fs(                             &
+            target_twod_mesh, w0_order, w0_order, W0                           &
+        )
+        call surf_alt_w0%initialise(w0_fs, halo_depth=halo_depth)
+        call chi_inventory%get_field_array(target_mesh, chi)
+        call panel_id_inventory%get_field(target_mesh, panel_id)
+
+        ! Compute surface altitude in W0 space
+        call surface_altitude_alg(                                             &
+            surf_alt_w0, surf_alt_list(i+1), chi, panel_id                     &
+        )
+
+        surf_alt_w0_ptr => surf_alt_w0
       end if
 
-      ! Add new surface altitude field to inventory for potential future mapping
-      call surface_altitude_inventory%copy_field(surface_altitude_list(i+1), target_twod_mesh)
+      ! Add new surface altitude field to inventory for future mapping
+      local_mesh => target_twod_mesh%get_local_mesh()
+      call surf_alt_inventory%copy_field(surf_alt_list(i+1), local_mesh)
 
-      !------------------------------------------------------------------------!
-      ! Use the surface altitude to introduce orography on meshes
-      !------------------------------------------------------------------------!
-      call assign_orography_field(chi_inventory, panel_id_inventory, target_mesh, &
-                                  surface_altitude_list(i+1))
+      ! ---------------------------------------------------------------------- !
+      ! Adjust coordinates
+      ! ---------------------------------------------------------------------- !
+      call assign_orography_field(                                             &
+          chi_inventory, panel_id_inventory, target_mesh, surf_alt_w0_ptr      &
+      )
 
       ! Assign for shifted and double level meshes if they exist
       if (mesh_collection%check_for(target_mesh, SHIFTED)) then
         shifted_mesh => mesh_collection%get_mesh(target_mesh, SHIFTED)
-        call assign_orography_field(chi_inventory, panel_id_inventory, &
-                                    shifted_mesh, surface_altitude_list(i+1))
+        call assign_orography_field(                                           &
+            chi_inventory, panel_id_inventory, shifted_mesh, surf_alt_w0_ptr   &
+        )
       end if
 
       if (mesh_collection%check_for(target_mesh, DOUBLE_LEVEL)) then
         double_level_mesh => mesh_collection%get_mesh(target_mesh, DOUBLE_LEVEL)
-        call assign_orography_field(chi_inventory, panel_id_inventory, &
-                                    double_level_mesh, surface_altitude_list(i+1))
+        call assign_orography_field(                                           &
+            chi_inventory, panel_id_inventory, double_level_mesh,              &
+            surf_alt_w0_ptr                                                    &
+        )
       end if
     end do
 
     ! Tidy up
-    call surface_altitude_inventory%clear()
-    deallocate(surface_altitude_list)
-    nullify(source_mesh, source_twod_mesh, target_mesh, target_twod_mesh, &
-            source_surface_altitude)
-
+    call surf_alt_inventory%clear()
+    deallocate(surf_alt_list)
 
   end subroutine setup_orography_alg
 
-  !> @brief Iterates through list of bases meshes, and finds mesh mappings such that all meshes
-  !>        get orography assigned to them.
-  !> @details This algorithm implments a tree search like method to create a list of mappings pairs
-  !>          in order to map orography through all meshes.
-  !> @param[in]     all_mesh_names        An array of the names of all the base meshes.
-  !> @param[in]     orography_mesh_name   Name of mesh where surface altitude is read in.
-  !> @param[in,out] source_mesh_names     An ordered array of meshes to map orography from.
-  !> @param[in,out] target_mesh_names     An ordered array of meshes to map orography to.
+  !> @brief Creates ordered lists of base meshes for assigning orography
+  !> @details The orography needs to be defined consistently between different
+  !!          meshes. The "orography mesh" is treated as the original source,
+  !!          and if a surface altitude ancil is used then it is should be read
+  !!          into this mesh.
+  !!          The orography on other meshes is defined by a sequence of
+  !!          restriction/prolongation operations, starting from the
+  !!          "orography_mesh".
+  !!          This algorithm implements a tree search method to create the
+  !!          list of mappings to ensure that the orography is defined on all
+  !!          meshes. It returns ordered lists of source and target meshes for
+  !!          mapping the surface altitude field.
+  !> @param[in]     all_mesh_names        Array of all names of base meshes.
+  !> @param[in]     orography_mesh_name   Name of mesh on which the original
+  !!                                      surface altitude field is defined.
+  !> @param[in,out] source_mesh_names     Ordered array of mesh names to map
+  !!                                      surface altitude from.
+  !> @param[in,out] target_mesh_names     Ordered array of mesh names to map
+  !!                                      surface altitude to.
   subroutine create_map_list( all_mesh_names,         &
                               orography_mesh_name,    &
                               source_mesh_names,      &
@@ -216,8 +347,8 @@ contains
     character(str_def), allocatable, intent(inout)    :: target_mesh_names(:)
 
     character(str_def), allocatable  :: new_mesh_names(:)
-    integer(kind=i_def)              :: num_meshes, mesh_counter, mesh_index, &
-                                        i, j, k, i_max, next_index
+    integer(kind=i_def)              :: num_meshes, mesh_counter, mesh_index
+    integer(kind=i_def)              :: i, j, k, i_max, next_index
     character(str_def), allocatable  :: used_mesh_names(:)
     integer(kind=i_def), allocatable :: ip1(:)
     type(mesh_type),  pointer        :: mesh => null()
@@ -320,8 +451,9 @@ contains
         end if
       end do
       if (.not. accounted_for) then
-        write( log_scratch_space, '(3A)' )  &
-            'Mesh', new_mesh_names(i), 'will not have orography assigned to it. Check that mesh maps are correct'
+        write( log_scratch_space, '(3A)' )                                     &
+            'Mesh', new_mesh_names(i),  'will not have orography ' //          &
+            'assigned to it. Check that mesh maps are correct'
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
     end do
