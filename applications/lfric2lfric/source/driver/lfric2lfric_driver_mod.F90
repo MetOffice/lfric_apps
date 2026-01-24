@@ -7,26 +7,25 @@
 !>
 module lfric2lfric_driver_mod
 
-  use constants_mod,          only: str_def, i_def, l_def, r_second
-  use driver_fem_mod,         only: final_fem
-  use driver_io_mod,          only: final_io
-  use driver_modeldb_mod,     only: modeldb_type
-  use field_collection_iterator_mod, only: &
-                                    field_collection_iterator_type
-  use field_collection_mod,   only: field_collection_type
-  use field_mod,              only: field_type
-  use field_parent_mod,       only: field_parent_type
-  use function_space_mod,     only: function_space_type
-  use lfric_xios_context_mod, only: lfric_xios_context_type
-  use lfric_xios_read_mod,    only: read_checkpoint
-  use lfric_xios_write_mod,   only: write_checkpoint
-  use log_mod,                only: log_event, &
-                                    log_level_info, &
-                                    log_scratch_space
-  use mesh_collection_mod,    only: mesh_collection
-  use mesh_mod,               only: mesh_type
-  use namelist_mod,           only: namelist_type
-  use sci_checksum_alg_mod,   only: checksum_alg
+  use constants_mod,            only: str_def, i_def, l_def, r_second
+  use driver_fem_mod,           only: final_fem
+  use driver_io_mod,            only: final_io
+  use driver_modeldb_mod,       only: modeldb_type
+  use field_collection_mod,     only: field_collection_type
+  use lfric_xios_action_mod,    only: advance
+  use lfric_xios_context_mod,   only: lfric_xios_context_type
+  use lfric_xios_read_mod,      only: read_checkpoint, &
+                                      read_state
+  use lfric_xios_write_mod,     only: write_checkpoint, &
+                                      write_state
+  use log_mod,                  only: log_scratch_space, &
+                                      log_event,         &
+                                      log_level_info
+  use model_clock_mod,          only: model_clock_type
+  use namelist_mod,             only: namelist_type
+  use sci_checksum_alg_mod,     only: checksum_alg
+  use xios,                     only: xios_date, xios_get_current_date, &
+                                      xios_date_convert_to_string
 
   !------------------------------------
   ! lfric2lfric modules
