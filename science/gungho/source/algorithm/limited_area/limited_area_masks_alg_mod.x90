@@ -12,6 +12,7 @@
 module limited_area_masks_alg_mod
 
   use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: Wchi, W3, Wtheta, W2
   use constants_mod,                      only: i_def, r_def, l_def, PI, &
                                                 degrees_to_radians,      &
                                                 radians_to_degrees
@@ -21,6 +22,7 @@ module limited_area_masks_alg_mod
                                                 LOG_LEVEL_ERROR,   &
                                                 LOG_LEVEL_INFO,    &
                                                 LOG_LEVEL_WARNING
+  use function_space_collection_mod,      only: function_space_collection
   use function_space_mod,                 only: function_space_type
   use mesh_mod,                           only: mesh_type
   use create_edge_mask_kernel_mod,        only: create_edge_mask_kernel_type
@@ -31,6 +33,7 @@ module limited_area_masks_alg_mod
   use create_boundary_mask_kernel_mod,    only: create_boundary_mask_kernel_type
   use boundaries_config_mod,              only: rim_width_ns, lbc_method, &
                                                 lbc_method_onion_layer
+  use sci_nodal_coordinates_kernel_mod,   only: nodal_coordinates_kernel_type
 
   implicit none
 
@@ -292,30 +295,32 @@ contains
                                             boundary_e,     boundary_w,    &
                                             rim_width_ns,   rim_width_ew,  &
                                             outer_width_ns, outer_width_ew
-    use fs_continuity_mod,            only: W3, Wtheta, W2
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
-    integer(i_def)                   :: rim_s, rim_n, &
-                                        rim_e, rim_w
-    integer(i_def)                   :: outer_s, outer_n, &
-                                        outer_e, outer_w
-    real(r_def)                      :: coord_outer_s, coord_outer_n, &
-                                        coord_outer_e, coord_outer_w, &
-                                        coord_rim_s,   coord_rim_n,   &
-                                        coord_rim_e,   coord_rim_w
-    real(r_def) :: threshold
+    type(field_type),         intent(inout)  :: mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+    integer(i_def)                           :: fs_enum, i
+    integer(i_def)                           :: coord_order_h, coord_order_v
+    integer(i_def)                           :: rim_s, rim_n,                  &
+                                                rim_e, rim_w
+    integer(i_def)                           :: outer_s, outer_n,              &
+                                                outer_e, outer_w
+    real(r_def)                              :: coord_outer_s, coord_outer_n,  &
+                                                coord_outer_e, coord_outer_w,  &
+                                                coord_rim_s,   coord_rim_n,    &
+                                                coord_rim_e,   coord_rim_w
+    real(r_def)                              :: threshold
 
-    type(function_space_type), pointer :: function_space => null()
-    type(mesh_type),           pointer :: mesh => null()
+    type(function_space_type), pointer :: function_space
+    type(function_space_type), pointer :: wchi_fs
+    type(mesh_type),           pointer :: mesh
+    type(field_type),          pointer :: chi_to_use(:)
+    type(field_type),          target  :: chi_wchi(3)
+    type(domain_type)                  :: domain
 
-    type(domain_type) :: domain
-
-    if ( lbc_method == lbc_method_onion_layer )then
+    if ( lbc_method == lbc_method_onion_layer ) then
 
 
     !     |<---------blending region---------->|
@@ -350,6 +355,23 @@ contains
       function_space => mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() == Wtheta) then
+        ! Convert coordinates to Wchi
+        coord_order_h = chi(1)%get_element_order_h()
+        coord_order_v = chi(1)%get_element_order_v()
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order_h, coord_order_v, Wchi                           &
+        )
+        do i = 1, 3
+          call chi_wchi(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_wchi, chi) )
+        chi_to_use => chi_wchi
+      else
+        chi_to_use => chi
+      end if
 
       if ( rim_width_ns > 0 ) then
         outer_n = boundary_n - outer_width_ns
@@ -475,34 +497,36 @@ contains
                                             inner_width_ns, inner_width_ew, &
                                             edge_cells_ns,  edge_cells_ew,  &
                                             blending_weights
-    use fs_continuity_mod,            only: W3, Wtheta, W2
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
-    integer(i_def)                   :: rim_s, rim_n,                 &
-                                        rim_e, rim_w
-    integer(i_def)                   :: blend_s, blend_n,             &
-                                        blend_e, blend_w
-    integer(i_def)                   :: outer_s, outer_n,             &
-                                        outer_e, outer_w
-    real(r_def)                      :: coord_outer_s, coord_outer_n, &
-                                        coord_outer_e, coord_outer_w, &
-                                        coord_rim_s,   coord_rim_n,   &
-                                        coord_rim_e,   coord_rim_w,   &
-                                        coord_blend_s, coord_blend_n, &
-                                        coord_blend_e, coord_blend_w
+    type(field_type),         intent(inout)  :: mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+    integer(i_def)                           :: fs_enum, i
+    integer(i_def)                           :: coord_order_h, coord_order_v
+    integer(i_def)                           :: rim_s, rim_n,                  &
+                                                rim_e, rim_w
+    integer(i_def)                           :: blend_s, blend_n,              &
+                                                blend_e, blend_w
+    integer(i_def)                           :: outer_s, outer_n,              &
+                                                outer_e, outer_w
+    real(r_def)                              :: coord_outer_s, coord_outer_n,  &
+                                                coord_outer_e, coord_outer_w,  &
+                                                coord_rim_s,   coord_rim_n,    &
+                                                coord_rim_e,   coord_rim_w,    &
+                                                coord_blend_s, coord_blend_n,  &
+                                                coord_blend_e, coord_blend_w
     integer(i_def) :: stencil_depth = 1
 
-    type(function_space_type), pointer :: function_space => null()
-    type(mesh_type),           pointer :: mesh => null()
+    type(function_space_type), pointer :: function_space
+    type(function_space_type), pointer :: wchi_fs
+    type(mesh_type),           pointer :: mesh
+    type(field_type),          pointer :: chi_to_use(:)
+    type(field_type),          target  :: chi_wchi(3)
+    type(domain_type)                  :: domain
 
-    type(domain_type) :: domain
-
-    if ( lbc_method == lbc_method_onion_layer )then
+    if ( lbc_method == lbc_method_onion_layer ) then
 
       fs_enum = mask%which_function_space()
 
@@ -540,6 +564,23 @@ contains
       function_space => mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() == Wtheta) then
+        ! Convert coordinates to Wchi
+        coord_order_h = chi(1)%get_element_order_h()
+        coord_order_v = chi(1)%get_element_order_v()
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order_h, coord_order_v, Wchi                           &
+        )
+        do i = 1, 3
+          call chi_wchi(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_wchi, chi) )
+        chi_to_use => chi_wchi
+      else
+        chi_to_use => chi
+      end if
 
       if ( rim_width_ns > 0 ) then
         outer_n = boundary_n - outer_width_ns
@@ -684,24 +725,26 @@ contains
     use boundaries_config_mod,         only: boundary_s, boundary_n, &
                                              boundary_e, boundary_w, &
                                              rim_width_ns, rim_width_ew
-    use fs_continuity_mod,             only: W3, Wtheta, W2
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
-    integer(i_def)                   :: rim_s, rim_n, &
-                                        rim_e, rim_w
-    real(r_def)                      :: coord_bound_s, coord_bound_n, &
-                                        coord_bound_e, coord_bound_w, &
-                                        coord_rim_s,   coord_rim_n,   &
-                                        coord_rim_e,   coord_rim_w
+    type(field_type),         intent(inout)  :: mask
+    type(field_type), target, intent(in)     :: chi(:)
+    integer(i_def)                           :: fs_enum, i
+    integer(i_def)                           :: coord_order_h, coord_order_v
+    integer(i_def)                           :: rim_s, rim_n,                  &
+                                                rim_e, rim_w
+    real(r_def)                              :: coord_bound_s, coord_bound_n,  &
+                                                coord_bound_e, coord_bound_w,  &
+                                                coord_rim_s,   coord_rim_n,    &
+                                                coord_rim_e,   coord_rim_w
 
-    type(function_space_type), pointer :: function_space => null()
-    type(mesh_type),           pointer :: mesh => null()
-
-    type(domain_type) :: domain
+    type(function_space_type), pointer :: function_space
+    type(function_space_type), pointer :: wchi_fs
+    type(mesh_type),           pointer :: mesh
+    type(field_type),          pointer :: chi_to_use(:)
+    type(field_type),          target  :: chi_wchi(3)
+    type(domain_type)                  :: domain
 
     ! Calculate coordinates of boundary 1 cell in.
 
@@ -715,6 +758,23 @@ contains
     function_space => mask%get_function_space()
     mesh => function_space%get_mesh()
     domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() == Wtheta) then
+        ! Convert coordinates to Wchi
+        coord_order_h = chi(1)%get_element_order_h()
+        coord_order_v = chi(1)%get_element_order_v()
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order_h, coord_order_v, Wchi                           &
+        )
+        do i = 1, 3
+          call chi_wchi(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_wchi, chi) )
+        chi_to_use => chi_wchi
+      else
+        chi_to_use => chi
+      end if
 
     call calculate_boundary_coordinates( &
       coord_bound_s, &
@@ -778,24 +838,26 @@ contains
                                              rim_width_ns, rim_width_ew, &
                                              blending_weights,           &
                                              solver_boundary_depth
-    use fs_continuity_mod,             only: W3, Wtheta, W2
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
-    real(r_def)                      :: coord_bound_s, coord_bound_n, &
-                                        coord_bound_e, coord_bound_w
-    real(r_def) :: threshold
+    type(field_type),         intent(inout)  :: mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+    integer(i_def)                           :: fs_enum, i
+    integer(i_def)                           :: coord_order_h, coord_order_v
+    real(r_def)                              :: coord_bound_s, coord_bound_n,  &
+                                                coord_bound_e, coord_bound_w
+    real(r_def)                              :: threshold
 
-    type(function_space_type), pointer :: function_space => null()
-    type(mesh_type),           pointer :: mesh => null()
+    type(function_space_type), pointer :: function_space
+    type(function_space_type), pointer :: wchi_fs
+    type(mesh_type),           pointer :: mesh
+    type(field_type),          pointer :: chi_to_use(:)
+    type(field_type),          target  :: chi_wchi(3)
+    type(domain_type)                  :: domain
 
-    type(domain_type) :: domain
-
-    if ( lbc_method == lbc_method_onion_layer )then
+    if ( lbc_method == lbc_method_onion_layer ) then
 
       threshold = size( blending_weights ) - solver_boundary_depth
       ! Set the mask OFF in the region between solver boundary and domain edge
@@ -808,6 +870,23 @@ contains
       function_space => mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() == Wtheta) then
+        ! Convert coordinates to Wchi
+        coord_order_h = chi(1)%get_element_order_h()
+        coord_order_v = chi(1)%get_element_order_v()
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order_h, coord_order_v, Wchi                           &
+        )
+        do i = 1, 3
+          call chi_wchi(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_wchi, chi) )
+        chi_to_use => chi_wchi
+      else
+        chi_to_use => chi
+      end if
 
       call calculate_boundary_coordinates( &
          coord_bound_s, &
@@ -872,25 +951,27 @@ contains
                                             boundary_e, boundary_w, &
                                             rim_width_ns, rim_width_ew, &
                                             blending_weights, solver_boundary_depth
-    use fs_continuity_mod,            only: W2
 
     implicit none
 
-    type(field_type), intent(inout)  :: boundary_mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
-    real(r_def)                      :: coord_bound_s, coord_bound_n, &
-                                        coord_bound_e, coord_bound_w
-    real(r_def)                      :: inner_boundary_cell
-    integer(i_def) :: stencil_depth = 1
+    type(field_type),         intent(inout)  :: boundary_mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+    integer(i_def)                           :: fs_enum, i
+    integer(i_def)                           :: coord_order_h, coord_order_v
+    real(r_def)                              :: coord_bound_s, coord_bound_n,  &
+                                                coord_bound_e, coord_bound_w
+    real(r_def)                              :: inner_boundary_cell
+    integer(i_def)                           :: stencil_depth = 1
 
-    type(function_space_type), pointer :: function_space => null()
-    type(mesh_type),           pointer :: mesh => null()
+    type(function_space_type), pointer :: function_space
+    type(function_space_type), pointer :: wchi_fs
+    type(mesh_type),           pointer :: mesh
+    type(field_type),          pointer :: chi_to_use(:)
+    type(field_type),          target  :: chi_wchi(3)
+    type(domain_type)                  :: domain
 
-    type(domain_type) :: domain
-
-    if ( lbc_method == lbc_method_onion_layer )then
+    if ( lbc_method == lbc_method_onion_layer ) then
 
       inner_boundary_cell = real( &
          size( blending_weights ) - solver_boundary_depth, r_def )
@@ -905,6 +986,23 @@ contains
       function_space => boundary_mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() == Wtheta) then
+        ! Convert coordinates to Wchi
+        coord_order_h = chi(1)%get_element_order_h()
+        coord_order_v = chi(1)%get_element_order_v()
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order_h, coord_order_v, Wchi                           &
+        )
+        do i = 1, 3
+          call chi_wchi(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_wchi, chi) )
+        chi_to_use => chi_wchi
+      else
+        chi_to_use => chi
+      end if
 
       call calculate_boundary_coordinates( &
          coord_bound_s, &
