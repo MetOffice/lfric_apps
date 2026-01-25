@@ -13,7 +13,8 @@ module tr_bdf2_timestep_alg_mod
   use fs_continuity_mod,         only: Wtheta, W2
   use log_mod,                   only: log_event,         &
                                        log_scratch_space, &
-                                       LOG_LEVEL_INFO
+                                       LOG_LEVEL_INFO,    &
+                                       LOG_LEVEL_DEBUG
   use extrusion_mod,             only: TWOD
   use namelist_mod,              only: namelist_type
   use sci_fem_constants_mod,     only: get_mass_matrix_fe, &
@@ -734,10 +735,10 @@ contains
     end if
 
     ! TODO: to remove
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_n u', self%state_n(igh_u))
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_n rho', self%state_n(igh_d))
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_n theta', self%state_n(igh_t))
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_n exner', self%state_n(igh_p))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_n u', self%state_n(igh_u))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_n rho', self%state_n(igh_d))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_n theta', self%state_n(igh_t))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_n exner', self%state_n(igh_p))
 
     ! ======================================================================== !
     ! SLOW PHYSICS
@@ -854,10 +855,10 @@ contains
     end if
 
     ! TODO: to remove
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_dag u', self%state_dag(igh_u))
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_dag rho', self%state_dag(igh_d))
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_dag theta', self%state_dag(igh_t))
-    call log_field_minmax(LOG_LEVEL_INFO, 'state_dag exner', self%state_dag(igh_p))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_dag u', self%state_dag(igh_u))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_dag rho', self%state_dag(igh_d))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_dag theta', self%state_dag(igh_t))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'state_dag exner', self%state_dag(igh_p))
 
     ! ------------------------------------------------------------------------ !
     ! Forcings: time-level n
@@ -871,10 +872,10 @@ contains
     )
 
     ! TODO: to remove
-    call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_n u', self%rhs_n(igh_u))
-    call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_n rho', self%rhs_n(igh_d))
-    call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_n theta', self%rhs_n(igh_t))
-    call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_n exner', self%rhs_n(igh_p))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_n u', self%rhs_n(igh_u))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_n rho', self%rhs_n(igh_d))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_n theta', self%rhs_n(igh_t))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_n exner', self%rhs_n(igh_p))
 
     ! ======================================================================== !
     ! Outer dynamics loop
@@ -891,9 +892,9 @@ contains
     )
 
     ! TODO: to remove
-    call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_to_adv u', self%state_to_adv(igh_u))
-    call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_to_adv rho', self%state_to_adv(igh_d))
-    call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_to_adv theta', self%state_to_adv(igh_t))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_to_adv u', self%state_to_adv(igh_u))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_to_adv rho', self%state_to_adv(igh_d))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_to_adv theta', self%state_to_adv(igh_t))
 
     outer_tr_loop: do outer = 1, tr_outer_iterations
 
@@ -936,10 +937,10 @@ contains
           )
 
           ! TODO: to remove
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_aft_adv u', self%state_aft_adv(igh_u))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_aft_adv rho', self%state_aft_adv(igh_d))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_aft_adv theta', self%state_aft_adv(igh_t))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_aft_adv exner', self%state_aft_adv(igh_p))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_aft_adv u', self%state_aft_adv(igh_u))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_aft_adv rho', self%state_aft_adv(igh_d))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_aft_adv theta', self%state_aft_adv(igh_t))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_aft_adv exner', self%state_aft_adv(igh_p))
         end if
 
         ! Convert theta increment to weak form
@@ -952,10 +953,10 @@ contains
         )
 
         ! TODO: to remove
-        call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_adv u', self%rhs_adv(igh_u))
-        call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_adv rho', self%rhs_adv(igh_d))
-        call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_adv theta', self%rhs_adv(igh_t))
-        call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_adv exner', self%rhs_adv(igh_p))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_adv u', self%rhs_adv(igh_u))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_adv rho', self%rhs_adv(igh_d))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_adv theta', self%rhs_adv(igh_t))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_adv exner', self%rhs_adv(igh_p))
 
       else  ! No wavedynamics
         if (self%use_moisture) call copy_bundle(self%mr_dag, mr, nummr)
@@ -969,7 +970,7 @@ contains
       ! ====================================================================== !
       if (use_wavedynamics) then
 
-        inner_tr_loop: do inner = 1, tr_outer_iterations
+        inner_tr_loop: do inner = 1, tr_inner_iterations
           write( log_scratch_space, '(A,2I3)' )                                &
               'TR loop indices (o, i): ', outer, inner
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -1023,10 +1024,10 @@ contains
           end if
 
           ! TODO: to remove
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_m u', self%rhs_m(igh_u))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_m rho', self%rhs_m(igh_d))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_m theta', self%rhs_m(igh_t))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: rhs_m exner', self%rhs_m(igh_p))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_m u', self%rhs_m(igh_u))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_m rho', self%rhs_m(igh_d))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_m theta', self%rhs_m(igh_t))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: rhs_m exner', self%rhs_m(igh_p))
 
           write_moisture_diag = (                                              &
               self%use_moisture .and. write_conservation_diag                  &
@@ -1044,10 +1045,10 @@ contains
           )
 
           ! TODO: to remove
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_m u', self%state_m(igh_u))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_m rho', self%state_m(igh_d))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_m theta', self%state_m(igh_t))
-          call log_field_minmax(LOG_LEVEL_INFO, 'TR: state_m exner', self%state_m(igh_p))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_m u', self%state_m(igh_u))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_m rho', self%state_m(igh_d))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_m theta', self%state_m(igh_t))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'TR: state_m exner', self%state_m(igh_p))
 
           ! If not already done update factors for moist dynamics
           if (self%use_moisture) then
@@ -1082,10 +1083,10 @@ contains
     call add_bundle(self%state_q, self%state_dag, self%state_q, bundle_size)
 
     ! TODO: to remove
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_q u', self%state_q(igh_u))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_q rho', self%state_q(igh_d))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_q theta', self%state_q(igh_t))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_q exner', self%state_q(igh_p))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_q u', self%state_q(igh_u))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_q rho', self%state_q(igh_d))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_q theta', self%state_q(igh_t))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_q exner', self%state_q(igh_p))
 
     ! X_bdf = (1-gamma3)*X^q + gamma3*X^m
     call bundle_axpby(                                                         &
@@ -1094,10 +1095,10 @@ contains
     )
 
     ! TODO: to remove
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_bdf u', self%state_bdf(igh_u))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_bdf rho', self%state_bdf(igh_d))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_bdf theta', self%state_bdf(igh_t))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_bdf exner', self%state_bdf(igh_p))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_bdf u', self%state_bdf(igh_u))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_bdf rho', self%state_bdf(igh_d))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_bdf theta', self%state_bdf(igh_t))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_bdf exner', self%state_bdf(igh_p))
 
     ! Note that for mr, the value at the m-level is equal to that at the q-level
     ! so we can just use mr as mr_bdf
@@ -1112,6 +1113,7 @@ contains
         matrix_vector_kernel_type(                                             &
             self%rhs_bdf(igh_u), self%state_bdf(igh_u), mm_vel                 &
         ),                                                                     &
+        enforce_bc_kernel_type(self%rhs_bdf(igh_u)),                           &
         dg_matrix_vector_kernel_type(                                          &
             self%rhs_bdf(igh_t), self%state_bdf(igh_t), mm_wt                  &
         ),                                                                     &
@@ -1120,10 +1122,10 @@ contains
     )
 
     ! TODO: to remove
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_bdf u', self%rhs_bdf(igh_u))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_bdf rho', self%rhs_bdf(igh_d))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_bdf theta', self%rhs_bdf(igh_t))
-    call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_bdf exner', self%rhs_bdf(igh_p))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_bdf u', self%rhs_bdf(igh_u))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_bdf rho', self%rhs_bdf(igh_d))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_bdf theta', self%rhs_bdf(igh_t))
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_bdf exner', self%rhs_bdf(igh_p))
 
     ! ======================================================================== !
     ! Outer transport loop
@@ -1162,10 +1164,10 @@ contains
         )
 
         ! TODO: to remove
-        call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_adv u', self%rhs_adv(igh_u))
-        call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_adv rho', self%rhs_adv(igh_d))
-        call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_adv theta', self%rhs_adv(igh_t))
-        call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_adv exner', self%rhs_adv(igh_p))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_adv u', self%rhs_adv(igh_u))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_adv rho', self%rhs_adv(igh_d))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_adv theta', self%rhs_adv(igh_t))
+        call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_adv exner', self%rhs_adv(igh_p))
 
         ! ----------------------------------------------------------------------
         ! Forcings: time-level n+1
@@ -1283,10 +1285,10 @@ contains
           end if
 
           ! TODO: to remove
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 u', self%rhs_np1(igh_u))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 rho', self%rhs_np1(igh_d))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 theta', self%rhs_np1(igh_t))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 exner', self%rhs_np1(igh_p))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 u', self%rhs_np1(igh_u))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 rho', self%rhs_np1(igh_d))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 theta', self%rhs_np1(igh_t))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 exner', self%rhs_np1(igh_p))
 
           !---------------------------------------------------------------------
           ! Compute the residuals
@@ -1318,15 +1320,15 @@ contains
           end if
 
           ! TODO: to remove
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 u', self%rhs_np1(igh_u))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 rho', self%rhs_np1(igh_d))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 theta', self%rhs_np1(igh_t))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: rhs_np1 exner', self%rhs_np1(igh_p))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 u', self%rhs_np1(igh_u))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 rho', self%rhs_np1(igh_d))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 theta', self%rhs_np1(igh_t))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: rhs_np1 exner', self%rhs_np1(igh_p))
 
           write_moisture_diag = (                                              &
               self%use_moisture .and. write_conservation_diag                  &
-              .and. outer == tr_outer_iterations                               &
-              .and. inner == tr_outer_iterations                               &
+              .and. outer == bdf2_outer_iterations                             &
+              .and. inner == bdf2_outer_iterations                             &
           )
 
           !---------------------------------------------------------------------
@@ -1348,10 +1350,10 @@ contains
           end if
 
           ! TODO: to remove
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_np1 u', self%state(igh_u))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_np1 rho', self%state(igh_d))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_np1 theta', self%state(igh_t))
-          call log_field_minmax(LOG_LEVEL_INFO, 'BDF: state_np1 exner', self%state(igh_p))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_np1 u', self%state(igh_u))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_np1 rho', self%state(igh_d))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_np1 theta', self%state(igh_t))
+          call log_field_minmax(LOG_LEVEL_DEBUG, 'BDF: state_np1 exner', self%state(igh_p))
 
           !---------------------------------------------------------------------
           ! LAM Overwrite and Blend LBCs

@@ -888,7 +888,7 @@ contains
       gamma = 1.0_r_solver - 0.5_r_solver * SQRT(2.0_r_solver)
       tau_r_dt = -2.0_r_solver*gamma*real(dt, kind=r_solver)
     case (stepper_bdf2)
-      tau_r_dt = real(dt, kind=r_solver)
+      tau_r_dt = real(-dt, kind=r_solver)
     end select
 
     div => get_im3_div_r_solver(mesh_id)
