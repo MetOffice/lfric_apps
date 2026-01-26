@@ -47,7 +47,7 @@ contains
                                           feign_planet_config,              &
                                           feign_finite_element_config
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
     use initial_temperature_config_mod, &
                                    only : perturb_none
     use sci_chi_transform_mod,     only : init_chi_transforms
@@ -69,6 +69,8 @@ contains
                                  eta_values=(/0.5_r_def/) )
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
+                                      coord_order_multigrid=1_i_def,     &
+                                      coord_space=coord_space_wchi,      &
                                       element_order_h=0_i_def,           &
                                       element_order_v=0_i_def,           &
                                       rehabilitate=.true.,               &

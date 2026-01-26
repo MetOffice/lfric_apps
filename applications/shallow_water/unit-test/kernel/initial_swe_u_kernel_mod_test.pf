@@ -57,7 +57,8 @@ contains
                                                  feign_shallow_water_test_coeff_config, &
                                                  feign_shallow_water_settings_config
     use finite_element_config_mod,         only: cellshape_quadrilateral, &
-                                                 coord_system_xyz
+                                                 coord_system_xyz,        &
+                                                 coord_space_wchi
     use shallow_water_settings_config_mod, only: momentum_form_momentum,     &
                                                  swe_test_swe_gaussian_hill, &
                                                  time_scheme_semi_implicit
@@ -76,6 +77,8 @@ contains
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
                                       coord_system=coord_system_xyz,     &
+                                      coord_order_multigrid=1_i_def,     &
+                                      coord_space=coord_space_wchi,      &
                                       element_order_h=0_i_def,           &
                                       element_order_v=0_i_def,           &
                                       rehabilitate=.true.,               &

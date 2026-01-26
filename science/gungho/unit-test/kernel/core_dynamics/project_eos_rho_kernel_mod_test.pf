@@ -58,7 +58,7 @@ contains
     use base_mesh_config_mod,      only : geometry_planar, &
                                           topology_fully_periodic
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_base_mesh_config,           &
                                           feign_initial_temperature_config, &
                                           feign_finite_element_config
@@ -78,6 +78,8 @@ contains
                                  fplane=.false., f_lat_deg=0.0_r_def )
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
+                                      coord_order_multigrid=1_i_def,     &
+                                      coord_space=coord_space_wchi,      &
                                       coord_system=coord_system_xyz,     &
                                       element_order_h=0_i_def,           &
                                       element_order_v=0_i_def,           &
