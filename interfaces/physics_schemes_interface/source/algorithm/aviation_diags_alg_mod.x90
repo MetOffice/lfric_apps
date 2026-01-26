@@ -1,0 +1,170 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!
+! The main entry point for calculating section 20 aviation diagnostics.
+!
+! Code Owner: Please refer to the UM file CodeOwners.txt
+! This file currently belongs in section: physics_schemes_interface
+! whilst discussions are ongoing about its final location.
+!
+MODULE aviation_diags_alg_mod
+
+  USE constants_mod,              ONLY: r_def, i_def, l_def
+  USE field_mod,                  ONLY: field_type
+  USE io_config_mod,              ONLY: USE_xios_io
+  USE initialise_diagnostics_mod, ONLY: init_diag => init_diagnostic_field
+
+  USE lfric_xios_diag_mod,        ONLY: get_axis_dimension, get_axis_values
+  USE log_mod,                    ONLY: log_event, log_scratch_space, &
+                                        LOG_LEVEL_ALWAYS, LOG_LEVEL_ERROR, &
+                                        LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
+
+  USE aviation_diags_kernel_mod,  ONLY: aviation_diags_kernel_type
+
+  IMPLICIT NONE
+
+PRIVATE
+PUBLIC :: aviation_diags_alg
+
+CONTAINS
+
+  ! Algorithm to calculate the section 20 aviation diagnostics.
+  SUBROUTINE aviation_diags_alg(plev_geopot)
+
+    IMPLICIT NONE
+
+    ! Arguments
+
+    ! We calculate the result from this input field.
+    TYPE(field_type), INTENT(IN) :: plev_geopot
+
+
+    ! Local variables
+
+    ! These flags tell us which results are requested at this time step.
+    LOGICAL(l_def) :: aviation_thick_850_flag, aviation_thick_500_flag, &
+            aviation_snow_probability_flag
+
+    ! The array of pressure levels.
+    INTEGER(I_DEF) :: nplev
+    REAL(R_DEF), ALLOCATABLE :: plevs(:)
+    INTEGER(I_DEF) :: plevs_alloc_stat
+
+    ! Level indices for the three pressure levels we want to read.
+    INTEGER(I_DEF) :: i1000, i850, i500
+
+    ! Approximate equality tolerance - is there a common variable somewhere?
+    REAL(R_DEF), PARAMETER :: plev_tol = 0.1_r_def
+
+    ! The output fields we produce.
+    TYPE( field_type ) :: aviation_thick_850, aviation_thick_500, &
+            aviation_snow_probability
+
+    INTEGER(I_DEF) :: i
+
+
+    ! Check the request flags.
+    aviation_thick_850_flag = &
+      init_diag(aviation_thick_850, 'aviation__geopot_thickness_850')
+    aviation_thick_500_flag = &
+      init_diag(aviation_thick_500, 'aviation__geopot_thickness_500')
+    aviation_snow_probability_flag = &
+      init_diag(aviation_snow_probability, 'aviation__snow_probability')
+    IF ( aviation_thick_850_flag .OR. &
+         aviation_thick_500_flag .OR. &
+         aviation_snow_probability_flag) THEN
+      WRITE(log_scratch_space, '(A)') 'Section 20 diags requested'
+      CALL log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+    ELSE
+      ! Nothing requested at this time step.
+      RETURN
+    END IF
+
+    ! Get the array of pressure levels.
+    nplev = get_axis_dimension('pressure_levels')
+    IF (nplev <= 0) THEN
+      WRITE(log_scratch_space, '(A, I0)') 'No pressure levels, nplev=', nplev
+      CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      RETURN
+    END IF
+
+    ALLOCATE(plevs(nplev), stat=plevs_alloc_stat)
+    IF (plevs_alloc_stat /= 0) THEN
+      WRITE(log_scratch_space, '(A, I0)') 'allocate(plevs) failed, stat=', &
+        plevs_alloc_stat
+      CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+      RETURN
+    END IF
+    plevs = get_axis_values('pressure_levels',nplev)
+
+    ! Find the level indices for our three pressures of interest.
+    i1000 = -1
+    i850  = -1
+    i500  = -1
+    DO i = 1, nplev
+
+      ! 1000?
+      IF (abs(plevs(i) - 100000.0_r_def) < plev_tol) THEN
+        i1000 = i
+
+      ! 850?
+      ELSE IF (abs(plevs(i) - 85000.0_r_def) < plev_tol) THEN
+        i850 = i
+
+      ! 500?
+      ELSE IF (abs(plevs(i) - 50000.0_r_def) < plev_tol) THEN
+        i500 = i
+
+      END IF
+    END DO
+
+    ! Check we found the required levels.
+    IF (i1000 == -1) THEN
+        WRITE(log_scratch_space, '(A)') 'could not find 1000hPa'
+        CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        RETURN
+    END IF
+
+    IF (aviation_thick_850_flag .OR. aviation_snow_probability_flag) THEN
+      IF (i850 == -1) THEN
+        WRITE(log_scratch_space, '(A)') 'could not find 850hPa'
+        CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        RETURN
+      END IF
+    END IF
+
+    IF (aviation_thick_500_flag) THEN
+      IF (i500 == -1) THEN
+        WRITE(log_scratch_space, '(A)') 'could not find 500hPa'
+        CALL log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        RETURN
+      END IF
+    END IF
+
+    ! Call the kernel to subtract the levels.
+    ! Todo: Comment why we initialise to 1.0 and not 0.0. I can't remember.
+    CALL invoke( &
+      setval_c(aviation_thick_850, 1.0_r_def), &
+      setval_c(aviation_thick_500, 1.0_r_def), &
+      setval_c(aviation_snow_probability, 0.0_r_def), &
+      aviation_diags_kernel_type( &
+        aviation_thick_850, aviation_thick_500, aviation_snow_probability, &
+        plev_geopot, aviation_thick_850_flag, aviation_thick_500_flag, &
+        aviation_snow_probability_flag, i1000, i850, i500) &
+    )
+
+    ! Write the fields
+    IF (aviation_thick_850_flag) CALL aviation_thick_850%write_field()
+    IF (aviation_thick_500_flag) CALL aviation_thick_500%write_field()
+
+    ! Clean up.
+    IF (allocated(plevs)) THEN
+      DEALLOCATE(plevs)
+    END IF
+
+  END SUBROUTINE aviation_diags_alg
+
+END MODULE aviation_diags_alg_mod
