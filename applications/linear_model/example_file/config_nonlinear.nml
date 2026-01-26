@@ -42,7 +42,7 @@ start_dump_filename='',
 /
 &finite_element
 cellshape='quadrilateral',
-coord_order=1,
+coord_order=2,
 coord_order_multigrid=1,
 coord_space='Wchi',
 coord_system='native',
@@ -89,7 +89,6 @@ ancil_option='none',
 init_option='analytic',
 lbc_option='none',
 ls_option='analytic',
-n_orog_smooth=0,
 read_w2h_wind=.false.
 coarse_aerosol_ancil=.false.
 zero_w2v_wind=.false.,
@@ -175,6 +174,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='none',
+orography_order=2,
+n_orog_smooth=0,
+w0_multigrid_mapping=.true.
 /
 &partitioning
 panel_decomposition='auto',
