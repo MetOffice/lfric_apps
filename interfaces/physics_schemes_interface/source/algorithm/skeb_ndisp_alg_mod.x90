@@ -130,7 +130,7 @@ module skeb_ndisp_alg_mod
   if ( LPROF ) call start_timing( id_skeb, 'skeb.ndisp' )
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!  1)  Initialize feilds and operators  !!
+  !!  1)  Initialize fields and operators  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   ! Create mesh
