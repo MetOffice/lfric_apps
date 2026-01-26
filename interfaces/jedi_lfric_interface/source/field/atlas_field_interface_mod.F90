@@ -243,24 +243,21 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
       n_vertical_lfric = field_proxy%vspace%get_nlayers() + 1
     case ( W3 )
       n_vertical_lfric = field_proxy%vspace%get_nlayers()
-      !TDB
-      if (self%atlas_name=='land_fraction' .or. self%atlas_name=='land_area_fraction') then
-        n_vertical_lfric = 1
-      end if
     case default
       write(log_scratch_space, '(3A)') "The ", &
         trim(name_from_functionspace(fs_enumerator)) , &
         " function space is not supported by the atlas_field_interface class."
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end select
-  if (is_2d_local) n_vertical_lfric = 1  ! Override if 2D field
 
   n_horizontal_lfric = field_proxy%vspace%get_last_dof_owned()/n_vertical_lfric
 
-  !TDB
-  if (self%atlas_name=='land_fraction' .or. self%atlas_name=='land_area_fraction') then
-    n_horizontal_lfric  = self%n_horizontal
-  end if
+  ! n_vertical_lfric is set above based on function space and assuming a 3D field
+  ! This is then used to correctly calculate n_horizontal_lfric
+  ! However, this does not take into account 2D fields
+  ! Here we override n_vertical_lfric to 1 in the case of 2D fields
+  ! n_horizontal_lfric remains correct
+  if (is_2d_local) n_vertical_lfric = 1
 
   ! 1. Vertical points
   if ( n_vertical_lfric /= self%n_vertical_lfric ) then
