@@ -13,13 +13,14 @@
 
 module consistent_wind_kernel_mod
 
-use argument_mod,      only : arg_type, func_type,     &
-                              GH_FIELD, GH_REAL,       &
-                              GH_READWRITE, GH_READ,   &
-                              GH_BASIS, GH_DIFF_BASIS, &
-                              CELL_COLUMN, GH_EVALUATOR
+use argument_mod,      only : arg_type, func_type,       &
+                              GH_FIELD, GH_REAL,         &
+                              GH_READWRITE, GH_READ,     &
+                              GH_BASIS, GH_DIFF_BASIS,   &
+                              CELL_COLUMN, GH_EVALUATOR, &
+                              ANY_SPACE_9
 use constants_mod,     only : r_def, i_def, r_tran
-use fs_continuity_mod, only : Wtheta, W2, W2v, Wchi
+use fs_continuity_mod, only : Wtheta, W2, W2v
 use kernel_mod,        only : kernel_type
 
 implicit none
@@ -31,15 +32,15 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the PSy layer
 type, public, extends(kernel_type) :: consistent_wind_kernel_type
   private
-  type(arg_type) :: meta_args(4) = (/                     &
-       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W2v),    &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      W2),     &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta), &
-       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wchi)    &
+  type(arg_type) :: meta_args(4) = (/                         &
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE, W2v),        &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      W2),         &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      Wtheta),     &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_SPACE_9) &
        /)
-  type(func_type) :: meta_funcs(2) = (/                   &
-       func_type(W2,   GH_BASIS),                         &
-       func_type(Wchi, GH_DIFF_BASIS)                     &
+  type(func_type) :: meta_funcs(2) = (/                       &
+       func_type(W2,          GH_BASIS),                      &
+       func_type(ANY_SPACE_9, GH_DIFF_BASIS)                  &
        /)
   integer :: operates_on = CELL_COLUMN
   integer :: gh_shape = GH_EVALUATOR

@@ -34,13 +34,13 @@ module set_rho_kernel_mod
     private
     type(arg_type) :: meta_args(4) = (/                                      &
          arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wchi),                      &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(2) = (/                                    &
          func_type(ANY_DISCONTINUOUS_SPACE_1, GH_BASIS),                     &
-         func_type(Wchi,                      GH_BASIS, GH_DIFF_BASIS)       &
+         func_type(ANY_SPACE_9,               GH_BASIS, GH_DIFF_BASIS)       &
          /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ
