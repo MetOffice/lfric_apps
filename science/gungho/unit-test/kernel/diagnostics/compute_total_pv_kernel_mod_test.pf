@@ -86,7 +86,8 @@ contains
                               rd=300.0_r_def, cp=1000.0_r_def,        &
                               p_zero=100000.0_r_def,                  &
                               scaling_factor=1.0_r_def )
-    call init_chi_transforms()
+
+    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
 
   end subroutine set_up
 

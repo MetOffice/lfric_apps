@@ -17,6 +17,10 @@ use argument_mod,            only : arg_type, func_type,       &
                                     CELL_COLUMN, GH_EVALUATOR
 use constants_mod,           only : i_def, r_def
 
+use base_mesh_config_mod,      only: geometry, topology
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
+
 !> NOTE: Kernel requires PSyKAl lite code to invoke. Kernel metadata commented out.
 !>       Please see PSyclone issue #2798 for further information.
 implicit none
@@ -107,6 +111,7 @@ subroutine adj_convert_hdiv_field_code(nlayers, &
                                        map_pid)
 
   use sci_coordinate_jacobian_mod, only : coordinate_jacobian
+
   implicit none
 
   ! Arguments
@@ -154,8 +159,10 @@ subroutine adj_convert_hdiv_field_code(nlayers, &
       chi3_e(df) = chi3(map_chi(df) + k)
     end do
 
-    call coordinate_jacobian(ndf_chi, ndf1, chi1_e(:), chi2_e(:), chi3_e(:), &
-                             ipanel, basis_chi(:,:,:), diff_basis_chi(:,:,:), jacobian(:,:,:), dj(:))
+    call coordinate_jacobian(coord_system, geometry, topology, scaled_radius, &
+                             ndf_chi, ndf1, chi1_e(:), chi2_e(:), chi3_e(:),  &
+                             ipanel, basis_chi(:,:,:), diff_basis_chi(:,:,:), &
+                             jacobian(:,:,:), dj(:))
 
     do df = ndf1, 1, -1
       vector_out(3) = vector_out(3) + physical_field3(map1(df) + k)

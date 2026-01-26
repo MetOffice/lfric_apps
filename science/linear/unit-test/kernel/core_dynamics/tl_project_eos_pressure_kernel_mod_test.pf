@@ -86,7 +86,7 @@ contains
                                            profile_heights=profile_heights )
 
 
-    call init_chi_transforms()
+    call init_chi_transforms(geometry_planar, topology_fully_periodic)
 
     call feign_planet_config( gravity=10.0_r_def,    &
                               omega=8.0E-5_r_def,    &

@@ -7,7 +7,7 @@
 !>@brief Test the tangent linear gradient of the kinetic energy computation
 module tl_kinetic_energy_gradient_kernel_mod_test
 
-  use constants_mod,                       only : i_def, r_def
+  use constants_mod,                       only : i_def, r_def, imdi
 
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size,   &
                                                   get_w2_m3x3_q3x3x3_size,   &
@@ -91,7 +91,7 @@ contains
                                    horizontal_transport_predictor=.false., &
                                    vector_invariant=.false.)
 
-    call init_chi_transforms()
+    call init_chi_transforms(imdi, imdi)
 
   end subroutine setUp
 

@@ -29,7 +29,7 @@ program cma_test
                                              test_cma_add,                   &
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
-  use constants_mod,                  only : i_def, r_def, i_def, l_def, &
+  use constants_mod,                  only : i_def, r_def, i_def, l_def, imdi, &
                                              r_solver, pi, str_def
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
@@ -307,7 +307,8 @@ program cma_test
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
-  call init_chi_transforms(mesh_collection)
+  call init_chi_transforms(geometry_spherical, imdi, &
+                           mesh_collection=mesh_collection)
 
   ! Work out grid spacing, which should be of order 1
   mesh => mesh_collection%get_mesh(prime_mesh_name)
