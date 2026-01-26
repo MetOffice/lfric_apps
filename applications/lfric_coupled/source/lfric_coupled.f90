@@ -16,6 +16,7 @@
 
 program lfric_coupled
 
+  use check_config_api_mod,   only : check_config_api
   use cli_mod,                only : parse_command_line
   use coupler_mod,            only : set_cpl_name
   use driver_collections_mod, only : init_collections, final_collections
@@ -43,7 +44,7 @@ program lfric_coupled
   modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( application_name, table_len=10 )
-
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise( 'values', 5 )
 
   ! Create the depository, prognostics and diagnostics field collections
@@ -67,8 +68,11 @@ program lfric_coupled
   call init_comm( application_name, modeldb )
 
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration, &
+                    config=modeldb%config )
+
   call init_logger( modeldb%mpi%get_comm(), application_name )
+  call check_config_api( modeldb%configuration, modeldb%config )
   call init_collections()
   call init_time( modeldb )
   deallocate(filename)

@@ -14,6 +14,7 @@
 
 program shallow_water
 
+  use check_config_api_mod,      only: check_config_api
   use cli_mod,                   only: parse_command_line
   use driver_collections_mod,    only: init_collections, final_collections
   use driver_comm_mod,           only: init_comm, final_comm
@@ -45,6 +46,7 @@ program shallow_water
   modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
 
   ! Create the depository and prognostics field collections
   call modeldb%fields%add_empty_field_collection("depository", &
@@ -59,8 +61,12 @@ program shallow_water
 
   call init_comm( program_name, modeldb )
   call init_config( filename, shallow_water_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration,        &
+                    config=modeldb%config )
   call init_logger( global_mpi%get_comm(), program_name )
+
+  call check_config_api( modeldb%configuration, modeldb%config )
+
   call init_timers( program_name )
   call init_counters( program_name )
   call init_collections()

@@ -8,6 +8,7 @@
 !> run_transport() and finalise_transport().
 program transport
 
+  use check_config_api_mod,    only: check_config_api
   use cli_mod,                 only: parse_command_line
   use constants_mod,           only: i_def, r_def
   use driver_collections_mod,  only: init_collections, final_collections
@@ -36,12 +37,19 @@ program transport
 
   call parse_command_line( filename )
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
   modeldb%mpi => global_mpi
+
   call init_comm( program_name, modeldb )
+
+  call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
+
   call init_config( filename, transport_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration,    &
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), program_name )
+
+  call check_config_api( modeldb%configuration, modeldb%config )
 
   call log_event( 'Miniapp will run with default precision set as:', &
     log_level_trace )

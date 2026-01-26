@@ -239,11 +239,11 @@ contains
     stencil_depth = get_required_stencil_depth()
     apply_partition_check = .false.
 
-    call init_mesh( modeldb%configuration,        &
-                    modeldb%mpi%get_comm_rank(),  &
-                    modeldb%mpi%get_comm_size(),  &
-                    base_mesh_names,              &
-                    extrusion, stencil_depth,     &
+    call init_mesh( modeldb%config,              &
+                    modeldb%mpi%get_comm_rank(), &
+                    modeldb%mpi%get_comm_size(), &
+                    base_mesh_names,             &
+                    extrusion, stencil_depth,    &
                     apply_partition_check )
 
     call create_mesh( base_mesh_names, extrusion_2d, &

@@ -15,6 +15,7 @@
 
 program gungho_model
 
+  use check_config_api_mod,   only: check_config_api
   use cli_mod,                only: parse_command_line
   use derived_config_mod,     only: l_esm_couple
   use driver_collections_mod, only: init_collections, final_collections
@@ -47,6 +48,7 @@ program gungho_model
 
   call modeldb%configuration%initialise( application_name, &
                                          table_len=10 )
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise( 'values', 5 )
 
   ! Create the depository, prognostics and diagnostics field collections
@@ -70,8 +72,12 @@ program gungho_model
   call init_comm( application_name, modeldb )
 
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration, &
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), application_name )
+
+  call check_config_api( modeldb%configuration, modeldb%config )
+
   call init_timers( application_name )
   call init_collections()
   call init_time( modeldb )

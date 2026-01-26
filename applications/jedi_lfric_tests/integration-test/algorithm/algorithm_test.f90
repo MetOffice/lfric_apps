@@ -13,8 +13,10 @@
 program algorithm_test
 
   use add_mesh_map_mod,        only: assign_mesh_maps
+  use check_config_api_mod,    only: check_config_api
   use configuration_mod,       only: final_configuration, &
                                      read_configuration
+  use config_mod,              only: config_type
   use constants_mod,           only: i_def, r_def, str_def, l_def
   use create_mesh_mod,         only: create_extrusion, create_mesh
   use test_algorithm_mod,      only: test_algorithm_finalise,   &
@@ -52,6 +54,7 @@ program algorithm_test
   character(:), allocatable :: filename
 
   type(namelist_collection_type), save :: configuration
+  type(config_type),              save :: config
 
   ! Variables used for parsing command line arguments
   integer :: length, status, nargs
@@ -145,7 +148,11 @@ program algorithm_test
 
   ! Setup configuration, mesh, and fem
   call configuration%initialise( program_name, table_len=10 )
-  call read_configuration( filename, configuration )
+  call config%initialise( program_name )
+  call read_configuration( filename,                    &
+                           configuration=configuration, &
+                           config=config )
+  call check_config_api( configuration, config )
 
   call init_collections()
 
@@ -199,7 +206,7 @@ program algorithm_test
   !-------------------------------------------------------------------------
   stencil_depth = 1
   apply_partition_check = .false.
-  call init_mesh( configuration,              &
+  call init_mesh( config,                     &
                   local_rank, total_ranks,    &
                   base_mesh_names, extrusion, &
                   stencil_depth,              &

@@ -8,6 +8,7 @@
 !> @details Runs a GungHo model with a custom step method
 program ngarch
 
+  use check_config_api_mod,        only : check_config_api
   use cli_mod,                     only : parse_command_line
   use driver_collections_mod,      only : init_collections, final_collections
   use constants_mod,               only : precision_real
@@ -35,6 +36,8 @@ program ngarch
   call parse_command_line( filename )
 
   call modeldb%configuration%initialise( application_name, table_len=10 )
+  call modeldb%config%initialise( application_name )
+
   call modeldb%values%initialise( 'values', 5 )
 
   ! Create the field collections in modeldb
@@ -58,9 +61,12 @@ program ngarch
 
   modeldb%mpi => global_mpi
   call init_comm( application_name, modeldb )
-  call init_config( filename,                  &
-                    ngarch_required_namelists, &
-                    modeldb%configuration )
+  call init_config( filename,                            &
+                    ngarch_required_namelists,           &
+                    configuration=modeldb%configuration, &
+                    config=modeldb%config )
+  call check_config_api( modeldb%configuration, modeldb%config )
+
   deallocate( filename )
 
   call init_logger( modeldb%mpi%get_comm(), application_name )

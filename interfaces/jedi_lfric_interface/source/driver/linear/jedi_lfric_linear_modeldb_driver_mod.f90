@@ -43,6 +43,7 @@ module jedi_lfric_linear_modeldb_driver_mod
                                            adjoint_step,             &
                                            finalise_adjoint_model
   use atl_si_timestep_alg_mod,      only : atl_si_timestep_type
+  use check_config_api_mod,         only : check_config_api
   use constants_mod,                only : r_def, l_def, str_def
   use driver_config_mod,            only : init_config
   use driver_time_mod,              only : init_time, final_time
@@ -119,6 +120,7 @@ contains
     ! 1. Initialise modeldb field collections, configuration and mpi.
     modeldb%mpi => mpi_obj
     call modeldb%configuration%initialise( modeldb_name, table_len=10 )
+    call modeldb%config%initialise( modeldb_name )
 
     call modeldb%values%initialise('values', 5)
 
@@ -139,7 +141,8 @@ contains
     call modeldb%io_contexts%initialise(modeldb_name, table_len=100)
 
     call init_config( filename, gungho_required_namelists, &
-                      modeldb%configuration )
+                      configuration=modeldb%configuration, &
+                      config=modeldb%config )
 
     ! 2. Setup some model modeldb%values and initialise infrastructure
     call modeldb%values%add_key_value( 'temperature_correction_rate', 0.0_r_def )
@@ -149,6 +152,7 @@ contains
     ! Initialise infrastructure
     call init_time( modeldb )
     call initialise_infrastructure( io_context_name, modeldb )
+    call check_config_api( modeldb%configuration, modeldb%config )
 
     ! Add a place to store time axes in modeldb
     call modeldb%values%add_key_value('model_axes', model_axes)

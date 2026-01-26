@@ -16,6 +16,7 @@
 
 program lfric_atm
 
+  use check_config_api_mod,   only: check_config_api
   use cli_mod,                only: parse_command_line
   use driver_collections_mod, only: init_collections, final_collections
   use driver_comm_mod,        only: init_comm, final_comm
@@ -49,6 +50,7 @@ program lfric_atm
 
   call modeldb%configuration%initialise( application_name, &
                                          table_len=10 )
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise( 'values', 5 )
 
   ! Create the depository, prognostics and diagnostics field collections
@@ -72,8 +74,10 @@ program lfric_atm
   call init_comm( application_name, modeldb )
 
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration, &
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), application_name )
+  call check_config_api( modeldb%configuration, modeldb%config )
   call init_timers( application_name )
 
   io_nml => modeldb%configuration%get_namelist('io')

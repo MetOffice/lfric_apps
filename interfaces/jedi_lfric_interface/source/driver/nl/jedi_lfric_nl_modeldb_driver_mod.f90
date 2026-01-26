@@ -22,6 +22,7 @@
 !>
 module jedi_lfric_nl_modeldb_driver_mod
 
+  use check_config_api_mod,         only : check_config_api
   use constants_mod,                only : l_def
   use driver_config_mod,            only : init_config
   use driver_time_mod,              only : init_time, final_time
@@ -67,6 +68,7 @@ contains
     ! 1. Initialise modeldb field collections, configuration and mpi.
     modeldb%mpi => mpi_obj
     call modeldb%configuration%initialise( modeldb_name, table_len=10 )
+    call modeldb%config%initialise( modeldb_name )
 
     call modeldb%values%initialise('values', table_len = 5)
 
@@ -89,13 +91,16 @@ contains
     call modeldb%io_contexts%initialise(modeldb_name, table_len=100)
 
     call init_config( filename, gungho_required_namelists, &
-                      modeldb%configuration )
+                      configuration=modeldb%configuration, &
+                      config=modeldb%config )
 
     ! 3. Initialise the clock and calendar
     call init_time( modeldb )
 
     ! 4. Call the gungho driver initialise
     call gh_initialise(modeldb_name, modeldb)
+
+    call check_config_api( modeldb%configuration, modeldb%config )
 
   end subroutine initialise_modeldb
 
