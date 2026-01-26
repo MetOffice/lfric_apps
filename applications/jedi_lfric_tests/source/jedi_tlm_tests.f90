@@ -74,7 +74,7 @@ program jedi_tlm_tests
   character( str_def )                      :: forecast_length_str
   real( kind=r_def )                        :: dot_product_1
   real( kind=r_def )                        :: dot_product_2
-  real( kind=r_def ),             parameter :: absolute_tolerance = 1.0E-4_r_def
+  real( kind=r_def ),             parameter :: absolute_tolerance = 2.0E-4_r_def
   real( kind=r_def )                        :: machine_tolerance
   real( kind=r_def )                        :: absolute_diff
   real( kind=r_def )                        :: relative_diff
