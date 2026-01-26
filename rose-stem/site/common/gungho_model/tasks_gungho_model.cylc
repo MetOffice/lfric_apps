@@ -14,12 +14,12 @@
     {% do task_dict.update({
         "opt_confs": ["agnesi_hyd_cart"],
         "resolution": "BiP120x8-2000x2000",
-        "DT": 20,
+        "DT": 40,
         "mpi_parts": 10,
-        "tsteps": 750,
+        "tsteps": 375,
         "panel_decomp": "row",
         "use_xios": false,
-        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3  T000750 2 2 8 hmw zoom_1 lines $PLOT_DIR",
+        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3  T000375 2 2 8 hmw zoom_1 lines $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "baroclinic-C24_MG" %}
@@ -27,10 +27,10 @@
     {% do task_dict.update({
         "opt_confs": ["baroclinic"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "threads": 4,
         "mpi_parts": 6,
-        "tsteps": 240,
+        "tsteps": 120,
         "plot_str": "baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature",
     }) %}
 
@@ -39,7 +39,7 @@
     {% do task_dict.update({
         "opt_confs": ["baroclinic","io1", "perturb"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "threads": 1,
         "mpi_parts": 6,
         "tsteps": 10,
@@ -54,10 +54,10 @@
     {% do task_dict.update({
         "opt_confs": ["baroclinic", "gungho-alt1-spherical"],
         "resolution": "C24s_MG",
-        "DT": 3600,
+        "DT": 7200,
         "threads": 4,
         "mpi_parts": 6,
-        "tsteps": 240,
+        "tsteps": 120,
         "plot_str": "baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature",
     }) %}
 
@@ -66,10 +66,10 @@
     {% do task_dict.update({
         "opt_confs": ["baroclinic", "gungho-alt2-spherical"],
         "resolution": "C24_MG_op",
-        "DT": 3600,
+        "DT": 7200,
         "threads": 4,
         "mpi_parts": 6,
-        "tsteps": 240,
+        "tsteps": 120,
         "wallclock": 30,
         "plot_str": "baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature",
     }) %}
@@ -79,10 +79,10 @@
     {% do task_dict.update({
         "opt_confs": ["baroclinic", "gungho-alt3"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "threads": 4,
         "mpi_parts": 6,
-        "tsteps": 240,
+        "tsteps": 120,
         "plot_str": "baroclinic.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip dry surface_pressure_temperature",
     }) %}
 
@@ -91,10 +91,10 @@
     {% do task_dict.update({
         "opt_confs": ["baroclinic", "no_io"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "threads": 4,
         "mpi_parts": 6,
-        "tsteps": 24,
+        "tsteps": 12,
         "use_xios": false,
         "kgo_checks": [],
     }) %}
@@ -104,10 +104,10 @@
     {% do task_dict.update({
         "opt_confs": ["baroclinic", "no_io"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "threads": 4,
         "mpi_parts": 6,
-        "tsteps": 24,
+        "tsteps": 12,
         "use_xios": false,
         "kgo_checks": [],
     }) %}
@@ -117,9 +117,9 @@
     {% do task_dict.update({
         "opt_confs": ["bryan_fritsch-dry"],
         "resolution": "BiP200x10-100x100",
-        "DT": 2,
+        "DT": 4,
         "mpi_parts": 10,
-        "tsteps": 500,
+        "tsteps": 250,
         "panel_decomp": "row",
         "plot_str": "spherical_and_vertical_slice_ugrid_plot.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR theta xz -1 linear bryan_fritsch",
     }) %}
@@ -129,12 +129,12 @@
     {% do task_dict.update({
         "opt_confs": ["dcmip200"],
         "resolution": "C24_MG",
-        "DT": 600,
+        "DT": 1200,
         "mpi_parts": 6,
         "threads": 3,
-        "tsteps": 864,
+        "tsteps": 432,
         "use_xios": false,
-        "plot_str": "slices_orography.py diagGungho $NODAL_DATA_DIR u T000864 0 0 0 $PLOT_DIR 2-0-0"
+        "plot_str": "slices_orography.py diagGungho $NODAL_DATA_DIR u T000432 0 0 0 $PLOT_DIR 2-0-0"
     }) %}
 
 {% elif task_ns.conf_name == "dcmip200_realorog-C48_MG" %}
@@ -142,9 +142,9 @@
     {% do task_dict.update({
         "opt_confs": ["dcmip200_realorog"],
         "resolution": "C48_MG",
-        "DT": 600,
+        "DT": 1200,
         "mpi_parts": 24,
-        "tsteps": 144,
+        "tsteps": 72,
     }) %}
 
 {% elif task_ns.conf_name == "dcmip301-C24_MG" %}
@@ -152,11 +152,11 @@
     {% do task_dict.update({
         "opt_confs": ["dcmip301"],
         "resolution": "C24_MG",
-        "DT": 10,
+        "DT": 20,
         "mpi_parts": 6,
-        "tsteps": 360,
+        "tsteps": 180,
         "use_xios": false,
-        "plot_str": "dcmip301.py diagGungho $NODAL_DATA_DIR theta T000180:T000252:T000324:T000360 36 $PLOT_DIR"
+        "plot_str": "dcmip301.py diagGungho $NODAL_DATA_DIR theta T000090:T000126:T000162:T000180 18 $PLOT_DIR"
     }) %}
 
 {% elif task_ns.conf_name == "deep-hot-jupiter-C24_MG" %}
@@ -164,9 +164,9 @@
     {% do task_dict.update({
         "opt_confs": ["deep-hot-jupiter"],
         "resolution": "C24_MG",
-        "DT": 120,
+        "DT": 240,
         "mpi_parts": 6,
-        "tsteps": 360,
+        "tsteps": 180,
         "wallclock": 30,
         "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR deep-hot-jupiter deep-hot-jupiter uniform 66 67"
     }) %}
@@ -176,9 +176,9 @@
     {% do task_dict.update({
         "opt_confs": ["earth-like", "io_nwp"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 6,
-        "tsteps": 480,
+        "tsteps": 240,
         "crun": 2,
         "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR earth-like earth uniform 32 33"
     }) %}
@@ -188,9 +188,9 @@
     {% do task_dict.update({
         "opt_confs": ["held-suarez", "io_nwp"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 6,
-        "tsteps": 480,
+        "tsteps": 240,
         "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR held-suarez earth dcmip 30 31"
     }) %}
 
@@ -199,10 +199,10 @@
     {% do task_dict.update({
         "opt_confs": ["lfric-real-domain"],
         "resolution": "C48_MG",
-        "DT": 1800,
+        "DT": 3600,
         "mpi_parts": 6,
         "threads": 4,
-        "tsteps": 240,
+        "tsteps": 120,
         "wallclock": 20,
         "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR um70 30 71 lfric"
     }) %}
@@ -248,14 +248,14 @@
     {% do task_dict.update({
         "opt_confs": ["robert-moist-lam"],
         "resolution": "BiP100x8-10x10",
-        "DT": 1.25,
+        "DT": 2.5,
         "threads": 2,
         "mpi_parts": 5,
-        "tsteps": 648,
+        "tsteps": 324,
         "panel_decomp": "row",
         "wallclock": 25,
         "use_xios": false,
-        "plot_str": "robert_plot.py diagGungho $NODAL_DATA_DIR 100 8 theta:m_v T000432:T000648 $PLOT_DIR",
+        "plot_str": "robert_plot.py diagGungho $NODAL_DATA_DIR 100 8 theta:m_v T000216:T000324 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "robert-moist-smag-BiP100x8-10x10" %}
@@ -263,14 +263,14 @@
     {% do task_dict.update({
         "opt_confs": ["robert-moist-smag"],
         "resolution": "BiP100x8-10x10",
-        "DT": 1.25,
+        "DT": 2.5,
         "threads": 2,
         "mpi_parts": 5,
-        "tsteps": 648,
+        "tsteps": 324,
         "panel_decomp": "row",
         "wallclock": 25,
         "use_xios": false,
-        "plot_str": "robert_plot.py diagGungho $NODAL_DATA_DIR 100 8 theta:m_v T000432:T000648 $PLOT_DIR",
+        "plot_str": "robert_plot.py diagGungho $NODAL_DATA_DIR 100 8 theta:m_v T000216:T000324 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "runge-kutta-for-linear-C12" %}
@@ -287,9 +287,9 @@
     {% do task_dict.update({
         "opt_confs": ["sbr"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 6,
-        "tsteps": 240,
+        "tsteps": 120,
         "threads": 4,
         "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR um70 80 71 sbr",
     }) %}
@@ -299,9 +299,9 @@
     {% do task_dict.update({
         "opt_confs": ["sbr", "gungho-alt2-spherical"],
         "resolution": "C24_MG_op",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 6,
-        "tsteps": 240,
+        "tsteps": 120,
         "threads": 4,
         "wallclock": 30,
         "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR um70 80 71 sbr-alt2",
@@ -312,9 +312,9 @@
     {% do task_dict.update({
         "opt_confs": ["sbr", "gungho-alt3"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 6,
-        "tsteps": 240,
+        "tsteps": 120,
         "threads": 4,
         "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR um70 80 71 sbr",
     }) %}
@@ -324,9 +324,9 @@
     {% do task_dict.update({
         "opt_confs": ["sbr_lam"],
         "resolution": "n96_MG_lam",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 4,
-        "tsteps": 240,
+        "tsteps": 120,
         "threads": 6,
         "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip 30 31 sbr-lam",
     }) %}
@@ -336,9 +336,9 @@
     {% do task_dict.update({
         "opt_confs": ["sbr_lam"],
         "resolution": "n96_MG_lam_rotate",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 4,
-        "tsteps": 240,
+        "tsteps": 120,
         "threads": 6,
         "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR dcmip 30 31 sbr-lam",
     }) %}
@@ -348,14 +348,14 @@
     {% do task_dict.update({
         "opt_confs": ["schar_cart"],
         "resolution": "BiP200x8-500x500",
-        "DT": 20,
+        "DT": 40,
         "mpi_parts": 5,
-        "tsteps": 900,
+        "tsteps": 450,
         "threads": 3,
         "panel_decomp": "row",
         "wallclock": 30,
         "use_xios": false,
-        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000900 2 2 8 schar zoom_1 lines $PLOT_DIR",
+        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000450 2 2 8 schar zoom_1 lines $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "schar_cart-alt2-BiP100x4-1000x1000" %}
@@ -363,14 +363,14 @@
     {% do task_dict.update({
         "opt_confs": ["schar_cart", "gungho-alt2-planar"],
         "resolution": "BiP100x4-1000x1000",
-        "DT": 20,
+        "DT": 40,
         "mpi_parts": 5,
-        "tsteps": 900,
+        "tsteps": 450,
         "threads": 3,
         "panel_decomp": "row",
         "wallclock": 30,
         "use_xios": false,
-        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000900 2 2 4 schar zoom_1 lines $PLOT_DIR",
+        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000450 2 2 4 schar zoom_1 lines $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "semi-implicit-for-linear-C12" %}
@@ -388,9 +388,9 @@
     {% do task_dict.update({
         "opt_confs": ["shallow-hot-jupiter"],
         "resolution": "C24_MG",
-        "DT": 2400,
+        "DT": 4800,
         "mpi_parts": 6,
-        "tsteps": 480,
+        "tsteps": 240,
         "crun": 2,
         "crun_compare": false,
         "wallclock": 20,
@@ -402,10 +402,10 @@
     {% do task_dict.update({
         "opt_confs": ["skamarock_klemp_gw_p0"],
         "resolution": "BiP300x8-1000x2000",
-        "DT": 10,
-        "tsteps": 300,
+        "DT": 20,
+        "tsteps": 150,
         "use_xios": false,
-        "plot_str": "gw_cart_plot.py diagGungho $NODAL_DATA_DIR 300 8 theta T000000:T000100:T000200:T000300 $PLOT_DIR",
+        "plot_str": "gw_cart_plot.py diagGungho $NODAL_DATA_DIR 300 8 theta T000000:T000050:T000100:T000150 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "skamarock_klemp_gw_p1-BiP75x4-4000x2000" %}
@@ -456,12 +456,12 @@
     {% do task_dict.update({
         "opt_confs": ["straka_200m"],
         "resolution": "BiP256x8-200x200",
-        "DT": 5,
+        "DT": 10,
         "mpi_parts": 8,
-        "tsteps": 180,
+        "tsteps": 90,
         "panel_decomp": "row",
         "use_xios": false,
-        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 8 theta T000180 $PLOT_DIR",
+        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 8 theta T000090 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "straka_200m-alt1-BiP256x4-200x200" %}
@@ -469,13 +469,13 @@
     {% do task_dict.update({
         "opt_confs": ["straka_200m", "gungho-alt1-planar"],
         "resolution": "BiP256x4-200x200",
-        "DT": 5,
+        "DT": 10,
         "mpi_parts": 8,
-        "tsteps": 180,
+        "tsteps": 90,
         "panel_decomp": "row",
         "wallclock": 30,
         "use_xios": false,
-        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 4 theta T000180 $PLOT_DIR",
+        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 4 theta T000090 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "straka_200m-alt2-BiP256x16-200x50_op" %}
@@ -483,13 +483,13 @@
     {% do task_dict.update({
         "opt_confs": ["straka_200m", "gungho-alt2-planar"],
         "resolution": "BiP256x16-200x50_op",
-        "DT": 5,
+        "DT": 10,
         "mpi_parts": 8,
-        "tsteps": 180,
+        "tsteps": 90,
         "panel_decomp": "row",
         "wallclock": 30,
         "use_xios": false,
-        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 16 theta T000180 $PLOT_DIR",
+        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 16 theta T000090 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "straka_200m-alt3-BiP256x8-200x200" %}
@@ -497,12 +497,12 @@
     {% do task_dict.update({
         "opt_confs": ["straka_200m", "gungho-alt3"],
         "resolution": "BiP256x8-200x200",
-        "DT": 5,
+        "DT": 10,
         "mpi_parts": 8,
-        "tsteps": 180,
+        "tsteps": 90,
         "panel_decomp": "row",
         "use_xios": false,
-        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 8 theta T000180 $PLOT_DIR",
+        "plot_str": "straka_plot_x.py diagGungho $NODAL_DATA_DIR 256 8 theta T000090 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "tidally-locked-earth-C24s_rot_MG" %}
@@ -510,9 +510,9 @@
     {% do task_dict.update({
         "opt_confs": ["tidally-locked-earth"],
         "resolution": "C24s_rot_MG",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 6,
-        "tsteps": 480,
+        "tsteps": 240,
         "crun": 2,
         "crun_compare": false,
         "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR earth-like earth uniform 32 33"
@@ -523,9 +523,9 @@
     {% do task_dict.update({
         "opt_confs": ["tidally-locked-earth"],
         "resolution": "C24_MG",
-        "DT": 3600,
+        "DT": 7200,
         "mpi_parts": 6,
-        "tsteps": 480,
+        "tsteps": 240,
         "crun": 2,
         "crun_compare": false,
         "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR earth-like earth uniform 32 33"
