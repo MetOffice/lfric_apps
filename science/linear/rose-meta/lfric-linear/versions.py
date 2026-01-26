@@ -31,3 +31,23 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn30_t129(MacroUpgrade):
+    # Upgrade macro for #129 by Tom Hill
+
+    BEFORE_TAG = "vn3.0"
+    AFTER_TAG = "vn3.0_t129"
+
+    def upgrade(self, config, meta_config=None):
+        """Add linear boundary layer physics scheme"""
+        self.add_setting(config, ["namelist:linear", "Blevs_m"], "15")
+        self.add_setting(config, ["namelist:linear", "e_folding_levs_m"], "10")
+        self.add_setting(config, ["namelist:linear", "l_0_m"], "80.0")
+        self.add_setting(config, ["namelist:linear", "l_boundary_layer"], ".true.")
+        self.add_setting(config, ["namelist:linear", "log_layer"], "2")
+        self.add_setting(config, ["namelist:linear", "u_land_m"], "0.4")
+        self.add_setting(config, ["namelist:linear", "u_sea_m"], "0.4")
+        self.add_setting(config, ["namelist:linear", "z_land_m"], "0.05")
+        self.add_setting(config, ["namelist:linear", "z_sea_m"], "0.0005")
+        return config, self.reports
