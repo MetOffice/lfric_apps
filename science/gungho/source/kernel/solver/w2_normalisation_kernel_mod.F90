@@ -22,7 +22,7 @@ module w2_normalisation_kernel_mod
                                 GH_BASIS, GH_DIFF_BASIS,   &
                                 CELL_COLUMN, GH_EVALUATOR
   use constants_mod,     only : r_def, r_solver, i_def
-  use fs_continuity_mod, only : W2, Wchi
+  use fs_continuity_mod, only : W2
   use kernel_mod,        only : kernel_type
 
   implicit none
@@ -39,14 +39,14 @@ module w2_normalisation_kernel_mod
     private
     type(arg_type) :: meta_args(4) = (/                                     &
          arg_type(GH_FIELD,   GH_REAL, GH_INC,  W2),                        &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ, Wchi),                      &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ, ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_FIELD,   GH_REAL, GH_READ, W2)                         &
 
          /)
-    type(func_type) :: meta_funcs(2) = (/         &
-         func_type(W2,   GH_BASIS),               &
-         func_type(Wchi, GH_BASIS, GH_DIFF_BASIS) &
+    type(func_type) :: meta_funcs(2) = (/                &
+         func_type(W2,          GH_BASIS),               &
+         func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS) &
          /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR

@@ -232,9 +232,9 @@ contains
       end if
 
       ! Copy chi to chi_in, to allow adjustment of continuous chi fields
-      call chi(1)%copy_field_properties(chi_in(1))
-      call chi(2)%copy_field_properties(chi_in(2))
-      call chi(3)%copy_field_properties(chi_in(3))
+      call chi(1)%copy_field_serial(chi_in(1))
+      call chi(2)%copy_field_serial(chi_in(2))
+      call chi(3)%copy_field_serial(chi_in(3))
 
       ! Break encapsulation and get the proxy
       chi_proxy(1) = chi(1)%get_proxy()
@@ -252,11 +252,6 @@ contains
 
       map_chi => chi_proxy(1)%vspace%get_whole_dofmap()
       map_pid => panel_id_proxy%vspace%get_whole_dofmap()
-
-      ! Copy data values into "chi_in" fields
-      chi_in_proxy(1)%data = chi_proxy(1)%data
-      chi_in_proxy(2)%data = chi_proxy(2)%data
-      chi_in_proxy(3)%data = chi_proxy(3)%data
 
       ! Call column procedure
       do cell = 1, chi_proxy(1)%vspace%get_ncell()
@@ -288,9 +283,9 @@ contains
       end if
 
       ! Copy chi to chi_in, to allow adjustment of continuous chi fields
-      call chi(1)%copy_field_properties(chi_in(1))
-      call chi(2)%copy_field_properties(chi_in(2))
-      call chi(3)%copy_field_properties(chi_in(3))
+      call chi(1)%copy_field_serial(chi_in(1))
+      call chi(2)%copy_field_serial(chi_in(2))
+      call chi(3)%copy_field_serial(chi_in(3))
 
       ! Break encapsulation and get the proxy
       chi_proxy(1) = chi(1)%get_proxy()
@@ -313,11 +308,6 @@ contains
       map_chi => chi_proxy(1)%vspace%get_whole_dofmap()
       map_sf => sfc_alt_proxy%vspace%get_whole_dofmap()
       map_pid => panel_id_proxy%vspace%get_whole_dofmap()
-
-      ! Copy data values into "chi_in" fields
-      chi_in_proxy(1)%data = chi_proxy(1)%data
-      chi_in_proxy(2)%data = chi_proxy(2)%data
-      chi_in_proxy(3)%data = chi_proxy(3)%data
 
       dim_sf = sfc_alt_proxy%vspace%get_dim_space()
       nodes => chi_proxy(1)%vspace%get_nodes()
