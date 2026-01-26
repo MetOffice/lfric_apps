@@ -35,7 +35,7 @@ module gungho_diagnostics_driver_mod
   use formulation_config_mod,    only : use_physics,             &
                                         moisture_formulation,    &
                                         moisture_formulation_dry
-  use fs_continuity_mod,         only : W3, Wtheta
+  use fs_continuity_mod,         only : W3, Wtheta, W2H, W0
   use integer_field_mod,         only : integer_field_type
   use initialization_config_mod, only : ls_option,          &
                                         ls_option_analytic, &
@@ -46,7 +46,7 @@ module gungho_diagnostics_driver_mod
   use log_mod,                   only : log_event, &
                                         LOG_LEVEL_DEBUG
   use sci_geometric_constants_mod,      &
-                                 only : get_panel_id, get_height_fe, &
+                                 only : get_panel_id, &
                                         get_height_fv, get_da_msl_proj
   use io_config_mod,             only : subroutine_timers, use_xios_io, write_fluxes
   use timer_mod,                 only : timer
@@ -101,8 +101,7 @@ contains
     type( field_type), pointer :: rho => null()
     type( field_type), pointer :: exner => null()
     type( field_type), pointer :: panel_id => null()
-    type( field_type), pointer :: height_w3 => null()
-    type( field_type), pointer :: height_wth => null()
+    type( field_type), pointer :: height => null()
     type( field_type), pointer :: lbc_u => null()
     type( field_type), pointer :: lbc_theta => null()
     type( field_type), pointer :: lbc_rho => null()
@@ -131,7 +130,6 @@ contains
     character(str_def) :: name
 
     integer :: fs
-    integer :: element_order_h, element_order_v
 
     procedure(write_interface), pointer  :: tmp_write_ptr => null()
 
@@ -161,20 +159,6 @@ contains
     call prognostic_fields%get_field('rho', rho)
     call prognostic_fields%get_field('exner', exner)
 
-    ! Get element orders and get the finite element or finite volume height
-    element_order_h = theta%get_element_order_h()
-    element_order_v = theta%get_element_order_v()
-
-    if (element_order_h > 0 .or. element_order_v > 0) then
-      ! Get the finite element height
-      height_w3 => get_height_fe(W3, mesh%get_id())
-      height_wth => get_height_fe(Wtheta, mesh%get_id())
-    else
-      ! Get the finite volume height
-      height_w3 => get_height_fv(W3, mesh%get_id())
-      height_wth => get_height_fv(Wtheta, mesh%get_id())
-    end if
-
     ! Scalar fields
     call write_scalar_diagnostic('rho', rho, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
@@ -182,10 +166,31 @@ contains
                                  modeldb%clock, mesh, nodal_output_on_w3)
     call write_scalar_diagnostic('exner', exner, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('height_w3', height_w3, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('height_wth', height_wth, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+
+    ! Write out heights of function space DoFs to initial file, if requested
+    if (use_xios_io .and. modeldb%clock%is_initialisation()) then
+      tmp_write_ptr => write_field_generic
+      if (diagnostic_to_be_sampled("init_height_w3")) then
+        height => get_height_fv(W3, mesh%get_id())
+        call height%set_write_behaviour(tmp_write_ptr)
+        call height%write_field("init_height_w3")
+      end if
+      if (diagnostic_to_be_sampled("init_height_wth")) then
+        height => get_height_fv(Wtheta, mesh%get_id())
+        call height%set_write_behaviour(tmp_write_ptr)
+        call height%write_field("init_height_wth")
+      end if
+      if (diagnostic_to_be_sampled("init_height_w2h")) then
+        height => get_height_fv(W2H, mesh%get_id())
+        call height%set_write_behaviour(tmp_write_ptr)
+        call height%write_field("init_height_w2h")
+      end if
+      if (diagnostic_to_be_sampled("init_height_w0")) then
+        height => get_height_fv(W0, mesh%get_id())
+        call height%set_write_behaviour(tmp_write_ptr)
+        call height%write_field("init_height_w0")
+      end if
+    end if
 
     if (transport_ageofair) then
       call con_tracer_last_outer%get_field('ageofair',ageofair)

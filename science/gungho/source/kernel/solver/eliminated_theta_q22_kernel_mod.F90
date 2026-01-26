@@ -16,18 +16,19 @@
 !!          https://code.metoffice.gov.uk/trac/lfric/wiki/GhaspSupport/Documentation
 module eliminated_theta_q22_kernel_mod
 
-  use argument_mod,            only: arg_type, func_type,     &
-                                     GH_OPERATOR, GH_FIELD,   &
-                                     GH_REAL, GH_SCALAR,      &
-                                     GH_READ, GH_WRITE,       &
-                                     GH_BASIS, GH_DIFF_BASIS, &
-                                     CELL_COLUMN,             &
-                                     GH_QUADRATURE_XYoZ,      &
-                                     ANY_DISCONTINUOUS_SPACE_3
+  use argument_mod,            only: arg_type, func_type,       &
+                                     GH_OPERATOR, GH_FIELD,     &
+                                     GH_REAL, GH_SCALAR,        &
+                                     GH_READ, GH_WRITE,         &
+                                     GH_BASIS, GH_DIFF_BASIS,   &
+                                     CELL_COLUMN,               &
+                                     GH_QUADRATURE_XYoZ,        &
+                                     ANY_DISCONTINUOUS_SPACE_3, &
+                                     ANY_SPACE_9
 
   use constants_mod,           only: i_def, r_def, r_solver
   use sci_coordinate_jacobian_mod, only: coordinate_jacobian
-  use fs_continuity_mod,       only: W2, Wtheta, Wchi
+  use fs_continuity_mod,       only: W2, Wtheta
   use kernel_mod,              only: kernel_type
 
   implicit none
@@ -45,14 +46,14 @@ module eliminated_theta_q22_kernel_mod
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),                        &
-        arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  Wchi),                      &
+        arg_type(GH_FIELD*3,  GH_REAL, GH_READ,  ANY_SPACE_9),               &
         arg_type(GH_FIELD,    GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
         arg_type(GH_SCALAR,   GH_REAL, GH_READ)                              &
         /)
     type(func_type) :: meta_funcs(3) = (/                                    &
-        func_type(W2,     GH_BASIS),                                         &
-        func_type(Wtheta,           GH_DIFF_BASIS),                          &
-        func_type(Wchi,   GH_BASIS, GH_DIFF_BASIS)                           &
+        func_type(W2,          GH_BASIS),                                    &
+        func_type(Wtheta,      GH_DIFF_BASIS),                               &
+        func_type(ANY_SPACE_9, GH_BASIS, GH_DIFF_BASIS)                      &
         /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_QUADRATURE_XYoZ

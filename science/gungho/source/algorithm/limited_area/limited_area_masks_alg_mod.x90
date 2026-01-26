@@ -12,6 +12,7 @@
 module limited_area_masks_alg_mod
 
   use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: Wchi
   use constants_mod,                      only: i_def, r_def, l_def, PI, &
                                                 degrees_to_radians,      &
                                                 radians_to_degrees
@@ -351,6 +352,14 @@ contains
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
 
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        call log_event(                                                        &
+            'Coordinate based LBC method only implemented for coordinates ' // &
+            'in the Wchi function space', LOG_LEVEL_ERROR                      &
+        )
+      end if
+
       if ( rim_width_ns > 0 ) then
         outer_n = boundary_n - outer_width_ns
         outer_s = boundary_s - outer_width_ns
@@ -541,6 +550,14 @@ contains
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
 
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        call log_event(                                                        &
+            'Coordinate based LBC method only implemented for coordinates ' // &
+            'in the Wchi function space', LOG_LEVEL_ERROR                      &
+        )
+      end if
+
       if ( rim_width_ns > 0 ) then
         outer_n = boundary_n - outer_width_ns
         outer_s = boundary_s - outer_width_ns
@@ -716,6 +733,14 @@ contains
     mesh => function_space%get_mesh()
     domain = mesh%get_domain()
 
+    ! The kernels require chi to be in Wchi
+    if (chi(1)%which_function_space() /= Wchi) then
+      call log_event(                                                          &
+          'Coordinate based LBC method only implemented for coordinates ' //   &
+          'in the Wchi function space', LOG_LEVEL_ERROR                        &
+      )
+    end if
+
     call calculate_boundary_coordinates( &
       coord_bound_s, &
       coord_bound_n, &
@@ -808,6 +833,14 @@ contains
       function_space => mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        call log_event(                                                        &
+            'Coordinate based LBC method only implemented for coordinates ' // &
+            'in the Wchi function space', LOG_LEVEL_ERROR                      &
+        )
+      end if
 
       call calculate_boundary_coordinates( &
          coord_bound_s, &
@@ -905,6 +938,14 @@ contains
       function_space => boundary_mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        call log_event(                                                        &
+            'Coordinate based LBC method only implemented for coordinates ' // &
+            'in the Wchi function space', LOG_LEVEL_ERROR                      &
+        )
+      end if
 
       call calculate_boundary_coordinates( &
          coord_bound_s, &

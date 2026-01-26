@@ -37,7 +37,7 @@ contains
     use feign_config_mod,           only : feign_finite_element_config,   &
                                            feign_mixing_config
     use finite_element_config_mod,  only : cellshape_quadrilateral,       &
-                                           coord_system_xyz
+                                           coord_system_xyz, coord_space_wchi
     use mixing_config_mod,          only : method_3d_smag,                &
                                            smag_l_calc, smag_l_calc_UseDx
 
@@ -59,6 +59,8 @@ contains
         element_order_h=0_i_def,           &
         element_order_v=0_i_def,           &
         coord_order=0_i_def,               &
+        coord_order_multigrid=1_i_def,     &
+        coord_space=coord_space_wchi,      &
         coord_system=coord_system_xyz,     &
         rehabilitate=.true.,               &
         vorticity_in_w1=.false. )

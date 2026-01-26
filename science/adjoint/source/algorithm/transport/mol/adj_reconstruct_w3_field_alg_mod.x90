@@ -7,7 +7,6 @@
 !> @brief Adjoint reconstruction of a W3 field at W2 points for use in the transport scheme.
 module adj_reconstruct_w3_field_alg_mod
 
-  use check_configuration_mod,              only: get_required_stencil_depth
   use constants_mod,                        only: r_tran, i_def, l_def
   use r_tran_field_mod,                     only: r_tran_field_type
 
@@ -90,7 +89,7 @@ contains
 
     ! Copy field to a large halo version
     call field_old_big_halo%initialise( field_old%get_function_space(), &
-                                        halo_depth = get_required_stencil_depth() )
+                                        halo_depth=mesh%get_halo_depth() )
     call invoke( setval_c( field_old_big_halo, 0.0_r_tran ) )
 
     monotone = (transport_metadata%get_horizontal_monotone() == monotone_koren)
