@@ -22,8 +22,8 @@ module adjt_mixed_schur_preconditioner_alg_mod
                                               igh_p, igh_t, igh_d, igh_u
   use sci_iterative_solver_mod,         only: abstract_iterative_solver_type, &
                                               bicgstab_type
-  use io_config_mod,                    only: subroutine_timers
-  use timer_mod,                        only: timer
+  use timing_mod,                       only: start_timing, stop_timing, &
+                                              tik, LPROF
   use finite_element_config_mod,        only: element_order_h, element_order_v
   use function_space_collection_mod,    only: function_space_collection
   use copy_field_alg_mod,               only: copy_field
@@ -126,8 +126,9 @@ contains
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
     real(kind=r_def), parameter :: eps = 1e-30_r_def
+    integer(kind=tik)           :: id
 
-    if (subroutine_timers) call timer('adjt_mixed_schur_preconditioner_alg')
+    if ( LPROF ) call start_timing( id, 'adjt_mixed_schur_preconditioner_alg' )
 
     ! --------------------------------------------------------------------------
     ! Setup
@@ -305,7 +306,7 @@ contains
     deallocate( pressure_preconditioner, pressure_solver, mixed_preconditioner, &
                 adj_pressure_preconditioner, adj_pressure_solver, adj_mixed_preconditioner )
 
-    if (subroutine_timers) call timer('adjt_mixed_schur_preconditioner_alg')
+    if ( LPROF ) call stop_timing( id, 'adjt_mixed_schur_preconditioner_alg' )
 
   end subroutine adjt_mixed_schur_preconditioner_alg
 

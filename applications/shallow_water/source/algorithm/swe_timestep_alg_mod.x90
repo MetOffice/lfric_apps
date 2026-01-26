@@ -27,13 +27,13 @@ module swe_timestep_alg_mod
   use model_clock_mod,                only: model_clock_type
 
   ! Configuration options
-  use io_config_mod,                  only: subroutine_timers
   use shallow_water_settings_config_mod,                     &
                                       only: ref_gp,          &
                                             thermal_swe,     &
                                             time_scheme,     &
                                             time_scheme_semi_implicit
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
   use timestepping_config_mod,        only: alpha,            &
                                             outer_iterations, &
                                             inner_iterations
@@ -433,8 +433,9 @@ contains
     real(kind=r_def) :: alpha_dt
     real(kind=r_def) :: beta_dt
     type(field_type) :: wind_prev
+    integer(tik)     :: id_sw_alg
 
-    if ( subroutine_timers ) call timer('shallow_water_alg_si')
+    if ( LPROF ) call start_timing( id_sw_alg, 'shallow_water_alg_si' )
     !--- Do a single timestep --------------------------------------------------
 
     ! set up state variable
@@ -584,7 +585,7 @@ contains
     end if
     call state%export_field(q, isw_q)
 
-    if ( subroutine_timers ) call timer('shallow_water_alg_si')
+    if ( LPROF ) call stop_timing( id_sw_alg, 'shallow_water_alg_si' )
 
   end subroutine swe_timestep_alg_si
 
@@ -742,8 +743,9 @@ contains
     ! Variables after forward Euler step
     type( field_type ) :: wind_fe1, geopot_fe1, buoyancy_fe1, q_fe1
     type( field_type ) :: wind_fe2, geopot_fe2, buoyancy_fe2, q_fe2
+    integer(tik)       :: id_swe_ssprk3
 
-    if ( subroutine_timers ) call timer('swe_timestep_alg_ssprk3')
+    if ( LPROF ) call start_timing( id_swe_ssprk3, 'swe_timestep_alg_ssprk3' )
     !--- Do a single timestep --------------------------------------------------
 
     ! Initialise variables
@@ -830,7 +832,7 @@ contains
                  aX_plus_bY( buoyancy, onethird, buoyancy_n, twothird, buoyancy_fe2 ) )
     call swe_init_vorticity_alg(wind, geopot, q)
 
-    if ( subroutine_timers ) call timer('swe_timestep_alg_ssprk3')
+    if ( LPROF ) call stop_timing( id_swe_ssprk3, 'swe_timestep_alg_ssprk3' )
 
   end subroutine swe_timestep_alg_ssprk3
 
@@ -892,8 +894,9 @@ contains
   real(kind=r_def), parameter :: one_sixth = 1.0_r_def/6.0_r_def
   real(kind=r_def), parameter :: one_twenty_fourth = 1.0_r_def/24.0_r_def
   real(kind=r_def), parameter :: three_eighths = 3.0_r_def/8.0_r_def
+  integer(kind=tik)           :: id_swe_rk4
 
-  if ( subroutine_timers ) call timer('swe_timestep_alg_rk4')
+  if ( LPROF ) call start_timing( id_swe_rk4, 'swe_timestep_alg_rk4' )
   !--- Do a single timestep --------------------------------------------------
 
   ! Initialise all the variables
@@ -1036,7 +1039,7 @@ contains
                inc_X_plus_bY( buoyancy, one_sixth, buoyancy_fe3 ) )
   call swe_init_vorticity_alg(wind, geopot, q)
 
-  if ( subroutine_timers ) call timer('swe_timestep_alg_rk4')
+  if ( LPROF ) call stop_timing( id_swe_rk4, 'swe_timestep_alg_rk4' )
 
   end subroutine swe_timestep_alg_rk4
 
