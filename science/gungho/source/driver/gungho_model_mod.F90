@@ -417,6 +417,7 @@ contains
 
     logical(l_def)                  :: mesh_already_exists
     integer(i_def)                  :: i, j, mesh_ctr
+    integer(i_def),     allocatable :: stencil_depths(:)
     character(str_def), allocatable :: base_mesh_names(:)
     character(str_def), allocatable :: meshes_to_shift(:)
     character(str_def), allocatable :: meshes_to_double(:)
@@ -445,7 +446,6 @@ contains
 
     integer(i_def) :: geometry
     integer(i_def) :: extrusion_method
-    integer(i_def) :: stencil_depth
     real(r_def)    :: domain_bottom
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
@@ -672,13 +672,17 @@ contains
       apply_partition_check = .true.
     end if
 
-    stencil_depth = get_required_stencil_depth()
+    allocate(stencil_depths(size(base_mesh_names)))
+    call get_required_stencil_depth(                                           &
+        stencil_depths, base_mesh_names, modeldb%configuration                 &
+    )
+
     call init_mesh( modeldb%configuration,        &
                     modeldb%mpi%get_comm_rank(),  &
                     modeldb%mpi%get_comm_size(),  &
                     base_mesh_names,              &
                     extrusion,                    &
-                    get_required_stencil_depth(), &
+                    stencil_depths,               &
                     apply_partition_check )
 
 
@@ -922,6 +926,7 @@ contains
             chi_inventory, panel_id_inventory, files_init_ptr,     &
             orography_mesh, orography_twod_mesh)
     deallocate(base_mesh_names)
+    deallocate(stencil_depths)
     if (allocated(meshes_to_shift))  deallocate(meshes_to_shift)
     if (allocated(meshes_to_double)) deallocate(meshes_to_double)
 

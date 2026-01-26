@@ -69,7 +69,7 @@ program algorithm_test
   logical(l_def) :: apply_partition_check
 
   integer(i_def) :: geometry
-  integer(i_def) :: stencil_depth
+  integer(i_def) :: stencil_depth(1)
   integer(i_def) :: method
   integer(i_def) :: number_of_layers
   real(r_def)    :: domain_bottom

@@ -22,7 +22,6 @@ module adjt_reconstruct_w3_field_alg_mod
   use function_space_collection_mod,       only : function_space_collection
   use transport_metadata_collection_mod,   only : transport_metadata_collection
   use transport_metadata_mod,              only : transport_metadata_type
-  use check_configuration_mod,             only : get_required_stencil_depth
 
   implicit none
 
