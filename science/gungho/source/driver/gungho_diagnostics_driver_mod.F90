@@ -47,7 +47,7 @@ module gungho_diagnostics_driver_mod
                                         LOG_LEVEL_DEBUG
   use sci_geometric_constants_mod,      &
                                  only : get_panel_id, &
-                                        get_height_fv, get_da_msl_proj
+                                        get_height_fe, get_da_msl_proj
   use io_config_mod,             only : subroutine_timers, use_xios_io, write_fluxes
   use timer_mod,                 only : timer
   use transport_config_mod,      only : transport_ageofair
@@ -86,54 +86,52 @@ contains
     type(mesh_type),     intent(in),    pointer :: twod_mesh
     logical,             intent(in)             :: nodal_output_on_w3
 
-    type( field_collection_type ), pointer :: prognostic_fields => null()
-    type( field_collection_type ), pointer :: con_tracer_last_outer
-    type( field_collection_type ), pointer :: lbc_fields
-    type( field_collection_type ), pointer :: moisture_fields => null()
-    type( field_type ),            pointer :: mr(:) => null()
-    type( field_type ),            pointer :: moist_dyn(:) => null()
-    type( field_collection_type ), pointer :: derived_fields
+    type(field_collection_type), pointer :: prognostic_fields
+    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: lbc_fields
+    type(field_collection_type), pointer :: moisture_fields
+    type(field_type),            pointer :: mr(:)
+    type(field_type),            pointer :: moist_dyn(:)
+    type(field_collection_type), pointer :: derived_fields
 
-    type( field_type), pointer :: theta => null()
-    type( field_type), pointer :: u => null()
-    type( field_type), pointer :: h_u => null()
-    type( field_type), pointer :: v_u => null()
-    type( field_type), pointer :: rho => null()
-    type( field_type), pointer :: exner => null()
-    type( field_type), pointer :: panel_id => null()
-    type( field_type), pointer :: height => null()
-    type( field_type), pointer :: lbc_u => null()
-    type( field_type), pointer :: lbc_theta => null()
-    type( field_type), pointer :: lbc_rho => null()
-    type( field_type), pointer :: lbc_exner => null()
-    type( field_type), pointer :: lbc_m_v=> null()
-    type( field_type), pointer :: lbc_q=> null()
-    type( field_type), pointer :: u_in_w2h => null()
-    type( field_type), pointer :: v_in_w2h => null()
-    type( field_type), pointer :: w_in_wth => null()
-    type( field_type), pointer :: ageofair => null()
-    type( field_type), pointer :: exner_in_wth => null()
-    type( field_type), pointer :: dA => null()
+    type(field_type), pointer :: theta
+    type(field_type), pointer :: u
+    type(field_type), pointer :: h_u
+    type(field_type), pointer :: v_u
+    type(field_type), pointer :: rho
+    type(field_type), pointer :: exner
+    type(field_type), pointer :: panel_id
+    type(field_type), pointer :: height
+    type(field_type), pointer :: lbc_u
+    type(field_type), pointer :: lbc_theta
+    type(field_type), pointer :: lbc_rho
+    type(field_type), pointer :: lbc_exner
+    type(field_type), pointer :: lbc_m_v
+    type(field_type), pointer :: lbc_q
+    type(field_type), pointer :: u_in_w2h
+    type(field_type), pointer :: v_in_w2h
+    type(field_type), pointer :: w_in_wth
+    type(field_type), pointer :: ageofair
+    type(field_type), pointer :: exner_in_wth
+    type(field_type), pointer :: dA
 
-    type(field_array_type), pointer :: mr_array => null()
-    type(field_array_type), pointer :: moist_dyn_array => null()
+    type(field_array_type), pointer :: mr_array
+    type(field_array_type), pointer :: moist_dyn_array
 
     ! Iterator for field collection
     type(field_collection_iterator_type)  :: iterator
 
     ! A pointer used for retrieving fields from collections
     ! when iterating over them
-    class( field_parent_type ), pointer :: field_ptr  => null()
+    class(field_parent_type),   pointer :: field_ptr => null()
+    procedure(write_interface), pointer :: tmp_write_ptr
+    type(io_value_type),        pointer :: temp_corr_io_value
 
-    type(io_value_type), pointer :: temp_corr_io_value
+    integer(kind=i_def)    :: i, fs
+    character(len=str_def) :: name, prefix, field_name
 
-    character(str_def) :: name
-
-    integer :: fs
-
-    procedure(write_interface), pointer  :: tmp_write_ptr => null()
-
-    integer :: i
+    integer(kind=i_def),    allocatable :: fs_ids(:)
+    character(len=str_def), allocatable :: fs_names(:)
 
     if ( subroutine_timers ) call timer('gungho_diagnostics_driver')
 
@@ -167,30 +165,30 @@ contains
     call write_scalar_diagnostic('exner', exner, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
 
-    ! Write out heights of function space DoFs to initial file, if requested
-    if (use_xios_io .and. modeldb%clock%is_initialisation()) then
+    ! Write out heights of function space DoFs, if requested
+    allocate(fs_names(4))
+    allocate(fs_ids(4))
+    fs_names = (/ "w0 ", "w2h", "w3 ", "wth" /)  ! Spaces to align lengths
+    fs_ids = (/ W0, W2H, W3, Wtheta /)
+    if (use_xios_io) then
+      if (modeldb%clock%is_initialisation()) then
+        prefix = "init_"
+      else
+        prefix = ""
+      end if
       tmp_write_ptr => write_field_generic
-      if (diagnostic_to_be_sampled("init_height_w3")) then
-        height => get_height_fv(W3, mesh%get_id())
-        call height%set_write_behaviour(tmp_write_ptr)
-        call height%write_field("init_height_w3")
-      end if
-      if (diagnostic_to_be_sampled("init_height_wth")) then
-        height => get_height_fv(Wtheta, mesh%get_id())
-        call height%set_write_behaviour(tmp_write_ptr)
-        call height%write_field("init_height_wth")
-      end if
-      if (diagnostic_to_be_sampled("init_height_w2h")) then
-        height => get_height_fv(W2H, mesh%get_id())
-        call height%set_write_behaviour(tmp_write_ptr)
-        call height%write_field("init_height_w2h")
-      end if
-      if (diagnostic_to_be_sampled("init_height_w0")) then
-        height => get_height_fv(W0, mesh%get_id())
-        call height%set_write_behaviour(tmp_write_ptr)
-        call height%write_field("init_height_w0")
-      end if
+      do i = 1, SIZE(fs_names)
+        field_name = trim(prefix)//"height_"//trim(fs_names(i))
+        fs = fs_ids(i)
+        if (diagnostic_to_be_sampled(trim(field_name))) then
+          height => get_height_fe(fs, mesh%get_id())
+          call height%set_write_behaviour(tmp_write_ptr)
+          call height%write_field(trim(field_name))
+        end if
+      end do
     end if
+    deallocate(fs_names)
+    deallocate(fs_ids)
 
     if (transport_ageofair) then
       call con_tracer_last_outer%get_field('ageofair',ageofair)
@@ -238,7 +236,7 @@ contains
 
     ! Moisture fields
     if ( moisture_formulation /= moisture_formulation_dry ) then
-      do i=1,nummr
+      do i = 1, nummr
         call write_scalar_diagnostic( trim(mr_names(i)), mr(i), &
                                       modeldb%clock, mesh, nodal_output_on_w3 )
       end do
@@ -281,8 +279,8 @@ contains
                                      modeldb%clock, mesh, nodal_output_on_w3)
         call write_vector_diagnostic('readlbc_h_u', h_u, &
                                      modeldb%clock, mesh, nodal_output_on_w3)
-      endif
-    endif
+      end if
+    end if
 
     ! Derived physics fields (only those on W3 or Wtheta)
     if (use_physics .and. use_xios_io .and. .not. modeldb%clock%is_initialisation()) then
