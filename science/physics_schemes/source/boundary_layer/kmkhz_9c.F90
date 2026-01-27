@@ -2590,11 +2590,11 @@ end if
 
 !do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
-!$OMP  private (i, ii, i_wt, k, kl, km, kp, kp2, kmax, wstar3, c_ws, w_m,   &
+!$OMP  private (i, ii, i_wt, k, kl, km, kp, kp2, kmax, wstar3, c_ws, w_m,      &
 !$OMP  pr_neut, w_h, k_cff, virt_factor, z_cbase , zdsc_cbase, dsl_ga,         &
 !$OMP  dqw_ga, cfl_ml, cff_ml, dqw, dsl, dqcl, dqcf, db_disc, cu_depth_fac,    &
 !$OMP  k_rad_lim, z_rad_lim ,dfsw_inv, dflw_inv, dfsw_top, dsldz, cf_for_wb,   &
-!$OMP  grad_t_adj_inv_rdz, grad_q_adj_inv_rdz)
+!$OMP  grad_t_adj_inv_rdz, grad_q_adj_inv_rdz, denom)
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
 
