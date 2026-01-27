@@ -8,7 +8,7 @@
 
 module spt_main_alg_mod
 
-    use constants_mod,        only: r_def, i_def, l_def
+    use constants_mod,        only: r_def, i_def, l_def, r_second
     use fs_continuity_mod,    only: W0, Wtheta
     ! define types
     use clock_mod,            only: clock_type
@@ -16,9 +16,8 @@ module spt_main_alg_mod
     use field_collection_mod, only: field_collection_type
     use mesh_mod,             only: mesh_type
     ! for IO and timers
-    use io_config_mod,        only: write_diag, use_xios_io, &
-                                    subroutine_timers
-    use timer_mod,            only: timer
+    use io_config_mod,        only: write_diag, use_xios_io
+    use timing_mod,           only: start_timing, stop_timing, tik, LPROF
     ! load modules to set up the W0 space for 1-2-1 filtering
     ! wtheta -> w0 bottom DoF -> wtheta
     use function_space_collection_mod, only: function_space_collection
@@ -79,32 +78,39 @@ module spt_main_alg_mod
                           microphysics_fields, radiation_fields,     &
                           derived_fields, orography_fields, clock)
 
+  ! Timestepping parameters
+  use timestepping_config_mod,    only: dt_timestep => dt
+
   ! SPT parameters
-  use stochastic_physics_config_mod, only:                            &
+  use stochastic_physics_config_mod, only:                                  &
                                            ! Switches to use different
                                            ! parametrizations
-                                           spt_use_radiation,         &
-                                           spt_use_microphysics,&
-                                           spt_use_convection, &
+                                           spt_use_radiation,               &
+                                           spt_use_microphysics,            &
+                                           spt_use_convection,              &
                                            ! Std dev of each param.
-                                           spt_stddev_radiation,      &
-                                           spt_stddev_microphysics,   &
-                                           spt_stddev_convection,     &
+                                           spt_stddev_radiation,            &
+                                           spt_stddev_microphysics,         &
+                                           spt_stddev_convection,           &
                                            ! CFL criteria
-                                           spt_convection_cfl_limit, &
+                                           spt_convection_cfl_limit,        &
                                            ! conservation
-                                           spt_mse_conservation, &
-                                           spt_moisture_conservation, &
+                                           spt_mse_conservation,            &
+                                           spt_moisture_conservation,       &
                                            ! 1-2-1 smoothing
-                                           spt_n_smoothing_iters, &
+                                           spt_n_smoothing_iters,           &
                                            ! Add increments
-                                           spt_add_increments,        &
+                                           spt_add_increments,              &
                                            ! SPT levels
-                                           spt_level_bottom,          &
-                                           spt_level_top,             &
+                                           spt_level_bottom,                &
+                                           spt_level_top,                   &
+                                           spt_level_begin_tapering_bottom, &
+                                           spt_level_begin_tapering_top,    &
+                                           spt_orog_forcing_pattern_thresh, &
+                                           spt_stddev_orog_thres,           &
                                            ! Stoch Phy wavenumbers
-                                           stph_n_max,                &
-                                           stph_spectral_dim,         &
+                                           stph_n_max,                      &
+                                           stph_spectral_dim,               &
                                            ! power law
                                            spt_decorrelation_time
 
@@ -223,7 +229,16 @@ module spt_main_alg_mod
   ! iterators in for loops
   integer(i_def) :: n,n_row, m
 
-  if ( subroutine_timers ) call timer("spt_main_alg")
+  ! Timestepping_config_mod scalar (for PSyclone to know data type)
+  real(kind=r_second) :: timestepping_config_mod_dt
+
+  ! Timing handle
+  integer(tik)   :: id
+
+
+  if ( LPROF ) call start_timing( id, 'spt_main_alg' )
+
+  timestepping_config_mod_dt = dt_timestep
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  1)  Create Forcing pattern  ||
@@ -362,10 +377,12 @@ module spt_main_alg_mod
     if (spt_convection_cfl_limit) then
       if (.not. spt_mse_conservation) then
         call invoke(spt_convection_cfl_limit_cap_kernel_type(dt_conv_cfl,  massflux_up, &
-                                            fp_spt, pressure))
+                                            fp_spt, pressure, spt_level_bottom, &
+                                            spt_level_top, timestepping_config_mod_dt))
       end if
       call invoke(spt_convection_cfl_limit_cap_kernel_type(dmv_conv_cfl,  massflux_up,  &
-                                          fp_spt, pressure))
+                                          fp_spt, pressure, spt_level_bottom, &
+                                          spt_level_top, timestepping_config_mod_dt))
     end if
 
     ! Apply tendencies to dX_spt, conver dt to theta
@@ -393,18 +410,28 @@ module spt_main_alg_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (.not. spt_mse_conservation) then
-    call invoke(spt_levels_cap_kernel_type(dtheta_spt))
+    call invoke(spt_levels_cap_kernel_type(dtheta_spt, spt_level_bottom,  &
+                              spt_level_top, spt_level_begin_tapering_bottom,  &
+                              spt_level_begin_tapering_top))
   end if
-  call invoke(spt_levels_cap_kernel_type(dmv_spt))
+  call invoke(spt_levels_cap_kernel_type(dmv_spt, spt_level_bottom,  &
+                              spt_level_top, spt_level_begin_tapering_bottom,  &
+                              spt_level_begin_tapering_top))
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  5)  Apply orographic capping  !!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   if (.not. spt_mse_conservation) then
-    call invoke(spt_orog_cap_kernel_type(dtheta_spt,fp_spt,sd_orog))
+    call invoke(spt_orog_cap_kernel_type(dtheta_spt,fp_spt,sd_orog,  &
+                            spt_level_bottom, spt_level_top,  &
+                            spt_orog_forcing_pattern_thresh,  &
+                            spt_stddev_orog_thres))
   end if
-  call invoke(spt_orog_cap_kernel_type(dmv_spt,fp_spt,sd_orog))
+  call invoke(spt_orog_cap_kernel_type(dmv_spt,fp_spt,sd_orog,  &
+                            spt_level_bottom, spt_level_top,  &
+                            spt_orog_forcing_pattern_thresh,  &
+                            spt_stddev_orog_thres))
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  6)  Remove points where perturbations cause super-saturation  !!
@@ -462,7 +489,9 @@ module spt_main_alg_mod
   if (spt_moisture_conservation) then
     mesh   => dtheta%get_mesh()
     dz_wth => get_dz_at_wtheta(mesh%get_id())
-    call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth,rho_in_wth))
+    call invoke(spt_moisture_conservation_kernel_type(dmv_spt,mv,dz_wth, &
+                                            rho_in_wth,spt_level_bottom, &
+                                            spt_level_top))
   end if
 
   ! Apply MSE conservation in the column if requested
@@ -490,7 +519,7 @@ module spt_main_alg_mod
     call dmv_spt%write_field('stochastic__dmv_spt')
   end if
 
-  if ( subroutine_timers ) call timer("spt_main_alg")
+  if ( LPROF ) call stop_timing( id, 'spt_main_alg' )
 
   end subroutine spt_main_alg
 end module spt_main_alg_mod
