@@ -39,8 +39,7 @@ contains
 
     use pc2_homogeneous_kernel_mod, only: pc2_homogeneous_kernel_type
     use mr_indices_mod,             only: imr_v, imr_cl, nummr
-    use io_config_mod,              only: subroutine_timers
-    use timer_mod,                  only: timer
+    use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
 
     implicit none
 
@@ -69,8 +68,9 @@ contains
     type( field_type ), pointer :: frozen_fraction      => null()
     type( field_type ), pointer :: bulk_fraction        => null()
     type( field_type ), pointer :: exner_after_slow_wth => null()
+    integer( tik)               :: id_alg, id_xios
 
-    if ( subroutine_timers ) call timer("pc2_pressure_forcing_alg")
+    if ( LPROF ) call start_timing( id_alg, 'pc2_pressure_forcing_alg' )
 
     ! Unpack fields
     call cloud_fields%get_field('liquid_fraction', liquid_fraction)
@@ -126,16 +126,16 @@ contains
                         inc_X_plus_Y(liquid_fraction, dcfl_pc2_inc), &
                         inc_X_plus_Y(bulk_fraction,   dbcf_pc2_inc)  )
 
-    if ( subroutine_timers ) call timer("pc2_pressure_forcing_alg")
+    if ( LPROF ) call stop_timing( id_alg, 'pc2_pressure_forcing_alg' )
 
     if ( write_diag .and. use_xios_io ) then
-      if ( subroutine_timers ) call timer("pc2_pressure_forcing_xios")
+      if ( LPROF ) call start_timing( id_xios, 'pc2_pressure_forcing_xios' )
       call dtheta_pc2_inc%write_field('cloud__dtheta_pc2_pressure_change'//trim(name_ext))
       call dmv_pc2_inc%write_field('cloud__dmv_pc2_pressure_change'//trim(name_ext))
       call dmcl_pc2_inc%write_field('cloud__dmcl_pc2_pressure_change'//trim(name_ext))
       call dcfl_pc2_inc%write_field('cloud__dcfl_pc2_pressure_change'//trim(name_ext))
       call dbcf_pc2_inc%write_field('cloud__dbcf_pc2_pressure_change'//trim(name_ext))
-      if ( subroutine_timers ) call timer("pc2_pressure_forcing_xios")
+      if ( LPROF ) call stop_timing( id_xios, 'pc2_pressure_forcing_xios' )
     end if
 
   end subroutine pc2_pressure_forcing_alg
