@@ -15,7 +15,6 @@ program adjoint_tests
   use driver_comm_mod,         only : init_comm, final_comm
   use driver_config_mod,       only : init_config, final_config
   use driver_log_mod,          only : init_logger, final_logger
-  use driver_timer_mod,        only : init_timers, final_timers
   use driver_time_mod,         only : init_time, final_time
   use gungho_mod,              only : gungho_required_namelists
   use driver_modeldb_mod,      only : modeldb_type
@@ -93,7 +92,6 @@ program adjoint_tests
   call final_collections()
   call final_timing( application_name )
   call final_logger( application_name )
-  call final_timers( application_name )
   call final_config()
   call final_comm( modeldb )
 
