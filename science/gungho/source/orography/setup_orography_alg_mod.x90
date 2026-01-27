@@ -151,7 +151,7 @@ contains
     call panel_id_inventory%get_field(source_mesh, panel_id)
 
     ! Compute surface altitude in W0 space
-    call surface_altitude_alg(surf_alt_w0, surf_alt_w3, chi, panel_id)
+    call surface_altitude_alg(surf_alt_w0, surf_alt_w3)
 
     call log_field_minmax(LOG_LEVEL_INFO, 'srf_alt_w3', surf_alt_w3)
     call log_field_minmax(LOG_LEVEL_INFO, 'srf_alt_w0', surf_alt_w0)
@@ -274,9 +274,7 @@ contains
         call panel_id_inventory%get_field(target_mesh, panel_id)
 
         ! Compute surface altitude in W0 space
-        call surface_altitude_alg(                                             &
-            surf_alt_w0, surf_alt_list(i+1), chi, panel_id                     &
-        )
+        call surface_altitude_alg(surf_alt_w0, surf_alt_list(i+1))
 
         surf_alt_w0_ptr => surf_alt_w0
       end if
