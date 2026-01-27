@@ -269,7 +269,7 @@ contains
          call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG)
          call self%pressure_solver%apply(self%pressure_x, self%pressure_b)
 
-         if ( subroutine_timers ) call timer('mxed_schur_solve')
+         if ( subroutine_timers ) call timer('mixed_schur_solve')
 
           ! STEP 3: Back substitute to obtain other fields
           call self%back_substitute(y)
