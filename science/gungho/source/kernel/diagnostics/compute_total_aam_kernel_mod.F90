@@ -29,7 +29,6 @@ module compute_total_aam_kernel_mod
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
 
-
   implicit none
 
   private

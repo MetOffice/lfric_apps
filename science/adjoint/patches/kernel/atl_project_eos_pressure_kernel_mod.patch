@@ -1,5 +1,3 @@
---- ./applications/adjoint_tests/working/build_adjoint_tests/kernel/core_dynamics/atl_project_eos_pressure_kernel_mod.F90.orig	2026-01-27 07:11:08.000000000 +0000
-+++ ./applications/adjoint_tests/working/build_adjoint_tests/kernel/core_dynamics/atl_project_eos_pressure_kernel_mod.F90	2026-01-27 07:30:11.000000000 +0000
 @@ -1,4 +1,4 @@
 -module adj_project_eos_pressure_kernel_mod
 +module atl_project_eos_pressure_kernel_mod
