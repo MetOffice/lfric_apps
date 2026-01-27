@@ -82,7 +82,7 @@ def determine_project_path(project, root_dir):
     )
 
 
-def clone_dependency(source, ref, temp_dep):
+def clone_dependency(values, temp_dep):
     """
     Clone the physics dependencies into a temporary directory
     """
