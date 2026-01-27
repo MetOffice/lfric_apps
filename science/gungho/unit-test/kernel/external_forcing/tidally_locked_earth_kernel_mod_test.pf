@@ -8,7 +8,7 @@
 !>
 module tidally_locked_earth_kernel_mod_test
 
-  use constants_mod,       only : i_def, r_def, r_second, PI
+  use constants_mod,       only : i_def, r_def, r_second, PI, imdi
   use coord_transform_mod, only : llr2xyz
   use funit
 
