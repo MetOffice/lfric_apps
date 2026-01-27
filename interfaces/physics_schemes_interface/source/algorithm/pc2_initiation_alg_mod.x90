@@ -60,8 +60,7 @@ contains
 
     use pc2_initiation_kernel_mod, only: pc2_initiation_kernel_type
     use mr_indices_mod,            only: imr_v, imr_cl, imr_ci, imr_s, nummr
-    use io_config_mod,             only: subroutine_timers
-    use timer_mod,                 only: timer
+    use timing_mod,                only: start_timing, stop_timing, tik, LPROF
 
     implicit none
 
@@ -116,8 +115,9 @@ contains
 
     type( mesh_type ),  pointer :: mesh => null()
     integer( kind=i_def ) :: ncells
+    integer( tik )        :: id_alg, id_xios
 
-    if ( subroutine_timers ) call timer("pc2_initiation_alg")
+    if ( LPROF ) call start_timing( id_alg, 'pc2_initiation_alg' )
 
     ! Unpack fields
     call derived_fields%get_field('exner_wth_n', exner_wth_n)
@@ -218,10 +218,10 @@ contains
 
     call um_sizes_init(1_i_def)
 
-    if ( subroutine_timers ) call timer("pc2_initiation_alg")
+    if ( LPROF ) call stop_timing( id_alg, 'pc2_initiation_alg' )
 
     if ( write_diag .and. use_xios_io ) then
-      if ( subroutine_timers ) call timer("pc2_initiation_xios")
+      if ( LPROF ) call start_timing( id_xios, 'pc2_initiation_xios' )
       call dtheta_pc2_inc%write_field('cloud__dtheta_pc2_initiation'//trim(name_ext))
       call dmv_pc2_inc%write_field('cloud__dmv_pc2_initiation'//trim(name_ext))
       call dmcl_pc2_inc%write_field('cloud__dmcl_pc2_initiation'//trim(name_ext))
@@ -230,7 +230,7 @@ contains
       call dcfl_pc2_inc%write_field('cloud__dcfl_pc2_initiation'//trim(name_ext))
       call dcff_pc2_inc%write_field('cloud__dcff_pc2_initiation'//trim(name_ext))
       call dbcf_pc2_inc%write_field('cloud__dbcf_pc2_initiation'//trim(name_ext))
-      if ( subroutine_timers ) call timer("pc2_initiation_xios")
+      if ( LPROF ) call stop_timing( id_xios, 'pc2_initiation_xios' )
     end if
 
     nullify( mesh )

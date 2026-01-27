@@ -33,8 +33,8 @@ module adj_semi_implicit_solver_alg_mod
                                                     bicgstab_type, block_gcr_type
   use split_w2_field_kernel_mod,              only: split_w2_field_kernel_type
   use combine_w2_field_kernel_mod,            only: combine_w2_field_kernel_type
-  use io_config_mod,                          only: subroutine_timers
-  use timer_mod,                              only: timer
+  use timing_mod,                             only: start_timing, stop_timing, &
+                                                    tik, LPROF
   use finite_element_config_mod,              only: element_order_h, element_order_v
   use copy_field_alg_mod,                     only: copy_field
   use function_space_collection_mod,          only: function_space_collection
@@ -88,9 +88,9 @@ contains
   !> @brief Create adjoint operator and preconditioner for (Helmholtz) pressure problem
   !> @details Called by init method of this module, but also by
   !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
-  !> @param[in]  state                       Prognostic state for the adjoint pressure preconditioner
-  !> @param[out] pressure_operator_out       Output (Helmholtz) pressure operator
-  !> @param[out] pressure_preconditioner_out Output (Helmholtz) pressure preconditioner
+  !> @param[in]  state                           Prognostic state for the adjoint pressure preconditioner
+  !> @param[out] adj_pressure_operator_out       Output adjoint (Helmholtz) pressure operator
+  !> @param[out] adj_pressure_preconditioner_out Output adjoint (Helmholtz) pressure preconditioner
   subroutine create_adj_pressure_preconditioner( state, adj_pressure_operator_out, adj_pressure_preconditioner_out )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
@@ -108,7 +108,7 @@ contains
     class(abstract_preconditioner_type), allocatable, intent(out) :: adj_pressure_preconditioner_out
 
     ! Vertical pressure preconditioner
-    type(adj_pressure_preconditioner_type) :: adj_Hz_preconditioner
+    type(adj_pressure_preconditioner_type) :: adj_helmholtz_preconditioner
 
     adj_pressure_operator_out = adj_pressure_operator_type(level=1_i_def)
 
@@ -123,11 +123,11 @@ contains
         allocate( adj_pressure_preconditioner_out, &
                   source = adj_pressure_preconditioner_type(level=1_i_def) )
       case(PRECONDITIONER_MULTIGRID)
-        adj_Hz_preconditioner = adj_pressure_preconditioner_type(level=1_i_def)
+        adj_helmholtz_preconditioner = adj_pressure_preconditioner_type(level=1_i_def)
         allocate( adj_pressure_preconditioner_out, &
                   source = multigrid_preconditioner_type( state(igh_p)%get_function_space(), &
                                                           adj_pressure_operator_out,         &
-                                                          adj_Hz_preconditioner ) )
+                                                          adj_helmholtz_preconditioner ) )
       case default
         call log_event( "Invalid pressure preconditioner specified for adjoint", LOG_LEVEL_ERROR )
     end select
@@ -340,8 +340,10 @@ contains
     type(integer_field_type), pointer                 :: face_selector_ew, face_selector_ns
     type(mesh_type), pointer                          :: mesh
     integer(kind=i_def)                               :: p_h, p_v
+    integer(tik)                                      :: id_si, id_mix
 
-    if (subroutine_timers) call timer('adj_semi_implicit_solver_type%step')
+    if ( LPROF ) call start_timing( id_si, &
+                                    'adj_semi_implicit_solver_type_step' )
 
     ! Input fields are r_def fields so preliminary work uses field_types
 
@@ -456,10 +458,10 @@ contains
     call vector_rhs%import_field( inc_exner_rsol, isol_p )
 
     ! Solve the semi-implicit operator
-    if (subroutine_timers) call timer('adj_mixed_solver')
+    if ( LPROF ) call start_timing( id_mix, 'adj_mixed_solver' )
     call vector_inc%set_scalar(0.0_r_def)
     call self%adj_mixed_solver%apply( vector_inc, vector_rhs )
-    if (subroutine_timers) call timer('adj_mixed_solver')
+    if ( LPROF ) call stop_timing( id_mix, 'adj_mixed_solver' )
 
     call deconstruct_solver_state( vector_inc, rhs_rsol )
     ! vector_inc(uv,w,p) IN, rhs_rsol(u,p) OUT, rhs_rsol(d,t) unaffected
@@ -511,7 +513,8 @@ contains
 
     call invoke(inc_X_times_Y( rhs(igh_u), u_normalisation ))
 
-    if (subroutine_timers) call timer( 'adj_semi_implicit_solver_type%step' )
+    if ( LPROF ) call stop_timing( id_si, &
+                                   'adj_semi_implicit_solver_type_step' )
 
   end subroutine step
 
