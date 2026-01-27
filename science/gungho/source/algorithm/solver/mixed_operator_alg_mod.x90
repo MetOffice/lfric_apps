@@ -176,7 +176,7 @@ contains
 
     type(r_solver_field_type) :: y_uv_broken
 
-    if ( subroutine_timers ) call timer('mixed_solver.operator')
+    if ( subroutine_timers ) call timer('mixed_operator')
 
     ! Extract mesh ID
     select type (y)
@@ -380,7 +380,7 @@ contains
        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
 
-    if ( subroutine_timers ) call timer('mixed_solver.operator')
+    if ( subroutine_timers ) call timer('mixed_operator')
 
   end subroutine apply_mixed_operator
 
