@@ -44,13 +44,14 @@
             NUMA_REGIONS_PER_NODE = 2
             LUSTRE_FILESYSTEM = true
             ROSE_LAUNCHER = 'mpiexec'
+            OMP_STACKSIZE=1g
 
     [[EX1A_BUILD]]
         [[[environment]]]
             TRANSMUTE_INCLUDE_METHOD = specify_include
         [[[environment]]]
-            USE_VERNIER=yes
-            USE_TIMING_WRAPPER=yes
+            USE_LEGACY_TIMER=true
+            USE_TIMING_WRAPPER=true
         [[[directives]]]
             -l tmpsize=12GB
 
