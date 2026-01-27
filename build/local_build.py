@@ -86,6 +86,9 @@ def clone_dependency(values, temp_dep):
     """
     Clone the physics dependencies into a temporary directory
     """
+    
+    source = values["source"]
+    ref = values["ref"]
 
     commands = (
         f"git -C {temp_dep} init",
