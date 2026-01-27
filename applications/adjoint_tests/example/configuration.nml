@@ -66,7 +66,7 @@ stretching_method='smooth',
 /
 &files
 ancil_directory='/data/users/lfricadmin/data/ancils/basic-gal/yak/C12',
-checkpoint_stem_name='/home/users/tom.hill/cylc-run/align_adjoint_tests_to_linear_model-2/run1/share/data/restart_adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_fast-debug-64bit-rsolver64_tstep',
+checkpoint_stem_name='',
 diag_stem_name='diagGungho',
 ls_directory='/data/users/lfricadmin/data/tangent-linear/Ticket354',
 ls_filename='final_ls',
