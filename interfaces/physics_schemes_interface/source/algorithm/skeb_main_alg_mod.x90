@@ -461,7 +461,8 @@ module skeb_main_alg_mod
                  skeb_biharm_diss_kernel_type(ndisp, vorticity, divergence,      &
                                               stencil_extent, dx_at_w2,          &
                                               skeb_level_bottom, skeb_level_top, &
-                                              dt, norm_xi, norm_div) )
+                                              dt, norm_xi, norm_div,             &
+                                              norm_xi_flag, norm_div_flag) )
 
     if (write_diag .and. use_xios_io) then
       if (norm_div_flag) &

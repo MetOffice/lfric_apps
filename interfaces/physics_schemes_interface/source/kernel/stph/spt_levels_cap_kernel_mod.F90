@@ -8,7 +8,8 @@ module spt_levels_cap_kernel_mod
 
   use argument_mod,      only: arg_type, GH_FIELD, &
                                GH_WRITE, GH_REAL,  &
-                               CELL_COLUMN
+                               GH_SCALAR, GH_INTEGER, &
+                               GH_READ, CELL_COLUMN
 
 
   use fs_continuity_mod, only: Wtheta
@@ -26,8 +27,12 @@ module spt_levels_cap_kernel_mod
   !>
   type, public, extends(kernel_type) :: spt_levels_cap_kernel_type
     private
-    type(arg_type) :: meta_args(1) = (/                &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA) & !dX
+    type(arg_type) :: meta_args(5) = (/                 &
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA), & !dX
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & ! spt_level_bottom
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & ! spt_level_top
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),      & ! spt_level_begin_tapering_bottom
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ)       & ! spt_level_begin_tapering_top
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -49,18 +54,21 @@ contains
   !> @param[in]     ndf_wth        Number of degrees of freedom per cell for wtheta
   !> @param[in]     undf_wth       Number of total degrees of freedom for wtheta
   !> @param[in]     map_wth        Dofmap for the cell at the base of the column
+  !> @param[in]     spt_level_bottom      Bottom level of the stochastic scheme
+  !> @param[in]     spt_level_top         Top level of the stochastic scheme
+  !> @param[in]     spt_level_begin_tapering_bottom        spt_level_begin_tapering_bottom in stochastic_physics_config_mod
+  !> @param[in]     spt_level_begin_tapering_top           spt_level_begin_tapering_top in stochastic_physics_config_mod
 
-  subroutine spt_levels_cap_code(nlayers,  &
-                                 dX,       &
-                                 ndf_wth,  &
-                                 undf_wth, &
-                                 map_wth   &
+  subroutine spt_levels_cap_code(nlayers,                         &
+                                 dX,                              &
+                                 spt_level_bottom,                &
+                                 spt_level_top,                   &
+                                 spt_level_begin_tapering_bottom, &
+                                 spt_level_begin_tapering_top,    &
+                                 ndf_wth,                         &
+                                 undf_wth,                        &
+                                 map_wth                          &
                                  )
-
-    use stochastic_physics_config_mod, only: spt_level_bottom, &
-                                             spt_level_top, &
-                                             spt_level_begin_tapering_bottom, &
-                                             spt_level_begin_tapering_top
 
     implicit none
 
@@ -69,6 +77,10 @@ contains
     integer(kind=i_def), intent(in) :: ndf_wth
     integer(kind=i_def), intent(in) :: undf_wth
     integer(kind=i_def), intent(in), dimension(ndf_wth)  :: map_wth
+    integer(kind=i_def), intent(in) :: spt_level_bottom
+    integer(kind=i_def), intent(in) :: spt_level_top
+    integer(kind=i_def), intent(in) :: spt_level_begin_tapering_bottom
+    integer(kind=i_def), intent(in) :: spt_level_begin_tapering_top
 
     ! field with perturbation
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dX
