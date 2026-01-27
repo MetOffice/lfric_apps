@@ -9,8 +9,7 @@ module conv_diags_mod
 
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
-  use io_config_mod,       only: subroutine_timers
-  use timer_mod,           only: timer
+  use timing_mod,          only: start_timing, stop_timing, tik, LPROF
   use initialise_diagnostics_mod,     only : init_diag &
                                              => init_diagnostic_field
 
@@ -159,8 +158,9 @@ contains
                                          dmv_conv_noshal
 
     logical(l_def) :: ignore
+    integer(tik)   :: id
 
-    if ( subroutine_timers ) call timer("conv_diags")
+    if ( LPROF ) call start_timing( id, 'conv_diags' )
 
     ! Convective diagnostics - 2d
     deep_in_col_flag = init_diag(deep_in_col, 'convection__deep_in_col')
@@ -302,7 +302,7 @@ contains
       call invoke( setval_c(shallow_in_col, 0.0_r_def) )
     end if
 
-    if ( subroutine_timers ) call timer("conv_diags")
+    if ( LPROF ) call stop_timing( id, 'conv_diags' )
 
   end subroutine initialise_diags_for_conv
 
@@ -434,8 +434,9 @@ contains
                                        cca_unadjusted,         &
                                        dth_conv_noshal,        &
                                        dmv_conv_noshal
+    integer( tik )  :: id
 
-    if ( subroutine_timers ) call timer("conv_diags")
+    if ( LPROF ) call start_timing( id, 'conv_diags' )
 
     ! Prognostic fields
     call cca%write_field('convection__cca')
@@ -507,7 +508,7 @@ contains
     if (dth_conv_noshal_flag) call dth_conv_noshal%write_field()
     if (dmv_conv_noshal_flag) call dmv_conv_noshal%write_field()
 
-    if ( subroutine_timers ) call timer("conv_diags")
+    if ( LPROF ) call stop_timing( id, 'conv_diags' )
 
   end subroutine output_diags_for_conv
 end module conv_diags_mod
