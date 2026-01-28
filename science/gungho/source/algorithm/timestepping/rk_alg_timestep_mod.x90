@@ -29,9 +29,11 @@ module rk_alg_timestep_mod
   use derived_config_mod,                 only: bundle_size
   use sci_fem_constants_mod,              only: get_qr_fe, &
                                                 get_inverse_mass_matrix_fe
-  use sci_geometric_constants_mod,        only: get_coordinates, &
-                                                get_panel_id,    &
-                                                get_dx_at_w2
+  use sci_geometric_constants_mod,        only: get_coordinates,      &
+                                                get_panel_id,         &
+                                                get_dx_at_w2,         &
+                                                get_face_selector_ew, &
+                                                get_face_selector_ns
   use transport_config_mod,               only: operators, &
                                                 operators_fv
   use mixing_config_mod,                  only: viscosity, viscosity_mu
@@ -62,6 +64,7 @@ module rk_alg_timestep_mod
   use field_array_mod,                    only: field_array_type
   use field_mod,                          only: field_type
   use field_collection_mod,               only: field_collection_type
+  use integer_field_mod,                  only: integer_field_type
   use function_space_collection_mod,      only: function_space_collection
   use driver_modeldb_mod,                 only: modeldb_type
   use model_clock_mod,                    only: model_clock_type
@@ -322,6 +325,8 @@ contains
     type(field_type),    pointer :: dx_at_w2
     type(operator_type), pointer :: m3_inv
     type(operator_type), pointer :: coriolis
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
 
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
 
@@ -444,11 +449,15 @@ contains
     if ( viscosity ) then
       call log_event( 'Applying Viscosity', LOG_LEVEL_INFO )
       dx_at_w2 => get_dx_at_w2(mesh_id)
+      face_selector_ew => get_face_selector_ew(mesh%get_id())
+      face_selector_ns => get_face_selector_ns(mesh%get_id())
+
       call invoke(setval_c(self%inc(igh_u), 0.0_r_def),                                  &
                   tracer_viscosity_kernel_type(   self%inc(igh_t), self%state(igh_t), 1, &
                                                   dx_at_w2, viscosity_mu ),              &
                   momentum_viscosity_kernel_type( self%inc(igh_u), self%state(igh_u), 1, &
-                                                  dx_at_w2, 1, viscosity_mu ),           &
+                                                  dx_at_w2, 1, face_selector_ew,         &
+                                                  face_selector_ns, viscosity_mu ),      &
                   setval_c(self%inc(igh_d), 0.0_r_def) )
       call bundle_axpy( real(model_clock%get_seconds_per_step(), r_def), &
                         self%inc, self%state, self%state, bundle_size )

@@ -13,7 +13,9 @@ module bl_imp_alg_mod
   use integer_field_mod,             only: integer_field_type
   use field_collection_mod,          only: field_collection_type
   use fs_continuity_mod,             only: W1, W2, W3, Wtheta
-  use sci_geometric_constants_mod,   only: get_height_fv, get_da_at_w2
+  use sci_geometric_constants_mod,   only: get_height_fv, get_da_at_w2, &
+                                           get_face_selector_ew,        &
+                                           get_face_selector_ns
   use physics_constants_mod,         only: get_rdz_fd1, get_dtrdz_fd2, &
                                            get_rdz_w3
   use mr_indices_mod,                only: nummr, imr_v, imr_cl, imr_ci, &
@@ -198,6 +200,9 @@ contains
     type( field_type ), pointer :: dtrdz      => null()
     type( field_type ), pointer :: rdz_w3     => null()
 
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+
     ! Local variables
     type( field_type ) :: u_physics_star
     type( field_type ) :: du_conv_w2, dw_conv
@@ -312,6 +317,9 @@ contains
 
     mesh       => zh%get_mesh()
 
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
+
     ! Set up the BL increments
     call theta%copy_field_properties(dtheta_bl)
 
@@ -367,7 +375,8 @@ contains
                                       rhokm_w2, rdz, dtrdz, wetrho_in_w2,      &
                                       u_physics, u_physics_star,               &
                                       surf_interp_w2, du_conv_w2, dw_bl, dA,   &
-                                      height_w1, height_w2),                   &
+                                      height_w1, height_w2,                    &
+                                      face_selector_ew, face_selector_ns),     &
                 ! Map the wind back into dynamics quantities
                 inc_X_times_Y(du_bl, dA),                                      &
                 inc_X_times_Y(dissip, dA) )

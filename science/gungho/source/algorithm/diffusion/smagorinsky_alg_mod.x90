@@ -10,6 +10,7 @@ module smagorinsky_alg_mod
   use constants_mod,            only: i_def, r_def
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
+  use integer_field_mod,        only: integer_field_type
   use mr_indices_mod,           only: nummr, imr_v, imr_cl
 
   use formulation_config_mod,    only: moisture_formulation,    &
@@ -33,7 +34,8 @@ module smagorinsky_alg_mod
   use sci_geometric_constants_mod,     &
                                  only: get_height_fv, get_panel_id, &
                                        get_delta_at_wtheta, get_dx_at_w2, &
-                                       get_dz_at_wtheta
+                                       get_dz_at_wtheta, get_face_selector_ew, &
+                                       get_face_selector_ns
   use fs_continuity_mod,         only: W1, W2
 
   implicit none
@@ -84,6 +86,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     type( field_type ), pointer :: panel_id => null()
     type( field_type ) :: dmr_v, dmr_cl
 
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+
     type( mesh_type ), pointer :: mesh => null()
 
     ! Stencil depth for the Smagorinsky diffusion kernel
@@ -111,6 +116,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     dx_at_w2 => get_dx_at_w2(mesh%get_id())
     panel_id => get_panel_id(mesh%get_id())
+
+    face_selector_ew => get_face_selector_ew(mesh%get_id())
+    face_selector_ns => get_face_selector_ns(mesh%get_id())
 
     if ( boundary_layer == boundary_layer_um ) then
 
@@ -153,7 +161,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
                                                      visc_m,               &
                                                      smag_stencil_depth,   &
                                                      panel_id,             &
-                                                     smag_stencil_depth) )
+                                                     smag_stencil_depth,   &
+                                                     face_selector_ew,     &
+                                                     face_selector_ns ) )
 
     else ! Without UM BL scheme
 
@@ -213,7 +223,9 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
                                                      visc_m,                  &
                                                      smag_stencil_depth,      &
                                                      panel_id,                &
-                                                     smag_stencil_depth) )
+                                                     smag_stencil_depth,      &
+                                                     face_selector_ew,        &
+                                                     face_selector_ns ) )
 
     end if ! With or without BL scheme
 

@@ -81,6 +81,8 @@ contains
     integer(i_def), allocatable :: stencil_map_w1(:,:,:)
     integer(i_def), allocatable :: stencil_map_wt(:,:,:)
     integer(i_def), allocatable :: stencil_map_pid(:,:,:)
+    integer(i_def), allocatable :: face_selector_ew(:)
+    integer(i_def), allocatable :: face_selector_ns(:)
 
     real(r_def), allocatable :: u(:), dx_at_w2(:)
     real(r_def), allocatable :: u_inc(:)
@@ -157,11 +159,15 @@ contains
     allocate(u_inc(undf_w2))
     allocate(visc_m(undf_wt))
     allocate(panel_id(undf_pid))
+    allocate(face_selector_ew(undf_pid))
+    allocate(face_selector_ns(undf_pid))
     u(:) = 1.0_r_def
     u_inc(:) = 0.0_r_def
     visc_m(:) = 1.0_r_def
     dx_at_w2(:) = dx
     panel_id = 1.0_r_def
+    face_selector_ew(:) = 2
+    face_selector_ns(:) = 2
 
     ! Create non-uniform wind to generate some diffusion
     u(stencil_map_w2(2,1,cell)+1) = 2.0_r_def
@@ -183,22 +189,24 @@ contains
     u(true_stencil_map_w2(3,3,cell)+2) = -1.0_r_def
 
     ! Call the kernel
-    call momentum_smagorinsky_code( nlayers,                          &
-                                    u_inc,                            &
-                                    u,                                &
-                                    5, stencil_map_w2(:,:,cell),      &
-                                    dx_at_w2,                         &
-                                    5, stencil_map_w2(:,:,cell),      &
-                                    height_w2,                        &
-                                    height_w1,                        &
-                                    visc_m,                           &
-                                    5, stencil_map_wt(:,:,cell),      &
-                                    panel_id,                         &
-                                    5, stencil_map_pid(:,:,cell),     &
-                                    ndf_w2, undf_w2, map_w2(:,cell),  &
-                                    ndf_w1, undf_w1, map_w1(:,cell),  &
-                                    ndf_wt, undf_wt, map_wt(:,cell),  &
-                                    ndf_pid, undf_pid, map_pid(:,cell)&
+    call momentum_smagorinsky_code( nlayers,                            &
+                                    u_inc,                              &
+                                    u,                                  &
+                                    5, stencil_map_w2(:,:,cell),        &
+                                    dx_at_w2,                           &
+                                    5, stencil_map_w2(:,:,cell),        &
+                                    height_w2,                          &
+                                    height_w1,                          &
+                                    visc_m,                             &
+                                    5, stencil_map_wt(:,:,cell),        &
+                                    panel_id,                           &
+                                    5, stencil_map_pid(:,:,cell),       &
+                                    face_selector_ew, face_selector_ns, &
+                                    ndf_w2, undf_w2, map_w2(:,cell),    &
+                                    ndf_w1, undf_w1, map_w1(:,cell),    &
+                                    ndf_wt, undf_wt, map_wt(:,cell),    &
+                                    ndf_pid, undf_pid, map_pid(:,cell), &
+                                    ndf_pid, undf_pid, map_pid(:,cell)  &
                                    )
 
     answer = -0.4e-5_r_def
@@ -220,6 +228,10 @@ contains
     deallocate(height_w1)
     deallocate(height_w2)
     deallocate(panel_id)
+    deallocate(stencil_map_pid)
+    deallocate(map_pid)
+    deallocate(face_selector_ew)
+    deallocate(face_selector_ns)
 
   end subroutine test_all
 

@@ -13,14 +13,18 @@
 !>
 module momentum_smagorinsky_kernel_mod
 
-  use argument_mod,      only : arg_type,                    &
-                                GH_FIELD, GH_REAL,           &
-                                GH_READ, GH_WRITE,           &
-                                STENCIL, CROSS, CELL_COLUMN, &
-                                ANY_DISCONTINUOUS_SPACE_9
-  use constants_mod,     only : r_def, i_def
-  use fs_continuity_mod, only : W2, W1, Wtheta
-  use kernel_mod,        only : kernel_type
+  use argument_mod,          only : arg_type,                    &
+                                    GH_FIELD, GH_REAL,           &
+                                    GH_READ, GH_WRITE,           &
+                                    STENCIL, CROSS, CELL_COLUMN, &
+                                    ANY_DISCONTINUOUS_SPACE_9,   &
+                                    ANY_DISCONTINUOUS_SPACE_3,   &
+                                    ANY_DISCONTINUOUS_SPACE_2,   &
+                                    GH_INTEGER
+  use constants_mod,         only : r_def, i_def
+  use fs_continuity_mod,     only : W2, W1, Wtheta
+  use kernel_mod,            only : kernel_type
+  use reference_element_mod, only : N
 
   implicit none
   private
@@ -33,16 +37,20 @@ module momentum_smagorinsky_kernel_mod
   !>
   type, public, extends(kernel_type) :: momentum_smagorinsky_kernel_type
     private
-    type(arg_type) :: meta_args(7) = (/                                      &
-         arg_type(GH_FIELD,   GH_REAL, GH_WRITE,  W2),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,   W2, STENCIL(CROSS)),       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,   W2, STENCIL(CROSS)),       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,   W2),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,   W1),                       &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,   Wtheta, STENCIL(CROSS)),   &
-         arg_type(GH_FIELD,   GH_REAL, GH_READ,   ANY_DISCONTINUOUS_SPACE_9, &
-                                                            STENCIL(CROSS))  &
-         /)
+    type(arg_type) :: meta_args(9) = (/                                        &
+        arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),   &
+        arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2,    &
+                                                      STENCIL(CROSS)),         &
+        arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2,    &
+                                                      STENCIL(CROSS)),         &
+        arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),   &
+        arg_type(GH_FIELD, GH_REAL,    GH_READ,  W1),                          &
+        arg_type(GH_FIELD, GH_REAL,    GH_READ,  Wtheta, STENCIL(CROSS)),      &
+        arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9,    &
+                                                    STENCIL(CROSS)),           &
+        arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),   &
+        arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3)    &
+    /)
     integer :: operates_on = CELL_COLUMN
   contains
     procedure, nopass :: momentum_smagorinsky_code
@@ -56,34 +64,39 @@ module momentum_smagorinsky_kernel_mod
 contains
 
 !> @brief Calculates diffusion increment for wind field using horizontal Smagorinsky diffusion
-!! @param[in] nlayers Number of layers in the mesh
-!! @param[in,out] u_inc Diffusion increment for wind field
-!! @param[in] u_n Input wind field
-!! @param[in] map_w2_stencil_size Number of cells in the stencil at the base of the column for w2
-!! @param[in] map_w2_stencil Array holding the stencil dofmap for the cell at the base of the column for w2
-!! @param[in] dx_at_w2 Grid length at the w2 dofs
-!! @param[in] map_dx_stencil_size Number of cells in the stencil at the base of the column for w2
-!! @param[in] map_dx_stencil Array holding the stencil dofmap for the cell at the base of the column for w2
-!! @param[in] height_w2 Height of w3 space levels above surface at cell faces
-!! @param[in] height_w1 Height of wtheta levels above surface at cell faces
-!! @param[in] visc_m Diffusion coefficient for momentum on wtheta points
-!! @param[in] map_wt_stencil_size Number of cells in the stencil at the base of the column for wt
-!! @param[in] map_wt_stencil Array holding the stencil dofmap for the cell at the base of the column for wt
-!! @param[in] panel_id  The ID number of the current panel
-!! @param[in] map_pid_stencil_size Size of the panel ID stencil
-!! @param[in] map_pid_stencil Stencil map for the panel ID
-!! @param[in] ndf_w2 Number of degrees of freedom per cell for wind space
-!! @param[in] undf_w2 Number of unique degrees of freedom for wind space
-!! @param[in] map_w2 Array holding the dofmap for the cell at the base of the column for wind space
-!! @param[in] ndf_w1 Number of degrees of freedom per cell for w1
-!! @param[in] undf_w1 Number of unique degrees of freedom for w1
-!! @param[in] map_w1 Array holding the dofmap for the cell at the base of the column for w1
-!! @param[in] ndf_wt Number of degrees of freedom per cell for theta space
-!! @param[in] undf_wt Number of unique degrees of freedom for theta space
-!! @param[in] map_wt Array holding the dofmap for the cell at the base of the column for theta space
-!! @param[in] ndf_pid  Number of degrees of freedom per cell for pid space
-!! @param[in] undf_pid  Number of unique degrees of freedom for pid space
-!! @param[in] map_pid  Cell dofmap for pid space
+!> @param[in] nlayers Number of layers in the mesh
+!> @param[in,out] u_inc Diffusion increment for wind field
+!> @param[in] u_n Input wind field
+!> @param[in] map_w2_stencil_size Number of cells in the stencil at the base of the column for w2
+!> @param[in] map_w2_stencil Array holding the stencil dofmap for the cell at the base of the column for w2
+!> @param[in] dx_at_w2 Grid length at the w2 dofs
+!> @param[in] map_dx_stencil_size Number of cells in the stencil at the base of the column for w2
+!> @param[in] map_dx_stencil Array holding the stencil dofmap for the cell at the base of the column for w2
+!> @param[in] height_w2 Height of w3 space levels above surface at cell faces
+!> @param[in] height_w1 Height of wtheta levels above surface at cell faces
+!> @param[in] visc_m Diffusion coefficient for momentum on wtheta points
+!> @param[in] map_wt_stencil_size Number of cells in the stencil at the base of the column for wt
+!> @param[in] map_wt_stencil Array holding the stencil dofmap for the cell at the base of the column for wt
+!> @param[in] panel_id  The ID number of the current panel
+!> @param[in] map_pid_stencil_size Size of the panel ID stencil
+!> @param[in] map_pid_stencil Stencil map for the panel ID
+!> @param[in] face_selector_ew 2D field indicating which W/E faces to loop over in this column
+!> @param[in] face_selector_ns 2D field indicating which N/S faces to loop over in this column
+!> @param[in] ndf_w2 Number of degrees of freedom per cell for wind space
+!> @param[in] undf_w2 Number of unique degrees of freedom for wind space
+!> @param[in] map_w2 Array holding the dofmap for the cell at the base of the column for wind space
+!> @param[in] ndf_w1 Number of degrees of freedom per cell for w1
+!> @param[in] undf_w1 Number of unique degrees of freedom for w1
+!> @param[in] map_w1 Array holding the dofmap for the cell at the base of the column for w1
+!> @param[in] ndf_wt Number of degrees of freedom per cell for theta space
+!> @param[in] undf_wt Number of unique degrees of freedom for theta space
+!> @param[in] map_wt Array holding the dofmap for the cell at the base of the column for theta space
+!> @param[in] ndf_pid  Number of degrees of freedom per cell for pid space
+!> @param[in] undf_pid  Number of unique degrees of freedom for pid space
+!> @param[in] map_pid  Cell dofmap for pid space
+!> @param[in] ndf_w3_2d Num of DoFs for 2D W3 per cell
+!> @param[in] undf_w3_2d Num of DoFs for this partition for 2D W3
+!> @param[in] map_w3_2d Map for 2D W3
 subroutine momentum_smagorinsky_code( nlayers,                                 &
                                       u_inc,                                   &
                                       u_n,                                     &
@@ -96,10 +109,12 @@ subroutine momentum_smagorinsky_code( nlayers,                                 &
                                       map_wt_stencil_size, map_wt_stencil,     &
                                       panel_id,                                &
                                       map_pid_stencil_size, map_pid_stencil,   &
+                                      face_selector_ew, face_selector_ns,      &
                                       ndf_w2, undf_w2, map_w2,                 &
                                       ndf_w1, undf_w1, map_w1,                 &
                                       ndf_wt, undf_wt, map_wt,                 &
-                                      ndf_pid, undf_pid, map_pid               &
+                                      ndf_pid, undf_pid, map_pid,              &
+                                      ndf_w3_2d, undf_w3_2d, map_w3_2d         &
                                      )
 
   implicit none
@@ -108,15 +123,17 @@ subroutine momentum_smagorinsky_code( nlayers,                                 &
   integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf_w2, ndf_w1, ndf_wt, ndf_pid
   integer(kind=i_def), intent(in) :: undf_w2, undf_w1, undf_wt, undf_pid
+  integer(kind=i_def), intent(in) :: ndf_w3_2d, undf_w3_2d
   integer(kind=i_def), intent(in) :: map_w2_stencil_size, map_dx_stencil_size, map_wt_stencil_size, map_pid_stencil_size
   integer(kind=i_def), dimension(ndf_w2,map_w2_stencil_size), intent(in)  :: map_w2_stencil
   integer(kind=i_def), dimension(ndf_w2,map_dx_stencil_size), intent(in)  :: map_dx_stencil
   integer(kind=i_def), dimension(ndf_wt,map_wt_stencil_size), intent(in)  :: map_wt_stencil
   integer(kind=i_def), dimension(ndf_pid,map_pid_stencil_size), intent(in) :: map_pid_stencil
-  integer(kind=i_def), dimension(ndf_w2),  intent(in)  :: map_w2
-  integer(kind=i_def), dimension(ndf_w1),  intent(in)  :: map_w1
-  integer(kind=i_def), dimension(ndf_wt),  intent(in)  :: map_wt
-  integer(kind=i_def), dimension(ndf_pid), intent(in)  :: map_pid
+  integer(kind=i_def), dimension(ndf_w2),   intent(in)  :: map_w2
+  integer(kind=i_def), dimension(ndf_w1),   intent(in)  :: map_w1
+  integer(kind=i_def), dimension(ndf_wt),   intent(in)  :: map_wt
+  integer(kind=i_def), dimension(ndf_pid),  intent(in)  :: map_pid
+  integer(kind=i_def), dimension(ndf_w3_2d), intent(in) :: map_w3_2d
 
   real(kind=r_def), dimension(undf_w2),  intent(inout) :: u_inc
   real(kind=r_def), dimension(undf_w2),  intent(in)    :: u_n, dx_at_w2
@@ -125,8 +142,11 @@ subroutine momentum_smagorinsky_code( nlayers,                                 &
   real(kind=r_def), dimension(undf_wt),  intent(in)    :: visc_m
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
 
+  integer(kind=i_def), dimension(undf_w3_2d), intent(in) :: face_selector_ew
+  integer(kind=i_def), dimension(undf_w3_2d), intent(in) :: face_selector_ns
+
   ! Internal variables
-  integer(kind=i_def)                      :: k, kp, df
+  integer(kind=i_def)                      :: k, kp, df, j
   real(kind=r_def)                         :: d2dx, d2dy
   real(kind=r_def), dimension(1:nlayers-1) :: idx2, idy2
   real(kind=r_def), dimension(0:nlayers-1,4) :: idx2_w2, idy2_w2
@@ -227,64 +247,63 @@ subroutine momentum_smagorinsky_code( nlayers,                                 &
   end do
 
   ! Loop over horizontal faces of the cell for horizontal diffusion
-  do df = 1,4
+  do j = 1, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))
+    df = j
+    if (j == 3 .and. face_selector_ns(map_w3_2d(1)) == 2                       &
+               .and. face_selector_ew(map_w3_2d(1)) == 1) df = N
 
-    ! Only calculate face if it's not already been done
-    if (u_inc(map_w2(df)+1) == 0.0_r_def) then
-
-      ! Compute horizontal grid spacing
-      if (df == 1 .or. df == 3) then
-        ! For Dofs 1 & 3, dx is given by the input field,
-        ! whilst dy needs to be computed from the 4 neighbouring dy points
-        do k = 0, nlayers - 1
-          idx2_w2(k,df) = 1.0_r_def/(dx_at_w2(true_stencil_map(df,1)+k))**2
-          idy2_w2(k,df) = (4.0_r_def/(dx_at_w2(true_stencil_map(2,1)+k)+       &
-                                      dx_at_w2(true_stencil_map(4,1)+k)+       &
-                                      dx_at_w2(true_stencil_map(2,df+1)+k)+    &
-                                      dx_at_w2(true_stencil_map(4,df+1)+k)))**2
-        end do
-      else
-        ! For Dofs 2 & 4, dy is given by the input field,
-        ! whilst dx needs to be computed from the 4 neighbouring dx points
-        do k = 0, nlayers - 1
-          idx2_w2(k,df) = (4.0_r_def/(dx_at_w2(true_stencil_map(1,1)+k)+       &
-                                      dx_at_w2(true_stencil_map(3,1)+k)+       &
-                                      dx_at_w2(true_stencil_map(1,df+1)+k)+    &
-                                      dx_at_w2(true_stencil_map(3,df+1)+k)))**2
-          idy2_w2(k,df) = 1.0_r_def/(dx_at_w2(true_stencil_map(df,1)+k))**2
-        end do
-      end if
-
-      ! Horizontal interpolation of visc_m to cell face
-      do k = 0, nlayers
-        visc_m_w2(k,df) = ( visc_m(map_wt_stencil(1,1) + k) + visc_m(map_wt_stencil(1,1+df) + k) ) / 2.0_r_def
-      end do
-
-      ! Horizontal velocity diffusion
+    ! Compute horizontal grid spacing
+    if (df == 1 .or. df == 3) then
+      ! For Dofs 1 & 3, dx is given by the input field,
+      ! whilst dy needs to be computed from the 4 neighbouring dy points
       do k = 0, nlayers - 1
-        kp = k + 1
-
-        ! Vertical interpolation weights:
-        weight_pl = (height_w2(map_w2(df) + k) - height_w1(map_w1(df) + k)) /  &
-                    (height_w1(map_w1(df) + kp) - height_w1(map_w1(df) + k))
-        weight_min = (height_w1(map_w1(df) + kp) - height_w2(map_w2(df) + k)) /&
-                     (height_w1(map_w1(df) + kp) - height_w1(map_w1(df) + k))
-
-        ! Vertical interpolation of visc_m from wt to w3 levels
-        visc_m_w2_w3 = ( weight_min * visc_m_w2(k,df) ) + ( weight_pl * visc_m_w2(kp,df) )
-
-        ! horizontal diffusion:
-        d2dx = (vec_dir(df,2)*u_n(true_stencil_map(df,2) + k)                  &
-             - 2.0_r_def*u_n(true_stencil_map(df,1) + k)                       &
-             + vec_dir(df,4)*u_n(true_stencil_map(df,4) + k) ) * idx2_w2(k,df)
-        d2dy = (vec_dir(df,3)*u_n(true_stencil_map(df,3) + k)                  &
-             - 2.0_r_def*u_n(true_stencil_map(df,1) + k)                       &
-             + vec_dir(df,5)*u_n(true_stencil_map(df,5) + k) ) * idy2_w2(k,df)
-        u_inc(map_w2(df) + k) = visc_m_w2_w3 * (d2dx + d2dy)
-
+        idx2_w2(k,df) = 1.0_r_def/(dx_at_w2(true_stencil_map(df,1)+k))**2
+        idy2_w2(k,df) = (4.0_r_def/(dx_at_w2(true_stencil_map(2,1)+k)+         &
+                                    dx_at_w2(true_stencil_map(4,1)+k)+         &
+                                    dx_at_w2(true_stencil_map(2,df+1)+k)+      &
+                                    dx_at_w2(true_stencil_map(4,df+1)+k)))**2
       end do
-
+    else
+      ! For Dofs 2 & 4, dy is given by the input field,
+      ! whilst dx needs to be computed from the 4 neighbouring dx points
+      do k = 0, nlayers - 1
+        idx2_w2(k,df) = (4.0_r_def/(dx_at_w2(true_stencil_map(1,1)+k)+         &
+                                    dx_at_w2(true_stencil_map(3,1)+k)+         &
+                                    dx_at_w2(true_stencil_map(1,df+1)+k)+      &
+                                    dx_at_w2(true_stencil_map(3,df+1)+k)))**2
+        idy2_w2(k,df) = 1.0_r_def/(dx_at_w2(true_stencil_map(df,1)+k))**2
+      end do
     end if
+
+    ! Horizontal interpolation of visc_m to cell face
+    do k = 0, nlayers
+      visc_m_w2(k,df) = ( visc_m(map_wt_stencil(1,1) + k) + visc_m(map_wt_stencil(1,1+df) + k) ) / 2.0_r_def
+    end do
+
+    ! Horizontal velocity diffusion
+    do k = 0, nlayers - 1
+      kp = k + 1
+
+      ! Vertical interpolation weights:
+      weight_pl = (height_w2(map_w2(df) + k) - height_w1(map_w1(df) + k)) /    &
+                  (height_w1(map_w1(df) + kp) - height_w1(map_w1(df) + k))
+      weight_min = (height_w1(map_w1(df) + kp) - height_w2(map_w2(df) + k)) /  &
+                    (height_w1(map_w1(df) + kp) - height_w1(map_w1(df) + k))
+
+      ! Vertical interpolation of visc_m from wt to w3 levels
+      visc_m_w2_w3 = ( weight_min * visc_m_w2(k,df) ) + ( weight_pl * visc_m_w2(kp,df) )
+
+      ! horizontal diffusion:
+      d2dx = (vec_dir(df,2)*u_n(true_stencil_map(df,2) + k)                    &
+            - 2.0_r_def*u_n(true_stencil_map(df,1) + k)                        &
+            + vec_dir(df,4)*u_n(true_stencil_map(df,4) + k) ) * idx2_w2(k,df)
+      d2dy = (vec_dir(df,3)*u_n(true_stencil_map(df,3) + k)                    &
+            - 2.0_r_def*u_n(true_stencil_map(df,1) + k)                        &
+            + vec_dir(df,5)*u_n(true_stencil_map(df,5) + k) ) * idy2_w2(k,df)
+      u_inc(map_w2(df) + k) = visc_m_w2_w3 * (d2dx + d2dy)
+
+    end do
+
 
   end do
 

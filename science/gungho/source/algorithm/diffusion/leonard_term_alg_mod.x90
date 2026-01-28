@@ -10,13 +10,16 @@ module leonard_term_alg_mod
   use constants_mod,              only: i_def, r_def
   use field_mod,                  only: field_type
   use field_collection_mod,       only: field_collection_type
+  use integer_field_mod,          only: integer_field_type
   use mr_indices_mod,             only: nummr, imr_v, imr_cl
 
   use formulation_config_mod,     only: moisture_formulation,    &
                                         moisture_formulation_dry
   use fs_continuity_mod,          only: W1, W2, W3, Wtheta
   use sci_geometric_constants_mod,      &
-                                  only: get_height_fv, get_panel_id
+                                  only: get_height_fv, get_panel_id, &
+                                        get_face_selector_ew,        &
+                                        get_face_selector_ns
   use physics_constants_mod,      only: get_dtrdz_fd2
 
   use mixing_config_mod,          only: leonard_kl
@@ -91,6 +94,9 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     type( field_type ), pointer :: height_wth         => null()
     type( field_type ), pointer :: panel_id           => null()
 
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+
     ! local variables
     integer(kind=i_def) :: mesh_id
     integer(kind=i_def), parameter :: stencil_depth = 1
@@ -123,6 +129,8 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     height_w2  => get_height_fv(W2, mesh_id)
     height_w1  => get_height_fv(W1, mesh_id)
     panel_id   => get_panel_id(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh_id)
+    face_selector_ns => get_face_selector_ns(mesh_id)
 
     ! Set-up arrays for local fields
     call rho%copy_field_properties(kl)
@@ -173,6 +181,8 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
                                               wetrho_in_w2,             &
                                               panel_id,                 &
                                               stencil_depth,            &
+                                              face_selector_ew,         &
+                                              face_selector_ns,         &
                                               planet_radius,            &
                                               leonard_kl,               &
                                               dt, bl_levels ),          &

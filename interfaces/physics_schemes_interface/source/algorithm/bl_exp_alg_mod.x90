@@ -19,7 +19,9 @@ module bl_exp_alg_mod
   use fs_continuity_mod,             only: W2, W3, Wtheta
   use sci_geometric_constants_mod,   only: get_height_fv, get_da_at_w2,       &
                                            get_delta_at_wtheta,               &
-                                           get_dz_at_wtheta
+                                           get_dz_at_wtheta,                  &
+                                           get_face_selector_ew,              &
+                                           get_face_selector_ns
   use physics_constants_mod,         only: get_max_diff, get_rdz_fd1,         &
                                            get_rdz_w3, get_dtrdz_wth
   use map_fd_to_prognostics_alg_mod, only: set_wind
@@ -208,6 +210,9 @@ contains
     type( field_type ), pointer :: w2_rmultiplicity
     type( field_type ), pointer :: dz_wth
 
+    type( integer_field_type ), pointer :: face_selector_ew
+    type( integer_field_type ), pointer :: face_selector_ns
+
     ! local variables
     type(mesh_type),           pointer :: mesh
     type( field_type ) :: dtl_mphys, dmt_mphys, ngstress_w2,                  &
@@ -321,6 +326,8 @@ contains
 
     height_wth       => get_height_fv( Wtheta, mesh%get_id() )
     height_w3        => get_height_fv( W3, mesh%get_id() )
+    face_selector_ew => get_face_selector_ew( mesh%get_id() )
+    face_selector_ns => get_face_selector_ns( mesh%get_id() )
     ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
     ! in lfric core as the mininum of the cell horizontal edge lengths
     delta            => get_delta_at_wtheta( mesh%get_id() )
@@ -428,7 +435,8 @@ contains
     call invoke(bl_exp_du_kernel_type(4_i_def, tau_w2, tau_land_w2, tau_ssi_w2,&
                                       rhokm_w2, rdz_fd1, u_physics,            &
                                       surf_interp_w2, ngstress_w2, fd_tau_w2,  &
-                                      sea_current_w2_ptr) )
+                                      sea_current_w2_ptr,                      &
+                                      face_selector_ew, face_selector_ns) )
 
     if (l_calc_tau_at_p) then
       call dz_wth%copy_field_properties(rdz_wth)
@@ -446,11 +454,13 @@ contains
                   bl_exp_du_kernel_type(1_i_def, taux, taux_land, taux_ssi,    &
                                         rhokm_bl, rdz_wth, u_in_w3,            &
                                         surf_interp, ngstress_bl, fd_taux,     &
-                                        sea_u_current_ptr),                    &
+                                        sea_u_current_ptr,                     &
+                                        face_selector_ew, face_selector_ns),   &
                   bl_exp_du_kernel_type(1_i_def, tauy, tauy_land, tauy_ssi,    &
                                         rhokm_bl, rdz_wth, v_in_w3,            &
                                         surf_interp, ngstress_bl, fd_tauy,     &
-                                        sea_v_current_ptr) )
+                                        sea_v_current_ptr,                     &
+                                        face_selector_ew, face_selector_ns) )
     end if
 
     if ( subroutine_timers ) call timer('bl_exp_alg')
