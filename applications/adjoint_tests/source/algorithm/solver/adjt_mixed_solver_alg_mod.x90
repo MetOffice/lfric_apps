@@ -34,27 +34,16 @@ module adjt_mixed_solver_alg_mod
   use driver_modeldb_mod,               only: modeldb_type
   use solver_constants_mod,             only: get_normalisation
   use fs_continuity_mod,                only: W2, W3, Wtheta
-  use mr_indices_mod,                   only: nummr
   use si_operators_alg_mod,             only: compute_si_operators
   use operator_mod,                     only: operator_type
   use sci_enforce_bc_kernel_mod,        only: enforce_bc_kernel_type
   use model_clock_mod,                  only: model_clock_type
   use function_space_mod,               only: function_space_type
-  use initial_theta_ref_kernel_mod,     only: initial_theta_ref_kernel_type
-  use init_gungho_prognostics_alg_mod,  only: init_u_field,     &
-                                              init_exner_field, &
-                                              init_rho_field,   &
-                                              init_mr_fields
   use field_array_mod,                  only: field_array_type
   use field_collection_mod,             only: field_collection_type
-  use sci_geometric_constants_mod,      only: get_coordinates, &
-                                              get_panel_id
-  use idealised_config_mod,             only: test
-  use sci_field_bundle_builtins_mod,    only: set_bundle_scalar
   use sci_iterative_solver_mod,         only: abstract_iterative_solver_type, &
                                               bicgstab_type,                  &
                                               block_gcr_type
-  use moist_dyn_factors_alg_mod,        only: moist_dyn_factors_alg
   use sci_preconditioner_mod,           only: abstract_preconditioner_type
   use pressure_operator_alg_mod,        only: pressure_operator_type
   use adj_pressure_operator_alg_mod,    only: adj_pressure_operator_type
@@ -99,22 +88,15 @@ contains
 
 
     ! LS
-    type(field_type)                     :: ls_rdef(bundle_size)
-    type(field_type),            pointer :: ls_u
     type(field_type),            pointer :: ls_rho
     type(field_type),            pointer :: ls_theta
     type(field_type),            pointer :: ls_exner
-    type(field_type),            pointer :: ls_mr(:)
     type(field_type),            pointer :: ls_moist_dyn(:)
     type(field_collection_type), pointer :: ls_fields
     type(field_collection_type), pointer :: moisture_fields
-    type(field_array_type),      pointer :: ls_mr_array
     type(field_array_type),      pointer :: ls_moist_dyn_array
 
     ! Variables for initialisation etc.
-    real(kind=r_def)                    :: initial_time
-    type(field_type), pointer           :: chi(:)
-    type(field_type), pointer           :: panel_id
     type(function_space_type), pointer  :: vector_space_wtheta_ptr
     type(function_space_type), pointer  :: vector_space_w2_ptr
     type(function_space_type), pointer  :: vector_space_w3_ptr
@@ -196,51 +178,17 @@ contains
 
     ! LS
 
-    ls_fields => modeldb%fields%get_field_collection("prognostic_fields")
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
 
     call ls_fields%get_field( 'ls_theta', ls_theta )
-    call ls_fields%get_field( 'ls_u', ls_u )
     call ls_fields%get_field( 'ls_rho', ls_rho )
     call ls_fields%get_field( 'ls_exner', ls_exner )
 
     moisture_fields => modeldb%fields%get_field_collection("moisture_fields")
-    call moisture_fields%get_field( "ls_mr", ls_mr_array )
     call moisture_fields%get_field( "ls_moist_dyn", ls_moist_dyn_array )
-    ls_mr => ls_mr_array%bundle
     ls_moist_dyn => ls_moist_dyn_array%bundle
 
-    chi => get_coordinates(ls_theta%get_mesh_id())
-    panel_id => get_panel_id(ls_theta%get_mesh_id())
-
-    ! Define reference field
-    initial_time = 0.0_r_def
-    call init_u_field( ls_u , initial_time )
-    call set_bundle_scalar( 0.0_r_def, ls_mr, nummr )
-
-    call invoke(initial_theta_ref_kernel_type( ls_theta, chi, panel_id, test ))
-
-    call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
-    call init_exner_field( ls_exner, ls_theta, ls_moist_dyn, initial_time )
-    call init_rho_field( ls_rho, ls_theta, ls_exner, ls_moist_dyn, initial_time )
-    call init_mr_fields( ls_mr, ls_theta, ls_exner, ls_rho, ls_moist_dyn )
-
-    call invoke(enforce_bc_kernel_type(ls_u))
-
-    call rhs(igh_u)%copy_field_properties(ls_rdef(igh_u))
-    call rhs(igh_t)%copy_field_properties(ls_rdef(igh_t))
-    call rhs(igh_d)%copy_field_properties(ls_rdef(igh_d))
-    call rhs(igh_p)%copy_field_properties(ls_rdef(igh_p))
-
-    call invoke( setval_x( ls_rdef(igh_u), ls_u ),     &
-                 setval_x( ls_rdef(igh_t), ls_theta ), &
-                 setval_x( ls_rdef(igh_p), ls_exner ), &
-                 setval_x( ls_rdef(igh_d), ls_rho ) )
-
-    call invoke(enforce_bc_kernel_type(ls_rdef(igh_u)))
-
-    ! End LS
-
-    call compute_si_operators( ls_rdef(igh_t), ls_rdef(igh_d), ls_rdef(igh_p), &
+    call compute_si_operators( ls_theta, ls_rho, ls_exner, &
                                model_clock, ls_moist_dyn )
 
     call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner )
@@ -248,8 +196,7 @@ contains
     call create_mixed_preconditioner( rhs, pressure_solver, mixed_preconditioner )
     call create_mixed_solver( mixed_preconditioner, mixed_operator, mixed_solver )
 
-    adj_pressure_operator = adj_pressure_operator_type(level=1_i_def)
-    call create_adj_pressure_preconditioner( adj_pressure_operator, adj_pressure_preconditioner )
+    call create_adj_pressure_preconditioner( rhs, adj_pressure_operator, adj_pressure_preconditioner )
     call create_adj_pressure_solver( adj_pressure_operator, adj_pressure_preconditioner, adj_pressure_solver )
     call create_adj_mixed_preconditioner( rhs, adj_pressure_solver, adj_mixed_preconditioner )
     call create_adj_mixed_solver( adj_mixed_preconditioner, adj_mixed_operator, adj_mixed_solver )
