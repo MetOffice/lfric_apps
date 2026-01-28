@@ -160,8 +160,6 @@ contains
     type(r_tran_field_type) :: dep_wind_np1
     integer(tik)            :: id
 
-    if ( LPROF ) call start_timing( id, 'transport.hori_dep_pts' )
-
     ! Get function space, mesh, and Det(J) at W3
     w2_fs  => wind_n%get_function_space()
     w2h_fs => dep_dist%get_function_space()
@@ -187,6 +185,8 @@ contains
 
       ! Lagrangian approaches --------------------------------------------------
       case ( horizontal_method_trapezoidal )
+
+        if ( LPROF ) call start_timing( id, 'transport.hori_dep_pts' )
         call invoke( calc_departure_wind_kernel_type(dep_wind, wind_n,         &
                                                      detj_at_w3, 1),           &
                      calc_departure_wind_kernel_type(dep_wind_np1, wind_np1,   &
@@ -205,7 +205,11 @@ contains
                                                         detj_at_w3, 1,         &
                                                         face_selector_ew,      &
                                                         face_selector_ns) )
+        if ( LPROF ) call stop_timing( id, 'transport.hori_dep_pts' )
+
       case ( horizontal_method_midpoint )
+
+        if ( LPROF ) call start_timing( id, 'transport.hori_dep_pts' )
         call invoke( calc_departure_wind_kernel_type(dep_wind, wind_n,         &
                                                      detj_at_w3, 1),           &
                      hori_dep_dist_midpoint_kernel_type(dep_dist,              &
@@ -220,9 +224,13 @@ contains
                                                         detj_at_w3, 1,         &
                                                         face_selector_ew,      &
                                                         face_selector_ns) )
+        if ( LPROF ) call stop_timing( id, 'transport.hori_dep_pts' )
 
       ! Eulerian approaches ----------------------------------------------------
       case ( horizontal_method_euler, horizontal_method_timeaverage )
+
+        if ( LPROF ) call start_timing( id, 'transport.hori_dep_pts' )
+
         ! Set the advecting wind based on the departure point method
         if ( horizontal_method == horizontal_method_euler ) then
           call invoke( setval_X(wind_adv, wind_np1) )
@@ -252,6 +260,8 @@ contains
                        inc_min_aX(max_hori_dep, dep_dist) )
         end if
 
+        if ( LPROF ) call stop_timing( id, 'transport.hori_dep_pts' )
+
       case ( horizontal_method_ffsl )
         ! Use time-averaged wind
         cap_dep_points = (horizontal_limit == horizontal_limit_cap)
@@ -280,8 +290,6 @@ contains
     call log_field_minmax( LOG_LEVEL_DEBUG, "dep_dist", dep_dist )
 
     nullify( w2_fs, w2h_fs, mesh, detj_at_w3, face_selector_ew, face_selector_ns )
-
-    if ( LPROF ) call stop_timing( id, 'transport.hori_dep_pts' )
 
   end subroutine calc_hori_dep_pts
 
@@ -344,6 +352,9 @@ contains
     integer(kind=i_def)                :: ndep
     logical(kind=l_def)                :: cap_dep_points
     logical(kind=l_def)                :: is_cubed_sphere
+    integer(tik)                       :: id
+
+    if ( LPROF ) call start_timing( id, 'transport.hori_dep_pts' )
 
     mesh => wind%get_mesh()
     face_selector_ew => get_face_selector_ew(mesh%get_id())
@@ -419,6 +430,8 @@ contains
         )
       end if
     end if
+
+    if ( LPROF ) call stop_timing( id, 'transport.hori_dep_pts' )
 
   end subroutine calc_ffsl_hori_dep_pts
 

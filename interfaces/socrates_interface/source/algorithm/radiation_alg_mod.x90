@@ -498,7 +498,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
 
   end if
 
-  if ( LPROF ) call start_timing( id_sw, 'sw_radiation' )
+  if ( LPROF ) call start_timing( id_sw, 'radiation.sw' )
   if (rad_this_tstep) then
     ! --------------------------------------------------
     ! Radiation time-step: full calculation of SW fluxes
@@ -602,8 +602,8 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
   call log_field_alg( sw_up_tile,          LOG_LEVEL_DEBUG )
   call log_field_alg( sw_up_blue_tile,     LOG_LEVEL_DEBUG )
 
-  if ( LPROF ) call stop_timing( id_sw, 'sw_radiation' )
-  if ( LPROF ) call start_timing( id_lw, 'lw_radiation' )
+  if ( LPROF ) call stop_timing( id_sw, 'radiation.sw' )
+  if ( LPROF ) call start_timing( id_lw, 'radiation.lw' )
 
   if (rad_this_tstep) then
     ! --------------------------------------------------
@@ -685,7 +685,7 @@ subroutine radiation_alg(dtheta_rad, theta, exner, mr, moist_dyn,             &
   call log_field_alg( lw_down_surf,         LOG_LEVEL_DEBUG )
   call log_field_alg( lw_up_tile,           LOG_LEVEL_DEBUG )
 
-  if ( LPROF ) call stop_timing( id_lw, 'lw_radiation' )
+  if ( LPROF ) call stop_timing( id_lw, 'radiation.lw' )
 
   ! first calculate the total temperature increment
   dt_again=dt

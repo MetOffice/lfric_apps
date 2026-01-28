@@ -48,7 +48,7 @@ contains
     type( field_type ), pointer :: tile_temperature
     integer( tik )              :: id
 
-    if ( LPROF ) call start_timing( id, 'surf_temp_forcing_alg' )
+    if ( LPROF ) call start_timing( id, 'surf_temp_forcing' )
 
       if (surf_temp_forcing /= surf_temp_forcing_none) then
 
@@ -82,7 +82,7 @@ contains
         end select
       end if
 
-    if ( LPROF ) call stop_timing( id, 'surf_temp_forcing_alg' )
+    if ( LPROF ) call stop_timing( id, 'surf_temp_forcing' )
 
   end subroutine surf_temp_forcing_alg
 end module surf_temp_forcing_alg_mod

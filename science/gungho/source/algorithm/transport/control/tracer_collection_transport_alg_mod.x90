@@ -21,8 +21,6 @@ module tracer_collection_transport_mod
                                             LOG_LEVEL_DEBUG
   use mesh_mod,                       only: mesh_type
   use mesh_collection_mod,            only: mesh_collection
-  use timing_mod,                     only: start_timing, stop_timing, &
-                                            tik, LPROF
   use transport_controller_mod,       only: transport_controller_type
   use transport_enumerated_types_mod, only: equation_form_advective,           &
                                             equation_form_conservative,        &
@@ -77,9 +75,6 @@ contains
     type(field_type),            pointer :: single_field_in
 
     integer(kind=i_def) :: equation_form
-    integer(tik)        :: id
-
-    if ( LPROF ) call start_timing( id, 'transport.tracer_collection' )
 
     ! If performing advective transport in the first outer loop, then the
     ! transport metadata needs setting here to make that choice
@@ -162,8 +157,6 @@ contains
     ! but in case there are no fields in the collection, also reset it here
     call transport_controller%after_transport_field()
 
-    if ( LPROF ) call stop_timing( id, 'transport.tracer_collection' )
-
   end subroutine tracer_collection_transport_alg
 
 
@@ -215,9 +208,6 @@ contains
 
     ! Transport runtime and form of transport equation
     integer(kind=i_def) :: equation_form
-    integer(tik)        :: id
-
-    if ( LPROF ) call start_timing( id, 'transport.tracer_collection' )
 
     ! If performing advective transport in the first outer loop, then the
     ! transport metadata needs setting here to make that choice
@@ -301,8 +291,6 @@ contains
       end do
 
     end if
-
-    if ( LPROF ) call stop_timing( id, 'transport.tracer_collection' )
 
   end subroutine coarse_collection_transport_alg
 

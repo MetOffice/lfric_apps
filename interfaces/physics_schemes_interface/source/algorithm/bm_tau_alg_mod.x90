@@ -72,7 +72,7 @@ contains
     integer( kind=i_def )       :: ncells
     integer ( tik )             :: id
 
-    if ( LPROF ) call start_timing( id, 'bm_tau_alg' )
+    if ( LPROF ) call start_timing( id, 'cloud.bm_tau' )
 
     call cloud_fields%get_field('frozen_fraction', cf_fro)
     call cloud_fields%get_field('tau_dec_bm', tau_dec_bm)
@@ -103,7 +103,7 @@ contains
 
     call um_sizes_init(1_i_def)
 
-    if ( LPROF ) call stop_timing( id, 'bm_tau_alg' )
+    if ( LPROF ) call stop_timing( id, 'cloud.bm_tau' )
 
   end subroutine bm_tau_alg
 

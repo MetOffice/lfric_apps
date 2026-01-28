@@ -114,7 +114,7 @@ contains
 
     nullify( Helmholtz_operator, x_vec, y_vec, lookup_field, set_counts_field )
 
-    if ( LPROF ) call start_timing( id, 'adj_helmholtz_lhs' )
+    if ( LPROF ) call start_timing( id, 'adj_pressure_solver.helmholtz_lhs' )
 
     select type (x)
     type is (r_solver_field_vector_type)
@@ -158,8 +158,6 @@ contains
           call log_event( "apply_adj_pressure_operator: element_orders /= 0 not coded", LOG_LEVEL_ERROR )
         end if
 
-        if ( LPROF ) call stop_timing( id, 'adj_helmholtz_lhs' )
-
       class default
         call log_event( "adj_pressure_operator_alg_mod: incorrect vector_type argument y", LOG_LEVEL_ERROR )
       end select
@@ -167,6 +165,7 @@ contains
     class default
       call log_event( "adj_pressure_operator_alg_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
     end select
+    if ( LPROF ) call stop_timing( id, 'adj_pressure_solver.helmholtz_lhs' )
 
     call log_event( "apply_adj_pressure_operator: end", LOG_LEVEL_DEBUG )
 

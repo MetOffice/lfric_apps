@@ -267,7 +267,7 @@ contains
     integer(i_def) :: ncells
     integer(tik)   :: id
 
-    if ( LPROF ) call start_timing( id, 'conv_comorph_alg' )
+    if ( LPROF ) call start_timing( id, 'convection.comorph' )
 
     call log_event( 'Running Comorph convection scheme', LOG_LEVEL_DEBUG )
 
@@ -630,7 +630,7 @@ contains
 
     call um_sizes_init(1_i_def)
 
-    if ( LPROF ) call stop_timing( id, 'conv_comorph_alg' )
+    if ( LPROF ) call stop_timing( id, 'convection.comorph' )
 
     ! output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then

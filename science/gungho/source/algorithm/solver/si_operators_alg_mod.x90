@@ -190,8 +190,7 @@ contains
     type(function_space_type), pointer     :: w2_fs => null()
     type(function_space_type), pointer     :: w3_fs => null()
     type(function_space_type), pointer     :: wt_fs => null()
-    integer(tik)                           :: id
-    if ( LPROF ) call start_timing( id, 'si_operators_alg:create' )
+
     call log_event( "Gungho: creating si_operators", LOG_LEVEL_DEBUG )
 
     if(l_multigrid) then
@@ -279,7 +278,6 @@ contains
        end if
     end do
    nullify( w2_fs, w3_fs, wt_fs )
-   if ( LPROF ) call stop_timing( id, 'si_operators_alg:create' )
 
   end subroutine create_si_operators
 
@@ -469,7 +467,8 @@ contains
     integer(kind=i_def), parameter :: req_stencil_depth = 1
     integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
     integer(tik)                   :: id
-    if ( LPROF ) call start_timing( id, 'si_operators_alg:compute' )
+
+    if ( LPROF ) call start_timing( id, 'dynamics.compute_si_operators' )
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_DEBUG )
 
     dt = real(model_clock%get_seconds_per_step(), r_def)
@@ -820,7 +819,7 @@ contains
     nullify( chi, panel_id, m3_inv, div, w2_rmultiplicity, &
              mesh, reference_element, m2, u_normalisation, t_normalisation, &
              w2_mask, mesh )
-    if ( LPROF ) call stop_timing( id, 'si_operators_alg:compute' )
+    if ( LPROF ) call stop_timing( id, 'dynamics.compute_si_operators' )
 
   end subroutine compute_si_operators
 

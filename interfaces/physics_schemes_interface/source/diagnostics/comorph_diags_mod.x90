@@ -71,7 +71,7 @@ contains
                                          massflux_up_half
     integer(tik)  :: id
 
-    if ( LPROF ) call start_timing( id, 'comorph_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.comorph' )
 
     ! Convective diagnostics - 2d
     lowest_cv_base_flag = init_diag(lowest_cv_base, 'convection__lowest_cv_base')
@@ -105,7 +105,7 @@ contains
 
     massflux_up_half_flag = init_diag(massflux_up_half, 'convection__massflux_up_half')
 
-    if ( LPROF ) call stop_timing( id, 'comorph_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
   end subroutine initialise_diags_for_comorph
 
@@ -185,7 +185,7 @@ contains
                                        massflux_up_half
     integer(tik)  :: id
 
-    if ( LPROF ) call start_timing( id, 'comorph_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.comorph' )
 
     ! Prognostic fields
     call cca%write_field('convection__cca')
@@ -231,7 +231,7 @@ contains
     if (detrain_down_flag) call detrain_down%write_field()
     if (massflux_up_half_flag) call massflux_up_half%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'comorph_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 
   end subroutine output_diags_for_comorph
 end module comorph_diags_mod

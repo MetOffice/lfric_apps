@@ -233,10 +233,9 @@ module spt_main_alg_mod
   real(kind=r_second) :: timestepping_config_mod_dt
 
   ! Timing handle
-  integer(tik)   :: id
+  integer(tik)   :: id_alg, id_diags
 
-
-  if ( LPROF ) call start_timing( id, 'spt_main_alg' )
+  if ( LPROF ) call start_timing( id_alg, 'stoch_phys.spt' )
 
   timestepping_config_mod_dt = dt_timestep
 
@@ -512,14 +511,16 @@ module spt_main_alg_mod
                 inc_X_plus_Y(dmv_stph, dmv_spt) )
   end if
 
+  if ( LPROF ) call stop_timing( id_alg, 'stoch_phys.spt' )
+
   ! Write fields to diagnostics if requested
   if (write_diag .and. use_xios_io) then
+    if ( LPROF ) call start_timing( id_diags, 'diags.stoch_phys' )
     call fp_spt%write_field('stochastic__fp_spt')
     call dtheta_spt%write_field('stochastic__dtheta_spt')
     call dmv_spt%write_field('stochastic__dmv_spt')
+    if ( LPROF ) call stop_timing( id_diags, 'diags.stoch_phys' )
   end if
-
-  if ( LPROF ) call stop_timing( id, 'spt_main_alg' )
 
   end subroutine spt_main_alg
 end module spt_main_alg_mod

@@ -174,7 +174,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ns
     integer(tik)                      :: id
 
-    if ( LPROF ) call start_timing( id, 'mixed_operator' )
+    if ( LPROF ) call start_timing( id, 'mixed_solver.operator' )
 
     ! Extract mesh ID
     select type (y)
@@ -360,7 +360,7 @@ contains
        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
 
-    if ( LPROF ) call stop_timing( id, 'mixed_operator' )
+    if ( LPROF ) call stop_timing( id, 'mixed_solver.operator' )
 
   end subroutine apply_mixed_operator
 

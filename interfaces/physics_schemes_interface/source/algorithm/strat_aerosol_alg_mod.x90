@@ -48,7 +48,7 @@ subroutine strat_aerosol_alg( aerosol_fields, trop_level, exner )
   type(mesh_type),           pointer :: aerosol_mesh => null()
   integer(tik)                       :: id
                
-  if ( LPROF ) call start_timing( id, 'strat_aerosol_alg' )
+  if ( LPROF ) call start_timing( id, 'aerosol.stratosphere' )
 
   if (coarse_rad_aerosol) then
     ! Initialise potentially coarse aerosol field
@@ -63,7 +63,7 @@ subroutine strat_aerosol_alg( aerosol_fields, trop_level, exner )
     call invoke( strat_aerosol_kernel_type( sulphuric, trop_level, exner ) )
   end if
 
-  if ( LPROF ) call stop_timing( id, 'strat_aerosol_alg' )
+  if ( LPROF ) call stop_timing( id, 'aerosol.stratosphere' )
 
 end subroutine strat_aerosol_alg
 end module strat_aerosol_alg_mod

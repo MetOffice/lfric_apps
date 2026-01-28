@@ -119,7 +119,7 @@ contains
     type(r_solver_field_type), pointer :: r_solver_rho_at_u => null()
     integer(tik)                 :: id
 
-    if ( LPROF ) call start_timing( id, 'rhs_lbc' )
+    if ( LPROF ) call start_timing( id, 'dynamics.rhs_lbc' )
 
     mesh_id = rhs(igh_u)%get_mesh_id()
 
@@ -188,7 +188,7 @@ contains
     nullify ( div, mt_lumped_inv, m2_diag, mm_vel )
     nullify ( r_solver_rho_at_u )
 
-    if ( LPROF ) call stop_timing( id, 'rhs_lbc' )
+    if ( LPROF ) call stop_timing( id, 'dynamics.rhs_lbc' )
 
   end subroutine calc_rhs_lbc
 

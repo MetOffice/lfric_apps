@@ -36,12 +36,12 @@ contains
     type( field_type ), intent(inout) :: oblen
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'bl_exp_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.bl_exp' )
 
     zht_flag = init_diag(zht, 'turbulence__zht')
     oblen_flag = init_diag(oblen, 'turbulence__oblen')
 
-    if ( LPROF ) call stop_timing( id, 'bl_exp_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 
   end subroutine initialise_diags_for_bl_exp
 
@@ -92,7 +92,7 @@ contains
                                             cumulus, bl_type_ind
     integer( tik )  :: id
 
-    if ( LPROF ) call start_timing( id, 'bl_exp_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.bl_exp' )
 
     ! Prognostic fields from turbulence collection
     call ntml%write_field('turbulence__ntml')
@@ -121,7 +121,7 @@ contains
     if (zht_flag) call zht%write_field()
     if (oblen_flag) call oblen%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'bl_exp_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 
   end subroutine output_diags_for_bl_exp
 end module bl_exp_diags_mod

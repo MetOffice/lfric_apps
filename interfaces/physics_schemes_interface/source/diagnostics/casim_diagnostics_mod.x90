@@ -55,7 +55,7 @@ contains
     type( field_type ), intent(inout) :: ls_graup_3d
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'casim_diagnostics' )
+    if ( LPROF ) call start_timing( id, 'diags.casim' )
 
     refl_tot_flag = init_diag(refl_tot, 'microphysics__refl_tot')
     refl_1km_flag = init_diag(refl_1km, 'microphysics__refl_1km')
@@ -63,7 +63,7 @@ contains
     superc_rain_flag = init_diag(superc_rain, 'microphysics__superc_rain')
     ls_graup_3d_flag = init_diag(ls_graup_3d, 'microphysics__ls_graup_3d')
 
-    if ( LPROF ) call stop_timing( id, 'casim_diagnostics' )
+    if ( LPROF ) call stop_timing( id, 'diags.casim' )
 
   end subroutine initialise_diags_for_casim
 
@@ -99,7 +99,7 @@ contains
     !--------------------------------------
     ! End of declarations
     !--------------------------------------
-    if ( LPROF ) call start_timing( id, 'casim_diagnostics' )
+    if ( LPROF ) call start_timing( id, 'diags.casim' )
 
 
     !----------------------------------------------------
@@ -170,7 +170,7 @@ contains
     call ns_mphys%write_field('casim__ns_mphys')
     call ng_mphys%write_field('casim__ng_mphys')
 
-    if ( LPROF ) call stop_timing( id, 'casim_diagnostics' )
+    if ( LPROF ) call stop_timing( id, 'diags.casim' )
 
   end subroutine output_diags_for_casim
 
