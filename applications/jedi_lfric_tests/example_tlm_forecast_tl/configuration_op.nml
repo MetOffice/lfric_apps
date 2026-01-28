@@ -345,6 +345,7 @@ tau_u=0.55,
 /
 &transport
 adjust_theta=.false.,
+adjust_tracer_equation=.false.
 adjust_vhv_wind=.false.
 broken_w2_projection=.false.,
 calculate_detj='upwind',

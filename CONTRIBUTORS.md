@@ -16,3 +16,4 @@
 | mo-alistairp    | Alistair Pirrie    | Met Office                       | 2026-01-19 |
 | jasonjunweilyu  | Junwei (Jason) Lyu | Bureau of Meteorology, Australia | 2025-12-17 |
 | EdHone          | Ed Hone            | Met Office                       | 2026-01-26 |
+| jameskent-metoffice | James Kent     | Met Office                       | 2026-01-21 |
