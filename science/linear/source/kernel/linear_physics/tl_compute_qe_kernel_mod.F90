@@ -124,6 +124,8 @@ subroutine tl_compute_qe_code( nlayers,                             &
   real(kind=r_def), parameter :: Von_Karman = 0.4_r_def
   real(kind=r_def)            :: L_diff_m(1:BLevs_m)
   real(kind=r_def)            :: u1
+  real(kind=r_def)            :: num
+  real(kind=r_def)            :: denom
 
   df = 1 ! map_w3 only has range 1:1, map_wtheta has range 1:2 with 1 being lower face of cell
   roughness_length_m = z_land_m * ls_land_fraction(map_2d(df)) + z_sea_m * (1.0_r_def - ls_land_fraction(map_2d(df)))
@@ -135,15 +137,17 @@ subroutine tl_compute_qe_code( nlayers,                             &
   ! L_diff_m(k) defined for 1 <= k <= BLevs_m.
   do k = 1, BLevs_m
     if (k <= Log_layer) then
-      L_diff_m(k) = Von_Karman * (height_w3(map_w3(df) + k) - height_w3(map_w3(df) + k - 1))    &
-        / (log((height_w3(map_w3(df) + k) - height_wth(map_wtheta(df)) + roughness_length_m)    &
-          / (height_w3(map_w3(df) + k - 1) - height_wth(map_wtheta(df)) + roughness_length_m) ) &
-        + Von_Karman * (height_w3(map_w3(df) + k) - height_w3(map_w3(df) + k - 1)) / L_0_m)
+      ! num and denom to take log of
+      num = height_w3(map_w3(df) + k) - height_wth(map_wtheta(df)) + roughness_length_m
+      denom = height_w3(map_w3(df) + k - 1) - height_wth(map_wtheta(df)) + roughness_length_m
+      ! num and denom of final expression
+      denom = log(num / denom) + Von_Karman * (height_w3(map_w3(df) + k) - height_w3(map_w3(df) + k - 1)) / L_0_m
+      num = (height_w3(map_w3(df) + k) - height_w3(map_w3(df) + k - 1))
     else
-      L_diff_m(k) = Von_Karman * ((height_wth(map_wtheta(df) + k) - height_wth(map_wtheta(df)) &
-        + roughness_length_m) / (1.0_r_def + (height_wth(map_wtheta(df) + k)                   &
-        - height_wth(map_wtheta(df)) + roughness_length_m) / L_0_m))
+      num = height_wth(map_wtheta(df) + k) - height_wth(map_wtheta(df)) + roughness_length_m
+      denom = 1.0_r_def + (height_wth(map_wtheta(df) + k) - height_wth(map_wtheta(df)) + roughness_length_m) / L_0_m
     end if
+    L_diff_m(k) = Von_Karman * num / denom
   end do
 
   ! Define Q and E
@@ -154,12 +158,17 @@ subroutine tl_compute_qe_code( nlayers,                             &
   u1 = u_land_m * ls_land_fraction(map_2d(df)) + u_sea_m * (1.0_r_def - ls_land_fraction(map_2d(df)))
   do k = 0, BLevs_m
     if (k == 0) then
-      Q(map_w3(df) + k) = Von_Karman * u1 &
-        / log(((height_w3(map_w3(df) + 0) - height_wth(map_wtheta(df) + 0) + roughness_length_m) / (roughness_length_m)))
+      ! num and denom to take log of
+      num = height_w3(map_w3(df) + 0) - height_wth(map_wtheta(df) + 0) + roughness_length_m
+      denom = roughness_length_m
+      ! num and denom of final expression
+      denom = log(num / denom)
+      num = Von_Karman * u1
+      Q(map_w3(df) + k) = num / denom
     else ! i.e., k >= 1
-      Q(map_w3(df) + k) = L_diff_m(k) * u1 &
-        * exp((height_wth(map_wtheta(df)) - height_wth(map_wtheta(df) + k)) &
-          / (height_wth(map_wtheta(df) + e_folding_levs_m) - height_wth(map_wtheta(df))))
+      num = height_wth(map_wtheta(df)) - height_wth(map_wtheta(df) + k)
+      denom = height_wth(map_wtheta(df) + e_folding_levs_m) - height_wth(map_wtheta(df))
+      Q(map_w3(df) + k) = L_diff_m(k) * u1 * exp(num / denom)
       E(map_w3(df) + k) = ls_rho(map_w3(df) + k - 1) * (height_wth(map_wtheta(df) + k) - height_wth(map_wtheta(df) + k - 1))
     end if
   end do

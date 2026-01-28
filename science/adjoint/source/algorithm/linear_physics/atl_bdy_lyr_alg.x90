@@ -103,7 +103,7 @@ subroutine atl_bdy_lyr_alg(modeldb, u_bl_inc, state, ls_state, dt)
   type( field_type )          :: state_initial(bundle_size)
 
   type( field_collection_type ), pointer :: ls_fields
-  type( field_type), pointer             ::  ls_land_fraction => null()
+  type( field_type), pointer             :: ls_land_fraction => null()
 
   ! Coefficients computed from linearisation state
   type( field_type ) :: Q
