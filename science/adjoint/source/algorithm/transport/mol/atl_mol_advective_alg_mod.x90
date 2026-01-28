@@ -205,8 +205,7 @@ contains
 
         ! Update field: f = f^n - dt_substep*rhs
         call invoke( inc_X_minus_bY( rhs, dt_mol_substep, field_np1 ), &
-                     inc_X_plus_Y( field_n, field_np1 ),           &
-                     setval_c( field_np1, 0.0_r_def ) )
+                     inc_X_plus_Y( field_n, field_np1 ) )
 
         ! Compute update: rhs = u.grad(rhs_field)
         call atl_advective_and_flux_alg(                                       &
@@ -222,8 +221,8 @@ contains
 
         ! Compute the field for this stage:
         ! rhs_field = sum(s=1,stage): a(stage,s)*field^(s)
-        call invoke( setval_c( rhs_field, 0.0_r_def ),           &
-                     inc_X_plus_Y( field_np1, rk_field(stage) ), &
+        call invoke( setval_c( rhs_field, 0.0_r_def ),       &
+                     setval_x( field_np1, rk_field(stage) ), &
                      setval_c( rk_field(stage), 0.0_r_def ) )
 
       end do  ! stage
