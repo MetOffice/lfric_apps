@@ -2147,7 +2147,7 @@ contains
         'unphysical values, and the corresponding maximum Lipschitz ' //       &
         'number exceeds 1 somewhere, so check these values in the log ' //     &
         'above, which may also indicate the geographical location of ' //      &
-        'the issue.' //             &
+        'the issue.' //                                                        &
         NEW_LINE('A') // NEW_LINE('A') //                                      &
         'If this failure has occurred in the first timestep, it can ' //       &
         'signify issues with the initial conditions or ancillaries.'
