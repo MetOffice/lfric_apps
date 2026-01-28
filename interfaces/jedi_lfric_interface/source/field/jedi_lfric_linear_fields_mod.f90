@@ -35,6 +35,7 @@ module jedi_lfric_linear_fields_mod
   integer( kind=i_def ), parameter :: element_order_h = 0
   integer( kind=i_def ), parameter :: element_order_v = 0
   integer( kind=i_def ), parameter :: nvars = 10
+  integer( kind=i_def ), parameter :: ls_nvars = 11
   character( len=str_def ), parameter, public :: &
                                      variable_names(nvars) =  (/'theta   ', &
                                                                 'exner   ', &
@@ -46,6 +47,18 @@ module jedi_lfric_linear_fields_mod
                                                                 'm_cl    ', &
                                                                 'm_r     ', &
                                                                 'm_s     '/)
+  character( len=str_def ), parameter, public :: &
+                               ls_variable_names(ls_nvars) =  (/'theta        ', &
+                                                                'exner        ', &
+                                                                'rho          ', &
+                                                                'u_in_w3      ', &
+                                                                'v_in_w3      ', &
+                                                                'w_in_wth     ', &
+                                                                'm_v          ', &
+                                                                'm_cl         ', &
+                                                                'm_r          ', &
+                                                                'm_s          ', &
+                                                                'land_fraction'/)
 
   integer( kind=i_def ), parameter, public :: &
                             variable_function_spaces(nvars) = (/Wtheta, &
@@ -58,6 +71,18 @@ module jedi_lfric_linear_fields_mod
                                                                 Wtheta, &
                                                                 Wtheta, &
                                                                 Wtheta/)
+  integer( kind=i_def ), parameter, public :: &
+                      ls_variable_function_spaces(ls_nvars) = (/Wtheta, &
+                                                                W3,     &
+                                                                W3,     &
+                                                                W3,     &
+                                                                W3,     &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                Wtheta, &
+                                                                W3/)
 
   public :: create_linear_fields
 
@@ -84,18 +109,18 @@ subroutine create_linear_fields( mesh, linear_fields )
   integer                         :: i
 
   ! Setup the field_collection
-  call linear_fields%initialise(name = 'linear_state_trajectory', table_len = nvars)
+  call linear_fields%initialise(name = 'linear_state_trajectory', table_len = ls_nvars)
 
   ! Create and add the fields defined in the list of variable names
-  do i = 1, nvars
+  do i = 1, ls_nvars
 
-    variable_name = trim(variable_names(i))
+    variable_name = trim(ls_variable_names(i))
 
     call field%initialise( &
            vector_space = function_space_collection%get_fs(mesh,               &
                                                            element_order_h,    &
                                                            element_order_v,    &
-                                                           variable_function_spaces(i)), &
+                                                           ls_variable_function_spaces(i)), &
            name = variable_name )
 
     call linear_fields%add_field( field )

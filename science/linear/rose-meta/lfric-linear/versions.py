@@ -43,5 +43,24 @@ class vn30_t99(MacroUpgrade):
         # Commands From: rose-meta/lfric-lfric_atm
         """Set segmentation size for Gregory-Rowntree convection kernel"""
         self.add_setting(config, ["namelist:physics", "conv_gr_segment"], "16")
+        return config, self.reports
 
+
+class vn30_t182(MacroUpgrade):
+    # Upgrade macro for #182 by Tom Hill
+
+    BEFORE_TAG = "vn3.0_t99"
+    AFTER_TAG = "vn3.0_t182"
+
+    def upgrade(self, config, meta_config=None):
+        """Add linear boundary layer physics scheme"""
+        self.add_setting(config, ["namelist:linear", "Blevs_m"], "15")
+        self.add_setting(config, ["namelist:linear", "e_folding_levs_m"], "10")
+        self.add_setting(config, ["namelist:linear", "l_0_m"], "80.0")
+        self.add_setting(config, ["namelist:linear", "l_boundary_layer"], ".true.")
+        self.add_setting(config, ["namelist:linear", "log_layer"], "2")
+        self.add_setting(config, ["namelist:linear", "u_land_m"], "0.4")
+        self.add_setting(config, ["namelist:linear", "u_sea_m"], "0.4")
+        self.add_setting(config, ["namelist:linear", "z_land_m"], "0.05")
+        self.add_setting(config, ["namelist:linear", "z_sea_m"], "0.0005")
         return config, self.reports

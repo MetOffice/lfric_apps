@@ -134,9 +134,10 @@ contains
 !> @param [in] atlas_name         Optional name of the atlas field
 !> @param [in] fill_direction_up  Optional logical set false if the atlas field
 !>                                data is orientated from top-bottom
+!> @param [in] is_2d              Optional logical set true if the field is 2D
 subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
                               lfric_field_ptr, surface_level_type, &
-                              atlas_name, fill_direction_up )
+                              atlas_name, fill_direction_up, is_2d )
 
   implicit none
 
@@ -147,6 +148,7 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
   integer(i_def),        optional, intent(in) :: surface_level_type
   character( len=* ),    optional, intent(in) :: atlas_name
   logical( kind=l_def ), optional, intent(in) :: fill_direction_up
+  logical( kind=l_def ), optional, intent(in) :: is_2d
 
   ! locals
   logical( kind=l_def ), allocatable :: check_map(:)
@@ -157,6 +159,7 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
   type( field_proxy_type )           :: field_proxy
   class(field_parent_type), pointer  :: cast_field
   logical( kind=l_def )              :: fill_direction_up_local
+  logical( kind=l_def )              :: is_2d_local
 
   ! Initialise the abstract parent
   !
@@ -196,6 +199,12 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
     fill_direction_up_local = fill_direction_up
   else
     fill_direction_up_local = .true.
+  end if
+
+  if (present(is_2d)) then
+    is_2d_local = is_2d
+  else
+    is_2d_local = .false.
   end if
 
   ! Setup data sizes and indices
@@ -240,7 +249,15 @@ subroutine field_initialiser( self, atlas_data_ptr, map_horizontal_ptr, &
         " function space is not supported by the atlas_field_interface class."
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end select
+
   n_horizontal_lfric = field_proxy%vspace%get_last_dof_owned()/n_vertical_lfric
+
+  ! n_vertical_lfric is set above based on function space and assuming a 3D field
+  ! This is then used to correctly calculate n_horizontal_lfric
+  ! However, this does not take into account 2D fields
+  ! Here we override n_vertical_lfric to 1 in the case of 2D fields
+  ! n_horizontal_lfric remains correct
+  if (is_2d_local) n_vertical_lfric = 1
 
   ! 1. Vertical points
   if ( n_vertical_lfric /= self%n_vertical_lfric ) then
