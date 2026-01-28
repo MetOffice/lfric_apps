@@ -8,6 +8,7 @@ applications/adjoint_tests/             @DrTVockerodtMO                     # @m
 applications/gravity_wave/              @thomasmelvin                       # @cjohnson-pi
 applications/gungho_model/              @thomasmelvin                       # @BShipway
 applications/jedi_lfric_tests/          @ss421  @matthewrmshin              # @DavidSimonin
+application/jules/                      @iboutle                            # @MetOffice/ssdtesam
 applications/lfricinputs/               @mo-lottieturner                    # @mike-hobson
 applications/lfric_atm/                 # @iboutle                          # @BShipway
 applications/lfric_coupled/             # @HengistPodd                      # @BShipway
