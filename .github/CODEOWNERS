@@ -43,7 +43,7 @@ science/gungho/source/psy/                                  @thomasmelvin       
 science/physics_schemes/                                    # @iboutle              # @MetOffice/ssdteam
 science/physics_schemes/source/boundary_layer               @Adrian-Lock            # @P-Burns
 science/physics_schemes/source/convection                   @MichaelWhitall
-science/physics_schemes/source/comorph                      @MichaelWhitall
+science/physics_schemes/source/convection/comorph           @MichaelWhitall
 science/physics_schemes/source/large_scale_cloud            @paul-barrett           # @CyrilMorcrette
 science/physics_schemes/source/large_scale_precipitation    @paulfield2024          # @paul-barrett
 science/physics_schemes/source/radiation_control            @mo-jmanners            # @Petzi1
