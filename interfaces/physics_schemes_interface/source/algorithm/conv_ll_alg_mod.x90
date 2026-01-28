@@ -12,8 +12,7 @@ module conv_ll_alg_mod
   use field_collection_mod, only: field_collection_type
   use mr_indices_mod,       only: nummr, imr_v, imr_cl
   use timestepping_config_mod, only: outer_iterations
-  use io_config_mod,        only: subroutine_timers
-  use timer_mod,            only: timer
+  use timing_mod,           only: start_timing, stop_timing, tik, LPROF
   ! xios output
   use io_config_mod,        only: write_diag, use_xios_io
   use log_mod,              only: log_event, LOG_LEVEL_INFO
@@ -59,8 +58,9 @@ contains
     type( field_type ), pointer :: dbcf_conv => null()
     type( field_type ), pointer :: conv_rain => null()
     type( field_type ), pointer :: conv_snow => null()
+    integer(tik)                :: id
 
-    if ( subroutine_timers ) call timer("conv_ll_alg")
+    if ( LPROF ) call start_timing( id, 'conv_ll_alg' )
 
     call log_event( 'Running LL convection scheme', LOG_LEVEL_INFO )
 
@@ -90,7 +90,7 @@ contains
       call conv_snow%write_field('convection__conv_snow')
     end if
 
-    if ( subroutine_timers ) call timer("conv_ll_alg")
+    if ( LPROF ) call stop_timing( id, 'conv_ll_alg' )
 
   end subroutine conv_ll_alg
 
