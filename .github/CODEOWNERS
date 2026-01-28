@@ -18,49 +18,50 @@ applications/name_transport/            @jameskent-metoffice                # @t
 applications/ngarch/                    # @christophermaynard               # @jcsmeto
 applications/shallow_water/             @jameskent-metoffice                # @atb1995
 applications/solver/                    # @christophermaynard               # @thomasmelvin
-applications/transport/                 # @tommbendall                      # @jameskent-metoffice
+applications/transport/                 @tommbendall                        # @jameskent-metoffice
 
 # Science
 science/adjoint/                        @DrTVockerodtMO                     # @mo-joshuacolclough
-science/constants/                      # @iboutle                          # @BShipway
 science/linear/                         @cjohnson-pi  @ss421 @matthewrmshin # @tommbendall # Also notifiy jedi team about linear changes.
+science/shared/source/constants/        # @iboutle                          # @BShipway
 
-science/gungho/                                             @thomasmelvin           # @iboutle
-science/gungho/source/algorithm/core_dynamics/              @jameskent-metoffice    # @thomasmelvin
-science/gungho/source/algorithm/diagnostics/                @atb1995                # @iboutle
-science/gungho/source/algorithm/diffusion/                  @iboutle                # @tommbendall
-science/gungho/source/algorithm/initialisation/             # Chris smith           # @thomasmelvin
-science/gungho/source/algorithm/limited_area/               @cjohnson-pi            # @thomasmelvin
-science/gungho/source/algorithm/physics/                    @iboutle                # @tommbendall
-science/gungho/source/algorithm/runtime_constants/          @tommbendall            # @atb1995
-science/gungho/source/algorithm/solver/                     @thomasmelvin           # @tommbendall
-science/gungho/source/algorithm/timestepping/               @thomasmelvin           # @jameskent-metoffice
-science/gungho/source/algorithm/transport/                  @tommbendall            # @jameskent-metoffice
-science/gungho/source/configuration/                        @jameskent-metoffice    # @thomasmelvin
-science/gungho/source/driver/                               #?                      # @iboutle
-science/gungho/source/orography/                            @atb1995                # @tommbendall
-science/gungho/source/psy/                                  @thomasmelvin           # @tommbendall
+science/gungho/                         @thomasmelvin                       # @iboutle
+science/gungho/**/configuration/        @jameskent-metoffice                # @thomasmelvin
+science/gungho/**/core_dynamics/        @jameskent-metoffice                # @thomasmelvin
+science/gungho/**/diagnostics/          @atb1995                            # @iboutle
+science/gungho/**/diffusion/            @iboutle                            # @tommbendall
+science/gungho/**/driver/               #?                                  # @iboutle
+science/gungho/**/external_forcing/     @iboutle                            # @tommbendall
+science/gungho/**/initialisation/       # Chris smith                       # @thomasmelvin
+science/gungho/**/limited_area/         @cjohnson-pi                        # @thomasmelvin
+science/gungho/**/orography/            @atb1995                            # @tommbendall
+science/gungho/**/physics/              @iboutle                            # @tommbendall
+science/gungho/**/psy/                  @thomasmelvin                       # @tommbendall
+science/gungho/**/runtime_constants/    @tommbendall                        # @atb1995
+science/gungho/**/solver/               @thomasmelvin                       # @tommbendall
+science/gungho/**/timestepping/         @thomasmelvin                       # @jameskent-metoffice
+science/gungho/**/transport/            @tommbendall                        # @jameskent-metoffice
 
-science/physics_schemes/                                    # @iboutle              # @MetOffice/ssdteam
-science/physics_schemes/source/boundary_layer               @Adrian-Lock            # @P-Burns
-science/physics_schemes/source/convection                   @MichaelWhitall
-science/physics_schemes/source/convection/comorph           @MichaelWhitall
-science/physics_schemes/source/large_scale_cloud            @paul-barrett           # @CyrilMorcrette
-science/physics_schemes/source/large_scale_precipitation    @paulfield2024          # @paul-barrett
-science/physics_schemes/source/radiation_control            @mo-jmanners            # @Petzi1
-science/physics_schemes/source/stochastic_physics           @wjtmo                  # @annemccabe
+science/physics_schemes/                                    # @iboutle      # @MetOffice/ssdteam
+science/physics_schemes/**/boundary_layer               @Adrian-Lock        # @P-Burns
+science/physics_schemes/**/convection                   @MichaelWhitall
+science/physics_schemes/**/convection/comorph           @MichaelWhitall
+science/physics_schemes/**/large_scale_cloud            @paul-barrett       # @CyrilMorcrette
+science/physics_schemes/**/large_scale_precipitation    @paulfield2024      # @paul-barrett
+science/physics_schemes/**/radiation_control            @mo-jmanners        # @Petzi1
+science/physics_schemes/**/stochastic_physics           @wjtmo              # @annemccabe
 
 # Interfaces
-interfaces/coupled_interface/           # @mike-hobson            # @harry-shepherd
-interfaces/jedi_lfric_interface/        @ss421  @matthewrmshin   # @DavidSimonin
-interfaces/jules_interface/             # @iboutle                # @MetOffice/ssdteam
+interfaces/coupled_interface/           @mike-hobson                        # @harry-shepherd
+interfaces/jedi_lfric_interface/        @ss421  @matthewrmshin              # @DavidSimonin
+interfaces/jules_interface/             # @iboutle                          # @MetOffice/ssdteam
 interfaces/jules_interface/rose-meta    @maggiehendry
-interfaces/physics_schemes_interface/   # @iboutle                # @MetOffice/ssdteam
-interfaces/socrates_interface/          @mo-jmanners            # @Petzi1
+interfaces/physics_schemes_interface/   # @iboutle                          # @MetOffice/ssdteam
+interfaces/socrates_interface/          @mo-jmanners                        # @Petzi1
 
 # System Components
-/rose-stem/templates/                   @james-bruten-mo        # @jennyhickson
-**/versions.py                          @james-bruten-mo        # @jennyhickson
+/rose-stem/templates/                   @james-bruten-mo                    # @jennyhickson
+**/versions.py                          @james-bruten-mo                    # @jennyhickson
 build/                                  @MetOffice/ssdteam
 **/*Makefile                            # @MatthewHambley
 **/*.mk                                 # @MatthewHambley
