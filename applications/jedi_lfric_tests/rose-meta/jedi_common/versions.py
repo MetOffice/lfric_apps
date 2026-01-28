@@ -49,7 +49,7 @@ class vn30_t99(MacroUpgrade):
 class vn30_t132(MacroUpgrade):
     # Upgrade macro for #132 by Tom Hill
 
-    BEFORE_TAG = "vn3.0"
+    BEFORE_TAG = "vn3.0_t99"
     AFTER_TAG = "vn3.0_t132"
 
     def upgrade(self, config, meta_config=None):
