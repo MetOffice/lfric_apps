@@ -4,7 +4,6 @@ from metomi.rose.upgrade import MacroUpgrade
 
 from .version22_30 import *
 
-
 class UpgradeError(Exception):
     """Exception created when an upgrade fails."""
 
