@@ -25,11 +25,12 @@
 !     respectively
 !===================================================================
 &mesh
-  mesh_file_prefix = 'mesh_C12'
+  mesh_file_prefix = 'mesh_C12_MG'
   geometry         = 'spherical'
   topology         = 'periodic'
-  n_meshes         = 1
-  mesh_names       = 'C12'
+  n_meshes         = 3
+  mesh_names       = 'dynamics','multigrid_l1','multigrid_l2'
+  mesh_maps        = 'dynamics:multigrid_l1','multigrid_l1:multigrid_l2'
   partition_mesh   = .false.
   coord_sys        = 'll'
   rotate_mesh      = .false.
