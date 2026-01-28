@@ -2138,8 +2138,8 @@ contains
       write(log_scratch_space, '(A,E16.8,A)')                                  &
         'The transport scheme has a detected negative or tiny value ',         &
          field_min, 'in the transport reference field ' //                     &
-         adjustl(trim(field_name)) // '. This makes it impossible ' //         &
-        'to find sensible departure distances for Semi-Lagrangian ' //         &
+         adjustl(trim(field_name)) // '. This makes it impossible to find ' // &
+        'sensible departure distances for (Flux Form) Semi-Lagrangian ' //     &
         'transport. Stopping now to fail gracefully.' //                       &
         NEW_LINE('A') // NEW_LINE('A') //                                      &
         'This is a common way for the model to fail. Most likely the ' //      &

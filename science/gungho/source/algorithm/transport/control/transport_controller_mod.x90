@@ -662,9 +662,9 @@ contains
           call log_event(                                                      &
             'The Watkins algorithm failed to keep all reference fields ' //    &
             'positive for the transport of tracers. This makes it ' //         &
-            'impossible to find sensible departure distances for ' //          &
-            'Semi-Lagrangian transport. Stopping now to fail gracefully.' //   &
-            NEW_LINE('A') // NEW_LINE('A') //                                  &
+            'impossible to find sensible departure distances for (Flux ' //    &
+            'Form) Semi-Lagrangian transport. Stopping now to fail ' //        &
+            'gracefully.' // NEW_LINE('A') // NEW_LINE('A') //                 &
             'This is a common way for the model to fail. Most likely the ' //  &
             'transporting wind passed to the transport scheme has some ' //    &
             'unphysical values, and the corresponding maximum Lipschitz ' //   &
