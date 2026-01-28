@@ -25,9 +25,11 @@ module tl_rk_alg_timestep_mod
   use derived_config_mod,                 only: bundle_size
   use sci_fem_constants_mod,              only: get_qr_fe, &
                                                 get_inverse_mass_matrix_fe
-  use sci_geometric_constants_mod,        only: get_coordinates, &
-                                                get_panel_id,    &
-                                                get_dx_at_w2
+  use sci_geometric_constants_mod,        only: get_coordinates,      &
+                                                get_panel_id,         &
+                                                get_dx_at_w2,         &
+                                                get_face_selector_ew, &
+                                                get_face_selector_ns
   use transport_config_mod,               only: operators, &
                                                 operators_fv
   use mixing_config_mod,                  only: viscosity, viscosity_mu
@@ -65,6 +67,7 @@ module tl_rk_alg_timestep_mod
   ! Derived Types
   use field_mod,                          only: field_type
   use field_collection_mod,               only: field_collection_type
+  use integer_field_mod,                  only: integer_field_type
   use quadrature_xyoz_mod,                only: quadrature_xyoz_type
   use quadrature_face_mod,                only: quadrature_face_type
   use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
@@ -246,6 +249,8 @@ contains
     type( field_type ),  pointer :: dx_at_w2 => null()
     type(operator_type), pointer :: m3_inv => null(), &
                                     coriolis => null()
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
 
     type(quadrature_rule_gaussian_type) :: gaussian_quadrature
 
@@ -493,7 +498,10 @@ contains
                   tracer_viscosity_kernel_type(   inc(igh_t), state(igh_t), 1, &
                                                   dx_at_w2, viscosity_mu ),    &
                   momentum_viscosity_kernel_type( inc(igh_u), state(igh_u), 1, &
-                                                  dx_at_w2, 1, viscosity_mu ), &
+                                                  dx_at_w2, 1,                 &
+                                                  face_selector_ew,            &
+                                                  face_selector_ns,            &
+                                                  viscosity_mu ),              &
                   setval_c(inc(igh_d), 0.0_r_def) )
       call bundle_axpy(cast_dt, inc, state, state, bundle_size)
     end if
