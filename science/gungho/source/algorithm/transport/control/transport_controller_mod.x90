@@ -661,12 +661,20 @@ contains
           )
 
           call log_event(                                                      &
-            'Watkins algorithm failed to keep all reference fields ' //        &
+            'The Watkins algorithm failed to keep all reference fields ' //    &
             'positive for the transport of tracers. This makes it ' //         &
-            'impossible to find sensible departure distances. Most likely ' // &
-            'the input transporting wind to the transport scheme has a ' //    &
-            'maximum Lipschitz number that exceeds 1 somewhere, so check ' //  &
-            'so check these values. Stopping model now to fail gracefully',    &
+            'impossible to find sensible departure distances for (Flux ' //    &
+            'Form) Semi-Lagrangian transport. Stopping now to fail ' //        &
+            'gracefully.' // NEW_LINE('A') // NEW_LINE('A') //                 &
+            'This is a common way for the model to fail. Most likely the ' //  &
+            'transporting wind passed to the transport scheme has some ' //    &
+            'unphysical values, and the corresponding maximum Lipschitz ' //   &
+            'number exceeds 1 somewhere, so check these values in the log ' // &
+            'above, which may also indicate the geographical location of ' //  &
+            'the issue.' //                                                    &
+            NEW_LINE('A') // NEW_LINE('A') //                                  &
+            'If this failure has occurred in the first timestep, it can ' //   &
+            'signify issues with the initial conditions or ancillaries.',      &
             LOG_LEVEL_ERROR                                                    &
           )
         end if
