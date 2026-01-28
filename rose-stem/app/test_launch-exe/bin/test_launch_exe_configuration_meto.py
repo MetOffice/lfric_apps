@@ -637,7 +637,7 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
         monkeypatch.setenv("PAT_EXE_EXTEN", "")
-        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --cpu-bind=depth --np 1176 --depth 1 --ppn 128 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml  : --cpu-bind=depth --np 16 --ppn 4 xios_server.exe")
+        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --cpu-bind=depth --np 1176 --depth 1 --ppn 128 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml  : --cpu-bind=depth --np 16 --depth 32 --ppn 4 xios_server.exe")
         sr = subprocess.run(self.launch_exe,
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
@@ -659,7 +659,7 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
         monkeypatch.setenv("PAT_EXE_EXTEN", "")
         monkeypatch.setenv("MEMORY_PROFILE", "True")
-        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --line-buffer --label --cpu-bind=depth --np 1176 --depth 1 --ppn 128 /usr/bin/time -f max_mem_lfric_atm_%Mkb $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml  : --cpu-bind=depth --np 16 --ppn 4 /usr/bin/time -f max_mem_xios_server_%Mkb xios_server.exe")
+        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --line-buffer --label --cpu-bind=depth --np 1176 --depth 1 --ppn 128 /usr/bin/time -f max_mem_lfric_atm_%Mkb $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml  : --cpu-bind=depth --np 16 --depth 32 --ppn 4 /usr/bin/time -f max_mem_xios_server_%Mkb xios_server.exe")
         sr = subprocess.run(self.launch_exe,
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
@@ -681,7 +681,28 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
         monkeypatch.setenv("PAT_EXE_EXTEN", "")
         monkeypatch.setenv("MEMORY_PROFILE", "False")
-        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --cpu-bind=depth --np 1176 --depth 1 --ppn 128 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml  : --cpu-bind=depth --np 16 --ppn 4 xios_server.exe")
+        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --cpu-bind=depth --np 1176 --depth 1 --ppn 128 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml  : --cpu-bind=depth --np 16 --depth 32 --ppn 4 xios_server.exe")
+        sr = subprocess.run(self.launch_exe,
+                            capture_output=True)
+        assert sr.returncode == 0, sr.stderr.decode("UTF-8")
+
+    def test_run_lfric_atm_nwp_gal9_C896_MG_ex1a_cce_production_32bit(self, monkeypatch):
+        monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
+        monkeypatch.setenv("RUN_METHOD", "mpiexec")
+        monkeypatch.setenv("HYPERTHREADS", "1")
+        monkeypatch.setenv("CORES_PER_NODE", "128")
+        monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
+        monkeypatch.setenv("OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("TOTAL_RANKS", "4704")
+        monkeypatch.setenv("XIOS_SERVER_MODE", "True")
+        monkeypatch.setenv("XIOS_SERVER_RANKS", "128")
+        monkeypatch.setenv("xios_nodes", "4")
+        monkeypatch.setenv("mpi_parts_xios", "128")
+        monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
+        monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32")
+        monkeypatch.setenv("EXEC_NAME", "lfric_atm")
+        monkeypatch.setenv("PAT_EXE_EXTEN", "")
+        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC", "mpiexec --cpu-bind=depth --np 4704 --depth 1 --ppn 128 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml  : --cpu-bind=depth --np 128 --depth 4 --ppn 32 xios_server.exe")
         sr = subprocess.run(self.launch_exe,
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")

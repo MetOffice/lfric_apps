@@ -1,0 +1,383 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing the cached lookup table object.
+module adj_trans_lookup_cache_mod
+
+  use adj_lookup_table_mod,            only: adj_lookup_table_type
+  use constants_mod,                   only: i_def, l_def
+  use fs_continuity_mod,               only: W3, Wtheta
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_ERROR
+
+  implicit none
+
+  !> @brief Adjoint lookup table cache type.
+  !> @details Cache containing the lookup tables needed for each stencil kernel,
+  !>          for every combination of function spaces needed.
+  type, public :: adj_trans_lookup_cache_type
+    private
+
+      !> Lookup table for adj_poly1d_reconstruction_kernel.
+      type(adj_lookup_table_type)                            :: lookup_poly1d
+
+      !> Lookup table for adj_poly2d_reconstruction_kernel.
+      !> First index is on the W3 function space, second on Wtheta.
+      type(adj_lookup_table_type), allocatable, dimension(:) :: lookup_poly2d
+
+      !> Lookup table for adj_poly_adv_update_kernel.
+      type(adj_lookup_table_type)                            :: lookup_poly_adv_upd
+
+      !> Lookup table for adj_w3h_advective_update_kernel.
+      type(adj_lookup_table_type)                            :: lookup_w3h_adv_upd
+
+      !> Number of function spaces for lookup_poly2d.
+      integer(kind=i_def)                                    :: n_fs_poly2d
+
+      !> Flag to state whether or not cache is initialised
+      logical(kind=l_def)                                    :: is_initialised = .false._l_def
+
+      contains
+
+      procedure, public :: initialise => adj_trans_lookup_cache_init
+      procedure, public :: get_lookup_poly1d
+      procedure, public :: get_lookup_poly2d
+      procedure, public :: get_lookup_poly_adv_upd
+      procedure, public :: get_lookup_w3h_adv_upd
+      procedure, public :: finalise => adj_trans_lookup_cache_final
+
+  end type adj_trans_lookup_cache_type
+
+  contains
+
+  !=============================================================================
+  !> @brief Initialise the lookup table cache.
+  !> @param [in,out] self           Lookup table cache
+  !> @param [in]     mesh           Pointer to mesh
+  subroutine adj_trans_lookup_cache_init(self, mesh)
+
+    use adj_lookup_table_generators_alg_mod, only: create_lookup_poly1d,       &
+                                                   create_lookup_poly2d,       &
+                                                   create_lookup_poly_adv_upd, &
+                                                   create_lookup_w3h_adv_upd
+    use constants_mod,                       only: r_tran
+    use finite_element_config_mod,           only: element_order_h, &
+                                                   element_order_v
+    use fs_continuity_mod,                   only: W2, W2H
+    use function_space_mod,                  only: function_space_type
+    use function_space_collection_mod,       only: function_space_collection
+    use mesh_mod,                            only: mesh_type
+    use operator_mod,                        only: operator_type
+    use r_tran_field_mod,                    only: r_tran_field_type
+    use sci_fem_constants_mod,               only: get_inverse_mass_matrix_fe
+    use transport_config_mod,                only: fv_horizontal_order
+    use transport_constants_mod,             only: get_hori_wt_mol_coeffs
+
+
+    implicit none
+
+    ! Arguments
+    class(adj_trans_lookup_cache_type), intent(inout) :: self
+    type(mesh_type),              pointer, intent(in) :: mesh
+
+    ! Internal variables
+    ! Shared
+    integer(kind=i_def)                               :: mesh_id
+    type(r_tran_field_type)                           :: advective
+    type(r_tran_field_type)                           :: wind
+    type(r_tran_field_type)                           :: reconstruction
+    integer(kind=i_def)                               :: stencil_extent
+    integer(kind=i_def)                               :: stencil_size
+    type(r_tran_field_type),                  pointer :: coeff
+    integer(kind=i_def)                               :: ndata
+    integer(kind=i_def)                               :: order
+    type(function_space_type),                pointer :: vector_space_wtheta_ptr
+    type(function_space_type),                pointer :: vector_space_w3_ptr
+
+    ! lookup_poly1d
+    type(function_space_type),                pointer :: vector_space_wt_md_ptr
+
+    ! lookup_poly2d
+    integer(kind=i_def)                               :: fspace_enum
+    integer(kind=i_def)                               :: fspace_iterator
+    type(function_space_type),                pointer :: vector_space_fs_md_ptr
+    type(function_space_type),                pointer :: vector_space_fs_ptr
+
+    ! lookup_poly_adv_upd
+    type(function_space_type),                pointer :: vector_space_w2h_ptr
+
+    ! lookup_w3h_adv_upd
+    type(r_tran_field_type)                           :: tracer
+    type(operator_type),                      pointer :: m3_inv
+    type(function_space_type),                pointer :: vector_space_w3_md_ptr
+    type(function_space_type),                pointer :: vector_space_w2_ptr
+
+    nullify(coeff,                   &
+            m3_inv,                  &
+            vector_space_fs_ptr,     &
+            vector_space_fs_md_ptr,  &
+            vector_space_wtheta_ptr, &
+            vector_space_wt_md_ptr,  &
+            vector_space_w2_ptr,     &
+            vector_space_w2h_ptr,    &
+            vector_space_w3_ptr,     &
+            vector_space_w3_md_ptr)
+
+    mesh_id = mesh%get_id()
+
+    ! =========================================================================
+    ! Creating lookup_poly1d
+    ! =========================================================================
+    stencil_size = fv_horizontal_order + 1
+    ndata = 4*stencil_size
+    coeff => get_hori_wt_mol_coeffs(mesh_id)
+    stencil_extent = fv_horizontal_order/2_i_def
+    order = fv_horizontal_order
+    vector_space_wt_md_ptr => function_space_collection%get_fs(              &
+        mesh, element_order_h, element_order_v, wtheta, ndata=ndata          &
+    )
+    vector_space_wtheta_ptr => function_space_collection%get_fs(             &
+        mesh, element_order_h, element_order_v, wtheta                       &
+    )
+
+    call reconstruction%initialise(vector_space=vector_space_wt_md_ptr, name='reconstruction')
+    call tracer%initialise(vector_space=vector_space_wtheta_ptr, name='tracer', halo_depth=2)
+
+    call invoke(setval_c(reconstruction, 0.0_r_tran), &
+                setval_c(tracer, 0.0_r_tran))
+
+    call create_lookup_poly1d(self%lookup_poly1d, &
+                              reconstruction,     &
+                              tracer,             &
+                              coeff,              &
+                              stencil_extent,     &
+                              order)
+
+    ! =========================================================================
+    ! Creating lookup_poly2d
+    ! =========================================================================
+    self%n_fs_poly2d = 2_i_def
+    allocate(self%lookup_poly2d(self%n_fs_poly2d))
+    if (mod(fv_horizontal_order, 2) == 0) then
+      stencil_size = 1 + 2*fv_horizontal_order + fv_horizontal_order**2
+    else
+      stencil_size = max(1, 4*fv_horizontal_order + fv_horizontal_order**2)
+    end if
+    ndata = 4_i_def
+
+    do fspace_iterator = 1_i_def, self%n_fs_poly2d
+      if (fspace_iterator == 1_i_def) then
+        fspace_enum = W3
+      else
+        fspace_enum = Wtheta
+      end if
+
+      vector_space_fs_md_ptr => function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, fspace_enum, ndata=ndata, ndata_first=.false. &
+      )
+      vector_space_fs_ptr => function_space_collection%get_fs( &
+        mesh, element_order_h, element_order_v, fspace_enum &
+      )
+
+      call reconstruction%initialise(vector_space=vector_space_fs_md_ptr, name='reconstruction')
+      call tracer%initialise(vector_space=vector_space_fs_ptr, name='tracer', halo_depth=2)
+
+      call invoke(setval_c(reconstruction, 0.0_r_tran), &
+                  setval_c(tracer, 0.0_r_tran))
+
+      call create_lookup_poly2d(self%lookup_poly2d(fspace_iterator), &
+                                reconstruction,                      &
+                                tracer,                              &
+                                coeff,                               &
+                                stencil_size,                        &
+                                stencil_extent)
+
+
+    end do
+
+    ! =========================================================================
+    ! Creating lookup_poly_adv_upd
+    ! =========================================================================
+    stencil_extent = 1_i_def
+
+    vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                             element_order_v, w2h)
+    vector_space_wt_md_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                               element_order_v, wtheta, ndata)
+
+    call advective%initialise(vector_space=vector_space_wtheta_ptr, name='advective')
+    call reconstruction%initialise(vector_space=vector_space_wt_md_ptr, name='reconstruction', halo_depth=stencil_extent)
+    call wind%initialise(vector_space=vector_space_w2h_ptr, name='wind', halo_depth=stencil_extent)
+
+    call invoke(setval_c(advective, 0.0_r_tran),      &
+                setval_c(reconstruction, 0.0_r_tran), &
+                setval_c(wind, 0.0_r_tran))
+    call create_lookup_poly_adv_upd(self%lookup_poly_adv_upd, &
+                                    advective,                &
+                                    reconstruction,           &
+                                    wind,                     &
+                                    stencil_extent)
+
+    ! =========================================================================
+    ! Creating lookup_w3h_adv_upd
+    ! =========================================================================
+    m3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+    ndata = 6_i_def
+
+    vector_space_w3_md_ptr => function_space_collection%get_fs(                &
+        mesh, element_order_h, element_order_v, W3, ndata, ndata_first=.false. &
+    )
+    vector_space_w3_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W3                             &
+    )
+    vector_space_w2_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W2                             &
+    )
+
+    call advective%initialise(vector_space=vector_space_w3_ptr, name='advective')
+    call tracer%initialise(vector_space=vector_space_w3_md_ptr, name='tracer')
+    call wind%initialise(vector_space=vector_space_w2_ptr, name='wind')
+
+    call invoke(setval_c(advective, 0.0_r_tran), &
+                setval_c(tracer, 0.0_r_tran),    &
+                setval_c(wind, 0.0_r_tran))
+    call create_lookup_w3h_adv_upd(self%lookup_w3h_adv_upd, &
+                                   advective,               &
+                                   tracer,                  &
+                                   wind,                    &
+                                   m3_inv,                  &
+                                   stencil_extent)
+
+    self%is_initialised = .true._l_def
+
+  end subroutine adj_trans_lookup_cache_init
+
+  !=============================================================================
+  ! Getters
+  !=============================================================================
+
+  !=============================================================================
+  !> @brief Return a pointer to the poly1d lookup table.
+  !> @param [in]     self           Lookup table cache
+  !> @return         lookup_ptr     The lookup table
+  function get_lookup_poly1d(self) result(lookup_ptr)
+
+    implicit none
+
+    ! Arguments
+    class(adj_trans_lookup_cache_type), target, intent(in) :: self
+
+    ! Returns
+    type(adj_lookup_table_type),                   pointer :: lookup_ptr
+
+    if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
+    nullify(lookup_ptr)
+    lookup_ptr => self%lookup_poly1d
+
+  end function get_lookup_poly1d
+
+  !=============================================================================
+  !> @brief Return a pointer to the poly2d lookup table for a given function space.
+  !> @param [in]     self           Lookup table cache
+  !> @param [in]     fspace_enum    Function space enumerator
+  !> @return         lookup_ptr     The lookup table
+  function get_lookup_poly2d(self, fspace_enum) result(lookup_ptr)
+
+    implicit none
+
+    ! Arguments
+    class(adj_trans_lookup_cache_type), target, intent(in) :: self
+    integer(kind=i_def),                        intent(in) :: fspace_enum
+
+    ! Internal variables
+    integer(kind=i_def)                                    :: fspace_index
+
+    ! Returns
+    type(adj_lookup_table_type),                   pointer :: lookup_ptr
+
+    if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
+    nullify(lookup_ptr)
+    fspace_index = 0_i_def
+    select case(fspace_enum)
+      case (W3)
+        fspace_index = 1_i_def
+      case (Wtheta)
+        fspace_index = 2_i_def
+      case default
+        write(log_scratch_space, *) "Invalid functionspace chosen for get_lookup_poly2d, must be W3 or Wtheta"
+        call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end select
+    lookup_ptr => self%lookup_poly2d(fspace_index)
+
+  end function get_lookup_poly2d
+
+  !=============================================================================
+  !> @brief Return a pointer to the poly_adv_upd lookup table.
+  !> @param [in]     self           Lookup table cache
+  !> @return         lookup_ptr     The lookup table
+  function get_lookup_poly_adv_upd(self) result(lookup_ptr)
+
+    implicit none
+
+    ! Arguments
+    class(adj_trans_lookup_cache_type), target, intent(in) :: self
+
+    ! Returns
+    type(adj_lookup_table_type),                   pointer :: lookup_ptr
+
+    if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
+    nullify(lookup_ptr)
+    lookup_ptr => self%lookup_poly_adv_upd
+
+  end function get_lookup_poly_adv_upd
+
+  !=============================================================================
+  !> @brief Return a pointer to the w3h_adv_upd lookup table.
+  !> @param [in]     self           Lookup table cache
+  !> @return         lookup_ptr     The lookup table
+  function get_lookup_w3h_adv_upd(self) result(lookup_ptr)
+
+    implicit none
+
+    ! Arguments
+    class(adj_trans_lookup_cache_type), target, intent(in) :: self
+
+    ! Returns
+    type(adj_lookup_table_type),                   pointer :: lookup_ptr
+
+    if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
+    nullify(lookup_ptr)
+    lookup_ptr => self%lookup_w3h_adv_upd
+
+  end function get_lookup_w3h_adv_upd
+
+  !=============================================================================
+  !> @brief Destructor.
+  !> @param [in,out]     self           Lookup table cache
+  subroutine adj_trans_lookup_cache_final(self)
+
+    implicit none
+
+    ! Arguments
+    class(adj_trans_lookup_cache_type), intent(inout) :: self
+
+    ! Internal variables
+    integer(kind=i_def)                               :: fspace_index
+
+    if (self%is_initialised) then
+      call self%lookup_poly1d%finalise()
+      do fspace_index = 1_i_def, self%n_fs_poly2d
+        call self%lookup_poly2d(fspace_index)%finalise()
+      end do
+      call self%lookup_poly_adv_upd%finalise()
+      call self%lookup_w3h_adv_upd%finalise()
+      if (allocated(self%lookup_poly2d)) deallocate(self%lookup_poly2d)
+    end if
+
+  end subroutine adj_trans_lookup_cache_final
+
+end module adj_trans_lookup_cache_mod
