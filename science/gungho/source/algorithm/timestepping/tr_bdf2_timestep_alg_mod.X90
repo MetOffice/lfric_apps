@@ -970,7 +970,7 @@ contains
       ! ====================================================================== !
       if (use_wavedynamics) then
 
-        inner_tr_loop: do inner = 1, tr_inner_iterations
+        inner_tr_loop: do inner = 1, tr_inner_iterations(outer)
           write( log_scratch_space, '(A,2I3)' )                                &
               'TR loop indices (o, i): ', outer, inner
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -1254,7 +1254,7 @@ contains
       ! ====================================================================== !
       if (use_wavedynamics) then
 
-        inner_bdf_loop: do inner = 1, bdf2_inner_iterations
+        inner_bdf_loop: do inner = 1, bdf2_inner_iterations(outer)
           write( log_scratch_space, '(A,2I3)' )                                &
               'BDF loop indices (o, i): ', outer, inner
           call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -1360,14 +1360,14 @@ contains
           !---------------------------------------------------------------------
           if (limited_area) then
             to_blend_lbc = (                                                   &
-                blend_frequency == blend_frequency_inner .or. (                &
-                    blend_frequency == blend_frequency_outer                   &
-                    .and. inner == bdf2_inner_iterations                       &
-                ) .or. (                                                       &
-                    blend_frequency == blend_frequency_final                   &
-                    .and. inner == bdf2_outer_iterations                       &
-                    .and. outer == bdf2_outer_iterations                       &
-                )                                                              &
+              blend_frequency == blend_frequency_inner .or. (                  &
+                blend_frequency == blend_frequency_outer                       &
+                .and. inner == bdf2_inner_iterations(bdf2_outer_iterations)    &
+              ) .or. (                                                         &
+                blend_frequency == blend_frequency_final                       &
+                .and. inner == bdf2_inner_iterations(bdf2_outer_iterations)    &
+                .and. outer == bdf2_outer_iterations                           &
+              )                                                                &
             )
             if (to_blend_lbc) then
               call lam_blend_lbc(                                              &
