@@ -28,7 +28,7 @@ module tl_test_rhs_alg_mod
   use rhs_alg_mod,                        only: rhs_alg
   use tl_rhs_alg_mod,                     only: tl_rhs_alg
   use log_mod,                            only: log_event, LOG_LEVEL_INFO, &
-       LOG_LEVEL_ERROR
+                                                LOG_LEVEL_ERROR
   use moist_dyn_factors_alg_mod,          only: moist_dyn_factors_alg
   use tl_moist_dyn_factors_alg_mod,       only: tl_moist_dyn_factors_alg
   use tl_test_convergence_rate_check,     only: array_convergence_rate_check

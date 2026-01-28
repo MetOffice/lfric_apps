@@ -46,7 +46,7 @@ build(){
         echo "Do not need to build the executable as $exe exists"
     else
         echo "$exe does not exist, so now building the executable"
-        cd ../../../build
+        cd $Root_dir/build
         python3 local_build.py linear -t integration-tests
 
       if [$? -ne 0 ]; then
@@ -71,7 +71,7 @@ integration_test(){
 
     # Run the tl_test_timesteps integration test
     echo $CONFIG " Running the integration test"
-    cd ..
+    cd $Linear_dir/integration-test/$CONFIG
     echo $PWD
     $exe resources/plot_configuration.nml test_timesteps > outfile
     if [ $? -ne 0 ]; then
@@ -101,6 +101,10 @@ config_list=(nwp_gal9 semi_implicit runge_kutta)
 
 # Define directories using the current working directory
 export Linear_dir="$(dirname $PWD)"
+export Parent_dir="$(dirname $Linear_dir)"
+export Root_dir="$(dirname $Parent_dir)"
+echo "Linear_dir" $Linear_dir
+echo "Root_dir" $Root_dir
 
 for configuration in "${config_list[@]}"; do
     echo $configuration

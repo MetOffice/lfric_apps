@@ -239,6 +239,12 @@ module tl_test_semi_imp_alg_mod
                  setval_X(r_rho, rho  ) )
 
     ! Overwrite the moisture fields with potential temperature
+    !
+    ! Note: The perturbation fields are read in from file. However the
+    ! moisture perturbation fields have values close to zero (especially
+    ! at upper levels) and this gives an inaccurate linearisation test. Using
+    ! potential temperature is an easy fix to create a realistic 'random'
+    ! field using real data that has mostly non-zero values.
     do i = 1, nummr
       call invoke( &
            setval_X( r_mr(i), theta ), &

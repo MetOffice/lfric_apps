@@ -20,13 +20,13 @@ module tl_test_convergence_rate_check
 
 contains
 
-  !> @brief   Test the convergence rate.
+  !> @brief   Test the convergence rate, with application of square root.
   !> @details If the convergence rate is not close to 4, within the
   !!          specified tolerance, set the pass string to FAIL.
   !> @param[in] name         Variable or test name
   !> @param[in] norm         Current norm
   !> @param[in] norm_prev    Previous norm
-  !> @param[inout] pass_str  Pass string (either PASS or FAIL)
+  !> @param[in,out] pass_str Pass string (either PASS or FAIL)
   !> @param[in] tol          Tolerance
   subroutine convergence_pass_string( name, norm, norm_prev, pass_str, tol )
     implicit none
@@ -38,6 +38,16 @@ contains
 
     real(r_def) :: conv_rate
 
+    ! Let the error between the nonlinear (N) difference and the linear (L) be
+    ! E(g) = || N(x +  g dx) - N(x) - g Ldx || = O(g^2)
+    ! where g is a scalar, x and dx are vectors, O is the order
+    ! and || . || = (x^T x)^1/2 is the L2 norm.
+    !
+    ! Then the ratio
+    ! E(2g) / E(g) = O(4 g^2) / O(g^2) = 4
+    ! i.e. we need to check whether the convergence rate is close to 4.
+
+    ! The norms have not had a square root applied yet.
     conv_rate =  sqrt(norm_prev / norm)
 
     if ( abs( conv_rate - 4.0_r_def ) >= tol ) then

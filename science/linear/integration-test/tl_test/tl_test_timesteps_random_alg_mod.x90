@@ -292,7 +292,7 @@ module tl_test_timesteps_random_alg_mod
         ! Clean up solvers and timestep method left over from running
         ! the model to set up model state and linear state
         call final_si_operators()
-        call semi_implicit_solver_alg_final
+        call semi_implicit_solver_alg_final()
         call finalise_model(modeldb)
 
         call initialise_model( mesh,  &
@@ -312,7 +312,7 @@ module tl_test_timesteps_random_alg_mod
 
         do i = 1, nummr
           call invoke( setval_X( n1_mr(i), mr(i) ) )
-        enddo
+        end do
 
 !------------------------------------------------------------------------
 !  Linear model run
@@ -323,7 +323,7 @@ module tl_test_timesteps_random_alg_mod
                      setval_X( exner, p_exner) )
         do i = 1, nummr
           call invoke( setval_X( mr(i), p_mr(i) ) )
-        enddo
+        end do
         call tl_moist_dyn_factors_alg( moist_dyn, mr )
 
         ! Set the linearisation state
@@ -525,6 +525,8 @@ module tl_test_timesteps_random_alg_mod
   !> @brief   Test the convergence rate.
   !> @details If the convergence rate is not close to 4, within the
   !!          specified tolerance, then change the pass string to FAIL.
+  !!          This is a special routine for this particular test, to allow
+  !!          for norms that have already had the square root applied.
   !> @param[in] norm_diff       Current norm
   !> @param[in] norm_diff_prev  Previous norm
   !> @param[inout] pass_str     Pass string (either PASS or FAIL)

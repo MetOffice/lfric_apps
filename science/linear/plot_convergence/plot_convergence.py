@@ -106,7 +106,10 @@ def make_plot(directory, filename):
     plt.ylabel('Relative error')
     plt.title('Validity of the tangent linear model')
 
+    # To show the plot to the screen, uncommment plt.show()
     #plt.show()
+
+    # Save the plot to a file
     plt.savefig(directory + filename + "convergence_plot.png") 
 
 
