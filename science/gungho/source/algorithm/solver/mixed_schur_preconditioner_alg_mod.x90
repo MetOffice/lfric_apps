@@ -260,7 +260,7 @@ contains
 
          ! STEP 2: Solve Helmholtz system
          ! Krylov solver to obtain pressure increment
-         if ( subroutine_timers ) call timer('mixed_schur_solve')
+         if ( subroutine_timers ) call timer('mixed_schur solve')
 
          ! Set initial guess to pressure incremenet to 0
          call self%pressure_x%set_scalar(0.0_r_def)
@@ -269,7 +269,7 @@ contains
          call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG)
          call self%pressure_solver%apply(self%pressure_x, self%pressure_b)
 
-         if ( subroutine_timers ) call timer('mixed_schur_solve')
+         if ( subroutine_timers ) call timer('mixed_schur solve')
 
           ! STEP 3: Back substitute to obtain other fields
           call self%back_substitute(y)
@@ -453,7 +453,7 @@ contains
 
     type(r_solver_field_type), target :: dummy_field
     type(r_solver_field_type), target :: uvw_norm
-    if ( subroutine_timers ) call timer('Schur_back_substitute')
+    if ( subroutine_timers ) call timer('Schur back substitute')
 
     exner_inc => self%pressure_x%get_field_from_position(1)
 
@@ -504,7 +504,7 @@ contains
     state_p => state%get_field_from_position(isol_p)
     call invoke( setval_X(state_p, exner_inc) )
 
-    if ( subroutine_timers ) call timer('Schur_back_substitute')
+    if ( subroutine_timers ) call timer('Schur back substitute')
 
   end subroutine back_substitute
 

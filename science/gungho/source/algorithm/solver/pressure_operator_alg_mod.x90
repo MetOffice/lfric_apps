@@ -166,7 +166,7 @@ contains
     integer(kind=i_def)                :: mesh_id
     logical(kind=l_def)                :: lam_mesh
 
-    if ( subroutine_timers ) call timer('helmholtz_lhs')
+    if ( subroutine_timers ) call timer('helmholtz lhs')
 
     select type (x)
     type is (r_solver_field_vector_type)
@@ -241,7 +241,7 @@ contains
           nullify( w3_mask, w2_mask )
         end if
     nullify( x_vec, y_vec )
-    if ( subroutine_timers ) call timer('helmholtz_lhs')
+    if ( subroutine_timers ) call timer('helmholtz lhs')
 
       class default
 
