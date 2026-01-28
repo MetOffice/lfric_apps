@@ -10,28 +10,28 @@ module radaer_alg_mod
   ! Derived Types
   use field_mod,           only: field_type
   use integer_field_mod,   only: integer_field_type
-  use field_collection_mod, &
+  use field_collection_mod,                                                    &
                            only: field_collection_type
   use function_space_mod,  only: function_space_type
-  use function_space_collection_mod, &
+  use function_space_collection_mod,                                           &
                            only: function_space_collection
   use socrates_init_mod,   only: n_sw_band, n_lw_band
-  use io_config_mod,       only: use_xios_io,                      &
+  use io_config_mod,       only: use_xios_io,                                  &
                                  write_diag
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
   use constants_mod,       only: i_def, l_def
-  use radiation_config_mod, &
+  use radiation_config_mod,                                                    &
                            only: n_radstep
   use aerosol_config_mod,  only: n_radaer_step
   use mesh_mod,            only: mesh_type
-  use multires_coupling_config_mod, &
-                           only: lowest_order_aero_flag, &
+  use multires_coupling_config_mod,                                            &
+                           only: lowest_order_aero_flag,                       &
                                  coarse_rad_aerosol
-  use multidata_field_dimensions_mod, &
+  use multidata_field_dimensions_mod,                                          &
                            only: get_ndata_val => get_multidata_field_dimension
   use fs_continuity_mod,   only: Wtheta, W3
-  use intermesh_mappings_alg_mod, &
-                           only: map_scalar_intermesh, &
+  use intermesh_mappings_alg_mod,                                              &
+                           only: map_scalar_intermesh,                         &
                                  map_mr_intermesh
 
   use radaer_main_diags_mod, only: initialise_main_diags_for_radaer,           &
@@ -75,6 +75,7 @@ contains
                          timestep )
 
     use radaer_kernel_mod, only: radaer_kernel_type
+    use um_sizes_init_mod, only: um_sizes_init
 
     implicit none
 
@@ -92,6 +93,7 @@ contains
     type(mesh_type), intent( in ),        pointer  :: aerosol_mesh
     type(mesh_type), intent( in ),        pointer  :: aerosol_twod_mesh
     integer( kind=i_def ), intent( in )            :: timestep
+    integer( kind=i_def )                          :: ncells
 
     type(function_space_type), pointer :: w3_2d_aero => null()
     type(function_space_type), pointer :: wth_aero => null()
@@ -179,17 +181,17 @@ contains
     type( field_type ), pointer :: n_cor_ins_aero => null()
     type( field_type ), pointer :: cor_ins_du_aero => null()
 
-    type( field_type ), target :: lit_fraction_rts_coarse,  &
-                                  aer_mix_ratio_coarse,     &
-                                  aer_sw_absorption_coarse, &
-                                  aer_sw_scattering_coarse, &
-                                  aer_sw_asymmetry_coarse,  &
-                                  aer_lw_absorption_coarse, &
-                                  aer_lw_scattering_coarse, &
-                                  aer_lw_asymmetry_coarse,  &
-                                  n_acc_ins_coarse,         &
-                                  acc_ins_du_coarse,        &
-                                  n_cor_ins_coarse,         &
+    type( field_type ), target :: lit_fraction_rts_coarse,                     &
+                                  aer_mix_ratio_coarse,                        &
+                                  aer_sw_absorption_coarse,                    &
+                                  aer_sw_scattering_coarse,                    &
+                                  aer_sw_asymmetry_coarse,                     &
+                                  aer_lw_absorption_coarse,                    &
+                                  aer_lw_scattering_coarse,                    &
+                                  aer_lw_asymmetry_coarse,                     &
+                                  n_acc_ins_coarse,                            &
+                                  acc_ins_du_coarse,                           &
+                                  n_cor_ins_coarse,                            &
                                   cor_ins_du_coarse
 
     type( field_type ) :: aod_ukca_ait_sol
@@ -276,10 +278,11 @@ contains
         call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption)
         call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering)
         call radiation_fields%get_field('aer_lw_asymmetry', aer_lw_asymmetry)
-        ! If coarse RADAER, initialise new coarse fields, map data, and point to them
+        ! If coarse RADAER, initialise new coarse fields, map data, and
+        ! point to them
         w3_2d_aero => function_space_collection%get_fs( aerosol_twod_mesh,     &
                                                         0, 0, W3)
-        wth_aero => function_space_collection%get_fs( aerosol_mesh, &
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
                                                       0, 0, WTHETA  )
         call cor_ins_du_coarse%initialise(vector_space = wth_aero)
         call acc_ins_du_coarse%initialise(vector_space = wth_aero)
@@ -290,35 +293,38 @@ contains
         call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
         call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val('aero_modes') )
+        wth_aero => function_space_collection%get_fs(                          &
+                                                   aerosol_mesh,               &
+                                                   0, 0, WTHETA,               &
+                                                   get_ndata_val('aero_modes') )
         call aer_mix_ratio_coarse%initialise(vector_space = wth_aero)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val('sw_bands_aero_modes') )
+        wth_aero => function_space_collection%get_fs(                          &
+                                         aerosol_mesh,                         &
+                                         0, 0, WTHETA,                         &
+                                         get_ndata_val('sw_bands_aero_modes') )
         call aer_sw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_sw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_sw_asymmetry_coarse%initialise(vector_space = wth_aero)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val('lw_bands_aero_modes') )
+        wth_aero => function_space_collection%get_fs(                          &
+                                         aerosol_mesh,                         &
+                                         0, 0, WTHETA,                         &
+                                         get_ndata_val('lw_bands_aero_modes') )
         call aer_lw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_lw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_lw_asymmetry_coarse%initialise(vector_space = wth_aero)
 
         call lit_fraction_rts_coarse%initialise(vector_space = w3_2d_aero)
 
-        call invoke(setval_c(lit_fraction_rts_coarse, 1.0_r_def),   &
-                    setval_c(aer_mix_ratio_coarse, 0.0_r_def),      &
-                    setval_c(aer_sw_absorption_coarse, 0.0_r_def),  &
-                    setval_c(aer_sw_scattering_coarse, 0.0_r_def),  &
-                    setval_c(aer_sw_asymmetry_coarse, 0.0_r_def),   &
-                    setval_c(aer_lw_absorption_coarse, 0.0_r_def),  &
-                    setval_c( aer_lw_scattering_coarse, 0.0_r_def), &
-                    setval_c( aer_lw_asymmetry_coarse, 0.0_r_def)   )
+        call invoke(setval_c(lit_fraction_rts_coarse, 1.0_r_def),              &
+                    setval_c(aer_mix_ratio_coarse, 0.0_r_def),                 &
+                    setval_c(aer_sw_absorption_coarse, 0.0_r_def),             &
+                    setval_c(aer_sw_scattering_coarse, 0.0_r_def),             &
+                    setval_c(aer_sw_asymmetry_coarse, 0.0_r_def),              &
+                    setval_c(aer_lw_absorption_coarse, 0.0_r_def),             &
+                    setval_c( aer_lw_scattering_coarse, 0.0_r_def),            &
+                    setval_c( aer_lw_asymmetry_coarse, 0.0_r_def) )
 
         call map_scalar_intermesh(lit_fraction_rts_coarse, lit_fraction_rts)
         call map_mr_intermesh(n_acc_ins_coarse, n_acc_ins, rho_aero, rho)
@@ -341,14 +347,21 @@ contains
         cor_ins_du_aero => cor_ins_du_coarse
       else
         ! Unpack RADAER fields for radiation
-        call radiation_fields%get_field('lit_fraction_rts', lit_fraction_rts_aero)
+        call radiation_fields%get_field('lit_fraction_rts',                    &
+                                         lit_fraction_rts_aero)
         call radiation_fields%get_field('aer_mix_ratio', aer_mix_ratio_aero)
-        call radiation_fields%get_field('aer_sw_absorption', aer_sw_absorption_aero)
-        call radiation_fields%get_field('aer_sw_scattering', aer_sw_scattering_aero)
-        call radiation_fields%get_field('aer_sw_asymmetry', aer_sw_asymmetry_aero)
-        call radiation_fields%get_field('aer_lw_absorption', aer_lw_absorption_aero)
-        call radiation_fields%get_field('aer_lw_scattering', aer_lw_scattering_aero)
-        call radiation_fields%get_field('aer_lw_asymmetry', aer_lw_asymmetry_aero)
+        call radiation_fields%get_field('aer_sw_absorption',                   &
+                                         aer_sw_absorption_aero)
+        call radiation_fields%get_field('aer_sw_scattering',                   &
+                                         aer_sw_scattering_aero)
+        call radiation_fields%get_field('aer_sw_asymmetry',                    &
+                                         aer_sw_asymmetry_aero)
+        call radiation_fields%get_field('aer_lw_absorption',                   &
+                                         aer_lw_absorption_aero)
+        call radiation_fields%get_field('aer_lw_scattering',                   &
+                                         aer_lw_scattering_aero)
+        call radiation_fields%get_field('aer_lw_asymmetry',                    &
+                                         aer_lw_asymmetry_aero)
 
         ! Unpack RADAER fields for aerosol
         call aerosol_fields%get_field('n_acc_ins', n_acc_ins_aero)
@@ -371,6 +384,9 @@ contains
                                               aod_ukca_cor_ins,                &
                                              aaod_ukca_cor_ins,                &
                                              trop_level )
+
+      ncells = mesh%get_last_edge_cell()
+      call um_sizes_init(ncells)
 
       call invoke( radaer_kernel_type( theta_in_wth,                           &
                                        exner_in_wth,                           &
@@ -452,6 +468,8 @@ contains
                                        aaod_ukca_acc_ins,                      &
                                        aod_ukca_cor_ins,                       &
                                        aaod_ukca_cor_ins ) )
+
+      call um_sizes_init(1_i_def)
 
       if ( coarse_rad_aerosol ) then
         call map_scalar_intermesh( aer_mix_ratio, aer_mix_ratio_aero,          &
