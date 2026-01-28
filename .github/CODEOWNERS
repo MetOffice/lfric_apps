@@ -1,4 +1,73 @@
-**/jules_interface/rose-meta @maggiehendry
-**/jedi_lfric* @ss421 @matthewrmshin
-**/linear* @ss421 @matthewrmshin
+# This CODEOWNERS file includes a primary codeowner and a deputy for each section. 
+# Codeowners who are not in a comment will be automatically notified of changes
+# to the listed files. All codeowners listed are valid points of contact
+# for discussing changes and seeking approval for work. 
+
+# Applications
+applications/adjoint_tests/             @DrTVockerodtMO                     # @mo-joshuacolclough
+applications/gravity_wave/              @thomasmelvin                       # @cjohnson-pi
+applications/gungho_model/              @thomasmelvin                       # @BShipway
+applications/jedi_lfric_tests/          @ss421  @matthewrmshin              # @DavidSimonin
+applications/lfricinputs/               @mo-lottieturner                    # @mike-hobson
+applications/lfric_atm/                 # @iboutle                          # @BShipway
+applications/lfric_coupled/             # @HengistPodd                      # @BShipway
+applications/lfricinputs/               @mo-lottieturner                    # @mike-hobson
+applications/linear_model/              @cjohnson-pi @ss421 @matthewrmshin  # @tommbendall  # Also notifiy jedi team about linear changes.
+applications/name_transport/            @jameskent-metoffice                # @tommbendall
+applications/ngarch/                    # @christophermaynard               # @jcsmeto
+applications/shallow_water/             @jameskent-metoffice                # @atb1995
+applications/solver/                    # @christophermaynard               # @thomasmelvin
+applications/transport/                 # @tommbendall                      # @jameskent-metoffice
+
+# Science
+science/adjoint/                        @DrTVockerodtMO                     # @mo-joshuacolclough
+science/constants/                      # @iboutle                          # @BShipway
+science/linear/                         @cjohnson-pi  @ss421 @matthewrmshin # @tommbendall # Also notifiy jedi team about linear changes.
+
+science/gungho/                                             @thomasmelvin           # @iboutle
+science/gungho/source/algorithm/core_dynamics/              @jameskent-metoffice    # @thomasmelvin
+science/gungho/source/algorithm/diagnostics/                @atb1995                # @iboutle
+science/gungho/source/algorithm/diffusion/                  @iboutle                # @tommbendall
+science/gungho/source/algorithm/initialisation/             # Chris smith           # @thomasmelvin
+science/gungho/source/algorithm/limited_area/               @cjohnson-pi            # @thomasmelvin
+science/gungho/source/algorithm/physics/                    @iboutle                # @tommbendall
+science/gungho/source/algorithm/runtime_constants/          @tommbendall            # @atb1995
+science/gungho/source/algorithm/solver/                     @thomasmelvin           # @tommbendall
+science/gungho/source/algorithm/timestepping/               @thomasmelvin           # @jameskent-metoffice
+science/gungho/source/algorithm/transport/                  @tommbendall            # @jameskent-metoffice
+science/gungho/source/configuration/                        @jameskent-metoffice    # @thomasmelvin
+science/gungho/source/driver/                               #?                      # @iboutle
+science/gungho/source/orography/                            @atb1995                # @tommbendall
+science/gungho/source/psy/                                  @thomasmelvin           # @tommbendall
+
+science/physics_schemes/                                    # @iboutle              # @MetOffice/ssdteam
+science/physics_schemes/source/boundary_layer               @Adrian-Lock            # @P-Burns
+science/physics_schemes/source/convection                   @MichaelWhitall
+science/physics_schemes/source/comorph                      @MichaelWhitall
+science/physics_schemes/source/large_scale_cloud            @paul-barrett           # @CyrilMorcrette
+science/physics_schemes/source/large_scale_precipitation    @paulfield2024          # @paul-barrett
+science/physics_schemes/source/radiation_control            @mo-jmanners            # @Petzi1
+science/physics_schemes/source/stochastic_physics           @wjtmo                  # @annemccabe
+
+# Interfaces
+interfaces/coupled_interface/           # @mike-hobson            # @harry-shepherd
+interfaces/jedi_lfric_interface/        @ss421  @matthewrmshin   # @DavidSimonin
+interfaces/jules_interface/             # @iboutle                # @MetOffice/ssdteam
+interfaces/jules_interface/rose-meta    @maggiehendry
+interfaces/physics_schemes_interface/   # @iboutle                # @MetOffice/ssdteam
+interfaces/socrates_interface/          @mo-jmanners            # @Petzi1
+
+# System Components
+/rose-stem/templates/                   @james-bruten-mo        # @jennyhickson
+**/versions.py                          @james-bruten-mo        # @jennyhickson
+build/                                  @MetOffice/ssdteam
+**/*Makefile                            # @MatthewHambley
+**/*.mk                                 # @MatthewHambley
+
+# Other areas
+documentation                           # @MetOffice/ssdteam
+.github/                                @MetOffice/ssdteam
+LICENSE                                 @yaswant
+README.md                               @MetOffice/ssdteam
+
 
