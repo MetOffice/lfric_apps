@@ -14,7 +14,6 @@ module tl_si_timestep_alg_mod
                                          LOG_LEVEL_INFO,    &
                                          LOG_LEVEL_ERROR
   use driver_modeldb_mod,          only: modeldb_type
-  use namelist_mod,                only: namelist_type
   use reference_element_mod,       only: T
 
   ! Configuration options
@@ -394,8 +393,7 @@ contains
     logical( kind=l_def ) :: write_moisture_diag = .false.
 
     ! Configuration
-    type( namelist_type ), pointer :: mixed_solver_nml
-    real( kind=r_def )             :: mixed_solver_a_tol
+    real( kind=r_def ) :: mixed_solver_a_tol
 
     if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
 
@@ -803,9 +801,7 @@ contains
           ! Solve semi-implicit system: A*inc = rhs, and increment state by inc
           !--------------------------------------------------------------------
 
-          mixed_solver_nml => modeldb%configuration%get_namelist('mixed_solver')
-          call mixed_solver_nml%get_value( 'mixed_solver_a_tol', &
-                                            mixed_solver_a_tol )
+          mixed_solver_a_tol = modeldb%config%mixed_solver%mixed_solver_a_tol()
 
           ! If rhs_np1 is zero, there is no need to call the SI solver
           if ( .not. &

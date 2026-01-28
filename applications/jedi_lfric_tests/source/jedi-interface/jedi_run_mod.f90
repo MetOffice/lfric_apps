@@ -15,6 +15,8 @@ module jedi_run_mod
   use constants_mod,           only : i_def, l_def, str_def
   use namelist_collection_mod, only : namelist_collection_type
 
+  use config_mod, only : config_type
+
   implicit none
 
   private
@@ -37,7 +39,7 @@ contains
   !> Get a pointer to the stored configuration.
   procedure, public ::  get_configuration
 
-  !> Get a pointer to the stored config
+  !> Get a pointer to the stored config_type.
   procedure, public ::  get_config
 
   !> Just finalise subroutine timing; to get useful timing statistics from failed adjoint tests
@@ -147,9 +149,9 @@ function get_configuration(self) result(configuration)
 
 end function get_configuration
 
-!> @brief Get pointer to the stored configuration
+!> @brief Get pointer to the stored configuration (config_type)
 !>
-!> @return config  A pointer to the configuration
+!> @return  configuration A pointer to the configuration
 function get_config(self) result(config)
 
   class( jedi_run_type ), target, intent(inout) :: self

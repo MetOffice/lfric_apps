@@ -69,6 +69,7 @@ program lfric2lfric
   call modeldb%values%add_key_value('coupling_dst', coupler)
 #endif
   call init_comm( program_name, modeldb )
+
   call init_config( filename, lfric2lfric_required_namelists, &
                     configuration=modeldb%configuration,      &
                     config=modeldb%config )

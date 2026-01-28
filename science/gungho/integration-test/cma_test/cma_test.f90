@@ -31,7 +31,8 @@ program cma_test
                                              test_cma_diag_DhMDhT
   use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, r_def, i_def, l_def, &
-                                             r_solver, pi, str_def
+                                             r_solver, pi, str_def,      &
+                                             str_max_filename
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
                                              uniform_extrusion_type, &
@@ -58,8 +59,6 @@ program cma_test
   use mesh_mod,                       only : mesh_type
   use mesh_collection_mod,            only : mesh_collection
   use namelist_collection_mod,        only : namelist_collection_type
-  use namelist_mod,                   only : namelist_type
-
   use base_mesh_config_mod,           only : GEOMETRY_SPHERICAL
   use create_mesh_mod,                only : create_mesh
   use add_mesh_map_mod,               only : assign_mesh_maps
@@ -130,12 +129,9 @@ program cma_test
   type(namelist_collection_type), save :: configuration
   type(config_type),              save :: config
 
-  type(namelist_type), pointer :: extrusion_nml
-  type(namelist_type), pointer :: base_mesh_nml
-  type(namelist_type), pointer :: planet_nml
+  character(str_max_filename) :: file_prefix
 
   integer(i_def)     :: stencil_depth
-  character(str_def) :: file_prefix
   character(str_def) :: prime_mesh_name
   real(r_def)        :: radius
   real(r_def)        :: scaled_radius
@@ -271,19 +267,15 @@ program cma_test
 
   call init_collections()
 
-  extrusion_nml => configuration%get_namelist('extrusion')
-  base_mesh_nml => configuration%get_namelist('base_mesh')
-  planet_nml    => configuration%get_namelist('planet')
-
-  call extrusion_nml%get_value( 'method', extrusion_method )
-  call extrusion_nml%get_value( 'planet_radius', radius )
-  call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-  call extrusion_nml%get_value( 'domain_height', domain_height )
-  call base_mesh_nml%get_value( 'file_prefix', file_prefix )
-  call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-  call base_mesh_nml%get_value( 'geometry', geometry )
-  call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-  call planet_nml%get_value( 'scaled_radius', scaled_radius )
+  extrusion_method = config%extrusion%method()
+  radius           = config%extrusion%planet_radius()
+  number_of_layers = config%extrusion%number_of_layers()
+  domain_height    = config%extrusion%domain_height()
+  file_prefix      = config%base_mesh%file_prefix()
+  prepartitioned   = config%base_mesh%prepartitioned()
+  geometry         = config%base_mesh%geometry()
+  prime_mesh_name  = config%base_mesh%prime_mesh_name()
+  scaled_radius    = config%planet%scaled_radius()
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Initialise

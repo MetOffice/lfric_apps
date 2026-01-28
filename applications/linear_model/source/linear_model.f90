@@ -43,6 +43,7 @@ program linear_model
 
   call modeldb%configuration%initialise( application_name, table_len=10 )
   call modeldb%config%initialise( application_name )
+
   call modeldb%values%initialise('values', 5)
 
   ! Create the depository, prognostics and diagnostics field collections

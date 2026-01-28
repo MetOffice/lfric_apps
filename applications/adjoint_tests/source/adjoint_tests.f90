@@ -63,6 +63,7 @@ program adjoint_tests
   call init_config( filename, gungho_required_namelists, &
                     configuration=modeldb%configuration, &
                     config=modeldb%config )
+
   call init_logger( modeldb%mpi%get_comm(), application_name )
 
   call check_config_api( modeldb%configuration, modeldb%config )

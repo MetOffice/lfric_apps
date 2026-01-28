@@ -60,6 +60,7 @@ program shallow_water
   call modeldb%io_contexts%initialise(program_name, 100)
 
   call init_comm( program_name, modeldb )
+
   call init_config( filename, shallow_water_required_namelists, &
                     configuration=modeldb%configuration,        &
                     config=modeldb%config )

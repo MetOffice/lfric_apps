@@ -91,18 +91,11 @@ module init_gungho_lbcs_alg_mod
     integer(i_def)               :: imr
     type(mesh_type), pointer     :: mesh
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: formulation_nml
-
     character(len=str_def)       :: prime_mesh_name
     integer(i_def)               :: moisture_formulation
 
-
-    base_mesh_nml    => modeldb%configuration%get_namelist('base_mesh')
-    formulation_nml  => modeldb%configuration%get_namelist('formulation')
-
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call formulation_nml%get_value( 'moisture_formulation', moisture_formulation )
+    prime_mesh_name      = modeldb%config%base_mesh%prime_mesh_name()
+    moisture_formulation = modeldb%config%formulation%moisture_formulation()
 
     call prognostic_fields%get_field( 'theta', theta )
     call prognostic_fields%get_field( 'u', u )

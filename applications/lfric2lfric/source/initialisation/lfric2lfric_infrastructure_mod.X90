@@ -14,7 +14,8 @@ module lfric2lfric_infrastructure_mod
 
   use add_mesh_map_mod,            only: assign_mesh_maps
   use blend_orography_alg_mod,     only: blend_orography
-  use constants_mod,               only: str_def, r_def, i_def, l_def, r_second
+  use constants_mod,               only: str_def, str_max_filename, &
+                                         r_def, i_def, l_def, r_second
   use create_mesh_mod,             only: create_extrusion, &
                                          create_mesh
   use driver_modeldb_mod,          only: modeldb_type
@@ -154,16 +155,12 @@ contains
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
     ! Pointers for namelists
-    type(namelist_type), pointer :: planet_nml
-    type(namelist_type), pointer :: extrusion_nml
     type(namelist_type), pointer :: lfric2lfric_nml
-    type(namelist_type), pointer :: files_nml
-    type(namelist_type), pointer :: finite_element_nml
 
     ! Namelist parameters
     character(len=str_def)                 :: mesh_names(2)
     character(len=str_def),    allocatable :: twod_names(:)
-    character(len=str_def)                 :: start_dump_filename
+    character(str_max_filename)            :: start_dump_filename
 
     ! lfric2lfric namelist parameters
     integer(kind=i_def)     :: origin_domain
@@ -213,31 +210,24 @@ contains
     ! -------------------------------
     ! Extract namelist variables
     ! -------------------------------
-    planet_nml         => modeldb%configuration%get_namelist('planet')
-    extrusion_nml      => modeldb%configuration%get_namelist('extrusion')
-    lfric2lfric_nml    => modeldb%configuration%get_namelist('lfric2lfric')
-    files_nml          => modeldb%configuration%get_namelist('files')
-    finite_element_nml => modeldb%configuration%get_namelist('finite_element')
-
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-    call extrusion_nml%get_value( 'method', extrusion_method )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
 
     ! Check lfric2lfric configuration settings are allowed
+    lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
     call lfric2lfric_check_configuration( lfric2lfric_nml )
 
-    call lfric2lfric_nml%get_value( 'origin_domain', origin_domain )
-    call lfric2lfric_nml%get_value( 'regrid_method', regrid_method )
-    call lfric2lfric_nml%get_value( 'destination_mesh_name', &
-                                             mesh_names(dst) )
-    call lfric2lfric_nml%get_value( 'source_mesh_name', &
-                                             mesh_names(src) )
-    call lfric2lfric_nml%get_value( 'target_domain', target_domain )
-    call lfric2lfric_nml%get_value( 'source_geometry', source_geometry )
-    call files_nml%get_value( 'start_dump_filename', start_dump_filename )
-    call finite_element_nml%get_value( 'element_order_h', element_order_h)
-    call finite_element_nml%get_value( 'element_order_v', element_order_v)
+    scaled_radius       = modeldb%config%planet%scaled_radius()
+    extrusion_method    = modeldb%config%extrusion%method()
+    number_of_layers    = modeldb%config%extrusion%number_of_layers()
+    domain_height       = modeldb%config%extrusion%domain_height()
+    origin_domain       = modeldb%config%lfric2lfric%origin_domain()
+    regrid_method       = modeldb%config%lfric2lfric%regrid_method()
+    mesh_names(dst)     = modeldb%config%lfric2lfric%destination_mesh_name()
+    mesh_names(src)     = modeldb%config%lfric2lfric%source_mesh_name()
+    target_domain       = modeldb%config%lfric2lfric%target_domain()
+    source_geometry     = modeldb%config%lfric2lfric%source_geometry()
+    start_dump_filename = modeldb%config%files%start_dump_filename()
+    element_order_h     = modeldb%config%finite_element%element_order_h()
+    element_order_v     = modeldb%config%finite_element%element_order_v()
 
     !=======================================================================
     ! Mesh

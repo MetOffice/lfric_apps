@@ -43,6 +43,7 @@ program gravity_wave
   call init_config( filename, gravity_wave_required_namelists, &
                     configuration=modeldb%configuration,       &
                     config=modeldb%config )
+
   call check_config_api( modeldb%configuration, modeldb%config )
 
   deallocate( filename )

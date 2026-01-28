@@ -39,7 +39,6 @@ module name_transport_driver_mod
   use mesh_mod,                           only: mesh_type
   use mesh_collection_mod,                only: mesh_collection
   use model_clock_mod,                    only: model_clock_type
-  use namelist_mod,                       only: namelist_type
   use runtime_constants_mod,              only: create_runtime_constants
   use sci_checksum_alg_mod,               only: checksum_alg
   use sci_geometric_constants_mod,        only: get_chi_inventory,      &
@@ -123,38 +122,22 @@ contains
     logical(kind=l_def) :: write_diag
     logical(kind=l_def) :: use_xios_io
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: extrusion_nml
-    type(namelist_type), pointer :: planet_nml
-    type(namelist_type), pointer :: io_nml
-
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-    io_nml          => modeldb%configuration%get_namelist('io')
-
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-    call io_nml%get_value( 'nodal_output_on_w3', nodal_output_on_w3 )
-    call io_nml%get_value( 'write_diag', write_diag )
-    call io_nml%get_value( 'use_xios_io', use_xios_io )
-
-    base_mesh_nml   => null()
-    extrusion_nml   => null()
-    planet_nml      => null()
-    io_nml          => null()
+    prime_mesh_name    = modeldb%config%base_mesh%prime_mesh_name()
+    geometry           = modeldb%config%base_mesh%geometry()
+    prepartitioned     = modeldb%config%base_mesh%prepartitioned()
+    method             = modeldb%config%extrusion%method()
+    domain_height      = modeldb%config%extrusion%domain_height()
+    number_of_layers   = modeldb%config%extrusion%number_of_layers()
+    scaled_radius      = modeldb%config%planet%scaled_radius()
+    nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
+    write_diag         = modeldb%config%io%write_diag()
+    use_xios_io        = modeldb%config%io%use_xios_io()
 
     !-----------------------------------------------------------------------
     ! Initialise infrastructure

@@ -18,6 +18,7 @@ program lfric_atm
 
   use check_config_api_mod,   only: check_config_api
   use cli_mod,                only: parse_command_line
+  use constants_mod,           only: l_def
   use driver_collections_mod, only: init_collections, final_collections
   use driver_comm_mod,        only: init_comm, final_comm
   use driver_config_mod,      only: init_config, final_config
@@ -29,9 +30,9 @@ program lfric_atm
   use driver_modeldb_mod,     only: modeldb_type
   use gungho_driver_mod,      only: initialise, step, finalise
   use lfric_mpi_mod,          only: global_mpi
-  use namelist_mod,           only: namelist_type
 
-  use timing_mod,             only: init_timing, start_timing, stop_timing, final_timing, tik, LPROF
+  use timing_mod,             only: init_timing, start_timing, &
+                                    stop_timing, final_timing, tik, LPROF
 
   implicit none
 
@@ -41,8 +42,8 @@ program lfric_atm
   character(*), parameter :: application_name = "lfric_atm"
   character(:), allocatable :: filename
   integer(tik)              :: timing_handle_global
-  type(namelist_type), pointer :: io_nml
-  logical :: lsubroutine_timers
+
+  logical(l_def) :: lsubroutine_timers
 
   call parse_command_line( filename )
 
@@ -76,14 +77,14 @@ program lfric_atm
   call init_config( filename, gungho_required_namelists, &
                     configuration=modeldb%configuration, &
                     config=modeldb%config )
+
   call init_logger( modeldb%mpi%get_comm(), application_name )
   call check_config_api( modeldb%configuration, modeldb%config )
   call init_timers( application_name )
 
-  io_nml => modeldb%configuration%get_namelist('io')
-  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
+  lsubroutine_timers = modeldb%config%io%subroutine_timers()
   call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers )
-  nullify( io_nml )
+
   if ( LPROF ) call start_timing( timing_handle_global, '__lfric_atm__ ')
 
   call init_collections()

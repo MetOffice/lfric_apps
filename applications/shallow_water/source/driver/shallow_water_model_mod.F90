@@ -43,8 +43,6 @@ module shallow_water_model_mod
   use minmax_tseries_mod,             only: minmax_tseries,      &
                                             minmax_tseries_init, &
                                             minmax_tseries_final
-  use namelist_collection_mod,        only: namelist_collection_type
-  use namelist_mod,                   only: namelist_type
   use runtime_constants_mod,          only: create_runtime_constants
   use shallow_water_setup_io_mod,     only: init_shallow_water_files
   use xios,                           only: xios_update_calendar
@@ -87,10 +85,6 @@ module shallow_water_model_mod
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
-    type(namelist_type), pointer :: base_mesh_nml => null()
-    type(namelist_type), pointer :: planet_nml    => null()
-    type(namelist_type), pointer :: extrusion_nml => null()
-
     character(str_def) :: prime_mesh_name
 
     integer(i_def) :: stencil_depth
@@ -108,20 +102,12 @@ module shallow_water_model_mod
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    planet_nml    => modeldb%configuration%get_namelist('planet')
-    extrusion_nml => modeldb%configuration%get_namelist('extrusion')
-
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-
-    base_mesh_nml => null()
-    planet_nml    => null()
-    extrusion_nml => null()
+    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
+    geometry         = modeldb%config%base_mesh%geometry()
+    method           = modeldb%config%extrusion%method()
+    domain_height    = modeldb%config%extrusion%domain_height()
+    number_of_layers = modeldb%config%extrusion%number_of_layers()
+    scaled_radius    = modeldb%config%planet%scaled_radius()
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure

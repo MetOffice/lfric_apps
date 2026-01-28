@@ -73,8 +73,6 @@ module gungho_model_mod
   use model_clock_mod,            only : model_clock_type
   use moisture_conservation_alg_mod, &
                                   only : moisture_conservation_alg
-  use namelist_collection_mod,    only : namelist_collection_type
-  use namelist_mod,               only : namelist_type
   use mr_indices_mod,             only : nummr
   use no_timestep_alg_mod,        only : no_timestep_type
   use remove_duplicates_mod,      only : remove_duplicates
@@ -451,12 +449,6 @@ contains
     real(r_def)    :: scaled_radius
     integer(i_def) :: number_of_layers
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: formulation_nml
-    type(namelist_type), pointer :: extrusion_nml
-    type(namelist_type), pointer :: planet_nml
-    type(namelist_type), pointer :: multigrid_nml
-    type(namelist_type), pointer :: multires_coupling_nml
 #ifdef UM_PHYSICS
     real(r_def) :: dt
 #endif
@@ -473,37 +465,25 @@ contains
 
     call check_configuration(modeldb)
 
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    formulation_nml => modeldb%configuration%get_namelist('formulation')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-    multires_coupling_nml => null()
-    multigrid_nml         => null()
-
-    call formulation_nml%get_value( 'l_multigrid', l_multigrid )
-    call formulation_nml%get_value( 'use_multires_coupling', &
-                                    use_multires_coupling )
+    l_multigrid           = modeldb%config%formulation%l_multigrid()
+    use_multires_coupling = modeldb%config%formulation%use_multires_coupling()
 
     if ( use_multires_coupling ) then
-      multires_coupling_nml => modeldb%configuration%get_namelist('multires_coupling')
-      call multires_coupling_nml%get_value( 'multires_coupling_mesh_tags', &
-                                            multires_coupling_mesh_tags )
-      call multires_coupling_nml%get_value( 'orography_mesh_name', &
-                                            orography_mesh_name )
+      multires_coupling_mesh_tags = modeldb%config%multires_coupling%multires_coupling_mesh_tags()
+      orography_mesh_name         = modeldb%config%multires_coupling%orography_mesh_name()
     end if
 
     if ( l_multigrid ) then
-      multigrid_nml => modeldb%configuration%get_namelist('multigrid')
-      call multigrid_nml%get_value( 'chain_mesh_tags', chain_mesh_tags )
+      chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'method', extrusion_method )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
+    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
+    geometry         = modeldb%config%base_mesh%geometry()
+    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
+    domain_height    = modeldb%config%extrusion%domain_height()
+    extrusion_method = modeldb%config%extrusion%method()
+    number_of_layers = modeldb%config%extrusion%number_of_layers()
+    scaled_radius    = modeldb%config%planet%scaled_radius()
 
     !-------------------------------------------------------------------------
     ! Initialise infrastructure

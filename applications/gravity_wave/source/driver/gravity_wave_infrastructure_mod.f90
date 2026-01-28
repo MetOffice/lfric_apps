@@ -30,7 +30,6 @@ module gravity_wave_infrastructure_mod
                                          LOG_LEVEL_ALWAYS,   &
                                          LOG_LEVEL_ERROR
   use mesh_collection_mod,        only : mesh_collection
-  use namelist_mod,               only : namelist_type
   use field_mod,                  only : field_type
   use driver_fem_mod,             only : init_fem, init_function_space_chains
   use driver_io_mod,              only : init_io, final_io
@@ -89,43 +88,24 @@ contains
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
 
-    type(namelist_type), pointer :: base_mesh_nml   => null()
-    type(namelist_type), pointer :: formulation_nml => null()
-    type(namelist_type), pointer :: extrusion_nml   => null()
-    type(namelist_type), pointer :: planet_nml      => null()
-    type(namelist_type), pointer :: multigrid_nml   => null()
-
     integer(i_def) :: i
     integer(i_def), parameter :: one_layer = 1_i_def
 
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml   => modeldb%configuration%get_namelist('base_mesh')
-    formulation_nml => modeldb%configuration%get_namelist('formulation')
-    extrusion_nml   => modeldb%configuration%get_namelist('extrusion')
-    planet_nml      => modeldb%configuration%get_namelist('planet')
-
-    call formulation_nml%get_value( 'l_multigrid', l_multigrid )
-
+    l_multigrid = modeldb%config%formulation%l_multigrid()
     if (l_multigrid) then
-      multigrid_nml => modeldb%configuration%get_namelist('multigrid')
-      call multigrid_nml%get_value( 'chain_mesh_tags', chain_mesh_tags )
-      multigrid_nml => null()
+      chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call base_mesh_nml%get_value( 'prepartitioned', prepartitioned )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
-
-    base_mesh_nml   => null()
-    extrusion_nml   => null()
-    formulation_nml => null()
-    planet_nml      => null()
+    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
+    geometry         = modeldb%config%base_mesh%geometry()
+    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
+    method           = modeldb%config%extrusion%method()
+    domain_height    = modeldb%config%extrusion%domain_height()
+    number_of_layers = modeldb%config%extrusion%number_of_layers()
+    scaled_radius    = modeldb%config%planet%scaled_radius()
 
     !-------------------------------------------------------------------------
     ! Initialise infrastructure

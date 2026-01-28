@@ -7,7 +7,8 @@
 !>
 module lfric2lfric_driver_mod
 
-  use constants_mod,          only: str_def, i_def, l_def, r_second
+  use constants_mod,          only: str_def, str_max_filename, &
+                                    i_def, l_def, r_second
   use driver_fem_mod,         only: final_fem
   use driver_io_mod,          only: final_io
   use driver_modeldb_mod,     only: modeldb_type
@@ -25,7 +26,6 @@ module lfric2lfric_driver_mod
                                     log_scratch_space
   use mesh_collection_mod,    only: mesh_collection
   use mesh_mod,               only: mesh_type
-  use namelist_mod,           only: namelist_type
   use sci_checksum_alg_mod,   only: checksum_alg
 
   !------------------------------------
@@ -94,13 +94,11 @@ contains
     integer(kind=i_def), parameter :: start_timestep = 1_i_def
 
     ! Namelist variables
-    character(len=str_def) :: start_dump_filename
-    character(len=str_def) :: checkpoint_stem_name
-    integer(kind=i_def)    :: regrid_method
+    character(str_max_filename) :: start_dump_filename
+    character(str_max_filename) :: checkpoint_stem_name
+    integer(i_def)              :: regrid_method
 
     ! Local parameters
-    type(namelist_type), pointer :: files_nml
-    type(namelist_type), pointer :: lfric2lfric_nml
 
     type(field_collection_type), pointer :: source_fields
     type(field_collection_type), pointer :: target_fields
@@ -117,14 +115,10 @@ contains
 
     real(r_second) :: checkpoint_times(1)
 
-    ! Namelist pointers
-    files_nml       => modeldb%configuration%get_namelist('files')
-    lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
-
     ! Extract configuration variables
-    call files_nml%get_value( 'start_dump_filename', start_dump_filename )
-    call files_nml%get_value( 'checkpoint_stem_name', checkpoint_stem_name )
-    call lfric2lfric_nml%get_value( 'regrid_method', regrid_method )
+    start_dump_filename  = modeldb%config%files%start_dump_filename()
+    checkpoint_stem_name = modeldb%config%files%checkpoint_stem_name()
+    regrid_method        = modeldb%config%lfric2lfric%regrid_method()
 
     ! Point to source and target field collections
     source_fields => modeldb%fields%get_field_collection(source_collection_name)

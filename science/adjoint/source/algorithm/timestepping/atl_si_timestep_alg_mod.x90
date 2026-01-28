@@ -12,7 +12,6 @@ module atl_si_timestep_alg_mod
   use log_mod,                             only: log_event, log_scratch_space, &
                                                  LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use driver_modeldb_mod,                  only: modeldb_type
-  use namelist_mod,                        only: namelist_type
   use reference_element_mod,               only: T
   use formulation_config_mod,              only: dlayer_on, exner_from_eos, si_momentum_equation, &
                                                  moisture_formulation, moisture_formulation_dry,  &
@@ -314,8 +313,6 @@ contains
     integer(kind=i_def)                                :: ls_outer, ls_inner
     integer(kind=i_def)                                :: next_outer, next_inner
     real(kind=r_def)                                   :: varalpha, varbeta
-    type(namelist_type), pointer                       :: mixed_solver_nml
-    type(namelist_type), pointer                       :: base_mesh_nml
     real(kind=r_def)                                   :: mixed_solver_a_tol
     type(field_type)                                   :: rhs_n_igh_u
     type(field_type)                                   :: advected_u
@@ -329,8 +326,7 @@ contains
     qr => get_qr_fe()
 
     ! Get mesh
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     mesh => mesh_collection%get_mesh(prime_mesh_name)
 
     mm_wt  => get_mass_matrix_fe( Wtheta, mesh%get_id() )
@@ -627,8 +623,7 @@ contains
         ! Solve adjoint of semi-implicit system: A * inc = rhs
         !-----------------------------------------------------------------------
 
-        mixed_solver_nml => modeldb%configuration%get_namelist('mixed_solver')
-        call mixed_solver_nml%get_value( 'mixed_solver_a_tol', mixed_solver_a_tol )
+        mixed_solver_a_tol = modeldb%config%mixed_solver%mixed_solver_a_tol()
 
         ! If self%state is zero, there is no need to call the SI solver
         if (.not. bundle_is_zero( mixed_solver_a_tol, self%state, bundle_size )) then

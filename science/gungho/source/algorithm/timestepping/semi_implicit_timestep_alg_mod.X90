@@ -14,7 +14,6 @@ module semi_implicit_timestep_alg_mod
                                        log_scratch_space, &
                                        LOG_LEVEL_INFO
   use extrusion_mod,             only: TWOD
-  use namelist_mod,              only: namelist_type
   use sci_fem_constants_mod,     only: get_mass_matrix_fe, &
                                        get_mass_matrix_fv
   use sci_field_bundle_builtins_mod,                      &
@@ -651,40 +650,29 @@ contains
     logical(kind=l_def) :: checkpoint_reference_fields
 
     ! Namelist parameters
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: initialization_nml
-    type(namelist_type), pointer :: microphysics_nml
-    type(namelist_type), pointer :: aerosol_nml
-    type(namelist_type), pointer :: timestepping_nml
-
-    character(str_def)           :: prime_mesh_name
-    integer(i_def)               :: lbc_option
-    logical(l_def)               :: microphysics_casim
-    logical(l_def)               :: murk_lbc
-    real(r_def)                  :: tau_r
+    character(str_def) :: prime_mesh_name
+    integer(i_def)     :: lbc_option
+    logical(l_def)     :: microphysics_casim
+    logical(l_def)     :: murk_lbc
+    real(r_def)        :: tau_r
 
     if ( subroutine_timers ) call timer('semi_implicit_timestep_alg')
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
     if (limited_area .and. use_wavedynamics) then
-      base_mesh_nml      => modeldb%configuration%get_namelist('base_mesh')
-      initialization_nml => modeldb%configuration%get_namelist('initialization')
-      timestepping_nml   => modeldb%configuration%get_namelist('timestepping')
 
-      call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-      call initialization_nml%get_value( 'lbc_option', lbc_option )
-      call timestepping_nml%get_value( 'tau_r', tau_r )
+      prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+      lbc_option      = modeldb%config%initialization%lbc_option()
+      tau_r           = modeldb%config%timestepping%tau_r()
 
       if (lbc_option == lbc_option_um2lfric_file) then
-        aerosol_nml        => modeldb%configuration%get_namelist('aerosol')
-        call aerosol_nml%get_value( 'murk_lbc', murk_lbc )
+        murk_lbc =  modeldb%config%aerosol%murk_lbc()
       end if
     end if
     if (lbc_option == lbc_option_um2lfric_file .or. &
         (use_physics .and. cloud == cloud_um)) then
-      microphysics_nml   => modeldb%configuration%get_namelist('microphysics')
-      call microphysics_nml%get_value( 'microphysics_casim', microphysics_casim )
+      microphysics_casim = modeldb%config%microphysics%microphysics_casim()
     end if
 
     if (element_order_h == 0 .and. element_order_v == 0) then

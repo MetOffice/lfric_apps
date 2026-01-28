@@ -18,7 +18,6 @@ module gravity_wave_alg_mod
                                             LOG_LEVEL_INFO,    &
                                             LOG_LEVEL_ERROR,   &
                                             LOG_LEVEL_TRACE
-  use namelist_mod,                   only: namelist_type
 
   ! Configuration options
   use finite_element_config_mod,      only: element_order_h, element_order_v
@@ -496,7 +495,6 @@ contains
     use transpose_matrix_vector_kernel_mod, only: transpose_matrix_vector_kernel_type
     use sci_enforce_bc_kernel_mod,          only: enforce_bc_kernel_type
     use fs_continuity_mod,                  only: W0, W2, W3, Wtheta
-    use boundaries_config_mod,              only: limited_area
 
     implicit none
 
@@ -513,34 +511,23 @@ contains
     type( field_type )           :: rhs_p
     type(mesh_type), pointer     :: mesh => null()
 
-    ! Namelists
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: timestepping_nml
-    type(namelist_type), pointer :: initial_temperature_nml
-    type(namelist_type), pointer :: gravity_wave_constants_nml
-    type(namelist_type), pointer :: io_nml
-
     ! Namelist parameters
-    character(len=str_def)       :: prime_mesh_name
-    real(kind=r_second)          :: dt
-    real(kind=r_def)             :: bvf_square
-    integer(kind=i_def)          :: b_space
-    logical(kind=l_def)          :: subroutine_timers
+    character(str_def) :: prime_mesh_name
+    real(r_second)     :: dt
+    real(r_def)        :: bvf_square
+    integer(i_def)     :: b_space
+    logical(l_def)     :: subroutine_timers
+    logical(l_def)     :: limited_area
 
     ! Auxiliary constants to group invokes
     real(kind=r_def)             :: const1, const2
 
+    dt                = modeldb%config%timestepping%dt()
+    bvf_square        = modeldb%config%initial_temperature%bvf_square()
+    subroutine_timers = modeldb%config%io%subroutine_timers()
+    limited_area      = modeldb%config%boundaries%limited_area()
+
     if ( subroutine_timers ) call timer('gravity_wave_alg')
-
-    ! Pointers to namelists
-    timestepping_nml        => modeldb%configuration%get_namelist('timestepping')
-    initial_temperature_nml => modeldb%configuration%get_namelist('initial_temperature')
-    io_nml           => modeldb%configuration%get_namelist('io')
-
-    ! Obtain namelist parameters
-    call timestepping_nml%get_value( 'dt', dt )
-    call initial_temperature_nml%get_value( 'bvf_square', bvf_square )
-    call io_nml%get_value( 'subroutine_timers', subroutine_timers )
 
     !=== Do a single timestep ==============================================!
     mesh => wind%get_mesh()
@@ -548,10 +535,9 @@ contains
     m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
 
     if ( limited_area ) then
-      base_mesh_nml           => modeldb%configuration%get_namelist('base_mesh')
-      gravity_wave_constants_nml => modeldb%configuration%get_namelist('gravity_wave_constants')
-      call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-      call gravity_wave_constants_nml%get_value( 'b_space', b_space )
+
+      prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+      b_space         = modeldb%config%gravity_wave_constants%b_space()
 
       select case(b_space)
         case(b_space_w0)

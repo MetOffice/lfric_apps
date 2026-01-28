@@ -67,6 +67,7 @@ program jules
   call modeldb%io_contexts%initialise(application_name, 100)
 
   call init_comm( application_name, modeldb )
+
   call init_config( filename, gungho_required_namelists, &
                     configuration=modeldb%configuration, &
                     config=modeldb%config )

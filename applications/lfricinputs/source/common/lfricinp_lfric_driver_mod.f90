@@ -121,10 +121,6 @@ procedure(event_action), pointer :: context_advance
 type(namelist_collection_type), save :: configuration
 type(config_type),              save :: config
 
-type(namelist_type), pointer :: base_mesh_nml
-type(namelist_type), pointer :: planet_nml
-type(namelist_type), pointer :: extrusion_nml
-
 class(extrusion_type),        allocatable :: extrusion
 type(uniform_extrusion_type), allocatable :: extrusion_2d
 character(str_def),           allocatable :: base_mesh_names(:)
@@ -192,16 +188,12 @@ call log_event('Initialising mesh', LOG_LEVEL_INFO)
 ! -------------------------------
 ! 0.0 Extract namelist variables
 ! -------------------------------
-base_mesh_nml => configuration%get_namelist('base_mesh')
-planet_nml    => configuration%get_namelist('planet')
-extrusion_nml => configuration%get_namelist('extrusion')
-
-call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-call base_mesh_nml%get_value( 'geometry', geometry )
-call planet_nml%get_value( 'scaled_radius', scaled_radius )
-call extrusion_nml%get_value( 'method', extrusion_method )
-call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-call extrusion_nml%get_value( 'domain_height', domain_height )
+prime_mesh_name  = config%base_mesh%prime_mesh_name()
+geometry         = config%base_mesh%geometry()
+scaled_radius    = config%planet%scaled_radius()
+extrusion_method = config%extrusion%method()
+number_of_layers = config%extrusion%number_of_layers()
+domain_height    = config%extrusion%domain_height()
 
 !-------------------------------------------------------------------------
 ! 1.0 Create the meshes
@@ -293,7 +285,7 @@ subroutine load_configuration( lfric_nl, required_lfric_namelists, &
 ! Description:
 !  Reads lfric namelists and checks that all required namelists are present
 
-use configuration_mod, only: read_configuration, ensure_configuration
+use config_loader_mod, only: read_configuration, ensure_configuration
 
 implicit none
 
@@ -301,8 +293,8 @@ character(*), intent(in) :: lfric_nl
 
 character(*), intent(in)  :: required_lfric_namelists(:)
 
-type(namelist_collection_type), intent(INOUT) :: configuration
-type(config_type),              intent(INOUT) :: config
+type(namelist_collection_type), intent(inout) :: configuration
+type(config_type),              intent(inout) :: config
 
 logical              :: okay
 logical, allocatable :: success_map(:)
