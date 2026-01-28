@@ -22,7 +22,6 @@ module atlt_si_timestep_alg_mod
                                                      moisture_formulation_dry
   use derived_config_mod,                      only: bundle_size
   use fs_continuity_mod,                       only: Wtheta, W2, W3
-  use moist_dyn_factors_alg_mod,               only: moist_dyn_factors_alg
   use field_mod,                               only: field_type
   use field_collection_mod,                    only: field_collection_type
   use mesh_mod,                                only: mesh_type
@@ -38,18 +37,7 @@ module atlt_si_timestep_alg_mod
   use driver_modeldb_mod,                      only: modeldb_type
   use si_operators_alg_mod,                    only: compute_si_operators
   use sci_enforce_bc_kernel_mod,               only: enforce_bc_kernel_type
-  use initial_theta_ref_kernel_mod,            only: initial_theta_ref_kernel_type
-  use init_gungho_prognostics_alg_mod,         only: init_u_field,     &
-                                                     init_exner_field, &
-                                                     init_rho_field,   &
-                                                     init_mr_fields
   use field_array_mod,                         only: field_array_type
-  use sci_geometric_constants_mod,             only: get_coordinates, &
-                                                     get_panel_id
-  use idealised_config_mod,                    only: test
-  use sci_field_bundle_builtins_mod,           only: set_bundle_scalar
-  use check_configuration_mod,                 only: check_any_shifted
-  use timestepping_config_mod,                 only: dt
 
   implicit none
 
@@ -81,7 +69,6 @@ contains
     type(field_collection_type), pointer           :: derived_fields
 
     ! LS
-    type(field_type)                     :: ls_rdef(bundle_size)
     type(field_type),            pointer :: ls_u
     type(field_type),            pointer :: ls_rho
     type(field_type),            pointer :: ls_theta
@@ -97,9 +84,6 @@ contains
     type(function_space_type), pointer :: vector_space_wtheta_ptr
     type(function_space_type), pointer :: vector_space_w2_ptr
     type(function_space_type), pointer :: vector_space_w3_ptr
-    type(field_type),          pointer :: chi(:)
-    type(field_type),          pointer :: panel_id
-    real(kind=r_def)                   :: initial_time
     integer(kind=i_def)                :: i
     type(atl_si_timestep_type)         :: atl_si_timestep
 
@@ -129,7 +113,7 @@ contains
     vector_space_w2_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W2 )
     vector_space_w3_ptr => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W3 )
 
-    ls_fields => modeldb%fields%get_field_collection("prognostic_fields")
+    ls_fields => modeldb%fields%get_field_collection("ls_fields")
 
     call ls_fields%get_field( 'ls_theta', ls_theta )
     call ls_fields%get_field( 'ls_u', ls_u )
@@ -141,34 +125,6 @@ contains
     call moisture_fields%get_field( "ls_moist_dyn", ls_moist_dyn_array )
     ls_mr => ls_mr_array%bundle
     ls_moist_dyn => ls_moist_dyn_array%bundle
-
-    ! Define reference field
-    initial_time = 0.0_r_def
-    call init_u_field( ls_u, initial_time )
-    call set_bundle_scalar( 0.0_r_def, ls_mr, nummr )
-
-    chi => get_coordinates(ls_theta%get_mesh_id())
-    panel_id => get_panel_id(ls_theta%get_mesh_id())
-
-    call invoke(initial_theta_ref_kernel_type( ls_theta, chi, panel_id, test ))
-
-    call moist_dyn_factors_alg( ls_moist_dyn, ls_mr )
-    call init_exner_field( ls_exner, ls_theta, ls_moist_dyn, initial_time )
-    call init_rho_field( ls_rho, ls_theta, ls_exner, ls_moist_dyn, initial_time )
-    call init_mr_fields( ls_mr, ls_theta, ls_exner, ls_rho, ls_moist_dyn )
-
-    call invoke( enforce_bc_kernel_type(ls_u) )
-
-    call ls_u%copy_field_properties(ls_rdef(igh_u))
-    call ls_theta%copy_field_properties(ls_rdef(igh_t))
-    call ls_rho%copy_field_properties(ls_rdef(igh_d))
-    call ls_exner%copy_field_properties(ls_rdef(igh_p))
-
-    call invoke( setval_x(ls_rdef(igh_u), ls_u),     &
-                 setval_x(ls_rdef(igh_t), ls_theta), &
-                 setval_x(ls_rdef(igh_p), ls_exner), &
-                 setval_x(ls_rdef(igh_d), ls_rho) )
-    ! End LS
 
     ! Set up moist_dyn & mr
 
@@ -231,7 +187,7 @@ contains
                                     ls_u, ls_rho, ls_theta, ls_exner, &
                                     ls_mr, ls_moist_dyn, (num_steps == 1) )
 
-    call compute_si_operators( ls_rdef(igh_t), ls_rdef(igh_d), ls_rdef(igh_p), &
+    call compute_si_operators( ls_theta, ls_rho, ls_exner, &
                                modeldb%clock, ls_moist_dyn )
 
     do i = 1, num_steps
