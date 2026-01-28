@@ -20,14 +20,18 @@ module compute_dl_matrix_kernel_mod
                                        GH_BASIS, GH_DIFF_BASIS,   &
                                        GH_SCALAR, GH_INTEGER,     &
                                        CELL_COLUMN, GH_QUADRATURE_XYoZ
-  use base_mesh_config_mod,      only: geometry, geometry_spherical
   use constants_mod,             only: i_def, r_def, r_second, &
                                        PI, degrees_to_radians
   use sci_chi_transform_mod,     only: chi2llr
-  use damping_layer_config_mod,  only: dl_type, dl_type_latitude
   use fs_continuity_mod,         only: W2
   use kernel_mod,                only: kernel_type
   use sci_coordinate_jacobian_mod, only: coordinate_jacobian
+
+  use base_mesh_config_mod,      only: geometry, topology, &
+                                       geometry_spherical
+  use damping_layer_config_mod,  only: dl_type, dl_type_latitude
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -189,7 +193,8 @@ contains
         chi2_e(df) = chi2(map_chi(df) + k - 1)
         chi3_e(df) = chi3(map_chi(df) + k - 1)
       end do
-      call coordinate_jacobian(ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,  &
+      call coordinate_jacobian(coord_system, geometry, topology, scaled_radius, &
+                               ndf_chi, nqp_h, nqp_v, chi1_e, chi2_e, chi3_e,   &
                                ipanel, basis_chi, diff_basis_chi, jac, dj)
 
       ! Only use dofs corresponding to vertical part of basis function
