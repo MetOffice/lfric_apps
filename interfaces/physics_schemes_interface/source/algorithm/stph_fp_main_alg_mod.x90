@@ -47,9 +47,12 @@ module stph_fp_main_alg_mod
 
   !>@param[in]         level_bottom            Bottom level of the stochastic scheme
   !>@param[in]         level_top               Top level of the stochastic scheme
-  !>@param[in]         level_offset            Level offset, allowing this to be
-  !!                                           applied to W3 and Wtheta fields.
-  !!                                           Set 0 Wtheta, 1 for W3.
+  !>@param[in]         level_offset            Level offset. This routine can be
+  !!                                           applied at W3 and Wtheta points,
+  !!                                           but both implementations index
+  !!                                           from the same "eta_theta_levels"
+  !!                                           array, so need an offset to index
+  !!                                           correctly. Set 0 Wtheta, 1 for W3
   !>@param[in]         wavenumber_min          Minimum wavenumber applied to build the FP
   !>@param[in]         wavenumber_max          Maximum wavenumber applied to build the FP
   !>@param[in]         spectral_dim            Dimension of spectral coeffients arrays
