@@ -76,6 +76,14 @@
         "memory": [24, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9-C896_MG" %}
+
+    {% if "-64bit" in task_ns.extras %}
+        {% do task_dict.update({
+            "task_ranks_per_node": 112,
+        }) %}
+    {% endif %}
+
 {% endif %}
 
 {% if "perftools" in task_ns.compiler %}

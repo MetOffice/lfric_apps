@@ -31,10 +31,11 @@
     <file_definition src="./file_def_ancil_main.xml"/>
     <file_definition src="./file_def_ancil_gal.xml"/>
     <file_definition src="./file_def_ancil_hadisst.xml"/>
-    <file_definition src="./file_def_diags_idealised.xml"/>
+    <!--file_definition src="./file_def_iau.xml"/-->
     <file_definition src="./file_def_diags_ver.xml"/>
     <file_definition src="./file_def_diags_name.xml"/>
-    <file_definition src="./file_def_initial_diags.xml"/>
+    <file_definition src="./file_def_diags_var_ops.xml"/>
+    <file_definition src="./file_def_diags_oper_nwp_gl.xml"/>
 
     <!-- Local file definitions -->
     <file_definition type="one_file" time_counter="none">
@@ -97,10 +98,9 @@
     <variable_definition>
       <variable_group id = "buffer">
         <variable id = "optimal_buffer_size" type = "string" >performance</variable>
-        <variable id = "buffer_size_factor" type = "double" >1.0</variable>
         <!-- Configure XIOS buffer, tuned for C896 jobs on specific architectures. -->
         <!-- Do not use this value without assessing performance for specific job sizes and platforms. -->
-	<variable id = "min_buffer_size" type = "int" >10485760</variable>
+        <variable id = "min_buffer_size" type = "int" >10485760</variable>
       </variable_group>
 
       <variable_group id = "parameters" >
