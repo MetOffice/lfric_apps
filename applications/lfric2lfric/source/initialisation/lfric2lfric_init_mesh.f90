@@ -136,7 +136,7 @@ subroutine init_mesh( configuration,           &
   ! Extract and check configuration variables
   !============================================================================
   ! Read partitioning namelist for source and destination meshes
-  if (.not. configuration%namelist_exists('partitioning', 'source') then
+  if (.not. configuration%namelist_exists('partitioning', 'source')) then
     write( log_scratch_space, '(A)' )                                     &
          'Partitioning parameters for the source mesh were not found, '// &
          'please specify a partitioning namelist with mesh_target=source.'
@@ -147,7 +147,7 @@ subroutine init_mesh( configuration,           &
   call src_partitioning_nml%get_value( 'generate_inner_halos', &
                                         generate_inner_halos(src) )
 
-  if (.not. configuration%namelist_exists('partitioning', 'destination') then
+  if (.not. configuration%namelist_exists('partitioning', 'destination')) then
     write( log_scratch_space, '(A)' )                                     &
          'Partitioning parameters for the source mesh were not found, '// &
          'please specify a partitioning namelist with mesh_target=destination.'
