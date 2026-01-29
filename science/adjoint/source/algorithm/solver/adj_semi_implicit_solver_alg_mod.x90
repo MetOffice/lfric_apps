@@ -342,8 +342,7 @@ contains
     integer(kind=i_def)                               :: p_h, p_v
     integer(tik)                                      :: id_si, id_mix
 
-    if ( LPROF ) call start_timing( id_si, &
-                                    'adj_semi_implicit_solver_type_step' )
+    if ( LPROF ) call start_timing( id_si, 'adjoint.solver')
 
     ! Input fields are r_def fields so preliminary work uses field_types
 
@@ -458,10 +457,10 @@ contains
     call vector_rhs%import_field( inc_exner_rsol, isol_p )
 
     ! Solve the semi-implicit operator
-    if ( LPROF ) call start_timing( id_mix, 'adj_mixed_solver' )
+    if ( LPROF ) call start_timing( id_mix, 'adj_solver.mixed_solver' )
     call vector_inc%set_scalar(0.0_r_def)
     call self%adj_mixed_solver%apply( vector_inc, vector_rhs )
-    if ( LPROF ) call stop_timing( id_mix, 'adj_mixed_solver' )
+    if ( LPROF ) call stop_timing( id_mix, 'adj_solver.mixed_solver' )
 
     call deconstruct_solver_state( vector_inc, rhs_rsol )
     ! vector_inc(uv,w,p) IN, rhs_rsol(u,p) OUT, rhs_rsol(d,t) unaffected
@@ -513,8 +512,7 @@ contains
 
     call invoke(inc_X_times_Y( rhs(igh_u), u_normalisation ))
 
-    if ( LPROF ) call stop_timing( id_si, &
-                                   'adj_semi_implicit_solver_type_step' )
+    if ( LPROF ) call stop_timing( id_si, 'adjoint.solver')
 
   end subroutine step
 

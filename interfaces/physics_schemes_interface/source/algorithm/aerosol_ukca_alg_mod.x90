@@ -465,9 +465,9 @@ contains
     integer( kind=i_def)  :: jp1, jp2  ! Indices for photolysis fields
 
     type( field_type ) :: mr_ice
-    integer( tik ) :: id, id_photo, id_chem
+    integer( tik ) :: id, id_photo, id_chem, id_diags
 
-    if ( LPROF ) call start_timing( id, 'aerosol_ukca_alg' )
+    if ( LPROF ) call start_timing( id, 'ukca' )
 
     call log_event( 'Running UKCA aerosol', LOG_LEVEL_DEBUG )
 
@@ -1030,7 +1030,7 @@ contains
       if (mod( model_clock%get_step(),                                         &
             chem_timestep/int(model_clock%get_seconds_per_step()) ) == 0) then
 
-        if ( LPROF ) call start_timing( id_photo, 'ukca_photolysis_alg' )
+        if ( LPROF ) call start_timing( id_photo, 'ukca.photolysis_alg' )
         ! FastJX scheme
         if (photol_scheme == photol_scheme_fastjx )  then
 
@@ -1150,7 +1150,7 @@ contains
 
         end if  ! photol_scheme = fastjx/ prescribed
 
-        if ( LPROF ) call stop_timing( id_photo, 'ukca_photolysis_alg' )
+        if ( LPROF ) call stop_timing( id_photo, 'ukca.photolysis_alg' )
         
       end if  ! Chem timestep
     
@@ -1158,7 +1158,7 @@ contains
 
     ! Do UKCA time step
 
-    if ( LPROF ) call start_timing( id_chem, 'ukca_chemistry_alg' )
+    if ( LPROF ) call start_timing( id_chem, 'ukca.chemistry_alg' )
     call invoke(aerosol_ukca_kernel_type( o3p,                                 &
                                           o1d,                                 &
                                           o3,                                  &
@@ -1440,7 +1440,7 @@ contains
                                           emiss_so2_nat,                       &
                                           photol_rates  ))
 
-    if ( LPROF ) call stop_timing( id_chem, 'ukca_chemistry_alg' )
+    if ( LPROF ) call stop_timing( id_chem, 'ukca.chemistry_alg' )
     call um_sizes_init(1_i_def)
 
     ! Save time for reference at next step
@@ -1457,7 +1457,11 @@ contains
       call log_field_minmax( LOG_LEVEL_DEBUG, ' CH4 Aft Chem ', ch4 )
     end if
 
+    if ( LPROF ) call stop_timing( id, 'ukca' )
+
     if ( write_diag .and. use_xios_io ) then
+      if ( LPROF ) call start_timing( id_diags, 'diags.ukca' )
+
       ! Diagnostic output
 
       ! Chemistry diagnostics
@@ -1652,11 +1656,11 @@ contains
       call pvol_du_acc_ins%write_field('aerosol__pvol_du_acc_ins')
       call pvol_du_cor_ins%write_field('aerosol__pvol_du_cor_ins')
 
+      if ( LPROF ) call stop_timing( id_diags, 'diags.ukca' )
     end if      ! write diag
 
     nullify( mesh )
 
-    if ( LPROF ) call stop_timing( id, 'aerosol_ukca_alg' )
 
   end subroutine aerosol_ukca_alg
 

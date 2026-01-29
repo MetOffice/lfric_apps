@@ -230,7 +230,7 @@ contains
     integer(i_def), save :: day_of_year, second_of_day
     integer(tik)         :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_exp_alg' )
+    if ( LPROF ) call start_timing( id, 'jules.explicit' )
  
     call log_event( 'slow_physics: Running explicit JULES layer', LOG_LEVEL_DEBUG )
 
@@ -456,7 +456,7 @@ contains
     ! Switch UM back to columns
     call um_sizes_init(1_i_def)
 
-    if ( LPROF ) call stop_timing( id, 'jules_exp_alg' )
+    if ( LPROF ) call stop_timing( id, 'jules.explicit' )
 
        ! output JULES diagnostics
     if (write_diag .and. use_xios_io) then

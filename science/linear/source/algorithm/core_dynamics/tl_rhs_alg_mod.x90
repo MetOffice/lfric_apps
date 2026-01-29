@@ -135,7 +135,7 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     integer(kind=i_def), parameter :: exner_stencil_depth = 1
     integer(tik)                   :: id
 
-    if ( LPROF ) call start_timing( id, 'tl_rhs_alg' )
+    if ( LPROF ) call start_timing( id, 'tl_dynamics.rhs_alg' )
 
     mesh => base_state(igh_u)%get_mesh()
 
@@ -291,7 +291,7 @@ subroutine tl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
              mesh, reference_element )
 
 
-    if ( LPROF ) call stop_timing( id, 'tl_rhs_alg' )
+    if ( LPROF ) call stop_timing( id, 'tl_dynamics.rhs_alg' )
 
   end subroutine tl_rhs_alg
 

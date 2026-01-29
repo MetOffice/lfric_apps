@@ -218,7 +218,7 @@ contains
     integer(i_def) :: ncells
     integer(tik)   :: id
 
-    if ( LPROF ) call start_timing( id, 'bl_exp_alg' )
+    if ( LPROF ) call start_timing( id, 'bl.explicit' )
 
     call log_event( 'slow_physics: Running explicit Boundary layer', LOG_LEVEL_DEBUG )
 
@@ -415,13 +415,13 @@ contains
     call um_sizes_init(1_i_def)
 
     if (formdrag == formdrag_dist_drag) then
-      if ( LPROF ) call stop_timing( id, 'bl_exp_alg' )
+      if ( LPROF ) call stop_timing( id, 'bl.explicit' )
       call theta%copy_field_properties(fd_tauz)
       call invoke(setval_c(fd_tauz, 0.0_r_def))
       ! Calculate form drag stress in w2
       call set_wind(fd_tau_w2,fd_taux,fd_tauy,fd_tauz)
       call invoke(inc_X_divideby_Y(fd_tau_w2, dA))
-      if ( LPROF ) call start_timing( id, 'bl_exp_alg' )
+      if ( LPROF ) call start_timing( id, 'bl.explicit' )
     end if
 
     ! Calculate explicit momentum diffusion on cell faces
@@ -453,7 +453,7 @@ contains
                                         sea_v_current_ptr) )
     end if
 
-    if ( LPROF ) call stop_timing( id, 'bl_exp_alg' )
+    if ( LPROF ) call stop_timing( id, 'bl.explicit' )
 
     ! output BL diagnostics
     if (write_diag .and. use_xios_io) then

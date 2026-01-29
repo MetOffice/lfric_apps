@@ -49,7 +49,7 @@ contains
     type( field_type )             :: sea_ice_fraction
     integer( tik )                 :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_seaice_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.jules_seaice' )
 
     ! Prognostic fields
     call sea_ice_thickness%write_field('seaice__sea_ice_thickness')
@@ -65,7 +65,7 @@ contains
                                             first_sea_ice_tile, n_sea_ice_tile))
     call sea_ice_fraction%write_field('seaice__sea_ice_fraction')
 
-    if ( LPROF ) call stop_timing( id, 'jules_seaice_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.jules_seaice' )
 
   end subroutine output_diags_for_jules_seaice
 end module jules_seaice_diags_mod

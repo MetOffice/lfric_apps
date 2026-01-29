@@ -204,12 +204,12 @@ contains
     type( field_type ) :: aaod_ukca_acc_ins
     type( field_type ) :: aod_ukca_cor_ins
     type( field_type ) :: aaod_ukca_cor_ins
-    integer(tik)       :: id
-
-    if ( LPROF ) call start_timing( id, 'radaer_alg' )
+    integer(tik)       :: id_aero, id_diags
 
     ! Call on radiation time steps only
     if (mod(timestep-1_i_def, n_radaer_step*n_radstep) == 0) then
+
+      if ( LPROF ) call start_timing( id_aero, 'aerosol.radaer' )
 
       mesh      => theta_in_wth%get_mesh()
       dz_in_wth => get_dz_at_wtheta(mesh%get_id())
@@ -477,8 +477,12 @@ contains
                                    lowest_order_flag=lowest_order_aero_flag )
       end if
 
+      if ( LPROF ) call stop_timing( id_aero, 'aerosol.radaer' )
+
+
       ! Diagnostic output
       if ( write_diag .and. use_xios_io ) then
+        if ( LPROF ) call start_timing( id_diags, 'diags.radaer' )
 
         ! Process radaer diagnostics
         call output_main_diags_for_radaer(  aod_ukca_ait_sol,                  &
@@ -494,11 +498,10 @@ contains
                                             aod_ukca_cor_ins,                  &
                                            aaod_ukca_cor_ins )
 
+        if ( LPROF ) call stop_timing( id_diags, 'diags.radaer' )
       end if
 
     end if
-
-    if ( LPROF ) call stop_timing( id, 'radaer_alg' )
 
   end subroutine radaer_alg
 

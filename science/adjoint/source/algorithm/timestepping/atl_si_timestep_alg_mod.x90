@@ -323,7 +323,7 @@ contains
     character(len=str_def)                             :: prime_mesh_name
     integer(tik)                                       :: id
 
-    if ( LPROF ) call start_timing( id, 'atl_si_timestep_type::step' )
+    if ( LPROF ) call start_timing( id, 'atl_semi_implicit_timestep' )
 
     cast_dt = real( modeldb%clock%get_seconds_per_step(), r_def )
 
@@ -738,7 +738,7 @@ contains
                  setval_X( rho, self%state(igh_d) ),   &
                  setval_X( exner, self%state(igh_p) ) )
 
-    if ( LPROF ) call stop_timing( id, 'atl_si_timestep_type::step' )
+    if ( LPROF ) call stop_timing( id, 'atl_semi_implicit_timestep' )
 
   end subroutine step
 

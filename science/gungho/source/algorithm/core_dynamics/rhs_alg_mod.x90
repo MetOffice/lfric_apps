@@ -165,7 +165,7 @@ contains
     integer(kind=i_def), parameter :: req_stencil_depth = 1
     integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
 
-    if ( LPROF ) call start_timing( id, 'rhs_alg' )
+    if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
     mesh_id = base_state(igh_u)%get_mesh_id()
 
@@ -235,7 +235,7 @@ contains
              geopotential, u, theta, rho, exner, &
              u_base, theta_base, rho_base )
 
-    if ( LPROF ) call stop_timing( id, 'rhs_alg' )
+    if ( LPROF ) call stop_timing( id, 'dynamics.rhs_alg' )
 
   end subroutine rhs_default_alg
 
@@ -293,7 +293,7 @@ contains
     integer(kind=i_def), parameter :: req_stencil_depth = 1
     integer(kind=i_def), parameter :: req_halo_depth = req_stencil_depth + 1
 
-    if ( LPROF ) call start_timing( id, 'rhs_alg' )
+    if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
     mesh_id = base_state(igh_u)%get_mesh_id()
 
@@ -427,7 +427,7 @@ contains
              geopotential, u, theta, rho, exner, &
              mesh, reference_element )
 
-    if ( LPROF ) call stop_timing( id, 'rhs_alg' )
+    if ( LPROF ) call stop_timing( id, 'dynamics.rhs_alg' )
 
   end subroutine rhs_general_alg
 

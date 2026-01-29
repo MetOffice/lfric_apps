@@ -58,7 +58,7 @@ contains
     type( mesh_type ), pointer :: mesh => null()
     integer( tik )  :: id
 
-    if ( LPROF ) call start_timing( id, 'exner_from_eos' )
+    if ( LPROF ) call start_timing( id, 'dynamics.exner_from_eos' )
 
     mesh => state(igh_p)%get_mesh()
 
@@ -84,7 +84,7 @@ contains
     nullify( m3_inv, chi, mesh, &
              panel_id, qr )
 
-    if ( LPROF ) call stop_timing( id, 'exner_from_eos' )
+    if ( LPROF ) call stop_timing( id, 'dynamics.exner_from_eos' )
 
   end subroutine derive_exner_from_eos
 

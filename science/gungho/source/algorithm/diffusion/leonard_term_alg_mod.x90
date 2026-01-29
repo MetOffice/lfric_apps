@@ -104,7 +104,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
     ! w increment
     type( field_type ) :: vel_w2v_inc_leonard
 
-    if ( LPROF ) call start_timing( id, 'leonard_term_alg' )
+    if ( LPROF ) call start_timing( id, 'leonard_term' )
 
     mesh_id = theta%get_mesh_id()
 
@@ -222,7 +222,7 @@ subroutine leonard_term_alg(mt_inc_leonard, thetal_inc_leonard, &
 
     nullify( height_w1, height_w2, height_w3, height_wth )
 
-    if ( LPROF ) call stop_timing( id, 'leonard_term_alg' )
+    if ( LPROF ) call stop_timing( id, 'leonard_term' )
 
   end subroutine leonard_term_alg
 

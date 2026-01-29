@@ -251,8 +251,7 @@ contains
     integer(tik)                                          :: id_precon, &
                                                              id_solve
 
-    if ( LPROF ) call start_timing( id_precon, &
-                                    'mixed_schur_preconditioner_alg' )
+    if ( LPROF ) call start_timing( id_precon, 'mixed_solver.schur_precon' )
 
     select type(x)
     type is(r_solver_field_vector_type)
@@ -263,7 +262,7 @@ contains
 
          ! STEP 2: Solve Helmholtz system
          ! Krylov solver to obtain pressure increment
-         if ( LPROF ) call start_timing( id_solve, 'mixed_schur_solve' )
+         if ( LPROF ) call start_timing(id_solve, 'schur_precon.pressure_solver')
 
          ! Set initial guess to pressure incremenet to 0
          call self%pressure_x%set_scalar(0.0_r_def)
@@ -272,7 +271,7 @@ contains
          call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG)
          call self%pressure_solver%apply(self%pressure_x, self%pressure_b)
 
-         if ( LPROF ) call stop_timing( id_solve, 'mixed_schur_solve' )
+         if ( LPROF ) call stop_timing(id_solve, 'schur_precon.pressure_solver')
 
           ! STEP 3: Back substitute to obtain other fields
           call self%back_substitute(y)
@@ -288,7 +287,7 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end select
 
-    if ( LPROF ) call stop_timing( id_precon, 'mixed_schur_preconditioner_alg' )
+    if ( LPROF ) call stop_timing( id_precon, 'mixed_solver.schur_precon' )
 
   end subroutine apply_mixed_schur_preconditioner
 
@@ -341,7 +340,7 @@ contains
     type(integer_field_type), pointer :: face_selector_ns
     integer(tik)                      :: id
 
-    if ( LPROF ) call start_timing( id, 'mixed_schur_rhs' )
+    if ( LPROF ) call start_timing( id, 'schur_precon.rhs' )
 
     rhs => self%pressure_b%get_field_from_position(1)
 
@@ -418,7 +417,7 @@ contains
        call invoke( inc_X_times_Y(rhs, h_diag) )
     end if
 
-    if ( LPROF ) call stop_timing( id, 'mixed_schur_rhs' )
+    if ( LPROF ) call stop_timing( id, 'schur_precon.rhs' )
 
   end subroutine build_pressure_rhs
 
@@ -458,7 +457,7 @@ contains
     type(r_solver_field_type), target :: dummy_field
     integer(tik)                      :: id
 
-    if ( LPROF ) call start_timing( id, 'schur_back_substitute' )
+    if ( LPROF ) call start_timing( id, 'schur_precon.back_sub' )
 
     exner_inc => self%pressure_x%get_field_from_position(1)
 
@@ -507,7 +506,7 @@ contains
     state_p => state%get_field_from_position(isol_p)
     call invoke( setval_X(state_p, exner_inc) )
 
-    if ( LPROF ) call stop_timing( id, 'schur_back_substitute' )
+    if ( LPROF ) call stop_timing( id, 'schur_precon.back_sub' )
 
   end subroutine back_substitute
 

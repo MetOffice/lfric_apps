@@ -137,7 +137,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
   real( kind=r_def ) :: planet_lw_albedo
   integer( tik )     :: id
 
-  if ( LPROF ) call start_timing( id, 'rad_tile_alg' )
+  if ( LPROF ) call start_timing( id, 'jules.radiation' )
 
   vector_space => function_space_collection%get_fs( &
                     twod_mesh, 0, 0, W3, n_sw_band * n_surf_tile )
@@ -306,7 +306,7 @@ subroutine rad_tile_alg(tile_sw_direct_albedo, tile_sw_diffuse_albedo,       &
     call log_event( log_scratch_space, LOG_LEVEL_ERROR )
   end if
 
-  if ( LPROF ) call stop_timing( id, 'rad_tile_alg' )
+  if ( LPROF ) call stop_timing( id, 'jules.radiation' )
 
 end subroutine rad_tile_alg
 end module rad_tile_alg_mod

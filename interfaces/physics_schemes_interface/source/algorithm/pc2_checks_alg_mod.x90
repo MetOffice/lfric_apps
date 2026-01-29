@@ -79,9 +79,9 @@ contains
     type( field_type ), pointer :: liquid_fraction => null()
     type( field_type ), pointer :: frozen_fraction => null()
     type( field_type ), pointer :: bulk_fraction   => null()
-    integer( tik )              :: id_alg, id_xios
+    integer( tik )              :: id_alg, id_diags
 
-    if ( LPROF ) call start_timing( id_alg, 'pc2_checks_alg' )
+    if ( LPROF ) call start_timing( id_alg, 'cloud.pc2_checks' )
 
     ! Unpack fields
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
@@ -118,10 +118,10 @@ contains
                                            dcff_pc2_inc,        &
                                            dbcf_pc2_inc ) )
 
-    if ( LPROF ) call stop_timing( id_alg, 'pc2_checks_alg' )
+    if ( LPROF ) call stop_timing( id_alg, 'cloud.pc2_checks' )
 
     if ( write_diag .and. use_xios_io ) then
-      if ( LPROF ) call start_timing( id_xios, 'pc2_checks_xios' )
+      if ( LPROF ) call start_timing( id_diags, 'diags.pc2_checks' )
       call dtheta_pc2_inc%write_field('cloud__dtheta_pc2_checks')
       call dmv_pc2_inc%write_field('cloud__dmv_pc2_checks')
       call dmcl_pc2_inc%write_field('cloud__dmcl_pc2_checks')
@@ -130,7 +130,7 @@ contains
       call dcfl_pc2_inc%write_field('cloud__dcfl_pc2_checks')
       call dcff_pc2_inc%write_field('cloud__dcff_pc2_checks')
       call dbcf_pc2_inc%write_field('cloud__dbcf_pc2_checks')
-      if ( LPROF ) call stop_timing( id_xios, 'pc2_checks_xios' )
+      if ( LPROF ) call stop_timing( id_diags, 'diags.pc2_checks' )
     end if
 
   end subroutine pc2_checks_alg

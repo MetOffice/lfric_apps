@@ -251,7 +251,7 @@ contains
     type( mesh_type ), pointer :: mesh
     integer(tik)               :: id
 
-    if ( LPROF ) call start_timing( id, 'set_wind' )
+    if ( LPROF ) call start_timing( id, 'mappings.set_wind' )
 
     mesh => u%get_mesh()
 
@@ -327,7 +327,7 @@ contains
       call mass_matrix_solver_alg(u, r_u)
     end if
 
-    if ( LPROF ) call stop_timing( id, 'set_wind' )
+    if ( LPROF ) call stop_timing( id, 'mappings.set_wind' )
 
   end subroutine set_wind
 

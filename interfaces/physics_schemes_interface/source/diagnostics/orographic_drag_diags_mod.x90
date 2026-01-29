@@ -49,7 +49,7 @@ contains
         taux_orog_gwd, tauy_orog_gwd
     integer( tik )  :: id
 
-    if ( LPROF ) call start_timing( id, 'orographic_drag_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.orog_gwd' )
 
     ! 3D fields in wtheta space
     taux_orog_blk_flag = init_diag(taux_orog_blk, 'orographic_drag__taux_orog_blk')
@@ -61,7 +61,7 @@ contains
     tauy_orog_gwd_flag = init_diag(tauy_orog_gwd, 'orographic_drag__tauy_orog_gwd')
     if (tauy_orog_gwd_flag) call invoke( setval_c(tauy_orog_gwd, 0.0_r_def) )
 
-    if ( LPROF ) call stop_timing( id, 'orographic_drag_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.orog_gwd' )
 
   end subroutine initialise_diags_for_orographic_drag
 
@@ -81,7 +81,7 @@ contains
                                          taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd
     integer( tik )  :: id
 
-    if ( LPROF ) call start_timing( id, 'orographic_drag_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.orog_gwd' )
 
     ! Prognostic fields
     call du_orographic_drag%write_field('orographic_drag__du_orographic_drag')
@@ -101,7 +101,7 @@ contains
     if (taux_orog_gwd_flag) call taux_orog_gwd%write_field()
     if (tauy_orog_gwd_flag) call tauy_orog_gwd%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'orographic_drag_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.orog_gwd' )
 
   end subroutine output_diags_for_orographic_drag
 end module orographic_drag_diags_mod

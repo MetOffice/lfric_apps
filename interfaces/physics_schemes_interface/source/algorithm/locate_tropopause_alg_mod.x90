@@ -44,9 +44,9 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
   type( field_type ),         pointer :: height_wth => null()
   type(function_space_type),  pointer :: vector_space => null()
   procedure(write_interface), pointer :: write_diag_behaviour => null()
-  integer(tik)                        :: id_alg, id_xios
+  integer(tik)                        :: id_alg, id_diags
 
-  if ( LPROF ) call start_timing( id_alg, 'locate_tropopause_alg' )
+  if ( LPROF ) call start_timing( id_alg, 'locate_tropopause' )
 
   height_wth => get_height_fv(Wtheta, theta%get_mesh_id())
 
@@ -55,14 +55,14 @@ subroutine locate_tropopause_alg(trop_level, theta, exner_in_wth, twod_mesh)
 
   call invoke( locate_tropopause_kernel_type( theta, exner_in_wth, &
                                               height_wth, trop_level ) )
-  if ( LPROF ) call stop_timing( id_alg, 'locate_tropopause_alg' )
+  if ( LPROF ) call stop_timing( id_alg, 'locate_tropopause' )
 
   if (write_diag .and. use_xios_io) then
-    if ( LPROF ) call start_timing( id_xios, 'locate_tropopause_xios' )
+    if ( LPROF ) call start_timing( id_diags, 'diags.locate_tropopause' )
     write_diag_behaviour => write_field_generic
     call trop_level%set_write_behaviour(write_diag_behaviour)
     call trop_level%write_field('processed__trop_level')
-    if ( LPROF ) call stop_timing( id_xios, 'locate_tropopause_xios' )
+    if ( LPROF ) call stop_timing( id_diags, 'diags.locate_tropopause' )
   end if
 
 end subroutine locate_tropopause_alg

@@ -121,9 +121,9 @@ contains
     type( field_type ) :: ls_graup_3d
 
     integer(kind=i_def) :: mesh_id, ncells
-    integer(tik)        :: id_alg, id_xios
+    integer(tik)        :: id_alg, id_diags
 
-    if ( LPROF ) call start_timing( id_alg, 'casim_alg' )
+    if ( LPROF ) call start_timing( id_alg, 'microphysics.casim' )
 
     call log_event( 'slow_physics: Running Microphysics', LOG_LEVEL_INFO )
 
@@ -216,12 +216,12 @@ contains
     call microphysics_fields%get_field('dmv_mphys', dmv_mphys)
     call invoke(setval_X(dmv_mphys, dmr_mphys(imr_v)))
 
-    if ( LPROF ) call stop_timing( id_alg, 'casim_alg' )
+    if ( LPROF ) call stop_timing( id_alg, 'microphysics.casim' )
 
     ! Output microphysics diagnostics
     if (write_diag .and. use_xios_io) then
-      if ( LPROF ) call start_timing( id_xios, 'casim_xios' )
 
+      if ( LPROF ) call start_timing( id_diags, 'diags.microphysics' )
         call output_diags_for_casim(ls_rain, ls_snow, ls_graup,               &
                                     lsca_2d, refl_tot, refl_1km,              &
                                     ls_rain_3d, ls_snow_3d, ls_graup_3d,      &
@@ -232,7 +232,7 @@ contains
                                     dmr_mphys(imr_g), dmr_mphys(imr_s),       &
                                     superc_liq, superc_rain )
 
-      if ( LPROF ) call stop_timing( id_xios, 'casim_xios' )
+      if ( LPROF ) call stop_timing( id_diags, 'diags.microphysics' )
     end if
 
   end subroutine casim_alg

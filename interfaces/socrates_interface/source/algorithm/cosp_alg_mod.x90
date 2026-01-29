@@ -22,7 +22,7 @@ use microphysics_config_mod, only: microphysics_casim
 use mr_indices_mod,          only: nummr, imr_v, imr_cl, imr_s, imr_ci
 use planet_config_mod,       only: p_zero, kappa
 use timing_mod,              only: start_timing, stop_timing, tik, LPROF
-use log_mod,                 only: log_event, LOG_LEVEL_INFO
+use log_mod,                 only: log_event, LOG_LEVEL_DEBUG
 
 use cosp_config_mod, only: n_subcol_gen
 use cosp_diags_mod,  only: initialise_diags_for_cosp, output_diags_for_cosp
@@ -123,7 +123,9 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
     cloud_thermal_absorptivity, cloud_solar_extinction
 
 
-  call log_event( 'slow_physics: Running COSP', LOG_LEVEL_INFO )
+  call log_event( 'slow_physics: Running COSP', LOG_LEVEL_DEBUG )
+
+  if ( LPROF ) call start_timing( id, 'cosp' )
 
   ! Unpack fields from collections
   call derived_fields%get_field('rho_in_wth', rho_in_wth)
@@ -190,7 +192,6 @@ subroutine cosp_alg(pressure_in_wth, temperature_in_wth, exner, mr, &
     cloud_thermal_absorptivity, cloud_solar_extinction)
 
   ! Run COSP
-  if ( LPROF ) call start_timing( id, 'cosp' )
   call invoke( cosp_kernel_type( &
     pressure_in_wth, temperature_in_wth, rho_in_wth, height_wth, &
     pressure_in_w3, height_w3, &

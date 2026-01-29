@@ -41,7 +41,7 @@ contains
     type( field_type ) :: du_force, dv_force, dw_force
     integer(tik)       :: id
 
-    if ( LPROF ) call start_timing( id, 'write_forcing_diagnostics' )
+    if ( LPROF ) call start_timing( id, 'diags.external_forcing' )
 
     if ( output_wind_inc ) then
       !
@@ -92,7 +92,7 @@ contains
 
     end if
 
-    if ( LPROF ) call stop_timing( id, 'write_forcing_diagnostics' )
+    if ( LPROF ) call stop_timing( id, 'diags.external_forcing' )
 
   end subroutine write_forcing_diagnostics
 
