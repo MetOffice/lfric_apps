@@ -47,7 +47,6 @@ module flux_precomputations_alg_mod
   use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
                                             get_face_selector_ns
   use integer_field_mod,              only: integer_field_type
-  use io_config_mod,                  only: subroutine_timers
   use lfric_mpi_mod,                  only: global_mpi
   use limited_area_lbc_alg_mod,       only: overwrite_blending_zone_rtran
   use local_mesh_mod,                 only: local_mesh_type
@@ -74,7 +73,8 @@ module flux_precomputations_alg_mod
                                             get_fraction_from_idx,             &
                                             get_fraction_idx,                  &
                                             get_num_split_steps
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
   use transport_config_mod,           only: panel_edge_treatment,              &
                                             panel_edge_treatment_extended_mesh,&
                                             ffsl_inner_order,                  &
@@ -277,8 +277,9 @@ contains
     type(r_tran_field_type)            :: flux_vert
     type(r_tran_field_type),   pointer :: flux_ptr
     type(r_tran_field_type),   target  :: ref_flux_restricted
+    integer(tik)                       :: id
 
-    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+    if ( LPROF ) call start_timing( id, 'transport.flux_precomp_init' )
 
     self%splitting = splitting
     self%num_substeps = num_substeps
@@ -562,7 +563,7 @@ contains
     self%transporting_wind => wind
     self%dt = dt
 
-    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+    if ( LPROF ) call stop_timing( id, 'transport.flux_precomp_init' )
 
   end subroutine flux_precomputations_initialiser
 
@@ -645,8 +646,9 @@ contains
     type(function_space_type), pointer :: w2_fs
     type(integer_field_type),  pointer :: face_selector_ew
     type(integer_field_type),  pointer :: face_selector_ns
+    integer(tik)                       :: id
 
-    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+    if ( LPROF ) call start_timing( id, 'transport.flux_precomp_init' )
 
     ! Checks ------------------------------------------------------------------
     ! Is the reference flux on a prime extrusion?
@@ -718,7 +720,7 @@ contains
       call invoke( setval_X(self%ref_flux(1, step), ref_flux) )
     end if
 
-    if ( subroutine_timers ) call timer('transport.flux_precomp_init')
+    if ( LPROF ) call stop_timing( id, 'transport.flux_precomp_init' )
 
   end subroutine initialise_step
 
@@ -839,6 +841,7 @@ contains
     type(integer_field_type),  pointer :: face_selector_ew
     type(integer_field_type),  pointer :: face_selector_ns
     type(r_tran_field_type),   pointer :: ref_flux
+    integer(tik)                       :: id
 
     ! If substepping, step can exceed num_steps, so take that into account here
     ! This is because, when transporting by the wind field (and using unity as
@@ -867,7 +870,7 @@ contains
       face_selector_ew => get_face_selector_ew(self%mesh_ids(2))
       face_selector_ns => get_face_selector_ns(self%mesh_ids(2))
 
-      if ( subroutine_timers ) call timer('transport.get_ref_flux')
+      if ( LPROF ) call start_timing( id, 'transport.get_ref_flux' )
 
       ! Transform fluxes to the shifted mesh, with case depending on fs_id
       select case (fs_id)
@@ -894,7 +897,7 @@ contains
                                       self%ref_flux(1, step_idx)) )
       end select
 
-      if ( subroutine_timers ) call timer('transport.get_ref_flux')
+      if ( LPROF ) call stop_timing( id, 'transport.get_ref_flux' )
     end if
 
     ! Point to existing field
@@ -940,6 +943,7 @@ contains
     type(r_tran_field_type),   pointer :: ref_field
     type(r_tran_field_type),   pointer :: detj_w3
     character(len=str_def)             :: field_name
+    integer(tik)                       :: id
 
     mesh_idx = self%idx_from_mesh_id(mesh_id)
 
@@ -961,7 +965,7 @@ contains
       ! Obtain reference field from mass
       ref_mass => self%get_ref_mass(mesh_id, step)
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field')
+      if ( LPROF ) call start_timing( id, 'transport.get_ref_field' )
 
       call self%ref_field(mesh_idx, step)%initialise(w3_fs, halo_depth=halo_depth)
 
@@ -973,7 +977,7 @@ contains
                                   detj_w3) )
       end if
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field')
+      if ( LPROF ) call stop_timing( id, 'transport.get_ref_field' )
     end if
 
     ! Return existing field
@@ -1045,6 +1049,7 @@ contains
     type(r_tran_field_type)            :: tmp_mass
     type(r_tran_field_type)            :: tmp_field
     character(len=str_def)             :: field_name
+    integer(tik)                       :: id
 
     mesh_idx = self%idx_from_mesh_id(mesh_id)
 
@@ -1079,7 +1084,7 @@ contains
         ref_flux => self%get_ref_flux(mesh_id, step-1)
         call increment%initialise(w3_fs)
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( LPROF ) call start_timing( id, 'transport.get_ref_mass' )
 
         ! Take divergence of flux to get increment
         fs_id = ref_flux%which_function_space()
@@ -1140,14 +1145,14 @@ contains
                                              depth=transport_boundary_depth)
         end if
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( LPROF ) call stop_timing( id, 'transport.get_ref_mass' )
 
       ! ---------------------------------------------------------------------- !
       ! 2. The density from this step (multiplied by cell volumes)
       ! ---------------------------------------------------------------------- !
       else if (self%ref_field(mesh_idx, step)%is_initialised()) then
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( LPROF ) call start_timing( id, 'transport.get_ref_mass' )
         detj_w3 => get_detj_at_w3_r_tran(mesh_id)
         if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
           call invoke_deep_X_times_Y(self%ref_mass(mesh_idx, step),            &
@@ -1157,13 +1162,13 @@ contains
                                  self%ref_field(mesh_idx, step), detj_w3) )
         end if
 
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( LPROF ) call stop_timing( id, 'transport.get_ref_mass' )
 
       ! ---------------------------------------------------------------------- !
       ! 3. If on the shifted mesh, obtain the mass by shifting the mass
       ! ---------------------------------------------------------------------- !
       else if (mesh_idx == 2) then
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( LPROF ) call start_timing( id, 'transport.get_ref_mass' )
         ref_mass_prime => self%get_ref_mass(self%mesh_ids(1), step, negative_check_flag)
         if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
           ! Original field has already been remapped, so can perform a "deep"
@@ -1176,7 +1181,7 @@ contains
           call invoke( shift_mass_w3_kernel_type(self%ref_mass(2, step),       &
                                                  ref_mass_prime) )
         end if
-        if ( subroutine_timers ) call timer('transport.get_ref_mass')
+        if ( LPROF ) call stop_timing( id, 'transport.get_ref_mass' )
       end if
 
       ! Check if the computed reference mass is negative -----------------------
@@ -1224,6 +1229,7 @@ contains
     type(r_tran_field_type),   pointer :: ref_mass
     type(r_tran_field_type),   pointer :: detj_w3
     type(r_tran_field_type),   pointer :: ref_field
+    integer(tik)                       :: id
 
     ! If substepping, step can exceed num_steps, so take that into account here
     step_idx = MOD(step - 1, self%num_steps) + 1
@@ -1246,7 +1252,7 @@ contains
       detj_w3 => get_detj_at_w3_r_tran(mesh_id)
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( LPROF ) call start_timing( id, 'transport.get_ref_field_xy' )
 
       call self%ref_field_x(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
 
@@ -1257,7 +1263,7 @@ contains
         call invoke( X_divideby_Y(self%ref_field_x(mesh_idx, step_idx),        &
                                   ref_mass, detj_w3) )
       end if
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( LPROF ) call stop_timing( id, 'transport.get_ref_field_xy' )
     end if
 
     ! Return existing field
@@ -1288,6 +1294,7 @@ contains
     type(r_tran_field_type),   pointer :: ref_mass
     type(r_tran_field_type),   pointer :: detj_w3
     type(r_tran_field_type),   pointer :: ref_field
+    integer(tik)                       :: id
 
     ! If substepping, step can exceed num_steps, so take that into account here
     step_idx = MOD(step - 1, self%num_steps) + 1
@@ -1310,7 +1317,7 @@ contains
       detj_w3 => get_detj_at_w3_r_tran(mesh_id)
       w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( LPROF ) call start_timing( id, 'transport.get_ref_field_xy' )
 
       call self%ref_field_y(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
 
@@ -1321,7 +1328,7 @@ contains
         call invoke( X_divideby_Y(self%ref_field_y(mesh_idx, step_idx),        &
                                   ref_mass, detj_w3) )
       end if
-      if ( subroutine_timers ) call timer('transport.get_ref_field_xy')
+      if ( LPROF ) call stop_timing( id, 'transport.get_ref_field_xy' )
     end if
 
     ! Return existing field
@@ -1642,6 +1649,7 @@ contains
     real(kind=r_tran)                :: dep_min, dep_max
     type(mesh_type),         pointer :: mesh
     type(r_tran_field_type), pointer :: dep_dist
+    integer(tik)                     :: id
 
     ! If substepping, step can exceed num_steps, so take that into account here
     step_idx = MOD(step - 1, self%num_steps) + 1
@@ -1666,7 +1674,7 @@ contains
         mesh => mesh_collection%get_mesh(mesh_id)
         dep_dist => self%get_dep_dist(mesh_id, step, outer_step_local)
 
-        if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+        if ( LPROF ) call start_timing( id, 'transport.get_dep_stencil_extent' )
 
         ! We can shorten the stencil extent to the Courant number
         call get_field_minmax(dep_dist, dep_min, dep_max)
@@ -1684,7 +1692,7 @@ contains
           self%max_stencil_extent_computed = .true.
         end if
 
-        if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+        if ( LPROF ) call stop_timing( id, 'transport.get_dep_stencil_extent' )
       end if
 
     ! INNER STEP EXTENTS -------------------------------------------------------
@@ -1703,7 +1711,7 @@ contains
       mesh => mesh_collection%get_mesh(mesh_id)
       dep_dist => self%get_dep_dist(mesh_id, step, outer_step_local)
 
-      if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+      if ( LPROF ) call start_timing( id, 'transport.get_dep_stencil_extent' )
 
       ! We can shorten the stencil extent to the Courant number
       call get_field_minmax(dep_dist, dep_min, dep_max)
@@ -1721,7 +1729,7 @@ contains
         self%max_stencil_extent_computed = .true.
       end if
 
-      if ( subroutine_timers ) call timer('transport.get_dep_stencil_extent')
+      if ( LPROF ) call stop_timing( id, 'transport.get_dep_stencil_extent' )
     end if
 
   end function get_dep_stencil_extent
@@ -1809,7 +1817,7 @@ contains
     type(r_tran_field_type)            :: increment_y
     type(r_tran_field_type)            :: tmp_mass
     type(r_tran_field_type)            :: tmp_field
-
+    integer(tik)                       :: id
     ! If substepping, step can exceed num_steps, so take that into account here
     step_idx = MOD(step - 1, self%num_steps) + 1
     mesh_idx = self%idx_from_mesh_id(mesh_id)
@@ -1835,7 +1843,7 @@ contains
     ref_flux => self%get_ref_flux(mesh_id, step)
     w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
 
-    if ( subroutine_timers ) call timer('transport.get_ref_mass_xy')
+    if ( LPROF ) call start_timing( id, 'transport.get_ref_mass_xy' )
 
     call self%ref_mass_x(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
     call self%ref_mass_y(mesh_idx, step_idx)%initialise(w3_fs, halo_depth=halo_depth)
@@ -1891,7 +1899,7 @@ contains
       )
     end if
 
-    if ( subroutine_timers ) call timer('transport.get_ref_mass_xy')
+    if ( LPROF ) call stop_timing( id, 'transport.get_ref_mass_xy' )
 
   end subroutine compute_ref_mass_x_and_y
 
@@ -1923,6 +1931,7 @@ contains
     type(r_tran_field_type),   pointer :: ref_mass
     type(r_tran_field_type),   pointer :: ref_flux
     character(len=str_def)             :: field_name
+    integer(tik)                       :: id
 
     ! If substepping, step can exceed num_steps, so take that into account here
     step_idx = MOD(step - 1, self%num_steps) + 1
@@ -1937,7 +1946,7 @@ contains
     end if
     ref_flux => self%get_ref_flux(mesh_id, step)
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( LPROF ) call start_timing( id, 'transport.compute_dep_dists' )
 
     w2_fs => ref_flux%get_function_space()
     call self%dep_dist(mesh_idx, step_idx)%initialise(w2_fs)
@@ -1979,7 +1988,7 @@ contains
       )
     end if
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( LPROF ) call stop_timing( id, 'transport.compute_dep_dists' )
 
   end subroutine compute_dep_dist_inner
 
@@ -2011,6 +2020,7 @@ contains
     type(r_tran_field_type),   pointer :: ref_mass_x
     type(r_tran_field_type),   pointer :: ref_mass_y
     character(len=str_def)             :: field_name
+    integer(tik)                       :: id
 
     ! If substepping, step can exceed num_steps, so take that into account here
     step_idx = MOD(step - 1, self%num_steps) + 1
@@ -2021,7 +2031,7 @@ contains
     ref_mass_x => self%get_ref_mass_x(mesh_id, step)
     ref_mass_y => self%get_ref_mass_y(mesh_id, step)
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( LPROF ) call start_timing( id, 'transport.compute_dep_dists' )
 
     if (direction /= direction_h) then
       write(log_scratch_space, '(A,I8,A)')                                     &
@@ -2059,7 +2069,7 @@ contains
       )
     end if
 
-    if ( subroutine_timers ) call timer('transport.compute_dep_dists')
+    if ( LPROF ) call stop_timing( id, 'transport.compute_dep_dists' )
 
   end subroutine compute_dep_dist_outer
 
