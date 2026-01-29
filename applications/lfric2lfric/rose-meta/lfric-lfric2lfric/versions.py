@@ -54,4 +54,13 @@ class vn30_t192(MacroUpgrade):
 
     def upgrade(self, config, meta_config=None):
 
+        self.rename_setting(
+            config,
+            ["namelist:partitioning(source)", "mesh_type", "mesh_target"],
+        )
+        self.rename_setting(
+            config,
+            ["namelist:partitioning(destination)", "mesh_type", "mesh_target"],
+        )
+
         return config, self.reports
