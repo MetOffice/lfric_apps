@@ -45,3 +45,13 @@ class vn30_t99(MacroUpgrade):
         self.add_setting(config, ["namelist:physics", "conv_gr_segment"], "16")
 
         return config, self.reports
+
+class vn30_t192(MacroUpgrade):
+    """Upgrade macro for ticket #192 by Juan M. Castillo."""
+
+    BEFORE_TAG = "vn3.0_t99"
+    AFTER_TAG = "vn3.0_t192"
+
+    def upgrade(self, config, meta_config=None):
+
+        return config, self.reports
