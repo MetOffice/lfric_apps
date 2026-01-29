@@ -1489,7 +1489,7 @@ contains
     ! Fields owned by the aerosol scheme
     !========================================================================
 
-    ! 2D fields, might need checkpointing
+    ! Flags for some 2D and 3D fields
     if ( aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca ) then
       checkpoint_flag = .true.
       checkpoint_GC3 = (emissions == emissions_GC3)
@@ -1501,6 +1501,7 @@ contains
       checkpoint_GC5 = .false.
       is_empty = .true.
     end if
+    ! 2D fields, might need checkpointing
     if ( aerosol == aerosol_um .and.            &
          ( glomap_mode == glomap_mode_ukca .or. &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
@@ -1534,6 +1535,19 @@ contains
            empty=is_empty, ckp=checkpoint_flag))
     end if
 
+    ! 3D fields, might need checkpointing - flags set above
+    if ( aerosol == aerosol_um .and.                                           &
+         ( glomap_mode == glomap_mode_ukca .or.                                &
+           glomap_mode == glomap_mode_dust_and_clim ) ) then
+      call processor%apply(make_spec('emiss_bc_biomass', main%aerosol,         &
+           empty=is_empty, ckp=checkpoint_GC3))
+      call processor%apply(make_spec('emiss_om_biomass', main%aerosol,         &
+           empty=is_empty, ckp=checkpoint_GC3))
+      call processor%apply(make_spec('emiss_so2_nat', main%aerosol,            &
+           empty=is_empty, ckp=checkpoint_flag))
+    end if
+
+    ! Flags for more 2D fields
     if (aerosol == aerosol_um .and. (glomap_mode == glomap_mode_ukca .or.             &
                                      glomap_mode == glomap_mode_dust_and_clim )) then
       checkpoint_flag = .true.
@@ -1545,18 +1559,6 @@ contains
         ckp=checkpoint_flag))
     call processor%apply(make_spec('soil_sand', main%aerosol,                  &
         ckp=checkpoint_flag))
-
-    if ( aerosol == aerosol_um .and.                                           &
-         ( glomap_mode == glomap_mode_ukca .or.                                &
-           glomap_mode == glomap_mode_dust_and_clim ) ) then
-      ! 3D fields, might need checkpointing
-      call processor%apply(make_spec('emiss_bc_biomass', main%aerosol,         &
-           empty=is_empty, ckp=checkpoint_GC3))
-      call processor%apply(make_spec('emiss_om_biomass', main%aerosol,         &
-           empty=is_empty, ckp=checkpoint_GC3))
-      call processor%apply(make_spec('emiss_so2_nat', main%aerosol,            &
-           empty=is_empty, ckp=checkpoint_flag))
-    end if
 
     ! 3D fields, might need checkpointing and/or advecting
     ! Nucleation mode is only used with UKCA
