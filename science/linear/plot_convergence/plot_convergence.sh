@@ -99,8 +99,10 @@ module load scitools
 
 config_list=(nwp_gal9 semi_implicit runge_kutta)
 
-# Define directories using the current working directory
-export Linear_dir="$(dirname $PWD)"
+# Directory of this script
+SCRIPT_DIR="$(dirname "$(realpath "$BASH_SOURCE")")"
+# And parent directories
+export Linear_dir="$(dirname $SCRIPT_DIR)"
 export Parent_dir="$(dirname $Linear_dir)"
 export Root_dir="$(dirname $Parent_dir)"
 echo "Linear_dir" $Linear_dir
