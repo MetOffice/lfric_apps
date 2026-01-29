@@ -10,6 +10,9 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'documentation/**'
+      - '.github/workflows/**'       
 
 concurrency:
   group: pr-${{github.ref}}-${{github.event.pull_request.number || github.run_number}}
