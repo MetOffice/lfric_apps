@@ -16,6 +16,7 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "mpi_parts": 4,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_ral_seuk-C32_lam_MG" %}
@@ -81,6 +82,7 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "mpi_parts": 6,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_clim_gal9-C24_C12" %}
@@ -94,6 +96,7 @@
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "mpi_parts": 6,
     }) %}
 
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam" %}
