@@ -11,39 +11,47 @@
 
 program gravity_wave
 
-  use cli_mod,                 only: get_initial_filename
+  use cli_mod,                 only: parse_command_line
   use driver_modeldb_mod,      only: modeldb_type
   use driver_collections_mod,  only: init_collections, final_collections
   use driver_comm_mod,         only: init_comm, final_comm
   use driver_config_mod,       only: init_config, final_config
   use driver_log_mod,          only: init_logger, final_logger
   use driver_time_mod,         only: init_time, final_time
-  use driver_timer_mod,        only: init_timers, final_timers
   use gravity_wave_mod,        only: gravity_wave_required_namelists
   use gravity_wave_driver_mod, only: initialise, step, finalise
   use lfric_mpi_mod,           only: global_mpi
   use log_mod,                 only: log_event,       &
                                      log_level_trace, &
                                      log_scratch_space
+  use namelist_mod,            only: namelist_type
+  use timing_mod,              only: init_timing, final_timing
+  use io_config_mod,           only: timer_output_path
 
   implicit none
 
-  type(modeldb_type)        :: modeldb
-  character(*), parameter   :: program_name = "gravity_wave"
-  character(:), allocatable :: filename
+  type(modeldb_type)           :: modeldb
+  character(*), parameter      :: program_name = "gravity_wave"
+  character(:), allocatable    :: filename
+  type(namelist_type), pointer :: io_nml
+  logical                      :: lsubroutine_timers
+
+  call parse_command_line( filename )
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
 
   modeldb%mpi => global_mpi
   call init_comm( program_name, modeldb )
-  call get_initial_filename( filename )
   call init_config( filename, gravity_wave_required_namelists, &
                     modeldb%configuration )
   deallocate( filename )
 
   call init_logger( modeldb%mpi%get_comm(), program_name )
+  io_nml => modeldb%configuration%get_namelist('io')
+  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
+  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, program_name, timer_output_path )
+  nullify( io_nml )
   call init_collections()
-  call init_timers( program_name )
   call init_time( modeldb )
 
   ! Create the depository field collection and place it in modeldb
@@ -63,8 +71,8 @@ program gravity_wave
   call finalise( program_name, modeldb )
 
   call final_time( modeldb )
-  call final_timers( program_name )
   call final_collections()
+  call final_timing( program_name )
   call final_logger( program_name )
   call final_config()
   call final_comm( modeldb )
