@@ -19,3 +19,4 @@
 | alanjhewitt     | Alan J Hewitt      | Met Office                       | 2026-01-28 |
 | mo-lottieturner | Lottie Turner      | Met Office                       | 2026-01-27 |
 | andrewcoughtrie | Andrew Coughtrie   | Met Office                       | 2026-01-28 |
+| Pierre-siddall  | Pierre Siddall     | Met Office                       | 2026-01-29 |
