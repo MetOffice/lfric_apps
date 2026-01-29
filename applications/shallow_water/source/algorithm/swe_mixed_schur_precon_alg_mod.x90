@@ -76,7 +76,6 @@ module swe_mixed_schur_precon_alg_mod
   use field_mod,                          only: field_type
   use field_indices_mod,                  only: isw_u, isw_g, isw_b
   use fs_continuity_mod,                  only: W1, W2, W3
-  use io_config_mod,                      only: subroutine_timers
   use log_mod,                            only: log_event,       &
                                                 LOG_LEVEL_ERROR, &
                                                 LOG_LEVEL_INFO,  &
@@ -89,7 +88,8 @@ module swe_mixed_schur_precon_alg_mod
   use shallow_water_settings_config_mod,  only: ref_gp, &
                                                 thermal_swe
   use timestepping_config_mod,            only: dt
-  use timer_mod,                          only: timer
+  use timing_mod,                         only: start_timing, stop_timing, &
+                                                tik, LPROF
   use vector_mod,                         only: abstract_vector_type
   use sci_field_minmax_alg_mod,           only: log_field_minmax
 
@@ -268,8 +268,9 @@ contains
     type(field_type), pointer :: y_vec_u => null(), &
                                  y_vec_g => null(), &
                                  y_vec_b => null()
+    integer(tik) :: id
 
-    if ( subroutine_timers ) call timer('swe_mixed_schur_preconditioner_alg')
+    if ( LPROF ) call start_timing( id, 'swe_mixed_schur_preconditioner_alg' )
 
     select type(x)
     type is(field_vector_type)
@@ -316,7 +317,7 @@ contains
 
     nullify( y_vec_u, y_vec_g, y_vec_b )
 
-    if ( subroutine_timers ) call timer('swe_mixed_schur_preconditioner_alg')
+    if ( LPROF ) call stop_timing( id, 'swe_mixed_schur_preconditioner_alg' )
 
   end subroutine apply_swe_mixed_schur_preconditioner
 

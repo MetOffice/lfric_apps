@@ -71,7 +71,8 @@
     'echo $RELATIVE_LOG_ROOT > $TASK_OUTPUT_DIR/run.log.path',
     'find . -regex ".*PET0+\..+\.Log" -exec cp {} $ROSE_TASK_LOG_DIR \;',
     'find . -regex ".*PET0+\..+\.Log" -exec cp {} $TASK_OUTPUT_DIR \;',
-    'find . -regex ".*PET0+\..+\.Log" -exec cat {} \;',
+    'ls -sh $TASK_OUTPUT_DIR/results > $ROSE_TASK_LOG_DIR/results_file_sizes.log',
+    'find . -name timer.txt -exec cp {} $ROSE_TASK_LOG_DIR \;',
     'test -f '~task_values["app_name"]~
         '-checksums.txt && cp $CYLC_TASK_WORK_DIR/'~
         task_values["app_name"]~'-checksums.txt $TASK_OUTPUT_DIR/checksum.txt',
@@ -143,6 +144,11 @@
             WEIGHT_LOC              = {{weight_loc}}
 {% if "memory_plot_ex" in task_values %}
             MEMORY_PROFILE          = {{task_values["memory_plot_ex"]}}
+{% endif %}
+{% if SITE~"-"~task_ns.platform == 'meto-ex1a' %}
+    {% if "CXI_MATCH_hybrid" in task_values and task_values["CXI_MATCH_hybrid"] %}
+            FI_CXI_RX_MATCH_MODE    = "hybrid"
+    {% endif %}
 {% endif %}
 
 {% if task_ns.application == "lfricinputs" %}
