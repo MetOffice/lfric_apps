@@ -387,7 +387,7 @@ contains
     type( field_type )  :: u_star
     type( field_type )  :: u_star_physical
     type( field_type )  :: rhsu_np1
-    type( field_type ), pointer :: dA => null()
+    type( field_type ), pointer :: dA
 
     type( mesh_type ), intent( in ), pointer :: mesh
     type( mesh_type ), intent( in ), pointer :: twod_mesh
@@ -763,17 +763,18 @@ contains
       ! It still is called there for inner_iterations > 1.
       ! For the first inner loop, it needs to be called before entering.
       ! This is because rhs_np1 is used to calculate u_star in tl_bdy_lyr_alg.
-      call tl_rhs_alg( rhs_np1,                             &
-                       -varalpha*cast_dt,                   &
-                       state,                               &
-                       state,                               &
-                       moist_dyn,                           &
-                       ls_state_itns( :, ls_outer, 1 ),     &
-                       ls_moist_dyn_itns( :, ls_outer, 1 ), &
-                       .true.,                              &
-                       dlayer_on,                           &
-                       modeldb%clock )
-
+      if (use_wavedynamics) then
+        call tl_rhs_alg( rhs_np1,                             &
+                         -varalpha*cast_dt,                   &
+                         state,                               &
+                         state,                               &
+                         moist_dyn,                           &
+                         ls_state_itns( :, ls_outer, 1 ),     &
+                         ls_moist_dyn_itns( :, ls_outer, 1 ), &
+                         .true.,                              &
+                         dlayer_on,                           &
+                         modeldb%clock )
+      end if
 
       if (l_boundary_layer) then
         ! Run linear boundary layer scheme  to compute increment to u perturbation
@@ -785,8 +786,9 @@ contains
         call u%copy_field_properties( u_star_physical )
         call rhs_adv(igh_u)%copy_field_properties( rhsu_np1 )
 
-        ! Compute u_star = u_np1 + M^-1(-rhs_np1 + rhs_n + rhs_a)
-        ! du = M^-1(-rhs_np1 + rhs_n + rhs_a
+        ! Compute u_star = u_np1 + du
+        ! where du = M^-1(-rhs_np1 + rhs_n + rhs_a)
+        ! This mirrors the calc_phys_predictors_alg in gungho
         call du%initialise( rhs_adv(igh_u)%get_function_space() )
         call rhsu_np1%initialise( rhs_adv(igh_u)%get_function_space() )
         call invoke( setval_c( du, 0.0_r_def ),                                       &
@@ -807,12 +809,11 @@ contains
         call copy_bundle( state, state_star, bundle_size )
         call invoke( setval_x( state_star(igh_u), u_star_physical ) )
 
-        call tl_bdy_lyr_alg( modeldb, u_bl_inc, state_star, ls_state_itns(:,ls_outer,1), cast_dt )
         ! u_bl_inc computed from state_star(igh_u)
-        ! NB use state_star
+        call tl_bdy_lyr_alg( modeldb, u_bl_inc, state_star(igh_u), ls_state_itns(:,ls_outer,1), cast_dt )
 
         ! u_bl_inc_flux = u_bl_inc * dA
-        ! i.e., multiply by dA to transform from velocity to flux
+        ! i.e., multiply by cell face area dA to transform from velocity to flux
         call invoke( x_times_y( u_bl_inc_flux, u_bl_inc, dA ) )
 
         call set_bundle_scalar( 0.0_r_def,rhs_phys, bundle_size )

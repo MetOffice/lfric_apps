@@ -133,7 +133,7 @@ module atlt_bdy_lyr_alg_mod
     call invoke( setval_random( ls_state(igh_d) ), setval_random( ls_state(igh_p) ) )
 
     ! Tangent linear
-    call tl_bdy_lyr_alg(modeldb, u_bl_inc, state, ls_state, dt )
+    call tl_bdy_lyr_alg(modeldb, u_bl_inc, state(igh_u), ls_state, dt )
 
     ! < Mx, Mx >
     call invoke( x_innerproduct_x( ip1(1), state(igh_u) ), &
@@ -153,7 +153,7 @@ module atlt_bdy_lyr_alg_mod
     ! Adjoint alg call and inner products
 
     ! Adjoint
-    call atl_bdy_lyr_alg(modeldb, u_bl_inc, state, ls_state, dt )
+    call atl_bdy_lyr_alg(modeldb, u_bl_inc, state(igh_u), ls_state, dt )
 
     ! < AMx, x >
     call invoke( x_innerproduct_y( ip2(1),               &
