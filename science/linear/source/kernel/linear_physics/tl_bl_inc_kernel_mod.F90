@@ -103,7 +103,9 @@ subroutine tl_bl_inc_code( nlayers,                 &
   real(kind=r_def)    :: u_out(1:BLevs_m) ! Local perturbation velocity variable
   real(kind=r_def)    :: factor_u(1:BLevs_m)
 
-  ! Loop over horizontal W2 DoFs
+  ! Loop over horizontal W2 DoFs whilst minimising double counting.
+  ! (Looping over all dofs would mean that faces are visited twice – for the cells on both sides.
+  ! So here the loop is only for a specific selection of dofs.)
   do j = 1, face_selector_ew(map_w3_2d(1)) + face_selector_ns(map_w3_2d(1))
 
     df = j

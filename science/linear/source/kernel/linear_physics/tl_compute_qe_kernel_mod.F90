@@ -130,10 +130,11 @@ subroutine tl_compute_qe_code( nlayers,                             &
   df = 1 ! map_w3 only has range 1:1, map_wtheta has range 1:2 with 1 being lower face of cell
   roughness_length_m = z_land_m * ls_land_fraction(map_2d(df)) + z_sea_m * (1.0_r_def - ls_land_fraction(map_2d(df)))
 
-  ! Set up L_diff.
+  ! Define the mixing length, L_diff
   ! L_diff is on centre of horizontal faces - for convenience indexed by centre of cell above.
   ! Vertical numbering (k index) matches that in old Var schemePF_bdy_lyr.f90 (see link above),
-  ! in which centre of lowest cell is rho level 1.
+  ! in which centre of lowest cell is rho level 1 (allowing for the fact that the PF model is for New Dynamics,
+  ! which has an extra rho level which means that W3 k=0 in LFRic is equivalent to rho levels k=1 in VAR).
   ! L_diff_m(k) defined for 1 <= k <= BLevs_m.
   do k = 1, BLevs_m
     if (k <= Log_layer) then
