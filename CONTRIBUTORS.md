@@ -20,4 +20,3 @@
 | mo-lottieturner | Lottie Turner      | Met Office                       | 2026-01-27 |
 | andrewcoughtrie | Andrew Coughtrie   | Met Office                       | 2026-01-28 |
 | tommbendall     | Thomas Bendall     | Met Office                       | 2026-01-13 |
-| MetBenjaminWent | Benjamin Went      | Met Office                       | 2025-01-30 |
