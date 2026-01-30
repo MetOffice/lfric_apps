@@ -30,8 +30,8 @@ program cma_test
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
   use config_mod,                     only : config_type
-  use constants_mod,                  only : i_def, r_def, i_def, l_def, &
-                                             r_solver, pi, str_def,      &
+  use constants_mod,                  only : i_def, r_def, i_def, l_def,  &
+                                             r_solver, pi, str_def, imdi, &
                                              str_max_filename
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
@@ -42,7 +42,7 @@ program cma_test
   use function_space_mod,             only : function_space_type
   use halo_comms_mod,                 only : initialise_halo_comms, &
                                              finalise_halo_comms
-  use configuration_mod,              only : read_configuration, &
+  use config_loader_mod,              only : read_configuration, &
                                              ensure_configuration
   use driver_collections_mod,         only : init_collections, final_collections
   use driver_mesh_mod,                only : init_mesh
@@ -58,14 +58,11 @@ program cma_test
                                              LOG_LEVEL_INFO
   use mesh_mod,                       only : mesh_type
   use mesh_collection_mod,            only : mesh_collection
-  use namelist_collection_mod,        only : namelist_collection_type
   use base_mesh_config_mod,           only : GEOMETRY_SPHERICAL
   use create_mesh_mod,                only : create_mesh
   use add_mesh_map_mod,               only : assign_mesh_maps
   use sci_chi_transform_mod,          only : init_chi_transforms, &
                                              final_chi_transforms
-
-  use check_config_api_mod, only: check_config_api
 
   implicit none
 
@@ -126,8 +123,7 @@ program cma_test
   logical :: do_test_diag_dhmdht = .false.
 
   ! Namelist and configuration variables
-  type(namelist_collection_type), save :: configuration
-  type(config_type),              save :: config
+  type(config_type), save :: config
 
   character(str_max_filename) :: file_prefix
 
@@ -231,10 +227,7 @@ program cma_test
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call configuration%initialise( program_name, table_len=10 )
   call config%initialise( program_name )
-
-  call check_config_api( configuration, config )
 
   deallocate(program_name)
   deallocate(test_flag)
@@ -246,9 +239,7 @@ program cma_test
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   allocate( success_map(size(required_configuration)) )
-  call read_configuration( filename,                    &
-                           configuration=configuration, &
-                           config=config )
+  call read_configuration( filename, config=config )
 
   okay = ensure_configuration( required_configuration, success_map )
   if (.not. okay) then
@@ -309,7 +300,8 @@ program cma_test
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
-  call init_chi_transforms(mesh_collection)
+  call init_chi_transforms(geometry_spherical, imdi, &
+                           mesh_collection=mesh_collection)
 
   ! Work out grid spacing, which should be of order 1
   mesh => mesh_collection%get_mesh(prime_mesh_name)

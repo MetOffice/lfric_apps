@@ -54,7 +54,6 @@ module lfric2lfric_infrastructure_mod
   use mesh_mod,                    only: mesh_type
   use mesh_collection_mod,         only: mesh_collection
   use model_clock_mod,             only: model_clock_type
-  use namelist_mod,                only: namelist_type
   use orography_config_mod,        only: orog_init_option,          &
                                          orog_init_option_analytic, &
                                          orog_init_option_ancil,    &
@@ -154,9 +153,6 @@ contains
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
-    ! Pointers for namelists
-    type(namelist_type), pointer :: lfric2lfric_nml
-
     ! Namelist parameters
     character(len=str_def)                 :: mesh_names(2)
     character(len=str_def),    allocatable :: twod_names(:)
@@ -212,8 +208,7 @@ contains
     ! -------------------------------
 
     ! Check lfric2lfric configuration settings are allowed
-    lfric2lfric_nml => modeldb%configuration%get_namelist('lfric2lfric')
-    call lfric2lfric_check_configuration( lfric2lfric_nml )
+    call lfric2lfric_check_configuration( modeldb%config )
 
     scaled_radius       = modeldb%config%planet%scaled_radius()
     extrusion_method    = modeldb%config%extrusion%method()
@@ -306,7 +301,7 @@ contains
     ! Create the required meshes
     !-----------------------------------------------------------------------
     stencil_depth = get_required_stencil_depth()
-    call init_mesh( modeldb%config, modeldb%configuration, &
+    call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
                     mesh_names, extrusion,       &

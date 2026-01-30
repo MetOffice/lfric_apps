@@ -22,8 +22,8 @@ module skeb_main_alg_mod
     use function_space_collection_mod, only: function_space_collection
     use mesh_collection_mod,           only: mesh_collection
     ! xios output and timers
-    use io_config_mod, only: write_diag, use_xios_io, subroutine_timers
-    use timer_mod,     only: timer
+    use io_config_mod, only: write_diag, use_xios_io
+    use timing_mod,    only: start_timing, stop_timing, tik, LPROF
     ! initialise diagnostics
     use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
     ! configs
@@ -296,8 +296,11 @@ module skeb_main_alg_mod
   ! Iterators in for loops
   integer(i_def) :: m, n, n_row, stencil_extent
 
+  ! Timing handle
+  integer(tik)   :: id
+
   !!!!!!!!!! END OF VARIABLE DEFINITION, START OF CODE !!!!!!!!!!
-  if ( subroutine_timers ) call timer("skeb_main_alg")
+  if ( LPROF ) call start_timing( id, 'skeb_main_alg' )
 
   ! create dissipation functions and psif_hat
   call rho%copy_field_properties(ndisp)
@@ -458,7 +461,8 @@ module skeb_main_alg_mod
                  skeb_biharm_diss_kernel_type(ndisp, vorticity, divergence,      &
                                               stencil_extent, dx_at_w2,          &
                                               skeb_level_bottom, skeb_level_top, &
-                                              dt, norm_xi, norm_div) )
+                                              dt, norm_xi, norm_div,             &
+                                              norm_xi_flag, norm_div_flag) )
 
     if (write_diag .and. use_xios_io) then
       if (norm_div_flag) &
@@ -688,7 +692,7 @@ module skeb_main_alg_mod
   end if ! end if write_diags and use_xios
 
 
-  if ( subroutine_timers ) call timer("skeb_main_alg")
+  if ( LPROF ) call stop_timing( id, 'skeb_main_alg' )
 
   end subroutine skeb_main_alg
 end module skeb_main_alg_mod

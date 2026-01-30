@@ -31,7 +31,7 @@ lfric_apps:
 
 lfric_core:
     source: cazld000020:/data/users/ricky.wong/GitHub/lfric_core
-    ref: IntermediateApiPurge
+    ref: IntermediateApiFullPurge
 
 moci:
     source: git@github.com:MetOffice/moci.git

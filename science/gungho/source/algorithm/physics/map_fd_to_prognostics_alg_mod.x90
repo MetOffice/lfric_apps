@@ -7,14 +7,13 @@
 !> @brief Set prognostic fields from FD start dump
 module map_fd_to_prognostics_alg_mod
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, l_def
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
-  use namelist_collection_mod,         only: namelist_collection_type
-  use namelist_mod,                    only: namelist_type
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -45,7 +44,6 @@ module map_fd_to_prognostics_alg_mod
                                              get_geopotential
   use fs_continuity_mod,               only: W3, W2, W2broken, Wtheta
   use sci_sort_ref_kernel_mod,         only: sort_ref_kernel_type
-  use timer_mod,                       only: timer
   use combine_w2_field_kernel_mod,     only: combine_w2_field_kernel_type
   use idealised_config_mod,            only: perturb_init,     &
                                              perturb_magnitude
@@ -62,7 +60,6 @@ module map_fd_to_prognostics_alg_mod
                                        topology_fully_periodic
   use formulation_config_mod,    only: rotating, shallow
   use finite_element_config_mod, only: coord_system, coord_system_native
-  use io_config_mod,             only: subroutine_timers
   use physics_config_mod,        only: sample_physics_winds, &
                                        sample_physics_winds_correction
   use planet_config_mod,         only: gravity, p_zero, kappa, rd, cp
@@ -75,23 +72,22 @@ module map_fd_to_prognostics_alg_mod
 contains
 
   !> @details Setting FE prognostic fields from FD fields
-  !> @param[in]     configuration      The application configuration object
+  !> @param[in]     config             The application configuration object
   !> @param[in,out] prognostic_fields  Collection of prognostic fields
   !> @param[in,out] mr                 Array of moisture mixing ratios
   !> @param[in,out] fd_fields          Collection of input Finite Difference
   !>                                   fields
-  subroutine map_fd_to_prognostics(configuration, prognostic_fields, mr, &
+  subroutine map_fd_to_prognostics(config, prognostic_fields, mr, &
                                    moist_dyn, fd_fields)
 
     implicit none
 
     ! FE Prognostic fields
-    type(namelist_collection_type), intent(in)      :: configuration
-    type(field_collection_type),    intent( inout ) :: prognostic_fields
-    type(field_type),               intent( inout ) :: mr(:)
-    type(field_type),               intent( inout ) :: moist_dyn(num_moist_factors)
-
-    type( field_collection_type),   intent( inout ) :: fd_fields
+    type(config_type),            intent( in )    :: config
+    type(field_collection_type),  intent( inout ) :: prognostic_fields
+    type(field_type),             intent( inout ) :: mr(:)
+    type(field_type),             intent( inout ) :: moist_dyn(num_moist_factors)
+    type( field_collection_type), intent( inout ) :: fd_fields
 
     ! Local dereferenced fields
     type( field_type ), pointer :: theta
@@ -116,14 +112,11 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    integer(i_def)               :: model_eos_height
-    logical(l_def)               :: read_w2h_wind
-    type(namelist_type), pointer :: initialization_nml
+    integer(i_def) :: model_eos_height
+    logical(l_def) :: read_w2h_wind
 
-    initialization_nml => configuration%get_namelist('initialization')
-    call initialization_nml%get_value( 'model_eos_height', model_eos_height )
-    call initialization_nml%get_value( 'read_w2h_wind', read_w2h_wind )
-    nullify( initialization_nml )
+    model_eos_height = config%initialization%model_eos_height()
+    read_w2h_wind    = config%initialization%read_w2h_wind()
 
     ! FD (source) fields
     if ( read_w2h_wind ) then
@@ -230,6 +223,8 @@ contains
     use sci_w3_to_w2_average_kernel_mod, only: w3_to_w2_average_kernel_type
     use sci_w3_to_w2_correction_kernel_mod, &
                                          only: w3_to_w2_correction_kernel_type
+    use timing_mod,                      only: start_timing, stop_timing, &
+                                               tik, LPROF
 
     implicit none
 
@@ -249,8 +244,9 @@ contains
     type( function_space_type ), pointer :: w2b_fs
 
     type( mesh_type ), pointer :: mesh
+    integer(tik)               :: id
 
-    if ( subroutine_timers ) call timer("set_wind")
+    if ( LPROF ) call start_timing( id, 'set_wind' )
 
     mesh => u%get_mesh()
 
@@ -326,7 +322,7 @@ contains
       call mass_matrix_solver_alg(u, r_u)
     end if
 
-    if ( subroutine_timers ) call timer("set_wind")
+    if ( LPROF ) call stop_timing( id, 'set_wind' )
 
   end subroutine set_wind
 

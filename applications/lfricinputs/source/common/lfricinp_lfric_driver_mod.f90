@@ -5,7 +5,6 @@
 ! *****************************COPYRIGHT*******************************
 module lfricinp_lfric_driver_mod
 
-use check_config_api_mod,       only: check_config_api
 use constants_mod,              only: i_def, r_def, l_def, r_second, str_def
 use log_mod,                    only: log_event, log_scratch_space,            &
                                       LOG_LEVEL_INFO, LOG_LEVEL_ERROR,         &
@@ -42,8 +41,6 @@ use lfricinp_setup_io_mod,      only: io_config
 use linked_list_mod,            only: linked_list_type
 use mesh_mod,                   only: mesh_type
 use mesh_collection_mod,        only: mesh_collection
-use namelist_collection_mod,    only: namelist_collection_type
-use namelist_mod,               only: namelist_type
 use step_calendar_mod,          only: step_calendar_type
 
 ! Interface to mpi
@@ -117,8 +114,6 @@ procedure(callback_clock_arg), pointer :: before_close => null()
 class(event_actor_type), pointer :: event_actor_ptr
 procedure(event_action), pointer :: context_advance
 
-
-type(namelist_collection_type), save :: configuration
 type(config_type),              save :: config
 
 class(extrusion_type),        allocatable :: extrusion
@@ -162,17 +157,13 @@ local_rank = global_mpi%get_comm_rank()
 !Initialise halo functionality
 call initialise_halo_comms( comm )
 
-call configuration%initialise( program_name_arg, table_len=10 )
 call config%initialise( program_name_arg )
 
 call load_configuration( lfric_nl_fname, required_lfric_namelists, &
-                         configuration=configuration,              &
                          config=config )
 
 ! Initialise logging system
 call init_logger( comm, program_name )
-
-call check_config_api( configuration, config )
 
 call init_collections()
 
@@ -280,7 +271,7 @@ end subroutine lfricinp_initialise_lfric
 !------------------------------------------------------------------
 
 subroutine load_configuration( lfric_nl, required_lfric_namelists, &
-                               configuration, config )
+                               config )
 
 ! Description:
 !  Reads lfric namelists and checks that all required namelists are present
@@ -293,8 +284,7 @@ character(*), intent(in) :: lfric_nl
 
 character(*), intent(in)  :: required_lfric_namelists(:)
 
-type(namelist_collection_type), intent(inout) :: configuration
-type(config_type),              intent(inout) :: config
+type(config_type), intent(inout) :: config
 
 logical              :: okay
 logical, allocatable :: success_map(:)
@@ -305,9 +295,7 @@ allocate(success_map(size(required_lfric_namelists)))
 call log_event('Loading '//trim(program_name)//' configuration ...',           &
                LOG_LEVEL_ALWAYS)
 
-call read_configuration( lfric_nl,                    &
-                         configuration=configuration, &
-                         config=config )
+call read_configuration( lfric_nl, config=config )
 
 okay = ensure_configuration(required_lfric_namelists, success_map)
 if (.not. okay) then

@@ -13,7 +13,6 @@
 program algorithm_test
 
   use add_mesh_map_mod,        only: assign_mesh_maps
-  use check_config_api_mod,    only: check_config_api
   use config_loader_mod,       only: final_configuration, &
                                      read_configuration
   use config_mod,              only: config_type
@@ -37,7 +36,6 @@ program algorithm_test
                                      finalise_logging,   &
                                      LOG_LEVEL_ERROR,    &
                                      LOG_LEVEL_INFO
-  use namelist_collection_mod, only: namelist_collection_type
 
   use base_mesh_config_mod, only: GEOMETRY_SPHERICAL, &
                                   GEOMETRY_PLANAR
@@ -52,8 +50,7 @@ program algorithm_test
 
   character(:), allocatable :: filename
 
-  type(namelist_collection_type), save :: configuration
-  type(config_type),              save :: config
+  type(config_type), save :: config
 
   ! Variables used for parsing command line arguments
   integer :: length, status, nargs
@@ -142,13 +139,8 @@ program algorithm_test
   end select
 
   ! Setup configuration, mesh, and fem
-  call configuration%initialise( program_name, table_len=10 )
   call config%initialise( program_name )
-  call read_configuration( filename,                    &
-                           configuration=configuration, &
-                           config=config )
-  call check_config_api( configuration, config )
-
+  call read_configuration( filename, config=config )
   call init_collections()
 
   !--------------------------------------
@@ -193,10 +185,8 @@ program algorithm_test
   !-------------------------------------------------------------------------
   stencil_depth = 1
   apply_partition_check = .false.
-  call init_mesh( config,                     &
-                  local_rank, total_ranks,    &
-                  base_mesh_names, extrusion, &
-                  stencil_depth,              &
+  call init_mesh( config, local_rank, total_ranks,           &
+                  base_mesh_names, extrusion, stencil_depth, &
                   apply_partition_check )
 
   do i=1, size(twod_names)
@@ -234,7 +224,6 @@ program algorithm_test
 
   call finalise_halo_comms()
   call global_mpi%finalise()
-  call configuration%clear()
   call destroy_comm()
 
   call finalise_logging()

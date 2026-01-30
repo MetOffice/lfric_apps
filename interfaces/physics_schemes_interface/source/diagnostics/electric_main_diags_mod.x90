@@ -10,8 +10,7 @@ module electric_main_diags_mod
 
   use constants_mod,              only: l_def
   use field_mod,                  only: field_type
-  use io_config_mod,              only: subroutine_timers
-  use timer_mod,                  only: timer
+  use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
   implicit none
@@ -43,11 +42,12 @@ contains
     type( field_type ), intent(inout) :: fr1_mc
     type( field_type ), intent(inout) :: fr2_mc
     type( field_type ), intent(inout) :: storm_field
+    integer( tik )                    :: id
 
     !----------------------------------------------------
     ! End of declarations; start of subroutine execution
     !----------------------------------------------------
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( LPROF ) call start_timing( id, 'electric_diags' )
 
     gwp_flag         = init_diag(gwp, 'electric__gwp')
     tiwp_flag        = init_diag(tiwp, 'electric__tiwp')
@@ -56,7 +56,7 @@ contains
     fr2_mc_flag      = init_diag(fr2_mc, 'electric__total_column_ice_flash_rate')
     storm_field_flag = init_diag(storm_field, 'electric__storm_field_indicator')
 
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( LPROF ) call stop_timing( id, 'electric_diags' )
 
   end subroutine initialise_main_diags_for_electric
 
@@ -85,10 +85,12 @@ contains
     ! Prognostic field to be output
     type( field_type), intent(in) :: flash_potential
 
+    integer(tik)                  :: id
+
     !----------------------------------------------------
     ! End of declarations; start of subroutine execution
     !----------------------------------------------------
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( LPROF ) call start_timing( id, 'electric_diags' )
 
     call flash_potential%write_field('electric__flash_potential')
     call num_flashes%write_field('electric__num_lightning_flashes')
@@ -100,6 +102,6 @@ contains
     if (fr2_mc_flag) call fr2_mc%write_field()
     if (storm_field_flag) call storm_field%write_field()
 
-    if ( subroutine_timers ) call timer("electric_diags")
+    if ( LPROF ) call stop_timing( id, 'electric_diags' )
   end subroutine output_main_diags_for_electric
 end module electric_main_diags_mod

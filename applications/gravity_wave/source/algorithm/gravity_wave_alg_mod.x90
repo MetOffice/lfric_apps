@@ -65,7 +65,8 @@ module gravity_wave_alg_mod
   use field_indices_mod,              only: igw_u, igw_p, igw_b
 
   use copy_field_alg_mod,             only: copy_field
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
 
   implicit none
 
@@ -516,18 +517,17 @@ contains
     real(r_second)     :: dt
     real(r_def)        :: bvf_square
     integer(i_def)     :: b_space
-    logical(l_def)     :: subroutine_timers
     logical(l_def)     :: limited_area
 
     ! Auxiliary constants to group invokes
-    real(kind=r_def)             :: const1, const2
+    real(kind=r_def) :: const1, const2
+    integer(tik)     :: id
 
     dt                = modeldb%config%timestepping%dt()
     bvf_square        = modeldb%config%initial_temperature%bvf_square()
-    subroutine_timers = modeldb%config%io%subroutine_timers()
     limited_area      = modeldb%config%boundaries%limited_area()
 
-    if ( subroutine_timers ) call timer('gravity_wave_alg')
+    if ( LPROF ) call start_timing( id, 'gravity_wave_alg')
 
     !=== Do a single timestep ==============================================!
     mesh => wind%get_mesh()
@@ -624,7 +624,7 @@ contains
 
     nullify( mesh )
 
-    if ( subroutine_timers ) call timer('gravity_wave_alg')
+    if ( LPROF ) call stop_timing( id, 'gravity_wave_alg' )
 
   end subroutine gravity_wave_alg_step
 

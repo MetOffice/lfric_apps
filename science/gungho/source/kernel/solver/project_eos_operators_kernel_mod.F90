@@ -28,6 +28,10 @@ module project_eos_operators_kernel_mod
   use fs_continuity_mod,       only: W3, Wtheta
   use kernel_mod,              only: kernel_type
 
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use planet_config_mod,         only: scaled_radius
+
   implicit none
 
   private
@@ -201,7 +205,9 @@ subroutine project_eos_operators_code(cell, nlayers,                      &
     p3theta(ik,:,:) = 0.0_r_solver
     do qp2 = 1, nqp_v
       do qp1 = 1, nqp_h
-        call pointwise_coordinate_jacobian(ndf_chi, chi1_e, chi2_e, chi3_e,     &
+        call pointwise_coordinate_jacobian(coord_system, geometry,              &
+                                           topology, scaled_radius,             &
+                                           ndf_chi, chi1_e, chi2_e, chi3_e,     &
                                            ipanel, rsol_basis_chi(:,:,qp1,qp2), &
                                            rsol_diff_basis_chi(:,:,qp1,qp2),    &
                                            jac, dj                          )

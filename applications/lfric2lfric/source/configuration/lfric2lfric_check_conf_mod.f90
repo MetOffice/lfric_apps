@@ -11,10 +11,11 @@
 !!            regridding method and the interpolation direction are supported.
 module lfric2lfric_check_conf_mod
 
-  use constants_mod,          only : i_def
-  use log_mod,                only : log_event, log_scratch_space, &
-                                     LOG_LEVEL_ERROR
-  use namelist_mod,           only : namelist_type
+  use config_mod,    only: config_type
+  use constants_mod, only: i_def
+  use log_mod,       only: log_event, log_scratch_space, &
+                           LOG_LEVEL_ERROR
+
 
   ! Configuration modules
   use lfric2lfric_config_mod, only : ORIGIN_DOMAIN_LAM,         &
@@ -36,13 +37,12 @@ module lfric2lfric_check_conf_mod
   !> @details   Currently uses a pointer to the lfric2lfric namelist to check
   !!            the lfric2lfric configuration options for any invalid
   !!            combinations of config options.
-  !> @param [in]   lfric2lfricnml   Pointer to the lfric2lfric namelist
-  !>                                configuration object.
-  subroutine lfric2lfric_check_configuration( lfric2lfric_nml )
+  !> @param [in] config  Application configuration object.
+  subroutine lfric2lfric_check_configuration( config )
 
     implicit none
 
-    type(namelist_type), pointer, intent(in) :: lfric2lfric_nml
+    type(config_type), intent(in) :: config
 
     ! Namelist options are enumerated so become randomized integers
     integer(kind=i_def) :: origin_domain
@@ -50,9 +50,9 @@ module lfric2lfric_check_conf_mod
     integer(kind=i_def) :: regrid_method
 
     ! Extract target and origin domains from config namelist
-    call lfric2lfric_nml%get_value( 'origin_domain', origin_domain )
-    call lfric2lfric_nml%get_value( 'target_domain', target_domain )
-    call lfric2lfric_nml%get_value( 'regrid_method', regrid_method )
+    origin_domain =  config%lfric2lfric%origin_domain()
+    target_domain =  config%lfric2lfric%target_domain()
+    regrid_method =  config%lfric2lfric%regrid_method()
 
     ! Check our origin and target domains are compatible, currently the
     ! interpolations NOT allowed are lam => lbc and lam => global

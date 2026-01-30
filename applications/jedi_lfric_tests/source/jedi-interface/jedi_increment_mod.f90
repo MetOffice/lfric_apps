@@ -16,6 +16,7 @@ module jedi_increment_mod
   use, intrinsic :: iso_fortran_env,  only : real64
   use atlas_field_emulator_mod,       only : atlas_field_emulator_type
   use atlas_field_interface_mod,      only : atlas_field_interface_type
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, l_def, str_def
   use field_collection_mod,           only : field_collection_type
   use io_context_mod,                 only : io_context_type
@@ -30,8 +31,6 @@ module jedi_increment_mod
                                              LOG_LEVEL_DEBUG,    &
                                              LOG_LEVEL_ERROR
   use model_clock_mod,                only : model_clock_type
-  use namelist_collection_mod,        only : namelist_collection_type
-  use namelist_mod,                   only : namelist_type
 
   implicit none
 
@@ -128,33 +127,31 @@ contains
 
 !> @brief Construct and initialise fields to zero or read from file
 !>
-!> @param [in] geometry      The geometry object required to construct the
-!>                           increment
-!> @param [in] configuration The configuration object including the required
-!>                           information to construct an increment and set the
-!>                           data via either a file-read or setting the values
-!>                           to zero
-subroutine initialise_via_configuration( self, geometry, configuration )
+!> @param [in] geometry  The geometry object required to construct the
+!>                       increment
+!> @param [in] config    The configuration object including the required
+!>                       information to construct an increment and set the
+!>                       data via either a file-read or setting the values
+!>                       to zero
+subroutine initialise_via_configuration( self, geometry, config )
 
   implicit none
 
   class( jedi_increment_type ),       intent(inout) :: self
   type( jedi_geometry_type ), target, intent(in)    :: geometry
-  type( namelist_collection_type ),   intent(in)    :: configuration
+  type( config_type ),                intent(in)    :: config
 
   ! Local
-  type( namelist_type ),  pointer :: increment_config
   logical( l_def )                :: initialise_via_read
   character(str_def)              :: inc_time_str
   character(str_def), allocatable :: variables(:)
 
+  inc_time_str        = config%jedi_increment%inc_time()
+  variables           = config%jedi_increment%variables()
+  initialise_via_read = config%jedi_increment%initialise_via_read()
+
   ! 1. Setup from configuration
-  increment_config => configuration%get_namelist('jedi_increment')
-
-  call increment_config%get_value( 'inc_time', inc_time_str )
   call self%inc_time%init( inc_time_str )
-
-  call increment_config%get_value( 'variables', variables )
   call setup_field_meta_data( self%field_meta_data, variables )
 
   self%geometry => geometry
@@ -163,7 +160,6 @@ subroutine initialise_via_configuration( self, geometry, configuration )
   call self%construct_increment()
 
   ! 3. Initialise fields by either reading or zeroing the fields
-  call increment_config%get_value( 'initialise_via_read', initialise_via_read )
   if ( initialise_via_read ) then
     if ( geometry%get_io_setup_increment() ) then
       call self%read_file( self%inc_time )

@@ -44,7 +44,6 @@ program solver
                                      LOG_LEVEL_INFO
   use mesh_mod,                only: mesh_type
   use mesh_collection_mod,     only: mesh_collection
-  use namelist_collection_mod, only: namelist_collection_type
   use sci_checksum_alg_mod,    only: checksum_alg
 
   !------------------------------------
@@ -58,8 +57,7 @@ program solver
   character(*), parameter :: program_name = 'solver'
 
   character(:), allocatable :: filename
-  type(namelist_collection_type), SAVE :: configuration
-  type(config_type),              SAVE :: config
+  type(config_type), save   :: config
 
   integer(i_def) :: total_ranks, local_rank
   type(lfric_comm_type) :: comm
@@ -112,11 +110,9 @@ program solver
   total_ranks = global_mpi%get_comm_size()
   local_rank  = global_mpi%get_comm_rank()
 
-  call configuration%initialise( program_name, table_len=10 )
   call config%initialise( program_name )
 
   call init_config( filename, solver_required_namelists, &
-                    configuration=configuration,         &
                     config=config )
 
   call init_logger( comm, program_name )
@@ -177,9 +173,8 @@ program solver
   !-----------------------------------------------------------------------
   stencil_depth = 1
   check_partitions = .false.
-  call init_mesh( config,                     &
-                  local_rank, total_ranks,    &
-                  base_mesh_names, extrusion, &
+  call init_mesh( config, local_rank, total_ranks, &
+                  base_mesh_names, extrusion,      &
                   stencil_depth, check_partitions )
 
   allocate( twod_names, source=base_mesh_names )

@@ -131,12 +131,9 @@ program semi_implicit
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
-  call modeldb%config%initialise( program_name)
 
-  call read_configuration( filename,                            &
-                           configuration=modeldb%configuration, &
-                           config=modeldb%config )
+  call modeldb%config%initialise( program_name)
+  call read_configuration( filename, config=modeldb%config )
 
   deallocate( filename )
 

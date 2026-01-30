@@ -38,8 +38,6 @@ module lfric2lfric_init_mesh_mod
                                          log_level_info,    &
                                          log_level_error,   &
                                          log_level_debug
-  use namelist_collection_mod,     only: namelist_collection_type
-  use namelist_mod,                only: namelist_type
   use panel_decomposition_mod,     only: panel_decomposition_type
   use partition_mod,               only: partitioner_interface
   use runtime_partition_mod,       only: mesh_cubedsphere,       &
@@ -68,21 +66,21 @@ contains
 !===============================================================================
 !> @brief  Generates mesh(es) from mesh input file(s) on a given extrusion.
 !>
-!> @param[in] configuration          Application configuration object.
-!>                                   This configuration object should contain the
-!>                                   following defined namelist objects:
-!>                                      * partititioning
-!> @param[in] local_rank             The MPI rank of this process.
-!> @param[in] total_ranks            Total number of MPI ranks in this job.
-!> @param[in] mesh_names             Mesh names to load from the mesh input file(s).
-!> @param[in] extrusion              Extrusion object to be applied to meshes.
-!> @param[in] stencil_depth          Required stencil depth for the application.
-!> @param[in] regrid_method          Apply check for even partitions with the
-!>                                   configured partition strategy if the
-!>                                   regridding method is 'map'.
-!>                                   (unpartitioned mesh input only)
+!> @param[in] config          Application configuration object.
+!>                            This configuration object should contain the
+!>                            following defined namelist objects:
+!>                              * partititioning
+!> @param[in] local_rank      The MPI rank of this process.
+!> @param[in] total_ranks     Total number of MPI ranks in this job.
+!> @param[in] mesh_names      Mesh names to load from the mesh input file(s).
+!> @param[in] extrusion       Extrusion object to be applied to meshes.
+!> @param[in] stencil_depth   Required stencil depth for the application.
+!> @param[in] regrid_method   Apply check for even partitions with the
+!>                            configured partition strategy if the
+!>                            regridding method is 'map'.
+!>                            (unpartitioned mesh input only)
 !===============================================================================
-subroutine init_mesh( config, configuration,   &
+subroutine init_mesh( config,                  &
                       local_rank, total_ranks, &
                       mesh_names,              &
                       extrusion,               &
@@ -95,8 +93,7 @@ subroutine init_mesh( config, configuration,   &
   implicit none
 
   ! Arguments
-  type(namelist_collection_type), intent(in) :: configuration
-  type(config_type),              intent(in) :: config
+  type(config_type),     intent(in) :: config
 
   integer(kind=i_def),   intent(in) :: local_rank
   integer(kind=i_def),   intent(in) :: total_ranks
@@ -112,8 +109,6 @@ subroutine init_mesh( config, configuration,   &
   integer(kind=i_def), parameter :: src = 2
 
   ! Namelist variables
-  type(namelist_type), pointer :: lfric2lfric_nml      => null()
-
   type(partitioning_nml_type), pointer :: partitioning
   type(partitioning_nml_type), pointer :: src_partitioning_nml
   type(partitioning_nml_type), pointer :: dst_partitioning_nml
@@ -159,22 +154,13 @@ subroutine init_mesh( config, configuration,   &
   generate_inner_halos(dst) = dst_partitioning_nml%generate_inner_halos()
 
   ! Read lfric2lfric namelist
-  lfric2lfric_nml => configuration%get_namelist('lfric2lfric')
-
-  call lfric2lfric_nml%get_value( 'prepartitioned_meshes', &
-                                   prepartitioned )
-  call lfric2lfric_nml%get_value( 'destination_meshfile_prefix', &
-                                   meshfile_prefix(dst) )
-  call lfric2lfric_nml%get_value( 'destination_geometry', &
-                                   geometry(dst) )
-  call lfric2lfric_nml%get_value( 'destination_topology', &
-                                   topology(dst) )
-  call lfric2lfric_nml%get_value( 'source_meshfile_prefix', &
-                                   meshfile_prefix(src) )
-  call lfric2lfric_nml%get_value( 'source_geometry', &
-                                   geometry(src) )
-  call lfric2lfric_nml%get_value( 'source_topology', &
-                                   topology(src) )
+  prepartitioned       = config%lfric2lfric%prepartitioned_meshes()
+  meshfile_prefix(src) = config%lfric2lfric%source_meshfile_prefix()
+  meshfile_prefix(dst) = config%lfric2lfric%destination_meshfile_prefix()
+  geometry(src)        = config%lfric2lfric%source_geometry()
+  geometry(dst)        = config%lfric2lfric%destination_geometry()
+  topology(src)        = config%lfric2lfric%source_topology()
+  topology(dst)        = config%lfric2lfric%destination_topology()
 
   if ( regrid_method == regrid_method_map .and. &
      trim(meshfile_prefix(src)) /= trim(meshfile_prefix(dst)) ) then

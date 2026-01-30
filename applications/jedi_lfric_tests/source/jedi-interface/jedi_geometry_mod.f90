@@ -38,8 +38,6 @@ module jedi_geometry_mod
   use mesh_mod,                      only : mesh_type
   use mesh_collection_mod,           only : mesh_collection
   use model_clock_mod,               only : model_clock_type
-  use namelist_collection_mod,       only : namelist_collection_type
-  use namelist_mod,                  only : namelist_type
 
   implicit none
 
@@ -93,23 +91,20 @@ contains
 
 !> @brief    Initialiser for jedi_geometry_type
 !>
-subroutine initialise( self, mpi_comm, configuration, config )
+subroutine initialise( self, mpi_comm, config )
+
   ! Access config directly until modeldb ready
-  use driver_config_mod,         only: init_config
   use jedi_lfric_mesh_setup_mod, only: initialise_mesh
-  use jedi_lfric_tests_mod,      only: jedi_lfric_tests_required_namelists
 
   implicit none
 
   class( jedi_geometry_type ), intent(inout) :: self
   integer( kind=i_def ),          intent(in) :: mpi_comm
-  type(namelist_collection_type), intent(in) :: configuration
   type(config_type),              intent(in) :: config
 
   ! Local
   type(mesh_type), pointer     :: mesh
   type(lfric_mpi_type)         :: mpi_obj
-  type(namelist_type), pointer :: geometry_configuration
   integer                      :: i_horizontal
   real(real64)                 :: domain_height
   real(real64)                 :: stretching_height
@@ -122,11 +117,10 @@ subroutine initialise( self, mpi_comm, configuration, config )
 
   ! Setup mesh
   mpi_obj = self%get_mpi_comm()
-  call initialise_mesh( self%mesh_name, configuration, config, mpi_obj )
+  call initialise_mesh( self%mesh_name, config, mpi_obj )
 
-  geometry_configuration => configuration%get_namelist('jedi_geometry')
   ! Setup the IO
-  call self%setup_io( geometry_configuration )
+  call self%setup_io( config )
 
   ! @todo: The geometry should read some fields: orog, height, ancils
 
@@ -310,13 +304,13 @@ end function get_io_setup_increment
 
 !> @brief    Private method to setup the IO for the application
 !>
-!> @param [in] configuration A configuration object containing the IO options
-subroutine setup_io(self, configuration)
+!> @param [in] config A configuration object containing the IO options
+subroutine setup_io(self, config)
 
   implicit none
 
   class( jedi_geometry_type ), intent(inout) :: self
-  type( namelist_type ),       intent(in)    :: configuration
+  type( config_type ),         intent(in)    :: config
 
   ! Local
   real( kind=r_second )      :: time_step
@@ -334,6 +328,7 @@ subroutine setup_io(self, configuration)
   character( len=str_def ) :: io_path_inc_read
   character( len=str_def ) :: io_time_step_str
   character( len=str_def ) :: io_calender_start_str
+
   integer( kind=i_def )    :: freq
 
   type( jedi_lfric_file_meta_type ), allocatable :: file_meta_data(:)
@@ -341,12 +336,18 @@ subroutine setup_io(self, configuration)
   type( jedi_datetime_type )                     :: io_calender_start
 
   ! Create IO clock and setup IO
-  call configuration%get_value( 'io_time_step', io_time_step_str )
+  io_time_step_str      = config%jedi_geometry%io_time_step()
+  io_calender_start_str = config%jedi_geometry%io_calender_start()
+  io_path_state_read    = config%jedi_geometry%io_path_state_read()
+  io_path_state_write   = config%jedi_geometry%io_path_state_write()
+  io_path_inc_read      = config%jedi_geometry%io_path_inc_read()
+
+  self%io_setup_increment = config%jedi_geometry%io_setup_increment()
+
   call io_time_step%init( io_time_step_str )
   call io_time_step%get_duration( duration )
   time_step = real( duration, r_second )
 
-  call configuration%get_value( 'io_calender_start', io_calender_start_str )
   call io_calender_start%init( io_calender_start_str )
   call io_calender_start%to_string(calender_start)
 
@@ -354,7 +355,6 @@ subroutine setup_io(self, configuration)
                              self%io_clock, self%calendar )
 
   ! Allocate file_meta depending on how many files are required
-  call configuration%get_value( 'io_setup_increment', self%io_setup_increment )
   if ( self%io_setup_increment ) then
     allocate( file_meta_data(3) )
   else
@@ -366,7 +366,6 @@ subroutine setup_io(self, configuration)
   ! Note, xios_id is arbitrary but has to be unique within a context
 
   ! Read state
-  call configuration%get_value( 'io_path_state_read', io_path_state_read )
   file_name = io_path_state_read
   xios_id = "read_model_data"
   io_mode_str = "read"
@@ -378,7 +377,6 @@ subroutine setup_io(self, configuration)
                                      freq,        &
                                      field_group_id )
   ! Write state
-  call configuration%get_value( 'io_path_state_write', io_path_state_write )
   file_name = io_path_state_write
   xios_id = "write_model_data"
   io_mode_str = "write"
@@ -392,7 +390,6 @@ subroutine setup_io(self, configuration)
 
   ! Read increment if required
   if ( self%io_setup_increment ) then
-    call configuration%get_value( 'io_path_inc_read', io_path_inc_read )
     file_name = io_path_inc_read
     xios_id = "read_inc_model_data"
     io_mode_str = "read"

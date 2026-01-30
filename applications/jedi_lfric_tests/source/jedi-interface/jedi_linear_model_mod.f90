@@ -48,7 +48,6 @@ module jedi_linear_model_mod
                                             log_scratch_space,  &
                                             LOG_LEVEL_ERROR
   use linear_state_trajectory_mod,   only : linear_state_trajectory_type
-  use namelist_mod,                  only : namelist_type
   use normal_wind_transform_mod,     only : normal_wind_transform_type
   use zero_field_collection_mod,     only : zero_field_collection
 
@@ -120,8 +119,6 @@ subroutine initialise( self, jedi_geometry, config_filename )
 
   ! Local
   type(field_collection_type), pointer :: prognostic_fields
-  type( namelist_type ),       pointer :: jedi_lfric_settings_config
-  type( namelist_type ),       pointer :: jedi_linear_model_config
   character( str_def )                 :: forecast_length_str
   character( str_def )                 :: nl_time_step_str
   type( jedi_duration_type )           :: forecast_length
@@ -142,8 +139,11 @@ subroutine initialise( self, jedi_geometry, config_filename )
 
   ! Set up extra fields for incremental wind interpolation, if required
   prognostic_fields => self%modeldb%fields%get_field_collection("prognostic_fields")
-  jedi_linear_model_config => self%modeldb%configuration%get_namelist('jedi_linear_model')
-  call jedi_linear_model_config%get_value( 'incremental_wind_interpolation', incremental_wind_interpolation )
+
+  incremental_wind_interpolation = self%modeldb%config%jedi_linear_model%incremental_wind_interpolation()
+  nl_time_step_str               = self%modeldb%config%jedi_linear_model%nl_time_step()
+  forecast_length_str            = self%modeldb%config%jedi_lfric_settings%forecast_length()
+
   if (incremental_wind_interpolation) then
     allocate (incremental_wind_transform_type :: self%wind_transform)
   else
@@ -152,16 +152,11 @@ subroutine initialise( self, jedi_geometry, config_filename )
   call self%wind_transform%initialise(prognostic_fields)
 
   ! 2. Setup time
-  self%time_step = get_configuration_timestep( self%modeldb%configuration )
-
-  jedi_lfric_settings_config => self%modeldb%configuration%get_namelist('jedi_lfric_settings')
-  call jedi_lfric_settings_config%get_value( 'forecast_length', forecast_length_str )
+  self%time_step = get_configuration_timestep( self%modeldb%config )
   call forecast_length%init(forecast_length_str)
 
   ! 3. Setup trajactory
-  call jedi_linear_model_config%get_value( 'nl_time_step', nl_time_step_str )
   call nl_time_step%init(nl_time_step_str)
-
   call self%linear_state_trajectory%initialise( forecast_length, &
                                                 nl_time_step )
 
