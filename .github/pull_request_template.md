@@ -30,8 +30,7 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 
 ## Testing
 
-- [ ] I have tested this change locally, using the LFRic Core rose-stem suite
-- [ ] If required (e.g. API changes) I have also run the LFRic Apps test suite using this branch
+- [ ] I have tested this change locally, using the LFRic Apps rose-stem suite
 - [ ] If any tests fail (rose-stem or CI) the reason is understood and acceptable (e.g. kgo changes)
 - [ ] I have added tests to cover new functionality as appropriate (e.g. system tests, unit tests, etc.)
 - [ ] Any new tests have been assigned an appropriate amount of compute resource and have been allocated to an appropriate testing group (i.e. the developer tests are for jobs which use a small amount of compute resource and complete in a matter of minutes)
@@ -64,7 +63,7 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 
 ## PSyclone Approval
 
-- [ ] If you have edited any PSyclone-related code (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code) then please contact the [TCD Team](tooscollabdevteam@metoffice.gov.uk)
+- [ ] If you have edited any PSyclone-related code (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code) then please contact the [TCD Team](toolscollabdevteam@metoffice.gov.uk)
 
 # Sci/Tech Review
 
