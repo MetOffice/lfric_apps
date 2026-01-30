@@ -19,7 +19,7 @@ available at:
 
 These both run a low resolution LFRic Atm NWP GAL9 job and are setup to run
 using git sources. Advice on switching a suite from using fcm to git sources is
-available in each README.md.
+available in the README.md in each.
 
 ## Contributing Guidelines
 
