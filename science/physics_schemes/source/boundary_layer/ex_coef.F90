@@ -44,7 +44,7 @@ use bl_option_mod, only:  WeightLouisToLong, Variable_RiC, cbl_op,             &
    lem_adjust, cbl_mix_fac_nml,                                                &
    off, on, sharpest, sharp_sea_long_land, sharp_sea_mes_land,                 &
    louis_tails, sharp_sea_louis_land, long_tails, mes_tails, ritrans,          &
-   neut_cbl, equilibrium_sbl, lambda_min_nml, lambda_max_nml,                  &
+   neut_cbl, lambda_min_nml, lambda_max_nml,                                   &
    lambda_fac, beta_bl, beta_fa, rlinfac, linear0,                             &
    to_sharp_across_1km, ntml_level_corrn, free_trop_layers, two_thirds,        &
    blending_option, blend_except_cu, blend_gridindep_fa, blend_cth_shcu_only,  &
