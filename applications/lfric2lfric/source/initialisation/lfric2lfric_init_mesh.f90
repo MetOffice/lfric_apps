@@ -138,8 +138,7 @@ subroutine init_mesh( configuration,           &
   ! Read partitioning namelist for source and destination meshes
   if (.not. configuration%namelist_exists('partitioning', 'source')) then
     write( log_scratch_space, '(A)' )                                     &
-         'Partitioning parameters for the source mesh were not found, '// &
-         'please specify a partitioning namelist with mesh_target=source.'
+         'Source mesh partitioning namelist (partitioning:source) not found.'
     call log_event(log_scratch_space, log_level_error)
   end if
   src_partitioning_nml  => configuration%get_namelist('partitioning', &
@@ -149,8 +148,7 @@ subroutine init_mesh( configuration,           &
 
   if (.not. configuration%namelist_exists('partitioning', 'destination')) then
     write( log_scratch_space, '(A)' )                                          &
-         'Partitioning parameters for the destination mesh were not found, '// &
-         'please specify a partitioning namelist with mesh_target=destination.'
+         'Destination mesh partitioning namelist (partitioning:destination) not found.'
     call log_event(log_scratch_space, log_level_error)
   end if
   dst_partitioning_nml  => configuration%get_namelist('partitioning', &
