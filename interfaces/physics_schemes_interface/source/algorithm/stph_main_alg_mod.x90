@@ -14,9 +14,8 @@ module stph_main_alg_mod
   use clock_mod,                only: clock_type
   use field_collection_mod,     only: field_collection_type
   ! xios output and timers
-  use io_config_mod,            only: write_diag, use_xios_io, &
-                                      subroutine_timers
-  use timer_mod,                only: timer
+  use io_config_mod,            only: write_diag, use_xios_io
+  use timing_mod,               only: start_timing, stop_timing, tik, LPROF
 
   implicit none
 
@@ -78,7 +77,10 @@ module stph_main_alg_mod
   ! classes
   class(clock_type), intent(in)   :: clock
 
-  if ( subroutine_timers ) call timer("stph_main_alg")
+  ! Timing handle
+  integer(tik)  :: id
+
+  if ( LPROF ) call start_timing( id, 'stph_main_alg' )
 
   call invoke(setval_c(du_stph, 0.0_r_def),      &
               setval_c(dtheta_stph,  0.0_r_def), &
@@ -97,7 +99,7 @@ module stph_main_alg_mod
     call skeb_main_alg(du_stph, rho, u, convection_fields, derived_fields,clock)
   end if
 
-  if ( subroutine_timers ) call timer("stph_main_alg")
+  if ( LPROF ) call stop_timing( id, 'stph_main_alg' )
 
   end subroutine stph_main_alg
 end module stph_main_alg_mod

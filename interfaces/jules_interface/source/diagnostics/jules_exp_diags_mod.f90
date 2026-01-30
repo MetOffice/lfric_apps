@@ -10,8 +10,8 @@ module jules_exp_diags_mod
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use integer_field_mod,   only: integer_field_type
-  use io_config_mod,       only: subroutine_timers
-  use timer_mod,           only: timer
+  use timing_mod,          only: start_timing, stop_timing, &
+                                 tik, LPROF
   use initialise_diagnostics_mod,     only : init_diag => init_diagnostic_field
 
   implicit none
@@ -39,14 +39,15 @@ contains
     type( field_type ), intent(inout) :: z0h_eff
     type( field_type ), intent(inout) :: gross_prim_prod
     type( field_type ), intent(inout) :: soil_respiration
+    integer( tik )                    :: id
 
-    if ( subroutine_timers ) call timer("jules_exp_diags")
+    if ( LPROF ) call start_timing( id, 'jules_exp_diags' )
 
     z0h_eff_flag = init_diag(z0h_eff, 'surface__z0h_eff')
     gross_prim_prod_flag = init_diag(gross_prim_prod, 'surface__gross_prim_prod')
     soil_respiration_flag = init_diag(soil_respiration, 'surface__soil_respiration')
 
-    if ( subroutine_timers ) call timer("jules_exp_diags")
+    if ( LPROF ) call stop_timing( id, 'jules_exp_diags' )
 
   end subroutine initialise_diags_for_jules_exp
 
@@ -79,9 +80,9 @@ contains
                                          gc_tile, soil_respiration, ustar,     &
                                          z0m_eff, canopy_height, leaf_area_index
     type( field_type ),  intent(in)   :: dust_flux
+    integer( tik )                    :: id
 
-
-    if ( subroutine_timers ) call timer("jules_exp_diags")
+    if ( LPROF ) call start_timing( id, 'jules_exp_diags' )
 
     ! Prognostic fields from surface collection
     call tile_fraction%write_field('surface__tile_fraction')
@@ -101,7 +102,7 @@ contains
     if (gross_prim_prod_flag) call gross_prim_prod%write_field()
     if (soil_respiration_flag) call soil_respiration%write_field()
 
-    if ( subroutine_timers ) call timer("jules_exp_diags")
+    if ( LPROF ) call stop_timing( id, 'jules_exp_diags' )
 
   end subroutine output_diags_for_jules_exp
 end module jules_exp_diags_mod
