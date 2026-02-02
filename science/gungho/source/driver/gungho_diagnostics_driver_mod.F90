@@ -325,7 +325,7 @@ contains
       ! Wet bulb freezing level
       call freeze_lev_alg(theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call aviation_diags_alg(plev_geopot)
+      call aviation_diags_alg(plev_geopot, prognostic_fields)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

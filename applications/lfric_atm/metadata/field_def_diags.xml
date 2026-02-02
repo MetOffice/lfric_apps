@@ -992,6 +992,7 @@
   <!-- Aviation diagnostics -->
   <field id="aviation__geopot_thickness_850" name="aviation_geopot_thickness_850" standard_name="atmosphere_layer_thickness_expressed_as_geopotential_height_difference" long_name="geopotential_height_thickness_between_1000hPa_and_850hPa" unit="m" domain_ref="face"/>
   <field id="aviation__geopot_thickness_500" name="aviation_geopot_thickness_500" standard_name="atmosphere_layer_thickness_expressed_as_geopotential_height_difference" long_name="geopotential_height_thickness_between_1000hPa_and_500hPa" unit="m" domain_ref="face"/>
+  <field id="aviation__uv_wind_divergence" name="aviation_uv_wind_divergence" standard_name="divergence_of_wind" unit="s-1" domain_ref="face"/>
 </field_group>
 
 <!-- Integer diagnostic group -->
