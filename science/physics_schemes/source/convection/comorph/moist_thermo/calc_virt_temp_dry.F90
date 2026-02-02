@@ -70,12 +70,12 @@ use comorph_constants_mod, only: real_hmprec, R_dry, R_vap,                    &
 
 implicit none
 
-! Note: the array arguments below may have halos, and in here
-! we don't care about the halos.
+! Note: the array arguments below may have haloes, and in here
+! we don't care about the haloes.
 ! We need to pass in the lower bound of each array to use in
 ! the declarations, to ensure the do loops pick out the same
 ! indices of the arrays regardless of whether or not they
-! have halos.  The lower and upper bounds are passed in through the
+! have haloes.  The lower and upper bounds are passed in through the
 ! argument list in the lb_* and ub_* integer arrays.  Those storing the
 ! bounds for 3D arrays must have 3 elements; one for each dimension
 ! of the array.
@@ -106,7 +106,7 @@ integer :: i, j, k
 R_vap_on_R_dry = real(R_vap,real_hmprec)                                       &
                / real(R_dry,real_hmprec)
 
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC) private( i, j, k )            &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
 !$OMP         virt_temp_dry, temperature, q_vap, R_vap_on_R_dry )
 do k = k_bot_conv, k_top_conv
@@ -117,7 +117,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 return
 end subroutine calc_virt_temp_dry_3d

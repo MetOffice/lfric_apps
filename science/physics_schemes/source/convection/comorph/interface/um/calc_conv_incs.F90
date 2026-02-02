@@ -23,7 +23,7 @@ contains
 
 ! Routine to calculate convection increments using the latest values minus
 ! values before convection saved in the increment arrays
-subroutine calc_conv_incs( i_call, l_conv_inc_w, z_theta, z_rho,               &
+subroutine calc_conv_incs( i_call, z_theta, z_rho,                             &
                            u_p, v_p, ustar_p, vstar_p, w, w_work,              &
                            u_th_n, v_th_n, u_th_np1, v_th_np1,                 &
                            theta_star, q_star, qcl_star, qcf_star,             &
@@ -35,6 +35,7 @@ subroutine calc_conv_incs( i_call, l_conv_inc_w, z_theta, z_rho,               &
                            cf_liquid_inc, cf_frozen_inc, bulk_cf_inc )
 
 use atm_fields_bounds_mod, only: tdims, pdims, pdims_s, wdims, wdims_s
+use comorph_um_namelist_mod, only: l_conv_inc_w
 use mphys_inputs_mod, only: l_mcr_qcf2, l_mcr_qrain, l_mcr_qgraup
 use cloud_inputs_mod, only: i_cld_vn
 use pc2_constants_mod, only: i_cld_pc2
@@ -45,9 +46,6 @@ implicit none
 ! Integer switch indicating whether this is the call to save fields before
 ! convection, or subtract the values before from after to get increments
 integer, intent(in) :: i_call
-
-! Switch for whether convection should increment w
-logical, intent(in) :: l_conv_inc_w
 
 ! Model-level heights above surface
 real(kind=real_umphys), intent(in) ::                                          &
@@ -82,7 +80,7 @@ real(kind=real_umphys), intent(in) ::                                          &
                     w              ( wdims_s%i_start:wdims_s%i_end,            &
                                      wdims_s%j_start:wdims_s%j_end,            &
                                      wdims_s%k_start:wdims_s%k_end )
-! Temporary work array storing latest w if convection not updating the real w
+! Temporary work array storing latest w
 real(kind=real_umphys), intent(in out) ::                                      &
                            w_work     ( wdims%i_start:wdims%i_end,             &
                                         wdims%j_start:wdims%j_end,             &
@@ -214,7 +212,7 @@ real(kind=real_umphys) :: interp
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(none) private( i, j, k, interp )                        &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, interp )                        &
 !$OMP SHARED( i_call, tdims, wdims, pdims, z_theta, z_rho,                     &
 !$OMP         u_th_n, u_p, v_th_n, v_p, u_th_np1, ustar_p, v_th_np1, vstar_p,  &
 !$OMP         l_conv_inc_w, r_w, w, w_work, theta_inc, theta_star,             &
@@ -235,7 +233,7 @@ case (i_call_save_before_conv)
   ! Horizontal winds are on rho-levels, but CoMorph needs them
   ! to be colocated with the other fields.  So make copies
   ! interpolated to theta-levels
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 1, tdims%k_end-1
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -254,41 +252,31 @@ case (i_call_save_before_conv)
       end do
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
-  if ( l_conv_inc_w ) then
-
-    ! Convert increment r_w to field of w with increment so far added on
-!$OMP do SCHEDULE(STATIC)
-    do k = 1, wdims%k_end
-      do j = wdims%j_start, wdims%j_end
-        do i = wdims%i_start, wdims%i_end
-          r_w(i,j,k) = r_w(i,j,k) + w(i,j,k)
-        end do
+  ! Make a separate work array for w passed into comorph and modified by it.
+!$OMP DO SCHEDULE(STATIC)
+  do k = 1, wdims%k_end
+    do j = wdims%j_start, wdims%j_end
+      do i = wdims%i_start, wdims%i_end
+        w_work(i,j,k) = w(i,j,k) ! + r_w(i,j,k)
+        ! Note: investigations suggest that r_w passed into atmos_physics2
+        ! can contain very large unbalanced increments, e.g. from small
+        ! deviations of start-of-timestep profiles from hydrostatic balance.
+        ! So passing comorph w + r_w can expose it to unrealistic w profiles,
+        ! which results in the parcel w excess (used to compute CCA etc)
+        ! being wildly inaccurate.
+        ! For now avoid this by just passing in the well-balanced solved
+        ! start-of-timestep w.
       end do
     end do
-!$OMP end do NOWAIT
-
-  else
-
-    ! Make a separate work array for w if we don't want convection
-    ! to actually modify the UM's w-field.
-!$OMP do SCHEDULE(STATIC)
-    do k = 1, wdims%k_end
-      do j = wdims%j_start, wdims%j_end
-        do i = wdims%i_start, wdims%i_end
-          w_work(i,j,k) = r_w(i,j,k) + w(i,j,k)
-        end do
-      end do
-    end do
-!$OMP end do NOWAIT
-
-  end if
+  end do
+!$OMP END DO NOWAIT
 
   ! Save values of temperature and moisture fields before convection
   ! in the increment arrays...
 
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -299,10 +287,10 @@ case (i_call_save_before_conv)
       end do
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
   if ( l_mcr_qcf2 ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -310,10 +298,10 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
   if ( l_mcr_qrain ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -321,10 +309,10 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
   if ( l_mcr_qgraup ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -332,11 +320,11 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
 
   if ( i_cld_vn == i_cld_pc2 ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -346,14 +334,14 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
 
 case (i_call_diff_to_get_incs)
   ! 2nd call: subtract values before convection to get increments...
 
   ! Convert final u,v to convection u,v increments on theta-levels
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 1, tdims%k_end-1
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -372,10 +360,10 @@ case (i_call_diff_to_get_incs)
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 
   ! Interpolate increments onto rho-levels for output
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 2, pdims%k_end-1
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
@@ -389,20 +377,20 @@ case (i_call_diff_to_get_incs)
       end do
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   ! Increment bottom rho-level using bottom theta-level increment
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       dubydt_pout(i,j,1) = u_th_np1(i,j,1)
       dvbydt_pout(i,j,1) = v_th_np1(i,j,1)
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   ! Interpolate top rho-level assuming increments go to zero
   ! at the model-top
   k = pdims%k_end
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       interp = ( z_rho(i,j,k)   - z_theta(i,j,k-1) )                           &
@@ -412,11 +400,11 @@ case (i_call_diff_to_get_incs)
       dvbydt_pout(i,j,k) = (1.0-interp) * v_th_np1(i,j,k-1)
     end do
   end do
-!$OMP end do
+!$OMP END DO
 
   ! Convert u,v increments to tendencies, as this is what atmos_physics2
   ! expects
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 1, pdims%k_end
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
@@ -425,27 +413,29 @@ case (i_call_diff_to_get_incs)
       end do
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
   if ( l_conv_inc_w ) then
 
-    ! Vertical winds; convert updated final w back into increment
-!$OMP do SCHEDULE(STATIC)
+    ! Vertical winds; add to the UM's w increment field based on the
+    ! increment that comorph applied to the work w field
+    ! (which was initialised to start-of-timestep w earlier).
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, wdims%k_end
       do j = wdims%j_start, wdims%j_end
         do i = wdims%i_start, wdims%i_end
-          r_w(i,j,k) = r_w(i,j,k) - w(i,j,k)
+          r_w(i,j,k) = r_w(i,j,k) + ( w_work(i,j,k) - w(i,j,k) )
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
     ! If not incrementing w, just discard the w updated by CoMorph.
   end if
 
   ! Difference latest temperature and moisture fields with saved values from
   ! before convection, to compute increments
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -456,10 +446,10 @@ case (i_call_diff_to_get_incs)
       end do
     end do
   end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
   if ( l_mcr_qcf2 ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -467,10 +457,10 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
   if ( l_mcr_qrain ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -478,10 +468,10 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
   if ( l_mcr_qgraup ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -489,11 +479,11 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
 
   if ( i_cld_vn == i_cld_pc2 ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -503,12 +493,12 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
   end if
 
-end select  ! case(i_call)
+end select  ! CASE(i_call)
 
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
 return
 end subroutine calc_conv_incs

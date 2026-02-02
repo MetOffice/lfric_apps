@@ -53,9 +53,11 @@ subroutine conv_sweep_ctl( n_fields_tot,                                       &
                            fallback_par_gen )
 
 use comorph_constants_mod, only: nx_full, ny_full, k_bot_conv, k_top_conv,     &
-                     real_cvprec, real_hmprec, zero,                           &
-                     i_check_bad_values_cmpr, i_check_bad_none, name_length,   &
-                     l_homog_conv_bl
+                                 real_cvprec, real_hmprec, zero,               &
+                                 max_ent_frac_up, max_ent_frac_up_fb,          &
+                                 max_ent_frac_dn, max_ent_frac_dn_fb,          &
+                                 i_check_bad_values_cmpr, i_check_bad_none,    &
+                                 name_length, l_homog_conv_bl
 
 use cmpr_type_mod, only: cmpr_type, cmpr_copy, cmpr_merge,                     &
                          cmpr_alloc, cmpr_dealloc
@@ -85,6 +87,7 @@ use parcel_diags_type_mod, only: parcel_diags_copy
 
 use conv_sweep_compress_mod, only: conv_sweep_compress
 use calc_sum_massflux_mod, only: calc_sum_massflux
+use calc_delta_tv_mod, only: calc_delta_tv
 use conv_level_step_mod, only: conv_level_step
 use save_parcel_bl_top_mod, only: save_parcel_bl_top
 use homog_conv_bl_ctl_mod, only: homog_conv_bl_ctl
@@ -130,7 +133,7 @@ logical, intent(in) :: l_fallback
 logical, intent(in) :: l_output_fallback
 
 ! Structure containing pointers to model grid fields
-! (full 3-D arrays, possibly with halos);
+! (full 3-D arrays, possibly with haloes);
 ! contains model-level heights, pressures and dry-density
 type(grid_type), intent(in) :: grid
 
@@ -153,14 +156,14 @@ type(turb_type), intent(in) :: turb
 ! increments computed before convection.
 type(fields_type), intent(in) :: fields
 
-! Full 3-D array of environment virtual temperature
+! Full 3-D array of environment virtual temperature on full-levels
 real(kind=real_hmprec), intent(in) :: virt_temp                                &
        ( nx_full, ny_full, k_bot_conv:k_top_conv )
 
 ! Array of input structures containing the initiating parcel
 ! properties on each level for the current draft.
 ! Note: if this is the call for fall-back flows, then par_gen
-! contains the fall-back mass-sources, and the optional output
+! contains the fall-back mass-sources, and the output
 ! argument fallback_par_gen below is not used.
 type(parcel_type), intent(in out) :: par_gen                                   &
        ( n_conv_types, n_conv_layers, k_bot_conv:k_top_conv )
@@ -173,7 +176,7 @@ type(parcel_type), intent(in out) :: par_gen                                   &
 
 ! Array of structures to store entrainment / detrainment and
 ! source terms used for calculation of large-scale increments
-type(res_source_type), allocatable, target, intent(in out) :: res_source(:,:,:)
+type(res_source_type), allocatable, intent(in out) :: res_source(:,:,:)
 
 ! Super-array storing 2D work arrays
 real(kind=real_cvprec), allocatable, intent(in out) :: fields_2d(:,:,:,:)
@@ -190,14 +193,13 @@ type(draft_diags_super_type), intent(in out) :: draft_diags_super
 ! originating in overshooting air detrained by the primary
 ! updraft or downdraft.
 ! If this call is for the primary updraft / downdraft
-! (l_fallback==.false.), but fall-backs are in use
-! (l_output_fallback==.true.), then this is an output.
+! (l_fallback==.FALSE.), but fall-backs are in use
+! (l_output_fallback==.TRUE.), then this is an output.
 ! Otherwise it is not used.
 ! Beware: if you set both l_fallback and l_output_fallback to
 ! true (i.e. try to initiate fall-back flows from a fall-back
 ! flow), a horrid hell of memory-related bugs may be unleashed...
-type(parcel_type), allocatable, optional, target, intent(in out)::             &
-                         fallback_par_gen(:,:,:)
+type(parcel_type), allocatable, intent(in out):: fallback_par_gen(:,:,:)
 ! This is an output, but needs intent inout to preserve its
 ! allocation status on input.
 
@@ -207,13 +209,21 @@ type(parcel_type), allocatable, optional, target, intent(in out)::             &
 ! Parcel properties that are carried during the ascent/descent
 type(parcel_type), allocatable :: par_conv(:,:)
 
-! Sum of parcel mass-fluxes over types / layers
-! at previous model-level interface
+! Sum of parcel mass-fluxes over types/layers at previous model-level interface
 real(kind=real_cvprec) :: sum_massflux(ij_first:ij_last)
+! Sum of initiating mass-sources over types/layers at current full-level
+real(kind=real_cvprec) :: sum_massinit(ij_first:ij_last)
 
 ! Copy of the above compressed onto points where the current
 ! convection type/layer is active.
 real(kind=real_cvprec) :: sum_massflux_cmpr(max_points)
+
+! Difference in virtual temperature between level k and next full-level,
+! divided by layer-mass (used to pre-estimate subsidence increment to Tv)
+real(kind=real_cvprec) :: delta_tv(ij_first:ij_last)
+
+! Value compressed onto current type / layer points
+real(kind=real_cvprec) :: delta_tv_cmpr(max_points)
 
 ! Flags for whether any convection types / layers are
 ! active at the current level
@@ -228,7 +238,7 @@ integer :: k_first, k_last, dk
 integer :: k_next
 
 ! Note: we have a convention throughout that "_next" refers to the
-! next model-level interface, not the next full-level (the latter
+! next model-level interface, NOT the next full-level (the latter
 ! is denoted by k+dk).  This is because the convection scheme
 ! integrates over level-steps from k-1/2 to k+1/2 (or the other
 ! way round for downdrafts).  Thus "prev" refers to variables at
@@ -279,6 +289,9 @@ real(kind=real_cvprec) :: env_next_super(max_points,n_env_half)
 ! (as defined by the BL-scheme's BL-top height passed in)
 logical :: l_within_bl(max_points)
 
+! Maximum allowed entrained fraction of layer mass for current draft
+real(kind=real_cvprec) :: max_ent_frac
+
 ! Space for plume-model diagostics from the 2nd conv_level_step call
 type(diags_super_type) :: plume_model_diags_step
 
@@ -291,12 +304,17 @@ type(res_source_type) :: res_source_gen
 type(parcel_type), allocatable :: par_bl_top(:,:,:)
 
 ! Compression indices used for combining the existing and initiating parcels
-type(cmpr_type) :: cmpr_combined
-integer :: index_ic_conv(max_points)
-integer :: index_ic_gen(max_points)
+type(cmpr_type) :: cmpr_combined ( n_conv_types, n_conv_layers )
+integer :: index_ic_conv ( max_points, n_conv_types, n_conv_layers )
+integer :: index_ic_gen  ( max_points, n_conv_types, n_conv_layers )
 
 ! Indices used to reference a collapsed horizontal coordinate from the parcel
 integer :: index_ij(max_points)
+
+! Points where any type / layer active at current height
+type(cmpr_type) :: cmpr_any
+! Points for calculating delta_tv
+type(cmpr_type) :: cmpr_tmp
 
 ! Flag passed into fields_k_conserved_vars
 logical :: l_reverse
@@ -311,6 +329,9 @@ character(len=name_length) :: where_string
 
 ! Dimensions of the diagnostics super-array passed into conv_level_step
 integer :: dgdims(2)
+
+! Dimension of the initiating parcel super-arrays
+integer :: n_points_gen
 
 ! Loop counters
 integer :: ic, ij, k, i_type, i_layr, i_field
@@ -357,7 +378,7 @@ end do
 if ( .not. l_fallback ) then
   ! The following arrays are already initialised in the primary sweep call
   ! if this is a fall-back sweep call...
-  if ( n_fields_2d > 0 .and. (.not. l_fallback) ) then
+  if ( n_fields_2d > 0 ) then
     ! If any 2D work arrays are needed...
     ! Allocate super-array for 2D work fields
     allocate( fields_2d( ij_first:ij_last, n_fields_2d,                        &
@@ -376,22 +397,26 @@ if ( .not. l_fallback ) then
     ! Minimal allocation when not used
     allocate( fields_2d( 1, 1, n_conv_types, n_conv_layers ) )
   end if
-end if  ! ( .not. l_fallback )
+end if  ! ( .NOT. l_fallback )
 
 ! If fall-back flows are on, but this is not the fall-back call,
 ! allocate arrays for outputting the fall-back mass-sources to
 ! pass to the fall-back call
-if ( l_output_fallback .and. present(fallback_par_gen) ) then
+if ( .not. l_fallback ) then
+  ! Needs allocating even if not used, to avoid error when subscripting
+  ! in the argument list to conv_level_step
   allocate( fallback_par_gen( n_conv_types, n_conv_layers,                     &
                               k_bot_conv:k_top_conv ) )
-  ! Initialise number of points to zero
-  do k = k_bot_conv, k_top_conv
-    do i_layr = 1, n_conv_layers
-      do i_type = 1, n_conv_types
-        fallback_par_gen(i_type,i_layr,k) % cmpr % n_points = 0
+  if ( l_output_fallback ) then
+    ! Initialise number of points to zero
+    do k = k_bot_conv, k_top_conv
+      do i_layr = 1, n_conv_layers
+        do i_type = 1, n_conv_types
+          fallback_par_gen(i_type,i_layr,k) % cmpr % n_points = 0
+        end do
       end do
     end do
-  end do
+  end if
 end if
 
 ! Setup arrays for output diagnostics
@@ -436,7 +461,15 @@ call res_source_alloc( l_tracer, max_points, res_source_gen )
 res_source_gen % cmpr % n_points = 0
 
 ! Allocate compression indices used for merging existing and initiating parcels
-call cmpr_alloc( cmpr_combined, max_points )
+do i_layr = 1, n_conv_layers
+  do i_type = 1, n_conv_types
+    call cmpr_alloc( cmpr_combined(i_type,i_layr), max_points )
+  end do
+end do
+
+! Allocate additional compression indices
+call cmpr_alloc( cmpr_any, max_points )
+call cmpr_alloc( cmpr_tmp, max_points )
 
 ! Initialise structures to store parcel properties at the boundary-layer
 ! top if needed
@@ -459,6 +492,20 @@ else
   allocate( plume_model_diags_step % super(1,1) )
 end if
 
+! Select the correct max entrainment fraction for this draft
+if ( l_down ) then
+  if ( l_fallback ) then
+    max_ent_frac = max_ent_frac_dn_fb
+  else
+    max_ent_frac = max_ent_frac_dn
+  end if
+else
+  if ( l_fallback ) then
+    max_ent_frac = max_ent_frac_up_fb
+  else
+    max_ent_frac = max_ent_frac_up
+  end if
+end if
 
 ! Set vertical level loop indices based on whether going
 ! up or down
@@ -533,54 +580,102 @@ do k = k_first, k_last, dk
     ! for interpolating onto the next model-level interface
     ! at k_next.
 
-    ! Numerical stability imposes a constraint that convection
-    ! may not entrain more mass over a single timestep from one
-    ! model-level than exists on that model-level.
-    ! The available mass on level k must be divvied-up between
-    ! the different convection types, accounting for the mass
-    ! already entrained via the initiation mass-sources.
-    ! This requires we sum the parcel mass-fluxes and initiating
-    ! mass-sources before entering the loop over types/layers:
-    call calc_sum_massflux( n_conv_types, n_conv_layers,                       &
-                            ij_first, ij_last,                                 &
+    ! First sum the mass-fluxes and initiating masses over all layers / types.
+    ! These are used in various checks...
+    call calc_sum_massflux( n_conv_types, n_conv_layers, ij_first, ij_last,    &
                             par_conv, sum_massflux )
+    call calc_sum_massflux( n_conv_types, n_conv_layers, ij_first, ij_last,    &
+                            par_gen(:,:,k), sum_massinit )
 
-    ! Set flag for 1st half of the level-step, from prev to level k
-    l_to_full_level = .true.
+    !------------------------------------------------------
+    ! 3) Calculate numerical corrections
+    !------------------------------------------------------
 
-    ! Loop over convection layers and types
+    ! Find points where any type / layer has any mass-flux or initiating
+    ! mass-sources
+    cmpr_any%n_points = 0
+    do ij = ij_first, ij_last
+      if ( sum_massflux(ij) > zero .or. sum_massinit(ij) > zero ) then
+        cmpr_any%n_points = cmpr_any%n_points + 1
+        cmpr_any%index_j(cmpr_any%n_points) = 1 + (ij-1) / nx_full
+        cmpr_any%index_i(cmpr_any%n_points) =                                  &
+                      ij - nx_full * (cmpr_any%index_j(cmpr_any%n_points)-1)
+      end if
+    end do
+
+    ! Initialise delta_tv to zero at those points
+    do ic = 1, cmpr_any%n_points
+      ij = cmpr_any%index_i(ic) + nx_full * ( cmpr_any%index_j(ic) - 1 )
+      delta_tv(ij) = zero
+    end do
+
+    ! TEMPORARILY COMMENTED-OUT TO PRESERVE KGO:
+    ! When in the last model-level we can't really have any compensating
+    ! subsidence to treat implicitly (since there is no next level to subside).
+    ! For now, keep calculation of delta_tv from subsidence during the
+    ! last level but remove this soon...
+    !IF ( .NOT. l_last_level ) THEN
+    if ( .true. ) then
+       ! Calculation needs data from k+1; leave as zero at last level
+
+      ! Find points where mass-flux is non-zero
+      cmpr_tmp%n_points = 0
+      do ic = 1, cmpr_any%n_points
+        ij = cmpr_any%index_i(ic) + nx_full * ( cmpr_any%index_j(ic) - 1 )
+        if ( sum_massflux(ij) > zero ) then
+          cmpr_tmp%n_points = cmpr_tmp%n_points + 1
+          cmpr_tmp%index_i(cmpr_tmp%n_points) = cmpr_any%index_i(ic)
+          cmpr_tmp%index_j(cmpr_tmp%n_points) = cmpr_any%index_j(ic)
+        end if
+      end do
+
+      ! Pre-estimate subsidence virtual temperature increment per unit
+      ! mass-flux, used for the implicit detrainment
+      if ( cmpr_tmp%n_points > 0 ) then
+        call calc_delta_tv( .false., l_last_level,                             &
+                            cmpr_tmp, k, k_next, dk, ij_first, ij_last,        &
+                            virt_temp, layer_mass, grid, fields,               &
+                            delta_tv )
+      end if
+
+    end if  ! ( .NOT. l_last_level )
+
+
+    !------------------------------------------------------
+    ! 4) Allocate arrays required for calculations on this level
+    !------------------------------------------------------
+
     do i_layr = 1, n_conv_layers
       do i_type = 1, n_conv_types
-
-
-        !------------------------------------------------------
-        ! 3) Allocate arrays required for calculations on this level
-        !------------------------------------------------------
 
         ! Find the combined compression list which includes all points
         ! from both the existing parcel and the initiating parcel
         call cmpr_merge( par_conv(i_type,i_layr) % cmpr,                       &
                          par_gen(i_type,i_layr,k) % cmpr,                      &
-                         cmpr_combined, index_ic_conv, index_ic_gen )
+                         cmpr_combined(i_type,i_layr),                         &
+                         index_ic_conv(:,i_type,i_layr),                       &
+                         index_ic_gen(:,i_type,i_layr) )
 
-        if ( cmpr_combined % n_points > 0 ) then
+        if ( cmpr_combined(i_type,i_layr) % n_points > 0 ) then
           ! If any points have either existing convection or initiation...
 
           ! Set size of resolved-scale source-term arrays and allocate
-          call res_source_alloc( l_tracer, cmpr_combined % n_points,           &
+          call res_source_alloc( l_tracer,                                     &
+                                 cmpr_combined(i_type,i_layr) % n_points,      &
                                  res_source(i_type,i_layr,k) )
           ! Initialise to zero
-          res_source(i_type,i_layr,k)%cmpr%n_points = cmpr_combined%n_points
+          res_source(i_type,i_layr,k) % cmpr % n_points                        &
+            = cmpr_combined(i_type,i_layr) % n_points
           call res_source_init_zero( l_tracer, res_source(i_type,i_layr,k) )
 
           ! Allocate diagnostics super-array and initialise to zero
           if ( draft_diags % plume_model % n_diags > 0 ) then
-            call diags_super_alloc( cmpr_combined%n_points,                    &
+            call diags_super_alloc( cmpr_combined(i_type,i_layr) % n_points,   &
                                     draft_diags % plume_model % n_diags_super, &
                       draft_diags_super % plume_model(i_type,i_layr,k) )
             ! Initialise to zero
             draft_diags_super % plume_model(i_type,i_layr,k)%cmpr%n_points     &
-              = cmpr_combined%n_points
+              = cmpr_combined(i_type,i_layr) % n_points
             call diags_super_init_zero( draft_diags%plume_model%n_diags_super, &
                       draft_diags_super % plume_model(i_type,i_layr,k) )
           else
@@ -588,11 +683,24 @@ do k = k_first, k_last, dk
                       % super(1,1) )
           end if
 
-        end if  ! ( cmpr_combined % n_points > 0 )
+        end if  ! ( cmpr_combined(i_type,i_layr) % n_points > 0 )
 
-        !------------------------------------------------------
-        ! 4) Calculations for existing convection from previous level
-        !------------------------------------------------------
+      end do  ! i_type = 1, n_conv_types
+    end do  ! i_layr = 1, n_conv_layers
+
+
+    !------------------------------------------------------
+    ! 5) Calculations for existing convection from previous level
+    !------------------------------------------------------
+
+    ! Set flag for 1st half of the level-step, from prev to level k
+    l_to_full_level = .true.
+
+
+
+    do i_layr = 1, n_conv_layers
+      do i_type = 1, n_conv_types
+
         if ( par_conv(i_type,i_layr) % cmpr % n_points > 0 ) then
           ! If any existing convection of this type / layer...
 
@@ -608,40 +716,43 @@ do k = k_first, k_last, dk
                            % super )
 
           ! Compress environment fields onto convecting points
-          ! Note: passing in neighbouring levels consistent with -dk,
-          ! as for this half-level-step we need half-level fields at
-          ! the previous model-level interface, not next.
           call conv_sweep_compress(                                            &
-                 k, k_next-dk, -dk, max_points, ij_first, ij_last,             &
-                 n_fields_tot, l_last_level, par_conv(i_type,i_layr) % cmpr,   &
+                 k, k_next, dk, max_points, ij_first, ij_last, n_fields_tot,   &
+                 l_to_full_level, l_last_level,                                &
+                 par_conv(i_type,i_layr) % cmpr,                               &
                  grid, turb, fields,                                           &
-                 virt_temp, layer_mass, sum_massflux,                          &
+                 virt_temp, layer_mass, sum_massflux, delta_tv,                &
                  l_within_bl, grid_k_super, grid_prev_super,                   &
                  env_k_fields, env_k_super, env_prev_super,                    &
                  layer_mass_step, frac_level_step,                             &
-                 sum_massflux_cmpr, index_ij )
+                 delta_tv_cmpr, sum_massflux_cmpr, index_ij )
 
           ! Check input parcel properties for bad values (NaN, Inf, etc)
           if ( i_check_bad_values_cmpr > i_check_bad_none ) then
-            where_string = "On input to conv_half_level_step call for "     // &
+            where_string = "On input to 1st conv_level_step call for "      // &
                            trim(adjustl(draft_string)) // "; par_conv"
             call parcel_check_bad_values( par_conv(i_type,i_layr),             &
                                           n_fields_tot, k, where_string )
+            where_string = "On input to 1st conv_level_step call for "      // &
+                           trim(adjustl(draft_string)) // "; res_source"
+            call res_source_check_bad_values( res_source(i_type,i_layr,k),     &
+                                              n_fields_tot, k, where_string )
           end if
 
           ! Compute the parcel ascent / descent from the previous
           ! model-level interface to level k
           call conv_level_step(                                                &
-                 par_conv(i_type,i_layr)%cmpr%n_points,                        &
-                 max_points, cmpr_combined%n_points,                           &
+                 par_conv(i_type,i_layr)%cmpr%n_points, max_points,            &
+                 cmpr_combined(i_type,i_layr)%n_points,                        &
                  dgdims(1), dgdims(2), n_fields_tot,                           &
                  l_down, l_tracer, l_last_level, l_to_full_level,              &
-                 l_fallback, l_output_fallback, l_within_bl,                   &
-                 sum_massflux_cmpr, index_ij, ij_first, ij_last,               &
+                 l_within_bl,                                                  &
+                 sum_massflux_cmpr, max_ent_frac, index_ij, ij_first, ij_last, &
                  par_conv(i_type,i_layr)%cmpr, k, draft_string,                &
                  grid_prev_super, grid_k_super,                                &
                  env_prev_super, env_k_super,                                  &
                  env_k_fields, layer_mass_step, frac_level_step,               &
+                 delta_tv_cmpr,                                                &
                  par_conv(i_type,i_layr)%par_super,                            &
                  par_conv(i_type,i_layr)%mean_super,                           &
                  par_conv(i_type,i_layr)%core_super,                           &
@@ -654,40 +765,55 @@ do k = k_first, k_last, dk
 
           ! Check output parcel properties for bad values (NaN, Inf, etc)
           if ( i_check_bad_values_cmpr > i_check_bad_none ) then
-            where_string = "On output from conv_half_level_step call for "  // &
+            where_string = "On output from 1st conv_level_step call for "   // &
                            trim(adjustl(draft_string)) // "; par_conv"
             call parcel_check_bad_values( par_conv(i_type,i_layr),             &
                                           n_fields_tot, k, where_string )
+            where_string = "On output from 1st conv_level_step call for "   // &
+                           trim(adjustl(draft_string)) // "; res_source"
+            call res_source_check_bad_values( res_source(i_type,i_layr,k),     &
+                                              n_fields_tot, k, where_string )
           end if
 
-          ! Convert the updated parcel properties to conserved
-          ! variable form before combining them with initiating
-          ! mass-sources
+        end if  ! ( par_conv(i_type,i_layr) % cmpr % n_points > 0 )
+
+      end do  ! i_type = 1, n_conv_types
+    end do  ! i_layr = 1, n_conv_layers
+
+
+    !------------------------------------------------------
+    ! 6) Add on new initiating mass-sources from level k
+    !------------------------------------------------------
+
+    do i_layr = 1, n_conv_layers
+      do i_type = 1, n_conv_types
+
+        ! Convert the updated parcel properties to conserved
+        ! variable form before combining them with initiating
+        ! mass-sources
+        if ( par_conv(i_type,i_layr) % cmpr % n_points > 0 ) then
           l_reverse = .false.
           call fields_k_conserved_vars(                                        &
                  par_conv(i_type,i_layr) % cmpr % n_points,                    &
                  max_points, n_fields_tot, l_reverse,                          &
                  par_conv(i_type,i_layr) % mean_super )
-          ! Note: this is done even if there are no initiating
-          ! mass-sources, to ensure bit-reproducibility if we
-          ! change the processor decomposition such that
-          ! whether or not there are any mass-sources on the
-          ! local proc domain changes.
+        end if
+        ! Note: this is done even if there are no initiating
+        ! mass-sources, to ensure bit-reproducibility if we
+        ! change the processor decomposition such that
+        ! whether or not there are any mass-sources on the
+        ! local proc domain changes.
 
-        end if  ! ( par_conv(i_type,i_layr) % cmpr % n_points > 0 )
-
-
-        !------------------------------------------------------
-        ! 5) Add on new initiating mass-sources from level k
-        !------------------------------------------------------
         if ( par_gen(i_type,i_layr,k) % cmpr % n_points > 0 ) then
           ! If any initiating mass-source of this type / layer...
+
+          ! Find super-array size for initiating parcel arrays
+          n_points_gen = ubound( par_gen(i_type,i_layr,k) % mean_super, 1 )
 
           ! Convert initiating parcel properties to conserved-variable form
           l_reverse = .false.
           call fields_k_conserved_vars( par_gen(i_type,i_layr,k)%cmpr%n_points,&
-                                        par_gen(i_type,i_layr,k)%cmpr%n_points,&
-                                        n_fields_tot, l_reverse,               &
+                                        n_points_gen, n_fields_tot, l_reverse, &
                                         par_gen(i_type,i_layr,k) % mean_super )
 
           if ( par_conv(i_type,i_layr) % cmpr % n_points > 0 ) then
@@ -695,49 +821,53 @@ do k = k_first, k_last, dk
             ! initiating mass-sources...
 
             ! Initialise resolved-scale source terms to zero
-            call cmpr_copy( par_gen(i_type,i_layr,k) % cmpr,                   &
-                            res_source_gen % cmpr )
+            res_source_gen % cmpr % n_points                                   &
+              = par_gen(i_type,i_layr,k) % cmpr % n_points
             call res_source_init_zero( l_tracer, res_source_gen )
 
             ! Calculate resolved-scale sources due to the initiating parcel
             ! (treated as entrainment)
             l_ent = .true.
             call entdet_res_source( par_gen(i_type,i_layr,k)%cmpr%n_points,    &
-                                    par_gen(i_type,i_layr,k)%cmpr%n_points,    &
+                                    n_points_gen,                              &
                                     max_points, n_fields_tot, l_ent,           &
                                     par_gen(i_type,i_layr,k)                   &
-                                         % par_super(:,i_massflux_d),          &
+                                       % par_super(:,i_massflux_d),            &
                                     par_gen(i_type,i_layr,k) % mean_super,     &
                                     res_source_gen % res_super,                &
                                     res_source_gen % fields_super )
 
-            if ( cmpr_combined % n_points >                                    &
+            if ( cmpr_combined(i_type,i_layr) % n_points >                     &
                  par_conv(i_type,i_layr) % cmpr % n_points ) then
               ! If initiating mass-sources have added new points to the
               ! resulting combined compression list, expand all the compression
               ! arrays onto the new list
-              call parcel_expand( l_tracer, cmpr_combined % n_points,          &
-                                  index_ic_conv,                               &
+              call parcel_expand( l_tracer,                                    &
+                                  cmpr_combined(i_type,i_layr) % n_points,     &
+                                  index_ic_conv(:,i_type,i_layr),              &
                                   par_conv(i_type,i_layr) )
-              call cmpr_copy( cmpr_combined, par_conv(i_type,i_layr) % cmpr )
-              call res_source_expand( l_tracer, cmpr_combined % n_points,      &
-                                      index_ic_conv,                           &
+              call cmpr_copy( cmpr_combined(i_type,i_layr),                    &
+                              par_conv(i_type,i_layr) % cmpr )
+              call res_source_expand( l_tracer,                                &
+                                      cmpr_combined(i_type,i_layr) % n_points, &
+                                      index_ic_conv(:,i_type,i_layr),          &
                                       res_source(i_type,i_layr,k) )
               if ( draft_diags % plume_model % n_diags > 0 ) then
                 call diags_super_expand(                                       &
                       draft_diags % plume_model % n_diags_super,               &
-                      cmpr_combined % n_points,                                &
-                      index_ic_conv,                                           &
+                      cmpr_combined(i_type,i_layr) % n_points,                 &
+                      index_ic_conv(:,i_type,i_layr),                          &
                       draft_diags_super % plume_model(i_type,i_layr,k) )
               end if
             end if
 
             ! Combine parcel properties and resolved-scale source-terms due
             ! to initiation with those from the existing convection
-            call parcel_combine( l_tracer, l_down, index_ic_gen,               &
+            call parcel_combine( l_tracer, l_down,                             &
+                                 index_ic_gen(:,i_type,i_layr),                &
                                  par_gen(i_type,i_layr,k),                     &
                                  par_conv(i_type,i_layr) )
-            call res_source_combine( l_tracer, index_ic_gen,                   &
+            call res_source_combine( l_tracer, index_ic_gen(:,i_type,i_layr),  &
                                      res_source_gen,                           &
                                      res_source(i_type,i_layr,k) )
 
@@ -748,14 +878,14 @@ do k = k_first, k_last, dk
             ! (treated as entrainment)
             l_ent = .true.
             call entdet_res_source( par_gen(i_type,i_layr,k)%cmpr%n_points,    &
-                                    par_gen(i_type,i_layr,k)%cmpr%n_points,    &
+                                    n_points_gen,                              &
                                     par_gen(i_type,i_layr,k)%cmpr%n_points,    &
                                     n_fields_tot, l_ent,                       &
                                     par_gen(i_type,i_layr,k)                   &
                                          % par_super(:,i_massflux_d),          &
                                     par_gen(i_type,i_layr,k) % mean_super,     &
                                     res_source(i_type,i_layr,k) % res_super,   &
-                                    res_source(i_type,i_layr,k) %fields_super )
+                                    res_source(i_type,i_layr,k) % fields_super)
 
             ! Copy the initiating parcel properties into par_conv
             call parcel_copy( l_tracer, par_gen(i_type,i_layr,k),              &
@@ -764,9 +894,10 @@ do k = k_first, k_last, dk
           end if  ! ( par_conv(i_type,i_layr) % cmpr % n_points == 0 )
 
           ! Update compression indices consistent with the new list
-          call cmpr_copy( cmpr_combined, res_source(i_type,i_layr,k) % cmpr )
+          call cmpr_copy( cmpr_combined(i_type,i_layr),                        &
+                          res_source(i_type,i_layr,k) % cmpr )
           if ( draft_diags % plume_model % n_diags > 0 ) then
-            call cmpr_copy( cmpr_combined,                                     &
+            call cmpr_copy( cmpr_combined(i_type,i_layr),                      &
                       draft_diags_super % plume_model(i_type,i_layr,k) % cmpr )
           end if
 
@@ -792,70 +923,107 @@ do k = k_first, k_last, dk
 
         end if  ! ( par_gen(i_type,i_layr,k) % cmpr % n_points > 0 )
 
-
-      end do  ! i_type = 1, n_conv_types
-    end do  ! i_layr = 1, n_conv_layers
-
-    ! Calculate updated sum of mass-fluxes
-    call calc_sum_massflux( n_conv_types, n_conv_layers,                       &
-                            ij_first, ij_last,                                 &
-                            par_conv, sum_massflux )
-
-    ! Set flag for 2nd half of the level-step, from k to next
-    l_to_full_level = .false.
-
-    ! Loop over convection layers and types
-    do i_layr = 1, n_conv_layers
-      do i_type = 1, n_conv_types
-
-
-        !------------------------------------------------------
-        ! 6) Calculations for convection from level k to next
-        !------------------------------------------------------
+        ! Convert parcel properties back from conserved variable form
         if ( par_conv(i_type,i_layr) % cmpr % n_points > 0 ) then
-          ! If any convection of this type / layer...
-
-          ! Convert parcel properties back from conserved variable form
           l_reverse = .true.
           call fields_k_conserved_vars(                                        &
                  par_conv(i_type,i_layr) % cmpr % n_points,                    &
                  max_points, n_fields_tot, l_reverse,                          &
                  par_conv(i_type,i_layr) % mean_super )
+        end if
+
+      end do  ! i_type = 1, n_conv_types
+    end do  ! i_layr = 1, n_conv_layers
+
+
+    !------------------------------------------------------
+    ! 7) Calculations for convection from level k to next
+    !------------------------------------------------------
+
+    ! Set flag for 2nd half of the level-step, from k to next
+    l_to_full_level = .false.
+
+    ! Calculate updated sum of mass-fluxes
+    call calc_sum_massflux( n_conv_types, n_conv_layers, ij_first, ij_last,    &
+                            par_conv, sum_massflux )
+
+    ! TEMPORARILY COMMENTED-OUT TO PRESERVE KGO:
+    ! When in the last model-level we can't really have any compensating
+    ! subsidence to treat implicitly (since there is no next level to subside).
+    ! For now, keep calculation of delta_tv from subsidence during the
+    ! last level but remove this soon...
+    !IF ( .NOT. l_last_level ) THEN
+    if ( .true. ) then
+      ! Calculation needs data from k+1; leave as zero at last level
+
+      ! Find points where mass-flux is non-zero
+      cmpr_tmp%n_points = 0
+      do ic = 1, cmpr_any%n_points
+        ij = cmpr_any%index_i(ic) + nx_full * ( cmpr_any%index_j(ic) - 1 )
+        if ( sum_massflux(ij) > zero ) then
+          cmpr_tmp%n_points = cmpr_tmp%n_points + 1
+          cmpr_tmp%index_i(cmpr_tmp%n_points) = cmpr_any%index_i(ic)
+          cmpr_tmp%index_j(cmpr_tmp%n_points) = cmpr_any%index_j(ic)
+        end if
+      end do
+
+      ! Pre-estimate subsidence virtual temperature increment per unit
+      ! mass-flux, used for the implicit detrainment
+      if ( cmpr_tmp%n_points > 0 ) then
+        call calc_delta_tv( .true., l_last_level,                              &
+                            cmpr_tmp, k, k_next, dk, ij_first, ij_last,        &
+                            virt_temp, layer_mass, grid, fields,               &
+                            delta_tv )
+      end if
+
+    end if  ! ( .NOT. l_last_level )
+
+    ! Loop over convection layers and types
+    do i_layr = 1, n_conv_layers
+      do i_type = 1, n_conv_types
+        if ( par_conv(i_type,i_layr) % cmpr % n_points > 0 ) then
+          ! If any convection of this type / layer...
 
           dgdims = ubound( plume_model_diags_step % super )
 
           ! Compress environment fields onto convecting points
           call conv_sweep_compress(                                            &
-                 k, k_next, dk, max_points, ij_first, ij_last,                 &
-                 n_fields_tot, l_last_level, par_conv(i_type,i_layr) % cmpr,   &
+                 k, k_next, dk, max_points, ij_first, ij_last, n_fields_tot,   &
+                 l_to_full_level, l_last_level,                                &
+                 par_conv(i_type,i_layr) % cmpr,                               &
                  grid, turb, fields,                                           &
-                 virt_temp, layer_mass, sum_massflux,                          &
+                 virt_temp, layer_mass, sum_massflux, delta_tv,                &
                  l_within_bl, grid_k_super, grid_next_super,                   &
                  env_k_fields, env_k_super, env_next_super,                    &
                  layer_mass_step, frac_level_step,                             &
-                 sum_massflux_cmpr, index_ij )
+                 delta_tv_cmpr, sum_massflux_cmpr, index_ij )
 
           ! Check input parcel properties for bad values (NaN, Inf, etc)
           if ( i_check_bad_values_cmpr > i_check_bad_none ) then
-            where_string = "On input to conv_half_level_step call for "     // &
+            where_string = "On input to 2nd conv_level_step call for "      // &
                            trim(adjustl(draft_string)) // "; par_conv"
             call parcel_check_bad_values( par_conv(i_type,i_layr),             &
                                           n_fields_tot, k, where_string )
+            where_string = "On input to 2nd conv_level_step call for "      // &
+                           trim(adjustl(draft_string)) // "; res_source"
+            call res_source_check_bad_values( res_source(i_type,i_layr,k),     &
+                                              n_fields_tot, k, where_string )
           end if
 
-          ! Compute the parcel ascent / descent from the previous
-          ! model-level interface to level k
+          ! Compute the parcel ascent / descent from level k to the
+          ! next model-level interface
           call conv_level_step(                                                &
-                 par_conv(i_type,i_layr)%cmpr%n_points,                        &
-                 max_points, res_source(i_type,i_layr,k)%cmpr%n_points,        &
+                 par_conv(i_type,i_layr)%cmpr%n_points, max_points,            &
+                 res_source(i_type,i_layr,k)%cmpr%n_points,                    &
                  dgdims(1), dgdims(2), n_fields_tot,                           &
                  l_down, l_tracer, l_last_level, l_to_full_level,              &
-                 l_fallback, l_output_fallback, l_within_bl,                   &
-                 sum_massflux_cmpr, index_ij, ij_first, ij_last,               &
+                 l_within_bl,                                                  &
+                 sum_massflux_cmpr, max_ent_frac, index_ij, ij_first, ij_last, &
                  par_conv(i_type,i_layr)%cmpr, k, draft_string,                &
                  grid_k_super, grid_next_super,                                &
                  env_k_super, env_next_super,                                  &
                  env_k_fields, layer_mass_step, frac_level_step,               &
+                 delta_tv_cmpr,                                                &
                  par_conv(i_type,i_layr)%par_super,                            &
                  par_conv(i_type,i_layr)%mean_super,                           &
                  par_conv(i_type,i_layr)%core_super,                           &
@@ -868,41 +1036,43 @@ do k = k_first, k_last, dk
 
           ! Check output parcel properties for bad values (NaN, Inf, etc)
           if ( i_check_bad_values_cmpr > i_check_bad_none ) then
-            where_string = "On output from conv_half_level_step call for "  // &
+            where_string = "On output from 2nd conv_level_step call for "   // &
                            trim(adjustl(draft_string)) // "; par_conv"
             call parcel_check_bad_values( par_conv(i_type,i_layr),             &
                                           n_fields_tot, k, where_string )
+            where_string = "On output from 2nd conv_level_step call for "   // &
+                           trim(adjustl(draft_string)) // "; res_source"
+            call res_source_check_bad_values( res_source(i_type,i_layr,k),     &
+                                              n_fields_tot, k, where_string )
           end if
+
+          do ic = 1, par_conv(i_type,i_layr) % cmpr % n_points
+            index_ic_conv(ic,i_type,i_layr) = ic
+          end do
 
           if ( draft_diags % plume_model % n_diags > 0 ) then
             ! Combine diagnostics from 1st half-level-step with those
             ! from the 2nd
-            call cmpr_copy( par_conv(i_type,i_layr) % cmpr,                    &
-                            plume_model_diags_step % cmpr )
-            do ic = 1, par_conv(i_type,i_layr) % cmpr % n_points
-              index_ic_conv(ic) = ic
-            end do
+            plume_model_diags_step % cmpr % n_points                           &
+              = par_conv(i_type,i_layr) % cmpr % n_points
             call diags_super_combine(                                          &
                    draft_diags % plume_model % n_diags_super,                  &
-                   draft_diags % plume_model % l_weight, index_ic_conv,        &
+                   draft_diags % plume_model % l_weight,                       &
+                   index_ic_conv(:,i_type,i_layr),                             &
                    plume_model_diags_step,                                     &
                    draft_diags_super % plume_model(i_type,i_layr,k) )
           end if
 
-          ! Compress to remove points where convection has terminated
-          ! (mass-flux gone to zero)
-          call parcel_compress( l_tracer, par_conv(i_type,i_layr) )
-
         end if  ! ( par_conv(i_type,i_layr) % cmpr % n_points > 0 )
+      end do  ! i_type = 1, n_conv_types
+    end do  ! i_layr = 1, n_conv_layers
 
 
-        !------------------------------------------------------
-        ! 7) Save final parcel properties at next model-level interface
-        !------------------------------------------------------
-
-        ! If any non-terminated convection of this type
-        ! now present (either risen from level below,
-        ! or newly initiated at this level)
+    !------------------------------------------------------
+    ! 8) Save final parcel properties at next model-level interface
+    !------------------------------------------------------
+    do i_layr = 1, n_conv_layers
+      do i_type = 1, n_conv_types
         if ( par_conv(i_type,i_layr) % cmpr % n_points > 0 ) then
 
           ! Convert parcel properties to conserved form
@@ -912,65 +1082,86 @@ do k = k_first, k_last, dk
                  max_points, n_fields_tot, l_reverse,                          &
                  par_conv(i_type,i_layr) % mean_super )
 
-          ! Save parcel property diagnostics in conserved form,
-          ! ready for computing means over types
-          if ( draft_diags % par % n_diags > 0 ) then
-            ! Note: in the calls below, the diagnostics are valid
-            ! at half-level k_next, not level k
-            ! Allocate super-array for diagnostics
-            call diags_super_alloc(                                            &
-                   par_conv(i_type,i_layr) % cmpr % n_points,                  &
-                   draft_diags % par % n_diags_super,                          &
-                   draft_diags_super % par(i_type,i_layr,k_next) )
-            ! Copy parcel properties for diags
-            call cmpr_copy( par_conv(i_type,i_layr) % cmpr,                    &
-                            draft_diags_super%par(i_type,i_layr,k_next)%cmpr )
-            call grid_compress( grid, par_conv(i_type,i_layr) % cmpr,          &
-                                k_half=k_next, grid_half_super=grid_next_super)
-            call parcel_diags_copy( n_fields_tot,                              &
-                   draft_diags % par,                                          &
-                   par_conv(i_type,i_layr), grid_next_super(:,i_pressure),     &
-                   draft_diags_super % par(i_type,i_layr,k_next) % super )
-          end if
-
           if ( l_homog_conv_bl ) then
             ! Save parcel properties at the first layer interface
-            ! above the boundary-layer top
-            call save_parcel_bl_top( n_fields_tot, k_next-1,                   &
+            ! beyond the boundary-layer top
+            call save_parcel_bl_top( n_fields_tot, k, dk,                      &
                                      grid, turb,                               &
                                      par_conv(i_type,i_layr),                  &
-                                     par_bl_top(i_type,i_layr,k_next-1) )
-            ! Note: the BL-top parcel is saved at the full level
-            ! immediately below the next layer interface where
-            ! it is actually defined, hence passing in k_next-1.
+                                     par_bl_top(i_type,i_layr,k) )
+            ! Note: the BL-top parcel is saved at the current
+            ! full-level k.  However, it is actually now defined at the
+            ! next model-level interface, which is just above for updrafts,
+            ! just below for downdrafts.  Care needs to be taken to account
+            ! for this difference correctly for both updrafts and downdrafts!
           end if
 
-          ! Convert final parcel properties back from conserved form
-          l_reverse = .true.
-          call fields_k_conserved_vars(                                        &
-                 par_conv(i_type,i_layr) % cmpr % n_points,                    &
-                 max_points, n_fields_tot, l_reverse,                          &
-                 par_conv(i_type,i_layr) % mean_super )
+          ! Compress to remove points where convection has terminated
+          ! (mass-flux gone to zero).
+          ! NOTE: it is important that the call to save_parcel_bl_top
+          ! is done BEFORE this compression, in order to not miss
+          ! events where the parcel terminated within the model-level
+          ! straddling the BL-top.  But the saving of parcel diagnostics
+          ! should be done AFTER this compression, in order to not include
+          ! data where the mass-flux is zero (the computing of
+          ! mass-flux-weighted means of the diagnostics over layers / types
+          ! for output can give silly answers if the mass-fluxes used as
+          ! the averaging weights are all zero).
+          call parcel_compress( l_tracer, par_conv(i_type,i_layr) )
+
+          if ( par_conv(i_type,i_layr) % cmpr % n_points > 0 ) then
+            ! If still any points left after compressing-out terminated points
+
+            ! Save parcel property diagnostics in conserved form,
+            ! ready for computing means over types
+            if ( draft_diags % par % n_diags > 0 ) then
+              ! Note: in the calls below, the diagnostics are valid
+              ! at half-level k_next, not level k
+              ! Allocate super-array for diagnostics
+              call diags_super_alloc(                                          &
+                     par_conv(i_type,i_layr) % cmpr % n_points,                &
+                     draft_diags % par % n_diags_super,                        &
+                     draft_diags_super % par(i_type,i_layr,k_next) )
+              ! Copy parcel properties for diags
+              call cmpr_copy( par_conv(i_type,i_layr) % cmpr,                  &
+                              draft_diags_super                                &
+                              % par(i_type,i_layr,k_next) % cmpr )
+              call grid_compress( grid, par_conv(i_type,i_layr) % cmpr,        &
+                                  k_half=k_next,                               &
+                                  grid_half_super=grid_next_super )
+              call parcel_diags_copy( n_fields_tot,                            &
+                     draft_diags % par,                                        &
+                     par_conv(i_type,i_layr), grid_next_super(:,i_pressure),   &
+                     draft_diags_super % par(i_type,i_layr,k_next) % super )
+            end if
+
+            ! Convert final parcel properties back from conserved form
+            l_reverse = .true.
+            call fields_k_conserved_vars(                                      &
+                   par_conv(i_type,i_layr) % cmpr % n_points,                  &
+                   max_points, n_fields_tot, l_reverse,                        &
+                   par_conv(i_type,i_layr) % mean_super )
+
+          end if  ! ( par_conv(i_type,i_layr) % cmpr % n_points > 0 )
 
         end if  ! ( par_conv(i_type,i_layr) % cmpr % n_points > 0 )
-
-
       end do  ! i_type = 1, n_conv_types
     end do  ! i_layr = 1, n_conv_layers
 
-  end if  ! ( l_any_conv .or. l_any_source )
+  end if  ! ( l_any_conv .OR. l_any_source )
 
 end do  ! k = k_first, k_last, dk
-! end MAIN LOOP OVER MODEL-LEVELS
+! END MAIN LOOP OVER MODEL-LEVELS
 
 
 !----------------------------------------------------------------
-! 8) Optionally vertically homogenize the resolved-scale
+! 9) Optionally vertically homogenize the resolved-scale
 !    source terms within the boundary-layer
 !----------------------------------------------------------------
+
 if ( l_homog_conv_bl ) then
   call homog_conv_bl_ctl( n_conv_types, n_conv_layers,                         &
-                          ij_first, ij_last,                                   &
+                          max_points, ij_first, ij_last,                       &
                           n_fields_tot, l_down,                                &
                           grid, fields, layer_mass,                            &
                           par_bl_top, turb, res_source )
@@ -979,15 +1170,15 @@ end if
 
 
 !----------------------------------------------------------------
-! 9) Check output resolved-scale source terms for NaNs etc
+! 10) Check output resolved-scale source terms for NaNs etc
 !----------------------------------------------------------------
 
 ! Check for bad values in the output resolved-scale source terms
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
+  where_string = "End of conv_sweep_ctl call for "          //                 &
+                 trim(adjustl(draft_string)) // "; "        //                 &
+                 "res_source"
   do k = k_bot_conv, k_top_conv
-    where_string = "End of conv_sweep_ctl call for "          //               &
-                   trim(adjustl(draft_string)) // "; "        //               &
-                   "res_source"
     do i_layr = 1, n_conv_layers
       do i_type = 1, n_conv_types
         if ( res_source(i_type,i_layr,k)%cmpr%n_points > 0 ) then
@@ -1002,10 +1193,14 @@ end if  ! ( i_check_bad_values_cmpr > i_check_bad_none )
 
 
 !----------------------------------------------------------------
-! 10) Deallocate work arrays
+! 12) Deallocate work arrays
 !----------------------------------------------------------------
 
-call cmpr_dealloc( cmpr_combined )
+do i_layr = 1, n_conv_layers
+  do i_type = 1, n_conv_types
+    call cmpr_dealloc( cmpr_combined(i_type,i_layr) )
+  end do
+end do
 call res_source_dealloc( res_source_gen )
 deallocate( par_conv )
 

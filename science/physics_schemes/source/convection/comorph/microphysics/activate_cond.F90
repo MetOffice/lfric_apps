@@ -86,8 +86,8 @@ do ic = 1, n_points
       q_cond(ic) = q_activate
       ! Note: technically we have added water from nowhere
       ! here; however, q_activate is set to the smallest
-      ! possible non-zero floating-point number, using tiny.
-      ! This is almost certainly smaller than q_vap * epsilon,
+      ! possible non-zero floating-point number, using TINY.
+      ! This is almost certainly smaller than q_vap * EPSILON,
       ! so that subtracting it from the water vapour would
       ! make no difference to the floating-point
       ! representation of q_vap.  Therefore, it will make

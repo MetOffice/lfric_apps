@@ -38,7 +38,7 @@ integer, intent(in) :: k
 
 ! Full 3-D array of heights of the model-level interfaces
 ! above the surface (and its array bounds, so we index
-! it right if it has halos)
+! it right if it has haloes)
 integer, intent(in) :: lb_h(3), ub_h(3)
 real(kind=real_hmprec), intent(in) :: height_half                              &
                           ( lb_h(1):ub_h(1), lb_h(2):ub_h(2), lb_h(3):ub_h(3) )
@@ -56,15 +56,15 @@ logical, intent(out) :: l_within_bl(cmpr%n_points)
 integer :: ic, i, j
 
 
-! Test whether the current model-level's lower interface
-! is below the BL-top height (level has at least some overlap
+! Test whether the current model-level's upper interface
+! is below the BL-top height (level has full overlap
 ! with the BL).
 do ic = 1, cmpr % n_points
   i = cmpr % index_i(ic)
   j = cmpr % index_j(ic)
-  ! Assuming that height_half(:,:,k) is the lower bound
-  ! of theta-level (:,:,k).
-  l_within_bl(ic) = height_half(i,j,k) <= z_bl_top(i,j)
+  ! Assuming that height_half(:,:,k+1) is the upper bound
+  ! of full-level (:,:,k).
+  l_within_bl(ic) = height_half(i,j,k+1) <= z_bl_top(i,j)
 end do
 
 

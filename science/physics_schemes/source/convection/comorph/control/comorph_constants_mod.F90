@@ -118,12 +118,12 @@ integer :: k_top_conv = 0
 ! ( 1:nx_full, 1:ny_full, k_bot_conv:k_top_conv ),
 ! even if the input environment profile arrays have different
 ! dimensions to this (which may well be correct, since the
-! input arrays may have halos and/or boundary-condition points
+! input arrays may have haloes and/or boundary-condition points
 ! where we don't want to call convection).
 ! The input and output array arguments are all passed in/out
 ! via derived type structures containing pointers to the actual
 ! 3D arrays.  This allows the convection code to not have to
-! specify their actual dimensions, so that halos etc can be
+! specify their actual dimensions, so that haloes etc can be
 ! added or removed in the host model without having to change
 ! the convection code.
 ! However, this means it is up to the calling routine to ensure
@@ -181,8 +181,12 @@ logical :: l_tracer_scav = .false.
 logical :: l_calc_cape = .false.
 logical :: l_calc_mfw_cape = .false.
 
+! Flag for whether to store accurate interpolated convective cloud
+! top and base heights and other properties
+logical :: l_calc_ccb_cct = .false.
 
-! PHYSICS CONSTANTS; to BE OVERWRITTEN WITH HOST MODEL VALUES
+
+! PHYSICS CONSTANTS; TO BE OVERWRITTEN WITH HOST MODEL VALUES
 
 ! Acceleration due to gravity
 real(kind=real_cvprec) :: gravity = 9.81_real_cvprec
@@ -286,7 +290,7 @@ real(kind=real_cvprec), parameter :: max_ent_frac_dn_fb = 0.0_real_cvprec
 ! Max CFL number for entrainment and mass intitiation from layer
 real(kind=real_cvprec), parameter :: max_cfl = 0.9_real_cvprec
 ! Note: this is used instead of the above max_ent_frac
-! parameters if i_cfl_check is set to apply the CFL
+! parameters if i_cfl_closure is set to apply the CFL
 ! constraint afterwards via closure rescaling instead
 ! of applying the local limit on entrainment from each
 ! level during the ascent
@@ -295,7 +299,7 @@ real(kind=real_cvprec), parameter :: max_cfl = 0.9_real_cvprec
 ! inside the convection scheme and incremented by it)
 logical, parameter :: l_cv_rain = .true.
 logical, parameter :: l_cv_cf = .true.
-logical, parameter :: l_cv_snow = .false.
+logical :: l_cv_snow = .false.
 logical, parameter :: l_cv_graup = .true.
 
 ! Switch for applying the "compensating subsidence" term
@@ -321,32 +325,40 @@ logical, parameter :: l_homog_conv_bl = .true.
 ! decide how much autoconversion to do instead.
 logical, parameter :: l_precip_to_cloud = .false.
 
-! Options for type of CFL-limit to apply:
+! Options for local CFL limiting during the parcel ascent / descent:
 ! No CFL limit
-integer, parameter :: i_cfl_check_none = 0
-! Vertically-local limit applied to initiating and entrained mass
-integer, parameter :: i_cfl_check_local = 1
-! Rescale entire vertical profile of resolved-scale source terms
-integer, parameter :: i_cfl_check_closure = 2
-! Hybrid: use vertically-local CFL limit when above the BL-top,
-! but apply the closure CFL limit after homogenising the
-! convection within the BL
-! (to be used in conjunction with l_homog_conv_bl).
-integer, parameter :: i_cfl_check_hybrid = 3
+integer, parameter :: i_cfl_local_none = 0
+! Apply local CFL limit on all levels
+integer, parameter :: i_cfl_local_all = 1
+! Apply local CFL limit on all levels above the BL-top only
+integer, parameter :: i_cfl_local_nobl = 2
 
-! Set to one of the above options:
-integer, parameter :: i_cfl_check = i_cfl_check_hybrid
+! The switch itself; set to one of the above
+integer :: i_cfl_local = i_cfl_local_nobl
+
+! Options for CFL limiting on the convective closure:
+! No CFL limit
+integer, parameter :: i_cfl_closure_none = 0
+! Apply CFL limit on the entrained mass
+integer, parameter :: i_cfl_closure_mass = 1
+! Apply CFL limit on the entrained mass and water species
+integer, parameter :: i_cfl_closure_mass_q = 2
+
+! The switch itself; set to one of the above
+integer :: i_cfl_closure = i_cfl_closure_mass_q
 
 ! Options for diagnosed convective cloud:
 ! No convective cloud
 integer, parameter :: i_convcloud_none = 0
+! Bulk convective cloud only, with liquid + ice content in a single variable
+integer, parameter :: i_convcloud_bulkonly = 1
 ! Liquid convective cloud only
-integer, parameter :: i_convcloud_liqonly = 1
+integer, parameter :: i_convcloud_liqonly = 2
 ! Liquid, ice and mixed-phase convective cloud
-integer, parameter :: i_convcloud_mph = 2
+integer, parameter :: i_convcloud_mph = 3
 
 ! Set to one of the above options
-integer, parameter :: i_convcloud = i_convcloud_liqonly
+integer :: i_convcloud = i_convcloud_liqonly
 
 ! Switches for checking inputs and outputs for bad values
 ! (e.g. NaN, Inf, or negative values for positive-only fields)...
@@ -364,9 +376,6 @@ integer, parameter :: i_check_bad_values_cmpr = i_check_bad_none
 ! Switch for checking consistency of turbulence fields on input
 integer, parameter :: i_check_turb_consistent = i_check_bad_none
 
-! Switch for printing caps on turb perts
-integer, parameter :: i_print_turb_perts_exceeded = i_check_bad_none
-
 ! Indirect indexing threshold
 real(kind=real_cvprec) :: indi_thresh = 0.5_real_cvprec
 ! This is used in various places where a calculation only
@@ -378,25 +387,25 @@ real(kind=real_cvprec) :: indi_thresh = 0.5_real_cvprec
 ! There are various calculations which use code of the form:
 !
 ! ! If calculation needed at majorirty of points
-! if ( real(nc) > indi_thresh * real(n_points) ) then
+! IF ( REAL(nc) > indi_thresh * REAL(n_points) ) THEN
 !
 !   ! Do calculation at all points
 !   ! (fully vectorised and so faster on many architectures)
-!   do ic = 1, n_points
+!   DO ic = 1, n_points
 !     ...
-!   end do
+!   END DO
 !
 ! ! If calculation only needed at a minoirty of points
-! else
+! ELSE
 !
 !   ! Do same calculation using indirect indexing list
 !   ! (doesn't vectorise as efficiently).
-!   do ic2 = 1, nc
+!   DO ic2 = 1, nc
 !     ic = index_ic(ic2)
 !     ...
-!   end do
+!   END DO
 !
-! end if
+! END IF
 !
 ! This should allow better performance on average than just
 ! either always looping over all points or always using the
@@ -570,6 +579,10 @@ real(kind=real_cvprec), parameter :: coef_hetnuc = 1.0e-7_real_cvprec
 ! be set very small.  If the solution has much sensitivity
 ! to the value of this coef then something has gone wrong!
 
+! Parcel vertical length-scale over radius, used for precip fall.
+! For a spherical parcel this should be 4/3, but was set to 2 in CoMorph A
+real(kind=real_cvprec) :: par_vert_len_fac = two
+
 ! Precipitation fall-speeds
 ! Asymptotic drag coefficient for a sphere at high Reynolds
 ! number limit
@@ -647,7 +660,13 @@ logical, parameter :: l_par_core = .true.
 ! (should improve the accuracy and stability, but makes the
 ! different convection types/layers interdependent and so breaks
 ! any assumption of their independence during the timestep).
-logical, parameter :: l_inter_impl_det = .true.
+! Options:
+! Solve each type / layer independently with no interactions
+integer, parameter :: i_impl_det_indep = 1
+! Account for other types/layers assuming equal fractional mass-flux change
+integer, parameter :: i_impl_det_inter = 2
+! The switch itself!
+integer :: i_impl_det = i_impl_det_inter
 
 ! Implicitness weighting in the detrainment calculation
 ! (the environment buoyancy used has alpha * a pre-estimate of
@@ -661,6 +680,20 @@ real(kind=real_cvprec) :: par_gen_mass_fac = 0.25_real_cvprec
 ! Prescribed draft vertical velocity excess, used when
 ! the vertical momentum equation is disabled / m s-1
 real(kind=real_cvprec) :: wind_w_fac = 1.0_real_cvprec
+
+! Options for how to calculate convective cloud fraction:
+! 0 - Use old buoyancy-based w estimate as-per comorph A
+integer, parameter :: i_cf_conv_coma = 0
+! 1 - Use the mass-flux divided by the interactive parcel w
+integer, parameter :: i_cf_conv_w_inter = 1
+! 2 - Use the mass-flux divided by a fixed assumed updraft velocity
+!     (given by wind_w_fac)
+integer, parameter :: i_cf_conv_w_fixed = 2
+! 3 - Diagnose the updraft velocity based on the parcel buoyancy,
+!     assuming the parcel stays at terminal velocity
+integer, parameter :: i_cf_conv_w_buoy = 3
+! The switch:
+integer :: i_cf_conv = i_cf_conv_coma
 
 ! Switch to make the diagnosed convective cloud fraction depend
 ! on parcel buoyancy.  Can be used when not using the
@@ -678,10 +711,14 @@ real(kind=real_cvprec), parameter :: w_min = 0.1_real_cvprec
 ! (the slower-rising parts of the plume have much greater area)
 real(kind=real_cvprec) :: cf_conv_fac = 2.0_real_cvprec
 
+! Limit on fraction of grid-mean water which is allowed to be
+! assumed to be held inside the convective clouds
+real(kind=real_cvprec), parameter :: max_water_frac = 0.8_real_cvprec
+
 ! Constants controlling the initial parcel perturbations:
 
-! a) Those used if not using turbulence-based parcel properties
-!    (l_turb_par_gen = .false.)
+! a) Those used if NOT using turbulence-based parcel properties
+!    (l_turb_par_gen = .FALSE.)
 
 ! Prescribed initial parcel radius
 real(kind=real_cvprec), parameter :: par_gen_radius = 500.0_real_cvprec
@@ -689,7 +726,7 @@ real(kind=real_cvprec), parameter :: par_gen_radius = 500.0_real_cvprec
 real(kind=real_cvprec), parameter :: par_gen_qpert = 0.05_real_cvprec
 
 ! b) Those used if using turbulence-based parcel properties
-!    (l_turb_par_gen = .true.)
+!    (l_turb_par_gen = .TRUE.)
 
 ! Scaling factors for turbulence-based parcel perturbations
 real(kind=real_cvprec), parameter :: par_gen_w_fac = 1.0_real_cvprec
@@ -719,7 +756,7 @@ integer, parameter :: par_radius_evol_no_detrain = 3  ! as 1 but neglect detrain
 integer :: par_radius_evol_method = par_radius_evol_no_decrease
 
 ! Scaling factor for par_gen core perturbations relative to
-! the parcel mean properties (used if l_par_core = .true.)
+! the parcel mean properties (used if l_par_core = .TRUE.)
 real(kind=real_cvprec) :: par_gen_core_fac = 3.0_real_cvprec
 
 ! Minimum and maximum allowed values of the core/mean ratio of parcel
@@ -764,7 +801,7 @@ integer, parameter :: i_solve_det_check_converge = i_check_bad_none
 ! Constant scaling the overall drag
 real(kind=real_cvprec) :: drag_coef_par = 0.5_real_cvprec
 ! "Shape factor" scaling the stability-dependent term in the drag
-real(kind=real_cvprec), parameter :: Sd = 3.0_real_cvprec
+real(kind=real_cvprec) :: wavedrag_fac = 6.0_real_cvprec
 
 ! Entrainment:
 ! Mixing entrainment rate (m-1) = ent_coef / parcel radius
@@ -779,10 +816,18 @@ logical :: l_core_ent_cmr = .true.
 !
 ! Rate of entrainment of environment air into the parcel core is
 ! parameterised as...
-! if l_core_ent_cmr:
+! IF l_core_ent_cmr:
 !   core_ent = core_ent_fac * mean_ent / core_mean_ratio
-! else:
+! ELSE:
 !   core_ent = core_ent_fac * mean_ent
+
+! How to treat in-plume condensation due to in-plume moisture variability:
+! 0 - Assume parcel mean is homogeneous, ignoring the parcel core q_cl
+integer, parameter :: i_mean_q_cl_hom = 0
+! 1 - Assume parcel mean entirely cloudy if the parcel core is cloudy
+integer, parameter :: i_mean_q_cl_full = 1
+! The switch itself:
+integer, parameter :: i_mean_q_cl = i_mean_q_cl_full
 
 
 !---------------------------------------------------------------
@@ -827,7 +872,7 @@ end type cond_params_pt_type
 type(cond_params_pt_type), allocatable :: cond_params(:)
 
 ! Newline character used in error messages etc
-! (needs to be set using a call to the new_line intrinsic,
+! (needs to be set using a call to the NEW_LINE intrinsic,
 !  but this must be done in an executable run-time statement
 !  so can't be hardwired in this module)
 character(len=1) :: newline

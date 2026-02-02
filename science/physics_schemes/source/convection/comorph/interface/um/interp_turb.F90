@@ -89,13 +89,13 @@ real(kind=real_umphys), parameter :: two_thirds = 2.0/3.0
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(none) private( i, j, k, interp )                        &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, interp )                        &
 !$OMP SHARED( pdims, bl_levels, fb_surf, w_var_rh, zh, u_s,                    &
 !$OMP         fu_rh, taux_p, fv_rh, tauy_p, z_theta, z_rho, bl_w_var )
 
 ! Interpolate w_var and wind-stresses onto rho-levels
 ! "Bottom rho-level" is actually the surface
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     ! Note: bl_w_var doesn't exist at the surface in the prognostic,
@@ -111,9 +111,9 @@ do j = pdims%j_start, pdims%j_end
     fv_rh(i,j,1) = tauy_p(i,j,0)
   end do
 end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 ! Linear interpolation between theta-levels k-1 and k
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = 2, bl_levels-1
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
@@ -128,10 +128,10 @@ do k = 2, bl_levels-1
     end do
   end do
 end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 ! Interpolate at bl_levels assuming bl_w_var(:,:,bl_levels) = 0
 k = bl_levels
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     interp = ( z_rho(i,j,k)   - z_theta(i,j,k-1) )                             &
@@ -141,9 +141,9 @@ do j = pdims%j_start, pdims%j_end
     fv_rh(i,j,k) = (1.0-interp) * tauy_p(i,j,k-1)
   end do
 end do
-!$OMP end do NOWAIT
+!$OMP END DO NOWAIT
 
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
 
 return

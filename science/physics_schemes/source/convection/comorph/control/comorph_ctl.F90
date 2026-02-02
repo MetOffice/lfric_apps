@@ -24,8 +24,7 @@ subroutine comorph_ctl( l_tracer, n_segments,                                  &
 use comorph_constants_mod, only: real_hmprec, l_init_constants, name_length,   &
                                  nx_full, ny_full,                             &
                                  k_bot_conv, k_top_conv, k_top_init,           &
-                                 n_tracers,                                    &
-                                 l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
+                                 n_tracers, l_cv_rain,                         &
                                  l_turb_par_gen, i_check_bad_values_3d,        &
                                  i_check_turb_consistent, i_check_bad_none
 
@@ -36,23 +35,26 @@ use fields_type_mod, only: fields_type, l_init_fields_type_mod,                &
 use grid_type_mod, only: grid_type, grid_check_bad_values
 use turb_type_mod, only: turb_type,                                            &
                          turb_list_make, turb_list_clear,                      &
-                         n_turb, turb_names, turb_positive,                    &
-                         turb_check_consistent
+                         turb_check_bad_values, turb_check_consistent
 use cloudfracs_type_mod, only: cloudfracs_type,                                &
                                l_init_cloudfracs_type_mod,                     &
                                cloudfracs_set_addresses,                       &
+                               cloudfracs_list_make, cloudfracs_list_clear,    &
                                cloudfracs_check_bad_values
 use fields_2d_mod, only: l_init_fields_2d_mod, fields_2d_set_addresses
 use comorph_diags_type_mod, only: comorph_diags_type,                          &
                                   comorph_diags_assign,                        &
                                   comorph_diags_dealloc
+use parcel_type_mod, only: l_init_parcel_type_mod, parcel_set_addresses
+use res_source_type_mod, only: l_init_res_source_type_mod,                     &
+                               res_source_set_addresses
+use sublevs_mod, only: l_init_sublevs_mod, sublevs_set_addresses
 
 use set_dependent_constants_mod, only: set_dependent_constants
 use check_bad_values_mod, only: check_bad_values_3d
 use calc_layer_mass_mod, only: calc_layer_mass
 use copy_field_mod, only: copy_field_3d
 use calc_turb_diags_mod, only: calc_turb_diags
-use calc_subregion_diags_mod, only: calc_subregion_diags
 use calc_virt_temp_mod, only: calc_virt_temp_3d
 use init_test_mod, only: init_test
 use comorph_main_mod, only: comorph_main
@@ -95,8 +97,8 @@ type(turb_type), intent(in out) :: turb
 ! in the primary fields structure.
 ! Also contains the diagnosed convective cloud fraction and
 ! water content, which are inout:
-! in: convective cloud at start of timestep (from previous step).
-! out: updated convective cloud from this call.
+! IN: convective cloud at start of timestep (from previous step).
+! OUT: updated convective cloud from this call.
 type(cloudfracs_type), intent(in out) :: cloudfracs
 
 ! Structure containing pointers to input start-of-timestep fields
@@ -105,8 +107,8 @@ type(fields_type), intent(in out) :: fields_n
 !  can be setup).
 
 ! Structure containing pointers to the _np1 fields:
-! in: updated with any increments added before convection
-! out: updated by convection as well
+! IN: updated with any increments added before convection
+! OUT: updated by convection as well
 type(fields_type), intent(in out) :: fields_np1
 
 ! Note: all the input primary fields need to be on the same
@@ -184,8 +186,11 @@ integer :: lb_2(3), ub_2(3)
 ! String indicating where in the code bad-value checks are done
 character(len=name_length) :: where_string
 
+! Flag passed into bad value checker for fields that are always positive-only
+logical, parameter :: l_positive_true = .true.
+
 ! Loop counters
-integer :: i_seg, i_field
+integer :: i_seg, i_field, i_diag
 
 
 !----------------------------------------------------------------
@@ -207,11 +212,22 @@ call fields_list_make( l_tracer, fields_np1 )
 ! Set super-array addresses for convective cloud fields
 if ( .not. l_init_cloudfracs_type_mod )  call cloudfracs_set_addresses()
 
+call cloudfracs_list_make( cloudfracs )
+
 ! Set super-array addresses for 2D fields
 if ( .not. l_init_fields_2d_mod )  call fields_2d_set_addresses()
 
 ! Setup list of pointers to turbulence fields
 if ( l_turb_par_gen  )  call turb_list_make( turb )
+
+! Set super-array addresses for parcel fields
+if ( .not. l_init_parcel_type_mod )  call parcel_set_addresses()
+
+! Set super-array addresses for res_source fields
+if ( .not. l_init_res_source_type_mod )  call res_source_set_addresses()
+
+! Set super-array addresses for buoyancies etc at sub-level steps
+if ( .not. l_init_sublevs_mod )  call sublevs_set_addresses()
 
 ! Set number of fields including tracers; (an array size
 ! required by conv_sweep_ctl)
@@ -252,14 +268,7 @@ if ( i_check_bad_values_3d > i_check_bad_none ) then
   ! Also check turbulence fields if used
   if ( l_turb_par_gen ) then
     where_string = "On input to CoMorph: turbulence fields:"
-    do i_field = 1, n_turb
-      lb_1 = lbound( turb % list(i_field)%pt )
-      ub_1 = ubound( turb % list(i_field)%pt )
-      call check_bad_values_3d( lb_1, ub_1, turb%list(i_field)%pt,             &
-                                where_string,turb_names(i_field),              &
-                                turb_positive(i_field),                        &
-                                l_half=.true., l_init=.true. )
-    end do
+    call turb_check_bad_values( turb, where_string )
   end if
 
 end if  ! ( i_check_bad_values_3d > i_check_bad_none )
@@ -300,7 +309,7 @@ end if
 
 ! Calculate the layer masses at all points, for conservation
 ! (note need to pass in the bounds of the full 3-D arrays,
-!  in case they have halos).
+!  in case they have haloes).
 lb_rho = lbound(grid%rho_dry)
 ub_rho = ubound(grid%rho_dry)
 lb_rs = lbound(grid%r_surf)
@@ -311,16 +320,6 @@ call calc_layer_mass( lb_rho, ub_rho, grid%rho_dry, lb_rs, ub_rs, grid%r_surf, &
                       lb_h, ub_h, grid%height_half,                            &
                       layer_mass )
 
-! Initialise array bounds for optional water-species
-lb_r = [1,1,1]
-ub_r = [1,1,1]
-lb_f = [1,1,1]
-ub_f = [1,1,1]
-lb_s = [1,1,1]
-ub_s = [1,1,1]
-lb_g = [1,1,1]
-ub_g = [1,1,1]
-
 ! Find array bounds needed for virtual temperature calculation routine
 lb_t = lbound(fields_n % temperature)
 ub_t = ubound(fields_n % temperature)
@@ -328,22 +327,14 @@ lb_v = lbound(fields_n % q_vap)
 ub_v = ubound(fields_n % q_vap)
 lb_l = lbound(fields_n % q_cl)
 ub_l = ubound(fields_n % q_cl)
-if ( l_cv_rain ) then
-  lb_r = lbound(fields_n % q_rain)
-  ub_r = ubound(fields_n % q_rain)
-end if
-if ( l_cv_cf ) then
-  lb_f = lbound(fields_n % q_cf)
-  ub_f = ubound(fields_n % q_cf)
-end if
-if ( l_cv_snow ) then
-  lb_s = lbound(fields_n % q_snow)
-  ub_s = ubound(fields_n % q_snow)
-end if
-if ( l_cv_graup ) then
-  lb_g = lbound(fields_n % q_graup)
-  ub_g = ubound(fields_n % q_graup)
-end if
+lb_r = lbound(fields_n % q_rain)
+ub_r = ubound(fields_n % q_rain)
+lb_f = lbound(fields_n % q_cf)
+ub_f = ubound(fields_n % q_cf)
+lb_s = lbound(fields_n % q_snow)
+ub_s = ubound(fields_n % q_snow)
+lb_g = lbound(fields_n % q_graup)
+ub_g = ubound(fields_n % q_graup)
 ! Calculate start-of-timestep virtual temperature profile
 call calc_virt_temp_3d( lb_t, ub_t, fields_n % temperature,                    &
                         lb_v, ub_v, fields_n % q_vap,                          &
@@ -361,22 +352,14 @@ lb_v = lbound(fields_np1 % q_vap)
 ub_v = ubound(fields_np1 % q_vap)
 lb_l = lbound(fields_np1 % q_cl)
 ub_l = ubound(fields_np1 % q_cl)
-if ( l_cv_rain ) then
-  lb_r = lbound(fields_np1 % q_rain)
-  ub_r = ubound(fields_np1 % q_rain)
-end if
-if ( l_cv_cf ) then
-  lb_f = lbound(fields_np1 % q_cf)
-  ub_f = ubound(fields_np1 % q_cf)
-end if
-if ( l_cv_snow ) then
-  lb_s = lbound(fields_np1 % q_snow)
-  ub_s = ubound(fields_np1 % q_snow)
-end if
-if ( l_cv_graup ) then
-  lb_g = lbound(fields_np1 % q_graup)
-  ub_g = ubound(fields_np1 % q_graup)
-end if
+lb_r = lbound(fields_np1 % q_rain)
+ub_r = ubound(fields_np1 % q_rain)
+lb_f = lbound(fields_np1 % q_cf)
+ub_f = ubound(fields_np1 % q_cf)
+lb_s = lbound(fields_np1 % q_snow)
+ub_s = ubound(fields_np1 % q_snow)
+lb_g = lbound(fields_np1 % q_graup)
+ub_g = ubound(fields_np1 % q_graup)
 ! Calculate latest virtual temperature profile
 call calc_virt_temp_3d( lb_t, ub_t, fields_np1 % temperature,                  &
                         lb_v, ub_v, fields_np1 % q_vap,                        &
@@ -413,12 +396,18 @@ if ( l_turb_par_gen .and.                                                      &
   call calc_turb_diags( turb, comorph_diags )
 end if
 
-! If diagnostics for separate dry, cloudy, icy/rainy sub-grid
-! regions are requested, calculate them here
-if ( l_cv_rain .and.                                                           &
-     comorph_diags % n_diags_subregions > 0 ) then
-  call calc_subregion_diags( grid, fields_np1, cloudfracs,                     &
-                             comorph_diags % subregion_diags )
+! Copy primary fields input to comorph if requested as diagnostics
+if ( comorph_diags % fields_inp % n_diags > 0 ) then
+  do i_diag = 1, comorph_diags % fields_inp % n_diags
+    i_field = comorph_diags % fields_inp % list(i_diag)%pt % i_field
+    lb_1 = lbound( fields_np1 % list(i_field)%pt )
+    ub_1 = ubound( fields_np1 % list(i_field)%pt )
+    lb_2 = lbound( comorph_diags % fields_inp % list(i_diag)%pt % field_3d )
+    ub_2 = ubound( comorph_diags % fields_inp % list(i_diag)%pt % field_3d )
+    call copy_field_3d( lb_1, ub_1, fields_np1 % list(i_field)%pt,             &
+                        lb_2, ub_2, comorph_diags % fields_inp                 &
+                                    % list(i_diag)%pt % field_3d )
+  end do
 end if
 
 
@@ -477,14 +466,14 @@ end do
 ! convection tends to be highly unevenly distributed in space.
 ! Use of dynamic scheduling should help with this.
 
-!$OMP  PARALLEL DEFAULT(none)                                                  &
+!$OMP  PARALLEL DEFAULT(NONE)                                                  &
 !$OMP  SHARED(  n_segments, seg_n_points, seg_ij_last,                         &
 !$OMP           n_fields_tot, l_tracer,                                        &
 !$OMP           grid, turb, cloudfracs, fields_np1,                            &
 !$OMP           layer_mass, virt_temp_n, virt_temp_np1,                        &
 !$OMP           l_init_poss, comorph_diags )                                   &
-!$OMP  private( i_seg )
-!$OMP do SCHEDULE(DYNAMIC)
+!$OMP  PRIVATE( i_seg )
+!$OMP DO SCHEDULE(DYNAMIC)
 do i_seg = 1, n_segments
 
   ! Call main comorph routine; calls various other routines to diagnose
@@ -499,8 +488,23 @@ do i_seg = 1, n_segments
                      l_init_poss, comorph_diags )
 
 end do  ! i_seg = 1, n_segments
-!$OMP end do NOWAIT
-!$OMP end PARALLEL
+!$OMP END DO NOWAIT
+!$OMP END PARALLEL
+
+
+! Copy primary fields output from comorph if requested as diagnostics
+if ( comorph_diags % fields_out % n_diags > 0 ) then
+  do i_diag = 1, comorph_diags % fields_out % n_diags
+    i_field = comorph_diags % fields_out % list(i_diag)%pt % i_field
+    lb_1 = lbound( fields_np1 % list(i_field)%pt )
+    ub_1 = ubound( fields_np1 % list(i_field)%pt )
+    lb_2 = lbound( comorph_diags % fields_out % list(i_diag)%pt % field_3d )
+    ub_2 = ubound( comorph_diags % fields_out % list(i_diag)%pt % field_3d )
+    call copy_field_3d( lb_1, ub_1, fields_np1 % list(i_field)%pt,             &
+                        lb_2, ub_2, comorph_diags % fields_out                 &
+                                    % list(i_diag)%pt % field_3d )
+  end do
+end if
 
 
 ! Check the fields to ensure no bad values on output
@@ -529,6 +533,9 @@ call comorph_diags_dealloc( comorph_diags )
 
 ! Clear list of pointers to turbulence fields
 if ( l_turb_par_gen )  call turb_list_clear( turb )
+
+! Clear list of pointers to convective cloud fields
+call cloudfracs_list_clear( cloudfracs )
 
 ! Clear lists of pointers to the primary fields
 call fields_list_clear( fields_np1 )

@@ -36,33 +36,39 @@ contains
 ! to a uniform profile of detrainment within the BL, instead
 ! of entrainment.
 !
-subroutine homog_conv_bl( n_conv_types, n_conv_layers,                         &
+subroutine homog_conv_bl( n_points_top, n_conv_types, n_conv_layers,           &
                           n_fields_tot, l_down,                                &
                           i_type, i_layr, k_bl_top,                            &
                           ij_first, ij_last, index_ic,                         &
                           grid, fields_np1, layer_mass,                        &
-                          par_bl_top, res_source )
+                          par_bl_top_cmpr,                                     &
+                          par_bl_top_massflux, par_bl_top_fields,              &
+                          res_source )
 
-use comorph_constants_mod, only: real_cvprec, real_hmprec, zero, one,          &
-                     nx_full, ny_full, k_bot_conv, k_top_conv,                 &
-                     n_cond_species, n_cond_species_liq,                       &
-                     L_con_0, L_sub_0, l_cv_cloudfrac, sqrt_min_float
+use comorph_constants_mod, only: real_cvprec, real_hmprec,                     &
+                                 zero, one, two, half,                         &
+                                 nx_full, ny_full, k_bot_conv, k_top_conv,     &
+                                 n_cond_species, n_cond_species_liq,           &
+                                 L_con_0, L_sub_0,                             &
+                                 l_cv_cloudfrac, min_float, sqrt_min_float
 use cmpr_type_mod, only: cmpr_type, cmpr_alloc
 use grid_type_mod, only: grid_type
 use fields_type_mod, only: fields_type, n_fields,                              &
                            i_qc_first, i_qc_last, i_q_vap,                     &
                            i_temperature, i_wind_u, i_wind_w,                  &
-                           i_cf_liq, i_cf_bulk
-use parcel_type_mod, only: parcel_type, i_massflux_d
-use res_source_type_mod, only: res_source_type, i_ent, i_det
+                           i_cf_first, i_cf_last, field_positive
+use res_source_type_mod, only: res_source_type, n_res, i_ent, i_det
 use compress_mod, only: compress
 use calc_q_tot_mod, only: calc_q_tot
 use set_cp_tot_mod, only: set_cp_tot
 use dry_adiabat_mod, only: dry_adiabat
 use calc_virt_temp_dry_mod, only: calc_virt_temp_dry
 
-
 implicit none
+
+
+! Number of points where convection crossed the BL-top at level k_bl_top
+integer, intent(in) :: n_points_top
 
 ! Number of convection types
 integer, intent(in) :: n_conv_types
@@ -104,72 +110,67 @@ type(fields_type), intent(in) :: fields_np1
 real(kind=real_hmprec), intent(in) :: layer_mass                               &
        ( nx_full, ny_full, k_bot_conv:k_top_conv )
 
-! Structures containing parcel properties at the
+! Compression indices, massflux and parcel mean properties at the
 ! first level above the boundary-layer top, only for convection
 ! of the current type and layer which passed the BL-top at
 ! level k_bl_top
-type(parcel_type), intent(in) :: par_bl_top
+type(cmpr_type), intent(in) :: par_bl_top_cmpr
+real(kind=real_cvprec), intent(in out) :: par_bl_top_massflux(n_points_top)
+real(kind=real_cvprec), intent(in out) :: par_bl_top_fields                    &
+                                          ( n_points_top, n_fields_tot )
 
 ! Resolved-scale source terms to be modified
 type(res_source_type), intent(in out) :: res_source                            &
           ( n_conv_types, n_conv_layers, k_bot_conv:k_top_conv )
 
-
 ! Total-water mixing ratio and liquid+ice-water enthalpy
 ! of the parcel at the BL-top
-real(kind=real_cvprec) :: par_bl_top_q_tot                                     &
-                          ( par_bl_top % cmpr % n_points )
-real(kind=real_cvprec) :: par_bl_top_templ                                     &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: par_bl_top_q_tot(n_points_top)
+real(kind=real_cvprec) :: par_bl_top_templ(n_points_top)
 
 ! Total-water mixing ratio and liquid+ice-water enthalpy
 ! of vertical-mean environment below the BL-top
-real(kind=real_cvprec) :: par_bl_mean_q_tot                                    &
-                          ( par_bl_top % cmpr % n_points )
-real(kind=real_cvprec) :: par_bl_mean_templ                                    &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: par_bl_mean_q_tot(n_points_top)
+real(kind=real_cvprec) :: par_bl_mean_templ(n_points_top)
 
-! Compressed layer-masses
-real(kind=real_cvprec) :: layer_mass_k                                         &
-                          ( par_bl_top % cmpr % n_points )
+! Compressed layer masses on each model-level
+real(kind=real_cvprec) :: layer_mass_cmpr                                      &
+                          ( n_points_top,                                      &
+                            k_bot_conv:k_bl_top )
 
-! Compressed primary fields from one model-level
-real(kind=real_cvprec) :: fields_k                                             &
-             ( par_bl_top % cmpr % n_points, n_fields_tot )
+! Compressed primary fields from each model-level
+real(kind=real_cvprec) :: fields_cmpr                                          &
+                          ( n_points_top,                                      &
+                            n_fields_tot, k_bot_conv:k_bl_top )
+
+! Factor for dry adiabatic adjustment from each model-level to the BL-top
+real(kind=real_cvprec) :: exner_ratio                                          &
+                          ( n_points_top, k_bot_conv:k_bl_top )
 
 ! Vertical integral of layer-masses below the BL-top
-real(kind=real_cvprec) :: layer_mass_bl                                        &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: layer_mass_bl(n_points_top)
 
 ! Vertical means of fields over the boundary-layer
 real(kind=real_cvprec) :: par_bl_mean_fields                                   &
-             ( par_bl_top % cmpr % n_points, n_fields_tot )
+                          ( n_points_top, n_fields_tot )
 
 ! Compressed environment total condensed water mixing-ratio
-real(kind=real_cvprec) :: q_cond_tot                                           &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: q_cond_tot(n_points_top)
 ! Compressed environment latent enthalpy term from condensate
-real(kind=real_cvprec) :: lat_heat_term                                        &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: lat_heat_term(n_points_top)
 
 ! Compressed pressure from current level and BL-top
-real(kind=real_cvprec) :: pressure_k                                           &
-                          ( par_bl_top % cmpr % n_points )
-real(kind=real_cvprec) :: par_bl_top_pressure                                  &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: pressure_k(n_points_top)
+real(kind=real_cvprec) :: par_bl_top_pressure(n_points_top)
 
 ! Total heat capacity for conversion from temperature to enthalpy
-real(kind=real_cvprec) :: cp_tot                                               &
-                          ( par_bl_top % cmpr % n_points )
-! Exner ratio for pressure change up to BL-top
-real(kind=real_cvprec) :: exner_ratio                                          &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: cp_tot(n_points_top)
 ! Total-water mixing ratio for conversion to momentum / dry-mass
-real(kind=real_cvprec) :: q_tot                                                &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: q_tot(n_points_top)
+! Temperature
+real(kind=real_cvprec) :: temperature(n_points_top)
 ! Dry virtual temperature T ( 1 + Rv/Rd q_vap )
-real(kind=real_cvprec) :: virt_temp_dry                                        &
-                          ( par_bl_top % cmpr % n_points )
+real(kind=real_cvprec) :: virt_temp_dry(n_points_top)
 
 ! Latent heat term
 real(kind=real_cvprec) :: Lc
@@ -184,16 +185,18 @@ type(cmpr_type), allocatable :: cmpr(:)
 ! Indices of those points in the par_bl_top and res-source
 ! compression lists
 integer :: index_ic_top                                                        &
-           ( par_bl_top % cmpr % n_points, k_bot_conv:k_bl_top )
+           ( n_points_top, k_bot_conv:k_bl_top )
 integer :: index_ic_res                                                        &
-           ( par_bl_top % cmpr % n_points, k_bot_conv:k_bl_top )
+           ( n_points_top, k_bot_conv:k_bl_top )
+
+! Index of the half-level where the BL-top parcel is defined on input
+integer :: k_half_top
 
 ! Lower and upper bounds of full 3-D arrays
 integer :: lb(3), ub(3)
 
 ! Loop counters
-integer :: i, j, k, ic, ic2, ic3, i_cond, i_field
-
+integer :: i, j, k, ic, ic2, i_cond, i_field
 
 
 !----------------------------------------------------------------
@@ -209,10 +212,10 @@ do k = k_bot_conv, k_bl_top
   ! Initialise number of points to zero
   cmpr(k) % n_points = 0
 
-  do ic = 1, par_bl_top % cmpr % n_points
+  do ic = 1, n_points_top
     ! Extract i,j coordinates of points which hit the BL-top
-    i = par_bl_top % cmpr % index_i(ic)
-    j = par_bl_top % cmpr % index_j(ic)
+    i = par_bl_top_cmpr % index_i(ic)
+    j = par_bl_top_cmpr % index_j(ic)
     ! Extract res-source compression index for those coords
     ic2 = index_ic( nx_full*(j-1)+i, k )
     if ( ic2 > 0 ) then
@@ -229,8 +232,8 @@ do k = k_bot_conv, k_bl_top
     call cmpr_alloc( cmpr(k), cmpr(k) % n_points )
     do ic2 = 1, cmpr(k) % n_points
       ic = index_ic_top(ic2,k)
-      cmpr(k) % index_i(ic2) = par_bl_top % cmpr % index_i(ic)
-      cmpr(k) % index_j(ic2) = par_bl_top % cmpr % index_j(ic)
+      cmpr(k) % index_i(ic2) = par_bl_top_cmpr % index_i(ic)
+      cmpr(k) % index_j(ic2) = par_bl_top_cmpr % index_j(ic)
     end do
   end if
 
@@ -238,135 +241,156 @@ end do
 
 
 !----------------------------------------------------------------
-! 2) Calculate vertical mean environment dry-mass and water over
-!    res_source points below the BL-top
+! 2) Compress required environment fields
 !----------------------------------------------------------------
 
-! Initialise vertical means over the BL to zero
-do ic = 1, par_bl_top % cmpr % n_points
+do k = k_bot_conv, k_bl_top
+  if ( cmpr(k) % n_points > 0 ) then
+
+    ! Compress the layer-masses
+    lb = lbound(layer_mass)
+    ub = ubound(layer_mass)
+    call compress( cmpr(k), lb(1:2), ub(1:2), layer_mass(:,:,k),               &
+                   layer_mass_cmpr(:,k) )
+
+    ! Compress all primary fields
+    do i_field = 1, n_fields_tot
+      lb = lbound(fields_np1%list(i_field)%pt)
+      ub = ubound(fields_np1%list(i_field)%pt)
+      call compress( cmpr(k), lb(1:2), ub(1:2),                                &
+                     fields_np1%list(i_field)%pt(:,:,k),                       &
+                     fields_cmpr(:,i_field,k) )
+      ! Remove spurious negative values from input data
+      if ( field_positive(i_field) ) then
+        do ic2 = 1, cmpr(k) % n_points
+          fields_cmpr(ic2,i_field,k) = max( fields_cmpr(ic2,i_field,k), zero )
+        end do
+      end if
+    end do  ! i_field = 1, n_fields_tot
+
+  end if
+end do
+
+
+!----------------------------------------------------------------
+! 3) Zero the resolved-scale source terms within the boundary-layer
+!----------------------------------------------------------------
+
+! For now do total homogenization on all levels fully within the BL
+do k = k_bot_conv, k_bl_top
+  if ( cmpr(k) % n_points > 0 ) then
+    do ic2 = 1, cmpr(k) % n_points
+      ic = index_ic_res(ic2,k)
+      ! Reset resolved-scale source-terms to zero where doing
+      ! full homogenization
+      do i_field = 1, n_res
+        res_source(i_type,i_layr,k) % res_super(ic,i_field) = zero
+      end do
+      do i_field = 1, n_fields_tot
+        res_source(i_type,i_layr,k) % fields_super(ic,i_field) = zero
+      end do
+      ! (note: we've reset all the source terms except for the convective
+      !  cloud fields; these shouldn't disappear just because we're
+      !  homogenising the increments!)
+    end do
+  end if
+end do
+
+
+!----------------------------------------------------------------
+! 4) Adiabatically adjust the BL-top parcel properties to the full-level
+!    at the BL-top.
+!----------------------------------------------------------------
+
+! (to be added here in another ticket)
+
+k_half_top = k_bl_top + 1
+
+
+!----------------------------------------------------------------
+! 5) At the level straddling the BL-top, partially homogenize based
+!    on fraction of the model-level which lies within the BL...
+!----------------------------------------------------------------
+
+! (to be added here in another ticket)
+
+
+!----------------------------------------------------------------
+! 6) Calculate environment dry-mass to entrain homogensously from each
+!    model-level, so-as to sum to the BL-top parcel mass-flux
+!----------------------------------------------------------------
+
+! Initialise vertical integrals to zero
+do ic = 1, n_points_top
   layer_mass_bl(ic) = zero
 end do
-do i_field = i_q_vap, i_qc_last
-  do ic = 1, par_bl_top % cmpr % n_points
+do i_field = 1, n_fields_tot
+  do ic = 1, n_points_top
     par_bl_mean_fields(ic,i_field) = zero
   end do
 end do
 
+! Add up vertical integral of layer-mass over the BL
 do k = k_bot_conv, k_bl_top
   if ( cmpr(k) % n_points > 0 ) then
-
-    ! Compress the layer-masses onto current points
-    lb = lbound(layer_mass)
-    ub = ubound(layer_mass)
-    call compress( cmpr(k), lb(1:2), ub(1:2), layer_mass(:,:,k), layer_mass_k )
-
-    ! Store layer-mass in the res_source mass array
-    do ic2 = 1, cmpr(k) % n_points
-      ic = index_ic_res(ic2,k)
-      res_source(i_type,i_layr,k) % res_super(ic,i_ent)                        &
-        = layer_mass_k(ic2)
-    end do
-
-    ! Add up vertical integral of layer-mass over the BL
     do ic2 = 1, cmpr(k) % n_points
       ic = index_ic_top(ic2,k)
-      layer_mass_bl(ic) = layer_mass_bl(ic) + layer_mass_k(ic2)
+      layer_mass_bl(ic) = layer_mass_bl(ic) + layer_mass_cmpr(ic2,k)
     end do
-
-    ! For each water-species...
-    do i_field = i_q_vap, i_qc_last
-
-      ! Compress the environment water onto current points
-      lb = lbound(fields_np1%list(i_field)%pt)
-      ub = ubound(fields_np1%list(i_field)%pt)
-      call compress( cmpr(k), lb(1:2), ub(1:2),                                &
-                     fields_np1%list(i_field)%pt(:,:,k), fields_k(:,i_field) )
-      ! Remove spurious negative values from input data
-      do ic2 = 1, cmpr(k) % n_points
-        fields_k(ic2,i_field) = max( fields_k(ic2,i_field),                    &
-                                     zero )
-      end do
-
-      ! We now overwrite the resolved-scale source terms
-      ! with new entrained air properties and mass based
-      ! on the mean environment properties
-      do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        res_source(i_type,i_layr,k) % fields_super(ic,i_field)                 &
-          = fields_k(ic2,i_field)
-      end do
-
-      ! Add up vertical integral of water over the BL
-      do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_top(ic2,k)
-        par_bl_mean_fields(ic,i_field)                                         &
-          = par_bl_mean_fields(ic,i_field)                                     &
-          + fields_k(ic2,i_field) * layer_mass_k(ic2)
-      end do
-
-    end do  ! i_field = i_q_vap, i_qc_last
-
-  end if  ! ( cmpr(k) % n_points > 0 )
-end do  ! k = k_bot_conv, k_bl_top
-
-! Normalise the vertical means of water-masses
-do i_field = i_q_vap, i_qc_last
-  do ic = 1, par_bl_top % cmpr % n_points
-    par_bl_mean_fields(ic,i_field)                                             &
-      = par_bl_mean_fields(ic,i_field)                                         &
-      / layer_mass_bl(ic)
-  end do
+  end if
 end do
 
 
 !----------------------------------------------------------------
-! 3) Calculate total-water mixing-ratio of the parcel at the
-!    BL-top and the mean environment below BL-top
-!----------------------------------------------------------------
+! 7) Calculate environment water contents to entrain from each
+!    model-level, so-as to sum to the BL-top parcel total-water
+!---------------------------------------------------------------
 
-call calc_q_tot( par_bl_top % cmpr % n_points,                                 &
-                 par_bl_top % cmpr % n_points,                                 &
-                 par_bl_top % mean_super(:,i_q_vap),                           &
-                 par_bl_top % mean_super(:,i_qc_first:i_qc_last),              &
+! Integrate environment water species over the boundary-layer,
+! weighted by entrained mass
+do k = k_bot_conv, k_bl_top
+  if ( cmpr(k) % n_points > 0 ) then
+    do i_field = i_q_vap, i_qc_last
+      do ic2 = 1, cmpr(k) % n_points
+        ic = index_ic_top(ic2,k)
+        par_bl_mean_fields(ic,i_field)                                         &
+          = par_bl_mean_fields(ic,i_field)                                     &
+          + fields_cmpr(ic2,i_field,k) * layer_mass_cmpr(ic2,k)
+      end do
+    end do
+  end if
+end do
+! Normalise the vertical means of water-masses
+do i_field = i_q_vap, i_qc_last
+  do ic = 1, n_points_top
+    par_bl_mean_fields(ic,i_field) = par_bl_mean_fields(ic,i_field)            &
+                                   / max( layer_mass_bl(ic), min_float )
+  end do
+end do
+
+! Calculate total-water mixing-ratio of the parcel at the
+! BL-top and the mean environment below BL-top
+call calc_q_tot( n_points_top, n_points_top,                                   &
+                 par_bl_top_fields(:,i_q_vap),                                 &
+                 par_bl_top_fields(:,i_qc_first:i_qc_last),                    &
                  par_bl_top_q_tot )
-call calc_q_tot( par_bl_top % cmpr % n_points,                                 &
-                 par_bl_top % cmpr % n_points,                                 &
+call calc_q_tot( n_points_top, n_points_top,                                   &
                  par_bl_mean_fields(:,i_q_vap),                                &
                  par_bl_mean_fields(:,i_qc_first:i_qc_last),                   &
                  par_bl_mean_q_tot )
 
-
-!----------------------------------------------------------------
-! 4) Work out dry-mass and water-vapour to entrain from each
-!    level below BL-top such that they integrate to the parcel
-!    mass-flux and total-water at the BL-top
-!----------------------------------------------------------------
-
+! Work out water-vapour to entrain from each level below BL-top such that
+! the entrained total-water integrates to the BL-top parcel total-water
 do k = k_bot_conv, k_bl_top
   if ( cmpr(k) % n_points > 0 ) then
 
-    ! Scale mass entrained from each layer such that
-    ! its vertical integral equals the mass-flux of
-    ! the parcel at the BL-top
-    do ic2 = 1, cmpr(k) % n_points
-      ic = index_ic_res(ic2,k)
-      ic3 = index_ic_top(ic2,k)
-      res_source(i_type,i_layr,k) % res_super(ic,i_ent)                        &
-        = par_bl_top % par_super(ic3,i_massflux_d)                             &
-          * ( res_source(i_type,i_layr,k) % res_super(ic,i_ent)                &
-            / layer_mass_bl(ic3) )
-    end do
-
-    ! Calculate environment total condensed water using the
-    ! condensate mixing-ratios we stashed in res_source earlier.
+    ! Calculate environment total condensed water
     do ic2 = 1, cmpr(k) % n_points
       q_cond_tot(ic2) = zero
     end do
     do i_field = i_qc_first, i_qc_last
       do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        q_cond_tot(ic2) = q_cond_tot(ic2)                                      &
-         + res_source(i_type,i_layr,k) % fields_super(ic,i_field)
+        q_cond_tot(ic2) = q_cond_tot(ic2) + fields_cmpr(ic2,i_field,k)
       end do
     end do
 
@@ -374,28 +398,27 @@ do k = k_bot_conv, k_bl_top
     ! scale the vertical integral of entrained
     ! total-water to the value in the parcel at BL-top
     do ic2 = 1, cmpr(k) % n_points
-      ic = index_ic_res(ic2,k)
-      ic3 = index_ic_top(ic2,k)
-      if ( par_bl_mean_q_tot(ic3) > zero ) then
+      ic = index_ic_top(ic2,k)
+      if ( par_bl_mean_q_tot(ic) > zero ) then
         ! Avoid div-by-zero in the unlikely event that the
         ! BL water content has fallen to zero
 
         ! Fractional increase of total water required
-        fac = par_bl_top_q_tot(ic3) / par_bl_mean_q_tot(ic3)
+        fac = par_bl_top_q_tot(ic) / par_bl_mean_q_tot(ic)
 
         ! Modification of vapour; we want:
         ! q_vap_new + q_cond = fac * ( q_vap_old + q_cond )
         ! Rearranging:
         ! q_vap_new = q_vap_old * fac + q_cond * (fac-1)
-        res_source(i_type,i_layr,k) % fields_super(ic,i_q_vap)                 &
-        = res_source(i_type,i_layr,k) % fields_super(ic,i_q_vap)               &
-          * fac                                                                &
-        + q_cond_tot(ic2) * ( fac - one )
+        fields_cmpr(ic2,i_q_vap,k) = fields_cmpr(ic2,i_q_vap,k) * fac          &
+                                   + q_cond_tot(ic2) * ( fac - one )
 
       else
+        ! Possible to have zero q_tot in the BL, but non-zero q_tot
+        ! in a downdraft parcel descending from above; in this case
+        ! set detrained q_vap equal to the parcel q_tot
 
-        res_source(i_type,i_layr,k) % fields_super(ic,i_q_vap)                 &
-          = par_bl_top_q_tot(ic3)  ! Probably zero
+        fields_cmpr(ic2,i_q_vap,k) = par_bl_top_q_tot(ic)
 
       end if
     end do
@@ -403,47 +426,40 @@ do k = k_bot_conv, k_bl_top
   end if  ! ( cmpr(k) % n_points > 0 )
 end do  ! k = k_bot_conv, k_bl_top
 
-
-!----------------------------------------------------------------
-! 5) Calculate vertical mean enthalpy per unit dry-mass over
-!    res_source points below the BL-top
-!----------------------------------------------------------------
-
-! Initialise vertical integral of enthalpy
-do ic = 1, par_bl_top % cmpr % n_points
-  par_bl_mean_fields(ic,i_temperature) = zero
+! Scale mass of each layer such that its vertical integral equals the
+! mass-flux of the parcel at the BL-top.  This will then be used later to
+! set the mass entrained from each layer...
+do k = k_bot_conv, k_bl_top
+  if ( cmpr(k) % n_points > 0 ) then
+    do ic2 = 1, cmpr(k) % n_points
+      ic = index_ic_top(ic2,k)
+      layer_mass_cmpr(ic2,k) = par_bl_top_massflux(ic)                         &
+            * ( layer_mass_cmpr(ic2,k) / max( layer_mass_bl(ic), min_float ) )
+    end do
+  end if
 end do
+
+
+!----------------------------------------------------------------
+! 8) Calculate environment temperature to entrain from each model-level,
+!    such that the integrated entrained enthalpy equals the BL-top
+!    parcel enthalpy
+!----------------------------------------------------------------
 
 do k = k_bot_conv, k_bl_top
   if ( cmpr(k) % n_points > 0 ) then
 
-    ! Compress the environment temperature
-    lb = lbound(fields_np1%list(i_temperature)%pt)
-    ub = ubound(fields_np1%list(i_temperature)%pt)
-    call compress( cmpr(k), lb(1:2), ub(1:2),                                  &
-                   fields_np1%list(i_temperature)%pt(:,:,k),                   &
-                   fields_k(:,i_temperature) )
-
-    ! Extract the entrained water-species
-    ! back from the res_source arrays
-    do i_field = i_q_vap, i_qc_last
-      do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        fields_k(ic2,i_field)                                                  &
-         = res_source(i_type,i_layr,k) % fields_super(ic,i_field)
-      end do
-    end do
-
     ! Convert environment temperature to enthalpy cp_tot * T
     ! (note we are using the already updated q_vap to set cp)
-    call set_cp_tot( cmpr(k)%n_points,                                         &
-                     par_bl_top % cmpr % n_points,                             &
-                     fields_k(:,i_q_vap),                                      &
-                     fields_k(:,i_qc_first:i_qc_last),                         &
+    call set_cp_tot( cmpr(k)%n_points, n_points_top,                           &
+                     fields_cmpr(:,i_q_vap,k),                                 &
+                     fields_cmpr(:,i_qc_first,k),                              &
+    !                fields_cmpr(:,i_qc_first:i_qc_last,k),                    &
+    !                avoid spurious array temporary with ifort
                      cp_tot )
     do ic2 = 1, cmpr(k) % n_points
-      fields_k(ic2,i_temperature) = fields_k(ic2,i_temperature)                &
-                                  * cp_tot(ic2)
+      fields_cmpr(ic2,i_temperature,k) = fields_cmpr(ic2,i_temperature,k)      &
+                                       * cp_tot(ic2)
     end do
 
     ! Extract pressure from current level and BL-top
@@ -451,66 +467,53 @@ do k = k_bot_conv, k_bl_top
     ub = ubound(grid % pressure_full)
     call compress( cmpr(k), lb(1:2), ub(1:2),                                  &
                    grid % pressure_full(:,:,k), pressure_k )
-    ! Note: k_bl_top is the index of the BL-top full-level; the BL-top
-    ! parcel is defined at the next half-level up from this, so need
-    ! to index pressure_half using k_bl_top+1
     lb = lbound(grid % pressure_half)
     ub = ubound(grid % pressure_half)
     call compress( cmpr(k), lb(1:2), ub(1:2),                                  &
-                   grid % pressure_half(:,:,k_bl_top+1), par_bl_top_pressure )
+                   grid % pressure_half(:,:,k_half_top), par_bl_top_pressure )
+
+    ! Calculate dry adiabatic scaling factor if lifted to the BL-top
+    do ic2 = 1, cmpr(k) % n_points
+      exner_ratio(ic2,k) = one
+    end do
+    call dry_adiabat( cmpr(k)%n_points, n_points_top,                          &
+                      pressure_k, par_bl_top_pressure,                         &
+                      fields_cmpr(:,i_q_vap,k),                                &
+                      fields_cmpr(:,i_qc_first,k),                             &
+    !                 fields_cmpr(:,i_qc_first:i_qc_last,k),                   &
+    !                 avoid spurious array temporary with ifort
+                      exner_ratio(:,k) )
 
     ! Calculate enthalpy of air if lifted to the BL-top
-    call dry_adiabat( cmpr(k)%n_points,                                        &
-                      par_bl_top % cmpr % n_points,                            &
-                      pressure_k, par_bl_top_pressure,                         &
-                      fields_k(:,i_q_vap),                                     &
-                      fields_k(:,i_qc_first:i_qc_last),                        &
-                      exner_ratio )
     do ic2 = 1, cmpr(k) % n_points
-      fields_k(ic2,i_temperature) = fields_k(ic2,i_temperature)                &
-                                  * exner_ratio(ic2)
-    end do
-
-    ! Copy this enthalpy into the resolved-scale source term
-    ! arrays
-    do ic2 = 1, cmpr(k) % n_points
-      ic = index_ic_res(ic2,k)
-      res_source(i_type,i_layr,k) %fields_super(ic,i_temperature)              &
-          = fields_k(ic2,i_temperature)
+      fields_cmpr(ic2,i_temperature,k) = fields_cmpr(ic2,i_temperature,k)      &
+                                       * exner_ratio(ic2,k)
     end do
 
     ! Integrate up vertical mean enthalpy
     do ic2 = 1, cmpr(k) % n_points
-      ic = index_ic_res(ic2,k)
-      ic3 = index_ic_top(ic2,k)
-      par_bl_mean_fields(ic3,i_temperature)                                    &
-        = par_bl_mean_fields(ic3,i_temperature)                                &
-        + fields_k(ic2,i_temperature)                                          &
-          * res_source(i_type,i_layr,k) % res_super(ic,i_ent)
+      ic = index_ic_top(ic2,k)
+      par_bl_mean_fields(ic,i_temperature)                                     &
+        = par_bl_mean_fields(ic,i_temperature)                                 &
+        + fields_cmpr(ic2,i_temperature,k) * layer_mass_cmpr(ic2,k)
     end do
 
   end if  ! ( cmpr(k) % n_points > 0 )
 end do  ! k = k_bot_conv, k_bl_top
-
 ! Normalise the vertical mean enthalpy
-do ic = 1, par_bl_top % cmpr % n_points
-  par_bl_mean_fields(ic,i_temperature)                                         &
-    = par_bl_mean_fields(ic,i_temperature)                                     &
-    / par_bl_top % par_super(ic,i_massflux_d)
+do ic = 1, n_points_top
+  par_bl_mean_fields(ic,i_temperature) = par_bl_mean_fields(ic,i_temperature)  &
+                                   / max( par_bl_top_massflux(ic), min_float )
 end do
 
-
-!----------------------------------------------------------------
-! 6) Calculate liquid+ice-water enthalpy of the parcel at the
-!    BL-top and the mean environment below BL-top
-!----------------------------------------------------------------
+! Calculate liquid+ice-water enthalpies (i.e. subtract latent heat
+! terms from the enthalpies calculated so-far)
 
 ! Initialise to zero
-do ic = 1, par_bl_top % cmpr % n_points
+do ic = 1, n_points_top
   par_bl_top_templ(ic) = zero
   par_bl_mean_templ(ic) = zero
 end do
-
 ! Add latent heat contributions from condensed water species
 do i_cond = 1, n_cond_species
   i_field = i_qc_first-1+i_cond
@@ -520,42 +523,27 @@ do i_cond = 1, n_cond_species
   else
     Lc = L_sub_0
   end if
-  do ic = 1, par_bl_top % cmpr % n_points
+  do ic = 1, n_points_top
     ! Add latent enthalpy terms -Lc0 qc to cp_tot*T
     par_bl_top_templ(ic) = par_bl_top_templ(ic)                                &
-                         - par_bl_top % mean_super(ic,i_field)*Lc
+                         - par_bl_top_fields(ic,i_field)*Lc
     par_bl_mean_templ(ic) = par_bl_mean_templ(ic)                              &
                           - par_bl_mean_fields(ic,i_field)*Lc
   end do
 end do  ! i_cond = 1, n_cond_species
 
 ! Add on the rest of the enthalpy
-do ic = 1, par_bl_top % cmpr % n_points
+do ic = 1, n_points_top
   par_bl_top_templ(ic) = par_bl_top_templ(ic)                                  &
-                   + par_bl_top % mean_super(ic,i_temperature)
+                       + par_bl_top_fields(ic,i_temperature)
   par_bl_mean_templ(ic) = par_bl_mean_templ(ic)                                &
-                   + par_bl_mean_fields(ic,i_temperature)
+                        + par_bl_mean_fields(ic,i_temperature)
 end do
 
-
-!----------------------------------------------------------------
-! 7) Work out enthalpy to entrain from each
-!    level below BL-top such that it integrates to the parcel
-!    enthalpy at the BL-top
-!----------------------------------------------------------------
-
+! Work out enthalpy to entrain from each level below BL-top such that
+! it integrates to the parcel enthalpy at the BL-top
 do k = k_bot_conv, k_bl_top
   if ( cmpr(k) % n_points > 0 ) then
-
-    ! Extract the entrained enthalpy and water-species
-    ! back from the res_source arrays
-    do i_field = i_temperature, i_qc_last
-      do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        fields_k(ic2,i_field)                                                  &
-         = res_source(i_type,i_layr,k) % fields_super(ic,i_field)
-      end do
-    end do
 
     ! Calculate environment latent enthalpy term due to
     ! condensed water
@@ -572,7 +560,7 @@ do k = k_bot_conv, k_bl_top
       end if
       do ic2 = 1, cmpr(k) % n_points
         lat_heat_term(ic2) = lat_heat_term(ic2)                                &
-         - fields_k(ic2,i_field) * Lc
+         - fields_cmpr(ic2,i_field,k) * Lc
       end do
     end do
 
@@ -590,43 +578,16 @@ do k = k_bot_conv, k_bl_top
       ! enth_new + lat_heat = fac * ( enth_old + lat_heat )
       ! Rearranging:
       ! enth_new = enth_old * fac + lat_heat * (fac-1)
-      fields_k(ic2,i_temperature)                                              &
-        = fields_k(ic2,i_temperature) * fac                                    &
+      fields_cmpr(ic2,i_temperature,k)                                         &
+        = fields_cmpr(ic2,i_temperature,k) * fac                               &
         + lat_heat_term(ic2) * ( fac - one )
     end do
 
-    ! Extract pressure from current level and BL-top
-    lb = lbound(grid % pressure_full)
-    ub = ubound(grid % pressure_full)
-    call compress( cmpr(k), lb(1:2), ub(1:2),                                  &
-                   grid % pressure_full(:,:,k), pressure_k )
-    ! Note: k_bl_top is the index of the BL-top full-level; the BL-top
-    ! parcel is defined at the next half-level up from this, so need
-    ! to index pressure_half using k_bl_top+1
-    lb = lbound(grid % pressure_half)
-    ub = ubound(grid % pressure_half)
-    call compress( cmpr(k), lb(1:2), ub(1:2),                                  &
-                   grid % pressure_half(:,:,k_bl_top+1), par_bl_top_pressure )
-
     ! Calculate enthalpy of air after subsiding back from the
     ! BL-top down to the current level
-    call dry_adiabat( cmpr(k)%n_points,                                        &
-                      par_bl_top % cmpr % n_points,                            &
-                      pressure_k, par_bl_top_pressure,                         &
-                      fields_k(:,i_q_vap),                                     &
-                      fields_k(:,i_qc_first:i_qc_last),                        &
-                      exner_ratio )
     do ic2 = 1, cmpr(k) % n_points
-      fields_k(ic2,i_temperature) = fields_k(ic2,i_temperature)                &
-                                  / exner_ratio(ic2)
-    end do
-
-    ! Copy final enthalpy into the resolved-scale source term
-    ! arrays
-    do ic2 = 1, cmpr(k) % n_points
-      ic = index_ic_res(ic2,k)
-      res_source(i_type,i_layr,k) %fields_super(ic,i_temperature)              &
-          = fields_k(ic2,i_temperature)
+      fields_cmpr(ic2,i_temperature,k) = fields_cmpr(ic2,i_temperature,k)      &
+                                       / exner_ratio(ic2,k)
     end do
 
   end if  ! ( cmpr(k) % n_points > 0 )
@@ -634,91 +595,52 @@ end do  ! k = k_bot_conv, k_bl_top
 
 
 !----------------------------------------------------------------
-! 8) Calculate vertical mean momentum per unit dry-mass over
-!    res_source points below the BL-top
+! 9) Calculate the winds to entrain from each model-level, such that
+!    the integrated entrained momentum equals the BL-top parcel momentum
 !----------------------------------------------------------------
-
-! Initialise vertical integrals
-do i_field = i_wind_u, i_wind_w
-  do ic = 1, par_bl_top % cmpr % n_points
-    par_bl_mean_fields(ic,i_field) = zero
-  end do
-end do
 
 do k = k_bot_conv, k_bl_top
   if ( cmpr(k) % n_points > 0 ) then
 
-    ! Extract the entrained water-species
-    ! back from the res_source arrays
-    do i_field = i_q_vap, i_qc_last
-      do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        fields_k(ic2,i_field)                                                  &
-         = res_source(i_type,i_layr,k) % fields_super(ic,i_field)
-      end do
-    end do
-
     ! Calculate total-water mixing-ratio
-    call calc_q_tot( cmpr(k) % n_points,                                       &
-                     par_bl_top % cmpr % n_points,                             &
-                     fields_k(:,i_q_vap),                                      &
-                     fields_k(:,i_qc_first:i_qc_last),                         &
+    call calc_q_tot( cmpr(k) % n_points, n_points_top,                         &
+                     fields_cmpr(:,i_q_vap,k),                                 &
+                     fields_cmpr(:,i_qc_first,k),                              &
+    !                fields_cmpr(:,i_qc_first:i_qc_last,k),                    &
+    !                avoid spurious array temporary with ifort
                      q_tot )
 
     ! For each wind component:
     do i_field = i_wind_u, i_wind_w
 
-      ! Compress the environment winds onto current points
-      lb = lbound(fields_np1%list(i_field)%pt)
-      ub = ubound(fields_np1%list(i_field)%pt)
-      call compress( cmpr(k), lb(1:2), ub(1:2),                                &
-                     fields_np1%list(i_field)%pt(:,:,k), fields_k(:,i_field) )
-
       ! Convert environment winds to momentum per unit dry-mass
       do ic2 = 1, cmpr(k) % n_points
-        fields_k(ic2,i_field) = fields_k(ic2,i_field)                          &
-          * ( one + q_tot(ic2) )
-      end do
-
-      ! Store environment momentum per unit dry-mass in the
-      ! res_source arrays
-      do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        res_source(i_type,i_layr,k) % fields_super(ic,i_field)                 &
-          = fields_k(ic2,i_field)
+        fields_cmpr(ic2,i_field,k) = fields_cmpr(ic2,i_field,k)                &
+                                   * ( one + q_tot(ic2) )
       end do
 
       ! Add up vertical integral of momentum
       do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        ic3 = index_ic_top(ic2,k)
-        par_bl_mean_fields(ic3,i_field)                                        &
-          = par_bl_mean_fields(ic3,i_field)                                    &
-          + fields_k(ic2,i_field)                                              &
-            * res_source(i_type,i_layr,k) % res_super(ic,i_ent)
+        ic = index_ic_top(ic2,k)
+        par_bl_mean_fields(ic,i_field)                                         &
+          = par_bl_mean_fields(ic,i_field)                                     &
+          + fields_cmpr(ic2,i_field,k) * layer_mass_cmpr(ic2,k)
       end do
 
     end do  ! i_field = i_wind_u, i_wind_w
 
   end if  ! ( cmpr(k) % n_points > 0 )
 end do  ! k = k_bot_conv, k_bl_top
-
 ! Normalise the vertical mean momentum
 do i_field = i_wind_u, i_wind_w
-  do ic = 1, par_bl_top % cmpr % n_points
-    par_bl_mean_fields(ic,i_field)                                             &
-      = par_bl_mean_fields(ic,i_field)                                         &
-      / par_bl_top % par_super(ic,i_massflux_d)
+  do ic = 1, n_points_top
+    par_bl_mean_fields(ic,i_field) = par_bl_mean_fields(ic,i_field)            &
+                                   / max( par_bl_top_massflux(ic), min_float )
   end do
 end do
 
-
-!----------------------------------------------------------------
-! 9) Work out momentum to entrain from each
-!    level below BL-top such that it integrates to the parcel
-!    momentum at the BL-top
-!----------------------------------------------------------------
-
+! Work out momentum to entrain from each level below BL-top such that
+! it integrates to the parcel momentum at the BL-top
 do k = k_bot_conv, k_bl_top
   if ( cmpr(k) % n_points > 0 ) then
 
@@ -727,12 +649,10 @@ do k = k_bot_conv, k_bl_top
     ! momentum to the value in the parcel at BL-top
     do i_field = i_wind_u, i_wind_w
       do ic2 = 1, cmpr(k) % n_points
-        ic = index_ic_res(ic2,k)
-        ic3 = index_ic_top(ic2,k)
-        res_source(i_type,i_layr,k) % fields_super(ic,i_field)                 &
-         = res_source(i_type,i_layr,k) % fields_super(ic,i_field)              &
-         + par_bl_top % mean_super(ic3,i_field)                                &
-         - par_bl_mean_fields(ic3,i_field)
+        ic = index_ic_top(ic2,k)
+        fields_cmpr(ic2,i_field,k) = fields_cmpr(ic2,i_field,k)                &
+                                   + par_bl_top_fields(ic,i_field)             &
+                                   - par_bl_mean_fields(ic,i_field)
       end do
     end do
 
@@ -748,63 +668,31 @@ if ( l_cv_cloudfrac ) then
   do k = k_bot_conv, k_bl_top
     if ( cmpr(k) % n_points > 0 ) then
 
-      ! Extract the entrained water-species and enthalpy
-      ! back from the res_source arrays
-      do i_field = i_temperature, i_qc_last
-        do ic2 = 1, cmpr(k) % n_points
-          ic = index_ic_res(ic2,k)
-          fields_k(ic2,i_field)                                                &
-           = res_source(i_type,i_layr,k)%fields_super(ic,i_field)
-        end do
-      end do
-
       ! Convert entrained enthalpy back to temperature
-      call set_cp_tot( cmpr(k)%n_points,                                       &
-                       par_bl_top % cmpr % n_points,                           &
-                       fields_k(:,i_q_vap),                                    &
-                       fields_k(:,i_qc_first:i_qc_last),                       &
+      call set_cp_tot( cmpr(k)%n_points, n_points_top,                         &
+                       fields_cmpr(:,i_q_vap,k),                               &
+                       fields_cmpr(:,i_qc_first,k),                            &
+      !                fields_cmpr(:,i_qc_first:i_qc_last,k),                  &
+      !                avoid spurious array temporary with ifort
                        cp_tot )
       do ic2 = 1, cmpr(k) % n_points
-        fields_k(ic2,i_temperature) = fields_k(ic2,i_temperature)              &
-                                    / cp_tot(ic2)
+        temperature(ic2) = fields_cmpr(ic2,i_temperature,k) / cp_tot(ic2)
       end do
 
       ! Calculate dry virtual temperature T ( 1 + Rv/Rd q_vap )
       call calc_virt_temp_dry( cmpr(k)%n_points,                               &
-                               fields_k(:,i_temperature),                      &
-                               fields_k(:,i_q_vap),                            &
+                               temperature, fields_cmpr(:,i_q_vap,k),          &
                                virt_temp_dry )
 
       ! For each cloud-fraction field...
-      do i_field = i_cf_liq, i_cf_bulk
-
-        ! Compress environment cloud-fractions
-        lb = lbound(fields_np1%list(i_field)%pt)
-        ub = ubound(fields_np1%list(i_field)%pt)
-        call compress( cmpr(k), lb(1:2), ub(1:2),                              &
-                       fields_np1%list(i_field)%pt(:,:,k),                     &
-                       fields_k(:,i_field) )
-        ! Remove spurious negative values from input data
-        do ic2 = 1, cmpr(k) % n_points
-          fields_k(ic2,i_field) = max( fields_k(ic2,i_field),                  &
-                                       zero )
-        end do
-
+      do i_field = i_cf_first, i_cf_last
         ! Convert to cloud volume per unit dry-mass, i.e.
         ! scale by dry virtual temperature T ( 1 + Rv/Rd q_vap )
         do ic2 = 1, cmpr(k) % n_points
-          fields_k(ic2,i_field) = fields_k(ic2,i_field)                        &
-                                * virt_temp_dry(ic2)
+          fields_cmpr(ic2,i_field,k) = fields_cmpr(ic2,i_field,k)              &
+                                     * virt_temp_dry(ic2)
         end do
-
-        ! Save entrained cloud volumes in the res_source array
-        do ic2 = 1, cmpr(k) % n_points
-          ic = index_ic_res(ic2,k)
-          res_source(i_type,i_layr,k) % fields_super(ic,i_field)               &
-            = fields_k(ic2,i_field)
-        end do
-
-      end do  ! i_field = i_cf_liq, i_cf_bulk
+      end do  ! i_field = i_cf_first, i_cf_last
 
     end if  ! ( cmpr(k) % n_points > 0 )
   end do  ! k = k_bot_conv, k_bl_top
@@ -817,54 +705,27 @@ end if  ! ( l_cv_cloudfrac )
 
 if ( n_fields_tot > n_fields ) then
 
-  ! Initialise vertical integrals of tracer in the BL
-  do i_field = n_fields+1, n_fields_tot
-    do ic = 1, par_bl_top % cmpr % n_points
-      par_bl_mean_fields(ic,i_field) = zero
-    end do
-  end do
-
   do k = k_bot_conv, k_bl_top
     if ( cmpr(k) % n_points > 0 ) then
 
       ! For each tracer field
       do i_field = n_fields+1, n_fields_tot
-
-        ! Compress the environment tracers onto current points
-        lb = lbound(fields_np1%list(i_field)%pt)
-        ub = ubound(fields_np1%list(i_field)%pt)
-        call compress( cmpr(k), lb(1:2), ub(1:2),                              &
-                       fields_np1%list(i_field)%pt(:,:,k),                     &
-                       fields_k(:,i_field) )
-
-        ! Store environment tracer in the res_source arrays
-        do ic2 = 1, cmpr(k) % n_points
-          ic = index_ic_res(ic2,k)
-          res_source(i_type,i_layr,k) % fields_super(ic,i_field)               &
-            = fields_k(ic2,i_field)
-        end do
-
         ! Add up vertical integral of tracer
         do ic2 = 1, cmpr(k) % n_points
-          ic = index_ic_res(ic2,k)
-          ic3 = index_ic_top(ic2,k)
-          par_bl_mean_fields(ic3,i_field)                                      &
-            = par_bl_mean_fields(ic3,i_field)                                  &
-            + fields_k(ic2,i_field)                                            &
-              * res_source(i_type,i_layr,k) % res_super(ic,i_ent)
+          ic = index_ic_top(ic2,k)
+          par_bl_mean_fields(ic,i_field)                                       &
+            = par_bl_mean_fields(ic,i_field)                                   &
+            + fields_cmpr(ic2,i_field,k) * layer_mass_cmpr(ic2,k)
         end do
-
       end do  ! i_field = n_fields+1, n_fields_tot
 
     end if  ! ( cmpr(k) % n_points > 0 )
   end do  ! k = k_bot_conv, k_bl_top
-
   ! Normalise the vertical mean tracer
   do i_field = n_fields+1, n_fields_tot
-    do ic = 1, par_bl_top % cmpr % n_points
-      par_bl_mean_fields(ic,i_field)                                           &
-        = par_bl_mean_fields(ic,i_field)                                       &
-        / par_bl_top % par_super(ic,i_massflux_d)
+    do ic = 1, n_points_top
+      par_bl_mean_fields(ic,i_field) = par_bl_mean_fields(ic,i_field)          &
+                                   / max( par_bl_top_massflux(ic), min_float )
     end do
   end do
 
@@ -876,23 +737,20 @@ if ( n_fields_tot > n_fields ) then
       ! tracer to the value in the parcel at BL-top
       do i_field = n_fields+1, n_fields_tot
         do ic2 = 1, cmpr(k) % n_points
-          ic = index_ic_res(ic2,k)
-          ic3 = index_ic_top(ic2,k)
+          ic = index_ic_top(ic2,k)
 
           ! Calc ratio of BL-top parcel value over mean value in
           ! the BL, with safety-check to avoid div-by-zero:
-          if ( abs(par_bl_mean_fields(ic3,i_field))                            &
-               > sqrt_min_float ) then
-            fac = par_bl_top % mean_super(ic3,i_field)                         &
-                / par_bl_mean_fields(ic3,i_field)
+          if ( abs(par_bl_mean_fields(ic,i_field)) > sqrt_min_float ) then
+            fac = par_bl_top_fields(ic,i_field)                                &
+                / par_bl_mean_fields(ic,i_field)
           else
             fac = one
           end if
 
           ! Apply correction factor
-          res_source(i_type,i_layr,k) % fields_super(ic,i_field)               &
-           = res_source(i_type,i_layr,k)%fields_super(ic,i_field)              &
-           * fac
+          fields_cmpr(ic2,i_field,k) = fields_cmpr(ic2,i_field,k) * fac
+
         end do
       end do
 
@@ -914,63 +772,59 @@ end if  ! ( n_fields_tot > n_fields )
 ! Note that for downdrafts we actually have detrainment below
 ! the BL-top instead of entrainment
 
-! For downdrafts...
 if ( l_down ) then
+  ! For downdrafts...
 
-  ! Calculated mass at each level is actually detrainment
-  ! not entrainment; copy into detrainment field and
-  ! zero the entrainment
   do k = k_bot_conv, k_bl_top
     if ( cmpr(k) % n_points > 0 ) then
+
+      ! Calculated mass at each level is detrainment
       do ic2 = 1, cmpr(k) % n_points
         ic = index_ic_res(ic2,k)
         res_source(i_type,i_layr,k) % res_super(ic,i_det)                      &
-          = res_source(i_type,i_layr,k) % res_super(ic,i_ent)
-        res_source(i_type,i_layr,k) % res_super(ic,i_ent) = zero
+          = res_source(i_type,i_layr,k) % res_super(ic,i_det)                  &
+          + layer_mass_cmpr(ic2,k)
       end do
-    end if
-  end do
 
-  ! Multiply all detrained properties by detrained mass to
-  ! get resolved-scale source term from detrainment
-  do k = k_bot_conv, k_bl_top
-    if ( cmpr(k) % n_points > 0 ) then
+      ! Multiply all detrained properties by detrained mass to
+      ! get resolved-scale source term from detrainment
       do i_field = 1, n_fields_tot
         do ic2 = 1, cmpr(k) % n_points
           ic = index_ic_res(ic2,k)
           res_source(i_type,i_layr,k) % fields_super(ic,i_field)               &
-          = res_source(i_type,i_layr,k)%fields_super(ic,i_field)               &
-          * res_source(i_type,i_layr,k) % res_super(ic,i_det)
+            = res_source(i_type,i_layr,k) % fields_super(ic,i_field)           &
+            + fields_cmpr(ic2,i_field,k) * layer_mass_cmpr(ic2,k)
         end do
       end do
+
     end if
   end do
 
   ! For updrafts...
 else  ! ( l_down )
 
-  ! Zero the detrainment (only have uniform entrainment)
   do k = k_bot_conv, k_bl_top
     if ( cmpr(k) % n_points > 0 ) then
+
+      ! Calculated mass at each level is entrainment
       do ic2 = 1, cmpr(k) % n_points
         ic = index_ic_res(ic2,k)
-        res_source(i_type,i_layr,k) % res_super(ic,i_det) = zero
+        res_source(i_type,i_layr,k) % res_super(ic,i_ent)                      &
+          = res_source(i_type,i_layr,k) % res_super(ic,i_ent)                  &
+          + layer_mass_cmpr(ic2,k)
       end do
-    end if
-  end do
 
-  ! Multiply all entrained properties by minus entrained mass to
-  ! get resolved-scale sink term from entrainment
-  do k = k_bot_conv, k_bl_top
-    if ( cmpr(k) % n_points > 0 ) then
+      ! Multiply all entrained properties by minus entrained mass to
+      ! get resolved-scale sink term from entrainment
       do i_field = 1, n_fields_tot
         do ic2 = 1, cmpr(k) % n_points
           ic = index_ic_res(ic2,k)
           res_source(i_type,i_layr,k) % fields_super(ic,i_field)               &
-          = res_source(i_type,i_layr,k)%fields_super(ic,i_field)               &
-          * (-res_source(i_type,i_layr,k) % res_super(ic,i_ent))
+            = res_source(i_type,i_layr,k) % fields_super(ic,i_field)           &
+            - fields_cmpr(ic2,i_field,k) * layer_mass_cmpr(ic2,k)
         end do
       end do
+
     end if
   end do
 

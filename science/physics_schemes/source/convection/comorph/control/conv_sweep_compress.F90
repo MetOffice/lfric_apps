@@ -16,14 +16,15 @@ contains
 
 ! Subroutine to compress all the fields required by conv_level_step
 ! onto the current compression list of convecting points
-subroutine conv_sweep_compress( k, k_half, dk, max_points, ij_first, ij_last,  &
-                                n_fields_tot, l_last_level, cmpr,              &
-                                grid, turb, fields,                            &
-                                virt_temp, layer_mass, sum_massflux,           &
-                                l_within_bl, grid_k_super, grid_half_super,    &
-                                env_k_fields, env_k_super, env_half_super,     &
-                                layer_mass_step, frac_level_step,              &
-                                sum_massflux_cmpr, index_ij )
+subroutine conv_sweep_compress(                                                &
+                 k, k_next, dk, max_points, ij_first, ij_last, n_fields_tot,   &
+                 l_to_full_level, l_last_level,                                &
+                 cmpr, grid, turb, fields,                                     &
+                 virt_temp, layer_mass, sum_massflux, delta_tv,                &
+                 l_within_bl,  grid_k_super, grid_half_super,                  &
+                 env_k_fields, env_k_super, env_half_super,                    &
+                 layer_mass_step, frac_level_step,                             &
+                 delta_tv_cmpr, sum_massflux_cmpr, index_ij )
 
 use comorph_constants_mod, only: real_cvprec, real_hmprec, zero,               &
                                  nx_full, ny_full, k_bot_conv, k_top_conv,     &
@@ -44,9 +45,9 @@ implicit none
 
 ! Index of current full model-level
 integer, intent(in) :: k
-! Index of model-level interface
-integer, intent(in) :: k_half
-! k-increment to next full level beyond k_half (+ or - 1)
+! Index of next model-level interface
+integer, intent(in) :: k_next
+! k-increment to next full level beyond k_next (+ or - 1)
 integer, intent(in) :: dk
 
 ! Size of compression arrays
@@ -58,14 +59,16 @@ integer, intent(in) :: ij_last
 ! Number of primary fields, accounting for whether doing tracer transport
 integer, intent(in) :: n_fields_tot
 
-! Flag for reached the last model-level
+! Flag for first half of the level-step, from prev to level k
+logical, intent(in) :: l_to_full_level
+! Flag for reached the final model-level
 logical, intent(in) :: l_last_level
 
 ! Structure storing compression indices
 type(cmpr_type), intent(in) :: cmpr
 
 ! Structure containing pointers to model grid fields
-! (full 3-D arrays, possibly with halos);
+! (full 3-D arrays, possibly with haloes);
 ! contains model-level heights, pressures and dry-density
 type(grid_type), intent(in) :: grid
 
@@ -89,6 +92,9 @@ real(kind=real_hmprec), intent(in) :: layer_mass                               &
 
 ! Sum of parcel mass-fluxes over types / layers
 real(kind=real_cvprec), intent(in) :: sum_massflux(ij_first:ij_last)
+! Difference in virtual temperature between level k and next full-level,
+! divided by layer-mass (used to pre-estimate subsidence increment to Tv)
+real(kind=real_cvprec), intent(in) :: delta_tv(ij_first:ij_last)
 
 ! OUTPUT COMPRESSED ARRARYS...
 
@@ -112,18 +118,53 @@ real(kind=real_cvprec), intent(out) :: env_half_super(max_points,n_env_half)
 real(kind=real_cvprec), intent(out) :: layer_mass_step(max_points)
 ! Fraction of the layer-mass on current half of the level-step
 real(kind=real_cvprec), intent(out) :: frac_level_step(max_points)
+
+! Difference in virtual temperature between level k and next full-level,
+! divided by layer-mass (used to pre-estimate subsidence increment to Tv)
+real(kind=real_cvprec), intent(out) :: delta_tv_cmpr(max_points)
+
 ! Sum of mass-fluxes, compressed onto points where current type is active
 real(kind=real_cvprec), intent(out) :: sum_massflux_cmpr(max_points)
 
 ! Indices used to reference a collapsed horizontal coordinate from the parcel
 integer, intent(out) :: index_ij(max_points)
 
+! Mass of full-level k
+real(kind=real_cvprec) :: layer_mass_work(cmpr%n_points)
+
+! Height used for vertical interpolation
+real(kind=real_cvprec) :: height_work(cmpr%n_points)
+
 ! Array lower and upper bounds
 integer :: lb(3), ub(3), lb2(2), ub2(2)
 
-! Loop counters
-integer :: ic, i_field
+! Half-level to interpolate onto (either previous or next)
+integer :: k_half
+! Neighbouring full-level needed for the interpolation
+integer :: k_full
+! Half-level the other side of k from k_half
+integer :: k_half_other
 
+! Loop counters
+integer :: ic, i_field, ij
+
+
+! Set level-indices to use for interpolations
+! (these depend on both whether going up or down,
+! and on whether this is the 1st or 2nd half of the level-step)...
+if ( l_to_full_level ) then
+  ! First half of the level-step from prev to k;
+  ! in this case we need fields at the previous half-level
+  k_half = k_next - dk
+  k_full = k - dk
+  k_half_other = k_next
+else
+  ! Second half of the level-step from k to next;
+  ! in this case we need fields at the next half-level
+  k_half = k_next
+  k_full = k + dk
+  k_half_other = k_next - dk
+end if
 
 ! Set flag for whether level k is within the
 ! boundary-layer at each point.
@@ -174,7 +215,7 @@ end do
 
 ! Compress / interpolate required environment fields onto the model-level
 ! interface (k+1/2 or k-1/2, depending on whether going up or down)
-call env_half_interp( k+dk, max_points, l_last_level, cmpr,                    &
+call env_half_interp( l_last_level, k_full, max_points, cmpr,                  &
                       grid % height_full,                                      &
                       grid_k_super(:,i_height), grid_half_super(:,i_height),   &
                       fields % wind_w, virt_temp,                              &
@@ -183,20 +224,20 @@ call env_half_interp( k+dk, max_points, l_last_level, cmpr,                    &
 
 ! Compress layer-mass on level k
 call compress( cmpr, lb(1:2), ub(1:2), layer_mass(:,:,k),                      &
-               layer_mass_step )
+               layer_mass_work )
 
 ! Compress height of half-level the other side of k from k_half
 lb = lbound(grid%height_half)
 ub = ubound(grid%height_half)
-call compress( cmpr, lb(1:2), ub(1:2), grid%height_half(:,:,k_half-dk),        &
-               frac_level_step )
+call compress( cmpr, lb(1:2), ub(1:2), grid%height_half(:,:,k_half_other),     &
+               height_work )
 do ic = 1, cmpr%n_points
   ! Set fraction of layer k on curent half-level-step
   frac_level_step(ic)                                                          &
     = ( grid_k_super(ic,i_height) - grid_half_super(ic,i_height) )             &
-    / ( frac_level_step(ic)       - grid_half_super(ic,i_height) )
-  ! Scale layer_mass_step to get mass on current half-level-step
-  layer_mass_step(ic) = layer_mass_step(ic) * frac_level_step(ic)
+    / ( height_work(ic)           - grid_half_super(ic,i_height) )
+  ! Scale layer_mass to get mass on current half-level-step
+  layer_mass_step(ic) = layer_mass_work(ic) * frac_level_step(ic)
 end do
 
 ! Set indices for referencing collapsed horizontal coordinate
@@ -206,7 +247,9 @@ end do
 
 ! Compress sums of mass-fluxes over types and layers
 do ic = 1, cmpr%n_points
-  sum_massflux_cmpr(ic) = sum_massflux(index_ij(ic))
+  ij = index_ij(ic)
+  sum_massflux_cmpr(ic) = sum_massflux(ij)
+  delta_tv_cmpr(ic)     = delta_tv(ij)
 end do
 
 

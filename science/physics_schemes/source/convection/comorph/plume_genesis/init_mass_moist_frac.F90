@@ -22,7 +22,7 @@ contains
 ! - ice and rain only (icr)
 ! The differing temperature, humidity and condensed water
 ! contents of these 4 regions are calculated in
-! calc_env_partitions.
+! calc_env_regions.
 !
 ! With the properties of each region defined, we then do a
 ! 1-level moist parcel ascent/descent from each of the
@@ -36,27 +36,30 @@ contains
 
 subroutine init_mass_moist_frac( n_points, n_points_super,                     &
                                  l_tracer, n_fields_tot,                       &
-                                 cmpr_init, k,                                 &
-                                 l_within_bl, layer_mass_k, turb_len_k,        &
-                                 par_radius_amp, turb_kmh, turb_kph,           &
+                                 cmpr_init, k, l_within_bl,                    &
+                                 layer_mass_k, turb_len_k, par_radius_amp,     &
+                                 turb_kmh, turb_kph,                           &
                                  grid_km1, grid_kmh, grid_k,                   &
                                  grid_kph, grid_kp1,                           &
                                  fields_km1, fields_k,                         &
                                  fields_kp1, cloudfracs_k,                     &
                                  virt_temp_km1, virt_temp_k,                   &
                                  virt_temp_kp1,                                &
-                                 updraft_par_gen,                              &
-                                 dndraft_par_gen )
+                                 updraft_par_gen, dndraft_par_gen,             &
+                                 genesis_diags, diags_super )
 
 use comorph_constants_mod, only: real_cvprec, name_length,                     &
-                     zero, one, two, comorph_timestep,                         &
-                     n_cond_species, i_cond_cl,                                &
-                     l_homog_conv_bl, min_delta, sqrt_min_float,               &
-                     max_ent_frac_up, max_ent_frac_dn, par_gen_core_fac,       &
-                     i_check_bad_values_cmpr, i_check_bad_none
+                                 zero, one, two,                               &
+                                 n_updraft_types, n_dndraft_types,             &
+                                 n_cond_species, i_cond_cl,                    &
+                                 l_homog_conv_bl, min_delta, sqrt_min_float,   &
+                                 max_ent_frac_up, max_ent_frac_dn,             &
+                                 par_gen_core_fac, l_turb_par_gen,             &
+                                 i_cfl_local, i_cfl_local_none,                &
+                                 i_check_bad_values_cmpr, i_check_bad_none
 
 use grid_type_mod, only: n_grid, i_pressure
-use parcel_type_mod, only: parcel_type, i_massflux_d,                          &
+use parcel_type_mod, only: parcel_type, i_massflux_d, i_radius,                &
                            parcel_check_bad_values
 use fields_type_mod, only: n_fields, i_wind_u, i_temperature,                  &
                            i_q_vap, i_qc_first, i_qc_last, i_q_cl,             &
@@ -65,18 +68,20 @@ use turb_type_mod, only: n_turb
 use cloudfracs_type_mod, only: n_cloudfracs
 use cmpr_type_mod, only: cmpr_type, cmpr_alloc, cmpr_dealloc
 use subregion_mod, only: n_regions, i_liq, i_mph, region_names
+use genesis_diags_type_mod, only: genesis_diags_type
 use check_bad_values_mod, only: check_bad_values_cmpr
 
-use calc_env_partitions_mod, only: calc_env_partitions
+use calc_env_regions_mod, only: calc_env_regions
 use set_cp_tot_mod, only: set_cp_tot
 use lat_heat_mod, only: lat_heat_incr, i_phase_change_evp,                     &
                         set_l_con
 use set_qsat_mod, only: set_qsat_liq
 use set_dqsatdt_mod, only: set_dqsatdt_liq
 use calc_turb_parcel_mod, only: calc_turb_parcel
-use set_par_winds_mod, only: set_par_winds
+use set_par_fields_mod, only: set_par_fields
 use region_parcel_calcs_mod, only: region_parcel_calcs
-use calc_qss_forcing_init_mod, only: calc_qss_forcing_init
+use cor_init_mass_liq_1_mod, only: cor_init_mass_liq_1
+use cfl_limit_init_mass_mod, only: cfl_limit_init_mass
 use add_region_parcel_mod, only: add_region_parcel
 use normalise_init_parcel_mod, only: normalise_init_parcel
 
@@ -158,8 +163,15 @@ real(kind=real_cvprec), intent(in) :: virt_temp_kp1(n_points)
 
 ! Structures containing initiating mass-source properties
 ! for updrafts and downdrafts initiating from level k
-type(parcel_type), intent(in out) :: updraft_par_gen
-type(parcel_type), intent(in out) :: dndraft_par_gen
+type(parcel_type), intent(in out) :: updraft_par_gen(n_updraft_types)
+type(parcel_type), intent(in out) :: dndraft_par_gen(n_dndraft_types)
+
+! Structure storing diagnostics and assocaited meta-data
+type(genesis_diags_type), intent(in out) :: genesis_diags
+
+! Super-array storing diagnostics to be output
+real(kind=real_cvprec), intent(in out) :: diags_super                          &
+                          ( n_points_super, genesis_diags % n_diags )
 
 
 ! Arrays for properties of the 4 sub-grid regions
@@ -173,26 +185,24 @@ real(kind=real_cvprec) :: q_vap_r_k ( n_points, n_regions )
 ! each species is allowed to be non-zero
 real(kind=real_cvprec) :: q_cond_loc_k(n_points,n_cond_species)
 
-! Neutrally buoyant perturbations to T,q so-as to yield
-! a specified RH perturbation
+! Neutrally buoyant perturbations to T,q needed for a fractional increase of RH
 real(kind=real_cvprec) :: delta_temp_neut(n_points)
 real(kind=real_cvprec) :: delta_qvap_neut(n_points)
 
 ! Tl and qt perturbations for current region, for updrafts and downdrafts
-real(kind=real_cvprec) :: pert_tl_up(n_points)
-real(kind=real_cvprec) :: pert_qt_up(n_points)
-real(kind=real_cvprec) :: pert_tl_dn(n_points)
-real(kind=real_cvprec) :: pert_qt_dn(n_points)
+! (can be set separately for each convection type)
+real(kind=real_cvprec) :: pert_tl_up_t ( n_points, n_updraft_types )
+real(kind=real_cvprec) :: pert_qt_up_t ( n_points, n_updraft_types )
+real(kind=real_cvprec) :: pert_tl_dn_t ( n_points, n_dndraft_types )
+real(kind=real_cvprec) :: pert_qt_dn_t ( n_points, n_dndraft_types )
 
 ! Turbulence-based perturbations to u,v,w,Tl,qt at level k
 real(kind=real_cvprec) :: turb_pert_k                                          &
                           ( n_points, i_wind_u:i_q_vap )
-! Parcel initial radius at level k
-real(kind=real_cvprec) :: par_radius_k(n_points)
 
-! Updraft and downdraft mass-flux initiating from current region
-real(kind=real_cvprec) :: init_mass_up(n_points)
-real(kind=real_cvprec) :: init_mass_dn(n_points)
+! Initiating updraft and downdraft mass-flux for each convection type
+real(kind=real_cvprec) :: init_mass_up_t ( n_points, n_updraft_types )
+real(kind=real_cvprec) :: init_mass_dn_t ( n_points, n_dndraft_types )
 
 ! Unperturbed initiating parcel properties from current region,
 ! for updrafts and downdrafts
@@ -209,20 +219,20 @@ real(kind=real_cvprec) :: cp_tot(n_points)
 real(kind=real_cvprec) :: L_con(n_points)
 ! Level k liquid water temperature
 real(kind=real_cvprec) :: tl_k(n_points)
-! Level k q_vap + q_cl
-real(kind=real_cvprec) :: qt_k(n_points)
 ! qsat at level k liquid water temperature
 real(kind=real_cvprec) :: qsat_tl_k(n_points)
 ! dqsat/dT w.r.t. liquid water at level k
-real(kind=real_cvprec) :: dqsatdt(n_points)
+real(kind=real_cvprec) :: dqsatdt(n_points)   ! Value at Tl
+real(kind=real_cvprec) :: dqsatdt_t(n_points) ! Value at T
 
-! Variables used in implicit rescaling of mass-sources
-! from liquid-cloud:
-! Sum of updraft and downdraft initiation mass-sources
-real(kind=real_cvprec) :: mass_forc(n_points)
-
-! Sum of initiation forcing of qss = q_vap+q_cl - qsat(Tl)
-real(kind=real_cvprec) :: qss_forc(n_points)
+! Non-turbulent RH perturbation applied for each convection type
+real(kind=real_cvprec) :: updraft_rhpert_t ( n_points, n_updraft_types )
+real(kind=real_cvprec) :: dndraft_rhpert_t ( n_points, n_dndraft_types )
+! Triggering area fraction of each convection type in each sub-grid region
+real(kind=real_cvprec) :: updraft_frac_r_t                                     &
+                          ( n_points, n_regions, n_updraft_types )
+real(kind=real_cvprec) :: dndraft_frac_r_t                                     &
+                          ( n_points, n_regions, n_dndraft_types )
 
 ! Rescaling of mass-sources so implicit w.r.t. cloud fraction
 real(kind=real_cvprec) :: imp_coef(n_points)
@@ -234,6 +244,10 @@ real(kind=real_cvprec) :: work2(n_points)
 ! Flag for updraft vs downdraft calls
 logical :: l_down
 
+! Flags for whether updrafts and downdrafts are active on this model-level
+logical :: l_updraft
+logical :: l_dndraft
+
 ! Points where current region has nonzero fraction
 integer :: nc
 integer :: index_ic(n_points)
@@ -242,7 +256,6 @@ integer :: index_ic(n_points)
 integer :: ic2_first
 integer :: nc2
 integer :: index_ic2(n_points)
-
 
 ! Points where updrafts and downdrafts initiate in current region
 integer :: nc_up
@@ -257,28 +270,74 @@ logical :: l_positive
 character(len=name_length) :: field_name
 
 ! Loop counters
-integer :: ic, ic2, i_region, i_field
+integer :: ic, ic2, i_region, i_field, i_type
 
-!character(len=*), parameter :: routinename                                    &
+!CHARACTER(LEN=*), PARAMETER :: routinename                                    &
 !                               = "INIT_MASS_MOIST_FRAC"
 
+
+if ( i_check_bad_values_cmpr > i_check_bad_none ) then
+  ! Check input fields for bad values
+  do i_field = 1, n_fields_tot
+    call_string = "Start of init_mass_moist_frac, fields_km1"
+    call check_bad_values_cmpr( cmpr_init, k, fields_km1(:,i_field),           &
+                                call_string, field_names(i_field),             &
+                                field_positive(i_field) )
+    call_string = "Start of init_mass_moist_frac, fields_k"
+    call check_bad_values_cmpr( cmpr_init, k, fields_k(:,i_field),             &
+                                call_string, field_names(i_field),             &
+                                field_positive(i_field) )
+    call_string = "Start of init_mass_moist_frac, fields_kp1"
+    call check_bad_values_cmpr( cmpr_init, k, fields_kp1(:,i_field),           &
+                                call_string, field_names(i_field),             &
+                                field_positive(i_field) )
+  end do
+end if
+
+! Set flags for whether updrafts and downdrafts are allowed from this
+! model-level.  Firstly, they are only alowed if updrafts / downdrafts
+! are actually switched on (i.e. n_up/dndraft_types is not set to zero).
+! Then, in conv_genesis_ctl, updrafts are disabled at the model-top
+! (and downdrafts disabled at the model-bottom) by setting the number
+! of points in the compression list to zero; account for this as well.
+l_updraft = .false.
+if ( n_updraft_types > 0 ) then
+  if ( updraft_par_gen(1) % cmpr % n_points > 0 )  l_updraft = .true.
+end if
+l_dndraft = .false.
+if ( n_dndraft_types > 0 ) then
+  if ( dndraft_par_gen(1) % cmpr % n_points > 0 )  l_dndraft = .true.
+end if
+
+! Calculate turbulence-based parcel perturbations
+call calc_turb_parcel( n_points, n_points_super, cmpr_init, k,                 &
+                       grid_km1, grid_kmh, grid_k,                             &
+                       grid_kph, grid_kp1,                                     &
+                       fields_km1, fields_k, fields_kp1,                       &
+                       turb_kmh, turb_kph, turb_pert_k )
 
 ! Calculate properties of the sub-grid cloudy, rainy, icy and
 ! clear-sky regions of the grid-box at level k
 call_string = "genesis_k"
-call calc_env_partitions(                                                      &
+call calc_env_regions(                                                         &
          n_points, n_points_super, cmpr_init, k, call_string,                  &
          grid_k(:,i_pressure), cloudfracs_k,                                   &
          fields_k(:,i_temperature), fields_k(:,i_q_vap),                       &
          fields_k(:,i_qc_first:i_qc_last),                                     &
          frac_r_k, temperature_r_k, q_vap_r_k,                                 &
          q_cond_loc_k,                                                         &
+         genesis_diags, diags_super,                                           &
          delta_temp_neut, delta_qvap_neut )
+
+! Compute dqsat/dT at grid-mean T
+call set_qsat_liq( n_points, fields_k(:,i_temperature), grid_k(:,i_pressure),  &
+                   work1 )
+call set_dqsatdt_liq( n_points, fields_k(:,i_temperature), work1,              &
+                      dqsatdt_t )
 
 ! Calculate liquid water temperature Tl from level k, and qsat(Tl(k))
 do ic = 1, n_points
   tl_k(ic) = fields_k(ic,i_temperature)
-  qt_k(ic) = fields_k(ic,i_q_vap) + fields_k(ic,i_q_cl)
 end do
 call set_cp_tot( n_points, n_points_super, fields_k(:,i_q_vap),                &
                  fields_k(:,i_qc_first:i_qc_last),                             &
@@ -290,37 +349,37 @@ call set_qsat_liq( n_points, tl_k, grid_k(:,i_pressure), qsat_tl_k )
 call set_dqsatdt_liq( n_points, tl_k, qsat_tl_k, dqsatdt )
 call set_l_con( n_points, tl_k, L_con )
 
-
-! Calculate turbulence-based parcel perturbations and radius
-call calc_turb_parcel( n_points, n_points_super, cmpr_init, k,                 &
-                       grid_km1, grid_kmh, grid_k,                             &
-                       grid_kph, grid_kp1,                                     &
-                       fields_km1, fields_k, fields_kp1,                       &
-                       turb_len_k, par_radius_amp, turb_kmh, turb_kph,         &
-                       turb_pert_k, par_radius_k )
-
-
-! Set parcel initial winds and tracers
+! Set parcel initial radius, winds and tracers
 ! (these are assumed equal in all sub-grid regions, so can set them now).
-if ( updraft_par_gen % cmpr % n_points > 0 ) then
-  l_down = .false.
+if ( l_updraft ) then
   ! Updrafts
-  call set_par_winds( n_points, n_points_super, n_fields_tot,                  &
-                      cmpr_init, k, l_tracer, l_down,                          &
-                      fields_k, turb_pert_k, par_radius_k,                     &
-                      updraft_par_gen % par_super,                             &
-                      updraft_par_gen % mean_super,                            &
-                      updraft_par_gen % core_super )
+  l_down = .false.
+  do i_type = 1, n_updraft_types
+    call set_par_fields( n_points, n_points_super, n_fields_tot,               &
+                         cmpr_init, k, l_tracer, l_down, i_type,               &
+                         grid_k, fields_k, frac_r_k,                           &
+                         par_radius_amp, turb_pert_k, turb_len_k,              &
+                         updraft_par_gen(i_type) % par_super,                  &
+                         updraft_par_gen(i_type) % mean_super,                 &
+                         updraft_par_gen(i_type) % core_super,                 &
+                         updraft_rhpert_t(:,i_type),                           &
+                         updraft_frac_r_t(:,:,i_type) )
+  end do
 end if
-if ( dndraft_par_gen % cmpr % n_points > 0 ) then
-  l_down = .true.
+if ( l_dndraft ) then
   ! Downdrafts
-  call set_par_winds( n_points, n_points_super, n_fields_tot,                  &
-                      cmpr_init, k, l_tracer, l_down,                          &
-                      fields_k, turb_pert_k, par_radius_k,                     &
-                      dndraft_par_gen % par_super,                             &
-                      dndraft_par_gen % mean_super,                            &
-                      dndraft_par_gen % core_super )
+  l_down = .true.
+  do i_type = 1, n_dndraft_types
+    call set_par_fields( n_points, n_points_super, n_fields_tot,               &
+                         cmpr_init, k, l_tracer, l_down, i_type,               &
+                         grid_k, fields_k, frac_r_k,                           &
+                         par_radius_amp, turb_pert_k, turb_len_k,              &
+                         dndraft_par_gen(i_type) % par_super,                  &
+                         dndraft_par_gen(i_type) % mean_super,                 &
+                         dndraft_par_gen(i_type) % core_super,                 &
+                         dndraft_rhpert_t(:,i_type),                           &
+                         dndraft_frac_r_t(:,:,i_type) )
+  end do
 end if
 
 
@@ -346,7 +405,7 @@ do i_region = 1, n_regions
     nc_dn = 0
 
     ! If updrafts active
-    if ( updraft_par_gen % cmpr % n_points > 0 ) then
+    if ( l_updraft ) then
 
       ! Calculate initiating mass-flux and parcel properties
       ! for updrafts initiating in the current region.
@@ -355,27 +414,28 @@ do i_region = 1, n_regions
       ! winds and tracers were calculated early and are assumed
       ! equal in all regions.
       l_down = .false.
-      call region_parcel_calcs( n_points, n_points_super,                      &
+      call region_parcel_calcs( n_points, n_points_super, n_updraft_types,     &
                                 nc, index_ic, i_region,                        &
                                 l_down, cmpr_init, k,                          &
-                                grid_k, grid_kph, grid_kp1,                    &
-                                fields_k,                                      &
+                                grid_k, grid_kph, grid_kp1, fields_k,          &
                                 frac_r_k, temperature_r_k,                     &
                                 q_vap_r_k, q_cond_loc_k,                       &
                                 virt_temp_k, virt_temp_kp1,                    &
                                 cloudfracs_k, layer_mass_k,                    &
-                                par_radius_k,                                  &
+                                updraft_par_gen(1) % par_super(:,i_radius),    &
+                                updraft_frac_r_t, updraft_rhpert_t,            &
                                 turb_pert_k(:,i_temperature),                  &
                                 turb_pert_k(:,i_q_vap),                        &
                                 delta_temp_neut, delta_qvap_neut,              &
-                                nc_up, index_ic_up, init_mass_up,              &
-                                fields_par_up, pert_tl_up, pert_qt_up )
+                                nc_up, index_ic_up, init_mass_up_t,            &
+                                fields_par_up, pert_tl_up_t, pert_qt_up_t,     &
+                                genesis_diags, diags_super )
 
 
-    end if  ! ( updraft_par_gen % cmpr % n_points > 0 )
+    end if  ! ( l_updraft )
 
     ! If downdrafts active
-    if ( dndraft_par_gen % cmpr % n_points > 0 ) then
+    if ( l_dndraft ) then
 
       if ( l_homog_conv_bl ) then
         ! If using homogenisation of convective source terms
@@ -385,7 +445,7 @@ do i_region = 1, n_regions
         ! This should make no difference to the run,
         ! but avoids redundant downdraft calculations.
 
-        ! Recompress onto only points not within the
+        ! Recompress onto only points NOT within the
         ! boundary-layer...
 
         ic2_first = 0
@@ -411,7 +471,7 @@ do i_region = 1, n_regions
           nc2 = nc
         end if
 
-        ! If any points not within the BL...
+        ! If any points NOT within the BL...
         if ( nc2 > 0 ) then
           ! If some points in this region are within the BL...
           if ( nc2 < nc ) then
@@ -435,25 +495,26 @@ do i_region = 1, n_regions
         ! Calculate initiating mass-flux and parcel properties
         ! for downdrafts initiating in the current region.
         l_down = .true.
-        call region_parcel_calcs( n_points, n_points_super,                    &
+        call region_parcel_calcs( n_points, n_points_super, n_dndraft_types,   &
                                 nc, index_ic, i_region,                        &
                                 l_down, cmpr_init, k,                          &
-                                grid_k, grid_kmh, grid_km1,                    &
-                                fields_k,                                      &
+                                grid_k, grid_kmh, grid_km1, fields_k,          &
                                 frac_r_k, temperature_r_k,                     &
                                 q_vap_r_k, q_cond_loc_k,                       &
                                 virt_temp_k, virt_temp_km1,                    &
                                 cloudfracs_k, layer_mass_k,                    &
-                                par_radius_k,                                  &
+                                dndraft_par_gen(1) % par_super(:,i_radius),    &
+                                dndraft_frac_r_t, dndraft_rhpert_t,            &
                                 turb_pert_k(:,i_temperature),                  &
                                 turb_pert_k(:,i_q_vap),                        &
                                 delta_temp_neut, delta_qvap_neut,              &
-                                nc_dn, index_ic_dn, init_mass_dn,              &
-                                fields_par_dn, pert_tl_dn, pert_qt_dn )
+                                nc_dn, index_ic_dn, init_mass_dn_t,            &
+                                fields_par_dn, pert_tl_dn_t, pert_qt_dn_t,     &
+                                genesis_diags, diags_super )
 
       end if
 
-    end if  ! ( dndraft_par_gen % cmpr % n_points > 0 )
+    end if  ! ( l_dndraft )
 
 
     ! If initiation mass-sources have occured from a
@@ -461,127 +522,40 @@ do i_region = 1, n_regions
     if ( ( i_region == i_liq .or. i_region == i_mph ) .and.                    &
          ( nc_up > 0 .or. nc_dn > 0 ) ) then
 
-      ! Modify the initiation mass-sources consistent with
-      ! an implicit time discretisation, accounting for the
-      ! reduction in liquid cloud fraction over the timestep
-      ! due to the convective heating / drying...
+      ! Apply implicit correction to the initiating masses to account for
+      ! reduction of liquid-cloud fraction by the increments from initiation.
+      call cor_init_mass_liq_1( n_points, n_points_super,                      &
+                                nc_up, index_ic_up, nc_dn, index_ic_dn,        &
+                                frac_r_k(:,i_region), layer_mass_k,            &
+                                q_cond_loc_k(:,i_cond_cl),                     &
+                                cp_tot, L_con, dqsatdt, dqsatdt_t,             &
+                                fields_par_up, fields_par_dn,                  &
+                                pert_tl_up_t, pert_qt_up_t,                    &
+                                pert_tl_dn_t, pert_qt_dn_t,                    &
+                                grid_km1, grid_k, grid_kp1,                    &
+                                fields_km1, fields_kp1,                        &
+                                init_mass_up_t, init_mass_dn_t,                &
+                                imp_coef )
 
-      ! M_up_imp = M_up_exp f_imp/f_exp
-      ! M_dn_imp = M_dn_exp f_imp/f_exp
-      !
-      ! When initiating from large-scale liquid cloud
-      ! (regions liq and mph), the main feedback limiting
-      ! the mass-flux is that the convective heating and drying
-      ! will cause the cloud-scheme to remove the cloud.
-      ! Exactly how quickly will depend on the details of the
-      ! cloud-scheme being used.  Here we estimate the convective
-      ! forcing of supersaturation qss = qw - qsat
-      ! by the initiating mass-source, and use this to
-      ! parameterise the expected rate of removal of liquid cloud
-      ! by the convection...
-      ! Convection also removes liquid cloud directly due to
-      ! the cloud-volume which is extracted to form the
-      ! initiating parcel.  The implicitness rescaling also
-      ! accounts for this effect.
+    end if  ! ( i_region == i_liq .OR. i_region == i_mph )
 
-      ! Initialise sums over updraft and downdraft sources
-      do ic = 1, n_points
-        ! Sum of updraft and downdraft initiating mass-sources
-        ! from the current region:
-        mass_forc(ic) = zero
-        ! Sum of forcing of qss by the initiating mass-sources
-        ! from the current region:
-        qss_forc(ic) = zero
-      end do
-
-      ! Sum the contributions to the forcing of mass and
-      ! qss = qw - q_sat
-      ! from both updrafts and downdrafts initiating in the
-      ! current region / model-level
+    if ( i_cfl_local > i_cfl_local_none ) then
+      ! Impose CFL limit on the initiating masses from the current region...
       if ( nc_up > 0 ) then
-        do ic2 = 1, nc_up
-          ic = index_ic_up(ic2)
-          mass_forc(ic) = mass_forc(ic) + init_mass_up(ic2)
-        end do
-        call calc_qss_forcing_init( n_points, n_points_super,                  &
-                                    nc_up, index_ic_up,                        &
-                                    init_mass_up, fields_par_up,               &
-                                    pert_tl_up, pert_qt_up,                    &
-                                    grid_k, grid_kp1,                          &
-                                    fields_k, fields_kp1,                      &
-                                    qss_forc )
+        call cfl_limit_init_mass( n_points, nc_up, index_ic_up,                &
+                                  n_updraft_types,                             &
+                                  max_ent_frac_up, l_within_bl,                &
+                                  layer_mass_k, frac_r_k(:,i_region),          &
+                                  init_mass_up_t )
       end if
       if ( nc_dn > 0 ) then
-        do ic2 = 1, nc_dn
-          ic = index_ic_dn(ic2)
-          mass_forc(ic) = mass_forc(ic) + init_mass_dn(ic2)
-        end do
-        call calc_qss_forcing_init( n_points, n_points_super,                  &
-                                    nc_dn, index_ic_dn,                        &
-                                    init_mass_dn, fields_par_dn,               &
-                                    pert_tl_dn, pert_qt_dn,                    &
-                                    grid_k, grid_km1,                          &
-                                    fields_k, fields_km1,                      &
-                                    qss_forc )
+        call cfl_limit_init_mass( n_points, nc_dn, index_ic_dn,                &
+                                  n_dndraft_types,                             &
+                                  max_ent_frac_dn, l_within_bl,                &
+                                  layer_mass_k, frac_r_k(:,i_region),          &
+                                  init_mass_dn_t )
       end if
-
-      ! Apply limit to use explicit solution in case where
-      ! the initiation mass-sources actually act to increase
-      ! the liquid cloud instead of decreasing it
-      ! (i.e. only retain negative values of dqss/dt)
-      do ic = 1, n_points
-        qss_forc(ic) = min( qss_forc(ic), zero )
-      end do
-
-      ! Note: technically qss_forc now needs to be normalised
-      ! by dividing it by layer_mass.  This is done in the
-      ! formula for imp_coef below...
-
-      ! Calculate the implicit rescaling factor
-      ! imp_coef = f_imp/f_exp.
-      ! Parameterise the forcing of liquid cloud-fraction as:
-      !
-      ! (df/dt)_exp = -M_init / M_layr
-      !             + f_exp * dqss/dt
-      !                     / ( 2 (1 + dqs/dT Lc/cp) qc_incloud )
-      !
-      ! (1st term from direct fractional cloud-volume removal,
-      !  2nd term from homogeneous forcing of remaining cloud)
-      !
-      ! The implicit liquid cloud fraction is given by:
-      !
-      ! f_imp = f_exp + (df/dt)_exp * (f_imp/f_exp) * dt
-      !
-      ! => (f_imp/f_exp) ( 1 - ( (df/dt)_exp / f_exp ) * dt ) = 1
-      ! => (f_imp/f_exp)
-      !       = 1 / ( 1 - ( (df/dt)_exp / f_exp ) * dt )
-      !
-      ! Substituting our above expression for df/dt, we get:
-      do ic = 1, n_points
-        imp_coef(ic) = one / ( one - (                                         &
-          ! Term from volume-removal:
-            -mass_forc(ic) / max(frac_r_k(ic,i_region), sqrt_min_float)        &
-          +                                                                    &
-          ! Term from homogeneous forcing:
-            qss_forc(ic)                                                       &
-            / ( two * (one + dqsatdt(ic)*L_con(ic)/cp_tot(ic))                 &
-                    * max( q_cond_loc_k(ic,i_cond_cl), sqrt_min_float ) )      &
-                                      )                                        &
-          ! All terms have scaling of dt/M_layr
-            * comorph_timestep / layer_mass_k(ic) )
-      end do
-
-      ! Modify the initiating mass-fluxes accordingly
-      do ic2 = 1, nc_up
-        ic = index_ic_up(ic2)
-        init_mass_up(ic2) = init_mass_up(ic2) * imp_coef(ic)
-      end do
-      do ic2 = 1, nc_dn
-        ic = index_ic_dn(ic2)
-        init_mass_dn(ic2) = init_mass_dn(ic2) * imp_coef(ic)
-      end do
-
-    end if  ! ( i_region == i_liq .or. i_region == i_mph )
+    end if
 
     if ( i_check_bad_values_cmpr > i_check_bad_none ) then
       ! Check region mass-flux and primary fields for bad values
@@ -596,27 +570,30 @@ do i_region = 1, n_regions
           cmpr_check % index_i(ic2) = cmpr_init % index_i(ic)
           cmpr_check % index_j(ic2) = cmpr_init % index_j(ic)
         end do
-        field_name = "massflux_d"
-        l_positive = .true.
-        call check_bad_values_cmpr( cmpr_check, k, init_mass_up,               &
-                                    call_string, field_name, l_positive )
+        do i_type = 1, n_updraft_types
+          write(field_name,"(A,I3)") "massflux_d type", i_type
+          call check_bad_values_cmpr( cmpr_check, k, init_mass_up_t(:,i_type), &
+                                      call_string, field_name, l_positive )
+        end do
         do i_field = i_temperature, n_fields
           call check_bad_values_cmpr( cmpr_check, k, fields_par_up(:,i_field), &
                                       call_string, field_names(i_field),       &
                                       field_positive(i_field) )
         end do
-        do ic2 = 1, nc_up
-          work1(ic2) = fields_par_up(ic2,i_temperature)                        &
-                     + par_gen_core_fac * pert_tl_up(ic2)
-          work2(ic2) = fields_par_up(ic2,i_q_vap)                              &
-                     + par_gen_core_fac * pert_qt_up(ic2)
+        do i_type = 1, n_updraft_types
+          do ic2 = 1, nc_up
+            work1(ic2) = fields_par_up(ic2,i_temperature)                      &
+                       + par_gen_core_fac * pert_tl_up_t(ic2,i_type)
+            work2(ic2) = fields_par_up(ic2,i_q_vap)                            &
+                       + par_gen_core_fac * pert_qt_up_t(ic2,i_type)
+          end do
+          write(field_name,"(A,I3)") "temperature + tl_pert conv type ", i_type
+          call check_bad_values_cmpr( cmpr_check, k, work1,                    &
+                                      call_string, field_name, l_positive )
+          write(field_name,"(A,I3)") "q_vap + qt_pert conv type ", i_type
+          call check_bad_values_cmpr( cmpr_check, k, work2,                    &
+                                      call_string, field_name, l_positive )
         end do
-        field_name = "temperature + tl_pert"
-        call check_bad_values_cmpr( cmpr_check, k, work1,                      &
-                                    call_string, field_name, l_positive )
-        field_name = "q_vap + qt_pert"
-        call check_bad_values_cmpr( cmpr_check, k, work2,                      &
-                                    call_string, field_name, l_positive )
         call cmpr_dealloc( cmpr_check )
       end if  ! ( nc_up > 0 )
 
@@ -630,27 +607,30 @@ do i_region = 1, n_regions
           cmpr_check % index_i(ic2) = cmpr_init % index_i(ic)
           cmpr_check % index_j(ic2) = cmpr_init % index_j(ic)
         end do
-        field_name = "massflux_d"
-        l_positive = .true.
-        call check_bad_values_cmpr( cmpr_check, k, init_mass_dn,               &
-                                    call_string, field_name, l_positive )
+        do i_type = 1, n_dndraft_types
+          write(field_name,"(A,I3)") "massflux_d type", i_type
+          call check_bad_values_cmpr( cmpr_check, k, init_mass_dn_t(:,i_type), &
+                                      call_string, field_name, l_positive )
+        end do
         do i_field = i_temperature, n_fields
           call check_bad_values_cmpr( cmpr_check, k, fields_par_dn(:,i_field), &
                                       call_string, field_names(i_field),       &
                                       field_positive(i_field) )
         end do
-        do ic2 = 1, nc_dn
-          work1(ic2) = fields_par_dn(ic2,i_temperature)                        &
-                     + par_gen_core_fac * pert_tl_dn(ic2)
-          work2(ic2) = fields_par_dn(ic2,i_q_vap)                              &
-                     + par_gen_core_fac * pert_qt_dn(ic2)
+        do i_type = 1, n_dndraft_types
+          do ic2 = 1, nc_dn
+            work1(ic2) = fields_par_dn(ic2,i_temperature)                      &
+                       + par_gen_core_fac * pert_tl_dn_t(ic2,i_type)
+            work2(ic2) = fields_par_dn(ic2,i_q_vap)                            &
+                       + par_gen_core_fac * pert_qt_dn_t(ic2,i_type)
+          end do
+          write(field_name,"(A,I3)") "temperature + tl_pert conv type ", i_type
+          call check_bad_values_cmpr( cmpr_check, k, work1,                    &
+                                      call_string, field_name, l_positive )
+          write(field_name,"(A,I3)") "q_vap + qt_pert conv type ", i_type
+          call check_bad_values_cmpr( cmpr_check, k, work2,                    &
+                                      call_string, field_name, l_positive )
         end do
-        field_name = "temperature + tl_pert"
-        call check_bad_values_cmpr( cmpr_check, k, work1,                      &
-                                    call_string, field_name, l_positive )
-        field_name = "q_vap + qt_pert"
-        call check_bad_values_cmpr( cmpr_check, k, work2,                      &
-                                    call_string, field_name, l_positive )
         call cmpr_dealloc( cmpr_check )
       end if  ! ( nc_dn > 0 )
 
@@ -658,32 +638,30 @@ do i_region = 1, n_regions
 
     ! If any updrafts have initiated in the current region
     if ( nc_up > 0 ) then
-      ! Add mass-weighted contribution to updraft initiating
-      ! mass and parcel properties
-      call add_region_parcel( n_points, nc_up, index_ic_up,                    &
-                              init_mass_up, fields_par_up,                     &
-                              pert_tl_up, pert_qt_up,                          &
-                              max_ent_frac_up, l_within_bl,                    &
-                              layer_mass_k, frac_r_k(:,i_region),              &
-                              updraft_par_gen % par_super                      &
-                                                (:,i_massflux_d),              &
-                              updraft_par_gen % mean_super,                    &
-                              updraft_par_gen % core_super )
+      do i_type = 1, n_updraft_types
+        ! Add mass-weighted contribution to updraft initiating
+        ! mass and parcel properties
+        call add_region_parcel( n_points, nc_up, index_ic_up,                  &
+                                init_mass_up_t(:,i_type), fields_par_up,       &
+                                pert_tl_up_t(:,i_type), pert_qt_up_t(:,i_type),&
+                                updraft_par_gen(i_type) % par_super,           &
+                                updraft_par_gen(i_type) % mean_super,          &
+                                updraft_par_gen(i_type) % core_super )
+      end do
     end if
 
     ! If any downdrafts have initiated in the current region
     if ( nc_dn > 0 ) then
-      ! Add mass-weighted contribution to downdraft initiating
-      ! mass and parcel properties
-      call add_region_parcel( n_points, nc_dn, index_ic_dn,                    &
-                              init_mass_dn, fields_par_dn,                     &
-                              pert_tl_dn, pert_qt_dn,                          &
-                              max_ent_frac_dn, l_within_bl,                    &
-                              layer_mass_k, frac_r_k(:,i_region),              &
-                              dndraft_par_gen % par_super                      &
-                                                (:,i_massflux_d),              &
-                              dndraft_par_gen % mean_super,                    &
-                              dndraft_par_gen % core_super )
+      do i_type = 1, n_dndraft_types
+        ! Add mass-weighted contribution to downdraft initiating
+        ! mass and parcel properties
+        call add_region_parcel( n_points, nc_dn, index_ic_dn,                  &
+                                init_mass_dn_t(:,i_type), fields_par_dn,       &
+                                pert_tl_dn_t(:,i_type), pert_qt_dn_t(:,i_type),&
+                                dndraft_par_gen(i_type) % par_super,           &
+                                dndraft_par_gen(i_type) % mean_super,          &
+                                dndraft_par_gen(i_type) % core_super )
+      end do
     end if
 
   end if  ! ( nc > 0 )
@@ -693,63 +671,69 @@ end do  ! i_region = 1, n_regions
 ! End of loop over sub-grid regions
 
 
-if ( updraft_par_gen % cmpr % n_points > 0 ) then
-  ! Find points where the total updraft initiating mass-flux
-  ! is non-zero
-  nc = 0
-  do ic = 1, n_points
-    if ( updraft_par_gen % par_super(ic,i_massflux_d)                          &
-         > zero ) then
-      nc = nc + 1
-      index_ic(nc) = ic
+! Normalise the mass-weighted means, and do some miscellaneous checks...
+
+if ( l_updraft ) then
+  do i_type = 1, n_updraft_types
+    ! Find points where the updraft initiating mass-flux is non-zero
+    nc = 0
+    do ic = 1, n_points
+      if ( updraft_par_gen(i_type) % par_super(ic,i_massflux_d) > zero ) then
+        nc = nc + 1
+        index_ic(nc) = ic
+      end if
+    end do
+    ! If any points have updraft initiating mass-sources,
+    ! normalise the mass-weighted means
+    if ( nc > 0 ) then
+      l_down = .false.
+      call normalise_init_parcel( n_points, nc, index_ic,                      &
+                                  fields_k(:,i_q_vap),                         &
+                                  updraft_par_gen(i_type) % par_super,         &
+                                  updraft_par_gen(i_type) % mean_super,        &
+                                  updraft_par_gen(i_type) % core_super )
     end if
   end do
-  ! If any points have updraft initiating mass-sources,
-  ! normalise the mass-weighted means
-  if ( nc > 0 ) then
-    call normalise_init_parcel( n_points, nc, index_ic,                        &
-                                fields_k(:,i_q_vap),                           &
-                                updraft_par_gen % par_super                    &
-                                                (:,i_massflux_d),              &
-                                updraft_par_gen % mean_super,                  &
-                                updraft_par_gen % core_super )
-  end if
 end if
 
-if ( dndraft_par_gen % cmpr % n_points > 0 ) then
-  ! Find points where the total downdraft initiating mass-flux
-  ! is non-zero
-  nc = 0
-  do ic = 1, n_points
-    if ( dndraft_par_gen % par_super(ic,i_massflux_d)                          &
-         > zero ) then
-      nc = nc + 1
-      index_ic(nc) = ic
+if ( l_dndraft ) then
+  do i_type = 1, n_dndraft_types
+    ! Find points where the downdraft initiating mass-flux is non-zero
+    nc = 0
+    do ic = 1, n_points
+      if ( dndraft_par_gen(i_type) % par_super(ic,i_massflux_d) > zero ) then
+        nc = nc + 1
+        index_ic(nc) = ic
+      end if
+    end do
+    ! If any points have downdraft initiating mass-sources,
+    ! normalise the mass-weighted means
+    if ( nc > 0 ) then
+      l_down = .true.
+      call normalise_init_parcel( n_points, nc, index_ic,                      &
+                                  fields_k(:,i_q_vap),                         &
+                                  dndraft_par_gen(i_type) % par_super,         &
+                                  dndraft_par_gen(i_type) % mean_super,        &
+                                  dndraft_par_gen(i_type) % core_super )
     end if
   end do
-  ! If any points have downdraft initiating mass-sources,
-  ! normalise the mass-weighted means
-  if ( nc > 0 ) then
-    call normalise_init_parcel( n_points, nc, index_ic,                        &
-                                fields_k(:,i_q_vap),                           &
-                                dndraft_par_gen % par_super                    &
-                                                (:,i_massflux_d),              &
-                                dndraft_par_gen % mean_super,                  &
-                                dndraft_par_gen % core_super )
-  end if
 end if
 
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   ! Check output initiating parcels for bad values (NaN, Inf, etc)
-  if ( updraft_par_gen % cmpr % n_points > 0 ) then
+  if ( l_updraft ) then
     call_string = "End of init_mass_moist_frac; updraft_par_gen"
-    call parcel_check_bad_values( updraft_par_gen, n_fields_tot,               &
-                                  k, call_string )
+    do i_type = 1, n_updraft_types
+      call parcel_check_bad_values( updraft_par_gen(i_type), n_fields_tot,     &
+                                    k, call_string )
+    end do
   end if
-  if ( dndraft_par_gen % cmpr % n_points > 0 ) then
+  if ( l_dndraft ) then
     call_string = "End of init_mass_moist_frac; dndraft_par_gen"
-    call parcel_check_bad_values( dndraft_par_gen, n_fields_tot,               &
-                                  k, call_string )
+    do i_type = 1, n_dndraft_types
+      call parcel_check_bad_values( dndraft_par_gen(i_type), n_fields_tot,     &
+                                    k, call_string )
+    end do
   end if
 end if
 

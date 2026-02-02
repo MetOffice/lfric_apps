@@ -89,12 +89,12 @@ use comorph_constants_mod, only: real_hmprec,                                  &
 
 implicit none
 
-! Note: the array arguments below may have halos, and in here
-! we don't care about the halos.
+! Note: the array arguments below may have haloes, and in here
+! we don't care about the haloes.
 ! We need to pass in the bounds of each array to use in
 ! the declarations, to ensure the do loops pick out the same
 ! indices of the arrays regardless of whether or not they
-! have halos.  The lower and upper bounds are passed in through the
+! have haloes.  The lower and upper bounds are passed in through the
 ! argument list in the lb_* and ub_* integer arrays.  Those storing the
 ! bounds for 3D arrays must have 3 elements; one for each dimension
 ! of the array.
@@ -128,12 +128,12 @@ real(kind=real_hmprec), intent(out) :: q_tot                                   &
 ! Loop counters
 integer :: i, j, k
 
-!$OMP PARALLEL DEFAULT(none) private( i, j, k )                                &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k )                                &
+!$OMP SHARED( nx_full, ny_full, l_cv_snow, k_bot_conv, k_top_conv,             &
 !$OMP         q_tot, q_cl, q_rain, q_cf, q_snow, q_graup, q_vap )
 
 ! Initialise using liquid cloud
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -141,12 +141,12 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end do
+!$OMP END DO
 
 ! Add on mixing ratios of optional hydrometeor species...
 
 if ( l_cv_rain ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = k_bot_conv, k_top_conv
     do j = 1, ny_full
       do i = 1, nx_full
@@ -154,11 +154,11 @@ if ( l_cv_rain ) then
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 end if
 
 if ( l_cv_cf ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = k_bot_conv, k_top_conv
     do j = 1, ny_full
       do i = 1, nx_full
@@ -166,11 +166,11 @@ if ( l_cv_cf ) then
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 end if
 
 if ( l_cv_snow ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = k_bot_conv, k_top_conv
     do j = 1, ny_full
       do i = 1, nx_full
@@ -178,11 +178,11 @@ if ( l_cv_snow ) then
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 end if
 
 if ( l_cv_graup ) then
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = k_bot_conv, k_top_conv
     do j = 1, ny_full
       do i = 1, nx_full
@@ -190,11 +190,11 @@ if ( l_cv_graup ) then
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 end if
 
 ! Add on water-vapour
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -202,9 +202,9 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end do
+!$OMP END DO
 
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
 return
 end subroutine calc_q_tot_3d
