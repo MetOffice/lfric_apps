@@ -14,6 +14,7 @@
 | ricky-lv426     | Ricky Olivier      | University of Exeter             | 2026-01-12 |
 | MetBenjaminWent | Benjamin Went      | Met Office                       | 2026-01-15 |
 | timgraham-Met   | Tim Graham         | Met Office                       | 2026-01-15 |
+| mcdalvi         | Mohit Dalvi        | Met Office                       | 2026-01-15 |
 | mo-alistairp    | Alistair Pirrie    | Met Office                       | 2026-01-19 |
 | jasonjunweilyu  | Junwei (Jason) Lyu | Bureau of Meteorology, Australia | 2025-12-17 |
 | EdHone          | Ed Hone            | Met Office                       | 2026-01-26 |
