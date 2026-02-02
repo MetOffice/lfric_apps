@@ -59,7 +59,8 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
-  use aviation_diags_alg_mod,    only : aviation_diags_alg
+  use aviation_diags_alg_mod,    only : aviation_diags_alg, &
+                                        write_horizontal_divergence_diagnostic
 #endif
 
   implicit none
@@ -96,9 +97,10 @@ contains
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
 
-    ! For S20 Aviation diagnostics
 #ifdef UM_PHYSICS
-    type( field_type ) :: plev_geopot  ! Set by pres_lev_diags_alg().
+    ! Section 20 Aviation diagnostics
+    TYPE( field_type )                     :: plev_geopot
+!    TYPE( field_collection_type), POINTER  :: fd_fields
 #endif
 
     type(field_type), pointer :: theta
@@ -341,8 +343,22 @@ contains
       call pres_lev_diags_alg(derived_fields, theta, exner, mr, moist_dyn, plev_geopot)
       ! Wet bulb freezing level
       call freeze_lev_alg(theta, mr, moist_dyn, exner_in_wth)
+
       ! Aviation diagnostics
-      call aviation_diags_alg(plev_geopot, prognostic_fields)
+      call aviation_diags_alg(plev_geopot)
+!      call aviation_diags_alg(plev_geopot, prognostic_fields)
+!      fd_fields => modeldb%fields%get_field_collection("fd_fields")
+!      call aviation_diags_alg(plev_geopot, fd_fields)
+
+!    call write_horizontal_divergence_diagnostic( &
+!        u, modeldb%clock, mesh, element_order_h, element_order_v)
+
+!    call write_horizontal_divergence_diagnostic( &
+!        u, modeldb%clock, element_order_h, element_order_v)
+
+    call write_horizontal_divergence_diagnostic( &
+        u, modeldb%clock, mesh, element_order_h, element_order_v)
+
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
