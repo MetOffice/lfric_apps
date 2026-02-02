@@ -26,7 +26,7 @@ use comorph_constants_mod, only: real_hmprec, nx_full, ny_full
 
 implicit none
 
-! Lower and upper bounds of the array (in case it has halos)
+! Lower and upper bounds of the array (in case it has haloes)
 integer, intent(in) :: lb(2), ub(2)
 ! Array to be initialised to zero
 real(kind=real_hmprec), intent(in out) :: field( lb(1):ub(1), lb(2):ub(2) )
@@ -50,11 +50,11 @@ end subroutine init_zero_2d
 subroutine init_zero_3d( lb, ub, field )
 
 use comorph_constants_mod, only: real_hmprec,                                  &
-                     nx_full, ny_full, k_bot_conv, k_top_conv
+                                 nx_full, ny_full, k_bot_conv, k_top_conv
 
 implicit none
 
-! Lower and upper bounds of the array (in case it has halos)
+! Lower and upper bounds of the array (in case it has haloes)
 integer, intent(in) :: lb(3), ub(3)
 ! Array to be initialised to zero
 real(kind=real_hmprec), intent(in out) :: field                                &
@@ -65,7 +65,7 @@ real(kind=real_hmprec), parameter :: zero = 0.0_real_hmprec
 ! Loop counters
 integer :: i, j, k
 
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC) private( i, j, k )            &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, field )
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
@@ -74,7 +74,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 return
 end subroutine init_zero_3d
@@ -91,7 +91,7 @@ implicit none
 ! Compression indices of points where initialisation is needed
 type(cmpr_type), intent(in) :: cmpr
 
-! Lower and upper bounds of the array (in case it has halos)
+! Lower and upper bounds of the array (in case it has haloes)
 integer, intent(in) :: lb(2), ub(2)
 ! Array to be initialised to zero
 real(kind=real_hmprec), intent(in out) :: field( lb(1):ub(1), lb(2):ub(2) )

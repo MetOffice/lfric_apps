@@ -15,25 +15,25 @@ contains
 
 ! Subroutine to add resolved-scale source terms for a given
 ! convective draft onto compressed copies of the full fields.
-subroutine add_res_source( n_points_super, n_fields_tot,                       &
-                           n_conv_types, n_conv_layers,                        &
+subroutine add_res_source( n_points_super, n_points_res, n_fields_tot,         &
                            ij_first, ij_last, index_ic_k,                      &
-                           res_source_k,                                       &
+                           res_source_cmpr, res_source_super,                  &
+                           res_source_fields,                                  &
                            fields_k_super, layer_mass_k )
 
-use comorph_constants_mod, only: real_cvprec, comorph_timestep, nx_full
-use res_source_type_mod, only: res_source_type, i_ent, i_det
+use comorph_constants_mod, only: real_cvprec, min_float,                       &
+                                 comorph_timestep, nx_full
+use cmpr_type_mod, only: cmpr_type
+use res_source_type_mod, only: n_res, i_ent, i_det
 
 implicit none
 
 ! Max number of convective points on one level (dimensions super)
 integer, intent(in) :: n_points_super
+! Size of res_source arrays
+integer, intent(in) :: n_points_res
 ! Total number of model-fields to update
 integer, intent(in) :: n_fields_tot
-! Number of convection types
-integer, intent(in) :: n_conv_types
-! Number of distinct convecting layers
-integer, intent(in) :: n_conv_layers
 
 ! First and last ij-indices on the current segment
 integer, intent(in) :: ij_first
@@ -42,9 +42,14 @@ integer, intent(in) :: ij_last
 ! common array for referencing from res_source compression list
 integer, intent(in) :: index_ic_k(ij_first:ij_last)
 
-! Structure containing resolved-scale source terms to be added
-type(res_source_type), intent(in) :: res_source_k                              &
-                             ( n_conv_types, n_conv_layers )
+! Structure containing source term compression indices
+type(cmpr_type), intent(in) :: res_source_cmpr
+
+! Resolved-scale source term arrays to be added
+real(kind=real_cvprec), intent(in) :: res_source_super                         &
+                                      ( n_points_res, n_res )
+real(kind=real_cvprec), intent(in) :: res_source_fields                        &
+                                      ( n_points_res, n_fields_tot )
 
 ! Super-array containing fields to be incremented
 real(kind=real_cvprec), intent(in out) :: fields_k_super                       &
@@ -58,47 +63,31 @@ real(kind=real_cvprec), intent(in out) :: layer_mass_k                         &
 integer :: ic_any( n_points_super )
 
 ! Loop counters
-integer :: i_type, i_layr, i_field, i, j, ij, ic
+integer :: i_field, i, j, ij, ic
 
 
-! Loop over convecting layers and convection types
-do i_layr = 1, n_conv_layers
-  do i_type = 1, n_conv_types
+! Extract the cmpr_any compression list index from the grid
+do ic = 1, res_source_cmpr % n_points
+  i = res_source_cmpr % index_i(ic)
+  j = res_source_cmpr % index_j(ic)
+  ij = nx_full*(j-1)+i
+  ic_any(ic) = index_ic_k(ij)
+end do
 
-    ! If there are any resolved-scale source terms
-    ! for this convection layer / type at the current level
-    if ( res_source_k(i_type,i_layr) % cmpr % n_points > 0 ) then
+! Increment the layer-mass with detrainment - entrainment
+do ic = 1, res_source_cmpr % n_points
+  layer_mass_k(ic_any(ic)) = layer_mass_k(ic_any(ic))                          &
+                           + ( res_source_super(ic,i_det)                      &
+                             - res_source_super(ic,i_ent)                      &
+                             ) * comorph_timestep
+end do
 
-      ! Extract the cmpr_any compression list index from the grid
-      do ic = 1, res_source_k(i_type,i_layr) % cmpr % n_points
-        i = res_source_k(i_type,i_layr) % cmpr % index_i(ic)
-        j = res_source_k(i_type,i_layr) % cmpr % index_j(ic)
-        ij = nx_full*(j-1)+i
-        ic_any(ic) = index_ic_k(ij)
-      end do
-
-      ! Increment the layer-mass with detrainment - entrainment
-      do ic = 1, res_source_k(i_type,i_layr) % cmpr % n_points
-        layer_mass_k(ic_any(ic)) = layer_mass_k(ic_any(ic))                    &
-                                 + ( res_source_k(i_type,i_layr)               &
-                                       % res_super(ic,i_det)                   &
-                                   - res_source_k(i_type,i_layr)               &
-                                       % res_super(ic,i_ent)                   &
-                                   ) * comorph_timestep
-      end do
-
-      ! Increment the primary fields with the source terms
-      do i_field = 1, n_fields_tot
-        do ic = 1, res_source_k(i_type,i_layr) % cmpr % n_points
-          fields_k_super(ic_any(ic),i_field)                                   &
-                  = fields_k_super(ic_any(ic),i_field)                         &
-                  + res_source_k(i_type,i_layr)                                &
-                    % fields_super(ic,i_field) * comorph_timestep
-        end do
-      end do
-
-    end if
-
+! Increment the primary fields with the source terms
+do i_field = 1, n_fields_tot
+  do ic = 1, res_source_cmpr % n_points
+    fields_k_super(ic_any(ic),i_field)                                         &
+            = fields_k_super(ic_any(ic),i_field)                               &
+            + res_source_fields(ic,i_field) * comorph_timestep
   end do
 end do
 

@@ -20,19 +20,19 @@ contains
 subroutine assign_fields( z_theta, z_rho, p_layer_centres, p_layer_boundaries, &
                           r_theta_levels,                                      &
                           rho_dry_th, w_var_rh, ftl, fqw, fu_rh, fv_rh,        &
-                          turb_len, par_radius_amp_um, zh_eff,                 &
-                          cca0, ccw0, frac_bulk_conv,                          &
+                          turb_len, par_radius_amp_um, zh_homog,               &
+                          cca, ccw, frac_bulk_conv,                            &
                           u_th_n, v_th_n, w, temperature_n,                    &
                           m_v, m_cl, m_cf,                                     &
                           m_cf2, m_r, m_gr,                                    &
                           cf_liquid_n, cf_frozen_n, bulk_cf_n,                 &
-                          u_th_np1, v_th_np1, r_w, theta_star,                 &
+                          u_th_np1, v_th_np1, w_work, theta_star,              &
                           q_star, qcl_star, qcf_star,                          &
                           qcf2_star, qrain_star, qgraup_star,                  &
                           cf_liquid_star, cf_frozen_star, bulk_cf_star,        &
-                          precfrac_star, l_conv_inc_w,  l_temporary_snow,      &
+                          precfrac_star, l_temporary_snow,                     &
                           l_temporary_rain, l_temporary_graup,                 &
-                          w_work, q_snow_work, q_rain_work, q_graup_work,      &
+                          q_snow_work, q_rain_work, q_graup_work,              &
                           grid, turb, cloudfracs, fields_n, fields_np1 )
 
 use atm_fields_bounds_mod, only: tdims, tdims_s, tdims_l, pdims, wdims, wdims_s
@@ -48,7 +48,8 @@ use mphys_inputs_mod, only: l_mcr_qcf2, l_mcr_qrain, l_mcr_qgraup
 use comorph_constants_mod, only: l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
                                  l_cv_cloudfrac, l_turb_par_gen,               &
                                  i_convcloud,                                  &
-                                 i_convcloud_liqonly, i_convcloud_mph
+                                 i_convcloud_bulkonly, i_convcloud_liqonly,    &
+                                 i_convcloud_mph
 
 use raise_error_mod, only: raise_fatal
 use umPrintMgr, only: newline
@@ -75,8 +76,11 @@ real(kind=real_umphys), target, intent(in) :: p_layer_boundaries               &
                             ( pdims%i_start:pdims%i_end,                       &
                               pdims%j_start:pdims%j_end,                       &
                               pdims%k_start:pdims%k_end+1 )
+! Model-level heights above Earth centre
 real(kind=real_umphys), target, intent(in) :: r_theta_levels                   &
-     (tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,0:tdims%k_end)
+                            ( tdims_l%i_start:tdims_l%i_end,                   &
+                              tdims_l%j_start:tdims_l%j_end,                   &
+                              0:tdims%k_end )
 ! Dry-density on theta-levels
 real(kind=real_umphys), target, intent(in) :: rho_dry_th                       &
                             ( tdims%i_start:tdims%i_end,                       &
@@ -116,19 +120,19 @@ real(kind=real_umphys), target, intent(in) :: turb_len                         &
 real(kind=real_umphys), target, intent(in) :: par_radius_amp_um                &
                             ( pdims%i_start:pdims%i_end,                       &
                               pdims%j_start:pdims%j_end )
-! Effective boundary-layer top height
-real(kind=real_umphys), target, intent(in) :: zh_eff                           &
+! BL height up-to-which to homogenize convective tendencies inside comorph
+real(kind=real_umphys), target, intent(in) :: zh_homog                         &
                             ( pdims%i_start:pdims%i_end,                       &
                               pdims%j_start:pdims%j_end )
 
 ! CONVECTIVE CLOUD FIELDS
 
-! Convective liquid cloud fraction and water content
-real(kind=real_umphys), target, intent(in) :: cca0                             &
+! Convective cloud fraction and water content
+real(kind=real_umphys), target, intent(in) :: cca                              &
                             ( tdims%i_start:tdims%i_end,                       &
                               tdims%j_start:tdims%j_end,                       &
                               1:tdims%k_end )
-real(kind=real_umphys), target, intent(in) :: ccw0                             &
+real(kind=real_umphys), target, intent(in) :: ccw                              &
                             ( tdims%i_start:tdims%i_end,                       &
                               tdims%j_start:tdims%j_end,                       &
                               1:tdims%k_end )
@@ -208,7 +212,7 @@ real(kind=real_umphys), target, intent(in) :: v_th_np1                         &
                             ( tdims%i_start:tdims%i_end,                       &
                               tdims%j_start:tdims%j_end,                       &
                               1:tdims%k_end-1 )
-real(kind=real_umphys), target, intent(in) :: r_w                              &
+real(kind=real_umphys), target, intent(in) :: w_work                           &
                             ( wdims%i_start:wdims%i_end,                       &
                               wdims%j_start:wdims%j_end,                       &
                               1:wdims%k_end )
@@ -261,16 +265,12 @@ real(kind=real_umphys), target, intent(in) :: precfrac_star                    &
                               tdims%j_start:tdims%j_end,                       &
                               1:tdims%k_end )
 
-
-! Switch for whether comorph should increment w
-logical, intent(in) :: l_conv_inc_w
 ! Flags for temporary work arrays for optional water species
 logical, intent(in) :: l_temporary_snow
 logical, intent(in) :: l_temporary_rain
 logical, intent(in) :: l_temporary_graup
 
 ! Optional temporary work arrays for certain fields
-real(kind=real_umphys), allocatable, target, intent(in) :: w_work(:,:,:)
 real(kind=real_umphys), allocatable, target, intent(in) :: q_snow_work(:,:,:)
 real(kind=real_umphys), allocatable, target, intent(in) :: q_rain_work(:,:,:)
 real(kind=real_umphys), allocatable, target, intent(in) :: q_graup_work(:,:,:)
@@ -304,7 +304,7 @@ logical :: l_error
 character(len=*), parameter :: routinename = "ASSIGN_FIELDS"
 
 
-! assign POINTERS FOR GRID-RELATED FIELDS
+! ASSIGN POINTERS FOR GRID-RELATED FIELDS
 
 ! The derived-type structure "grid" contains pointers to the
 ! required fields.  Point them at the appropriate data...
@@ -317,7 +317,7 @@ grid % r_surf( lb(1):, lb(2): ) => r_theta_levels(:,:,0)
 ! this results in the bounds specs being lost and
 ! resetting the array lower-bounds to 1 in the pointer.
 ! Therefore, the above use of bounds specification is needed
-! in order to retain the knowledge of the halos in the
+! in order to retain the knowledge of the haloes in the
 ! array pointer.
 
 ! "Full" levels correspond to theta-levels
@@ -333,7 +333,7 @@ grid % pressure_half => p_layer_boundaries
 grid % rho_dry => rho_dry_th
 
 
-! assign POINTERS FOR TURBULENCE FIELDS
+! ASSIGN POINTERS FOR TURBULENCE FIELDS
 
 ! If turbulence fields needed
 if ( l_turb_par_gen ) then
@@ -343,16 +343,16 @@ if ( l_turb_par_gen ) then
   turb % f_q_tot  => fqw
   turb % f_wind_u => fu_rh
   turb % f_wind_v => fv_rh
-  turb % lengthscale => turb_len
-  turb % par_radius_amp => par_radius_amp_um(:,:)
 end if
 
-! Boundary-layer top height needed even if not using
+! Boundary-layer top height and turb_len needed even if not using
 ! turbulence-based perturbations
-turb % z_bl_top => zh_eff
+turb % lengthscale => turb_len
+turb % par_radius_amp => par_radius_amp_um(:,:)
+turb % z_bl_top => zh_homog
 
 
-! assign POINTERS FOR CLOUD and PRECIP FRACTIONS
+! ASSIGN POINTERS FOR CLOUD AND PRECIP FRACTIONS
 
 ! If cloud fractions aren't included as primary fields,
 ! pass them in through the separate cloudfracs structure
@@ -368,23 +368,29 @@ end if
 cloudfracs % frac_precip => precfrac_star
 
 
-! assign POINTERS FOR CONVECTIVE CLOUD FIELDS
+! ASSIGN POINTERS FOR CONVECTIVE CLOUD FIELDS
 
 ! What diagnosed convective cloud options are set in CoMorph?
 select case( i_convcloud )
+case ( i_convcloud_bulkonly )
+
+  ! CoMorph will output only a single bulk convective cloud fraction
+  ! and a single bulk convective water content (liquid+ice).
+  ! Pass these into the UM's corresponding 2 prognostics
+  cloudfracs % frac_bulk_conv => cca
+  cloudfracs % q_c_conv       => ccw
+
 case ( i_convcloud_liqonly )
 
-  ! CoMorph will output only convective liquid cloud
-  ! (no diagnostic contribution will be added for ice)
-  cloudfracs % frac_liq_conv  => cca0
+  ! CoMorph will output liquid-only convective cloud fraction and water
+  ! content, and also a bulk convective cloud fraction that includes
+  ! ice-clouds.  The latter is needed for estimating the convective cloud-top.
+  ! Pass liquid-only conv cloud to cca, ccw, and pass bulk conv cloud
+  ! amount to a separate temporary array used for computing other things
+  ! which depend on total conv cloud amount.
   cloudfracs % frac_bulk_conv => frac_bulk_conv
-  cloudfracs % q_cl_conv      => ccw0
-  ! Note: the UM's prognostics cca and ccw correspond to only
-  ! the convective liquid cloud, not the ice.
-  ! The convective bulk cloud fraction is also output
-  ! for the purpose of calculating correct convective
-  ! cloud base and top height diagnostics which include the ice,
-  ! but this is not yet passed to the rest of the model.
+  cloudfracs % frac_liq_conv  => cca
+  cloudfracs % q_cl_conv      => ccw
 
 case ( i_convcloud_mph )
 
@@ -400,7 +406,7 @@ case ( i_convcloud_mph )
 end select
 
 
-! assign POINTERS FOR PRIMARY FIELDS
+! ASSIGN POINTERS FOR PRIMARY FIELDS
 
 ! The derived-type structure "fields_n" contains pointers to the
 ! required fields at start-of-timestep, and "fields_np1" contains
@@ -415,13 +421,7 @@ fields_n % wind_w => w
 ! Latest winds
 fields_np1 % wind_u => u_th_np1
 fields_np1 % wind_v => v_th_np1
-if ( l_conv_inc_w ) then
-  ! Only point to the actual array for w if w increments are switched on
-  fields_np1 % wind_w => r_w
-else
-  ! Otherwise point to a temporary copy
-  fields_np1 % wind_w => w_work
-end if
+fields_np1 % wind_w => w_work
 
 ! Temperature (note theta_star now holds latest T not theta)
 fields_n % temperature => temperature_n

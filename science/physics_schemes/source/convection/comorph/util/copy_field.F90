@@ -30,13 +30,13 @@ use comorph_constants_mod, only: real_hmprec,                                  &
 
 implicit none
 
-! Lower and upper bounds of the input array (in case it has halos)
+! Lower and upper bounds of the input array (in case it has haloes)
 integer, intent(in) :: lb_in(3), ub_in(3)
 ! Input array to be copied from
 real(kind=real_hmprec), intent(in) :: field_in                                 &
               ( lb_in(1):ub_in(1),   lb_in(2):ub_in(2),   lb_in(3):ub_in(3)   )
 
-! Lower and upper bounds of the output array (in case it has halos)
+! Lower and upper bounds of the output array (in case it has haloes)
 integer, intent(in) :: lb_out(3), ub_out(3)
 ! Output array to be copied into
 real(kind=real_hmprec), intent(in out) :: field_out                            &
@@ -45,7 +45,7 @@ real(kind=real_hmprec), intent(in out) :: field_out                            &
 ! Loop counters
 integer :: i, j, k
 
-!$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC) private( i, j, k )            &
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, field_in, field_out )
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
@@ -54,7 +54,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end PARALLEL do
+!$OMP END PARALLEL DO
 
 return
 end subroutine copy_field_3d
@@ -75,13 +75,13 @@ implicit none
 ! Structure containing compression indices
 type(cmpr_type), intent(in) :: cmpr
 
-! Lower and upper bounds of the input array (in case it has halos)
+! Lower and upper bounds of the input array (in case it has haloes)
 integer, intent(in) :: lb_in(2), ub_in(2)
 ! Input array to be copied from
 real(kind=real_hmprec), intent(in) :: field_in                                 &
                                    ( lb_in(1):ub_in(1),   lb_in(2):ub_in(2)   )
 
-! Lower and upper bounds of the output array (in case it has halos)
+! Lower and upper bounds of the output array (in case it has haloes)
 integer, intent(in) :: lb_out(2), ub_out(2)
 ! Output array to be copied into
 real(kind=real_hmprec), intent(in out) :: field_out                            &

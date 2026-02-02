@@ -23,12 +23,13 @@ contains
 ! This routine also does a couple of safety-checks on the
 ! initiating parcel properties (e.g. avoid negative q)
 subroutine normalise_init_parcel( n_points, nc, index_ic,                      &
-                                  q_vap_k, par_massflux_d,                     &
-                                  par_mean, par_core )
+                                  q_vap_k,                                     &
+                                  par_super, par_mean, par_core )
 
-use comorph_constants_mod, only: real_cvprec, one, l_par_core,                 &
-                     max_qpert, par_gen_core_fac
+use comorph_constants_mod, only: real_cvprec, zero, one, l_par_core,           &
+                                 max_qpert, par_gen_core_fac
 use fields_type_mod, only: n_fields, i_q_vap, i_temperature
+use parcel_type_mod, only: n_par, i_massflux_d
 
 implicit none
 
@@ -41,14 +42,16 @@ integer, intent(in) :: index_ic(nc)
 
 ! Grid-mean water-vapour mixing-ratio from level k
 real(kind=real_cvprec), intent(in) :: q_vap_k(n_points)
-! Initiating mass-flux summed over sub-grid regions
-real(kind=real_cvprec), intent(in) :: par_massflux_d(n_points)
+
+! Super-array containing initiating mass-flux summed over sub-grid regions
+real(kind=real_cvprec), intent(in out) :: par_super                            &
+                                          ( n_points, n_par )
 
 ! Parcel mean and core properties averaged over regions
 real(kind=real_cvprec), intent(in out) :: par_mean                             &
-                                         ( n_points, n_fields )
+                                          ( n_points, n_fields )
 real(kind=real_cvprec), intent(in out) :: par_core                             &
-                                         ( n_points, n_fields )
+                                          ( n_points, n_fields )
 
 ! Loop counters
 integer :: ic, ic2, i_field
@@ -60,7 +63,7 @@ do i_field = i_temperature, n_fields
   do ic2 = 1, nc
     ic = index_ic(ic2)
     par_mean(ic,i_field) = par_mean(ic,i_field)                                &
-                         / par_massflux_d(ic)
+                         / par_super(ic,i_massflux_d)
   end do
 end do
 
@@ -70,7 +73,7 @@ if ( l_par_core ) then
     do ic2 = 1, nc
       ic = index_ic(ic2)
       par_core(ic,i_field) = par_core(ic,i_field)                              &
-                           / par_massflux_d(ic)
+                           / par_super(ic,i_massflux_d)
     end do
   end do
 end if
@@ -81,14 +84,13 @@ end if
 ! by the mass-flux restriction to avoid creating negative q
 do ic2 = 1, nc
   ic = index_ic(ic2)
-  par_mean(ic,i_q_vap) = min( par_mean(ic,i_q_vap),                            &
+  par_mean(ic,i_q_vap) = min( max( par_mean(ic,i_q_vap), zero ),               &
                               (one + max_qpert) * q_vap_k(ic) )
 end do
 if ( l_par_core ) then
-  ! Apply scaled-up version of the same limit to parcel core
   do ic2 = 1, nc
     ic = index_ic(ic2)
-    par_core(ic,i_q_vap) = min( par_core(ic,i_q_vap),                          &
+    par_core(ic,i_q_vap) = min( max( par_core(ic,i_q_vap), zero ),             &
              (one + max_qpert*par_gen_core_fac) * q_vap_k(ic) )
   end do
 end if

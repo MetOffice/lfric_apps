@@ -59,7 +59,7 @@ integer, intent(in) :: index_ic( ij_first : ij_last,                           &
 type(cmpr_type), intent(in) :: cmpr_any
 
 ! 3-D array of pressure on thermodynamic levels
-! (and lower and upper bounds of the array, in case it has halos)
+! (and lower and upper bounds of the array, in case it has haloes)
 integer, intent(in) :: lb_p(3), ub_p(3)
 real(kind=real_hmprec), intent(in) :: pressure                                 &
                           ( lb_p(1):ub_p(1), lb_p(2):ub_p(2), lb_p(3):ub_p(3) )
@@ -118,8 +118,8 @@ real(kind=real_cvprec) :: layer_mass_k2( cmpr_any % n_points )
 
 ! Pressure on layers k and k2, on the cmpr_any compression list
 ! (needed for dry adiabatic adjustment of temperature)
-real(kind=real_cvprec) :: pressure_k( cmpr_any % n_points )
-real(kind=real_cvprec) :: pressure_k2( cmpr_any % n_points )
+real(kind=real_cvprec) :: pressure_k  ( cmpr_any % n_points )
+real(kind=real_cvprec) :: pressure_k2 ( cmpr_any % n_points )
 
 ! Index list for referencing compressed fields on common grid
 integer :: ij( cmpr_any % n_points )
@@ -184,10 +184,9 @@ do ic = 1, cmpr_add % n_points
 end do
 
 ! Adjust fields due to the pressure change from k to k2
-call fields_k_pressure_adjust( cmpr_add % n_points,                            &
-                               n_points_super, n_fields_tot,                   &
-                               fields_k_super,                                 &
-                               pressure_k, pressure_k2 )
+call fields_k_pressure_adjust( cmpr_add%n_points, n_points_super,              &
+                               n_fields_tot, pressure_k, pressure_k2,          &
+                               fields_k_super )
 
 ! Compute mass from k to add to k2, and find points
 ! where the k2 level counter needs to be incremented
@@ -246,10 +245,22 @@ do while ( n_points_incr_k2 > 0 )
     ! Only any compression to do if at least one index differs
     if ( .not. ic_first == 0 ) then
 
-      ! Compress unassigned layer-mass at k
       do ic_incr = ic_first, n_points_incr_k2
         ic = index_ic_incr_k2(ic_incr)
+
+        ! Compress unassigned layer-mass at k
         layer_mass_k(ic_incr) = layer_mass_k(ic)
+        ! Compress layer mass at k2
+        layer_mass_k2(ic_incr) = layer_mass_k2(ic)
+
+        ! Compress i,j indices
+        cmpr_add % index_i(ic_incr) = cmpr_add % index_i(ic)
+        cmpr_add % index_j(ic_incr) = cmpr_add % index_j(ic)
+        ij(ic_incr) = ij(ic)
+
+        ! Compress pressure at k2
+        pressure_k2(ic_incr) = pressure_k2(ic)
+
       end do
 
       ! Compress fields at k
@@ -261,14 +272,6 @@ do while ( n_points_incr_k2 > 0 )
         end do
       end do
 
-      ! Compress i,j indices
-      do ic_incr = ic_first, n_points_incr_k2
-        ic = index_ic_incr_k2(ic_incr)
-        cmpr_add % index_i(ic_incr) = cmpr_add % index_i(ic)
-        cmpr_add % index_j(ic_incr) = cmpr_add % index_j(ic)
-        ij(ic_incr) = ij(ic)
-      end do
-
     end if
 
     ! Set number of points to act on to new smaller value
@@ -276,47 +279,32 @@ do while ( n_points_incr_k2 > 0 )
 
   end if  ! ( n_points_incr_k2 < cmpr_add % n_points )
 
-  ! Compress pressure at k2 into the pressure_k array;
-  ! the fields in fields_k_super are already adjusted consistent
-  ! with the pressure at the old k2.  Next we'll adjust them
-  ! consistent with the pressure change from old k2 to new k2.
-  do ic_incr = 1, n_points_incr_k2
-    ic = index_ic_incr_k2(ic_incr)
-    pressure_k(ic_incr) = pressure_k2(ic)
-  end do
-
   ! At all points in the updated list...
-  do ic_incr = 1, cmpr_add % n_points
-    ! Increment k2
-    k2(ij(ic_incr)) = k2(ij(ic_incr)) + 1
-    ! Reset counter for mass added at k2 to zero
-    layer_mass_k2_added(ij(ic_incr)) = zero
-  end do
-
-  ! Check that the new (i,j,k2) points are convecting points
   do ic = 1, cmpr_add % n_points
-    ! If this index is not labelled as a convecting point...
-    if ( index_ic(ij(ic),k2(ij(ic))) == 0 ) then
-      i = cmpr_add % index_i(ic)
-      j = cmpr_add % index_j(ic)
+    ! Check that the next (i,j,k2) points are convecting points
+    if ( index_ic( ij(ic), k2(ij(ic)) + 1 ) > 0 ) then
+      ! Increment k2
+      k2(ij(ic)) = k2(ij(ic)) + 1
+      ! Reset counter for mass added at k2 to zero
+      layer_mass_k2_added(ij(ic)) = zero
+    else
+      ! If the index of the next level is not labelled as a convecting point...
 
       ! Rounding error in floating point arithmetic can cause
       ! very tiny amounts of mass to be left over and spuriously
       ! added to the level above the convection top.
-
-      ! When this happens, shift k2 down to the level below just
-      ! to avoid out-of-bounds error.
-      k2(ij(ic)) = k2(ij(ic)) - 1
+      ! When this happens, just leave k2 where it is to avoid an out-of-bounds
+      ! error, and ditch the leftover mass.
 
       ! Warn or fatal error if we're trying to add a greater mass fraction
       ! than is expected from rounding errors, as this suggests
       ! something has gone very wrong!
-      if ( layer_mass_k(ic) > small_number                                     &
-            * real(layer_mass(i,j,k2(ij(ic))),real_cvprec) ) then
+      if ( layer_mass_k(ic) > small_number * layer_mass_k2(ic) ) then
+        i = cmpr_add % index_i(ic)
+        j = cmpr_add % index_j(ic)
         write(str1,"(A1,I3,A1,I3,A1,I3,A1)")                                   &
           "(", i, ",", j, ",", k2(ij(ic)), ")"
-        write(str2,"(ES14.6)")                                                 &
-          layer_mass_k(ic) / real(layer_mass(i,j,k2(ij(ic))),real_cvprec)
+        write(str2,"(ES14.6)") layer_mass_k(ic) / layer_mass_k2(ic)
         select case(i_check_bad_values_3d)
         case (i_check_bad_fatal)
           call raise_fatal( routinename,                                       &
@@ -342,8 +330,21 @@ do while ( n_points_incr_k2 > 0 )
 
       ! Reset layer_mass_k to zero (i.e. just ditch the surplus mass).
       layer_mass_k(ic) = zero
+      ! Reset mass added to k2 to zero ready for next time
+      ! NOTE: this is wrong; we should really set this to the full mass
+      ! of layer k2, indicating that k2 is fully filled.  This is a
+      ! rarely-exposed bug, to be fixed soon...
+      layer_mass_k2_added(ij(ic)) = zero
 
     end if
+  end do
+
+  ! Copy pressure at k2 into the pressure_k array;
+  ! the fields in fields_k_super are already adjusted consistent
+  ! with the pressure at the old k2.  Next we'll adjust them
+  ! consistent with the pressure change from old k2 to new k2.
+  do ic = 1, cmpr_add % n_points
+    pressure_k(ic) = pressure_k2(ic)
   end do
 
   do ic = 1, cmpr_add % n_points
@@ -356,10 +357,9 @@ do while ( n_points_incr_k2 > 0 )
   end do
 
   ! Adjust fields due to pressure change from old k2 to new k2
-  call fields_k_pressure_adjust( cmpr_add%n_points,                            &
-                                 n_points_super, n_fields_tot,                 &
-                                 fields_k_super,                               &
-                                 pressure_k, pressure_k2 )
+  call fields_k_pressure_adjust( cmpr_add%n_points, n_points_super,            &
+                                 n_fields_tot, pressure_k, pressure_k2,        &
+                                 fields_k_super )
 
   ! Compute mass from k to add to the new k2, and find points
   ! where the k2 level counter needs to be incremented again
@@ -390,7 +390,7 @@ do while ( n_points_incr_k2 > 0 )
   end if
 
 
-end do  ! while ( n_points_incr_k2 > 0 )
+end do  ! WHILE ( n_points_incr_k2 > 0 )
 
 
 ! Deallocate compression list info ready for next level

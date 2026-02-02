@@ -388,7 +388,7 @@ do i_ice = n_cond_species_liq+1, n_cond_species
       end do
 
       ! Add contribution to vapour and temperature coefficients,
-      ! assuming that melting is not occuring
+      ! assuming that melting is NOT occuring
       do i_coef = 1, n_coefs
         do ic = 1, n_points
           coefs_q_vap(ic,i_coef) = coefs_q_vap(ic,i_coef)                      &
@@ -455,7 +455,7 @@ do i_ice = n_cond_species_liq+1, n_cond_species
       end do
 
       ! Add contribution to vapour and temperature coefficients,
-      ! assuming that melting is not occuring
+      ! assuming that melting is NOT occuring
       do i_coef = 1, n_coefs
         do ic2 = 1, nc(i_ice)
           ic = index_ic(ic2,i_ice)

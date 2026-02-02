@@ -46,17 +46,18 @@ subroutine conv_incr_ctl( n_updraft_layers, n_dndraft_layers,                  &
                           comorph_diags )
 
 use comorph_constants_mod, only: real_cvprec, real_hmprec, zero,               &
-                     nx_full, ny_full, k_bot_conv, k_top_conv,                 &
-                     n_updraft_types, n_dndraft_types,                         &
-                     l_updraft_fallback, l_dndraft_fallback,                   &
-                     l_column_mass_rearrange, l_cv_cloudfrac,                  &
-                     i_convcloud, i_convcloud_none
+                                 nx_full, ny_full, k_bot_conv, k_top_conv,     &
+                                 n_updraft_types, n_dndraft_types,             &
+                                 l_updraft_fallback, l_dndraft_fallback,       &
+                                 l_column_mass_rearrange,                      &
+                                 i_convcloud, i_convcloud_none
 
 use cmpr_type_mod, only: cmpr_type
 use res_source_type_mod, only: res_source_type
 use fields_type_mod, only: fields_type, ragged_super_type,                     &
                            fields_k_conserved_vars,                            &
-                           i_cf_liq, i_cf_bulk
+                           i_temperature, i_q_vap,                             &
+                           i_cf_first, i_cf_last
 use cloudfracs_type_mod, only: cloudfracs_type
 use comorph_diags_type_mod, only: comorph_diags_type
 
@@ -64,6 +65,7 @@ use copy_field_mod, only: copy_field_cmpr
 use diff_field_mod, only: diff_field_cmpr
 use compress_mod, only: compress
 use decompress_mod, only: decompress
+use calc_virt_temp_dry_mod, only: calc_virt_temp_dry
 use add_res_source_mod, only: add_res_source
 use mass_rearrange_mod, only: mass_rearrange
 use calc_diag_conv_cloud_mod, only: calc_diag_conv_cloud,                      &
@@ -110,7 +112,7 @@ type(res_source_type), intent(in) :: dndraft_fallback_res_source               &
 ! ( 1, 1, k_bot_conv:k_top_conv )
 
 ! Full 3-D array of pressure
-! (and lower and upper bounds of the array, in case it has halos)
+! (and lower and upper bounds of the array, in case it has haloes)
 integer, intent(in) :: lb_p(3), ub_p(3)
 real(kind=real_hmprec), intent(in) :: pressure                                 &
                           ( lb_p(1):ub_p(1), lb_p(2):ub_p(2), lb_p(3):ub_p(3) )
@@ -126,7 +128,6 @@ type(fields_type), intent(in out) :: fields
 ! convective cloud fields.
 type(cloudfracs_type), intent(in out) :: cloudfracs
 
-
 ! Structure containing pointers to output diagnostics and
 ! miscellaneous outputs required elsewhere in the model
 type(comorph_diags_type), intent(in out) :: comorph_diags
@@ -139,6 +140,9 @@ real(kind=real_cvprec) :: fields_k_super                                       &
 
 ! Layer-mass on current level on the cmpr_any compression list
 real(kind=real_cvprec) :: layer_mass_k ( max_points )
+
+! Dry virtual temperature (for cloud-fraction volume conversion)
+real(kind=real_cvprec) :: virt_temp_dry ( max_points )
 
 ! Separate compressed fields on each level and layer-mass,
 ! needed for mass-rearrangement calculation
@@ -163,8 +167,11 @@ integer :: lb_d(3), ub_d(3)  ! For diagnostic
 integer :: index_ic( ij_first : ij_last,                                       &
                      k_bot_conv-1 : k_top_conv+1 )
 
+! Array size for calls to add_res_source
+integer :: n_points_res
+
 ! Loop counters
-integer :: i, j, ij, ic, k, i_field, i_diag
+integer :: i, j, ij, ic, k, i_layr, i_type, i_field, i_diag
 
 
 !----------------------------------------------------------------
@@ -190,26 +197,20 @@ do k = k_bot_conv, k_top_conv
   end do
 end do
 
+! Allocate arrays for compressed updated fields on each model-level
+allocate( fields_cmpr(k_bot_conv:k_top_conv) )
+do k = k_bot_conv, k_top_conv
+  if ( cmpr_any(k) % n_points > 0 ) then
+    ! Allocate work arrays
+    allocate( fields_cmpr(k) % super( cmpr_any(k) % n_points,                  &
+                                      n_fields_tot ) )
+  end if
+end do
 
-! If doing mass rearrangement, we need additional work variables:
 if ( l_column_mass_rearrange ) then
+  ! If doing mass rearrangement
 
-  ! Compressed copies of fields on all levels
-  allocate( fields_cmpr(k_bot_conv:k_top_conv) )
-  do k = k_bot_conv, k_top_conv
-    if ( cmpr_any(k) % n_points > 0 ) then
-      ! Allocate work arrays
-      allocate( fields_cmpr(k) % super( cmpr_any(k) % n_points,                &
-                                        n_fields_tot ) )
-      ! Initialise to zero
-      do i_field = 1, n_fields_tot
-        do ic = 1, cmpr_any(k) % n_points
-          fields_cmpr(k) % super(ic,i_field) = zero
-        end do
-      end do
-    end if
-  end do
-
+  ! Allocate and initialise extra work variables:
   ! Model-level that fields from level k are being scattered into,
   ! and amount of mass so-far added to that level
   allocate( k2(ij_first:ij_last) )
@@ -217,6 +218,17 @@ if ( l_column_mass_rearrange ) then
   do ij = ij_first, ij_last
     k2(ij) = 0
     layer_mass_k2_added(ij) = zero
+  end do
+
+  ! Initialise compressed fields on each level to zero
+  do k = k_bot_conv, k_top_conv
+    if ( cmpr_any(k) % n_points > 0 ) then
+      do i_field = 1, n_fields_tot
+        do ic = 1, cmpr_any(k) % n_points
+          fields_cmpr(k) % super(ic,i_field) = zero
+        end do
+      end do
+    end if
   end do
 
 end if  ! ( l_column_mass_rearrange )
@@ -281,14 +293,12 @@ do k = k_bot_conv, k_top_conv
     call compress( cmpr_any(k), lb(1:2), ub(1:2),                              &
                    layer_mass(:,:,k), layer_mass_k )
 
-
     ! Convert compressed fields to variables which are
     ! conserved following dry-mass
     l_reverse = .false.
     call fields_k_conserved_vars( cmpr_any(k)%n_points,                        &
                                   max_points, n_fields_tot,                    &
                                   l_reverse, fields_k_super )
-
 
     ! Scale the fields by layer-masses
     do i_field = 1, n_fields_tot
@@ -298,42 +308,79 @@ do k = k_bot_conv, k_top_conv
       end do
     end do
 
-
     ! Add on the contributions from resolved-scale source
     ! terms for all convective drafts, types and layers...
+    ! Note that the order of calculation is important to avoid getting
+    ! spurious small negative values due to rounding errors.  The summing of
+    ! terms from a primary draft and its fall-back flow must be done inside
+    ! the loop over types / layers, to ensure that they accurately cancel-out
+    ! when all of the detrained air from the primary draft has been passed
+    ! into the fall-back flow, resulting in zero net detrainment of cloud.
 
     if ( n_updraft_types > 0 .and. n_updraft_layers > 0 ) then
-      ! Contribution from primary updrafts
-      call add_res_source( max_points, n_fields_tot,                           &
-                           n_updraft_types, n_updraft_layers,                  &
-                           ij_first, ij_last, index_ic(:,k),                   &
-                           updraft_res_source(:,:,k),                          &
-                           fields_k_super, layer_mass_k )
-      ! Contribution from updraft fall-backs
-      if ( l_updraft_fallback ) then
-        call add_res_source( max_points, n_fields_tot,                         &
-                             n_updraft_types, n_updraft_layers,                &
-                             ij_first, ij_last, index_ic(:,k),                 &
-                             updraft_fallback_res_source(:,:,k),               &
-                             fields_k_super, layer_mass_k )
-      end if
+      do i_layr = 1, n_updraft_layers
+        do i_type = 1, n_updraft_types
+          ! Contribution from primary updrafts
+          if ( updraft_res_source(i_type,i_layr,k) % cmpr                      &
+               % n_points > 0 ) then
+            n_points_res = size( updraft_res_source(i_type,i_layr,k)           &
+                                 % cmpr % index_i )
+            call add_res_source( max_points, n_points_res, n_fields_tot,       &
+                   ij_first, ij_last, index_ic(:,k),                           &
+                   updraft_res_source(i_type,i_layr,k) % cmpr,                 &
+                   updraft_res_source(i_type,i_layr,k) % res_super,            &
+                   updraft_res_source(i_type,i_layr,k) % fields_super,         &
+                   fields_k_super, layer_mass_k )
+          end if
+          if ( l_updraft_fallback ) then
+            ! Contribution from updraft fall-backs
+            if ( updraft_fallback_res_source(i_type,i_layr,k) % cmpr           &
+                 % n_points > 0 ) then
+              n_points_res = size( updraft_fallback_res_source(i_type,i_layr,k)&
+                                    % cmpr % index_i )
+              call add_res_source( max_points, n_points_res, n_fields_tot,     &
+                   ij_first, ij_last, index_ic(:,k),                           &
+                   updraft_fallback_res_source(i_type,i_layr,k) % cmpr,        &
+                   updraft_fallback_res_source(i_type,i_layr,k) % res_super,   &
+                   updraft_fallback_res_source(i_type,i_layr,k) % fields_super,&
+                   fields_k_super, layer_mass_k )
+            end if
+          end if  ! ( l_updraft_fallback )
+        end do
+      end do
     end if
 
     if ( n_dndraft_types > 0 .and. n_dndraft_layers > 0 ) then
-      ! Contribution from primary downdrafts
-      call add_res_source( max_points, n_fields_tot,                           &
-                           n_dndraft_types, n_dndraft_layers,                  &
-                           ij_first, ij_last, index_ic(:,k),                   &
-                           dndraft_res_source(:,:,k),                          &
-                           fields_k_super, layer_mass_k )
-      ! Contribution from downdraft fall-backs
-      if ( l_dndraft_fallback ) then
-        call add_res_source( max_points, n_fields_tot,                         &
-                             n_dndraft_types, n_dndraft_layers,                &
-                             ij_first, ij_last, index_ic(:,k),                 &
-                             dndraft_fallback_res_source(:,:,k),               &
-                             fields_k_super, layer_mass_k )
-      end if
+      do i_layr = 1, n_dndraft_layers
+        do i_type = 1, n_dndraft_types
+          ! Contribution from primary dndrafts
+          if ( dndraft_res_source(i_type,i_layr,k) % cmpr                      &
+               % n_points > 0 ) then
+            n_points_res = size( dndraft_res_source(i_type,i_layr,k)           &
+                                  % cmpr % index_i )
+            call add_res_source( max_points, n_points_res, n_fields_tot,       &
+                   ij_first, ij_last, index_ic(:,k),                           &
+                   dndraft_res_source(i_type,i_layr,k) % cmpr,                 &
+                   dndraft_res_source(i_type,i_layr,k) % res_super,            &
+                   dndraft_res_source(i_type,i_layr,k) % fields_super,         &
+                   fields_k_super, layer_mass_k )
+          end if
+          if ( l_dndraft_fallback ) then
+            ! Contribution from dndraft fall-backs
+            if ( dndraft_fallback_res_source(i_type,i_layr,k) % cmpr           &
+                 % n_points > 0 ) then
+              n_points_res = size( dndraft_fallback_res_source(i_type,i_layr,k)&
+                                   % cmpr % index_i )
+              call add_res_source( max_points, n_points_res, n_fields_tot,     &
+                   ij_first, ij_last, index_ic(:,k),                           &
+                   dndraft_fallback_res_source(i_type,i_layr,k) % cmpr,        &
+                   dndraft_fallback_res_source(i_type,i_layr,k) % res_super,   &
+                   dndraft_fallback_res_source(i_type,i_layr,k) % fields_super,&
+                   fields_k_super, layer_mass_k )
+            end if
+          end if  ! ( l_dndraft_fallback )
+        end do
+      end do
     end if
 
     ! Divide the fields by the modified layer-mass
@@ -346,124 +393,101 @@ do k = k_bot_conv, k_top_conv
       end do
     end do
 
-    ! Occasionally, the resolved-scale source-terms can create
-    ! small negative values for cloud-fractions, since the CFL
-    ! check in the closure doesn't explicitly limit the mass-flux
-    ! to avoid this.  Remove negative values here.
-    if ( l_cv_cloudfrac ) then
-      do i_field = i_cf_liq, i_cf_bulk
+    if ( i_cf_last > 0 ) then
+      ! Checks on cloud-fraction fields;
+      ! in theory the cloud-fraction source from precip fall might be able
+      ! to make CF > 1.
+      ! Correct for this...
+      ! CF fields curently store CF * Tv_dry; calc Tv_dry to convert
+      call calc_virt_temp_dry( cmpr_any(k) % n_points,                         &
+                               fields_k_super(:,i_temperature),                &
+                               fields_k_super(:,i_q_vap),                      &
+                               virt_temp_dry )
+      ! Force all the cloud-fraction fields to be < 1
+      do i_field = i_cf_first, i_cf_last
         do ic = 1, cmpr_any(k) % n_points
-          fields_k_super(ic,i_field) = max( zero,                              &
-                       fields_k_super(ic,i_field) )
+          fields_k_super(ic,i_field) = min( max( fields_k_super(ic,i_field),   &
+                                                 zero ), virt_temp_dry(ic) )
         end do
       end do
-    end if
+    end if  ! ( i_cf_last > 0 )
 
 
     !------------------------------------------------------------
-    ! 4) Scatter updated fields at k back to grid
+    ! 4) Vertical mass rearrangement (or just copy if not doing that)
     !------------------------------------------------------------
 
-    ! If doing mass-rearrangement
     if ( l_column_mass_rearrange ) then
+      ! If doing mass-rearrangement
 
       ! Call routine to scatter the
       ! updated fields onto the level(s) where they end up,
       ! not nessecarily the curent level k
       call mass_rearrange( max_points, n_fields_tot,                           &
                            ij_first, ij_last, index_ic,                        &
-                           cmpr_any(k), lb_p, ub_p, pressure,                  &
+                           cmpr_any(k), lb_p,ub_p,pressure,                    &
                            fields_k_super, layer_mass, k, k2,                  &
                            layer_mass_k, layer_mass_k2_added,                  &
                            fields_cmpr, comorph_diags )
 
-      ! Not doing mass rearrangement
     else  ! ( l_column_mass_rearrange )
+      ! Not doing mass rearrangement
 
-      ! Convert conserved variables back to normal variables
-      l_reverse = .true.
-      call fields_k_conserved_vars( cmpr_any(k)%n_points,                      &
-                                    max_points, n_fields_tot,                  &
-                                    l_reverse, fields_k_super )
-
-      if ( i_convcloud > i_convcloud_none ) then
-        ! Update diagnosed convective cloud-fractions
-        call calc_diag_conv_cloud( n_updraft_layers,                           &
-                                   n_dndraft_layers,                           &
-                                   max_points, n_fields_tot,                   &
-                                   cmpr_any, k,                                &
-                                   ij_first, ij_last, index_ic,                &
-                                   updraft_res_source,                         &
-                                   updraft_fallback_res_source,                &
-                                   dndraft_res_source,                         &
-                                   dndraft_fallback_res_source,                &
-                                   lb_p, ub_p, pressure,                       &
-                                   fields_k_super, cloudfracs )
-      end if
-
-      ! Scatter updated values back to the 3-D arrays
+      ! Just copy the updated fields into the compression array for level k
       do i_field = 1, n_fields_tot
-        lb = lbound(fields%list(i_field)%pt)
-        ub = ubound(fields%list(i_field)%pt)
-        call decompress( cmpr_any(k),                                          &
-                         fields_k_super(:,i_field),                            &
-                         lb(1:2), ub(1:2), fields%list(i_field)%pt(:,:,k) )
+        do ic = 1, cmpr_any(k) % n_points
+          fields_cmpr(k) % super(ic,i_field) = fields_k_super(ic,i_field)
+        end do
       end do
 
     end if  ! ( l_column_mass_rearrange )
 
   end if  ! ( cmpr_any(k) % n_points > 0 )
 end do  ! k = k_bot_conv, k_top_conv
-! end OF MAIN LOOP OVER LEVELS
+! END OF MAIN LOOP OVER LEVELS
 
 
 !----------------------------------------------------------------
-! 5) Final decompression after mass rearrangement calculation
+! 5) Final calculations and decompression back to full fields
 !----------------------------------------------------------------
 
-! If doing mass-rearrangement, the updated 3-D fields are now
-! stored in compressed form in fields_cmpr.
-if ( l_column_mass_rearrange ) then
+do k = k_bot_conv, k_top_conv
+  if ( cmpr_any(k) % n_points > 0 ) then
 
-  do k = k_bot_conv, k_top_conv
-    if ( cmpr_any(k) % n_points > 0 ) then
+    ! Convert back to normal variables
+    l_reverse = .true.
+    call fields_k_conserved_vars( cmpr_any(k)%n_points,                        &
+                                  cmpr_any(k)%n_points,                        &
+                                  n_fields_tot, l_reverse,                     &
+                                  fields_cmpr(k) % super )
 
-      ! Convert back to normal variables
-      l_reverse = .true.
-      call fields_k_conserved_vars( cmpr_any(k)%n_points,                      &
-                                    cmpr_any(k)%n_points,                      &
-                                    n_fields_tot, l_reverse,                   &
-                                    fields_cmpr(k) % super )
-
-      if ( i_convcloud > i_convcloud_none ) then
-        ! Update diagnosed convective cloud-fractions
-        call calc_diag_conv_cloud( n_updraft_layers,                           &
-                                   n_dndraft_layers,                           &
-                                   cmpr_any(k) % n_points,                     &
-                                   n_fields_tot, cmpr_any, k,                  &
-                                   ij_first, ij_last, index_ic,                &
-                                   updraft_res_source,                         &
-                                   updraft_fallback_res_source,                &
-                                   dndraft_res_source,                         &
-                                   dndraft_fallback_res_source,                &
-                                   lb_p, ub_p, pressure,                       &
-                                   fields_cmpr(k) % super,                     &
-                                   cloudfracs )
-      end if
-
-      ! Scatter updated values back to the 3-D arrays
-      do i_field = 1, n_fields_tot
-        lb = lbound(fields%list(i_field)%pt)
-        ub = ubound(fields%list(i_field)%pt)
-        call decompress( cmpr_any(k),                                          &
-                         fields_cmpr(k) % super(:,i_field),                    &
-                         lb(1:2), ub(1:2), fields%list(i_field)%pt(:,:,k) )
-      end do
-
+    if ( i_convcloud > i_convcloud_none ) then
+      ! Update diagnosed convective cloud-fractions
+      call calc_diag_conv_cloud( n_updraft_layers,                             &
+                                 n_dndraft_layers,                             &
+                                 cmpr_any(k) % n_points,                       &
+                                 n_fields_tot, cmpr_any, k,                    &
+                                 ij_first, ij_last, index_ic,                  &
+                                 updraft_res_source,                           &
+                                 updraft_fallback_res_source,                  &
+                                 dndraft_res_source,                           &
+                                 dndraft_fallback_res_source,                  &
+                                 lb_p, ub_p, pressure,                         &
+                                 fields_cmpr(k) % super,                       &
+                                 cloudfracs )
     end if
-  end do
 
-end if
+    ! Scatter updated primary field values back to the 3-D arrays
+    do i_field = 1, n_fields_tot
+      lb = lbound(fields%list(i_field)%pt)
+      ub = ubound(fields%list(i_field)%pt)
+      call decompress( cmpr_any(k),                                            &
+                       fields_cmpr(k) % super(:,i_field),                      &
+                       lb(1:2), ub(1:2), fields%list(i_field)%pt(:,:,k) )
+    end do
+
+  end if  ! ( cmpr_any(k) % n_points > 0 )
+end do  ! k = k_bot_conv, k_top_conv
 
 
 !----------------------------------------------------------------
@@ -531,8 +555,8 @@ end if
 if ( l_column_mass_rearrange ) then
   deallocate( layer_mass_k2_added )
   deallocate( k2 )
-  deallocate( fields_cmpr )
 end if
+deallocate( fields_cmpr )
 
 
 return

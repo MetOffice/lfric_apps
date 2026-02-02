@@ -35,34 +35,35 @@ contains
 ! parcel lifting
 !----------------------------------------------------------------
 subroutine parcel_dyn( n_points, n_points_prev, n_points_next,                 &
-                       n_points_env, n_points_res, n_points_buoy,              &
+                       n_points_env, n_points_res, n_points_sublevs,           &
                        n_points_diag, n_diags_super, n_fields_tot,             &
-                       max_buoy_heights, n_buoy_vars, l_down, l_tracer,        &
+                       l_down, l_tracer,                                       &
                        cmpr, k, draft_string, i_call,                          &
                        grid_prev, grid_next,                                   &
                        l_within_bl, layer_mass_step, sum_massflux,             &
                        massflux_d, par_radius,                                 &
-                       env_k_fields,                                           &
-                       env_prev_virt_temp, env_next_virt_temp,                 &
+                       env_k_fields, Nsq_dry,                                  &
                        par_prev_fields, par_next_fields,                       &
-                       buoyancy_super, i_next, i_sat,                          &
+                       sublevs, i_next, i_sat, par_w_drag,                     &
+                       prev_ss, next_ss, prev_tvl, next_tvl,                   &
                        res_source_fields,                                      &
                        plume_model_diags, diags_super,                         &
-                       i_core_sat, core_next_q_cl,                             &
+                       i_core_sat, next_core_fields,                           &
                        core_mean_ratio )
 
-use comorph_constants_mod, only: real_cvprec, newline, sqrt_min_delta,         &
-                                 zero, one, two, n_cond_species, n_tracers,    &
+use comorph_constants_mod, only: real_cvprec, newline,                         &
+                                 zero, one, n_cond_species, n_tracers,         &
                                  i_check_bad_values_cmpr, i_check_bad_none,    &
                                  name_length,                                  &
-                                 l_par_core, wind_w_fac, l_cv_cloudfrac,       &
-                                 l_precip_to_cloud, l_tracer_scav,             &
-                                 l_cv_cf, l_cv_rain, l_cv_snow, l_cv_graup,    &
-                                 i_cond_cl, i_cond_rain,                       &
-                                 i_cond_cf, i_cond_snow, i_cond_graup
+                                 wind_w_fac, w_min,                            &
+                                 l_par_core, l_cv_cf, l_cv_cloudfrac,          &
+                                 l_tracer_scav,                                &
+                                 par_vert_len_fac,                             &
+                                 i_cond_cl, i_cond_cf,                         &
+                                 i_mean_q_cl, i_mean_q_cl_hom
 use grid_type_mod, only: n_grid, i_height, i_pressure
-use fields_type_mod, only: i_temperature, i_q_vap,                             &
-                           i_qc_first, i_qc_last, i_q_cl, i_q_cf,              &
+use fields_type_mod, only: i_temperature, i_q_vap, i_q_cl, i_q_cf,             &
+                           i_qc_first, i_qc_last,                              &
                            i_cf_liq, i_cf_bulk,                                &
                            i_wind_u, i_wind_v, i_wind_w, i_tracers,            &
                            n_fields, field_names, field_positive
@@ -70,7 +71,9 @@ use cmpr_type_mod, only: cmpr_type
 
 use linear_qs_mod, only: linear_qs_set_ref,                                    &
                          n_linear_qs_fields, i_ref_temp
-use buoyancy_mod, only: i_prev, i_mean_buoy, i_core_buoy
+use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
+                       j_mean_buoy, j_core_buoy, j_env_tv,                     &
+                       j_mean_wex, j_core_wex
 use plume_model_diags_type_mod, only: plume_model_diags_type
 use moist_proc_diags_type_mod, only: moist_proc_diags_type
 
@@ -81,8 +84,9 @@ use moist_proc_mod, only: moist_proc
 use sat_adjust_mod, only: sat_adjust
 use set_cp_tot_mod, only: set_cp_tot
 use calc_q_tot_mod, only: calc_q_tot
-use lat_heat_mod, only: lat_heat_incr, i_phase_change_con
 use set_par_cloudfrac_mod, only: set_par_cloudfrac
+use calc_qvl_supersat_mod, only: calc_qvl_supersat
+use calc_mean_q_cl_with_core_mod, only: calc_mean_q_cl_with_core
 use tracer_source_mod, only: tracer_source
 use calc_sat_height_mod, only: calc_sat_height
 use calc_virt_temp_mod, only: calc_virt_temp
@@ -101,18 +105,13 @@ integer, intent(in) :: n_points_prev
 integer, intent(in) :: n_points_next
 integer, intent(in) :: n_points_env
 integer, intent(in) :: n_points_res
-integer, intent(in) :: n_points_buoy
+integer, intent(in) :: n_points_sublevs
 integer, intent(in) :: n_points_diag
 integer, intent(in) :: n_diags_super
 
 ! Number of primary fields stored in par_next_fields
 ! (may or may not include tracers)
 integer, intent(in) :: n_fields_tot
-
-! Dimensions of the buoyancy super-array (may differ between
-! different calls to this routine)
-integer, intent(in) :: max_buoy_heights
-integer, intent(in) :: n_buoy_vars
 
 ! Flag for downdrafts versus updrafts
 logical, intent(in) :: l_down
@@ -134,10 +133,10 @@ integer, intent(in) :: i_call
 ! Height and pressure...
 !   At previous level
 real(kind=real_cvprec), intent(in) :: grid_prev                                &
-                                  ( n_points_env, n_grid )
+                                      ( n_points_env, n_grid )
 !   At next level which we are lifting up to
 real(kind=real_cvprec), intent(in) :: grid_next                                &
-                                  ( n_points_env, n_grid )
+                                      ( n_points_env, n_grid )
 
 ! Flag for whether each point is within the homogenised mixed-layer
 logical, intent(in) :: l_within_bl(n_points)
@@ -158,17 +157,16 @@ real(kind=real_cvprec), intent(in) :: par_radius(n_points)
 ! Super-array containing environment fields at k; properties
 ! of source air for precip which falls into the parcel
 real(kind=real_cvprec), intent(in) :: env_k_fields                             &
-                  ( n_points_env, i_wind_u:i_temperature )
+                                      ( n_points_env, n_fields )
 
-! Environment virtual temperature at previous and next levels
-real(kind=real_cvprec), intent(in) :: env_prev_virt_temp(n_points)
-real(kind=real_cvprec), intent(in) :: env_next_virt_temp(n_points)
+! Environment dry static stability
+real(kind=real_cvprec), intent(in) :: Nsq_dry(n_points)
 
 ! Super-array containing parcel fields at "previous" level
 ! These are valid at the previous model-level interface
 ! (except in the genesis test-ascent where they are at k)
 real(kind=real_cvprec), intent(in) :: par_prev_fields                          &
-                      ( n_points_prev, i_temperature:i_qc_last )
+                                      ( n_points_prev, i_temperature:n_fields )
 
 ! Super-array containing the parcel fields to be updated.
 ! On input they are consistent with the pressure at the start of
@@ -177,20 +175,31 @@ real(kind=real_cvprec), intent(in) :: par_prev_fields                          &
 real(kind=real_cvprec), intent(in out) :: par_next_fields                      &
                                 ( n_points_next, n_fields_tot )
 
-! Super-array storing the buoyancies of the parcel mean and core
+! Super-array storing the parcel buoyancies and other properties
 ! at up to 4 sub-level heights within the current level-step:
 ! a) Start of the level-step
 ! b) End of the level-step
 ! c) Height where parcel mean properties first hit saturation
 ! d) Height where parcel core first hit saturation
-real(kind=real_cvprec), intent(in out) :: buoyancy_super                       &
-                ( n_points_buoy, n_buoy_vars, max_buoy_heights )
+real(kind=real_cvprec), intent(in out) :: sublevs                              &
+                     ( n_points_sublevs, n_sublev_vars, max_sublevs )
 
-! Address of next model-level interface in buoyancy_super
+! Address of next model-level interface in sublevs
 integer, intent(in out) :: i_next(n_points)
-! Address of saturation height in buoyancy_super
+! Address of saturation height in sublevs
 integer, intent(in out) :: i_sat(n_points)
 
+! Drag on the parcel vertical velocity / s-1
+! Output from momentum_eqn for use in correcting w due to changes in buoyancy
+real(kind=real_cvprec), intent(out) :: par_w_drag(n_points)
+
+! Supersaturation the parcel would have with all liquid cloud evaporated
+real(kind=real_cvprec), intent(out) :: prev_ss(n_points)
+real(kind=real_cvprec), intent(out) :: next_ss(n_points)
+
+! Virtual temperature the parcel would have with all liquid cloud evaporated
+real(kind=real_cvprec), intent(out) :: prev_tvl(n_points)
+real(kind=real_cvprec), intent(out) :: next_tvl(n_points)
 
 ! Super-array containing resolved-scale source terms for each primary field
 real(kind=real_cvprec), optional, intent(in out) :: res_source_fields          &
@@ -210,8 +219,10 @@ real(kind=real_cvprec), optional, intent(in out) :: diags_super                &
 ! (only passed in for separate means ascents modified by core)
 integer, optional, intent(in out) :: i_core_sat(n_points)
 
-! Parcel core liquid cloud
-real(kind=real_cvprec), optional, intent(in) :: core_next_q_cl(n_points)
+! Core liquid-cloud mixing-ratio
+real(kind=real_cvprec), optional, intent(in) :: next_core_fields               &
+                                                ( n_points_next, n_fields_tot )
+
 ! Ratio of core buoyancy over mean buoyancy
 real(kind=real_cvprec), optional, intent(in) :: core_mean_ratio(n_points)
 
@@ -221,10 +232,6 @@ character(len=name_length) :: call_string
 
 ! Air density
 real(kind=real_cvprec) :: rho_dry(n_points)
-
-! Exner ratio to use when adjusting parcel temperature
-! under a pressure change
-real(kind=real_cvprec) :: exner_ratio(n_points)
 
 ! Height interval for the parcel lifting
 real(kind=real_cvprec) :: delta_z(n_points)
@@ -250,20 +257,11 @@ real(kind=real_cvprec) :: linear_qs_super                                      &
 ! Super-array to store precip fall fluxes
 real(kind=real_cvprec) :: flux_cond( n_points, n_cond_species )
 
-! Condensation increment due to sub-plume moisture variability
-real(kind=real_cvprec) :: dq_cond(n_points)
 ! Total heat capacity for phase-change
 real(kind=real_cvprec) :: cp_tot(n_points)
 ! Total water mixing ratio
 real(kind=real_cvprec) :: q_tot(n_points)
 
-! Number of points which just hit saturation at the current
-! level, and indices of those points
-integer :: n_sat
-integer :: index_ic_sat(n_points)
-
-! Interpolation weight used in buoyancy calculation.
-real(kind=real_cvprec) :: interp
 ! Parcel virtual temperature at next level
 real(kind=real_cvprec) :: par_next_virt_temp(n_points)
 
@@ -295,17 +293,17 @@ logical, parameter :: l_update_q_false = .false.
 ! Flag passed into check_bad_values to indicate whether fields must be positive
 logical :: l_positive
 
+! Flag for parcel mean ascent with an accompanying core
+logical :: l_mean_with_core
+
 ! Dummy diagnostics structure to pass into moist_proc in the
 ! case where diagnostics are not requested
 type(moist_proc_diags_type) :: moist_proc_diags_dummy
 ! Dummy diagnostics array
 real(kind=real_cvprec) :: diags_super_dummy(1,1)
 
-! Value very slightly below 1, for numerical safety-check
-real(kind=real_cvprec), parameter :: almost_one = one - sqrt_min_delta
-
 ! Loop counters
-integer :: ic, ic2, i_cond, i_diag, i_field, i_lev, i_buoy
+integer :: ic, i_cond, i_diag, i_field, j_buoy, j_wex
 
 character(len=*), parameter :: routinename = "PARCEL_DYN"
 
@@ -333,14 +331,21 @@ l_res_source = ( i_call == i_call_mean .or. i_call == i_call_det )
 ! only ouput for the parcel mean ascent
 l_diags = ( i_call == i_call_mean )
 
+! Set flag for a parcel mean ascent with an accompanying core
+! (i.e. if this is the call for the mean ascent, and required optional
+!  arguments are present)
+l_mean_with_core = ( i_call == i_call_mean .and. l_par_core                    &
+                     .and. present(next_core_fields)                           &
+                     .and. present(core_mean_ratio) )
+
 ! Check the required optional arguments for res_source and diag
 ! calculations are present if the flags are true.
 if ( l_res_source .and. ( .not. present(res_source_fields) ) ) then
   call raise_fatal( routinename,                                               &
-         "Flag l_res_source has been set to true to "                       // &
-         "calculate resolved-scale source terms, "                 //newline// &
-         "but the required optional argument res_source_fields "            // &
-         "is not present.  For call: " // call_string )
+         "Flag l_res_source has been set to true to calculate "             // &
+         "resolved-scale source terms, but the required optional " //newline// &
+         "argument res_source_fields is not present.  "                      //&
+         "For call: " // call_string )
 end if
 if ( l_diags .and. ( .not. ( present(plume_model_diags) .and.                  &
                              present(diags_super) ) ) ) then
@@ -386,6 +391,15 @@ end if
 ! 1) Set grid-related fields needed in the calculations
 !----------------------------------------------------------------
 
+! Select address for core or mean properties in the sub-levels super-array
+if ( i_call == i_call_core ) then
+  j_buoy = j_core_buoy
+  j_wex  = j_core_wex
+else
+  j_buoy = j_mean_buoy
+  j_wex  = j_mean_wex
+end if
+
 ! Set height interval
 ! Note: for downdrafts, this will be negative!
 do ic = 1, n_points
@@ -401,8 +415,6 @@ call calc_rho_dry( n_points,                                                   &
 
 ! For now, set vertical velocity over the level-step to a
 ! prescribed value (sign depends on whether updraft or downdraft).
-! This is because the interactive parcel vertical momentum
-! equations in CoMorph are not yet fully implemented.
 !
 ! Constant wind_w_fac is the draft speed in m s-1
 do ic = 1, n_points
@@ -414,10 +426,11 @@ do ic = 1, n_points
   delta_t(ic) = delta_z(ic) / wind_w_excess(ic)
 end do
 
-! Set vertical length-scale of parcel; for now just use 2 * the
-! parcel's radius
+! Set vertical length-scale of parcel used for precip fall;
+! this should be parcel volume over cross-sectional area = 4/3 R,
+! but can be set to other values, e.g. if updrafts aren't spherical.
 do ic = 1, n_points
-  vert_len(ic) = par_radius(ic) * two
+  vert_len(ic) = par_vert_len_fac * par_radius(ic)
 end do
 
 ! Calculate factor dt / (rho_dry lz), used for converting
@@ -436,11 +449,7 @@ call dry_adiabat( n_points, n_points_next,                                     &
                   grid_prev(:,i_pressure), grid_next(:,i_pressure),            &
                   par_next_fields(:,i_q_vap),                                  &
                   par_next_fields(:,i_qc_first:i_qc_last),                     &
-                  exner_ratio )
-do ic = 1, n_points
-  par_next_fields(ic,i_temperature) = par_next_fields(ic,i_temperature)        &
-                                    * exner_ratio(ic)
-end do
+                  par_next_fields(:,i_temperature) )
 
 
 !----------------------------------------------------------------
@@ -458,7 +467,8 @@ end do
 call set_cp_tot( n_points, n_points_next,                                      &
                  par_next_fields(:,i_q_vap),                                   &
                  par_next_fields(:,i_qc_first:i_qc_last), cp_tot )
-call sat_adjust( n_points, l_update_q_false, grid_next(:,i_pressure),          &
+call sat_adjust( n_points, l_update_q_false,                                   &
+                 grid_next(:,i_pressure),                                      &
                  linear_qs_super(:,i_ref_temp),                                &
                  par_next_fields(:,i_q_vap),                                   &
                  par_next_fields(:,i_q_cl), cp_tot )
@@ -468,7 +478,7 @@ call linear_qs_set_ref( n_points,                                              &
                         grid_next(:,i_pressure), linear_qs_super)
 
 
-! FALL-in OF PRECIP FROM THE ENVIRONMENT INTO THE PARCEL...
+! FALL-IN OF PRECIP FROM THE ENVIRONMENT INTO THE PARCEL...
 
 ! The fall-in flux will be calculated here, but this is not
 ! yet implemented.
@@ -491,8 +501,8 @@ if ( l_res_source .and. .false. ) then
   l_fall_in = .true.
   call precip_res_source( n_points, n_points_env, n_points_res,                &
                           l_fall_in, dt_over_rhod_lz, massflux_d,              &
-                          env_k_fields(:,i_wind_u:i_temperature),              &
-                          flux_cond, res_source_fields(:,i_wind_u:i_qc_last) )
+                          flux_cond, env_k_fields,                             &
+                          res_source_fields )
 
 end if  ! ( l_res_source )
 
@@ -562,6 +572,7 @@ else
                    1, 1, diags_super_dummy )
 end if
 
+
 if ( l_tracer .and. l_tracer_scav ) then
   ! Calculate final + falling-out cloud-condensate + vapour,
   ! and subtract this from the preexisting + falling-in cloud condensate
@@ -584,15 +595,16 @@ if ( l_tracer .and. l_tracer_scav ) then
   end if
 end if
 
-! For the genesis test ascents, don't let the precip fall out
-! of the parcel.  This is a temporary fix to avoid
-! spurious convective triggering from columns with large
-! rain mixing-ratios (the parcel becomes buoyant at the
-! next level just because the rain falls out, so it loses
-! the water loading; in reality, rain should be falling
-! in as fast as it is falling out, but fall-in isn't
-! implemented yet).
 if ( i_call == i_call_genesis ) then
+
+  ! For the genesis test ascents, don't let the precip fall out
+  ! of the parcel.  This is a temporary fix to avoid
+  ! spurious convective triggering from columns with large
+  ! rain mixing-ratios (the parcel becomes buoyant at the
+  ! next level just because the rain falls out, so it loses
+  ! the water loading; in reality, rain should be falling
+  ! in as fast as it is falling out, but fall-in isn't
+  ! implemented yet).
   do i_cond = 1, n_cond_species
     i_field = i_qc_first-1 + i_cond
     do ic = 1, n_points
@@ -601,47 +613,16 @@ if ( i_call == i_call_genesis ) then
         + flux_cond(ic,i_cond) * dt_over_rhod_lz(ic)
     end do
   end do
+
+end if  ! ( i_call == i_call_genesis )
+
+! Update in-parcel cloud-fractions and precipitation fraction
+if ( l_cv_cloudfrac ) then
+  call set_par_cloudfrac( n_points, n_points_next,                             &
+                          par_next_fields(:,i_q_cl),                           &
+                          par_next_fields(:,i_q_cf),                           &
+                          par_next_fields(:,i_cf_liq:i_cf_bulk) )
 end if
-
-if ( l_res_source ) then
-
-  if ( l_precip_to_cloud ) then
-    ! Under this switch, convert the precip fall-out-flux into
-    ! cloud.  The large-scale microphysics will then
-    ! re-decide the partitioning of condensed water into precip
-    if ( l_cv_rain ) then
-      do ic = 1, n_points
-        flux_cond(ic,i_cond_cl) = flux_cond(ic,i_cond_cl)                      &
-                                + flux_cond(ic,i_cond_rain)
-        flux_cond(ic,i_cond_rain) = zero
-      end do
-    end if
-    if ( l_cv_snow ) then
-      do ic = 1, n_points
-        flux_cond(ic,i_cond_cf) = flux_cond(ic,i_cond_cf)                      &
-                                + flux_cond(ic,i_cond_snow)
-        flux_cond(ic,i_cond_snow) = zero
-      end do
-    end if
-    if ( l_cv_graup ) then
-      do ic = 1, n_points
-        flux_cond(ic,i_cond_cf) = flux_cond(ic,i_cond_cf)                      &
-                                + flux_cond(ic,i_cond_graup)
-        flux_cond(ic,i_cond_graup) = zero
-      end do
-    end if
-  end if
-
-  ! Add on resolved-scale source term contributions from
-  ! precipitation fall-out
-  l_fall_in = .false.
-  call precip_res_source( n_points, n_points_next, n_points_res,               &
-                          l_fall_in, dt_over_rhod_lz, massflux_d,              &
-                          par_next_fields(:,i_wind_u:i_temperature),           &
-                          flux_cond, res_source_fields(:,i_wind_u:i_qc_last) )
-
-end if
-
 
 ! If using separate parcel mean and core properties,
 ! attempt to approximately account for effect of sub-plume
@@ -649,64 +630,22 @@ end if
 ! just entails retrospectively adding more condensation to
 ! the parcel mean if the core has cloud in it but the mean
 ! has disproportionately less (the mean is supposed to include the core).
-! The main reason for doing this is to avoid numerical problems
-! that happen if q_cl > 0 in the core, but q_cl = 0 in the mean,
-! which implies negative q_cl at the parcel edge and detrained air.
-if ( ( i_call == i_call_mean ) .and.                                           &
-     ( present(core_next_q_cl) .and. present(core_mean_ratio)                  &
-                               .and. l_par_core ) ) then
-
-  ! Calculate amount of liquid cloud that needs to be
-  ! added (comes out negative where none needed)
-  ! This formula is the minimum q_cl the mean needs to have to
-  ! avoid negative q_cl at the parcel edge:
-  do ic = 1, n_points
-    dq_cond(ic) = core_next_q_cl(ic) / core_mean_ratio(ic)                     &
-                - par_next_fields(ic,i_q_cl)
-  end do
-
-  ! Find points where condensation needs to be added to the mean
-  n_sat = 0
-  do ic = 1, n_points
-    if ( dq_cond(ic) > zero ) then
-      n_sat = n_sat + 1
-      index_ic_sat(n_sat) = ic
-    end if
-  end do
-
-  ! If any points
-  if ( n_sat > 0 ) then
-    ! Condensation increment may not exceed available vapour
-    do ic2 = 1, n_sat
-      ic = index_ic_sat(ic2)
-      dq_cond(ic) = min( dq_cond(ic),                                          &
-                         almost_one * par_next_fields(ic,i_q_vap) )
-    end do
-    ! Add on condensation at these points
-    call set_cp_tot( n_points, n_points_next,                                  &
-                     par_next_fields(:,i_q_vap),                               &
-                     par_next_fields(:,i_qc_first:i_qc_last),                  &
-                     cp_tot )
-    call lat_heat_incr( n_points, n_sat, i_phase_change_con,                   &
-                        cp_tot, par_next_fields(:,i_temperature),              &
-                        index_ic=index_ic_sat, dq=dq_cond )
-    do ic2 = 1, n_sat
-      ic = index_ic_sat(ic2)
-      par_next_fields(ic,i_q_cl)  = par_next_fields(ic,i_q_cl)                 &
-                                  + dq_cond(ic)
-      par_next_fields(ic,i_q_vap) = par_next_fields(ic,i_q_vap)                &
-                                  - dq_cond(ic)
-    end do
-  end if
-
+if ( i_mean_q_cl > i_mean_q_cl_hom .and. l_mean_with_core ) then
+  call calc_mean_q_cl_with_core( n_points, n_points_next, n_fields_tot,        &
+                                 next_core_fields(:,i_q_cl),                   &
+                                 core_mean_ratio, par_next_fields )
 end if
 
-! Update in-parcel cloud-fractions
-if ( l_cv_cloudfrac ) then
-  call set_par_cloudfrac( n_points, n_points_next,                             &
-                          par_next_fields(:,i_q_cl),                           &
-                          par_next_fields(:,i_q_cf),                           &
-                          par_next_fields(:,i_cf_liq:i_cf_bulk) )
+if ( l_res_source ) then
+
+  ! Add on resolved-scale source term contributions from
+  ! precipitation fall-out
+  l_fall_in = .false.
+  call precip_res_source( n_points, n_points_next, n_points_res,               &
+                          l_fall_in, dt_over_rhod_lz, massflux_d,              &
+                          flux_cond, par_next_fields,                          &
+                          res_source_fields )
+
 end if
 
 ! Apply any in-parcel source terms for tracers
@@ -726,6 +665,22 @@ if ( .not. i_call == i_call_det ) then
   ! Don't need to do this part when just adjusting the detrained air
   ! to level k...
 
+  ! Calculate supersaturation and virtual temperature the parcel would have
+  ! if all liquid-cloud evaporated, at both prev and next level...
+  call calc_qvl_supersat( n_points, n_points_prev,                             &
+                          grid_prev(:,i_pressure),                             &
+                          par_prev_fields(:,i_temperature),                    &
+                          par_prev_fields(:,i_q_vap),                          &
+                          par_prev_fields(:,i_qc_first:i_qc_last),             &
+                          prev_ss, prev_tvl )
+  call calc_qvl_supersat( n_points, n_points_next,                             &
+                          grid_next(:,i_pressure),                             &
+                          par_next_fields(:,i_temperature),                    &
+                          par_next_fields(:,i_q_vap),                          &
+                          par_next_fields(:,i_qc_first:i_qc_last),             &
+                          next_ss, next_tvl,                                   &
+                          linear_qs=linear_qs_super )
+
   ! Find new parcel virtual temperature and excess
   call calc_virt_temp( n_points, n_points_next,                                &
                        par_next_fields(:,i_temperature),                       &
@@ -733,20 +688,12 @@ if ( .not. i_call == i_call_det ) then
                        par_next_fields(:,i_qc_first:i_qc_last),                &
                        par_next_virt_temp )
 
-  ! Select address for core or mean in the buoyancy super-array
-  if ( i_call == i_call_core ) then
-    i_buoy = i_core_buoy
-  else
-    i_buoy = i_mean_buoy
-  end if
-
   ! Store virtual temperature excess at the
   ! next model-level interface
   do ic = 1, n_points
-    buoyancy_super(ic,i_buoy,i_next(ic))                                       &
-      = par_next_virt_temp(ic) - env_next_virt_temp(ic)
+    sublevs(ic,j_buoy,i_next(ic)) = par_next_virt_temp(ic)                     &
+                                  - sublevs(ic,j_env_tv,i_next(ic))
   end do
-
 
   ! At the level where the parcel first hits saturation, need to
   ! find the buoyancy at the point of saturation, where there
@@ -754,136 +701,18 @@ if ( .not. i_call == i_call_det ) then
   ! the model-levels.  This needs to be accounted for in the
   ! detrainment calculation, and also in the vertical momentum
   ! equation.
+  ! In updrafts, this usually corresponds to the minimum buoyancy of the
+  ! parcel as it rises through the BL-top inversion, and is
+  ! therefore critical for getting the detrainment below
+  ! cloud-base (and hence the mass-flux at cloud-base) right.
+  call calc_sat_height(                                                        &
+         n_points, n_points_sublevs, l_mean_with_core, l_down, j_buoy,         &
+         prev_ss, next_ss, prev_tvl, next_tvl,                                 &
+         par_prev_fields(:,i_q_cl), par_next_fields(:,i_q_cl),                 &
+         i_next, i_sat, sublevs,                                               &
+         i_core_sat=i_core_sat )
 
-  ! Find points which just activated condensation, or just
-  ! finished evaporation
-  ! (those which had zero cloud water at previous level
-  ! and which now have non-zero cloud water, or vice-versa)
-
-  ! Store list of points which just reached saturation
-  n_sat = 0
-  do ic = 1, n_points
-    if ( par_prev_fields(ic,i_q_cl) > zero .neqv.                              &
-         par_next_fields(ic,i_q_cl) > zero ) then
-      n_sat = n_sat + 1
-      index_ic_sat(n_sat) = ic
-    end if
-  end do
-
-  if ( n_sat > 0 ) then
-    ! If any points just reached saturation, calculate the
-    ! height of the saturation level.
-    ! This routine also outputs the parcel virtual temperature
-    ! excess at the point of saturation.  In updrafts,
-    ! this usually corresponds to the minimum buoyancy of the
-    ! parcel as it rises through the BL-top inversion, and is
-    ! therefore critical for getting the detrainment below
-    ! cloud-base (and hence the mass-flux at cloud-base) right.
-
-    ! The routine calc_sat_height below assumes the heights
-    ! increase in the forward direction, which is not the case
-    ! when going down. Correct for this by temporarily reversing
-    ! the signs of the heights stored in buoyancy_super
-    if ( l_down ) then
-      do ic2 = 1, n_sat
-        ic = index_ic_sat(ic2)
-        do i_lev = i_prev, i_next(ic)
-          buoyancy_super(ic,i_height,i_lev)                                    &
-            = -buoyancy_super(ic,i_height,i_lev)
-        end do
-      end do
-    end if
-
-    call calc_sat_height(                                                      &
-           n_points, n_points_prev, n_points_next, n_points_buoy,              &
-           n_sat, index_ic_sat,                                                &
-           max_buoy_heights, n_buoy_vars, i_buoy,                              &
-           grid_prev(:,i_pressure),                                            &
-           par_prev_fields(:,i_temperature:i_qc_last),                         &
-           par_next_fields(:,i_temperature:i_qc_last),                         &
-           env_prev_virt_temp, env_next_virt_temp,                             &
-           linear_qs_super, i_next, i_sat, buoyancy_super,                     &
-           i_core_sat=i_core_sat )
-
-    ! Restore the sign of the heights in buoyancy_super
-    if ( l_down ) then
-      do ic2 = 1, n_sat
-        ic = index_ic_sat(ic2)
-        do i_lev = i_prev, i_next(ic)
-          buoyancy_super(ic,i_height,i_lev)                                    &
-            = -buoyancy_super(ic,i_height,i_lev)
-        end do
-      end do
-    end if
-
-  end if  ! ( n_sat > 0 )
-
-  ! If this is a mean ascent following a core ascent...
-  if ( present(i_core_sat) ) then
-    ! We need to calculate the mean's virt_temp excess at the
-    ! core's saturation height, and vice-versa...
-
-    ! Find points where the core hit saturation (and the mean's
-    ! saturation height is not defined at the same height)
-    n_sat = 0
-    do ic = 1, n_points
-      if ( i_core_sat(ic) > 0 ) then
-        if ( .not. i_sat(ic) == i_core_sat(ic) ) then
-          n_sat = n_sat + 1
-          index_ic_sat(n_sat) = ic
-        end if
-      end if
-    end do
-
-    ! If any points
-    if ( n_sat > 0 ) then
-      ! Interpolate mean buoyancy at core sat_height.
-      do ic2 = 1, n_sat
-        ic = index_ic_sat(ic2)
-        interp = ( buoyancy_super(ic,i_height,i_core_sat(ic))                  &
-                 - buoyancy_super(ic,i_height,i_core_sat(ic)-1) )              &
-               / ( buoyancy_super(ic,i_height,i_core_sat(ic)+1)                &
-                 - buoyancy_super(ic,i_height,i_core_sat(ic)-1) )
-        buoyancy_super(ic,i_mean_buoy,i_core_sat(ic))                          &
-          = (one-interp)                                                       &
-            * buoyancy_super(ic,i_mean_buoy,i_core_sat(ic)-1)                  &
-          +      interp                                                        &
-            * buoyancy_super(ic,i_mean_buoy,i_core_sat(ic)+1)
-      end do
-    end if
-
-    ! Find points where the mean hit saturation (and the core's
-    ! saturation height is not defined at the same height)
-    n_sat = 0
-    do ic = 1, n_points
-      if ( i_sat(ic) > 0 ) then
-        if ( .not. i_sat(ic) == i_core_sat(ic) ) then
-          n_sat = n_sat + 1
-          index_ic_sat(n_sat) = ic
-        end if
-      end if
-    end do
-
-    ! If any points
-    if ( n_sat > 0 ) then
-      ! Interpolate core buoyancy at mean sat_height.
-      do ic2 = 1, n_sat
-        ic = index_ic_sat(ic2)
-        interp = ( buoyancy_super(ic,i_height,i_sat(ic))                       &
-                 - buoyancy_super(ic,i_height,i_sat(ic)-1) )                   &
-               / ( buoyancy_super(ic,i_height,i_sat(ic)+1)                     &
-                 - buoyancy_super(ic,i_height,i_sat(ic)-1) )
-        buoyancy_super(ic,i_core_buoy,i_sat(ic))                               &
-          = (one-interp)                                                       &
-            * buoyancy_super(ic,i_core_buoy,i_sat(ic)-1)                       &
-          +      interp                                                        &
-            * buoyancy_super(ic,i_core_buoy,i_sat(ic)+1)
-      end do
-    end if
-
-  end if  ! ( present(i_core_sat) )
-
-end if  ! ( .not. i_call == i_call_det )
+end if  ! ( .NOT. i_call == i_call_det )
 
 
 !---------------------------------------------------------------
@@ -898,12 +727,15 @@ if ( i_call == i_call_mean .or. i_call == i_call_core ) then
                    par_next_fields(:,i_q_vap),                                 &
                    par_next_fields(:,i_qc_first:i_qc_last), q_tot )
 
-  call momentum_eqn( n_points, n_fields_tot, l_res_source,                     &
-                     n_points_env, n_points_next, n_points_res,                &
+  call momentum_eqn( n_points, n_fields_tot, l_res_source, l_down,             &
+                     n_points_env, n_points_next,                              &
+                     n_points_res, n_points_sublevs,                           &
                      l_within_bl, layer_mass_step, sum_massflux,               &
-                     massflux_d, par_radius, q_tot, delta_t,                   &
+                     massflux_d, par_radius, q_tot, delta_t, Nsq_dry,          &
+                     sublevs, i_next, j_wex,                                   &
                      env_k_fields(:,i_wind_u:i_wind_w),                        &
                      par_next_fields(:,i_wind_u:i_wind_w),                     &
+                     par_w_drag,                                               &
                      res_source_fields = res_source_fields )
 
 end if

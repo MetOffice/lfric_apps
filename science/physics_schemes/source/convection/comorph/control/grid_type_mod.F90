@@ -41,12 +41,10 @@ type :: grid_type
 
   ! Pressure on the same levels as thermodynamic fields
   ! (and height_full)
-  real(kind=real_hmprec), pointer :: pressure_full(:,:,:)                      &
-                                                       => null()
+  real(kind=real_hmprec), pointer :: pressure_full(:,:,:) => null()
 
   ! Pressure at half-levels (same heights as height_half)
-  real(kind=real_hmprec), pointer :: pressure_half(:,:,:)                      &
-                                                       => null()
+  real(kind=real_hmprec), pointer :: pressure_half(:,:,:) => null()
 
   ! Dry-density on the same levels as thermodynamic fields
   ! (and height_full)
@@ -123,7 +121,7 @@ real(kind=real_cvprec), optional, intent(out) :: grid_half_super               &
                                                  (:,:)
 
 ! Bounds of the full arrays; needed for passing into
-! compress to get indexing right when they have halos
+! compress to get indexing right when they have haloes
 integer :: lb(3), ub(3)
 
 ! Compress height and pressure at the current full level k

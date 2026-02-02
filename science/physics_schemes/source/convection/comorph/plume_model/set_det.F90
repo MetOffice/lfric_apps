@@ -19,14 +19,14 @@ contains
 ! the environment virtual temperature, which is itself modified by
 ! the compensating subsidence from the non-detrained parcel (and so
 ! depends on the detrainment rate...)
-subroutine set_det( n_points, n_fields_tot, n_points_mean, n_points_core,      &
-                    max_buoy_heights, n_buoy_vars,                             &
+subroutine set_det( n_points, max_points, n_points_res, n_fields_tot,          &
                     l_down, l_last_level, l_to_full_level,                     &
                     cmpr, k, draft_string,                                     &
-                    buoyancy_super, i_next,                                    &
-                    delta_tv_k, core_mean_ratio,                               &
+                    sublevs, i_next, i_next_max,                               &
+                    core_mean_ratio,                                           &
+                    par_mean_w_drag, par_core_w_drag, res_source_fields,       &
                     par_next_mean_fields, par_next_core_fields,                &
-                    prev_massflux_d, next_massflux_d,                          &
+                    par_prev_super, par_conv_super,                            &
                     det_mass_d, det_fields )
 
 use comorph_constants_mod, only: real_cvprec, zero, one, two, half,            &
@@ -35,11 +35,16 @@ use comorph_constants_mod, only: real_cvprec, zero, one, two, half,            &
                                  min_float, min_delta, sqrt_min_delta, newline
 
 use cmpr_type_mod, only: cmpr_type
-use grid_type_mod, only: i_height
-use fields_type_mod, only: field_positive, field_names
-use buoyancy_mod, only: i_mean_buoy, i_core_buoy, i_prev
+use fields_type_mod, only: field_positive, field_names, i_wind_w,              &
+                           i_qc_first, i_qc_last
+use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
+                       j_height, j_mean_buoy, j_core_buoy, j_delta_tv,         &
+                       j_massflux_d, j_env_tv, j_env_w,                        &
+                       j_mean_wex, j_core_wex
+use parcel_type_mod, only: n_par, i_massflux_d
 
 use solve_detrainment_mod, only: solve_detrainment
+use wind_w_eqn_mod, only: wind_w_eqn
 use check_bad_values_mod, only: check_bad_values_cmpr
 use raise_error_mod, only: raise_fatal
 
@@ -48,19 +53,17 @@ implicit none
 ! Number of points
 integer, intent(in) :: n_points
 
-! Number of fields (including tracers if applicable)
-integer, intent(in) :: n_fields_tot
-
 ! Number of points in compressed parcel super-arrays
 ! (to avoid repeatedly deallocating and reallocating these,
 !  they are dimensioned with the biggest size they will need,
 !  which will often be bigger than the number of points here)
-integer, intent(in) :: n_points_mean
-integer, intent(in) :: n_points_core
+integer, intent(in) :: max_points
 
-! Dimensions of the buoyancy super-array
-integer, intent(in) :: max_buoy_heights
-integer, intent(in) :: n_buoy_vars
+! Size of the resolved-scale source terms super-array
+integer, intent(in) :: n_points_res
+
+! Number of fields (including tracers if applicable)
+integer, intent(in) :: n_fields_tot
 
 ! Flag for downdrafts versus updrafts
 logical, intent(in) :: l_down
@@ -82,42 +85,50 @@ integer, intent(in) :: k
 ! String identifying what sort of draft (updraft, downdraft, etc)
 character(len=name_length), intent(in) :: draft_string
 
-! Super-array storing the buoyancies of the parcel mean and core
+! Super-array storing the parcel buoyancies and other properties
 ! at up to 4 sub-level heights within the current level-step:
 ! a) Previous model-level interface
 ! b) Next model-level interface
 ! c) Height where parcel mean properties first hit saturation
 ! d) Height where parcel core first hit saturation
-real(kind=real_cvprec), intent(in out) :: buoyancy_super                       &
-                     ( n_points, n_buoy_vars, max_buoy_heights )
+real(kind=real_cvprec), intent(in out) :: sublevs                              &
+                     ( n_points, n_sublev_vars, max_sublevs )
 
-! Address of next model-level interface in buoyancy_super
-integer, intent(in) :: i_next(n_points)
+! Address of next model-level interface in sublevs
+integer, intent(in out) :: i_next(n_points)
 
-! Estimated change of environment virtual temperature at k
-! due to compensating subsidence.
-! This is used to construct a semi-implicit time-discretisation
-! for the detrainment calculation.
-real(kind=real_cvprec), intent(in out) :: delta_tv_k(n_points)
+! Max sub-level height address being used (max value in i_next)
+integer, intent(in out) :: i_next_max
 
 ! Previous ratio of the parcel core buoyancy over the parcel
 ! mean buoyancy.  When detrainment occurs, it is calculated
 ! so-as to approximately preserve this ratio.
 real(kind=real_cvprec), intent(in) :: core_mean_ratio(n_points)
 
-! Parcel mean properties; in  after lifting and entrainment
-!                         out after detrainment as well
-real(kind=real_cvprec), intent(in out) :: par_next_mean_fields                 &
-                                      ( n_points_mean, n_fields_tot )
-! Parcel core properties after lifting and entrainment
-real(kind=real_cvprec), intent(in) :: par_next_core_fields                     &
-                                      ( n_points_core, n_fields_tot )
+! Parcel mean and core vertical velocity drag / s-1
+real(kind=real_cvprec), intent(in) :: par_mean_w_drag(n_points)
+real(kind=real_cvprec), intent(in) :: par_core_w_drag(n_points)
 
+! Resolved-scale source terms
+real(kind=real_cvprec), intent(in out) :: res_source_fields                    &
+                                          ( n_points_res, n_fields_tot )
+
+! Parcel mean properties; IN  after lifting and entrainment
+!                         OUT after detrainment as well
+real(kind=real_cvprec), intent(in out) :: par_next_mean_fields                 &
+                                      ( max_points, n_fields_tot )
+! Parcel core properties after lifting and entrainment
+real(kind=real_cvprec), intent(in out) :: par_next_core_fields                 &
+                                      ( max_points, n_fields_tot )
+
+! Super-arrays containing...
 ! Mass-flux at start of level-step (before entrainment)
-real(kind=real_cvprec), intent(in) :: prev_massflux_d(n_points)
-! Mass-flux; in  after entrainment, but before detrainment
-!            out after detrainment as well
-real(kind=real_cvprec), intent(in out) :: next_massflux_d(n_points)
+real(kind=real_cvprec), intent(in) :: par_prev_super                           &
+                                      ( n_points, n_par )
+! Mass-flux; IN  after entrainment, but before detrainment
+!            OUT after detrainment as well
+real(kind=real_cvprec), intent(in out) :: par_conv_super                       &
+                                      ( max_points, n_par )
 
 ! Output detrained mass and detrained parcel properties
 real(kind=real_cvprec), intent(out) :: det_mass_d(n_points)
@@ -141,6 +152,19 @@ real(kind=real_cvprec) :: x_edge(n_points)
 ! Power of the assumed power-law PDF at which detrainment occured
 real(kind=real_cvprec) :: power(n_points)
 
+! Stored values of frac and x_edge from each sub-level step
+real(kind=real_cvprec) :: frac_sublevs                                         &
+                          ( n_points, max_sublevs )
+real(kind=real_cvprec) :: x_edge_sublevs                                       &
+                          ( n_points, max_sublevs )
+
+! Integral of parcel mean and core buoyancies over sub-levels
+real(kind=real_cvprec) :: mean_buoydz(n_points)
+real(kind=real_cvprec) :: core_buoydz(n_points)
+
+! Parcel mean total-water mixing-ratio
+real(kind=real_cvprec) :: q_tot(n_points)
+
 ! Weight for calculating properties of the detrained air
 real(kind=real_cvprec) :: chi_m1(n_points)
 
@@ -151,10 +175,10 @@ real(kind=real_cvprec) :: core_m_mean(n_points)
 ! Store for new value of x_edge after detrainment
 real(kind=real_cvprec) :: x_edge_new
 
-! Flag for drafts hitting the top or bottom of the model
-logical :: l_any_hit_last
+! Vertical velocity increment due to buoyancy and drag
+real(kind=real_cvprec) :: wind_w_inc
 
-! List of points where negative condensed water needs correcting
+! List of points where doing iterative detrainment solve
 integer :: nc
 integer :: index_ic(n_points)
 
@@ -186,8 +210,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
                  "par_next_mean_fields"
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_mean_fields(:,i_field),      &
-                                where_string,                                  &
-                                field_names(i_field), field_positive(i_field) )
+                                where_string, field_names(i_field),            &
+                                field_positive(i_field) )
   end do
 end if
 
@@ -219,7 +243,7 @@ if ( l_par_core ) then
   ! If the mean of the pdf is sufficiently closer to the core
   ! than to zero, detrain nothing.
 
-  ! This formula is applied at the start and end of the current
+  ! This formula is applied at the end of the current
   ! level-step, and at the height where the parcel first hits saturation
   ! (when this falls between the above heights).
   ! The max detrainment out of all of them is selected.
@@ -234,8 +258,8 @@ if ( l_par_core ) then
                    "par_next_core_fields"
     do i_field = 1, n_fields_tot
       call check_bad_values_cmpr( cmpr, k, par_next_core_fields(:,i_field),    &
-                                  where_string,                                &
-                                  field_names(i_field),field_positive(i_field))
+                                  where_string, field_names(i_field),          &
+                                  field_positive(i_field) )
     end do
 
     where_string = "On input to set_det call for "            //               &
@@ -247,72 +271,72 @@ if ( l_par_core ) then
                                 where_string,                                  &
                                 field_name, l_positive )
 
-    field_name = "delta_tv_k"
-    l_positive = .false.
-    call check_bad_values_cmpr( cmpr, k, delta_tv_k,                           &
-                                where_string,                                  &
-                                field_name, l_positive )
-
   end if
 
-
-  ! Initialise non-detrained fraction to one
   do ic = 1, n_points
-    frac(ic) = one
-    x_edge(ic) = one
-  end do
-
-  ! Initialise power: core buoyancy / mean buoyancy = P + 2
-  do ic = 1, n_points
+    ! Initialise power: core buoyancy / mean buoyancy = P + 2
     power(ic) = core_mean_ratio(ic) - two
     ! For safety, it is not recommended to let the power of the PDF fall
-    ! below zero (this is imposed by not allowing core_mean_ratio
-    ! to go below 2, via the parameter min_cmr in comorph_constants_mod).
-    ! The PDF is still well-defined with a negative power, but
-    ! it implies a rather large extrapolation of the parcel
+    ! too close to -1 (this is imposed by not allowing core_mean_ratio
+    ! to go below 1+eps, via the parameter min_cmr in comorph_constants_mod).
+    ! The PDF is still well-defined with a negative power, but as the power
+    ! approaches -1 it implies a very large extrapolation of the parcel
     ! edge properties below the mean, which may be dangerous
     ! (can lead to negative q_vap in the detrained air).
+
+    ! Initialise non-detrained fraction to one
+    frac(ic) = one
+    x_edge(ic) = one
+    frac_sublevs(ic,i_prev) = one
+    x_edge_sublevs(ic,i_prev) = one
   end do
 
   ! Now apply the detrainment formula using the mean and core
-  ! buoyancies at up to 4 heights contained in the current
+  ! buoyancies at up to 3 heights contained in the current
   ! model-level interval:
   !
-  ! prev_height
   ! next_height
   ! saturation height for the parcel mean
   ! saturation height for the parcel core
   !
-  ! Out of these 4 heights, the maximum detrainment rate
+  ! Out of these 3 heights, the maximum detrainment rate
   ! calculated over all of them is used.
 
 
   ! Reverse the sign of the buoyancies for downdrafts, so that
   ! we always consider positive values for non-detrained air
   if ( l_down ) then
-    do i_lev = 1, max_buoy_heights
-      do i_field = i_mean_buoy, i_core_buoy
-        do ic = 1, n_points
-          buoyancy_super(ic,i_field,i_lev)                                     &
-            = -buoyancy_super(ic,i_field,i_lev)
-        end do
+    do i_lev = 1, i_next_max
+      do ic = 1, n_points
+        sublevs(ic,j_mean_buoy,i_lev) = -sublevs(ic,j_mean_buoy,i_lev)
+        sublevs(ic,j_core_buoy,i_lev) = -sublevs(ic,j_core_buoy,i_lev)
+        sublevs(ic,j_delta_tv,i_lev)  = -sublevs(ic,j_delta_tv,i_lev)
       end do
-    end do
-    do ic = 1, n_points
-      delta_tv_k(ic) = -delta_tv_k(ic)
     end do
   end if
 
-
-  ! Loop backwards through the heights.
-  ! This is because the last height in the list most often
-  ! yields the highest detrainment; if we process it first,
-  ! the likelihood of subsequent heights testing for a higher
-  ! detrainment than we've already done is reduced.  Thus
-  ! fewer calculations need to be done.
-  ! Note: only going down to i_lev=2, as no need to calculate
+  ! Loop through the sub-level heights.
+  ! Note: starting from i_lev=2, as no need to calculate
   ! detrainment at "prev" (the start of this level-step).
-  do i_lev = max_buoy_heights, i_prev+1, -1
+  ! TEMPORARY CODE (looping backwards for now to force bit-reproducibility
+  ! with previous version, but really need to loop forwards to ensure
+  ! all sub-level fields are populated correctly).
+  do i_lev = i_next_max, i_prev+1, -1
+
+    ! CODE TEMPORARILY COMMENTED-OUT TO PRESERVE KGO
+    ! Force full detrainment for downdrafts hitting the model-bottom;
+    ! done here to ensure all the sublev diagnostics calculated after
+    ! this loop are consistent with this.
+    ! Note: if updrafts hit the model-lid, we just raise a fatal error
+    ! at the end of this subroutine.
+    !IF ( l_last_level .AND. l_down ) THEN
+    !  DO ic = 1, n_points
+    !    IF ( i_lev == i_next(ic) ) THEN
+    !      frac(ic) = zero
+    !      x_edge(ic) = zero
+    !    END IF
+    !  END DO
+    !END IF
 
     ! Find points where this sub-level is in use, and where
     ! some detrainment should occur there.
@@ -321,27 +345,27 @@ if ( l_par_core ) then
       if ( i_lev <= i_next(ic) .and. frac(ic) > zero ) then
         ! If level in use and not already fully detrained...
 
-        if ( buoyancy_super(ic,i_mean_buoy,i_lev)                              &
-          >= buoyancy_super(ic,i_core_buoy,i_lev) * (one-sqrt_min_delta) ) then
+        if ( sublevs(ic,j_mean_buoy,i_lev)                                     &
+          >= sublevs(ic,j_core_buoy,i_lev) * (one-sqrt_min_delta) ) then
           ! If mean buoyancy exceeds the core buoyancy
           ! (or is within a numerical tolerance of it), then the
           ! full partial detrainment calculations aren't safe,
           ! since they assume core_buoy > mean_buoy.
-          ! If accounting for delta_tv_k implies detrainment
+          ! If accounting for delta_tv implies detrainment
           ! should occur nonetheless, use simple solution
           ! for limit as Tv'_core -> Tv'_mean
           ! (i.e. ignore core_buoy and assume the PDF is a
           !  delta-function with buoyancy mean_buoy)
-          if ( buoyancy_super(ic,i_mean_buoy,i_lev) <= zero ) then
+          if ( sublevs(ic,j_mean_buoy,i_lev) <= zero ) then
             ! Full detrainment when no longer buoyant
             x_edge(ic) = zero
             frac(ic) = zero
-          else if ( buoyancy_super(ic,i_mean_buoy,i_lev)                       &
-             - frac(ic) * delta_tv_k(ic) <= zero ) then
+          else if ( sublevs(ic,j_mean_buoy,i_lev)                              &
+             - frac(ic) * sublevs(ic,j_delta_tv,i_lev) <= zero ) then
             ! Partial detrainment when parcel only loses buoyancy
             ! due to the subsidence term
-            frac(ic) = buoyancy_super(ic,i_mean_buoy,i_lev)                    &
-                     / delta_tv_k(ic)
+            frac(ic) = sublevs(ic,j_mean_buoy,i_lev)                           &
+                     / sublevs(ic,j_delta_tv,i_lev)
             x_edge(ic) = frac(ic)**(one/(power(ic)+one))
           end if
 
@@ -349,15 +373,15 @@ if ( l_par_core ) then
           ! core_buoy > mean_buoy...
         else  ! core_buoy > mean_buoy
 
-          if ( buoyancy_super(ic,i_core_buoy,i_lev) <= zero ) then
+          if ( sublevs(ic,j_core_buoy,i_lev) <= zero ) then
             ! If the parcel core is no longer buoyant, we must
             ! have full detrainment; just set x_edge and frac to
             ! zero consistent with this:
             x_edge(ic) = zero
             frac(ic) = zero
 
-          else if ( delta_tv_k(ic) <= safety_thresh                            &
-                    * buoyancy_super(ic,i_core_buoy,i_lev) ) then
+          else if ( sublevs(ic,j_delta_tv,i_lev)                               &
+                    <= safety_thresh * sublevs(ic,j_core_buoy,i_lev) ) then
             ! If the subsidence increment term is not positive
             ! (or is negligible compared to the buoyancy),
             ! just use the explicit solution, ignoring the subsidence term.
@@ -367,9 +391,9 @@ if ( l_par_core ) then
             !        = 0
             ! => x = (p+1)/(p+2) Tv'_core / (Tv'_core - Tv'_mean)
             x_edge_new = ((power(ic)+one)/(power(ic)+two))                     &
-                       * buoyancy_super(ic,i_core_buoy,i_lev)                  &
-                       / ( buoyancy_super(ic,i_core_buoy,i_lev)                &
-                         - buoyancy_super(ic,i_mean_buoy,i_lev) )
+                       * sublevs(ic,j_core_buoy,i_lev)                         &
+                       / ( sublevs(ic,j_core_buoy,i_lev)                       &
+                         - sublevs(ic,j_mean_buoy,i_lev) )
             ! Use new edge only if it implies more detrainment than
             ! we've already got (x_edge_new < x_edge)
             if ( x_edge_new < x_edge(ic) ) then
@@ -390,24 +414,21 @@ if ( l_par_core ) then
             !  otherwise, just due to rounding errors, the 2
             !  initial guesses in solve_detrainment can fail to
             !  bracket the root).
-          else if ( buoyancy_super(ic,i_core_buoy,i_lev)                       &
-                - ((power(ic)+two)/(power(ic)+one))                            &
-                  * ( buoyancy_super(ic,i_core_buoy,i_lev)                     &
-                    - buoyancy_super(ic,i_mean_buoy,i_lev) )                   &
-                  * x_edge(ic)                                                 &
-                - frac(ic) * delta_tv_k(ic)                                    &
-                < -safety_thresh                                               &
-                   * buoyancy_super(ic,i_core_buoy,i_lev) ) then
+          else if ( sublevs(ic,j_core_buoy,i_lev)                              &
+                  - ((power(ic)+two)/(power(ic)+one))                          &
+                    * ( sublevs(ic,j_core_buoy,i_lev)                          &
+                      - sublevs(ic,j_mean_buoy,i_lev) ) * x_edge(ic)           &
+                  - frac(ic) * sublevs(ic,j_delta_tv,i_lev)                    &
+                < -safety_thresh * sublevs(ic,j_core_buoy,i_lev) ) then
             ! Store indices of points where doing iterative
             ! partial detrainment
             nc = nc + 1
             index_ic(nc) = ic
-
           end if
 
         end if  ! core_buoy > mean_buoy
 
-      end if  ! ( i_lev <= i_next(ic) .and. frac(ic) > zero )
+      end if  ! ( i_lev <= i_next(ic) .AND. frac(ic) > zero )
     end do  ! ic = 1, n_points
 
     if ( nc > 0 ) then
@@ -416,44 +437,42 @@ if ( l_par_core ) then
 
       ! Call routine to solve for the non-detrained fraction
       call solve_detrainment( n_points, nc, index_ic,                          &
-                              buoyancy_super(:,i_mean_buoy,i_lev),             &
-                              buoyancy_super(:,i_core_buoy,i_lev),             &
-                              power, delta_tv_k,                               &
+                              sublevs(:,j_mean_buoy,i_lev),                    &
+                              sublevs(:,j_core_buoy,i_lev),                    &
+                              power, sublevs(:,j_delta_tv,i_lev),              &
                               x_edge, frac )
 
     end if
 
-  end do  ! i_lev = max_buoy_heights, 1, -1
+    do ic = 1, n_points
+
+      ! Safety check; force frac to be zero (full detrainment) if it is too
+      ! close to zero to numerically represent the non-detrained parcel
+      if ( frac(ic) < min_delta .or.                                           &
+           frac(ic) * par_conv_super(ic,i_massflux_d) < min_float ) then
+        x_edge(ic) = zero
+        frac(ic)   = zero
+      end if
+
+      ! Store non-detrained fraction and PDF edge at sub-level steps
+      frac_sublevs(ic,i_lev)   = frac(ic)
+      x_edge_sublevs(ic,i_lev) = x_edge(ic)
+
+    end do  ! ic = 1, n_points
+
+  end do  ! i_lev == i_prev+1, i_next_max
 
 
   ! Restore the sign of the buoyancies for downdrafts
   if ( l_down ) then
-    do i_lev = 1, max_buoy_heights
-      do i_field = i_mean_buoy, i_core_buoy
-        do ic = 1, n_points
-          buoyancy_super(ic,i_field,i_lev)                                     &
-            = -buoyancy_super(ic,i_field,i_lev)
-        end do
+    do i_lev = 1, i_next_max
+      do ic = 1, n_points
+        sublevs(ic,j_mean_buoy,i_lev) = -sublevs(ic,j_mean_buoy,i_lev)
+        sublevs(ic,j_core_buoy,i_lev) = -sublevs(ic,j_core_buoy,i_lev)
+        sublevs(ic,j_delta_tv,i_lev)  = -sublevs(ic,j_delta_tv,i_lev)
       end do
     end do
-    do ic = 1, n_points
-      delta_tv_k(ic) = -delta_tv_k(ic)
-    end do
   end if
-
-  ! x_edge now stores
-  ! (P+1)/(P+2) Tv'_core / ( Tv'_core - Tv'_mean )
-  !
-  ! which is equal to
-  ! (P+1)/(P+2) ( phi_core - phi_crit ) / ( phi_core - phi_mean )
-  !  = ( phi_core - phi_crit ) / ( phi_core - phi_edge )
-  !
-  ! where phi_crit is the value of each field phi below-which
-  ! air is detrained, and above-which air is retained.
-  !
-  ! The Cumulative Distribution Function is given by
-  ! CDF = 1 - frac = 1 - x_edge^(P+1)
-  ! This sets the fraction of mass to detrain...
 
   ! Check for bad values in x_edge and frac
   if ( i_check_bad_values_cmpr > i_check_bad_none ) then
@@ -472,16 +491,119 @@ if ( l_par_core ) then
 
   end if
 
-  ! Safety check; force frac to be zero (full detrainment) if it is too
-  ! close to zero to numerically represent the non-detrained parcel
-  do ic = 1, n_points
-    if ( frac(ic) < min_delta .or.                                             &
-         frac(ic) * next_massflux_d(ic) < min_float ) then
-      x_edge(ic) = zero
-      frac(ic)   = zero
-    end if
+
+  ! Update sub-level fields...
+
+  do i_lev = i_prev+1, i_next_max
+    do ic = 1, n_points
+      ! Store mass-fluxes after detrainment
+      sublevs(ic,j_massflux_d,i_lev) = sublevs(ic,j_massflux_d,i_lev)          &
+                                     * frac_sublevs(ic,i_lev)
+
+      ! Calculate the final solved env Tv subsidence increment
+      sublevs(ic,j_delta_tv,i_lev) = sublevs(ic,j_delta_tv,i_lev)              &
+                                   * frac_sublevs(ic,i_lev)
+    end do
   end do
 
+  ! Update parcel vertical velocities on sub-levels, integrating
+  ! the buoyancies accounting for the subsidence increment to environment
+  ! virtual temperature calculated above
+  do ic = 1, n_points
+    mean_buoydz(ic) = zero
+    core_buoydz(ic) = zero
+  end do
+  do i_lev = i_prev+1, i_next_max
+    ! Mean w-excess
+    call wind_w_eqn( n_points,                                                 &
+           sublevs(:,j_height,i_prev),                                         &
+           sublevs(:,j_height,i_lev-1),    sublevs(:,j_height,i_lev),          &
+           sublevs(:,j_mean_buoy,i_lev-1), sublevs(:,j_mean_buoy,i_lev),       &
+           sublevs(:,j_delta_tv,i_lev-1),  sublevs(:,j_delta_tv,i_lev),        &
+           sublevs(:,j_env_tv,i_lev-1),    sublevs(:,j_env_tv,i_lev),          &
+           par_mean_w_drag, mean_buoydz, sublevs(:,j_mean_wex,i_lev) )
+    ! Core w-excess
+    call wind_w_eqn( n_points,                                                 &
+           sublevs(:,j_height,i_prev),                                         &
+           sublevs(:,j_height,i_lev-1),    sublevs(:,j_height,i_lev),          &
+           sublevs(:,j_core_buoy,i_lev-1), sublevs(:,j_core_buoy,i_lev),       &
+           sublevs(:,j_delta_tv,i_lev-1),  sublevs(:,j_delta_tv,i_lev),        &
+           sublevs(:,j_env_tv,i_lev-1),    sublevs(:,j_env_tv,i_lev),          &
+           par_core_w_drag, core_buoydz, sublevs(:,j_core_wex,i_lev) )
+  end do
+
+  ! Calculate parcel total-water mixing ratio
+  ! (note q_cl currently stores q_vap+q_cl, so we don't separately add q_vap).
+  do ic = 1, n_points
+    q_tot(ic) = zero
+  end do
+  do i_field = i_qc_first, i_qc_last
+    do ic = 1, n_points
+      q_tot(ic) = q_tot(ic) + par_next_mean_fields(ic,i_field)
+    end do
+  end do
+
+  ! Update parcel vertical velocities and resolved-scale source terms
+  do ic = 1, n_points
+
+    ! Store parcel mean w before buoyancy and drag
+    wind_w_inc = par_next_mean_fields(ic,i_wind_w)
+
+    ! Convert latest w-excesses to absolute momentum
+    ! (parcel fields are currently in conserved variable form, so
+    !  wind_w actually stores momentum per unit dry-mass = wind_w (1 + q_tot) )
+    par_next_mean_fields(ic,i_wind_w) = ( sublevs(ic,j_env_w,i_next(ic))       &
+                                        + sublevs(ic,j_mean_wex,i_next(ic)) )  &
+                                      * ( one + q_tot(ic) )
+    par_next_core_fields(ic,i_wind_w) = ( sublevs(ic,j_env_w,i_next(ic))       &
+                                        + sublevs(ic,j_core_wex,i_next(ic)) )  &
+                                      * ( one + q_tot(ic) )
+
+    ! Complete calculation of parcel momentum increment from buoyancy and drag
+    wind_w_inc = par_next_mean_fields(ic,i_wind_w) - wind_w_inc
+
+    ! Add contribution to the resolved momentum source terms due to the
+    ! reaction force from the buoyancy and drag on the parcel
+    res_source_fields(ic,i_wind_w) = res_source_fields(ic,i_wind_w)            &
+                              - wind_w_inc * par_conv_super(ic,i_massflux_d)
+
+  end do
+
+  ! Adjust the mean buoyancy and w-excess to account for removal of the
+  ! negatively buoyant detrained air from the parcel
+  ! ( core_buoy - mean_buoy_new ) = x_edge ( core_buoy - mean_buoy_old )
+  ! => mean_buoy_new = core_buoy - x_edge ( core_buoy - mean_buoy_old )
+  !                  = mean_buoy_old + ( 1 - x_edge )
+  !                                    ( core_buoy - mean_buoy_old )
+  do ic = 1, n_points
+    do i_lev = i_prev+1, i_next(ic)
+      ! CODE TEMPORARILY COMMENTED OUT TO PRESERVE KGO; TO BE ADDED SOON:
+      ! Calculation omitted for buoyancy on sub-levels; this is an oversight
+      ! and impacts the convective cloud amounts and CAPE contributions computed
+      ! from the buoyancy at saturation height.  To be fixed soon (KGO change).
+      !sublevs(ic,j_mean_buoy,i_lev) = sublevs(ic,j_mean_buoy,i_lev)           &
+      !                              + ( one - x_edge_sublevs(ic,i_lev) )      &
+      !  * ( sublevs(ic,j_core_buoy,i_lev)  - sublevs(ic,j_mean_buoy,i_lev) )
+      sublevs(ic,j_mean_wex,i_lev)  = sublevs(ic,j_mean_wex,i_lev)             &
+                                    + ( one - x_edge_sublevs(ic,i_lev) )       &
+        * ( sublevs(ic,j_core_wex,i_lev)   - sublevs(ic,j_mean_wex,i_lev)  )
+    end do  ! i_lev = i_prev+1, i_next(ic)
+  end do  ! ic = 1, n_points
+
+
+  ! x_edge now stores
+  ! (P+1)/(P+2) Tv'_core / ( Tv'_core - Tv'_mean )
+  !
+  ! which is equal to
+  ! (P+1)/(P+2) ( phi_core - phi_crit ) / ( phi_core - phi_mean )
+  !  = ( phi_core - phi_crit ) / ( phi_core - phi_edge )
+  !
+  ! where phi_crit is the value of each field phi below-which
+  ! air is detrained, and above-which air is retained.
+  !
+  ! The Cumulative Distribution Function is given by
+  ! CDF = 1 - frac = 1 - x_edge^(P+1)
+  ! This sets the fraction of mass to detrain...
 
   ! Set detrained and remaining non-detrained air properties
   ! based on the mean over their respective parts of the
@@ -572,8 +694,8 @@ if ( l_par_core ) then
     ! Precalculate the term phi_core - phi_mean, which appears
     ! in the formula for both the detrained and non-detrained properties
     do ic = 1, n_points
-      core_m_mean(ic) = par_next_core_fields(ic,i_field)                       &
-                      - par_next_mean_fields(ic,i_field)
+      core_m_mean(ic) = ( par_next_core_fields(ic,i_field)                     &
+                        - par_next_mean_fields(ic,i_field) )
     end do
 
     if ( field_positive(i_field) ) then
@@ -598,8 +720,8 @@ if ( l_par_core ) then
         ! values due to rounding errors in the subsequent calculations.
         tolerance = safety_thresh
         ! Note safety_thresh is set assuming the precision of the variables
-        ! scales with epsilon (min_delta) times the value.  However, some
-        ! compilers allow values less than tiny (min_float) to be stored
+        ! scales with EPSILON (min_delta) times the value.  However, some
+        ! compilers allow values less than TINY (min_float) to be stored
         ! with lower precision than this.  Therefore, if the value of the
         ! field is less than min_float (but not zero), we need to scale the
         ! tolerance up in this check.
@@ -635,6 +757,7 @@ if ( l_par_core ) then
 
 
 else  ! ( l_par_core )
+
 
   !--------------------------------------------------------------
   ! 2) Detrainment rate just based on fractional rate of change
@@ -674,47 +797,41 @@ else  ! ( l_par_core )
     frac(ic) = one
   end do
 
-  ! Loop over the sub-levels stored in buoyancy_super
-  do i_lev = 2, max_buoy_heights
+  ! Loop over the sub-levels stored in sublevs
+  do i_lev = 2, i_next_max
 
     do ic = 1, n_points
       ! If the current point / sub-level is in use
       if ( i_lev <= i_next(ic) ) then
 
         ! If no longer buoyant, detrain all
-        if ( ( buoyancy_super(ic,i_mean_buoy,i_lev-1) <= zero                  &
-               .and. (.not. l_down) ) .or.                                     &
-             ( buoyancy_super(ic,i_mean_buoy,i_lev-1) >= zero                  &
-               .and. l_down ) ) then
+        if ( ( sublevs(ic,j_mean_buoy,i_lev-1) <= zero .and. (.not. l_down) )  &
+        .or. ( sublevs(ic,j_mean_buoy,i_lev-1) >= zero .and. l_down ) ) then
           frac(ic) = zero
         else
           ! Find mass-flux at base and top of the current
           ! sub-level, accounting for entrainment only
-          interp = ( buoyancy_super(ic,i_height,i_lev-1)                       &
-                   - buoyancy_super(ic,i_height,1) )                           &
-                 / ( buoyancy_super(ic,i_height,i_next(ic))                    &
-                   - buoyancy_super(ic,i_height,1) )
-          massflux_1 = (one-interp) * prev_massflux_d(ic)                      &
-                     +      interp  * next_massflux_d(ic)
-          interp = ( buoyancy_super(ic,i_height,i_lev)                         &
-                   - buoyancy_super(ic,i_height,1) )                           &
-                 / ( buoyancy_super(ic,i_height,i_next(ic))                    &
-                   - buoyancy_super(ic,i_height,1) )
-          massflux_2 = (one-interp) * prev_massflux_d(ic)                      &
-                     +      interp  * next_massflux_d(ic)
+          interp = (sublevs(ic,j_height,i_lev-1) - sublevs(ic,j_height,i_prev))&
+              / (sublevs(ic,j_height,i_next(ic)) - sublevs(ic,j_height,i_prev))
+          massflux_1 = (one-interp) * par_prev_super(ic,i_massflux_d)          &
+                     +      interp  * par_conv_super(ic,i_massflux_d)
+          interp = (sublevs(ic,j_height,i_lev) - sublevs(ic,j_height,i_prev))  &
+            / (sublevs(ic,j_height,i_next(ic)) - sublevs(ic,j_height,i_prev))
+          massflux_2 = (one-interp) * par_prev_super(ic,i_massflux_d)          &
+                     +      interp  * par_conv_super(ic,i_massflux_d)
 
           ! Scale frac by detrainment in current sub-level
           frac(ic) = frac(ic) * min( one, max( zero,                           &
                       (massflux_1/massflux_2)                                  &
-                    * ( buoyancy_super(ic,i_mean_buoy,i_lev)                   &
-                      / buoyancy_super(ic,i_mean_buoy,i_lev-1) )               &
+                    * ( sublevs(ic,j_mean_buoy,i_lev)                          &
+                      / sublevs(ic,j_mean_buoy,i_lev-1) )                      &
                                              ) )
         end if
 
       end if  ! ( i_lev <= i_next(ic) )
     end do  ! ic = 1, n_points
 
-  end do  ! i_lev = 2, max_buoy_heights
+  end do  ! i_lev = 2, i_next_max
 
 end if  ! ( l_par_core )
 
@@ -722,59 +839,54 @@ end if  ! ( l_par_core )
 ! Set detrained mass:
 do ic = 1, n_points
   ! Scale by mass-flux to get detrained mass
-  det_mass_d(ic) = ( one - frac(ic) ) * next_massflux_d(ic)
+  det_mass_d(ic) = ( one - frac(ic) ) * par_conv_super(ic,i_massflux_d)
 end do
 
 ! Subtract detrained mass from the mass-flux!
 do ic = 1, n_points
-  next_massflux_d(ic) = next_massflux_d(ic) - det_mass_d(ic)
+  par_conv_super(ic,i_massflux_d) = par_conv_super(ic,i_massflux_d)            &
+                                  - det_mass_d(ic)
 end do
 
 
 if ( l_last_level .and. (.not. l_to_full_level) ) then
   ! If this is the last level (and the 2nd half-level step)...
-  ! See if any points haven't fully detrained:
-  l_any_hit_last = .false.
-  ic_loop: do ic = 1, n_points
-    if ( next_massflux_d(ic) > zero ) then
-      l_any_hit_last = .true.
-      exit ic_loop
-    end if
-  end do ic_loop
-  ! If any points not fully detrained, they have hit the
-  ! top (for updrafts) or bottom (for downdrafts) of the model...
-  if ( l_any_hit_last ) then
-    if ( l_down ) then
-      ! For downdrafts hitting the surface, force them to fully detrain here.
+  if ( l_down ) then
 
-      ! Set detrained mass equal to total massflux and reset massflux to zero:
-      do ic = 1, n_points
-        det_mass_d(ic) = det_mass_d(ic) + next_massflux_d(ic)
-        next_massflux_d(ic) = zero
-      end do
-      ! Set detrained air the same as the in-parcel mean
-      do i_field = 1, n_fields_tot
-        do ic = 1, n_points
-          det_fields(ic,i_field) = par_next_mean_fields(ic,i_field)
+    ! For downdrafts hitting the surface, force them to fully detrain here.
+    do ic = 1, n_points
+      if ( par_conv_super(ic,i_massflux_d) > zero ) then
+        ! Set detrained mass equal to total massflux and reset massflux to zero
+        det_mass_d(ic) = det_mass_d(ic) + par_conv_super(ic,i_massflux_d)
+        par_conv_super(ic,i_massflux_d) = zero
+        ! Set detrained air the same as the original in-parcel mean
+        do i_field = 1, n_fields_tot
+          det_fields(ic,i_field)                                               &
+            = (one-frac(ic)) * det_fields(ic,i_field)                          &
+            +      frac(ic)  * par_next_mean_fields(ic,i_field)
         end do
-      end do
+      end if
+    end do
 
-    else
-      ! If this is an updraft, this implies convection has gone to
-      ! the top of the model, so raise a fatal error.
+  else
 
-      ! Note it is expected that downdrafts will sometimes hit the
-      ! surface, but updrafts hitting the lid is probably not OK.
-      call raise_fatal( routinename,                                           &
+    ! If this is an updraft, this implies convection has gone to
+    ! the top of the model, so raise a fatal error.
+    do ic = 1, n_points
+      if ( par_conv_super(ic,i_massflux_d) > zero ) then
+        ! Note it is expected that downdrafts will sometimes hit the
+        ! surface, but updrafts hitting the lid is probably not OK.
+        call raise_fatal( routinename,                                         &
              "Convective updraft trying to go beyond the "                  // &
              "uppermost convection level."                         //newline// &
              "Either something has gone very wrong, or the "                // &
              "highest allowed convection level has just "          //newline// &
              "been set too low (try increasing k_top_conv)" )
+      end if
+    end do
 
-    end if
-  end if  ! ( l_any_hit_last )
-end if  ! ( l_last_level .and. (.not. l_to_full_level) )
+  end if
+end if  ! ( l_last_level .AND. (.NOT. l_to_full_level) )
 
 
 ! Check outputs for bad values (NaN, Inf, etc)
@@ -783,11 +895,11 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   ! Check parcel mean properties
   where_string = "On output from set_det call for "             //             &
                   trim(adjustl(draft_string))   // "; "         //             &
-                 "par_k_mean_fields"
+                 "par_next_mean_fields"
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_mean_fields(:,i_field),      &
-                                where_string,                                  &
-                                field_names(i_field), field_positive(i_field) )
+                                where_string, field_names(i_field),            &
+                                field_positive(i_field) )
   end do
 
   ! Check detrained properties
@@ -796,8 +908,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
                  "det_fields"
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, det_fields(:,i_field),                &
-                                where_string,                                  &
-                                field_names(i_field), field_positive(i_field) )
+                                where_string, field_names(i_field),            &
+                                field_positive(i_field) )
   end do
 
   ! Check detrained mass
@@ -808,7 +920,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   ! Check mass-flux
   field_name = "next_massflux_d"
   l_positive = .true.
-  call check_bad_values_cmpr( cmpr, k, next_massflux_d, where_string,          &
+  call check_bad_values_cmpr( cmpr, k, par_conv_super(:,i_massflux_d),         &
+                              where_string,                                    &
                               field_name, l_positive )
 
 end if

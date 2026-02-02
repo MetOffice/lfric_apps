@@ -20,9 +20,9 @@ contains
 
 ! Version for compressed arrays with all the condensed water
 ! species in a super-array
-subroutine dry_adiabat( n_points, n_points_super,                              &
+subroutine dry_adiabat( n_points, n_points_cond,                               &
                         pressure_1, pressure_2,                                &
-                        q_vap, q_cond_super, exner_ratio )
+                        q_vap, q_cond_super, temperature )
 
 use comorph_constants_mod, only: real_cvprec, one, n_cond_species,             &
                                  l_approx_dry_adiabat, R_dry, R_vap, cp_dry
@@ -32,14 +32,13 @@ implicit none
 
 ! Number of points where we actually want to do something
 integer, intent(in) :: n_points
-! Number of points in the compressed super-array
+! Number of points in the compressed condensate super-array
 ! (to avoid having to repeatedly deallocate and reallocate when
 !  re-using the same array, it maybe bigger than needed here).
-integer, intent(in) :: n_points_super
+integer, intent(in) :: n_points_cond
 
-! Pressure before
+! Pressure before and after the lifting
 real(kind=real_cvprec), intent(in) :: pressure_1(n_points)
-! Pressure after
 real(kind=real_cvprec), intent(in) :: pressure_2(n_points)
 
 ! Water vapour mixing ratio
@@ -47,10 +46,13 @@ real(kind=real_cvprec), intent(in) :: q_vap(n_points)
 
 ! Super-array containing all condensed water mixing ratios
 real(kind=real_cvprec), intent(in) :: q_cond_super                             &
-                              ( n_points_super, n_cond_species )
+                                      ( n_points_cond, n_cond_species )
 
-! Exner ratio for rescaling temperature
-real(kind=real_cvprec), intent(out) :: exner_ratio(n_points)
+! Temperature to be modified by adiabatic lapse rate
+real(kind=real_cvprec), intent(in out) :: temperature(n_points)
+
+! Exner ratio for rescaling temperature (if conserving potential temperature)
+real(kind=real_cvprec) :: exner_ratio(n_points)
 
 ! Total heat capacity per unit dry-mass
 real(kind=real_cvprec) :: cp_tot(n_points)
@@ -61,7 +63,7 @@ real(kind=real_cvprec) :: dp_over_p(n_points)
 ! Gas constant over heat capacity per unit dry-mass
 real(kind=real_cvprec) :: R_over_cp(n_points)
 
-! Terms in Taylor expansion for (p2/p1)^(R/cp
+! Terms in Taylor expansion for (p2/p1)^(R/cp)
 real(kind=real_cvprec) :: term(n_points)
 real(kind=real_cvprec) :: fac
 real(kind=real_cvprec) :: n_real
@@ -119,7 +121,7 @@ else
   ! Use full formula for the dry adiabat
 
   ! Calculate total parcel heat capacity per unit dry-mass
-  call set_cp_tot( n_points, n_points_super, q_vap, q_cond_super,              &
+  call set_cp_tot( n_points, n_points_cond, q_vap, q_cond_super,               &
                    cp_tot )
 
   do ic = 1, n_points
@@ -144,7 +146,13 @@ else
     end if
   end do
 
-end if  ! ( l_approx_dry_adiabat )
+end if  ! ( .NOT. l_approx_dry_adiabat )
+
+! Scale temperature by exner ratio
+do ic = 1, n_points
+  temperature(ic) = temperature(ic) * exner_ratio(ic)
+end do
+
 
 return
 end subroutine dry_adiabat
@@ -152,38 +160,34 @@ end subroutine dry_adiabat
 
 
 ! Version for full 2-D arrays
-subroutine dry_adiabat_2d( lb_p1, ub_p1, pressure_1, lb_p2, ub_p2, pressure_2, &
+subroutine dry_adiabat_2d( lb_p, ub_p, pressure_1, pressure_2,                 &
                            lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,               &
                            lb_r, ub_r, q_rain, lb_f, ub_f, q_cf,               &
                            lb_s, ub_s, q_snow, lb_g, ub_g,q_graup,             &
-                           exner_ratio )
+                           temperature )
 
 use comorph_constants_mod, only: real_hmprec, nx_full, ny_full,                &
-                     l_approx_dry_adiabat,                                     &
-                     R_dry, R_vap, cp_dry
+                                 l_approx_dry_adiabat, R_dry, R_vap, cp_dry
 use set_cp_tot_mod, only: set_cp_tot_2d
 
 implicit none
 
-! Note: the array arguments below may have halos, and in here
-! we don't care about the halos.
+! Note: the array arguments below may have haloes, and in here
+! we don't care about the haloes.
 ! We need to pass in the bounds of each array to use in
 ! the declarations, to ensure the do loops pick out the same
 ! indices of the arrays regardless of whether or not they
-! have halos.  The lower and upper bounds are passed in through the
+! have haloes.  The lower and upper bounds are passed in through the
 ! argument list in the lb_* and ub_* integer arrays.  Those storing the
 ! bounds for 2D arrays must have 2 elements; one for each dimension
 ! of the array.
 
-! Pressure before
-integer, intent(in) :: lb_p1(2), ub_p1(2)
+! Pressure before and after
+integer, intent(in) :: lb_p(2), ub_p(2)
 real(kind=real_hmprec), intent(in) :: pressure_1                               &
-                                      ( lb_p1(1):ub_p1(1), lb_p1(2):ub_p1(2) )
-
-! Pressure after
-integer, intent(in) :: lb_p2(2), ub_p2(2)
+                                      ( lb_p(1):ub_p(1), lb_p(2):ub_p(2) )
 real(kind=real_hmprec), intent(in) :: pressure_2                               &
-                                      ( lb_p2(1):ub_p2(1), lb_p2(2):ub_p2(2) )
+                                      ( lb_p(1):ub_p(1), lb_p(2):ub_p(2) )
 
 ! Water species mixing ratios
 integer, intent(in) :: lb_v(2), ub_v(2)
@@ -205,9 +209,11 @@ integer, intent(in) :: lb_g(2), ub_g(2)
 real(kind=real_hmprec), intent(in) :: q_graup                                  &
                                       ( lb_g(1):ub_g(1), lb_g(2):ub_g(2) )
 
-! Exner ratio for rescaling temperature
-real(kind=real_hmprec), intent(out) :: exner_ratio                             &
-                                       ( nx_full, ny_full )
+! Temperature to be modified by adiabatic lapse rate
+real(kind=real_hmprec), intent(in out) :: temperature ( nx_full, ny_full )
+
+! Exner ratio for rescaling temperature (if conserving potential temperature)
+real(kind=real_hmprec) :: exner_ratio ( nx_full, ny_full )
 
 ! Total heat capacity per unit dry-mass
 real(kind=real_hmprec) :: cp_tot( nx_full, ny_full )
@@ -241,6 +247,7 @@ real(kind=real_hmprec), parameter :: one = 1.0_real_hmprec
 R_dry_p = real(R_dry,real_hmprec)
 R_vap_p = real(R_vap,real_hmprec)
 cp_dry_p = real(cp_dry,real_hmprec)
+
 
 ! We expect that usually the fractional change in pressure will
 ! be small, in which case ( pressure_2 / pressure_1 )^R_over_cp
@@ -325,7 +332,15 @@ else
     end do
   end do
 
-end if  ! ( l_approx_dry_adiabat )
+end if  ! ( .NOT. l_approx_dry_adiabat )
+
+! Scale temperature by exner ratio
+do j = 1, ny_full
+  do i = 1, nx_full
+    temperature(i,j) = temperature(i,j) * exner_ratio(i,j)
+  end do
+end do
+
 
 return
 end subroutine dry_adiabat_2d
