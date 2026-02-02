@@ -72,6 +72,8 @@ module coupler_update_prognostics_mod
     type( field_type ), pointer :: lat
     type( field_type )          :: snow_mass
 
+    real(r_def)                 :: rhosnow_r_def
+
     call depository%get_field('ocn_cpl_point', ocn_cpl_point_ptr)
 
     select case(fld%get_name())
@@ -138,7 +140,10 @@ module coupler_update_prognostics_mod
         call depository%get_field('tile_snow_mass', fld_ptr1)
         ! Calculate snow mass from snow depth
         ! snow_mass = rhosnow * snow_depth(fld)
-        call invoke( a_times_X(snow_mass, rhosnow, fld ) )
+        ! rhosnow is defined in double precision in JULES
+        ! Make a copy for case of single precision compilation
+        rhosnow_r_def = rhosnow
+        call invoke( a_times_X(snow_mass, rhosnow_r_def, fld ) )
         ! Insert into the sea ice section of tile_snow_mass
         call invoke( masked_multi_insert_kernel_type(fld_ptr1, snow_mass, &
                                                  ocn_cpl_point_ptr, &

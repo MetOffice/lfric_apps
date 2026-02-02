@@ -15,7 +15,7 @@ character(len=*), parameter, private :: ModuleName='GLUE_CONV_6A_MOD'
 
 contains
 !
-subroutine glue_conv_6a(np_field,npnts,nlev,n_wtrac,nbl,                       &
+subroutine glue_conv_6a(ncells,seg_size,nlev,n_wtrac,nbl,                      &
                      call_number,seg_num                                       &
    ,                 th,q,qcl,qcf                                              &
    ,                 q_wtrac, qcl_wtrac, qcf_wtrac                             &
@@ -153,27 +153,27 @@ implicit none
 !
 ! Arguments with intent in:
 !
-integer, intent(in) :: np_field ! No of points in a full field
+integer, intent(in) :: ncells ! No of points in a full field
 !(note all multi-dimensional fields
 !  passed to routine MUST be
-!   dimensioned with np_field)
+!   dimensioned with ncells)
 
-integer, intent(in) :: npnts    ! No. of points in segment
+integer, intent(in) :: seg_size    ! No. of points in segment
 
-! NOTE - loops over points should be over npnts or less NEVER over np_field.
+! NOTE - loops over points should be over seg_size or less NEVER over ncells.
 
 integer, intent(in) :: nlev        ! No. of model layers used in convection
 integer, intent(in) :: n_wtrac     ! No. of water tracers,
                                    !   set to 1 if l_wtrac_conv=F
-integer, intent(in) :: ntml(npnts) ! Top level of surface mixed
+integer, intent(in) :: ntml(seg_size) ! Top level of surface mixed
 ! layer defined relative to
 ! theta,q grid
 
-integer, intent(in) :: ntpar(npnts) ! Top level of initial parcel
+integer, intent(in) :: ntpar(seg_size) ! Top level of initial parcel
 ! ascent in BL scheme defined
 ! relative to theta,q grid
 
-integer, intent(in) :: conv_type(npnts)
+integer, intent(in) :: conv_type(seg_size)
 ! Integer index describing convective type:
 !    0=no convection
 !    1=non-precipitating shallow
@@ -205,154 +205,154 @@ integer, intent(in) :: n_sh     ! Number of shallow points
 
 integer, intent(in) :: n_md     ! Number of mid points
 
-real(kind=real_umphys), intent(in) :: delthvu_bl(npnts)
+real(kind=real_umphys), intent(in) :: delthvu_bl(seg_size)
                                       !Integral of undilute parcel
 ! buoyancy over convective cloud
 ! layer (Kelvin m)
 
 real(kind=real_umphys), intent(in) ::                                          &
-    ql_ad(npnts)      & ! adiabatic liquid water content at inversion (kg/kg)
-   , qsat_lcl(npnts)  & ! qsat at cloud base (kg/kg)
-   , ftl(npnts)       & ! Surface sensible heat flux divided by cp from BL
+    ql_ad(seg_size)      & ! adiabatic liquid water content at inversion (kg/kg)
+   , qsat_lcl(seg_size)  & ! qsat at cloud base (kg/kg)
+   , ftl(seg_size)       & ! Surface sensible heat flux divided by cp from BL
                         ! (K kg/m2/s) i.e. rho*w'tl'
-   , fqt(npnts)       & ! Total water flux from surface (kg/m2/s)
+   , fqt(seg_size)       & ! Total water flux from surface (kg/m2/s)
                         ! i.e. rho*w'qT'
-   , delta_smag(npnts)  ! grid size used in smagorinsky length scale (m)
+   , delta_smag(seg_size)  ! grid size used in smagorinsky length scale (m)
 
 
-real(kind=real_umphys), intent(in) :: r_rho(np_field,nlev)
+real(kind=real_umphys), intent(in) :: r_rho(ncells,nlev)
                                             ! radius rho levels(m)
-real(kind=real_umphys), intent(in) :: r_theta(np_field,0:nlev)
+real(kind=real_umphys), intent(in) :: r_theta(ncells,0:nlev)
                                               ! theta levels (m)
 
 real(kind=real_umphys), intent(in) ::                                          &
-  rho(np_field,nlev)            & ! Wet density on rho levels (kg/m3)
- ,rho_theta(np_field,nlev)      & ! Wet denisty on theta levels (kg/m3)
- ,rho_dry(np_field,nlev)        & ! dry density on rho levels (kg/m3)
- ,rho_dry_theta(np_field,nlev)    ! dry density on theta levels (kg/m3)
+  rho(ncells,nlev)            & ! Wet density on rho levels (kg/m3)
+ ,rho_theta(ncells,nlev)      & ! Wet denisty on theta levels (kg/m3)
+ ,rho_dry(ncells,nlev)        & ! dry density on rho levels (kg/m3)
+ ,rho_dry_theta(ncells,nlev)    ! dry density on theta levels (kg/m3)
 
-real(kind=real_umphys), intent(in) :: exner_rho_levels(np_field,nlev)
+real(kind=real_umphys), intent(in) :: exner_rho_levels(ncells,nlev)
                                                       !Exner on rho levels
-real(kind=real_umphys), intent(in) :: exner_layer_centres(np_field,0:nlev)
+real(kind=real_umphys), intent(in) :: exner_layer_centres(ncells,0:nlev)
                                                          !Exner
 
-real(kind=real_umphys), intent(in) :: exner_layer_boundaries(np_field,0:nlev)
+real(kind=real_umphys), intent(in) :: exner_layer_boundaries(ncells,0:nlev)
                                                             !Exner
 ! at half level above
 ! exner_layer_centres
 
-real(kind=real_umphys), intent(in) :: pstar(npnts) ! Surface pressure (Pa)
+real(kind=real_umphys), intent(in) :: pstar(seg_size) ! Surface pressure (Pa)
 
-real(kind=real_umphys), intent(in) :: p_layer_centres(np_field,0:nlev)
+real(kind=real_umphys), intent(in) :: p_layer_centres(ncells,0:nlev)
                                                      !Pressure(Pa)
 
 
-real(kind=real_umphys), intent(in) :: p_layer_boundaries(np_field,0:nlev)
+real(kind=real_umphys), intent(in) :: p_layer_boundaries(ncells,0:nlev)
                                                         ! Pressure
 ! at half level above
 ! p_layer_centres (Pa)
 
-real(kind=real_umphys), intent(in) :: z_theta(np_field,nlev) ! height of theta
+real(kind=real_umphys), intent(in) :: z_theta(ncells,nlev) ! height of theta
 ! levels above surface (m)
 
-real(kind=real_umphys), intent(in) :: z_rho(np_field,nlev)
+real(kind=real_umphys), intent(in) :: z_rho(ncells,nlev)
                                             ! height of rho levels
 ! above surface (m)
 
 
-real(kind=real_umphys), intent(in) :: t1_sd(npnts) ! Standard deviation of
+real(kind=real_umphys), intent(in) :: t1_sd(seg_size) ! Standard deviation of
 ! turbulent fluctuations of
 ! layer 1 temp. (K)
 
-real(kind=real_umphys), intent(in) :: q1_sd(npnts) ! Standard deviation of
+real(kind=real_umphys), intent(in) :: q1_sd(seg_size) ! Standard deviation of
 ! turbulent fluctuations of
 ! layer 1 q (kg/kg)
 
-real(kind=real_umphys), intent(in) :: th(np_field,nlev) !Model potential
+real(kind=real_umphys), intent(in) :: th(ncells,nlev) !Model potential
 ! temperature (K)
 
-real(kind=real_umphys), intent(in) :: q(np_field,nlev)
+real(kind=real_umphys), intent(in) :: q(ncells,nlev)
                                      ! Model water vapour (kg/kg)
 
 real(kind=real_umphys), intent(in) :: timestep    ! Model timestep (s)
 
-real(kind=real_umphys), intent(in) :: q_wtrac(np_field,nlev,n_wtrac)
+real(kind=real_umphys), intent(in) :: q_wtrac(ncells,nlev,n_wtrac)
                                                   ! Water tracer vapour (kg/kg)
-real(kind=real_umphys), intent(in) :: qcl_wtrac(np_field,nlev,n_wtrac)
+real(kind=real_umphys), intent(in) :: qcl_wtrac(ncells,nlev,n_wtrac)
                                                   ! Water tracer liquid
                                                   ! condensate (kg/kg)
-real(kind=real_umphys), intent(in) :: qcf_wtrac(np_field,nlev,n_wtrac)
+real(kind=real_umphys), intent(in) :: qcf_wtrac(ncells,nlev,n_wtrac)
                                                   ! Water tracer ice
                                                   ! condensate (kg/kg)
 
-real(kind=real_umphys), intent(in) :: uw0(npnts)
+real(kind=real_umphys), intent(in) :: uw0(seg_size)
                                ! U-comp of surface stress(N/m2)
 
-real(kind=real_umphys), intent(in) :: vw0(npnts)
+real(kind=real_umphys), intent(in) :: vw0(seg_size)
                                ! V-comp of surface stress(N/m2)
 
-real(kind=real_umphys), intent(in) :: w_max(npnts) ! max w in column
+real(kind=real_umphys), intent(in) :: w_max(seg_size) ! max w in column
 
-real(kind=real_umphys), intent(in) :: u(np_field,nlev) !Model U field (m/s)
+real(kind=real_umphys), intent(in) :: u(ncells,nlev) !Model U field (m/s)
 
-real(kind=real_umphys), intent(in) :: v(np_field,nlev) !Model V field (m/s)
+real(kind=real_umphys), intent(in) :: v(ncells,nlev) !Model V field (m/s)
 
-real(kind=real_umphys), intent(in) :: w(np_field,nlev) !Model W field (m/s)
+real(kind=real_umphys), intent(in) :: w(ncells,nlev) !Model W field (m/s)
 
-real(kind=real_umphys), intent(in) :: wstar(npnts) ! Convective velocity scale
+real(kind=real_umphys), intent(in) :: wstar(seg_size) ! Convective velocity scale
 ! (m/s)
 
-real(kind=real_umphys), intent(in) :: wthvs(npnts)
+real(kind=real_umphys), intent(in) :: wthvs(seg_size)
                                  ! Surface flux of THV  (Pa m/s2)
 
-real(kind=real_umphys), intent(in) :: zlcl(npnts)
+real(kind=real_umphys), intent(in) :: zlcl(seg_size)
                                 ! Lifting condensation level accurate
 ! height (m) not a model level.
 
-real(kind=real_umphys), intent(in) :: zlcl_uv(npnts)
+real(kind=real_umphys), intent(in) :: zlcl_uv(seg_size)
                                    ! Lifting condensation level
 ! defined for the uv grid (m)
-real(kind=real_umphys), intent(in) :: tnuc_new(np_field,nlev)
+real(kind=real_umphys), intent(in) :: tnuc_new(ncells,nlev)
                                             ! 3D ice nucleation temperature
                                             ! as function of dust
-real(kind=real_umphys), intent(in) :: tnuc_nlcl(npnts)
+real(kind=real_umphys), intent(in) :: tnuc_nlcl(seg_size)
                                        !nucleation temperature as function
                                        !of dust indexed using nlcl
-real(kind=real_umphys), intent(in) :: ztop_uv(npnts) ! Top of cloud layer
+real(kind=real_umphys), intent(in) :: ztop_uv(seg_size) ! Top of cloud layer
 ! defined for the uv
 ! grid (m)
 
 real(kind=real_umphys), intent(in) ::                                          &
-   entrain_coef(npnts)     ! entrainment coefficients
+   entrain_coef(seg_size)     ! entrainment coefficients
 
 real(kind=real_umphys), intent(in) ::                                          &
-  g_ccp(npnts)         & ! cold-pool reduced gravity
- ,h_ccp(npnts)         & ! cold-pool depth
- ,ccp_strength(npnts)    ! cold-pool strength
+  g_ccp(seg_size)         & ! cold-pool reduced gravity
+ ,h_ccp(seg_size)         & ! cold-pool depth
+ ,ccp_strength(seg_size)    ! cold-pool strength
 
-real(kind=real_umphys), intent(in) :: conv_prog_precip(np_field,nlev)
+real(kind=real_umphys), intent(in) :: conv_prog_precip(ncells,nlev)
                                                     ! Surface precipitation
                                                     ! based 3d convective
                                                     ! prognostic in kg/m2/s
-real(kind=real_umphys), intent(in out) :: conv_prog_flx(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: conv_prog_flx(ncells,nlev)
                                                      ! Mass flux convective
                                                     ! prognostic in Pa/s
 ! History prognostics only in use if l_conv_hist = .true.
 
 real(kind=real_umphys), intent(in out) ::                                      &
-   deep_flag(npnts)     & ! 0.0-1.0, 1. indicates deep last time step
-   ,past_conv_ht(npnts)   ! convective height (m)
+   deep_flag(seg_size)     & ! 0.0-1.0, 1. indicates deep last time step
+   ,past_conv_ht(seg_size)   ! convective height (m)
 
 logical, intent(in) :: l_tracer ! Switch for inclusion of tracers
 
-logical, intent(in) :: l_shallow_bl(npnts) ! Shallow cumulus
+logical, intent(in) :: l_shallow_bl(seg_size) ! Shallow cumulus
 ! indicator
 
-logical, intent(in) :: l_congestus(npnts) ! congestus cumulus
+logical, intent(in) :: l_congestus(seg_size) ! congestus cumulus
 
-logical, intent(in) :: l_mid(npnts)       ! possible mid-level cnv
+logical, intent(in) :: l_mid(seg_size)       ! possible mid-level cnv
 
-logical, intent(in) :: cumulus_bl(npnts) ! Cumulus indicator
+logical, intent(in) :: cumulus_bl(seg_size) ! Cumulus indicator
 
 logical, intent(in) :: l_calc_dxek ! Switch for calculation of
 ! condensate increment
@@ -361,7 +361,7 @@ logical, intent(in) :: l_q_interact ! Switch allows overwriting
 ! parcel variables when
 ! calculating condensate incr.
 
-logical, intent(in) :: bland(npnts) ! Land/sea mask
+logical, intent(in) :: bland(seg_size) ! Land/sea mask
 
 !
 ! Arguments with intent INOUT:
@@ -371,163 +371,163 @@ logical, intent(in) :: bland(npnts) ! Land/sea mask
 ! specific humidities if l_mr_physics = .false.
 ! mixing ratios       if l_mr_physics = .true.
 
-real(kind=real_umphys), intent(in out) :: qcl(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: qcl(ncells,nlev)
                                            ! Liq condensate (kg/kg)
 
-real(kind=real_umphys), intent(in out) :: qcf(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: qcf(ncells,nlev)
                                            ! Ice condensate (kg/kg)
 
-real(kind=real_umphys), intent(in out) :: cf_liquid(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: cf_liquid(ncells,nlev)
 ! Liq water cloud volume (fraction)
 
-real(kind=real_umphys), intent(in out) :: cf_frozen(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: cf_frozen(ncells,nlev)
 ! Frozen water cloud volume (fraction?)
 
-real(kind=real_umphys), intent(in out) :: bulk_cf(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: bulk_cf(ncells,nlev)
                                                ! Bulk total cloud
                                               ! volume ( )
 
-real(kind=real_umphys), intent(in out) :: tracer(np_field,trlev,ntra)
+real(kind=real_umphys), intent(in out) :: tracer(ncells,trlev,ntra)
                                                     !Model tracer
                                               ! fields (kg/kg)
 
 real(kind=real_umphys), intent(in out) ::                                      &
-  w2p(np_field,nlev)        ! (Parcel vertical velocity)^2 [(m/s)^2]
+  w2p(ncells,nlev)        ! (Parcel vertical velocity)^2 [(m/s)^2]
 
 !
 ! Arguments with intent out:
 !
 
-real(kind=real_umphys), intent(out) :: dqclbydt(np_field,nlev)
+real(kind=real_umphys), intent(out) :: dqclbydt(ncells,nlev)
                                              ! Increments to liq
 ! condensate due to convection
 ! (kg/kg/s)
 
-real(kind=real_umphys), intent(out) :: dqcfbydt(np_field,nlev)
+real(kind=real_umphys), intent(out) :: dqcfbydt(ncells,nlev)
                                              ! Increments to ice
 ! condensate due to convection
 ! (kg/kg/s)
 
-real(kind=real_umphys), intent(out) :: dcflbydt(np_field,nlev)
+real(kind=real_umphys), intent(out) :: dcflbydt(ncells,nlev)
                                              ! Increments to liq
 ! cloud volume due to convection
 ! (/s)
 
-real(kind=real_umphys), intent(out) :: dcffbydt(np_field,nlev)
+real(kind=real_umphys), intent(out) :: dcffbydt(ncells,nlev)
                                              ! Increments to ice
 ! cloud volume due to convection
 ! (/s)
 
-real(kind=real_umphys), intent(out) :: dbcfbydt(np_field,nlev) ! Increments to
+real(kind=real_umphys), intent(out) :: dbcfbydt(ncells,nlev) ! Increments to
 ! total cld volume due to
 ! convection(/s)
 
-real(kind=real_umphys), intent(out) :: dthbydt(np_field,nlev) ! Increments to
+real(kind=real_umphys), intent(out) :: dthbydt(ncells,nlev) ! Increments to
 ! potential temp. due to convection (K/s)
 
-real(kind=real_umphys), intent(out) :: dqbydt(np_field,nlev)
+real(kind=real_umphys), intent(out) :: dqbydt(ncells,nlev)
                                            ! Increments to q due
 ! to convection (kg/kg/s)
 
-real(kind=real_umphys), intent(out) :: dubydt(np_field,nlev+1)
+real(kind=real_umphys), intent(out) :: dubydt(ncells,nlev+1)
                                              ! Increments to U due
 ! to CMT (m/s2)
 
-real(kind=real_umphys), intent(out) :: dvbydt(np_field,nlev+1)
+real(kind=real_umphys), intent(out) :: dvbydt(ncells,nlev+1)
                                              ! Increments to V due
 ! to CMT (m/s2)
 
-real(kind=real_umphys), intent(out) :: dqbydt_wtrac(np_field,nlev,n_wtrac)
+real(kind=real_umphys), intent(out) :: dqbydt_wtrac(ncells,nlev,n_wtrac)
                                             ! Increments to q_wtrac due
                                             ! to convection (kg/kg/s)
-real(kind=real_umphys), intent(out) :: dqclbydt_wtrac(np_field,nlev,n_wtrac)
+real(kind=real_umphys), intent(out) :: dqclbydt_wtrac(ncells,nlev,n_wtrac)
                                             ! Increments to qcl_wtrac
                                             ! due to convection (kg/kg/s)
-real(kind=real_umphys), intent(out) :: dqcfbydt_wtrac(np_field,nlev,n_wtrac)
+real(kind=real_umphys), intent(out) :: dqcfbydt_wtrac(ncells,nlev,n_wtrac)
                                             ! Increments to qcf_wtrac
                                             ! due to convection (kg/kg/s)
 
-real(kind=real_umphys), intent(out) :: rain(npnts) ! Surface convective rainfall
+real(kind=real_umphys), intent(out) :: rain(seg_size) ! Surface convective rainfall
 ! (kg/m2/s)
 
-real(kind=real_umphys), intent(out) :: snow(npnts) ! Surface convective snowfall
+real(kind=real_umphys), intent(out) :: snow(seg_size) ! Surface convective snowfall
 ! (kg/m2/s)
 
-real(kind=real_umphys), intent(in out) :: rain_3d(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: rain_3d(ncells,nlev)
                                             ! convective rainfall flux
 ! (kg/m2/s)
 
-real(kind=real_umphys), intent(in out) :: snow_3d(np_field,nlev)
+real(kind=real_umphys), intent(in out) :: snow_3d(ncells,nlev)
                                             ! convective snowfall flux
 ! (kg/m2/s)
 
-real(kind=real_umphys), intent(out) :: rain_wtrac(np_field,n_wtrac)
+real(kind=real_umphys), intent(out) :: rain_wtrac(ncells,n_wtrac)
                                             ! Surface convective water
                                             ! tracer rainfall (kg/m2/s)
 
-real(kind=real_umphys), intent(out) :: snow_wtrac(np_field,n_wtrac)
+real(kind=real_umphys), intent(out) :: snow_wtrac(ncells,n_wtrac)
                                             ! Surface convective water
                                             ! tracer snowfall (kg/m2/s)
 
 
 ! Section 5 Convective Cloud properties
 real(kind=real_umphys), intent(out) ::                                         &
-  cca(np_field,n_cca_lev)  &! Cnv. cld amount (0-1)
-, ccw(np_field,nlev)       &! Cnv. in-cld liquid water (kg/kg)
-, cclwp(npnts)             &! Condensed water path (kg/m^2)
-, lcca(npnts)               ! Lowest cnv. cld amt. (0-1)
+  cca(ncells,n_cca_lev)  &! Cnv. cld amount (0-1)
+, ccw(ncells,nlev)       &! Cnv. in-cld liquid water (kg/kg)
+, cclwp(seg_size)             &! Condensed water path (kg/m^2)
+, lcca(seg_size)               ! Lowest cnv. cld amt. (0-1)
 
 integer, intent(out) ::                                                        &
-  iccb(npnts)              &! Cnv. cld base level
-, icct(npnts)              &! Cnv. cld top level
-, lcbase(npnts)            &! Lowest cnv. cld base level
-, lctop(npnts)              ! Lowest cnv. cld top level
+  iccb(seg_size)              &! Cnv. cld base level
+, icct(seg_size)              &! Cnv. cld top level
+, lcbase(seg_size)            &! Lowest cnv. cld base level
+, lctop(seg_size)              ! Lowest cnv. cld top level
 
 
 ! Section 0 Convective Cloud properties for Radiative impacts
 real(kind=real_umphys) ::                                                      &
-  cca0(np_field,n_cca_lev)    &! Cnv. cld amount (0-1)
-, cca0_sh(np_field,n_cca_lev) &! Shallow cnv. cld amount (0-1)
-, cca0_md(np_field,n_cca_lev) &! Mid-level cnv. cld amount (0-1)
-, cca0_dp(np_field,n_cca_lev) &! Deep cnv. cld amount (0-1)
-, ccw0(np_field,nlev)         &! Cnv. in-cld liquid water (kg/kg)
-, cclwp0(npnts)                ! Cond. water path (kg/m^2)
+  cca0(ncells,n_cca_lev)    &! Cnv. cld amount (0-1)
+, cca0_sh(ncells,n_cca_lev) &! Shallow cnv. cld amount (0-1)
+, cca0_md(ncells,n_cca_lev) &! Mid-level cnv. cld amount (0-1)
+, cca0_dp(ncells,n_cca_lev) &! Deep cnv. cld amount (0-1)
+, ccw0(ncells,nlev)         &! Cnv. in-cld liquid water (kg/kg)
+, cclwp0(seg_size)                ! Cond. water path (kg/m^2)
 
 integer, intent(out) ::                                                        &
-  iccb0(npnts)             &! Cnv. cld base level
-, icct0(npnts)             &! Cnv. cld top level
-, lcbase0(npnts)            ! Lowest cnv. cld base level
+  iccb0(seg_size)             &! Cnv. cld base level
+, icct0(seg_size)             &! Cnv. cld top level
+, lcbase0(seg_size)            ! Lowest cnv. cld base level
 
 
-integer, intent(out) :: freeze_lev(npnts) !index for freezing lev
+integer, intent(out) :: freeze_lev(seg_size) !index for freezing lev
 
-integer, intent(out) :: kterm_deep(npnts) ! index deep conv
-integer, intent(out) :: kterm_shall(npnts) ! level for shallow termination
+integer, intent(out) :: kterm_deep(seg_size) ! index deep conv
+integer, intent(out) :: kterm_shall(seg_size) ! level for shallow termination
 
-logical, intent(out) :: l_mid_all(npnts)  ! on exit true if mid level
+logical, intent(out) :: l_mid_all(seg_size)  ! on exit true if mid level
                                           ! convection has triggered
 
 real(kind=real_umphys), intent(out) ::                                         &
-  deep_cfl_limited(npnts) & !  indicator for cfl limited deep conv
- ,mid_cfl_limited(npnts)    !  indicator for cfl limited mid conv
+  deep_cfl_limited(seg_size) & !  indicator for cfl limited deep conv
+ ,mid_cfl_limited(seg_size)    !  indicator for cfl limited mid conv
 
-real(kind=real_umphys), intent(out) :: precip_deep(npnts)
+real(kind=real_umphys), intent(out) :: precip_deep(seg_size)
                                         ! deep precip (kg/m2/s)
 
-real(kind=real_umphys), intent(out) :: precip_shall(npnts)
+real(kind=real_umphys), intent(out) :: precip_shall(seg_size)
                                          ! shallow precip(kg/m2/s)
 
-real(kind=real_umphys), intent(out) :: precip_mid(npnts) ! mid precip (kg/m2/s)
-real(kind=real_umphys), intent(out) :: precip_cong(npnts)
+real(kind=real_umphys), intent(out) :: precip_mid(seg_size) ! mid precip (kg/m2/s)
+real(kind=real_umphys), intent(out) :: precip_cong(seg_size)
                                         ! congest precip (kg/m2/s)
 
 real(kind=real_umphys), intent(out) ::                                         &
-   wstar_dn(npnts)        & ! subcloud layer convective velocity scale(m/s)
- , wstar_up(npnts)        & ! cumulus layer convective velocity scale (m/s)
- , mb1(npnts)             & ! cloud base mass flux from wstar_dn (m/s)
- , mb2(npnts)               ! cloud base mass flux for cloud layer (m/s)
+   wstar_dn(seg_size)        & ! subcloud layer convective velocity scale(m/s)
+ , wstar_up(seg_size)        & ! cumulus layer convective velocity scale (m/s)
+ , mb1(seg_size)             & ! cloud base mass flux from wstar_dn (m/s)
+ , mb2(seg_size)               ! cloud base mass flux for cloud layer (m/s)
 
-integer, intent(out) :: kterm_congest(npnts) ! termination level
+integer, intent(out) :: kterm_congest(seg_size) ! termination level
 !                                                      for congestus
 
 
@@ -536,9 +536,9 @@ integer, intent(out) :: kterm_congest(npnts) ! termination level
 !  Plume model - updraught mass flux  (Pa/s)
 !  turbulence model - mass flux (not exactly updraught) (m/s)
 
-real(kind=real_umphys), intent(out) :: up_flux(np_field,nlev) ! mass flux
+real(kind=real_umphys), intent(out) :: up_flux(ncells,nlev) ! mass flux
 
-real(kind=real_umphys), intent(out) :: up_flux_half(np_field,nlev)
+real(kind=real_umphys), intent(out) :: up_flux_half(ncells,nlev)
                                                  !mass flux on rho
 !dummy variable not used in turbulence
 
@@ -546,32 +546,32 @@ real(kind=real_umphys), intent(out) :: up_flux_half(np_field,nlev)
 ! Diagnostics with no meaning for turbulence based schemes
 !
 real(kind=real_umphys), intent(out) ::                                         &
-  dwn_flux(np_field,nlev)    & ! Downdraught mass flux (Pa/s)
+  dwn_flux(ncells,nlev)    & ! Downdraught mass flux (Pa/s)
 
- ,entrain_up(np_field,nlev)  & ! Fractional entrainment rate into
+ ,entrain_up(ncells,nlev)  & ! Fractional entrainment rate into
                                ! updraughts (Pa/s)
- ,detrain_up(np_field,nlev)  & ! Fractional detrainment rate into
+ ,detrain_up(ncells,nlev)  & ! Fractional detrainment rate into
                                ! updraughts (Pa/s)
- ,entrain_dwn(np_field,nlev) & ! Fractional entrainment rate into
+ ,entrain_dwn(ncells,nlev) & ! Fractional entrainment rate into
                                ! downdraughts (Pa/s)
- ,detrain_dwn(np_field,nlev)   ! Fractional detrainment rate into
+ ,detrain_dwn(ncells,nlev)   ! Fractional detrainment rate into
                                ! downdraughts (Pa/s)
 !
 ! Diagnostics relating to momentum fluxes
 !
 real(kind=real_umphys), intent(out) ::                                         &
-   uw_deep(np_field,nlev)  & ! X-comp. of stress from deep convection
+   uw_deep(ncells,nlev)  & ! X-comp. of stress from deep convection
                              !(kg/m/s2)
- , vw_deep(np_field,nlev)  & ! Y-comp. of stress from deep convection
+ , vw_deep(ncells,nlev)  & ! Y-comp. of stress from deep convection
                              !(kg/m/s2)
- , uw_shall(np_field,nlev) & ! X-comp. of stress from shallow
+ , uw_shall(ncells,nlev) & ! X-comp. of stress from shallow
                              ! convection (kg/m/s2)
- , vw_shall(np_field,nlev) & ! Y-comp. of stress from shallow
+ , vw_shall(ncells,nlev) & ! Y-comp. of stress from shallow
                              ! convection (kg/m/s2)
- , uw_mid(np_field,nlev)   & ! U comp of stress from mid convection (kg/m/s2)
- , vw_mid(np_field,nlev)     ! V comp of stress from mid convection (kg/m/s2)
+ , uw_mid(ncells,nlev)   & ! U comp of stress from mid convection (kg/m/s2)
+ , vw_mid(ncells,nlev)     ! V comp of stress from mid convection (kg/m/s2)
 
-real(kind=real_umphys), intent(out) :: cape_out(npnts)
+real(kind=real_umphys), intent(out) :: cape_out(seg_size)
                                      ! Saved convective available
 ! potential energy for diagnostic
 ! output (Jkg-1)
@@ -579,62 +579,62 @@ real(kind=real_umphys), intent(out) :: cape_out(npnts)
 ! Fluxes from turbulence based convection schemes
 
 real(kind=real_umphys), intent(out) ::                                         &
-   wqt_flux_sh(np_field,nlev)      & ! w'qt' flux (m/s kg/kg)
- , wthetal_flux_sh(np_field,nlev)  & ! w'thetal' flux  (m/s K)
- , wthetav_flux_sh(np_field,nlev)  & ! w'thetav' flux  (m/s K)
- , wql_flux_sh(np_field,nlev)      & ! w'ql' flux  (m/s kg/kg)
+   wqt_flux_sh(ncells,nlev)      & ! w'qt' flux (m/s kg/kg)
+ , wthetal_flux_sh(ncells,nlev)  & ! w'thetal' flux  (m/s K)
+ , wthetav_flux_sh(ncells,nlev)  & ! w'thetav' flux  (m/s K)
+ , wql_flux_sh(ncells,nlev)      & ! w'ql' flux  (m/s kg/kg)
 
- , mf_deep(np_field,nlev)          & ! mass flux deep
- , mf_congest(np_field,nlev)       & ! mass flux congestus
- , mf_shall(np_field,nlev)         & ! mass flux shallow
- , mf_midlev(np_field,nlev)        & ! mass flux mid-lev
+ , mf_deep(ncells,nlev)          & ! mass flux deep
+ , mf_congest(ncells,nlev)       & ! mass flux congestus
+ , mf_shall(ncells,nlev)         & ! mass flux shallow
+ , mf_midlev(ncells,nlev)        & ! mass flux mid-lev
 
- , dt_deep(np_field,nlev)          & ! dt increment deep   (K/s)
- , dt_congest(np_field,nlev)       & ! dt increment congestus (K/s)
- , dt_shall(np_field,nlev)         & ! dt increment shallow (K/s)
- , dt_midlev(np_field,nlev)        & ! dt increment mid-level (K/s)
+ , dt_deep(ncells,nlev)          & ! dt increment deep   (K/s)
+ , dt_congest(ncells,nlev)       & ! dt increment congestus (K/s)
+ , dt_shall(ncells,nlev)         & ! dt increment shallow (K/s)
+ , dt_midlev(ncells,nlev)        & ! dt increment mid-level (K/s)
 
- , dq_deep(np_field,nlev)          & ! dq increment deep (kg/kg/s)
- , dq_congest(np_field,nlev)       & ! dq increment congestus (kg/kg/s)
- , dq_shall(np_field,nlev)         & ! dq increment shallow (kg/kg/s)
- , dq_midlev(np_field,nlev)        & ! dq increment mid-level (kg/kg/s)
+ , dq_deep(ncells,nlev)          & ! dq increment deep (kg/kg/s)
+ , dq_congest(ncells,nlev)       & ! dq increment congestus (kg/kg/s)
+ , dq_shall(ncells,nlev)         & ! dq increment shallow (kg/kg/s)
+ , dq_midlev(ncells,nlev)        & ! dq increment mid-level (kg/kg/s)
 
- , du_deep(np_field,nlev+1)        & ! du increment deep (m/s)
- , du_congest(np_field,nlev+1)     & ! du increment congestus (m/s)
- , du_shall(np_field,nlev+1)       & ! du increment shallow (m/s)
- , du_midlev(np_field,nlev+1)      & ! du increment mid-level (m/s)
+ , du_deep(ncells,nlev+1)        & ! du increment deep (m/s)
+ , du_congest(ncells,nlev+1)     & ! du increment congestus (m/s)
+ , du_shall(ncells,nlev+1)       & ! du increment shallow (m/s)
+ , du_midlev(ncells,nlev+1)      & ! du increment mid-level (m/s)
 
- , dv_deep(np_field,nlev+1)        & ! dv increment deep (m/s)
- , dv_congest(np_field,nlev+1)     & ! dv increment congestus (m/s)
- , dv_shall(np_field,nlev+1)       & ! dv increment shallow (m/s)
- , dv_midlev(np_field,nlev+1)        ! dv increment mid-level (m/s)
+ , dv_deep(ncells,nlev+1)        & ! dv increment deep (m/s)
+ , dv_congest(ncells,nlev+1)     & ! dv increment congestus (m/s)
+ , dv_shall(ncells,nlev+1)       & ! dv increment shallow (m/s)
+ , dv_midlev(ncells,nlev+1)        ! dv increment mid-level (m/s)
 
-
-real(kind=real_umphys), intent(out) ::                                         &
-   ind_cape_reduced(npnts)   & ! indicates cape timescale reduced
-   ,cape_ts_used(npnts)      & ! cape timescale for deep (s)
-   ,ind_deep(npnts)          & ! indicator of real deep
-   ,ind_shall(npnts)           ! indicator of real shallow
 
 real(kind=real_umphys), intent(out) ::                                         &
-   dt_dd(np_field,nlev)      & ! dT/dt from DD & evap below cloud base (K/s)
-  ,dq_dd(np_field,nlev)      & ! dq/dt from DD & evap below cloud base (kg/kg/s)
-  ,du_dd(np_field,nlev)      & ! du/dt from DD (m/s2)
-  ,dv_dd(np_field,nlev)      & ! dv/dt from DD (m/s2)
-  ,area_ud(np_field,nlev)    & ! updraught fractional area
-  ,area_dd(np_field,nlev)      ! downdraught fractional area
+   ind_cape_reduced(seg_size)   & ! indicates cape timescale reduced
+   ,cape_ts_used(seg_size)      & ! cape timescale for deep (s)
+   ,ind_deep(seg_size)          & ! indicator of real deep
+   ,ind_shall(seg_size)           ! indicator of real shallow
+
+real(kind=real_umphys), intent(out) ::                                         &
+   dt_dd(ncells,nlev)      & ! dT/dt from DD & evap below cloud base (K/s)
+  ,dq_dd(ncells,nlev)      & ! dq/dt from DD & evap below cloud base (kg/kg/s)
+  ,du_dd(ncells,nlev)      & ! du/dt from DD (m/s2)
+  ,dv_dd(ncells,nlev)      & ! dv/dt from DD (m/s2)
+  ,area_ud(ncells,nlev)    & ! updraught fractional area
+  ,area_dd(ncells,nlev)      ! downdraught fractional area
 
 ! Structure containing SCM convection sub-step diagnostics
 ! (needs intent inout as contains allocatable arrays that need to
 ! retain their allocated status on input as well as output)
-type(scm_convss_dg_type), intent(in out) :: scm_convss_dg( npnts )
+type(scm_convss_dg_type), intent(in out) :: scm_convss_dg( seg_size )
 ! Flag for SCM convection sub-step diagnostics
 logical, intent(in) :: l_scm_convss_dg
 
 
 ! local required in move mixing to glue
 
-real(kind=real_umphys) :: dtrabydt(npnts,nlev,ntra) ! Increment to tracer due to
+real(kind=real_umphys) :: dtrabydt(seg_size,nlev,ntra) ! Increment to tracer due to
 ! convection (kg/kg/s)
 
 ! Structure containing compressed water fields (used for deep, shallow and
@@ -1070,7 +1070,7 @@ real(kind=real_umphys) :: w2p_dp(n_dp,nlev) ! ...deep      convection points
 !-----------------------------------------------------------------------
 ! LOCAL compressed arrays to be passed to MID-LEVEL convection scheme.
 ! Arrays are identified by underscore MD (_md) and are of length
-! npnts where npnts is the total number of points in the grid (since
+! seg_size where seg_size is the total number of points in the grid (since
 ! mid-level convection may occur on any point previously diagnosed as
 ! shallow or deep).
 !-----------------------------------------------------------------------
@@ -1247,57 +1247,57 @@ real(kind=real_umphys), parameter :: deep_depth=2500.0
 !-----------------------------------------------------------------------
 !  Arrays required for mixing ratio to specific conversions
 
-real(kind=real_umphys) :: mt(npnts,nlev)    ! total water mixing ratio (kg/kg)
+real(kind=real_umphys) :: mt(seg_size,nlev)    ! total water mixing ratio (kg/kg)
                                             ! rhowet/rhodry = 1 + mt
 real(kind=real_umphys) :: denom             ! 1/denominator
 
 !-----------------------------------------------------------------------
 !  Arrays required by 3d CCA calculation
 
-real(kind=real_umphys), intent(in out) :: cca_2d(npnts)
+real(kind=real_umphys), intent(in out) :: cca_2d(seg_size)
                                              ! 2d convective cloud (Section 5)
 
 ! Saturation mixing ratio calulation and 1/pstar
 
 real(kind=real_umphys) ::                                                      &
-  qse_mix(npnts,nlev)     ! Saturation mixing ratio of cloud
+  qse_mix(seg_size,nlev)     ! Saturation mixing ratio of cloud
                           ! cloud environment (kg/kg) only used if
                           ! turbulence schemes in use
 real(kind=real_umphys) ::                                                      &
-   recip_pstar(npnts)                                                          &
+   recip_pstar(seg_size)                                                          &
                             ! Reciprocal of pstar array
-   , qse(npnts,nlev)                                                           &
+   , qse(seg_size,nlev)                                                           &
                             ! Saturation specific humidity of cloud
                             ! cloud environment (kg/kg)
-   , pt(npnts)                                                                 &
+   , pt(seg_size)                                                                 &
                             ! Temporary store for P in calc. of sat.
                             ! value. (Pa)
-   , tt(npnts)                                                                 &
+   , tt(seg_size)                                                                 &
                             ! Temporary store for T in calc.
                             ! of saturation value. (K)
-   , ttkm1(npnts)           ! Temporary store for T in layer
+   , ttkm1(seg_size)           ! Temporary store for T in layer
                             ! k-1 for use in freezing level
                             ! calc. for anvil. (K)
 
 !  arrays required by grid calculations
 
 real(kind=real_umphys) ::                                                      &
-   r2rho_th(npnts,nlev)      & ! radius**2 density theta lev (kg/m)
-   ,r2rho(npnts,nlev)         & ! radius**2 density rho lev (kg/m)
-   ,dr_across_th(npnts,nlev)  & ! thickness of theta levels (m)
-   ,dr_across_rh(npnts,nlev)    ! thickness of rho levels (m)
+   r2rho_th(seg_size,nlev)      & ! radius**2 density theta lev (kg/m)
+   ,r2rho(seg_size,nlev)         & ! radius**2 density rho lev (kg/m)
+   ,dr_across_th(seg_size,nlev)  & ! thickness of theta levels (m)
+   ,dr_across_rh(seg_size,nlev)    ! thickness of rho levels (m)
 
 !  arrays required by for identifying convective points
 
-integer :: index1(npnts)
+integer :: index1(seg_size)
 integer :: nconv_all         ! Total number of points convecting
 
 ! array required by tracers at end
 
-real(kind=real_umphys) :: limited_step(npnts)     ! Reduced step size for tracer
+real(kind=real_umphys) :: limited_step(seg_size)     ! Reduced step size for tracer
 ! mixing
 
-real(kind=real_umphys) :: step_test(npnts)
+real(kind=real_umphys) :: step_test(seg_size)
                                 ! Work array used in reducing step
 
 !
@@ -1333,7 +1333,7 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 !
 ! Initialise 3d rain variables
 
-call init_6a_rain(npnts, nlev, n_sh, n_dp, n_cg, n_md, rain_3d_sh, snow_3d_sh, &
+call init_6a_rain(seg_size, nlev, n_sh, n_dp, n_cg, n_md, rain_3d_sh, snow_3d_sh, &
                   rain_3d_dp, snow_3d_dp, rain_3d_cg, snow_3d_cg, rain_3d_md,  &
                   snow_3d_md, ind_cape_reduced, cape_ts_used, ind_deep,        &
                   ind_shall, kterm_deep, kterm_shall, kterm_congest )
@@ -1354,7 +1354,7 @@ end if
  ! at all points. Points not in the compression lists for the respective calls
  ! to DPCONV, SHCONV, MDCONV or CGCONV will remain zero.
 
-call init_6a_npnts(npnts, nlev, n_cca_lev, np_field, n_wtrac,                  &
+call init_6a_npnts(seg_size, nlev, n_cca_lev, ncells, n_wtrac,                  &
                    dqbydt, dthbydt, dqclbydt, dqcfbydt, dcflbydt, dcffbydt,    &
                    dbcfbydt, dqbydt_wtrac, dqclbydt_wtrac,                     &
                    dqcfbydt_wtrac, ccw, cca,                                   &
@@ -1373,7 +1373,7 @@ call init_6a_npnts(npnts, nlev, n_cca_lev, np_field, n_wtrac,                  &
 ! Initialisation of mt used for mixing/specific conversions using wet/dry rho.
 ! Also zero dubydt, dvbydt and dtrabydt arrays.
 
-call init_6a_moist(npnts, nlev, np_field, ntra, rho_theta, rho_dry_theta,      &
+call init_6a_moist(seg_size, nlev, ncells, ntra, rho_theta, rho_dry_theta,      &
                    mt, dubydt, dvbydt, dtrabydt, l_tracer)
 !
 ! Required to get same convective cloud as old scheme
@@ -1389,7 +1389,7 @@ call init_6a_moist(npnts, nlev, np_field, ntra, rho_theta, rho_dry_theta,      &
 ! Calculate quantities involving density etc for future use
 
 do k=1,nlev
-  do i=1,npnts
+  do i=1,seg_size
     dr_across_rh(i,k) = r_theta(i,k) - r_theta(i,k-1)
     r2rho(i,k)        = r_rho(i,k)*r_rho(i,k)*rho(i,k)
   end do
@@ -1398,13 +1398,13 @@ end do
 ! rho_theta only set for nlev-1
 !
 k=1     ! bottom theta level thicker
-do i=1,npnts
+do i=1,seg_size
   dr_across_th(i,k) = r_rho(i,k+1) - r_theta(i,0)
   r2rho_th(i,k)     = r_theta(i,k)*r_theta(i,k)*rho_theta(i,k)
 end do
 
 do k=2,nlev-1
-  do i=1,npnts
+  do i=1,seg_size
     dr_across_th(i,k) = r_rho(i,k+1) - r_rho(i,k)
     r2rho_th(i,k)     = r_theta(i,k)*r_theta(i,k)*rho_theta(i,k)
   end do
@@ -1412,7 +1412,7 @@ end do
 
 k=nlev     ! top layer  (hope not used ?
 !             assume density as layer below)
-do i=1,npnts
+do i=1,seg_size
   dr_across_th(i,k) = r_theta(i,nlev) - r_rho(i,k)
   r2rho_th(i,k)     = r_theta(i,k)*r_theta(i,k)*rho_theta(i,k-1)
 end do
@@ -1427,7 +1427,7 @@ end do
 ! Calculate 1/pstar and initialize freeze_lev array.
 !
 
-do i = 1,npnts
+do i = 1,seg_size
   recip_pstar(i)=1.0 / pstar(i)
   freeze_lev(i) = 1
 end do
@@ -1443,7 +1443,7 @@ do k = 1,nlev
   !
 
   if (k  ==  1) then
-    do i = 1,npnts
+    do i = 1,seg_size
       tt(i) = th(i,k) * exner_layer_centres(i,k)
       pt(i) = p_layer_centres(i,k)
       !
@@ -1456,7 +1456,7 @@ do k = 1,nlev
 
     end do
   else
-    do i = 1,npnts
+    do i = 1,seg_size
       ttkm1(i) = tt(i)
       tt(i) = th(i,k) * exner_layer_centres(i,k)
       pt(i) = p_layer_centres(i,k)
@@ -1472,12 +1472,12 @@ do k = 1,nlev
   ! Calculate saturation specific humidity/mixing ratio  lq_mix=.false.
   !
 
-  call qsat(qse(:,k),tt,pt,npnts)
+  call qsat(qse(:,k),tt,pt,seg_size)
 
   if (iconv_deep == 2 .or. (iconv_shallow >= 2) ) then
     ! Using a turbulence scheme also require a mixing ratio version
 
-    call qsat_mix(qse_mix(:,k),tt,pt,npnts)
+    call qsat_mix(qse_mix(:,k),tt,pt,seg_size)
 
   end if
 end do  ! nlev
@@ -1512,7 +1512,7 @@ if (n_dp  >   0 .and. iconv_deep >  0 ) then
   allocate(rho_dry_theta_temp(n_dp,nlev))
 
   j = 0
-  do i = 1,npnts
+  do i = 1,seg_size
     if (cumulus_bl(i) .and. .not. l_shallow_bl(i) .and.                        &
        .not. l_congestus(i)) then
       j                        = j+1
@@ -1681,7 +1681,7 @@ if (n_dp  >   0 .and. iconv_deep >  0 ) then
 
   if (l_wtrac_conv) then
 
-    call wtrac_gather_conv(np_field,npnts,n_dp,nlev,n_wtrac, iconv_deep,       &
+    call wtrac_gather_conv(ncells,seg_size,n_dp,nlev,n_wtrac, iconv_deep,       &
                            dpi, mt, q_wtrac, qcl_wtrac, qcf_wtrac, wtrac_e)
 
   end if
@@ -1998,7 +1998,7 @@ if (n_dp  >   0 .and. iconv_deep >  0 ) then
   ! required and decompress arrays
   if (l_wtrac_conv) then
 
-    call wtrac_scatter_conv(np_field, npnts, n_dp, nlev, n_wtrac,              &
+    call wtrac_scatter_conv(ncells, seg_size, n_dp, nlev, n_wtrac,              &
                             iconv_deep, dpi, mt, wtrac_e,                      &
                             dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac)
   end if
@@ -2204,7 +2204,7 @@ if (l_conv_hist) then
 
   decay_amount= timestep/decay_period
 
-  do i = 1,npnts
+  do i = 1,seg_size
     l_deep=cumulus_bl(i) .and. .not. l_shallow_bl(i) .and.                     &
                                       .not. l_congestus(i)
     ! Decay flag ensuring 0.0 is the minimum allowed value.
@@ -2232,7 +2232,7 @@ if (n_sh  >   0 .and. iconv_shallow >  0) then
   allocate(rho_dry_theta_temp(n_sh,nlev))
 
   j = 0
-  do i = 1,npnts
+  do i = 1,seg_size
     if (cumulus_bl(i) .and. l_shallow_bl(i)) then
       j                        = j+1
       shi(j)                   = i
@@ -2377,7 +2377,7 @@ if (n_sh  >   0 .and. iconv_shallow >  0) then
   call wtrac_alloc_conv_e(n_sh, nlev, n_wtrac, wtrac_e)
 
   if (l_wtrac_conv) then
-    call wtrac_gather_conv(np_field,npnts,n_sh,nlev,n_wtrac, iconv_shallow,    &
+    call wtrac_gather_conv(ncells,seg_size,n_sh,nlev,n_wtrac, iconv_shallow,    &
                            shi, mt, q_wtrac, qcl_wtrac, qcf_wtrac, wtrac_e)
   end if
 
@@ -2710,7 +2710,7 @@ if (n_sh  >   0 .and. iconv_shallow >  0) then
   ! required and decompress arrays
   if (l_wtrac_conv) then
 
-    call wtrac_scatter_conv(np_field,npnts,n_sh,nlev,n_wtrac,                  &
+    call wtrac_scatter_conv(ncells,seg_size,n_sh,nlev,n_wtrac,                  &
                             iconv_shallow, shi, mt, wtrac_e,                   &
                             dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac)
   end if
@@ -2906,7 +2906,7 @@ if (iconv_congestus ==  1) then
     !-----------------------------------------------------------------------
 
     j = 0
-    do i = 1,npnts
+    do i = 1,seg_size
       if (cumulus_bl(i) .and. l_congestus(i)) then
         j                        = j+1
         cgi(j)                   = i
@@ -3486,7 +3486,7 @@ if (iconv_mid >  0 .and. n_md > 0) then
   ! Create index of points where mid-level is possible
   !
   j = 0
-  do i = 1,npnts
+  do i = 1,seg_size
     if (l_mid(i)) then
       j      = j+1
       mdi(j) = i
@@ -3731,7 +3731,7 @@ if (iconv_mid >  0 .and. n_md > 0) then
   call wtrac_alloc_conv_e(n_md, nlev, n_wtrac, wtrac_e)
 
   if (l_wtrac_conv) then
-    call wtrac_gather_conv(np_field,npnts,n_md,nlev,n_wtrac, iconv_mid,        &
+    call wtrac_gather_conv(ncells,seg_size,n_md,nlev,n_wtrac, iconv_mid,        &
                            mdi, mt, q_wtrac, qcl_wtrac, qcf_wtrac, wtrac_e)
   end if
 
@@ -4110,7 +4110,7 @@ if (iconv_mid >  0 .and. n_md > 0) then
   ! required and decompress arrays
   if (l_wtrac_conv) then
 
-    call wtrac_scatter_conv_mid(np_field,npnts,n_md,nlev,n_wtrac,              &
+    call wtrac_scatter_conv_mid(ncells,seg_size,n_md,nlev,n_wtrac,              &
                                 iconv_mid, mdi, mt, wtrac_e,                   &
                                 dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac)
   end if
@@ -4255,7 +4255,7 @@ end if     ! test on iconv_mid
 !-----------------------------------------------------------------------
 
 nconv_all=0
-do i = 1,npnts
+do i = 1,seg_size
   if (cumulus_bl(i) .or. l_mid_all(i)) then
     nconv_all = nconv_all + 1
     index1(nconv_all) = i
@@ -4318,7 +4318,7 @@ end if   ! L_tracer
 
 ! Added as something wrong with top level CCA
 !  zeroing cca
-do i=1,npnts
+do i=1,seg_size
   cca(i,n_cca_lev) = 0.0
   cca0(i,n_cca_lev) = 0.0
 end do
