@@ -10,9 +10,8 @@ module cosp_diags_mod
   use constants_mod,       only: l_def
   use cosp_config_mod,     only: l_cosp
   use field_mod,           only: field_type
-  use io_config_mod,       only: subroutine_timers
   use log_mod,             only: log_event, LOG_LEVEL_INFO
-  use timer_mod,           only: timer
+  use timing_mod,          only: start_timing, stop_timing, tik, LPROF
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
                                         diagnostic_to_be_sampled
 
@@ -144,8 +143,9 @@ subroutine initialise_diags_for_cosp( &
     calipso_cf_40_lvls_undet, &
     calipso_cf_40_lvls_mask, &
     cloud_thermal_absorptivity, cloud_solar_extinction
+  integer(tik)  :: id
 
-  if ( subroutine_timers ) call timer("cosp_diags")
+  if ( LPROF ) call start_timing( id, 'cosp_diags' )
 
   sunlit_mask_flag                   = init_diag( sunlit_mask, &
                                            'cosp__sunlit_mask' )
@@ -180,7 +180,7 @@ subroutine initialise_diags_for_cosp( &
   cloud_solar_extinction_flag        = init_diag( cloud_solar_extinction, &
                                            'cosp__cloud_solar_extinction' )
 
-  if ( subroutine_timers ) call timer("cosp_diags")
+  if ( LPROF ) call stop_timing( id, 'cosp_diags' )
 
 end subroutine initialise_diags_for_cosp
 
@@ -231,8 +231,9 @@ subroutine output_diags_for_cosp( &
     calipso_cf_40_lvls_undet, &
     calipso_cf_40_lvls_mask, &
     cloud_thermal_absorptivity, cloud_solar_extinction
+  integer(tik)  :: id
 
-  if ( subroutine_timers ) call timer("cosp_diags")
+  if ( LPROF ) call start_timing( id, 'cosp_diags' )
 
   ! Diagnostics computed within the kernels
   if (sunlit_mask_flag) call &
@@ -284,7 +285,7 @@ subroutine output_diags_for_cosp( &
       cloud_solar_extinction%write_field( &
       cloud_solar_extinction%get_name() )
 
-  if ( subroutine_timers ) call timer("cosp_diags")
+  if ( LPROF ) call stop_timing( id, 'cosp_diags' )
 
 end subroutine output_diags_for_cosp
 end module cosp_diags_mod

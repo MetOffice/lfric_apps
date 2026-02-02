@@ -12,8 +12,7 @@ module external_forcing_diagnostics_mod
   use field_mod,                  only: field_type
   use log_mod,                    only: log_event, LOG_LEVEL_INFO
   use constants_mod,              only: l_def
-  use io_config_mod,              only: subroutine_timers
-  use timer_mod,                  only: timer
+  use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
   use physics_mappings_alg_mod,   only: map_physics_winds
 
@@ -40,8 +39,9 @@ contains
                              output_dv_force, &
                              output_dw_force
     type( field_type ) :: du_force, dv_force, dw_force
+    integer(tik)       :: id
 
-    if ( subroutine_timers ) call timer("write_forcing_diagnostics")
+    if ( LPROF ) call start_timing( id, 'write_forcing_diagnostics' )
 
     if ( output_wind_inc ) then
       !
@@ -92,7 +92,7 @@ contains
 
     end if
 
-    if ( subroutine_timers ) call timer("write_forcing_diagnostics")
+    if ( LPROF ) call stop_timing( id, 'write_forcing_diagnostics' )
 
   end subroutine write_forcing_diagnostics
 
