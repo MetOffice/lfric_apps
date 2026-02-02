@@ -6,7 +6,16 @@
 
 .. _scheme1:
 
-Scheme1
-=======
+Scheme 1
+========
 
 Info about Scheme1.
+
+
+Subsection 1
+------------
+Details about subsection 1.
+
+Subsection 2
+------------
+Details about subsection 2.
