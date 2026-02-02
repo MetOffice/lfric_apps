@@ -8,6 +8,9 @@
 Science Guide
 =============
 
+Contained here are descriptions of the various science schemes available in
+the model.
+
 .. toctree::
     :maxdepth: 2
     :hidden:
