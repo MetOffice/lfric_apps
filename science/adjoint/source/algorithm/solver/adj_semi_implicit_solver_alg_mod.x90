@@ -23,11 +23,13 @@ module adj_semi_implicit_solver_alg_mod
   use adj_mixed_operator_alg_mod,             only: adj_mixed_operator_type
   use adj_mixed_schur_preconditioner_alg_mod, only: adj_mixed_schur_preconditioner_type
   use adj_pressure_precon_alg_mod,            only: adj_pressure_preconditioner_type
+  use multigrid_preconditioner_alg_mod,       only: multigrid_preconditioner_type
   use pressure_operator_alg_mod,              only: pressure_operator_type
   use adj_pressure_operator_alg_mod,          only: adj_pressure_operator_type
   use sci_null_preconditioner_alg_mod,        only: null_preconditioner_type
   use sci_preconditioner_mod,                 only: abstract_preconditioner_type
   use sci_iterative_solver_mod,               only: abstract_iterative_solver_type, &
+                                                    precondition_only_type,         &
                                                     bicgstab_type, block_gcr_type
   use split_w2_field_kernel_mod,              only: split_w2_field_kernel_type
   use combine_w2_field_kernel_mod,            only: combine_w2_field_kernel_type
@@ -52,6 +54,7 @@ module adj_semi_implicit_solver_alg_mod
                                                     si_pressure_a_tol,                                      &
                                                     helmholtz_method => method,                             &
                                                     method_bicgstab,                                        &
+                                                    method_prec_only,                                       &
                                                     si_pressure_monitor_convergence => monitor_convergence, &
                                                     si_pressure_fail_on_non_converged => fail_on_non_converged
 
@@ -85,19 +88,27 @@ contains
   !> @brief Create adjoint operator and preconditioner for (Helmholtz) pressure problem
   !> @details Called by init method of this module, but also by
   !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
-  !> @param[out] pressure_operator_out       Output (Helmholtz) pressure operator
-  !> @param[out] pressure_preconditioner_out Output (Helmholtz) pressure preconditioner
-  subroutine create_adj_pressure_preconditioner( adj_pressure_operator_out, adj_pressure_preconditioner_out )
+  !> @param[in]  state                           Prognostic state for the adjoint pressure preconditioner
+  !> @param[out] adj_pressure_operator_out       Output adjoint (Helmholtz) pressure operator
+  !> @param[out] adj_pressure_preconditioner_out Output adjoint (Helmholtz) pressure preconditioner
+  subroutine create_adj_pressure_preconditioner( state, adj_pressure_operator_out, adj_pressure_preconditioner_out )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
                                              preconditioner_none,                        &
-                                             preconditioner_tridiagonal
+                                             preconditioner_tridiagonal,                 &
+                                             preconditioner_multigrid
 
     implicit none
+
+    ! Prognostic fields
+    type(field_type), dimension(bundle_size), intent(in) :: state
 
     ! Output adjoint operator and preconditioner for (Helmholtz) pressure problem
     type(adj_pressure_operator_type),                 intent(out) :: adj_pressure_operator_out
     class(abstract_preconditioner_type), allocatable, intent(out) :: adj_pressure_preconditioner_out
+
+    ! Vertical pressure preconditioner
+    type(adj_pressure_preconditioner_type) :: adj_helmholtz_preconditioner
 
     adj_pressure_operator_out = adj_pressure_operator_type(level=1_i_def)
 
@@ -111,6 +122,12 @@ contains
       case(PRECONDITIONER_TRIDIAGONAL)
         allocate( adj_pressure_preconditioner_out, &
                   source = adj_pressure_preconditioner_type(level=1_i_def) )
+      case(PRECONDITIONER_MULTIGRID)
+        adj_helmholtz_preconditioner = adj_pressure_preconditioner_type(level=1_i_def)
+        allocate( adj_pressure_preconditioner_out, &
+                  source = multigrid_preconditioner_type( state(igh_p)%get_function_space(), &
+                                                          adj_pressure_operator_out,         &
+                                                          adj_helmholtz_preconditioner ) )
       case default
         call log_event( "Invalid pressure preconditioner specified for adjoint", LOG_LEVEL_ERROR )
     end select
@@ -148,6 +165,11 @@ contains
                                            si_pressure_maximum_iterations,  &
                                            si_pressure_monitor_convergence, &
                                            si_pressure_fail_on_non_converged ) )
+      case(METHOD_PREC_ONLY)
+        allocate( adj_pressure_solver_out,                                         &
+                  source = precondition_only_type( adj_pressure_operator_in,       &
+                                                   adj_pressure_preconditioner_in, &
+                                                   si_pressure_monitor_convergence ) )
       case default
         call log_event( "Invalid pressure solver specified for adjoint", LOG_LEVEL_ERROR )
     end select
@@ -243,7 +265,7 @@ contains
     type(field_type), dimension(bundle_size), intent(in)    :: state
 
     self%adj_pressure_operator = adj_pressure_operator_type(level=1_i_def)
-    call create_adj_pressure_preconditioner( self%adj_pressure_operator, self%adj_pressure_preconditioner )
+    call create_adj_pressure_preconditioner( state, self%adj_pressure_operator, self%adj_pressure_preconditioner )
     call create_adj_pressure_solver( self%adj_pressure_operator, self%adj_pressure_preconditioner, self%adj_pressure_solver )
     call create_adj_mixed_preconditioner( state, self%adj_pressure_solver, self%adj_mixed_preconditioner )
     call create_adj_mixed_solver( self%adj_mixed_preconditioner, self%adj_mixed_operator, self%adj_mixed_solver )
