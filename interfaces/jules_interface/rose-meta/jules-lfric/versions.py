@@ -1,3 +1,4 @@
+import re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade
@@ -20,13 +21,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -34,12 +32,13 @@ class vnXX_txxx(MacroUpgrade):
 
 
 class vn30_t146(MacroUpgrade):
-    # Upgrade macro for #146 by Maggie Hendry
+    """Upgrade macro for ticket #146 by Maggie Hendry."""
 
     BEFORE_TAG = "vn3.0"
     AFTER_TAG = "vn3.0_t146"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lfric
         # Add jules_model_environment_lfric namelist
         source = self.get_setting_value(
             config, ["file:configuration.nml", "source"]
