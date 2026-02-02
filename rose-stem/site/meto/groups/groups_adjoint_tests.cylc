@@ -8,9 +8,9 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "adjoint_tests_azspice_developer": [
-        "adjoint_tests_default-C12_azspice_gnu_fast-debug-64bit-rsolver64",
-        "adjoint_tests_default-C12_azspice_gnu_full-debug-64bit-rsolver64",
-        "adjoint_tests_varying_ls-C12_azspice_gnu_fast-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_fast-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG_azspice_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG-varying_LS_azspice_gnu_fast-debug-64bit-rsolver64",
         "adjoint_tests_azspice_canned",
     ],
     "adjoint_tests_azspice": [
@@ -28,8 +28,8 @@
 {# EX1A Groups #}
 {% do site_groups.update({
     "adjoint_tests_ex1a_developer": [
-        "adjoint_tests_default-C12_ex1a_gnu_fast-debug-64bit-rsolver64",
-        "adjoint_tests_default-C12_ex1a_gnu_full-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_fast-debug-64bit-rsolver64",
+        "adjoint_tests_nwp_gal9-C12_MG_ex1a_gnu_full-debug-64bit-rsolver64",
         "adjoint_tests_ex1a_canned",
     ],
     "adjoint_tests_ex1a": [
