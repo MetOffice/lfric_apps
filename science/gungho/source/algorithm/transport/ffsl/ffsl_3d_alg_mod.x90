@@ -20,7 +20,8 @@ module ffsl_3d_alg_mod
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
   use mesh_mod,                         only: mesh_type
   use r_tran_field_mod,                 only: r_tran_field_type
-  use timer_mod,                        only: timer
+  use timing_mod,                       only: start_timing, stop_timing, &
+                                              tik, LPROF
   use transport_constants_mod,          only: get_element_order_h_transport, &
                                               get_element_order_v_transport
 
@@ -41,7 +42,6 @@ module ffsl_3d_alg_mod
   use combine_w2_field_kernel_mod,      only: combine_w2_field_kernel_type
 
   ! Configuration options
-  use io_config_mod,                    only: subroutine_timers
   use transport_config_mod,             only: ffsl_inner_order, &
                                               ffsl_outer_order
 
@@ -134,8 +134,9 @@ contains
     real(kind=r_tran)   :: third_dt
     logical(kind=l_def) :: compute_adv_inc
     integer(kind=i_def) :: vertical_order
+    integer(tik)        :: id
 
-    if ( subroutine_timers ) call timer(routine_name)
+    if ( LPROF ) call start_timing( id, 'ffsl_3d_transport_alg' )
 
     ! Get pre-computed objects and set pointers --------------------------------
     mesh => field_n%get_mesh()
@@ -284,7 +285,7 @@ contains
       call log_event('FFSL_3D: equation not implemented', LOG_LEVEL_ERROR)
     end select
 
-    if ( subroutine_timers ) call timer(routine_name)
+    if ( LPROF ) call stop_timing( id, 'ffsl_3d_transport_alg' )
 
   end subroutine ffsl_3d_splitting_alg
 
