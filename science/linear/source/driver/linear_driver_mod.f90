@@ -20,7 +20,8 @@ module linear_driver_mod
   use gungho_model_mod,           only : initialise_infrastructure, &
                                          initialise_model, &
                                          finalise_infrastructure, &
-                                         finalise_model
+                                         finalise_model, &
+                                         checksum_model
   use gungho_init_fields_mod,     only : create_model_data, &
                                          initialise_model_data, &
                                          output_model_data, &
@@ -303,9 +304,11 @@ contains
     ! Write out the model state
     call output_model_data( modeldb )
 
+    ! Output model checksum
+    call checksum_model( modeldb, program_name )
+
     ! Model configuration finalisation
-    call finalise_model( modeldb, &
-                         program_name )
+    call finalise_model( modeldb )
 
     call finalise_linear_model( )
 

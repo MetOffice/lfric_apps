@@ -26,7 +26,8 @@ module gungho_driver_mod
   use gungho_model_mod,            only : initialise_infrastructure, &
                                           initialise_model, &
                                           finalise_infrastructure, &
-                                          finalise_model
+                                          finalise_model, &
+                                          checksum_model
   use gungho_step_mod,             only : gungho_step
   use gungho_time_axes_mod,        only : gungho_time_axes_type, &
                                           get_time_axes_from_collection
@@ -490,9 +491,11 @@ contains
       call finalise_multifile_io( modeldb)
     end if
 
+    ! Output model checksum
+    call checksum_model( modeldb, program_name )
+
     ! Model configuration finalisation
-    call finalise_model( modeldb,               &
-                         program_name )
+    call finalise_model( modeldb )
 
     ! Destroy the fields stored in model_data
     call finalise_model_data( modeldb )
