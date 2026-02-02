@@ -54,7 +54,7 @@ the applications found in the LFRic Apps repository and is documented
     .. grid-item-card::
         :text-align: center
 
-        Guide on the science included in the models
+        Guide to the science included in the models
 
         +++
         .. button-ref:: science_guide_index
