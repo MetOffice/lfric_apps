@@ -106,7 +106,7 @@ contains
     integer(kind=i_def) ::  state_size
     integer(tik)        :: id
 
-    if ( LPROF ) call start_timing( id, 'adj_mixed_operator' )
+    if ( LPROF ) call start_timing( id, 'adj_mixed_solver.operator' )
 
     ! Extract mesh ID
     select type (y)
@@ -259,7 +259,7 @@ contains
       call log_event( "mixed_operator_alg_mod: incorrect vector_type argument x", LOG_LEVEL_ERROR )
     end select
 
-    if ( LPROF ) call stop_timing( id, 'adj_mixed_operator' )
+    if ( LPROF ) call stop_timing( id, 'adj_mixed_solver.operator' )
 
   end subroutine apply_adj_mixed_operator
 

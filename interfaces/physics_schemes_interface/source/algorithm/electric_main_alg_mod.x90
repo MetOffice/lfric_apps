@@ -72,7 +72,7 @@ contains
     !--------------------------------------------------------------------------
     ! End of declarations and start of the subroutine actually doing something
     !--------------------------------------------------------------------------
-    if ( LPROF ) call start_timing( id, 'electric_main_alg' )
+    if ( LPROF ) call start_timing( id, 'electric' )
 
     call log_event( 'slow_physics: Running Lightning Scheme', LOG_LEVEL_INFO )
 
@@ -112,7 +112,7 @@ contains
                                              fr1_mc_2d, fr2_mc_2d, gwp_2d,     &
                                              tiwp_2d ) )
 
-    if ( LPROF ) call stop_timing( id, 'electric_main_alg' )
+    if ( LPROF ) call stop_timing( id, 'electric' )
 
     !---------------------------
     ! Output Diagnostics
