@@ -187,6 +187,7 @@ CONTAINS
       return
     END IF
 
+
     ! get the u and v wind fields
     CALL prognostic_fields%get_field('u', u)
     CALL prognostic_fields%get_field('v', v)
@@ -200,9 +201,10 @@ CONTAINS
     CALL invoke(dg_matrix_vector_kernel_type(v_div, wind_v, div_op))
 
 
-    ! [how] do we make them into a single vector field for writing?
-    ! oh, do we just add them?
-    XXX TODO XXX
+    ! add v to u and save it(?)
+    CALL invoke(inc_X_plus_Y(u_div, v_div))
+    u_div%write_field()
+
 
   END SUBROUTINE wind_uv_divergence
 
