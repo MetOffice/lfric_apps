@@ -94,7 +94,7 @@ contains
 
     procedure(write_interface), pointer :: write_behaviour => null()
 
-    if ( LPROF ) call start_timing( id, 'conservation_alg' )
+    if ( LPROF ) call start_timing( id, 'diags.conservation' )
 
     element_order_h = rho%get_element_order_h()
       element_order_v = rho%get_element_order_v()
@@ -213,7 +213,7 @@ contains
     nullify( chi, panel_id, w3_fs, mesh )
     nullify ( write_behaviour )
 
-    if ( LPROF ) call stop_timing( id, 'conservation_alg' )
+    if ( LPROF ) call stop_timing( id, 'diags.conservation' )
 
   end subroutine conservation_algorithm
 

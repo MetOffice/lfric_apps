@@ -102,9 +102,7 @@ contains
     type(function_space_type),  pointer :: w2_fs
     type(function_space_type),  pointer :: w2b_fs
     logical(kind=l_def)                 :: optimised_conversion
-    integer(tik)                        :: id, id_to, id_from
-
-    if ( LPROF ) call start_timing( id, 'transport.wind' )
+    integer(tik)                        :: id_to, id_from
 
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
@@ -262,8 +260,6 @@ contains
       end select
 
     end if ! si_momentum_equation
-
-    if ( LPROF ) call stop_timing( id, 'transport.wind' )
 
   end subroutine wind_transport_alg
 

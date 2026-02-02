@@ -335,7 +335,6 @@ contains
     integer(kind=i_def) :: order
     real(kind=r_tran)   :: min_val
     logical(kind=l_def) :: is_cubed_sphere
-    integer(tik)        :: id_sweeps, id_unify, id_update
 
     ! Get pre-computed objects and set pointers --------------------------------
     mesh_id = field_n%get_mesh_id()
@@ -438,7 +437,6 @@ contains
     ! used as two kernel arguments
     field_ptr_copy => field_big_halo
 
-    if ( LPROF ) call start_timing( id_sweeps, 'transport.ffsl_hori_sweeps' )
     ! MASS FLUX COMPUTATION ====================================================
     if (panel_edge_treatment == panel_edge_treatment_special_edges) then
       ! Special edge treatment ------------------------------------------------
@@ -490,28 +488,21 @@ contains
                                     min_val, ndep, dt ) )
     end if
 
-    if ( LPROF ) call stop_timing( id_sweeps, 'transport.ffsl_hori_sweeps' )
-
     ! fluxes may need unifying to guarantee a unique flux for each face --------
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      if ( LPROF ) call start_timing( id_unify, 'transport.ffsl_flux_unify' )
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
       call flux_broken%initialise( w2b_fs )
       call invoke( average_w2_to_w2b_kernel_type(flux_broken, flux),           &
                    ffsl_unify_flux_kernel_type(flux, flux_broken,              &
                                                1, panel_id, 1) )
-      if ( LPROF ) call stop_timing( id_unify, 'transport.ffsl_flux_unify' )
     end if
 
     ! Compute updated advective fields -----------------------------------------
-    if ( LPROF ) call start_timing( id_update, 'transport.ffsl_hori_update' )
     call invoke( fv_divergence_x_kernel_type(increment_x, flux, detj_at_w3),   &
                  fv_divergence_y_kernel_type(increment_y, flux, detj_at_w3) )
 
     call ffsl_advective_increment(increment_x, field_n, dt, adv_one_x)
     call ffsl_advective_increment(increment_y, field_n, dt, adv_one_y)
-
-    if ( LPROF ) call stop_timing( id_update, 'transport.ffsl_hori_update' )
 
   end subroutine ffsl_hori_cosmic_inner_alg
 
@@ -596,7 +587,6 @@ contains
     real(kind=r_tran)   :: min_val
     logical(kind=l_def) :: enforce_minvalue
     logical(kind=l_def) :: is_cubed_sphere
-    integer(tik)        :: id_sweeps, id_unify, id_update
 
     ! Get pre-computed objects and set pointers --------------------------------
     mesh_id = field_x%get_mesh_id()
@@ -740,7 +730,6 @@ contains
 
     field_ptr_copy => field_big_halo
 
-    if ( LPROF ) call start_timing( id_sweeps, 'transport.ffsl_hori_sweeps' )
     ! MASS FLUX COMPUTATION ====================================================
     if (panel_edge_treatment == panel_edge_treatment_remapping) then
       ! Use remapped fields at panel edges -------------------------------------
@@ -813,22 +802,17 @@ contains
 
     end if
 
-    if ( LPROF ) call stop_timing( id_sweeps, 'transport.ffsl_hori_sweeps' )
-
     ! fluxes may need unifying to guarantee a unique flux for each face --------
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      if ( LPROF ) call start_timing( id_unify, 'transport.ffsl_flux_unify' )
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
       call flux_broken%initialise( w2b_fs )
       call invoke( average_w2_to_w2b_kernel_type(flux_broken, flux),           &
                    ffsl_unify_flux_kernel_type(flux, flux_broken,              &
                                                1, panel_id, 1) )
 
-      if ( LPROF ) call stop_timing( id_unify, 'transport.ffsl_flux_unify' )
     end if
 
     ! Compute advected fields
-    if ( LPROF ) call start_timing( id_update, 'transport.ffsl_hori_update' )
     call invoke( fv_difference_x_kernel_type(increment_x, flux),               &
                  fv_difference_y_kernel_type(increment_y, flux) )
     ! Obtain updated mixing ratio by dividing by updated density
@@ -836,8 +820,6 @@ contains
                                    dry_mass_n, increment_x, step_dt)
     call swift_inner_update_tracer(field_y, field_n, dry_mass_y,               &
                                    dry_mass_n, increment_y, step_dt)
-
-    if ( LPROF ) call stop_timing( id_update, 'transport.ffsl_hori_update' )
 
   end subroutine ffsl_hori_swift_inner_alg
 
@@ -947,7 +929,6 @@ contains
     integer(kind=i_def) :: order
     logical(kind=l_def) :: outer
     logical(kind=l_def) :: is_cubed_sphere
-    integer(tik)        :: id_sweeps, id_unify, id_update
 
     ! Get pre-computed objects and set pointers --------------------------------
     mesh_id = field_x%get_mesh_id()
@@ -1109,8 +1090,6 @@ contains
       )
     end if
 
-    if ( LPROF ) call start_timing( id_sweeps, 'transport.ffsl_hori_sweeps' )
-
     ! MASS FLUX COMPUTATION ====================================================
     if (panel_edge_treatment == panel_edge_treatment_remapping) then
       ! Use remapped fields at panel edges -------------------------------------
@@ -1184,22 +1163,17 @@ contains
 
     end if
 
-    if ( LPROF ) call stop_timing( id_sweeps, 'transport.ffsl_hori_sweeps' )
-
     ! fluxes may need unifying to guarantee a unique flux for each face --------
     if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-      if ( LPROF ) call start_timing( id_unify, 'transport.ffsl_flux_unify' )
       w2b_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
       call flux_broken%initialise( w2b_fs )
       call invoke( average_w2_to_w2b_kernel_type(flux_broken, flux),           &
                    ffsl_unify_flux_kernel_type(flux, flux_broken,              &
                                                1, panel_id, 1) )
-      if ( LPROF ) call stop_timing( id_unify, 'transport.ffsl_flux_unify' )
     end if
 
     ! Compute advective increments, if required --------------------------------
     if (to_compute_adv_inc .or. to_compute_field_np1) then
-      if ( LPROF ) call start_timing( id_update, 'transport.ffsl_hori_update' )
 
       call increment_x%initialise( vector_space = field_fs )
       call increment_y%initialise( vector_space = field_fs )
@@ -1267,7 +1241,6 @@ contains
         end if
       end if
 
-      if ( LPROF ) call stop_timing( id_update, 'transport.ffsl_hori_update' )
     end if
 
   end subroutine ffsl_hori_outer_alg
