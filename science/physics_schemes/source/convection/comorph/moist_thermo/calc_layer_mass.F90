@@ -26,12 +26,12 @@ use comorph_constants_mod, only: real_hmprec,                                  &
 
 implicit none
 
-! Note: the array arguments below may have halos, and in here
-! we don't care about the halos.
+! Note: the array arguments below may have haloes, and in here
+! we don't care about the haloes.
 ! We need to pass in the bounds of each array to use in
 ! the declarations, to ensure the do loops pick out the same
 ! indices of the arrays regardless of whether or not they
-! have halos.  The lower and upper bounds are passed in through the
+! have haloes.  The lower and upper bounds are passed in through the
 ! argument list in the lb_* and ub_* integer arrays.  Those storing the
 ! bounds for 3D arrays must have 3 elements; one for each dimension
 ! of the array (and similarly 2 elements for 2D arrays).
@@ -70,13 +70,13 @@ real(kind=real_hmprec), parameter :: third = 1.0_real_hmprec                   &
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(none) private( i, j, k, z1_plus_z2 )                    &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, z1_plus_z2 )                    &
 !$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
 !$OMP         layer_mass, height_half, l_spherical_coord, rrs_sq, r_surf,      &
 !$OMP         rho_dry )
 
 ! Calculate dz
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -85,7 +85,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end do
+!$OMP END DO
 
 
 ! Next part depends on whether we're doing this in
@@ -134,15 +134,15 @@ if ( l_spherical_coord ) then
   ! dz / r_surf < EPS.
 
   ! Precalculate 1 / r_surf^2 term
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do j = 1, ny_full
     do i = 1, nx_full
       rrs_sq(i,j) = one / ( r_surf(i,j) * r_surf(i,j) )
     end do
   end do
-!$OMP end do
+!$OMP END DO
 
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
   do k = k_bot_conv, k_top_conv
     ! Precalculate z(k-1/2) + z(k+1/2)
     do j = 1, ny_full
@@ -164,13 +164,13 @@ if ( l_spherical_coord ) then
       end do
     end do
   end do
-!$OMP end do
+!$OMP END DO
 
 end if  ! ( l_spherical_coord )
 
 
 ! Scale by density to get dry-mass on layer
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -178,9 +178,9 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP end do
+!$OMP END DO
 
-!$OMP end PARALLEL
+!$OMP END PARALLEL
 
 
 return

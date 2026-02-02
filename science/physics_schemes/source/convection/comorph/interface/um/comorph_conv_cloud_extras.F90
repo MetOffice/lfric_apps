@@ -23,9 +23,9 @@ contains
 subroutine comorph_conv_cloud_extras(                                          &
              n_conv_levels, rho_dry_th, rho_wet_th,                            &
              r_theta_levels, r_rho_levels,                                     &
-             cca0, ccw0, frac_bulk_conv,                                       &
-             cclwp0, ccb0, cct0, lcbase0, cca, ccw,                            &
-             cclwp, cca_2d, lcca, ccb, cct, lcbase, lctop )
+             cca, ccw, cca_bulk,                                               &
+             cclwp, cca_2d, lcca, ccb, cct, lcbase, lctop,                     &
+             cca0, ccw0, cclwp0, ccb0, cct0, lcbase0 )
 
 use nlsizes_namelist_mod, only: row_length, rows, model_levels
 use gen_phys_inputs_mod, only: l_mr_physics
@@ -42,38 +42,33 @@ real(kind=real_umphys), intent(in) :: rho_dry_th                               &
                             ( row_length, rows, model_levels-1 )
 real(kind=real_umphys), intent(in) :: rho_wet_th                               &
                             ( row_length, rows, model_levels-1 )
+
+! Model-level heights above Earth centre
 real(kind=real_umphys), intent(in) :: r_theta_levels                           &
-     (tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,0:tdims%k_end)
+                            ( tdims_l%i_start:tdims_l%i_end,                   &
+                              tdims_l%j_start:tdims_l%j_end,                   &
+                              0:tdims%k_end )
 real(kind=real_umphys), intent(in) :: r_rho_levels                             &
-     (tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,tdims%k_end)
-! Prognostics for 3-D convective cloud amount and cloud
-! liquid water, output by CoMorph.
-! Note: these are for the convective liquid cloud only!
-real(kind=real_umphys), intent(in) :: cca0 (row_length,rows,model_levels)
-real(kind=real_umphys), intent(in) :: ccw0 (row_length,rows,model_levels)
+                            ( tdims_l%i_start:tdims_l%i_end,                   &
+                              tdims_l%j_start:tdims_l%j_end,                   &
+                              tdims%k_end )
+
+! Diagnostics for 3-D convective cloud amount and cloud water content...
+
+! Either liquid+ice fraction, or just liquid, depending on i_convcloud.
+real(kind=real_umphys), intent(in) :: cca (row_length,rows,model_levels)
+
+! Either liquid+ice content, or just liquid, depending on i_convcloud.
+! Gets converted from grid-mean (output by comorph) to in-cloud value.
+real(kind=real_umphys), intent(in out) :: ccw (row_length,rows,model_levels)
 
 ! Diagnosed convective bulk cloud fraction output by CoMorph
-! (includes the ice cloud which is excluded from cca0)
-real(kind=real_umphys), intent(in) ::                                          &
-                    frac_bulk_conv (row_length,rows,model_levels)
-
-! Prognostic for vertically-integrated convective liquid water path
-real(kind=real_umphys), intent(out) :: cclwp0  (row_length,rows)
-
-! Prognostics for integer level corresponding to convective
-! cloud base and top for the highest convecting layer
-integer, intent(out) :: ccb0    (row_length,rows)
-integer, intent(out) :: cct0    (row_length,rows)
-! Prognostic for model-level of base of lowest convecting layer
-integer, intent(out) :: lcbase0 (row_length,rows)
-
-! Diagnostics for 3-D convective cloud amount and cloud
-! liquid water
-real(kind=real_umphys), intent(out) :: cca (row_length,rows,model_levels)
-real(kind=real_umphys), intent(out) :: ccw (row_length,rows,model_levels)
+! (includes the ice cloud even when that is excluded from cca)
+real(kind=real_umphys), intent(in) :: cca_bulk                                 &
+                                      (row_length,rows,model_levels)
 
 ! Diagnostics for 2-D convective cloud amount and
-! vertically-integrated liquid water path
+! vertically-integrated cloud water path
 real(kind=real_umphys), intent(out) :: cclwp  (row_length,rows)
 real(kind=real_umphys), intent(out) :: cca_2d (row_length,rows)
 ! Diagnostic of convective cloud fraction on the lowest
@@ -88,162 +83,112 @@ integer, intent(out) :: cct    (row_length,rows)
 integer, intent(out) :: lcbase (row_length,rows)
 integer, intent(out) :: lctop  (row_length,rows)
 
+! Prognostics for 3-D convective cloud amount and cloud water content
+real(kind=real_umphys), intent(in out) :: cca0 (row_length,rows,model_levels)
+real(kind=real_umphys), intent(in out) :: ccw0 (row_length,rows,model_levels)
 
-! Flags for non-zero CCA at current and next level
-logical :: l_cca_at_k
-logical :: l_cca_at_kp1
+! Prognostic for vertically-integrated convective cloud water path
+real(kind=real_umphys), intent(in out) :: cclwp0  (row_length,rows)
+
+! Prognostics for integer level corresponding to convective
+! cloud base and top for the highest convecting layer
+integer, intent(in out) :: ccb0    (row_length,rows)
+integer, intent(in out) :: cct0    (row_length,rows)
+! Prognostic for model-level of base of lowest convecting layer
+integer, intent(in out) :: lcbase0 (row_length,rows)
+
+! Density * delta z used in ertical integral
+real(kind=real_umphys) :: rhodz
+
+! Flags for non-zero CCA at each level
+logical :: l_cc (row_length,rows,0:n_conv_levels+1)
 
 ! Loop counters
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(none) private( i, j, k, l_cca_at_k, l_cca_at_kp1 )      &
-!$OMP SHARED( row_length, rows, n_conv_levels, model_levels, l_mr_physics,     &
-!$OMP         cclwp0, ccb0, cct0, lcbase0, lctop, cca0, ccw0, frac_bulk_conv,  &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, rhodz )                         &
+!$OMP SHARED( row_length, rows, n_conv_levels, l_mr_physics, l_cc,             &
+!$OMP         cclwp0, ccb0, cct0, lcbase0, lctop, cca0, ccw0, cca_bulk,        &
 !$OMP         r_rho_levels, r_theta_levels, rho_dry_th, rho_wet_th,            &
 !$OMP         cca_2d, cca, ccw, cclwp, ccb, cct, lcbase, lcca )
 
-! Initialise extra prognostics to zero
-!$OMP do SCHEDULE(STATIC)
+! Initialise base and top levels to zero
+!$OMP DO SCHEDULE(STATIC)
 do j = 1, rows
   do i = 1, row_length
-    cclwp0(i,j)  = 0.0
-    ccb0(i,j)    = 0
-    cct0(i,j)    = 0
-    lcbase0(i,j) = 0
-    lctop(i,j)   = 0
+    ccb(i,j)    = 0
+    cct(i,j)    = 0
+    lcbase(i,j) = 0
+    lctop(i,j)  = 0
   end do
 end do
-!$OMP end do
+!$OMP END DO NOWAIT
 
 ! Find the base and top heights based on where the
-! bulk convective cloud fraction is non-zero
+! bulk convective cloud fraction is non-zero...
+
+! Set flag for nonzero CCA
+!$OMP DO SCHEDULE(STATIC)
+do k = 1, n_conv_levels
+  do j = 1, rows
+    do i = 1, row_length
+      l_cc(i,j,k) = cca_bulk(i,j,k) > 0.0
+    end do
+  end do
+end do
+!$OMP END DO NOWAIT
+! Set false at upper and lower boundaries, so we find cloud-base at k=1
+! or cloud-top at n_conv_levels
+!$OMP DO SCHEDULE(STATIC)
+do j = 1, rows
+  do i = 1, row_length
+    l_cc(i,j,0) = .false.
+    l_cc(i,j,n_conv_levels+1) = .false.
+  end do
+end do
+!$OMP END DO
 
 ! The loop over levels k must be sequential;
 ! therefore we have the loop over rows j outermost so we can OMP parallelise it
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do j = 1, rows
-  do i = 1, row_length
-    ! Check for cloud-base at model-level 1
-    ! (missed out in the loop below)
-    if ( frac_bulk_conv(i,j,1) > 0.0 ) then
-      ccb0(i,j) = 1
-      lcbase0(i,j) = 1
-    end if
-  end do
   do k = 1, n_conv_levels
     do i = 1, row_length
-
-      ! Check whether CCA is nonzero at current and next level
-      l_cca_at_k   = frac_bulk_conv(i,j,k)   > 0.0
-      l_cca_at_kp1 = frac_bulk_conv(i,j,k+1) > 0.0
-
-      ! If CCA is nonzero at k+1 but not at k, k+1 is cloud-base
-      if ( l_cca_at_kp1 .and. (.not. l_cca_at_k ) ) then
-        ccb0(i,j) = k + 1
-        if ( lcbase0(i,j) == 0 ) lcbase0(i,j) = k + 1
-      end if
-
-      ! If CCA is nonzero at k but not at k+1, k is cloud-top
-      if ( l_cca_at_k .and. (.not. l_cca_at_kp1 ) ) then
-        cct0(i,j) = k
-        if ( lctop(i,j) == 0 ) lctop(i,j) = k
-      end if
-
+      if ( l_cc(i,j,k) ) then
+        ! If CCA is nonzero at k but not at k-1, k is cloud-base
+        if ( .not. l_cc(i,j,k-1) ) then
+          ccb(i,j) = k
+          if ( lcbase(i,j) == 0 ) lcbase(i,j) = k
+        end if
+        ! If CCA is nonzero at k but not at k+1, k is cloud-top
+        if ( .not. l_cc(i,j,k+1) ) then
+          cct(i,j) = k
+          if ( lctop(i,j) == 0 ) lctop(i,j) = k
+        end if
+      end if  ! ( l_cc(i,j,k) )
     end do
   end do
 end do  ! j = 1, rows
-!$OMP end do
-
-! Calculate column-integrated convective cloud liquid water path
-! (in kg per m2).
-! Note: this attempts to replicate the calculation of cclwp in the
-! 6A convection scheme.  ccw0 is not a grid-mean quantity, but
-! the in-cloud convective water content.  In the vertical integral,
-! no account is taken of the variation of the convective cloud
-! fraction cca with height.  The resulting quantity is not
-! related to the total convective cloud-water in the grid-column;
-! rather, it is the local maximum column water content in the
-! convective core (assuming maximal overlap of the convective cloud
-! at all heights).
-! Which density to use depends on whether using mixing ratios.
-! Vertical integral; the j-loop over rows is outermost here,
-! so that we can OMP paralellise it (we can't parallelise the k-loop).
-if ( l_mr_physics ) then
-!$OMP do SCHEDULE(STATIC)
-  do j = 1, rows
-    do i = 1, row_length
-      cclwp0(i,j)                                                              &
-             = ( r_rho_levels(i,j,2) - r_theta_levels(i,j,0) )                 &
-             * rho_dry_th(i,j,1) * ccw0(i,j,1)
-    end do
-    do k = 2, n_conv_levels
-      do i = 1, row_length
-        cclwp0(i,j) = cclwp0(i,j)                                              &
-             + ( r_rho_levels(i,j,k+1) - r_rho_levels(i,j,k) )                 &
-             * rho_dry_th(i,j,k) * ccw0(i,j,k)
-      end do
-    end do
-  end do  ! j = 1, rows
-!$OMP end do
-else  ! ( l_mr_physics )
-!$OMP do SCHEDULE(STATIC)
-  do j = 1, rows
-    do i = 1, row_length
-      cclwp0(i,j)                                                              &
-             = ( r_rho_levels(i,j,2) - r_theta_levels(i,j,0) )                 &
-             * rho_wet_th(i,j,1) * ccw0(i,j,1)
-    end do
-    do k = 2, n_conv_levels
-      do i = 1, row_length
-        cclwp0(i,j) = cclwp0(i,j)                                              &
-             + ( r_rho_levels(i,j,k+1) - r_rho_levels(i,j,k) )                 &
-             * rho_wet_th(i,j,k) * ccw0(i,j,k)
-      end do
-    end do
-  end do  ! j = 1, rows
-!$OMP end do
-end if  ! ( l_mr_physics )
+!$OMP END DO
 
 ! Set the 2-D CCA value to the max value in the column
 ! k-loop can't be safely parallelised, so j-loop is outermost.
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do j = 1, rows
   do i = 1, row_length
     cca_2d(i,j) = 0.0
   end do
   do k = 1, n_conv_levels
     do i = 1, row_length
-      cca_2d(i,j) = max( cca_2d(i,j), cca0(i,j,k) )
+      cca_2d(i,j) = max( cca_2d(i,j), cca(i,j,k) )
     end do
   end do
 end do  ! j = 1, rows
-!$OMP end do
-
-! Set the diagnostics equal to the prognostics
-!$OMP do SCHEDULE(STATIC)
-do k = 1, model_levels
-  do j = 1, rows
-    do i = 1, row_length
-      cca(i,j,k) = cca0(i,j,k)
-      ccw(i,j,k) = ccw0(i,j,k)
-    end do
-  end do
-end do
-!$OMP end do
-!$OMP do SCHEDULE(STATIC)
-do j = 1, rows
-  do i = 1, row_length
-    cclwp(i,j)  = cclwp0(i,j)
-    ccb(i,j)    = ccb0(i,j)
-    cct(i,j)    = cct0(i,j)
-    lcbase(i,j) = lcbase0(i,j)
-  end do
-end do
-!$OMP end do
+!$OMP END DO NOWAIT
 
 ! Set value of CCA at lowest cloud-base
-!$OMP do SCHEDULE(STATIC)
+!$OMP DO SCHEDULE(STATIC)
 do j = 1, rows
   do i = 1, row_length
     if ( lcbase(i,j) > 0 ) then
@@ -253,9 +198,129 @@ do j = 1, rows
     end if
   end do
 end do
-!$OMP end do
+!$OMP END DO NOWAIT
 
-!$OMP end PARALLEL
+! Update the prognostics using MAX of the new diagnostic values and the
+! existing values passed in...
+!$OMP DO SCHEDULE(STATIC)
+do k = 1, n_conv_levels
+  do j = 1, rows
+    do i = 1, row_length
+      ! Convert the prognostic ccw from in-cloud to grid-mean
+      ccw0(i,j,k) = ccw0(i,j,k) * cca0(i,j,k)
+      ! Take max of grid-mean conv cloud water contents
+      ccw0(i,j,k) = max( ccw0(i,j,k), ccw(i,j,k) )
+      ! Take max of conv cloud areas
+      cca0(i,j,k) = max( cca0(i,j,k), cca(i,j,k) )
+      ! Convert the prognostic and diagnostic ccw to in-cloud water contents,
+      ! as expected by the rest of the UM
+      if ( ccw0(i,j,k) > 0.0 )  ccw0(i,j,k) = ccw0(i,j,k) / cca0(i,j,k)
+      if ( ccw(i,j,k)  > 0.0 )  ccw(i,j,k)  = ccw(i,j,k)  / cca(i,j,k)
+    end do
+  end do
+end do
+!$OMP END DO
+
+! Update prognostics for base and top levels...
+! First update the 3D flag for nonzero CCA to account for any pre-existing
+! cca0 (so far only set to true where latest diagnosed cca is nonzero)
+!$OMP DO SCHEDULE(STATIC)
+do k = 1, n_conv_levels
+  do j = 1, rows
+    do i = 1, row_length
+      ! Note if i_convcloud_liqonly, then some convective cloud points will
+      ! still have zero cca0 due to there being ice but no liquid.
+      ! So need to explicitly set the mask to true between the prognostic
+      ! base and top levels.
+      ! Note we can't do the same for the "lowest" base and top, since
+      ! there is no prognostic for lctop.
+      if ( cca0(i,j,k) > 0.0 .or. ( k>=ccb0(i,j) .and. k<=cct0(i,j) ) ) then
+        l_cc(i,j,k) = .true.
+      end if
+    end do
+  end do
+end do
+!$OMP END DO
+! Reset prognostic ccb and cct based on latest mask of convective cloud points
+!$OMP DO SCHEDULE(STATIC)
+do j = 1, rows
+  do k = 1, n_conv_levels
+    do i = 1, row_length
+      if ( l_cc(i,j,k) ) then
+        ! If CCA is nonzero at k but not at k-1, k is cloud-base
+        if ( .not. l_cc(i,j,k-1) )  ccb0(i,j) = k
+        ! If CCA is nonzero at k but not at k+1, k is cloud-top
+        if ( .not. l_cc(i,j,k+1) )  cct0(i,j) = k
+      end if  ! ( l_cc(i,j,k) )
+    end do
+  end do
+end do  ! j = 1, rows
+!$OMP END DO NOWAIT
+! Set prog lowest cloud-base to min of new and existing values if both set
+!$OMP DO SCHEDULE(STATIC)
+do j = 1, rows
+  do i = 1, row_length
+    if ( lcbase(i,j) > 0 ) then
+      if ( lcbase0(i,j) > 0 ) then
+        lcbase0(i,j) = min( lcbase0(i,j), lcbase(i,j) )
+      else
+        lcbase0(i,j) = lcbase(i,j)
+      end if
+    end if
+  end do
+end do
+!$OMP END DO NOWAIT
+
+! Calculate column-integrated convective cloud water path (in kg per m2).
+! Note: this attempts to replicate the calculation of cclwp in the
+! 6A convection scheme.  ccw is NOT a grid-mean quantity, but
+! the in-cloud convective water content.  In the vertical integral,
+! no account is taken of the variation of the convective cloud
+! fraction cca with height.  The resulting quantity is NOT
+! related to the total convective cloud-water in the grid-column;
+! rather, it is the local maximum column water content in the
+! convective core (assuming maximal overlap of the convective cloud
+! at all heights).
+! Which density to use depends on whether using mixing ratios.
+! Vertical integral; the j-loop over rows is outermost here,
+! so that we can OMP paralellise it (we can't parallelise the k-loop).
+if ( l_mr_physics ) then
+!$OMP DO SCHEDULE(STATIC)
+  do j = 1, rows
+    do i = 1, row_length
+      rhodz = (r_rho_levels(i,j,2)-r_theta_levels(i,j,0)) * rho_dry_th(i,j,1)
+      cclwp(i,j)  = rhodz * ccw(i,j,1)
+      cclwp0(i,j) = rhodz * ccw0(i,j,1)
+    end do
+    do k = 2, n_conv_levels
+      do i = 1, row_length
+        rhodz = (r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)) * rho_dry_th(i,j,k)
+        cclwp(i,j)  = cclwp(i,j)  + rhodz * ccw(i,j,k)
+        cclwp0(i,j) = cclwp0(i,j) + rhodz * ccw0(i,j,k)
+      end do
+    end do
+  end do  ! j = 1, rows
+!$OMP END DO NOWAIT
+else  ! ( l_mr_physics )
+!$OMP DO SCHEDULE(STATIC)
+  do j = 1, rows
+    do i = 1, row_length
+      rhodz = (r_rho_levels(i,j,2)-r_theta_levels(i,j,0)) * rho_wet_th(i,j,1)
+      cclwp(i,j)  = rhodz * ccw(i,j,1)
+      cclwp0(i,j) = rhodz * ccw0(i,j,1)
+    end do
+    do k = 2, n_conv_levels
+      do i = 1, row_length
+        rhodz = (r_rho_levels(i,j,k+1)-r_rho_levels(i,j,k)) * rho_wet_th(i,j,k)
+        cclwp(i,j)  = cclwp(i,j)  + rhodz * ccw(i,j,k)
+        cclwp0(i,j) = cclwp0(i,j) + rhodz * ccw0(i,j,k)
+      end do
+    end do
+  end do  ! j = 1, rows
+!$OMP END DO NOWAIT
+end if  ! ( l_mr_physics )
+
+!$OMP END PARALLEL
 
 
 return

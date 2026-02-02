@@ -7,7 +7,7 @@
 ! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: convection_comorph
 
-module set_diag_conv_cloud_mod
+module set_diag_conv_cloud_a_mod
 
 implicit none
 
@@ -16,33 +16,28 @@ contains
 ! Subroutine to set the diagnosed convective cloud properties
 ! at the current level, based on the convective updraft or
 ! downdraft parcel properties
-subroutine set_diag_conv_cloud( n_points, n_points_env,                        &
-                                n_points_res,                                  &
-                                n_points_prev, n_points_next,                  &
-                                n_fields_tot,                                  &
-                                max_buoy_heights, n_buoy_vars,                 &
-                                grid_prev, grid_next, frac_level_step,         &
-                                prev_virt_temp, next_virt_temp,                &
-                                prev_massflux_d, next_massflux_d,              &
-                                prev_radius, next_radius,                      &
-                                par_prev_mean, par_next_mean,                  &
-                                buoyancy_super, i_next, i_sat,                 &
-                                convcloud_super )
+subroutine set_diag_conv_cloud_a( n_points, n_points_env, n_points_res,        &
+                                  n_points_prev, n_points_next, n_fields_tot,  &
+                                  grid_prev, grid_next, frac_level_step,       &
+                                  prev_virt_temp, next_virt_temp,              &
+                                  prev_massflux_d, next_massflux_d,            &
+                                  prev_radius, next_radius,                    &
+                                  par_prev_mean, par_next_mean,                &
+                                  sublevs, i_next, i_sat,                      &
+                                  convcloud_super )
 
 use comorph_constants_mod, only: real_cvprec, zero, half, one,                 &
-                                 gravity, wind_w_fac, cf_conv_fac,             &
-                                 l_cf_conv_buoy, wind_w_buoy_fac, w_min,       &
-                                 l_cv_cloudfrac
+                                 gravity, cf_conv_fac,                         &
+                                 wind_w_buoy_fac, w_min, l_cv_cloudfrac
 use fields_type_mod, only: n_fields, i_temperature,                            &
-                           i_q_vap, i_qc_first, i_qc_last,                     &
-                           i_q_cl, i_q_cf, i_cf_liq, i_cf_bulk
+                           i_q_vap, i_q_cl, i_q_cf, i_cf_liq, i_cf_bulk
 use cloudfracs_type_mod, only: n_convcloud, i_frac_liq, i_frac_bulk
-use buoyancy_mod, only: i_prev, i_mean_buoy
+use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
+                       j_height, j_mean_buoy
 use grid_type_mod, only: n_grid, i_height, i_pressure
 
-use calc_q_tot_mod, only: calc_q_tot
 use calc_rho_dry_mod, only: calc_rho_dry
-use interp_diag_conv_cloud_mod, only: interp_diag_conv_cloud
+use interp_diag_conv_cloud_a_mod, only: interp_diag_conv_cloud_a
 use set_par_cloudfrac_mod, only: set_par_cloudfrac
 
 implicit none
@@ -59,10 +54,6 @@ integer, intent(in) :: n_points_res
 integer, intent(in) :: n_points_prev
 integer, intent(in) :: n_points_next
 integer, intent(in) :: n_fields_tot
-
-! Dimensions of the buoyancy super-array
-integer, intent(in) :: max_buoy_heights
-integer, intent(in) :: n_buoy_vars
 
 ! Heights and pressures of model-levels:
 ! Previous model-level interface
@@ -98,12 +89,12 @@ real(kind=real_cvprec), intent(in) :: par_next_mean                            &
 ! b) Next model-level interface
 ! c) Height where parcel mean properties first hit saturation
 ! d) Height where parcel core first hit saturation
-real(kind=real_cvprec), intent(in) :: buoyancy_super                           &
-                     ( n_points, n_buoy_vars, max_buoy_heights )
+real(kind=real_cvprec), intent(in) :: sublevs                                  &
+                     ( n_points, n_sublev_vars, max_sublevs )
 
-! Address of next model-level interface in buoyancy_super
+! Address of next model-level interface in sublevs
 integer, intent(in) :: i_next(n_points)
-! Address of saturation height in buoyancy_super
+! Address of saturation height in sublevs
 integer, intent(in) :: i_sat(n_points)
 
 ! Super-array containing diagnosed convective cloud properties
@@ -112,9 +103,6 @@ real(kind=real_cvprec), intent(in out) :: convcloud_super                      &
 
 ! Dry density
 real(kind=real_cvprec) :: rho_dry(n_points)
-
-! Total-water mixing ratio
-real(kind=real_cvprec) :: q_tot(n_points)
 
 ! Mean parcel buoyancy over the current model-level
 real(kind=real_cvprec) :: mean_buoy(n_points)
@@ -152,88 +140,60 @@ integer :: ic, i_lev, i_field
 !
 ! => sigma = Md / ( rho_dry w' )
 
-if ( l_cf_conv_buoy ) then
 
-  ! Assuming that w' = fac * sqrt( buoyancy * radius )
-  !
-  ! => sigma = Md / ( rho_dry fac * sqrt( buoyancy * radius ) )
+! Assuming that w' = fac * sqrt( buoyancy * radius )
+!
+! => sigma = Md / ( rho_dry fac * sqrt( buoyancy * radius ) )
 
-  ! To reduce noisiness where a very small buoyancy occurs
-  ! on just one sub-level, take the vertical mean of the buoyancy
-  ! profile between prev and next...
-  do ic = 1, n_points
-    mean_buoy(ic) = zero
-  end do
-  do ic = 1, n_points
-    do i_lev = i_prev, i_next(ic) - 1
-      mean_buoy(ic) = mean_buoy(ic)                                            &
-        + half * ( buoyancy_super(ic,i_mean_buoy,i_lev)                        &
-                 + buoyancy_super(ic,i_mean_buoy,i_lev+1) )                    &
-               * ( buoyancy_super(ic,i_height,i_lev+1)                         &
-                 - buoyancy_super(ic,i_height,i_lev) )
-    end do
-  end do
-  do ic = 1, n_points
+! To reduce noisiness where a very small buoyancy occurs
+! on just one sub-level, take the vertical mean of the buoyancy
+! profile between prev and next...
+do ic = 1, n_points
+  mean_buoy(ic) = zero
+end do
+do ic = 1, n_points
+  do i_lev = i_prev, i_next(ic) - 1
     mean_buoy(ic) = mean_buoy(ic)                                              &
-                  / ( buoyancy_super(ic,i_height,i_next(ic))                   &
-                    - buoyancy_super(ic,i_height,i_prev) )
+      + half * ( sublevs(ic,j_mean_buoy,i_lev)                                 &
+               + sublevs(ic,j_mean_buoy,i_lev+1) )                             &
+             * ( sublevs(ic,j_height,i_lev+1)                                  &
+               - sublevs(ic,j_height,i_lev) )
   end do
+end do
+do ic = 1, n_points
+  mean_buoy(ic) = mean_buoy(ic)                                                &
+                / ( sublevs(ic,i_height,i_next(ic))                            &
+                  - sublevs(ic,i_height,i_prev) )
+end do
 
-  ! Calc dry-density of parcel at previous model-level interface
-  call calc_rho_dry( n_points,                                                 &
-                     par_prev_mean(:,i_temperature),                           &
-                     par_prev_mean(:,i_q_vap),                                 &
-                     grid_prev(:,i_pressure),                                  &
-                     rho_dry )
-  ! Calculate sigma
-  do ic = 1, n_points
-    prev_cf_conv(ic) = prev_massflux_d(ic)                                     &
-      / ( rho_dry(ic) * wind_w_buoy_fac                                        &
-        * sqrt( max( ( gravity / prev_virt_temp(ic) )                          &
-                   * mean_buoy(ic)                                             &
-                   * prev_radius(ic), w_min*w_min ) ) )
-  end do
-
-  ! Same again to cf_conv at next model-level interface
-  call calc_rho_dry( n_points,                                                 &
-                     par_next_mean(:,i_temperature),                           &
-                     par_next_mean(:,i_q_vap),                                 &
-                     grid_next(:,i_pressure),                                  &
-                     rho_dry )
-  do ic = 1, n_points
-    next_cf_conv(ic) = next_massflux_d(ic)                                     &
-      / ( rho_dry(ic) * wind_w_buoy_fac                                        &
-        * sqrt( max( ( gravity / next_virt_temp(ic) )                          &
-                   * mean_buoy(ic)                                             &
-                   * next_radius(ic), w_min*w_min ) ) )
-  end do
-
-else  ! ( l_cf_conv_buoy )
-
-  ! For now we have prescribed  w' = w_fac / rho_wet
-  !
-  ! => sigma = Md/w_fac rho_wet/rho_dry
-  !          = Md (1+q_tot) / w_fac
-  !          = Mw / w_fac
-
-  ! Calc parcel total-water at previous model-level interface
-  call calc_q_tot( n_points, n_points_prev,                                    &
+! Calc dry-density of parcel at previous model-level interface
+call calc_rho_dry( n_points,                                                   &
+                   par_prev_mean(:,i_temperature),                             &
                    par_prev_mean(:,i_q_vap),                                   &
-                   par_prev_mean(:,i_qc_first:i_qc_last), q_tot )
-  ! Calculate sigma
-  do ic = 1, n_points
-    prev_cf_conv(ic) = prev_massflux_d(ic) * ( one + q_tot(ic) ) / wind_w_fac
-  end do
+                   grid_prev(:,i_pressure),                                    &
+                   rho_dry )
+! Calculate sigma
+do ic = 1, n_points
+  prev_cf_conv(ic) = prev_massflux_d(ic)                                       &
+    / ( rho_dry(ic) * wind_w_buoy_fac                                          &
+      * sqrt( max( ( gravity / prev_virt_temp(ic) )                            &
+                 * mean_buoy(ic)                                               &
+                 * prev_radius(ic), w_min*w_min ) ) )
+end do
 
-  ! Same again to cf_conv at next model-level interface
-  call calc_q_tot( n_points, n_points_next,                                    &
+! Same again to cf_conv at next model-level interface
+call calc_rho_dry( n_points,                                                   &
+                   par_next_mean(:,i_temperature),                             &
                    par_next_mean(:,i_q_vap),                                   &
-                   par_next_mean(:,i_qc_first:i_qc_last), q_tot )
-  do ic = 1, n_points
-    next_cf_conv(ic) = next_massflux_d(ic) * ( one + q_tot(ic) ) / wind_w_fac
-  end do
-
-end if  ! ( l_cf_conv_buoy )
+                   grid_next(:,i_pressure),                                    &
+                   rho_dry )
+do ic = 1, n_points
+  next_cf_conv(ic) = next_massflux_d(ic)                                       &
+    / ( rho_dry(ic) * wind_w_buoy_fac                                          &
+      * sqrt( max( ( gravity / next_virt_temp(ic) )                            &
+                 * mean_buoy(ic)                                               &
+                 * next_radius(ic), w_min*w_min ) ) )
+end do
 
 ! Compute grid-mean convective liquid and ice mixing ratios
 do ic = 1, n_points
@@ -258,7 +218,7 @@ end do
 ! Extract saturation height where applicable
 do ic = 1, n_points
   if ( i_sat(ic) > 0 ) then
-    sat_height(ic) = buoyancy_super(ic,i_height,i_sat(ic))
+    sat_height(ic) = sublevs(ic,i_height,i_sat(ic))
   else
     sat_height(ic) = zero
   end if
@@ -272,22 +232,22 @@ if ( l_cv_cloudfrac ) then
   ! CoMorph is carrying cloud-fractions within the parcel;
   ! Pass in the in-parcel cloud-fractions from the parcel mean super-arrays
 
-  call interp_diag_conv_cloud( n_points, n_points,                             &
-                               n_points_prev, n_points_next,                   &
-                               grid_prev(:,i_height),                          &
-                               grid_next(:,i_height), sat_height,              &
-                               prev_cf_conv, next_cf_conv,                     &
-                               prev_q_cl_conv, next_q_cl_conv,                 &
-                               prev_q_cf_conv, next_q_cf_conv,                 &
-                               par_prev_mean(:,i_cf_liq:i_cf_bulk),            &
-                               par_next_mean(:,i_cf_liq:i_cf_bulk),            &
-                               convcloud_step )
+  call interp_diag_conv_cloud_a( n_points, n_points,                           &
+                                 n_points_prev, n_points_next,                 &
+                                 grid_prev(:,i_height),                        &
+                                 grid_next(:,i_height), sat_height,            &
+                                 prev_cf_conv, next_cf_conv,                   &
+                                 prev_q_cl_conv, next_q_cl_conv,               &
+                                 prev_q_cf_conv, next_q_cf_conv,               &
+                                 par_prev_mean(:,i_cf_liq:i_cf_bulk),          &
+                                 par_next_mean(:,i_cf_liq:i_cf_bulk),          &
+                                 convcloud_step )
   ! Note: i_cf_liq etc are the addresses of the cloud-fractions in the
   ! primary fields super-array; when cloud-fractions are not treated
   ! as primary fields (l_cv_cloudfrac=.false.), these are not set.
 
 else
-  ! CoMorph not carrying cloud-fractions within the parcel;
+  ! CoMorph NOT carrying cloud-fractions within the parcel;
   ! Diagnose in-parcel cloud-fractions in separate arrays...
 
   ! Note: using the indices i_frac_liq etc, which are set even when
@@ -304,16 +264,16 @@ else
                           par_next_cloudfracs )
 
   ! Use diagnosed in-parcel cloud-fractions to interpolate to full-level
-  call interp_diag_conv_cloud( n_points, n_points,                             &
-                               n_points, n_points,                             &
-                               grid_prev(:,i_height),                          &
-                               grid_next(:,i_height), sat_height,              &
-                               prev_cf_conv, next_cf_conv,                     &
-                               prev_q_cl_conv, next_q_cl_conv,                 &
-                               prev_q_cf_conv, next_q_cf_conv,                 &
-                               par_prev_cloudfracs,                            &
-                               par_next_cloudfracs,                            &
-                               convcloud_step )
+  call interp_diag_conv_cloud_a( n_points, n_points,                           &
+                                 n_points, n_points,                           &
+                                 grid_prev(:,i_height),                        &
+                                 grid_next(:,i_height), sat_height,            &
+                                 prev_cf_conv, next_cf_conv,                   &
+                                 prev_q_cl_conv, next_q_cl_conv,               &
+                                 prev_q_cf_conv, next_q_cf_conv,               &
+                                 par_prev_cloudfracs,                          &
+                                 par_next_cloudfracs,                          &
+                                 convcloud_step )
 
   deallocate( par_next_cloudfracs )
   deallocate( par_prev_cloudfracs )
@@ -335,7 +295,7 @@ end do
 
 
 return
-end subroutine set_diag_conv_cloud
+end subroutine set_diag_conv_cloud_a
 
 
-end module set_diag_conv_cloud_mod
+end module set_diag_conv_cloud_a_mod

@@ -33,7 +33,7 @@ implicit none
 ! Structure containing compression indices
 type(cmpr_type), intent(in) :: cmpr
 
-! Lower and upper bounds of the input array (in case it has halos)
+! Lower and upper bounds of the input array (in case it has haloes)
 integer, intent(in) :: lb_in(2), ub_in(2)
 ! In: latest value of the field
 real(kind=real_hmprec), intent(in) :: field_in                                 &

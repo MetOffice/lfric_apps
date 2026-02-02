@@ -115,7 +115,7 @@ if ( l_ukca .and. l_ukca_plume_scav ) then
     end do
   end do
 
-end if  ! ( l_ukca .and. l_ukca_plume_scav )
+end if  ! ( l_ukca .AND. l_ukca_plume_scav )
 
 
 return

@@ -68,8 +68,6 @@ real(kind=real_cvprec), intent(out) :: winds_next                              &
                                        ( n_points, i_wind_u:i_wind_w )
 
 
-! Factor for subsiding next level temperature to level k
-real(kind=real_cvprec) :: exner_ratio(n_points)
 ! Total heat capacity for phase-change
 real(kind=real_cvprec) :: cp_tot(n_points)
 ! Vertical interpolation weight
@@ -81,16 +79,15 @@ integer :: ic, i_field
 
 ! Calculate temperature the air at the next full level (k+dk)
 ! would have at level k, and the vapour + liquid-cloud
-call dry_adiabat( n_points, n_points_super,                                    &
-                  grid_kpdk(:,i_pressure),                                     &
-                  grid_k(:,i_pressure),                                        &
-                  fields_kpdk(:,i_q_vap),                                      &
-                  fields_kpdk(:,i_qc_first:i_qc_last),                         &
-                  exner_ratio )
 do ic = 1, n_points
-  tl_next(ic) = fields_kpdk(ic,i_temperature) * exner_ratio(ic)
+  tl_next(ic) = fields_kpdk(ic,i_temperature)
   qt_next(ic) = fields_kpdk(ic,i_q_vap) + fields_kpdk(ic,i_q_cl)
 end do
+call dry_adiabat( n_points, n_points_super,                                    &
+                  grid_kpdk(:,i_pressure), grid_k(:,i_pressure),               &
+                  fields_kpdk(:,i_q_vap),                                      &
+                  fields_kpdk(:,i_qc_first:i_qc_last),                         &
+                  tl_next )
 
 ! Convert temperature to liquid-water temperature
 call set_cp_tot( n_points, n_points_super,                                     &

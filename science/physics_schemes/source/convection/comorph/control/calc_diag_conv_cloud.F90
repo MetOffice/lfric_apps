@@ -32,18 +32,18 @@ subroutine calc_diag_conv_cloud( n_updraft_layers,                             &
                                  lb_p, ub_p, pressure,                         &
                                  fields_k, cloudfracs )
 
-use comorph_constants_mod, only: real_cvprec, real_hmprec, zero,               &
+use comorph_constants_mod, only: real_cvprec, real_hmprec, zero, one,          &
                      k_bot_conv, k_top_conv,                                   &
                      n_updraft_types, n_dndraft_types,                         &
                      l_updraft_fallback, l_dndraft_fallback,                   &
-                     max_sigma, i_convcloud, i_convcloud_mph
+                     max_sigma, max_water_frac, melt_temp, homnuc_temp,        &
+                     i_convcloud, i_convcloud_bulkonly, i_convcloud_mph
 
 use cmpr_type_mod, only: cmpr_type
 use res_source_type_mod, only: res_source_type
 use cloudfracs_type_mod, only: cloudfracs_type,                                &
-                               n_convcloud, i_frac_liq_conv,                   &
-                               i_frac_ice_conv, i_frac_bulk_conv,              &
-                               i_q_cl_conv, i_q_cf_conv
+                               n_convcloud, i_frac_liq_conv, i_frac_bulk_conv, &
+                               i_q_cl_conv, i_q_cf_conv, i_q_c_conv
 use fields_type_mod, only: i_temperature,                                      &
                            i_q_vap, i_q_cl, i_q_cf
 use add_conv_cloud_mod, only: add_conv_cloud
@@ -99,7 +99,7 @@ type(res_source_type), intent(in) :: dndraft_fallback_res_source               &
 ! ( 1, 1, k_bot_conv:k_top_conv )
 
 ! Full 3-D array of pressure
-! (and lower and upper bounds in case it has halos)
+! (and lower and upper bounds in case it has haloes)
 integer, intent(in) :: lb_p(3), ub_p(3)
 real(kind=real_hmprec), intent(in) :: pressure                                 &
                           ( lb_p(1):ub_p(1), lb_p(2):ub_p(2), lb_p(3):ub_p(3) )
@@ -130,11 +130,6 @@ real(kind=real_cvprec) :: q_tot_mean, q_tot_conv, tmp
 
 ! Array lower and upper bounds
 integer :: lb(3), ub(3)
-
-! Limit on fraction of grid-mean water which is allowed to be
-! assumed to be held inside the convective clouds
-real(kind=real_cvprec), parameter :: max_water_frac                            &
-                                     = 0.8_real_cvprec
 
 ! Loop counters
 integer :: ic, i_field
@@ -222,19 +217,38 @@ do ic = 1, cmpr_any(k) % n_points
                   + fields_k(ic,i_q_cl) + fields_k(ic,i_q_cf),                 &
                     zero )
 
-  q_tot_conv = conv_cloud(ic,i_q_cl_conv)                                      &
-  ! Add water-vapour contained in the convective
-  ! liquid cloud fraction, assuming it is saturated.
-             + conv_cloud(ic,i_frac_liq_conv) * qsat_liq(ic)                   &
-  ! Add water-vapour contained in any convective
-  ! ice-only cloud fraction, assuming same q_vap as grid-mean
-             + ( conv_cloud(ic,i_frac_bulk_conv)                               &
-               - conv_cloud(ic,i_frac_liq_conv) )                              &
-               * max( fields_k(ic,i_q_vap), zero )
+  if ( i_convcloud == i_convcloud_bulkonly ) then
+    ! Only have bulk convective cloud amount with liquid + ice together
 
-  ! Also include ice content if it is output
-  if ( i_convcloud == i_convcloud_mph ) then
-    q_tot_conv = q_tot_conv + conv_cloud(ic,i_q_cf_conv)
+    ! Linear ramp function of temperature between 0oC and -40oC
+    tmp = max( min( ( fields_k(ic,i_temperature) - homnuc_temp )               &
+                  / ( melt_temp - homnuc_temp ), one ), zero )
+
+    q_tot_conv = conv_cloud(ic,i_q_c_conv)                                     &
+    ! Add water-vapour contained in the convective cloud, assuming
+    ! it is saturated when above freezing, has grid-mean q_vap when
+    ! below -40oC, and varies linearly in-between
+               + conv_cloud(ic,i_frac_bulk_conv)                               &
+                 * ( tmp * qsat_liq(ic)                                        &
+                   + ( one - tmp ) * max( fields_k(ic,i_q_vap), zero ) )
+
+  else  ! ( i_convcloud == i_convcloud_liqonly or i_convcloud_mph )
+
+    q_tot_conv = conv_cloud(ic,i_q_cl_conv)                                    &
+    ! Add water-vapour contained in the convective
+    ! liquid cloud fraction, assuming it is saturated.
+               + conv_cloud(ic,i_frac_liq_conv) * qsat_liq(ic)                 &
+    ! Add water-vapour contained in any convective
+    ! ice-only cloud fraction, assuming same q_vap as grid-mean
+               + ( conv_cloud(ic,i_frac_bulk_conv)                             &
+                 - conv_cloud(ic,i_frac_liq_conv) )                            &
+                 * max( fields_k(ic,i_q_vap), zero )
+
+    ! Also include ice content if it is output
+    if ( i_convcloud == i_convcloud_mph ) then
+      q_tot_conv = q_tot_conv + conv_cloud(ic,i_q_cf_conv)
+    end if
+
   end if
 
   ! Don't allow the implied water content of the convective
@@ -251,28 +265,13 @@ end do
 
 
 ! Scatter convective cloud properties back to full 3-D arrays
-lb = lbound( cloudfracs % frac_liq_conv )
-ub = ubound( cloudfracs % frac_liq_conv )
-call decompress( cmpr_any(k), conv_cloud(:,i_frac_liq_conv),                   &
-                 lb(1:2), ub(1:2), cloudfracs % frac_liq_conv(:,:,k) )
-lb = lbound( cloudfracs % frac_bulk_conv )
-ub = ubound( cloudfracs % frac_bulk_conv )
-call decompress( cmpr_any(k), conv_cloud(:,i_frac_bulk_conv),                  &
-                 lb(1:2), ub(1:2), cloudfracs % frac_bulk_conv(:,:,k) )
-lb = lbound( cloudfracs % q_cl_conv )
-ub = ubound( cloudfracs % q_cl_conv )
-call decompress( cmpr_any(k), conv_cloud(:,i_q_cl_conv),                       &
-                 lb(1:2), ub(1:2), cloudfracs % q_cl_conv(:,:,k) )
-if ( i_convcloud == i_convcloud_mph ) then
-  lb = lbound( cloudfracs % frac_ice_conv )
-  ub = ubound( cloudfracs % frac_ice_conv )
-  call decompress( cmpr_any(k), conv_cloud(:,i_frac_ice_conv),                 &
-                   lb(1:2), ub(1:2), cloudfracs % frac_ice_conv(:,:,k) )
-  lb = lbound( cloudfracs % q_cf_conv )
-  ub = ubound( cloudfracs % q_cf_conv )
-  call decompress( cmpr_any(k), conv_cloud(:,i_q_cf_conv),                     &
-                   lb(1:2), ub(1:2), cloudfracs % q_cf_conv(:,:,k) )
-end if
+do i_field = 1, n_convcloud
+  lb = lbound( cloudfracs % convcloud_list(i_field)%pt )
+  ub = ubound( cloudfracs % convcloud_list(i_field)%pt )
+  call decompress( cmpr_any(k), conv_cloud(:,i_field),                         &
+                   lb(1:2), ub(1:2),                                           &
+                   cloudfracs % convcloud_list(i_field)%pt(:,:,k) )
+end do
 
 
 return
@@ -289,10 +288,9 @@ end subroutine calc_diag_conv_cloud
 subroutine zero_diag_conv_cloud( ij_0, ij_1, k, cmpr_any,                      &
                                  cloudfracs )
 
-use comorph_constants_mod, only: k_bot_conv, k_top_conv, nx_full,              &
-                     i_convcloud, i_convcloud_mph
+use comorph_constants_mod, only: k_bot_conv, k_top_conv, nx_full
 use cmpr_type_mod, only: cmpr_type, cmpr_alloc, cmpr_dealloc
-use cloudfracs_type_mod, only: cloudfracs_type
+use cloudfracs_type_mod, only: cloudfracs_type, n_convcloud
 use init_zero_mod, only: init_zero_cmpr
 
 implicit none
@@ -313,7 +311,7 @@ type(cmpr_type), intent(in) :: cmpr_any( k_bot_conv:k_top_conv )
 type(cloudfracs_type), intent(in out) :: cloudfracs
 
 ! Mask of points on the current segment where there is
-! not any convection
+! NOT any convection
 logical :: l_mask(ij_0:ij_1)
 
 ! Points where calculations are needed
@@ -323,7 +321,7 @@ type(cmpr_type) :: cmpr_none
 integer :: lb(3), ub(3)
 
 ! Loop counters
-integer :: i, j, ic, ij
+integer :: i, j, ic, ij, i_field
 
 
 ! Set number of non-convecting points and allocate compression
@@ -375,29 +373,12 @@ else
 end if
 
 ! Set convective cloud fields to zero at these points
-lb = lbound( cloudfracs % frac_liq_conv )
-ub = ubound( cloudfracs % frac_liq_conv )
-call init_zero_cmpr( cmpr_none, lb(1:2), ub(1:2),                              &
-                     cloudfracs % frac_liq_conv(:,:,k) )
-lb = lbound( cloudfracs % frac_bulk_conv )
-ub = ubound( cloudfracs % frac_bulk_conv )
-call init_zero_cmpr( cmpr_none, lb(1:2), ub(1:2),                              &
-                     cloudfracs % frac_bulk_conv(:,:,k) )
-lb = lbound( cloudfracs % q_cl_conv )
-ub = ubound( cloudfracs % q_cl_conv )
-call init_zero_cmpr( cmpr_none, lb(1:2), ub(1:2),                              &
-                     cloudfracs % q_cl_conv(:,:,k) )
-
-if ( i_convcloud == i_convcloud_mph ) then
-  lb = lbound( cloudfracs % frac_ice_conv )
-  ub = ubound( cloudfracs % frac_ice_conv )
+do i_field = 1, n_convcloud
+  lb = lbound( cloudfracs % convcloud_list(i_field)%pt )
+  ub = ubound( cloudfracs % convcloud_list(i_field)%pt )
   call init_zero_cmpr( cmpr_none, lb(1:2), ub(1:2),                            &
-                       cloudfracs % frac_ice_conv(:,:,k) )
-  lb = lbound( cloudfracs % q_cf_conv )
-  ub = ubound( cloudfracs % q_cf_conv )
-  call init_zero_cmpr( cmpr_none, lb(1:2), ub(1:2),                            &
-                       cloudfracs % q_cf_conv(:,:,k) )
-end if
+                       cloudfracs % convcloud_list(i_field)%pt(:,:,k) )
+end do
 
 call cmpr_dealloc( cmpr_none )
 

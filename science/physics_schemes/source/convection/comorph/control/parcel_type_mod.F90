@@ -14,6 +14,8 @@ use comorph_constants_mod, only: real_cvprec
 
 implicit none
 
+save
+
 ! Module contains the type definition for a derived type
 ! structure containing the properties of a convective parcel,
 ! stored in compression lists of points where convection is
@@ -22,6 +24,10 @@ implicit none
 ! Also contains subroutines that carry out various actions on
 ! the fields contained in parcel_type structures; eg allocate
 ! and deallocate the fields, or combine 2 parcels together.
+
+! Flag indicating whether the variables contained in this
+! module have been set
+logical :: l_init_parcel_type_mod = .false.
 
 
 !----------------------------------------------------------------
@@ -57,9 +63,11 @@ end type parcel_type
 !----------------------------------------------------------------
 ! Addresses of fields in the compressed par_super array
 !----------------------------------------------------------------
+! These are set in parcel_set_addresses below, based on which
+! fields are actually in use.
 
 ! Number of fields in the par_super array
-integer, parameter :: n_par = 3
+integer :: n_par = 0
 
 ! Indices of each parcel field in the super-array
 ! Note: the code in parcel_combine (in this module)
@@ -67,16 +75,44 @@ integer, parameter :: n_par = 3
 ! of all the other fields are positive.
 
 ! Flux of dry-mass per unit surface area / kg m-2 s-1
-integer, parameter :: i_massflux_d = 1
+integer :: i_massflux_d = 0
 
 ! Radius of parcel / m
-integer, parameter :: i_radius = 2
+integer :: i_radius = 0
 
-! Virtual temperature at parcel edge (for constructing buoyancy PDF)
-integer, parameter :: i_edge_virt_temp = 3
+! Parcel edge virtual temperature (for constructing assumed PDF)
+integer :: i_edge_virt_temp = 0
 
 
 contains
+
+
+!----------------------------------------------------------------
+! Subroutine to set the address of each field in the super-array
+!----------------------------------------------------------------
+subroutine parcel_set_addresses()
+
+use comorph_constants_mod, only: l_par_core
+
+implicit none
+
+! Set flag to indicate that we don't need to call this routine again!
+l_init_parcel_type_mod = .true.
+
+! Parcel mass-flux, radius and environment / parcel edge virtual temperatures
+! are always used
+i_massflux_d = 1
+i_radius = 2
+n_par = 2
+
+! Edge virtual temperature only needed if using parcel core
+if ( l_par_core ) then
+  i_edge_virt_temp = n_par + 1
+  n_par = n_par + 1
+end if
+
+return
+end subroutine parcel_set_addresses
 
 
 !----------------------------------------------------------------
@@ -573,8 +609,8 @@ end subroutine parcel_init_zero
 subroutine parcel_combine( l_tracer, l_down, index_ic,                         &
                            parcel_a, parcel_m )
 
-use comorph_constants_mod, only: n_tracers, real_cvprec, zero, one,            &
-                                 l_par_core
+use comorph_constants_mod, only: real_cvprec, zero, one, min_float,            &
+                                 n_tracers, l_par_core
 use fields_type_mod, only: n_fields, i_temperature, i_q_vap,                   &
                            i_qc_first, i_qc_last
 use calc_virt_temp_mod, only: calc_virt_temp
@@ -590,8 +626,8 @@ logical, intent(in) :: l_down
 ! Input properties of one of the parcels to combine
 type(parcel_type), intent(in) :: parcel_a
 
-! in:  properties of the other parcel to combine
-! out: combined merged parcel properties
+! IN:  properties of the other parcel to combine
+! OUT: combined merged parcel properties
 type(parcel_type), intent(in out) :: parcel_m
 
 ! Index list for referencing the parcel_m compression list
@@ -606,18 +642,21 @@ real(kind=real_cvprec) :: weight_a( parcel_a % cmpr % n_points )
 ! Weight to apply to the existing properties of parcel m
 real(kind=real_cvprec) :: weight_m( parcel_a % cmpr % n_points )
 
+! Weights for computing parcel core properties, if used
+real(kind=real_cvprec) :: weight_core_a( parcel_a % cmpr % n_points )
+real(kind=real_cvprec) :: weight_core_m( parcel_a % cmpr % n_points )
+
 ! Virtual temperature of the cores of parcels a and m
 real(kind=real_cvprec) :: core_a_virt_temp                                     &
                           ( parcel_a % cmpr % n_points )
 real(kind=real_cvprec) :: core_m_virt_temp                                     &
                           ( parcel_m % cmpr % n_points )
 
-! Store for indices of points where parcel core to be overwritten
-integer :: n_core
-integer :: index_ic_core( parcel_a % cmpr % n_points )
+! Normalisation for weights
+real(kind=real_cvprec) :: norm
 
 ! Loop counters
-integer :: ic, ic2, ic3, i_field
+integer :: ic, ic2, i_field
 
 
 ! Set number of fields in parcel % mean_super
@@ -628,6 +667,35 @@ if ( l_tracer )  n_fields_tot = n_fields_tot + n_tracers
 ! data from the parcel_a compression list to the
 ! parcel_m compression list...
 
+! Calculate mass-flux weight to apply to parcel_a.
+! NOTE: to achieve bit-reproducibility on different
+! proc decompositions, it is vital that at points where
+! the input parcel_m has zero mass-flux,
+! the weight stored in weight_a comes out at exactly 1.0.
+! However, on some compilers, dividing one number by
+! another which is numerically identical is NOT guaranteed
+! to yield exactly 1.0.
+! Hence need an explicit check to ensure this happens:
+do ic = 1, parcel_a % cmpr % n_points
+  ic2 = index_ic(ic)
+  if ( .not. parcel_m % par_super(ic2,i_massflux_d) > zero ) then
+    weight_a(ic) = one
+    weight_m(ic) = zero
+  else if ( .not. parcel_a % par_super(ic,i_massflux_d) > zero ) then
+    weight_a(ic) = zero
+    weight_m(ic) = one
+  else
+    norm = parcel_m % par_super(ic2,i_massflux_d)                              &
+         + parcel_a % par_super(ic,i_massflux_d)
+    weight_a(ic) = parcel_a % par_super(ic,i_massflux_d) / norm
+    !weight_m(ic) = parcel_m % par_super(ic2,i_massflux_d) / norm
+    ! TEMPORARY CODE TO PRESERVE KGO
+    ! More accurate to compute weight_m as commented-out above, but this
+    ! changes answers so keeping old version of the calculation for now.
+    weight_m(ic) = one - weight_a(ic)
+  end if
+end do
+
 ! Add the massflux of parcel a onto parcel_m
 do ic = 1, parcel_a % cmpr % n_points
   ic2 = index_ic(ic)
@@ -636,29 +704,14 @@ do ic = 1, parcel_a % cmpr % n_points
     + parcel_a % par_super(ic,i_massflux_d)
 end do
 
-! Calculate weight to apply to parcel_a
-do ic = 1, parcel_a % cmpr % n_points
-  weight_a(ic) = parcel_a % par_super(ic,i_massflux_d)                         &
-               / parcel_m % par_super(index_ic(ic),i_massflux_d)
-end do
-! NOTE: to achieve bit-reproducibility on different
-! proc decompositions, it is vital that at points where
-! the input parcel_m had zero mass-flux, (and hence
-! massflux_m = massflux_a, now that we've added a to m),
-! the weight stored in weight_a comes out at exactly 1.0.
-! However, on some compilers, dividing one number by
-! another which is numerically identical is not guaranteed
-! to yield exactly 1.0.
-! Hence need an explicit check to ensure this happens:
-do ic = 1, parcel_a % cmpr % n_points
-  if ( parcel_a % par_super(ic,i_massflux_d)                                   &
-    == parcel_m % par_super(index_ic(ic),i_massflux_d) )                       &
-      weight_a(ic) = one
-end do
-
-! Weight to apply to existing parcel_m properties is 1 - weight_a
-do ic = 1, parcel_a % cmpr % n_points
-  weight_m(ic) = one - weight_a(ic)
+! Parcel mean primary fields; take mass-flux-weighted mean
+do i_field = 1, n_fields_tot
+  do ic = 1, parcel_a % cmpr % n_points
+    ic2 = index_ic(ic)
+    parcel_m % mean_super(ic2,i_field)                                         &
+      = weight_m(ic) * parcel_m % mean_super(ic2,i_field)                      &
+      + weight_a(ic) * parcel_a % mean_super(ic,i_field)
+  end do
 end do
 
 ! Take mass-flux-weighted-mean of the parcel radii
@@ -669,53 +722,14 @@ do ic = 1, parcel_a % cmpr % n_points
     + weight_a(ic) * parcel_a % par_super(ic,i_radius)
 end do
 
-! Parcel edge virtual temperature;
-! for updrafts, use the lower of the 2 values; for downdrafts, use the higher
-! (also always use the new value from parcel_a at points where there is
-!  nothing in parcel_m yet, as indicated by edge Tv = 0.0).
-if ( l_down ) then
-  do ic = 1, parcel_a % cmpr % n_points
-    ic2 = index_ic(ic)
-    if ( parcel_a % par_super(ic,i_edge_virt_temp)                             &
-       > parcel_m % par_super(ic2,i_edge_virt_temp) .or.                       &
-         parcel_m % par_super(ic2,i_edge_virt_temp) == zero ) then
-      parcel_m % par_super(ic2,i_edge_virt_temp)                               &
-        = parcel_a % par_super(ic,i_edge_virt_temp)
-    end if
-  end do
-else
-  do ic = 1, parcel_a % cmpr % n_points
-    ic2 = index_ic(ic)
-    if ( parcel_a % par_super(ic,i_edge_virt_temp)                             &
-       < parcel_m % par_super(ic2,i_edge_virt_temp) .or.                       &
-         parcel_m % par_super(ic2,i_edge_virt_temp) == zero ) then
-      parcel_m % par_super(ic2,i_edge_virt_temp)                               &
-        = parcel_a % par_super(ic,i_edge_virt_temp)
-    end if
-  end do
-end if
 
-! Parcel mean properties; add mass-flux-weighted contribution
-do i_field = 1, n_fields_tot
-  do ic = 1, parcel_a % cmpr % n_points
-    ic2 = index_ic(ic)
-    parcel_m % mean_super(ic2,i_field)                                         &
-      = weight_m(ic) * parcel_m % mean_super(ic2,i_field)                      &
-      + weight_a(ic) * parcel_a % mean_super(ic,i_field)
-  end do
-end do
-
-! Parcel core properties...
 if ( l_par_core ) then
-  ! These are combined by choosing the max
-  ! between the 2 parcels, rather than averaging them together.
+  ! Set parcel core properties...
 
-  ! Choose properties from parcel with the higher buoyancy.
+  ! Compute the core virtual temperature of the two parcels
   ! NOTE: this calculation relies on the fact that the parcel
-  ! core properties are not in conserved variable form at this
+  ! core properties are NOT in conserved variable form at this
   ! point, whereas the parcel mean properties are.
-
-  ! Calculate core virtual temperature of parcels a and m
   call calc_virt_temp( parcel_a % cmpr % n_points,                             &
                        size(parcel_a % cmpr % index_i),                        &
                        parcel_a % core_super(:,i_temperature),                 &
@@ -729,43 +743,69 @@ if ( l_par_core ) then
                        parcel_m % core_super(:,i_qc_first:i_qc_last),          &
                        core_m_virt_temp )
 
-  ! Find points where parcel_a has a higher virtual temperature
-  ! than parcel_m (or lower in the case of downdrafts), or
-  ! where nothing has been added to parcel_m yet (as indicated
-  ! by zero virtual temperature).
-  n_core = 0
+  ! Choose properties from the parcel with the more buoyant core.
+
+  ! Reset the weights so that the core fields will inherit only
+  ! the values from the most buoyant of the two.
+  ! Combine the edge virtual temperatures by choosing the least buoyant edge
+  !  (i.e. we always try to make the PDF of Tv as wide as possible)
   if ( l_down ) then
     do ic = 1, parcel_a % cmpr % n_points
       ic2 = index_ic(ic)
+      ! Choose most negatively buoyant core for downdrafts
+      ! TEMPORARY CODE TO PRESERVE KGO: should really test on mass-fluxes > 0
+      ! (this code can use core properties from parcel m with zero mass-flux,
+      !  which is wrong; fix this soon...)
       if ( core_a_virt_temp(ic) <= core_m_virt_temp(ic2) .or.                  &
            core_m_virt_temp(ic2) == zero ) then
-        n_core = n_core + 1
-        index_ic_core(n_core) = ic
+        weight_core_a(ic) = one
+        weight_core_m(ic) = zero
+      else
+        weight_core_a(ic) = zero
+        weight_core_m(ic) = one
+      end if
+      ! Choose least negatively buoyant edge for downdrafts
+      if ( parcel_a%par_super(ic,i_edge_virt_temp) >                           &
+           parcel_m%par_super(ic2,i_edge_virt_temp)                            &
+           .or. parcel_m%par_super(ic2,i_edge_virt_temp) == zero ) then
+        parcel_m % par_super(ic2,i_edge_virt_temp)                             &
+          = parcel_a % par_super(ic,i_edge_virt_temp)
       end if
     end do
   else
     do ic = 1, parcel_a % cmpr % n_points
       ic2 = index_ic(ic)
+      ! Choose most positively buoyant core for updrafts
+      ! TEMPORARY CODE TO PRESERVE KGO: should really test on mass-fluxes > 0
+      ! (this code can use core properties from parcel m with zero mass-flux,
+      !  which is wrong; fix this soon...)
       if ( core_a_virt_temp(ic) >= core_m_virt_temp(ic2) .or.                  &
            core_m_virt_temp(ic2) == zero ) then
-        n_core = n_core + 1
-        index_ic_core(n_core) = ic
+        weight_core_a(ic) = one
+        weight_core_m(ic) = zero
+      else
+        weight_core_a(ic) = zero
+        weight_core_m(ic) = one
+      end if
+      ! Choose least positively buoyant edge for downdrafts
+      if ( parcel_a%par_super(ic,i_edge_virt_temp) <                           &
+           parcel_m%par_super(ic2,i_edge_virt_temp)                            &
+           .or. parcel_m%par_super(ic2,i_edge_virt_temp) == zero ) then
+        parcel_m % par_super(ic2,i_edge_virt_temp)                             &
+          = parcel_a % par_super(ic,i_edge_virt_temp)
       end if
     end do
   end if
 
-  ! Overwrite parcel core properties in m with a at points where
-  ! a is more buoyant than m
-  if ( n_core > 0 ) then
-    do i_field = 1, n_fields_tot
-      do ic3 = 1, n_core
-        ic = index_ic_core(ic3)
-        ic2 = index_ic(ic)
-        parcel_m % core_super(ic2,i_field)                                     &
-          =  parcel_a % core_super(ic,i_field)
-      end do
+  ! Compute combined parcel core properties using the weights set above
+  do i_field = 1, n_fields_tot
+    do ic = 1, parcel_a % cmpr % n_points
+      ic2 = index_ic(ic)
+      parcel_m % core_super(ic2,i_field)                                       &
+        = weight_core_m(ic) * parcel_m % core_super(ic2,i_field)               &
+        + weight_core_a(ic) * parcel_a % core_super(ic,i_field)
     end do
-  end if
+  end do
 
 end if  ! ( l_par_core )
 
@@ -808,7 +848,7 @@ logical :: l_positive
 integer :: i_field
 
 
-! Check mass-flux, parcel radius, and edge virtual temperature
+! Check mass-flux, parcel radius, turb_len and environment virtual temperature
 l_positive = .true.
 field_name = "massflux_d"
 call check_bad_values_cmpr( parcel % cmpr, k,                                  &

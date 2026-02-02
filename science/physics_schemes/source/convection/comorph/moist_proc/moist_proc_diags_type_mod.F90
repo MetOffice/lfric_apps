@@ -84,9 +84,9 @@ contains
 ! moist_proc_diags structure and store a list of pointers to them
 !----------------------------------------------------------------
 ! Note: this routine gets called twice
-!   1st call (l_count_diags = .true.):
+!   1st call (l_count_diags = .TRUE.):
 !     Check whether each diag is requested and count how many
-!   2nd call (l_count_diags = .false.):
+!   2nd call (l_count_diags = .FALSE.):
 !     Set other properties for requested diags, and assign
 !     pointers from active diags list.
 subroutine moist_proc_diags_assign( parent_name, l_count_diags, doms,          &

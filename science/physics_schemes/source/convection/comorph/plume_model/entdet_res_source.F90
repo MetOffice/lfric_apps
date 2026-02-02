@@ -98,7 +98,7 @@ else
     end do
   end do
 
-end if  ! ( l_ent )
+end if  ! ( .NOT. l_ent )
 
 
 return

@@ -32,9 +32,9 @@ implicit none
 ! Now the increase in environment Tv over the timestep due to
 ! compensating subsidence scales with the non-detrained fraction frac:
 !
-! dTv_env = delta_tv_k frac
+! dTv_env = delta_tv_sub frac
 !
-! (the term delta_tv_k was precalculated in conv_level-step and stores
+! (the term delta_tv_sub was precalculated in conv_level-step and stores
 !  (Tv(k+1) - Tv(k) ) * mass-flux before detrainment / layer-mass).
 !
 ! The buoyancies at end-of-timestep will be reduced by the compensating
@@ -46,7 +46,7 @@ implicit none
 !
 ! Substituting these into the above expression for x_edge:
 !
-! x_edge = (P+1)/(P+2) (Tv'_core - delta_tv_k frac)
+! x_edge = (P+1)/(P+2) (Tv'_core - delta_tv_sub frac)
 !                    / (Tv'_core - Tv'_mean)
 !
 ! Now parcel mass-flux is assumed to be power-law distributed along x,
@@ -56,7 +56,7 @@ implicit none
 !
 ! Substituting this into the above formula for x_edge, we have:
 !
-! x_edge = (P+1)/(P+2) (Tv'_core - delta_tv_k x_edge^(P+1))
+! x_edge = (P+1)/(P+2) (Tv'_core - delta_tv_sub x_edge^(P+1))
 !                    / (Tv'_core - Tv'_mean)
 !
 ! Annoyingly, there is no exact analytical rearrangement of this formula
@@ -65,7 +65,7 @@ implicit none
 !
 ! Rearranging the above, we can write:
 !
-! resid = (P+1)/(P+2) (Tv'_core - delta_tv_k x_edge^(P+1))
+! resid = (P+1)/(P+2) (Tv'_core - delta_tv_sub x_edge^(P+1))
 !                   / (Tv'_core - Tv'_mean)
 !       - x_edge
 !
@@ -80,10 +80,10 @@ implicit none
 ! additional required arguments into brent_dekker_solve
 !----------------------------------------------------------------
 
-integer, parameter :: i_mean_buoy  = 1
-integer, parameter :: i_core_buoy  = 2
-integer, parameter :: i_power      = 3
-integer, parameter :: i_delta_tv_k = 4
+integer, parameter :: i_mean_buoy    = 1
+integer, parameter :: i_core_buoy    = 2
+integer, parameter :: i_power        = 3
+integer, parameter :: i_delta_tv_sub = 4
 
 
 contains
@@ -116,8 +116,8 @@ integer, intent(in) :: nc
 integer, intent(in) :: n_points
 
 ! Number of each sort of argument
-integer, intent(in) :: n_real_sca   ! in real scalar arguments
-integer, intent(in) :: n_real_arr   ! in real array arguments
+integer, intent(in) :: n_real_sca   ! IN real scalar arguments
+integer, intent(in) :: n_real_arr   ! IN real array arguments
 
 ! List of scalar inputs (constants)
 real(kind=real_cvprec), intent(in) :: args_real_sca                            &
@@ -145,7 +145,7 @@ do ic = 1, nc
   resid(ic) = (power_p1/(power_p1+one))                                        &
             * ( args_real_arr(ic,i_core_buoy)                                  &
                   - (x_edge(ic)**power_p1)                                     &
-                    * args_real_arr(ic,i_delta_tv_k) )                         &
+                    * args_real_arr(ic,i_delta_tv_sub) )                       &
             / ( args_real_arr(ic,i_core_buoy)                                  &
               - args_real_arr(ic,i_mean_buoy) )                                &
             - x_edge(ic)
@@ -161,7 +161,7 @@ end subroutine resid_of_x_edge
 !----------------------------------------------------------------
 subroutine solve_detrainment( n_points, nc, index_ic,                          &
                               mean_buoy, core_buoy,                            &
-                              power, delta_tv_k,                               &
+                              power, delta_tv_sub,                             &
                               x_edge, frac )
 
 use comorph_constants_mod, only: real_cvprec, one,                             &
@@ -187,16 +187,16 @@ real(kind=real_cvprec), intent(in) :: core_buoy(n_points)
 real(kind=real_cvprec), intent(in) :: power(n_points)
 ! Estimated change of environment virtual temperature at k
 ! due to compensating subsidence.
-real(kind=real_cvprec), intent(in) :: delta_tv_k(n_points)
+real(kind=real_cvprec), intent(in) :: delta_tv_sub(n_points)
 
 ! Value of dimensionless variable x at the edge of the convection
-! in: before the detrainment calculated here
-! out: after the detrainment calculated here
+! IN: before the detrainment calculated here
+! OUT: after the detrainment calculated here
 real(kind=real_cvprec), intent(in out) :: x_edge(n_points)
 
 ! Non-detrained mass-fraction...
-! in: before the detrainment calculated here
-! out: after the detrainment calculated here
+! IN: before the detrainment calculated here
+! OUT: after the detrainment calculated here
 real(kind=real_cvprec), intent(in out) :: frac(n_points)
 
 ! First guess and its error
@@ -232,16 +232,16 @@ if ( nc == n_points ) then
 
   ! Copy arguments into super-array
   do ic = 1, n_points
-    args_real_arr(ic,i_mean_buoy)  = mean_buoy(ic)
-    args_real_arr(ic,i_core_buoy)  = core_buoy(ic)
-    args_real_arr(ic,i_power)      = power(ic)
-    args_real_arr(ic,i_delta_tv_k) = delta_tv_k(ic)
+    args_real_arr(ic,i_mean_buoy)    = mean_buoy(ic)
+    args_real_arr(ic,i_core_buoy)    = core_buoy(ic)
+    args_real_arr(ic,i_power)        = power(ic)
+    args_real_arr(ic,i_delta_tv_sub) = delta_tv_sub(ic)
   end do
 
   ! Set two initial guesses to bracket the root as closely as possible
   ! (subroutine declared at the bottom of this source file)
   call solve_det_init_guesses( n_points, x_edge, frac,                         &
-                               mean_buoy, core_buoy, power, delta_tv_k,        &
+                               mean_buoy, core_buoy, power, delta_tv_sub,      &
                                x_edge_a, resid_a, x_edge_b, resid_b )
 
   ! Call  Brent-Dekker routine to converge on implicit solution
@@ -266,10 +266,10 @@ else  ! ( nc == n_points )
 
   do ic2 = 1, nc
     ic = index_ic(ic2)
-    args_real_arr(ic2,i_mean_buoy)  = mean_buoy(ic)
-    args_real_arr(ic2,i_core_buoy)  = core_buoy(ic)
-    args_real_arr(ic2,i_power)      = power(ic)
-    args_real_arr(ic2,i_delta_tv_k) = delta_tv_k(ic)
+    args_real_arr(ic2,i_mean_buoy)    = mean_buoy(ic)
+    args_real_arr(ic2,i_core_buoy)    = core_buoy(ic)
+    args_real_arr(ic2,i_power)        = power(ic)
+    args_real_arr(ic2,i_delta_tv_sub) = delta_tv_sub(ic)
 
     x_edge_cmpr(ic2) = x_edge(ic)
     frac_cmpr(ic2)   = frac(ic)
@@ -277,7 +277,7 @@ else  ! ( nc == n_points )
 
   call solve_det_init_guesses( nc, x_edge_cmpr, frac_cmpr,                     &
                args_real_arr(:,i_mean_buoy), args_real_arr(:,i_core_buoy),     &
-               args_real_arr(:,i_power), args_real_arr(:,i_delta_tv_k),        &
+               args_real_arr(:,i_power), args_real_arr(:,i_delta_tv_sub),      &
                x_edge_a, resid_a, x_edge_b, resid_b )
 
   call brent_dekker_solve( nc, n_real_sca, n_real_arr,                         &
@@ -311,7 +311,7 @@ end subroutine solve_detrainment
 ! Routine to set the initial guesses for x_edge that bracket the root
 ! as closely as possible
 subroutine solve_det_init_guesses( n_points, x_edge, frac,                     &
-                                   mean_buoy, core_buoy, power, delta_tv_k,    &
+                                   mean_buoy, core_buoy, power, delta_tv_sub,  &
                                    x_edge_a, resid_a, x_edge_b, resid_b )
 
 use comorph_constants_mod, only: real_cvprec, zero, one, two,                  &
@@ -334,7 +334,7 @@ real(kind=real_cvprec), intent(in) :: core_buoy(n_points)
 real(kind=real_cvprec), intent(in) :: power(n_points)
 ! Estimated change of environment virtual temperature at k
 ! due to compensating subsidence.
-real(kind=real_cvprec), intent(in) :: delta_tv_k(n_points)
+real(kind=real_cvprec), intent(in) :: delta_tv_sub(n_points)
 
 ! First guess and its error
 real(kind=real_cvprec), intent(out) :: x_edge_a(n_points)
@@ -374,14 +374,14 @@ end do
 ! Make this correspond to some underestimate of the detrainment...
 ! Choose the highest detrainment rate (smallest x_edge) of 3 underestimates:
 ! 1) The current input value of x_edge
-! 2) The explicit estimate of x_edge (ignoring the delta_tv_k term)
-! 3) The limit as mean_buoy => core_buoy (only the delta_tv_k term)
+! 2) The explicit estimate of x_edge (ignoring the delta_tv_sub term)
+! 3) The limit as mean_buoy => core_buoy (only the delta_tv_sub term)
 do ic = 1, n_points
   ! Initialise using input value of x_edge and frac
   x_edge_b(ic) = x_edge(ic)
   ! Set error = edge formula minus value of edge used
   resid_b(ic) = pp1_over_pp2(ic)                                               &
-              * ( core_buoy(ic) - frac(ic) * delta_tv_k(ic) )                  &
+              * ( core_buoy(ic) - frac(ic) * delta_tv_sub(ic) )                &
               / ( core_buoy(ic) - mean_buoy(ic) )                              &
               - x_edge(ic)
 end do
@@ -392,7 +392,7 @@ do ic = 1, n_points
   x_edge_2 = pp1_over_pp2(ic)                                                  &
            * core_buoy(ic) / ( core_buoy(ic) - mean_buoy(ic) ) + min_delta
   ! Guess 3) limit as mean_buoy => core_buoy
-  x_edge_3 = ( core_buoy(ic) / max( delta_tv_k(ic), sqrt_min_float )           &
+  x_edge_3 = ( core_buoy(ic) / max( delta_tv_sub(ic), sqrt_min_float )         &
              )**(one/(power(ic)+one))
   if ( x_edge_2 < x_edge(ic) .and. x_edge_2 <= x_edge_3 ) then
     ! Use guess 2
@@ -400,13 +400,13 @@ do ic = 1, n_points
     ! Set error = edge formula minus value of edge used
     resid_b(ic) = pp1_over_pp2(ic)                                             &
                 * ( core_buoy(ic) - ( x_edge_2**(power(ic)+one) )              &
-                                    * delta_tv_k(ic) )                         &
+                                    * delta_tv_sub(ic) )                       &
                 / ( core_buoy(ic) - mean_buoy(ic) )                            &
                 - x_edge_2
   else if ( x_edge_3 < x_edge(ic) ) then
     ! Use guess 3
     x_edge_b(ic) = x_edge_3
-    ! Set error; substituting frac = x_edge**(p+1) = core_buoy/delta_tv_k,
+    ! Set error; substituting frac = x_edge**(p+1) = core_buoy/delta_tv_sub,
     ! note that the numerator in the edge formula cancels out and goes to
     ! zero, so the error is just -x_edge.
     resid_b(ic) = -x_edge_3
