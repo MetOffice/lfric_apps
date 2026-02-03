@@ -165,20 +165,24 @@ CONTAINS
 
   SUBROUTINE wind_uv_divergence(prognostic_fields)
 
+    USE dg_matrix_vector_kernel_mod,    ONLY: dg_matrix_vector_kernel_type
+
     IMPLICIT NONE
+
 
     TYPE( field_collection_type ), POINTER, INTENT(IN) :: &
             prognostic_fields => null()
 
     ! wind u and v fields
-    TYPE( field_type ), POINTER :: u => null()
-    TYPE( field_type ), POINTER :: v => null()
+    TYPE( field_type ), POINTER :: wind_u => null()
+    TYPE( field_type ), POINTER :: wind_v => null()
 
     ! div operator for each direction (todo: do we only need one?)
     TYPE(r_tran_operator_type), POINTER :: u_div_op, v_div_op
 
     ! result u and v divergence fields
     TYPE(r_tran_field_type) :: u_div, v_div
+!    TYPE(field_type) :: u_div, v_div
 
 
     ! requested for this time step?
@@ -189,20 +193,20 @@ CONTAINS
 
 
     ! get the u and v wind fields
-    CALL prognostic_fields%get_field('u', u)
-    CALL prognostic_fields%get_field('v', v)
+    CALL prognostic_fields%get_field('u', wind_u)
+    CALL prognostic_fields%get_field('v', wind_v)
 
     ! get and apply the horizontal div operator for this mesh, for u
     u_div_op => get_directional_im3_div_r_tran(u%get_mesh_id(), direction_h)
-    CALL invoke(dg_matrix_vector_kernel_type(u_div, wind_u, div_op))
+    CALL invoke(dg_matrix_vector_kernel_type(u_div, wind_u, u_div_op))
 
     ! and for v
     v_div_op => get_directional_im3_div_r_tran(v%get_mesh_id(), direction_h)
-    CALL invoke(dg_matrix_vector_kernel_type(v_div, wind_v, div_op))
+    CALL invoke(dg_matrix_vector_kernel_type(v_div, wind_v, v_div_op))
 
     ! add v to u and save it(?)
     CALL invoke(inc_X_plus_Y(u_div, v_div))
-    u_div%write_field()
+    CALL u_div%write_field()
 
 
   END SUBROUTINE wind_uv_divergence
