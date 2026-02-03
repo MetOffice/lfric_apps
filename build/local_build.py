@@ -17,8 +17,9 @@ import sys
 import subprocess
 import argparse
 import yaml
+import logging
 from pathlib import Path
-from extract.get_git_sources import get_source
+from extract.get_git_sources import clone_and_merge
 
 
 def subprocess_run(command):
@@ -192,6 +193,8 @@ def main():
     )
     args = parser.parse_args()
 
+    logging.basicConfig(level=logging.INFO)
+
     # If using mirrors, set environment variable for science extract step
     if args.mirrors:
         os.environ["USE_MIRRORS"] = args.mirror_loc
@@ -219,15 +222,11 @@ def main():
     else:
         core_source = {"source": args.core_source, "ref": ""}
 
-    # Clone/Sync the lfric core source
-    get_source(
-        core_source["source"],
-        core_source["ref"],
-        args.working_dir / "scratch" / "lfric_core",
-        "lfric_core",
-        args.mirrors,
-        args.mirror_loc,
-    )
+    if not isinstance(core_source, list):
+        core_source = [core_source]
+
+    core_loc = args.working_dir / "scratch" / "lfric_core"
+    clone_and_merge("lfric_core", core_source, core_loc, args.mirrors, args.mirror_loc)
 
     # Build the makefile
     build_makefile(
