@@ -798,9 +798,9 @@ integer ::                                                                     &
 
 
 integer ::                                                                     &
- pdims_omp_block, pdims_seg_block,                                                         &
+ pdims_omp_block, pdims_seg_block,                                             &
                   ! for pdims open-mp blocking
- tdims_omp_block, tdims_seg_block,                                                         &
+ tdims_omp_block, tdims_seg_block,                                             &
                   ! for tdims open mp blocking
  ii,                                                                           &
                   ! for indexing over open-mp block
@@ -886,7 +886,6 @@ if (BL_diag%l_oblen) then
 end if
 
 ! Ustar
-  !do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_ustar) then
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
@@ -1493,7 +1492,6 @@ end if
 !       of importance mainly at sea-points, to avoid complications
 !       with coastal tiling, the scheme operates only at points
 !       where the land fraction is below 0.5.
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL DEFAULT(SHARED) private(i, k, ii, ntop, z_scale)
 
 !$OMP do SCHEDULE(STATIC)
@@ -1591,7 +1589,6 @@ else if (idyndiag == DynDiag_Ribased ) then
   ! As DynDiag_ZL_CuOnly but also allow ZH(Ri) to overrule the
   ! Cumulus diagnosis
   !------------------------------------------------------------
-    !do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     topbl(i,j)           = .false.
@@ -1660,8 +1657,6 @@ else if (idyndiag == DynDiag_Ribased ) then
 !$OMP end do
 
   else  ! old version: not good to set ntml=ntop for small zh/L
-
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
 
@@ -1702,7 +1697,6 @@ end if  ! tests on iDynDiag
 ! Set NTML_NL to NTML as passed in from initial diagnosis routine
 !-----------------------------------------------------------------------
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do                                                              &
 !$OMP SCHEDULE(STATIC)                                                         &
 !$OMP DEFAULT(none)                                                            &
@@ -1765,7 +1759,6 @@ do k = 2, bl_levels
 end do
 !$OMP end do NOWAIT
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   ft_nt(i,j,1)  = zero
@@ -1786,7 +1779,6 @@ end do
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL DEFAULT(none)                                                  &
 !$OMP  SHARED( j, i_wt, bl_levels, pdims, wtrac_bl) private( i, k)
 !$OMP  do SCHEDULE(STATIC)
@@ -1799,7 +1791,6 @@ if (l_wtrac) then
     end do
 !$OMP end do
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP  do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       wtrac_bl(i_wt)%fq_nt(i,j,1)    = zero
@@ -1850,7 +1841,6 @@ else   ! not NON_LOCAL_BL
        ! Set all variables from the non-local scheme to zero or "off"
        !  - reset all fluxes and K's arising from the non-local scheme
        !-------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL DEFAULT(none) private(i,ient)                                   &
 !$OMP SHARED(j,pdims,unstable,fb_surf,cumulus,l_shallow,sml_disc_inv,ntpar,    &
 !$OMP        ntml_nl,zhnl,grad_t_adj,grad_q_adj,dsc,dsc_disc_inv,ntdsc,nbdsc,  &
@@ -1885,7 +1875,6 @@ else   ! not NON_LOCAL_BL
  ! end do
 !$OMP end do NOWAIT
   do ient = 1, 3
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 
     do i = pdims%i_start, pdims%i_end
@@ -1902,7 +1891,6 @@ else   ! not NON_LOCAL_BL
 !$OMP end PARALLEL
 end if  ! test on NON_LOCAL_BL
 
-!do j = pdims%j_start, pdims%j_end
 ! default values
 !$OMP PARALLEL do                                                              &
 !$OMP SCHEDULE(STATIC)                                                         &
@@ -1931,7 +1919,6 @@ if (blending_option == blend_cth_shcu_only) then
   end do
 !$OMP end do
 
-!do j = pdims%j_start, pdims%j_end
   do k = 3, bl_levels-1
 !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
@@ -2081,7 +2068,6 @@ do k = 2, bl_levels
 end do
 !$OMP end do NOWAIT
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
     !----------------------------------------------------------
@@ -2123,7 +2109,6 @@ call kmkh (                                                                    &
    rhokm,rhokh,rhokmz,rhokhz,rhokm_top,rhokh_top,tke_loc                       &
    )
 
-!do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_weight1d) then
 !$OMP PARALLEL do                                                              &
 !$OMP SCHEDULE(STATIC)                                                         &
@@ -2139,7 +2124,6 @@ if (BL_diag%l_weight1d) then
 end if
 
 
-!do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_rhokm) then
 !$OMP PARALLEL do                                                              &
 !$OMP SCHEDULE(STATIC)                                                         &
@@ -2154,7 +2138,6 @@ if (BL_diag%l_rhokm) then
 !$OMP end PARALLEL do
 end if
 
-!do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_rhokh) then
 !$OMP PARALLEL do                                                              &
 !$OMP SCHEDULE(STATIC)                                                         &
@@ -2181,7 +2164,6 @@ if (BL_diag%l_tke) then
     ! BL_diag%tke currently contains (the reciprocal of) the non-local
     ! (SML and DSC) mixed layer timescale, calculated in excf_nl
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
 !$OMP  SHARED(j, BL_diag, rho_wet_tq, rhokm, dbdz, bl_levels, pdims)           &
 !$OMP  private(i, k, recip_time_sbl, recip_time_cbl)
@@ -2203,7 +2185,6 @@ if (BL_diag%l_tke) then
   else if (var_diags_opt == split_tke_and_inv) then
     ! Combine the, separately calculated, local and non-local TKE diagnostics
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
 !$OMP  SHARED(j, BL_diag, tke_nl, tke_loc, rho_wet_tq, weight_1dbl,            &
 !$OMP         tke_diag_fac, bl_levels, pdims)                                  &
@@ -2234,7 +2215,6 @@ if (BL_diag%l_tke) then
   end if  ! var_diags_opt
 
 
-!do j = pdims%j_start, pdims%j_end
   if ( i_bm_ez_opt == i_bm_ez_entpar ) then
     ! Calculate mixing-length to pass to bimodal cloud scheme,
     ! using Km and TKE.
@@ -2263,7 +2243,6 @@ if (BL_diag%l_tke) then
     ! increment ntml/ntdsc due to the inversion rise or fall over the
     ! current timestep, but doesn't increment zhnl/zhsc to keep it consistent.
     ! We need to check for this to get sensible interpolation weights...
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       if ( sml_disc_inv(i,j) > 0 .and. ntml_nl(i,j) > 1 ) then
@@ -2287,7 +2266,6 @@ if (BL_diag%l_tke) then
     end do
 !$OMP end do NOWAIT
     ! Set values above bl_levels
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do k = bl_levels, tdims%k_end
       do i = pdims%i_start, pdims%i_end
@@ -2321,7 +2299,6 @@ if (BL_diag%l_tke) then
 
     if (var_diags_opt == original_vars) then
       ! Original version: w_var = TKE
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
       do k = 2, bl_levels
         do i = pdims%i_start, pdims%i_end
@@ -2333,7 +2310,6 @@ if (BL_diag%l_tke) then
 !$OMP end do
     else if (var_diags_opt == split_tke_and_inv) then
       ! Improved version: w_var = 2/3 TKE
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
       do k = 2, bl_levels
         do i = pdims%i_start, pdims%i_end
@@ -2351,8 +2327,7 @@ if (BL_diag%l_tke) then
   if (var_diags_opt == original_vars) then
     ! at this point, BL_diag%tke really contains 1.5*sigma_w^2. To make it look
     ! a bit more like TKE near the surface, we will keep it constant below
-    ! the max of rhokm_surf
-        !do j = pdims%j_start, pdims%j_end
+    ! the max of rhokm_surf 
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
 !$OMP  SHARED( j, pdims, rhokmz, BL_diag ) private(i, k, kmax )
     do i = pdims%i_start, pdims%i_end
@@ -2367,7 +2342,6 @@ if (BL_diag%l_tke) then
     ! a bit more like TKE near the surface, we will keep it constant below
     ! the max of rhokm_surf (here we find the first local maximum in case there
     ! is a larger rhokmz in a resolved inversion
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                              &
 !$OMP  SHARED( j, pdims, bl_levels, rhokmz, BL_diag, tke_loc, tke_nl )         &
 !$OMP  private(i, k, kp)
@@ -2417,7 +2391,6 @@ if (blending_option /= off .and. l_blend_isotropic) then
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels-1
     if ( k > 1 ) then
-      !do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
         if (.not. ( blending_option == blend_except_cu .and.                 &
               cumulus(i,j) .and. ntdsc(i,j) == 0)) then
@@ -2432,7 +2405,6 @@ if (blending_option /= off .and. l_blend_isotropic) then
         end if
       end do
     else
-      !do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
         if (.not. ( blending_option == blend_except_cu .and.                 &
                 cumulus(i,j) .and. ntdsc(i,j) == 0)) then
@@ -2450,7 +2422,6 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
 
   ! visc_m,h on in are just S and visc_m,h(k) are co-located with w(k)
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do SCHEDULE(STATIC)                                             &
 !$OMP DEFAULT(none)                                                            &
 !$OMP private(k,i)                                                             &
@@ -2461,7 +2432,6 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
       visc_m(i,j,k) = visc_m(i,j,k)*rneutml_sq(i,j,k)
       visc_h(i,j,k) = visc_h(i,j,k)*rneutml_sq(i,j,k)
     end do
-!do j = pdims%j_start, pdims%j_end
     if ( k < bl_levels ) then
 
       do i = pdims%i_start, pdims%i_end
@@ -2486,8 +2456,7 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
     allocate (visc_h_rho(pdims%i_start:pdims%i_end,                            &
                          pdims%j_start:pdims%j_end, bl_levels))
 
-
-!do j = pdims%j_start, pdims%j_end                
+        
 !$OMP PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                               &
 !$OMP SHARED(j,bl_levels, pdims, r_theta_levels, r_rho_levels, visc_h_rho,     &
 !$OMP        visc_h, turb_startlev_vert, turb_endlev_vert, rhokm, visc_m,      &
@@ -2512,13 +2481,11 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
 
       if (k >= turb_startlev_vert .and.                                        &
           k <= turb_endlev_vert) then
-        !do j = pdims%j_start, pdims%j_end
         do i = pdims%i_start, pdims%i_end
           rhokm(i,j,k) = visc_m(i,j,k-1)*rho_wet_tq(i,j,k-1)
           rhokh(i,j,k) = visc_h_rho(i,j,k)*rho_mix(i,j,k)
         end do
       else
-        !do j = pdims%j_start, pdims%j_end
         do i = pdims%i_start, pdims%i_end
           rhokm(i,j,k) = zero
           rhokh(i,j,k) = zero
@@ -2559,7 +2526,6 @@ end if
 
 !$OMP PARALLEL DEFAULT(SHARED) private(i, k)
 
-!do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_zht) then
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
@@ -2571,7 +2537,6 @@ if (BL_diag%l_zht) then
 !$OMP end do NOWAIT
 end if
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   ! Max height of BL turbulent mixing
@@ -2601,7 +2566,6 @@ do i = pdims%i_start, pdims%i_end
 end do
 !$OMP end do NOWAIT
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if (dynamic_bl_diag(i,j)) then
@@ -2663,7 +2627,6 @@ call ex_flux_tq (                                                              &
     ftl,fqw,wtrac_bl                                                           &
     )
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do SCHEDULE(STATIC) DEFAULT(none) private(k, i)              &
 !$OMP SHARED(j, bl_levels, pdims, f_ngstress, weight_1dbl)
 do k = 2, bl_levels
@@ -2688,7 +2651,6 @@ end do
 !$OMP        ntml_save,shallowc)
 
 !$OMP do SCHEDULE(STATIC)
-!do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     uw0(i,j) = -rhokm(i,j,1) *                                                 &
                       ( u_p(i,j,1) - u_0_px(i,j) )
@@ -2697,7 +2659,6 @@ end do
   end do
 !$OMP end do NOWAIT
 if (formdrag ==  explicit_stress) then
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     uw0(i,j) = uw0(i,j) - tau_fd_x(i,j,1)
@@ -2715,7 +2676,6 @@ end if
 
 if (non_local_bl == on) then
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( cumulus(i,j) ) then
@@ -2730,7 +2690,6 @@ if (non_local_bl == on) then
 
 else ! non-local scheme not being used so always use local scheme values
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ntml(i,j) = ntml_local(i,j)
@@ -2739,7 +2698,6 @@ else ! non-local scheme not being used so always use local scheme values
 
 end if
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   wstar(i,j) = zero
@@ -2797,7 +2755,6 @@ if (l_param_conv) then
   ! if cumulus is still true in order to trigger convection
   ! at the correct level
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( .not. cumulus(i,j) ) l_shallow(i,j) = .false.
@@ -2811,7 +2768,6 @@ end if    ! (l_param_conv)
 !                                        0.0 if .not. CUMULUS
 !-----------------------------------------------------------------------
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   if ( cumulus(i,j) .and. l_shallow(i,j) ) then
