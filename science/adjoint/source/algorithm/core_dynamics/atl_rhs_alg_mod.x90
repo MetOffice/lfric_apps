@@ -130,7 +130,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
     type(field_type) :: dummy_w3
     integer(tik)     :: id
 
-    if ( LPROF ) call start_timing( id, 'atl_rhs_alg' )
+    if ( LPROF ) call start_timing( id, 'atl_dynamics.rhs_alg' )
 
     mesh => base_state(igh_u)%get_mesh()
 
@@ -299,7 +299,7 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
                  setval_c( rhs(igh_t), 0.0_r_def ) )
     ! End of adjoint
 
-    if ( LPROF ) call stop_timing( id, 'atl_rhs_alg' )
+    if ( LPROF ) call stop_timing( id, 'atl_dynamics.rhs_alg' )
 
   end subroutine atl_rhs_alg
 

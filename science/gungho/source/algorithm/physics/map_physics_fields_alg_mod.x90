@@ -89,7 +89,7 @@ contains
     real(kind=r_def)            :: l2
     integer(tik)                :: id
 
-    if ( LPROF ) call start_timing( id, 'map_physics_fields' )
+    if ( LPROF ) call start_timing( id, 'mappings.map_physics_fields' )
     mesh => u%get_mesh()
 
     call derived_fields%get_field('theta_in_w3', theta_in_w3)
@@ -174,7 +174,7 @@ contains
                   setval_X(u_in_w3_star, u_in_w3),                            &
                   setval_X(v_in_w3_star, v_in_w3) )
     end if
-    if ( LPROF ) call stop_timing( id, 'map_physics_fields' )
+    if ( LPROF ) call stop_timing( id, 'mappings.map_physics_fields' )
 
   end subroutine map_physics_fields_alg
 

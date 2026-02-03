@@ -60,6 +60,17 @@
 {% endif %}
 {% do LOG.info("Host EX: " + site_vars.host_ex) %}
 
+{# Set node type target #}
+{% if USE_GENOA is defined and USE_GENOA %}
+    {% do site_vars.update({"node_type": "genoa"}) %}
+    {% do site_vars.update({"node_cores": 192 }) %}
+    {% do site_vars.update({"node_mem": 720}) %}
+{% else %}
+    {% do site_vars.update({"node_type": "milan"}) %}
+    {% do site_vars.update({"node_cores": 128 }) %}
+    {% do site_vars.update({"node_mem": 238}) %}
+{% endif %}
+
 {% do site_vars.update({"lfricinputs_kgo_base": "$UMDIR/standard_jobs/lfricinputs/kgo"}) %}
 
 {# Set fixed release version the KGO corresponds to #}

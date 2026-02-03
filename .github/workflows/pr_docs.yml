@@ -4,12 +4,15 @@
 #  under which the code may be used.
 # ------------------------------------------------------------------------------
 
-name: pr
-run-name: Pull Request ${{github.event.pull_request.number}}
+name: Docs Build for Pull Requests
+run-name: Docs build PR${{github.event.pull_request.number}}
 on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'documentation/**'
+      - '.github/workflows/**'       
 
 concurrency:
   group: pr-${{github.ref}}-${{github.event.pull_request.number || github.run_number}}

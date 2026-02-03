@@ -52,7 +52,7 @@ contains
     real(r_def)      :: dt
     integer(tik)  :: id
 
-    if ( LPROF ) call start_timing( id, 'ageofair_advection_alg' )
+    if ( LPROF ) call start_timing( id, 'dynamics.ageofair' )
 
     dt = real(clock%get_seconds_per_step(), r_def)
 
@@ -63,7 +63,7 @@ contains
                  ! Set levels nearest the surface to be zero in ageofair field
                  ageofair_kernel_type(ageofair,ageofair_reset_level) )
 
-    if ( LPROF ) call stop_timing( id, 'ageofair_advection_alg' )
+    if ( LPROF ) call stop_timing( id, 'dynamics.ageofair' )
 
   end subroutine ageofair_update
 
