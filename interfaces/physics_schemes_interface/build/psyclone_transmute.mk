@@ -47,7 +47,8 @@ endif
 #
 psyclone: $(SOURCE_F_FILES)
 
-# PSyclone files back into .f90 files.
+# PSyclone files back into f90 files.
+
 # Where an optimisation script exists for a specific file, use it.
 #
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/%.py
@@ -76,14 +77,5 @@ $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90 $(OPTIMISATION_PATH)/$(DSL)/global.py
 	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath $(OPTIMISATION_PATH)/$(DSL)):$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
 			-l all \
 			-s $(OPTIMISATION_PATH_PSY)/$(DSL)/global.py \
-			-o $(SOURCE_DIR)/$*.f90 \
-			$<
-
-# Where no optimisation script exists, don't use it.
-#
-$(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90
-	echo PSyclone pass with no optimisation applied, OMP and Clauses removed on $<
-	PYTHONPATH=$(LFRIC_BUILD)/psyclone:$(abspath ../../interfaces/physics_schemes_interface/build):$$PYTHONPATH psyclone \
-			-l all \
 			-o $(SOURCE_DIR)/$*.f90 \
 			$<

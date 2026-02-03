@@ -4,7 +4,11 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Module containing adjoint test for adj_poly2d_recon_lookup_kernel
+
 module adjt_poly2d_recon_lookup_alg_mod
+
+    use adj_trans_lookup_cache_mod,           only : adj_trans_lookup_cache_type
+    use integer_field_mod,                    only : integer_field_type
     use r_tran_field_mod,                     only : r_tran_field_type
     use function_space_mod,                   only : function_space_type
     use mesh_mod,                             only : mesh_type
@@ -20,6 +24,7 @@ module adjt_poly2d_recon_lookup_alg_mod
                                                      log_scratch_space
     use transport_config_mod,                 only : fv_horizontal_order
     use transport_constants_mod,              only : get_hori_wt_mol_coeffs
+    use adj_lookup_table_mod,                 only : adj_lookup_table_type
 
   implicit none
 
@@ -32,20 +37,20 @@ module adjt_poly2d_recon_lookup_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
-  !> @param[in]  mesh         The model mesh
-  !> @param[in]  fspace_enum  The function space to test.
-  subroutine adjt_poly2d_recon_lookup_alg( mesh, fspace_enum )
+  !> @param[in]  mesh                    The model mesh
+  !> @param[in]  fspace_enum             The function space to test
+  !> @param[in]  adj_lookup_table_cache  The lookup table cache
+  subroutine adjt_poly2d_recon_lookup_alg( mesh, fspace_enum, adj_lookup_table_cache )
     use poly2d_reconstruction_kernel_mod,     only : poly2d_reconstruction_kernel_type
     use invoke_adj_poly2d_recon_lookup_mod,   only : invoke_adj_poly2d_recon_lookup
-    use adj_lookup_table_mod,                 only : adj_lookup_table_type
-    use adj_lookup_table_generators_alg_mod,  only : create_lookup_poly2d
-    use integer_field_mod,                    only : integer_field_type
 
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer, intent(in) :: mesh
-    integer(kind=i_def),      intent(in) :: fspace_enum
+    type(mesh_type),          pointer, intent(in) :: mesh
+    integer(kind=i_def),               intent(in) :: fspace_enum
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
+
 
     ! Internal arguments for kernels
     type(r_tran_field_type)             :: reconstruction
@@ -64,11 +69,11 @@ module adjt_poly2d_recon_lookup_alg_mod
     type(r_tran_field_type)             :: tracer_input
 
     ! Lookup table variables
-    type(adj_lookup_table_type)         :: lookup
-    type(integer_field_type),   pointer :: lookup_field
-    type(integer_field_type),   pointer :: num_sets_field
-    integer(kind=i_def)                 :: nsets
-    integer(kind=i_def)                 :: nindices
+    type(adj_lookup_table_type), pointer :: lookup
+    type(integer_field_type),    pointer :: lookup_field
+    type(integer_field_type),    pointer :: num_sets_field
+    integer(kind=i_def)                  :: nsets
+    integer(kind=i_def)                  :: nindices
 
     ! Inner product variables
     real(kind=r_def)                    :: reconstruction_inner_prod
@@ -79,7 +84,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     real(kind=r_def)                    :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_def)                    :: tracer_tracer_input_inner_prod
     real(kind=r_tran)                   :: inner2
-    real(kind=r_tran),        parameter :: eps = 1e-30_r_def
+    real(kind=r_tran),        parameter :: eps = 1.0e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_tran),        parameter :: overall_tolerance = 1500.0_r_tran
@@ -87,7 +92,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     real(kind=r_tran)                   :: relative_diff
 
     nullify(coeff, vector_space_wt_md_ptr, vector_space_wtheta_ptr, &
-            lookup_field, num_sets_field)
+            lookup, lookup_field, num_sets_field)
 
     mesh_id = mesh%get_id()
     if (mod(fv_horizontal_order, 2) == 0) then
@@ -146,8 +151,7 @@ module adjt_poly2d_recon_lookup_alg_mod
     reconstruction_reconstruction_input_inner_prod = 0.0_r_def
     tracer_tracer_input_inner_prod = 0.0_r_def
 
-    call create_lookup_poly2d( lookup, reconstruction, tracer, coeff, &
-                               stencil_size, stencil_extent )
+    lookup => adj_lookup_table_cache%get_lookup_poly2d(fspace_enum)
     lookup_field => lookup%get_lookup_field()
     num_sets_field => lookup%get_set_count_field()
     nindices = lookup%get_nindices()

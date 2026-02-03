@@ -10,11 +10,16 @@ loops. The option which matches the file being worked on can be pulled in
 and referenced. This reduces the number of files needed
 '''
 
+# Needs to be lifted and likely set by the build system longer term.
+# The filename passed to PSyclone, this is the pre-processed FTN source.
+FILE_EXTEN = ".xu90"
+
 # Basic initialisation, will be used by global script
 SCRIPT_OPTIONS_DICT = {}
 
 # Kernels
-SCRIPT_OPTIONS_DICT["mphys_kernel_mod.F90"] = {
+SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
+
     "options": {
         "node-type-check": False,
         "ignore_dependencies_for": [

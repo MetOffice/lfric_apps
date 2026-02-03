@@ -143,9 +143,9 @@ contains
     type( field_type ), pointer :: cloud_drop_no_conc_aero => null()
     type( field_type ), target  :: cf_bulk_coarse, cf_liquid_coarse, rh_crit_coarse, cloud_drop_no_conc_coarse
     type( field_type )          :: mr_ice
-    integer(tik)                :: id_alg, id_xios
+    integer(tik)                :: id_alg, id_diags
 
-    if ( LPROF ) call start_timing( id_alg, 'glomap_aerosol_alg' )
+    if ( LPROF ) call start_timing( id_alg, 'aerosol.glomap_clim' )
 
     ! Unpack fields from aerosol_fields
     call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)
@@ -321,10 +321,10 @@ contains
     if ( coarse_rad_aerosol ) then
       call map_scalar_intermesh(cloud_drop_no_conc, cloud_drop_no_conc_aero, lowest_order_flag=lowest_order_aero_flag)
     end if
-    if ( LPROF ) call stop_timing( id_alg, 'glomap_aerosol_alg' )
+    if ( LPROF ) call stop_timing( id_alg, 'aerosol.glomap_clim' )
 
     if ( write_diag .and. use_xios_io ) then
-      if ( LPROF ) call start_timing( id_xios, 'glomap_aerosol_xios' )
+      if ( LPROF ) call start_timing( id_diags, 'diags.glomap_clim' )
 
       ! Diagnostic output
       call n_nuc_sol%write_field('aerosol__n_nuc_sol')
@@ -378,7 +378,7 @@ contains
         call cloud_drop_no_conc_aero%write_field('aerosol__cloud_drop_no_conc')
       end if
 
-      if ( LPROF ) call stop_timing( id_xios, 'glomap_aerosol_xios' )
+      if ( LPROF ) call stop_timing( id_diags, 'diags.glomap_clim' )
     end if
 
   end subroutine glomap_aerosol_alg

@@ -167,7 +167,7 @@ contains
     logical(kind=l_def)                :: lam_mesh
     integer(tik)                       :: id
 
-    if ( LPROF ) call start_timing( id, 'helmholtz_lhs' )
+    if ( LPROF ) call start_timing( id, 'pressure_solver.helmholtz_lhs' )
 
     select type (x)
     type is (r_solver_field_vector_type)
@@ -242,7 +242,6 @@ contains
           nullify( w3_mask, w2_mask )
         end if
     nullify( x_vec, y_vec )
-    if ( LPROF ) call stop_timing( id, 'helmholtz_lhs' )
 
       class default
 
@@ -258,6 +257,7 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
 
     end select
+    if ( LPROF ) call stop_timing( id, 'pressure_solver.helmholtz_lhs' )
 
   end subroutine apply_pressure_operator
 
