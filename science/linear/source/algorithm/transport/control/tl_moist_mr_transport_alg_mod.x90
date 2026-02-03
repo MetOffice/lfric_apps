@@ -10,11 +10,11 @@ module tl_moist_mr_transport_alg_mod
   use constants_mod,                  only: i_def, r_def
   use sci_enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
   use field_mod,                      only: field_type
-  use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event,       &
                                             LOG_LEVEL_ERROR
   use mr_indices_mod,                 only: nummr
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
   use tl_transport_controller_mod,    only: tl_transport_controller_type
   use transport_enumerated_types_mod, only: equation_form_advective, &
                                             equation_form_conservative
@@ -61,8 +61,9 @@ contains
 
     ! Internal variables
     integer(kind=i_def) :: imr
+    integer(tik)        :: id
 
-    if ( subroutine_timers ) call timer('tl moist mixing ratio transport')
+    if ( LPROF ) call start_timing( id, 'tl_moist_mixing_ratio_transport' )
 
     ! Choose form of transport equation
     select case ( transport_metadata%get_equation_form() )
@@ -106,7 +107,7 @@ contains
       call invoke( setval_X(mr_out(imr), mr_in(imr)) )
     end do
 
-    if ( subroutine_timers ) call timer('tl moist mixing ratio transport')
+    if ( LPROF ) call stop_timing( id, 'tl_moist_mixing_ratio_transport' )
 
   end subroutine tl_moist_mr_transport_alg
 
