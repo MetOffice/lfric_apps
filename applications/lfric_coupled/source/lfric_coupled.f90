@@ -16,7 +16,6 @@
 
 program lfric_coupled
 
-  use check_config_api_mod,   only : check_config_api
   use cli_mod,                only : parse_command_line
   use coupler_mod,            only : set_cpl_name
   use driver_collections_mod, only : init_collections, final_collections

@@ -13,7 +13,6 @@
 program algorithm_test
 
   use add_mesh_map_mod,        only: assign_mesh_maps
-  use check_config_api_mod,    only: check_config_api
   use configuration_mod,       only: final_configuration, &
                                      read_configuration
   use config_mod,              only: config_type
@@ -152,7 +151,6 @@ program algorithm_test
   call read_configuration( filename,                    &
                            configuration=configuration, &
                            config=config )
-  call check_config_api( configuration, config )
 
   call init_collections()
 

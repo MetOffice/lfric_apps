@@ -43,7 +43,6 @@ module jedi_lfric_linear_modeldb_driver_mod
                                            adjoint_step,             &
                                            finalise_adjoint_model
   use atl_si_timestep_alg_mod,      only : atl_si_timestep_type
-  use check_config_api_mod,         only : check_config_api
   use constants_mod,                only : r_def, l_def, str_def
   use driver_config_mod,            only : init_config
   use driver_time_mod,              only : init_time, final_time
@@ -152,7 +151,6 @@ contains
     ! Initialise infrastructure
     call init_time( modeldb )
     call initialise_infrastructure( io_context_name, modeldb )
-    call check_config_api( modeldb%configuration, modeldb%config )
 
     ! Add a place to store time axes in modeldb
     call modeldb%values%add_key_value('model_axes', model_axes)

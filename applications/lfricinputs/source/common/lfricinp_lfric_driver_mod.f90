@@ -5,7 +5,6 @@
 ! *****************************COPYRIGHT*******************************
 module lfricinp_lfric_driver_mod
 
-use check_config_api_mod,       only: check_config_api
 use constants_mod,              only: i_def, r_def, l_def, r_second, str_def
 use log_mod,                    only: log_event, log_scratch_space,            &
                                       LOG_LEVEL_INFO, LOG_LEVEL_ERROR,         &
@@ -175,8 +174,6 @@ call load_configuration( lfric_nl_fname, required_lfric_namelists, &
 
 ! Initialise logging system
 call init_logger( comm, program_name )
-
-call check_config_api( configuration, config )
 
 call init_collections()
 

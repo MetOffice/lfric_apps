@@ -22,7 +22,6 @@
 !>
 module jedi_lfric_nl_modeldb_driver_mod
 
-  use check_config_api_mod,         only : check_config_api
   use constants_mod,                only : l_def
   use driver_config_mod,            only : init_config
   use driver_time_mod,              only : init_time, final_time
@@ -99,8 +98,6 @@ contains
 
     ! 4. Call the gungho driver initialise
     call gh_initialise(modeldb_name, modeldb)
-
-    call check_config_api( modeldb%configuration, modeldb%config )
 
   end subroutine initialise_modeldb
 

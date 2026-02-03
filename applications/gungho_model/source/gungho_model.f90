@@ -15,7 +15,6 @@
 
 program gungho_model
 
-  use check_config_api_mod,   only: check_config_api
   use cli_mod,                only: parse_command_line
   use derived_config_mod,     only: l_esm_couple
   use driver_collections_mod, only: init_collections, final_collections

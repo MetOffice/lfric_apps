@@ -16,7 +16,6 @@
 
 program jules
 
-  use check_config_api_mod,   only: check_config_api
   use cli_mod,                only: parse_command_line
   use driver_collections_mod, only: init_collections, final_collections
   use driver_comm_mod,        only: init_comm, final_comm

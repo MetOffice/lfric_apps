@@ -8,7 +8,6 @@
 !> @details Runs a GungHo model with a custom step method
 program ngarch
 
-  use check_config_api_mod,        only : check_config_api
   use cli_mod,                     only : parse_command_line
   use driver_collections_mod,      only : init_collections, final_collections
   use constants_mod,               only : precision_real
@@ -70,7 +69,6 @@ program ngarch
                     ngarch_required_namelists,           &
                     configuration=modeldb%configuration, &
                     config=modeldb%config )
-  call check_config_api( modeldb%configuration, modeldb%config )
 
   deallocate( filename )
 

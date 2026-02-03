@@ -66,8 +66,6 @@ program cma_test
   use sci_chi_transform_mod,          only : init_chi_transforms, &
                                              final_chi_transforms
 
-  use check_config_api_mod, only: check_config_api
-
   implicit none
 
   ! MPI communicator
@@ -237,8 +235,6 @@ program cma_test
 
   call configuration%initialise( program_name, table_len=10 )
   call config%initialise( program_name )
-
-  call check_config_api( configuration, config )
 
   deallocate(program_name)
   deallocate(test_flag)

@@ -10,7 +10,6 @@
 !
 module jedi_run_mod
 
-   use check_config_api_mod,   only : check_config_api
   use config_mod,              only : config_type
   use constants_mod,           only : i_def, l_def, str_def
   use namelist_collection_mod, only : namelist_collection_type

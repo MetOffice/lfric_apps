@@ -15,7 +15,6 @@
 program lfric2lfric
 
   use cli_mod,                only: parse_command_line
-  use check_config_api_mod,   only: check_config_api
   use constants_mod,          only: precision_real
   use driver_collections_mod, only: init_collections, final_collections
   use driver_config_mod,      only: init_config, final_config
@@ -74,7 +73,6 @@ program lfric2lfric
                     config=modeldb%config )
 
   call init_logger( modeldb%mpi%get_comm(), program_name )
-  call check_config_api( modeldb%configuration, modeldb%config )
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )

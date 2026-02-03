@@ -11,7 +11,6 @@
 
 program gravity_wave
 
-  use check_config_api_mod,    only: check_config_api
   use cli_mod,                 only: parse_command_line
   use driver_modeldb_mod,      only: modeldb_type
   use driver_collections_mod,  only: init_collections, final_collections
@@ -47,7 +46,6 @@ program gravity_wave
   call init_config( filename, gravity_wave_required_namelists, &
                     configuration=modeldb%configuration,       &
                     config=modeldb%config )
-  call check_config_api( modeldb%configuration, modeldb%config )
 
   deallocate( filename )
 

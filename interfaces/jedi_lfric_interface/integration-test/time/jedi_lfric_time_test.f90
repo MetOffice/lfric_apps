@@ -10,7 +10,6 @@
 !!         jedi_lfric_time_test.py.
 program jedi_lfric_time_test
 
-  use check_config_api_mod,            only : check_config_api
   use config_mod,                      only : config_type
   use configuration_mod,               only : final_configuration, &
                                               read_configuration
@@ -180,8 +179,6 @@ program jedi_lfric_time_test
   call read_configuration( filename,                    &
                            configuration=configuration, &
                            config=config )
-
-  call check_config_api( configuration, config )
 
   call test_jedi_interface_init()
 
