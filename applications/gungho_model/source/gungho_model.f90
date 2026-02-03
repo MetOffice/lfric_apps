@@ -24,7 +24,6 @@ program gungho_model
   use driver_counter_mod,     only: init_counters, final_counters
   use driver_log_mod,         only: init_logger, final_logger
   use driver_time_mod,        only: init_time, final_time
-  use driver_timer_mod,       only: init_timers, final_timers
   use gungho_mod,             only: gungho_required_namelists
   use gungho_driver_mod,      only: initialise, step, finalise
   use driver_modeldb_mod,     only: modeldb_type
@@ -33,14 +32,20 @@ program gungho_model
                                     log_level_info,  &
                                     log_level_trace, &
                                     log_scratch_space
+  use namelist_mod,           only: namelist_type
+  use timing_mod,             only: init_timing, final_timing
+  use io_config_mod,          only: timer_output_path
+
 
   implicit none
 
   ! Model run working data set
   type(modeldb_type) :: modeldb
 
-  character(*), parameter   :: application_name = "gungho_model"
-  character(:), allocatable :: filename
+  character(*), parameter      :: application_name = "gungho_model"
+  character(:), allocatable    :: filename
+  type(namelist_type), pointer :: io_nml
+  logical                      :: lsubroutine_timers
 
   call parse_command_line( filename )
 
@@ -75,10 +80,10 @@ program gungho_model
                     configuration=modeldb%configuration, &
                     config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), application_name )
-
-  call check_config_api( modeldb%configuration, modeldb%config )
-
-  call init_timers( application_name )
+  io_nml => modeldb%configuration%get_namelist('io')
+  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
+  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, application_name, timer_output_path )
+  nullify( io_nml )
   call init_collections()
   call init_time( modeldb )
   call init_counters( application_name )
@@ -107,7 +112,7 @@ program gungho_model
   call final_counters( application_name )
   call final_time( modeldb )
   call final_collections()
-  call final_timers( application_name )
+  call final_timing( application_name )
   call final_logger( application_name )
   call final_config()
   call final_comm( modeldb )

@@ -26,7 +26,6 @@ module wind_transport_alg_mod
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
   use sci_geometric_constants_mod,    only: get_coordinates, get_panel_id
-  use io_config_mod,                  only: subroutine_timers
   use log_mod,                        only: log_event,       &
                                             LOG_LEVEL_ERROR, &
                                             LOG_LEVEL_TRACE
@@ -35,7 +34,8 @@ module wind_transport_alg_mod
                                             get_project_zdot_to_w2
   use mesh_mod,                       only: mesh_type
   use operator_mod,                   only: operator_type
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
   use transport_config_mod,           only: broken_w2_projection
   use transport_constants_mod,        only: get_element_order_h_transport, &
                                             get_element_order_v_transport
@@ -102,8 +102,9 @@ contains
     type(function_space_type),  pointer :: w2_fs
     type(function_space_type),  pointer :: w2b_fs
     logical(kind=l_def)                 :: optimised_conversion
+    integer(tik)                        :: id, id_to, id_from
 
-    if ( subroutine_timers ) call timer('transport.wind')
+    if ( LPROF ) call start_timing( id, 'transport.wind' )
 
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
@@ -137,7 +138,7 @@ contains
         ! Split wind into components in W3
         ! -------------------------------------------------------------------- !
 
-        if ( subroutine_timers ) call timer('transport.wind_to_comps')
+        if ( LPROF ) call start_timing( id_to, 'transport.wind_to_comps' )
 
         do dir = 1,3
           call u_w3_n(dir)%initialise( w3_fs )
@@ -165,7 +166,7 @@ contains
         call log_field_minmax( LOG_LEVEL_TRACE, 'ydot', u_w3_n(2) )
         call log_field_minmax( LOG_LEVEL_TRACE, 'zdot', u_w3_n(3) )
 
-        if ( subroutine_timers ) call timer('transport.wind_to_comps')
+        if ( LPROF ) call stop_timing( id_to, 'transport.wind_to_comps' )
 
         ! -------------------------------------------------------------------- !
         ! Transport wind components in W3
@@ -182,7 +183,7 @@ contains
         ! Return from components to full wind field in W2
         ! -------------------------------------------------------------------- !
 
-        if ( subroutine_timers ) call timer('transport.wind_from_comps')
+        if ( LPROF ) call start_timing( id_from, 'transport.wind_from_comps' )
 
         project_xdot_to_w2 => get_project_xdot_to_w2(mesh%get_id())
         project_ydot_to_w2 => get_project_ydot_to_w2(mesh%get_id())
@@ -246,7 +247,7 @@ contains
                        enforce_bc_kernel_type(rhs_u) )
         end if
 
-        if ( subroutine_timers ) call timer('transport.wind_from_comps')
+        if ( LPROF ) call stop_timing( id_from, 'transport.wind_from_comps' )
 
       ! ---------------------------------------------------------------------- !
       ! Default form of transport equation
@@ -262,7 +263,7 @@ contains
 
     end if ! si_momentum_equation
 
-    if ( subroutine_timers ) call timer('transport.wind')
+    if ( LPROF ) call stop_timing( id, 'transport.wind' )
 
   end subroutine wind_transport_alg
 
