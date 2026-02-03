@@ -12,7 +12,7 @@ module jules_control_init_mod
   use jules_sea_seaice_config_mod,          only : nice_in => nice
 
   ! Other LFRic modules used
-  use constants_mod,        only : i_def
+  use constants_mod,        only : i_def, imdi
 
   implicit none
 
@@ -49,42 +49,53 @@ contains
   subroutine jules_control_init()
 
     ! LFRic namelists which have been read
-    use jules_surface_types_config_mod, only : npft_in => npft, &
-                                               nnvg_in => nnvg,     &
-                                               brd_leaf_in => brd_leaf, &
-                                               ndl_leaf_in => ndl_leaf, &
-                                               c3_grass_in => c3_grass, &
-                                               c4_grass_in => c4_grass, &
-                                               shrub_in => shrub,    &
-                                               urban_in => urban,    &
-                                               urban_canyon_in => urban_canyon,&
-                                               urban_roof_in => urban_roof,    &
-                                               lake_in => lake,     &
-                                               soil_in => soil,     &
-                                               ice_in => ice
+    use jules_model_environment_lfric_config_mod, only :                       &
+                              l_jules_parent_in => l_jules_parent,             &
+                              l_jules_parent_lfric
+    use jules_surface_types_config_mod, only :                                 &
+                              npft_in => npft,                                 &
+                              nnvg_in => nnvg,                                 &
+                              brd_leaf_in => brd_leaf,                         &
+                              ndl_leaf_in => ndl_leaf,                         &
+                              c3_grass_in => c3_grass,                         &
+                              c4_grass_in => c4_grass,                         &
+                              shrub_in => shrub,                               &
+                              urban_in => urban,                               &
+                              urban_canyon_in => urban_canyon,                 &
+                              urban_roof_in => urban_roof,                     &
+                              lake_in => lake,                                 &
+                              soil_in => soil,                                 &
+                              ice_in => ice
     use section_choice_config_mod, only : surface, surface_jules
 
     ! UM/JULES modules containing things that need setting
     use ancil_info, only: jules_dim_cs1 => dim_cs1, nsurft
-    use atm_step_local, only: co2_dim_len, co2_dim_row, &
-                              dim_cs1
+    use atm_step_local, only: co2_dim_len, co2_dim_row, dim_cs1
     use jules_sea_seaice_mod, only: nice, nice_use
     use jules_soil_mod, only: jules_sm_levels => sm_levels
-    use jules_surface_types_mod, only: npft, nnvg, ntype, brd_leaf, ndl_leaf, &
-                                       c3_grass, c4_grass, shrub, urban,      &
-                                       urban_canyon, urban_roof, lake,        &
+    use jules_surface_types_mod, only: npft, nnvg, ntype, brd_leaf, ndl_leaf,  &
+                                       c3_grass, c4_grass, shrub, urban,       &
+                                       urban_canyon, urban_roof, lake,         &
                                        soil, ice
     use jules_vegetation_mod, only: l_triffid
-    use jules_model_environment_mod, only: lsm_id, jules
+    use jules_model_environment_mod, only: lsm_id, jules,                      &
+        check_jules_model_environment
     use nlsizes_namelist_mod, only: ntiles, sm_levels
     use jules_surface_types_mod, only:                                         &
-                                                                              set_derived_variables_jules_surface_types,                             &
+        set_derived_variables_jules_surface_types,                             &
         print_nlist_jules_surface_types, check_jules_surface_types
     use land_tile_ids_mod, only: set_surface_type_ids
 
-    use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_INFO
+    use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_INFO,          &
+       LOG_LEVEL_ERROR
+
+    use section_choice_config_mod,  only: surface,            &
+                                          surface_jules
 
     implicit none
+
+    ! This allows l_jules_parent switch to remain private in JULES module
+    integer(kind=i_def) :: l_jules_parent_config = imdi
 
     call log_event( 'jules_control_init', LOG_LEVEL_INFO )
 
@@ -180,8 +191,25 @@ contains
     co2_dim_len = 1
     co2_dim_row = 1
 
-    ! Initialise LSM to be JULES (other options do exist; CABLE, Rivers-only)
-    lsm_id = jules
+    ! ----------------------------------------------------------------
+    ! JULES model environment settings
+    !   - contained in module jules_model_environment
+    ! ----------------------------------------------------------------
+
+    if (surface == surface_jules) then
+      ! Initialise LSM to be JULES (other options do exist; CABLE, Rivers-only)
+      lsm_id = jules
+      select case (l_jules_parent_in)
+      case(l_jules_parent_lfric)
+        l_jules_parent_config = 3
+      case default
+        write( log_scratch_space, '(A)' ) 'Parent model not set to LFRic.'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+
+      ! Check the contents of the jules model environment module
+      call check_jules_model_environment(l_jules_parent_config)
+    end if
 
   end subroutine jules_control_init
 

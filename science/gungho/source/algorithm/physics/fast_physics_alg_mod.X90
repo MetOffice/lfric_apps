@@ -24,9 +24,8 @@ module fast_physics_alg_mod
   use log_mod,              only: LOG_LEVEL_INFO, LOG_LEVEL_ERROR, log_event, &
                                   log_scratch_space
   use print_field_stats_alg_mod, only: print_field_stats_alg
-  use io_config_mod,        only: subroutine_timers, &
-                                  write_conservation_diag
-  use timer_mod,            only: timer
+  use io_config_mod,        only: write_conservation_diag
+  use timing_mod,           only: start_timing, stop_timing, tik, LPROF
 
   use physics_config_mod,   only: blayer_placement, blayer_placement_fast, &
                                   convection_placement,                    &
@@ -201,8 +200,9 @@ contains
     real( kind=r_def )  :: Rv, cpv, cl
 
     integer(i_def) :: i_mr
+    integer(tik)   :: id
 
-    if ( subroutine_timers ) call timer("fast_physics")
+    if ( LPROF ) call start_timing( id, 'fast_physics' )
 
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
 
@@ -411,7 +411,7 @@ contains
         call moisture_conservation_alg( rho, mr, 'After fast' )
     end if
 
-    if ( subroutine_timers ) call timer("fast_physics")
+    if ( LPROF ) call stop_timing( id, 'fast_physics' )
 
   end subroutine fast_physics
 
