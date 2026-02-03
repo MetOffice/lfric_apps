@@ -496,7 +496,7 @@ ric = 0.25_r_bl
 ricinv = one/ric
 rlambda_fac=one/lambda_fac
 j = 1
-!do j = pdims%j_start, pdims%j_end
+
 !$OMP PARALLEL DEFAULT(SHARED) private ( i, k, z_scale, zpr )
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
@@ -510,7 +510,6 @@ do i = pdims%i_start, pdims%i_end
   weight_bltop(i,j)   = one
 end do
 !$OMP end do NOWAIT
-!end do
 
 !-----------------------------------------------------------------------
 ! Set-up a BL weighting function, =1 near the ground (ie in the BL)
@@ -519,11 +518,9 @@ end do
 !-----------------------------------------------------------------------
 !$OMP do SCHEDULE(STATIC)
 do k = 1, bl_levels
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     BL_weight(i,j,k) = one
   end do
-  !end do
 end do
 !$OMP end do
 
@@ -538,12 +535,10 @@ if (local_fa == to_sharp_across_1km) then
   z_scale = 1000.0_r_bl
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       zpr = z_tq(i,j,k-1)/z_scale
       BL_weight(i,j,k) = one_half*(one - tanh(3.0_r_bl*(zpr-one) ) )
     end do
-    !end do
   end do
 !$OMP end do NOWAIT
 end if
@@ -556,7 +551,6 @@ if (sg_orog_mixing /= off) then
   !----------------------------------------------------------------
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       if (sigma_h(i,j) > one ) then
         zpr = z_tq(i,j,k-1)/sigma_h(i,j)
@@ -564,7 +558,6 @@ if (sg_orog_mixing /= off) then
               tanh(4.0_r_bl*(zpr-one) ) )
       end if
     end do
-    !end do
   end do
 !$OMP end do NOWAIT
 end if
@@ -576,7 +569,6 @@ if (l_use_var_fixes) then
     do i = pdims%i_start, pdims%i_end
       turb_length(i,j,k) = lambda_min*rlambda_fac
     end do
-    !end do
   end do
 !$OMP end do NOWAIT
   if (blending_option == blend_cth_shcu_only) then
@@ -584,22 +576,18 @@ if (l_use_var_fixes) then
     ! than lambda_min (ie ignore lambda_min for high res simulations)
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
-      !do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
         turb_length(i,j,k) = min( turb_length(i,j,k), sqrt(rmlmax2(i,j,k)) )
       end do
-      !end do
     end do
 !$OMP end do NOWAIT
   end if
 else
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       turb_length(i,j,k)=lambda_min
     end do
-    !end do
   end do
 !$OMP end do NOWAIT
 end if
@@ -608,24 +596,20 @@ end if
 !-----------------------------------------------------------------------
 if (l_rp2) then
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ricrit(i,j) = ricrit_rp(rp_idx)
   end do
   !$OMP end do NOWAIT
-  !end do
 
 else
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     ! Default critical Ri for Long_tails and Louis
     ricrit(i,j) = one
   end do
   !$OMP end do NOWAIT
-  !end do
 
 end if
 !$OMP end PARALLEL
@@ -667,7 +651,6 @@ if (Variable_RiC == on) then
     !--------------------------------------------
   case (sharp_sea_long_land, sharp_sea_mes_land,                               &
        sharp_sea_louis_land)
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
     !$OMP SHARED( j, pdims, flandg, ricrit, ricrit_rp, l_rp2 )                     &
     !$OMP private( i )
@@ -686,7 +669,6 @@ if (Variable_RiC == on) then
     end do
 
     !$OMP end PARALLEL do
-    !end do
 
   end select ! SBL_OP
 
@@ -695,7 +677,6 @@ end if
 ! Initialise 3D stability functions
 !-----------------------------------------------------------------------
 if (l_subfilter_vert .or. l_subfilter_horiz) then
-    !do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( j, bl_levels, pdims, fm_3d, fh_3d )                              &
 !$OMP private( i, k )
@@ -706,7 +687,6 @@ if (l_subfilter_vert .or. l_subfilter_horiz) then
     end do
   end do
 !$OMP end PARALLEL do
-      !end do
 end if
 
 !-----------------------------------------------------------------------
@@ -717,7 +697,6 @@ end if
 !$OMP SHARED( j, bl_levels,pdims,topbl,ri,ricrit,local_fa,ntml_local,zh_local, &
 !$OMP         z_uv)
 do k = 2, bl_levels
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
@@ -739,20 +718,17 @@ do k = 2, bl_levels
     end if
   end do  ! Loop over points
   !$OMP end do NOWAIT
-  !end do  ! Loop over points
 end do  ! Loop over levels
 !$OMP end PARALLEL
 
 ! Save original diagnosis
 if (BL_diag%l_zhlocal) then
-  !do j = pdims%j_start, pdims%j_end
   !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
   !$OMP private( i )
   do i = pdims%i_start, pdims%i_end
     BL_diag%zhlocal(i,j)=zh_local(i,j)
   end do  ! Loop over points
   !$OMP end PARALLEL do
-  !end do  ! Loop over levels
 end if
 
 !-----------------------------------------------------------------------
@@ -764,7 +740,6 @@ end if
 ! for a cumulus-capped layer, shear driven mixing is allowed to
 ! dominate (if ISHEAR_BL=1 selected)
 !-----------------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL DEFAULT(none)                                                   &
 !$OMP SHARED( j, pdims, ishear_bl, l_use_var_fixes, ntml_local, ntpar,         &
 !$OMP         cumulus, ntml_nl, zh_local, z_uv )                               &
@@ -776,14 +751,12 @@ do i = pdims%i_start, pdims%i_end
   end if
 end do
 !$OMP end do
-  !end do
 
 if ( .not. l_use_var_fixes ) then
   ! Use sub-cloud layer as local PBL depth (as for non-local).
   ! Found to give large TKE and variances with new diagnostics
   ! and isn't particularly justifiable
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     if ( cumulus(i,j) ) then
@@ -792,7 +765,6 @@ if ( .not. l_use_var_fixes ) then
     end if
   end do
   !$OMP end do
-  !end do
 
 end if
 !$OMP end PARALLEL
@@ -801,7 +773,6 @@ end if
 !      mixing length to scale with these layer depths
 !-----------------------------------------------------------------------
 if (local_fa == free_trop_layers) then
-    !do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( j, pdims, bl_levels, ntml_local, ri, ricrit, z_uv,               &
 !$OMP        l_use_var_fixes, turb_length, rlambda_fac, lambda_min )                           &
@@ -838,7 +809,6 @@ if (local_fa == free_trop_layers) then
     end do
   end do
 !$OMP end PARALLEL do
-  !end do
 end if
 !-----------------------------------------------------------------------
 ! When using turb_length, calculate within the BL
@@ -846,7 +816,6 @@ end if
 ! Remember turb_length(k) is held, with Ri(k), on th-level(k-1)
 !-----------------------------------------------------------------------
 if (blending_option /= off) then
-     !do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( j, bl_levels, pdims, ntml_nl, ntml_local, turb_length, z_uv,     &
 !$OMP         zh_local, nbdsc, ntdsc )                                         &
@@ -895,7 +864,6 @@ if (sbl_op  ==  depth_based) then
 
   ind=m_buoy-m_tau+one
 
-  !do j = pdims%j_start, pdims%j_end
   !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
   !$OMP private( i )
   do i = pdims%i_start, pdims%i_end
@@ -908,10 +876,8 @@ if (sbl_op  ==  depth_based) then
                 /(vkman*fb_surf(i,j))
   end do
   !$OMP end PARALLEL do
-  !end do
 
   do k = 2, bl_levels
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
@@ -936,7 +902,6 @@ if (sbl_op  ==  depth_based) then
 
     end do
     !$OMP end PARALLEL do
-    !end do
   end do
 
 end if   ! SBL_OP = Depth_based
@@ -968,7 +933,6 @@ do k = 2, bl_levels
     !--------------------------------------------
   case (long_tails)
 
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
@@ -976,14 +940,12 @@ do k = 2, bl_levels
           func(i,j)=one / ( one + g0 * ri(i,j,k) )
     end do
     !$OMP end PARALLEL do
-    !end do
 
     !--------------------------------------------
     ! SHARP TAILS
     !--------------------------------------------
   case (sharpest)
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC) private( i )              &
 !$OMP SHARED( j, pdims, ri, ritrans, func, g0, a_ri, b_ri, k)
     do i = pdims%i_start, pdims%i_end
@@ -995,14 +957,12 @@ do k = 2, bl_levels
       func(i,j)=func(i,j)*func(i,j)
     end do
 !$OMP end PARALLEL do
-!end do
 
     !--------------------------------------------
     ! LEM TAILS (cut-off at Ric)
     !--------------------------------------------
   case (lem_stability)
 
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
@@ -1016,13 +976,11 @@ do k = 2, bl_levels
       end if
     end do
     !$OMP end PARALLEL do
-    !end do
 
     !--------------------------------------------
     ! SHARP over sea; long tails over land
     !--------------------------------------------
   case (sharp_sea_long_land)
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
@@ -1047,7 +1005,6 @@ do k = 2, bl_levels
     ! MESOSCALE MODEL TAILS
     !--------------------------------------------
   case (mes_tails)
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
@@ -1076,7 +1033,6 @@ do k = 2, bl_levels
       end if
     end do
     !$OMP end PARALLEL do
-    !end do
 
     !--------------------------------------------
     ! LOUIS TAILS
@@ -1084,7 +1040,6 @@ do k = 2, bl_levels
   case (louis_tails)
 
         ! LOUIS function
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i )
     do i = pdims%i_start, pdims%i_end
@@ -1094,7 +1049,6 @@ do k = 2, bl_levels
       end if
     end do
     !$OMP end PARALLEL do
-    !end do
 
     !--------------------------------------------
     ! long TAILS FOR use WITH DEPTH BASED SCHEME
@@ -1110,7 +1064,6 @@ do k = 2, bl_levels
       end if
     end do
     !$OMP end PARALLEL do
-    !end do
 
     !--------------------------------------------
     ! SHARP TAILS OVER SEA; MES TAILS OVER LAND
@@ -1118,7 +1071,6 @@ do k = 2, bl_levels
   case (sharp_sea_mes_land)
         ! SHARP sea; MES land
     z_scale = 200.0_r_bl
-    !do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( j, pdims, g0, ri, ritrans, a_ri, b_ri, flandg, func, z_tq,       &
 !$OMP         k, z_scale )                                                     &
@@ -1157,14 +1109,12 @@ do k = 2, bl_levels
 
     end do ! loop over i
 !$OMP end PARALLEL do
-  !end do ! loop over j
 
     !--------------------------------------------
     ! SHARP TAILS OVER SEA; LOUIS TAILS OVER LAND
     !--------------------------------------------
   case (sharp_sea_louis_land)
         ! SHARP sea; Louis land
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i, fm, fm_louis )
     do i = pdims%i_start, pdims%i_end
@@ -1188,7 +1138,6 @@ do k = 2, bl_levels
 
     end do ! loop over i
     !$OMP end PARALLEL do
-    !end do ! loop over j
 
   end select ! SBL_OP
 
@@ -1199,7 +1148,6 @@ do k = 2, bl_levels
   !------------------------------------------------------------------
   if (local_fa == to_sharp_across_1km) then
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( j, pdims, ri, ritrans, sharp, a_ri, b_ri, func, BL_weight,       &
 !$OMP         k, g0 )   private( i )
@@ -1219,7 +1167,6 @@ do k = 2, bl_levels
 
     end do
 !$OMP end PARALLEL do
-!end do
 
   end if
   !------------------------------------------------------------------
@@ -1228,7 +1175,6 @@ do k = 2, bl_levels
   ! as calculated above
   !------------------------------------------------------------------
   if (sg_orog_mixing == extended_tail) then
-    !do j = pdims%j_start, pdims%j_end
     !$OMP PARALLEL do DEFAULT(SHARED) SCHEDULE(STATIC)                       &
     !$OMP private( i, g0_orog )
       do i = pdims%i_start, pdims%i_end
@@ -1254,14 +1200,12 @@ do k = 2, bl_levels
       end do
 
     !$OMP end PARALLEL do
-    !end do
 
   end if
   !---------------------------------------------------------------
   ! Set stable Prandtl number (=KM/KH)
   !---------------------------------------------------------------
   if (sbl_op == lem_stability) then
-  !do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( j, pdims, prandtl_number, pr_n, ri, ric, subg, k )               &
 !$OMP private( i )
@@ -1275,9 +1219,7 @@ do k = 2, bl_levels
       end if
     end do
 !$OMP end PARALLEL do
-!end do
   else if (Prandtl == LockMailhot2004) then
-  !do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
 !$OMP SHARED( j, pdims, prandtl_number, pr_n, ri, k )                          &
 !$OMP private( i )
@@ -1286,10 +1228,8 @@ do k = 2, bl_levels
                                   pr_n*(one + 2.0_r_bl*ri(i,j,k)) )
     end do
 !$OMP end PARALLEL do
-    !end do
   end if
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do SCHEDULE(STATIC) DEFAULT(none)                               &
 !$OMP  private(z_scale,fm,i,lambdam,lambdah,lambda_eff,                        &
 !$OMP  lambdah_rho,vkz,f_log,zz,zht,zfa,beta,fh,rtmri,km,rpr)                  &
@@ -1600,7 +1540,6 @@ do k = 2, bl_levels
 
   end do !I
 !$OMP end PARALLEL do
-  !end do !j
 end do ! bl_levels
 
 !-----------------------------------------------------------------------
