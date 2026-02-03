@@ -7,6 +7,7 @@
 
 module adjt_poly_adv_upd_lookup_alg_mod
 
+  use adj_trans_lookup_cache_mod,    only : adj_trans_lookup_cache_type
   use r_tran_field_mod,              only : r_tran_field_type
   use function_space_mod,            only : function_space_type
   use function_space_collection_mod, only : function_space_collection
@@ -33,19 +34,18 @@ module adjt_poly_adv_upd_lookup_alg_mod
 
   !============================================================================!
   !> @brief Handwritten adjoint test for adj_poly_adv_upd_lookup_kernel
-  !> @param[in]   mesh    Model mesh
-  subroutine adjt_poly_adv_upd_lookup_alg( mesh )
+  !> @param[in]   mesh                    Model mesh
+  !> @param[in]   adj_lookup_table_cache  The lookup table cache
+  subroutine adjt_poly_adv_upd_lookup_alg( mesh, adj_lookup_table_cache )
 
     use poly_adv_update_kernel_mod,          only: poly_adv_update_kernel_type
     use invoke_adj_poly_adv_upd_lookup_mod,  only: invoke_adj_poly_adv_upd_lookup
 
-    use adj_lookup_table_generators_alg_mod, only : create_lookup_poly_adv_upd
-    use invoke_adj_poly_adv_upd_lookup_mod,  only : invoke_adj_poly_adv_upd_lookup
-
     implicit none
 
     ! Arguments
-    type(mesh_type), pointer,               intent(in) :: mesh
+    type(mesh_type),          pointer, intent(in) :: mesh
+    type(adj_trans_lookup_cache_type), intent(in) :: adj_lookup_table_cache
 
     ! Internal variables
     ! Input setup variables
@@ -55,7 +55,7 @@ module adjt_poly_adv_upd_lookup_alg_mod
     integer(kind=i_def), parameter :: stencil_extent = 1_i_def
     integer(kind=i_def), parameter :: ndata = 4_i_def
 
-    type(adj_lookup_table_type)          :: lookup_poly_adv_upd
+    type(adj_lookup_table_type), pointer :: lookup_poly_adv_upd
     type(integer_field_type),    pointer :: lookup_poly_adv_upd_field
     type(integer_field_type),    pointer :: num_sets_poly_adv_upd_field
 
@@ -81,16 +81,17 @@ module adjt_poly_adv_upd_lookup_alg_mod
     real(kind=r_def)             :: advective_advective_input_inner_prod
     real(kind=r_def)             :: reconstruction_reconstruction_input_inner_prod
     real(kind=r_tran)            :: inner2
-    real(kind=r_tran), parameter :: eps = 1e-30_r_tran
+    real(kind=r_tran), parameter :: eps = 1.0e-30_r_tran
 
     ! Test variables
     real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
     real(kind=r_tran)            :: machine_tol
     real(kind=r_tran)            :: relative_diff
 
-    nullify( vector_space_w2h_ptr,   &
-             vector_space_wt_md_ptr, &
-             vector_space_wtheta_ptr, &
+    nullify( vector_space_w2h_ptr,      &
+             vector_space_wt_md_ptr,    &
+             vector_space_wtheta_ptr,   &
+             lookup_poly_adv_upd,       &
              lookup_poly_adv_upd_field, &
              num_sets_poly_adv_upd_field )
 
@@ -144,8 +145,7 @@ module adjt_poly_adv_upd_lookup_alg_mod
     advective_advective_input_inner_prod = 0.0_r_def
     reconstruction_reconstruction_input_inner_prod = 0.0_r_def
 
-    call create_lookup_poly_adv_upd( lookup_poly_adv_upd, advective, reconstruction, &
-                                     wind, stencil_extent )
+    lookup_poly_adv_upd => adj_lookup_table_cache%get_lookup_poly_adv_upd()
     lookup_poly_adv_upd_field => lookup_poly_adv_upd%get_lookup_field()
     num_sets_poly_adv_upd_field => lookup_poly_adv_upd%get_set_count_field()
     nindices = lookup_poly_adv_upd%get_nindices()

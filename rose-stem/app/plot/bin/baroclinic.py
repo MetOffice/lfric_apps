@@ -88,7 +88,8 @@ def make_figures(filein, plotpath, fields, vertical_spacing, formulation):
             else:
                 combined_fields = [field]
 
-            interp_fig = plt.figure(figsize=(20, 10))
+            interp_fig, ax = plt.subplots(figsize=(20, 10))
+
             for cfield in combined_fields:
 
                 cube = read_ugrid_data(filein, cfield)
@@ -166,63 +167,55 @@ def make_figures(filein, plotpath, fields, vertical_spacing, formulation):
                         kappa = rd/1005.0
                         plot_data[:, :, level] = 0.01*fi**(1.0/kappa) * p0
 
-                nplots = 1
-                nxplots = 1
-                nyplots = 1
+                if (cfield == 'm_v' or  cfield == 'm_cl'):
+                    # Plot level 10 for moisture fields
+                    level = 10
+                    cmap = magma.reversed()
+                else:
+                    level = 0
+                    cmap = magma
 
-                for iplot in range(nplots):
-                    ax = interp_fig.add_subplot(nxplots, nyplots, iplot+1)
-                    level = iplot
-                    if (cfield == 'm_v' or  cfield == 'm_cl'):
-                        # Plot level 10 for mositure fields
-                        level = 10
-                        cmap = magma.reversed()
+                if direction == 'xz':
+                    lon, height = np.meshgrid(xi, zi)
+                    CS = ax.contourf(lon, height,
+                                        plot_data[:, plot_lat, :].T,
+                                        levels=levels, cmap=cmap)
+                    plt.colorbar(cmap=cmap)
+                    CL = ax.contour(lat, height,
+                                        plot_data[:, plot_lat, :].T,
+                                        levels=levels, linewidths=0.5,
+                                        colors='k')
+                    ax.title(['lat = ', yi[plot_lat]*360./np.real(nx)])
+                if direction == 'yz':
+                    lat, height = np.meshgrid(yi, zi)
+                    CS = ax.contourf(lat, height,
+                                        plot_data[:, plot_long, :].T,
+                                        levels=levels, cmap=cmap)
+                    ax.colorbar(cmap=cmap)
+                    CL = ax.contour(lat, height,
+                                        plot_data[:, plot_long, :].T,
+                                        levels=levels, linewidths=0.5,
+                                        colors='k')
+                    ax.title(['long = ', xi[plot_long]*360./np.real(nx)])
+                if direction == 'xy':
+                    lat, lon = np.meshgrid(yi, xi)
+                    if cfield == 'exner':
+                        # Extrapolate data to the surface
+                        dz = plot_data[:, :, 0] + (zi_f[0] - zi_h[0]) * \
+                            (plot_data[:, :, 0] - plot_data[:, :, level]) \
+                            / (zi_h[0] - zi_h[1])
                     else:
-                        cmap = magma
-                    ys = np.tile(yi, (n_levs, 1))
-                    
-
-                    if direction == 'xz':
-                        lon, height = np.meshgrid(xi, zi)
-                        CS = plt.contourf(lon, height,
-                                          plot_data[:, plot_lat, :].T,
-                                          levels=levels, cmap=cmap)
-                        plt.colorbar(cmap=cmap)
-                        CL = plt.contour(lat, height,
-                                         plot_data[:, plot_lat, :].T,
-                                         levels=levels, linewidths=0.5,
-                                         colors='k')
-                        plt.title(['lat = ', yi[plot_lat]*360./np.real(nx)])
-                    if direction == 'yz':
-                        lat, height = np.meshgrid(yi, zi)
-                        CS = plt.contourf(lat, height,
-                                          plot_data[:, plot_long, :].T,
-                                          levels=levels, cmap=cmap)
-                        plt.colorbar(cmap=cmap)
-                        CL = plt.contour(lat, height,
-                                         plot_data[:, plot_long, :].T,
-                                         levels=levels, linewidths=0.5,
-                                         colors='k')
-                        plt.title(['long = ', xi[plot_long]*360./np.real(nx)])
-                    if direction == 'xy':
-                        lat, lon = np.meshgrid(yi, xi)
-                        if cfield == 'exner' and iplot == 0:
-                            # Extrapolate data to the surface
-                            dz = plot_data[:, :, 0] + (zi_f[0] - zi_h[0]) * \
-                               (plot_data[:, :, 0] - plot_data[:, :, level]) \
-                               / (zi_h[0] - zi_h[1])
-                        else:
-                            dz = plot_data[:, :, level]
-                        if cfield != 'exner':
-                            CS = plt.contourf(lon, lat,
-                                              plot_data[:, :, level].T,
-                                              levels=levels, cmap=cmap)
-                            plt.colorbar(cmap=cmap)
-                        if cfield != 'theta':
-                            CL = plt.contour(lon, lat, dz.T, levels=levels,
-                                             linewidths=1.0, colors='k')
-                            plt.clabel(CL, CL.levels[1::2], fontsize=15,
-                                       inline=1, fmt='%3.1f')
+                        dz = plot_data[:, :, level]
+                    if cfield != 'exner':
+                        CS = ax.contourf(lon, lat,
+                                            plot_data[:, :, level].T,
+                                            levels=levels, cmap=cmap)
+                        _ = interp_fig.colorbar(CS, ax=ax)
+                    if cfield != 'theta':
+                        CL = ax.contour(lon, lat, dz.T, levels=levels,
+                                            linewidths=1.0, colors='k')
+                        ax.clabel(CL, CL.levels[1::2], fontsize=15,
+                                    inline=1, fmt='%3.1f')
 
             pngfile = '%s/baroclinic_plot-%s-time%s-%s.png' % \
                 (plotpath, cfield, time[t], direction)
