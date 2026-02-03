@@ -48,12 +48,6 @@
             NUMA_REGIONS_PER_NODE = 2
             LUSTRE_FILESYSTEM = true
             ROSE_LAUNCHER = 'mpiexec'
-        [[[directives]]]
-{% if site_vars["ex_trustzone"] == "collab" %}
-             -q=collabshared
-{% else %}
-             -q=shared
-{% endif %}
 
     [[EX1A_WEIGHTS]]
         inherit = EX1A_BASE
