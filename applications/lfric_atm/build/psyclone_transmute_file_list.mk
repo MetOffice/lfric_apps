@@ -25,9 +25,9 @@ export PSYCLONE_PHYSICS_FILES = \
                                 fm_drag \
                                 gw_ussp_mod \
                                 imp_mix \
-                                jules_imp_kernel_mod \
-				                jules_exp_kernel_mod \
+                                jules_exp_kernel_mod \
 				                jules_extra_kernel_mod \
+                                jules_imp_kernel_mod \
                                 kmkh \
                                 kmkhz_9c_wtrac \
                                 lw_kernel_mod \
