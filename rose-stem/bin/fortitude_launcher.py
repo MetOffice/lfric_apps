@@ -36,10 +36,8 @@ if __name__ == "__main__":
         "Print output, raise error if any changes required."
     )
     parser.add_argument(
-        "-s",
-        "--source",
-        help="The top level of lfric_apps directory.",
-        required=True,
+        "source",
+        help="The top level of lfric_apps directory."
     )
     args = parser.parse_args()
 
