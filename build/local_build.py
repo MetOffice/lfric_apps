@@ -169,7 +169,7 @@ def main():
         "-t",
         "--target",
         default="build",
-        help="The makefile target, eg. unit-tests, clean, etc. Default " "of build.",
+        help="The makefile target, eg. unit-tests, clean, etc. Default of build.",
     )
     parser.add_argument(
         "-o",

@@ -34,10 +34,7 @@ def extract_files(dependencies: dict, extract_lists: dict, working: Path) -> Non
         files = extract_lists[dependency]
 
         # If the PHYSICS_ROOT environment variable is provided, then use sources there
-        if (
-            "PHYSICS_ROOT" in os.environ
-            and Path(os.environ["PHYSICS_ROOT"]).exists()
-        ):
+        if "PHYSICS_ROOT" in os.environ and Path(os.environ["PHYSICS_ROOT"]).exists():
             clone_loc = Path(os.environ["PHYSICS_ROOT"]) / dependency
         else:
             clone_loc = working.parent / "scratch" / dependency
@@ -72,9 +69,7 @@ def parse_args() -> argparse.Namespace:
         default="./dependencies.yaml",
         help="The dependencies file for the apps working copy",
     )
-    parser.add_argument(
-        "-w", "--working", default=".", help="Build location"
-    )
+    parser.add_argument("-w", "--working", default=".", help="Build location")
     parser.add_argument(
         "-e",
         "--extract",
@@ -95,11 +90,7 @@ def main():
     extract_lists: dict = load_yaml(args.extract)
     dependencies: dict = load_yaml(args.dependencies)
 
-    extract_files(
-        dependencies,
-        extract_lists,
-        args.working
-    )
+    extract_files(dependencies, extract_lists, args.working)
 
 
 if __name__ == "__main__":
