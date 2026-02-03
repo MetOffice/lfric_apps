@@ -23,8 +23,6 @@ use tuning_segments_mod, only: bl_segment_size
 
 use um_types, only: r_bl
 
-use timer_mod, only: timer
-
 implicit none
 
 !Automatic segment size tuning
@@ -831,7 +829,6 @@ integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-call timer('bdy_expl2')
 
 ! Set up blocking for OMP sections
 max_threads = 1
@@ -843,7 +840,6 @@ j = 1
 !-----------------------------------------------------------------------
 ! checking of nl_bl_levels has been moved to readsize/scm_shell
 ! so that it is only executed at initialisation
-!do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL DEFAULT(none)                                                  &
 !$OMP  SHARED( j, pdims, dynamic_bl_diag, ntml_save, ntml, bl_levels,          &
 !$OMP          weight_1dbl, weight_1dbl_rho, BL_diag, u_s, fb_surf )           &
@@ -854,20 +850,17 @@ j = 1
     ntml_save(i,j) = ntml(i,j)
   end do
 !$OMP end do NOWAIT
-  !end do
 
 !------------------------------------------------------------------
 !  Initialize weighting applied to 1d BL scheme
 !  (used to blend with 3D Smagorinsky scheme)
 !------------------------------------------------------------------
-    !do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do k = 1, bl_levels
   do i = pdims%i_start, pdims%i_end
     weight_1dbl(i,j,k) = one
     weight_1dbl_rho(i,j,k) = one
   end do
- ! end do
 end do
 !$OMP end do NOWAIT
 
@@ -875,7 +868,6 @@ end do
 ! Set surface scaling diagnostics
 !-----------------------------------------------------------------------
  ! Obukhov length
- ! do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_oblen) then
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
@@ -899,18 +891,15 @@ if (BL_diag%l_ustar) then
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     BL_diag%ustar(i,j)=u_s(i,j)
-  !end do
   end do
 !$OMP end do NOWAIT
 end if
 
 ! Surface buoyancy flux
-  !do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_wbsurf) then
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     BL_diag%wbsurf(i,j)=fb_surf(i,j)
-  !end do
   end do
 !$OMP end do
 end if
@@ -938,7 +927,6 @@ pdims_omp_block = ceiling(real(pdims%i_len)/max_threads)
 ! Work should be split accross the threads, this provides a cap.
 ! In the occurence where the pdims domain len is very small, it will be seleted.
 ! Otherwise bl_segment_size will be selected.
-!do j = pdims%j_start, pdims%j_end
 pdims_seg_block = min(bl_segment_size, pdims_omp_block, pdims%i_len)
 !$OMP  PARALLEL DEFAULT(SHARED) private(ii, i, k, weight1,  weight2,           &
 !$OMP  weight3, zpr, dzv, dzu, l, slope, dsldzm_ga,                            &
@@ -949,10 +937,8 @@ do i = pdims%i_start, pdims%i_end
   grad_t_adj(i,j) = min( max_t_grad,                                         &
                           a_grad_adj * t1_sd(i,j) / zh_prev(i,j) )
 end do
-!end do
 !$OMP end do
 
- ! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do k = 2, bl_levels
   do i = pdims%i_start, pdims%i_end
@@ -965,7 +951,6 @@ do k = 2, bl_levels
     dqwdz(i,j,k)    = ( qw(i,j,k) - qw(i,j,k-1) )                            &
                             * rdz_charney_grid(i,j,k)
   end do
-  !end do
 end do
 !$OMP end do
 
@@ -981,19 +966,15 @@ if ( .not. l_use_surf_in_ri .and. (var_diags_opt > original_vars .or.          &
   ! extrapolate dbdz itself from level 2, but the sl and qw gradients are
   ! used in the newer variance calculations and with i_interp_local_cf_dbdz
   ! so extrapolate them here
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     dsldz(i,j,1)    = dsldz(i,j,2)
     dsldz_ga(i,j,1) = dsldz_ga(i,j,2)
     dqwdz(i,j,1)    = dqwdz(i,j,2)
   end do
-  !end do
 !$OMP end do
 
 else ! l_use_surf_in_ri = true
-!! $OMP do SCHEDULE(STATIC)
-  !do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do ii = pdims%i_start, pdims%i_end, pdims_seg_block
     seg_slice_start  = ii
@@ -1029,11 +1010,8 @@ else ! l_use_surf_in_ri = true
     end if ! l_noice_in_turb
   end do ! ii
   !$OMP end do NOWAIT
-  !end do ! j
-!! $OMP end do NOWAIT
   k=1
 
-  ! do j = pdims%j_start, pdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
     dsldz(i,j,k)    = ( tl(i,j,k) - tstar(i,j) )                             &
@@ -1045,7 +1023,6 @@ else ! l_use_surf_in_ri = true
     else
       dqwdz(i,j,k)  = dqwdz(i,j,2) ! extrapolate qw if mainly land
     end if
-  !end do
   end do
 !$OMP end do
 
@@ -1060,7 +1037,6 @@ case (i_interp_local_gradients)
   ! Interpolate gradients to theta-levels, then
   ! calculate `buoyancy' gradient, DBDZ, on theta-levels
   ! NOTE: DBDZ(K) is on theta-level K-1
-   ! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
@@ -1085,7 +1061,6 @@ case (i_interp_local_gradients)
       dsldzm(i,j,k) = dsldzm(i,j,k) / weight1
       dqwdzm(i,j,k) = dqwdzm(i,j,k) / weight1
     end do
-  !end do
   end do
 !$OMP end do
 
@@ -1093,7 +1068,6 @@ case (i_interp_local_gradients)
   ! (ie instead of using centred value that uses surface parameters)
   if ( .not. l_use_surf_in_ri ) then
     k = 2
-    ! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
       dbdz(i,j,k) = g*( bt_gb(i,j,k-1)*dsldz(i,j,k) +                        &
@@ -1101,7 +1075,6 @@ case (i_interp_local_gradients)
       dbdz_ga(i,j,k) = g*( bt_gb(i,j,k-1)*dsldz_ga(i,j,k) +                  &
                             bq_gb(i,j,k-1)*dqwdz(i,j,k) )
     end do
-    ! end do
 !$OMP end do
   end if
 
@@ -1144,20 +1117,16 @@ case (i_interp_local_cf_dbdz)
     ! ...then subtract from qw to get supersaturation, and multiply by
     !    1/(1 + Lc/cp dqsat/dT)
     !    in order to compare with values of qcl+qcf.
-    !do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end
       supersat(i,j,k) = a_qs(i,j,k) * ( qw(i,j,k) - qs_tl(i,j) )
     end do !i
-    !end do !j
   end do !k
 !$OMP end do
 
   ! Calculate dbdz on rho-levels, so between th-levels k-1 and k
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-    !do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end
-
       ! Interpolate the buoyancy coefficients onto rho-levels...
       ! Split the interpolation into weighted contributions from:
       ! a) Area that is cloudy at k-1 and at k
@@ -1221,13 +1190,11 @@ case (i_interp_local_cf_dbdz)
       dbdz_ga_rh(i,j,k) = g * ( bt_rh * dsldz_ga(i,j,k)                      &
                               + bq_rh * dqwdz(i,j,k) )
 
-    !end do
     end do
   end do
 !$OMP end do NOWAIT
   k = 1
 
-  !do j = tdims%j_start, tdims%j_end
   !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
     ! At surface, just use buoyancy coefficients from the first theta-level
@@ -1235,11 +1202,9 @@ case (i_interp_local_cf_dbdz)
                           + bq_gb(i,j,k) * dqwdz(i,j,k) )
     dbdz_ga_rh(i,j,k) = g * ( bt_gb(i,j,k) * dsldz_ga(i,j,k)                 &
                             + bq_gb(i,j,k) * dqwdz(i,j,k) )
-  !end do
   end do
   !$OMP end do
 
-  !do j = tdims%j_start, tdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = tdims%i_start, tdims%i_end
@@ -1261,7 +1226,6 @@ case (i_interp_local_cf_dbdz)
                     +      weight1  * dqwdz(i,j,k)
 
     end do
-    !end do
   end do
 !$OMP end do
 
@@ -1274,7 +1238,6 @@ end select  ! (i_interp_local)
 !--------------------------------------------------
 if (.not. l_subfilter_vert) then
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
@@ -1282,7 +1245,6 @@ if (.not. l_subfilter_vert) then
       dzv = v_p(i,j,k) - v_p(i,j,k-1)
       dvdzm(i,j,k) = max( 1.0e-12_r_bl,                                      &
                           sqrt(dzu*dzu + dzv*dzv) * rdz(i,j,k) )
-    !end do
     end do
   end do
 !$OMP end do
@@ -1292,7 +1254,6 @@ else
   if ( model_type == mt_single_column ) then
     ! visc_m, visc_h need to be the 1D shear(k) on theta-level(k)
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = pdims%i_start, pdims%i_end
@@ -1302,7 +1263,6 @@ else
                             sqrt(dzu*dzu + dzv*dzv) * rdz(i,j,k) )
         visc_m(i,j,k-1) = dvdzm(i,j,k)
         visc_h(i,j,k-1) = dvdzm(i,j,k)
-      !end do
       end do
     end do
 !$OMP end do
@@ -1310,12 +1270,10 @@ else
   else
     ! On entry, visc_m is 3D shear(k) on theta-level(k)
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = pdims%i_start, pdims%i_end
         dvdzm(i,j,k) = max( 1.0e-12_r_bl, visc_m(i,j,k-1) )
-      ! end do
       end do
     end do
 !$OMP end do
@@ -1327,13 +1285,11 @@ if (l_subfilter_horiz .or. l_subfilter_vert) then
   if (smag_l_calc == smag_l_calc_use_geo) then
     ! use 3d grid geometric mean
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do k = 1, bl_levels
       do i = pdims%i_start, pdims%i_end
         rmlmax2(i,j,k) = ( delta_smag(i,j) * delta_smag(i,j) *               &
                               dzl_charney(i,j,k) )**one_third
-      !end do
       end do
     end do
 !$OMP end do
@@ -1342,10 +1298,8 @@ if (l_subfilter_horiz .or. l_subfilter_vert) then
     ! only use horizontal grid
 !$OMP do SCHEDULE(STATIC)
     do k = 1, bl_levels
-      !do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
         rmlmax2(i,j,k) = delta_smag(i,j)
-      !end do
       end do
     end do
 !$OMP end do
@@ -1354,38 +1308,32 @@ if (l_subfilter_horiz .or. l_subfilter_vert) then
 
   if ( l_rp2 .and. i_rp_scheme == i_rp2b ) then
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do k = 1, bl_levels
       do i = pdims%i_start, pdims%i_end
         rmlmax2(i,j,k) = ( cs_rp(rp_idx) * rmlmax2(i,j,k) )**2
-      !end do
       end do
     end do
 !$OMP end do
 
   else
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do k = 1, bl_levels
       do i = pdims%i_start, pdims%i_end
         rmlmax2(i,j,k) = ( mix_factor * rmlmax2(i,j,k) )**2
-      !end do
       end do
     end do
 !$OMP end do
 
   end if
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels
     do i = pdims%i_start, pdims%i_end
       rneutml_sq(i,j,k) = one / (                                            &
                 one/( vkman*(z_tq(i,j,k) + z0m_eff_gb(i,j)) )**2              &
               + one/rmlmax2(i,j,k) )
-    !end do
     end do
   end do
 !$OMP end do
@@ -1396,11 +1344,9 @@ end if
 !-----------------------------------------------------------------------
 !  Set-up 2D array for standard deviation of subgrid orography.
 !-----------------------------------------------------------------------
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do i = pdims%i_start, pdims%i_end
   sigma_h(i,j) = zero
-!end do
 end do
 !$OMP end do
 
@@ -1417,7 +1363,6 @@ end do
 if (sg_orog_mixing == sg_shear .or.                                            &
     sg_orog_mixing == sg_shear_enh_lambda) then
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
@@ -1439,55 +1384,46 @@ if (sg_orog_mixing == sg_shear .or.                                            &
           BL_diag%dvdzm(i,j,1)=weight1*slope*t_drain*dbdz(i,j,k)
 
       end if
-    !end do
     end do
   end do
 !$OMP end do
 end if     ! sg_orog_mixing
 
-!do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
 do k = 2, bl_levels
   do i = pdims%i_start, pdims%i_end
     ri(i,j,k)    = dbdz(i,j,k)    / ( dvdzm(i,j,k)*dvdzm(i,j,k) )
     ri(i,j,k)    = max(min(ri(i,j,k),max_ri),-max_ri)
     ri_ga(i,j,k) = dbdz_ga(i,j,k) / ( dvdzm(i,j,k)*dvdzm(i,j,k) )
-  ! end do
   end do
 end do
 !$OMP end do
 
-!do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_gradrich) then
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
       BL_diag%gradrich(i,j,k)=ri(i,j,k)
-    !end do
     end do
   end do
 !$OMP end do
 end if
 
-!do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_dbdz) then
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
       BL_diag%dbdz(i,j,k)=dbdz(i,j,k)
-    !end do
     end do
   end do
 !$OMP end do
 end if
 
-!do j = pdims%j_start, pdims%j_end
 if (BL_diag%l_dvdzm) then
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = pdims%i_start, pdims%i_end
       BL_diag%dvdzm(i,j,k)=dvdzm(i,j,k)
-    !end do
     end do
   end do
 !$OMP end do
@@ -1516,7 +1452,6 @@ if (formdrag ==  explicit_stress) then
   !      Orographic stress diagnostics
   !------------------------------------------------------------------
   if (BL_diag%l_ostressx) then
-!do j = tdims%j_start, tdims%j_end
 !$OMP PARALLEL do                                                              &
 !$OMP SCHEDULE(STATIC)                                                         &
 !$OMP DEFAULT(none)                                                            &
@@ -1525,7 +1460,6 @@ if (formdrag ==  explicit_stress) then
     do k = 1, bl_levels
       do i = tdims%i_start, tdims%i_end
         BL_diag%ostressx(i,j,k)=tau_fd_x(i,j,k)
-      !end do
       end do
     end do
 !$OMP end PARALLEL do
@@ -1541,7 +1475,6 @@ if (formdrag ==  explicit_stress) then
     do k = 1, bl_levels
       do i = tdims%i_start, tdims%i_end
         BL_diag%ostressy(i,j,k)=tau_fd_y(i,j,k)
-      !end do
       end do
     end do
 !$OMP end PARALLEL do
@@ -1574,7 +1507,6 @@ do i = pdims%i_start, pdims%i_end
     zh(i,j)        = z_uv(i,j,2)
     dzh(i,j)       = rmdi
   end if
-!end do
 end do
 !$OMP end do
 
@@ -1584,7 +1516,6 @@ if (idyndiag == DynDiag_ZL) then
   ! Original version - causes spuriously deep boundary layers if
   ! BL_LEVELS is >> 3km
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
@@ -1598,13 +1529,11 @@ if (idyndiag == DynDiag_ZL) then
       end if
     end if
 
-  !end do
   end do
 !$OMP end do
 
 else if (idyndiag == DynDiag_ZL_corrn) then
 
-  ! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
@@ -1623,12 +1552,10 @@ else if (idyndiag == DynDiag_ZL_corrn) then
         zh(i,j)        = z_uv(i,j,ntml(i,j)+1)
       end if
     end if
-  !end do
   end do
 !$OMP end do
 
 else if (idyndiag == DynDiag_ZL_CuOnly) then
-  ! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
 
@@ -1656,7 +1583,6 @@ else if (idyndiag == DynDiag_ZL_CuOnly) then
         zh(i,j)        = z_uv(i,j,ntml(i,j)+1)
       end if
     end if
-  !end do
   end do
 !$OMP end do
 
@@ -1676,7 +1602,6 @@ else if (idyndiag == DynDiag_Ribased ) then
   !  Loop over levels to find Ri > RiCrit_sharp (=0.25) to find
   !  level to which Ri really is close to neutral
   !---------------------------------------------------------------
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do ii = pdims%i_start, pdims%i_end, pdims_omp_block
     do k = 2, bl_levels
@@ -1703,7 +1628,6 @@ else if (idyndiag == DynDiag_Ribased ) then
       zhloc_depth_fac = zhloc_depth_fac_rp(rp_idx)
     end if
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
 
@@ -1732,7 +1656,6 @@ else if (idyndiag == DynDiag_Ribased ) then
         end if
       end if ! Cu over sea
 
-    !end do
     end do
 !$OMP end do
 
@@ -1759,7 +1682,6 @@ else if (idyndiag == DynDiag_Ribased ) then
         end if
       end if ! Cu over sea
 
-    !end do
     end do
 !$OMP end do
 
@@ -1789,7 +1711,6 @@ end if  ! tests on iDynDiag
 do i = pdims%i_start, pdims%i_end
   ntml_nl(i,j) = ntml(i,j)
 end do
-!end do
 !$OMP end PARALLEL do
 
 if (nl_bl_levels < bl_levels) then
@@ -1797,7 +1718,6 @@ if (nl_bl_levels < bl_levels) then
   zmaxb_for_dsc = 1.0e10_r_bl
   zmaxt_for_dsc = zmaxb_for_dsc
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP PARALLEL do                                                              &
 !$OMP SCHEDULE(STATIC)                                                         &
 !$OMP DEFAULT(none)                                                            &
@@ -1808,7 +1728,6 @@ if (nl_bl_levels < bl_levels) then
       ntml_nl(i,j) = nl_bl_levels-1
       zh(i,j)      = z_uv(i,j,ntml_nl(i,j)+1)
     end if
-  !end do
   end do
 !$OMP end PARALLEL do
 else
@@ -1819,7 +1738,6 @@ end if
 ! Initialise non-local K and fluxes to zero; necessary for levels
 ! above NL_BL_LEVELS
 !-----------------------------------------------------------------------
- ! do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL DEFAULT(none)                                                  &
 !$OMP  SHARED( j, bl_levels, pdims, ftl, fqw, rhokmz, rhokhz, rhokm_top,       &
 !$OMP          rhokh_top, tke_nl, f_ngstress, rhof2, rhofsc, ft_nt, fq_nt,     &
@@ -1843,7 +1761,6 @@ do k = 2, bl_levels
     ! Only calculated in KMKHZ9C
     ft_nt(i,j,k)  = zero
     fq_nt(i,j,k)  = zero
-  !end do
   end do
 end do
 !$OMP end do NOWAIT
@@ -1861,7 +1778,6 @@ do i = pdims%i_start, pdims%i_end
   fq_nt_dscb(i,j) = zero
   zhnl(i,j) = zh(i,j)  ! initialise non-local PBL depth
                         ! to that diagnosed in conv_diag
-!end do
 end do
 !$OMP end do
 !$OMP end PARALLEL
@@ -1890,7 +1806,6 @@ if (l_wtrac) then
       wtrac_bl(i_wt)%fq_nt_dscb(i,j) = zero
       wtrac_bl(i_wt)%totqf_zh(i,j)   = zero
       wtrac_bl(i_wt)%totqf_zhsc(i,j) = zero
-      !end do
     end do
 !$OMP end do
 !$OMP end PARALLEL
@@ -2001,7 +1916,6 @@ end do
 !$OMP end PARALLEL do
 
 if (blending_option == blend_cth_shcu_only) then
-! do j = pdims%j_start, pdims%j_end
   ! only going to use the parcel top as the length scale in blending
   ! if the convection is shallow, where we define shallow convection here
   ! as the resolved cloud top (from cf_bluk) being below shallow_cu_maxtop
@@ -2014,7 +1928,6 @@ if (blending_option == blend_cth_shcu_only) then
   do i = pdims%i_start, pdims%i_end
     cloud_base_found(i,j) = .false.
     cloud_top_found(i,j)  = .false.
-  !end do
   end do
 !$OMP end do
 
@@ -2034,7 +1947,6 @@ if (blending_option == blend_cth_shcu_only) then
         cloud_top_found(i,j) = .true.
         l_shallow_cth(i,j)   = z_uv(i,j,k+1) < shallow_cu_maxtop
       end if
-    !end do
     end do
 !$OMP end do
   end do
@@ -2062,7 +1974,6 @@ call ex_coef (                                                                 &
 !-----------------------------------------------------------------------
 ! interpolate rhokh_th to rho levels 2 to bl_levels
 
-! do j = pdims%j_start, pdims%j_end
 !$OMP  PARALLEL DEFAULT(SHARED)                                                &
 !$OMP  private(i, k, weight1, weight2, weight3, lambdah, z_scale,              &
 !$OMP          vkz, f_log)
@@ -2166,7 +2077,6 @@ do k = 2, bl_levels
     if (l_mr_physics)                                                        &
         rhokh(i,j,k) = rho_mix(i,j,k) * rhokh(i,j,k)
 
-  !end do
   end do
 end do
 !$OMP end do NOWAIT
@@ -2199,7 +2109,6 @@ do i = pdims%i_start, pdims%i_end
     dsc(i,j)   = .false.
     coupled(i,j) = .false.
   end if
-!end do
 end do
 !$OMP end do
 !$OMP end PARALLEL
@@ -2225,7 +2134,6 @@ if (BL_diag%l_weight1d) then
     do i = pdims%i_start, pdims%i_end
       BL_diag%weight1d(i,j,k)=weight_1dbl(i,j,k)
     end do
-    !end do
   end do
 !$OMP end PARALLEL do
 end if
@@ -2242,7 +2150,6 @@ if (BL_diag%l_rhokm) then
     do i = pdims%i_start, pdims%i_end
       BL_diag%rhokm(i,j,k)=rhokm(i,j,k)
     end do
-    !end do
   end do
 !$OMP end PARALLEL do
 end if
@@ -2289,8 +2196,6 @@ if (BL_diag%l_tke) then
         BL_diag%tke(i,j,k)=  min( max_tke,                                   &
               ( rhokm(i,j,k) / rho_wet_tq(i,j,k-1) )*(                       &
                   recip_time_cbl + recip_time_sbl ) )
-
-      !end do
       end do
     end do
 !$OMP end PARALLEL do
@@ -2323,7 +2228,6 @@ if (BL_diag%l_tke) then
         ! equivalent limiting is done on Km.
 
       end do
-      !end do
     end do
 !$OMP end PARALLEL do
 
@@ -2350,7 +2254,6 @@ if (BL_diag%l_tke) then
         else
           mix_len_bm(i,j,k) = bm_tiny
         end if
-      !end do
       end do
     end do
 !$OMP end do
@@ -2381,7 +2284,6 @@ if (BL_diag%l_tke) then
                           + weight1 * max( 0.5 * mix_len_bm(i,j,k-1)         &
                                                 - mix_len_bm(i,j,k), 0.0 )
       end if
-    !end do
     end do
 !$OMP end do NOWAIT
     ! Set values above bl_levels
@@ -2391,7 +2293,6 @@ if (BL_diag%l_tke) then
       do i = pdims%i_start, pdims%i_end
         mix_len_bm(i,j,k) = bm_tiny
       end do
-      !end do
     end do
 !$OMP end do NOWAIT
 !$OMP end PARALLEL
@@ -2410,12 +2311,10 @@ if (BL_diag%l_tke) then
 !$OMP PARALLEL DEFAULT(none) private(k,i)                                    &
 !$OMP SHARED(j,tdims, bl_levels,pdims,BL_diag,bl_w_var,var_diags_opt)
 
-!do j = tdims%j_start, tdims%j_end
 !$OMP do SCHEDULE(STATIC)
     do k = 2, tdims%k_end+1
       do i = tdims%i_start, tdims%i_end
         bl_w_var(i,j,k) = 1.0e-12_r_bl
-      !end do
       end do
     end do
 !$OMP end do
@@ -2429,7 +2328,6 @@ if (BL_diag%l_tke) then
           if (BL_diag%tke(i,j,k) > 1.0e-12_r_bl) then
             bl_w_var(i,j,k) = BL_diag%tke(i,j,k)
           end if
-        !end do
         end do
       end do
 !$OMP end do
@@ -2442,7 +2340,6 @@ if (BL_diag%l_tke) then
           if (BL_diag%tke(i,j,k) > 1.0e-12_r_bl) then
             bl_w_var(i,j,k) = two_thirds * BL_diag%tke(i,j,k)
           end if
-        !end do
         end do
       end do
 !$OMP end do
@@ -2462,7 +2359,6 @@ if (BL_diag%l_tke) then
       kmax = maxloc(rhokmz(i,j,:), dim=1)
       do k = 2, kmax
         BL_diag%tke(i,j,k) = BL_diag%tke(i,j,kmax)
-      !end do
       end do
     end do
 !$OMP end PARALLEL do
@@ -2483,7 +2379,6 @@ if (BL_diag%l_tke) then
       do k = 2, kp-1
         BL_diag%tke(i,j,k) = max( tke_loc(i,j,k), tke_nl(i,j,kp) )
       end do
-    !end do
     end do
 !$OMP end PARALLEL do
   end if ! test on var_diags_opt
@@ -2497,7 +2392,6 @@ if (blending_option /= off .and. l_blend_isotropic) then
 
 !$OMP  PARALLEL DEFAULT(SHARED) private(i, k, weight1, weight2,             &
 !$OMP  weight3)
-! do j = pdims%j_start, pdims%j_end
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels-1
     do i = pdims%i_start, pdims%i_end
@@ -2517,7 +2411,6 @@ if (blending_option /= off .and. l_blend_isotropic) then
       else
         visc_m(i,j,k) = rhokm(i,j,k+1)/rho_wet_tq(i,j,k)
       end if
-    !end do
     end do
   end do
 !$OMP end do NOWAIT
@@ -2538,7 +2431,6 @@ if (blending_option /= off .and. l_blend_isotropic) then
                                           / weight1
         end if
       end do
-      !end do
     else
       !do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
@@ -2549,7 +2441,6 @@ if (blending_option /= off .and. l_blend_isotropic) then
           visc_h(i,j,k) = rhokh_th(i,j,k+1)/rho_wet_tq(i,j,k)
         end if
       end do
-      !end do
     end if
   end do
 !$OMP end do
@@ -2569,7 +2460,6 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
     do i = pdims%i_start, pdims%i_end
       visc_m(i,j,k) = visc_m(i,j,k)*rneutml_sq(i,j,k)
       visc_h(i,j,k) = visc_h(i,j,k)*rneutml_sq(i,j,k)
-    !end do
     end do
 !do j = pdims%j_start, pdims%j_end
     if ( k < bl_levels ) then
@@ -2583,7 +2473,6 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
         ! that actually needs it)?
         visc_h(i,j,k) = min(visc_h(i,j,k),max_diff(i,j))
         visc_m(i,j,k) = min(visc_m(i,j,k),max_diff(i,j))
-      !end do
       end do
     end if
   end do
@@ -2616,7 +2505,6 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
           visc_h_rho(i,j,k) = ( weight3/weight1 ) * visc_h(i,j,k)            &
                             + ( weight2/weight1 ) * visc_h(i,j,k-1)
         end if
-      !end do
       end do
 
       ! Overwrite the diffusion coefficients from the BL scheme
@@ -2629,14 +2517,12 @@ else if (l_subfilter_horiz .or. l_subfilter_vert) then
           rhokm(i,j,k) = visc_m(i,j,k-1)*rho_wet_tq(i,j,k-1)
           rhokh(i,j,k) = visc_h_rho(i,j,k)*rho_mix(i,j,k)
         end do
-        !end do
       else
         !do j = pdims%j_start, pdims%j_end
         do i = pdims%i_start, pdims%i_end
           rhokm(i,j,k) = zero
           rhokh(i,j,k) = zero
         end do
-        !end do
       end if
     end do
 !$OMP end PARALLEL do
@@ -2681,7 +2567,6 @@ if (BL_diag%l_zht) then
     if ( ntml(i,j)  >   ntml_nl(i,j) ) then
       bl_diag%zht(i,j) = max( bl_diag%zht(i,j), zh_local(i,j) )
     end if
-  !end do
   end do
 !$OMP end do NOWAIT
 end if
@@ -2714,7 +2599,6 @@ do i = pdims%i_start, pdims%i_end
   bl_type_6(i,j) = zero
   bl_type_7(i,j) = zero
 end do
-!end do
 !$OMP end do NOWAIT
 
 !do j = pdims%j_start, pdims%j_end
@@ -2786,7 +2670,6 @@ do k = 2, bl_levels
   do i = pdims%i_start, pdims%i_end
     f_ngstress(i,j,k) = weight_1dbl(i,j,k) * f_ngstress(i,j,k)
   end do
-  !end do
 end do
 !$OMP end PARALLEL do
 
@@ -2812,7 +2695,6 @@ end do
     vw0(i,j) = -rhokm(i,j,1) *                                                 &
                       ( v_p(i,j,1) - v_0_px(i,j) )
   end do
-!end do
 !$OMP end do NOWAIT
 if (formdrag ==  explicit_stress) then
 !do j = pdims%j_start, pdims%j_end
@@ -2843,7 +2725,6 @@ if (non_local_bl == on) then
     else
       ntml(i,j) = max( ntml_nl(i,j) , ntdsc(i,j) )
     end if
-  !end do
   end do
 !$OMP end do NOWAIT
 
@@ -2854,7 +2735,6 @@ else ! non-local scheme not being used so always use local scheme values
   do i = pdims%i_start, pdims%i_end
     ntml(i,j) = ntml_local(i,j)
   end do
-  !end do
 !$OMP end do NOWAIT
 
 end if
@@ -2888,7 +2768,6 @@ do i = pdims%i_start, pdims%i_end
     BL_diag%wstar(i,j)= (zh(i,j)*fb_surf(i,j))**one_third
   end if
 end do
-!end do
 !$OMP end do
 
 if (l_param_conv) then
@@ -2924,7 +2803,6 @@ if (l_param_conv) then
     if ( .not. cumulus(i,j) ) l_shallow(i,j) = .false.
     if ( cumulus(i,j) ) ntml(i,j) = ntml_save(i,j)
   end do
-  !end do
 !$OMP end do NOWAIT
 
 end if    ! (l_param_conv)
@@ -2942,7 +2820,6 @@ do i = pdims%i_start, pdims%i_end
     shallowc(i,j) = zero
   end if
 end do
-!end do
 !$OMP end do
 !$OMP end PARALLEL
 
@@ -2982,7 +2859,6 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
   ! Otherwise bl_segment_size will be selected.
   tdims_seg_block = min(bl_segment_size, tdims_omp_block, tdims%i_len)
   ! level 2 needs special treatment because of the surface
-  !do j = tdims%j_start, tdims%j_end
   !$OMP PARALLEL DEFAULT(SHARED)                                                 &
   !$OMP private(k,i,ii,km,kp,sh,exner,sgm,weight1,weight2,weight3,               &
   !$OMP         var_fac,sl_var,qw_var,sl_qw,delta_x,                             &
@@ -3111,14 +2987,10 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
     end do !i
     !$OMP end do
   end if
-  !end do   !j
-!!$OMP end do
 
   ! remaining bl levels use proper interpolation
 
   do k = 3, bl_levels-1
-!! $OMP do SCHEDULE(STATIC)
-    !do j = tdims%j_start, tdims%j_end
     !$OMP do SCHEDULE(STATIC)
     do ii = tdims%i_start, tdims%i_end, tdims_seg_block
       seg_slice_start  = ii
@@ -3253,20 +3125,16 @@ if (i_rhcpt == rhcpt_tke_based .or. BL_diag%l_slvar .or. BL_diag%l_qwvar       &
 
     end if ! var_diags_opt
 
-    !end do   !j
-!!$OMP end do NOWAIT
   end do     !k
   !$OMP BARRIER
 
   if (i_rhcpt == rhcpt_tke_based) then
     ! just use rhcpt=0.8 above bl_levels
     !$OMP do SCHEDULE(STATIC)
-    do k = bl_levels-1, tdims%k_end
-      !do j = tdims%j_start, tdims%j_end
+    do k = bl_levels-1, tdims%k_end     
       do i = tdims%i_start, tdims%i_end
         rhcpt(i,j,k) = 0.8_r_bl
-      end do
-      !end do
+      end do  
     end do
     !$OMP end do
   end if
@@ -3289,13 +3157,11 @@ if ( i_cld_vn == i_cld_bimodal .or.                                            &
       ! Initialise liquid potential temperature gradient
       tgrad_bm(i,j,k) = bm_negative_init
     end do
-    !end do
   end do
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels-1
-    !do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end
       ! Calculate liquid potential temperature gradient for bimodal cloud
       ! scheme entrainment zone identification. Only calculate this gradient
@@ -3314,7 +3180,6 @@ if ( i_cld_vn == i_cld_bimodal .or.                                            &
         tgrad_bm(i,j,k-1) = dsldzm(i,j,k)
       end if
     end do
-    !end do
   end do
 !$OMP end do
 !$OMP end PARALLEL
@@ -3323,7 +3188,6 @@ end if ! i_cld_vn == i_cld_bimodal
 
 !If autotuning is active, decide what to do with the
 !trial segment size and report the current status.
-call timer('bdy_expl2')
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 return
 end subroutine bdy_expl2
