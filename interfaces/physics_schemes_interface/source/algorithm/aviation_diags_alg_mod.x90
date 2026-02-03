@@ -192,14 +192,13 @@ CONTAINS
     CALL prognostic_fields%get_field('u', u)
     CALL prognostic_fields%get_field('v', v)
 
-    ! get and apply the horizontal div operator for this mesh
+    ! get and apply the horizontal div operator for this mesh, for u
     u_div_op => get_directional_im3_div_r_tran(u%get_mesh_id(), direction_h)
     CALL invoke(dg_matrix_vector_kernel_type(u_div, wind_u, div_op))
 
-    ! and for the vertical
-    v_div_op => get_directional_im3_div_r_tran(v%get_mesh_id(), direction_v)
+    ! and for v
+    v_div_op => get_directional_im3_div_r_tran(v%get_mesh_id(), direction_h)
     CALL invoke(dg_matrix_vector_kernel_type(v_div, wind_v, div_op))
-
 
     ! add v to u and save it(?)
     CALL invoke(inc_X_plus_Y(u_div, v_div))
