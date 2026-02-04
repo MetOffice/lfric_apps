@@ -173,7 +173,7 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
   logical( l_def ) :: ignore
   integer( tik )   :: id
 
-  if ( LPROF ) call start_timing( id, 'radiation_diags' )
+  if ( LPROF ) call start_timing( id, 'diags.radiation' )
 
   ! Diagnostic fields that are always required by the kernels
   lw_up_surf_flag    = init_diag( lw_up_surf, &
@@ -355,7 +355,7 @@ subroutine initialise_diags_for_radiation( lw_down_surf, lw_heating_rate, &
     ignore = init_diag( warm_cloud_top_re_rts, &
             'radiation__warm_cloud_top_re_rts', activate=.true. )
 
-  if ( LPROF ) call stop_timing( id, 'radiation_diags' )
+  if ( LPROF ) call stop_timing( id, 'diags.radiation' )
 
 end subroutine initialise_diags_for_radiation
 
@@ -498,7 +498,7 @@ subroutine output_diags_for_radiation( dtheta_rad, &
   logical( l_def ) :: ignore
   integer( tik )  :: id
 
-  if ( LPROF ) call start_timing( id, 'radiation_diags' )
+  if ( LPROF ) call start_timing( id, 'diags.radiation' )
 
   ! Prognostic fields
   call dtheta_rad%write_field('radiation__dtheta_rad')
@@ -744,7 +744,7 @@ subroutine output_diags_for_radiation( dtheta_rad, &
 
   if ( photolysis_rates_rts_flag ) call photolysis_rates_rts%write_field()
 
-  if ( LPROF ) call stop_timing( id, 'radiation_diags' )
+  if ( LPROF ) call stop_timing( id, 'diags.radiation' )
 
 end subroutine output_diags_for_radiation
 end module radiation_diags_mod
