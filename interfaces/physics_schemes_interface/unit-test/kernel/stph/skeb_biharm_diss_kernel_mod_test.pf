@@ -7,7 +7,7 @@
 !>
 module skeb_biharm_diss_kernel_mod_test
 
-  use constants_mod,                 only : i_def, r_def
+  use constants_mod,                 only : i_def, r_def, l_def
   use funit
   use get_unit_test_m3x3_dofmap_mod, only : get_w2_m3x3_dofmap, &
                                             get_w1_m3x3_dofmap, &
@@ -69,6 +69,9 @@ contains
          divergence(:), vorticity(:), ndisp(:)
     real(r_def), pointer :: norm_xi(:), norm_div(:)
 
+    ! Logical controlling whether spectral coeffs need calculating
+    logical(kind=l_def) :: norm_xi_flag, norm_div_flag
+
     ! Dofmaps
     integer(i_def), allocatable :: map_w2(:,:), map_w1(:,:), map_w3(:,:), &
          map_w3_stencil(:,:,:)
@@ -112,6 +115,9 @@ contains
 
     norm_xi => empty_real_data
     norm_div => empty_real_data
+ 
+    norm_xi_flag  = .false.
+    norm_div_flag = .false.
 
     dx_at_w2 = 10.0_r_def
     dt = 3.0_r_def/128.0_r_def
@@ -144,6 +150,8 @@ contains
                                 2, 2, dt,                 &
                                 norm_xi,                  &
                                 norm_div,                 &
+                                norm_xi_flag,             &
+                                norm_div_flag,            &
                                 ndf_w3,                   &
                                 undf_w3,                  &
                                 map_w3(:, cell),          &

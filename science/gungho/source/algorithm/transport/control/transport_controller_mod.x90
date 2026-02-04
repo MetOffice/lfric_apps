@@ -35,7 +35,8 @@ module transport_controller_mod
   use mesh_collection_mod,            only: mesh_collection
   use model_clock_mod,                only: model_clock_type
   use r_tran_field_mod,               only: r_tran_field_type
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
 
   ! Pointers to other objects
   use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
@@ -61,7 +62,6 @@ module transport_controller_mod
 
   ! Config
   use departure_points_config_mod,    only: share_stencil_extent
-  use io_config_mod,                  only: subroutine_timers
   use transport_config_mod,           only: dep_pt_stencil_extent
 
   implicit none
@@ -206,8 +206,9 @@ contains
     logical(kind=l_def)    :: fixed_multiple_substeps
     logical(kind=l_def)    :: logged_lipschitz
     character(len=str_def) :: splitting_name
+    integer(tik)        :: id
 
-    if ( subroutine_timers ) call timer('transport.controller_init')
+    if ( LPROF ) call start_timing( id, 'transport.controller_init' )
 
     ! Set options, to be passed to objects initialised later
     if (present(outer)) then
@@ -481,7 +482,7 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
     end if
 
-    if ( subroutine_timers ) call timer('transport.controller_init')
+    if ( LPROF ) call stop_timing( id, 'transport.controller_init' )
 
   end subroutine initialise
 
@@ -660,12 +661,20 @@ contains
           )
 
           call log_event(                                                      &
-            'Watkins algorithm failed to keep all reference fields ' //        &
+            'The Watkins algorithm failed to keep all reference fields ' //    &
             'positive for the transport of tracers. This makes it ' //         &
-            'impossible to find sensible departure distances. Most likely ' // &
-            'the input transporting wind to the transport scheme has a ' //    &
-            'maximum Lipschitz number that exceeds 1 somewhere, so check ' //  &
-            'so check these values. Stopping model now to fail gracefully',    &
+            'impossible to find sensible departure distances for (Flux ' //    &
+            'Form) Semi-Lagrangian transport. Stopping now to fail ' //        &
+            'gracefully.' // NEW_LINE('A') // NEW_LINE('A') //                 &
+            'This is a common way for the model to fail. Most likely the ' //  &
+            'transporting wind passed to the transport scheme has some ' //    &
+            'unphysical values, and the corresponding maximum Lipschitz ' //   &
+            'number exceeds 1 somewhere, so check these values in the log ' // &
+            'above, which may also indicate the geographical location of ' //  &
+            'the issue.' //                                                    &
+            NEW_LINE('A') // NEW_LINE('A') //                                  &
+            'If this failure has occurred in the first timestep, it can ' //   &
+            'signify issues with the initial conditions or ancillaries.',      &
             LOG_LEVEL_ERROR                                                    &
           )
         end if

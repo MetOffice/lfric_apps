@@ -29,7 +29,6 @@ module limited_area_constants_mod
   use sci_geometric_constants_mod,       only: get_coordinates
   use inventory_by_local_mesh_mod,       only: inventory_by_local_mesh_type
   use inventory_by_mesh_mod,             only: inventory_by_mesh_type
-  use io_config_mod,                     only: subroutine_timers
   use lfric_xios_write_mod,              only: write_field_generic
   use local_mesh_mod,                    only: local_mesh_type
   use log_mod,                           only: log_event,       &
@@ -37,7 +36,8 @@ module limited_area_constants_mod
                                                LOG_LEVEL_DEBUG
   use mesh_collection_mod,               only: mesh_collection
   use mesh_mod,                          only: mesh_type
-  use timer_mod,                         only: timer
+  use timing_mod,                        only: start_timing, stop_timing, &
+                                               tik, LPROF
 
   ! Configuration
   use base_mesh_config_mod,              only: geometry, geometry_spherical
@@ -165,9 +165,10 @@ contains
     type(field_type) :: w2parallel_mask
     type(field_type) :: w2perp_mask
     type(field_type) :: w2interior_mask
+    integer(tik)     :: id
 
     ! Temporary mask fields to point to those in inventories
-    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
     ! Point to the correct inventories
     if (use_fe) then
@@ -259,7 +260,7 @@ contains
 
     if (run_log_level == run_log_level_debug) call list_mask_fields()
 
-    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
 
   end subroutine create_standard_masks
 
@@ -296,8 +297,9 @@ contains
     integer(kind=i_def)                  :: i
     integer(kind=i_def)                  :: current_fs_id
     integer(kind=i_def)                  :: k_h, k_v
+    integer(tik)                         :: id
 
-    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
     ! Point to the correct inventories
     if (use_fe) then
@@ -356,7 +358,7 @@ contains
     ! Return function space chain to its position
     call multigrid_function_space_chain%set_current(current_fs_id)
 
-    if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+    if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
   end subroutine
 
   !> @brief Write out the name of each mask in the mask field collection
@@ -659,6 +661,7 @@ contains
     type(inventory_by_mesh_type), pointer :: inventory
     character(len=str_def)                :: inventory_name
     type(function_space_type),    pointer :: fs
+    integer(tik)                          :: id
 
     ! Get appropriate inventory
     select case (space)
@@ -690,14 +693,14 @@ contains
       ! Create constant if it doesn't already exist
       mask_r_def => get_mask_fe(space, mesh_id, finest_mesh_name)
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
       fs => function_space_collection%get_fs(mesh, element_order_h, &
                                              element_order_v, space)
       call inventory%add_field(mask_r_solver, fs, mesh)
       call copy_field(mask_r_def, mask_r_solver)
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if
 
     ! Return constant
@@ -724,6 +727,7 @@ contains
     logical(kind=l_def)                   :: constant_exists
     type(inventory_by_mesh_type), pointer :: inventory
     character(len=str_def)                :: inventory_name
+    integer(tik)                          :: id
 
     ! If running at lowest order, use finite volume
     if (element_order_h == 0 .and. element_order_v == 0) then
@@ -753,7 +757,7 @@ contains
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
       ! Check if this is the finest mesh
       finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
@@ -767,7 +771,7 @@ contains
       call create_standard_masks(mesh, use_fe=.true., &
                                  finest_mesh_name=finest_mesh_name)
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if
 
     ! Return constant
@@ -794,6 +798,7 @@ contains
     logical(kind=l_def)                   :: constant_exists
     type(inventory_by_mesh_type), pointer :: inventory
     character(len=str_def)                :: inventory_name
+    integer(tik)                          :: id
 
     ! Get appropriate inventory
     select case (space)
@@ -817,7 +822,7 @@ contains
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
       ! Check if this is the finest mesh
       finest_mesh => mesh_collection%get_mesh(finest_mesh_name)
@@ -831,7 +836,7 @@ contains
       call create_standard_masks(mesh, use_fe=.false., &
                                  finest_mesh_name=finest_mesh_name)
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if
 
     ! Return constant
@@ -861,6 +866,7 @@ contains
     character(len=str_def)                :: inventory_name
     character(len=str_def)                :: field_name
     type(function_space_type),    pointer :: fs
+    integer(tik)                          :: id
 
     ! If running at lowest order, use finite volume
     if (element_order_h == 0 .and. element_order_v == 0) then
@@ -902,7 +908,7 @@ contains
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
       chi => get_coordinates(mesh_id)
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
       fs => function_space_collection%get_fs(mesh, element_order_h, &
                                              element_order_v, space)
@@ -916,7 +922,7 @@ contains
       end if
       call mask_collection%add_field( mask_ptr )
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if
 
     ! Return constant
@@ -946,6 +952,7 @@ contains
     character(len=str_def)                :: inventory_name
     character(len=str_def)                :: field_name
     type(function_space_type),    pointer :: fs
+    integer(tik)                          :: id
 
     ! Get appropriate inventory
     select case (space)
@@ -981,7 +988,7 @@ contains
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
       chi => get_coordinates(mesh_id)
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
       fs => function_space_collection%get_fs(mesh, 0, 0, space)
       call inventory%add_field(mask_ptr, fs, mesh, name=field_name)
@@ -994,7 +1001,7 @@ contains
       end if
       call mask_collection%add_field( mask_ptr )
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if
 
     ! Return constant
@@ -1021,6 +1028,7 @@ contains
     type(field_type),             pointer :: onion_layers
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: w3_fs
+    integer(tik)                          :: id
 
     ! Initialise inventory if this is the first time getting this constant
     if (.not. onion_layers_inventory%is_initialised()) then
@@ -1041,7 +1049,7 @@ contains
 
       if (prime_mesh%get_id() == finest_mesh%get_id()) then
 
-        if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+        if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
         ! Onion layers are only defined for lowest order finite elements
         w3_fs => function_space_collection%get_fs(                             &
@@ -1062,7 +1070,7 @@ contains
           call mask_collection%initialise(name='mask_collection')
         end if
         call mask_collection%add_field( onion_layers )
-        if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+        if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
 
       else
         call log_event('Onion layers only implemented on finest mesh', LOG_LEVEL_ERROR)
@@ -1095,6 +1103,7 @@ contains
     type(inventory_by_mesh_type), pointer :: inventory
     character(len=str_def)                :: inventory_name
     type(function_space_type),    pointer :: fs
+    integer(tik)                          :: id
 
     ! Get appropriate inventory
     select case (space)
@@ -1127,7 +1136,7 @@ contains
       onion_layers => get_onion_layers(mesh_id, finest_mesh_name)
       chi => get_coordinates(mesh_id)
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call start_timing( id, 'runtime_constants.limited_area' )
 
       fs => function_space_collection%get_fs(mesh, element_order_h, &
                                              element_order_v, space)
@@ -1141,7 +1150,7 @@ contains
       end if
       call mask_collection%add_field( mask_ptr )
 
-      if ( subroutine_timers ) call timer('runtime_constants.limited_area')
+      if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if
 
     ! Return constant
