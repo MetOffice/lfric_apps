@@ -29,11 +29,12 @@ private
 ! Contains the metadata needed by the PSy layer.
 type, public, extends(kernel_type) :: illuminate_kernel_type
   private
-  type(arg_type) :: meta_args(19) = (/                                           &
+  type(arg_type) :: meta_args(20) = (/                                           &
        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle
        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! cos_zenith_angle_rts
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction_rts
+       arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! lit_fraction_cosp
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! stellar_irradiance_rts
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! sin_stellar_declination_rts
        arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), & ! stellar_eqn_of_time_rts
@@ -66,7 +67,8 @@ contains
 !> @param[in,out] cos_zenith_angle            Cosine of the stellar zenith angle
 !> @param[in,out] lit_fraction                Lit fraction of the timestep
 !> @param[in,out] cos_zenith_angle_rts        Cosine of the stellar zenith angle
-!> @param[in,out] lit_fraction_rts            Lit fraction of the timestep
+!> @param[in,out] lit_fraction_rts            Lit fraction of the radiation timestep
+!> @param[in,out] lit_fraction_cosp           Lit fraction of the COSP timestep
 !> @param[in,out] stellar_irradiance_rts      Stellar irradiance at the planet
 !> @param[in,out] sin_stellar_declination_rts Stellar declination
 !> @param[in,out] stellar_eqn_of_time_rts     Stellar equation of time
@@ -96,6 +98,7 @@ subroutine illuminate_code(nlayers,                          &
                            lit_fraction,                     &
                            cos_zenith_angle_rts,             &
                            lit_fraction_rts,                 &
+                           lit_fraction_cosp,                &
                            stellar_irradiance_rts,           &
                            sin_stellar_declination_rts,      &
                            stellar_eqn_of_time_rts,          &
@@ -113,6 +116,7 @@ subroutine illuminate_code(nlayers,                          &
   use radiation_config_mod, only: n_radstep, n_horiz_ang, n_horiz_layer, &
                                   topography, &
                                   topography_slope, topography_horizon
+  use cosp_config_mod, only: l_cosp, n_cosp_step
   use star_config_mod, only: stellar_constant
   use orbit_config_mod, only:                                                &
     elements, elements_user, elements_earth_fixed,                           &
@@ -141,9 +145,10 @@ subroutine illuminate_code(nlayers,                          &
   integer(i_def), intent(in) :: map_h_asp(ndf_h_asp)
 
   real(r_def), dimension(undf_2d), intent(inout):: &
-    cos_zenith_angle, lit_fraction
-  real(r_def), dimension(undf_2d), intent(inout):: &
-    cos_zenith_angle_rts, lit_fraction_rts, stellar_irradiance_rts, &
+    cos_zenith_angle, lit_fraction, &
+    cos_zenith_angle_rts, lit_fraction_rts, &
+    lit_fraction_cosp, &
+    stellar_irradiance_rts, &
     sin_stellar_declination_rts, stellar_eqn_of_time_rts, &
     orographic_correction_rts
   real(r_def), dimension(undf_2d), intent(in) :: slope_angle, slope_aspect
@@ -158,7 +163,7 @@ subroutine illuminate_code(nlayers,                          &
   integer :: h_ang_1, h_ang_last
   integer :: h_asp_1, h_asp_last
   logical :: l_slope, l_shading
-
+  real(r_def), dimension(undf_2d) :: cos_zenith_angle_cosp
 
   ! Set orbital elements
   select case (elements)
@@ -280,6 +285,34 @@ subroutine illuminate_code(nlayers,                          &
       stellar_eqn_of_time      = stellar_eqn_of_time_rts(map_2d(1)),     &
       cos_zenith_angle         = cos_zenith_angle(map_2d(1):map_2d(1)),  &
       lit_fraction             = lit_fraction(map_2d(1):map_2d(1)) )
+  end if
+
+  if (l_cosp) then
+    if (n_cosp_step == 1) then
+      lit_fraction_cosp(map_2d(1):map_2d(1)) &
+        = lit_fraction(map_2d(1):map_2d(1))
+    else if (n_cosp_step == n_radstep) then
+      lit_fraction_cosp(map_2d(1):map_2d(1)) &
+        = lit_fraction_rts(map_2d(1):map_2d(1))
+    else if (mod(timestep-1_i_def, n_cosp_step) == 0) then
+      ! Calculate parameters for external illumination of the atmosphere
+      ! over the COSP timestep
+      call illuminate(                                                         &
+        l_stellar_angle          = .true.,                                     &
+        n_profile                = n_profile,                                  &
+        i_spin                   = i_spin,                                     &
+        second_of_day            = second_of_day,                              &
+        length_of_timestep       = dt*real(n_cosp_step, r_def),                &
+        hour_angle_inc           = hour_angle_inc,                             &
+        fixed_zenith_angle       = fixed_zenith_angle,                         &
+        fixed_azimuth_angle      = fixed_azimuth_angle,                        &
+        latitude                 = latitude(map_2d(1):map_2d(1)),              &
+        longitude                = longitude(map_2d(1):map_2d(1)),             &
+        sin_stellar_declination  = sin_stellar_declination_rts(map_2d(1)),     &
+        stellar_eqn_of_time      = stellar_eqn_of_time_rts(map_2d(1)),         &
+        cos_zenith_angle         = cos_zenith_angle_cosp(map_2d(1):map_2d(1)), &
+        lit_fraction             = lit_fraction_cosp(map_2d(1):map_2d(1)) )
+    end if
   end if
 
 end subroutine illuminate_code
