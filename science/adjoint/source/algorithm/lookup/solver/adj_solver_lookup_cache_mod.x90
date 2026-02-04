@@ -1,0 +1,182 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing the cached lookup table object.
+module adj_solver_lookup_cache_mod
+
+  use adj_lookup_table_mod,            only: adj_lookup_table_type
+  use constants_mod,                   only: i_def, l_def
+  use log_mod,                         only: log_event,         &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_ERROR
+
+  implicit none
+
+  !> @brief Adjoint lookup table cache type.
+  !> @details Cache containing the lookup tables needed for each stencil kernel,
+  !>          for every combination of function spaces needed.
+  type, public :: adj_solver_lookup_cache_type
+    private
+
+      !> Lookup table for adj_apply_helmholtz_operator_kernel.
+      type(adj_lookup_table_type), allocatable, dimension(:) :: lookup_apply_hho
+
+      !> Number of multigrid levels for lookup_apply_hho.
+      integer(kind=i_def)                                    :: multigrid_levels = 0_i_def
+
+      !> Flag to state whether or not cache is initialised
+      logical(kind=l_def)                                    :: is_initialised = .false._l_def
+
+      contains
+
+      procedure, public :: initialise => adj_solver_lookup_cache_init
+      procedure, public :: get_lookup_apply_hho
+      procedure, public :: adj_solver_lookup_cache_assign
+      procedure, public :: finalise => adj_solver_lookup_cache_final
+      generic,   public :: assignment(=) => adj_solver_lookup_cache_assign
+
+  end type adj_solver_lookup_cache_type
+
+  contains
+
+  !=============================================================================
+  !> @brief Initialise the lookup table cache.
+  !> @param [in,out] self           Lookup table cache
+  !> @param [in]     mesh           Pointer to mesh
+  subroutine adj_solver_lookup_cache_init(self, mesh)
+
+    use adj_lookup_table_generators_alg_mod, only: create_lookup_apply_helmholtz_op
+    use constants_mod,                       only: r_solver
+    use finite_element_config_mod,           only: element_order_h, &
+                                                   element_order_v
+    use formulation_config_mod,              only: l_multigrid
+    use fs_continuity_mod,                   only: W3
+    use function_space_mod,                  only: function_space_type
+    use function_space_chain_mod,            only: multigrid_function_space_chain
+    use function_space_collection_mod,       only: function_space_collection
+    use mesh_mod,                            only: mesh_type
+    use multigrid_config_mod,                only: multigrid_chain_nitems
+    use r_solver_field_mod,                  only: r_solver_field_type
+
+
+    implicit none
+
+    ! Arguments
+    class(adj_solver_lookup_cache_type), intent(inout) :: self
+    type(mesh_type),              pointer, intent(in) :: mesh
+
+    ! Internal variables
+    type(function_space_type),                pointer :: vector_space_w3_ptr
+    type(r_solver_field_type)                         :: vector_x
+    integer(kind=i_def)                               :: level
+
+    nullify(vector_space_w3_ptr)
+
+    ! =========================================================================
+    ! Creating lookup_apply_hho
+    ! =========================================================================
+    vector_space_w3_ptr => function_space_collection%get_fs(                   &
+        mesh, element_order_h, element_order_v, W3                             &
+    )
+
+    if(l_multigrid) then
+       self%multigrid_levels=multigrid_chain_nitems
+    else
+       self%multigrid_levels=1
+    end if
+    allocate(self%lookup_apply_hho(self%multigrid_levels))
+
+    if (l_multigrid) then
+      call multigrid_function_space_chain%set_current(vector_space_w3_ptr%get_id())
+    end if
+
+    do level = 1, self%multigrid_levels
+      call vector_x%initialise(vector_space_w3_ptr)
+      call invoke(setval_c(vector_x, 0.0_r_solver))
+      call create_lookup_apply_helmholtz_op(self%lookup_apply_hho(level), &
+                                            vector_x)
+      if(l_multigrid) then
+        vector_space_w3_ptr => multigrid_function_space_chain%get_next()
+      end if
+    end do
+
+    self%is_initialised = .true._l_def
+
+  end subroutine adj_solver_lookup_cache_init
+
+  !=============================================================================
+  ! Getters
+  !=============================================================================
+
+  !=============================================================================
+  !> @brief Return a pointer to the apply_hho lookup table.
+  !> @param [in]     self           Lookup table cache
+  !> @param [in]     level          Multigrid level to obtain lookup for
+  !> @return         lookup_ptr     The lookup table
+  function get_lookup_apply_hho(self, level) result(lookup_ptr)
+
+    implicit none
+
+    ! Arguments
+    class(adj_solver_lookup_cache_type), target, intent(in) :: self
+    integer(kind=i_def),                        intent(in) :: level
+
+    ! Returns
+    type(adj_lookup_table_type),                   pointer :: lookup_ptr
+
+    if (.not. self%is_initialised) call log_event("Cannot get lookup: cache is not initialised", LOG_LEVEL_ERROR)
+    nullify(lookup_ptr)
+    lookup_ptr => self%lookup_apply_hho(level)
+
+  end function get_lookup_apply_hho
+
+  !=============================================================================
+  !> @brief   Assignment operator.
+  !> @details Implemented to avoid pointer aliasing preventing compiler optimisations.
+  subroutine adj_solver_lookup_cache_assign(dest, source)
+
+    implicit none
+
+    class(adj_solver_lookup_cache_type), intent(in)  :: source
+    class(adj_solver_lookup_cache_type), intent(out) :: dest
+
+    ! Internal variables
+    integer(kind=i_def)                              :: level
+
+    if (.not. source%is_initialised) call log_event("Source cache in copy assignment is not initialised", LOG_LEVEL_ERROR)
+
+    dest%multigrid_levels = source%multigrid_levels
+    allocate(dest%lookup_apply_hho(dest%multigrid_levels))
+    do level = 1_i_def, source%multigrid_levels
+      dest%lookup_apply_hho(level) = source%lookup_apply_hho(level)
+    end do
+    dest%is_initialised = .true._l_def
+
+  end subroutine adj_solver_lookup_cache_assign
+
+  !=============================================================================
+  !> @brief Destructor.
+  !> @param [in,out]     self           Lookup table cache
+  subroutine adj_solver_lookup_cache_final(self)
+
+    implicit none
+
+    ! Arguments
+    class(adj_solver_lookup_cache_type), intent(inout) :: self
+
+    ! Internal variables
+    integer(kind=i_def)                                :: level
+
+    if (self%is_initialised) then
+      do level = 1, self%multigrid_levels
+        call self%lookup_apply_hho(level)%finalise()
+      end do
+      if (allocated(self%lookup_apply_hho)) deallocate(self%lookup_apply_hho)
+    end if
+
+  end subroutine adj_solver_lookup_cache_final
+
+end module adj_solver_lookup_cache_mod
