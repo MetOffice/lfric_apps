@@ -78,7 +78,7 @@ contains
     integer(kind=i_def)                       :: mesh
     integer(tik)                              :: id
 
-    if ( LPROF ) call start_timing( id, 'moisture_fluxes_alg' )
+    if ( LPROF ) call start_timing( id, 'diags.moisture_fluxes' )
 
     mesh = area%get_mesh_id()
     call microphysics_fields%get_field('ls_rain', ls_rain)
@@ -163,7 +163,7 @@ contains
     nullify( fs_2d )
     nullify( ls_rain, ls_snow, ls_graup, conv_rain, conv_snow, moist_flux_bl )
 
-    if ( LPROF ) call stop_timing( id, 'moisture_fluxes_alg' )
+    if ( LPROF ) call stop_timing( id, 'diags.moisture_fluxes' )
 
   end subroutine moisture_fluxes_alg
 
