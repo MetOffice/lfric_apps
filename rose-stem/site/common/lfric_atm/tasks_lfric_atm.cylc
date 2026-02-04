@@ -1168,10 +1168,11 @@
 {% if task_ns.conf_name.startswith("nwp_gal9-C896_MG_720t_opDiag") %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","oper_diags"],
+        "opt_confs": ["um_dump","oper_diags_hres"],
         "tsteps": 720,
         "wallclock": 45,
         "plot_str": "",
+        "restart_write": false,
     }) %}
 
 {% endif %}
