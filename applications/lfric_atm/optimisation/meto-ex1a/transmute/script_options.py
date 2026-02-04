@@ -19,6 +19,7 @@ SCRIPT_OPTIONS_DICT = {}
 
 # Kernels
 SCRIPT_OPTIONS_DICT["mphys_kernel_mod"+str(FILE_EXTEN)] = {
+
     "options": {
         "node-type-check": False,
         "ignore_dependencies_for": [
