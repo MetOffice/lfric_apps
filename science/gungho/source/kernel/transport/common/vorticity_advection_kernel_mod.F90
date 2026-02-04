@@ -34,6 +34,10 @@ use constants_mod,           only: r_def, i_def
 use fs_continuity_mod,       only: W1, W2
 use cross_product_mod,       only: cross_product
 
+use base_mesh_config_mod,      only: geometry, topology
+use finite_element_config_mod, only: coord_system
+use planet_config_mod,         only: scaled_radius
+
 implicit none
 
 private
@@ -177,8 +181,10 @@ subroutine vorticity_advection_code(nlayers,                                   &
           vorticity_at_quad(:) = vorticity_at_quad(:) &
                                + vorticity( map_w1(df) + k )*w1_basis(:,df,qp1,qp2)
         end do
-        call pointwise_coordinate_jacobian(ndf_chi, chi_1_e, chi_2_e, chi_3_e,  &
-                                           ipanel, chi_basis(:,:,qp1,qp2),      &
+        call pointwise_coordinate_jacobian(coord_system, geometry,             &
+                                           topology, scaled_radius,            &
+                                           ndf_chi, chi_1_e, chi_2_e, chi_3_e, &
+                                           ipanel, chi_basis(:,:,qp1,qp2),     &
                                            chi_diff_basis(:,:,qp1,qp2), jac, dj)
         jac_inv =  pointwise_coordinate_jacobian_inverse(jac, dj)
         jac = matmul(jac_inv,transpose(jac_inv))
