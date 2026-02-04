@@ -24,4 +24,3 @@
 | tommbendall     | Thomas Bendall     | Met Office                       | 2026-01-13 |
 | mo-jmanners     | James Manners      | Met Office                       | 2026-01-14 |
 | maggiehendry    | Maggie Hendry      | Met Office                       | 2026-01-29 |
-| tommbendall     | Thomas Bendall     | Met Office                       | 2025-01-15 |
