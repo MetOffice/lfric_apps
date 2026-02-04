@@ -7,7 +7,6 @@
 | jennyhickson    | Jenny Hickson      | Met Office                       | 2025-12-10 |
 | mike-hobson     | Mike Hobson        | Met Office                       | 2025-12-17 |
 | mo-marqh        | mark Hedley        | Met Office                       | 2025-12-11 |
-| mo-rickywong    | Ricky Wong         | Met Office                       | 2026-01-27 |
 | yaswant         | Yaswant Pradhan    | Met Office                       | 2025-12-16 |
 | oakleybrunt     | Oakley Brunt       | Met Office                       | 2025-12-19 |
 | harry-shepherd  | Harry Shepherd     | Met Office                       | 2026-01-08 |
@@ -24,4 +23,5 @@
 | mo-lottieturner | Lottie Turner      | Met Office                       | 2026-01-27 |
 | andrewcoughtrie | Andrew Coughtrie   | Met Office                       | 2026-01-28 |
 | tommbendall     | Thomas Bendall     | Met Office                       | 2026-01-13 |
+| mo-jmanners     | James Manners      | Met Office                       | 2026-01-14 |
 | maggiehendry    | Maggie Hendry      | Met Office                       | 2026-01-29 |
