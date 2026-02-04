@@ -12,6 +12,7 @@ use log_mod,                    only: log_event, log_scratch_space,            &
 
 ! LFRic Modules
 use add_mesh_map_mod,           only: assign_mesh_maps
+use config_mod,                 only: config_type
 use create_mesh_mod,            only: create_mesh
 use driver_collections_mod,     only: init_collections, final_collections
 use driver_mesh_mod,            only: init_mesh
@@ -117,6 +118,7 @@ procedure(event_action), pointer :: context_advance
 
 
 type(namelist_collection_type), save :: configuration
+type(config_type),              save :: config
 
 type(namelist_type), pointer :: base_mesh_nml
 type(namelist_type), pointer :: planet_nml
@@ -164,8 +166,11 @@ local_rank = global_mpi%get_comm_rank()
 call initialise_halo_comms( comm )
 
 call configuration%initialise( program_name_arg, table_len=10 )
+call config%initialise( program_name_arg )
+
 call load_configuration( lfric_nl_fname, required_lfric_namelists, &
-                         configuration )
+                         configuration=configuration,              &
+                         config=config )
 
 ! Initialise logging system
 call init_logger( comm, program_name )
@@ -234,7 +239,8 @@ end do
 !-------------------------------------------------------------------------
 stencil_depth = 2_i_def
 check_partitions = .false.
-call init_mesh( configuration,              &
+
+call init_mesh( config,                     &
                 local_rank, total_ranks,    &
                 base_mesh_names, extrusion, &
                 stencil_depth, check_partitions )
@@ -279,7 +285,7 @@ end subroutine lfricinp_initialise_lfric
 !------------------------------------------------------------------
 
 subroutine load_configuration( lfric_nl, required_lfric_namelists, &
-                               configuration )
+                               configuration, config )
 
 ! Description:
 !  Reads lfric namelists and checks that all required namelists are present
@@ -293,6 +299,7 @@ character(*), intent(in) :: lfric_nl
 character(*), intent(in)  :: required_lfric_namelists(:)
 
 type(namelist_collection_type), intent(INOUT) :: configuration
+type(config_type),              intent(INOUT) :: config
 
 logical              :: okay
 logical, allocatable :: success_map(:)
@@ -303,7 +310,9 @@ allocate(success_map(size(required_lfric_namelists)))
 call log_event('Loading '//trim(program_name)//' configuration ...',           &
                LOG_LEVEL_ALWAYS)
 
-call read_configuration( lfric_nl, configuration )
+call read_configuration( lfric_nl,                    &
+                         configuration=configuration, &
+                         config=config )
 
 okay = ensure_configuration(required_lfric_namelists, success_map)
 if (.not. okay) then

@@ -44,6 +44,7 @@ program adjoint_tests
   modeldb%mpi => global_mpi
 
   call modeldb%configuration%initialise( application_name, table_len=10 )
+  call modeldb%config%initialise( application_name )
 
   call modeldb%values%initialise('values', 5)
 
@@ -65,7 +66,8 @@ program adjoint_tests
   call init_comm( application_name, modeldb )
 
   call init_config( filename, gungho_required_namelists, &
-                    modeldb%configuration )
+                    configuration=modeldb%configuration, &
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), application_name )
 
   io_nml => modeldb%configuration%get_namelist('io')

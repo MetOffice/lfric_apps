@@ -181,7 +181,8 @@ module shallow_water_model_mod
     ! ---------------------------------------------------------
     check_partitions = .false.
     stencil_depth = get_required_stencil_depth()
-    call init_mesh( modeldb%configuration,       &
+
+    call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
                     base_mesh_names, extrusion,  &

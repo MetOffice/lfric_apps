@@ -10,6 +10,7 @@ module jedi_lfric_mesh_setup_mod
   use add_mesh_map_mod,        only: assign_mesh_maps
   use base_mesh_config_mod,    only: GEOMETRY_SPHERICAL, &
                                      GEOMETRY_PLANAR
+  use config_mod,              only: config_type
   use constants_mod,           only: str_def, i_def, l_def, r_def
   use create_mesh_mod,         only: create_mesh
   use driver_mesh_mod,         only: init_mesh
@@ -36,14 +37,16 @@ contains
   !>
   !> @param [out]   mesh_name     The name of the mesh being setup
   !> @param [in]    configuration The geometry configuration
+  !> @param [in]    config        The geometry configuration
   !> @param [inout] mpi_obj       The mpi communicator
   !> @param [in]    alt_mesh_name The name of an alternative mesh_name to setup
-  subroutine initialise_mesh( mesh_name, configuration, mpi_obj, alt_mesh_name )
+  subroutine initialise_mesh( mesh_name, configuration, config, mpi_obj, alt_mesh_name )
 
     implicit none
 
     character(len=*),              intent(out) :: mesh_name
     type(namelist_collection_type), intent(in) :: configuration
+    type(config_type),              intent(in) :: config
     !> @todo: This should be intent in but when calling the method I get
     !> a compiler failure
     class(lfric_mpi_type),       intent(inout) :: mpi_obj
@@ -124,7 +127,7 @@ contains
     !-------------------------------------------------------------------------
     stencil_depth = 2
     apply_partition_check = .false.
-    call init_mesh( configuration,           &
+    call init_mesh( config,                  &
                     mpi_obj%get_comm_rank(), &
                     mpi_obj%get_comm_size(), &
                     base_mesh_names,         &

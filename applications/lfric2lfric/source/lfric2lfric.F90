@@ -49,6 +49,7 @@ program lfric2lfric
   call parse_command_line( filename )
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
 
   write(log_scratch_space,'(A)')                          &
       'Application built with '// trim(precision_real) // &
@@ -68,7 +69,9 @@ program lfric2lfric
 #endif
   call init_comm( program_name, modeldb )
   call init_config( filename, lfric2lfric_required_namelists, &
-                    modeldb%configuration                     )
+                    configuration=modeldb%configuration,      &
+                    config=modeldb%config )
+
   call init_logger( modeldb%mpi%get_comm(), program_name )
   call init_collections()
   call init_time( modeldb )

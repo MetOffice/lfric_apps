@@ -29,6 +29,7 @@ program cma_test
                                              test_cma_add,                   &
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, r_def, i_def, l_def, &
                                              r_solver, pi, str_def
   use derived_config_mod,             only : set_derived_config
@@ -125,6 +126,7 @@ program cma_test
 
   ! Namelist and configuration variables
   type(namelist_collection_type), save :: configuration
+  type(config_type),              save :: config
 
   type(namelist_type), pointer :: extrusion_nml
   type(namelist_type), pointer :: base_mesh_nml
@@ -232,6 +234,7 @@ program cma_test
   end select
 
   call configuration%initialise( program_name, table_len=10 )
+  call config%initialise( program_name )
 
   deallocate(program_name)
   deallocate(test_flag)
@@ -243,7 +246,9 @@ program cma_test
   call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
   allocate( success_map(size(required_configuration)) )
-  call read_configuration( filename, configuration )
+  call read_configuration( filename,                    &
+                           configuration=configuration, &
+                           config=config )
 
   okay = ensure_configuration( required_configuration, success_map )
   if (.not. okay) then
@@ -291,7 +296,8 @@ program cma_test
 
   stencil_depth = get_required_stencil_depth()
   check_partitions = .false.
-  call init_mesh( configuration,              &
+
+  call init_mesh( config,                     &
                   local_rank, total_ranks,    &
                   base_mesh_names, extrusion, &
                   stencil_depth, check_partitions )

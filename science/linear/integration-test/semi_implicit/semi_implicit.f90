@@ -133,7 +133,12 @@ program semi_implicit
   end select
 
   call modeldb%configuration%initialise( program_name, table_len=10 )
-  call read_configuration( filename, modeldb%configuration )
+  call modeldb%config%initialise( program_name)
+
+  call read_configuration( filename,                            &
+                           configuration=modeldb%configuration, &
+                           config=modeldb%config )
+
   deallocate( filename )
 
   call init_collections()

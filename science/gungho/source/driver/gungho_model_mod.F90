@@ -673,7 +673,8 @@ contains
     end if
 
     stencil_depth = get_required_stencil_depth()
-    call init_mesh( modeldb%configuration,        &
+
+    call init_mesh( modeldb%config,               &
                     modeldb%mpi%get_comm_rank(),  &
                     modeldb%mpi%get_comm_size(),  &
                     base_mesh_names,              &
