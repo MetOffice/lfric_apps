@@ -781,100 +781,103 @@ j = 1
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
 ! do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
 
-  rhokh_surf_ent(i,j) = zero
-  rhokh_top_ent(i,j)  = zero
-  rhokh_dsct_ent(i,j) = zero
-  rhokm_surf_ent(i,j) = zero
-  rhokm_top_ent(i,j)  = zero
-  rhokm_dsct_ent(i,j) = zero
-  v_top(i,j) = zero
-  v_sum(i,j) = zero
-  v_top_dsc(i,j) = zero
-  v_sum_dsc(i,j) = zero
-  rho_we(i,j)     = zero
-  rho_we_sml(i,j) = zero
-  rho_we_dsc(i,j) = zero
+    rhokh_surf_ent(i,j) = zero
+    rhokh_top_ent(i,j)  = zero
+    rhokh_dsct_ent(i,j) = zero
+    rhokm_surf_ent(i,j) = zero
+    rhokm_top_ent(i,j)  = zero
+    rhokm_dsct_ent(i,j) = zero
+    v_top(i,j) = zero
+    v_sum(i,j) = zero
+    v_top_dsc(i,j) = zero
+    v_sum_dsc(i,j) = zero
+    rho_we(i,j)     = zero
+    rho_we_sml(i,j) = zero
+    rho_we_dsc(i,j) = zero
 
-  if (fb_surf(i,j)  >=  zero) then
+    if (fb_surf(i,j)  >=  zero) then
 
-    ! The calculations below involve v_s**4. In very rare circumstances
-    ! v_s can be order(10^-11), therefore v_s**4 is order(10^-44)
-    ! which is outside the range of single precision calculations
-    ! Hence we create a double precision version to enforce the correct
-    ! calculation
-    v_s_dbl(i,j) = v_s(i,j)
+      ! The calculations below involve v_s**4. In very rare circumstances
+      ! v_s can be order(10^-11), therefore v_s**4 is order(10^-44)
+      ! which is outside the range of single precision calculations
+      ! Hence we create a double precision version to enforce the correct
+      ! calculation
+      v_s_dbl(i,j) = v_s(i,j)
 
-      ! Free-convective velocity scale cubed
+        ! Free-convective velocity scale cubed
 
-    if (coupled(i,j)) then
-      if ( entr_smooth_dec == entr_taper_zh ) then
-        wstar3 = (      svl_diff_frac(i,j)  * zhsc(i,j)                      &
-                  + (one-svl_diff_frac(i,j)) * zh(i,j)   )* fb_surf(i,j)
+      if (coupled(i,j)) then
+        if ( entr_smooth_dec == entr_taper_zh ) then
+          wstar3 = (      svl_diff_frac(i,j)  * zhsc(i,j)                      &
+                    + (one-svl_diff_frac(i,j)) * zh(i,j)   )* fb_surf(i,j)
+        else
+          wstar3 = zhsc(i,j) * fb_surf(i,j)
+        end if
       else
-        wstar3 = zhsc(i,j) * fb_surf(i,j)
+        wstar3 =   zh(i,j) * fb_surf(i,j)
       end if
+
+      if (flux_grad  ==  Locketal2000) then
+
+          ! Turbulent velocity scale for momentum
+
+        c_ws = 0.25_r_bl
+        w_m_top(i,j) = (v_s(i,j)*v_s(i,j)*v_s(i,j) +                           &
+                        c_ws*wstar3)**one_third
+
+          ! Turbulent Prandtl number and velocity scale for scalars
+          ! gives 0.375<Pr<0.75 for convective to neutral conditions
+        prandtl_top(i,j) = 0.75_r_bl *                                         &
+                      ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +   &
+                          (one/25.0_r_bl)*wstar3*w_m_top(i,j) ) /               &
+                      ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +   &
+                          (2.0_r_bl/25.0_r_bl)*wstar3*w_m_top(i,j) )
+        w_h_top(i,j) = w_m_top(i,j) / prandtl_top(i,j)
+      else if (flux_grad  ==  HoltBov1993) then
+        c_ws = 0.6_r_bl
+        w_m_top(i,j) = (v_s(i,j)*v_s(i,j)*v_s(i,j) +                           &
+                        c_ws*wstar3)**one_third
+          ! Using Lock et al interpolation but with
+          ! HB93 range of 0.6<Pr<1
+        pr_neut = one
+        pr_conv = 0.6_r_bl
+        prandtl_top(i,j) = pr_neut *                                           &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
+                                (one/25.0_r_bl)*wstar3*w_m_top(i,j) ) /        &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
+                  (pr_neut/(25.0_r_bl*pr_conv))*wstar3*w_m_top(i,j) )
+        w_h_top(i,j) = w_m_top(i,j) / prandtl_top(i,j)
+      else if (flux_grad  ==  LockWhelan2006) then
+        pr_neut = 0.75_r_bl
+        pr_conv = 0.6_r_bl
+        c_ws    = 0.42_r_bl   !  ~ 0.75^3
+          ! Slightly contrived notation since really we know W_H_TOP
+          ! and Prandtl range but this makes similarity to
+          ! Lock et al clearer (possibly!)
+        w_m_neut = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                              &
+                      c_ws*wstar3 )**one_third
+        w_h_top(i,j) = w_m_neut / pr_neut
+
+        prandtl_top(i,j) = pr_neut *                                           &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
+                  (one/25.0_r_bl)*wstar3*w_m_neut ) /                          &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
+                  (pr_neut/(25.0_r_bl*pr_conv))*wstar3*w_m_neut )
+
+        w_m_top(i,j) = w_h_top(i,j) * prandtl_top(i,j)
+      end if
+
     else
-      wstar3 =   zh(i,j) * fb_surf(i,j)
-    end if
-
-    if (flux_grad  ==  Locketal2000) then
-
-        ! Turbulent velocity scale for momentum
-
-      c_ws = 0.25_r_bl
-      w_m_top(i,j) = (v_s(i,j)*v_s(i,j)*v_s(i,j) +                           &
-                      c_ws*wstar3)**one_third
-
-        ! Turbulent Prandtl number and velocity scale for scalars
-        ! gives 0.375<Pr<0.75 for convective to neutral conditions
-      prandtl_top(i,j) = 0.75_r_bl *                                         &
-                    ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +   &
-                        (one/25.0_r_bl)*wstar3*w_m_top(i,j) ) /               &
-                    ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +   &
-                        (2.0_r_bl/25.0_r_bl)*wstar3*w_m_top(i,j) )
+      w_m_top(i,j) = v_s(i,j)
+      prandtl_top(i,j) = 0.75_r_bl
       w_h_top(i,j) = w_m_top(i,j) / prandtl_top(i,j)
-    else if (flux_grad  ==  HoltBov1993) then
-      c_ws = 0.6_r_bl
-      w_m_top(i,j) = (v_s(i,j)*v_s(i,j)*v_s(i,j) +                           &
-                      c_ws*wstar3)**one_third
-        ! Using Lock et al interpolation but with
-        ! HB93 range of 0.6<Pr<1
-      pr_neut = one
-      pr_conv = 0.6_r_bl
-      prandtl_top(i,j) = pr_neut *                                           &
-            ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
-                              (one/25.0_r_bl)*wstar3*w_m_top(i,j) ) /        &
-            ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
-                (pr_neut/(25.0_r_bl*pr_conv))*wstar3*w_m_top(i,j) )
-      w_h_top(i,j) = w_m_top(i,j) / prandtl_top(i,j)
-    else if (flux_grad  ==  LockWhelan2006) then
-      pr_neut = 0.75_r_bl
-      pr_conv = 0.6_r_bl
-      c_ws    = 0.42_r_bl   !  ~ 0.75^3
-        ! Slightly contrived notation since really we know W_H_TOP
-        ! and Prandtl range but this makes similarity to
-        ! Lock et al clearer (possibly!)
-      w_m_neut = ( v_s(i,j)*v_s(i,j)*v_s(i,j) +                              &
-                    c_ws*wstar3 )**one_third
-      w_h_top(i,j) = w_m_neut / pr_neut
-
-      prandtl_top(i,j) = pr_neut *                                           &
-            ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
-                (one/25.0_r_bl)*wstar3*w_m_neut ) /                          &
-            ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +          &
-                (pr_neut/(25.0_r_bl*pr_conv))*wstar3*w_m_neut )
-
-      w_m_top(i,j) = w_h_top(i,j) * prandtl_top(i,j)
     end if
-
-  else
-    w_m_top(i,j) = v_s(i,j)
-    prandtl_top(i,j) = 0.75_r_bl
-    w_h_top(i,j) = w_m_top(i,j) / prandtl_top(i,j)
-  end if
-end do
+  end do !i
+end do !ii
 !end do
 !$OMP end do
 
@@ -906,201 +909,204 @@ end do
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
 !do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
-  !-----------------------------------------------------------------------
-  ! 1.2 Calculate top-of-b.l. entrainment mixing coefficients
-  !     and store b.l. top quantities for later use.
-  !-----------------------------------------------------------------------
-  !      FIRST the top of the SML (if not coupled)
-  !-----------------------------------------------
-  k = ntml(i,j)+1
-  if ( .not. coupled(i,j) .and. fb_surf(i,j)  >=  zero ) then
-        !-----------------------------------------------------------
-        ! Calculate the surface buoyancy flux term
-        !-----------------------------------------------------------
-    zeta_s_fac = (one - zeta_s(i,j)) * (one - zeta_s(i,j))
-    sf_term = a_ent_1 * max ( zero ,                                         &
-                        ( (one - zeta_s_fac) * bflux_surf(i,j)               &
-                          + zeta_s_fac * bflux_surf_sat(i,j) ) )
-        !-----------------------------------------------------------
-        ! Calculate the surface shear term
-        !-----------------------------------------------------------
-    sf_shear_term =  a_ent_shr * v_s(i,j) * v_s(i,j) * v_s(i,j)              &
-                    * rho_mix(i,j,k)  / zh(i,j)
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
+    !-----------------------------------------------------------------------
+    ! 1.2 Calculate top-of-b.l. entrainment mixing coefficients
+    !     and store b.l. top quantities for later use.
+    !-----------------------------------------------------------------------
+    !      FIRST the top of the SML (if not coupled)
+    !-----------------------------------------------
+    k = ntml(i,j)+1
+    if ( .not. coupled(i,j) .and. fb_surf(i,j)  >=  zero ) then
+          !-----------------------------------------------------------
+          ! Calculate the surface buoyancy flux term
+          !-----------------------------------------------------------
+      zeta_s_fac = (one - zeta_s(i,j)) * (one - zeta_s(i,j))
+      sf_term = a_ent_1 * max ( zero ,                                         &
+                          ( (one - zeta_s_fac) * bflux_surf(i,j)               &
+                            + zeta_s_fac * bflux_surf_sat(i,j) ) )
+          !-----------------------------------------------------------
+          ! Calculate the surface shear term
+          !-----------------------------------------------------------
+      sf_shear_term =  a_ent_shr * v_s(i,j) * v_s(i,j) * v_s(i,j)              &
+                      * rho_mix(i,j,k)  / zh(i,j)
+          !-----------------------------------------------------------
+          ! Calculate the indirect radiative term
+          !-----------------------------------------------------------
+      zeta_r_sq = zeta_r(i,j)*zeta_r(i,j)
+      ir_term = ( bt_top(i,j)*zeta_r_sq +                                      &
+                  btt_top(i,j)*(one-zeta_r_sq) )                               &
+                * a_ent_1 * df_top_over_cp(i,j)
+          !-----------------------------------------------------------
+          ! Calculate the evaporative term
+          !-----------------------------------------------------------
+      if ( db_top(i,j)  >   zero) then
+        zr = sqrt( zc(i,j) / zh(i,j) )
+        evap_term = a_ent_2 * rho_mix(i,j,k)                                   &
+                  * chi_s_top(i,j) * chi_s_top(i,j)                            &
+                  * zr * zr * zr * db_top_cld(i,j)                             &
+                  * sqrt( zh(i,j) * db_top(i,j) )
+      else
+        evap_term = zero
+      end if
+          !-----------------------------------------------------------
+          ! Combine forcing terms to calculate the representative
+          ! velocity scales
+          !-----------------------------------------------------------
+      v_sum(i,j) = ( (sf_term + sf_shear_term +                                &
+                      ir_term + evap_term)                                     &
+                    * zh(i,j) /(a_ent_1*rho_mix(i,j,k)) )**one_third
+      v_top(i,j) = ( (ir_term+evap_term) * zh(i,j)                             &
+                            / (a_ent_1*rho_mix(i,j,k)) )**one_third
+          !-----------------------------------------------------------
+          ! Calculate the direct radiative term
+          !  can only calculate for DB_TOP > 0
+          !-----------------------------------------------------------
+      if ( db_top(i,j)  >   zero) then
+        dz_inv  = min( v_sum(i,j)*v_sum(i,j) / db_top(i,j) ,100.0_r_bl )
+        l_rad   = 15.0_r_bl * max( one, 200.0_r_bl/(zc(i,j)+rbl_eps) )
+        alpha_t = one - exp(-one_half*dz_inv/l_rad)
+            ! Make enhancement due to buoyancy reversal feedback
+        alpha_t = alpha_t + br_fback(i,j)*(one-alpha_t)
+        dr_term = btc_top(i,j) * alpha_t * df_top_over_cp(i,j)
+            !----------------------------------------------------------
+            ! Combine terms to calculate the entrainment
+            ! mixing coefficients
+            !----------------------------------------------------------
+        zil_corr = c_t * ( (sf_term + sf_shear_term +                          &
+                            ir_term + evap_term) /                             &
+                    (rho_mix(i,j,k) * sqrt(zh(i,j))) )**two_thirds
+
+        rho_we_sml(i,j) = (sf_term + sf_shear_term                             &
+                    +      ir_term + evap_term + dr_term)                      &
+                        / ( db_top(i,j) + zil_corr )
+
+        rhokh_ent = rho_we_sml(i,j)/ rdz(i,j,k)
+
+        frac_top = v_top(i,j) / ( v_top(i,j)+w_h_top(i,j)+rbl_eps )
+        if ( l_use_sml_dsc_fixes ) then
+          ! If bug-fix is on, leave surface-driven entrainment flux set to
+          ! zero in cumulus layers if we are using the buoyancy-flux
+          ! integration method to calculate the non-local mixing profile
+          ! (code originally converged on a consistent negative buoyancy
+          !  flux at the top and then added the entrainment flux onto
+          !  this, which is double-counting).
+          l_apply_surf_ent = ( .not. ( ( kprof_cu==buoy_integ .or.             &
+                                          kprof_cu==buoy_integ_low ) .and.      &
+                                        cumulus(i,j) ) )
+        else
+          ! If bug-fix is off, always add on surface-driven entrainment flux
+          l_apply_surf_ent = .true.
+        end if
+        if ( l_apply_surf_ent ) then
+          ! max to avoid rounding errors giving small negative numbers
+          rhokh_surf_ent(i,j) = max(rhokh_ent * ( one - frac_top ), zero)
+          rhokm_surf_ent(i,j) = prandtl_top(i,j) * rhokh_surf_ent(i,j)         &
+                              * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))       &
+                              * rho_wet_tq(i,j,k-1) / rho_mix(i,j,k)
+        end if
+        rhokh_top_ent(i,j) = rhokh_ent * frac_top
+        rhokm_top_ent(i,j) = 0.75_r_bl * rhokh_top_ent(i,j)                    &
+                              * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))        &
+                              * rho_wet_tq(i,j,k-1) / rho_mix(i,j,k)
+        if (.not. l_use_var_fixes) then
+          rhokm(i,j,k) = rhokm_surf_ent(i,j)
+          rhokm_top(i,j,k) = rhokm_top_ent(i,j)
+        end if
+
+      end if    ! test on DB_TOP gt 0
+    end if
+    !----------------------------------------------------------------
+    !      then the top of the DSC (if coupled use ZHSC length-scale)
+    !----------------------------------------------------------------
+    if ( ntdsc(i,j)  >   0 ) then
+      k = ntdsc(i,j)+1
+      if (coupled(i,j)) then
+            !--------------------------------------------------------
+            ! Calculate the surface buoyancy flux term
+            !--------------------------------------------------------
+        zeta_s_fac = (one - zeta_s(i,j)) * (one - zeta_s(i,j))
+        sf_term = a_ent_1 * max ( zero ,                                       &
+                          ( (one - zeta_s_fac) * bflux_surf(i,j)               &
+                            + zeta_s_fac * bflux_surf_sat(i,j) ) )
+            !--------------------------------------------------------
+            ! Calculate the surface shear term
+            !--------------------------------------------------------
+        if (fb_surf(i,j)  >=  zero) then
+          sf_shear_term = a_ent_shr * v_s(i,j)*v_s(i,j)*v_s(i,j)               &
+                          * rho_mix(i,j,k)  / zhsc(i,j)
+        else
+          sf_shear_term = zero
+        end if
+        if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
+          ! taper surface terms to zero depending on svl_diff_frac
+          sf_term =       sf_term       * svl_diff_frac(i,j)
+          sf_shear_term = sf_shear_term * svl_diff_frac(i,j)
+        end if
+      else
+        sf_term = zero
+        sf_shear_term = zero
+      end if
         !-----------------------------------------------------------
         ! Calculate the indirect radiative term
         !-----------------------------------------------------------
-    zeta_r_sq = zeta_r(i,j)*zeta_r(i,j)
-    ir_term = ( bt_top(i,j)*zeta_r_sq +                                      &
-                btt_top(i,j)*(one-zeta_r_sq) )                               &
-              * a_ent_1 * df_top_over_cp(i,j)
+      zeta_r_sq = zeta_r_dsc(i,j)*zeta_r_dsc(i,j)
+      ir_term = ( bt_dsct(i,j)*zeta_r_sq +                                     &
+                    btt_dsct(i,j)*(one-zeta_r_sq) )                            &
+                    * a_ent_1 * df_dsct_over_cp(i,j)
         !-----------------------------------------------------------
         ! Calculate the evaporative term
         !-----------------------------------------------------------
-    if ( db_top(i,j)  >   zero) then
-      zr = sqrt( zc(i,j) / zh(i,j) )
-      evap_term = a_ent_2 * rho_mix(i,j,k)                                   &
-                * chi_s_top(i,j) * chi_s_top(i,j)                            &
-                * zr * zr * zr * db_top_cld(i,j)                             &
-                * sqrt( zh(i,j) * db_top(i,j) )
-    else
-      evap_term = zero
-    end if
+      if (db_dsct(i,j)  >   zero) then
+        zr = sqrt( zc_dsc(i,j) / dscdepth(i,j) )
+        evap_term = a_ent_2 * rho_mix(i,j,k)                                   &
+                  * chi_s_dsct(i,j) * chi_s_dsct(i,j)                          &
+                  * zr * zr * zr * db_dsct_cld(i,j)                            &
+                  * sqrt( dscdepth(i,j) * db_dsct(i,j) )
+      else
+        evap_term = zero
+      end if
         !-----------------------------------------------------------
         ! Combine forcing terms to calculate the representative
         ! velocity scales
         !-----------------------------------------------------------
-    v_sum(i,j) = ( (sf_term + sf_shear_term +                                &
-                    ir_term + evap_term)                                     &
-                  * zh(i,j) /(a_ent_1*rho_mix(i,j,k)) )**one_third
-    v_top(i,j) = ( (ir_term+evap_term) * zh(i,j)                             &
-                          / (a_ent_1*rho_mix(i,j,k)) )**one_third
+      v_sum_dsc(i,j) = ( (sf_term + sf_shear_term +                            &
+                            ir_term + evap_term)                               &
+                * dscdepth(i,j) / (a_ent_1*rho_mix(i,j,k)) )**one_third
+      v_top_dsc(i,j) =( (ir_term + evap_term) * dscdepth(i,j) /                &
+                            (a_ent_1*rho_mix(i,j,k)) )**one_third
         !-----------------------------------------------------------
         ! Calculate the direct radiative term
-        !  can only calculate for DB_TOP > 0
         !-----------------------------------------------------------
-    if ( db_top(i,j)  >   zero) then
-      dz_inv  = min( v_sum(i,j)*v_sum(i,j) / db_top(i,j) ,100.0_r_bl )
-      l_rad   = 15.0_r_bl * max( one, 200.0_r_bl/(zc(i,j)+rbl_eps) )
-      alpha_t = one - exp(-one_half*dz_inv/l_rad)
-          ! Make enhancement due to buoyancy reversal feedback
-      alpha_t = alpha_t + br_fback(i,j)*(one-alpha_t)
-      dr_term = btc_top(i,j) * alpha_t * df_top_over_cp(i,j)
-          !----------------------------------------------------------
-          ! Combine terms to calculate the entrainment
-          ! mixing coefficients
-          !----------------------------------------------------------
-      zil_corr = c_t * ( (sf_term + sf_shear_term +                          &
-                          ir_term + evap_term) /                             &
-                  (rho_mix(i,j,k) * sqrt(zh(i,j))) )**two_thirds
-
-      rho_we_sml(i,j) = (sf_term + sf_shear_term                             &
-                  +      ir_term + evap_term + dr_term)                      &
-                      / ( db_top(i,j) + zil_corr )
-
-      rhokh_ent = rho_we_sml(i,j)/ rdz(i,j,k)
-
-      frac_top = v_top(i,j) / ( v_top(i,j)+w_h_top(i,j)+rbl_eps )
-      if ( l_use_sml_dsc_fixes ) then
-        ! If bug-fix is on, leave surface-driven entrainment flux set to
-        ! zero in cumulus layers if we are using the buoyancy-flux
-        ! integration method to calculate the non-local mixing profile
-        ! (code originally converged on a consistent negative buoyancy
-        !  flux at the top and then added the entrainment flux onto
-        !  this, which is double-counting).
-        l_apply_surf_ent = ( .not. ( ( kprof_cu==buoy_integ .or.             &
-                                        kprof_cu==buoy_integ_low ) .and.      &
-                                      cumulus(i,j) ) )
-      else
-        ! If bug-fix is off, always add on surface-driven entrainment flux
-        l_apply_surf_ent = .true.
-      end if
-      if ( l_apply_surf_ent ) then
-        ! max to avoid rounding errors giving small negative numbers
-        rhokh_surf_ent(i,j) = max(rhokh_ent * ( one - frac_top ), zero)
-        rhokm_surf_ent(i,j) = prandtl_top(i,j) * rhokh_surf_ent(i,j)         &
-                            * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))       &
-                            * rho_wet_tq(i,j,k-1) / rho_mix(i,j,k)
-      end if
-      rhokh_top_ent(i,j) = rhokh_ent * frac_top
-      rhokm_top_ent(i,j) = 0.75_r_bl * rhokh_top_ent(i,j)                    &
-                            * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))        &
-                            * rho_wet_tq(i,j,k-1) / rho_mix(i,j,k)
-      if (.not. l_use_var_fixes) then
-        rhokm(i,j,k) = rhokm_surf_ent(i,j)
-        rhokm_top(i,j,k) = rhokm_top_ent(i,j)
-      end if
-
-    end if    ! test on DB_TOP gt 0
-  end if
-  !----------------------------------------------------------------
-  !      then the top of the DSC (if coupled use ZHSC length-scale)
-  !----------------------------------------------------------------
-  if ( ntdsc(i,j)  >   0 ) then
-    k = ntdsc(i,j)+1
-    if (coupled(i,j)) then
-          !--------------------------------------------------------
-          ! Calculate the surface buoyancy flux term
-          !--------------------------------------------------------
-      zeta_s_fac = (one - zeta_s(i,j)) * (one - zeta_s(i,j))
-      sf_term = a_ent_1 * max ( zero ,                                       &
-                        ( (one - zeta_s_fac) * bflux_surf(i,j)               &
-                          + zeta_s_fac * bflux_surf_sat(i,j) ) )
-          !--------------------------------------------------------
-          ! Calculate the surface shear term
-          !--------------------------------------------------------
-      if (fb_surf(i,j)  >=  zero) then
-        sf_shear_term = a_ent_shr * v_s(i,j)*v_s(i,j)*v_s(i,j)               &
-                        * rho_mix(i,j,k)  / zhsc(i,j)
-      else
-        sf_shear_term = zero
-      end if
-      if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
-        ! taper surface terms to zero depending on svl_diff_frac
-        sf_term =       sf_term       * svl_diff_frac(i,j)
-        sf_shear_term = sf_shear_term * svl_diff_frac(i,j)
-      end if
-    else
-      sf_term = zero
-      sf_shear_term = zero
+      if (db_dsct(i,j)  >   zero) then
+        dz_inv  = min( v_sum_dsc(i,j)*v_sum_dsc(i,j)/db_dsct(i,j),             &
+                        100.0_r_bl )
+        l_rad   = 15.0_r_bl * max( one, 200.0_r_bl/(zc_dsc(i,j)+one) )
+        alpha_t = one - exp(-one_half*dz_inv/l_rad)
+            ! Make enhancement due to buoyancy reversal feedback
+        alpha_t = alpha_t + br_fback_dsc(i,j)*(one-alpha_t)
+        dr_term = btc_top(i,j) * alpha_t * df_dsct_over_cp(i,j)
+            !----------------------------------------------------------
+            ! Finally combine terms to calculate the entrainment
+            ! rate and mixing coefficients
+            !----------------------------------------------------------
+        zil_corr = c_t * ( (sf_term + sf_shear_term +                          &
+                            ir_term + evap_term) /                             &
+                  (rho_mix(i,j,k) * sqrt(dscdepth(i,j))) )**two_thirds
+        rho_we_dsc(i,j) = ( sf_term + sf_shear_term                            &
+                +           ir_term + evap_term + dr_term )                    &
+                            / ( db_dsct(i,j) + zil_corr )
+        rhokh_dsct_ent(i,j) = rho_we_dsc(i,j)/ rdz(i,j,k)
+        rhokm_dsct_ent(i,j) = 0.75_r_bl * rhokh_dsct_ent(i,j)                  &
+                              * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))       &
+                              * rho_wet_tq(i,j,k-1) / rho_mix(i,j,k)
+        if (.not. l_use_var_fixes) rhokm_top(i,j,k) = rhokm_dsct_ent(i,j)
+      end if   ! test on DB_DSCT gt 0
     end if
-      !-----------------------------------------------------------
-      ! Calculate the indirect radiative term
-      !-----------------------------------------------------------
-    zeta_r_sq = zeta_r_dsc(i,j)*zeta_r_dsc(i,j)
-    ir_term = ( bt_dsct(i,j)*zeta_r_sq +                                     &
-                  btt_dsct(i,j)*(one-zeta_r_sq) )                            &
-                  * a_ent_1 * df_dsct_over_cp(i,j)
-      !-----------------------------------------------------------
-      ! Calculate the evaporative term
-      !-----------------------------------------------------------
-    if (db_dsct(i,j)  >   zero) then
-      zr = sqrt( zc_dsc(i,j) / dscdepth(i,j) )
-      evap_term = a_ent_2 * rho_mix(i,j,k)                                   &
-                * chi_s_dsct(i,j) * chi_s_dsct(i,j)                          &
-                * zr * zr * zr * db_dsct_cld(i,j)                            &
-                * sqrt( dscdepth(i,j) * db_dsct(i,j) )
-    else
-      evap_term = zero
-    end if
-      !-----------------------------------------------------------
-      ! Combine forcing terms to calculate the representative
-      ! velocity scales
-      !-----------------------------------------------------------
-    v_sum_dsc(i,j) = ( (sf_term + sf_shear_term +                            &
-                          ir_term + evap_term)                               &
-              * dscdepth(i,j) / (a_ent_1*rho_mix(i,j,k)) )**one_third
-    v_top_dsc(i,j) =( (ir_term + evap_term) * dscdepth(i,j) /                &
-                          (a_ent_1*rho_mix(i,j,k)) )**one_third
-      !-----------------------------------------------------------
-      ! Calculate the direct radiative term
-      !-----------------------------------------------------------
-    if (db_dsct(i,j)  >   zero) then
-      dz_inv  = min( v_sum_dsc(i,j)*v_sum_dsc(i,j)/db_dsct(i,j),             &
-                      100.0_r_bl )
-      l_rad   = 15.0_r_bl * max( one, 200.0_r_bl/(zc_dsc(i,j)+one) )
-      alpha_t = one - exp(-one_half*dz_inv/l_rad)
-          ! Make enhancement due to buoyancy reversal feedback
-      alpha_t = alpha_t + br_fback_dsc(i,j)*(one-alpha_t)
-      dr_term = btc_top(i,j) * alpha_t * df_dsct_over_cp(i,j)
-          !----------------------------------------------------------
-          ! Finally combine terms to calculate the entrainment
-          ! rate and mixing coefficients
-          !----------------------------------------------------------
-      zil_corr = c_t * ( (sf_term + sf_shear_term +                          &
-                          ir_term + evap_term) /                             &
-                (rho_mix(i,j,k) * sqrt(dscdepth(i,j))) )**two_thirds
-      rho_we_dsc(i,j) = ( sf_term + sf_shear_term                            &
-              +           ir_term + evap_term + dr_term )                    &
-                          / ( db_dsct(i,j) + zil_corr )
-      rhokh_dsct_ent(i,j) = rho_we_dsc(i,j)/ rdz(i,j,k)
-      rhokm_dsct_ent(i,j) = 0.75_r_bl * rhokh_dsct_ent(i,j)                  &
-                            * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))       &
-                            * rho_wet_tq(i,j,k-1) / rho_mix(i,j,k)
-      if (.not. l_use_var_fixes) rhokm_top(i,j,k) = rhokm_dsct_ent(i,j)
-    end if   ! test on DB_DSCT gt 0
-  end if
-end do
+  end do ! I
+end do ! II
 !end do
 !$OMP end do
 
@@ -1220,57 +1226,60 @@ end do ! I
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
 !do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
-  if ( bflux_surf(i,j)  >   zero) then
-      ! can only be coupled to an unstable SML
-    if ( ntdsc(i,j)  >   2 ) then
-        ! well-resolved DSC layer
-        ! ...test for recoupling with SML
-      test_well_mixed(i,j) = .true.
-      z_inv(i,j)  = zhsc(i,j)
-      z_cbase(i,j)= z_inv(i,j) - zc_dsc(i,j)
-      cf_ml(i,j)  = cf_dsc(i,j)
-      v_ktop(i,j) = v_top_dsc(i,j)
-      v_ksum(i,j) = v_sum_dsc(i,j)
-      df_ctop(i,j)= df_dsct_over_cp(i,j)
-      rho_we(i,j) = rho_we_dsc(i,j)
-      dsl(i,j)    = dsl_dsc(i,j)
-      dqw(i,j)    = dqw_dsc(i,j)
-      tothf_zi(i,j)= - rho_we(i,j)*dsl(i,j) + ft_nt_zhsc(i,j)
-      totqf_zi(i,j)= - rho_we(i,j)*dqw(i,j) + fq_nt_zhsc(i,j)
-      ntop(i,j)   = ntdsc(i,j)
-        ! assuming wb goes to zero by the lowest of ZH
-        ! or cloud-base, but above surface layer
-    else if ( .not. dsc(i,j) .and. .not. cumulus(i,j) .and.                  &
-              ntml(i,j)  >   2) then
-        ! well-resolved SML
-        ! ...test for decoupling
-        ! Note: code can only deal with one DSC layer at a time so
-        ! can't decouple SML if a DSC layer already exists.
-        ! ---------------------------------------------------------
-        ! If the BL layer is cloud-free then use a less restrictive
-        ! threshold - ideally, the parcel ascent would have
-        ! found the correct BL top in this case but this test is
-        ! kept to keep negative buoyancy fluxes under control
-        ! (ie. DEC_THRES_CLEAR=1 ensures wbn_int < |wbp_int|)
-      if (abs(zc(i,j)) < rbl_eps) dec_thres(i,j) = dec_thres_clear
-        ! ---------------------------------------------------------
-      test_well_mixed(i,j) = .true.
-      z_inv(i,j)  = zh(i,j)
-      z_cbase(i,j)= z_inv(i,j) - zc(i,j)
-      cf_ml(i,j)  = cf_sml(i,j)
-      v_ktop(i,j) = v_top(i,j)
-      v_ksum(i,j) = v_sum(i,j)
-      df_ctop(i,j)= df_top_over_cp(i,j)
-      rho_we(i,j) = rho_we_sml(i,j)
-      dsl(i,j)    = dsl_sml(i,j)
-      dqw(i,j)    = dqw_sml(i,j)
-      tothf_zi(i,j)= - rho_we(i,j)*dsl(i,j) + ft_nt_zh(i,j)
-      totqf_zi(i,j)= - rho_we(i,j)*dqw(i,j) + fq_nt_zh(i,j)
-      ntop(i,j)   = ntml(i,j)
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
+    if ( bflux_surf(i,j)  >   zero) then
+        ! can only be coupled to an unstable SML
+      if ( ntdsc(i,j)  >   2 ) then
+          ! well-resolved DSC layer
+          ! ...test for recoupling with SML
+        test_well_mixed(i,j) = .true.
+        z_inv(i,j)  = zhsc(i,j)
+        z_cbase(i,j)= z_inv(i,j) - zc_dsc(i,j)
+        cf_ml(i,j)  = cf_dsc(i,j)
+        v_ktop(i,j) = v_top_dsc(i,j)
+        v_ksum(i,j) = v_sum_dsc(i,j)
+        df_ctop(i,j)= df_dsct_over_cp(i,j)
+        rho_we(i,j) = rho_we_dsc(i,j)
+        dsl(i,j)    = dsl_dsc(i,j)
+        dqw(i,j)    = dqw_dsc(i,j)
+        tothf_zi(i,j)= - rho_we(i,j)*dsl(i,j) + ft_nt_zhsc(i,j)
+        totqf_zi(i,j)= - rho_we(i,j)*dqw(i,j) + fq_nt_zhsc(i,j)
+        ntop(i,j)   = ntdsc(i,j)
+          ! assuming wb goes to zero by the lowest of ZH
+          ! or cloud-base, but above surface layer
+      else if ( .not. dsc(i,j) .and. .not. cumulus(i,j) .and.                  &
+                ntml(i,j)  >   2) then
+          ! well-resolved SML
+          ! ...test for decoupling
+          ! Note: code can only deal with one DSC layer at a time so
+          ! can't decouple SML if a DSC layer already exists.
+          ! ---------------------------------------------------------
+          ! If the BL layer is cloud-free then use a less restrictive
+          ! threshold - ideally, the parcel ascent would have
+          ! found the correct BL top in this case but this test is
+          ! kept to keep negative buoyancy fluxes under control
+          ! (ie. DEC_THRES_CLEAR=1 ensures wbn_int < |wbp_int|)
+        if (abs(zc(i,j)) < rbl_eps) dec_thres(i,j) = dec_thres_clear
+          ! ---------------------------------------------------------
+        test_well_mixed(i,j) = .true.
+        z_inv(i,j)  = zh(i,j)
+        z_cbase(i,j)= z_inv(i,j) - zc(i,j)
+        cf_ml(i,j)  = cf_sml(i,j)
+        v_ktop(i,j) = v_top(i,j)
+        v_ksum(i,j) = v_sum(i,j)
+        df_ctop(i,j)= df_top_over_cp(i,j)
+        rho_we(i,j) = rho_we_sml(i,j)
+        dsl(i,j)    = dsl_sml(i,j)
+        dqw(i,j)    = dqw_sml(i,j)
+        tothf_zi(i,j)= - rho_we(i,j)*dsl(i,j) + ft_nt_zh(i,j)
+        totqf_zi(i,j)= - rho_we(i,j)*dqw(i,j) + fq_nt_zh(i,j)
+        ntop(i,j)   = ntml(i,j)
+      end if
     end if
-  end if
-end do ! I
+  end do ! I
+end do ! II
 !end do ! J
 !$OMP end do
 
@@ -1354,97 +1363,100 @@ end do
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
 !do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
-  if ( test_well_mixed(i,j) ) then
-    dzrad(i,j) = 100.0_r_bl
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
+    if ( test_well_mixed(i,j) ) then
+      dzrad(i,j) = 100.0_r_bl
 
-    if ( dzrad_disc_opt == dzrad_ntm1 ) then
-      ! Original discretisation of cloud-top radiatively-cooled layer;
-      ! set the base of the layer at theta-level ntdsc-1
-      ! (which is between 1.5 and 2.5 model-levels below cloud-top,
-      !  depending on where zhsc is between z_uv(ntdsc+1) and z_uv(ntdsc+2)),
-      ! then lower it by extra whole model-levels if needed to increase the
-      ! depth to 100m.
+      if ( dzrad_disc_opt == dzrad_ntm1 ) then
+        ! Original discretisation of cloud-top radiatively-cooled layer;
+        ! set the base of the layer at theta-level ntdsc-1
+        ! (which is between 1.5 and 2.5 model-levels below cloud-top,
+        !  depending on where zhsc is between z_uv(ntdsc+1) and z_uv(ntdsc+2)),
+        ! then lower it by extra whole model-levels if needed to increase the
+        ! depth to 100m.
 
-      ntop(i,j) = ntop(i,j) - 1
-      if ( ntop(i,j)  >   2 ) then
-        inner_loop1: do while ( z_tq(i,j,ntop(i,j))  >  z_inv(i,j)-dzrad(i,j)&
-              .and. z_tq(i,j,ntop(i,j)-1)  >   z_inv(i,j)-z_cbase(i,j))
-          ntop(i,j) = ntop(i,j) - 1
-          if (ntop(i,j) == 2 ) then
-            exit inner_loop1
-          end if
-        end do inner_loop1
-      end if
-      dzrad(i,j) = z_inv(i,j) - z_tq(i,j,ntop(i,j))
-
-    else if ( dzrad_disc_opt == dzrad_1p5dz ) then
-      ! Alternative method;
-      ! set the base of the layer 1.5 model-levels below cloud-top so that
-      ! it always moves smoothly with zhsc instead of jumping suddenly
-      ! (1.5 levels is the minimum distance below zhsc which will always
-      !  keep the base of the layer below theta-level ntdsc, which is a
-      !  requirement of the discretisation).
-      ! The depth is also forced to be at least 100m.
-
-      ! Find smoothly-varying height 1.5 model-levels below z_inv
-      k_inv = ntop(i,j)
-      if ( z_inv(i,j) < z_tq(i,j,k_inv+1) ) then
-        interp = ( z_inv(i,j)        - z_uv(i,j,k_inv+1) )                   &
-                / ( z_tq(i,j,k_inv+1) - z_uv(i,j,k_inv+1) )
-        z_pr = (one-interp) * z_tq(i,j,k_inv-1)                              &
-              +      interp  * z_uv(i,j,k_inv)
-      else
-        interp = ( z_inv(i,j)        - z_tq(i,j,k_inv+1) )                   &
-                / ( z_uv(i,j,k_inv+2) - z_tq(i,j,k_inv+1) )
-        z_pr = (one-interp) * z_uv(i,j,k_inv)                                &
-              +      interp  * z_tq(i,j,k_inv)
-      end if
-      ! Go down to 100m below z_inv (or cloud-base) if that is lower,
-      ! but don't allow lower than theta-level 1
-      z_pr = min( z_pr, max( z_inv(i,j) - dzrad(i,j), z_cbase(i,j) ) )
-      z_pr = max( z_pr, z_tq(i,j,1) )
-      ! Set ntop to the rho-level straddling the base of the layer
-      do while ( z_tq(i,j,ntop(i,j)-1) > z_pr )
         ntop(i,j) = ntop(i,j) - 1
-      end do
-      ! Set new cloud-top radiatively-cooled layer-depth
-      dzrad(i,j) = z_inv(i,j) - z_pr
+        if ( ntop(i,j)  >   2 ) then
+          inner_loop1: do while ( z_tq(i,j,ntop(i,j))  >  z_inv(i,j)-dzrad(i,j)&
+                .and. z_tq(i,j,ntop(i,j)-1)  >   z_inv(i,j)-z_cbase(i,j))
+            ntop(i,j) = ntop(i,j) - 1
+            if (ntop(i,j) == 2 ) then
+              exit inner_loop1
+            end if
+          end do inner_loop1
+        end if
+        dzrad(i,j) = z_inv(i,j) - z_tq(i,j,ntop(i,j))
 
-      ! Fraction of rho-level ntop below the dzrad layer
-      interp = ( z_pr                - z_tq(i,j,ntop(i,j)-1) )               &
-              / ( z_tq(i,j,ntop(i,j)) - z_tq(i,j,ntop(i,j)-1) )
-      ! Add on SL and qw differences between the discontinuous inversion base
-      ! and the base of the dzrad layer
-      dsl(i,j) = dsl(i,j) + sl(i,j,k_inv) - (one-interp)*sl(i,j,ntop(i,j)-1) &
-                                          -      interp *sl(i,j,ntop(i,j))
-      dqw(i,j) = dqw(i,j) + qw(i,j,k_inv) - (one-interp)*qw(i,j,ntop(i,j)-1) &
-                                          -      interp *qw(i,j,ntop(i,j))
+      else if ( dzrad_disc_opt == dzrad_1p5dz ) then
+        ! Alternative method;
+        ! set the base of the layer 1.5 model-levels below cloud-top so that
+        ! it always moves smoothly with zhsc instead of jumping suddenly
+        ! (1.5 levels is the minimum distance below zhsc which will always
+        !  keep the base of the layer below theta-level ntdsc, which is a
+        !  requirement of the discretisation).
+        ! The depth is also forced to be at least 100m.
 
-    end if  ! ( dzrad_disc_opt )
+        ! Find smoothly-varying height 1.5 model-levels below z_inv
+        k_inv = ntop(i,j)
+        if ( z_inv(i,j) < z_tq(i,j,k_inv+1) ) then
+          interp = ( z_inv(i,j)        - z_uv(i,j,k_inv+1) )                   &
+                  / ( z_tq(i,j,k_inv+1) - z_uv(i,j,k_inv+1) )
+          z_pr = (one-interp) * z_tq(i,j,k_inv-1)                              &
+                +      interp  * z_uv(i,j,k_inv)
+        else
+          interp = ( z_inv(i,j)        - z_tq(i,j,k_inv+1) )                   &
+                  / ( z_uv(i,j,k_inv+2) - z_tq(i,j,k_inv+1) )
+          z_pr = (one-interp) * z_uv(i,j,k_inv)                                &
+                +      interp  * z_tq(i,j,k_inv)
+        end if
+        ! Go down to 100m below z_inv (or cloud-base) if that is lower,
+        ! but don't allow lower than theta-level 1
+        z_pr = min( z_pr, max( z_inv(i,j) - dzrad(i,j), z_cbase(i,j) ) )
+        z_pr = max( z_pr, z_tq(i,j,1) )
+        ! Set ntop to the rho-level straddling the base of the layer
+        do while ( z_tq(i,j,ntop(i,j)-1) > z_pr )
+          ntop(i,j) = ntop(i,j) - 1
+        end do
+        ! Set new cloud-top radiatively-cooled layer-depth
+        dzrad(i,j) = z_inv(i,j) - z_pr
 
-    wsl_dzrad_int = dzrad(i,j) *                                             &
-                    ( 0.66_r_bl*df_ctop(i,j) - rho_we(i,j)*dsl(i,j) )
-    wqw_dzrad_int = - dzrad(i,j) * rho_we(i,j) * dqw(i,j)
+        ! Fraction of rho-level ntop below the dzrad layer
+        interp = ( z_pr                - z_tq(i,j,ntop(i,j)-1) )               &
+                / ( z_tq(i,j,ntop(i,j)) - z_tq(i,j,ntop(i,j)-1) )
+        ! Add on SL and qw differences between the discontinuous inversion base
+        ! and the base of the dzrad layer
+        dsl(i,j) = dsl(i,j) + sl(i,j,k_inv) - (one-interp)*sl(i,j,ntop(i,j)-1) &
+                                            -      interp *sl(i,j,ntop(i,j))
+        dqw(i,j) = dqw(i,j) + qw(i,j,k_inv) - (one-interp)*qw(i,j,ntop(i,j)-1) &
+                                            -      interp *qw(i,j,ntop(i,j))
 
-    wb_dzrad_int(i,j) = wsl_dzrad_int * (                                    &
-                          (one-cf_ml(i,j))*btm(i,j,ntop(i,j)+1) +            &
-                            cf_ml(i,j)*btm_cld(i,j,ntop(i,j)+1) )            &
-                      + wqw_dzrad_int * (                                    &
-                          (one-cf_ml(i,j))*bqm(i,j,ntop(i,j)+1) +            &
-                            cf_ml(i,j)*bqm_cld(i,j,ntop(i,j)+1) )
-    wb_dzrad_int(i,j) = g * wb_dzrad_int(i,j)
-    wb_dzrad_int(i,j) = max( zero, wb_dzrad_int(i,j) )
+      end if  ! ( dzrad_disc_opt )
 
-      ! Include WB_DZRAD_INT in WBP_INT as it set to be >0
-    wbp_int(i,j) = wbp_int(i,j) + wb_dzrad_int(i,j)
+      wsl_dzrad_int = dzrad(i,j) *                                             &
+                      ( 0.66_r_bl*df_ctop(i,j) - rho_we(i,j)*dsl(i,j) )
+      wqw_dzrad_int = - dzrad(i,j) * rho_we(i,j) * dqw(i,j)
 
-  else
+      wb_dzrad_int(i,j) = wsl_dzrad_int * (                                    &
+                            (one-cf_ml(i,j))*btm(i,j,ntop(i,j)+1) +            &
+                              cf_ml(i,j)*btm_cld(i,j,ntop(i,j)+1) )            &
+                        + wqw_dzrad_int * (                                    &
+                            (one-cf_ml(i,j))*bqm(i,j,ntop(i,j)+1) +            &
+                              cf_ml(i,j)*bqm_cld(i,j,ntop(i,j)+1) )
+      wb_dzrad_int(i,j) = g * wb_dzrad_int(i,j)
+      wb_dzrad_int(i,j) = max( zero, wb_dzrad_int(i,j) )
 
-    wb_dzrad_int(i,j) = -one  ! To identify not calculated
+        ! Include WB_DZRAD_INT in WBP_INT as it set to be >0
+      wbp_int(i,j) = wbp_int(i,j) + wb_dzrad_int(i,j)
 
-  end if
-end do ! I
+    else
+
+      wb_dzrad_int(i,j) = -one  ! To identify not calculated
+
+    end if
+  end do ! I
+end do ! II
 !end do ! J
 !$OMP end do
 
@@ -1481,33 +1493,36 @@ end if ! model_type
 
 !$OMP do SCHEDULE(DYNAMIC)
 !do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
 
-  if ( test_well_mixed(i,j) ) then
-    if ( kwb0(i,j)  ==  ntml(i,j) ) then
-      zwb0(i,j) = zh(i,j)
-    else if ( kwb0(i,j)  ==  2 ) then
-      zwb0(i,j) = z_uv(i,j,2)
+    if ( test_well_mixed(i,j) ) then
+      if ( kwb0(i,j)  ==  ntml(i,j) ) then
+        zwb0(i,j) = zh(i,j)
+      else if ( kwb0(i,j)  ==  2 ) then
+        zwb0(i,j) = z_uv(i,j,2)
+      else
+        k=kwb0(i,j)
+          ! now DB_GA_DRY(K) le 0 and DB_GA_DRY(K-1) gt 0
+          ! so interpolate:
+        db_ratio = db_ga_dry_n(i,j,k-1)                                        &
+                / ( db_ga_dry_n(i,j,k-1) - db_ga_dry_n(i,j,k) )
+        db_ratio = max( zero, db_ratio )  ! trap for rounding error
+        zwb0(i,j)=z_uv(i,j,k-1) +                                              &
+                  db_ratio * (z_uv(i,j,k)-z_uv(i,j,k-1))
+      end if
+      wb_surf_int(i,j) = bflux_surf(i,j) * z_tq(i,j,ksurf(i,j)) *              &
+                    ( one - z_tq(i,j,ksurf(i,j))/(2.0_r_bl*zwb0(i,j)))
+      wb_surf_int(i,j) = max( rbl_eps, wb_surf_int(i,j) )
     else
-      k=kwb0(i,j)
-        ! now DB_GA_DRY(K) le 0 and DB_GA_DRY(K-1) gt 0
-        ! so interpolate:
-      db_ratio = db_ga_dry_n(i,j,k-1)                                        &
-              / ( db_ga_dry_n(i,j,k-1) - db_ga_dry_n(i,j,k) )
-      db_ratio = max( zero, db_ratio )  ! trap for rounding error
-      zwb0(i,j)=z_uv(i,j,k-1) +                                              &
-                db_ratio * (z_uv(i,j,k)-z_uv(i,j,k-1))
+        ! only include surface layer contribution for unstable mixing
+      wb_surf_int(i,j) = rbl_eps
     end if
-    wb_surf_int(i,j) = bflux_surf(i,j) * z_tq(i,j,ksurf(i,j)) *              &
-                  ( one - z_tq(i,j,ksurf(i,j))/(2.0_r_bl*zwb0(i,j)))
-    wb_surf_int(i,j) = max( rbl_eps, wb_surf_int(i,j) )
-  else
-      ! only include surface layer contribution for unstable mixing
-    wb_surf_int(i,j) = rbl_eps
-  end if
 
-  wbp_int(i,j) = wbp_int(i,j) + wb_surf_int(i,j) ! must be >0
+    wbp_int(i,j) = wbp_int(i,j) + wb_surf_int(i,j) ! must be >0
 
+  end do ! I
 end do ! I
 !end do ! J
 !$OMP end do
@@ -1672,163 +1687,166 @@ end do
 
 !$OMP do SCHEDULE(DYNAMIC)
 !do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
-  if (l_wtrac) iset_wtrac(i,j) = 0
-  if ( test_well_mixed(i,j) ) then
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
+    if (l_wtrac) iset_wtrac(i,j) = 0
+    if ( test_well_mixed(i,j) ) then
 
-    wb_ratio(i,j) = wbn_int(i,j)/wbp_int(i,j)
+      wb_ratio(i,j) = wbn_int(i,j)/wbp_int(i,j)
 
-    if ( wb_ratio(i,j)  <=  dec_thres(i,j) ) then
-        ! No need to test depth of mixing any further as within
-        ! well-mixed layer buoyancy flux integral criteria.
-        ! SML will simply stay well-mixed (and so use defaults)
-      ksurf_iterate(i,j)= .false.
-      ktop_iterate(i,j) = .false.
-      if ( dsc(i,j) ) then
-        ! Recouple DSC with SML:
-        dsc_removed(i,j) = 2 ! set indicator flag
-        ! move surface driven entrainment
-        ! RHOKH(z_i) = rho * w_e * DZL and w_e ~ 1/DB_TOP, so:
-        if ( db_top(i,j) >  zero .and. db_dsct(i,j) >  0.01_r_bl ) then
-                                      ! can't calc Zil. term
-          rhokh_surf_ent(i,j) = rhokh_surf_ent(i,j) *                        &
-                  ( rho_mix(i,j,ntdsc(i,j)+1) * db_top(i,j) *                 &
-                    rdz(i,j,ntml(i,j)+1) ) /                                  &
-                  ( rho_mix(i,j,ntml(i,j)+1) * db_dsct(i,j) *                 &
-                                      rdz(i,j,ntdsc(i,j)+1) )
-          rhokm_surf_ent(i,j) = rhokm_surf_ent(i,j) *                        &
-                  ( rho_wet_tq(i,j,ntdsc(i,j)) * db_top(i,j) *                &
-                    rdz(i,j,ntml(i,j)+1) ) /                                  &
-                  ( rho_wet_tq(i,j,ntml(i,j)) * db_dsct(i,j) *                &
-                                    rdz(i,j,ntdsc(i,j)+1) )
-          if (.not. l_use_var_fixes)                                         &
-                rhokm(i,j,ntdsc(i,j)+1) = rhokm_surf_ent(i,j)
-        end if
-        ! redesignate top-driven entrainment at ZHSC
-        ! (ignore that calculated at ZH)
-        rhokh_top_ent(i,j) = rhokh_dsct_ent(i,j)
-        rhokm_top_ent(i,j) = rhokm_dsct_ent(i,j)
-        zh(i,j) = zhsc(i,j)
-        ntml(i,j) = ntdsc(i,j)
-        v_top(i,j) = v_top_dsc(i,j)
-        zsml_base(i,j) = 0.1_r_bl * zh(i,j)
-        zc(i,j) = zc_dsc(i,j)
-        zhsc(i,j) = zero
-        ntdsc(i,j) = 0
-        v_top_dsc(i,j) = zero
-        zdsc_base(i,j) = zero
-        zc_dsc(i,j)    = zero
-        ft_nt_zh(i,j)   = ft_nt_zhsc(i,j)
-        ft_nt_zhsc(i,j) = zero
-        fq_nt_zh(i,j)   = fq_nt_zhsc(i,j)
-        fq_nt_zhsc(i,j) = zero
-        if (l_wtrac) iset_wtrac(i,j) = 1
-        dsc(i,j) = .false.
-        dzh(i,j) = rmdi   ! SML inversion subsumed into new mixed layer
-        cumulus(i,j) = .false.
-        coupled(i,j) = .false.
-      end if  ! recoupled DSC layer
-    else   ! buoyancy flux threshold violated
-
-      if ( l_use_sml_dsc_fixes ) then
-        ! Under fix l_use_sml_dsc_fixes:
-        ! If there is already a DSC layer diagnosed above the existing
-        ! ntml, we have so far just tested for recoupling of that DSC
-        ! with the SML; we have not tested whether the existing SML
-        ! should split off another decoupled layer.
-        ! In this case, we don't need to turn on ktop_iterate
-        ! (already setup earlier), and we should only turn on ksurf_iterate
-        ! if the SML is cumulus capped and using buoyancy flux integration
-        ! at cumulus points in general.
-
+      if ( wb_ratio(i,j)  <=  dec_thres(i,j) ) then
+          ! No need to test depth of mixing any further as within
+          ! well-mixed layer buoyancy flux integral criteria.
+          ! SML will simply stay well-mixed (and so use defaults)
+        ksurf_iterate(i,j)= .false.
+        ktop_iterate(i,j) = .false.
         if ( dsc(i,j) ) then
-          ! Existing DSC layer confirmed not to be merged with the SML.
-          if ( cumulus(i,j) .and. ( kprof_cu == buoy_integ .or.              &
-                                    kprof_cu == buoy_integ_low ) ) then
-            ! Cumulus layer under the DSC; only turn on ksurf_iterate if
-            ! using appropriate kprof_cu option.
-            ksurf_iterate(i,j) = .true.
-            dec_thres(i,j) = dec_thres_cu
+          ! Recouple DSC with SML:
+          dsc_removed(i,j) = 2 ! set indicator flag
+          ! move surface driven entrainment
+          ! RHOKH(z_i) = rho * w_e * DZL and w_e ~ 1/DB_TOP, so:
+          if ( db_top(i,j) >  zero .and. db_dsct(i,j) >  0.01_r_bl ) then
+                                        ! can't calc Zil. term
+            rhokh_surf_ent(i,j) = rhokh_surf_ent(i,j) *                        &
+                    ( rho_mix(i,j,ntdsc(i,j)+1) * db_top(i,j) *                 &
+                      rdz(i,j,ntml(i,j)+1) ) /                                  &
+                    ( rho_mix(i,j,ntml(i,j)+1) * db_dsct(i,j) *                 &
+                                        rdz(i,j,ntdsc(i,j)+1) )
+            rhokm_surf_ent(i,j) = rhokm_surf_ent(i,j) *                        &
+                    ( rho_wet_tq(i,j,ntdsc(i,j)) * db_top(i,j) *                &
+                      rdz(i,j,ntml(i,j)+1) ) /                                  &
+                    ( rho_wet_tq(i,j,ntml(i,j)) * db_dsct(i,j) *                &
+                                      rdz(i,j,ntdsc(i,j)+1) )
+            if (.not. l_use_var_fixes)                                         &
+                  rhokm(i,j,ntdsc(i,j)+1) = rhokm_surf_ent(i,j)
           end if
-        else
-          ! No existing DSC so we're splitting a new DSC off the SML;
-          ! turn on ktop_iterate to find the new DSC's base
+          ! redesignate top-driven entrainment at ZHSC
+          ! (ignore that calculated at ZH)
+          rhokh_top_ent(i,j) = rhokh_dsct_ent(i,j)
+          rhokm_top_ent(i,j) = rhokm_dsct_ent(i,j)
+          zh(i,j) = zhsc(i,j)
+          ntml(i,j) = ntdsc(i,j)
+          v_top(i,j) = v_top_dsc(i,j)
+          zsml_base(i,j) = 0.1_r_bl * zh(i,j)
+          zc(i,j) = zc_dsc(i,j)
+          zhsc(i,j) = zero
+          ntdsc(i,j) = 0
+          v_top_dsc(i,j) = zero
+          zdsc_base(i,j) = zero
+          zc_dsc(i,j)    = zero
+          ft_nt_zh(i,j)   = ft_nt_zhsc(i,j)
+          ft_nt_zhsc(i,j) = zero
+          fq_nt_zh(i,j)   = fq_nt_zhsc(i,j)
+          fq_nt_zhsc(i,j) = zero
+          if (l_wtrac) iset_wtrac(i,j) = 1
+          dsc(i,j) = .false.
+          dzh(i,j) = rmdi   ! SML inversion subsumed into new mixed layer
+          cumulus(i,j) = .false.
+          coupled(i,j) = .false.
+        end if  ! recoupled DSC layer
+      else   ! buoyancy flux threshold violated
+
+        if ( l_use_sml_dsc_fixes ) then
+          ! Under fix l_use_sml_dsc_fixes:
+          ! If there is already a DSC layer diagnosed above the existing
+          ! ntml, we have so far just tested for recoupling of that DSC
+          ! with the SML; we have not tested whether the existing SML
+          ! should split off another decoupled layer.
+          ! In this case, we don't need to turn on ktop_iterate
+          ! (already setup earlier), and we should only turn on ksurf_iterate
+          ! if the SML is cumulus capped and using buoyancy flux integration
+          ! at cumulus points in general.
+
+          if ( dsc(i,j) ) then
+            ! Existing DSC layer confirmed not to be merged with the SML.
+            if ( cumulus(i,j) .and. ( kprof_cu == buoy_integ .or.              &
+                                      kprof_cu == buoy_integ_low ) ) then
+              ! Cumulus layer under the DSC; only turn on ksurf_iterate if
+              ! using appropriate kprof_cu option.
+              ksurf_iterate(i,j) = .true.
+              dec_thres(i,j) = dec_thres_cu
+            end if
+          else
+            ! No existing DSC so we're splitting a new DSC off the SML;
+            ! turn on ktop_iterate to find the new DSC's base
+            ktop_iterate(i,j)  = .true.
+            if ( (.not. cumulus(i,j)) .or. kprof_cu == buoy_integ .or.         &
+                                            kprof_cu == buoy_integ_low ) then
+              ! Switch to using b-flux integration to find new lower SML-top,
+              ! but not in Cu layers unless using appropriate kprof_cu option.
+              ksurf_iterate(i,j) = .true.
+              if ( cumulus(i,j) )  dec_thres(i,j) = dec_thres_cu
+            end if
+          end if
+
+        else  ! ( .not. l_use_sml_dsc_fixes )
+          ! If the bug-fix is off, we turn on ksurf_iterate at non-cumulus
+          ! points even if dsc was already true
+          ! (when all we've done is confirm the DSC shouldn't merge with the
+          !  SML, so we had no reason to be meddling with the SML).
+          ! This creates some inconsistencies down the line...
+
+          !---------------------------------
+          ! Extent of mixing must be reduced
+          !---------------------------------
+          if ( .not. cumulus(i,j) .or. kprof_cu == buoy_integ .or.             &
+                                        kprof_cu == buoy_integ_low)             &
+                  ksurf_iterate(i,j) = .true.
+          if ( cumulus(i,j) .and. ( kprof_cu == buoy_integ .or.                &
+                                    kprof_cu == buoy_integ_low) )              &
+                  dec_thres(i,j) = dec_thres_cu
           ktop_iterate(i,j)  = .true.
-          if ( (.not. cumulus(i,j)) .or. kprof_cu == buoy_integ .or.         &
-                                          kprof_cu == buoy_integ_low ) then
-            ! Switch to using b-flux integration to find new lower SML-top,
-            ! but not in Cu layers unless using appropriate kprof_cu option.
-            ksurf_iterate(i,j) = .true.
-            if ( cumulus(i,j) )  dec_thres(i,j) = dec_thres_cu
-          end if
-        end if
 
-      else  ! ( .not. l_use_sml_dsc_fixes )
-        ! If the bug-fix is off, we turn on ksurf_iterate at non-cumulus
-        ! points even if dsc was already true
-        ! (when all we've done is confirm the DSC shouldn't merge with the
-        !  SML, so we had no reason to be meddling with the SML).
-        ! This creates some inconsistencies down the line...
+        end if  ! ( l_use_sml_dsc_fixes )
 
-        !---------------------------------
-        ! Extent of mixing must be reduced
-        !---------------------------------
-        if ( .not. cumulus(i,j) .or. kprof_cu == buoy_integ .or.             &
-                                      kprof_cu == buoy_integ_low)             &
-                ksurf_iterate(i,j) = .true.
-        if ( cumulus(i,j) .and. ( kprof_cu == buoy_integ .or.                &
-                                  kprof_cu == buoy_integ_low) )              &
-                dec_thres(i,j) = dec_thres_cu
-        ktop_iterate(i,j)  = .true.
+        if ( .not. dsc(i,j) ) then
+          if (l_use_var_fixes .and. v_top(i,j) <= zero) then
+            ! If v_top=0 we have no mechanism to generate turbulence in a DSC
+            ktop_iterate(i,j) = .false.
+            z_top_lim(i,j)    = zh(i,j) ! needs to be set here as zhsc not used
+          else
+            ! Set up a `COUPLED' decoupled layer,
+            !   implies no explicit `entrainment' at ZH.
+            ! Note a new ZH (and thence NTML) will be calculated by
+            ! wb integral iteration.
+            dsc(i,j) = .true.
+            coupled(i,j) = .true.
+            ntdsc(i,j) = ntml(i,j)
+            zhsc(i,j) = zh(i,j)
+            zc_dsc(i,j) = zc(i,j)
+            v_top_dsc(i,j) = v_top(i,j)
+            if ( l_use_sml_dsc_fixes ) then
+              ! Need to ensure SML-top entrainment flux is turned off when
+              ! using buoyancy-flux integration to find a new zh
+              v_top(i,j) = zero
+              ! Set coupling strength to maximal when just diagnosed decoupled
+              svl_diff_frac(i,j) = one
+            end if
+            v_sum_dsc(i,j) = v_sum(i,j)
+            ft_nt_zhsc(i,j) = ft_nt_zh(i,j)
+            fq_nt_zhsc(i,j) = fq_nt_zh(i,j)
+            if (l_wtrac) iset_wtrac(i,j) = 2
+            ! put all entrainment into RHOKH_TOP
+            rhokh_dsct_ent(i,j) = rhokh_top_ent(i,j)                           &
+                                + rhokh_surf_ent(i,j)
+            rhokh_top_ent(i,j) = zero
+            rhokh_surf_ent(i,j) = zero
+            rhokm_dsct_ent(i,j) = rhokm_top_ent(i,j)                           &
+                                + rhokm_surf_ent(i,j)
+            rhokm_top_ent(i,j) = zero
+            rhokm_surf_ent(i,j) = zero
+            if (.not. l_use_var_fixes) then
+              rhokm_top(i,j,ntml(i,j)+1) = rhokm_top(i,j,ntml(i,j)+1)          &
+                                          + rhokm(i,j,ntml(i,j)+1)
+              rhokm(i,j,ntml(i,j)+1) = zero
+            end if
+          end if ! test on l_use_var_fixes and v_top <= zero
+        end if ! test no not.dsc
+      end if   ! test on WB_RATIO le DEC_THRES
+    end if   ! testing for well-mixed layer (TEST_WELL_MIXED)
 
-      end if  ! ( l_use_sml_dsc_fixes )
-
-      if ( .not. dsc(i,j) ) then
-        if (l_use_var_fixes .and. v_top(i,j) <= zero) then
-          ! If v_top=0 we have no mechanism to generate turbulence in a DSC
-          ktop_iterate(i,j) = .false.
-          z_top_lim(i,j)    = zh(i,j) ! needs to be set here as zhsc not used
-        else
-          ! Set up a `COUPLED' decoupled layer,
-          !   implies no explicit `entrainment' at ZH.
-          ! Note a new ZH (and thence NTML) will be calculated by
-          ! wb integral iteration.
-          dsc(i,j) = .true.
-          coupled(i,j) = .true.
-          ntdsc(i,j) = ntml(i,j)
-          zhsc(i,j) = zh(i,j)
-          zc_dsc(i,j) = zc(i,j)
-          v_top_dsc(i,j) = v_top(i,j)
-          if ( l_use_sml_dsc_fixes ) then
-            ! Need to ensure SML-top entrainment flux is turned off when
-            ! using buoyancy-flux integration to find a new zh
-            v_top(i,j) = zero
-            ! Set coupling strength to maximal when just diagnosed decoupled
-            svl_diff_frac(i,j) = one
-          end if
-          v_sum_dsc(i,j) = v_sum(i,j)
-          ft_nt_zhsc(i,j) = ft_nt_zh(i,j)
-          fq_nt_zhsc(i,j) = fq_nt_zh(i,j)
-          if (l_wtrac) iset_wtrac(i,j) = 2
-          ! put all entrainment into RHOKH_TOP
-          rhokh_dsct_ent(i,j) = rhokh_top_ent(i,j)                           &
-                              + rhokh_surf_ent(i,j)
-          rhokh_top_ent(i,j) = zero
-          rhokh_surf_ent(i,j) = zero
-          rhokm_dsct_ent(i,j) = rhokm_top_ent(i,j)                           &
-                              + rhokm_surf_ent(i,j)
-          rhokm_top_ent(i,j) = zero
-          rhokm_surf_ent(i,j) = zero
-          if (.not. l_use_var_fixes) then
-            rhokm_top(i,j,ntml(i,j)+1) = rhokm_top(i,j,ntml(i,j)+1)          &
-                                        + rhokm(i,j,ntml(i,j)+1)
-            rhokm(i,j,ntml(i,j)+1) = zero
-          end if
-        end if ! test on l_use_var_fixes and v_top <= zero
-      end if ! test no not.dsc
-    end if   ! test on WB_RATIO le DEC_THRES
-  end if   ! testing for well-mixed layer (TEST_WELL_MIXED)
-
+  end do ! I
 end do ! I
 !end do ! J
 !$OMP end do
@@ -1865,8 +1883,10 @@ end if    ! l_wtrac
 !cdir collapse
 
 !$OMP do SCHEDULE(DYNAMIC)
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
 !do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
+!do i = pdims%i_start, pdims%i_end
 
   if ( ksurf_iterate(i,j) ) then
     !-----------------------------------------------------------
@@ -1913,7 +1933,7 @@ do i = pdims%i_start, pdims%i_end
     wb_ratio(i,j) = dec_thres(i,j) - one ! to be < DEC_THRES
 
   end if ! KSURF_ITERATE
-
+  end do
 end do
 !end do
 !$OMP end do
@@ -1928,7 +1948,9 @@ if (kprof_cu == buoy_integ .or. kprof_cu == buoy_integ_low) then
 
 !$OMP do SCHEDULE(DYNAMIC)
   !do j = pdims%j_start, pdims%j_end
-  do i = pdims%i_start, pdims%i_end
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+  !do i = pdims%i_start, pdims%i_end
     if ( cumulus(i,j) .and. .not. dsc(i,j) .and.                             &
                             .not. ksurf_iterate(i,j)) then
       ! pure cumulus layer and necessary parameters not already set up
@@ -1955,6 +1977,7 @@ if (kprof_cu == buoy_integ .or. kprof_cu == buoy_integ_low) then
       wb_ratio(i,j) = dec_thres(i,j) - one ! to be < DEC_THRES
     end if
   end do ! I
+end do ! II
   !end do ! J
 !$OMP end do
 
@@ -2242,149 +2265,154 @@ end do
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
 !do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
 
-  if ( ktop_iterate(i,j) ) then
+    if ( ktop_iterate(i,j) ) then
 
-      ! Lower limit on base of DSC layer
-    z_bot_lim(i,j) = 0.1_r_bl * zh(i,j)
-      ! Upper limit on base of DSC layer
-    z_top_lim(i,j) = zhsc(i,j) - dzrad(i,j)
-      ! If cumulus limit base of top-driven mixing to above ZH
-      ! (not applying this limit if converging the gradient adjustment,
-      !  as in this case we need to allow kh_surf to go as high as it wants
-      !  so the DSC kh needs to be able to overlap with it).
-    if ( cumulus(i,j) .and. (.not. l_converge_ga) ) then
-      z_bot_lim(i,j) = min( zh(i,j), z_top_lim(i,j) )
-    end if
+        ! Lower limit on base of DSC layer
+      z_bot_lim(i,j) = 0.1_r_bl * zh(i,j)
+        ! Upper limit on base of DSC layer
+      z_top_lim(i,j) = zhsc(i,j) - dzrad(i,j)
+        ! If cumulus limit base of top-driven mixing to above ZH
+        ! (not applying this limit if converging the gradient adjustment,
+        !  as in this case we need to allow kh_surf to go as high as it wants
+        !  so the DSC kh needs to be able to overlap with it).
+      if ( cumulus(i,j) .and. (.not. l_converge_ga) ) then
+        z_bot_lim(i,j) = min( zh(i,j), z_top_lim(i,j) )
+      end if
 
-    z_cbase(i,j) = zhsc(i,j) - zc_dsc(i,j)
+      z_cbase(i,j) = zhsc(i,j) - zc_dsc(i,j)
 
-    !..Divide up depth of layer within which ZDSC_BASE is allowed
-    z_inc(i,j) = (z_top_lim(i,j)-z_bot_lim(i,j)) / real(n_steps, r_bl)
-    zdsc_base(i,j) = z_bot_lim(i,j)
-                        ! will start at Z_BOT_LIM+Z_INC
+      !..Divide up depth of layer within which ZDSC_BASE is allowed
+      z_inc(i,j) = (z_top_lim(i,j)-z_bot_lim(i,j)) / real(n_steps, r_bl)
+      zdsc_base(i,j) = z_bot_lim(i,j)
+                          ! will start at Z_BOT_LIM+Z_INC
 
-    if (l_reset_dec_thres) then
-      dec_thres(i,j) = dec_thres_cloud  ! reset after potential use
-                                        ! of dec_thres_cu or
-                                        ! dec_thres_clear above
-    end if
-    wb_ratio(i,j) = dec_thres(i,j) + one ! to be > DEC_THRES
+      if (l_reset_dec_thres) then
+        dec_thres(i,j) = dec_thres_cloud  ! reset after potential use
+                                          ! of dec_thres_cu or
+                                          ! dec_thres_clear above
+      end if
+      wb_ratio(i,j) = dec_thres(i,j) + one ! to be > DEC_THRES
 
-  end if ! KTOP_ITERATE
+    end if ! KTOP_ITERATE
 
+  end do
 end do
 !$OMP end do
 
 !$OMP do SCHEDULE(DYNAMIC)
-do i = pdims%i_start, pdims%i_end
-  if ( ktop_iterate(i,j) .and. wb_dzrad_int(i,j)  <   zero ) then
-      !-------------------------------------------------------------
-      ! Estimation of wb integral over radiatively cooled cloud-top
-      ! region not yet performed (ie. DSC over stable surface) so
-      ! do it now.
-      !-------------------------------------------------------------
-    z_inv(i,j)  = zhsc(i,j)
-    z_cbase(i,j)= z_inv(i,j) - zc_dsc(i,j)
-    cf_ml(i,j)  = cf_dsc(i,j)
-    df_ctop(i,j)= df_dsct_over_cp(i,j)
-    rho_we(i,j) = rho_we_dsc(i,j)
-    dsl(i,j)    = dsl_dsc(i,j)
-    dqw(i,j)    = dqw_dsc(i,j)
-    tothf_zi(i,j)= - rho_we(i,j)*dsl(i,j) + ft_nt_zhsc(i,j)
-    totqf_zi(i,j)= - rho_we(i,j)*dqw(i,j) + fq_nt_zhsc(i,j)
-    ntop(i,j)   = ntdsc(i,j)
-    dzrad(i,j)  = 100.0_r_bl
-    if ( dzrad_disc_opt == dzrad_ntm1 ) then
-      ! Original discretisation of cloud-top radiatively-cooled layer;
-      ! set the base of the layer at theta-level ntdsc-1
-      ! (which is between 1.5 and 2.5 model-levels below cloud-top,
-      !  depending on where zhsc is between z_uv(ntdsc+1) and z_uv(ntdsc+2)),
-      ! then lower it by extra whole model-levels if needed to increase the
-      ! depth to 100m.
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+! do i = pdims%i_start, pdims%i_end
+    if ( ktop_iterate(i,j) .and. wb_dzrad_int(i,j)  <   zero ) then
+        !-------------------------------------------------------------
+        ! Estimation of wb integral over radiatively cooled cloud-top
+        ! region not yet performed (ie. DSC over stable surface) so
+        ! do it now.
+        !-------------------------------------------------------------
+      z_inv(i,j)  = zhsc(i,j)
+      z_cbase(i,j)= z_inv(i,j) - zc_dsc(i,j)
+      cf_ml(i,j)  = cf_dsc(i,j)
+      df_ctop(i,j)= df_dsct_over_cp(i,j)
+      rho_we(i,j) = rho_we_dsc(i,j)
+      dsl(i,j)    = dsl_dsc(i,j)
+      dqw(i,j)    = dqw_dsc(i,j)
+      tothf_zi(i,j)= - rho_we(i,j)*dsl(i,j) + ft_nt_zhsc(i,j)
+      totqf_zi(i,j)= - rho_we(i,j)*dqw(i,j) + fq_nt_zhsc(i,j)
+      ntop(i,j)   = ntdsc(i,j)
+      dzrad(i,j)  = 100.0_r_bl
+      if ( dzrad_disc_opt == dzrad_ntm1 ) then
+        ! Original discretisation of cloud-top radiatively-cooled layer;
+        ! set the base of the layer at theta-level ntdsc-1
+        ! (which is between 1.5 and 2.5 model-levels below cloud-top,
+        !  depending on where zhsc is between z_uv(ntdsc+1) and z_uv(ntdsc+2)),
+        ! then lower it by extra whole model-levels if needed to increase the
+        ! depth to 100m.
 
-      ntop(i,j) = ntop(i,j) - 1
-      if ( ntop(i,j)  >   1 ) then
-        inner_loop2: do while ( z_tq(i,j,ntop(i,j))  >  z_inv(i,j)-dzrad(i,j)&
-              .and. z_tq(i,j,ntop(i,j)-1)  >   z_inv(i,j)-z_cbase(i,j))
-          ntop(i,j) = ntop(i,j) - 1
-          if (ntop(i,j) == 1 ) then
-            exit inner_loop2
-          end if
-        end do inner_loop2
-      end if
-      dzrad(i,j) = z_inv(i,j) - z_tq(i,j,ntop(i,j))
-
-    else if ( dzrad_disc_opt == dzrad_1p5dz ) then
-      ! Alternative method;
-      ! set the base of the layer 1.5 model-levels below cloud-top so that
-      ! it always moves smoothly with zhsc instead of jumping suddenly
-      ! (1.5 levels is the minimum distance below zhsc which will always
-      !  keep the base of the layer below theta-level ntdsc, which is a
-      !  requirement of the discretisation).
-      ! The depth is also forced to be at least 100m.
-
-      ! Find smoothly-varying height 1.5 model-levels below z_inv
-      k_inv = ntop(i,j)
-      if ( z_inv(i,j) < z_tq(i,j,k_inv+1) ) then
-        interp = ( z_inv(i,j)        - z_uv(i,j,k_inv+1) )                   &
-                / ( z_tq(i,j,k_inv+1) - z_uv(i,j,k_inv+1) )
-        z_pr = (one-interp) * z_tq(i,j,k_inv-1)                              &
-              +      interp  * z_uv(i,j,k_inv)
-      else
-        interp = ( z_inv(i,j)        - z_tq(i,j,k_inv+1) )                   &
-                / ( z_uv(i,j,k_inv+2) - z_tq(i,j,k_inv+1) )
-        z_pr = (one-interp) * z_uv(i,j,k_inv)                                &
-              +      interp  * z_tq(i,j,k_inv)
-      end if
-      ! Go down to 100m below z_inv (or cloud-base) if that is lower,
-      ! but don't allow lower than theta-level 1
-      z_pr = min( z_pr, max( z_inv(i,j) - dzrad(i,j), z_cbase(i,j) ) )
-      z_pr = max( z_pr, z_tq(i,j,1) )
-      ! Set ntop to the rho-level straddling the base of the layer
-      do while ( z_tq(i,j,ntop(i,j)-1) > z_pr )
         ntop(i,j) = ntop(i,j) - 1
-      end do
-      ! Set new cloud-top radiatively-cooled layer-depth
-      dzrad(i,j) = z_inv(i,j) - z_pr
+        if ( ntop(i,j)  >   1 ) then
+          inner_loop2: do while ( z_tq(i,j,ntop(i,j))  >  z_inv(i,j)-dzrad(i,j)&
+                .and. z_tq(i,j,ntop(i,j)-1)  >   z_inv(i,j)-z_cbase(i,j))
+            ntop(i,j) = ntop(i,j) - 1
+            if (ntop(i,j) == 1 ) then
+              exit inner_loop2
+            end if
+          end do inner_loop2
+        end if
+        dzrad(i,j) = z_inv(i,j) - z_tq(i,j,ntop(i,j))
 
-      ! Fraction of rho-level ntop below the dzrad layer
-      interp = ( z_pr                - z_tq(i,j,ntop(i,j)-1) )               &
-              / ( z_tq(i,j,ntop(i,j)) - z_tq(i,j,ntop(i,j)-1) )
-      ! Add on SL and qw differences between the discontinuous inversion base
-      ! and the base of the dzrad layer
-      dsl(i,j) = dsl(i,j) + sl(i,j,k_inv) - (one-interp)*sl(i,j,ntop(i,j)-1) &
-                                          -      interp *sl(i,j,ntop(i,j))
-      dqw(i,j) = dqw(i,j) + qw(i,j,k_inv) - (one-interp)*qw(i,j,ntop(i,j)-1) &
-                                          -      interp *qw(i,j,ntop(i,j))
+      else if ( dzrad_disc_opt == dzrad_1p5dz ) then
+        ! Alternative method;
+        ! set the base of the layer 1.5 model-levels below cloud-top so that
+        ! it always moves smoothly with zhsc instead of jumping suddenly
+        ! (1.5 levels is the minimum distance below zhsc which will always
+        !  keep the base of the layer below theta-level ntdsc, which is a
+        !  requirement of the discretisation).
+        ! The depth is also forced to be at least 100m.
 
-    end if  ! ( dzrad_disc_opt )
+        ! Find smoothly-varying height 1.5 model-levels below z_inv
+        k_inv = ntop(i,j)
+        if ( z_inv(i,j) < z_tq(i,j,k_inv+1) ) then
+          interp = ( z_inv(i,j)        - z_uv(i,j,k_inv+1) )                   &
+                  / ( z_tq(i,j,k_inv+1) - z_uv(i,j,k_inv+1) )
+          z_pr = (one-interp) * z_tq(i,j,k_inv-1)                              &
+                +      interp  * z_uv(i,j,k_inv)
+        else
+          interp = ( z_inv(i,j)        - z_tq(i,j,k_inv+1) )                   &
+                  / ( z_uv(i,j,k_inv+2) - z_tq(i,j,k_inv+1) )
+          z_pr = (one-interp) * z_uv(i,j,k_inv)                                &
+                +      interp  * z_tq(i,j,k_inv)
+        end if
+        ! Go down to 100m below z_inv (or cloud-base) if that is lower,
+        ! but don't allow lower than theta-level 1
+        z_pr = min( z_pr, max( z_inv(i,j) - dzrad(i,j), z_cbase(i,j) ) )
+        z_pr = max( z_pr, z_tq(i,j,1) )
+        ! Set ntop to the rho-level straddling the base of the layer
+        do while ( z_tq(i,j,ntop(i,j)-1) > z_pr )
+          ntop(i,j) = ntop(i,j) - 1
+        end do
+        ! Set new cloud-top radiatively-cooled layer-depth
+        dzrad(i,j) = z_inv(i,j) - z_pr
 
-    wsl_dzrad_int = dzrad(i,j) *                                             &
-                    ( 0.66_r_bl*df_ctop(i,j) - rho_we(i,j)*dsl(i,j) )
-    wqw_dzrad_int = - dzrad(i,j) * rho_we(i,j) * dqw(i,j)
+        ! Fraction of rho-level ntop below the dzrad layer
+        interp = ( z_pr                - z_tq(i,j,ntop(i,j)-1) )               &
+                / ( z_tq(i,j,ntop(i,j)) - z_tq(i,j,ntop(i,j)-1) )
+        ! Add on SL and qw differences between the discontinuous inversion base
+        ! and the base of the dzrad layer
+        dsl(i,j) = dsl(i,j) + sl(i,j,k_inv) - (one-interp)*sl(i,j,ntop(i,j)-1) &
+                                            -      interp *sl(i,j,ntop(i,j))
+        dqw(i,j) = dqw(i,j) + qw(i,j,k_inv) - (one-interp)*qw(i,j,ntop(i,j)-1) &
+                                            -      interp *qw(i,j,ntop(i,j))
 
-    wb_dzrad_int(i,j) = wsl_dzrad_int * (                                    &
-                          (one-cf_ml(i,j))*btm(i,j,ntop(i,j)+1) +            &
-                            cf_ml(i,j)*btm_cld(i,j,ntop(i,j)+1) )            &
-                      + wqw_dzrad_int * (                                    &
-                          (one-cf_ml(i,j))*bqm(i,j,ntop(i,j)+1) +            &
-                            cf_ml(i,j)*bqm_cld(i,j,ntop(i,j)+1) )
-    wb_dzrad_int(i,j) = g * wb_dzrad_int(i,j)
-    wb_dzrad_int(i,j) = max( zero, wb_dzrad_int(i,j) )
+      end if  ! ( dzrad_disc_opt )
 
-    if (model_type == mt_single_column) then
-      do k = ntop(i,j)+1, ntdsc(i,j)+1
-        wbend(i,j,k) = wb_dzrad_int(i,j)/dzrad(i,j)
-      end do
+      wsl_dzrad_int = dzrad(i,j) *                                             &
+                      ( 0.66_r_bl*df_ctop(i,j) - rho_we(i,j)*dsl(i,j) )
+      wqw_dzrad_int = - dzrad(i,j) * rho_we(i,j) * dqw(i,j)
+
+      wb_dzrad_int(i,j) = wsl_dzrad_int * (                                    &
+                            (one-cf_ml(i,j))*btm(i,j,ntop(i,j)+1) +            &
+                              cf_ml(i,j)*btm_cld(i,j,ntop(i,j)+1) )            &
+                        + wqw_dzrad_int * (                                    &
+                            (one-cf_ml(i,j))*bqm(i,j,ntop(i,j)+1) +            &
+                              cf_ml(i,j)*bqm_cld(i,j,ntop(i,j)+1) )
+      wb_dzrad_int(i,j) = g * wb_dzrad_int(i,j)
+      wb_dzrad_int(i,j) = max( zero, wb_dzrad_int(i,j) )
+
+      if (model_type == mt_single_column) then
+        do k = ntop(i,j)+1, ntdsc(i,j)+1
+          wbend(i,j,k) = wb_dzrad_int(i,j)/dzrad(i,j)
+        end do
+      end if
+
     end if
 
-  end if
-
-  wb_dzrad_int(i,j) = max( rbl_eps, wb_dzrad_int(i,j) )
-
-end do ! I
+    wb_dzrad_int(i,j) = max( rbl_eps, wb_dzrad_int(i,j) )
+  end do ! I
+end do ! II
 !end do ! J
 !$OMP end do
 
@@ -2831,76 +2859,79 @@ end if  ! test on kprof_cu
 
 !$OMP do SCHEDULE(DYNAMIC)
 ! do j = pdims%j_start, pdims%j_end
-do i = pdims%i_start, pdims%i_end
-  k=ntml(i,j)+1
-  kh_top_factor(i,j) = max( 0.7_r_bl , one - sqrt(                           &
-            rhokh_surf_ent(i,j) /                                             &
-                  ( rho_mix(i,j,k)*w_h_top(i,j)*vkman*zh(i,j) ) ) )
-  if (l_use_var_fixes) then
-    km_top_factor(i,j) = max( 0.7_r_bl, one-sqrt( rhokm_surf_ent(i,j) /      &
-              ( rho_wet_tq(i,j,k-1)*w_m_top(i,j)*vkman*zh(i,j) ) ) )
-  else
-    km_top_factor(i,j) = max( 0.7_r_bl , one - sqrt( rhokm(i,j,k) /          &
-              ( rho_wet_tq(i,j,k-1)*w_m_top(i,j)*vkman*zh(i,j) ) ) )
-  end if
-  scdepth(i,j) = zh(i,j) - zsml_base(i,j)
-  factor = g1 * rho_mix(i,j,k) * v_top(i,j) *vkman *scdepth(i,j)
-  if ( factor  >   zero) then
-    kh_sct_factor(i,j) = one - ( rhokh_top_ent(i,j) / factor )**1.25_r_bl
-                                                      ! 1.25=1/0.8
-  else
-    kh_sct_factor(i,j) = one
-  end if
-  factor = g1 * rho_wet_tq(i,j,k-1) * v_top(i,j) *                           &
-                  vkman * scdepth(i,j) * 0.75_r_bl
-  if ( factor  >   zero) then
+do ii = pdims%i_start, pdims%i_end, bl_segment_size
+  do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
+!do i = pdims%i_start, pdims%i_end
+    k=ntml(i,j)+1
+    kh_top_factor(i,j) = max( 0.7_r_bl , one - sqrt(                           &
+              rhokh_surf_ent(i,j) /                                             &
+                    ( rho_mix(i,j,k)*w_h_top(i,j)*vkman*zh(i,j) ) ) )
     if (l_use_var_fixes) then
-      km_sct_factor(i,j) = one -                                             &
-            ( rhokm_top_ent(i,j) / factor )**1.25_r_bl
-                                                      ! 1.25=1/0.8
+      km_top_factor(i,j) = max( 0.7_r_bl, one-sqrt( rhokm_surf_ent(i,j) /      &
+                ( rho_wet_tq(i,j,k-1)*w_m_top(i,j)*vkman*zh(i,j) ) ) )
     else
-      km_sct_factor(i,j) = one -                                             &
-            ( rhokm_top(i,j,k) / factor )**1.25_r_bl
+      km_top_factor(i,j) = max( 0.7_r_bl , one - sqrt( rhokm(i,j,k) /          &
+                ( rho_wet_tq(i,j,k-1)*w_m_top(i,j)*vkman*zh(i,j) ) ) )
     end if
-  else
-    km_sct_factor(i,j) = one
-  end if
-
-  if (ntdsc(i,j)  >   0) then
-    !-------------------------------------------------------------
-    ! Set up factors to ensure K profile continuity at ZHSC;
-    ! no need to limit size of factor as precise shape of top-down
-    ! mixing profile not important.
-    ! Only calculate _DSCT_FACTORs when a decoupled stratocumulus
-    ! layer exists, i.e. NTDSC > 0.
-    !-------------------------------------------------------------
-    k=ntdsc(i,j)+1
-    dscdepth(i,j) = zhsc(i,j) - zdsc_base(i,j)
-    factor = g1*rho_mix(i,j,k)*v_top_dsc(i,j)*vkman*dscdepth(i,j)
+    scdepth(i,j) = zh(i,j) - zsml_base(i,j)
+    factor = g1 * rho_mix(i,j,k) * v_top(i,j) *vkman *scdepth(i,j)
     if ( factor  >   zero) then
-      kh_dsct_factor(i,j) = one -                                            &
-                          ( rhokh_dsct_ent(i,j) / factor )**1.25_r_bl
-                                                      ! 1.25=1/0.8
+      kh_sct_factor(i,j) = one - ( rhokh_top_ent(i,j) / factor )**1.25_r_bl
+                                                        ! 1.25=1/0.8
     else
-      kh_dsct_factor(i,j) = one
+      kh_sct_factor(i,j) = one
     end if
-
-    factor = 0.75_r_bl * g1 * rho_wet_tq(i,j,k-1) * v_top_dsc(i,j) *         &
-                          vkman * dscdepth(i,j)
+    factor = g1 * rho_wet_tq(i,j,k-1) * v_top(i,j) *                           &
+                    vkman * scdepth(i,j) * 0.75_r_bl
     if ( factor  >   zero) then
       if (l_use_var_fixes) then
-        km_dsct_factor(i,j) = one -                                          &
-              ( rhokm_dsct_ent(i,j) / factor )**1.25_r_bl
-                                                      ! 1.25=1/0.8
+        km_sct_factor(i,j) = one -                                             &
+              ( rhokm_top_ent(i,j) / factor )**1.25_r_bl
+                                                        ! 1.25=1/0.8
       else
-        km_dsct_factor(i,j) = one -                                          &
+        km_sct_factor(i,j) = one -                                             &
               ( rhokm_top(i,j,k) / factor )**1.25_r_bl
       end if
     else
-      km_dsct_factor(i,j) = one
+      km_sct_factor(i,j) = one
     end if
-  end if
-end do
+
+    if (ntdsc(i,j)  >   0) then
+      !-------------------------------------------------------------
+      ! Set up factors to ensure K profile continuity at ZHSC;
+      ! no need to limit size of factor as precise shape of top-down
+      ! mixing profile not important.
+      ! Only calculate _DSCT_FACTORs when a decoupled stratocumulus
+      ! layer exists, i.e. NTDSC > 0.
+      !-------------------------------------------------------------
+      k=ntdsc(i,j)+1
+      dscdepth(i,j) = zhsc(i,j) - zdsc_base(i,j)
+      factor = g1*rho_mix(i,j,k)*v_top_dsc(i,j)*vkman*dscdepth(i,j)
+      if ( factor  >   zero) then
+        kh_dsct_factor(i,j) = one -                                            &
+                            ( rhokh_dsct_ent(i,j) / factor )**1.25_r_bl
+                                                        ! 1.25=1/0.8
+      else
+        kh_dsct_factor(i,j) = one
+      end if
+
+      factor = 0.75_r_bl * g1 * rho_wet_tq(i,j,k-1) * v_top_dsc(i,j) *         &
+                            vkman * dscdepth(i,j)
+      if ( factor  >   zero) then
+        if (l_use_var_fixes) then
+          km_dsct_factor(i,j) = one -                                          &
+                ( rhokm_dsct_ent(i,j) / factor )**1.25_r_bl
+                                                        ! 1.25=1/0.8
+        else
+          km_dsct_factor(i,j) = one -                                          &
+                ( rhokm_top(i,j,k) / factor )**1.25_r_bl
+        end if
+      else
+        km_dsct_factor(i,j) = one
+      end if
+    end if
+  end do !I
+end do !II
 ! end do
 !$OMP end do
 
