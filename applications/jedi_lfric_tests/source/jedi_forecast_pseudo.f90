@@ -20,12 +20,11 @@
 program jedi_forecast_pseudo
 
   use cli_mod,                      only : parse_command_line
+  use config_mod,                   only : config_type
   use constants_mod,                only : PRECISION_REAL, i_def, str_def
   use field_collection_mod,         only : field_collection_type
   use log_mod,                      only : log_event, log_scratch_space, &
                                            LOG_LEVEL_ALWAYS
-  use namelist_collection_mod,      only : namelist_collection_type
-  use namelist_mod,                 only : namelist_type
 
   ! Jedi emulator objects
   use jedi_checksum_mod,             only : output_checksum
@@ -46,12 +45,12 @@ program jedi_forecast_pseudo
   type( jedi_post_processor_empty_type ) :: jedi_pp_empty
 
   ! Local
-  type( namelist_collection_type ), pointer :: configuration
-  character(:),                 allocatable :: filename
-  integer(i_def)                            :: model_communicator
-  type( jedi_duration_type )                :: forecast_length
-  type( namelist_type ),            pointer :: jedi_lfric_settings_config
-  character( str_def )                      :: forecast_length_str
+  type( config_type ), pointer :: config
+
+  character(:), allocatable  :: filename
+  integer(i_def)             :: model_communicator
+  type( jedi_duration_type ) :: forecast_length
+  character( str_def )       :: forecast_length_str
 
   character(*), parameter :: program_name = "jedi_forecast_pseudo"
 
@@ -74,21 +73,20 @@ program jedi_forecast_pseudo
   call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
   ! Get the configuration
-  configuration => jedi_run%get_configuration()
+  config => jedi_run%get_config()
 
   ! Get the forecast length
-  jedi_lfric_settings_config => configuration%get_namelist('jedi_lfric_settings')
-  call jedi_lfric_settings_config%get_value( 'forecast_length', forecast_length_str )
+  forecast_length_str = config%jedi_lfric_settings%forecast_length()
   call forecast_length%init(forecast_length_str)
 
   ! Create geometry
-  call jedi_geometry%initialise( model_communicator, configuration )
+  call jedi_geometry%initialise( model_communicator, config )
 
   ! Create state
-  call jedi_state%initialise( jedi_geometry, configuration )
+  call jedi_state%initialise( jedi_geometry, config )
 
   ! Model
-  call jedi_psuedo_model%initialise( configuration )
+  call jedi_psuedo_model%initialise( config )
 
   ! Run non-linear model forecast
   call jedi_psuedo_model%forecast( jedi_state, forecast_length, jedi_pp_empty )

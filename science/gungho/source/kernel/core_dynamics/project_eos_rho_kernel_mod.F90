@@ -16,9 +16,13 @@ use argument_mod,               only : arg_type, func_type,                    &
                                        GH_BASIS, GH_DIFF_BASIS, GH_SCALAR,     &
                                        CELL_COLUMN, GH_QUADRATURE_XYoZ
 use constants_mod,              only : r_def, i_def
-use idealised_config_mod,       only : test
 use fs_continuity_mod,          only : WTHETA, W3
 use kernel_mod,                 only : kernel_type
+
+use base_mesh_config_mod,      only: geometry, topology
+use finite_element_config_mod, only: coord_system
+use idealised_config_mod,      only: test
+use planet_config_mod,         only: scaled_radius
 
 implicit none
 
@@ -159,7 +163,9 @@ subroutine project_eos_rho_code(nlayers,                           &
       chi3_e(df) = chi3( map_chi(df) + k )
     end do
 
-    call coordinate_jacobian(ndf_chi, nqp_h, nqp_v,             &
+    call coordinate_jacobian(coord_system, geometry,            &
+                             topology, scaled_radius,           &
+                             ndf_chi, nqp_h, nqp_v,             &
                              chi1_e, chi2_e, chi3_e,            &
                              ipanel, chi_basis, chi_diff_basis, &
                              jac, dj )

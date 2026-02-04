@@ -10,6 +10,7 @@ module jedi_lfric_mesh_setup_mod
   use add_mesh_map_mod,        only: assign_mesh_maps
   use base_mesh_config_mod,    only: GEOMETRY_SPHERICAL, &
                                      GEOMETRY_PLANAR
+  use config_mod,              only: config_type
   use constants_mod,           only: str_def, i_def, l_def, r_def
   use create_mesh_mod,         only: create_mesh
   use driver_mesh_mod,         only: init_mesh
@@ -21,8 +22,6 @@ module jedi_lfric_mesh_setup_mod
   use log_mod,                 only: log_event,         &
                                      log_scratch_space, &
                                      LOG_LEVEL_ERROR
-  use namelist_collection_mod, only: namelist_collection_type
-  use namelist_mod,            only: namelist_type
 
   implicit none
 
@@ -35,24 +34,21 @@ contains
   !> @brief Initialise the mesh and store it in the global mesh collection
   !>
   !> @param [out]   mesh_name     The name of the mesh being setup
-  !> @param [in]    configuration The geometry configuration
+  !> @param [in]    config        The geometry configuration
   !> @param [inout] mpi_obj       The mpi communicator
   !> @param [in]    alt_mesh_name The name of an alternative mesh_name to setup
-  subroutine initialise_mesh( mesh_name, configuration, mpi_obj, alt_mesh_name )
+  subroutine initialise_mesh( mesh_name, config, mpi_obj, alt_mesh_name )
 
     implicit none
 
     character(len=*),              intent(out) :: mesh_name
-    type(namelist_collection_type), intent(in) :: configuration
+    type(config_type),              intent(in) :: config
     !> @todo: This should be intent in but when calling the method I get
     !> a compiler failure
     class(lfric_mpi_type),       intent(inout) :: mpi_obj
     character(len=*),     optional, intent(in) :: alt_mesh_name
 
     ! Local
-    type(namelist_type),              pointer :: base_mesh_nml
-    type(namelist_type),              pointer :: extrusion_nml
-    type(namelist_type),              pointer :: planet_nml
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
@@ -73,17 +69,12 @@ contains
     !--------------------------------------
     ! 0.0 Extract namelist variables
     !--------------------------------------
-    nullify(base_mesh_nml, planet_nml, extrusion_nml)
-    base_mesh_nml => configuration%get_namelist('base_mesh')
-    planet_nml    => configuration%get_namelist('planet')
-    extrusion_nml => configuration%get_namelist('extrusion')
-
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'method', extrusion_method )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
+    prime_mesh_name  = config%base_mesh%prime_mesh_name()
+    geometry         = config%base_mesh%geometry()
+    domain_height    = config%extrusion%domain_height()
+    extrusion_method = config%extrusion%method()
+    number_of_layers = config%extrusion%number_of_layers()
+    scaled_radius    = config%planet%scaled_radius()
 
     !--------------------------------------
     ! 1.0 Create the meshes
@@ -124,7 +115,7 @@ contains
     !-------------------------------------------------------------------------
     stencil_depth = 2
     apply_partition_check = .false.
-    call init_mesh( configuration,           &
+    call init_mesh( config,                  &
                     mpi_obj%get_comm_rank(), &
                     mpi_obj%get_comm_size(), &
                     base_mesh_names,         &

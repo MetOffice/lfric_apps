@@ -10,7 +10,7 @@
 !!         corresponding nonlinear code.
 program runge_kutta
 
-  use configuration_mod,      only: read_configuration, final_configuration
+  use config_loader_mod,      only: read_configuration, final_configuration
   use driver_collections_mod, only: init_collections, final_collections
   use driver_time_mod,        only: init_time, final_time
   use driver_modeldb_mod,     only: modeldb_type
@@ -145,8 +145,10 @@ program runge_kutta
      call log_event( "Unknown test", LOG_LEVEL_ERROR )
   end select
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
-  call read_configuration( filename, modeldb%configuration )
+
+  call modeldb%config%initialise( program_name )
+  call read_configuration( filename, config=modeldb%config )
+
   deallocate( filename )
 
   call init_collections()

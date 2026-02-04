@@ -7,6 +7,7 @@
 !> @brief Initialisation of analytical LBC fields.
 module init_gungho_lbcs_alg_mod
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, r_def, str_def, l_def
   use driver_modeldb_mod,              only: modeldb_type
   use field_mod,                       only: field_type
@@ -30,8 +31,6 @@ module init_gungho_lbcs_alg_mod
   use lfric_xios_read_mod,             only: read_state
   use mesh_mod,                        only: mesh_type
   use model_clock_mod,                 only: model_clock_type
-  use namelist_collection_mod,         only: namelist_collection_type
-  use namelist_mod,                    only: namelist_type
   use variable_fields_mod,             only: init_variable_fields,  &
                                              update_variable_fields
   use linked_list_mod,                 only: linked_list_type
@@ -92,18 +91,11 @@ module init_gungho_lbcs_alg_mod
     integer(i_def)               :: imr
     type(mesh_type), pointer     :: mesh
 
-    type(namelist_type), pointer :: base_mesh_nml
-    type(namelist_type), pointer :: formulation_nml
-
     character(len=str_def)       :: prime_mesh_name
     integer(i_def)               :: moisture_formulation
 
-
-    base_mesh_nml    => modeldb%configuration%get_namelist('base_mesh')
-    formulation_nml  => modeldb%configuration%get_namelist('formulation')
-
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call formulation_nml%get_value( 'moisture_formulation', moisture_formulation )
+    prime_mesh_name      = modeldb%config%base_mesh%prime_mesh_name()
+    moisture_formulation = modeldb%config%formulation%moisture_formulation()
 
     call prognostic_fields%get_field( 'theta', theta )
     call prognostic_fields%get_field( 'u', u )
@@ -155,23 +147,22 @@ module init_gungho_lbcs_alg_mod
   !> @brief   Read the time-varying LBCs from a file.
   !> @details Initialise the LBCs, that are read in and updated using
   !!          a time-axis.
-  !> @param[in]     configuration   The application configuration object
+  !> @param[in]     config          The application configuration object
   !> @param[in]     lbc_times_list  The LBC time axis list
   !> @param[in]     clock           Clock
   !> @param[in,out] lbc_fields      The LBC field collection
-  subroutine init_lbcs_file_alg( configuration, lbc_times_list, clock, lbc_fields )
+  subroutine init_lbcs_file_alg( config, lbc_times_list, clock, lbc_fields )
 
     implicit none
 
-    type(namelist_collection_type), intent(in)    :: configuration
-    type(field_collection_type),    intent(inout) :: lbc_fields
-    type(linked_list_type),         intent(in)    :: lbc_times_list
-    class(model_clock_type),        intent(in)    :: clock
-    type(field_type),               pointer       :: lbc_v_u
-    integer(tik)                                  :: id
+    type(config_type),           intent(in)    :: config
+    type(field_collection_type), intent(inout) :: lbc_fields
+    type(linked_list_type),      intent(in)    :: lbc_times_list
+    class(model_clock_type),     intent(in)    :: clock
+    type(field_type),            pointer       :: lbc_v_u
+    integer(tik)                               :: id
 
-    type(namelist_type), pointer :: initialization_nml
-    integer(i_def)               :: lbc_option
+    integer(i_def) :: lbc_option
 
     if ( LPROF ) call start_timing( id, 'init_lbcs' )
 
@@ -183,8 +174,7 @@ module init_gungho_lbcs_alg_mod
 
     if ( clock%is_initialisation() ) then
 
-      initialization_nml => configuration%get_namelist('initialization')
-      call initialization_nml%get_value( 'lbc_option', lbc_option )
+      lbc_option = config%initialization%lbc_option()
 
       ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
       select case( lbc_option )
@@ -195,14 +185,14 @@ module init_gungho_lbcs_alg_mod
         call lbc_fields%get_field( 'lbc_v_u', lbc_v_u )
         call invoke( setval_c(lbc_v_u, 0.0_r_def) )
         call combine_lbc_winds( lbc_fields, extensive=.false. )
-        call map_lbc_inputs( configuration, lbc_fields )
+        call map_lbc_inputs( config, lbc_fields )
 
       case default
         call log_event('This lbc_option not available', LOG_LEVEL_INFO)
       end select
 
       ! Define boundary_u_driving
-      call define_boundary_u( configuration, lbc_fields )
+      call define_boundary_u( config, lbc_fields )
 
     end if
 
@@ -214,23 +204,22 @@ module init_gungho_lbcs_alg_mod
   !> @brief   Update the time-varying LBCs from a file.
   !> @details Update the LBCs, that are read in and updated using
   !!          a time-axis
-  !> @param[in]     configuration   The application configuration object
+  !> @param[in]     config          The application configuration object
   !> @param[in]     lbc_times_list  The LBC time axis list
   !> @param[in]     clock           Clock
   !> @param[in,out] lbc_fields      The LBC field collection
-  subroutine update_lbcs_file_alg( configuration, lbc_times_list, clock, lbc_fields )
+  subroutine update_lbcs_file_alg( config, lbc_times_list, clock, lbc_fields )
 
     implicit none
 
-    type(namelist_collection_type), intent(in)    :: configuration
-    type(field_collection_type),    intent(inout) :: lbc_fields
-    type(linked_list_type),         intent(in)    :: lbc_times_list
-    class(model_clock_type),        intent(in)    :: clock
-    type(field_type),               pointer       :: lbc_v_u
-    integer(tik)                                  :: id
+    type(config_type),           intent(in)    :: config
+    type(field_collection_type), intent(inout) :: lbc_fields
+    type(linked_list_type),      intent(in)    :: lbc_times_list
+    class(model_clock_type),     intent(in)    :: clock
+    type(field_type),            pointer       :: lbc_v_u
+    integer(tik)                               :: id
 
-    type(namelist_type), pointer :: initialization_nml
-    integer(i_def)               :: lbc_option
+    integer(i_def) :: lbc_option
 
     if ( LPROF ) call start_timing( id, 'update_lbcs' )
 
@@ -239,8 +228,7 @@ module init_gungho_lbcs_alg_mod
     call update_variable_fields( lbc_times_list, &
                                  clock,lbc_fields )
 
-    initialization_nml => configuration%get_namelist('initialization')
-    call initialization_nml%get_value( 'lbc_option', lbc_option )
+    lbc_option = config%initialization%lbc_option()
 
     ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
     select case( lbc_option )
@@ -251,14 +239,14 @@ module init_gungho_lbcs_alg_mod
         call lbc_fields%get_field( 'lbc_v_u', lbc_v_u )
         call invoke( setval_c(lbc_v_u, 0.0_r_def) )
         call combine_lbc_winds( lbc_fields, extensive=.false. )
-        call map_lbc_inputs( configuration, lbc_fields )
+        call map_lbc_inputs( config, lbc_fields )
 
       case default
         call log_event('This lbc_option not available', LOG_LEVEL_INFO)
     end select
 
     ! Define boundary_u_driving
-    call define_boundary_u( configuration, lbc_fields )
+    call define_boundary_u( config, lbc_fields )
 
     if ( LPROF ) call stop_timing( id, 'update_lbcs' )
 
@@ -315,14 +303,15 @@ module init_gungho_lbcs_alg_mod
   !> @brief   Define the LBC wind on the solver boundary
   !> @details Define boundary_u by applying the w2_boundary_mask
   !!          to lbc_u
-  !> @param[in]     configuration   The application configuration object
+  !> @param[in]     config      The application configuration object
   !> @param[in,out] lbc_fields  The collection of lbc fields
-  subroutine define_boundary_u( configuration, lbc_fields )
+  subroutine define_boundary_u( config, lbc_fields )
 
     implicit none
 
-    type(namelist_collection_type), intent(in)    :: configuration
-    type( field_collection_type ),  intent(inout) :: lbc_fields
+    type(config_type),           intent(in)    :: config
+    type(field_collection_type), intent(inout) :: lbc_fields
+
     type( field_type ), pointer :: lbc_field
     type( field_type ), pointer :: boundary_u
     type( field_type ), pointer :: w2_boundary_mask
@@ -330,11 +319,9 @@ module init_gungho_lbcs_alg_mod
 
     type( mesh_type ), pointer :: mesh
 
-    type(namelist_type), pointer :: base_mesh_nml
-    character(len=str_def)       :: prime_mesh_name
+    character(len=str_def) :: prime_mesh_name
 
-    base_mesh_nml    => configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = config%base_mesh%prime_mesh_name()
 
     call lbc_fields%get_field( 'lbc_u', lbc_field )
     call lbc_fields%get_field( 'boundary_u_driving', boundary_u )
@@ -366,7 +353,7 @@ module init_gungho_lbcs_alg_mod
   !>          these accordingly.
   !> @param[in]     configuration The application configuration object
   !> @param[in,out] lbc_fields    The collection of lbc fields
-  subroutine map_lbc_inputs( configuration, lbc_fields )
+  subroutine map_lbc_inputs( config, lbc_fields )
 
     use map_fd_to_prognostics_alg_mod, only: hydrostatic_balance
     use map_um_lbc_inputs_alg_mod,     only: map_um_lbc_inputs
@@ -377,8 +364,8 @@ module init_gungho_lbcs_alg_mod
 
     implicit none
 
-    type(namelist_collection_type), intent(in)    :: configuration
-    type( field_collection_type ),  intent(inout) :: lbc_fields
+    type(config_type),            intent(in)    :: config
+    type(field_collection_type),  intent(inout) :: lbc_fields
 
     type(field_type), pointer :: lbc_rho_r2
     type(field_type), pointer :: lbc_rho
@@ -410,20 +397,14 @@ module init_gungho_lbcs_alg_mod
 
     integer(i_def)            :: lbc_eos_height
 
-    type(namelist_type), pointer :: boundaries_nml
-    type(namelist_type), pointer :: base_mesh_nml
-    character(len=str_def)       :: prime_mesh_name
-
-    base_mesh_nml    => configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    character(len=str_def) :: prime_mesh_name
 
     nullify( lbc_rho_r2, lbc_rho, lbc_q, lbc_qcl, lbc_qcf, lbc_qrain,    &
              lbc_m_v, lbc_m_cl, lbc_m_s, lbc_m_r, lbc_theta, lbc_exner,  &
              lbc_u, mesh, w3_lbc_mask )
 
-    boundaries_nml => configuration%get_namelist('boundaries')
-    call boundaries_nml%get_value( 'lbc_eos_height', lbc_eos_height )
-    nullify( boundaries_nml )
+    prime_mesh_name = config%base_mesh%prime_mesh_name()
+    lbc_eos_height =  config%boundaries%lbc_eos_height()
 
     write(log_scratch_space,'(A)') &
       'Recovering exner, and mixing ratios for LBCs.'

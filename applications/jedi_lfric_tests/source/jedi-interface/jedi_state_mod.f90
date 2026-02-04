@@ -17,6 +17,7 @@ module jedi_state_mod
   use, intrinsic :: iso_fortran_env,  only : real64
   use atlas_field_emulator_mod,       only : atlas_field_emulator_type
   use atlas_field_interface_mod,      only : atlas_field_interface_type
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, l_def, str_def
   use field_collection_mod,           only : field_collection_type
   use driver_modeldb_mod,             only : modeldb_type
@@ -31,8 +32,6 @@ module jedi_state_mod
                                              LOG_LEVEL_INFO,     &
                                              LOG_LEVEL_ERROR
   use model_clock_mod,                only : model_clock_type
-  use namelist_collection_mod,        only : namelist_collection_type
-  use namelist_mod,                   only : namelist_type
 
   implicit none
 
@@ -132,9 +131,9 @@ contains
 !>                               required information to construct a state and
 !>                               read a file to initialise the fields
 !> @param [in] modeldb_filename  The location of the modeldb configuration file
-subroutine state_initialiser_read( self, &
+subroutine state_initialiser_read( self,     &
                                    geometry, &
-                                   configuration, &
+                                   config,   &
                                    modeldb_filename )
 
   use jedi_lfric_nl_modeldb_driver_mod, only : initialise_modeldb
@@ -143,20 +142,17 @@ subroutine state_initialiser_read( self, &
 
   class( jedi_state_type ),           intent(inout) :: self
   type( jedi_geometry_type ), target, intent(in)    :: geometry
-  type( namelist_collection_type ),   intent(in)    :: configuration
+  type( config_type ),                intent(in)    :: config
   character(len=*),         optional, intent(in)    :: modeldb_filename
 
   ! Local
-  type( namelist_type ), pointer :: jedi_state_config
-  logical( l_def )               :: use_pseudo_model
+  logical(l_def) :: use_pseudo_model
 
-  jedi_state_config => configuration%get_namelist('jedi_state')
-
-  call self%state_initialiser( geometry, jedi_state_config )
+  call self%state_initialiser( geometry, config )
 
   ! Initialise the Atlas field emulators via the modeldb or the
   ! io_collection
-  call jedi_state_config%get_value( 'use_pseudo_model', use_pseudo_model )
+   use_pseudo_model = config%jedi_state%use_pseudo_model()
 
   if ( use_pseudo_model ) then
     ! We are not running the non-linear model so read the model fields from
@@ -194,7 +190,7 @@ subroutine state_initialiser( self, geometry, config )
 
   class( jedi_state_type ),        intent(inout) :: self
   type( jedi_geometry_type ), target, intent(in) :: geometry
-  type( namelist_type ),              intent(in) :: config
+  type( config_type ),                intent(in) :: config
 
   ! Local
   integer(i_def)                  :: n_horizontal
@@ -208,10 +204,11 @@ subroutine state_initialiser( self, geometry, config )
   character(str_def), allocatable :: variables(:)
 
   ! Setup
-  call config%get_value( 'state_time', state_time )
+  state_time = config%jedi_state%state_time()
+  variables  = config%jedi_state%variables()
+
   call self%state_time%init( state_time )
 
-  call config%get_value( 'variables', variables )
   call setup_field_meta_data( self%field_meta_data, variables )
 
   self%geometry => geometry

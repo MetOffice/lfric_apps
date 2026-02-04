@@ -49,7 +49,6 @@ module linear_driver_mod
   use linear_data_algorithm_mod,  only : update_ls_file_alg
   use mesh_mod,                   only : mesh_type
   use mesh_collection_mod,        only : mesh_collection
-  use namelist_mod,               only : namelist_type
   use create_tl_prognostics_mod,  only : create_tl_prognostics
 
   implicit none
@@ -79,11 +78,6 @@ contains
     type( mesh_type ),     pointer :: aerosol_mesh
     type( mesh_type ),     pointer :: aerosol_twod_mesh
 
-    type( namelist_type ), pointer :: base_mesh_nml
-    type( namelist_type ), pointer :: multires_coupling_nml
-    type( namelist_type ), pointer :: initialization_nml
-    type( namelist_type ), pointer :: io_nml
-
     character( len=str_def )       :: prime_mesh_name
     character( len=str_def )       :: aerosol_mesh_name
     logical( kind=l_def )          :: coarse_aerosol_ancil
@@ -101,7 +95,6 @@ contains
     real(r_def), allocatable :: real_array(:)
 
     nullify( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, depository )
-    nullify( base_mesh_nml, multires_coupling_nml, initialization_nml )
 
     depository => modeldb%fields%get_field_collection("depository")
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
@@ -129,26 +122,21 @@ contains
     call modeldb%values%add_key_value('model_axes', model_axes)
 
     ! Get primary and 2D meshes for initialising model data
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
+
     mesh => mesh_collection%get_mesh(prime_mesh_name)
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     ! Get initialization configuration
-    initialization_nml => modeldb%configuration%get_namelist('initialization')
-    call initialization_nml%get_value( 'coarse_aerosol_ancil', &
-                                        coarse_aerosol_ancil )
-    call initialization_nml%get_value( 'coarse_ozone_ancil', &
-                                       coarse_ozone_ancil )
-    call initialization_nml%get_value( 'init_option', init_option )
+    coarse_aerosol_ancil = modeldb%config%initialization%coarse_aerosol_ancil()
+    coarse_ozone_ancil   = modeldb%config%initialization%coarse_ozone_ancil()
+    init_option          = modeldb%config%initialization%init_option()
 
     ! If aerosol data is on a different mesh, get this
     if (coarse_aerosol_ancil .or. coarse_ozone_ancil) then
       ! For now use the coarsest mesh
-      multires_coupling_nml => &
-        modeldb%configuration%get_namelist('multires_coupling')
-      call multires_coupling_nml%get_value( 'aerosol_mesh_name', &
-                                            aerosol_mesh_name )
+      aerosol_mesh_name = modeldb%config%multires_coupling%aerosol_mesh_name()
+
       aerosol_mesh => mesh_collection%get_mesh(aerosol_mesh_name)
       aerosol_twod_mesh => mesh_collection%get_mesh(aerosol_mesh, TWOD)
       write( log_scratch_space,'(A,A)' ) "aerosol mesh name:", aerosol_mesh%get_mesh_name()
@@ -196,8 +184,7 @@ contains
                            modeldb )
 
     ! Get io configuration
-    io_nml => modeldb%configuration%get_namelist('io')
-    call io_nml%get_value( 'nodal_output_on_w3', nodal_output_on_w3 )
+    nodal_output_on_w3 = modeldb%config%io%nodal_output_on_w3()
 
     ! Initial output
     call write_initial_output( modeldb, mesh, twod_mesh, &
@@ -227,16 +214,14 @@ contains
     type( gungho_time_axes_type ), pointer :: model_axes
     type( mesh_type ),             pointer :: mesh
     type( mesh_type ),             pointer :: twod_mesh
-    type( namelist_type ),         pointer :: base_mesh_nml
-    type( namelist_type ),         pointer :: initialization_nml
-    type( namelist_type ),         pointer :: io_nml
+
     character( len=str_def )               :: prime_mesh_name
     integer( kind=i_def )                  :: ls_option
     logical( kind=l_def )                  :: write_diag
     integer( kind=i_medium )               :: diagnostic_frequency
     logical( kind=l_def )                  :: nodal_output_on_w3
 
-    nullify(mesh, twod_mesh, base_mesh_nml, initialization_nml, io_nml)
+    nullify(mesh, twod_mesh)
     nullify(moisture_fields, ls_mr_array, ls_moist_dyn_array)
 
     ! Get model_axes out of modeldb
@@ -248,10 +233,7 @@ contains
 
     ls_fields => modeldb%fields%get_field_collection("ls_fields")
 
-    ! Get initialization configuration
-    initialization_nml => modeldb%configuration%get_namelist('initialization')
-    call initialization_nml%get_value( 'ls_option', ls_option )
-
+    ls_option = modeldb%config%initialization%ls_option()
     if ( ls_option == ls_option_file ) then
       call update_ls_file_alg( model_axes%ls_times_list,     &
                                modeldb%clock,                &
@@ -261,19 +243,16 @@ contains
     end if
 
     ! Get Mesh
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
+    prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     mesh => mesh_collection%get_mesh(prime_mesh_name)
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
 
     call linear_step( mesh, twod_mesh, &
                       modeldb, modeldb%clock )
 
-    ! Get io configuration
-    io_nml => modeldb%configuration%get_namelist('io')
-    call io_nml%get_value( 'diagnostic_frequency', diagnostic_frequency )
-    call io_nml%get_value( 'write_diag', write_diag )
-    call io_nml%get_value( 'nodal_output_on_w3', nodal_output_on_w3 )
+    diagnostic_frequency = modeldb%config%io%diagnostic_frequency()
+    write_diag           = modeldb%config%io%write_diag()
+    nodal_output_on_w3   = modeldb%config%io%nodal_output_on_w3()
 
     if ( ( mod(modeldb%clock%get_step(), diagnostic_frequency) == 0 ) &
          .and. ( write_diag ) ) then

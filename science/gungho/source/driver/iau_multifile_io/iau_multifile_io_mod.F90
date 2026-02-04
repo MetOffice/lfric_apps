@@ -11,7 +11,7 @@ module iau_multifile_io_mod
 
   use base_mesh_config_mod,        only: prime_mesh_name
   use calendar_mod,                only: calendar_type
-  use constants_mod,               only: str_def, i_def
+  use constants_mod,               only: str_def, str_max_filename, i_def
   use driver_modeldb_mod,          only: modeldb_type
   use event_mod,                   only: event_action
   use event_actor_mod,             only: event_actor_type
@@ -26,6 +26,13 @@ module iau_multifile_io_mod
                                          iau_use_addinf,     &
                                          iau_use_bcorr
   use iau_firstfile_io_mod,        only: iau_incs_firstfile_io
+
+  use iau_addinf_io_nml_iterator_mod, only: iau_addinf_io_nml_iterator_type
+  use iau_addinf_io_nml_mod,          only: iau_addinf_io_nml_type
+  use iau_ainc_io_nml_iterator_mod,   only: iau_ainc_io_nml_iterator_type
+  use iau_ainc_io_nml_mod,            only: iau_ainc_io_nml_type
+  use iau_bcorr_io_nml_iterator_mod,  only: iau_bcorr_io_nml_iterator_type
+  use iau_bcorr_io_nml_mod,           only: iau_bcorr_io_nml_type
 #endif
   use iau_time_control_mod,        only: calc_iau_ts_num
   use inventory_by_mesh_mod,       only: inventory_by_mesh_type
@@ -57,35 +64,77 @@ contains
   !> @param[in]    io_context_name name of main context
   !> @param[inout] modeldb Modeldb object
   subroutine init_multifile_io(io_context_name, modeldb)
+
     implicit none
 
-    character(*),         intent(in)  :: io_context_name
+    character(*),          intent(in) :: io_context_name
     type(modeldb_type), intent(inout) :: modeldb
 
 #ifdef UM_PHYSICS
+    type(iau_addinf_io_nml_iterator_type) :: iter_addinf
+    type(iau_ainc_io_nml_iterator_type)   :: iter_ainc
+    type(iau_bcorr_io_nml_iterator_type)  :: iter_bcorr
+
+    type(iau_addinf_io_nml_type), pointer :: iau_addinf_io_nml
+    type(iau_ainc_io_nml_type),   pointer :: iau_ainc_io_nml
+    type(iau_bcorr_io_nml_type),  pointer :: iau_bcorr_io_nml
+
+    character(str_max_filename) :: filename
+
+    character(str_def) :: iau_incs
+    integer(i_def)     :: iau_time
+
     if ( iau_use_addinf ) then
-      call iau_incs_firstfile_io ( io_context_name,     &
-                                   modeldb,             &
-                                   "iau_addinf_fields", &
+      iau_incs = 'iau_addinf_fields'
+      call iau_incs_firstfile_io ( io_context_name, &
+                                   modeldb,         &
+                                   trim(iau_incs),  &
                                    iau_addinf_path )
-      call init_iau_incs_io( modeldb,             &
-                             "iau_addinf_fields", &
-                             "iau_addinf_io" )
+
+      call iter_addinf%initialise(modeldb%config%iau_addinf_io)
+      do while (iter_addinf%has_next())
+        iau_addinf_io_nml => iter_addinf%next()
+        filename = iau_addinf_io_nml%filename()
+        iau_time = iau_addinf_io_nml%start_time()
+
+        call init_iau_incs_io( modeldb, trim(iau_incs), &
+                               iau_time, filename )
+      end do
     end if
+
+
     if ( iau_ainc_multifile ) then
-      call init_iau_incs_io( modeldb,     &
-                            "iau_fields", &
-                            "iau_ainc_io"  )
+      iau_incs = 'iau_fields'
+      call iter_ainc%initialise(modeldb%config%iau_ainc_io)
+      do while (iter_ainc%has_next())
+        iau_ainc_io_nml => iter_ainc%next()
+        filename = iau_ainc_io_nml%filename()
+        iau_time = iau_ainc_io_nml%start_time()
+
+        call init_iau_incs_io( modeldb, trim(iau_incs), &
+                               iau_time, filename )
+      end do
     end if
+
+
     if ( iau_use_bcorr ) then
-      call iau_incs_firstfile_io ( io_context_name,    &
-                                   modeldb,            &
-                                   "iau_bcorr_fields", &
+      iau_incs = 'iau_bcorr_fields'
+      call iau_incs_firstfile_io ( io_context_name, &
+                                   modeldb,         &
+                                   trim(iau_incs),  &
                                    iau_bcorr_path )
-      call init_iau_incs_io( modeldb,            &
-                             "iau_bcorr_fields", &
-                             "iau_bcorr_io" )
+
+      call iter_bcorr%initialise(modeldb%config%iau_bcorr_io)
+      do while (iter_bcorr%has_next())
+        iau_bcorr_io_nml => iter_bcorr%next()
+        filename = iau_bcorr_io_nml%filename()
+        iau_time = iau_bcorr_io_nml%start_time()
+
+        call init_iau_incs_io( modeldb, trim(iau_incs), &
+                               iau_time, filename )
+      end do
     end if
+
 #endif
 
   end subroutine init_multifile_io
@@ -95,50 +144,38 @@ contains
   !> @param[inout] modeldb  Modeldb object
   !> @param[in]    iau_incs Type of IAU increment
   !> @param[in]    nml_name Name of multifile namelist
-  subroutine init_iau_incs_io(modeldb, iau_incs, nml_name)
+  subroutine init_iau_incs_io(modeldb, iau_incs, iau_time, filename)
     implicit none
 
     type(modeldb_type), intent(inout), target :: modeldb
-    character(*),       intent(in)            :: iau_incs
-    character(*),       intent(in)            :: nml_name
+
+    character(*),       intent(in) :: iau_incs
+    integer(i_def),     intent(in) :: iau_time
+    character(str_def), intent(in) :: filename
+
 
     type(lfric_xios_context_type), pointer :: io_context
-    type(namelist_type), pointer           :: multifile_nml
-    type(linked_list_type), pointer        :: file_list
-    class( model_clock_type ), pointer     :: model_clock
-    integer(i_def)     :: iau_time
-    integer(i_def)     :: multifile_start_timestep
-    integer(i_def)     :: multifile_stop_timestep
-    integer(i_def)     :: i
-    character(str_def) :: context_name
-    character(str_def) :: filename
-    character(str_def), pointer :: multifile_io_profiles(:)
+    type(linked_list_type),        pointer :: file_list
+    class( model_clock_type ),     pointer :: model_clock
 
-    allocate(multifile_io_profiles, &
-             source=modeldb%configuration%get_namelist_profiles(nml_name))
+    integer(i_def) :: multifile_start_timestep
+    integer(i_def) :: multifile_stop_timestep
+
+    character(str_def) :: context_name
+
     model_clock => modeldb % clock
 
-    do i=1, size(multifile_io_profiles)
+    multifile_start_timestep = calc_iau_ts_num (model_clock, iau_time)
+    multifile_stop_timestep  = multifile_start_timestep + 1_i_def
 
-      multifile_nml => modeldb%configuration%get_namelist(trim(nml_name), &
-                            profile_name=trim(multifile_io_profiles(i)))
-      call multifile_nml%get_value('filename', filename)
-      call multifile_nml%get_value('start_time', iau_time)
-      multifile_start_timestep = calc_iau_ts_num (model_clock, iau_time)
-      multifile_stop_timestep = multifile_start_timestep + 1_i_def
+    context_name = "multifile_context_" // trim(filename)
+    call context_init(modeldb, context_name, multifile_start_timestep, &
+                      multifile_stop_timestep)
 
-      context_name = "multifile_context_" // trim(filename)
-      call context_init(modeldb, context_name, multifile_start_timestep, &
-                        multifile_stop_timestep)
+    call modeldb%io_contexts%get_io_context(context_name, io_context)
 
-      call modeldb%io_contexts%get_io_context(context_name, io_context)
-
-      file_list => io_context%get_filelist()
-      call init_iau_inc_files(file_list, modeldb, iau_incs, filename)
-
-    end do
-
-    deallocate(multifile_io_profiles)
+    file_list => io_context%get_filelist()
+    call init_iau_inc_files(file_list, modeldb, iau_incs, filename)
 
   end subroutine init_iau_incs_io
 
@@ -146,28 +183,50 @@ contains
   !>
   !> @param[inout] modeldb            Model database object
   subroutine setup_step_multifile_io( io_context_name, modeldb )
+
     implicit none
 
-    character(*),            intent(in)    :: io_context_name ! main context
-    type(modeldb_type),      intent(inout) :: modeldb
+    character(*),       intent(in)    :: io_context_name ! main context
+    type(modeldb_type), intent(inout) :: modeldb
 
 #ifdef UM_PHYSICS
+    type(iau_addinf_io_nml_iterator_type) :: iter_addinf
+    type(iau_ainc_io_nml_iterator_type)   :: iter_ainc
+    type(iau_bcorr_io_nml_iterator_type)  :: iter_bcorr
+
+    type(iau_addinf_io_nml_type), pointer :: iau_addinf_io_nml
+    type(iau_ainc_io_nml_type),   pointer :: iau_ainc_io_nml
+    type(iau_bcorr_io_nml_type),  pointer :: iau_bcorr_io_nml
+
+    character(str_max_filename) :: filename
+
     if ( iau_use_addinf ) then
-      call step_multifile_io( io_context_name, &
-                              modeldb,         &
-                              "iau_addinf_io" )
+      call iter_addinf%initialise(modeldb%config%iau_addinf_io)
+      do while (iter_addinf%has_next())
+        iau_addinf_io_nml => iter_addinf%next()
+        filename = iau_addinf_io_nml%filename()
+        call step_multifile_io(io_context_name, modeldb, filename)
+      end do
     end if
+
 
     if ( iau_ainc_multifile ) then
-      call step_multifile_io( io_context_name, &
-                              modeldb,         &
-                              "iau_ainc_io" )
+      call iter_ainc%initialise(modeldb%config%iau_ainc_io)
+      do while (iter_ainc%has_next())
+        iau_ainc_io_nml => iter_ainc%next()
+        filename = iau_ainc_io_nml%filename()
+        call step_multifile_io(io_context_name, modeldb, filename)
+      end do
     end if
 
+
     if ( iau_use_bcorr ) then
-      call step_multifile_io( io_context_name, &
-                              modeldb,         &
-                              "iau_bcorr_io" )
+      call iter_bcorr%initialise(modeldb%config%iau_bcorr_io)
+      do while (iter_bcorr%has_next())
+        iau_bcorr_io_nml => iter_bcorr%next()
+        filename = iau_bcorr_io_nml%filename()
+        call step_multifile_io(io_context_name, modeldb, filename)
+      end do
     end if
 #endif
 
@@ -177,12 +236,13 @@ contains
   !>
   !> @param[in]    io_context_name Name of main context
   !> @param[inout] modeldb         Model database object
-  !> @param[in]    nml_name        Name of multifile namelist
-  subroutine step_multifile_io( io_context_name, modeldb, nml_name )
+  !> @param[in]    filename        File associated with context
+  subroutine step_multifile_io( io_context_name, modeldb, filename )
+
     implicit none
 
     character(*),       intent(in)    :: io_context_name ! main context name
-    character(*),       intent(in)    :: nml_name
+    character(*),       intent(in)    :: filename
     type(modeldb_type), intent(inout) :: modeldb
 
     type(inventory_by_mesh_type),  pointer :: chi_inventory
@@ -192,73 +252,56 @@ contains
     type(mesh_type),               pointer :: mesh
     type(field_type),              pointer :: chi(:)
     type(field_type),              pointer :: panel_id
-    type(namelist_type),           pointer :: multifile_nml
-    type(namelist_type),           pointer :: time_nml
     class(calendar_type), allocatable      :: tmp_calendar
+
     character(str_def) :: context_name
-    character(str_def) :: filename
     character(str_def) :: time_origin
     character(str_def) :: time_start
-    character(str_def), pointer :: multifile_io_profiles(:)
-    integer(i_def)     :: i
+
     procedure(event_action), pointer       :: context_advance
     procedure(callback_clock_arg), pointer :: before_close
 
     nullify(before_close)
 
-    chi_inventory => get_chi_inventory()
+    chi_inventory      => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
 
-    allocate(multifile_io_profiles, &
-             source=modeldb%configuration%get_namelist_profiles(nml_name))
+    context_name = "multifile_context_" // trim(filename)
+    call modeldb%io_contexts%get_io_context(context_name, io_context)
 
-    do i=1, size(multifile_io_profiles)
+    if (modeldb%clock%get_step() == io_context%get_stop_time()) then
+      ! Finalise XIOS context
+      call io_context%set_current()
+      call io_context%set_active(.false.)
+      call modeldb%clock%remove_event(context_name)
+      call io_context%finalise_xios_context()
 
-      multifile_nml => modeldb%configuration%get_namelist(nml_name, &
-                    profile_name=trim(multifile_io_profiles(i)))
-      call multifile_nml%get_value('filename', filename)
+    else if (modeldb%clock%get_step() == io_context%get_start_time()) then
+      ! Initialise XIOS context
+      mesh => mesh_collection%get_mesh(prime_mesh_name)
+      call chi_inventory%get_field_array(mesh, chi)
+      call panel_id_inventory%get_field(mesh, panel_id)
 
-      context_name = "multifile_context_" // trim(filename)
-      call modeldb%io_contexts%get_io_context(context_name, io_context)
+      time_origin = modeldb%config%time%calendar_origin()
+      time_start  = modeldb%config%time%calendar_start()
 
-      if (modeldb%clock%get_step() == io_context%get_stop_time()) then
-        ! Finalise XIOS context
-        call io_context%set_current()
-        call io_context%set_active(.false.)
-        call modeldb%clock%remove_event(context_name)
-        call io_context%finalise_xios_context()
+      allocate(tmp_calendar, source=step_calendar_type(time_origin, time_start))
 
-      elseif (modeldb%clock%get_step() == io_context%get_start_time()) then
-        ! Initialise XIOS context
-        mesh => mesh_collection%get_mesh(prime_mesh_name)
-        call chi_inventory%get_field_array(mesh, chi)
-        call panel_id_inventory%get_field(mesh, panel_id)
+      call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
+                                               chi, panel_id,               &
+                                               modeldb%clock, tmp_calendar, &
+                                               before_close,                &
+                                               start_at_zero=.true. )
 
-        time_nml => modeldb%configuration%get_namelist('time')
-
-        call time_nml%get_value('calendar_origin', time_origin)
-        call time_nml%get_value('calendar_start', time_start)
-
-        allocate(tmp_calendar, source=step_calendar_type(time_origin, time_start))
-
-        call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
-                                                 chi, panel_id,               &
-                                                 modeldb%clock, tmp_calendar, &
-                                                 before_close,                &
-                                                 start_at_zero=.true. )
-
-        ! Attach context advancement to the model's clock
-        context_advance => advance_read_only
-        event_actor_ptr => io_context
-        call modeldb%clock%add_event( context_advance, event_actor_ptr )
-        call io_context%set_active(.true.)
-      end if
-    end do
+      ! Attach context advancement to the model's clock
+      context_advance => advance_read_only
+      event_actor_ptr => io_context
+      call modeldb%clock%add_event( context_advance, event_actor_ptr )
+      call io_context%set_active(.true.)
+    end if
 
     call modeldb%io_contexts%get_io_context(io_context_name, io_context)
     call io_context%set_current()
-
-    deallocate(multifile_io_profiles)
 
     nullify ( chi_inventory, panel_id_inventory, mesh, chi, panel_id )
 

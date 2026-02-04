@@ -10,7 +10,7 @@
 program name_transport
 
   use cli_mod,                   only: parse_command_line
-  use constants_mod,             only: i_def, r_def
+  use constants_mod,             only: i_def, r_def, l_def, str_max_filename
   use driver_collections_mod,    only: init_collections, final_collections
   use driver_comm_mod,           only: init_comm, final_comm
   use driver_config_mod,         only: init_config, final_config
@@ -23,30 +23,31 @@ program name_transport
                                        log_level_info,  &
                                        log_level_trace, &
                                        log_scratch_space
-  use namelist_collection_mod,   only: namelist_collection_type
-
   use name_transport_mod,        only: name_transport_required_namelists
   use name_transport_driver_mod, only: initialise_name_transport, &
                                        step_name_transport,       &
                                        finalise_name_transport
-  use namelist_mod,              only: namelist_type
   use timing_mod,                only: init_timing, final_timing
-  use io_config_mod,             only: timer_output_path
+
   implicit none
 
   type(modeldb_type) :: modeldb
+
   character(*), parameter   :: program_name = "name_transport"
   character(:), allocatable :: filename
-  type(namelist_type), pointer :: io_nml
-  logical                      :: lsubroutine_timers
+
+  character(str_max_filename) :: timer_output_path
+  logical(l_def)              :: subroutine_timers
 
   call parse_command_line( filename )
 
-  call modeldb%configuration%initialise( program_name, table_len=10 )
+  call modeldb%config%initialise( program_name )
+
   modeldb%mpi => global_mpi
   call init_comm( program_name, modeldb )
   call init_config( filename, name_transport_required_namelists, &
-                    modeldb%configuration )
+                    config=modeldb%config )
+
   call init_logger( modeldb%mpi%get_comm(), program_name )
 
   call log_event( 'Miniapp will run with default precision set as:', &
@@ -56,10 +57,12 @@ program name_transport
   write(log_scratch_space, '("        i_def kind = ", I0)') kind(1_i_def)
   call log_event( log_scratch_space , log_level_info )
 
-  io_nml => modeldb%configuration%get_namelist('io')
-  call io_nml%get_value('subroutine_timers', lsubroutine_timers)
-  call init_timing( modeldb%mpi%get_comm(), lsubroutine_timers, program_name, timer_output_path )
-  nullify( io_nml )
+  subroutine_timers = modeldb%config%io%subroutine_timers()
+  timer_output_path = modeldb%config%io%timer_output_path()
+
+  call init_timing( modeldb%mpi%get_comm(), subroutine_timers, &
+                    program_name, timer_output_path )
+
   call init_collections()
   call init_time( modeldb )
   deallocate( filename )

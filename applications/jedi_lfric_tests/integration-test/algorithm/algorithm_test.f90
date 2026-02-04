@@ -13,8 +13,9 @@
 program algorithm_test
 
   use add_mesh_map_mod,        only: assign_mesh_maps
-  use configuration_mod,       only: final_configuration, &
+  use config_loader_mod,       only: final_configuration, &
                                      read_configuration
+  use config_mod,              only: config_type
   use constants_mod,           only: i_def, r_def, str_def, l_def
   use create_mesh_mod,         only: create_extrusion, create_mesh
   use test_algorithm_mod,      only: test_algorithm_finalise,   &
@@ -35,8 +36,6 @@ program algorithm_test
                                      finalise_logging,   &
                                      LOG_LEVEL_ERROR,    &
                                      LOG_LEVEL_INFO
-  use namelist_collection_mod, only: namelist_collection_type
-  use namelist_mod,            only: namelist_type
 
   use base_mesh_config_mod, only: GEOMETRY_SPHERICAL, &
                                   GEOMETRY_PLANAR
@@ -51,7 +50,7 @@ program algorithm_test
 
   character(:), allocatable :: filename
 
-  type(namelist_collection_type), save :: configuration
+  type(config_type), save :: config
 
   ! Variables used for parsing command line arguments
   integer :: length, status, nargs
@@ -75,10 +74,6 @@ program algorithm_test
   real(r_def)    :: domain_bottom
   real(r_def)    :: domain_height
   real(r_def)    :: scaled_radius
-
-  type(namelist_type), pointer :: base_mesh_nml => null()
-  type(namelist_type), pointer :: planet_nml    => null()
-  type(namelist_type), pointer :: extrusion_nml => null()
 
   integer(i_def) :: i
   integer(i_def), parameter :: one_layer = 1_i_def
@@ -144,28 +139,19 @@ program algorithm_test
   end select
 
   ! Setup configuration, mesh, and fem
-  call configuration%initialise( program_name, table_len=10 )
-  call read_configuration( filename, configuration )
-
+  call config%initialise( program_name )
+  call read_configuration( filename, config=config )
   call init_collections()
 
   !--------------------------------------
   ! 0.0 Extract namelist variables
   !--------------------------------------
-  base_mesh_nml => configuration%get_namelist('base_mesh')
-  planet_nml    => configuration%get_namelist('planet')
-  extrusion_nml => configuration%get_namelist('extrusion')
-
-  call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-  call base_mesh_nml%get_value( 'geometry', geometry )
-  call extrusion_nml%get_value( 'method', method )
-  call extrusion_nml%get_value( 'domain_height', domain_height )
-  call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-  call planet_nml%get_value( 'scaled_radius', scaled_radius )
-
-  base_mesh_nml => null()
-  planet_nml    => null()
-  extrusion_nml => null()
+  prime_mesh_name  = config%base_mesh%prime_mesh_name()
+  geometry         = config%base_mesh%geometry()
+  method           = config%extrusion%method()
+  domain_height    = config%extrusion%domain_height()
+  number_of_layers = config%extrusion%number_of_layers()
+  scaled_radius    = config%planet%scaled_radius()
 
   !--------------------------------------
   ! 1.0 Create the meshes
@@ -199,10 +185,8 @@ program algorithm_test
   !-------------------------------------------------------------------------
   stencil_depth = 1
   apply_partition_check = .false.
-  call init_mesh( configuration,              &
-                  local_rank, total_ranks,    &
-                  base_mesh_names, extrusion, &
-                  stencil_depth,              &
+  call init_mesh( config, local_rank, total_ranks,           &
+                  base_mesh_names, extrusion, stencil_depth, &
                   apply_partition_check )
 
   do i=1, size(twod_names)
@@ -240,7 +224,6 @@ program algorithm_test
 
   call finalise_halo_comms()
   call global_mpi%finalise()
-  call configuration%clear()
   call destroy_comm()
 
   call finalise_logging()

@@ -1,4 +1,4 @@
-@@ -1,34 +1,34 @@
+@@ -1,37 +1,37 @@
 -module adj_vorticity_advection_kernel_mod
 +module atl_vorticity_advection_kernel_mod
    use kernel_mod, only : kernel_type
@@ -8,6 +8,9 @@
 -  use fs_continuity_mod, only : w1, w2, wchi
 +  use fs_continuity_mod, only : w1, w2
    use cross_product_mod, only : cross_product
+   use base_mesh_config_mod, only : geometry, topology
+   use finite_element_config_mod, only : coord_system
+   use planet_config_mod, only : scaled_radius
    implicit none
 -  type, public, extends(kernel_type) :: adj_vorticity_advection_kernel_type
 +  type, public, extends(kernel_type) :: atl_vorticity_advection_kernel_type
@@ -41,7 +44,7 @@
  &ndf_w2, undf_w2, map_w2, w2_basis, ndf_w1, undf_w1, map_w1, w1_basis, ndf_chi, undf_chi, map_chi, chi_basis, chi_diff_basis, &
  &ndf_pid, undf_pid, map_pid, nqp_h, nqp_v, wqp_h, wqp_v)
      use sci_coordinate_jacobian_mod, only : pointwise_coordinate_jacobian, pointwise_coordinate_jacobian_inverse
-@@ -86,7 +86,6 @@
+@@ -89,7 +89,6 @@
      real(kind=r_def), dimension(3) :: mul2
      real(kind=r_def), dimension(3) :: cross_product1
      real(kind=r_def), dimension(3) :: cross_product2
@@ -49,7 +52,7 @@
      real(kind=r_def) :: res_dot_product
      integer :: idx
      integer :: idx_1
-@@ -207,6 +206,6 @@
+@@ -210,6 +209,6 @@
        enddo
      enddo
  
