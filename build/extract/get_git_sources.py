@@ -10,7 +10,7 @@ Helper functions for cloning git sources in command line builds
 import re
 import subprocess
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 from pathlib import Path
 from shutil import rmtree
 import shlex
@@ -88,7 +88,7 @@ def datetime_str() -> str:
 
 
 def clone_and_merge(
-    dependency: str, opts: list | dict, loc: Path, use_mirrors: bool, mirror_loc: Path
+    dependency: str, opts: Union[list, dict], loc: Path, use_mirrors: bool, mirror_loc: Path
 ) -> None:
     """
     Wrapper script for calling get_source and merge_source for a single dependency
