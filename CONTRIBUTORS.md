@@ -23,4 +23,5 @@
 | mo-lottieturner | Lottie Turner      | Met Office                       | 2026-01-27 |
 | andrewcoughtrie | Andrew Coughtrie   | Met Office                       | 2026-01-28 |
 | tommbendall     | Thomas Bendall     | Met Office                       | 2026-01-13 |
+| mo-jmanners     | James Manners      | Met Office                       | 2026-01-14 |
 | maggiehendry    | Maggie Hendry      | Met Office                       | 2026-01-29 |
