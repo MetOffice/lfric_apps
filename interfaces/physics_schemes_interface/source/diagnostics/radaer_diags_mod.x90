@@ -82,7 +82,7 @@ contains
     !----------------------------------------------------
     ! End of declarations; start of subroutine execution
     !----------------------------------------------------
-    if ( LPROF ) call start_timing( id, 'radaer_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.radaer' )
 
     ! Get 2D mesh from trop level field
     mesh => trop_level%get_mesh()
@@ -183,7 +183,7 @@ contains
       call invoke(setval_c( aaod_ukca_cor_ins, 0.0_r_def))
     end if
 
-    if ( LPROF ) call stop_timing( id, 'radaer_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.radaer' )
 
   end subroutine initialise_main_diags_for_radaer
 
@@ -226,7 +226,7 @@ contains
     !----------------------------------------------------
     ! End of declarations; start of subroutine execution
     !----------------------------------------------------
-    if ( LPROF ) call start_timing( id, 'radaer_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.radaer' )
 
     if (aod_ukca_ait_sol_flag)  call  aod_ukca_ait_sol%write_field()
     if (aaod_ukca_ait_sol_flag) call aaod_ukca_ait_sol%write_field()
@@ -241,6 +241,6 @@ contains
     if (aod_ukca_cor_ins_flag)  call  aod_ukca_cor_ins%write_field()
     if (aaod_ukca_cor_ins_flag) call aaod_ukca_cor_ins%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'radaer_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.radaer' )
   end subroutine output_main_diags_for_radaer
 end module radaer_main_diags_mod

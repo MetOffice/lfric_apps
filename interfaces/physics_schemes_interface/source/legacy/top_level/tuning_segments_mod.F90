@@ -46,6 +46,8 @@ integer :: gw_seg_size = 32   ! Size of segments for optimising for cache
 integer :: ussp_seg_size = imdi ! Segment size for USSP gravity wave drag
 integer :: precip_segment_size = imdi
 
+integer :: conv_gr_segment_size = imdi ! Segment size for GR convection scheme
+
 integer :: a_convect_segments = imdi ! No of batches used in convection
                                      ! Original default 1
 

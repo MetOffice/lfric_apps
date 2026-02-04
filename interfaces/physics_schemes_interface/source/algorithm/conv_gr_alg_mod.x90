@@ -13,6 +13,7 @@ module conv_gr_alg_mod
   use field_collection_mod, only: field_collection_type
   use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_s
   use microphysics_config_mod, only: microphysics_casim
+  use um_sizes_init_mod,    only: um_sizes_init
 
   use timestepping_config_mod,     only: outer_iterations
   use sci_geometric_constants_mod, only: get_height_fv, get_delta_at_wtheta
@@ -267,9 +268,10 @@ contains
     type( field_type ) :: mr_ice
 
     type( mesh_type ), pointer  :: mesh => null()
+    integer(i_def) :: ncells
     integer( tik)               :: id
 
-    if ( LPROF ) call start_timing( id, 'conv_gr_alg' )
+    if ( LPROF ) call start_timing( id, 'convection.gr' )
 
     call log_event( 'Running GR convection scheme', LOG_LEVEL_DEBUG )
 
@@ -508,7 +510,11 @@ contains
     if (microphysics_casim) then
       call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
     end if
-
+    
+    ! Switch UM to running i-first on whole domain
+    ncells = mesh%get_last_edge_cell()
+    call um_sizes_init(ncells)
+    
     ! set increments to zero
     call invoke( setval_c(dt_conv, 0.0_r_def),          &
                  setval_c(dmv_conv, 0.0_r_def),         &
@@ -699,9 +705,12 @@ contains
                           massflux_up_half,                                   &
                           massflux_up_cmpta,                                  &
                           cca_unadjusted, dth_conv_noshal, dmv_conv_noshal )  &
-                                           ) ! end of invoke
+                          ) ! end of invoke
 
-    if ( LPROF ) call stop_timing( id, 'conv_gr_alg' )
+    ! Switch UM back to columns
+    call um_sizes_init(1_i_def)
+
+    if ( LPROF ) call stop_timing( id, 'convection.gr' )
 
     ! output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then
