@@ -338,7 +338,7 @@ tdims_omp_block = bl_segment_size
 tdims_seg_block = min(tdims_omp_block, tdims%i_len)
 j = 1
 
-!$OMP  PARALLEL DEFAULT(none) SHARED(l_correct,bl_levels,tdims,                &
+!$OMP  PARALLEL DEFAULT(none) SHARED(j, l_correct,bl_levels,tdims,             &
 !$OMP  dqw_nt,dtl_nt,q_latest,qcl_latest, dtrdz_v,dtrdz_u,udims, rdz_v,        &
 !$OMP  gamma1,q,qcl,qcf,t_latest,t,ftl,rhokh,dtl,rdz_charney_grid,dqw,         &
 !$OMP  tau_x,rhokm_u,du,rdz_u,vdims,tau_y,dv, qcf_latest,                      &
@@ -349,7 +349,7 @@ j = 1
 !$OMP  ct_prod, cu_prod, cv_prod,k_blend_tq,k_blend_u,k_blend_v,               &
 !$OMP  gamma_in,cq_cm_u,cq_cm_v,du_nt,dv_nt,rhokm_v,lcrcp,lsrcp,               &
 !$OMP  tdims_omp_block)                                                        &
-!$OMP  private(k,j,i,r_sq,rbt,temp,temp_u,temp_v,l,temp_out,temp_u_out,        &
+!$OMP  private(k,i,r_sq,rbt,temp,temp_u,temp_v,l,temp_out,temp_u_out,        &
 !$OMP  temp_v_out,at,blm1,am,rbm,rr_sq,ii,gamma1_uv,gamma2_uv)
 
 if ( l_correct ) then
