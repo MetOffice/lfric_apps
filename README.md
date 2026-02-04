@@ -1,19 +1,36 @@
 # LFRic Apps
 
-[![ci](https://github.com/MetOffice/lfric_apps/actions/workflows/ci.yml/badge.svg)](https://github.com/MetOffice/lfric_apps/actions/workflows/ci.yml)
+Welcome to LFRic Apps!
 
 This repository is home to the LFRic-based science applications and libraries such as
-lfric_atm and the GungHo dynamical core.
+the Momentum&reg; Atmosphere model application and the GungHo dynamical core.
 
 LFRic applications are based on the infrastructure developed in the [LFRic
 Core](https://github.com/MetOffice/lfric_core) repository.
 
+|           |                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|:repeat: CI| [![Documentation](https://github.com/MetOffice/lfric_apps/actions/workflows/ci_docs.yml/badge.svg)](https://github.com/MetOffice/lfric_apps/actions/workflows/ci_docs.yml)                                                                                                                                                                                                                                                                |
+|:speech_balloon: Community| [![Static Badge](https://img.shields.io/badge/GitHub-discussions-gold)](https://github.com/MetOffice/simulation-systems/discussions/categories/lfric)                                                                                                                                                                                                                                                                                     |
+|:package: Repo | [![GitHub License](https://img.shields.io/github/license/metoffice/lfric_apps)](https://github.com/MetOffice/lfric_apps?tab=BSD-3-Clause-1-ov-file#readme) [![GitHub Release](https://img.shields.io/github/v/release/metoffice/lfric_apps?color=purple)](https://github.com/MetOffice/lfric_apps/releases) ![GitHub commits since latest release (branch)](https://img.shields.io/github/commits-since/metoffice/lfric_apps/latest/main) |
+|           |                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+## Getting Started
+
 In development documentation for LFRic Apps is available at:
 [https://metoffice.github.io/lfric_apps](https://metoffice.github.io/lfric_apps)
 
-## Contributing Guidelines
+Example standalone scientific suites for use with Met Office systems are
+available at:
 
-Welcome!
+* [u-dn674 - MetOffice Azure SPICE](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/6/7/4/trunk)
+* [u-dn704 - MetOffice EX HPC](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/7/0/4/trunk)
+
+These both run a low resolution LFRic Atm NWP GAL9 job and are setup to run
+using git sources. Advice on switching a suite from using fcm to git sources is
+available in the README.md in each.
+
+## Contributing Guidelines
 
 The following links are here to help set clear expectations for everyone
 contributing to this project. By working together under a shared understanding,

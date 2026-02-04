@@ -13,9 +13,6 @@ module adj_lookup_table_mod
   use function_space_collection_mod, only : function_space_collection
   use function_space_mod,            only : function_space_type
   use integer_field_mod,             only : integer_field_type
-  use log_mod,                       only : log_event,         &
-                                            log_scratch_space, &
-                                            LOG_LEVEL_ERROR
   use mesh_collection_mod,           only : mesh_collection
   use mesh_mod,                      only : mesh_type
 
@@ -50,7 +47,9 @@ module adj_lookup_table_mod
     procedure,  public :: get_nsets_max
     procedure,  public :: get_nindices
     procedure,  public :: get_ndata
+    procedure,  public :: adj_lookup_table_assign
     procedure,  public :: finalise => adj_lookup_table_finaliser
+    generic,    public :: assignment(=) => adj_lookup_table_assign
   end type adj_lookup_table_type
 
   contains
@@ -233,6 +232,26 @@ module adj_lookup_table_mod
     ndata = self%ndata
 
   end function get_ndata
+
+  !=============================================================================
+  !> @brief   Assignment operator.
+  !> @details Implemented to avoid pointer aliasing preventing compiler optimisations.
+  subroutine adj_lookup_table_assign(dest, source)
+
+    implicit none
+
+    class(adj_lookup_table_type), intent(in)  :: source
+    class(adj_lookup_table_type), intent(out) :: dest
+
+    call source%lookup_field%copy_field_properties(dest%lookup_field)
+    call source%set_count_field%copy_field_properties(dest%set_count_field)
+    call invoke( int_setval_X(dest%lookup_field, source%lookup_field), &
+                 int_setval_X(dest%set_count_field, source%set_count_field) )
+    dest%nsets_max = source%nsets_max
+    dest%nindices = source%nindices
+    dest%ndata = source%ndata
+
+  end subroutine adj_lookup_table_assign
 
   !=============================================================================
   !> @brief Destructor.
