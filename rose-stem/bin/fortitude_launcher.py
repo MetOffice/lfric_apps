@@ -14,15 +14,16 @@ import sys
 import os
 import subprocess
 import argparse
+from pathlib import Path
 
 
-def launch_fortitude(config_path, app_path):
+def launch_fortitude(config_path: Path, app_path: Path) -> subprocess.CompletedProcess[str]:
     """
     Launch fortitude as a subprocess command and check the output
     """
 
-    command = f"fortitude --config-file {config_path} check {app_path}"
-    result = subprocess.run(command.split(), capture_output=True, text=True)
+    command: list[str] = ["fortitude", "--config-file", str(config_path), "check", str(app_path)]
+    result = subprocess.run(command, capture_output=True, text=True)
 
     print(result.stdout)
     return result
@@ -41,26 +42,32 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    failed_apps = {}
+    source_path: Path = Path(args.source)
+    print(source_path) #remove
 
-    for top_dir in ["applications", "science"]:
-        applications = os.listdir(os.path.join(args.source, top_dir))
+    subdirs_env: str = os.environ.get("FORTITUDE_SUBDIRS")
+    subdirs: list[str] = subdirs_env.split(",")
+
+    failed_apps: dict[str, str] = {}
+
+   #for top_dir in ["applications", "science"]: #remove
+    for top_dir in subdirs:
+        top_level_path: Path = source_path/top_dir
+        print(top_level_path) #remove
+        applications: list[Path] = list(top_level_path.iterdir())
+        print(applications) #remove
         for app in applications:
-            print(f"Running on {app}\n")
-            app_path = os.path.join(args.source, top_dir, app)
-            config_path = os.path.join(app_path, "fortitude.toml")
-            if not os.path.exists(os.path.join(config_path)):
+            app_name: str = app.name
+            print(f"Running on {app_name}\n")
+            app_path: Path = app
+            config_path: Path = app_path/"fortitude.toml"
+            print(app_path) #remove
+            print(config_path) #remove
+            if not config_path.exists():
                 print("Using universal config (toml) file."
                       " (Some apps use their own config file.)")
-                config_path = os.path.join(
-                    args.source,
-                    "rose-stem",
-                    "app",
-                    "check_fortitude_linter",
-                    "file",
-                    "fortitude.toml",
-                )
-            result = launch_fortitude(config_path, app_path)
+                config_path: Path = (source_path / "rose-stem" / "app" / "check_fortitude_linter" / "file" / "fortitude.toml")
+            result: subprocess.CompletedProcess[str] = launch_fortitude(config_path, app_path)
             if result.returncode:
                 # prints the app run on if there are errors of any kind
                 print(f"Checking: {app} \n", file=sys.stderr)
@@ -74,10 +81,10 @@ if __name__ == "__main__":
                     print("Found non-lint errors: \n", file=sys.stderr)
                     # prints the other/config errors
                     print(result.stderr, "\n\n\n", file=sys.stderr)
-                failed_apps[app] = result.stderr
+                failed_apps[app_name] = result.stderr
 
     if failed_apps:
-        error_message = ""
+        error_message: str = ""
         print("\n\n\nSummary: Fortitude found errors in"
               " the following repositories:\n", file=sys.stderr)
         for failed in failed_apps:
