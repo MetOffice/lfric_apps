@@ -196,7 +196,7 @@ integer ::                                                                     &
                 ! LOCAL Loop counter (horizontal field index).
  k          ! LOCAL Loop counter (vertical level index).
 
-integer :: ii, tdims_omp_block, tdims_seg_block ! omp blocking variables
+integer :: ii, tdims_seg_block ! omp blocking variables
 
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
@@ -206,8 +206,7 @@ character(len=*), parameter :: RoutineName='BDY_IMPL4'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-tdims_omp_block = bl_segment_size
-tdims_seg_block = min(tdims_omp_block, tdims%i_len)
+tdims_seg_block = min(bl_segment_size, tdims%i_len)
 j = 1
 
 !$OMP  PARALLEL DEFAULT(SHARED) private(i,k,ii,at,rbt,gamma1_uv,             &
