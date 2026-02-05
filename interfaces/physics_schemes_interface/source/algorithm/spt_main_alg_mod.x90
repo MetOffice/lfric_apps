@@ -233,7 +233,6 @@ module spt_main_alg_mod
   ! "eta_theta_levels" array correctly at these points, set offset to 0
   integer(kind=i_def), parameter :: lev_offset = 0
 
-  if ( subroutine_timers ) call timer("spt_main_alg")
   ! Timestepping_config_mod scalar (for PSyclone to know data type)
   real(kind=r_second) :: timestepping_config_mod_dt
 
