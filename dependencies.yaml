@@ -26,12 +26,11 @@ jules:
     ref: 69aaf4d8e5dcf4e0134aac006b183e591aeb94d7
 
 lfric_apps:
-    source:
     ref:
 
 lfric_core:
-    source: git@github.com:tommbendall/lfric_core.git
-    ref: TBendall/FixW0WthFilter
+    source: cazld00001N:/home/users/cameron.bateman/code-reviews/lfric_core
+    ref: b71dd878b642a04a2142bc63db0b0e142177cc46
 
 moci:
     source: git@github.com:MetOffice/moci.git
