@@ -148,6 +148,8 @@
 {% if SITE~"-"~task_ns.platform == 'meto-ex1a' %}
     {% if "CXI_MATCH_hybrid" in task_values and task_values["CXI_MATCH_hybrid"] %}
             FI_CXI_RX_MATCH_MODE    = "hybrid"
+            FI_CXI_OFLOW_BUF_SIZE   = "25165824"
+            FI_CXI_REQ_BUF_SIZE     = "25165824"
     {% endif %}
 {% endif %}
 
