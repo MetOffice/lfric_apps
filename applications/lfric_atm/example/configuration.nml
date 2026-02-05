@@ -624,6 +624,7 @@ tau_u=0.55,
 &transport
 adjust_theta=.true.,
 adjust_theta_above=30000.0,
+adjust_tracer_equation=.false.
 adjust_vhv_wind=.false.
 ageofair_reset_level=10,
 broken_w2_projection=.false.,

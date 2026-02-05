@@ -129,7 +129,6 @@ subroutine atl_poly1d_vert_w3_reconstruction_code( nlayers,        &
   real(kind=r_def)    :: new_tracer
   real(kind=r_def)    :: ls_new_tracer
 
-  new_tracer = 0.0_r_def
   vertical_order = MIN(global_order, nlayers - 1)
   ij = map_w3(1)
   if (logspace) then
@@ -140,26 +139,24 @@ subroutine atl_poly1d_vert_w3_reconstruction_code( nlayers,        &
           ik = f * global_order + f + k * ndata + p + map_c(1) - 1
           ls_new_tracer = ls_new_tracer * MAX(eps, ABS(ls_tracer(ij + stencil(p,k,f)))) ** coeff(ik)
         end do
-        new_tracer = new_tracer + ls_new_tracer * reconstruction(map_md(1) + f * nlayers + k)
+        new_tracer = ls_new_tracer * reconstruction(map_md(1) + f * nlayers + k)
         reconstruction(map_md(1) + f * nlayers + k) = 0.0_r_def
         do p = vertical_order + 1, 1, -1
           ik = f * global_order + f + k * ndata + p + map_c(1) - 1
           tracer(ij + stencil(p,k,f)) = tracer(ij + stencil(p,k,f)) + coeff(ik) * new_tracer / SIGN(MAX(eps, ls_tracer(ij + &
 &stencil(p,k,f))), ls_tracer(ij + stencil(p,k,f)))
         enddo
-        new_tracer = 0.0_r_def
       enddo
     enddo
   else
     do f = 1, 0, -1
       do k = nlayers - 1, 0, -1
-        new_tracer = new_tracer + reconstruction(map_md(1) + f * nlayers + k)
+        new_tracer = reconstruction(map_md(1) + f * nlayers + k)
         reconstruction(map_md(1) + f * nlayers + k) = 0.0_r_def
         do p = vertical_order + 1, 1, -1
           ik = f * global_order + f + k * ndata + p + map_c(1) - 1
           tracer(ij + stencil(p,k,f)) = tracer(ij + stencil(p,k,f)) + coeff(ik) * new_tracer
         enddo
-        new_tracer = 0.0_r_def
       enddo
     enddo
   end if
