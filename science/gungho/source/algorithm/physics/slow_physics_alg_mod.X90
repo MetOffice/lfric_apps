@@ -286,7 +286,7 @@ contains
     ! ...for methane oxidation
     type( field_type ) :: dmv_methox
     ! ...for boundary layer
-    type( field_type ) :: dtheta_bl, du_bl, du_conv_w2
+    type( field_type ) :: dtheta_bl, du_bl
     ! ...for Leonard term flux
     type( field_type ) :: u_inc_leonard
     type( field_type ), pointer :: mt_inc_leonard => null()
@@ -297,6 +297,7 @@ contains
 #ifdef UM_PHYSICS
     ! ...for Convection
     type( field_type ), pointer :: dmv_conv => null()
+    type( field_type ) :: du_conv_w2
     ! ...surface fields passed from BL to Jules
     type( field_type ) :: surf_heat_flux
     type( field_type ) :: canopy_evap
@@ -932,7 +933,6 @@ contains
     !--------------------------------------------------------------------
     call du%copy_field_properties(du_conv_w2)
     call invoke(setval_c(du_conv_w2, 0.0_r_def))
-
     if (convection == convection_um .and.                       &
         convection_placement == convection_placement_slow) then
       if ( cv_scheme == cv_scheme_lambert_lewis ) then

@@ -28,6 +28,7 @@ module conv_gr_alg_mod
   use log_mod,              only: log_event, LOG_LEVEL_DEBUG
   use mesh_mod,             only: mesh_type
   use map_fd_to_prognostics_alg_mod, only: set_wind
+  use physics_mappings_alg_mod, only: map_physics_winds
 
   implicit none
 
@@ -83,8 +84,7 @@ contains
     type( field_type ), pointer :: wetrho_in_w3 => null()
     type( field_type ), pointer :: w_in_wth => null()
     type( field_type ), pointer :: theta_star => null()
-    type( field_type ), pointer :: u_in_w3_star => null()
-    type( field_type ), pointer :: v_in_w3_star => null()
+    type( field_type ), pointer :: u_star
 
     type( field_type ), pointer :: zh => null()
     type( integer_field_type ), pointer :: ntml => null()
@@ -268,7 +268,8 @@ contains
     type( field_type ) :: deep_cfl_limited, mid_cfl_limited
     type( field_type ) :: massflux_up_half, massflux_up_cmpta
     type( field_type ) :: dth_conv_noshal, dmv_conv_noshal
-    type( field_type ) :: mr_ice, dw_conv
+    type( field_type ) :: mr_ice
+    type( field_type ) :: u_in_w3_star, v_in_w3_star, w_in_w3_star, dw_conv
 
     type( mesh_type ), pointer  :: mesh => null()
 
@@ -285,8 +286,7 @@ contains
     call derived_fields%get_field('rho_in_wth', rho_in_wth)
     call derived_fields%get_field('w_in_wth', w_in_wth)
     call derived_fields%get_field('theta_star', theta_star)
-    call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
-    call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
+    call derived_fields%get_field('u_star', u_star)
 
     ! Unpack turbulence fields
     call turbulence_fields%get_field('zh', zh)
@@ -511,6 +511,14 @@ contains
     if (microphysics_casim) then
       call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
     end if
+
+    ! Compute the wind predictors at cell centres
+    call rho%copy_field_properties(u_in_w3_star)
+    call rho%copy_field_properties(v_in_w3_star)
+    call rho%copy_field_properties(w_in_w3_star)
+    call map_physics_winds(u_in_w3_star, v_in_w3_star, w_in_w3_star, &
+                           u_star)
+    call w_in_w3_star%field_final()
 
     ! set increments to zero
     call invoke( setval_c(dt_conv, 0.0_r_def),          &

@@ -73,8 +73,6 @@ contains
     type( field_type ), pointer :: u_in_w2h => null()
     type( field_type ), pointer :: v_in_w2h => null()
     type( field_type ), pointer :: w_in_wth => null()
-    type( field_type ), pointer :: u_in_w3_star => null()
-    type( field_type ), pointer :: v_in_w3_star => null()
     type( field_type ), pointer :: u_physics => null()
     type( field_type ), pointer :: u_star => null()
     type( field_type ), pointer :: velocity_w2v => null()
@@ -169,12 +167,8 @@ contains
       ! Set up predictors with start of timestep variables
       call derived_fields%get_field('theta_star', theta_star)
       call derived_fields%get_field('u_star', u_star)
-      call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
-      call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
       call invoke(setval_X(theta_star, theta),                                &
-                  setval_X(u_star, u),                                        &
-                  setval_X(u_in_w3_star, u_in_w3),                            &
-                  setval_X(v_in_w3_star, v_in_w3) )
+                  setval_X(u_star, u) )
     end if
 
     if ( subroutine_timers ) call timer("map_physics_fields")

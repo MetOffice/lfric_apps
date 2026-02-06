@@ -198,15 +198,6 @@ contains
     call processor%apply(make_spec('theta_in_w3', main%derived, W3))
     call processor%apply(make_spec('wetrho_in_w3', main%derived, W3))
 
-    if ( boundary_layer               == boundary_layer_um .or.                &
-         convection                   == convection_um     .or.                &
-         stochastic_physics_placement == stochastic_physics_placement_fast ) then
-
-      call processor%apply(make_spec('u_in_w3_star', main%derived, W3))
-      call processor%apply(make_spec('v_in_w3_star', main%derived, W3))
-
-    end if
-
     ! W2 fields
     call processor%apply(make_spec('u_physics', main%derived, W2))
     call processor%apply(make_spec('u_star', main%derived, W2))

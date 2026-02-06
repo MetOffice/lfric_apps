@@ -29,6 +29,7 @@ module conv_comorph_alg_mod
   use mesh_mod,             only: mesh_type
   use um_sizes_init_mod,    only: um_sizes_init
   use map_fd_to_prognostics_alg_mod, only: set_wind
+  use physics_mappings_alg_mod, only: map_physics_winds
 
   implicit none
 
@@ -89,8 +90,7 @@ contains
     type( field_type ), pointer :: v_in_w3
     type( field_type ), pointer :: w_in_wth
     type( field_type ), pointer :: theta_star
-    type( field_type ), pointer :: u_in_w3_star
-    type( field_type ), pointer :: v_in_w3_star
+    type( field_type ), pointer :: u_star
 
     type( field_type ), pointer :: zh
     type( field_type ), pointer :: zh_nonloc
@@ -267,7 +267,8 @@ contains
     type( field_type ) :: detrain_up,detrain_down
     type( field_type ) :: pres_cv_base,pres_cv_top
     type( field_type ) :: pres_lowest_cv_base,pres_lowest_cv_top, lowest_cca_2d
-    type( field_type ) :: massflux_up_half, dw_conv
+    type( field_type ) :: massflux_up_half
+    type( field_type ) :: u_in_w3_star, v_in_w3_star, w_in_w3_star, dw_conv
 
     type( mesh_type ), pointer  :: mesh
     integer(i_def) :: ncells
@@ -288,8 +289,7 @@ contains
     call derived_fields%get_field('v_in_w3', v_in_w3)
     call derived_fields%get_field('w_in_wth', w_in_wth)
     call derived_fields%get_field('theta_star', theta_star)
-    call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
-    call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
+    call derived_fields%get_field('u_star', u_star)
 
     ! Unpack turbulence fields
     call turbulence_fields%get_field('zh', zh)
@@ -485,6 +485,14 @@ contains
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
     call um_sizes_init(ncells)
+
+    ! Compute the wind predictors at cell centres
+    call u_in_w3%copy_field_properties(u_in_w3_star)
+    call u_in_w3%copy_field_properties(v_in_w3_star)
+    call u_in_w3%copy_field_properties(w_in_w3_star)
+    call map_physics_winds(u_in_w3_star, v_in_w3_star, w_in_w3_star, &
+                           u_star)
+    call w_in_w3_star%field_final()
 
     call invoke( conv_comorph_kernel_type( outer, rho, rho_in_wth,            &
                           wetrho_in_w3, wetrho_in_wth, exner, exner_in_wth,   &
