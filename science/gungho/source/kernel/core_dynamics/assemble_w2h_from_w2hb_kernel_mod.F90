@@ -30,9 +30,9 @@ module assemble_w2h_from_w2hb_kernel_mod
   !>
   type, public, extends(kernel_type) :: assemble_w2h_from_w2hb_kernel_type
     private
-    type(arg_type) :: meta_args(2) = (/                  &
-         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2h),      &
-         arg_type(GH_FIELD, GH_REAL, GH_READ, W2broken) &
+    type(arg_type) :: meta_args(2) = (/                 &
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2h),     & ! field_w2h
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W2broken) & ! field_w2h_broken
          /)
     integer :: operates_on = CELL_COLUMN
   contains
