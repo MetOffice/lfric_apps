@@ -145,7 +145,7 @@ subroutine initialise_diags_for_cosp( &
     cloud_thermal_absorptivity, cloud_solar_extinction
   integer(tik)  :: id
 
-  if ( LPROF ) call start_timing( id, 'cosp_diags' )
+  if ( LPROF ) call start_timing( id, 'diags.cosp' )
 
   sunlit_mask_flag                   = init_diag( sunlit_mask, &
                                            'cosp__sunlit_mask' )
@@ -180,7 +180,7 @@ subroutine initialise_diags_for_cosp( &
   cloud_solar_extinction_flag        = init_diag( cloud_solar_extinction, &
                                            'cosp__cloud_solar_extinction' )
 
-  if ( LPROF ) call stop_timing( id, 'cosp_diags' )
+  if ( LPROF ) call stop_timing( id, 'diags.cosp' )
 
 end subroutine initialise_diags_for_cosp
 
@@ -233,7 +233,7 @@ subroutine output_diags_for_cosp( &
     cloud_thermal_absorptivity, cloud_solar_extinction
   integer(tik)  :: id
 
-  if ( LPROF ) call start_timing( id, 'cosp_diags' )
+  if ( LPROF ) call start_timing( id, 'diags.cosp' )
 
   ! Diagnostics computed within the kernels
   if (sunlit_mask_flag) call &
@@ -285,7 +285,7 @@ subroutine output_diags_for_cosp( &
       cloud_solar_extinction%write_field( &
       cloud_solar_extinction%get_name() )
 
-  if ( LPROF ) call stop_timing( id, 'cosp_diags' )
+  if ( LPROF ) call stop_timing( id, 'diags.cosp' )
 
 end subroutine output_diags_for_cosp
 end module cosp_diags_mod

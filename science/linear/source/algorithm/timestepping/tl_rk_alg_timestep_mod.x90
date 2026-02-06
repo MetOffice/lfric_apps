@@ -257,7 +257,7 @@ contains
                         exner_big_halo
     integer(tik)     :: id
 
-    if ( LPROF ) call start_timing( id, 'tl_rk_alg' )
+    if ( LPROF ) call start_timing( id, 'tl_runge_kutta_timestep' )
 
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
 
@@ -509,7 +509,7 @@ contains
     nullify( geopotential, chi, panel_id, m3_inv, &
              mesh, reference_element, qr )
 
-    if ( LPROF ) call stop_timing( id, 'tl_rk_alg' )
+    if ( LPROF ) call stop_timing( id, 'tl_runge_kutta_timestep' )
 
   end subroutine tl_rk_alg_step
 
