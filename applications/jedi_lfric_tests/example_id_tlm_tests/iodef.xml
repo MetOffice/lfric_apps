@@ -47,7 +47,7 @@
         <field id="read_m_v" name="m_v" long_name="vapour_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
-        <field id="read_m_s" name="m_s" long_name="cloud_snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="read_m_s" name="m_s" long_name="snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
       </field_group>
 
       <field_group id="write_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="0ts">
@@ -61,7 +61,7 @@
         <field id="write_m_v" name="m_v" long_name="vapour_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="write_m_cl" name="m_cl" long_name="cloud_liquid_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="write_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
-        <field id="write_m_s" name="m_s" long_name="cloud_snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="write_m_s" name="m_s" long_name="snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
       </field_group>
 
       <field_group id="read_inc_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts">
@@ -74,7 +74,7 @@
         <field id="read_inc_m_v" name="m_v" long_name="vapour_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="read_inc_m_cl" name="m_cl" long_name="cloud_liquid_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
         <field id="read_inc_m_r" name="m_r" long_name="rain_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
-        <field id="read_inc_m_s" name="m_s" long_name="cloud_snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
+        <field id="read_inc_m_s" name="m_s" long_name="snow_mixing_ratio" unit="kg kg-1" grid_ref="full_level_face_grid" />
       </field_group>
 
     </field_definition>
@@ -396,7 +396,7 @@
         <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" operation="instant" />
         <field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
         <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
-        <field id="read_m_s" name="m_s" long_name="cloud_snow_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_m_s" name="m_s" long_name="snow_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
         <field id="read_m_r" name="m_r" long_name="rain_mixing_ratio"  unit="kg/kg" grid_ref="full_level_face_grid" operation="instant" />
       </file>
 
