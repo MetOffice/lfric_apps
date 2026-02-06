@@ -100,7 +100,7 @@ document-api: api-documentation
 build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: export CXX_LINK     = TRUE
 build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
-build: export SCRATCH_DIR := $(WORKING_DIR)/../physics_scratch
+build: export SCRATCH_DIR := $(WORKING_DIR)/..
 build: export PROJECT      = $(PROJECT_NAME)
 build: export WORKING_DIR := $(WORKING_DIR)
 
