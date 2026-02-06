@@ -88,7 +88,7 @@ subroutine assemble_w2h_from_w2hb_code( nlayers,          &
     ! Loop over layers of mesh
     do k = 0, nlayers - 1
       field_w2h(map_w2h(df)+k) = field_w2h(map_w2h(df)+k) &
-        + field_w2h_broken(map_w2h_broken(df)+k)
+                               + field_w2h_broken(map_w2h_broken(df)+k)
     end do
   end do
 
