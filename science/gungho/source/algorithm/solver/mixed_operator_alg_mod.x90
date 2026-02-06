@@ -261,15 +261,12 @@ contains
            q32_op => get_eliminated_q32()
            if ( optimised_operator ) then
              ! Compute the lhs of mixed operator in two steps:
-             ! The first step computes the horizontal wind lhs (yvec_uv), this is done in the broken W2
+             ! 1) Compute the horizontal wind lhs (yvec_uv), this is done in the broken W2
              ! space to avoid having to halo exchange the input fields. After computation of
              ! the broken W2 lhs the continuous W2 lhs is computed which only requires a single
              ! halo exchange.
-             ! The second step computes the vertical wind (yvec_w) & pressure (yvec_p) lhs, since these
+             ! 2) Compute the vertical wind (yvec_w) & pressure (yvec_p) lhs, since these
              ! are horizontally discontinuous fields then there are no further halo exchanges required.
-             ! Alternatively this code could be computed in a single kernel
-             ! (apply_mixed_operator_kernel_type), however this appears to have poorer cache usage,
-             ! resulting in an increased computation time
 
              ! Create broken y_uv
              w2hb_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
