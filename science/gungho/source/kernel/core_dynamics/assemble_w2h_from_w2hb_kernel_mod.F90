@@ -4,9 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Maps a field from W2h broken to W2h.
-!> @details "Unbreaks" a W2h field by averaging values on either side of
-!>          broken facets.
-!>          This kernel only works for the lowest-order elements.
+!> @details Forms a continuous W2h field by adding the components from a
+!!          broken W2h field on either side of the mesh facets.
 module assemble_w2h_from_w2hb_kernel_mod
 
   use argument_mod,          only : arg_type,                  &
