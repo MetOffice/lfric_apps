@@ -15,16 +15,32 @@
 # Choose which files to Pre-proccess and PSyclone from physics / FCM UM source.
 
 export PSYCLONE_PHYSICS_FILES = \
+                                bl_lsp \
+                                bl_diags_mod \
                                 bm_tau_kernel_mod \
+                                btq_int \
+                                conv_gr_kernel_mod \
+                                ex_flux_tq \
+                                ex_flux_uv \
+                                fm_drag \
                                 gw_ussp_mod \
+                                imp_mix \
+                                jules_exp_kernel_mod \
+				                jules_extra_kernel_mod \
+                                jules_imp_kernel_mod \
+                                kmkh \
+                                kmkhz_9c_wtrac \
                                 lw_kernel_mod \
                                 mphys_kernel_mod \
                                 pc2_initiation_kernel_mod \
                                 pc2_conv_coupling_kernel_mod \
                                 sw_kernel_mod \
-                                ukca_aero_ctl \
+                                sw_rad_tile_kernel_mod \
+                                tr_mix \
+	                            ukca_aero_ctl \
                                 ukca_chemistry_ctl_full_mod \
                                 ukca_main1-ukca_main1
+
 
 ##### TRANSMUTE_INCLUDE_METHOD specify_include #####
 

@@ -41,13 +41,13 @@ contains
     type( field_type ), intent(inout) :: soil_respiration
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_exp_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.jules_exp' )
 
     z0h_eff_flag = init_diag(z0h_eff, 'surface__z0h_eff')
     gross_prim_prod_flag = init_diag(gross_prim_prod, 'surface__gross_prim_prod')
     soil_respiration_flag = init_diag(soil_respiration, 'surface__soil_respiration')
 
-    if ( LPROF ) call stop_timing( id, 'jules_exp_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.jules_exp' )
 
   end subroutine initialise_diags_for_jules_exp
 
@@ -82,7 +82,7 @@ contains
     type( field_type ),  intent(in)   :: dust_flux
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_exp_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.jules_exp' )
 
     ! Prognostic fields from surface collection
     call tile_fraction%write_field('surface__tile_fraction')
@@ -102,7 +102,7 @@ contains
     if (gross_prim_prod_flag) call gross_prim_prod%write_field()
     if (soil_respiration_flag) call soil_respiration%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'jules_exp_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.jules_exp' )
 
   end subroutine output_diags_for_jules_exp
 end module jules_exp_diags_mod
