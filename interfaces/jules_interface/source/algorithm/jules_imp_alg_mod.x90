@@ -168,7 +168,7 @@ contains
     integer(i_def) :: loop, ncells
     integer(tik)   :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_imp_alg' )
+    if ( LPROF ) call start_timing( id, 'jules.implicit' )
 
     call log_event( 'Running implicit Jules', LOG_LEVEL_DEBUG )
 
@@ -305,7 +305,7 @@ contains
                                        surf_radnet, surf_lw_up, surf_lw_down,&
                                        ocn_cpl_point) )
 
-    if ( LPROF ) call stop_timing( id, 'jules_imp_alg' )
+    if ( LPROF ) call stop_timing( id, 'jules.implicit' )
 
     ! Output the BL diagnostics
     if (use_xios_io .and. write_diag .and. outer == outer_iterations) then
