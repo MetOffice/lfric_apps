@@ -132,6 +132,7 @@ contains
     use apply_mixed_wp_operator_kernel_mod, &
                                  only: apply_mixed_wp_operator_kernel_type
     use assemble_w2h_from_w2hb_kernel_mod, only: assemble_w2h_from_w2hb_kernel_type
+    
     implicit none
 
     class(mixed_operator_type),  intent(inout) :: self
