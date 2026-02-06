@@ -16,7 +16,6 @@ module assemble_w2h_from_w2hb_kernel_mod
   use constants_mod,         only : r_solver, i_def
   use fs_continuity_mod,     only : W2h, W2broken
   use kernel_mod,            only : kernel_type
-  use reference_element_mod, only : N, E, S, W, T, B
 
   implicit none
 
