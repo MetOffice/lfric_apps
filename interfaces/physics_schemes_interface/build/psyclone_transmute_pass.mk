@@ -28,8 +28,8 @@ SOURCE_F_FILES_PASS := $(foreach THE_FILE, $(PSYCLONE_PASS_NO_SCRIPT), $(patsubs
 #
 psyclone_pass: $(SOURCE_F_FILES_PASS)
 
-# PSyclone files back into f90 files.
 
+# PSyclone files back into f90 files.
 # Where no optimisation script exists, don't use it.
 #
 $(SOURCE_DIR)/%.f90: $(SOURCE_DIR)/%.xu90
