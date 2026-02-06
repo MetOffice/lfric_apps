@@ -477,7 +477,7 @@ contains
       end if
       call uvw_norm%initialise( vector_space = self%rhs_u%get_function_space() )
       call invoke( name = "compute_split_increments",                         &
-                   X_times_Y(uvw_norm, u_normalisation, Hb_lumped_inv),        &
+                   X_times_Y(uvw_norm, u_normalisation, Hb_lumped_inv),       &
                    setval_c(state_uv, 0.0_r_solver),                          &
                    schur_backsub_kernel_type( state_uv, state_w, self%rhs_u,  &
                                               exner_inc, div_star,            &
