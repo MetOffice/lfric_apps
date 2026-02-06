@@ -23,8 +23,10 @@ class UpgradeError(Exception):
 Copy this template and complete to add your macro
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
+
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
+    
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -170,3 +172,6 @@ class vn30_t48(MacroUpgrade):
             config,
             ["namelist:lfric2lfric", "weight_file_lbc"],
             "'weight_file_lbc'",
+        )
+
+        return config, self.reports
