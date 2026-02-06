@@ -45,14 +45,14 @@ contains
     type( field_type ), intent(inout) :: grid_snowmelt
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_snow_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.jules_snow' )
 
     ! 2D fields
     grid_snow_mass_flag = init_diag(grid_snow_mass, 'snow__grid_snow_mass')
     if (grid_snow_mass_flag) call invoke( setval_c(grid_snow_mass, 0.0_r_def) )
     grid_snowmelt_flag = init_diag(grid_snowmelt, 'snow__grid_snowmelt')
 
-    if ( LPROF ) call stop_timing( id, 'jules_snow_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.jules_snow' )
 
   end subroutine initialise_diags_for_jules_snow
 
@@ -100,7 +100,7 @@ contains
     type( field_type ), intent(inout) :: grid_snowmelt
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'jules_snow_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.jules_snow' )
 
     ! Prognostic fields
     call tile_snow_mass%write_field('snow__snow_mass')
@@ -126,7 +126,7 @@ contains
       call grid_snow_mass%write_field()
     end if
 
-    if ( LPROF ) call stop_timing( id, 'jules_snow_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.jules_snow' )
 
   end subroutine output_diags_for_jules_snow
 end module jules_snow_diags_mod

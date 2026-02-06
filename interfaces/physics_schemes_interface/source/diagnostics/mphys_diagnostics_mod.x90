@@ -61,7 +61,7 @@ contains
     type( field_type ), intent(inout) :: refl_1km
     integer( tik )                    :: id
 
-    if ( LPROF ) call start_timing( id, 'mphys_diagnostics' )
+    if ( LPROF ) call start_timing( id, 'diags.mphys' )
 
     superc_liq_flag = init_diag(superc_liq, 'microphysics__superc_liq')
     superc_rain_flag = init_diag(superc_rain, 'microphysics__superc_rain')
@@ -71,7 +71,7 @@ contains
     refl_tot_flag = init_diag(refl_tot, 'microphysics__refl_tot')
     refl_1km_flag = init_diag(refl_1km, 'microphysics__refl_1km')
 
-    if ( LPROF ) call stop_timing( id, 'mphys_diagnostics' )
+    if ( LPROF ) call stop_timing( id, 'diags.mphys' )
 
   end subroutine
 
@@ -130,7 +130,7 @@ contains
     !--------------------------------------
     ! End of declarations
     !--------------------------------------
-    if ( LPROF ) call start_timing( id, 'mphys_diagnostics' )
+    if ( LPROF ) call start_timing( id, 'diags.mphys' )
 
     !--------------------------------------
     ! Output locally computed 3D diagnostics
@@ -195,7 +195,7 @@ contains
 
     call tnuc%write_field('microphysics__tnuc')
 
-    if ( LPROF ) call stop_timing( id, 'mphys_diagnostics' )
+    if ( LPROF ) call stop_timing( id, 'diags.mphys' )
 
   end subroutine output_diags_for_mphys
 

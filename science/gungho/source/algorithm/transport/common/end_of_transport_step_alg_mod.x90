@@ -125,9 +125,6 @@ contains
     integer(kind=i_def)                   :: step
     logical(kind=l_def)                   :: do_overwrite
     type(r_tran_field_type),      pointer :: field_start
-    integer(tik)                          :: id
-
-    if ( LPROF ) call start_timing( id, 'transport.end_of_transport' )
 
     mesh => field_np1%get_mesh()
 
@@ -172,8 +169,6 @@ contains
     end if
 
     call log_field_minmax( LOG_LEVEL_DEBUG, 'field_np1: end_of_advective_step', field_np1)
-
-    if ( LPROF ) call stop_timing( id, 'transport.end_of_transport' )
 
   end subroutine end_of_advective_step_alg
 
@@ -233,9 +228,7 @@ contains
     real(kind=r_tran)                     :: adv_dt
     real(kind=r_tran)                     :: acceptable_min
     real(kind=r_tran)                     :: field_min, field_max
-    integer(tik)                          :: id_end, id_iter
-
-    if ( LPROF ) call start_timing( id_end, 'transport.end_of_transport' )
+    integer(tik)                          :: id_iter
 
     ! Extract transport runtime
     mesh => field_np1%get_mesh()
@@ -392,8 +385,6 @@ contains
 
     call log_field_minmax( LOG_LEVEL_DEBUG, 'field_np1: end_of_conservative_step', field_np1)
 
-    if ( LPROF ) call stop_timing( id_end, 'transport.end_of_transport' )
-
   end subroutine end_of_conservative_step_alg
 
   !> @brief Common end-of-step code for consistent transport schemes
@@ -492,9 +483,7 @@ contains
     real(kind=r_tran)                     :: acceptable_min
     real(kind=r_tran)                     :: field_min, field_max
     logical(kind=l_def)                   :: to_compute_field_np1
-    integer(tik)                          :: id_end, id_theta, id_iter
-
-    if ( LPROF ) call start_timing( id_end, 'transport.end_of_transport' )
+    integer(tik)                          :: id_iter
 
     ! Extract transport runtime
     prime_extrusion_mesh => field_np1%get_mesh()
@@ -535,8 +524,6 @@ contains
         (trim(transport_metadata%get_name()) == 'potential_temperature' .or.   &
          trim(transport_metadata%get_name()) == 'theta')) then
 
-      if ( LPROF ) call start_timing( id_theta, 'transport.theta_dispersion' )
-
       shifted_mesh => mesh_collection%get_mesh(prime_extrusion_mesh, SHIFTED)
       sh_w3_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W3)
       rmultiplicity_shifted => get_rmultiplicity_fv(flux_function_space, shifted_mesh%get_id())
@@ -573,8 +560,6 @@ contains
                                                      face_selector_ew,         &
                                                      face_selector_ns),        &
                    inc_X_plus_Y(flux, flux_correction) )
-
-      if ( LPROF ) call stop_timing( id_theta, 'transport.theta_dispersion' )
 
     end if
 
@@ -770,8 +755,6 @@ contains
 
     call log_field_minmax( LOG_LEVEL_DEBUG, 'field_np1: end_of_consistent_step', field_np1)
 
-    if ( LPROF ) call stop_timing( id_end, 'transport.end_of_transport' )
-
   end subroutine end_of_consistent_step_alg
 
   !> @brief Build up the mass flux used over a full conservative transport step
@@ -812,9 +795,6 @@ contains
     type(r_tran_field_type)            :: combined_flux
     logical(kind=l_def)                :: is_flux_3d
     logical(kind=l_def)                :: is_flux_split
-    integer(tik)                       :: id
-
-    if ( LPROF ) call start_timing( id, 'transport.build_up_flux' )
 
     ! Don't know which function space the fluxes are in -- add up each
     mesh => sum_flux%get_mesh()
@@ -894,8 +874,6 @@ contains
         end if
       end if
     end if
-
-    if ( LPROF ) call stop_timing( id, 'transport.build_up_flux' )
 
   end subroutine build_up_flux
 
