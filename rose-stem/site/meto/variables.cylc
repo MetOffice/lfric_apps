@@ -65,10 +65,12 @@
     {% do site_vars.update({"node_type": "genoa"}) %}
     {% do site_vars.update({"node_cores": 192 }) %}
     {% do site_vars.update({"node_mem": 720}) %}
+    {% do site_vars.update({"crayhost": ":crayhost=exb"}) %}
 {% else %}
     {% do site_vars.update({"node_type": "milan"}) %}
     {% do site_vars.update({"node_cores": 128 }) %}
     {% do site_vars.update({"node_mem": 238}) %}
+    {% do site_vars.update({"crayhost": ""}) %}
 {% endif %}
 
 {% do site_vars.update({"lfricinputs_kgo_base": "$UMDIR/standard_jobs/lfricinputs/kgo"}) %}
