@@ -228,6 +228,8 @@ contains
            xvec_w  => x%get_field_from_position(isol_w)
            yvec_w  => y%get_field_from_position(isol_w)
          end if
+         p_h = y%vector(isol_u)%get_element_order_h()
+         p_v = y%vector(isol_u)%get_element_order_v()
 
          ! Check if we can use the optimised operator setup
          optimised_operator = ( p2theta_vert                        .and. &
@@ -239,8 +241,6 @@ contains
 
          if ( .not. optimised_operator ) then
            ! Create fields in 3D W2 space
-           p_h = y%vector(isol_u)%get_element_order_h()
-           p_v = y%vector(isol_u)%get_element_order_v()
            u_fs => function_space_collection%get_fs( mesh, p_h, p_v, W2 )
 
            call x_uvw%initialise( vector_space = u_fs )
@@ -269,7 +269,7 @@ contains
              ! are horizontally discontinuous fields then there are no further halo exchanges required.
 
              ! Create broken y_uv
-             w2hb_fs => function_space_collection%get_fs(mesh, 0, 0, W2Hbroken)
+             w2hb_fs => function_space_collection%get_fs(mesh, p_h, p_v, W2Hbroken)
              call y_uv_broken%initialise( w2hb_fs )
              call invoke( name="apply_split_mixed_operator",                                        &
                           apply_mixed_u_operator_kernel_type( y_uv_broken,                          &
