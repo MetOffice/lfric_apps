@@ -75,7 +75,7 @@ build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: export CXX_LINK     = YES
 build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)))
 build: export PROJECT      = lfric_atm
-build: export SCRATCH_DIR := $(WORKING_DIR)/../physics_scratch
+build: export SCRATCH_DIR := $(WORKING_DIR)/..
 build: export WORKING_DIR := $(WORKING_DIR)
 
 build: export LDFLAGS_GROUPS = OPENMP
