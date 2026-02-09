@@ -34,7 +34,7 @@
 
 program jedi_tlm_tests
 
-  use cli_mod,                      only : get_initial_filename
+  use cli_mod,                      only : parse_command_line
   use constants_mod,                only : PRECISION_REAL, i_def, str_def, r_def
   use field_collection_mod,         only : field_collection_type
   use log_mod,                      only : log_event, log_scratch_space, &
@@ -74,7 +74,7 @@ program jedi_tlm_tests
   character( str_def )                      :: forecast_length_str
   real( kind=r_def )                        :: dot_product_1
   real( kind=r_def )                        :: dot_product_2
-  real( kind=r_def ),             parameter :: absolute_tolerance = 1.0E-4_r_def
+  real( kind=r_def )                        :: absolute_tolerance
   real( kind=r_def )                        :: machine_tolerance
   real( kind=r_def )                        :: absolute_diff
   real( kind=r_def )                        :: relative_diff
@@ -82,7 +82,7 @@ program jedi_tlm_tests
   character(*), parameter :: program_name = "jedi_tlm_tests"
 
   ! Infrastructure config
-  call get_initial_filename( filename )
+  call parse_command_line( filename )
 
   ! Run object - handles initialization and finalization of required
   ! infrastructure. Initialize external libraries such as XIOS
@@ -165,6 +165,7 @@ program jedi_tlm_tests
   absolute_diff = abs( dot_product_1 - dot_product_2 )
   machine_tolerance = spacing( max( abs( dot_product_1 ), abs( dot_product_2 ) ) )
   relative_diff = absolute_diff / machine_tolerance
+  call jedi_lfric_settings_config%get_value( 'adjoint_test_tolerance', absolute_tolerance )
   if (absolute_diff > absolute_tolerance ) then
     call run%finalise_timers()  ! We still want timing info even if the test fails
     write( log_scratch_space, * ) "Adjoint test FAILED", &
