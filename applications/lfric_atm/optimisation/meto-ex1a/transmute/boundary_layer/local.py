@@ -27,13 +27,14 @@ from psyclone.psyir.nodes import (
     Routine,
     Loop,
     OMPParallelDirective,
+    IfBlock,
+    Reference,
 )
 from psyclone.transformations import (TransformationError)
 from transmute_psytrans.transmute_functions import (
     loop_replacement_of,
     get_compiler,
     first_priv_red_init,
-    remove_unspanable_nodes,
     set_pure_subroutines,
     replace_n_threads,
     OMP_PARALLEL_REGION_TRANS,
@@ -53,7 +54,6 @@ Loop.set_loop_type_inference_rules({
     "i": {"variable": "i"}})  # For bdy_impl3.F90
 
 
-# Longer term we will raise some of these into a override import, see Apps#900
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-statements
 # pylint: disable=too-many-branches
@@ -131,18 +131,56 @@ def trans(psyir):
     # Span a parallel section across the whole routine,
     # apart for a few exceptions provided
     for routine in psyir.walk(Routine):
-        routine_children = remove_unspanable_nodes(
-            routine,
-            timer_routine_names,
-            loop_type_init
-        )
-        # Span the region across filtered down node list
-        try:
-            OMP_PARALLEL_REGION_TRANS.apply(
-                routine_children)
-        except (TransformationError, IndexError) as err:
-            logging.warning("OMPParallelTrans failed: %s", err)
+        # Get the list of children of the routine
+        routine_children = routine.children
+        # Default reference for start_node
+        start_node = None
+        # Work through the routine's children from the start.
+        for index, routine_child in enumerate(routine_children):
+            # When the first loop or if block is found,
+            # place it as the start reference index.
+            if isinstance(routine_child, Loop):
+                start_node = index
+                break
+            elif isinstance(routine_child, IfBlock):
+                found_valid_if = True
+                # Often timing handles are placed inside if blocks, 
+                # check if it is not a known timing call, which should be
+                # ignored for spanning a parallel section.
+                for routine_grandchild in routine_child.walk(Reference):
+                    try:
+                        if str(routine_grandchild.name) in timer_routine_names:
+                            found_valid_if = False
+                    except:  # noqa: E722
+                        continue
+                if found_valid_if:
+                    start_node = index
+                    break
+        # Default reference for end_node
+        end_node = None
+        for index in range((len(routine_children)-1), 0, -1):
+            # Like above, work backwards through the routine's children.
+            if isinstance(routine_children[index], Loop):
+                end_node = index + 1
+                break
+            elif isinstance(routine_children[index], IfBlock):
+                found_valid_if = True
+                for routine_grandchild in routine_children[index].walk(Reference):
+                    try:
+                        if str(routine_grandchild.name) in timer_routine_names:
+                            found_valid_if = False
+                    except:  # noqa: E722
+                        continue
+                if found_valid_if:
+                    end_node = index + 1
+                    break
 
+        if start_node and end_node:
+            try:
+                OMP_PARALLEL_REGION_TRANS.apply(
+                    routine_children[start_node:end_node])
+            except (TransformationError, IndexError) as err:
+                logging.warning("OMPParallelTrans failed: %s", err)
     # CCE first private issue with 3.1, to be removed longer term
     if get_compiler() == "cce" and first_private_list:
         for routine in psyir.walk(Routine):
