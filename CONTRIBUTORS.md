@@ -1,12 +1,4 @@
 # Contributors
-<<<<<<< TBendall/smp_phys_wind_correct
-
-| GitHub user | Real Name | Affiliation | Date |
-| ----------- | --------- | ----------- | ---- |
-| james-bruten-mo | James Bruten | Met Office | 2025-12-09 |
-| jennyhickson | Jenny Hickson | Met Office | 2025-12-10 |
-| tommbendall | Thomas Bendall | Met Office | 2025-12-17 |
-=======
 | GitHub user         | Real Name          | Affiliation                      | Date       |
 | ------------------- | ------------------ | -------------------------------- | ---------- |
 | james-bruten-mo     | James Bruten       | Met Office                       | 2025-12-09 |
@@ -37,4 +29,3 @@
 | cjohnson-pi         | Christine Johnson  | Met Office                       | 2026-01-19 |
 | t00sa               | Sam Clarke-Green   | Met Office                       | 2026-01-20 |
 | ukmo-juan-castillo  | Juan M. Castillo   | Met Office                       | 2026-01-23 |
->>>>>>> main
