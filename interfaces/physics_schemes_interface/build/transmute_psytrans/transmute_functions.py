@@ -9,13 +9,16 @@ eventually live in the PSyTran repo. See Ticket #906.
 '''
 import logging
 import os
+from itertools import dropwhile, takewhile
 from typing import Sequence, Optional, Tuple, Set
 
 from psyclone.psyir.nodes import (
+    Node,
     Loop,
     Call,
     Assignment,
     Reference,
+    Return,
     OMPParallelDirective,
     OMPDoDirective,
     OMPParallelDoDirective,
@@ -30,6 +33,7 @@ from psyclone.psyir.symbols import (
     RoutineSymbol,
     ImportInterface,
     UnsupportedFortranType,
+    INTEGER_TYPE,
     CHARACTER_TYPE,
 )
 from psyclone.transformations import (
@@ -599,3 +603,226 @@ def match_lhs_assignments(node, names):
         if assignment.lhs.name in names:
             lhs_names.append(assignment.lhs.name)
     return lhs_names
+
+
+def loop_replacement_of(routine_itr,
+                        target_name: str,
+                        init_at_start=True):
+    '''
+    This transformation checks that the loop iterator we are on is the one
+    we want, and then changes it to be of length 1 instead - The intent
+    is to primarily target the UM j loops with this call, but it is
+    generic.
+
+    Parameters
+    ----------
+    routine_itr : Routine iteration from a loop which walks the psyir routines
+    target_name : A loop of a given type
+    init_at_start : Do we want a initialisation at the start? Default True.
+
+    Returns
+    ----------
+    None : Note the tree has been modified
+    '''
+
+    do_once = False
+    # Get the loops from the provided routine and walk
+    for loop in routine_itr.walk(Loop):
+        # if the loop is of the target type
+        if str(loop.loop_type) == target_name:
+
+            # Only init once in the routine at the start
+            if not do_once and init_at_start:
+                parent = routine_itr
+                assign = Assignment.create(
+                    Reference(loop.variable),
+                    Literal("1", INTEGER_TYPE))
+                parent.children.insert(0, assign)
+                do_once = True
+
+            # Get a parent table reference to move the loop body
+            try:
+                parent_table = loop.parent.scope.symbol_table
+            except AttributeError as err:
+                parent_table = False
+
+            # if the loop parent table is a valid reference
+            if parent_table:
+                parent_table.merge(loop.loop_body.symbol_table)
+                # Move the body of the loop after the loop
+                for statement in reversed(loop.loop_body.children):
+                    loop.parent.addchild(
+                        statement.detach(),
+                        loop.position + 1)
+                tmp = loop.detach()  # noqa: F841
+
+
+def add_omp_parallel_region(
+    start_node,
+    end_node,
+    *,
+    end_offset=0,
+    include_end=False,
+    ignore_loops=None,
+    loop_trans_options=None,
+):
+    """Add OMPParallelDirective around a span of nodes and OMPDoDirective around loops
+
+    A parallel region will be created from siblings of start_node up to
+    end_node.
+
+    An end_offset may be used to add or remove nodes from the end of the region,
+    and loops to be ignored can be supplied through ignore_loops.
+
+    If end_node is not a sibling of start_node, loops and directives should be
+    added up to the absolute position of end_node, although the interaction with
+    offsets and include_end may be unexpected.
+    """
+    if ignore_loops in (None, [None]):
+        ignore_loops = []
+
+    schedule = start_node.siblings
+
+    if end_offset != 0:
+        local_idx = end_node.siblings.index(end_node)
+        end_node = end_node.siblings[local_idx + end_offset]
+
+    start_pos = start_node.abs_position
+    end_pos = end_node.abs_position
+    if include_end:
+        end_pos += 1
+
+    nodes_from_start = dropwhile(lambda node: node.abs_position < start_pos, schedule)
+    all_nodes = list(takewhile(lambda node: node.abs_position < end_pos, nodes_from_start))
+
+    OMP_PARALLEL_REGION_TRANS.apply(
+        all_nodes,
+        options={
+            "node-type-check": False,
+        },
+    )
+
+    for loop in start_node.parent.walk(Loop):
+        # Identify each loop in the OMPParallelDirective and add OMPDoDirective to outer loops
+
+        # Don't attempt to nest parallel directives or loops outside the parallel region
+        if loop.ancestor(OMPDoDirective) is not None or loop.ancestor(OMPParallelDirective) is None:
+            continue
+
+        if loop in ignore_loops:
+            continue
+
+        # OMPDoDirective for outer loops inside OMPParallelDirective region
+        try:
+            OMP_DO_LOOP_TRANS_STATIC.apply(
+                loop,
+                options=loop_trans_options,
+            )
+        except TransformationError as e:
+            logging.warning(e)
+
+
+def remove_unspanable_nodes(
+    routine_itr,
+    timer_routine_names,
+    remove_loop_type,
+):
+    '''
+    A method to help reduce the number of nodes found in a routine list.
+    This will remove some nodes that we do not ever wish to parallelise over.
+    This includes:
+    * The first and last timer calipers from the list: timer_routine_names.
+    * Ideally the final, but any return statement.
+    * Any variables which have had their loops removed, and are initialised.
+
+    Parameters
+    ----------
+    routine_itr : Routine iteration from a loop which walks the psyir routines.
+    timer_routine_names : Timer caliper list of names.
+    remove_loop_type : lhs only holds the variable name, keep this simple.
+
+    Returns
+    ----------
+    Copy of node list: A list of nodes from the given routine without
+                       the above nodes.
+    '''
+
+    routine_children = routine_itr.children
+    return_copy_span = []
+    delete_node_indexes = []
+
+    # Remove calipers
+    for index, routine_child in enumerate(routine_children):
+
+        for routine in routine_child.walk(Reference):
+            try:
+                if str(routine.name) in timer_routine_names:
+                    delete_node_indexes.append(index)
+                    break
+            except:  # noqa: E722
+                continue
+
+    # Remove the return statement
+    for index in range((len(routine_children)-1), 0, -1):
+        # If the instance is a return, add it to the list of indexes and exit
+        if isinstance(routine_children[index], Return):
+            delete_node_indexes.append(index)
+            break
+
+    # Remove indexes at the start until we get to the first non assignment loop
+    for index, routine_child in enumerate(routine_children):
+        # Check if it is an assignment
+        # If so check whether the lhs name is in the remove_loop_type list
+        if isinstance(routine_child, Assignment):
+            if str(routine_child.lhs.name) in remove_loop_type:
+                delete_node_indexes.append(index)
+        # Otherwise exit
+        elif index not in delete_node_indexes:
+            break
+
+    # A safer way is to build up a list of elements to remove
+    # Then remove the elements all at once.
+    delete_node_indexes.sort()
+    for index, routine_child in enumerate(routine_children):
+        if index not in delete_node_indexes:
+            return_copy_span.append(routine_child)
+
+    return return_copy_span
+
+
+def get_ancestors(
+    node, node_type=Loop, inclusive=False, exclude=(), depth=None
+):
+    """
+    Lifted from PSyTran.
+    Get all ancestors of a Node with a given type.
+
+    :arg node: the Node to search for ancestors of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg inclusive: if ``True``, the current node is included.
+    :type inclusive: :py:class:`bool`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+    :kwarg depth: specify a depth for the ancestors to have.
+    :type depth: :py:class:`int`
+
+    :returns: list of ancestors according to specifications.
+    :rtype: :py:class:`list`
+    """
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    assert isinstance(
+        inclusive, bool
+    ), f"Expected a bool, not '{type(inclusive)}'."
+    assert isinstance(node_type, tuple) or issubclass(node_type, Node)
+    if depth is not None:
+        assert isinstance(depth, int), f"Expected an int, not '{type(depth)}'."
+    ancestors = []
+    node = node.ancestor(node_type, excluding=exclude, include_self=inclusive)
+    while node is not None:
+        ancestors.append(node)
+        node = node.ancestor(node_type, excluding=exclude)
+    if depth is not None:
+        ancestors = [a for a in ancestors if a.depth == depth]
+    return ancestors
