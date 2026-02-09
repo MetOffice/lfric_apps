@@ -202,14 +202,9 @@
     ],
     "lfric_atm_ex1a_performance_check": [
         "lfric_atm_ex1a_weekly",
-        "lfric_atm_nwp_gal9-C896_MG_720t_opDiag_perfRun0_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9-C896_MG_720t_perfRun0_ex1a_cce_production-32bit",
     ],
     "lfric_atm_ex1a_performance_runstats": [
-        "lfric_atm_nwp_gal9-C896_MG_720t_opDiag_perfRun1_ex1a_cce_production-32bit",
-        "lfric_atm_nwp_gal9-C896_MG_720t_opDiag_perfRun2_ex1a_cce_production-32bit",
-        "lfric_atm_nwp_gal9-C896_MG_720t_opDiag_perfRun3_ex1a_cce_production-32bit",
-        "lfric_atm_nwp_gal9-C896_MG_720t_opDiag_perfRun4_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9-C896_MG_720t_perfRun1_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9-C896_MG_720t_perfRun2_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9-C896_MG_720t_perfRun3_ex1a_cce_production-32bit",
