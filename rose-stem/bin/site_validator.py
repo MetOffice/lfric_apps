@@ -52,13 +52,10 @@ def generate_validate_command(source, site, group):
 
     command = (
         "cylc validate --debug --check-circular "
-        f"-S RUN_NAMES=['{group}'] "
+        f"-z g={group} "
         f"-S SITE='{site}' "
-        f"-S HOST_SOURCE_LFRIC_APPS='{source}/apps' "
-        f"-S SOURCE_LFRIC_APPS='{source}/apps' "
-        f"-S SOURCE_LFRIC_APPS_REV=1 "
         f"{fncas}"
-        f"{source}/apps/rose-stem"
+        f"{source}/lfric_apps/rose-stem"
     )
 
     return command

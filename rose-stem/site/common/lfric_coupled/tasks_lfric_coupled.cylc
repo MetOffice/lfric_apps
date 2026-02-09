@@ -29,7 +29,7 @@
 {% endif %}
 
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/applications/lfric_coupled"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/lfric_coupled"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "lfric_coupled"}) %}
     {% endif %}

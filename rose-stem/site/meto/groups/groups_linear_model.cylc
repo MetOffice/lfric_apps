@@ -31,7 +31,6 @@
 {# EX1A Groups #}
 {% do site_groups.update({
     "linear_model_ex1a_developer": [
-        "linear_model_nwp_gal9-C224_MG_ex1a_gnu_fast-debug-64bit",
         "linear_model_nwp_gal9-C12_MG_ex1a_gnu_fast-debug-64bit",
         "linear_model_nwp_gal9_random-C12_MG_ex1a_gnu_fast-debug-64bit",
         "linear_model_nwp_gal9_zero-C12_MG_ex1a_gnu_fast-debug-64bit",
@@ -48,6 +47,9 @@
     ],
     "linear_model_ex1a_canned": [
         "linear_model_canned_ex1a_gnu_fast-debug-64bit",
+    ],
+    "linear_model_ex1a_weekly": [
+        "linear_model_nwp_gal9-C224_MG_ex1a_gnu_fast-debug-64bit",
     ],
     }) %}
 
@@ -70,6 +72,9 @@
     "linear_model_canned": [
         "linear_model_azspice_canned",
         "linear_model_ex1a_canned",
+    ],
+    "linear_model_weekly": [
+        "linear_model_ex1a_weekly",
     ],
     }) %}
 

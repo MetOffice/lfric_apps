@@ -27,7 +27,7 @@
 
 {# Set default values for linear tasks #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/science/linear"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/science/linear"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "linear"}) %}
     {% endif %}

@@ -19,15 +19,23 @@
 
     [[{{task}}]]
         inherit = EXPORT-SOURCE, {{SITE|upper}}_ORIG, CONTROL_TASK_RETRIES
-        script  = "rose task-run --app-key=export_source"
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
-    {% if lfric_core_source.startswith("fcm:") %}
-            SOURCE_LFRIC_CORE = {{lfric_core_source}}
-    {% else %}
-            SOURCE_LFRIC_CORE = {{lfric_core_source.split(":")[-1]}}
-    {% endif %}
-            SOURCE_LFRIC_APPS = {{SOURCE_LFRIC_APPS}}
+            ROSE_TASK_APP = extract_source
+            DEPENDENCIES = {{dependencies}}
+            USE_MIRRORS = {{USE_MIRRORS}}
+            USE_TOKENS = {{USE_TOKENS}}
+        {% if USE_MIRRORS %}
+            {% if "git_mirror_loc" in site_vars %}
+            GIT_MIRROR_LOC = {{site_vars.git_mirror_loc}}
+            {% else %}
+                {{ raise(
+                    "Trying to run with mirrors without setting a mirror location. "
+                    "Ensure 'git_mirror_loc' is included in site_vars."
+                    ) }}
+            {% endif %}
+        {% endif %}
+
 
 {% elif task.startswith("export-source") %}
 {# 2nd export-source task specific to each platform #}
@@ -51,7 +59,6 @@
                   """
         [[[environment]]]
             SOURCE_DIRECTORY = $SOURCE_ROOT
-            SOURCE_LFRIC = {{lfric_core_source}}
 
 {% elif task.startswith("export-weights") %}
 {# Task to rsync generated weights files from platform where they are generated #}

@@ -105,7 +105,7 @@ def get_kgo_dirs(job, flow_file):
             if in_job_section:
                 if line.startswith("CURRENT_KGO"):
                     current = line.split("=")[-1].strip()
-                    current = current.removeprefix("$SOURCE_ROOT/apps")
+                    current = current.removeprefix("$SOURCE_ROOT/lfric_apps")
                 elif line.startswith("NEW_KGO"):
                     new = line.split("=")[-1].strip()
                     new = new.removeprefix("$OUTPUT_ROOT")

@@ -1,6 +1,0 @@
-# Local Ignore List -- svn propset svn:ignore -F .local_ignores ./Directory/to/Apply
-bin
-working
-documentation
-lsp
-test

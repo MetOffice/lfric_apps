@@ -266,7 +266,7 @@
 
 {# Set default values for Transport tasks #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/applications/transport"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/transport"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "transport"}) %}
     {% endif %}

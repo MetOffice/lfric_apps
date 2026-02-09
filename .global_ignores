@@ -1,6 +1,0 @@
-# Global Ignore List -- svn propset svn:global-ignores -F .global_ignores .
-__pycache__
-.vscode
-.idea
-*.pyc
-.pytest_cache

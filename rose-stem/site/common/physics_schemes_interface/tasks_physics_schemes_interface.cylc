@@ -21,7 +21,7 @@
 
 {# Set default values for physics_schemes_interface tasks #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/interfaces/physics_schemes_interface"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/interfaces/physics_schemes_interface"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "physics_schemes_interface"}) %}
     {% endif %}

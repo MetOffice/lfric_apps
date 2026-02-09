@@ -37,6 +37,8 @@
 {% do site_vars.update({"scripts_platform": "azspice"}) %}
 {% do site_vars.update({"coupled_fcm_make_platform": "azspice"}) %}
 
+{% do site_vars.update({"git_mirror_loc": "/data/users/gitassist/git_mirrors"}) %}
+
 {% do site_vars.update({"mesh_build": {"ex1a": "gnu_fast-debug-64bit",
                                        "azspice": "gnu_fast-debug-64bit"} }) %}
 
@@ -47,14 +49,6 @@
     {% do site_vars.update({"host_ex": "exab"}) %}
 {% elif USE_EXCD is defined and USE_EXCD %}
     {% do site_vars.update({"host_ex": "excd"}) %}
-{% elif USE_EXA is defined and USE_EXA %}
-    {% do site_vars.update({"host_ex": "exa"}) %}
-{% elif USE_EXB is defined and USE_EXB %}
-    {% do site_vars.update({"host_ex": "exb"}) %}
-{% elif USE_EXC is defined and USE_EXC %}
-    {% do site_vars.update({"host_ex": "exc"}) %}
-{% elif USE_EXD is defined and USE_EXD %}
-    {% do site_vars.update({"host_ex": "exd"}) %}
 {% else %}
     {# randomly choose either ab or cd #}
     {% from "random" import randint %}

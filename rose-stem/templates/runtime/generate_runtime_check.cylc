@@ -23,7 +23,7 @@
     {# current is in rose-stem/site/SITE/kgos, #}
     {# new is in the task output dir #}
     {# Can overwrite this per task, eg for nrun_vs_crun comparisons #}
-    {% set current_kgo = "$SOURCE_ROOT/apps/rose-stem/site/"~
+    {% set current_kgo = "$SOURCE_ROOT/lfric_apps/rose-stem/site/"~
                           SITE~"/kgos/"~
                           task_ns.application~"/"~
                           task_ns.platform~

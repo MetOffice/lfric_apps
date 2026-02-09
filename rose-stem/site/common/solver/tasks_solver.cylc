@@ -65,7 +65,7 @@
 
 {# Set default values for Solver tasks #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "apps/applications/solver"}) %}
+    {% do task_dict.update({"application_dir": "lfric_apps/applications/solver"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "solver"}) %}
     {% endif %}

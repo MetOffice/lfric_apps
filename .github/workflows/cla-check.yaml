@@ -1,0 +1,10 @@
+name: Legal
+
+on:
+  pull_request_target:
+
+jobs:
+  cla:
+    uses: MetOffice/growss/.github/workflows/cla-check.yaml@main
+    with:
+      runner: 'ubuntu-24.04'

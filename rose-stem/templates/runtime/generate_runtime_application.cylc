@@ -40,6 +40,10 @@
     {% set script_str.name = script_str.name~" --opt-conf-key=suite_controlled" %}
 {% endif %}
 
+{% if task_ns.application == "lfric_coupled" %}
+    {% set script_str.name = script_str.name~" --path=$CYLC_WORKFLOW_SHARE_DIR/fcm_make_drivers/extract/drivers/Coupled_Drivers" %}
+{% endif %}
+
 {# The PANEL_DECOMP variable expects it to be quoted #}
 {% set panel_decomp = "'"~task_values["panel_decomp"]~"'" %}
 
@@ -93,10 +97,10 @@
         execution time limit = PT{{task_values["wallclock"]}}M
         [[[environment]]]
             DESTINATION_DIRECTORY   = {{destination_dir}}
-            APPS_ROOT_DIR           = $SOURCE_ROOT/apps
-            CORE_ROOT_DIR           = $SOURCE_ROOT/core
+            APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
+            CORE_ROOT_DIR           = $SOURCE_ROOT/lfric_core
             SOURCE_DIRECTORY        = $SOURCE_ROOT/{{task_values["application_dir"]}}
-            METADATA                = $SOURCE_ROOT/apps/applications/lfric_atm/metadata
+            METADATA                = $SOURCE_ROOT/lfric_apps/applications/lfric_atm/metadata
             BIN_DIR                 = {{bin_dir}}
             LIB_DIR                 = {{lib_dir}}
             MOD_DIR                 = {{mod_dir}}

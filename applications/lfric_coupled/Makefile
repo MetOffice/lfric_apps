@@ -102,7 +102,7 @@ document-api: api-documentation
 build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: export CXX_LINK     = TRUE
 build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
-build: export SCRATCH_DIR := $(WORKING_DIR)/../um-scratch
+build: export SCRATCH_DIR := $(WORKING_DIR)/../physics_scratch
 build: export PROJECT      = $(PROJECT_NAME)
 build: export WORKING_DIR := $(WORKING_DIR)/$(PROJECT_NAME)
 
@@ -139,7 +139,6 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_physics.mk
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=source
 	$(call MESSAGE,=========================================================)
