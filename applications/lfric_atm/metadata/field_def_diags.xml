@@ -583,6 +583,7 @@
   <field id="surface__disp" name="urbdisp" long_name="Urban displacement height" unit="m" domain_ref="face" />
   <field id="surface__albwl" name="urbalbwl" long_name="Urban wall abedo" unit="1" domain_ref="face" />
   <field id="surface__albrd" name="urbalbrd" long_name="Urban road abedo" unit="1" domain_ref="face" />
+  <field id="surface__inland_basin_flow" name="inland_basin_flow" long_name="Inland basin flow" unit="kg m-2 s-1" domain_ref="face" />
   <!-- GBM surface diagnostics derived from BL turbulence diagnostics -->
   <!-- First line extracts level 1, second line removes vertical coordinate, cannot do as one -->
   <field id="zoomed__sh" field_ref="turbulence__heat_flux_bl" grid_ref="half_level_1_face_zoom" />

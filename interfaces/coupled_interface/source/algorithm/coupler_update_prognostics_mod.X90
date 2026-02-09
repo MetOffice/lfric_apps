@@ -154,6 +154,13 @@ module coupler_update_prognostics_mod
                                'Ocean surface v from coupler', fld )
         call depository%get_field('sea_v_current', fld_ptr1)
         call invoke(setval_x(fld_ptr1, fld))
+      case ("lf_inland_flow")
+         call log_field_minmax( LOG_LEVEL_DEBUG, &
+                                'Inland basin flow from coupler', fld)
+         call depository%get_field('inland_basin_flow', fld_ptr1)
+         call invoke(setval_X( fld_ptr1, fld ))
+         fld_ptr1 => null()
+
       case default
         write(log_scratch_space, '(3A)' )                                     &
                               "PROBLEM coupler_update_prognostics variable ", &

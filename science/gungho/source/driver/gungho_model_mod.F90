@@ -759,9 +759,9 @@ contains
 
        ! Set up collections to hold 2d coupling fields
        call modeldb%fields%add_empty_field_collection("cpl_snd_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
        call modeldb%fields%add_empty_field_collection("cpl_rcv_2d" , &
-                                                 table_len = 30)
+                                                 table_len = 1)
 
        cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
        cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")

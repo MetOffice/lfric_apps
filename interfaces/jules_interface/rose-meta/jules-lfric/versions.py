@@ -17,6 +17,16 @@ class UpgradeError(Exception):
 
     __str__ = __repr__
 
+class vn21_t148(MacroUpgrade):
+    # Upgrade macro for #148 by Dan Copsey
+
+    BEFORE_TAG = "vn2.1"
+    AFTER_TAG = "vn2.1_t148"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        self.add_setting(config, ["namelist:jules_hydrology", "l_inland"], ".false.")
+        return config, self.reports
 
 """
 Copy this template and complete to add your macro

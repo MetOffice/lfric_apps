@@ -91,6 +91,7 @@ contains
     type( field_type ), pointer :: snowice_melt           => null()
     type( field_type ), pointer :: snowice_sublimation    => null()
     type( field_type ), pointer :: urbztm                 => null()
+    type( field_type ), pointer :: inland_basin_flow      => null()
 
     ! Sea ice fields
     type( field_type ), pointer :: sea_ice_thickness      => null()
@@ -170,6 +171,7 @@ contains
     call surface_fields%get_field('snowice_melt', snowice_melt)
     call surface_fields%get_field('snowice_sublimation', snowice_sublimation)
     call surface_fields%get_field('urbztm', urbztm)
+    call surface_fields%get_field('inland_basin_flow', inland_basin_flow)
 
     ! Sea ice fields
     call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
@@ -246,6 +248,7 @@ contains
                            mean_topog_index, a_sat_frac, c_sat_frac,           &
                            a_wet_frac, c_wet_frac, tile_temperature,           &
                            net_prim_prod, snowice_sublimation, surf_heat_flux, &
+                           inland_basin_flow,                                  &
                            canopy_evap, water_extraction,                      &
                            thermal_cond_wet_soil, urbztm,                      &
                            soil_temperature, soil_moisture,                    &
@@ -296,6 +299,9 @@ contains
                                     sea_ice_temperature, sea_ice_conductivity, &
                                     sea_ice_pensolar, melt_pond_fraction,      &
                                     melt_pond_depth)
+
+      ! Output extra coupling diagnostics
+      call inland_basin_flow%write_field('surface__inland_basin_flow')
 
     end if
 

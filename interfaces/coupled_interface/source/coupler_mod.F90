@@ -296,6 +296,10 @@ module coupler_mod
     call add_cpl_field(depository, prognostic_fields, &
          'lf_svnocean', vector_space, checkpoint_restart_flag)
 
+   ! From TRIP river model
+   call add_cpl_field(depository, prognostic_fields, &
+        'lf_inland_flow', vector_space, checkpoint_restart_flag)
+
   end subroutine create_coupling_fields
 
 

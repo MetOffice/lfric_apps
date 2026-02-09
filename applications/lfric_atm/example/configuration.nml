@@ -334,6 +334,7 @@ write_minmax_tseries=.false.,
 &jules_hydrology
 l_var_rainfrac=.true.,
 l_hydrology=.true.,
+l_inland=.false.,
 /
 &jules_nvegparm
 albsnc_nvg_io=0.4,0.8,0.8,0.8,
