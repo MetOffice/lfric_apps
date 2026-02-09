@@ -123,7 +123,7 @@ contains
 
     ! A pointer used for retrieving fields from collections
     ! when iterating over them
-    class(field_parent_type),   pointer :: field_ptr => null()
+    class(field_parent_type),   pointer :: field_ptr
     procedure(write_interface), pointer :: tmp_write_ptr
     type(io_value_type),        pointer :: temp_corr_io_value
 
@@ -284,7 +284,7 @@ contains
 
     ! Derived physics fields (only those on W3 or Wtheta)
     if (use_physics .and. use_xios_io .and. .not. modeldb%clock%is_initialisation()) then
-
+      field_ptr => null()
       call iterator%initialise(derived_fields)
       do
         if ( .not.iterator%has_next() ) exit
