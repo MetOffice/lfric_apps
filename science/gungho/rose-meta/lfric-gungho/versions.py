@@ -142,7 +142,7 @@ class vn30_t171(MacroUpgrade):
 class vn30_t214(MacroUpgrade):
     """Upgrade macro for ticket #214 by mark Hedley."""
 
-    BEFORE_TAG = "vn3.0_t146"
+    BEFORE_TAG = "vn3.0_t171"
     AFTER_TAG = "vn3.0_t214"
 
     def upgrade(self, config, meta_config=None):
