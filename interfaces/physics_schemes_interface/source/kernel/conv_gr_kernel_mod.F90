@@ -11,10 +11,11 @@ module conv_gr_kernel_mod
                                       GH_FIELD, GH_SCALAR,       &
                                       GH_INTEGER, GH_REAL,       &
                                       GH_READ, GH_WRITE,         &
-                                      GH_READWRITE, CELL_COLUMN, &
+                                      GH_READWRITE, DOMAIN,      &
                                       ANY_DISCONTINUOUS_SPACE_1, &
                                       ANY_DISCONTINUOUS_SPACE_2
   use constants_mod,           only : i_def, i_um, r_def, r_um
+  use tuning_segments_mod,     only : conv_gr_segment_size
   use empty_data_mod,          only : empty_real_data
   use fs_continuity_mod,       only : W3, Wtheta
   use kernel_mod,              only : kernel_type
@@ -95,7 +96,7 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! o3p
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! o1d
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! o3
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! n
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! nit
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! no
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! no3
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA ),                  & ! lumped_n
@@ -245,7 +246,7 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     WTHETA),                   &! dth_conv_noshal
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     WTHETA)                    &! dmv_conv_noshal
         /)
-    integer :: operates_on = CELL_COLUMN
+    integer :: operates_on = DOMAIN
   contains
     procedure, nopass :: conv_gr_code
   end type
@@ -259,6 +260,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP27
   !> @param[in]     nlayers              Number of layers
+  !> @param[in]     ncells               Number of cells
   !> @param[in]     outer                Outer loop counter
   !> @param[in]     rho_in_w3            Density field in density space
   !> @param[in]     rho_in_wth           Density field in wth space
@@ -320,7 +322,7 @@ contains
   !> @param[in,out] o3p                  oxygen_ground_state m.m.r
   !> @param[in,out] o1d                  oxygen_excited_state m.m.r
   !> @param[in,out] o3                   ozone m.m.r
-  !> @param[in,out] n                    nitrogen_radical m.m.r
+  !> @param[in,out] nit                  nitrogen_radical m.m.r
   !> @param[in,out] no                   nitric_oxide m.m.r
   !> @param[in,out] no3                  nitrate_radical m.m.r
   !> @param[in,out] lumped_n             lumped_n_as_nitrogen_dioxide m.m.r
@@ -482,6 +484,7 @@ contains
   !> @param[in]     undf_tile            Number of total DOFs for tiles
   !> @param[in]     map_tile             Dofmap for cell for surface tiles
   subroutine conv_gr_code(nlayers,                           &
+                          ncells,                            &
                           outer,                             &
                           rho_in_w3,                         &
                           rho_in_wth,                        &
@@ -543,7 +546,7 @@ contains
                           o3p,                               &
                           o1d,                               &
                           o3,                                &
-                          n,                                 &
+                          nit,                               &
                           no,                                &
                           no3,                               &
                           lumped_n,                          &
@@ -844,7 +847,7 @@ contains
     use cv_param_mod, only: max_mf_fall, dthetadt_conv_active_threshold, &
                             conv_prog_precip_min_threshold
     use jules_surface_mod, only: srf_ex_cnv_gust, IP_SrfExWithCnv
-    use nlsizes_namelist_mod, only: row_length, rows, bl_levels, n_cca_lev
+    use nlsizes_namelist_mod, only: bl_levels, n_cca_lev
     use pc2_constants_mod, only: i_cld_pc2
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g
     use scm_convss_dg_mod, only: scm_convss_dg_type
@@ -860,18 +863,18 @@ contains
     implicit none
 
     ! Arguments
-    integer(kind=i_def), intent(in) :: nlayers
+    integer(kind=i_def), intent(in) :: nlayers, ncells
     integer(kind=i_def), intent(in) :: outer
 
     integer(kind=i_def), intent(in) :: ndf_wth, ndf_w3
     integer(kind=i_def), intent(in) :: ndf_2d, undf_2d
     integer(kind=i_def), intent(in) :: undf_wth, undf_w3
-    integer(kind=i_def), intent(in) :: map_wth(ndf_wth)
-    integer(kind=i_def), intent(in) :: map_w3(ndf_w3)
-    integer(kind=i_def), intent(in) :: map_2d(ndf_2d)
+    integer(kind=i_def), intent(in) :: map_wth(ndf_wth, ncells)
+    integer(kind=i_def), intent(in) :: map_w3(ndf_w3, ncells)
+    integer(kind=i_def), intent(in) :: map_2d(ndf_2d, ncells)
 
     integer(kind=i_def), intent(in) :: ndf_tile, undf_tile
-    integer(kind=i_def), intent(in) :: map_tile(ndf_tile)
+    integer(kind=i_def), intent(in) :: map_tile(ndf_tile, ncells)
 
     real(kind=r_def), dimension(undf_w3), intent(in) :: rho_in_w3,          &
                                                         wetrho_in_w3,       &
@@ -920,7 +923,7 @@ contains
     real(kind=r_def), intent(in out), dimension(undf_wth) :: o3p
     real(kind=r_def), intent(in out), dimension(undf_wth) :: o1d
     real(kind=r_def), intent(in out), dimension(undf_wth) :: o3
-    real(kind=r_def), intent(in out), dimension(undf_wth) :: n
+    real(kind=r_def), intent(in out), dimension(undf_wth) :: nit
     real(kind=r_def), intent(in out), dimension(undf_wth) :: no
     real(kind=r_def), intent(in out), dimension(undf_wth) :: no3
     real(kind=r_def), intent(in out), dimension(undf_wth) :: lumped_n
@@ -1081,12 +1084,12 @@ contains
     ! Local variables for the kernel
     !-----------------------------------------------------------------------
     ! loop counters etc
-    integer(i_def) :: k, i
+    integer(i_def) :: k, i, n, ii, j
 
     ! local switches and scalars
     integer(i_um) :: n_deep, n_shallow, n_congestus, n_mid,                  &
-                     ntra_lev, segments, n_conv_levels,                      &
-                     call_number, ntra_fld, seg_num
+                     ntra_lev, nml_segment_size, seg_size, n_conv_levels,    &
+                     call_number, ntra_fld, seg_num, num_seg
 
     logical :: l_tracer, l_calc_dxek, l_q_interact, l_scm_convss_dg
 
@@ -1094,7 +1097,7 @@ contains
                   decay_amount, conv_active, theta_inc_threshold
 
     ! profile fields from level 1 upwards
-    real(r_um), dimension(row_length,rows,nlayers) ::                        &
+    real(r_um), dimension(ncells,1,nlayers) ::                               &
          p_rho_levels, rho_wet, rho_dry, z_rho, z_theta, cca_3d, rho_wet_tq, &
          rho_dry_theta, exner_rho_levels, r_rho_levels,                      &
          theta_conv, q_conv, qcl_conv, qcf_conv,                             &
@@ -1114,12 +1117,12 @@ contains
          it_dt_dd, it_dq_dd, tnuc_new
 
     ! profile fields from level 0 upwards
-    real(r_um), dimension(row_length,rows,0:nlayers) ::                      &
+    real(r_um), dimension(ncells,1,0:nlayers) ::                             &
          p_theta_levels, p_rho_minus_one, w, r_theta_levels,                 &
          exner_rho_minus_one, exner_theta_levels
 
     ! single level real fields
-    real(r_um), dimension(row_length,rows) ::                                &
+    real(r_um), dimension(ncells,1) ::                                       &
          p_star, zhpar, zh, wstar, wthvs, zlcl_uv, entrain_coef,             &
          qsat_lcl, delthvu, flandg, uw0, vw0, it_lcca, it_cca_2d, it_cclwp,  &
          it_cclwp0, it_conv_rain, it_conv_snow, it_precip_dp, it_precip_sh,  &
@@ -1129,12 +1132,12 @@ contains
          delta_smag, tnuc_nlcl_um
 
     ! single level integer fields
-    integer(i_um), dimension(row_length,rows) :: ntml, ntpar, lcbase,        &
+    integer(i_um), dimension(ncells,1) :: ntml, ntpar, lcbase,               &
          it_lcbase,it_lctop, it_ccb, it_cct, it_ccb0, it_cct0, it_kterm_deep,&
          it_kterm_shall, it_cg_term, it_lcbase0, freeze_lev, ccb, cct, lctop
 
     ! single level logical fields
-    logical, dimension(row_length,rows) :: land_sea_mask, cumulus,           &
+    logical, dimension(ncells,1) :: land_sea_mask, cumulus,                  &
                                            l_shallow, l_congestus,           &
                                            it_mid_level, l_mid
 
@@ -1153,122 +1156,28 @@ contains
     ! if they become set, please move up to be with other variables
     type(scm_convss_dg_type), allocatable :: scm_convss_dg(:)
 
-    real(r_um), dimension(row_length,rows,nlayers) ::                        &
+    real(r_um), dimension(ncells,1,nlayers) ::                               &
          it_mf_congest, it_dt_congest, it_dq_congest, it_du_congest,         &
          it_dv_congest, it_du_dd, it_dv_dd, it_area_ud, it_area_dd,          &
          it_uw_dp, it_vw_dp, it_uw_shall, it_vw_shall,                       &
          it_uw_mid, it_vw_mid, it_wqt_flux, it_wthetal_flux, it_wthetav_flux,&
          it_wql_flux, conv_prog_flx
 
-    real(r_um), dimension(row_length,rows,bl_levels) :: fqw, ftl
+    real(r_um), dimension(ncells,1) :: fqw, ftl
 
-    real(r_um), dimension(row_length,rows,nlayers) :: conv_prog_precip_conv
+    real(r_um), dimension(ncells,1,nlayers) :: conv_prog_precip_conv
 
-    real(r_um), dimension(row_length,rows) :: zlcl, t1_sd, q1_sd, w_max,     &
+    real(r_um), dimension(ncells,1) :: zlcl, t1_sd, q1_sd, w_max,            &
          deep_flag, past_conv_ht, ql_ad, ind_cape_reduced,                   &
          it_wstar_dn, g_ccp, h_ccp, ccp_strength
 
-    integer(i_um), dimension(row_length,rows) :: conv_type
+    integer(i_um), dimension(ncells,1) :: conv_type
 
     ! Water tracer fields which are not currently used but are required by
     ! UM routine
-    real(r_um), dimension(1,1,1) :: q_wtrac, qcl_wtrac, qcf_wtrac,           &
-          dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac
-    real(r_um), dimension(1,1) :: rain_wtrac, snow_wtrac
-
-    !-----------------------------------------------------------------------
-    ! Mapping of LFRic fields into UM variables
-    !-----------------------------------------------------------------------
-    ! Land sea mask
-    flandg = 0.0_r_um
-    do i = 1, n_land_tile
-      flandg = flandg + real(tile_fraction(map_tile(1)+i-1), r_um)
-    end do
-
-    ! Jules requires fractions with respect to the land area
-    if (flandg(1, 1) > 0.0_r_um) then
-      land_sea_mask = .true.
-    else
-      land_sea_mask = .false.
-    end if
-
-    !-----------------------------------------------------------------------
-    ! For the initial implementation we pass each individual column
-    ! of data to an array sized (1,1,k) to match the UMs (i,j,k) data
-    ! layout.
-    ! assuming map_wth(1) points to level 0
-    ! and map_w3(1) points to level 1
-    !-----------------------------------------------------------------------
-    do k = 0, nlayers
-      ! pressure on theta levels
-      p_theta_levels(1,1,k) = p_zero*(exner_in_wth(map_wth(1) + k))**(1.0_r_def/kappa)
-      ! exner pressure on theta levels
-      exner_theta_levels(1,1,k) = exner_in_wth(map_wth(1) + k)
-      ! height of theta levels from centre of planet
-      r_theta_levels(1,1,k) = height_wth(map_wth(1) + k) + planet_radius
-      ! w wind on theta levels
-      w(1,1,k) = w_in_wth(map_wth(1) + k)
-    end do
-    do k = 1, nlayers
-      ! wet density on theta and rho levels
-      rho_wet_tq(1,1,k) = wetrho_in_wth(map_wth(1) + k)
-      rho_wet(1,1,k) = wetrho_in_w3(map_w3(1) + k-1)
-      ! dry density on theta and rho levels
-      rho_dry_theta(1,1,k) = rho_in_wth(map_wth(1) + k)
-      rho_dry(1,1,k) = rho_in_w3(map_w3(1) + k-1)
-      ! pressure on rho levels
-      p_rho_levels(1,1,k) = p_zero*(exner_in_w3(map_w3(1) + k-1))**(1.0_r_def/kappa)
-      ! exner pressure on rho levels
-      exner_rho_levels(1,1,k) = exner_in_w3(map_w3(1) + k-1)
-      ! height of rho levels from centre of planet
-      r_rho_levels(1,1,k) = height_w3(map_w3(1) + k-1) + planet_radius
-    end do
-
-    if ( smagorinsky ) then
-      delta_smag(1,1) = delta(map_wth(1))
-    end if
-
-    ! surface pressure
-    p_star(1,1) = p_theta_levels(1,1,0)
-    ! setup odd array which is on rho levels but without level 1
-    p_rho_minus_one(1,1,0) = p_theta_levels(1,1,0)
-    do k = 1, nlayers-1
-      p_rho_minus_one(1,1,k) = p_rho_levels(1,1,k+1)
-    end do
-    p_rho_minus_one(1,1,nlayers) = 0.0_r_um
-    ! and similar array for exner
-    exner_rho_minus_one(1,1,0)   = exner_theta_levels(1,1,0)
-    do k = 1, nlayers-1
-      exner_rho_minus_one(1,1,k) = exner_rho_levels(1,1,k+1)
-    end do
-    exner_rho_minus_one(1,1,nlayers) = 0.0_r_um
-    ! height of levels above surface
-    do k = 1, nlayers
-      z_rho(1,1,k) = r_rho_levels(1,1,k)-r_theta_levels(1,1,0)
-      z_theta(1,1,k) = r_theta_levels(1,1,k)-r_theta_levels(1,1,0)
-    end do
-
-    !-----------------------------------------------------------------------
-    ! Things passed from other parametrization schemes on this timestep
-    !-----------------------------------------------------------------------
-    cumulus(1,1) = (cumulus_2d(map_2d(1)) == 1_i_def)
-    ntml(1,1) = ntml_2d(map_2d(1))
-
-    zh(1,1) = zh_2d(map_2d(1))
-    l_shallow(1,1) = (shallow_flag(map_2d(1)) == 1_i_def)
-    uw0(1,1) = uw0_flux(map_2d(1))
-    vw0(1,1) = vw0_flux(map_2d(1))
-    zlcl_uv(1,1) = lcl_height(map_2d(1))
-    zhpar(1,1) = parcel_top(map_2d(1))
-    ntpar(1,1) = level_parcel_top(map_2d(1))
-    wstar(1,1) = wstar_2d(map_2d(1))
-    wthvs(1,1) = thv_flux(map_2d(1))
-    delthvu(1,1) = parcel_buoyancy(map_2d(1))
-    qsat_lcl(1,1) = qsat_at_lcl(map_2d(1))
-
-    !========================================================================
-    ! Call to 6A Gregory-Rowntree convection scheme
-    !========================================================================
+    real(r_um), dimension(ncells,nlayers,n_wtrac) :: q_wtrac, qcl_wtrac,     &
+          qcf_wtrac, dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac
+    real(r_um), dimension(ncells,n_wtrac) :: rain_wtrac, snow_wtrac
 
     ! Current assumptions about setup based on GA9
 
@@ -1287,15 +1196,133 @@ contains
       l_tracer = .false.
     end if
 
+    if ( outer == outer_iterations .AND. l_tracer ) then
+
+      ntra_fld = size(ukca_tracer_names)
+      ntra_lev = nlayers
+      allocate(tot_tracer( ncells, 1, ntra_lev, ntra_fld ))
+
+    else
+
+      ! No tracers: set up a dummy tracer array
+      ntra_fld = 1
+      ntra_lev = 1
+      allocate(tot_tracer( ncells, 1, ntra_lev, ntra_fld ))
+
+    end if  ! outer == outer_iterations .AND. l_tracer
+
+    !-----------------------------------------------------------------------
+    ! Mapping of LFRic fields into UM variables
+    !-----------------------------------------------------------------------
+
+    ! Land sea mask
+    do i = 1, ncells
+      flandg(i,1) = 0.0_r_um
+      do n = 1, n_land_tile
+        flandg(i,1) = flandg(i,1) + real(tile_fraction(map_tile(1,i)+n-1), r_um)
+      end do
+    end do
+    do i = 1, ncells
+      ! Jules requires fractions with respect to the land area
+      if (flandg(i,1) > 0.0_r_um) then
+        land_sea_mask(i,1) = .true.
+      else
+        land_sea_mask(i,1) = .false.
+      end if
+    end do
+
+    !-----------------------------------------------------------------------
+    ! Build vectors of columns in the horizontal by copying data to
+    ! arrays sized (i,1,k) to match the UMs (i,j,k) data layout.
+    ! Assuming map_wth(1,i) points to level 0
+    ! and map_w3(1,i) points to level 1
+    !-----------------------------------------------------------------------
+    do k = 0, nlayers
+      do i = 1, ncells
+        ! pressure on theta levels
+        p_theta_levels(i,1,k) = p_zero*(exner_in_wth(map_wth(1,i) + k))**(1.0_r_def/kappa)
+        ! exner pressure on theta levels
+        exner_theta_levels(i,1,k) = exner_in_wth(map_wth(1,i) + k)
+        ! height of theta levels from centre of planet
+        r_theta_levels(i,1,k) = height_wth(map_wth(1,i) + k) + planet_radius
+        ! w wind on theta levels
+        w(i,1,k) = w_in_wth(map_wth(1,i) + k)
+      end do
+    end do
+    do k = 1, nlayers
+      do i = 1, ncells
+        ! wet density on theta and rho levels
+        rho_wet_tq(i,1,k) = wetrho_in_wth(map_wth(1,i) + k)
+        rho_wet(i,1,k) = wetrho_in_w3(map_w3(1,i) + k-1)
+        ! dry density on theta and rho levels
+        rho_dry_theta(i,1,k) = rho_in_wth(map_wth(1,i) + k)
+        rho_dry(i,1,k) = rho_in_w3(map_w3(1,i) + k-1)
+        ! pressure on rho levels
+        p_rho_levels(i,1,k) = p_zero*(exner_in_w3(map_w3(1,i) + k-1))**(1.0_r_def/kappa)
+        ! exner pressure on rho levels
+        exner_rho_levels(i,1,k) = exner_in_w3(map_w3(1,i) + k-1)
+        ! height of rho levels from centre of planet
+        r_rho_levels(i,1,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
+      end do
+    end do
+
+    if ( smagorinsky ) then
+      do i = 1, ncells
+        delta_smag(i,1) = delta(map_wth(1,i))
+      end do
+    end if
+
+    do i = 1, ncells
+      ! surface pressure
+      p_star(i,1) = p_theta_levels(i,1,0)
+      ! setup odd array which is on rho levels but without level 1
+      p_rho_minus_one(i,1,0) = p_theta_levels(i,1,0)
+      do k = 1, nlayers-1
+        p_rho_minus_one(i,1,k) = p_rho_levels(i,1,k+1)
+      end do
+      p_rho_minus_one(i,1,nlayers) = 0.0_r_um
+      ! and similar array for exner
+      exner_rho_minus_one(i,1,0)   = exner_theta_levels(i,1,0)
+      do k = 1, nlayers-1
+        exner_rho_minus_one(i,1,k) = exner_rho_levels(i,1,k+1)
+      end do
+      exner_rho_minus_one(i,1,nlayers) = 0.0_r_um
+      ! height of levels above surface
+      do k = 1, nlayers
+        z_rho(i,1,k) = r_rho_levels(i,1,k)-r_theta_levels(i,1,0)
+        z_theta(i,1,k) = r_theta_levels(i,1,k)-r_theta_levels(i,1,0)
+      end do
+    end do
+
+    !-----------------------------------------------------------------------
+    ! Things passed from other parametrization schemes on this timestep
+    !----------------------------------------------------------------------
+    do i = 1, ncells
+      cumulus(i,1) = (cumulus_2d(map_2d(1,i)) == 1_i_def)
+      ntml(i,1) = ntml_2d(map_2d(1,i))
+  
+      zh(i,1) = zh_2d(map_2d(1,i))
+      l_shallow(i,1) = (shallow_flag(map_2d(1,i)) == 1_i_def)
+      uw0(i,1) = uw0_flux(map_2d(1,i))
+      vw0(i,1) = vw0_flux(map_2d(1,i))
+      zlcl_uv(i,1) = lcl_height(map_2d(1,i))
+      zhpar(i,1) = parcel_top(map_2d(1,i))
+      ntpar(i,1) = level_parcel_top(map_2d(1,i))
+      wstar(i,1) = wstar_2d(map_2d(1,i))
+      wthvs(i,1) = thv_flux(map_2d(1,i))
+      delthvu(i,1) = parcel_buoyancy(map_2d(1,i))
+      qsat_lcl(i,1) = qsat_at_lcl(map_2d(1,i))
+    end do
+
+    !========================================================================
+    ! Call to 6A Gregory-Rowntree convection scheme
+    !========================================================================
+
+
     l_calc_dxek  = ( i_cld_vn == i_cld_pc2 )
     l_q_interact = l_calc_dxek
     l_congestus = .false. ! never used in GA9
     entrain_coef = -99.0_r_um  ! unused default value
-
-    segments = 1          ! i.e. one column
-    seg_num = map_wth(1)  ! Only used by debugging error message from UM
-                          ! This is probably most useful to indicate
-                          ! which column has a problem
 
     n_conv_levels = nlayers
     if (l_mom) then
@@ -1311,419 +1338,661 @@ contains
     ! Sub-timestep scheme
     one_over_conv_calls = 1.0_r_um/real(n_conv_calls)
 
-    l_mid(1,1) = .true.
+    do i = 1, ncells
+      l_mid(i,1) = .true.
+    end do
 
     do k=1,nlayers
-      ! Pointing to _star values
-      theta_conv(1,1,k) = theta_star(map_wth(1) + k)
-      q_conv(1,1,k)   = m_v(map_wth(1) + k)
-      qcl_conv(1,1,k) = m_cl(map_wth(1) + k)
-      qcf_conv(1,1,k) = m_cf(map_wth(1) + k)
-
-      cf_liquid_conv(1,1,k) = cf_liq(map_wth(1) + k)
-      cf_frozen_conv(1,1,k) = cf_ice(map_wth(1) + k)
-      bulk_cf_conv(1,1,k)   = cf_bulk(map_wth(1) + k)
-      ! Total theta increment
-      dtheta_conv(1,1,k) = 0.0_r_um
-      cca_3d(1,1,k) = 0.0_r_um
-      ccw_3d(1,1,k) = 0.0_r_um
+      do i = 1, ncells
+        ! Pointing to _star values
+        theta_conv(i,1,k) = theta_star(map_wth(1,i) + k)
+        q_conv(i,1,k)   = m_v(map_wth(1,i) + k)
+        qcl_conv(i,1,k) = m_cl(map_wth(1,i) + k)
+        qcf_conv(i,1,k) = m_cf(map_wth(1,i) + k)
+  
+        cf_liquid_conv(i,1,k) = cf_liq(map_wth(1,i) + k)
+        cf_frozen_conv(i,1,k) = cf_ice(map_wth(1,i) + k)
+        bulk_cf_conv(i,1,k)   = cf_bulk(map_wth(1,i) + k)
+        ! Total theta increment
+        dtheta_conv(i,1,k) = 0.0_r_um
+        cca_3d(i,1,k) = 0.0_r_um
+        ccw_3d(i,1,k) = 0.0_r_um
+      end do
     end do
     if (l_conv_prog_precip) then
       do k = 1, nlayers
-        conv_prog_precip_conv(1,1,k) = conv_prog_precip(map_wth(1) + k)
+        do i = 1, ncells
+          conv_prog_precip_conv(i,1,k) = conv_prog_precip(map_wth(1,i) + k)
+        end do
       end do
     end if
 
-    ccb(1,1) = 0_i_um
-    cct(1,1) = 0_i_um
-    lctop(1,1) = 0_i_um
-    lcbase(1,1) = 0_i_um
-    w_max(1,1) = 0.0_r_um
+    do i = 1, ncells
+      ccb(i,1) = 0_i_um
+      cct(i,1) = 0_i_um
+      lctop(i,1) = 0_i_um
+      lcbase(i,1) = 0_i_um
+      w_max(i,1) = 0.0_r_um
+    end do
 
     ! Turn water tracers off in convection and initialise dummy fields
     l_wtrac_conv = .FALSE.
 
+    do k = 1,n_wtrac
+      do j = 1,nlayers
+        do i = 1,ncells
+          q_wtrac(i,j,k) = 0.0_r_um
+          qcl_wtrac(i,j,k) = 0.0_r_um
+          qcf_wtrac(i,j,k) = 0.0_r_um
+          dqbydt_wtrac(i,j,k) = 0.0_r_um
+          dqclbydt_wtrac(i,j,k) = 0.0_r_um
+          dqcfbydt_wtrac(i,j,k) = 0.0_r_um
+        end do
+      end do
+    end do
+    do j = 1,n_wtrac
+      do i = 1,ncells
+        rain_wtrac(i,j) = 0.0_r_um
+        snow_wtrac(i,j) = 0.0_r_um
+      end do
+    end do
+
     ! Check for negative (less than a minimum) q being passed to convection
     if (l_safe_conv) then
       do k=1,nlayers
-        if (q_conv(1,1,k) < qmin_conv) then
-          ! Should really be warning print statements if this is happening
-          ! but log_event calls not allowed.
-          ! store q added to ensure sensible profile
-          dq_add(1,1,k) = qmin_conv - q_conv(1,1,k)
-          ! Reset to qmin in non-conservative way
-          q_conv(1,1,k) = qmin_conv
-        else
-          dq_add(1,1,k) = 0.0_r_um
-        end if
+        do i = 1, ncells
+          if (q_conv(i,1,k) < qmin_conv) then
+            ! Should really be warning print statements if this is happening
+            ! but log_event calls not allowed.
+            ! store q added to ensure sensible profile
+            dq_add(i,1,k) = qmin_conv - q_conv(i,1,k)
+            ! Reset to qmin in non-conservative way
+            q_conv(i,1,k) = qmin_conv
+          else
+            dq_add(i,1,k) = 0.0_r_um
+          end if
+        end do ! i
       end do ! k
     end if
     if (l_mom) then
       do k=1,nlayers
-        u_conv(1,1,k) = u_in_w3_star(map_w3(1) + k-1)
-        v_conv(1,1,k) = v_in_w3_star(map_w3(1) + k-1)
+        do i = 1, ncells
+          u_conv(i,1,k) = u_in_w3_star(map_w3(1,i) + k-1)
+          v_conv(i,1,k) = v_in_w3_star(map_w3(1,i) + k-1)
+        end do ! i
       end do ! k
     end if
 
     ! Map tracer fields to UM tracer array
 
     if ( outer == outer_iterations .AND. l_tracer ) then
-
-      ntra_fld = size(ukca_tracer_names)
-      ntra_lev = nlayers
-      allocate(tot_tracer( 1, 1, ntra_lev, ntra_fld ))
-
-      do i = 1, ntra_fld
-        select case(ukca_tracer_names(i))
+      do n = 1, ntra_fld
+        select case(ukca_tracer_names(n))
         case(fldname_o3p)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( o3p( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( o3p( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_o1d)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( o1d( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( o1d( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_o3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( o3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( nit( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_no)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( no( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( no( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_no3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( no3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( no3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_lumped_n)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( lumped_n( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( lumped_n( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n2o5)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n2o5( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n2o5( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ho2no2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ho2no2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ho2no2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hono2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_h2o2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( h2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( h2o2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ch4)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ch4( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ch4( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_co)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( co( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( co( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hcho)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hcho( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+            end do
         case(fldname_meoo)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( meoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( meoo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_meooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( meooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( meooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_h)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( h( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( h( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ch2o)
-          ! H2O tracer from chemistry is not transported
-          tot_tracer( 1, 1, :, i ) = 0.0_r_um
+          do i = 1, ncells
+            ! H2O tracer from chemistry ns not transported
+            tot_tracer( i, 1, :, n ) = 0.0_r_um
+          end do
         case(fldname_oh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( oh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( oh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ho2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ho2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ho2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cl)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cl2o2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cl2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cl2o2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_clo)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( clo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( clo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_oclo)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( oclo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( oclo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_br)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( br( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( br( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_lumped_br)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( lumped_br( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( lumped_br( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_brcl)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( brcl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( brcl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_brono2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( brono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( brono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n2o)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n2o( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n2o( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_lumped_cl)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( lumped_cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( lumped_cl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hocl)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hocl( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hocl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hbr)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hbr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hbr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hobr)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hobr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hobr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_clono2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( clono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( clono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cfcl3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cfcl3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cfcl3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cf2cl2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cf2cl2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cf2cl2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_mebr)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( mebr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( mebr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hono)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hono( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hono( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_c2h6)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( c2h6( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( c2h6( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_etoo)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( etoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( etoo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_etooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( etooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( etooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_mecho)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( mecho( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( mecho( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_meco3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( meco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( meco3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_pan)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( pan( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( pan( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_c3h8)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( c3h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( c3h8( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n_proo)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_proo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_i_proo)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( i_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( i_proo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n_prooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_prooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_i_prooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( i_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( i_prooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_etcho)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( etcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( etcho( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_etco3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( etco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( etco3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_me2co)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( me2co( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( me2co( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_mecoch2oo)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( mecoch2oo( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( mecoch2oo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_mecoch2ooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( mecoch2ooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( mecoch2ooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ppan)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ppan( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ppan( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_meono2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( meono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( meono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_c5h8)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( c5h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( c5h8( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_iso2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( iso2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( iso2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_isooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( isooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( isooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ison)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ison( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ison( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_macr)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( macr( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( macr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_macro2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( macro2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( macro2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_macrooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( macrooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( macrooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_mpan)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( mpan( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( mpan( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hacet)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hacet( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hacet( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_mgly)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( mgly( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( mgly( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_nald)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( nald( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( nald( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_hcooh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( hcooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( hcooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_meco3h)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( meco3h( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( meco3h( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_meco2h)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( meco2h( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( meco2h( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_h2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( h2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( h2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_meoh)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( meoh( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( meoh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_msa)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( msa( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( msa( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_nh3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( nh3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( nh3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cs2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cs2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cs2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_csul)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( csul( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( csul( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_h2s)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( h2s( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( h2s( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_so3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( so3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( so3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_passive_o3)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( passive_o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( passive_o3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_age_of_air)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( age_of_air( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( age_of_air( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_dms)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( dms( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( dms( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_so2)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( so2( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( so2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_h2so4)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( h2so4( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( h2so4( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_dmso)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( dmso( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( dmso( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_monoterpene)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( monoterpene( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( monoterpene( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_secondary_organic)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( secondary_organic( map_wth(1) + 1 : map_wth(1) + ntra_lev ), &
-                  r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( secondary_organic( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), &
+                    r_um )
+          end do
         case(fldname_n_nuc_sol)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_nuc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_nuc_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_nuc_sol_su)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( nuc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( nuc_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_nuc_sol_om)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( nuc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( nuc_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n_ait_sol)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_ait_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_ait_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ait_sol_su)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ait_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ait_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ait_sol_bc)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ait_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ait_sol_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ait_sol_om)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ait_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ait_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n_acc_sol)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_acc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_acc_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_acc_sol_su)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( acc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( acc_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_acc_sol_bc)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( acc_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( acc_sol_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_acc_sol_om)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( acc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( acc_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_acc_sol_ss)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( acc_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( acc_sol_ss( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_acc_sol_du)
-          tot_tracer( 1, 1, :, i ) = 0.0_r_um ! no prognostic, always zero
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) = 0.0_r_um ! no prognostic, always zero
+          end do
         case(fldname_n_cor_sol)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_cor_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_cor_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cor_sol_su)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cor_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cor_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cor_sol_bc)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cor_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cor_sol_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cor_sol_om)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cor_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cor_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cor_sol_ss)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cor_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cor_sol_ss( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cor_sol_du)
-          tot_tracer( 1, 1, :, i ) = 0.0_r_um ! no prognostic, always zero
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) = 0.0_r_um ! no prognostic, always zero
+          end do
         case(fldname_n_ait_ins)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_ait_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_ait_ins( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ait_ins_bc)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ait_ins_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ait_ins_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_ait_ins_om)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( ait_ins_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( ait_ins_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n_acc_ins)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_acc_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_acc_ins( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_acc_ins_du)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( acc_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( acc_ins_du( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_n_cor_ins)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( n_cor_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( n_cor_ins( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case(fldname_cor_ins_du)
-          tot_tracer( 1, 1, :, i ) =                                           &
-            real( cor_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ), r_um )
+          do i = 1, ncells
+            tot_tracer( i, 1, :, n ) =                                           &
+              real( cor_ins_du( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ), r_um )
+          end do
         case default
           write( log_scratch_space, '(A,A)' )                                  &
-                 'Missing required UKCA tracer field: ', ukca_tracer_names(i)
+                 'Missing required UKCA tracer field: ', ukca_tracer_names(n)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end select
       end do
-
-    else
-
-      ! No tracers: set up a dummy tracer array
-      ntra_fld = 1
-      ntra_lev = 1
-      allocate(tot_tracer( 1, 1, ntra_lev, ntra_fld ))
-
     end if  ! outer == outer_iterations .AND. l_tracer
 
     ! We do not want any sub-timestep SCM diagnostics but we still have
@@ -1733,406 +2002,542 @@ contains
     l_scm_convss_dg = .false.
     allocate( scm_convss_dg(0) )
 
-    n_congestus = 0
-    n_deep = 0
-    n_shallow = 0
-
-    if (cumulus(1,1)) then
-      if (iconv_deep >  0  .AND. .NOT. l_shallow(1,1) ) then
-        n_deep = 1
-      endif
-      if (iconv_shallow >  0  .AND. l_shallow(1,1) ) then
-        n_shallow = 1
-      endif
-      n_congestus = 1   ! as UM though not actually using scheme
-    end if
-
     ! Loop over convection calls per model time step
     do call_number = 1, n_conv_calls
-
-      if (l_mid(1,1)) then
-        n_mid = 1
-      else
-        n_mid = 0
-      end if
 
       ! Initialise convection work arrays holding information from each
       ! iteration (sub-step)
       do k = 1, n_cca_lev
-        it_cca(1,1,k)  = 0.0_r_um
-        it_cca0(1,1,k) = 0.0_r_um
-        it_cca0_dp(1,1,k) = 0.0_r_um
-        it_cca0_sh(1,1,k) = 0.0_r_um
-        it_cca0_md(1,1,k) = 0.0_r_um
+        do i = 1, ncells
+          it_cca(i,1,k)  = 0.0_r_um
+          it_cca0(i,1,k) = 0.0_r_um
+          it_cca0_dp(i,1,k) = 0.0_r_um
+          it_cca0_sh(i,1,k) = 0.0_r_um
+          it_cca0_md(i,1,k) = 0.0_r_um
+        end do
       end do
 
       do k = 1, nlayers
-        it_ccw(1,1,k)  = 0.0_r_um
-        it_ccw0(1,1,k) = 0.0_r_um
-        it_conv_rain_3d(1,1,k) = 0.0_r_um
-        it_conv_snow_3d(1,1,k) = 0.0_r_um
-        it_w2p(1,1,k) = 0.0_r_um
-        it_up_flux(1,1,k) = 0.0_r_um
+        do i = 1, ncells
+          it_ccw(i,1,k)  = 0.0_r_um
+          it_ccw0(i,1,k) = 0.0_r_um
+          it_conv_rain_3d(i,1,k) = 0.0_r_um
+          it_conv_snow_3d(i,1,k) = 0.0_r_um
+          it_w2p(i,1,k) = 0.0_r_um
+          it_up_flux(i,1,k) = 0.0_r_um
+        end do
       end do
 
-      it_lcca(1,1)   = 0.0_r_um
-      it_lcbase(1,1) = 0
-      it_lctop(1,1)  = 0
+      do i = 1, ncells
+        it_lcca(i,1)   = 0.0_r_um
+        it_lcbase(i,1) = 0
+        it_lctop(i,1)  = 0
 
-      it_ccb(1,1)    = 0
-      it_cct(1,1)    = 0
-      it_cca_2d(1,1) = 0.0_r_um
-      it_cclwp(1,1)  = 0.0_r_um
+        it_ccb(i,1)    = 0
+        it_cct(i,1)    = 0
+        it_cca_2d(i,1) = 0.0_r_um
+        it_cclwp(i,1)  = 0.0_r_um
 
-      it_ccb0(1,1)   = 0
-      it_cct0(1,1)   = 0
-      it_cclwp0(1,1) = 0.0_r_um
+        it_ccb0(i,1)   = 0
+        it_cct0(i,1)   = 0
+        it_cclwp0(i,1) = 0.0_r_um
 
-      it_conv_rain(1,1) = 0.0_r_um
-      it_conv_snow(1,1) = 0.0_r_um
-      it_precip_dp(1,1) = 0.0_r_um
-      it_precip_sh(1,1) = 0.0_r_um
-      it_precip_md(1,1) = 0.0_r_um
-      it_cape_diluted(1,1)  = 0.0_r_um
-      it_kterm_deep(1,1)  = 0
-      it_kterm_shall(1,1) = 0
-      it_mid_level(1,1) = .FALSE.
-      it_dp_cfl_limited(1,1) = 0.0_r_um
-      it_md_cfl_limited(1,1) = 0.0_r_um
+        it_conv_rain(i,1) = 0.0_r_um
+        it_conv_snow(i,1) = 0.0_r_um
+        it_precip_dp(i,1) = 0.0_r_um
+        it_precip_sh(i,1) = 0.0_r_um
+        it_precip_md(i,1) = 0.0_r_um
+        it_cape_diluted(i,1)  = 0.0_r_um
+        it_kterm_deep(i,1)  = 0
+        it_kterm_shall(i,1) = 0
+        it_mid_level(i,1) = .FALSE.
+        it_dp_cfl_limited(i,1) = 0.0_r_um
+        it_md_cfl_limited(i,1) = 0.0_r_um
 
-      it_precip_cg(1,1) = 0.0_r_um
-      it_wstar_up(1,1)  = 0.0_r_um
-      it_mb1(1,1) = 0.0_r_um
-      it_mb2(1,1) = 0.0_r_um
-      it_cg_term(1,1) = 0
+        it_precip_cg(i,1) = 0.0_r_um
+        it_wstar_up(i,1)  = 0.0_r_um
+        it_mb1(i,1) = 0.0_r_um
+        it_mb2(i,1) = 0.0_r_um
+        it_cg_term(i,1) = 0
+      end do
 
       if (prog_tnuc) then
         ! Use tnuc from LFRic and map onto tnuc_new for UM to be passed to glue_conv_6a
         do k = 1, nlayers
-          tnuc_new(1,1,k) = real(tnuc(map_wth(1) + k),kind=r_um)
+          do i = 1, ncells
+            tnuc_new(i,1,k) = real(tnuc(map_wth(1,i) + k),kind=r_um)
+          end do ! i
         end do ! k
 
         ! Use tnuc_nlcl from LFRic and map onto tnuc_nlcl_um for UM to the be passed to glue_conv_6a
-        tnuc_nlcl_um(1,1) = real(tnuc_nlcl(map_2d(1)),kind=r_um)
+        do i = 1, ncells
+          tnuc_nlcl_um(i,1) = real(tnuc_nlcl(map_2d(1,i)),kind=r_um)
+        end do
       end if
 
-      call glue_conv_6a                                                     &
-        ( rows*row_length, segments, n_conv_levels, n_wtrac, bl_levels      &
-        , call_number, seg_num, theta_conv, q_conv, qcl_conv, qcf_conv      &
-        , q_wtrac, qcl_wtrac, qcf_wtrac                                     &
-        , cf_liquid_conv, cf_frozen_conv, bulk_cf_conv                      &
-        , p_star, land_sea_mask                                             &
-        , u_conv, v_conv, w(1,1,1)                                          &
-        , tot_tracer, dthbydt, dqbydt,   dqclbydt, dqcfbydt                 &
-        , dcflbydt, dcffbydt, dbcfbydt, dubydt_p, dvbydt_p                  &
-        , dqbydt_wtrac, dqclbydt_wtrac, dqcfbydt_wtrac                      &
-        , it_conv_rain, it_conv_snow, it_conv_rain_3d, it_conv_snow_3d      &
-        , rain_wtrac, snow_wtrac                                            &
-        , it_cca0_dp, it_cca0_md, it_cca0_sh                                &
-        , it_cca0,  it_ccb0, it_cct0, it_cclwp0, it_ccw0, it_lcbase0        &
-        , it_lctop,  it_lcca                                                &
-        , it_cca,   it_ccb,  it_cct,  it_cclwp,  it_ccw,  it_lcbase         &
-        , it_cca_2d, freeze_lev, it_dp_cfl_limited, it_md_cfl_limited       &
-        , it_mid_level, it_kterm_deep, it_kterm_shall                       &
-        , it_precip_dp, it_precip_sh, it_precip_md, it_precip_cg            &
-        , it_wstar_dn,  it_wstar_up                                         &
-        , it_mb1, it_mb2, it_cg_term                                        &
-        , uw0, vw0, w_max                                                   &
-        , zlcl, zlcl_uv, tnuc_new, tnuc_nlcl_um, zhpar, entrain_coef        &
-        , conv_prog_precip_conv, conv_prog_flx, deep_flag                   &
-        , past_conv_ht, it_cape_diluted, n_deep, n_congestus, n_shallow     &
-        , n_mid, r_rho_levels, r_theta_levels                               &
-        , rho_wet, rho_wet_tq, rho_dry, rho_dry_theta, delta_smag           &
-        , exner_rho_levels, exner_rho_minus_one, exner_theta_levels         &
-        , p_rho_minus_one, p_theta_levels                                   &
-        , z_theta, z_rho, timestep_conv                                     &
-        , t1_sd, q1_sd, ntml, ntpar                                         &
-        , conv_type, l_shallow                                              &
-        , l_congestus, l_mid, cumulus                                       &
-        , wstar, wthvs, delthvu, ql_ad, qsat_lcl, ftl, fqw                  &
-        , l_tracer, ntra_fld, ntra_lev, n_cca_lev                           &
-        , l_calc_dxek , l_q_interact                                        &
-        , it_up_flux_half, it_up_flux,      it_dwn_flux                     &
-        , it_entrain_up,   it_detrain_up, it_entrain_dwn,  it_detrain_dwn   &
-        , it_uw_dp,        it_vw_dp                                         &
-        , it_uw_shall,     it_vw_shall, it_uw_mid,  it_vw_mid               &
-        , it_wqt_flux,  it_wthetal_flux, it_wthetav_flux, it_wql_flux       &
-        , it_mf_deep,      it_mf_congest, it_mf_shall,  it_mf_midlev        &
-        , it_dt_deep,      it_dt_congest, it_dt_shall,  it_dt_midlev        &
-        , it_dq_deep,      it_dq_congest, it_dq_shall,  it_dq_midlev        &
-        , it_du_deep,      it_du_congest, it_du_shall,  it_du_midlev        &
-        , it_dv_deep,      it_dv_congest, it_dv_shall,  it_dv_midlev        &
-        , ind_cape_reduced,  cape_ts_used, it_ind_deep, it_ind_shall        &
-        , it_w2p, it_dt_dd, it_dq_dd, it_du_dd, it_dv_dd, it_area_ud        &
-        , it_area_dd, scm_convss_dg, l_scm_convss_dg                        &
-        , g_ccp, h_ccp, ccp_strength                                        &
-        )
+      nml_segment_size = min(conv_gr_segment_size,ncells)
+      num_seg = ceiling(real(ncells,r_um)/real(nml_segment_size,r_um))
+
+      do i = 1, num_seg
+        ii = (i-1)*nml_segment_size + 1
+        seg_size = min(ncells, ii+nml_segment_size-1) - ii + 1
+
+        seg_num = map_wth(1,ii)  ! Only used by debugging error message from UM
+                            ! This is probably most useful to indicate
+                            ! which column has a problem
+
+        n_deep = 0
+        if (iconv_deep > 0 ) then
+          do j = ii, ii+seg_size-1
+            if (cumulus(j,1) .AND. .NOT. l_shallow(j,1) ) then
+              n_deep = n_deep + 1
+            endif
+          end do
+        end if
+
+        n_shallow = 0
+        if (iconv_shallow > 0 ) then
+          do j = ii, ii+seg_size-1
+            if (cumulus(j,1)  .AND. l_shallow(j,1) ) then
+              n_shallow = n_shallow + 1
+            endif
+          end do
+        end if
+
+        n_congestus = 0
+        do j = ii, ii+seg_size-1
+            if (cumulus(j,1)) then
+              n_congestus = n_congestus + 1   ! as UM though not actually using scheme
+          end if
+        end do
+
+        n_mid = 0
+        do j = ii, ii+seg_size-1
+          if (l_mid(j,1)) then
+            n_mid = n_mid + 1
+          end if
+        end do
+
+        call glue_conv_6a                                                     &
+          ( ncells, seg_size, n_conv_levels, n_wtrac, bl_levels               &
+          , call_number, seg_num, theta_conv(ii,1,1), q_conv(ii,1,1)          &
+          , qcl_conv(ii,1,1), qcf_conv(ii,1,1)                                &
+          , q_wtrac(ii,1,1), qcl_wtrac(ii,1,1), qcf_wtrac(ii,1,1)             &
+          , cf_liquid_conv(ii,1,1), cf_frozen_conv(ii,1,1)                    &
+          , bulk_cf_conv(ii,1,1)                                              &
+          , p_star(ii,1), land_sea_mask(ii,1)                                 &
+          , u_conv(ii,1,1), v_conv(ii,1,1), w(ii,1,1)                         &
+          , tot_tracer(ii,1,1,1), dthbydt(ii,1,1), dqbydt(ii,1,1)             &
+          , dqclbydt(ii,1,1), dqcfbydt(ii,1,1)                                &
+          , dcflbydt(ii,1,1), dcffbydt(ii,1,1), dbcfbydt(ii,1,1)              &
+          , dubydt_p(ii,1,1), dvbydt_p(ii,1,1)                                &
+          , dqbydt_wtrac(ii,1,1), dqclbydt_wtrac(ii,1,1)                      &
+          , dqcfbydt_wtrac(ii,1,1)                                            &
+          , it_conv_rain(ii,1), it_conv_snow(ii,1)                            &
+          , it_conv_rain_3d(ii,1,1), it_conv_snow_3d(ii,1,1)                  &
+          , rain_wtrac(ii,1), snow_wtrac(ii,1)                                &
+          , it_cca0_dp(ii,1,1), it_cca0_md(ii,1,1), it_cca0_sh(ii,1,1)        &
+          , it_cca0(ii,1,1),  it_ccb0(ii,1), it_cct0(ii,1)                    &
+          , it_cclwp0(ii,1), it_ccw0(ii,1,1)                                  &
+          , it_lcbase0(ii,1), it_lctop(ii,1),  it_lcca(ii,1)                  &
+          , it_cca(ii,1,1),   it_ccb(ii,1),  it_cct(ii,1),  it_cclwp(ii,1)    &
+          , it_ccw(ii,1,1),  it_lcbase(ii,1)                                  &
+          , it_cca_2d(ii,1), freeze_lev(ii,1)                                 &
+          , it_dp_cfl_limited(ii,1), it_md_cfl_limited(ii,1)                  &
+          , it_mid_level(ii,1), it_kterm_deep(ii,1), it_kterm_shall(ii,1)     &
+          , it_precip_dp(ii,1), it_precip_sh(ii,1)                            &
+          , it_precip_md(ii,1), it_precip_cg(ii,1)                            &
+          , it_wstar_dn(ii,1),  it_wstar_up(ii,1)                             &
+          , it_mb1(ii,1), it_mb2(ii,1), it_cg_term(ii,1)                      &
+          , uw0(ii,1), vw0(ii,1), w_max(ii,1)                                 &
+          , zlcl(ii,1), zlcl_uv(ii,1), tnuc_new(ii,1,1), tnuc_nlcl_um(ii,1)   &
+          , zhpar(ii,1), entrain_coef(ii,1)                                   &
+          , conv_prog_precip_conv(ii,1,1), conv_prog_flx(ii,1,1)              &
+          , deep_flag(ii,1)                                                   &
+          , past_conv_ht(ii,1), it_cape_diluted(ii,1)                         &
+          , n_deep, n_congestus, n_shallow, n_mid                             &
+          , r_rho_levels(ii,1,1), r_theta_levels(ii,1,0)                      &
+          , rho_wet(ii,1,1), rho_wet_tq(ii,1,1), rho_dry(ii,1,1)              &
+          , rho_dry_theta(ii,1,1), delta_smag(ii,1)                           &
+          , exner_rho_levels(ii,1,1), exner_rho_minus_one(ii,1,0)             &
+          , exner_theta_levels(ii,1,0)                                        &
+          , p_rho_minus_one(ii,1,0), p_theta_levels(ii,1,0)                   &
+          , z_theta(ii,1,1), z_rho(ii,1,1), timestep_conv                     &
+          , t1_sd(ii,1), q1_sd(ii,1), ntml(ii,1), ntpar(ii,1)                 &
+          , conv_type(ii,1), l_shallow(ii,1)                                  &
+          , l_congestus(ii,1), l_mid(ii,1), cumulus(ii,1)                     &
+          , wstar(ii,1), wthvs(ii,1), delthvu(ii,1), ql_ad(ii,1)              &
+          , qsat_lcl(ii,1), ftl(ii,1), fqw(ii,1)                              &
+          , l_tracer, ntra_fld, ntra_lev, n_cca_lev                           &
+          , l_calc_dxek , l_q_interact                                        &
+          , it_up_flux_half(ii,1,1), it_up_flux(ii,1,1), it_dwn_flux(ii,1,1)  &
+          , it_entrain_up(ii,1,1),   it_detrain_up(ii,1,1)                    &
+          , it_entrain_dwn(ii,1,1),  it_detrain_dwn(ii,1,1)                   &
+          , it_uw_dp(ii,1,1),        it_vw_dp(ii,1,1)                         &
+          , it_uw_shall(ii,1,1),     it_vw_shall(ii,1,1)                      &
+          , it_uw_mid(ii,1,1),  it_vw_mid(ii,1,1)                             &
+          , it_wqt_flux(ii,1,1),  it_wthetal_flux(ii,1,1)                     &
+          , it_wthetav_flux(ii,1,1), it_wql_flux(ii,1,1)                      &
+          , it_mf_deep(ii,1,1),      it_mf_congest(ii,1,1)                    &
+          , it_mf_shall(ii,1,1),  it_mf_midlev(ii,1,1)                        &
+          , it_dt_deep(ii,1,1),      it_dt_congest(ii,1,1)                    &
+          , it_dt_shall(ii,1,1),  it_dt_midlev(ii,1,1)                        &
+          , it_dq_deep(ii,1,1),      it_dq_congest(ii,1,1)                    &
+          , it_dq_shall(ii,1,1),  it_dq_midlev(ii,1,1)                        &
+          , it_du_deep(ii,1,1),      it_du_congest(ii,1,1)                    &
+          , it_du_shall(ii,1,1),  it_du_midlev(ii,1,1)                        &
+          , it_dv_deep(ii,1,1),      it_dv_congest(ii,1,1)                    &
+          , it_dv_shall(ii,1,1),  it_dv_midlev(ii,1,1)                        &
+          , ind_cape_reduced(ii,1),  cape_ts_used(ii,1)                       &
+          , it_ind_deep(ii,1), it_ind_shall(ii,1)                             &
+          , it_w2p(ii,1,1), it_dt_dd(ii,1,1), it_dq_dd(ii,1,1)                &
+          , it_du_dd(ii,1,1), it_dv_dd(ii,1,1)                                &
+          , it_area_ud(ii,1,1), it_area_dd(ii,1,1)                            &
+          , scm_convss_dg, l_scm_convss_dg                                    &
+          , g_ccp(ii,1), h_ccp(ii,1), ccp_strength(ii,1)                      &
+          )
+      end do ! i -> num_seg
 
       ! Mid-level convection only possible on subsequent sub-steps if
       ! occurs on first step or column is diagnosed as cumulus
-      l_mid(1,1) = it_mid_level(1,1) .or. cumulus(1,1)
+      do i = 1, ncells
+        l_mid(i,1) = it_mid_level(i,1) .or. cumulus(i,1)
+      end do
 
       ! Update cloud info from substep
       ! Highest convective layer properties - diagnostic
       !------------------------------------
       ! max cct across total number of calls to convection
       ! Note that diagnostic is a real not an integer
-      cct(1,1) = max( cct(1,1),it_cct(1,1))
-      ! min ccb across total number of calls to convection
-      ! excluding ccb=0
-      if (ccb(1,1) > 0 .AND. it_ccb(1,1) > 0) then
-        ccb(1,1) = min(ccb(1,1),it_ccb(1,1))
-      else
-        ccb(1,1) = max(ccb(1,1),it_ccb(1,1))
-      end if
+      do i = 1, ncells
+        cct(i,1) = max( cct(i,1),it_cct(i,1))
+        ! min ccb across total number of calls to convection
+        ! excluding ccb=0
+        if (ccb(i,1) > 0 .AND. it_ccb(i,1) > 0) then
+          ccb(i,1) = min(ccb(i,1),it_ccb(i,1))
+        else
+          ccb(i,1) = max(ccb(i,1),it_ccb(i,1))
+        end if
+      end do
 
       ! Lowest convective layer properties
       !------------------------------------
       ! max lctop across total number of calls to convection
-      lctop(1,1) = max(lctop(1,1),it_lctop(1,1))
+      do i = 1, ncells
+        lctop(i,1) = max(lctop(i,1),it_lctop(i,1))
 
-      ! min lcbase across total number of calls to convection
-      ! excluding lcbase=0
-      if (lcbase(1,1) > 0 .AND. it_lcbase(1,1) > 0) then
-        lcbase(1,1) = min(lcbase(1,1), it_lcbase(1,1))
-      else
-        lcbase(1,1) = max(lcbase(1,1), it_lcbase(1,1))
-      end if
+        ! min lcbase across total number of calls to convection
+        ! excluding lcbase=0
+        if (lcbase(i,1) > 0 .AND. it_lcbase(i,1) > 0) then
+          lcbase(i,1) = min(lcbase(i,1), it_lcbase(i,1))
+        else
+          lcbase(i,1) = max(lcbase(i,1), it_lcbase(i,1))
+        end if
+      end do
 
       do k=1, nlayers
-        ccw_3d(1,1,k) = ccw_3d(1,1,k) + one_over_conv_calls*it_ccw0(1,1,k)
-        cca_3d(1,1,k) = cca_3d(1,1,k) + one_over_conv_calls*it_cca0(1,1,k)
-        ! Assuming lccrad = .true.
-        cca_3d(1,1,k) = min(cca_3d(1,1,k), 1.0_r_um)
+        do i = 1, ncells
+          ccw_3d(i,1,k) = ccw_3d(i,1,k) + one_over_conv_calls*it_ccw0(i,1,k)
+          cca_3d(i,1,k) = cca_3d(i,1,k) + one_over_conv_calls*it_cca0(i,1,k)
+          ! Assuming lccrad = .true.
+          cca_3d(i,1,k) = min(cca_3d(i,1,k), 1.0_r_um)
+        end do
       end do
 
       ! single level convection diagnostics
-      conv_rain(map_2d(1)) = conv_rain(map_2d(1))+                          &
-                               it_conv_rain(1,1) *one_over_conv_calls
-      conv_snow(map_2d(1)) = conv_snow(map_2d(1))+                          &
-                               it_conv_snow(1,1) *one_over_conv_calls
-      cca_2d(map_2d(1)) = cca_2d(map_2d(1))+                                &
-                               it_cca_2d(1,1) *one_over_conv_calls
-      cape_diluted(map_2d(1)) = cape_diluted(map_2d(1)) +                   &
-                              it_cape_diluted(1,1)*one_over_conv_calls
+      do i = 1, ncells
+        conv_rain(map_2d(1,i)) = conv_rain(map_2d(1,i))+                          &
+                                 it_conv_rain(i,1) *one_over_conv_calls
+        conv_snow(map_2d(1,i)) = conv_snow(map_2d(1,i))+                          &
+                                 it_conv_snow(i,1) *one_over_conv_calls
+        cca_2d(map_2d(1,i)) = cca_2d(map_2d(1,i))+                                &
+                                 it_cca_2d(i,1) *one_over_conv_calls
+        cape_diluted(map_2d(1,i)) = cape_diluted(map_2d(1,i)) +                   &
+                                it_cape_diluted(i,1)*one_over_conv_calls
+      end do
 
       if (outer == outer_iterations) then
         if (.not. associated(lowest_cca_2d, empty_real_data) ) then
-          lowest_cca_2d(map_2d(1)) = lowest_cca_2d(map_2d(1)) +               &
-                                     it_lcca(1,1)*one_over_conv_calls
+          do i = 1, ncells
+            lowest_cca_2d(map_2d(1,i)) = lowest_cca_2d(map_2d(1,i)) +               &
+                                       it_lcca(i,1)*one_over_conv_calls
+          end do
         end if
         if (.not. associated(deep_in_col, empty_real_data) ) then
-          deep_in_col(map_2d(1)) = deep_in_col(map_2d(1)) +                   &
-                                   it_ind_deep(1,1)*one_over_conv_calls
+          do i = 1, ncells
+            deep_in_col(map_2d(1,i)) = deep_in_col(map_2d(1,i)) +                   &
+                                     it_ind_deep(i,1)*one_over_conv_calls
+          end do
         end if
         if (.not. associated(shallow_in_col, empty_real_data) ) then
-          shallow_in_col(map_2d(1)) = shallow_in_col(map_2d(1)) +             &
-                                      it_ind_shall(1,1)*one_over_conv_calls
+          do i = 1, ncells
+            shallow_in_col(map_2d(1,i)) = shallow_in_col(map_2d(1,i)) +             &
+                                        it_ind_shall(i,1)*one_over_conv_calls
+          end do
         end if
         if (.not. associated(mid_in_col, empty_real_data) ) then
-          if (it_mid_level(1,1)) then
-            mid_in_col(map_2d(1)) = mid_in_col(map_2d(1)) + one_over_conv_calls
-          end if
+          do i = 1, ncells
+            if (it_mid_level(i,1)) then
+              mid_in_col(map_2d(1,i)) = mid_in_col(map_2d(1,i)) + one_over_conv_calls
+            end if
+          end do
         end if
         if (.not. associated(freeze_level, empty_real_data) ) then
-          freeze_level(map_2d(1)) = freeze_level(map_2d(1)) +                 &
-                                  real(freeze_lev(1,1)) *one_over_conv_calls
+          do i = 1, ncells
+            freeze_level(map_2d(1,i)) = freeze_level(map_2d(1,i)) +                 &
+                                    real(freeze_lev(i,1)) *one_over_conv_calls
+          end do
         end if
         if (.not. associated(deep_prec, empty_real_data) ) then
-          deep_prec(map_2d(1)) = deep_prec(map_2d(1)) +                       &
-                                 it_precip_dp(1,1) *one_over_conv_calls
+          do i = 1, ncells
+            deep_prec(map_2d(1,i)) = deep_prec(map_2d(1,i)) +                       &
+                                   it_precip_dp(i,1) *one_over_conv_calls
+          end do
         end if
         if (.not. associated(shallow_prec, empty_real_data) ) then
-          shallow_prec(map_2d(1)) = shallow_prec(map_2d(1)) +                 &
-                                    it_precip_sh(1,1) *one_over_conv_calls
+          do i = 1, ncells
+            shallow_prec(map_2d(1,i)) = shallow_prec(map_2d(1,i)) +                 &
+                                      it_precip_sh(i,1) *one_over_conv_calls
+          end do
         end if
         if (.not. associated(mid_prec, empty_real_data) ) then
-          mid_prec(map_2d(1)) = mid_prec(map_2d(1)) +                         &
-                              it_precip_md(1,1) *one_over_conv_calls
+          do i = 1, ncells
+            mid_prec(map_2d(1,i)) = mid_prec(map_2d(1,i)) +                         &
+                                it_precip_md(i,1) *one_over_conv_calls
+          end do
         end if
         if (.not. associated(deep_term, empty_real_data) ) then
-          deep_term(map_2d(1)) = deep_term(map_2d(1)) +                       &
-                               real(it_kterm_deep(1,1)) *one_over_conv_calls
+          do i = 1, ncells
+            deep_term(map_2d(1,i)) = deep_term(map_2d(1,i)) +                       &
+                                 real(it_kterm_deep(i,1)) *one_over_conv_calls
+          end do
         end if
         if (.not. associated(cape_timescale, empty_real_data) ) then
-          cape_timescale(map_2d(1)) =cape_timescale(map_2d(1)) +              &
-                                   cape_ts_used(1,1) *one_over_conv_calls
+          do i = 1, ncells
+            cape_timescale(map_2d(1,i)) =cape_timescale(map_2d(1,i)) +              &
+                                     cape_ts_used(i,1) *one_over_conv_calls
+          end do
         end if
         if (.not. associated(deep_cfl_limited, empty_real_data) ) then
-          deep_cfl_limited(map_2d(1)) = deep_cfl_limited(map_2d(1)) +         &
-                                it_dp_cfl_limited(1,1) *one_over_conv_calls
+          do i = 1, ncells
+            deep_cfl_limited(map_2d(1,i)) = deep_cfl_limited(map_2d(1,i)) +         &
+                                  it_dp_cfl_limited(i,1) *one_over_conv_calls
+          end do
         end if
         if (.not. associated(mid_cfl_limited, empty_real_data) ) then
-          mid_cfl_limited(map_2d(1)) = mid_cfl_limited(map_2d(1)) +           &
-                                it_md_cfl_limited(1,1) *one_over_conv_calls
+          do i = 1, ncells
+          mid_cfl_limited(map_2d(1,i)) = mid_cfl_limited(map_2d(1,i)) +             &
+                                it_md_cfl_limited(i,1) *one_over_conv_calls
+          end do
         end if
 
         ! Frequency of deep convection terminating on level k
         if (.not. associated(deep_tops, empty_real_data) ) then
-          if (it_ind_deep(1,1) == 1.0_r_um) then
-            k = it_kterm_deep(1,1)
-            if (k > 0) then  ! in case still get a zero value
-              deep_tops(map_wth(1)+k) = deep_tops(map_wth(1)+k) + one_over_conv_calls
+          k = 0  ! dummy initialisation for psyclone firstprivate bug and cray compiler
+          do i = 1, ncells
+            if (it_ind_deep(i,1) == 1.0_r_um) then
+              k = it_kterm_deep(i,1)
+              if (k > 0) then  ! in case still get a zero value
+                deep_tops(map_wth(1,i)+k) = deep_tops(map_wth(1,i)+k) + one_over_conv_calls
+              end if
             end if
-          end if
+          end do
         end if
       end if ! outer_iterations
 
       ! update input fields *_conv for next substep
       do k = 1, n_conv_levels
-        theta_conv(1,1,k) = theta_conv(1,1,k)                         &
-                            + dthbydt(1,1,k) * timestep_conv
-        q_conv(1,1,k)     = q_conv(1,1,k)                             &
-                            + dqbydt(1,1,k) * timestep_conv
-        qcl_conv(1,1,k)   = qcl_conv(1,1,k)                           &
-                            +(dqclbydt(1,1,k) * timestep_conv)
-        qcf_conv(1,1,k)   = qcf_conv(1,1,k)                           &
-                            +(dqcfbydt(1,1,k) * timestep_conv)
-        cf_liquid_conv(1,1,k) = cf_liquid_conv(1,1,k)                 &
-                                +(dcflbydt(1,1,k) * timestep_conv)
-        cf_frozen_conv(1,1,k) = cf_frozen_conv(1,1,k)                 &
-                                + (dcffbydt(1,1,k) * timestep_conv)
-        bulk_cf_conv(1,1,k)   = bulk_cf_conv(1,1,k)                   &
-                                +(dbcfbydt(1,1,k) * timestep_conv)
-        dtheta_conv(1,1,k)   = dtheta_conv(1,1,k)                     &
-                                    + dthbydt(1,1,k) * timestep_conv
-        dt_conv(map_wth(1) + k)   = dt_conv(map_wth(1) + k)               &
-                                    + dthbydt(1,1,k) * timestep_conv      &
-                                    * exner_theta_levels(1,1,k)
-        dmv_conv(map_wth(1) + k)  =  dmv_conv(map_wth(1) + k)             &
-                                     + dqbydt(1,1,k) * timestep_conv
-        dmcl_conv(map_wth(1) + k) =  dmcl_conv(map_wth(1) + k)            &
-                                     + dqclbydt(1,1,k) * timestep_conv
-        dms_conv(map_wth(1) + k) =  dms_conv(map_wth(1) + k)              &
-                                     + dqcfbydt(1,1,k) * timestep_conv
+        do i = 1, ncells
+          theta_conv(i,1,k) = theta_conv(i,1,k)                         &
+                              + dthbydt(i,1,k) * timestep_conv
+          q_conv(i,1,k)     = q_conv(i,1,k)                             &
+                              + dqbydt(i,1,k) * timestep_conv
+          qcl_conv(i,1,k)   = qcl_conv(i,1,k)                           &
+                              +(dqclbydt(i,1,k) * timestep_conv)
+          qcf_conv(i,1,k)   = qcf_conv(i,1,k)                           &
+                              +(dqcfbydt(i,1,k) * timestep_conv)
+          cf_liquid_conv(i,1,k) = cf_liquid_conv(i,1,k)                 &
+                                  +(dcflbydt(i,1,k) * timestep_conv)
+          cf_frozen_conv(i,1,k) = cf_frozen_conv(i,1,k)                 &
+                                  + (dcffbydt(i,1,k) * timestep_conv)
+          bulk_cf_conv(i,1,k)   = bulk_cf_conv(i,1,k)                   &
+                                  +(dbcfbydt(i,1,k) * timestep_conv)
+          dtheta_conv(i,1,k)   = dtheta_conv(i,1,k)                     &
+                                      + dthbydt(i,1,k) * timestep_conv
+          dt_conv(map_wth(1,i) + k)   = dt_conv(map_wth(1,i) + k)       &
+                                      + dthbydt(i,1,k) * timestep_conv  &
+                                      * exner_theta_levels(i,1,k)
+          dmv_conv(map_wth(1,i) + k)  =  dmv_conv(map_wth(1,i) + k)     &
+                                       + dqbydt(i,1,k) * timestep_conv
+          dmcl_conv(map_wth(1,i) + k) =  dmcl_conv(map_wth(1,i) + k)    &
+                                       + dqclbydt(i,1,k) * timestep_conv
+          dms_conv(map_wth(1,i) + k) =  dms_conv(map_wth(1,i) + k)      &
+                                       + dqcfbydt(i,1,k) * timestep_conv
 
-        ! Update diagnostics
-        massflux_up(map_wth(1) + k) = massflux_up(map_wth(1) + k) +          &
-                                       it_up_flux(1,1,k)*one_over_conv_calls
-        massflux_down(map_wth(1) + k) = massflux_down(map_wth(1) + k)+       &
-                                       it_dwn_flux(1,1,k)*one_over_conv_calls
+          ! Update diagnostics
+          massflux_up(map_wth(1,i) + k) = massflux_up(map_wth(1,i) + k) +          &
+                                         it_up_flux(i,1,k)*one_over_conv_calls
+          massflux_down(map_wth(1,i) + k) = massflux_down(map_wth(1,i) + k)+       &
+                                         it_dwn_flux(i,1,k)*one_over_conv_calls
 
-        conv_rain_3d(map_wth(1) + k) = conv_rain_3d(map_wth(1) + k) +        &
-                                       it_conv_rain_3d(1,1,k) *              &
-                                       one_over_conv_calls
-        conv_snow_3d(map_wth(1) + k) = conv_snow_3d(map_wth(1) + k) +        &
-                                       it_conv_snow_3d(1,1,k) *              &
-                                       one_over_conv_calls
+          conv_rain_3d(map_wth(1,i) + k) = conv_rain_3d(map_wth(1,i) + k) +        &
+                                         it_conv_rain_3d(i,1,k) *                  &
+                                         one_over_conv_calls
+          conv_snow_3d(map_wth(1,i) + k) = conv_snow_3d(map_wth(1,i) + k) +        &
+                                         it_conv_snow_3d(i,1,k) *                  &
+                                         one_over_conv_calls
+        end do
       end do
 
-        ! Update optional diagnostics
+      ! Update optional diagnostics
       if (outer == outer_iterations) then
         if (.not. associated(entrain_up, empty_real_data) ) then
           do k = 1, n_conv_levels
-            entrain_up(map_wth(1) + k) = entrain_up(map_wth(1) + k) +          &
-                                         it_entrain_up(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              entrain_up(map_wth(1,i) + k) = entrain_up(map_wth(1,i) + k) +          &
+                                           it_entrain_up(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(entrain_down, empty_real_data) ) then
           do k = 1, n_conv_levels
-            entrain_down(map_wth(1) + k) = entrain_down(map_wth(1) + k) +      &
-                                         it_entrain_dwn(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              entrain_down(map_wth(1,i) + k) = entrain_down(map_wth(1,i) + k) +      &
+                                           it_entrain_dwn(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(detrain_up, empty_real_data) ) then
           do k = 1, n_conv_levels
-            detrain_up(map_wth(1) + k) = detrain_up(map_wth(1) + k) +          &
-                                         it_detrain_up(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              detrain_up(map_wth(1,i) + k) = detrain_up(map_wth(1,i) + k) +          &
+                                           it_detrain_up(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(detrain_down, empty_real_data) ) then
           do k = 1, n_conv_levels
-            detrain_down(map_wth(1) + k) = detrain_down(map_wth(1) + k) +      &
-                                         it_detrain_dwn(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              detrain_down(map_wth(1,i) + k) = detrain_down(map_wth(1,i) + k) +      &
+                                           it_detrain_dwn(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(dd_dt, empty_real_data) ) then
           do k = 1, n_conv_levels
-            dd_dt(map_wth(1) + k) = dd_dt(map_wth(1) + k) +                    &
-                                         it_dt_dd(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              dd_dt(map_wth(1,i) + k) = dd_dt(map_wth(1,i) + k) +                    &
+                                           it_dt_dd(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(dd_dq, empty_real_data) ) then
           do k = 1, n_conv_levels
-            dd_dq(map_wth(1) + k) = dd_dq(map_wth(1) + k) +                    &
-                                         it_dq_dd(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              dd_dq(map_wth(1,i) + k) = dd_dq(map_wth(1,i) + k) +                    &
+                                           it_dq_dd(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(deep_massflux, empty_real_data) ) then
           do k = 1, n_conv_levels
-            deep_massflux(map_wth(1) + k) = deep_massflux(map_wth(1) + k) +    &
-                                         it_mf_deep(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              deep_massflux(map_wth(1,i) + k) = deep_massflux(map_wth(1,i) + k) +    &
+                                           it_mf_deep(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(deep_dt, empty_real_data) ) then
           do k = 1, n_conv_levels
-            deep_dt(map_wth(1) + k) = deep_dt(map_wth(1) + k) +                &
-                                         it_dt_deep(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              deep_dt(map_wth(1,i) + k) = deep_dt(map_wth(1,i) + k) +                &
+                                           it_dt_deep(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(deep_dq, empty_real_data) ) then
           do k = 1, n_conv_levels
-            deep_dq(map_wth(1) + k) = deep_dq(map_wth(1) + k) +                &
-                                         it_dq_deep(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+               deep_dq(map_wth(1,i) + k) = deep_dq(map_wth(1,i) + k) +                &
+                                           it_dq_deep(i,1,k)*one_over_conv_calls
+           end do
           end do
         end if
         if (.not. associated(shallow_massflux, empty_real_data) ) then
           do k = 1, n_conv_levels
-            shallow_massflux(map_wth(1) + k) = shallow_massflux(map_wth(1) + k) + &
-                                         it_mf_shall(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              shallow_massflux(map_wth(1,i) + k) = shallow_massflux(map_wth(1,i) + k) + &
+                                           it_mf_shall(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(shallow_dt, empty_real_data) ) then
           do k = 1, n_conv_levels
-            shallow_dt(map_wth(1) + k) = shallow_dt(map_wth(1) + k) +          &
-                                         it_dt_shall(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              shallow_dt(map_wth(1,i) + k) = shallow_dt(map_wth(1,i) + k) +          &
+                                           it_dt_shall(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(shallow_dq, empty_real_data) ) then
           do k = 1, n_conv_levels
-            shallow_dq(map_wth(1) + k) = shallow_dq(map_wth(1) + k) +          &
-                                         it_dq_shall(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              shallow_dq(map_wth(1,i) + k) = shallow_dq(map_wth(1,i) + k) +          &
+                                           it_dq_shall(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(mid_massflux, empty_real_data) ) then
           do k = 1, n_conv_levels
-            mid_massflux(map_wth(1) + k) = mid_massflux(map_wth(1) + k) +      &
-                                         it_mf_midlev(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              mid_massflux(map_wth(1,i) + k) = mid_massflux(map_wth(1,i) + k) +      &
+                                           it_mf_midlev(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(mid_dt, empty_real_data) ) then
           do k = 1, n_conv_levels
-            mid_dt(map_wth(1) + k) = mid_dt(map_wth(1) + k) +                  &
-                                         it_dt_midlev(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              mid_dt(map_wth(1,i) + k) = mid_dt(map_wth(1,i) + k) +                  &
+                                           it_dt_midlev(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(mid_dq, empty_real_data) ) then
           do k = 1, n_conv_levels
-            mid_dq(map_wth(1) + k) = mid_dq(map_wth(1) + k) +                  &
-                                         it_dq_midlev(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              mid_dq(map_wth(1,i) + k) = mid_dq(map_wth(1,i) + k) +                  &
+                                           it_dq_midlev(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(cca_unadjusted, empty_real_data) ) then
           do k = 1, n_conv_levels
-            cca_unadjusted(map_wth(1) + k) = cca_unadjusted(map_wth(1) + k) +  &
-                                         it_cca(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+              cca_unadjusted(map_wth(1,i) + k) = cca_unadjusted(map_wth(1,i) + k) +  &
+                                           it_cca(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
         if (.not. associated(massflux_up_half, empty_real_data) ) then
           do k = 1, n_conv_levels
-            massflux_up_half(map_w3(1) + k-1) = massflux_up_half(map_w3(1) + k-1) +&
-                                         it_up_flux_half(1,1,k)*one_over_conv_calls
+            do i = 1, ncells
+            massflux_up_half(map_w3(1,i) + k-1) = massflux_up_half(map_w3(1,i) + k-1) +&
+                                         it_up_flux_half(i,1,k)*one_over_conv_calls
+            end do
           end do
         end if
       end if ! outer_iterations
 
       if (l_mom) then
         do k = 1, n_conv_levels
-          u_conv(1,1,k) = u_conv(1,1,k)   + dubydt_p(1,1,k) * timestep_conv
-          v_conv(1,1,k) = v_conv(1,1,k)   + dvbydt_p(1,1,k) * timestep_conv
-          ! total increments
-          du_conv(map_w3(1) + k -1) = du_conv(map_w3(1) + k -1) + dubydt_p(1,1,k) * timestep_conv
-          dv_conv(map_w3(1) + k -1) = dv_conv(map_w3(1) + k -1) + dvbydt_p(1,1,k) * timestep_conv
+          do i = 1, ncells
+            u_conv(i,1,k) = u_conv(i,1,k)   + dubydt_p(i,1,k) * timestep_conv
+            v_conv(i,1,k) = v_conv(i,1,k)   + dvbydt_p(i,1,k) * timestep_conv
+            ! total increments
+            du_conv(map_w3(1,i) + k -1) = du_conv(map_w3(1,i) + k -1) + dubydt_p(i,1,k) * timestep_conv
+            dv_conv(map_w3(1,i) + k -1) = dv_conv(map_w3(1,i) + k -1) + dvbydt_p(i,1,k) * timestep_conv
+          end do
         end do
       end if    !l_mom
 
@@ -2142,7 +2547,9 @@ contains
 
     if (l_safe_conv) then
       do k = 1, n_conv_levels
-        dmv_conv(map_wth(1) + k) = dmv_conv(map_wth(1) + k) + dq_add(1,1,k)
+        do i = 1, ncells
+          dmv_conv(map_wth(1,i) + k) = dmv_conv(map_wth(1,i) + k) + dq_add(i,1,k)
+        end do
       end do
     end if
 
@@ -2150,51 +2557,70 @@ contains
     if (l_conv_prog_precip .and. outer == outer_iterations) then
       decay_amount            = timestep / tau_conv_prog_precip
       theta_inc_threshold     = dthetadt_conv_active_threshold * timestep_conv
-      tot_conv_precip_2d(1,1) = MAX(conv_rain(map_2d(1)) +        &
-                                conv_snow(map_2d(1)),             &
-                                conv_prog_precip_min_threshold )
-      do k = 1, n_conv_levels
-        if (abs(dtheta_conv(1,1,k)) > theta_inc_threshold) then
-          conv_active = 1.0_r_um
-        else
-          conv_active = 0.0_r_um
-        end if
-        conv_prog_precip(map_wth(1) + k)                          &
-            = decay_amount * tot_conv_precip_2d(1,1) * conv_active &
-            + (1.0_r_def - decay_amount) * conv_prog_precip(map_wth(1) + k)
+      do i = 1, ncells
+        tot_conv_precip_2d(i,1) = MAX(conv_rain(map_2d(1,i)) +        &
+                                  conv_snow(map_2d(1,i)),             &
+                                  conv_prog_precip_min_threshold )
       end do
-      conv_prog_precip(map_wth(1) + 0) = conv_prog_precip(map_wth(1) + 1)
+      conv_active = 0.0_r_um  ! dummy initialisation for psyclone firstprivate bug and cray compiler
+      do k = 1, n_conv_levels
+        do i = 1, ncells
+          if (abs(dtheta_conv(i,1,k)) > theta_inc_threshold) then
+            conv_active = 1.0_r_um
+          else
+            conv_active = 0.0_r_um
+          end if
+          conv_prog_precip(map_wth(1,i) + k)                                      &
+              = decay_amount * tot_conv_precip_2d(i,1) * conv_active              &
+              + (1.0_r_def - decay_amount) * conv_prog_precip(map_wth(1,i) + k)
+        end do
+      end do
+      do i = 1, ncells
+          conv_prog_precip(map_wth(1,i) + 0) = conv_prog_precip(map_wth(1,i) + 1)
+      end do
     end if
 
     if (l_conv_prog_dtheta) then
       decay_amount = timestep / tau_conv_prog_dtheta
       do k = 1, n_conv_levels
-        dt_conv(map_wth(1) + k)  = (decay_amount * dtheta_conv(1,1,k) &
-                    + (1.0_r_def - decay_amount) * conv_prog_dtheta(map_wth(1) + k))&
-                    * exner_in_wth(map_wth(1) + k)
+        do i = 1, ncells
+          dt_conv(map_wth(1,i) + k)  = (decay_amount * dtheta_conv(i,1,k)                &
+                      + (1.0_r_def - decay_amount) * conv_prog_dtheta(map_wth(1,i) + k)) &
+                      * exner_in_wth(map_wth(1,i) + k)
+        end do
       end do
 
       if (outer == outer_iterations) then
         do k = 1, n_conv_levels
-          conv_prog_dtheta(map_wth(1) + k) = dt_conv(map_wth(1) + k)         &
-                                           / exner_in_wth(map_wth(1) + k)
+          do i = 1, ncells
+            conv_prog_dtheta(map_wth(1,i) + k) = dt_conv(map_wth(1,i) + k)         &
+                                             / exner_in_wth(map_wth(1,i) + k)
+          end do
         end do
-        conv_prog_dtheta(map_wth(1) + 0) = conv_prog_dtheta(map_wth(1) + 1)
+        do i = 1, ncells
+          conv_prog_dtheta(map_wth(1,i) + 0) = conv_prog_dtheta(map_wth(1,i) + 1)
+        end do
       end if
     end if
 
     if (l_conv_prog_dq) then
       decay_amount = timestep / tau_conv_prog_dq
       do k = 1, n_conv_levels
-        dmv_conv(map_wth(1) + k) = decay_amount * dmv_conv(map_wth(1) + k)   &
-                     + (1.0_r_def - decay_amount) * conv_prog_dmv(map_wth(1) + k)
+        do i = 1, ncells
+          dmv_conv(map_wth(1,i) + k) = decay_amount * dmv_conv(map_wth(1,i) + k)   &
+                       + (1.0_r_def - decay_amount) * conv_prog_dmv(map_wth(1,i) + k)
+        end do
       end do
 
       if (outer == outer_iterations) then
         do k = 1, n_conv_levels
-          conv_prog_dmv(map_wth(1) + k) = dmv_conv(map_wth(1) + k)
+          do i = 1, ncells
+            conv_prog_dmv(map_wth(1,i) + k) = dmv_conv(map_wth(1,i) + k)
+          end do
         end do
-        conv_prog_dmv(map_wth(1) + 0) = conv_prog_dmv(map_wth(1) + 1)
+        do i = 1, ncells
+          conv_prog_dmv(map_wth(1,i) + 0) = conv_prog_dmv(map_wth(1,i) + 1)
+        end do
       end if
     end if
 
@@ -2204,597 +2630,853 @@ contains
     ! In-cloud condensate amounts above 2.0e-3 lead to
     ! cloud fraction being increased (up to a value of 1.0)
 
+    orig_value = 0.0_r_um ! dummy initialisation for psyclone firstprivate bug and cray compiler
     do k = 1, n_conv_levels
-      ! Liquid cloud fraction
-      if (cf_liquid_conv(1,1,k) > 0.0_r_um) then
-        if ( (qcl_conv(1,1,k)/cf_liquid_conv(1,1,k) ) > 2.0e-3_r_um ) then
-          orig_value = cf_liquid_conv(1,1,k)
-          cf_liquid_conv(1,1,k) = min(1.0_r_um,qcl_conv(1,1,k)/2.0e-3_r_um)
-          bulk_cf_conv(1,1,k) = bulk_cf_conv(1,1,k)                      &
-                                + cf_liquid_conv(1,1,k) - orig_value
+      do i = 1, ncells
+        ! Liquid cloud fraction
+        if (cf_liquid_conv(i,1,k) > 0.0_r_um) then
+          if ( (qcl_conv(i,1,k)/cf_liquid_conv(i,1,k) ) > 2.0e-3_r_um ) then
+            orig_value = cf_liquid_conv(i,1,k)
+            cf_liquid_conv(i,1,k) = min(1.0_r_um,qcl_conv(i,1,k)/2.0e-3_r_um)
+            bulk_cf_conv(i,1,k) = bulk_cf_conv(i,1,k)                      &
+                                  + cf_liquid_conv(i,1,k) - orig_value
+          end if
         end if
-      end if
 
-      ! Ice cloud fraction
-      if (cf_frozen_conv(1,1,k) > 0.0_r_um) then
-        if ( (qcf_conv(1,1,k)/cf_frozen_conv(1,1,k)) > 2.0e-3_r_um ) then
-          orig_value = cf_frozen_conv(1,1,k)
-          cf_frozen_conv(1,1,k) = min(1.0_r_um,qcf_conv(1,1,k)/2.0e-3_r_um)
-          bulk_cf_conv(1,1,k) = bulk_cf_conv(1,1,k)                     &
-                                + cf_frozen_conv(1,1,k) - orig_value
+        ! Ice cloud fraction
+        if (cf_frozen_conv(i,1,k) > 0.0_r_um) then
+          if ( (qcf_conv(i,1,k)/cf_frozen_conv(i,1,k)) > 2.0e-3_r_um ) then
+            orig_value = cf_frozen_conv(i,1,k)
+            cf_frozen_conv(i,1,k) = min(1.0_r_um,qcf_conv(i,1,k)/2.0e-3_r_um)
+            bulk_cf_conv(i,1,k) = bulk_cf_conv(i,1,k)                     &
+                                  + cf_frozen_conv(i,1,k) - orig_value
+          end if
         end if
-      end if
+      end do
     end do
 
     ! Store cloud fraction increments for adding on later if using PC2
     do k = 1, n_conv_levels
-      dcfl_conv(map_wth(1) + k) = cf_liquid_conv(1,1,k) - cf_liq(map_wth(1) + k)
-      dcff_conv(map_wth(1) + k) = cf_frozen_conv(1,1,k) - cf_ice(map_wth(1) + k)
-      dbcf_conv(map_wth(1) + k) = bulk_cf_conv(1,1,k)   - cf_bulk(map_wth(1) + k)
+      do i = 1, ncells
+        dcfl_conv(map_wth(1,i) + k) = cf_liquid_conv(i,1,k) - cf_liq(map_wth(1,i) + k)
+        dcff_conv(map_wth(1,i) + k) = cf_frozen_conv(i,1,k) - cf_ice(map_wth(1,i) + k)
+        dbcf_conv(map_wth(1,i) + k) = bulk_cf_conv(i,1,k)   - cf_bulk(map_wth(1,i) + k)
+      end do
     end do
-    dcfl_conv(map_wth(1) + 0) = dcfl_conv(map_wth(1) + 1)
-    dcff_conv(map_wth(1) + 0) = dcff_conv(map_wth(1) + 1)
-    dbcf_conv(map_wth(1) + 0) = dbcf_conv(map_wth(1) + 1)
+    do i = 1, ncells
+      dcfl_conv(map_wth(1,i) + 0) = dcfl_conv(map_wth(1,i) + 1)
+      dcff_conv(map_wth(1,i) + 0) = dcff_conv(map_wth(1,i) + 1)
+      dbcf_conv(map_wth(1,i) + 0) = dbcf_conv(map_wth(1,i) + 1)
+    end do
 
     ! Set level 0 increment such that theta increment will equal level 1
-    dt_conv (map_wth(1) + 0) = dt_conv  (map_wth(1) + 1)    &
-                             * exner_in_wth(map_wth(1) + 0) &
-                             / exner_in_wth(map_wth(1) + 1)
-    dmv_conv (map_wth(1) + 0) = dmv_conv (map_wth(1) + 1)
-    dmcl_conv(map_wth(1) + 0) = dmcl_conv(map_wth(1) + 1)
-    dms_conv(map_wth(1) + 0) = dms_conv(map_wth(1) + 1)
+    do i = 1, ncells
+      dt_conv (map_wth(1,i) + 0) = dt_conv  (map_wth(1,i) + 1)    &
+                               * exner_in_wth(map_wth(1,i) + 0)   &
+                               / exner_in_wth(map_wth(1,i) + 1)
+      dmv_conv (map_wth(1,i) + 0) = dmv_conv (map_wth(1,i) + 1)
+      dmcl_conv(map_wth(1,i) + 0) = dmcl_conv(map_wth(1,i) + 1)
+      dms_conv(map_wth(1,i) + 0) = dms_conv(map_wth(1,i) + 1)
+    end do
 
     ! Store convective downdraught mass fluxes at cloud base
     ! if required for surface exchange.
     if (srf_ex_cnv_gust == ip_srfexwithcnv) then
-      if (ccb(1,1) > 0) then
-        dd_mf_cb(map_2d(1))=massflux_down( map_wth(1) + ccb(1,1))
-      else
-        dd_mf_cb(map_2d(1))=0.0_r_def
-      end if
+      do i = 1, ncells
+        if (ccb(i,1) > 0) then
+          dd_mf_cb(map_2d(1,i)) = massflux_down( map_wth(1,i) + ccb(i,1))
+        else
+          dd_mf_cb(map_2d(1,i)) = 0.0_r_def
+        end if
+      end do
     end if
 
     ! copy convective cloud fraction into prognostic array
     do k = 1, n_conv_levels
-      cca(map_wth(1) + k) =  min(cca_3d(1,1,k), 1.0_r_um)
-      ccw(map_wth(1) + k) =  ccw_3d(1,1,k)
+      do i = 1, ncells
+        cca(map_wth(1,i) + k) =  min(cca_3d(i,1,k), 1.0_r_um)
+        ccw(map_wth(1,i) + k) =  ccw_3d(i,1,k)
+      end do
     end do
 
     if (outer == outer_iterations) then
      ! Copy integers into real diagnostic arrays
-     if (.not. associated(cv_top, empty_real_data) ) then
-        cv_top(map_2d(1))        = real(cct(1,1))
+      if (.not. associated(cv_top, empty_real_data) ) then
+        do i = 1, ncells
+          cv_top(map_2d(1,i))        = real(cct(i,1))
+        end do
       end if
       if (.not. associated(cv_base, empty_real_data) ) then
-        cv_base(map_2d(1))       = real(ccb(1,1))
+        do i = 1, ncells
+          cv_base(map_2d(1,i))       = real(ccb(i,1))
+        end do
       end if
       if (.not. associated(lowest_cv_top, empty_real_data) ) then
-        lowest_cv_top(map_2d(1)) = real(lctop(1,1))
+        do i = 1, ncells
+          lowest_cv_top(map_2d(1,i)) = real(lctop(i,1))
+        end do
       end if
       if (.not. associated(lowest_cv_base, empty_real_data) ) then
-        lowest_cv_base(map_2d(1)) = real(lcbase(1,1))
+        do i = 1, ncells
+          lowest_cv_base(map_2d(1,i)) = real(lcbase(i,1))
+        end do
       end if
 
       ! pressure at cv top/base
       if (.not. associated(pres_cv_top, empty_real_data) ) then
-        if (cct(1,1) > 0) then
-          pres_cv_top(map_2d(1)) = p_rho_levels(1,1,cct(1,1))
-        else
-          pres_cv_top(map_2d(1)) = 0.0_r_def
-        end if
+        do i = 1, ncells
+          if (cct(i,1) > 0) then
+            pres_cv_top(map_2d(1,i)) = p_rho_levels(i,1,cct(i,1))
+          else
+            pres_cv_top(map_2d(1,i)) = 0.0_r_def
+          end if
+        end do
       end if
       if (.not. associated(pres_cv_base, empty_real_data) ) then
-        if (ccb(1,1) > 0) then
-          pres_cv_base(map_2d(1)) = p_rho_levels(1,1,ccb(1,1))
-        else
-          pres_cv_base(map_2d(1))= 0.0_r_def
-        end if
+        do i = 1, ncells
+          if (ccb(i,1) > 0) then
+            pres_cv_base(map_2d(1,i)) = p_rho_levels(i,1,ccb(i,1))
+          else
+            pres_cv_base(map_2d(1,i))= 0.0_r_def
+          end if
+        end do
       end if
 
       ! pressure at lowest cv top/base
       if (.not. associated(pres_lowest_cv_top, empty_real_data) ) then
-        if (lctop(1,1) > 0) then
-          pres_lowest_cv_top(map_2d(1)) = p_rho_levels(1,1,lctop(1,1))
-        else
-          pres_lowest_cv_top(map_2d(1)) = 0.0_r_def
-        end if
+        do i = 1, ncells
+          if (lctop(i,1) > 0) then
+            pres_lowest_cv_top(map_2d(1,i)) = p_rho_levels(i,1,lctop(i,1))
+          else
+            pres_lowest_cv_top(map_2d(1,i)) = 0.0_r_def
+          end if
+        end do
       end if
       if (.not. associated(pres_lowest_cv_base, empty_real_data) ) then
-        if (lcbase(1,1) > 0) then
-          pres_lowest_cv_base(map_2d(1)) = p_rho_levels(1,1,lcbase(1,1))
-        else
-          pres_lowest_cv_base(map_2d(1))= 0.0_r_def
-        end if
+        do i = 1, ncells
+          if (lcbase(i,1) > 0) then
+            pres_lowest_cv_base(map_2d(1,i)) = p_rho_levels(i,1,lcbase(i,1))
+          else
+            pres_lowest_cv_base(map_2d(1,i))= 0.0_r_def
+          end if
+        end do
       end if
 
       ! component A of upward mass flux
       if (.not. associated(massflux_up_cmpta, empty_real_data) ) then
         do k = 1, n_conv_levels - 1
-          if ( (1.0_r_def - max_mf_fall) * massflux_up_half(map_w3(1) + k-1) < &
-                                     massflux_up_half(map_w3(1) + k) ) then
-            massflux_up_cmpta(map_w3(1) + k-1) = massflux_up_half(map_w3(1) + k-1) &
-                                             * (1.0_r_def - shallow_in_col(map_2d(1)))
-          else
-            massflux_up_cmpta(map_w3(1) + k-1) = 0.0_r_def
-          end if
-        end do
+          do i = 1, ncells
+            if ( (1.0_r_def - max_mf_fall) * massflux_up_half(map_w3(1,i) + k-1) < &
+                                       massflux_up_half(map_w3(1,i) + k) ) then
+              massflux_up_cmpta(map_w3(1,i) + k-1) = massflux_up_half(map_w3(1,i) + k-1) &
+                                               * (1.0_r_def - shallow_in_col(map_2d(1,i)))
+            else
+              massflux_up_cmpta(map_w3(1,i) + k-1) = 0.0_r_def
+            end if
+          end do ! i
+        end do ! k
       end if
 
       ! Convection theta increment without shallow for VAR
       if (.not. associated(dth_conv_noshal, empty_real_data) ) then
         do k = 0, nlayers
-          dth_conv_noshal(map_wth(1) + k) = dt_conv(map_wth(1) + k) / &
-                                          exner_in_wth(map_wth(1) + k) * &
-                                         (1.0_r_def - shallow_in_col(map_2d(1)))
+          do i = 1, ncells
+            dth_conv_noshal(map_wth(1,i) + k) = dt_conv(map_wth(1,i) + k) / &
+                                            exner_in_wth(map_wth(1,i) + k) * &
+                                           (1.0_r_def - shallow_in_col(map_2d(1,i)))
+          end do
         end do
       end if
 
       ! Convection mixing ratio increment without shallow for VAR
       if (.not. associated(dmv_conv_noshal, empty_real_data) ) then
         do k = 0, nlayers
-          dmv_conv_noshal(map_wth(1) + k) = dmv_conv(map_wth(1) + k) * &
-                                         (1.0_r_def - shallow_in_col(map_2d(1)))
+          do i = 1, ncells
+            dmv_conv_noshal(map_wth(1,i) + k) = dmv_conv(map_wth(1,i) + k) * &
+                                           (1.0_r_def - shallow_in_col(map_2d(1,i)))
+          end do
         end do
       end if
 
       ! provide some estimate of TKE in convective plumes, based on
       ! the mass flux and convective cloud area
       do k = 1, bl_levels
-        tke_bl(map_wth(1)+k) = MIN(max_tke,MAX(tke_bl(map_wth(1)+k),         &
-               ( massflux_up(map_wth(1)+k) / ( g*rho_wet_tq(1,1,k)*          &
-                 MIN(0.5_r_um,MAX(0.05_r_um,cca_2d(map_2d(1)))) ) )**2))
-                 ! 0.5 and 0.05 are used here as plausible max and min
-                 ! values of CCA to prevent numerical problems
+        do i = 1, ncells
+          tke_bl(map_wth(1,i)+k) = MIN(max_tke,MAX(tke_bl(map_wth(1,i)+k),         &
+                 ( massflux_up(map_wth(1,i)+k) / ( g*rho_wet_tq(i,1,k)*            &
+                   MIN(0.5_r_um,MAX(0.05_r_um,cca_2d(map_2d(1,i)))) ) )**2))
+                   ! 0.5 and 0.05 are used here as plausible max and min
+                   ! values of CCA to prevent numerical problems
+        end do
       end do
 
     end if ! outer_iterations
 
     ! Copy tracers back to LFRic fields
     if ( outer == outer_iterations .AND. l_tracer ) then
-      do i = 1, ntra_fld
-        select case(ukca_tracer_names(i))
+      do n = 1, ntra_fld
+        select case(ukca_tracer_names(n))
          case(fldname_o3p)
-          o3p( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          o3p( map_wth(1) + 0 ) = o3p( map_wth(1) + 1 )
+          do i = 1, ncells
+            o3p( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            o3p( map_wth(1,i) + 0 ) = o3p( map_wth(1,i) + 1 )
+          end do
          case(fldname_o1d)
-          o1d( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          o1d( map_wth(1) + 0 ) = o1d( map_wth(1) + 1 )
+          do i = 1, ncells
+            o1d( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            o1d( map_wth(1,i) + 0 ) = o1d( map_wth(1,i) + 1 )
+          end do
          case(fldname_o3)
-          o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          o3( map_wth(1) + 0 ) = o3( map_wth(1) + 1 )
+          do i = 1, ncells
+            o3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            o3( map_wth(1,i) + 0 ) = o3( map_wth(1,i) + 1 )
+          end do
          case(fldname_n)
-          n( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n( map_wth(1) + 0 ) = n( map_wth(1) + 1 )
+          do i = 1, ncells
+            nit( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            nit( map_wth(1,i) + 0 ) = nit( map_wth(1,i) + 1 )
+          end do
          case(fldname_no)
-          no( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          no( map_wth(1) + 0 ) = no( map_wth(1) + 1 )
+          do i = 1, ncells
+            no( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            no( map_wth(1,i) + 0 ) = no( map_wth(1,i) + 1 )
+          end do
          case(fldname_no3)
-          no3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          no3( map_wth(1) + 0 ) = no3( map_wth(1) + 1 )
+          do i = 1, ncells
+            no3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            no3( map_wth(1,i) + 0 ) = no3( map_wth(1,i) + 1 )
+          end do
          case(fldname_lumped_n)
-          lumped_n( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          lumped_n( map_wth(1) + 0 ) = lumped_n( map_wth(1) + 1 )
+          do i = 1, ncells
+            lumped_n( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            lumped_n( map_wth(1,i) + 0 ) = lumped_n( map_wth(1,i) + 1 )
+          end do
          case(fldname_n2o5)
-          n2o5( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n2o5( map_wth(1) + 0 ) = n2o5( map_wth(1) + 1 )
+          do i = 1, ncells
+            n2o5( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n2o5( map_wth(1,i) + 0 ) = n2o5( map_wth(1,i) + 1 )
+          end do
          case(fldname_ho2no2)
-          ho2no2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ho2no2( map_wth(1) + 0 ) = ho2no2( map_wth(1) + 1 )
+          do i = 1, ncells
+            ho2no2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ho2no2( map_wth(1,i) + 0 ) = ho2no2( map_wth(1,i) + 1 )
+          end do
          case(fldname_hono2)
-          hono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hono2( map_wth(1) + 0 ) = hono2( map_wth(1) + 1 )
+          do i = 1, ncells
+            hono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hono2( map_wth(1,i) + 0 ) = hono2( map_wth(1,i) + 1 )
+          end do
         case(fldname_h2o2)
-          h2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          h2o2( map_wth(1) + 0 ) = h2o2( map_wth(1) + 1 )
+          do i = 1, ncells
+            h2o2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            h2o2( map_wth(1,i) + 0 ) = h2o2( map_wth(1,i) + 1 )
+          end do
          case(fldname_ch4)
-          ch4( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ch4( map_wth(1) + 0 ) = ch4( map_wth(1) + 1 )
+          do i = 1, ncells
+            ch4( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ch4( map_wth(1,i) + 0 ) = ch4( map_wth(1,i) + 1 )
+          end do
          case(fldname_co)
-          co( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          co( map_wth(1) + 0 ) = co( map_wth(1) + 1 )
+          do i = 1, ncells
+            co( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            co( map_wth(1,i) + 0 ) = co( map_wth(1,i) + 1 )
+          end do
          case(fldname_hcho)
-          hcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hcho( map_wth(1) + 0 ) = hcho( map_wth(1) + 1 )
+          do i = 1, ncells
+            hcho( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hcho( map_wth(1,i) + 0 ) = hcho( map_wth(1,i) + 1 )
+          end do
          case(fldname_meoo)
-          meoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          meoo( map_wth(1) + 0 ) = meoo( map_wth(1) + 1 )
+          do i = 1, ncells
+            meoo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            meoo( map_wth(1,i) + 0 ) = meoo( map_wth(1,i) + 1 )
+          end do
          case(fldname_meooh)
-          meooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                    &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          meooh( map_wth(1) + 0 ) = meooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            meooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                    &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            meooh( map_wth(1,i) + 0 ) = meooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_h)
-          h( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          h( map_wth(1) + 0 ) = h( map_wth(1) + 1 )
+          do i = 1, ncells
+            h( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            h( map_wth(1,i) + 0 ) = h( map_wth(1,i) + 1 )
+          end do
          case(fldname_ch2o)
+          ! H2O tracer from chemistry ns not transported
          case(fldname_oh)
-          oh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          oh( map_wth(1) + 0 ) = oh( map_wth(1) + 1 )
+          do i = 1, ncells
+            oh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            oh( map_wth(1,i) + 0 ) = oh( map_wth(1,i) + 1 )
+          end do
          case(fldname_ho2)
-          ho2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ho2( map_wth(1) + 0 ) = ho2( map_wth(1) + 1 )
+          do i = 1, ncells
+            ho2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ho2( map_wth(1,i) + 0 ) = ho2( map_wth(1,i) + 1 )
+          end do
          case(fldname_cl)
-          cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cl( map_wth(1) + 0 ) = cl( map_wth(1) + 1 )
+          do i = 1, ncells
+            cl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cl( map_wth(1,i) + 0 ) = cl( map_wth(1,i) + 1 )
+          end do
          case(fldname_cl2o2)
-          cl2o2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                   &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cl2o2( map_wth(1) + 0 ) = cl2o2( map_wth(1) + 1 )
+          do i = 1, ncells
+            cl2o2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                   &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cl2o2( map_wth(1,i) + 0 ) = cl2o2( map_wth(1,i) + 1 )
+          end do
          case(fldname_clo)
-          clo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          clo( map_wth(1) + 0 ) = clo( map_wth(1) + 1 )
+          do i = 1, ncells
+            clo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            clo( map_wth(1,i) + 0 ) = clo( map_wth(1,i) + 1 )
+          end do
          case(fldname_oclo)
-          oclo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          oclo( map_wth(1) + 0 ) = oclo( map_wth(1) + 1 )
+          do i = 1, ncells
+            oclo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            oclo( map_wth(1,i) + 0 ) = oclo( map_wth(1,i) + 1 )
+          end do
          case(fldname_br)
-          br( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          br( map_wth(1) + 0 ) = br( map_wth(1) + 1 )
+          do i = 1, ncells
+            br( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            br( map_wth(1,i) + 0 ) = br( map_wth(1,i) + 1 )
+          end do
          case(fldname_lumped_br)
-          lumped_br( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          lumped_br( map_wth(1) + 0 ) = lumped_br( map_wth(1) + 1 )
+          do i = 1, ncells
+            lumped_br( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            lumped_br( map_wth(1,i) + 0 ) = lumped_br( map_wth(1,i) + 1 )
+          end do
          case(fldname_brcl)
-          brcl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          brcl( map_wth(1) + 0 ) = brcl( map_wth(1) + 1 )
+          do i = 1, ncells
+            brcl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            brcl( map_wth(1,i) + 0 ) = brcl( map_wth(1,i) + 1 )
+          end do
          case(fldname_brono2)
-          brono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          brono2( map_wth(1) + 0 ) = brono2( map_wth(1) + 1 )
+          do i = 1, ncells
+            brono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            brono2( map_wth(1,i) + 0 ) = brono2( map_wth(1,i) + 1 )
+          end do
          case(fldname_n2o)
-          n2o( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n2o( map_wth(1) + 0 ) = n2o( map_wth(1) + 1 )
+          do i = 1, ncells
+            n2o( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n2o( map_wth(1,i) + 0 ) = n2o( map_wth(1,i) + 1 )
+          end do
          case(fldname_lumped_cl)
-          lumped_cl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          lumped_cl( map_wth(1) + 0 ) = lumped_cl( map_wth(1) + 1 )
+          do i = 1, ncells
+            lumped_cl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            lumped_cl( map_wth(1,i) + 0 ) = lumped_cl( map_wth(1,i) + 1 )
+          end do
          case(fldname_hocl)
-          hocl( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hocl( map_wth(1) + 0 ) = hocl( map_wth(1) + 1 )
+          do i = 1, ncells
+            hocl( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hocl( map_wth(1,i) + 0 ) = hocl( map_wth(1,i) + 1 )
+          end do
          case(fldname_hbr)
-          hbr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hbr( map_wth(1) + 0 ) = hbr( map_wth(1) + 1 )
+          do i = 1, ncells
+            hbr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hbr( map_wth(1,i) + 0 ) = hbr( map_wth(1,i) + 1 )
+          end do
          case(fldname_hobr)
-          hobr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hobr( map_wth(1) + 0 ) = hobr( map_wth(1) + 1 )
+          do i = 1, ncells
+            hobr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hobr( map_wth(1,i) + 0 ) = hobr( map_wth(1,i) + 1 )
+          end do
          case(fldname_clono2)
-          clono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          clono2( map_wth(1) + 0 ) = clono2( map_wth(1) + 1 )
+          do i = 1, ncells
+            clono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            clono2( map_wth(1,i) + 0 ) = clono2( map_wth(1,i) + 1 )
+          end do
          case(fldname_cfcl3)
-          cfcl3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cfcl3( map_wth(1) + 0 ) = cfcl3( map_wth(1) + 1 )
+          do i = 1, ncells
+            cfcl3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cfcl3( map_wth(1,i) + 0 ) = cfcl3( map_wth(1,i) + 1 )
+          end do
          case(fldname_cf2cl2)
-          cf2cl2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cf2cl2( map_wth(1) + 0 ) = cf2cl2( map_wth(1) + 1 )
+          do i = 1, ncells
+            cf2cl2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cf2cl2( map_wth(1,i) + 0 ) = cf2cl2( map_wth(1,i) + 1 )
+          end do
          case(fldname_mebr)
-          mebr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          mebr( map_wth(1) + 0 ) = mebr( map_wth(1) + 1 )
+          do i = 1, ncells
+            mebr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            mebr( map_wth(1,i) + 0 ) = mebr( map_wth(1,i) + 1 )
+          end do
          case(fldname_hono)
-          hono( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hono( map_wth(1) + 0 ) = hono( map_wth(1) + 1 )
+          do i = 1, ncells
+            hono( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hono( map_wth(1,i) + 0 ) = hono( map_wth(1,i) + 1 )
+          end do
          case(fldname_c2h6)
-          c2h6( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          c2h6( map_wth(1) + 0 ) = c2h6( map_wth(1) + 1 )
+          do i = 1, ncells
+            c2h6( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            c2h6( map_wth(1,i) + 0 ) = c2h6( map_wth(1,i) + 1 )
+          end do
          case(fldname_etoo)
-          etoo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          etoo( map_wth(1) + 0 ) = etoo( map_wth(1) + 1 )
+          do i = 1, ncells
+            etoo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            etoo( map_wth(1,i) + 0 ) = etoo( map_wth(1,i) + 1 )
+          end do
          case(fldname_etooh)
-          etooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          etooh( map_wth(1) + 0 ) = etooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            etooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            etooh( map_wth(1,i) + 0 ) = etooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_mecho)
-          mecho( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          mecho( map_wth(1) + 0 ) = mecho( map_wth(1) + 1 )
+          do i = 1, ncells
+            mecho( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            mecho( map_wth(1,i) + 0 ) = mecho( map_wth(1,i) + 1 )
+          end do
          case(fldname_meco3)
-          meco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          meco3( map_wth(1) + 0 ) = meco3( map_wth(1) + 1 )
+          do i = 1, ncells
+            meco3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            meco3( map_wth(1,i) + 0 ) = meco3( map_wth(1,i) + 1 )
+          end do
          case(fldname_pan)
-          pan( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          pan( map_wth(1) + 0 ) = pan( map_wth(1) + 1 )
+          do i = 1, ncells
+            pan( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            pan( map_wth(1,i) + 0 ) = pan( map_wth(1,i) + 1 )
+          end do
          case(fldname_c3h8)
-          c3h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          c3h8( map_wth(1) + 0 ) = c3h8( map_wth(1) + 1 )
+          do i = 1, ncells
+            c3h8( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            c3h8( map_wth(1,i) + 0 ) = c3h8( map_wth(1,i) + 1 )
+          end do
          case(fldname_n_proo)
-          n_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_proo( map_wth(1) + 0 ) = n_proo( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_proo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_proo( map_wth(1,i) + 0 ) = n_proo( map_wth(1,i) + 1 )
+          end do
          case(fldname_i_proo)
-          i_proo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          i_proo( map_wth(1) + 0 ) = i_proo( map_wth(1) + 1 )
+          do i = 1, ncells
+            i_proo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            i_proo( map_wth(1,i) + 0 ) = i_proo( map_wth(1,i) + 1 )
+          end do
          case(fldname_n_prooh)
-          n_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_prooh( map_wth(1) + 0 ) = n_prooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_prooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_prooh( map_wth(1,i) + 0 ) = n_prooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_i_prooh)
-          i_prooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          i_prooh( map_wth(1) + 0 ) = i_prooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            i_prooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            i_prooh( map_wth(1,i) + 0 ) = i_prooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_etcho)
-          etcho( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          etcho( map_wth(1) + 0 ) = etcho( map_wth(1) + 1 )
+          do i = 1, ncells
+            etcho( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            etcho( map_wth(1,i) + 0 ) = etcho( map_wth(1,i) + 1 )
+          end do
          case(fldname_etco3)
-          etco3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          etco3( map_wth(1) + 0 ) = etco3( map_wth(1) + 1 )
+          do i = 1, ncells
+            etco3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            etco3( map_wth(1,i) + 0 ) = etco3( map_wth(1,i) + 1 )
+         end do
          case(fldname_me2co)
-          me2co( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          me2co( map_wth(1) + 0 ) = me2co( map_wth(1) + 1 )
+          do i = 1, ncells
+            me2co( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            me2co( map_wth(1,i) + 0 ) = me2co( map_wth(1,i) + 1 )
+          end do
          case(fldname_mecoch2oo)
-          mecoch2oo( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          mecoch2oo( map_wth(1) + 0 ) = mecoch2oo( map_wth(1) + 1 )
+          do i = 1, ncells
+            mecoch2oo( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            mecoch2oo( map_wth(1,i) + 0 ) = mecoch2oo( map_wth(1,i) + 1 )
+          end do
          case(fldname_mecoch2ooh)
-          mecoch2ooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          mecoch2ooh( map_wth(1) + 0 ) = mecoch2ooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            mecoch2ooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            mecoch2ooh( map_wth(1,i) + 0 ) = mecoch2ooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_ppan)
-          ppan( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ppan( map_wth(1) + 0 ) = ppan( map_wth(1) + 1 )
+          do i = 1, ncells
+            ppan( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ppan( map_wth(1,i) + 0 ) = ppan( map_wth(1,i) + 1 )
+          end do
          case(fldname_meono2)
-          meono2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          meono2( map_wth(1) + 0 ) = meono2( map_wth(1) + 1 )
+          do i = 1, ncells
+            meono2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            meono2( map_wth(1,i) + 0 ) = meono2( map_wth(1,i) + 1 )
+          end do
          case(fldname_c5h8)
-          c5h8( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          c5h8( map_wth(1) + 0 ) = c5h8( map_wth(1) + 1 )
+          do i = 1, ncells
+            c5h8( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            c5h8( map_wth(1,i) + 0 ) = c5h8( map_wth(1,i) + 1 )
+          end do
          case(fldname_iso2)
-          iso2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          iso2( map_wth(1) + 0 ) = iso2( map_wth(1) + 1 )
+          do i = 1, ncells
+            iso2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            iso2( map_wth(1,i) + 0 ) = iso2( map_wth(1,i) + 1 )
+          end do
          case(fldname_isooh)
-          isooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          isooh( map_wth(1) + 0 ) = isooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            isooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            isooh( map_wth(1,i) + 0 ) = isooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_ison)
-          ison( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ison( map_wth(1) + 0 ) = ison( map_wth(1) + 1 )
+          do i = 1, ncells
+            ison( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ison( map_wth(1,i) + 0 ) = ison( map_wth(1,i) + 1 )
+          end do
          case(fldname_macr)
-          macr( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          macr( map_wth(1) + 0 ) = macr( map_wth(1) + 1 )
+          do i = 1, ncells
+            macr( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            macr( map_wth(1,i) + 0 ) = macr( map_wth(1,i) + 1 )
+          end do
          case(fldname_macro2)
-          macro2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          macro2( map_wth(1) + 0 ) = macro2( map_wth(1) + 1 )
+          do i = 1, ncells
+            macro2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            macro2( map_wth(1,i) + 0 ) = macro2( map_wth(1,i) + 1 )
+          end do
          case(fldname_macrooh)
-          macrooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          macrooh( map_wth(1) + 0 ) = macrooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            macrooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            macrooh( map_wth(1,i) + 0 ) = macrooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_mpan)
-          mpan( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          mpan( map_wth(1) + 0 ) = mpan( map_wth(1) + 1 )
+          do i = 1, ncells
+            mpan( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            mpan( map_wth(1,i) + 0 ) = mpan( map_wth(1,i) + 1 )
+          end do
          case(fldname_hacet)
-          hacet( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hacet( map_wth(1) + 0 ) = hacet( map_wth(1) + 1 )
+          do i = 1, ncells
+            hacet( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hacet( map_wth(1,i) + 0 ) = hacet( map_wth(1,i) + 1 )
+          end do
          case(fldname_mgly)
-          mgly( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          mgly( map_wth(1) + 0 ) = mgly( map_wth(1) + 1 )
+          do i = 1, ncells
+            mgly( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            mgly( map_wth(1,i) + 0 ) = mgly( map_wth(1,i) + 1 )
+          end do
          case(fldname_nald)
-          nald( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          nald( map_wth(1) + 0 ) = nald( map_wth(1) + 1 )
+          do i = 1, ncells
+            nald( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            nald( map_wth(1,i) + 0 ) = nald( map_wth(1,i) + 1 )
+          end do
          case(fldname_hcooh)
-          hcooh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          hcooh( map_wth(1) + 0 ) = hcooh( map_wth(1) + 1 )
+          do i = 1, ncells
+            hcooh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            hcooh( map_wth(1,i) + 0 ) = hcooh( map_wth(1,i) + 1 )
+          end do
          case(fldname_meco3h)
-          meco3h( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          meco3h( map_wth(1) + 0 ) = meco3h( map_wth(1) + 1 )
+          do i = 1, ncells
+            meco3h( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            meco3h( map_wth(1,i) + 0 ) = meco3h( map_wth(1,i) + 1 )
+          end do
          case(fldname_meco2h)
-          meco2h( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          meco2h( map_wth(1) + 0 ) = meco2h( map_wth(1) + 1 )
+          do i = 1, ncells
+            meco2h( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            meco2h( map_wth(1,i) + 0 ) = meco2h( map_wth(1,i) + 1 )
+          end do
          case(fldname_h2)
-          h2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          h2( map_wth(1) + 0 ) = h2( map_wth(1) + 1 )
+          do i = 1, ncells
+            h2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            h2( map_wth(1,i) + 0 ) = h2( map_wth(1,i) + 1 )
+          end do
          case(fldname_meoh)
-          meoh( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          meoh( map_wth(1) + 0 ) = meoh( map_wth(1) + 1 )
+          do i = 1, ncells
+            meoh( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            meoh( map_wth(1,i) + 0 ) = meoh( map_wth(1,i) + 1 )
+          end do
          case(fldname_msa)
-          msa( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          msa( map_wth(1) + 0 ) = msa( map_wth(1) + 1 )
+          do i = 1, ncells
+            msa( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            msa( map_wth(1,i) + 0 ) = msa( map_wth(1,i) + 1 )
+          end do
          case(fldname_nh3)
-          nh3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          nh3( map_wth(1) + 0 ) = nh3( map_wth(1) + 1 )
+          do i = 1, ncells
+            nh3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            nh3( map_wth(1,i) + 0 ) = nh3( map_wth(1,i) + 1 )
+          end do
          case(fldname_cs2)
-          cs2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cs2( map_wth(1) + 0 ) = cs2( map_wth(1) + 1 )
+          do i = 1, ncells
+            cs2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cs2( map_wth(1,i) + 0 ) = cs2( map_wth(1,i) + 1 )
+          end do
          case(fldname_csul)
-          csul( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          csul( map_wth(1) + 0 ) = csul( map_wth(1) + 1 )
+          do i = 1, ncells
+            csul( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            csul( map_wth(1,i) + 0 ) = csul( map_wth(1,i) + 1 )
+          end do
          case(fldname_h2s)
-          h2s( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          h2s( map_wth(1) + 0 ) = h2s( map_wth(1) + 1 )
+          do i = 1, ncells
+            h2s( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            h2s( map_wth(1,i) + 0 ) = h2s( map_wth(1,i) + 1 )
+          end do
          case(fldname_so3)
-          so3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          so3( map_wth(1) + 0 ) = so3( map_wth(1) + 1 )
+          do i = 1, ncells
+            so3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            so3( map_wth(1,i) + 0 ) = so3( map_wth(1,i) + 1 )
+          end do
          case(fldname_passive_o3)
-          passive_o3( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          passive_o3( map_wth(1) + 0 ) = passive_o3( map_wth(1) + 1 )
+          do i = 1, ncells
+            passive_o3( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            passive_o3( map_wth(1,i) + 0 ) = passive_o3( map_wth(1,i) + 1 )
+          end do
          case(fldname_age_of_air)
-          age_of_air( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          age_of_air( map_wth(1) + 0 ) = age_of_air( map_wth(1) + 1 )
+          do i = 1, ncells
+            age_of_air( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            age_of_air( map_wth(1,i) + 0 ) = age_of_air( map_wth(1,i) + 1 )
+          end do
         case(fldname_dms)
-          dms( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                      &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          dms( map_wth(1) + 0 ) = dms( map_wth(1) + 1 )
+          do i = 1, ncells
+            dms( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                      &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            dms( map_wth(1,i) + 0 ) = dms( map_wth(1,i) + 1 )
+          end do
         case(fldname_so2)
-          so2( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                      &
-           real( tot_tracer( 1, 1, :, i ), r_def )
-          so2( map_wth(1) + 0 ) = so2( map_wth(1) + 1 )
+          do i = 1, ncells
+            so2( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                      &
+             real( tot_tracer( i, 1, :, n ), r_def )
+            so2( map_wth(1,i) + 0 ) = so2( map_wth(1,i) + 1 )
+          end do
         case(fldname_h2so4)
-          h2so4( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                    &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          h2so4( map_wth(1) + 0 ) = h2so4( map_wth(1) + 1 )
+          do i = 1, ncells
+            h2so4( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                    &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            h2so4( map_wth(1,i) + 0 ) = h2so4( map_wth(1,i) + 1 )
+          end do
         case(fldname_dmso)
-          dmso( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                     &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          dmso( map_wth(1) + 0 ) = dmso( map_wth(1) + 1 )
+          do i = 1, ncells
+            dmso( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                     &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            dmso( map_wth(1,i) + 0 ) = dmso( map_wth(1,i) + 1 )
+          end do
         case(fldname_monoterpene)
-          monoterpene( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =              &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          monoterpene( map_wth(1) + 0 ) = monoterpene( map_wth(1) + 1 )
+          do i = 1, ncells
+            monoterpene( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =              &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            monoterpene( map_wth(1,i) + 0 ) = monoterpene( map_wth(1,i) + 1 )
+          end do
         case(fldname_secondary_organic)
-          secondary_organic( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =        &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          secondary_organic( map_wth(1) + 0 ) =                                &
-            secondary_organic( map_wth(1) + 1 )
+          do i = 1, ncells
+            secondary_organic( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =        &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            secondary_organic( map_wth(1,i) + 0 ) =                                &
+              secondary_organic( map_wth(1,i) + 1 )
+          end do
         case(fldname_n_nuc_sol)
-          n_nuc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_nuc_sol( map_wth(1) + 0 ) = n_nuc_sol( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_nuc_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_nuc_sol( map_wth(1,i) + 0 ) = n_nuc_sol( map_wth(1,i) + 1 )
+          end do
         case(fldname_nuc_sol_su)
-          nuc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          nuc_sol_su( map_wth(1) + 0 ) = nuc_sol_su( map_wth(1) + 1 )
+          do i = 1, ncells
+            nuc_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            nuc_sol_su( map_wth(1,i) + 0 ) = nuc_sol_su( map_wth(1,i) + 1 )
+          end do
         case(fldname_nuc_sol_om)
-          nuc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          nuc_sol_om( map_wth(1) + 0 ) = nuc_sol_om( map_wth(1) + 1 )
+          do i = 1, ncells
+            nuc_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            nuc_sol_om( map_wth(1,i) + 0 ) = nuc_sol_om( map_wth(1,i) + 1 )
+          end do
         case(fldname_n_ait_sol)
-          n_ait_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_ait_sol( map_wth(1) + 0 ) = n_ait_sol( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_ait_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_ait_sol( map_wth(1,i) + 0 ) = n_ait_sol( map_wth(1,i) + 1 )
+          end do
         case(fldname_ait_sol_su)
-          ait_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ait_sol_su( map_wth(1) + 0 ) = ait_sol_su( map_wth(1) + 1 )
+          do i = 1, ncells
+            ait_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ait_sol_su( map_wth(1,i) + 0 ) = ait_sol_su( map_wth(1,i) + 1 )
+          end do
         case(fldname_ait_sol_bc)
-          ait_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ait_sol_bc( map_wth(1) + 0 ) = ait_sol_bc( map_wth(1) + 1 )
+          do i = 1, ncells
+            ait_sol_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ait_sol_bc( map_wth(1,i) + 0 ) = ait_sol_bc( map_wth(1,i) + 1 )
+          end do
         case(fldname_ait_sol_om)
-          ait_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ait_sol_om( map_wth(1) + 0 ) = ait_sol_om( map_wth(1) + 1 )
+          do i = 1, ncells
+            ait_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ait_sol_om( map_wth(1,i) + 0 ) = ait_sol_om( map_wth(1,i) + 1 )
+          end do
         case(fldname_n_acc_sol)
-          n_acc_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_acc_sol( map_wth(1) + 0 ) = n_acc_sol( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_acc_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_acc_sol( map_wth(1,i) + 0 ) = n_acc_sol( map_wth(1,i) + 1 )
+          end do
         case(fldname_acc_sol_su)
-          acc_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          acc_sol_su( map_wth(1) + 0 ) = acc_sol_su( map_wth(1) + 1 )
+          do i = 1, ncells
+            acc_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            acc_sol_su( map_wth(1,i) + 0 ) = acc_sol_su( map_wth(1,i) + 1 )
+          end do
         case(fldname_acc_sol_bc)
-          acc_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          acc_sol_bc( map_wth(1) + 0 ) = acc_sol_bc( map_wth(1) + 1 )
+          do i = 1, ncells
+            acc_sol_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            acc_sol_bc( map_wth(1,i) + 0 ) = acc_sol_bc( map_wth(1,i) + 1 )
+          end do
         case(fldname_acc_sol_om)
-          acc_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          acc_sol_om( map_wth(1) + 0 ) = acc_sol_om( map_wth(1) + 1 )
+          do i = 1, ncells
+            acc_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            acc_sol_om( map_wth(1,i) + 0 ) = acc_sol_om( map_wth(1,i) + 1 )
+          end do
         case(fldname_acc_sol_ss)
-          acc_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          acc_sol_ss( map_wth(1) + 0 ) = acc_sol_ss( map_wth(1) + 1 )
+          do i = 1, ncells
+            acc_sol_ss( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            acc_sol_ss( map_wth(1,i) + 0 ) = acc_sol_ss( map_wth(1,i) + 1 )
+          end do
         case(fldname_acc_sol_du)
-          ! No field to update
+          ! No field to update (always zero)
         case(fldname_n_cor_sol)
-          n_cor_sol( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_cor_sol( map_wth(1) + 0 ) = n_cor_sol( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_cor_sol( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_cor_sol( map_wth(1,i) + 0 ) = n_cor_sol( map_wth(1,i) + 1 )
+          end do
         case(fldname_cor_sol_su)
-          cor_sol_su( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cor_sol_su( map_wth(1) + 0 ) = cor_sol_su( map_wth(1) + 1 )
+          do i = 1, ncells
+            cor_sol_su( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cor_sol_su( map_wth(1,i) + 0 ) = cor_sol_su( map_wth(1,i) + 1 )
+          end do
         case(fldname_cor_sol_bc)
-          cor_sol_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cor_sol_bc( map_wth(1) + 0 ) = cor_sol_bc( map_wth(1) + 1 )
+          do i = 1, ncells
+            cor_sol_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cor_sol_bc( map_wth(1,i) + 0 ) = cor_sol_bc( map_wth(1,i) + 1 )
+          end do
         case(fldname_cor_sol_om)
-          cor_sol_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cor_sol_om( map_wth(1) + 0 ) = cor_sol_om( map_wth(1) + 1 )
+          do i = 1, ncells
+            cor_sol_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cor_sol_om( map_wth(1,i) + 0 ) = cor_sol_om( map_wth(1,i) + 1 )
+          end do
         case(fldname_cor_sol_ss)
-          cor_sol_ss( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cor_sol_ss( map_wth(1) + 0 ) = cor_sol_ss( map_wth(1) + 1 )
+          do i = 1, ncells
+            cor_sol_ss( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cor_sol_ss( map_wth(1,i) + 0 ) = cor_sol_ss( map_wth(1,i) + 1 )
+          end do
         case(fldname_cor_sol_du)
-          ! No field to update
+          ! No field to update (always zero)
         case(fldname_n_ait_ins)
-          n_ait_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_ait_ins( map_wth(1) + 0 ) = n_ait_ins( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_ait_ins( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_ait_ins( map_wth(1,i) + 0 ) = n_ait_ins( map_wth(1,i) + 1 )
+          end do
         case(fldname_ait_ins_bc)
-          ait_ins_bc( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ait_ins_bc( map_wth(1) + 0 ) = ait_ins_bc( map_wth(1) + 1 )
+          do i = 1, ncells
+            ait_ins_bc( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ait_ins_bc( map_wth(1,i) + 0 ) = ait_ins_bc( map_wth(1,i) + 1 )
+          end do
         case(fldname_ait_ins_om)
-          ait_ins_om( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          ait_ins_om( map_wth(1) + 0 ) = ait_ins_om( map_wth(1) + 1 )
+          do i = 1, ncells
+            ait_ins_om( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            ait_ins_om( map_wth(1,i) + 0 ) = ait_ins_om( map_wth(1,i) + 1 )
+          end do
         case(fldname_n_acc_ins)
-          n_acc_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_acc_ins( map_wth(1) + 0 ) = n_acc_ins( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_acc_ins( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_acc_ins( map_wth(1,i) + 0 ) = n_acc_ins( map_wth(1,i) + 1 )
+          end do
         case(fldname_acc_ins_du)
-          acc_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          acc_ins_du( map_wth(1) + 0 ) = acc_ins_du( map_wth(1) + 1 )
+          do i = 1, ncells
+            acc_ins_du( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            acc_ins_du( map_wth(1,i) + 0 ) = acc_ins_du( map_wth(1,i) + 1 )
+          end do
         case(fldname_n_cor_ins)
-          n_cor_ins( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =                &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          n_cor_ins( map_wth(1) + 0 ) = n_cor_ins( map_wth(1) + 1 )
+          do i = 1, ncells
+            n_cor_ins( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =                &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            n_cor_ins( map_wth(1,i) + 0 ) = n_cor_ins( map_wth(1,i) + 1 )
+          end do
         case(fldname_cor_ins_du)
-          cor_ins_du( map_wth(1) + 1 : map_wth(1) + ntra_lev ) =               &
-            real( tot_tracer( 1, 1, :, i ), r_def )
-          cor_ins_du( map_wth(1) + 0 ) = cor_ins_du( map_wth(1) + 1 )
+          do i = 1, ncells
+            cor_ins_du( map_wth(1,i) + 1 : map_wth(1,i) + ntra_lev ) =               &
+              real( tot_tracer( i, 1, :, n ), r_def )
+            cor_ins_du( map_wth(1,i) + 0 ) = cor_ins_du( map_wth(1,i) + 1 )
+          end do
         end select
       end do
     end if  ! outer == outer_iterations .AND. l_tracer

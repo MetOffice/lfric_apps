@@ -24,7 +24,7 @@
             ROSE_TASK_APP = extract_source
             DEPENDENCIES = {{dependencies}}
             USE_MIRRORS = {{USE_MIRRORS}}
-            USE_TOKENS = {{USE_TOKENS}}
+            USE_TOKENS = {{site_vars.get("USE_TOKENS", "false")}}
         {% if USE_MIRRORS %}
             {% if "git_mirror_loc" in site_vars %}
             GIT_MIRROR_LOC = {{site_vars.git_mirror_loc}}
