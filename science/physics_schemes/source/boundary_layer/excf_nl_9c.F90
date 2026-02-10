@@ -2246,7 +2246,6 @@ end do
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-! do i = pdims%i_start, pdims%i_end
     if ( ktop_iterate(i,j) .and. wb_dzrad_int(i,j)  <   zero ) then
         !-------------------------------------------------------------
         ! Estimation of wb integral over radiatively cooled cloud-top
