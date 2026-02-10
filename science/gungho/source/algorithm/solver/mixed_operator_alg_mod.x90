@@ -119,20 +119,15 @@ contains
     use fs_continuity_mod,                  only: W2, W2h, W2v, W3, Wtheta, W2Hbroken
     use function_space_collection_mod,      only: function_space_collection
 
-    use apply_mixed_lu_operator_kernel_mod, &
-                                 only: apply_mixed_lu_operator_kernel_type
+    use apply_mixed_lu_operator_kernel_mod, only: apply_mixed_lu_operator_kernel_type
     use apply_elim_mixed_lp_operator_kernel_mod, &
-                                 only: apply_elim_mixed_lp_operator_kernel_type
-    use matrix_vector_kernel_mod, &
-                                 only: matrix_vector_kernel_type
-    use dg_inc_matrix_vector_kernel_mod, &
-                                 only: dg_inc_matrix_vector_kernel_type
-    use apply_mixed_u_operator_kernel_mod, &
-                                 only: apply_mixed_u_operator_kernel_type
-    use apply_mixed_wp_operator_kernel_mod, &
-                                 only: apply_mixed_wp_operator_kernel_type
-    use assemble_w2h_from_w2hb_kernel_mod, only: assemble_w2h_from_w2hb_kernel_type
-    
+                                            only: apply_elim_mixed_lp_operator_kernel_type
+    use matrix_vector_kernel_mod,           only: matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod,    only: dg_inc_matrix_vector_kernel_type
+    use apply_mixed_u_operator_kernel_mod,  only: apply_mixed_u_operator_kernel_type
+    use apply_mixed_wp_operator_kernel_mod, only: apply_mixed_wp_operator_kernel_type
+    use assemble_w2h_from_w2hb_kernel_mod,  only: assemble_w2h_from_w2hb_kernel_type
+
     implicit none
 
     class(mixed_operator_type),  intent(inout) :: self

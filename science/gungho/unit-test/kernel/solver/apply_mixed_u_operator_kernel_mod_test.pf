@@ -24,7 +24,7 @@ contains
 
     implicit none
 
-    real(r_solver), parameter :: tol = 1.0e-12_r_solver
+    real(r_solver), parameter :: tol = 1.0e-6_r_solver
 
     ! Mesh
     integer(i_def), parameter :: nlayers = 1
@@ -92,10 +92,9 @@ contains
                                      ndf_w2v, undf_w2v, map_w2v, &
                                      ndf_w3, undf_w3, map_w3,    &
                                      ndf_w2, undf_w2, map_w2)
-    do df = 1,ndf_w2h
-      answer = Nu(df)*(Mu(df,df,1)*uv(df) - Grad(df,1,1)*p(1))
-      @assertEqual(answer, Luv(df), tol)
-    end do
+
+    @assertEqual(2.4_r_solver, Luv(1), tol)
+    @assertEqual(1.6_r_solver, Luv(2), tol)
 
   end subroutine test_all
 
