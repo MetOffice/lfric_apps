@@ -830,9 +830,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           ! Turbulent Prandtl number and velocity scale for scalars
           ! gives 0.375<Pr<0.75 for convective to neutral conditions
         prandtl_top(i,j) = 0.75_r_bl *                                         &
-                      ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +   &
-                          (one/25.0_r_bl)*wstar3*w_m_top(i,j) ) /               &
-                      ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +   &
+                      ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +  &
+                          (one/25.0_r_bl)*wstar3*w_m_top(i,j) ) /              &
+                      ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +  &
                           (2.0_r_bl/25.0_r_bl)*wstar3*w_m_top(i,j) )
         w_h_top(i,j) = w_m_top(i,j) / prandtl_top(i,j)
       else if (flux_grad  ==  HoltBov1993) then
@@ -987,8 +987,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           !  flux at the top and then added the entrainment flux onto
           !  this, which is double-counting).
           l_apply_surf_ent = ( .not. ( ( kprof_cu==buoy_integ .or.             &
-                                          kprof_cu==buoy_integ_low ) .and.      &
-                                        cumulus(i,j) ) )
+                                         kprof_cu==buoy_integ_low ) .and.      &
+                                         cumulus(i,j) ) )
         else
           ! If bug-fix is off, always add on surface-driven entrainment flux
           l_apply_surf_ent = .true.
@@ -1002,7 +1002,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         end if
         rhokh_top_ent(i,j) = rhokh_ent * frac_top
         rhokm_top_ent(i,j) = 0.75_r_bl * rhokh_top_ent(i,j)                    &
-                              * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))        &
+                              * rdz(i,j,k) * (z_uv(i,j,k)-z_uv(i,j,k-1))       &
                               * rho_wet_tq(i,j,k-1) / rho_mix(i,j,k)
         if (.not. l_use_var_fixes) then
           rhokm(i,j,k) = rhokm_surf_ent(i,j)
@@ -1534,7 +1534,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
             if (flux_grad  ==  LockWhelan2006) then
               khtop(i,j) = 3.6_r_bl * vkman * rho_mix(i,j,k) *v_ktop(i,j)    &
-                                * zinv_pr(i,j) * (z_ratio**3)                 &
+                                * zinv_pr(i,j) * (z_ratio**3)                &
                                 * ( (one-z_ratio)*(one-z_ratio) )
               f2 = rho_mix(i,j,k) * one_half * z_ratio                       &
                                         * 2.0_r_bl**( z_ratio**4 )
@@ -1556,8 +1556,8 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
             ! include surface-driven profile
             !--------------------------------
             khsurf(i,j) = vkman * rho_mix(i,j,k) *                           &
-                      w_h_top(i,j)*z_pr*( one - z_pr/z_inv(i,j) )             &
-                                      *( one - z_pr/z_inv(i,j) )
+                      w_h_top(i,j)*z_pr*( one - z_pr/z_inv(i,j) )            &
+                                       *( one - z_pr/z_inv(i,j) )
           end if
 
           if (flux_grad  ==  LockWhelan2006) then
@@ -1580,9 +1580,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
                         khtop(i,j)  * db_noga_cld(i,j,k) )
             if (flux_grad  ==  LockWhelan2006) then
               wb_cld = wb_cld + ( g/rdz(i,j,k) ) * (                         &
-                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                     &
-                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +               &
-                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                     &
+                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
+                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +              &
+                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
                           bqm_cld(i,j,k-1)*cf_ml(i,j) )*wqwng )
             end if
             wb_scld = zero
@@ -1597,9 +1597,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
               wb_scld = wb_scld + ( g/rdz(i,j,k) ) *                         &
                 ( btm(i,j,k-1)*wslng + bqm(i,j,k-1)*wqwng )
               wb_cld = wb_cld + ( g/rdz(i,j,k) ) * (                         &
-                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                     &
-                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +               &
-                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                     &
+                        ( btm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
+                          btm_cld(i,j,k-1)*cf_ml(i,j) )*wslng +              &
+                        ( bqm(i,j,k-1)*(one-cf_ml(i,j)) +                    &
                           bqm_cld(i,j,k-1)*cf_ml(i,j) )*wqwng )
             end if
             cld_frac = (z_tq(i,j,k)-z_cbase(i,j))                            &
@@ -1668,14 +1668,14 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           if ( db_top(i,j) >  zero .and. db_dsct(i,j) >  0.01_r_bl ) then
                                         ! can't calc Zil. term
             rhokh_surf_ent(i,j) = rhokh_surf_ent(i,j) *                        &
-                    ( rho_mix(i,j,ntdsc(i,j)+1) * db_top(i,j) *                 &
-                      rdz(i,j,ntml(i,j)+1) ) /                                  &
-                    ( rho_mix(i,j,ntml(i,j)+1) * db_dsct(i,j) *                 &
+                    ( rho_mix(i,j,ntdsc(i,j)+1) * db_top(i,j) *                &
+                      rdz(i,j,ntml(i,j)+1) ) /                                 &
+                    ( rho_mix(i,j,ntml(i,j)+1) * db_dsct(i,j) *                &
                                         rdz(i,j,ntdsc(i,j)+1) )
             rhokm_surf_ent(i,j) = rhokm_surf_ent(i,j) *                        &
-                    ( rho_wet_tq(i,j,ntdsc(i,j)) * db_top(i,j) *                &
-                      rdz(i,j,ntml(i,j)+1) ) /                                  &
-                    ( rho_wet_tq(i,j,ntml(i,j)) * db_dsct(i,j) *                &
+                    ( rho_wet_tq(i,j,ntdsc(i,j)) * db_top(i,j) *               &
+                      rdz(i,j,ntml(i,j)+1) ) /                                 &
+                    ( rho_wet_tq(i,j,ntml(i,j)) * db_dsct(i,j) *               &
                                       rdz(i,j,ntdsc(i,j)+1) )
             if (.not. l_use_var_fixes)                                         &
                   rhokm(i,j,ntdsc(i,j)+1) = rhokm_surf_ent(i,j)
@@ -1750,7 +1750,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           ! Extent of mixing must be reduced
           !---------------------------------
           if ( .not. cumulus(i,j) .or. kprof_cu == buoy_integ .or.             &
-                                        kprof_cu == buoy_integ_low)             &
+                                        kprof_cu == buoy_integ_low)            &
                   ksurf_iterate(i,j) = .true.
           if ( cumulus(i,j) .and. ( kprof_cu == buoy_integ .or.                &
                                     kprof_cu == buoy_integ_low) )              &
@@ -2787,7 +2787,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     k=ntml(i,j)+1
     kh_top_factor(i,j) = max( 0.7_r_bl , one - sqrt(                           &
-              rhokh_surf_ent(i,j) /                                             &
+              rhokh_surf_ent(i,j) /                                            &
                     ( rho_mix(i,j,k)*w_h_top(i,j)*vkman*zh(i,j) ) ) )
     if (l_use_var_fixes) then
       km_top_factor(i,j) = max( 0.7_r_bl, one-sqrt( rhokm_surf_ent(i,j) /      &
@@ -2908,7 +2908,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         if (flux_grad  ==  LockWhelan2006) then
 
           rhokh_top(i,j,k) = 3.6_r_bl*vkman * rho_mix(i,j,k) * v_top(i,j)    &
-                              * zh_pr * (z_ratio**3)                          &
+                              * zh_pr * (z_ratio**3)                         &
                               * (( one - z_ratio )**2)
 
           if ( .not. coupled(i,j) ) then
@@ -2977,7 +2977,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         if (flux_grad  ==  LockWhelan2006) then
 
           rhokh_top(i,j,k) = 3.6_r_bl*vkman * rho_mix(i,j,k)                 &
-                            * v_top_dsc(i,j) * zh_pr * (z_ratio**3)           &
+                            * v_top_dsc(i,j) * zh_pr * (z_ratio**3)          &
                             * (( one - z_ratio )**2)
 
           rhof2(i,j,k)  = rho_mix(i,j,k) * one_half * z_ratio                &
@@ -2991,7 +2991,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         else  ! Not LockWhelan2006
           ! max to avoid rounding errors giving small negative numbers
           rhokh_top(i,j,k) = rhokh_top(i,j,k) +                              &
-              rho_mix(i,j,k)*v_top_dsc(i,j)*g1*vkman*                         &
+              rho_mix(i,j,k)*v_top_dsc(i,j)*g1*vkman*                        &
                 ( (max(one - kh_dsct_factor(i,j)*z_ratio,zero))**0.8_r_bl )  &
                                             * z_pr * z_ratio
         end if
@@ -3005,7 +3005,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         zh_pr = zhsc(i,j) - zdsc_base(i,j)
         ! max to avoid rounding errors giving small negative numbers
         rhokm_dsct =                                                         &
-            0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*            &
+            0.75_r_bl*rho_wet_tq(i,j,k-1)*v_top_dsc(i,j)*g1*vkman*           &
               ( (max(one - km_dsct_factor(i,j)*z_pr/zh_pr,zero))**0.8_r_bl ) &
                                       * z_pr * z_pr / zh_pr
         if (BL_diag%l_tke .and. var_diags_opt == split_tke_and_inv) then
@@ -3109,9 +3109,9 @@ if (flux_grad  ==  LockWhelan2006) then
 
           Prandtl = pr_neut*                                                 &
           ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +            &
-            (one/(c_ws*25.0_r_bl))*w_s_cubed_tq*w_m_neut ) /                  &
+            (one/(c_ws*25.0_r_bl))*w_s_cubed_tq*w_m_neut ) /                 &
           ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +            &
-            (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_tq*            &
+            (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_tq*           &
             w_m_neut )
 
           w_m_tq = Prandtl * w_h_tq
@@ -3200,7 +3200,7 @@ else
             if (coupled(i,j)) then  !  coupled and cloudy
               if ( entr_smooth_dec == entr_taper_zh ) then
                 w_s_cubed_uv = c_ws                                          &
-                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                  &
+                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                 &
                       + (one-svl_diff_frac(i,j)) * zh(i,j)   ) * fb_surf(i,j)
               else
                 w_s_cubed_uv = c_ws * zhsc(i,j) * fb_surf(i,j)
@@ -3222,7 +3222,7 @@ else
             if (coupled(i,j)) then  !  coupled and cloudy
               if ( entr_smooth_dec == entr_taper_zh ) then
                 w_s_cubed_tq = c_ws                                          &
-                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                  &
+                    * (      svl_diff_frac(i,j)  * zhsc(i,j)                 &
                       + (one-svl_diff_frac(i,j)) * zh(i,j)   ) * fb_surf(i,j)
               else
                 w_s_cubed_tq = c_ws * zhsc(i,j) * fb_surf(i,j)
@@ -3250,10 +3250,10 @@ else
           !           Turbulent Prandtl number and velocity scale for scalars
 
           Prandtl = pr_neut*                                                 &
-              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +         &
-              (one/(c_ws*25.0_r_bl))*w_s_cubed_uv*w_m_uv ) /                  &
-              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +         &
-              (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_uv*          &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +        &
+              (one/(c_ws*25.0_r_bl))*w_s_cubed_uv*w_m_uv ) /                 &
+              ( v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j)*v_s_dbl(i,j) +        &
+              (one/(c_ws*25.0_r_bl))*(pr_neut/pr_conv)*w_s_cubed_uv*         &
               w_m_uv )
           w_h_uv = w_m_uv / Prandtl
 
@@ -3270,7 +3270,7 @@ else
               ! Exponential decay from ZH but tends to zero
               !  at zsml_top
               rhokh(i,j,k) = rhokh_lcl(i,j) *                                &
-                      exp(-(zk_uv-zh(i,j))/cu_depth_scale(i,j)) *             &
+                      exp(-(zk_uv-zh(i,j))/cu_depth_scale(i,j)) *            &
                       (one-(zk_uv-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
             end if
           end if
@@ -3293,7 +3293,7 @@ else
               ! Exponential decay from ZH but tends to zero
               !  at zsml_top
               rhokm(i,j,k) = prandtl_top(i,j) * rhokh_lcl(i,j) *             &
-                      exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *             &
+                      exp(-(zk_tq-zh(i,j))/cu_depth_scale(i,j)) *            &
                       (one-(zk_tq-zh(i,j))/(zsml_top(i,j)-zh(i,j)))
               if (BL_diag%l_tke .and. var_diags_opt==split_tke_and_inv) then
                 ! save Km/timescale for TKE diag, completed in bdy_expl2
@@ -3370,7 +3370,7 @@ if ( ng_stress  ==  BrownGrant97 .or.                                          &
             w_m_hb_3 = v_s(i,j)*v_s(i,j)*v_s(i,j) + 0.6_r_bl*wstar3
             f_ngstress(i,j,k) =(rho_wet_tq(i,j,k-1)/rhostar_gb(i,j))         &
               * s_m * ( a_ngs * wstar3 / w_m_hb_3 )                          &
-                  * ( z_pr / zh_pr ) * ( one -  ( z_pr / zh_pr ) ) *          &
+                  * ( z_pr / zh_pr ) * ( one -  ( z_pr / zh_pr ) ) *         &
                                       ( one -  ( z_pr / zh_pr ) )
           end if  ! ng_stress_calculate
         end if  ! fb_surf>0 and z<zh
