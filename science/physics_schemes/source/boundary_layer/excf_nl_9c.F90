@@ -780,7 +780,6 @@ j = 1
 
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
-! do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
 
@@ -1141,13 +1140,11 @@ if (model_type == mt_single_column) then
   ! Need to use pdims%k_end(=bl_levels-1) here because bl_levels
   ! in this routine is actually nl_bl_levels (< bl_levels)
   do k = pdims%k_start, pdims%k_end
-   ! do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       wbmix(i,j,k) = zero  ! WB if were diag as well-mixed
       wbend(i,j,k) = zero  ! WB after dec diag
       wbend_sml(i,j,k) = zero ! WB after ksurf_iterate
     end do
-   ! end do
   end do
 !$OMP end do
 end if ! model_type
@@ -1291,7 +1288,6 @@ if ( l_converge_ga ) then
       db_ga_cld_n(i,j,k) = db_noga_cld(i,j,k)                                &
         + ( db_ga_cld(i,j,k) - db_noga_cld(i,j,k) ) * ga_fac(i,j)
     end do
-   ! end do
   end do
 !$OMP end do
 else  ! ( .not. l_converge_ga )
@@ -2787,7 +2783,6 @@ end if  ! test on kprof_cu
 !cdir collapse
 
 !$OMP do SCHEDULE(DYNAMIC)
-! do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
     k=ntml(i,j)+1
@@ -2860,7 +2855,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do !I
 end do !II
-! end do
 !$OMP end do
 
 !-----------------------------------------------------------------------
