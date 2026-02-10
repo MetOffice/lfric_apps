@@ -297,10 +297,10 @@ module skeb_main_alg_mod
   integer(i_def) :: m, n, n_row, stencil_extent
 
   ! Timing handle
-  integer(tik)   :: id
+  integer(tik)   :: id_skeb, id_diags
 
   !!!!!!!!!! END OF VARIABLE DEFINITION, START OF CODE !!!!!!!!!!
-  if ( LPROF ) call start_timing( id, 'skeb_main_alg' )
+  if ( LPROF ) call start_timing( id_skeb, 'stoch_phys.skeb' )
 
   ! create dissipation functions and psif_hat
   call rho%copy_field_properties(ndisp)
@@ -461,7 +461,8 @@ module skeb_main_alg_mod
                  skeb_biharm_diss_kernel_type(ndisp, vorticity, divergence,      &
                                               stencil_extent, dx_at_w2,          &
                                               skeb_level_bottom, skeb_level_top, &
-                                              dt, norm_xi, norm_div) )
+                                              dt, norm_xi, norm_div,             &
+                                              norm_xi_flag, norm_div_flag) )
 
     if (write_diag .and. use_xios_io) then
       if (norm_div_flag) &
@@ -642,8 +643,12 @@ module skeb_main_alg_mod
     call invoke( inc_X_plus_Y(du_stph, du_skeb) )
   end if
 
+  if ( LPROF ) call stop_timing( id_skeb, 'stoch_phys.skeb' )
+
   ! Add diagnostics to iodef
   if (write_diag .and. use_xios_io) then
+    if ( LPROF ) call start_timing( id_diags, 'diags.skeb' )
+
     call fp_skeb%write_field('stochastic__fp_skeb')
     call ndisp%write_field('stochastic__ndisp')
     call cdisp%write_field('stochastic__cdisp')
@@ -687,11 +692,9 @@ module skeb_main_alg_mod
       if (du_tot_skeb_flag) call du_tot_skeb%write_field('stochastic__du_tot_skeb')
       if (dv_tot_skeb_flag) call dv_tot_skeb%write_field('stochastic__dv_tot_skeb')
     end if
+    if ( LPROF ) call stop_timing( id_diags, 'diags.skeb' )
 
   end if ! end if write_diags and use_xios
-
-
-  if ( LPROF ) call stop_timing( id, 'skeb_main_alg' )
 
   end subroutine skeb_main_alg
 end module skeb_main_alg_mod

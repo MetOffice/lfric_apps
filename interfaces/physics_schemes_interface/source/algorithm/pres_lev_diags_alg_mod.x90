@@ -84,7 +84,7 @@ contains
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
     integer(tik) :: id
 
-    if ( LPROF ) call start_timing( id, 'pres_lev_diags_alg' )
+    if ( LPROF ) call start_timing( id, 'diags.pressure_lev' )
 
     nplev = get_axis_dimension('pressure_levels')
     allocate(plevs(nplev))
@@ -280,7 +280,7 @@ contains
 
     deallocate(plevs)
 
-    if ( LPROF ) call stop_timing( id, 'pres_lev_diags_alg' )
+    if ( LPROF ) call stop_timing( id, 'diags.pressure_lev' )
 
   end subroutine pres_lev_diags_alg
 

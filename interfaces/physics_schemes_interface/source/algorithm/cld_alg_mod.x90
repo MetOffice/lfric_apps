@@ -129,7 +129,7 @@ contains
     character(str_def) :: name_ext
     integer(tik)       :: id
 
-    if ( LPROF ) call start_timing( id, 'cld_alg' )
+    if ( LPROF ) call start_timing( id, 'cloud' )
 
     call log_event( 'End-of-timestep cloud update', LOG_LEVEL_DEBUG )
 
@@ -264,7 +264,7 @@ contains
       end if
     end if
 
-    if ( LPROF ) call stop_timing( id, 'cld_alg' )
+    if ( LPROF ) call stop_timing( id, 'cloud' )
 
     if ( write_diag .and. use_xios_io .and. &
          mod(step,diagnostic_frequency) == 0 .and. &

@@ -169,7 +169,7 @@
     {# Remove a task prefix if listed above #}
     {% for prefix in task_prefixes %}
         {% if ns.str.startswith(prefix) %}
-            {% set ns.str = ns.str|replace(prefix~"_", "") %}
+            {% set ns.str = ns.str|replace(prefix~"_", "", 1) %}
         {% endif %}
     {% endfor %}
 
