@@ -1433,7 +1433,6 @@ if (model_type == mt_single_column) then
 
 !$OMP do SCHEDULE(STATIC)
   do k=2, bl_levels
-    !do j=pdims%j_start, pdims%j_end
     do i=pdims%i_start, pdims%i_end
       if ( test_well_mixed(i,j) .and. k >=  ntop(i,j)+1 ) then
         if ( k <= ntdsc(i,j)+1 ) then
@@ -1495,7 +1494,6 @@ end do ! I
 if (model_type == mt_single_column) then
 !$OMP do SCHEDULE(STATIC)
   ! Save surface and bl-top layer integral for diagnostics
-  !do j=pdims%j_start, pdims%j_end
   do i=pdims%i_start, pdims%i_end
     wbmix(i,j,ksurf(i,j)) = wb_surf_int(i,j)
     wbend(i,j,ksurf(i,j)) = wb_surf_int(i,j)
