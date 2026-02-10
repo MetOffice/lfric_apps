@@ -783,7 +783,6 @@ j = 1
 ! do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
 
     rhokh_surf_ent(i,j) = zero
     rhokh_top_ent(i,j)  = zero
@@ -878,7 +877,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do !i
 end do !ii
-!end do
 !$OMP end do
 
 !-----------------------------------------------------------------------
@@ -890,7 +888,6 @@ end do !ii
 !$OMP do SCHEDULE(STATIC)
 do k = 2, bl_levels
   !cdir collapse
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     rhokh(i,j,k) = zero
     rhokm(i,j,k) = zero
@@ -902,16 +899,13 @@ do k = 2, bl_levels
     kh_surf(i,j,k) = zero
     tke_nl(i,j,k) = zero
   end do
-  !end do
 end do
 !$OMP end do
 
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
-!do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
     !-----------------------------------------------------------------------
     ! 1.2 Calculate top-of-b.l. entrainment mixing coefficients
     !     and store b.l. top quantities for later use.
@@ -1107,14 +1101,12 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do ! I
 end do ! II
-!end do
 !$OMP end do
 
 !  If there is no turbulence generation in DSC layer, ignore it.
 
 !cdir collapse
 !$OMP do SCHEDULE(STATIC)
-!do j = pdims%j_start, pdims%j_end
 do i = pdims%i_start, pdims%i_end
   if ( dsc(i,j) .and. v_top_dsc(i,j)  <=  zero ) then
     dsc_removed(i,j) = 1
@@ -1126,7 +1118,6 @@ do i = pdims%i_start, pdims%i_end
     coupled(i,j) = .false.
   end if
 end do
-!end do
 !$OMP end do
 
 ! ----------------------------------------------------------------------
@@ -1166,7 +1157,6 @@ end if ! model_type
 
 !cdir collapse
 !$OMP do SCHEDULE(STATIC)
-!do j = pdims%j_start, pdims%j_end
 do i = pdims%i_start, pdims%i_end
   zsml_top(i,j)  = zh(i,j)
   zsml_base(i,j) = 0.1_r_bl * zh(i,j)
@@ -1187,7 +1177,6 @@ do i = pdims%i_start, pdims%i_end
   ksurf(i,j) = 1
   dec_thres(i,j) = dec_thres_cloud ! use cloudy by default
 end do
-!end do
 !$OMP end do
 
 ! Find KSURF, the first theta-level above the surface layer
@@ -1197,9 +1186,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels
     !cdir collapse
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
       if ( z_tq(i,j,k-1)  <   0.1_r_bl*zh(i,j) ) ksurf(i,j) = k
-      !end do
     end do
   end do
 end do
@@ -1211,7 +1198,6 @@ end do
 
 !cdir collapse
 !$OMP do SCHEDULE(STATIC)
-!do j = pdims%j_start, pdims%j_end
 do i = pdims%i_start, pdims%i_end
   test_well_mixed(i,j) = .false.
   ksurf_iterate(i,j)= .false.
@@ -1220,15 +1206,12 @@ do i = pdims%i_start, pdims%i_end
     ktop_iterate(i,j) = .true.
   end if
 end do ! I
-!end do ! J
 !$OMP end do
 
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
-!do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
     if ( bflux_surf(i,j)  >   zero) then
         ! can only be coupled to an unstable SML
       if ( ntdsc(i,j)  >   2 ) then
@@ -1280,13 +1263,11 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do ! I
 end do ! II
-!end do ! J
 !$OMP end do
 
 if ( l_converge_ga ) then
   ! Set gradient adjustment terms consistent with zh = z_inv
 !$OMP do SCHEDULE(STATIC)
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     if ( test_well_mixed(i,j) ) then
       ! The gradient adjustment scales with 1/zh.  The terms were calculated
@@ -1299,11 +1280,9 @@ if ( l_converge_ga ) then
       ga_fac(i,j) = one
     end if
   end do
-  !end do
 !$OMP end do
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       ! Updated gradient-adjusted db is non-adjusted value + ga_fac times
       ! the original adjustment.
@@ -1319,12 +1298,10 @@ else  ! ( .not. l_converge_ga )
   ! Use original gradient adjustment set consistent with zh_prev
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       db_ga_dry_n(i,j,k) = db_ga_dry(i,j,k)
       db_ga_cld_n(i,j,k) = db_ga_cld(i,j,k)
     end do
-    !end do
   end do
 !$OMP end do
 end if  ! ( l_converge_ga )
@@ -1335,7 +1312,6 @@ end if  ! ( l_converge_ga )
 do ii = pdims%j_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
       if (kstatus(i,j)) then
         if ( (db_ga_dry_n(i,j,k) <=  zero) .or.                              &
               (k >= ntml(i,j)) ) then
@@ -1343,7 +1319,6 @@ do ii = pdims%j_start, pdims%i_end, bl_segment_size
           kwb0(i,j)=k
         end if
       end if
-      !end do
     end do
   end do
 end do
@@ -1362,10 +1337,8 @@ end do
 ! ----------------------------------------------------------------------
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
-!do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
     if ( test_well_mixed(i,j) ) then
       dzrad(i,j) = 100.0_r_bl
 
@@ -1457,7 +1430,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do ! I
 end do ! II
-!end do ! J
 !$OMP end do
 
 ! For WB diagnostics, convert integrated WB to uniform profile
@@ -1477,7 +1449,6 @@ if (model_type == mt_single_column) then
         end if
       end if
     end do ! i
-    !end do ! j
   end do ! k
 !$OMP end do
 
@@ -1492,10 +1463,8 @@ end if ! model_type
 !cdir collapse
 
 !$OMP do SCHEDULE(DYNAMIC)
-!do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
 
     if ( test_well_mixed(i,j) ) then
       if ( kwb0(i,j)  ==  ntml(i,j) ) then
@@ -1524,7 +1493,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
   end do ! I
 end do ! I
-!end do ! J
 !$OMP end do
 
 
@@ -1536,7 +1504,6 @@ if (model_type == mt_single_column) then
     wbmix(i,j,ksurf(i,j)) = wb_surf_int(i,j)
     wbend(i,j,ksurf(i,j)) = wb_surf_int(i,j)
   end do ! i
-  !end do ! j
 !$OMP end do
 end if ! model_type
 
@@ -1549,7 +1516,6 @@ end if ! model_type
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels-1
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
 
       if ( test_well_mixed(i,j) ) then
         ! ----------------------------------------------
@@ -1674,8 +1640,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         end if ! K
 
       end if ! TEST_WELL_MIXED
-      !end do ! I
-    end do ! J
+    end do ! I
   end do ! K
 end do
 !$OMP end do
@@ -1686,10 +1651,8 @@ end do
 !cdir collapse
 
 !$OMP do SCHEDULE(DYNAMIC)
-!do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
     if (l_wtrac) iset_wtrac(i,j) = 0
     if ( test_well_mixed(i,j) ) then
 
@@ -1848,14 +1811,12 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
 
   end do ! I
 end do ! I
-!end do ! J
 !$OMP end do
 
 ! Set water tracer fields in the same manner as water in last loop
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
 !$OMP do SCHEDULE(STATIC)
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       if (iset_wtrac(i,j) == 1) then
         fq_nt_zh_wtrac(i,j,i_wt)   = fq_nt_zhsc_wtrac(i,j,i_wt)
@@ -1864,7 +1825,6 @@ if (l_wtrac) then
         fq_nt_zhsc_wtrac(i,j,i_wt) = fq_nt_zh_wtrac(i,j,i_wt)
       end if
     end do
-    !end do
 !$OMP end do
   end do
 
@@ -1885,8 +1845,6 @@ end if    ! l_wtrac
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do j = pdims%j_start, pdims%j_end
-!do i = pdims%i_start, pdims%i_end
 
   if ( ksurf_iterate(i,j) ) then
     !-----------------------------------------------------------
@@ -1935,7 +1893,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   end if ! KSURF_ITERATE
   end do
 end do
-!end do
 !$OMP end do
 
 ! ----------------------------------------------------------------------
@@ -1947,10 +1904,8 @@ if (kprof_cu == buoy_integ .or. kprof_cu == buoy_integ_low) then
   if (kprof_cu == buoy_integ_low) lcl_fac = one_half
 
 !$OMP do SCHEDULE(DYNAMIC)
-  !do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-  !do i = pdims%i_start, pdims%i_end
     if ( cumulus(i,j) .and. .not. dsc(i,j) .and.                             &
                             .not. ksurf_iterate(i,j)) then
       ! pure cumulus layer and necessary parameters not already set up
@@ -1978,14 +1933,12 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end if
   end do ! I
 end do ! II
-  !end do ! J
 !$OMP end do
 
 end if  ! test in kprof_cu
 
 ! ----------------------------------------------------------------------
 !$OMP do SCHEDULE(STATIC)
-!do j = pdims%j_start, pdims%j_end
 do i = pdims%i_start, pdims%i_end
   l = i - pdims%i_start + 1 + pdims%i_len * (j - pdims%j_start)
   ind_todo(l) = l
@@ -1996,7 +1949,6 @@ do i = pdims%i_start, pdims%i_end
     to_do(l) = .false.
   end if
 end do
-!end do
 !$OMP end do
 
 !$OMP MASTER
@@ -2205,16 +2157,13 @@ end do ! n_sweep
 !$OMP do SCHEDULE(DYNAMIC)
 do ii = pdims%i_start, pdims%i_end,bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-    !do i = pdims%i_start, pdims%i_end
     ntml_new(i,j) = 2
     status_ntml(i,j)=.true.
-    !end do
   end do
 
   do k = 2, bl_levels-2
     !cdir collapse
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
       if ( ksurf_iterate(i,j) .and. status_ntml(i,j) ) then
         ! -------------
         ! find new NTML
@@ -2252,7 +2201,6 @@ do ii = pdims%i_start, pdims%i_end,bl_segment_size
 
       end if  ! KSURF_ITERATE true
 
-      !end do
     end do
   end do
 end do
@@ -2264,10 +2212,8 @@ end do
 ! ----------------------------------------------------------------------
 !cdir collapse
 !$OMP do SCHEDULE(DYNAMIC)
-!do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
 
     if ( ktop_iterate(i,j) ) then
 
@@ -2413,11 +2359,9 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     wb_dzrad_int(i,j) = max( rbl_eps, wb_dzrad_int(i,j) )
   end do ! I
 end do ! II
-!end do ! J
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
-!do j = pdims%j_start, pdims%j_end
 do i = pdims%i_start, pdims%i_end
   l = i - pdims%i_start + 1 + pdims%i_len * (j - pdims%j_start)
   ind_todo(l) = l
@@ -2428,7 +2372,6 @@ do i = pdims%i_start, pdims%i_end
     to_do(l) = .false.
   end if
 end do
-!end do
 !$OMP end do
 
 !$OMP MASTER
@@ -2709,7 +2652,6 @@ if (model_type == mt_single_column) then
 
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels-1
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       ! Include sml
       if ( .not. zdsc_base(i,j) < zsml_top(i,j) ) then
@@ -2721,13 +2663,11 @@ if (model_type == mt_single_column) then
         wbend(i,j,k) = wbend(i,j,k) + wbend_sml(i,j,k)
       end if
     end do
-    !end do
   end do
 !$OMP end do
 
 
   ! Note parallelised over j as k isn't independent
-!do j = pdims%j_start, pdims%j_end
   do k = 1, bl_levels-1
     !$OMP do SCHEDULE(STATIC)
     do i = pdims%i_start, pdims%i_end
@@ -2749,12 +2689,10 @@ if (model_type == mt_single_column) then
     end do
     !$OMP end do
   end do
-  !end do
 
 
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels
-    !do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       ! convert to m2/s-3
       if ( k >=  ntop(i,j)+1 .and. k <= ntdsc(i,j)+1 ) then
@@ -2764,7 +2702,6 @@ if (model_type == mt_single_column) then
         wbmix(i,j,k) = wb_dzrad_int(i,j)/dzrad(i,j)
       end if
     end do
-    !end do
   end do
 !$OMP end do
 end if ! model_type
@@ -2780,7 +2717,6 @@ if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
 
   !cdir collapse
 !$OMP do SCHEDULE(STATIC)
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     if ( cumulus(i,j) .or.                                                   &
           ( dsc(i,j) .and. zdsc_base(i,j) < zh(i,j) ) ) then
@@ -2790,15 +2726,13 @@ if ( entr_smooth_dec == on .or. entr_smooth_dec == entr_taper_zh ) then
     else
       zsml_base(i,j) = 0.1_r_bl*zh(i,j)
     end if
-  end do  ! loop over j
-  !end do  ! loop over I
+  end do  ! loop over I
 !$OMP end do
 
 else ! entr_smooth_dec off
 
   !cdir collapse
 !$OMP do SCHEDULE(STATIC)
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     if ( cumulus(i,j) .or. coupled(i,j) ) then
       ! ignore SML `cloud-top' driven mixing
@@ -2807,27 +2741,23 @@ else ! entr_smooth_dec off
     else
       zsml_base(i,j) = 0.1_r_bl*zh(i,j)
     end if
-  end do  ! loop over j
-  !end do  ! loop over I
+  end do  ! loop over I
 !$OMP end do
 
 end if  ! test on entr_smooth_dec
 
 !cdir collapse
 !$OMP do SCHEDULE(STATIC)
-!do j = pdims%j_start, pdims%j_end
 do i = pdims%i_start, pdims%i_end
   zsml_top(i,j) = zh(i,j)
   if (bl_res_inv /= off .and. dzh(i,j) > zero)                               &
                               zsml_top(i,j) = zh(i,j)+dzh(i,j)
-end do  ! loop over j
-!end do  ! loop over I
+end do  ! loop over I
 !$OMP end do
 
 if ( kprof_cu == klcl_entr ) then
   !cdir collapse
 !$OMP do SCHEDULE(STATIC)
-  !do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     if ( cumulus(i,j) ) then
       zsml_top(i,j) = zh(i,j)+max_cu_depth
@@ -2846,8 +2776,7 @@ if ( kprof_cu == klcl_entr ) then
       ! Use the BL entrainment parametrization as calculated above
       rhokh_lcl(i,j) = min( rhokh_surf_ent(i,j), 5.0_r_bl)
     end if
-  end do  ! loop over j
-  !end do  ! loop over I
+  end do  ! loop over I
 !$OMP end do
 end if  ! test on kprof_cu
 !-----------------------------------------------------------------------
@@ -2861,7 +2790,6 @@ end if  ! test on kprof_cu
 ! do j = pdims%j_start, pdims%j_end
 do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-!do i = pdims%i_start, pdims%i_end
     k=ntml(i,j)+1
     kh_top_factor(i,j) = max( 0.7_r_bl , one - sqrt(                           &
               rhokh_surf_ent(i,j) /                                             &
@@ -2945,12 +2873,10 @@ end do !II
 !$OMP MASTER
 
 !cdir collapse
-!do j = pdims%j_start, pdims%j_end
 do i = pdims%i_start, pdims%i_end
   scbase(i,j) = .false.
   nbdsc(i,j)  = 0
 end do
-!end do
 
 !$OMP end MASTER
 !$OMP BARRIER
@@ -2971,7 +2897,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
   do k = 2, bl_levels
     !cdir collapse
     do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
 
       !           Calculate the height of u,v-level above the surface
       ! *APL: z0m removed from z in K(z)
@@ -3110,7 +3035,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         end if
       end if
 
-      !end do
     end do
   end do
 end do
@@ -3134,7 +3058,6 @@ if (flux_grad  ==  LockWhelan2006) then
     do k = 2, bl_levels
       !cdir collapse
       do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
 
         zk_uv = z_uv(i,j,k)
         zk_tq = z_tq(i,j,k-1)
@@ -3232,7 +3155,6 @@ if (flux_grad  ==  LockWhelan2006) then
             end if
           end if
         end if
-      !end do
       end do
     end do
   end do
@@ -3259,7 +3181,6 @@ else
     do k = 2, bl_levels
       !cdir collapse
       do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
 
         !         Calculate the height of u,v-level above the surface
         ! *APL: z0m removed from z in K(z)
@@ -3396,7 +3317,6 @@ else
           end if
 
         end if
-      !end do
       end do
     end do
   end do
@@ -3413,7 +3333,6 @@ if ( ng_stress  ==  BrownGrant97 .or.                                          &
     do k = 2, bl_levels
       !cdir collapse
       do i = ii, min(ii+bl_segment_size-1, pdims%i_end)
-      !do i = pdims%i_start, pdims%i_end
         zk_tq = z_tq(i,j,k-1)   ! stresses are calc on theta-levs
         if ( fb_surf(i,j) > zero .and. zk_tq < zh(i,j) ) then
           !---------------------------------------------------------
@@ -3461,7 +3380,6 @@ if ( ng_stress  ==  BrownGrant97 .or.                                          &
                                       ( one -  ( z_pr / zh_pr ) )
           end if  ! ng_stress_calculate
         end if  ! fb_surf>0 and z<zh
-      !end do
       end do
     end do
   end do
