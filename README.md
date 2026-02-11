@@ -20,6 +20,18 @@ Core](https://github.com/MetOffice/lfric_core) repository.
 In development documentation for LFRic Apps is available at:
 [https://metoffice.github.io/lfric_apps](https://metoffice.github.io/lfric_apps)
 
+The LFRic Apps release schedule and deadlines can be viewed in the [milestones](https://github.com/metoffice/lfric_apps/milestones).
+
+Example standalone scientific suites for use with Met Office systems are
+available at:
+
+* [u-dn674 - MetOffice Azure SPICE](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/6/7/4/trunk)
+* [u-dn704 - MetOffice EX HPC](https://code.metoffice.gov.uk/trac/roses-u/browser/d/n/7/0/4/trunk)
+
+These both run a low resolution LFRic Atm NWP GAL9 job and are setup to run
+using git sources. Advice on switching a suite from using fcm to git sources is
+available in the README.md in each.
+
 ## Contributing Guidelines
 
 The following links are here to help set clear expectations for everyone

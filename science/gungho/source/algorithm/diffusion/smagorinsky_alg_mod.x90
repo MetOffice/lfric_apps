@@ -92,7 +92,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
     real( r_def ) :: one_third
     integer(tik)  :: id
 
-    if ( LPROF ) call start_timing( id, 'smagorinsky_alg' )
+    if ( LPROF ) call start_timing( id, 'smagorinsky' )
 
     call log_event( 'Applying Smagorinsky mixing', LOG_LEVEL_INFO )
 
@@ -231,7 +231,7 @@ subroutine smagorinsky_alg(dtheta_io, du_io, mr, theta, u, &
 
     nullify( height_w1, height_w2 )
 
-    if ( LPROF ) call stop_timing( id, 'smagorinsky_alg' )
+    if ( LPROF ) call stop_timing( id, 'smagorinsky' )
 
   end subroutine smagorinsky_alg
 
