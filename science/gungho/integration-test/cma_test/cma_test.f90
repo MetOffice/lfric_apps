@@ -40,7 +40,7 @@ program cma_test
   use function_space_mod,             only : function_space_type
   use halo_comms_mod,                 only : initialise_halo_comms, &
                                              finalise_halo_comms
-  use configuration_mod,              only : read_configuration, &
+  use config_loader_mod,              only : read_configuration, &
                                              ensure_configuration
   use driver_collections_mod,         only : init_collections, final_collections
   use driver_mesh_mod,                only : init_mesh

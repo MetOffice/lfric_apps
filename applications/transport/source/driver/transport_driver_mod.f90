@@ -11,7 +11,7 @@ module transport_driver_mod
   use add_mesh_map_mod,                 only: assign_mesh_maps
   use sci_checksum_alg_mod,             only: checksum_alg
   use check_configuration_mod,          only: get_required_stencil_depth
-  use configuration_mod,                only: final_configuration
+  use config_loader_mod,                only: final_configuration
   use constants_mod,                    only: i_def, l_def, &
                                               r_def, r_second, str_def
   use create_mesh_mod,                  only: create_mesh, create_extrusion
