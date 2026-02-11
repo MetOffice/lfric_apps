@@ -130,7 +130,7 @@ def trans(psyir):
 
     # Span a parallel section across the whole routine,
     # apart for a few exceptions provided
-    for routine in psyir.walk(Routine):
+    for routine in psyir.walk(Routine): #pylint: disable=R1702
         # Get the list of children of the routine
         routine_children = routine.children
         # Default reference for start_node
@@ -139,41 +139,46 @@ def trans(psyir):
         for index, routine_child in enumerate(routine_children):
             # When the first loop or if block is found,
             # place it as the start reference index.
-            if isinstance(routine_child, Loop):
+            if isinstance(routine_child, Loop): #pylint: disable=R1723
                 start_node = index
                 break
             elif isinstance(routine_child, IfBlock):
                 found_valid_if = True
-                # Often timing handles are placed inside if blocks, 
+                # Often timing handles are placed inside if blocks,
                 # check if it is not a known timing call, which should be
                 # ignored for spanning a parallel section.
                 for routine_grandchild in routine_child.walk(Reference):
                     try:
                         if str(routine_grandchild.name) in timer_routine_names:
                             found_valid_if = False
-                    except:  # noqa: E722
+                    except ValueError:  # noqa: E722
                         continue
                 if found_valid_if:
                     start_node = index
                     break
+            else:
+                continue
         # Default reference for end_node
         end_node = None
         for index in range((len(routine_children)-1), 0, -1):
             # Like above, work backwards through the routine's children.
-            if isinstance(routine_children[index], Loop):
+            if isinstance(routine_children[index], Loop): #pylint: disable=R1723
                 end_node = index + 1
                 break
             elif isinstance(routine_children[index], IfBlock):
                 found_valid_if = True
-                for routine_grandchild in routine_children[index].walk(Reference):
+                for routine_grandchild in \
+                        routine_children[index].walk(Reference):
                     try:
                         if str(routine_grandchild.name) in timer_routine_names:
                             found_valid_if = False
-                    except:  # noqa: E722
+                    except ValueError:  # noqa: E722
                         continue
                 if found_valid_if:
                     end_node = index + 1
                     break
+            else:
+                continue
 
         if start_node and end_node:
             try:

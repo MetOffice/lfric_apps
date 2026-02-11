@@ -98,4 +98,3 @@ SCRIPT_OPTIONS_DICT["fm_drag"+str(FILE_EXTEN)] = {
         "wtb"
         ]
 }
-

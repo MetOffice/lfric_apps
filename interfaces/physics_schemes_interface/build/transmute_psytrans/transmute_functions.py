@@ -18,7 +18,6 @@ from psyclone.psyir.nodes import (
     Call,
     Assignment,
     Reference,
-    Return,
     OMPParallelDirective,
     OMPDoDirective,
     OMPParallelDoDirective,
@@ -643,7 +642,7 @@ def loop_replacement_of(routine_itr,
             # Get a parent table reference to move the loop body
             try:
                 parent_table = loop.parent.scope.symbol_table
-            except AttributeError as err:
+            except AttributeError:
                 parent_table = False
 
             # if the loop parent table is a valid reference
@@ -654,10 +653,10 @@ def loop_replacement_of(routine_itr,
                     loop.parent.addchild(
                         statement.detach(),
                         loop.position + 1)
-                tmp = loop.detach()  # noqa: F841
+                tmp = loop.detach()  # noqa: F841 #pylint: disable=W0612
 
 
-def add_omp_parallel_region(
+def add_omp_parallel_region( #pylint: disable=R0913
     start_node,
     end_node,
     *,
@@ -666,17 +665,18 @@ def add_omp_parallel_region(
     ignore_loops=None,
     loop_trans_options=None,
 ):
-    """Add OMPParallelDirective around a span of nodes and OMPDoDirective around loops
+    """Add OMPParallelDirective around a span of nodes and OMPDoDirective
+    around loops.
 
     A parallel region will be created from siblings of start_node up to
     end_node.
 
-    An end_offset may be used to add or remove nodes from the end of the region,
-    and loops to be ignored can be supplied through ignore_loops.
+    An end_offset may be used to add or remove nodes from the end of the
+    region, and loops to be ignored can be supplied through ignore_loops.
 
     If end_node is not a sibling of start_node, loops and directives should be
-    added up to the absolute position of end_node, although the interaction with
-    offsets and include_end may be unexpected.
+    added up to the absolute position of end_node, although the interaction
+    with offsets and include_end may be unexpected.
     """
     if ignore_loops in (None, [None]):
         ignore_loops = []
@@ -692,8 +692,10 @@ def add_omp_parallel_region(
     if include_end:
         end_pos += 1
 
-    nodes_from_start = dropwhile(lambda node: node.abs_position < start_pos, schedule)
-    all_nodes = list(takewhile(lambda node: node.abs_position < end_pos, nodes_from_start))
+    nodes_from_start = dropwhile(lambda node:
+                                 node.abs_position < start_pos, schedule)
+    all_nodes = list(takewhile(lambda node:
+                               node.abs_position < end_pos, nodes_from_start))
 
     OMP_PARALLEL_REGION_TRANS.apply(
         all_nodes,
@@ -703,10 +705,13 @@ def add_omp_parallel_region(
     )
 
     for loop in start_node.parent.walk(Loop):
-        # Identify each loop in the OMPParallelDirective and add OMPDoDirective to outer loops
+        # Identify each loop in the OMPParallelDirective
+        # and add OMPDoDirective to outer loops
 
-        # Don't attempt to nest parallel directives or loops outside the parallel region
-        if loop.ancestor(OMPDoDirective) is not None or loop.ancestor(OMPParallelDirective) is None:
+        # Don't attempt to nest parallel directives or
+        # loops outside the parallel region
+        if (loop.ancestor(OMPDoDirective) is not None
+                or loop.ancestor(OMPParallelDirective) is None):
             continue
 
         if loop in ignore_loops:
