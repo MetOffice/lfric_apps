@@ -19,4 +19,5 @@
   <axis id="entrainment_levels" name="entrainment_levels" n_glo="3"/>
   <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
   <axis id="lbc_axis" name="lbc_axis" n_glo="7"/>
+  <axis id="time_counter" name="time_counter"/>
 </axis_definition>
