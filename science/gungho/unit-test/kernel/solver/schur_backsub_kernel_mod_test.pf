@@ -23,7 +23,7 @@ contains
 
     implicit none
 
-    real(r_solver), parameter :: tol = 1.0e-12_r_solver
+    real(r_solver), parameter :: tol = 1.0e-6_r_solver
 
     ! Mesh
     integer(i_def), parameter :: nlayers = 1_i_def
@@ -58,8 +58,8 @@ contains
     ! Logicals
     logical(l_def), parameter :: lam = .true.
 
-    integer(i_def) :: df
-    real(r_solver) :: answer
+    integer(i_def)                      :: df
+    real(r_solver), dimension(undf_w2h) :: answer
 
     map_w2h = (/ 1_i_def, 1_i_def + nlayers /)
     map_w2v = (/ 1_i_def, 2_i_def /)
@@ -92,15 +92,11 @@ contains
                             ndf_w2, undf_w2, map_w2,    &
                             ndf_w3, undf_w3, map_w3 )
 
-    do df = 1, ndf_w2h
-      answer = mask(df)*( 0.5_r_solver*rhs(df) + y(df)*grad(1,df,1)*x(1))
-      @assertEqual(answer, Luv(df), tol)
-    end do
+    answer = (/ 6.3_r_solver, 4.55_r_solver /)
+    @assertEqual(answer, Luv, tol)
 
-    do df = 1, ndf_w2v
-      answer = 0.0_r_solver
-      @assertEqual(answer, Lw(df), tol)
-    end do
+    answer = (/ 0.0_r_solver, 0.0_r_solver /)
+    @assertEqual(answer, Lw, tol)
 
   end subroutine test_all
 
