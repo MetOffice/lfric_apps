@@ -10,8 +10,8 @@ LFRic atmosphere checkpoint/restart system
 ==========================================
 
 The LFRic atmosphere ``lfric_atm`` application can be configured to generate
-checkpoint dumps at multiple points within a model run. The checkpoint dump can be read in
-by a new integration of the model allowing further timesteps to be run. The dump
+checkpoint dumps at multiple points within a model run. A checkpoint dump can be read in
+by a new integration of the model allowing further timesteps to be run. Each dump
 is written using XIOS.
 
 Requesting checkpoint restart
