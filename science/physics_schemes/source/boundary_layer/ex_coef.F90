@@ -387,7 +387,7 @@ ric = 0.25_r_bl
 ricinv = one/ric
 rlambda_fac=one/lambda_fac
 
-!$OMP PARALLEL DEFAULT(SHARED) private ( i, j, k, z_scale, zpr )
+!$OMP PARALLEL DEFAULT(SHARED) private ( i, j )
 !$OMP do SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
@@ -546,8 +546,8 @@ end if
 !-----------------------------------------------------------------------
 !$OMP PARALLEL DEFAULT(none)                                                   &
 !$OMP SHARED( pdims, ishear_bl, ntml_local, ntpar, cumulus,                    &
-!$OMP         ntml_nl, zh_local, z_uv, bl_levels, lambda_min, rlambda_fac,     &
-!$OMP         turb_length, blending_option, rmlmax2)      &
+!$OMP         bl_levels, lambda_min, rlambda_fac,                              &
+!$OMP         turb_length, blending_option, rmlmax2)                           &
 !$OMP private( i, j, k )
 !$OMP do SCHEDULE(STATIC)
 do j = pdims%j_start, pdims%j_end
@@ -653,11 +653,10 @@ do k = 2, bl_levels
 !$OMP  PARALLEL DEFAULT(none)                                                  &
 !$OMP  PRIVATE(z_scale,j,i,lambdam,lambdah,                                    &
 !$OMP  lambdah_rho,vkz,f_log,zz,zht,zfa,beta)                                  &
-!$OMP  SHARED(k,pdims,ri,ricrit,flandg,ntml_local,ntml_nl,subb,dh,z_tq,        &
+!$OMP  SHARED(k,pdims,ri,ricrit,flandg,ntml_local,ntml_nl,z_tq,                &
 !$OMP  l_rp2,lambda_min,par_mezcla_rp,zh_local,turb_length,k_log_layr,         &
 !$OMP  z_uv,z0m,elm,elh,elh_rho,blending_option,cumulus,l_shallow_cth,zhpar,   &
-!$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,           &
-!$OMP  cbl_op,rho_wet_tq,l_subfilter_vert,l_subfilter_horiz,local_fa)
+!$OMP  ntdsc,weight_1dbl,weight_bltop,delta_smag,rneutml_sq,BL_diag,local_fa)
   !-----------------------------------------------------------------
   ! 2.1 Calculate asymptotic mixing lengths LAMBDAM and LAMBDAH
   !-----------------------------------------------------------------
