@@ -32,9 +32,24 @@
 {% do site_vars.update({"site_platforms": ["ex1a",
                                            "azspice"]}) %}
 
+{# Settings for EX Collab Zone #}
+{% from "socket" import getfqdn %}
+{% set hostname = getfqdn() %}
+{% if "collab.sc" in hostname %}
+    {% do site_vars.update({"ex_trustzone": "collab"}) %}
+    {% do site_vars.update({"USE_TOKENS": true}) %}
+{% else %}
+    {% do site_vars.update({"ex_trustzone": "research"}) %}
+{% endif %}
 
-{% do site_vars.update({"launch_platform": "azspice"}) %}
-{% do site_vars.update({"scripts_platform": "azspice"}) %}
+{% if site_vars["ex_trustzone"] == "collab" %}
+    {% do site_vars.update({"launch_platform": "ex1a"}) %}
+    {% do site_vars.update({"scripts_platform": "ex1a"}) %}
+{% else %}
+    {% do site_vars.update({"launch_platform": "azspice"}) %}
+    {% do site_vars.update({"scripts_platform": "azspice"}) %}
+{% endif %}
+
 {% do site_vars.update({"coupled_fcm_make_platform": "azspice"}) %}
 
 {% do site_vars.update({"git_mirror_loc": "/data/users/gitassist/git_mirrors"}) %}
@@ -42,8 +57,12 @@
 {% do site_vars.update({"mesh_build": {"ex1a": "gnu_fast-debug-64bit",
                                        "azspice": "gnu_fast-debug-64bit"} }) %}
 
+{% do site_vars.update({"remote_init_family": {"ex1a": "EX1A_REMOTE_INIT"} }) %}
+
 {# Choose EX Host - default to random ab or cd #}
-{% if USE_EXZ is defined and USE_EXZ %}
+{% if site_vars["ex_trustzone"] == "collab" %}
+    {% do site_vars.update({"host_ex" : "ex"}) %}
+{% elif USE_EXZ is defined and USE_EXZ %}
     {% do site_vars.update({"host_ex" : "exz"}) %}
 {% elif USE_EXAB is defined and USE_EXAB %}
     {% do site_vars.update({"host_ex": "exab"}) %}
@@ -65,10 +84,12 @@
     {% do site_vars.update({"node_type": "genoa"}) %}
     {% do site_vars.update({"node_cores": 192 }) %}
     {% do site_vars.update({"node_mem": 720}) %}
+    {% do site_vars.update({"crayhost": ":crayhost=exb"}) %}
 {% else %}
     {% do site_vars.update({"node_type": "milan"}) %}
     {% do site_vars.update({"node_cores": 128 }) %}
     {% do site_vars.update({"node_mem": 238}) %}
+    {% do site_vars.update({"crayhost": ""}) %}
 {% endif %}
 
 {% do site_vars.update({"lfricinputs_kgo_base": "$UMDIR/standard_jobs/lfricinputs/kgo"}) %}
