@@ -10,6 +10,7 @@
 !>
 module gungho_init_fields_mod
 
+  use copy_field_alg_mod,                 only : copy_field
   use mr_indices_mod,                     only : nummr, mr_names
   use moist_dyn_mod,                      only : num_moist_factors, moist_dyn_names
   use field_array_mod,                    only : field_array_type
@@ -88,6 +89,9 @@ module gungho_init_fields_mod
   use derived_config_mod,                 only : l_esm_couple
   use ageofair_alg_mod,                   only : init_ageofair
   use transport_config_mod,               only : transport_ageofair
+  use section_choice_config_mod,          only : external_forcing
+  use external_forcing_config_mod,        only : wind_forcing,                 &
+                                                 wind_forcing_rayleigh_friction
 #ifdef COUPLED
   use coupler_mod,                      only : zero_coupling_send_fields
 #endif
@@ -553,6 +557,7 @@ subroutine create_model_data( modeldb,      &
     type( field_type ), pointer :: exner => null()
     type( field_type ), pointer :: accumulated_fluxes    => null()
     type( field_type ), pointer :: ageofair => null()
+    type( field_type ), pointer :: u_ref    => null()
 
     type( io_value_type ),               pointer :: temp_corr_io_value
     type( io_value_type ),               pointer :: random_seed_io_value
@@ -814,6 +819,11 @@ subroutine create_model_data( modeldb,      &
       call prognostic_fields%get_field('theta',theta)
       call prognostic_fields%get_field('exner',exner)
       call prognostic_fields%get_field('rho',rho)
+
+      if (external_forcing .and. wind_forcing == wind_forcing_rayleigh_friction) then
+        call derived_fields%get_field('u_ref', u_ref)
+        call copy_field(u, u_ref)
+      end if
 
       if ( encorr_usage /= encorr_usage_none ) then
         if ( geometry /= geometry_spherical ) then

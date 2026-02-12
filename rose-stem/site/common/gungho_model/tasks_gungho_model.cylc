@@ -112,6 +112,20 @@
         "kgo_checks": [],
     }) %}
 
+{% elif task_ns.conf_name == "breaking_gw-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["breaking_gw"],
+        "resolution": "C96_MG",
+        "DT": 450,
+        "mpi_parts": 216,
+        "tsteps": 1920,
+        "wallclock": 60,
+        "use_xios": true,
+        "log_level": "info",
+        "kgo_checks": [],
+    }) %}
+
 {% elif task_ns.conf_name == "bryan_fritsch-dry-BiP200x10-100x100" %}
 
     {% do task_dict.update({
@@ -205,6 +219,131 @@
         "tsteps": 240,
         "wallclock": 20,
         "plot_str": "sbr.py $NODAL_DATA_DIR/lfric_diag.nc $PLOT_DIR um70 30 71 lfric"
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_gap-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_gap"],
+        "resolution": "C96_MG",
+        "DT": 120,
+        "mpi_parts": 216,
+        "tsteps": 960,
+        "wallclock": 60,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_gap-C192_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_gap"],
+        "resolution": "C192_MG",
+        "DT": 60,
+        "mpi_parts": 864,
+        "tsteps": 720,
+        "wallclock": 60,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_gap_fail-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_gap_fail"],
+        "resolution": "C96_MG",
+        "DT": 120,
+        "mpi_parts": 216,
+        "tsteps": 960,
+        "wallclock": 60,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_gap_no_rotation-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_gap_no_rotation"],
+        "resolution": "C96_MG",
+        "DT": 45,
+        "mpi_parts": 216,
+        "tsteps": 960,
+        "wallclock": 60,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_gap_no_rotation-C192_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_gap_no_rotation"],
+        "resolution": "C192_MG",
+        "DT": 45,
+        "mpi_parts": 864,
+        "tsteps": 960,
+        "wallclock": 60,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_vortex-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_vortex"],
+        "resolution": "C96_MG",
+        "DT": 45,
+        "mpi_parts": 216,
+        "tsteps": 1920,
+        "wallclock": 60,
+        "crun": 1,
+        "crun_compare": false,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_vortex-C192_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_vortex"],
+        "resolution": "C192_MG",
+        "DT": 45,
+        "mpi_parts": 864,
+        "tsteps": 1920,
+        "wallclock": 60,
+        "crun": 1,
+        "crun_compare": false,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_vortex_no_rotation-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_vortex_no_rotation"],
+        "resolution": "C96_MG",
+        "DT": 45,
+        "mpi_parts": 216,
+        "tsteps": 1920,
+        "wallclock": 60,
+        "crun": 1,
+        "crun_compare": false,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "mountain_vortex_no_rotation-C192_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["mountain_vortex_no_rotation"],
+        "resolution": "C192_MG",
+        "DT": 45,
+        "mpi_parts": 864,
+        "tsteps": 1920,
+        "wallclock": 60,
+        "crun": 1,
+        "crun_compare": false,
+        "use_xios": true,
+        "kgo_checks": [],
     }) %}
 
 {% elif task_ns.conf_name == "no-timestep-method-C12" %}
@@ -451,6 +590,32 @@
         "plot_str": "gw_high_order_cart_plot.py diagGungho $NODAL_DATA_DIR 300 8 theta T000000:T000100:T000200:T000300 $PLOT_DIR"
     }) %}
 
+{% elif task_ns.conf_name == "squall_line-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["squall_line"],
+        "resolution": "C96_MG",
+        "DT": 20,
+        "mpi_parts": 216,
+        "tsteps": 540,
+        "wallclock": 60,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
+{% elif task_ns.conf_name == "supercell-C96_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["supercell"],
+        "resolution": "C96_MG",
+        "DT": 10,
+        "mpi_parts": 216,
+        "tsteps": 720,
+        "wallclock": 60,
+        "use_xios": true,
+        "kgo_checks": [],
+    }) %}
+
 {% elif task_ns.conf_name == "straka_200m-BiP256x8-200x200" %}
 
     {% do task_dict.update({
@@ -589,7 +754,7 @@
 
 {# Set default values for Gungho Model tasks #}
 {% if task_dict %}
-    {% do task_dict.update({"application_dir": "lfric_apps/applications/gungho_model"}) %}
+    {% do task_dict.update({"application_dir": "apps/applications/gungho_model"}) %}
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "gungho_model"}) %}
     {% endif %}

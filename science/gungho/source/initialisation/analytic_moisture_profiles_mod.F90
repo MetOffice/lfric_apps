@@ -15,7 +15,9 @@ use log_mod,                      only : log_event,                &
                                          LOG_LEVEL_ERROR
 use idealised_config_mod,         only : test_grabowski_clark,      &
                                          test_deep_baroclinic_wave, &
-                                         test_isot_dry_atm
+                                         test_isot_dry_atm,         &
+                                         test_squall_line,          &
+                                         test_supercell
 use physics_common_mod,           only : qsaturation
 use planet_config_mod,            only : recip_epsilon, scaled_radius
 use coord_transform_mod,          only : xyz2llr, central_angle
@@ -29,6 +31,7 @@ implicit none
 private
 
 public :: analytic_moisture
+public :: analytic_rel_humidity
 
 contains
 
@@ -96,6 +99,13 @@ function analytic_moisture(chi, temperature, pressure, choice) result(moisture)
     moisture = rel_hum * mr_sat / &
                ( 1.0_r_def + (1.0_r_def - rel_hum)*mr_sat*recip_epsilon)
 
+  case ( test_squall_line )
+
+    rel_hum = analytic_rel_humidity(chi, choice)
+    moisture = rel_hum * mr_sat / &
+               ( 1.0_r_def + (1.0_r_def - rel_hum)*mr_sat*recip_epsilon)
+
+
   ! Isothermal **dry** atmosphere
   case( test_isot_dry_atm )
     moisture = 0.0_r_def
@@ -107,5 +117,39 @@ function analytic_moisture(chi, temperature, pressure, choice) result(moisture)
   end select
 
 end function analytic_moisture
+
+
+function analytic_rel_humidity(chi, choice) result(rel_hum)
+
+  implicit none
+  real(kind=r_def),    intent(in) :: chi(3)
+  integer(kind=i_def), intent(in) :: choice
+  real(kind=r_def)                :: rel_hum
+  real(kind=r_def)                :: z, long, lat, radius
+  real(kind=r_def),     parameter :: z_trop = 12000.0_r_def
+
+  if ( geometry == geometry_spherical ) then
+    call xyz2llr(chi(1), chi(2), chi(3), long, lat, radius)
+    z = MAX(radius - scaled_radius, 0.0_r_def)
+  else
+    z = chi(3)
+  end if
+
+  select case( choice )
+
+  case ( test_squall_line, test_supercell )
+    if (z < z_trop) then
+      rel_hum = 0.999_r_def - 0.749_r_def * (z / z_trop)**1.25_r_def
+    else
+      rel_hum = 0.25_r_def
+    end if
+
+  case default
+    ! In other cases, relative humidity is set to zero
+    rel_hum = 0.0_r_def
+
+  end select
+
+end function analytic_rel_humidity
 
 end module analytic_moisture_profiles_mod

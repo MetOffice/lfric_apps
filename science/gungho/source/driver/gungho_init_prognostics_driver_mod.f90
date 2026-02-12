@@ -18,11 +18,14 @@ module gungho_init_prognostics_driver_mod
                                               init_mr_fields
   use init_saturated_profile_alg_mod,   only: init_saturated_profile_alg
   use init_unsaturated_profile_alg_mod, only: init_unsaturated_profile_alg
+  use init_squall_line_profile_alg_mod, only: init_squall_line_profile_alg
   use init_thermo_profile_alg_mod,      only: init_thermo_profile_alg
   use idealised_config_mod,             only: test,                    &
                                               test_specified_profiles, &
                                               test_bryan_fritsch,      &
                                               test_grabowski_clark,    &
+                                              test_squall_line,        &
+                                              test_supercell,          &
                                               perturb_init,            &
                                               perturb_magnitude
   use random_perturb_field_alg_mod,     only: random_perturb_field
@@ -93,7 +96,9 @@ contains
 
     if ( test == test_grabowski_clark ) then
       call init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
-    else if (test /= test_bryan_fritsch .and. test /= test_specified_profiles) then
+    else if ( test == test_squall_line .or. test == test_supercell ) then
+      call init_squall_line_profile_alg( theta, mr, exner, rho, moist_dyn )
+    else if ( test /= test_bryan_fritsch .and. test /= test_specified_profiles ) then
       call init_mr_fields( mr, theta, exner, rho, moist_dyn )
     end if
 

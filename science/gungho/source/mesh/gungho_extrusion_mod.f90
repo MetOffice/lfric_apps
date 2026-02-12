@@ -37,6 +37,8 @@ module gungho_extrusion_mod
                                    method_quadratic,           &
                                    method_geometric,           &
                                    method_dcmip,               &
+                                   method_dcmip_mountain,      &
+                                   method_dcmip_gw,            &
                                    method_um_L38_29t_9s_40km,  &
                                    method_um_L85_50t_35s_85km, &
                                    method_um_L70_61t_9s_40km,  &
@@ -168,6 +170,34 @@ module gungho_extrusion_mod
   interface dcmip_extrusion_type
     module procedure dcmip_extrusion_constructor
   end interface dcmip_extrusion_type
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Extrudes using DCMIP mountain scheme.
+  !>
+  type, public, extends(extrusion_type) :: dcmip_mountain_extrusion_type
+    private
+  contains
+    private
+    procedure, public :: extrude => dcmip_mountain_extrude
+  end type dcmip_mountain_extrusion_type
+
+  interface dcmip_mountain_extrusion_type
+    module procedure dcmip_mountain_extrusion_constructor
+  end interface dcmip_mountain_extrusion_type
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Extrudes using DCMIP Gravity Wave scheme.
+  !>
+  type, public, extends(extrusion_type) :: dcmip_gw_extrusion_type
+    private
+  contains
+    private
+    procedure, public :: extrude => dcmip_gw_extrude
+  end type dcmip_gw_extrusion_type
+
+  interface dcmip_gw_extrusion_type
+    module procedure dcmip_gw_extrusion_constructor
+  end interface dcmip_gw_extrusion_type
 
 contains
 
@@ -709,6 +739,149 @@ contains
 
   end function dcmip_func
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Creates a dcmip_mountain_extrusion_type object.
+  !>
+  !> @param[in] atmosphere_bottom Bottom of the atmosphere in meters.
+  !> @param[in] atmosphere_top Top of the atmosphere in meters.
+  !> @param[in] number_of_layers Number of layers in the atmosphere.
+  !> @param[in] extrusion_id Identifier of extrusion type.
+  !>
+  !> @return New dcmip_extrusion_type object.
+  !>
+  function dcmip_mountain_extrusion_constructor( atmosphere_bottom, &
+                                                 atmosphere_top,    &
+                                                 number_of_layers,  &
+                                                 extrusion_id ) result(new)
+
+    implicit none
+
+    real(r_def),    intent(in) :: atmosphere_bottom
+    real(r_def),    intent(in) :: atmosphere_top
+    integer(i_def), intent(in) :: number_of_layers
+    integer(i_def), intent(in) :: extrusion_id
+
+    type(dcmip_mountain_extrusion_type) :: new
+
+    call new%extrusion_constructor( atmosphere_bottom, atmosphere_top, &
+                                    number_of_layers, extrusion_id )
+
+  end function dcmip_mountain_extrusion_constructor
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Extrudes the mesh using the DCMIP mountain scheme.
+  !>
+  !> @param[out] eta Nondimensional vertical coordinate.
+  !>
+  subroutine dcmip_mountain_extrude( this, eta )
+
+    implicit none
+
+    class(dcmip_mountain_extrusion_type), intent(in)  :: this
+    real(r_def),                          intent(out) :: eta(0:)
+
+    real(r_def), parameter :: dz_low = 100.0_r_def
+    real(r_def), parameter :: dz_high = 500.0_r_def
+    real(r_def), parameter :: h0 = 950.0_r_def
+    real(r_def), parameter :: zU = 6000.0_r_def
+    real(r_def), parameter :: zT = 20000.0_r_def
+    real(r_def), parameter :: gamma = 1.01679_r_def
+
+
+    integer(i_def) :: k
+
+    if (this%get_number_of_layers() /= 57)then
+      call log_event( "Extrusion DCMIP mountain reqires 57 levels", log_level_error )
+    end if
+
+    eta(0) = 0.0_r_def
+    do k = 1, this%get_number_of_layers()
+      ! Lower part of extrusion
+      if (eta(k-1)*zT < h0) then
+        eta(k) = eta(k-1) + dz_low / zT
+
+      else if (eta(k-1)*zT > zU) then
+        ! Upper part of extrusion
+        eta(k) = eta(k-1) + dz_high / zT
+
+      else
+        ! Middle part of extrusion
+        eta(k) = eta(k-1) + MIN(((eta(k-1) - eta(k-2))*zT)**gamma, dz_high) / zT
+      end if
+    end do
+    eta(this%get_number_of_layers()) = 1.0_r_def
+
+  end subroutine dcmip_mountain_extrude
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Creates a dcmip_gw_extrusion_type object.
+  !>
+  !> @param[in] atmosphere_bottom Bottom of the atmosphere in meters.
+  !> @param[in] atmosphere_top Top of the atmosphere in meters.
+  !> @param[in] number_of_layers Number of layers in the atmosphere.
+  !> @param[in] extrusion_id Identifier of extrusion type.
+  !>
+  !> @return New dcmip_extrusion_type object.
+  !>
+  function dcmip_gw_extrusion_constructor( atmosphere_bottom, &
+                                           atmosphere_top,    &
+                                           number_of_layers,  &
+                                           extrusion_id ) result(new)
+
+    implicit none
+
+    real(r_def),    intent(in) :: atmosphere_bottom
+    real(r_def),    intent(in) :: atmosphere_top
+    integer(i_def), intent(in) :: number_of_layers
+    integer(i_def), intent(in) :: extrusion_id
+
+    type(dcmip_gw_extrusion_type) :: new
+
+    call new%extrusion_constructor( atmosphere_bottom, atmosphere_top, &
+                                    number_of_layers, extrusion_id )
+
+  end function dcmip_gw_extrusion_constructor
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> @brief Extrudes the mesh using the DCMIP mountain scheme.
+  !>
+  !> @param[out] eta Nondimensional vertical coordinate.
+  !>
+  subroutine dcmip_gw_extrude( this, eta )
+
+    implicit none
+
+    class(dcmip_gw_extrusion_type), intent(in)  :: this
+    real(r_def),                    intent(out) :: eta(0:)
+
+    real(r_def), parameter :: xi = (700.0_r_def / 21000.0_r_def)
+    real(r_def), parameter :: dz_min = 100.0_r_def
+    real(r_def), parameter :: H = 40000.0_r_def
+
+    real(r_def)    :: z, dz_max, dz
+    integer(i_def) :: k
+
+    if (this%get_number_of_layers() /= 88)then
+      call log_event( "Extrusion DCMIP GW reqires 88 levels", log_level_error )
+    end if
+
+    eta(0) = 0.0_r_def
+    z = 0.0_r_def
+    dz = dz_min
+    do k = 1, this%get_number_of_layers()
+      if (H - z < REAL(this%get_number_of_layers() - k + 1, r_def)*(dz_min + xi*z)) then
+        dz_max = (H - z) / REAL(this%get_number_of_layers() - k + 1, r_def)
+        dz = dz_max
+      else
+        dz = dz_min + xi*z
+      end if
+      z = z + dz
+      eta(k) = z / H
+    end do
+    eta(this%get_number_of_layers()) = 1.0_r_def
+
+  end subroutine dcmip_gw_extrude
+
   !> @brief Creates vertical mesh extrusion
   !> @details Creates vertical mesh with nlayers.
   !> @param  method            Extrusion method to apply
@@ -800,6 +973,16 @@ contains
                                        atmosphere_bottom, domain_height, &
                                        number_of_layers, prime_extrusion ) )
 
+      case (method_dcmip_mountain)
+        allocate( extrusion, source=dcmip_mountain_extrusion_type( atmosphere_bottom, &
+                                                             domain_height,     &
+                                                             number_of_layers,  &
+                                                             PRIME_EXTRUSION ) )
+      case (method_dcmip_gw)
+        allocate( extrusion, source=dcmip_gw_extrusion_type( atmosphere_bottom, &
+                                                       domain_height,     &
+                                                       number_of_layers,  &
+                                                       PRIME_EXTRUSION ) )
       case default
         write( log_scratch_space, '(A)' )                              &
             trim(module_name) // ': Unrecognised extrusion method: ' //&

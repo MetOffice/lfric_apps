@@ -11,8 +11,10 @@
       <field field_ref="init_w_in_wth"/>
       <field field_ref="init_divergence"/>
       <field field_ref="init_exner"/>
+      <field field_ref="init_exner_in_wth"/>
       <field field_ref="init_height_w3"/>
       <field field_ref="init_height_wth"/>
+      <field field_ref="init_height_w2h"/>
     </field_group>
   </file>
 

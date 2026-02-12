@@ -34,15 +34,21 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_cosine_bubble,           &
                                        test_specified_profiles,      &
                                        test_bryan_fritsch,           &
-                                       test_grabowski_clark
+                                       test_grabowski_clark,         &
+                                       test_horizontal_mountain,     &
+                                       test_breaking_gw,             &
+                                       test_squall_line,             &
+                                       test_supercell
 use initial_density_config_mod, only : r1, x1, y1, z1, r2, x2, y2, z2, &
                                        density_max, density_background
 use base_mesh_config_mod,       only : geometry, &
                                        geometry_spherical
-use planet_config_mod,          only : p_zero, Rd, kappa, scaled_radius
+use planet_config_mod,          only : p_zero, Rd, kappa, scaled_radius, &
+                                       scaled_omega, gravity, cp
 use reference_profile_mod,      only : reference_profile
 use analytic_temperature_profiles_mod, only: analytic_temperature
 use deep_baroclinic_wave_mod,   only : deep_baroclinic_wave
+use breaking_gravity_wave_mod,  only : breaking_gravity_wave
 
 implicit none
 
@@ -109,12 +115,13 @@ contains
   !> @param[in] chi Position in physical coordinates
   !> @param[in] choice Integer defining which specified formula to use
   !> @result pressure The result pressure field
-  function analytic_pressure(chi, choice, time) result(pressure)
+  function analytic_pressure(chi, choice, time, surface_height) result(pressure)
 
     implicit none
     real(kind=r_def), intent(in) :: chi(3)
     integer,          intent(in) :: choice
     real(kind=r_def), intent(in) :: time
+    real(kind=r_def), intent(in) :: surface_height
     real(kind=r_def)             :: pressure
 
     real(kind=r_def)             :: l, dt
@@ -127,6 +134,8 @@ contains
     real(kind=r_def)             :: density, temperature, mr_v
     real(kind=r_def)             :: t0
     real(kind=r_def)             :: u, v, w
+    real(kind=r_def)             :: p_surf, Phi_s, Nsq
+    real(kind=r_def)             :: psp, u0
 
     integer                      :: id
 
@@ -163,9 +172,26 @@ contains
 
     !> No perturbation needed for warm bubble tests so just use background
     !> (isentropic) value
-    case (test_warm_bubble, test_warm_bubble_3d, &
-          test_bryan_fritsch, test_grabowski_clark )
+    case (test_warm_bubble, test_warm_bubble_3d, test_supercell, &
+          test_bryan_fritsch, test_grabowski_clark, test_squall_line)
       call reference_profile(pressure, density, temperature, chi, choice)
+
+    case ( test_horizontal_mountain )
+      T0 = 288.0_r_def
+      Nsq = gravity**2/(cp*T0)
+      u0 = 10.0_r_def
+      psp = 100000.0_r_def
+      Phi_s = gravity*surface_height
+
+      ! Specify surface pressure
+      p_surf = psp * EXP(                                                      &
+          -scaled_radius*Nsq*u0/(2.0_r_def*gravity**2*kappa)                   &
+          * (u0 / scaled_radius + 2.0_r_def*scaled_omega) * (SIN(lat))**2      &
+          - Nsq*Phi_s/(gravity**2*kappa)                                       &
+      )
+
+      ! Obtain vertical pressure given isothermal atmosphere
+      pressure = (p_surf * EXP( -gravity*(radius-scaled_radius) / (Rd*T0) ) / p_zero) ** kappa
 
     case (test_constant_field)
       pressure = density_background
@@ -184,11 +210,16 @@ contains
     case (test_solid_body_rotation, &
           test_solid_body_rotation_alt)
       t0 = 280.0_r_def
-      temperature = analytic_temperature(chi, choice)
+      temperature = analytic_temperature(chi, choice, 0.0_r_def)
       pressure = t0/temperature
       density = p_zero/(Rd*temperature) * pressure**( (1.0_r_def - kappa )/ kappa )
     case (test_deep_baroclinic_wave)
       call deep_baroclinic_wave(long, lat, radius-scaled_radius, &
+                                pressure, temperature, density, &
+                                u, v, w, mr_v)
+
+    case (test_breaking_gw)
+      call breaking_gravity_wave(long, lat, radius-scaled_radius, &
                                 pressure, temperature, density, &
                                 u, v, w, mr_v)
 

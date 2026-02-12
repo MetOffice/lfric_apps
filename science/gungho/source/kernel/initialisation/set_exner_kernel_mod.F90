@@ -15,7 +15,7 @@ module set_exner_kernel_mod
                                    GH_BASIS, GH_DIFF_BASIS,   &
                                    CELL_COLUMN, GH_QUADRATURE_XYoZ
   use constants_mod,        only : r_def, i_def
-  use fs_continuity_mod,    only : W3
+  use fs_continuity_mod,    only : W3, Wtheta
   use idealised_config_mod, only : test
   use kernel_mod,           only : kernel_type
 
@@ -31,8 +31,9 @@ module set_exner_kernel_mod
   !>
   type, public, extends(kernel_type) :: set_exner_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                      &
+    type(arg_type) :: meta_args(5) = (/                                      &
          arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
          arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
@@ -82,10 +83,12 @@ contains
 !! @param[in] wqp_v Weights of vertical quadrature points
 subroutine set_exner_code(nlayers,                                    &
                           exner,                                      &
+                          height_wth,                                 &
                           chi_1, chi_2, chi_3, panel_id,              &
                           time,                                       &
                           ndf_w3, undf_w3, map_w3,                    &
                           w3_basis,                                   &
+                          ndf_wth, undf_wth, map_wth,                 &
                           ndf_chi, undf_chi, map_chi,                 &
                           chi_basis, chi_diff_basis,                  &
                           ndf_pid, undf_pid, map_pid,                 &
@@ -103,15 +106,17 @@ subroutine set_exner_code(nlayers,                                    &
 
   ! Arguments
   integer(kind=i_def), intent(in) :: nlayers
-  integer(kind=i_def), intent(in) :: ndf_w3, ndf_chi, ndf_pid
-  integer(kind=i_def), intent(in) :: undf_w3, undf_chi, undf_pid
+  integer(kind=i_def), intent(in) :: ndf_w3, ndf_chi, ndf_pid, ndf_wth
+  integer(kind=i_def), intent(in) :: undf_w3, undf_chi, undf_pid, undf_wth
   integer(kind=i_def), intent(in) :: nqp_h, nqp_v
 
   integer(kind=i_def), dimension(ndf_w3),  intent(in) :: map_w3
+  integer(kind=i_def), dimension(ndf_wth), intent(in) :: map_wth
   integer(kind=i_def), dimension(ndf_pid), intent(in) :: map_pid
   integer(kind=i_def), dimension(ndf_chi), intent(in) :: map_chi
 
   real(kind=r_def), dimension(undf_w3),             intent(inout) :: exner
+  real(kind=r_def), dimension(undf_wth),               intent(in) :: height_wth
   real(kind=r_def), dimension(1,ndf_w3,nqp_h,nqp_v),   intent(in) :: w3_basis
   real(kind=r_def),                                    intent(in) :: time
   real(kind=r_def), dimension(undf_chi),               intent(in) :: chi_1, chi_2, chi_3
@@ -130,10 +135,12 @@ subroutine set_exner_code(nlayers,                                    &
   real(kind=r_def), dimension(nqp_h,nqp_v)     :: dj
   real(kind=r_def), dimension(3,3,nqp_h,nqp_v) :: jac
   real(kind=r_def), dimension(ndf_chi)         :: chi_1_e, chi_2_e, chi_3_e
-  real(kind=r_def)                             :: exner_ref, integrand
+  real(kind=r_def)                             :: exner_ref, integrand, surface_height
   real(kind=r_def)                             :: xyz(3), coords(3)
 
   ipanel = int(panel_id(map_pid(1)), i_def)
+
+  surface_height = height_wth(map_wth(1))
 
   ! Compute the RHS & LHS integrated over one cell and solve
   do k = 0, nlayers-1
@@ -162,7 +169,7 @@ subroutine set_exner_code(nlayers,                                    &
           call chi2xyz(coords(1), coords(2), coords(3), &
                        ipanel, xyz(1), xyz(2), xyz(3))
 
-          exner_ref = analytic_pressure(xyz, test, time)
+          exner_ref = analytic_pressure(xyz, test, time, surface_height)
 
           integrand =  w3_basis(1,df1,qp1,qp2) * exner_ref * dj(qp1,qp2)
           rhs_e(df1) = rhs_e(df1) + wqp_h(qp1)*wqp_v(qp2)*integrand

@@ -24,6 +24,7 @@ module external_forcing_alg_mod
                                              wind_forcing_filtering,             &
                                              wind_forcing_diffusion,             &
                                              wind_forcing_profile,               &
+                                             wind_forcing_rayleigh_friction,     &
                                              vertadvect_forcing,                 &
                                              geostrophic_forcing,                &
                                              filtering_order,                    &
@@ -34,6 +35,7 @@ module external_forcing_alg_mod
                                              LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use lfric_xios_write_mod,            only: write_field_generic
   use field_parent_mod,                only: write_interface
+  use sci_field_minmax_alg_mod,        only: log_field_minmax
 
   use held_suarez_fv_kernel_mod,       only: held_suarez_fv_kernel_type
   use held_suarez_fv_wind_kernel_mod,  only: held_suarez_fv_wind_kernel_type
@@ -42,6 +44,7 @@ module external_forcing_alg_mod
   use shallow_hot_jupiter_kernel_mod,  only: shallow_hot_jupiter_kernel_type
   use deep_hot_jupiter_kernel_mod,     only: deep_hot_jupiter_kernel_type
   use momentum_smagorinsky_kernel_mod, only: momentum_smagorinsky_kernel_type
+  use rayleigh_friction_kernel_mod,    only: rayleigh_friction_kernel_type
 #ifdef UM_PHYSICS
   use pc2_force_response_alg_mod,      only: pc2_force_response_alg
 #endif
@@ -61,10 +64,11 @@ module external_forcing_alg_mod
   use mr_indices_mod,                  only: nummr
   use io_config_mod,                   only: subroutine_timers, write_diag, &
                                              use_xios_io
-  use planet_config_mod,               only: kappa
+  use planet_config_mod,               only: kappa, p_zero
   use section_choice_config_mod,       only: cloud, cloud_um
   use cloud_config_mod,                only: scheme, scheme_pc2
-
+  use idealised_config_mod,            only: test, test_horizontal_mountain, &
+                                             test_breaking_gw
   use reference_element_mod,           only: T
   use sci_set_any_dof_kernel_mod,      only: set_any_dof_kernel_type
 
@@ -137,6 +141,7 @@ contains
 
     ! Temporary field to unpack from field collection
     type( field_type ), pointer :: u_physics => null()
+    type( field_type ), pointer :: u_ref => null()
     type( field_type ), pointer :: w2_rmultiplicity => null()
     type( field_type ), pointer :: dA => null()
     type( field_type ), pointer :: chi(:) => null()
@@ -150,6 +155,7 @@ contains
 
     integer( kind=i_def ) :: order, nlayers
     real( kind=r_def )    :: diffusion_coefficient_scaled, dx_sum, dx_size
+    real( kind=r_def )    :: p_cutoff, tau
 
     type( mesh_type ),  pointer :: mesh => null()
     procedure(write_interface), pointer :: write_behaviour => null()
@@ -350,6 +356,36 @@ contains
           call du_forcing%initialise( vector_space = u%get_function_space() )
 
           call wind_forcing_profile_alg( du_forcing, exner, time_now )
+
+        case ( wind_forcing_rayleigh_friction )
+
+          w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() ) ! 1/multiplicity of w2
+          call derived_fields%get_field('u_ref', u_ref)
+          call du_forcing%initialise( vector_space = u%get_function_space() )
+
+          if (test == test_horizontal_mountain) then
+            ! For the horizontal mountain test we use a different p_zero and p_cutoff
+            tau = 0.1_r_def*24.0_r_def*60.0_r_def*60.0_r_def
+            p_cutoff = 30500.0_r_def
+          else if (test == test_breaking_gw) then
+            ! For the horizontal mountain test we use a different p_zero and p_cutoff
+            tau = 5.0_r_def*24.0_r_def*60.0_r_def*60.0_r_def
+            p_cutoff = 16500.0_r_def
+          else
+            call log_event('Rayleigh friction not implemented for this test',  &
+                           LOG_LEVEL_ERROR)
+          end if
+
+          call invoke( setval_c(du_forcing, 0.0_r_def),                        &
+                       rayleigh_friction_kernel_type(du_forcing, u, u_ref,     &
+                                                     w2_rmultiplicity,         &
+                                                     exner, exner_in_wth,      &
+                                                     kappa, p_zero, p_cutoff,  &
+                                                     tau, dt))
+
+          call log_field_minmax(LOG_LEVEL_INFO, 'Rayleigh friction u', u)
+          call log_field_minmax(LOG_LEVEL_INFO, 'Rayleigh friction u_ref', u_ref)
+          call log_field_minmax(LOG_LEVEL_INFO, 'Rayleigh friction du', du_forcing)
 
         case default
 

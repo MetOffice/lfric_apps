@@ -15,7 +15,7 @@ module initial_exner_sample_kernel_mod
                                    GH_BASIS, CELL_COLUMN,     &
                                    GH_EVALUATOR
   use constants_mod,        only : r_def, i_def
-  use fs_continuity_mod,    only : W3
+  use fs_continuity_mod,    only : W3, Wtheta
   use idealised_config_mod, only : test
   use kernel_mod,           only : kernel_type
 
@@ -31,8 +31,9 @@ module initial_exner_sample_kernel_mod
   !>
   type, public, extends(kernel_type) :: initial_exner_sample_kernel_type
       private
-      type(arg_type) :: meta_args(4) = (/                                      &
+      type(arg_type) :: meta_args(5) = (/                                      &
            arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
+           arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
            arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
            arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
            arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
@@ -75,10 +76,12 @@ contains
   !!                     for panel_id
   subroutine initial_exner_sample_code(nlayers,                    &
                                        exner,                      &
+                                       height_wth,                 &
                                        chi_1, chi_2, chi_3,        &
                                        panel_id,                   &
                                        current_time,               &
                                        ndf_w3, undf_w3, map_w3,    &
+                                       ndf_wth, undf_wth, map_wth, &
                                        ndf_chi, undf_chi, map_chi, &
                                        basis_chi_on_w3,            &
                                        ndf_pid, undf_pid, map_pid  )
@@ -90,16 +93,18 @@ contains
 
     ! Arguments
     integer(kind=i_def),                               intent(in)    :: nlayers
-    integer(kind=i_def),                               intent(in)    :: ndf_w3
+    integer(kind=i_def),                               intent(in)    :: ndf_w3, ndf_wth
     integer(kind=i_def),                               intent(in)    :: ndf_chi
     integer(kind=i_def),                               intent(in)    :: ndf_pid
-    integer(kind=i_def),                               intent(in)    :: undf_w3
+    integer(kind=i_def),                               intent(in)    :: undf_w3, undf_wth
     integer(kind=i_def),                               intent(in)    :: undf_chi
     integer(kind=i_def),                               intent(in)    :: undf_pid
     integer(kind=i_def), dimension(ndf_w3),            intent(in)    :: map_w3
+    integer(kind=i_def), dimension(ndf_wth),           intent(in)    :: map_wth
     integer(kind=i_def), dimension(ndf_chi),           intent(in)    :: map_chi
     integer(kind=i_def), dimension(ndf_chi),           intent(in)    :: map_pid
     real(kind=r_def),    dimension(undf_w3),           intent(inout) :: exner
+    real(kind=r_def),    dimension(undf_wth),          intent(in)    :: height_wth
     real(kind=r_def),    dimension(undf_chi),          intent(in)    :: chi_1
     real(kind=r_def),    dimension(undf_chi),          intent(in)    :: chi_2
     real(kind=r_def),    dimension(undf_chi),          intent(in)    :: chi_3
@@ -109,10 +114,12 @@ contains
 
     ! Internal variables
     real(kind=r_def), dimension(ndf_chi) :: chi_1_e, chi_2_e, chi_3_e
-    real(kind=r_def)                     :: coords(3), xyz(3)
+    real(kind=r_def)                     :: coords(3), xyz(3), surface_height
     integer(kind=i_def)                  :: df1, df, k, ipanel
 
     ipanel = int(panel_id(map_pid(1)), i_def)
+
+    surface_height = height_wth(map_wth(1))
 
     ! Compute the RHS & LHS integrated over one cell and solve
     do k = 0, nlayers-1
@@ -133,7 +140,7 @@ contains
         call chi2xyz(coords(1), coords(2), coords(3), &
                      ipanel, xyz(1), xyz(2), xyz(3))
 
-        exner(map_w3(df) + k) = analytic_pressure(xyz, test, current_time)
+        exner(map_w3(df) + k) = analytic_pressure(xyz, test, current_time, surface_height)
 
       end do
     end do

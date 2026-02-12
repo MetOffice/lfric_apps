@@ -10,6 +10,7 @@ module slow_physics_alg_mod
                                  only: heat_capacity_h2o_vapour, &
                                        heat_capacity_h2o,        &
                                        gas_constant_h2o
+  use sci_geometric_constants_mod, only: get_height_fv
   use energy_correction_config_mod,                  &
                                  only: encorr_usage, &
                                        encorr_usage_apply
@@ -65,6 +66,7 @@ module slow_physics_alg_mod
                                        surface, surface_jules,               &
                                        convection, convection_um,            &
                                        cloud, cloud_um, cloud_evap_condense, &
+                                       cloud_kessler,                        &
                                        external_forcing
 
   ! Derived Types
@@ -94,6 +96,7 @@ module slow_physics_alg_mod
   use timer_mod,                 only: timer
   use external_forcing_alg_mod,  only: external_forcing_alg
   use evap_condense_kernel_mod,  only: evap_condense_kernel_type
+  use kessler_kernel_mod,        only: kessler_kernel_type
   use physics_mappings_alg_mod,  only: map_physics_scalars
   use planet_config_mod,         only: p_zero, kappa, cp, Rd
   ! Physics schemes called
@@ -324,6 +327,7 @@ contains
     type( field_type ), pointer :: exner_in_wth => null()
     type( field_type ), pointer :: rho_in_wth => null()
     type( field_type ), pointer :: exner_wth_n => null()
+    type( field_type ), pointer :: height_in_wth => null()
     ! Fields required by PC2
     type( field_type ), pointer :: liquid_fraction => null()
     type( field_type ), pointer :: frozen_fraction => null()
@@ -331,7 +335,8 @@ contains
     type( field_type ), pointer :: cf_liq_n
     type( field_type ), pointer :: cf_fro_n
     type( field_type ), pointer :: cf_bulk_n
-
+    type( field_type ) :: rain_2d
+    type(function_space_type), pointer :: w3_2d
     integer( kind=i_def ) :: i_mr
 
     ! Flags to indicate whether scheme has run and increments need adding
@@ -1002,6 +1007,19 @@ contains
                                              mr(imr_v), mr(imr_cl),            &
                                              exner_in_wth,                     &
                                              Rd, Rv, cp, cpv, cl, p_zero) )
+      evap_condense_done = .true.
+    else if (evap_condense_placement == evap_condense_placement_slow .and. &
+        cloud == cloud_kessler) then
+
+      call clone_bundle(mr, dmr_cld, nummr)
+      w3_2d => function_space_collection%get_fs( twod_mesh, 0, 0, W3 )
+      call rain_2d%initialise(w3_2d)
+      height_in_wth => get_height_fv(Wtheta, mesh%get_id())
+      call invoke( kessler_kernel_type(dtheta_cld, theta,        &
+                                       dmr_cld,                  &
+                                       mr,                       &
+                                       exner_in_wth, rho_in_wth, &
+                                       height_in_wth, rain_2d, dt) )
       evap_condense_done = .true.
     end if
 

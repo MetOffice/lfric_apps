@@ -17,7 +17,8 @@ use formulation_config_mod,          only: moisture_formulation,     &
                                            moisture_formulation_dry, &
                                            theta_moist_source
 use function_space_mod,              only: function_space_type
-use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id
+use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id, &
+                                           get_height_fv
 use idealised_config_mod,            only: test, test_bryan_fritsch
 use init_gungho_prognostics_alg_mod, only: init_exner_field, &
                                            init_rho_field,   &
@@ -37,6 +38,7 @@ use planet_config_mod,               only: rd, p_zero, kappa, cp, recip_epsilon
 use theta_e_kernel_mod,              only: theta_e_kernel_type
 use transport_config_mod,            only: theta_variable, &
                                            theta_variable_moist
+use fs_continuity_mod,               only: Wtheta
 
 implicit none
 
@@ -90,6 +92,7 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   type(field_type), allocatable :: latest_mr(:)  ! latest guess for mr fields
 
   type(field_type),          pointer :: chi(:) => null()
+  type(field_type),          pointer :: height_wth => null()
   type(field_type),          pointer :: panel_id => null()
   type(function_space_type), pointer :: wt_fs => null()
 
@@ -123,6 +126,7 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   chi      => get_coordinates( mesh%get_id() )
   panel_id => get_panel_id( mesh%get_id() )
   wt_fs    => theta%get_function_space()
+  height_wth => get_height_fv(Wtheta, mesh%get_id())
 
   call specified_theta_e%initialise( vector_space = wt_fs )
   call latest_theta_e%initialise( vector_space = wt_fs )
@@ -274,7 +278,7 @@ subroutine init_saturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   ! Apply perturbation to theta_e
   !----------------------------------------------------------------------------!
 
-  call invoke( initial_theta_kernel_type( theta_pert, chi, panel_id ), &
+  call invoke( initial_theta_kernel_type( theta_pert, height_wth, chi, panel_id ), &
                inc_X_times_Y( theta, theta_pert ) )
 
   ! Return to saturation

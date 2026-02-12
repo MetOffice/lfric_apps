@@ -36,6 +36,8 @@ module diagnostic_alg_mod
                                            LOG_LEVEL_INFO,    &
                                            LOG_LEVEL_ERROR
   use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
+  use mr_indices_mod,                only: nummr, imr_v, imr_cl, imr_r, &
+                                           mr_names
 
   implicit none
 
@@ -51,6 +53,7 @@ module diagnostic_alg_mod
   public :: column_total_diagnostics_alg
   public :: calc_wbig_diagnostic_alg
   public :: pressure_diag_alg
+  public :: dbz_diagnostic_alg
 
 contains
 
@@ -95,6 +98,37 @@ contains
     l2 = l2_norm_alg(divergence)
 
   end subroutine divergence_diagnostic_alg
+
+  !> @details Calculates the l2 error norm for wind divergence
+  !> @param[in,out] divergence  Divergence field
+  !> @param[in,out] l2          l2 norm
+  !> @param[in] u               3D wind field
+  !> @param[in] mesh            Mesh
+  subroutine dbz_diagnostic_alg(dbz, exner_in_wth, theta, rho, mr, mesh)
+    use dbz_kernel_mod,               only: dbz_kernel_type
+    use planet_config_mod,            only: recip_epsilon, kappa, p_zero
+    use physics_mappings_alg_mod,     only: map_physics_scalars
+
+    implicit none
+    type(field_type), intent(inout) :: dbz
+    type(field_type), intent(in) :: exner_in_wth
+    type(field_type), intent(in) :: theta
+    type(field_type), intent(in) :: rho
+    type(field_type), intent(in) :: mr(nummr)
+    type(mesh_type),  intent(in), pointer :: mesh
+
+    type(field_type) :: rho_in_wth
+
+    call rho_in_wth%initialise( theta%get_function_space() )
+    call dbz%initialise( theta%get_function_space() )
+
+    call map_physics_scalars(rho_in_wth, rho)
+
+    call invoke( dbz_kernel_type( dbz, exner_in_Wth, theta, rho_in_wth,        &
+                                  mr(imr_v), mr(imr_cl), mr(imr_r),            &
+                                  recip_epsilon, kappa, p_zero ) )
+
+  end subroutine dbz_diagnostic_alg
 
 !=============================================================================!
   !> @details An algorithm for calculating the l2 error for the density field.
@@ -592,7 +626,6 @@ contains
     use extrusion_config_mod,               only: planet_radius
     use sci_geometric_constants_mod,        only: get_height_fe, get_height_fv
     use io_config_mod,                      only: write_diag, use_xios_io
-    use mr_indices_mod,                     only: nummr, mr_names
     use function_space_mod,                 only: function_space_type
     use physics_mappings_alg_mod,           only: map_physics_scalars
     use planet_config_mod,                  only: cv, gravity

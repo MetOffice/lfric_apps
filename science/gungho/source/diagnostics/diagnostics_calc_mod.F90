@@ -16,7 +16,8 @@ module diagnostics_calc_mod
   use diagnostic_alg_mod,            only: divergence_diagnostic_alg,   &
                                            hydbal_diagnostic_alg,       &
                                            vorticity_diagnostic_alg,    &
-                                           potential_vorticity_diagnostic_alg
+                                           potential_vorticity_diagnostic_alg, &
+                                           dbz_diagnostic_alg
   use io_config_mod,                 only: use_xios_io,          &
                                            nodal_output_on_w3
   use files_config_mod,              only: diag_stem_name
@@ -43,13 +44,16 @@ module diagnostics_calc_mod
   use mesh_mod,                      only: mesh_type
   use sci_geometric_constants_mod,   only: get_coordinates,      &
                                            get_panel_id
+  use mr_indices_mod,                only: nummr
 
   implicit none
   private
   public :: write_divergence_diagnostic, &
             write_pv_diagnostic,         &
             write_hydbal_diagnostic,     &
-            write_vorticity_diagnostic
+            write_vorticity_diagnostic,  &
+            write_dbz_diagnostic,        &
+            write_exner_wth_diagnostic
 
 contains
 
@@ -100,6 +104,68 @@ subroutine write_divergence_diagnostic(u_field, clock, mesh)
   end if
 
 end subroutine write_divergence_diagnostic
+
+subroutine write_dbz_diagnostic(exner_in_wth, theta, rho, mr, clock, mesh)
+  implicit none
+
+  type(field_type),        intent(in)    :: exner_in_wth
+  type(field_type),        intent(in)    :: theta
+  type(field_type),        intent(in)    :: rho
+  type(field_type),        intent(in)    :: mr(nummr)
+  class(model_clock_type), intent(in)    :: clock
+  type(mesh_type),         intent(in), pointer :: mesh
+
+  type(field_type)                :: dbz_field
+
+  procedure(write_interface), pointer  :: tmp_write_ptr
+
+  if (diagnostic_to_be_sampled('dbz')) then
+
+    ! Create the divergence diagnostic
+    call dbz_diagnostic_alg( dbz_field, exner_in_Wth, theta, rho, mr, mesh )
+
+    if (use_xios_io) then
+      !If using XIOS, we need to set a field I/O method appropriately
+      tmp_write_ptr => write_field_generic
+      call dbz_field%set_write_behaviour(tmp_write_ptr)
+    end if
+
+    call write_scalar_diagnostic( 'dbz', dbz_field, &
+                                  clock, mesh, .false. )
+
+    nullify(tmp_write_ptr)
+
+  end if
+
+end subroutine write_dbz_diagnostic
+
+
+subroutine write_exner_wth_diagnostic(exner_wth, clock, mesh)
+  implicit none
+
+  type(field_type),        intent(inout)    :: exner_wth
+  class(model_clock_type), intent(in)       :: clock
+  type(mesh_type),         intent(in), pointer :: mesh
+
+  procedure(write_interface), pointer  :: tmp_write_ptr
+
+  if (diagnostic_to_be_sampled('exner_in_wth') .or. &
+      diagnostic_to_be_sampled('init_exner_in_wth') ) then
+
+    if (use_xios_io) then
+      !If using XIOS, we need to set a field I/O method appropriately
+      tmp_write_ptr => write_field_generic
+      call exner_wth%set_write_behaviour(tmp_write_ptr)
+    end if
+
+    call write_scalar_diagnostic( 'exner_in_wth', exner_wth, &
+                                  clock, mesh, .false. )
+
+    nullify(tmp_write_ptr)
+
+  end if
+
+end subroutine write_exner_wth_diagnostic
 
 !-------------------------------------------------------------------------------
 !>  @brief    Handles hydrostatic balance diagnostic processing

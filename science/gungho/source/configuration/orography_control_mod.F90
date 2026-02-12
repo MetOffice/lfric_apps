@@ -15,17 +15,21 @@
 module orography_control_mod
 
   use constants_mod,          only : i_def, str_short
-  use base_mesh_config_mod,   only : geometry,           &
-                                     geometry_spherical, &
+  use base_mesh_config_mod,   only : geometry,                                 &
+                                     geometry_spherical,                       &
                                      geometry_planar
-  use orography_config_mod,   only : profile,        &
-                                     profile_schar,  &
-                                     profile_agnesi, &
-                                     profile_bell,   &
-                                     profile_dcmip200
-  use log_mod,                only : log_event,         &
-                                     log_scratch_space, &
-                                     LOG_LEVEL_INFO
+  use orography_config_mod,   only : profile,                                  &
+                                     profile_schar,                            &
+                                     profile_agnesi,                           &
+                                     profile_bell,                             &
+                                     profile_dcmip200,                         &
+                                     profile_dcmip_breaking_gw,                &
+                                     profile_dcmip_gap,                        &
+                                     profile_dcmip_vortex
+  use log_mod,                only : log_event,                                &
+                                     log_scratch_space,                        &
+                                     LOG_LEVEL_INFO,                           &
+                                     LOG_LEVEL_ERROR
   use analytic_orography_mod, only : orography_profile
 
   implicit none
@@ -86,6 +90,30 @@ contains
           ! coordinates and initialise the corresponding type
           call set_orography_dcmip200_spherical()
         end if
+      ! DCMIP 2025 orography
+      case( profile_dcmip_breaking_gw )
+        call set_orography_dcmip_breaking_gw()
+
+      ! DCMIP 2025 orography
+      case( profile_dcmip_gap )
+        if ( geometry == geometry_spherical ) then
+          ! Read parameters for DCMIP 2025 mountain in spherical
+          ! coordinates and initialise the corresponding type
+          call set_orography_dcmip_gap()
+        else
+          call log_event('DCMIP 2025 orography only appropriate for sphere', LOG_LEVEL_ERROR)
+        end if
+
+      ! DCMIP 2025 orography
+      case( profile_dcmip_vortex )
+        if ( geometry == geometry_spherical ) then
+          ! Read parameters for DCMIP 2025 mountain in spherical
+          ! coordinates and initialise the corresponding type
+          call set_orography_dcmip_vortex()
+        else
+          call log_event('DCMIP 2025 orography only appropriate for sphere', LOG_LEVEL_ERROR)
+        end if
+
       ! Bell-shaped orography
       case( profile_bell )
         if ( geometry == geometry_planar ) then
@@ -263,6 +291,50 @@ contains
     return
   end subroutine set_orography_dcmip200_spherical
 
+  subroutine set_orography_dcmip_breaking_gw()
+
+    use dcmip_2025_orography_mod,        only : dcmip_breaking_gw_type
+
+    implicit none
+
+    allocate( orography_profile, source=dcmip_breaking_gw_type() )
+
+    write(log_scratch_space,'(A,A)') "set_orography_dcmip_breaking_gw: "//     &
+          "Set analytic orography type to dcmip breaking GW mountain."
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    return
+  end subroutine set_orography_dcmip_breaking_gw
+
+  subroutine set_orography_dcmip_gap()
+
+    use dcmip_2025_orography_mod,        only : dcmip_gap_type
+
+    implicit none
+
+    allocate( orography_profile, source = dcmip_gap_type() )
+
+    write(log_scratch_space,'(A,A)') "set_orography_dcmip_gap: "//             &
+          "Set analytic orography type to dcmip gap mountain."
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    return
+  end subroutine set_orography_dcmip_gap
+
+  subroutine set_orography_dcmip_vortex()
+
+    use dcmip_2025_orography_mod,        only : dcmip_vortex_type
+
+    implicit none
+
+    allocate( orography_profile,  source=dcmip_vortex_type() )
+
+    write(log_scratch_space,'(A,A)') "set_orography_dcmip_vortex: "//          &
+          "Set analytic orography type to dcmip vortex mountain."
+    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    return
+  end subroutine set_orography_dcmip_vortex
 
   !=============================================================================
   !> @brief Initialises analytic orography type for bell-shaped mountain in

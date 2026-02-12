@@ -31,6 +31,7 @@ use idealised_config_mod,       only : test_cold_bubble_x,           &
                                        test_solid_body_rotation,     &
                                        test_solid_body_rotation_alt, &
                                        test_deep_baroclinic_wave,    &
+                                       test_breaking_gw,             &
                                        test_isentropic,              &
                                        test_isot_atm,                &
                                        test_isot_cold_atm,           &
@@ -53,6 +54,7 @@ use reference_profile_mod,      only : reference_profile
 use analytic_temperature_profiles_mod, &
                                 only : analytic_temperature
 use deep_baroclinic_wave_mod,   only : deep_baroclinic_wave
+use breaking_gravity_wave_mod,  only : breaking_gravity_wave
 use extrusion_config_mod,       only : domain_height
 
 implicit none
@@ -243,7 +245,7 @@ function analytic_density(chi, choice, time) result(density)
   case( test_solid_body_rotation,                                    &
         test_solid_body_rotation_alt )
     t0          = 280.0_r_def
-    temperature = analytic_temperature(chi, choice)
+    temperature = analytic_temperature(chi, choice, 0.0_r_def)
     pressure    = t0 / temperature
     density     = p_zero * pressure**( (1.0_r_def - kappa )/ kappa )           &
                          / (Rd * temperature)
@@ -251,6 +253,11 @@ function analytic_density(chi, choice, time) result(density)
     call deep_baroclinic_wave(long, lat, radius-scaled_radius, &
                               pressure, temperature, density, &
                               u, v, w, mr_v)
+  case( test_breaking_gw )
+    call breaking_gravity_wave(long, lat, radius-scaled_radius, &
+                              pressure, temperature, density, &
+                              u, v, w, mr_v)
+
   case( test_cosine_bubble )
     l1 = sqrt( ((chi(1) - x1)/r1)**2 + ((chi(3) - y1)/r2)**2 )
     if ( l1 < 1.0_r_def ) then

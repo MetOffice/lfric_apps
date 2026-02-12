@@ -40,9 +40,11 @@ contains
 
     if (T > qsa3 .and. p * exp (qsa2 * (t - tk0c) / (T - qsa3)) > qsa4) then
       qsaturation=qsa1/(p*exp(qsa2*(t-tk0c)/(T-qsa3))-qsa4)
+      qsaturation = (3.8_r_def/p)*exp(17.27_r_def*(T-273.0_r_def)/(T-36.0_r_def))
     else
       qsaturation=999.0_r_def
     end if
+
   end function qsaturation
 
 end module physics_common_mod

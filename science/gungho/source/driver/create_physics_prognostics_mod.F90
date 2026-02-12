@@ -62,10 +62,13 @@ module create_physics_prognostics_mod
                                              orographic_drag_um,                &
                                              convection, convection_um,         &
                                              stochastic_physics,                &
-                                             stochastic_physics_um
+                                             stochastic_physics_um,             &
+                                             external_forcing
   use cloud_config_mod,               only : scheme,                            &
                                              scheme_pc2
   use convection_config_mod,          only : cv_scheme, cv_scheme_comorph
+  use external_forcing_config_mod,    only : wind_forcing, &
+                                             wind_forcing_rayleigh_friction
   use microphysics_config_mod,        only : microphysics_casim
   use multires_coupling_config_mod,   only : coarse_rad_aerosol
 
@@ -211,6 +214,10 @@ contains
     call processor%apply(make_spec('u_physics', main%derived, W2))
     call processor%apply(make_spec('u_star', main%derived, W2))
     call processor%apply(make_spec('wetrho_in_w2', main%derived, W2))
+
+    if ( external_forcing .and. wind_forcing == wind_forcing_rayleigh_friction ) then
+      call processor%apply(make_spec('u_ref', main%derived, W2))
+    end if
 
     ! W2H fields
     call processor%apply(make_spec('u_in_w2h', main%derived, W2H))

@@ -8,7 +8,7 @@
 
 !> @brief Computes Exner pressure distribution via hydrostatic balance equation (lowest order only)
 
-module hydrostatic_exner_kernel_mod
+module hydrostatic_exner_squall_kernel_mod
 
 use argument_mod,               only : arg_type, func_type,       &
                                        GH_FIELD, GH_REAL,         &
@@ -31,17 +31,17 @@ private
 ! Public types
 !-------------------------------------------------------------------------------
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
-type, public, extends(kernel_type) :: hydrostatic_exner_kernel_type
+type, public, extends(kernel_type) :: hydrostatic_exner_squall_kernel_type
   private
   type(arg_type) :: meta_args(12) = (/                                     &
        arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
+       arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
        arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
@@ -55,13 +55,13 @@ type, public, extends(kernel_type) :: hydrostatic_exner_kernel_type
   integer :: gh_shape = GH_EVALUATOR
   integer :: gh_evaluator_targets(1) = (/ Wtheta /)
 contains
-  procedure, nopass :: hydrostatic_exner_code
+  procedure, nopass :: hydrostatic_exner_squall_code
 end type
 
 !-------------------------------------------------------------------------------
 ! Contained functions/subroutines
 !-------------------------------------------------------------------------------
-public :: hydrostatic_exner_code
+public :: hydrostatic_exner_squall_code
 
 contains
 
@@ -97,18 +97,19 @@ contains
 !> @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
 !> @param[in] undf_pid Number of unique degrees of freedom for panel_id
 !> @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id
-subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
-                                  moist_dyn_gas, moist_dyn_tot,  &
-                                  moist_dyn_fac,                 &
-                                  height_wt, height_w3,          &
-                                  chi_1, chi_2, chi_3, panel_id, &
-                                  gravity, p_zero, rd, cp,       &
-                                  radius,                        &
-                                  ndf_w3, undf_w3, map_w3,       &
-                                  ndf_wt, undf_wt, map_wt,       &
-                                  ndf_chi, undf_chi, map_chi,    &
-                                  basis_chi_on_wt,               &
-                                  ndf_pid, undf_pid, map_pid     )
+subroutine hydrostatic_exner_squall_code(nlayers, exner, theta,         &
+                                         moist_dyn_gas, moist_dyn_tot,  &
+                                         moist_dyn_fac,                 &
+                                         exner_surf,                    &
+                                         height_wt, height_w3,          &
+                                         chi_1, chi_2, chi_3, panel_id, &
+                                         gravity, rd, cp,               &
+                                         radius,                        &
+                                         ndf_w3, undf_w3, map_w3,       &
+                                         ndf_wt, undf_wt, map_wt,       &
+                                         ndf_chi, undf_chi, map_chi,    &
+                                         basis_chi_on_wt,               &
+                                         ndf_pid, undf_pid, map_pid     )
 
   use analytic_pressure_profiles_mod, only : analytic_pressure
   use sci_chi_transform_mod,          only : chi2xyz
@@ -127,6 +128,7 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
   integer(kind=i_def), dimension(ndf_pid),          intent(in)    :: map_pid
   real(kind=r_def),    dimension(undf_w3),          intent(inout) :: exner
   real(kind=r_def),    dimension(undf_wt),          intent(in)    :: theta
+  real(kind=r_Def),    dimension(undf_wt),          intent(in)    :: exner_surf
   real(kind=r_def),    dimension(undf_wt),          intent(in)    :: moist_dyn_gas, &
                                                                      moist_dyn_tot, &
                                                                      moist_dyn_fac
@@ -136,7 +138,6 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
   real(kind=r_def),    dimension(undf_pid),         intent(in)    :: panel_id
   real(kind=r_def),    dimension(1,ndf_chi,ndf_wt), intent(in)    :: basis_chi_on_wt
   real(kind=r_def),                                 intent(in)    :: gravity
-  real(kind=r_def),                                 intent(in)    :: p_zero
   real(kind=r_def),                                 intent(in)    :: rd
   real(kind=r_def),                                 intent(in)    :: cp
   real(kind=r_def),                                 intent(in)    :: radius
@@ -156,9 +157,11 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
   if (init_exner_bt) then
     layers_offset = 0
     wt_dof = 1
+    exner_start = exner_surf(map_wt(1))
   else
     layers_offset = nlayers - 1
     wt_dof = 2
+    exner_start = exner_surf(map_wt(1)+nlayers)
   end if
 
   do dfc = 1, ndf_chi
@@ -176,9 +179,6 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
   end do
 
   call chi2xyz(coords(1), coords(2), coords(3), ipanel, xyz(1), xyz(2), xyz(3))
-
-  ! Exner at the model surface or top
-  exner_start = analytic_pressure( xyz, test, 0.0_r_def, surface_height)
 
   ! Set local value of gravity at each vertical level
   if (shallow) then
@@ -227,6 +227,6 @@ subroutine hydrostatic_exner_code(nlayers, exner, theta,         &
 
   end if
 
-end subroutine hydrostatic_exner_code
+end subroutine hydrostatic_exner_squall_code
 
-end module hydrostatic_exner_kernel_mod
+end module hydrostatic_exner_squall_kernel_mod

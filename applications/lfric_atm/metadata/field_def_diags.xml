@@ -20,6 +20,7 @@
   <field id="rho_in_wth" name="rho_in_wth" long_name="dry_air_density_at_cell_interfaces" unit="kg m-3" grid_ref="full_level_face_grid" />
   <field id="wetrho_in_w3" name="wetrho_in_w3" long_name="wet_air_density_at_cell_centres" unit="kg m-3" grid_ref="half_level_face_grid" />
   <field id="wetrho_in_wth" name="wetrho_in_wth" long_name="wet_air_density_at_cell_interfaces" unit="kg m-3" grid_ref="full_level_face_grid" />
+  <field id="dbz" name="dbz" long_name="rainfall_radar_reflectivity" unit="1" grid_ref="full_level_face_grid" />
   <field id="exner_in_wth" name="exner_in_wth" long_name="exner_pressure_at_cell_interfaces" unit="1" grid_ref="full_level_face_grid" />
   <field id="exner_wth_n" name="exner_wth_n" long_name="start_of_timestep_exner_pressure_at_cell_interfaces" unit="1" grid_ref="full_level_face_grid" />
   <field id="u_in_w2h" name="u_in_w2h" long_name="eastward_wind_at_cell_faces" unit="m s-1" grid_ref="half_level_edge_grid" />
@@ -43,6 +44,7 @@
   <field id="w_in_w3_star" name="w_in_w3_star" long_name="physics_predictor_upward_air_velocity_at_cell_centres" unit="ms-1" grid_ref="half_level_face_grid" />
   <field id="height_w3" name="height_w3" long_name="height_of_cell_centres_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="half_level_face_grid" />
   <field id="height_wth" name="height_wth" long_name="height_of_cell_interfaces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="full_level_face_grid" />
+  <field id="height_w2h" name="height_w2h" long_name="height_of_cell_faces_above_earth_radius" standard_name="height_above_mean_sea_level" unit="m" grid_ref="half_level_edge_grid" />
   <!-- First line extracts level 0, second line removes vertical coordinate, cannot do as one -->
   <field id="zoomed__orography" field_ref="height_wth" grid_ref="full_level_0_face_zoom" />
   <field id="orography" name="orography" long_name="surface_altitude" standard_name="surface_altitude" unit="m" domain_ref="face" > zoomed__orography </field>

@@ -22,7 +22,9 @@ module gungho_diagnostics_driver_mod
   use diagnostics_calc_mod,      only : write_divergence_diagnostic, &
                                         write_hydbal_diagnostic,     &
                                         write_vorticity_diagnostic,  &
-                                        write_pv_diagnostic
+                                        write_pv_diagnostic,         &
+                                        write_dbz_diagnostic,        &
+                                        write_exner_wth_diagnostic
   use initialise_diagnostics_mod, only : diagnostic_to_be_sampled
   use field_array_mod,           only : field_array_type
   use field_collection_iterator_mod, &
@@ -35,7 +37,7 @@ module gungho_diagnostics_driver_mod
   use formulation_config_mod,    only : use_physics,             &
                                         moisture_formulation,    &
                                         moisture_formulation_dry
-  use fs_continuity_mod,         only : W3, Wtheta
+  use fs_continuity_mod,         only : W3, Wtheta, W2H
   use integer_field_mod,         only : integer_field_type
   use initialization_config_mod, only : ls_option,          &
                                         ls_option_analytic, &
@@ -52,6 +54,7 @@ module gungho_diagnostics_driver_mod
   use timer_mod,                 only : timer
   use transport_config_mod,      only : transport_ageofair
   use driver_modeldb_mod,        only : modeldb_type
+  use physics_mappings_alg_mod,  only : map_physics_scalars
 
 #ifdef UM_PHYSICS
   use pres_lev_diags_alg_mod,    only : pres_lev_diags_alg
@@ -103,6 +106,7 @@ contains
     type( field_type), pointer :: panel_id => null()
     type( field_type), pointer :: height_w3 => null()
     type( field_type), pointer :: height_wth => null()
+    type( field_type), pointer :: height_w2h => null()
     type( field_type), pointer :: lbc_u => null()
     type( field_type), pointer :: lbc_theta => null()
     type( field_type), pointer :: lbc_rho => null()
@@ -115,6 +119,7 @@ contains
     type( field_type), pointer :: ageofair => null()
     type( field_type), pointer :: exner_in_wth => null()
     type( field_type), pointer :: dA => null()
+    type( field_type ) :: exner_in_wth_init
 
     type(field_array_type), pointer :: mr_array => null()
     type(field_array_type), pointer :: moist_dyn_array => null()
@@ -169,10 +174,12 @@ contains
       ! Get the finite element height
       height_w3 => get_height_fe(W3, mesh%get_id())
       height_wth => get_height_fe(Wtheta, mesh%get_id())
+      height_w2h => get_height_fe(W2H, mesh%get_id())
     else
       ! Get the finite volume height
       height_w3 => get_height_fv(W3, mesh%get_id())
       height_wth => get_height_fv(Wtheta, mesh%get_id())
+      height_w2h => get_height_fv(W2H, mesh%get_id())
     end if
 
     ! Scalar fields
@@ -185,6 +192,8 @@ contains
     call write_scalar_diagnostic('height_w3', height_w3, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
     call write_scalar_diagnostic('height_wth', height_wth, &
+                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic('height_w2h', height_w2h, &
                                  modeldb%clock, mesh, nodal_output_on_w3)
 
     if (transport_ageofair) then
@@ -332,6 +341,23 @@ contains
       ! Don't output for the tangent linear model
       call write_divergence_diagnostic( u, modeldb%clock, mesh )
       call write_hydbal_diagnostic( theta, moist_dyn, exner, mesh )
+
+      if ( .not. modeldb%clock%is_initialisation() ) then
+        call derived_fields%get_field('exner_in_wth', exner_in_wth)
+        call write_exner_wth_diagnostic( exner_in_wth, modeldb%clock, mesh )
+      else if (use_xios_io .and. modeldb%clock%is_initialisation() &
+               .and. diagnostic_to_be_sampled("init_exner_in_wth") ) then
+        call exner_in_wth_init%initialise(theta%get_function_space())
+        call map_physics_scalars(exner_in_wth_init, exner)
+        tmp_write_ptr => write_field_generic
+        call exner_in_wth_init%set_write_behaviour(tmp_write_ptr)
+        call exner_in_wth_init%write_field("init_exner_in_wth")
+      end if
+
+      if ( moisture_formulation /= moisture_formulation_dry .and. .not. modeldb%clock%is_initialisation() ) then
+        call derived_fields%get_field('exner_in_wth', exner_in_wth)
+        call write_dbz_diagnostic( exner_in_wth, theta, rho, mr, modeldb%clock, mesh )
+      end if
     end if
 
     if ( subroutine_timers ) call timer('gungho_diagnostics_driver')

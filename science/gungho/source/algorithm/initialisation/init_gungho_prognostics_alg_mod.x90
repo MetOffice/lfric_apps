@@ -12,7 +12,7 @@ module init_gungho_prognostics_alg_mod
                                              LOG_LEVEL_INFO
   use constants_mod,                   only: r_def, i_def, radians_to_degrees
   use domain_mod,                      only: domain_type
-  use extrusion_config_mod,            only: planet_radius
+  use planet_config_mod,               only: scaled_radius
   use sci_mass_matrix_solver_alg_mod,  only: mass_matrix_solver_alg
   use sample_init_u_alg_mod,           only: sample_init_u_alg
   use sci_geometric_constants_mod,     only: get_coordinates, &
@@ -30,9 +30,12 @@ module init_gungho_prognostics_alg_mod
                                              eos_method_projected,    &
                                              moisture_formulation,    &
                                              moisture_formulation_dry
-  use idealised_config_mod,            only: test,                &
-                                             test_bryan_fritsch,  &
-                                             test_grabowski_clark
+  use idealised_config_mod,            only: test,                 &
+                                             test_bryan_fritsch,   &
+                                             test_grabowski_clark, &
+                                             test_squall_line,     &
+                                             test_supercell,       &
+                                             test_horizontal_mountain
   use initial_pressure_config_mod,     only: method,           &
                                              method_sampled,   &
                                              method_projected, &
@@ -51,6 +54,9 @@ module init_gungho_prognostics_alg_mod
   use planet_config_mod,               only: gravity, cp, rd, p_zero, kappa,  &
                                              recip_epsilon
 
+  use log_mod,  only: LOG_LEVEL_INFO
+  use sci_field_minmax_alg_mod, only: log_field_minmax
+
   ! PsyKAl-lite kernels
   use sci_field_bundle_builtins_mod,   only: set_bundle_scalar
 
@@ -66,6 +72,7 @@ module init_gungho_prognostics_alg_mod
   use project_eos_rho_kernel_mod,      only: project_eos_rho_kernel_type
   use sample_eos_rho_kernel_mod,       only: sample_eos_rho_kernel_type
   use hydrostatic_exner_kernel_mod,    only: hydrostatic_exner_kernel_type
+  use hydrostatic_exner_squall_kernel_mod, only: hydrostatic_exner_squall_kernel_type
   use initial_mr_kernel_mod,           only: initial_mr_kernel_type
   use initial_streamfunc_kernel_mod,   only: initial_streamfunc_kernel_type
   use strong_curl_kernel_mod,          only: strong_curl_kernel_type
@@ -90,6 +97,7 @@ module init_gungho_prognostics_alg_mod
   public :: init_u_field
   public :: init_theta_field
   public :: init_exner_field
+  public :: init_exner_squall
   public :: init_rho_field
   public :: init_mr_fields
 
@@ -231,12 +239,14 @@ contains
     integer(kind=i_def)             :: mesh_id
     type(field_type),       pointer :: chi(:) => null()
     type(field_type),       pointer :: panel_id => null()
+    type(field_type),       pointer :: height_wt => null()
 
     mesh_id = theta%get_mesh_id()
     chi => get_coordinates(mesh_id)
     panel_id => get_panel_id(mesh_id)
+    height_wt => get_height_fe(Wtheta, mesh_id)
 
-    call invoke( initial_theta_kernel_type( theta, chi, panel_id ) )
+    call invoke( initial_theta_kernel_type( theta, height_wt, chi, panel_id ) )
 
     nullify( chi, panel_id )
 
@@ -249,6 +259,8 @@ contains
   !> @param[in]     moist_dyn  array of fields with moist dynamics factors
   !> @param[in]     time       time, used for setting analytic profiles
   subroutine init_exner_field(exner, theta, moist_dyn, time)
+
+    use physics_mappings_alg_mod,        only: map_physics_scalars
 
     implicit none
 
@@ -267,6 +279,7 @@ contains
     type(field_type),           pointer :: height_wth => null()
     type(field_type),           pointer :: height_w3 => null()
     type(quadrature_xyoz_type), pointer :: qr => null()
+    type(field_type)                    :: exner_surf, exner_surf_wt
 
     ! Get element orders
     element_order_h = exner%get_element_order_h()
@@ -289,17 +302,30 @@ contains
     ! Initialise Exner pressure according to formulation
     select case(method)
       case(method_balanced)
-        ! Initialise exner assuming hydrostatic balance
-        call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
-                                                    height_wth, height_w3,   &
-                                                    chi, panel_id, gravity,  &
-                                                    p_zero, rd, cp, planet_radius ) )
+        if (test == test_horizontal_mountain) then
+          ! Calculate surface pressure
+          call exner_surf%initialise( exner%get_function_space() )
+          call exner_surf_wt%initialise( theta%get_function_space() )
+          call invoke( initial_exner_sample_kernel_type( exner_surf, height_wth, &
+                                                         chi, panel_id, time ) )
+          call map_physics_scalars(exner_surf_wt, exner_surf)
+          call invoke( hydrostatic_exner_squall_kernel_type( exner, theta, moist_dyn, &
+                                                             exner_surf_wt, height_wth, height_w3,   &
+                                                             chi, panel_id, gravity,  &
+                                                             rd, cp, scaled_radius ) )
+        else
+          ! Initialise exner assuming hydrostatic balance
+          call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
+                                                      height_wth, height_w3,   &
+                                                      chi, panel_id, gravity,  &
+                                                      p_zero, rd, cp, scaled_radius ) )
+        end if
       case(method_sampled)
         ! Initialise exner through sampling analytic solution
-        call invoke (initial_exner_sample_kernel_type( exner, chi, panel_id, time ) )
+        call invoke (initial_exner_sample_kernel_type( exner, height_wth, chi, panel_id, time ) )
       case(method_projected)
         ! Initialise exner by projecting analytic solution
-        call invoke( set_exner_kernel_type ( exner, chi, panel_id, time, qr ) )
+        call invoke( set_exner_kernel_type ( exner, height_wth, chi, panel_id, time, qr ) )
       case default
         call log_event( "Gungho: Unrecognised method in initial_pressure", LOG_LEVEL_ERROR )
     end select
@@ -307,6 +333,39 @@ contains
     nullify( chi, panel_id, height_wth, height_w3, qr )
 
   end subroutine init_exner_field
+
+  subroutine init_exner_squall(exner, exner_surf, theta, moist_dyn, time)
+
+    implicit none
+
+    ! Arguments
+    type(field_type), intent(inout) :: exner
+    type(field_type), intent(in)    :: exner_surf
+    type(field_type), intent(in)    :: theta
+    type(field_type), intent(in)    :: moist_dyn(num_moist_factors)
+    real(kind=r_def), intent(in)    :: time
+
+    ! Internal variables
+    integer(kind=i_def)                 :: mesh_id
+    type(field_type),           pointer :: chi(:) => null()
+    type(field_type),           pointer :: panel_id => null()
+    type(field_type),           pointer :: height_wth => null()
+    type(field_type),           pointer :: height_w3 => null()
+
+    ! Point to objects for this mesh
+    mesh_id = exner%get_mesh_id()
+    chi => get_coordinates(mesh_id)
+    panel_id => get_panel_id(mesh_id)
+    height_w3 => get_height_fe(W3, mesh_id)
+    height_wth => get_height_fe(Wtheta, mesh_id)
+
+    call invoke( hydrostatic_exner_squall_kernel_type( exner, theta, moist_dyn, &
+                                                        exner_surf, height_wth, height_w3,   &
+                                                        chi, panel_id, gravity,  &
+                                                        rd, cp, scaled_radius ) )
+    nullify( chi, panel_id, height_wth, height_w3 )
+
+  end subroutine init_exner_squall
 
 
   !> @details This routine initialises the Exner pressure field. It is callable
@@ -424,7 +483,9 @@ contains
       call moist_dyn_factors_alg( moist_dyn, mr )
 
       if ( (test /= test_grabowski_clark) .and. &
-           (test /= test_bryan_fritsch) ) then
+           (test /= test_bryan_fritsch) .and.   &
+           (test /= test_squall_line) .and.     &
+           (test /= test_supercell) ) then
         ! Recompute hydrostatic balance following the addition of moisture
         ! TODO: This should not be done here -- will be fixed by #2877
         ! This should be done by separate routines from the driver level
@@ -439,7 +500,7 @@ contains
         call invoke( hydrostatic_exner_kernel_type( exner, theta, moist_dyn, &
                                                     height_wth, height_w3,   &
                                                     chi, panel_id, gravity,  &
-                                                    p_zero, rd, cp, planet_radius ) )
+                                                    p_zero, rd, cp, scaled_radius ) )
 
         call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
       end if

@@ -1,0 +1,201 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2025 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!
+!> @brief Compute theta and moisture mixing ratios for the squall line.
+
+module init_squall_line_profile_alg_mod
+
+use constants_mod,                   only: r_def, i_def
+use sci_field_bundle_builtins_mod,   only: set_bundle_scalar, clone_bundle
+use field_mod,                       only: field_type
+use formulation_config_mod,          only: moisture_formulation,    &
+                                           moisture_formulation_dry
+use function_space_mod,              only: function_space_type
+use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id
+use idealised_config_mod,            only: test, test_squall_line, test_supercell
+use init_gungho_prognostics_alg_mod, only: init_exner_squall, &
+                                           init_rho_field,   &
+                                           init_mr_fields
+use initial_theta_kernel_mod,        only: initial_theta_kernel_type
+use log_mod,                         only: LOG_LEVEL_ERROR,  &
+                                           LOG_LEVEL_INFO,   &
+                                           log_event,        &
+                                           log_scratch_space
+use mesh_mod,                        only: mesh_type
+use moist_dyn_factors_alg_mod,       only: moist_dyn_factors_alg
+use moist_dyn_mod,                   only: num_moist_factors
+use mr_indices_mod,                  only: nummr, imr_v, imr_cl
+use norm_alg_mod,                    only: rel_l2_error_alg
+use physics_mappings_alg_mod,        only: map_physics_scalars
+use planet_config_mod,               only: rd, p_zero, kappa, cp, recip_epsilon
+use theta_v_kernel_mod,              only: theta_v_kernel_type
+use relative_humidity_kernel_mod,    only: relative_humidity_kernel_type
+use init_unsaturated_profile_alg_mod, only: init_unsaturated_profile_alg
+use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id, get_height_fv
+use initial_theta_pert_kernel_mod,   only: initial_theta_pert_kernel_type
+use initial_rel_humidity_kernel_mod, only: initial_rel_humidity_kernel_type
+use initial_theta_v_kernel_mod,      only: initial_theta_v_kernel_type
+use fs_continuity_mod,               only: Wtheta
+use sci_field_minmax_alg_mod,        only: log_field_minmax
+use moist_dyn_mod,                   only: gas_law, total_mass
+
+implicit none
+
+private
+
+!-------------------------------------------------------------------------------
+! Contained functions/subroutines
+!-------------------------------------------------------------------------------
+public :: init_squall_line_profile_alg
+
+contains
+
+!> @brief Compute theta and moisture mixing ratios for a saturated atmosphere.
+!> @details The initial theta and moisture mixing ratio fields are computed for
+!>          a saturated atmosphere, whose thermodynamics are specified in terms
+!>          of a wet equivalent potential temperature, and a total moisture
+!>          field. The atmosphere is saturated, so the water vapour field is set
+!>          to the saturation mixing ratio, and the remainder of the moisture is
+!>          cloud liquid.
+!>
+!>          The algebraic relationship between these variables is complex. To
+!>          compute our prognostic fields we use three nested loops, relying on
+!>          Picard iteration to convergence to the solution. The Exner and rho
+!>          fields are computed by taking hydrostatic balance.
+!>
+!> @param[in,out] theta       potential temperature field
+!> @param[in,out] mr          array of moisture mixing ratio fields
+!> @param[in,out] exner       Exner pressure field
+!> @param[in,out] rho         dry density field
+!> @param[in,out] moist_dyn   array of fields with moist dynamics factors
+subroutine init_squall_line_profile_alg( theta, mr, exner, rho, moist_dyn )
+
+  implicit none
+
+  ! Arguments
+  type(field_type), intent(inout) :: theta
+  type(field_type), intent(inout) :: mr(nummr)
+  type(field_type), intent(inout) :: exner
+  type(field_type), intent(inout) :: rho
+  type(field_type), intent(inout) :: moist_dyn(num_moist_factors)
+
+  ! Internal variables
+  type(field_type) :: theta_v
+  type(field_type) :: theta_pert        ! potential temperature perturbation
+  type(field_type) :: theta_eq          ! equatorial theta field
+  type(field_type) :: theta_v_eq        ! equatorial virtual theta field
+  type(field_type) :: exner_eq          ! equatorial Exner field
+  type(field_type) :: exner_eq_wt       ! Exner field at Wtheta points
+  type(field_type) :: exner_wt          ! Exner field at Wtheta points
+  type(field_type) :: rho_eq            ! equatorial dry density field
+  type(field_type) :: mr_eq(nummr)      ! equatorial moisture mixing ratios
+
+  type(field_type),          pointer :: chi(:) => null()
+  type(field_type),          pointer :: panel_id => null()
+  type(field_type),          pointer :: height_wth => null()
+  type(function_space_type), pointer :: wt_fs => null()
+  type(function_space_type), pointer :: w3_fs => null()
+
+  type(mesh_type), pointer :: mesh => null()
+
+  real(kind=r_def)    :: initial_time
+  integer(kind=i_def) :: i
+
+  !----------------------------------------------------------------------------!
+  ! Initialise fields
+  !----------------------------------------------------------------------------!
+
+  initial_time = 0.0_r_def
+
+  mesh     => theta%get_mesh()
+  chi      => get_coordinates( mesh%get_id() )
+  panel_id => get_panel_id( mesh%get_id() )
+  height_wth => get_height_fv(Wtheta, mesh%get_id())
+  wt_fs    => theta%get_function_space()
+  w3_fs    => rho%get_function_space()
+
+  call exner_wt%initialise( vector_space = wt_fs )
+  call exner_eq_wt%initialise( vector_space = wt_fs )
+  call theta_pert%initialise( vector_space = wt_fs )
+  call theta_eq%initialise( vector_space = wt_fs )
+  call theta_v%initialise( vector_space = wt_fs )
+  call theta_v_eq%initialise( vector_space = wt_fs )
+  call exner_eq%initialise( vector_space = w3_fs )
+  call rho_eq%initialise( vector_space = w3_fs )
+  do i = 1, nummr
+    call mr_eq(i)%initialise( vector_space = wt_fs )
+  end do
+
+  !----------------------------------------------------------------------------!
+  ! FIRST: compute equatorial theta / m_v using unsaturated initialisation
+  !----------------------------------------------------------------------------!
+
+  ! Set initial moisture fields to be zero
+  call set_bundle_scalar(0.0_r_def, mr, nummr)
+
+  ! Set equatorial profiles
+  call invoke( setval_X(theta_eq, theta),                                      &
+               setval_X(exner_eq, exner),                                      &
+               setval_X(rho_eq, rho) )
+
+  ! Iterative procedure to get theta_v, mr_v and Exner at equator, given the
+  ! specified theta_d and relative humidity
+  call init_unsaturated_profile_alg( theta_eq, mr_eq, exner_eq, rho_eq, moist_dyn )
+
+  !----------------------------------------------------------------------------!
+  ! SECOND: set moisture mixing ratio everywhere to be equatorial value
+  !----------------------------------------------------------------------------!
+
+  call invoke( setval_X(mr(imr_v), mr_eq(imr_v)) )
+  call moist_dyn_factors_alg( moist_dyn, mr )
+
+  !----------------------------------------------------------------------------!
+  ! THIRD: Iterative procedure to get theta_v and Exner everywhere
+  !----------------------------------------------------------------------------!
+
+  call invoke( X_times_Y(theta_v_eq, theta_eq, moist_dyn(gas_law)),            &
+               inc_X_divideby_Y(theta_v_eq, moist_dyn(total_mass)) )
+
+  call map_physics_scalars( exner_eq_wt, exner_eq )
+
+  call invoke( initial_theta_v_kernel_type(theta_v, exner_wt,                  &
+                                           theta_v_eq, exner_eq_wt,            &
+                                           height_wth, chi, panel_id, test) )
+
+  !----------------------------------------------------------------------------!
+  ! FOURTH: Obtain initial theta from theta_v and moisture
+  !----------------------------------------------------------------------------!
+
+  call invoke( X_divideby_Y(theta, theta_v, moist_dyn(gas_law)),               &
+               inc_X_times_Y(theta, moist_dyn(total_mass)) )
+
+  !----------------------------------------------------------------------------!
+  ! FIFTH: Determine Exner from hydrostatic balance
+  !----------------------------------------------------------------------------!
+
+  ! call init_exner_squall( exner, exner_surf, theta, moist_dyn, initial_time )
+
+  call map_physics_scalars( exner, exner_wt )
+
+  !----------------------------------------------------------------------------!
+  ! SIXTH: Apply perturbation to theta_v
+  !----------------------------------------------------------------------------!
+
+  if ( test == test_squall_line .or. test == test_supercell ) then
+    call theta_pert%initialise( vector_space = wt_fs )
+    call invoke( initial_theta_pert_kernel_type(theta_pert, chi, panel_id),    &
+                 inc_X_plus_Y(theta, theta_pert))
+  end if
+
+  !----------------------------------------------------------------------------!
+  ! SEVENTH: find the dry density, presumably from equation of state
+  !----------------------------------------------------------------------------!
+
+  call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+
+end subroutine init_squall_line_profile_alg
+
+end module init_squall_line_profile_alg_mod

@@ -32,12 +32,17 @@ use initial_wind_config_mod,  only: profile_none,                         &
                                     profile_dcmip_101,                    &
                                     profile_vertical_deformation,         &
                                     profile_four_part_sbr,                &
+                                    profile_breaking_gw,                  &
+                                    profile_horizontal_mountain,          &
+                                    profile_squall_line,                  &
+                                    profile_supercell,                    &
                                     wind_time_period
 use planet_config_mod,        only: scaled_radius
 use log_mod,                  only: log_event,                         &
                                     log_scratch_space,                 &
                                     LOG_LEVEL_ERROR
 use deep_baroclinic_wave_mod, only: deep_baroclinic_wave
+use breaking_gravity_wave_mod, only: breaking_gravity_wave
 use formulation_config_mod,   only: shallow
 
 implicit none
@@ -454,7 +459,9 @@ function analytic_wind( chi, time, choice, num_options, &
   real(kind=r_def), parameter  :: p0 = 100000.0_r_def ! surface pressure for DCMIP 1.1
   real(kind=r_def), parameter  :: Rd = 287.0_r_def    ! gas constant for DCMIP 1.1
   real(kind=r_def), parameter  :: T0 = 300.0_r_def    ! ref temperature for DCMIP 1.1
-  real(kind=r_def), parameter  :: g  = 9.80616_r_def  ! gravity for DCMIP 1.1
+  real(kind=r_def), parameter  :: g = 9.80616_r_def   ! gravity for DCMIP 1.1
+  real(kind=r_def)             :: A, C                ! variables for DCMIP tests
+  real(kind=r_def)             :: zS, dzU, Us, Uc     ! variables for squall line and supercell
   integer(kind=i_def)          :: num_periods
 
   if ( .not. present(option_arg) ) then
@@ -484,7 +491,7 @@ function analytic_wind( chi, time, choice, num_options, &
               - cos(lat_pole) * cos(chi(1)-lon_pole) * sin(chi(2)) )
       u(2) = s * option(1) * cos(lat_pole) * sin(chi(1)-lon_pole)
       u(3) = 0.0_r_def
-    case ( profile_solid_body_rotation_alt)
+    case ( profile_solid_body_rotation_alt )
       ! Rotated pole version of equation (74) of Staniforth & White (2007)
       ! with m=1, A=0, n therefore arbitrary.
       ! In shallow geometry the r/a factor is replaced by 1 (see section 6
@@ -520,6 +527,47 @@ function analytic_wind( chi, time, choice, num_options, &
               - cos(lat_pole) * cos(chi(1)-lon_pole) * sin(chi(2)) )
       u(2) = option(1) * cos(lat_pole) * sin(chi(1)-lon_pole)
       u(3) = 0.0_r_def
+
+    case ( profile_horizontal_mountain )
+      ! Zonal solid body rotation, but constant with height
+      u0 = 10.0_r_def
+      u(1) = u0*COS(chi(2))
+      u(2) = 0.0_r_def
+      u(3) = 0.0_r_def
+
+    case ( profile_squall_line, profile_supercell )
+      ! Squall line test case from DCMIP 2025
+      if ( choice == profile_squall_line ) then
+        zS = 2500.0_r_def
+        dzU = 1000.0_r_def
+        Us = 12.0_r_def
+        Uc = 5.0_r_def
+
+      ! Supercell test case from DCMIP 2016
+      else if ( choice == profile_supercell ) then
+        zS = 5000.0_r_def
+        dzU = 1000.0_r_def
+        Us = 30.0_r_def
+        Uc = 15.0_r_def
+      end if
+
+      ! Zonal solid body rotation but with wind shear
+      z = chi(3) - scaled_radius
+      A = 0.25_r_def * (-zs**2 + 2.0_r_def*zS*dzU - dzU**2) / (zS * dzU)
+      B = 0.5_r_def * (zS + dzU) / dzU
+      C = - 0.25_r_def * (zS / dzU)
+
+      if (z < zS - dzU) then
+        u(1) = (Us*z/zS - Uc)*COS(chi(2))
+      else if (ABS(z - zS) < dzU) then
+        u(1) = ((A + B*z/zS + C*(z/zS)**2)*Us - Uc)*COS(chi(2))
+      else
+        u(1) = (Us - Uc)*COS(chi(2))
+      end if
+
+      u(2) = 0.0_r_def
+      u(3) = 0.0_r_def
+
     case ( profile_constant_uv )
       u(1) = option(1)
       u(2) = option(2)
@@ -536,6 +584,10 @@ function analytic_wind( chi, time, choice, num_options, &
     case ( profile_deep_baroclinic_steady, &
            profile_deep_baroclinic_perturbed)
       call deep_baroclinic_wave(chi(1), chi(2), chi(3)-scaled_radius, &
+                                pressure, temperature, density, &
+                                u(1), u(2), u(3), mr_v)
+    case ( profile_breaking_gw )
+      call breaking_gravity_wave(chi(1), chi(2), chi(3)-scaled_radius, &
                                 pressure, temperature, density, &
                                 u(1), u(2), u(3), mr_v)
     case ( profile_vortex )

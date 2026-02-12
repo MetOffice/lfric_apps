@@ -12,7 +12,8 @@ use constants_mod,                   only: r_def, i_def
 use sci_field_bundle_builtins_mod,   only: set_bundle_scalar, clone_bundle
 use field_mod,                       only: field_type
 use function_space_mod,              only: function_space_type
-use idealised_config_mod,            only: test, test_grabowski_clark
+use idealised_config_mod,            only: test, test_grabowski_clark,         &
+                                           test_squall_line, test_supercell
 use init_gungho_prognostics_alg_mod, only: init_exner_field, &
                                            init_mr_fields,   &
                                            init_rho_field
@@ -28,6 +29,11 @@ use physics_mappings_alg_mod,        only: map_physics_scalars
 use planet_config_mod,               only: rd, p_zero, kappa, &
                                            recip_epsilon
 use relative_humidity_kernel_mod,    only: relative_humidity_kernel_type
+
+use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id
+use initial_rel_humidity_kernel_mod, only: initial_rel_humidity_kernel_type
+
+use sci_field_minmax_alg_mod, only: log_field_minmax
 
 implicit none
 
@@ -50,7 +56,7 @@ contains
 !>          pressure is used to calculate the vapour saturation field. We use
 !>          an iterative procedure to arrive at appropriate values.
 !>
-!> @param[in] theta           potential temperature field
+!> @param[in,out] theta       potential temperature field
 !> @param[in,out] mr          array of moisture mixing ratio fields
 !> @param[in,out] exner       Exner pressure field
 !> @param[in,out] rho         dry density field
@@ -72,6 +78,9 @@ subroutine init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   type(field_type) :: specified_rel_hum ! specified relative humidity field
   type(field_type) :: latest_rel_hum    ! latest relative humidity field
   type(field_type) :: latest_mr_v       ! latest water vapour mixing ratio field
+
+  type(field_type), pointer :: chi(:)
+  type(field_type), pointer :: panel_id
 
   type(function_space_type), pointer :: wt_fs => null()
 
@@ -103,29 +112,35 @@ subroutine init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   call latest_exner%initialise( vector_space = exner%get_function_space() )
   call exner_at_wt%initialise( vector_space = wt_fs )
 
+  chi => get_coordinates(theta%get_mesh_id())
+  panel_id => get_panel_id(theta%get_mesh_id())
+
   !----------------------------------------------------------------------------!
   ! Specify background relative humidity field
-  !----------------------------------------------------------------------------!
-
-  select case( test )
-  case( test_grabowski_clark )
-      call invoke( setval_c(specified_rel_hum, 0.2_r_def ) )
-
-    case default
-      call log_event( "Gungho: Your idealised test is not compatible " // &
-                      "with the unsaturated profile routine", LOG_LEVEL_ERROR )
-  end select
-
-  !----------------------------------------------------------------------------!
-  ! Do nested loops to compute background prognostic fields
   !----------------------------------------------------------------------------!
 
   ! Set initial moisture fields to be zero
   ! This will not be changed if moisture_formulation = 'dry'
   call set_bundle_scalar(0.0_r_def, mr, nummr)
 
-  ! First guess for mr_v is 0.02
-  call invoke( setval_c( mr(imr_v), 0.02_r_def) )
+  select case( test )
+  case( test_grabowski_clark )
+    call invoke( setval_c(specified_rel_hum, 0.2_r_def ), &
+                 setval_c( mr(imr_v), 0.02_r_def) )
+
+  case ( test_squall_line, test_supercell )
+    call invoke( initial_rel_humidity_kernel_type(specified_rel_hum, chi, panel_id), &
+                 setval_c( mr(imr_v), 1.e-5_r_def) )
+
+  case default
+    call log_event( "Gungho: Your idealised test is not compatible " // &
+                    "with the unsaturated profile routine", LOG_LEVEL_ERROR )
+  end select
+
+  !----------------------------------------------------------------------------!
+  ! Do nested loops to compute background prognostic fields
+  !----------------------------------------------------------------------------!
+
 
   ! Give first guess for Exner
   call moist_dyn_factors_alg( moist_dyn, mr )
@@ -196,14 +211,20 @@ subroutine init_unsaturated_profile_alg( theta, mr, exner, rho, moist_dyn )
   call init_exner_field( exner, theta, moist_dyn, initial_time )
 
   !----------------------------------------------------------------------------!
-  ! Apply perturbation to water vapour
+  ! Apply perturbation to water vapour / theta
   !----------------------------------------------------------------------------!
 
-  ! Now apply perturbation to water vapour field
-  call init_mr_fields( mr, theta, exner, rho, moist_dyn )
+  if ( test == test_grabowski_clark ) then
+    ! Now apply perturbation to water vapour field
+    call init_mr_fields( mr, theta, exner, rho, moist_dyn )
 
-  ! Adjust the dry density field so that the pressure is kept the same
-  call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+    ! Adjust the dry density field so that the pressure is kept the same
+    call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+  end if
+
+  call log_field_minmax(LOG_LEVEL_INFO, 'init_unsaturated_end: mr_v', mr(imr_v))
+  call log_field_minmax(LOG_LEVEL_INFO, 'init_unsaturated_end: exner', exner)
+  call log_field_minmax(LOG_LEVEL_INFO, 'init_unsaturated_end: rho', rho)
 
   !----------------------------------------------------------------------------!
   ! Finalise internal fields and pointers

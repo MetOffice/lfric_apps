@@ -5,12 +5,16 @@
       <field field_ref="theta"/>
       <field field_ref="m_v"/>
       <field field_ref="m_cl"/>
+      <field field_ref="m_r"/>
       <field field_ref="rho"/>
       <field field_ref="u_in_w2h"/>
       <field field_ref="v_in_w2h"/>
       <field field_ref="w_in_wth"/>
       <field field_ref="divergence"/>
       <field field_ref="exner"/>
+      <field field_ref="exner_in_wth"/>
+      <field field_ref="dbz"/>
+      <field field_ref="xi3"/>
     </field_group>
   </file>
 
