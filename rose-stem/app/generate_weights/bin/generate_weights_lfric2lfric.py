@@ -145,8 +145,8 @@ if __name__ == "__main__":
     DST_GRID = GRID()
     DST_GRID = get_env_info(DST_GRID, 'DST')
     DST_GRID = get_data(DST_GRID)
-    # end processing destination grid
     validate_input(DST_GRID)
+    # end processing destination grid
     print('DESTINATION grid ')
 
     print('Save SRC -> DST grid info')
