@@ -152,7 +152,7 @@ program jedi_tlm_tests
   end if
 
   ! Compute <Mx,Mx>
-  dot_product_1 = inc%scaled_dot_product_with_itself()
+  dot_product_1 = real(inc%scaled_dot_product_with_itself(), r_def)
 
   ! Propagate via AD model
   call linear_model%forecastAD( inc, forecast_length )
@@ -162,7 +162,7 @@ program jedi_tlm_tests
   end if
 
   ! Compute <AMx,x>
-  dot_product_2 = inc%dot_product_with(inc_initial)
+  dot_product_2 = real(inc%dot_product_with(inc_initial), r_def)
 
   ! The two dot products should be nearly identical. The tolerance is included
   ! due to differences in order of operations and solver non-convergence.
