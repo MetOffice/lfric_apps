@@ -47,8 +47,8 @@ filename. ::
 Storing a local transformation script, ``local.py``
 +++++++++++++++++++++++++++++++++++++++++++++++++++
 All files to be optimised by transmute (see ``psyclone_transmute_file_list.mk``)
-in ``large_scale_precipitation`` directory will use this script unless overwritten with
-a matching source filename.::
+in the ``large_scale_precipitation`` directory will use this script unless overwritten
+with a matching source filename.::
 
     optimisation/
     └── <platform>/
