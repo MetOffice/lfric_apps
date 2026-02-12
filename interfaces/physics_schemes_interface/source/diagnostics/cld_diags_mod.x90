@@ -65,7 +65,7 @@ contains
     logical(l_def), intent(in) :: call_b4_conv
     integer(tik)               :: id
 
-    if ( LPROF ) call start_timing( id, 'cld_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.cloud' )
 
     if (call_b4_conv) then
       ! No diagnostics output in mid-timestep call
@@ -79,7 +79,7 @@ contains
       svar_tb_flag = init_diag(svar_tb, 'cloud__svar_tb')
     end if
 
-    if ( LPROF ) call stop_timing( id, 'cld_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.cloud' )
 
   end subroutine initialise_diags_for_cld
 
@@ -148,7 +148,7 @@ contains
     logical( l_def ) :: ignore
     integer( tik )   :: id
 
-    if ( LPROF ) call start_timing( id, 'cld_diags' )
+    if ( LPROF ) call start_timing( id, 'diags.cloud' )
 
     ! 2D fields
     cld_amount_max_flag = init_diag(cld_amount_max, 'cloud__cloud_amount_max')
@@ -367,7 +367,7 @@ contains
     if (cloud_fraction_below_1000feet_asl_flag) call &
        cloud_fraction_below_1000feet_asl%write_field()
 
-    if ( LPROF ) call stop_timing( id, 'cld_diags' )
+    if ( LPROF ) call stop_timing( id, 'diags.cloud' )
 
   end subroutine output_diags_for_cld
 end module cld_diags_mod

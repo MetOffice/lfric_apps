@@ -102,7 +102,21 @@
         "opt_confs": ["clim_gal9_ral_seuk","oasis"],
         "resolution": "C12_C16_lam",
         "dst_mesh": "seuk_MG",
-        "dst_name": "multigrid_l1",
+        "dst_name": "dynamics",
+        "dst_type": "regional",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc" %}
+
+  {# dst_name will need to change to "dynamics-lbc" when lbc meshes can be read #}
+    {% do task_dict.update({
+        "opt_confs": ["clim_gal9_ral_seuk","oasis","lbc"],
+        "resolution": "C12_C16_lam",
+        "dst_mesh": "seuk_MG",
+        "dst_name": "dynamics-lbc",
         "dst_type": "regional",
         "src_mesh": "C24_C12",
         "src_name": "C12",
