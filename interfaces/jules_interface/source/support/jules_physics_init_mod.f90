@@ -738,6 +738,130 @@ contains
     ! ----------------------------------------------------------------
     ! JULES vegetation tile settigs - contained in module pftparm
     ! ----------------------------------------------------------------
+    ! Check that the size of the input array is correct. Has to be done
+    ! before copying to allocated array otherwise errors arise, which cannot
+    ! be caught by check_jules_pftarm.
+
+    IF ( ALL ( [0, npft] /= SIZE(a_wl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(a_ws_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(act_jmax_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(act_vcmax_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(aef_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(albsnc_max_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(albsnc_min_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(albsnf_max_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(albsnf_maxl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(albsnf_maxu_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alnir_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alnirl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alniru_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alpar_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alparl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alparu_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alpha_elec_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(alpha_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(avg_ba_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(b_wl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(c3_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(can_struct_a_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(catch0_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ccleaf_max_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ccleaf_min_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ccwood_max_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ccwood_min_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ci_st_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(dcatch_dlai_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(deact_jmax_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(deact_vcmax_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(dfp_dcuo_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(dgl_dm_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(dgl_dt_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(dqcrit_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ds_jmax_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ds_vcmax_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(dust_veg_scj_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(dz0v_dh_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(emis_pft_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(eta_sl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(f0_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fd_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_bc_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_c2h4_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_c2h6_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_c3h8_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_ch4_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_co2_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_co_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_dms_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_hcho_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_mecho_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_nh3_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_nox_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_oc_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fef_so2_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fire_mort_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fl_o3_ct_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fsmc_mod_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fsmc_of_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(fsmc_p0_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(g1_stomata_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(g_leaf_0_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(glmin_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(gpp_st_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(gsoil_f_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(hw_sw_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ief_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(infil_f_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(jv25_ratio_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(kext_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(kn_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(knl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(kpar_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(lai_alb_lim_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(lma_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(mef_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(neff_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(nl0_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(nmass_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(nr_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(nr_nl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(ns_nl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(nsw_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(omega_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(omegal_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(omegau_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(omnir_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(omnirl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(omniru_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(orient_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(psi_close_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(psi_open_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(q10_leaf_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(r_grow_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(rootd_ft_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(sigl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(sox_a_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(sox_p50_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(sox_rp_min_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(sug_g0_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(sug_grec_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(sug_yg_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(tef_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(tleaf_of_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(tlow_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(tupp_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(vint_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(vsl_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(z0hm_classic_pft_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(z0hm_pft_io) ) )  errorstatus = 1
+    IF ( ALL ( [0, npft] /= SIZE(z0v_io) ) )  errorstatus = 1
+
+    IF ( errorstatus == 1 ) THEN
+      write(log_scratch_space,'(A)')                                         &
+         'jules_pftparm input(s) incorrect length; run `rose macro -V`.'
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR)
+    END IF
+
     ! Enumeration not compatible with integer arrays
     c3 = int(c3_io, i_um)
     orient = int(orient_io, i_um)
