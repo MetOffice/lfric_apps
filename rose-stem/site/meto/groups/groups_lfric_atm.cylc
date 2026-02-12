@@ -230,6 +230,11 @@
         "lfric_atm_clim_gal9_2T-C48_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_clim_gal9_4T-C48_MG_ex1a_cce_fast-debug-32bit",
     ],
+    "ex1a_omp_C48_cce_full": [
+        "lfric_atm_nwp_gal9_1T-C48_MG_ex1a_cce_full-debug-32bit",
+        "lfric_atm_nwp_gal9_2T-C48_MG_ex1a_cce_full-debug-32bit",
+        "lfric_atm_nwp_gal9_4T-C48_MG_ex1a_cce_full-debug-32bit",
+    ],
     "ex1a_omp_C192_cce": [
         "lfric_atm_nwp_gal9_3n_1T-C192_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_gal9_3n_2T-C192_MG_ex1a_cce_fast-debug-32bit",

@@ -1355,7 +1355,7 @@ if (l_wtrac) then
       !end do !j
     end do ! k
   end do   ! i_wt
-!$OMP end do NOWAIT
+!$OMP end do
 end if   ! l_wtrac
 
 !-----------------------------------------------------------------------
@@ -1406,7 +1406,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     !end do
   end do
 end do ! ii
-!$OMP end do NOWAIT
+!$OMP end do
 
 !-----------------------------------------------------------------------
 ! 2.  Look for decoupled cloudy mixed-layer above SML top
@@ -1708,7 +1708,7 @@ else if ( sc_diag_opt == sc_diag_orig ) then
     end if
   end do
   ! !$OMP end do NOWAIT
-  !$OMP end do NOWAIT
+  !$OMP end do
 !end do
 
 end if  ! test on sc_diag_opt
@@ -3108,7 +3108,7 @@ do k = 2, bl_levels
   end do
   !end do
 end do
-!$OMP end do NOWAIT
+!$OMP end do
 
 !-----------------------------------------------------------------------
 ! 7. Calculate inputs for the top of b.l. entrainment parametrization
@@ -3169,7 +3169,7 @@ do i = pdims%i_start, pdims%i_end
   end if
 
 end do
-!$OMP end do NOWAIT
+!$OMP end do
 ! No wait removal due to dimension change?
 !end do
 
@@ -3218,7 +3218,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     end do
   end do
 end do ! ii
-!$OMP end do NOWAIT
+!$OMP end do
 
 !-----------------------------------------------------------------------
 ! 7.3 Calculate the buoyancy jumps across the inversions
