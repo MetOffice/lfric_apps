@@ -13,7 +13,7 @@ TRANSMUTE_INCLUDE_METHOD ?= specify_include
 # Set the DSL Method in use to collect the correct transformation files.
 DSL := transmute
 
-# Set default psyclone transmute command additional options
+# Set default PSyclone transmute command additional options
 PSYCLONE_TRANSMUTE_EXTRAS ?= -l all
 #
 
