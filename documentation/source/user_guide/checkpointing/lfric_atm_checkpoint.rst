@@ -9,18 +9,26 @@
 LFRic atmosphere checkpoint/restart system
 ==========================================
 
-The LFRic atmosphere ``lfric_atm`` application can be configured to generate a
-checkpoint dump at the end of each model run. The checkpoint dump can be read in
-by a new integration of the model allowing further timesteps to be run. The dump
+The LFRic atmosphere ``lfric_atm`` application can be configured to generate
+checkpoint dumps at multiple points within a model run. A checkpoint dump can be read in
+by a new integration of the model allowing further timesteps to be run. Each dump
 is written using XIOS.
 
 Requesting checkpoint restart
 -----------------------------
 
 Set ``checkpoint_write=.true.`` in the ``io`` namelist of the model
-configuration to generate a checkpoint dump at the end of a model run. The
-checkpoint dump will be named after the ``checkpoint_stem_name`` string in the
-``files`` namelist appended with the number of the last timestep of the run.
+configuration to turn on checkpoint writing. The times when checkpoint files
+will be written are defined by the ``checkpoint_times`` list. The
+``checkpoint_times`` must be real values in seconds corresponding to an integer
+number of timesteps in the model run (e.g. if ``dt=0.5`` the
+``checkpoint_times`` can include ``0.5`` and ``1.0`` etc. but **not** ``0.3``).
+Setting ``end_of_run_checkpoint=.true.`` will write a checkpoint file at the end
+of the run. Only one checkpoint file will be written at the end of a run even if
+both the final timestep is included in the ``checkpoint_times`` list and the
+``end_of_run_checkpoint`` flag is set to ``.true.``. The checkpoint dumps will
+be named after the ``checkpoint_stem_name`` string in the ``files`` namelist
+appended with timestep number of the checkpoint time.
 
 Set ``checkpoint_read=.true.`` in the ``io`` namelist to restart a run from an
 existing checkpoint dump. The expected start timestep will be defined by
