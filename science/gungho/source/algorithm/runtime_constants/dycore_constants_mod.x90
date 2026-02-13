@@ -90,6 +90,9 @@ contains
     use base_mesh_config_mod,    only: f_lat
     use compute_coriolis_matrix_kernel_mod, &
                                  only: compute_coriolis_matrix_kernel_type
+    use compute_trad_coriolis_matrix_kernel_mod, &
+                                 only: compute_trad_coriolis_matrix_kernel_type
+    use formulation_config_mod,  only: traditional_coriolis
     use planet_config_mod,       only: scaled_omega
 
     implicit none
@@ -123,10 +126,17 @@ contains
 
       call coriolis_inventory%add_operator(coriolis, w2_fs, w2_fs, mesh)
 
-      call invoke( compute_coriolis_matrix_kernel_type(coriolis,               &
-                                                       chi, panel_id,          &
-                                                       scaled_omega,           &
-                                                       f_lat, qr) )
+      if (traditional_coriolis) then
+        call invoke( compute_trad_coriolis_matrix_kernel_type(coriolis,        &
+                                                              chi, panel_id,   &
+                                                              scaled_omega,    &
+                                                              f_lat, qr) )
+      else
+        call invoke( compute_coriolis_matrix_kernel_type(coriolis,             &
+                                                         chi, panel_id,        &
+                                                         scaled_omega,         &
+                                                         f_lat, qr) )
+      end if
       if ( subroutine_timers ) call timer('runtime_constants.dycore')
     end if
 
@@ -143,7 +153,10 @@ contains
     use base_mesh_config_mod,    only: f_lat
     use compute_vert_coriolis_matrix_kernel_mod, &
                                  only: compute_vert_coriolis_matrix_kernel_type
+    use formulation_config_mod,  only: traditional_coriolis
     use planet_config_mod,       only: scaled_omega
+    use sci_operator_algebra_kernel_mod,                                       &
+                                 only: operator_setval_c_kernel_type
 
     implicit none
 
@@ -178,10 +191,14 @@ contains
 
       call vert_coriolis_inventory%add_operator(vert_coriolis, wt_fs, w2_fs, mesh)
 
-      call invoke( compute_vert_coriolis_matrix_kernel_type(vert_coriolis,     &
-                                                            chi, panel_id,     &
-                                                            scaled_omega,      &
-                                                            f_lat, qr) )
+      if (traditional_coriolis) then
+        call invoke( operator_setval_c_kernel_type(vert_coriolis, 0.0_r_def) )
+      else
+        call invoke( compute_vert_coriolis_matrix_kernel_type(vert_coriolis,   &
+                                                              chi, panel_id,   &
+                                                              scaled_omega,    &
+                                                              f_lat, qr) )
+      end if
       if ( subroutine_timers ) call timer('runtime_constants.dycore')
     end if
 

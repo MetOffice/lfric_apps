@@ -71,6 +71,7 @@ rotating=.true.,
 shallow=.false.,
 si_momentum_equation=.false.,
 theta_moist_source=.false.
+traditional_coriolis=.true.
 use_multires_coupling=.false.,
 use_physics=.false.,
 use_wavedynamics=.true.,
