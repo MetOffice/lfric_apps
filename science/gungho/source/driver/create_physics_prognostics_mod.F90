@@ -42,6 +42,7 @@ module create_physics_prognostics_mod
                                              topography_horizon,                &
                                              n_horiz_layer, n_horiz_ang,        &
                                              l_inc_radstep
+  use cosp_config_mod,                only : l_cosp, n_cosp_step
   use aerosol_config_mod,             only : glomap_mode,                       &
                                              glomap_mode_climatology,           &
                                              glomap_mode_dust_and_clim,         &
@@ -470,6 +471,38 @@ contains
          ckp=checkpoint_flag))
     call processor%apply(make_spec('aer_lw_asymmetry', main%radiation,          &
          ckp=checkpoint_flag))
+
+    ! Fields which need checkpointing for time sampling of COSP diagnostics.
+    ! Checkpoint unless both the first timestep of this run and the
+    ! first timestep of the next run are COSP timesteps
+    if (l_cosp) then
+      checkpoint_flag = &
+        mod(clock%get_first_step()-1, n_cosp_step) /= 0 .or. &
+        mod(clock%get_last_step(),    n_cosp_step) /= 0
+
+      if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
+        ! If the first timestep of this run IS a COSP timestep, but the
+        ! first timestep of the next run IS NOT, then checkpoint_flag
+        ! must be false to allow model to start running, as the COSP
+        ! prognostics will not be in the initial dump
+        if (mod(clock%get_first_step()-1, n_cosp_step) == 0 .and. &
+            mod(clock%get_last_step(),    n_cosp_step) /= 0) then
+          checkpoint_flag = .false.
+          if (checkpoint_write) then
+            call log_event('Danger: start of this run is a COSP ' // &
+                           'timestep, but start of next run is not. ' // &
+                           'Written dump will be incomplete. Next run ' // &
+                           'must start with a COSP timestep', &
+                           LOG_LEVEL_WARNING)
+          end if
+        endif
+      end if
+    else
+      checkpoint_flag = .false.
+    end if
+
+    call processor%apply(make_spec('lit_fraction_cosp', main%radiation, &
+      W3, twod=.true., ckp=checkpoint_flag))
 
     !========================================================================
     ! Fields owned by the microphysics scheme

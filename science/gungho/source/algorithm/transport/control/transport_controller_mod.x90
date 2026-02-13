@@ -35,7 +35,8 @@ module transport_controller_mod
   use mesh_collection_mod,            only: mesh_collection
   use model_clock_mod,                only: model_clock_type
   use r_tran_field_mod,               only: r_tran_field_type
-  use timer_mod,                      only: timer
+  use timing_mod,                     only: start_timing, stop_timing, &
+                                            tik, LPROF
 
   ! Pointers to other objects
   use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
@@ -61,7 +62,6 @@ module transport_controller_mod
 
   ! Config
   use departure_points_config_mod,    only: share_stencil_extent
-  use io_config_mod,                  only: subroutine_timers
   use transport_config_mod,           only: dep_pt_stencil_extent
 
   implicit none
@@ -79,6 +79,7 @@ module transport_controller_mod
     integer(kind=i_def) :: outer
     logical(kind=l_def) :: cheap_update_step = .false.
     logical(kind=l_def) :: adaptive_splitting = .false.
+    logical(kind=l_def) :: make_tracers_advective = .false.
     integer(kind=i_def) :: reference_splitting = IMDI
     integer(kind=i_def) :: max_courant_num = 0
     logical(kind=l_def) :: dep_stencil_extent_computed = .false.
@@ -206,8 +207,9 @@ contains
     logical(kind=l_def)    :: fixed_multiple_substeps
     logical(kind=l_def)    :: logged_lipschitz
     character(len=str_def) :: splitting_name
+    integer(tik)        :: id
 
-    if ( subroutine_timers ) call timer('transport.controller_init')
+    if ( LPROF ) call start_timing( id, 'transport.controller_init' )
 
     ! Set options, to be passed to objects initialised later
     if (present(outer)) then
@@ -481,7 +483,7 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
     end if
 
-    if ( subroutine_timers ) call timer('transport.controller_init')
+    if ( LPROF ) call stop_timing( id, 'transport.controller_init' )
 
   end subroutine initialise
 
@@ -504,6 +506,7 @@ contains
     self%outer_set = .false.
     self%cheap_update_step = .false.
     self%adaptive_splitting = .false.
+    self%make_tracers_advective = .false.
     self%reference_splitting = IMDI
     self%dep_stencil_extent_computed = .false.
     call self%counter%finalise()
@@ -533,6 +536,7 @@ contains
 
     use transport_config_mod,           only: ffsl_unity_3d,                   &
                                               adjust_vhv_wind,                 &
+                                              adjust_tracer_equation,          &
                                               substep_transport,               &
                                               substep_transport_two,           &
                                               substep_transport_four,          &
@@ -659,15 +663,26 @@ contains
                   LOG_LEVEL_WARNING                                            &
           )
 
-          call log_event(                                                      &
-            'Watkins algorithm failed to keep all reference fields ' //        &
-            'positive for the transport of tracers. This makes it ' //         &
-            'impossible to find sensible departure distances. Most likely ' // &
-            'the input transporting wind to the transport scheme has a ' //    &
-            'maximum Lipschitz number that exceeds 1 somewhere, so check ' //  &
-            'so check these values. Stopping model now to fail gracefully',    &
-            LOG_LEVEL_ERROR                                                    &
-          )
+          if (adjust_tracer_equation) then
+            ! Use advective form for tracer transport instead of consistent form
+            call log_event(                                                    &
+              'Reference field for tracer transport is negative, so ' //       &
+              'making all tracers advective for this step. This will ' //      &
+              'make tracer transport non-conservative. ', LOG_LEVEL_INFO       &
+            )
+            self%make_tracers_advective = .true.
+          else
+            ! Fail gracefully
+            call log_event(                                                    &
+              'Watkins algorithm failed to keep all reference fields ' //      &
+              'positive for the transport of tracers. This makes it ' //       &
+              'impossible to find sensible departure distances. Most ' //      &
+              'likely the input transporting wind to the transport scheme' //  &
+              'has a maximum Lipschitz number that exceeds 1 somewhere, ' //   &
+              'so check these values. Stopping model now to fail gracefully',  &
+              LOG_LEVEL_ERROR                                                  &
+            )
+          end if
         end if
 
       else
@@ -701,7 +716,8 @@ contains
     ! Initialise counter
     if (self%outer_set) then
       call self%metadata%update_metadata(                                      &
-              self%outer, self%adaptive_splitting, self%reference_splitting    &
+              self%outer, self%adaptive_splitting, self%reference_splitting,   &
+              self%make_tracers_Advective                                      &
       )
       call self%counter%initialise(                                            &
               self%metadata, self%dt_substep, self%num_substeps, self%outer    &
