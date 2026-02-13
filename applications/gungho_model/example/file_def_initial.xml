@@ -13,6 +13,8 @@
       <field field_ref="init_exner"/>
       <field field_ref="init_height_w3"/>
       <field field_ref="init_height_wth"/>
+      <field field_ref="init_height_w2h"/>
+      <field field_ref="init_height_w0"/>
     </field_group>
   </file>
 
