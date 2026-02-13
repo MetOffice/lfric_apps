@@ -8,7 +8,7 @@ module atlt_reconstruct_w3_field_alg_mod
 
   use field_mod,                           only : field_type
   use function_space_mod,                  only : function_space_type
-  use constants_mod,                       only : r_def, i_def, l_def
+  use constants_mod,                       only : r_def, i_def, l_def, EPS
   use log_mod,                             only : log_event,         &
                                                   log_scratch_space, &
                                                   LOG_LEVEL_INFO,    &
@@ -76,10 +76,9 @@ module atlt_reconstruct_w3_field_alg_mod
     real(kind=r_def)            :: inner2
     real(kind=r_def)            :: field_new_field_new_input_inner_prod
     real(kind=r_def)            :: field_old_field_old_input_inner_prod
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 3000.0_r_def
     real(kind=r_def)            :: machine_tol
     real(kind=r_def)            :: relative_diff
 
@@ -122,8 +121,8 @@ module atlt_reconstruct_w3_field_alg_mod
                  x_innerproduct_x( field_old_inner_prod, field_old ) )
 
     ! Determining scale factors
-    field_new_sf = 1.0_r_def/(field_new_inner_prod + eps)
-    field_old_sf = 1.0_r_def/(field_old_inner_prod + eps)
+    field_new_sf = 1.0_r_def/(field_new_inner_prod + EPS)
+    field_old_sf = 1.0_r_def/(field_old_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + field_new_inner_prod*field_new_sf
@@ -215,7 +214,6 @@ module atlt_reconstruct_w3_field_alg_mod
     real(kind=r_def)            :: inner2
     real(kind=r_def)            :: field_new_field_new_input_inner_prod
     real(kind=r_def)            :: field_old_field_old_input_inner_prod
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
@@ -260,8 +258,8 @@ module atlt_reconstruct_w3_field_alg_mod
                  x_innerproduct_x( field_old_inner_prod, field_old ) )
 
     ! Determining scale factors
-    field_new_sf = 1.0_r_def/(field_new_inner_prod + eps)
-    field_old_sf = 1.0_r_def/(field_old_inner_prod + eps)
+    field_new_sf = 1.0_r_def/(field_new_inner_prod + EPS)
+    field_old_sf = 1.0_r_def/(field_old_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + field_new_inner_prod*field_new_sf

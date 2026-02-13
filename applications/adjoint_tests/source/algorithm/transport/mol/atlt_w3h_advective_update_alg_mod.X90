@@ -13,7 +13,7 @@ module atlt_w3h_advective_update_alg_mod
   use finite_element_config_mod,     only : element_order_h, element_order_v
   use fs_continuity_mod,             only : W2, W3
   use operator_mod,                  only : operator_type
-  use constants_mod,                 only : i_def, r_def
+  use constants_mod,                 only : i_def, r_def, EPS
   use log_mod,                       only : log_event,       &
                                             LOG_LEVEL_ERROR, &
                                             LOG_LEVEL_INFO,  &
@@ -67,7 +67,6 @@ module atlt_w3h_advective_update_alg_mod
     real(kind=r_def)            :: advective_increment_advective_increment_input_inner_prod
     real(kind=r_def)            :: wind_wind_input_inner_prod
     real(kind=r_def)            :: inner2
-    real(kind=r_def), parameter :: eps = 1e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
@@ -115,8 +114,8 @@ module atlt_w3h_advective_update_alg_mod
                  x_innerproduct_x(wind_inner_prod, wind) )
 
     ! Determining scale factors
-    advective_increment_sf = 1.0_r_def/(advective_increment_inner_prod + eps)
-    wind_sf = 1.0_r_def/(wind_inner_prod + eps)
+    advective_increment_sf = 1.0_r_def/(advective_increment_inner_prod + EPS)
+    wind_sf = 1.0_r_def/(wind_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + advective_increment_inner_prod*advective_increment_sf
