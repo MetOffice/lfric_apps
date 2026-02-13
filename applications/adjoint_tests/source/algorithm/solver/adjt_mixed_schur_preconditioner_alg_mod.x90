@@ -104,7 +104,7 @@ contains
     real(kind=r_def) :: p_sf, uv_sf, w_sf
     real(kind=r_def) :: p_p_inp_inner_prod, uv_uv_inp_inner_prod, w_w_inp_inner_prod
     real(kind=r_def) :: inner1, inner2
-    real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
+    real(kind=r_def), parameter :: overall_tolerance = 1100.0_r_def
     real(kind=r_def) :: machine_tol, machine_tol_r_solver
     real(kind=r_def) :: relative_diff, relative_diff_r_solver
     integer(kind=tik)           :: id

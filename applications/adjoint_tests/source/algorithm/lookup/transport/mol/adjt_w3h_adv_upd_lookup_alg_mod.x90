@@ -16,7 +16,7 @@ module adjt_w3h_adv_upd_lookup_alg_mod
   use function_space_collection_mod,   only : function_space_collection
   use finite_element_config_mod,       only : element_order_h, element_order_V
   use operator_mod,                    only : operator_type
-  use constants_mod,                   only : i_def, r_def, r_tran
+  use constants_mod,                   only : i_def, r_def, r_tran, EPS
   use log_mod,                         only : log_event,        &
                                               LOG_LEVEL_ERROR,  &
                                               LOG_LEVEL_INFO,   &
@@ -78,7 +78,6 @@ module adjt_w3h_adv_upd_lookup_alg_mod
     real(kind=r_def)             :: adv_inc_adv_inc_inp_inner_prod
     real(kind=r_def)             :: tracer_tracer_input_inner_prod
     real(kind=r_tran)            :: inner2
-    real(kind=r_tran), parameter :: eps = 1.0e-30_r_def
 
     ! Test parameters and variables
     real(kind=r_tran), parameter :: overall_tolerance = 1500.0_r_tran
@@ -125,8 +124,8 @@ module adjt_w3h_adv_upd_lookup_alg_mod
                  x_innerproduct_x(tracer_inner_prod, tracer) )
 
    ! Determining scale factors
-    advective_increment_sf = 1.0_r_tran/( real( advective_increment_inner_prod, r_tran ) + eps )
-    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + eps )
+    advective_increment_sf = 1.0_r_tran/( real( advective_increment_inner_prod, r_tran ) + EPS )
+    tracer_sf = 1.0_r_tran/( real( tracer_inner_prod, r_tran ) + EPS )
 
     inner1 = 0.0_r_tran
     inner1 = inner1 + real( advective_increment_inner_prod, r_tran )*advective_increment_sf
