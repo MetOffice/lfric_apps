@@ -24,7 +24,7 @@ module pmsl_alg_mod
   use planet_constants_mod, only: recip_kappa_def
   use planet_config_mod, only: p_zero
   use um_domain_init_mod, only: n_iter_pmsl
-  use transport_config_mod, only: halo_size => dep_pt_stencil_extent
+  use physics_config_mod, only: halo_size => pmsl_halo
 
   implicit none
   private
@@ -161,7 +161,7 @@ contains
                                              exner_sm, m) )
 
           ! Set old value to new value
-          call invoke(pmsl_copy_kernel_type(exner_m, exner_sm, m))
+          call invoke(pmsl_copy_kernel_type(exner_sm, exner_m, m))
         end do
       end do
 
