@@ -55,7 +55,7 @@ science/physics_schemes/**/stochastic_physics           @wjtmo              # @a
 **/coupled_interface            @mike-hobson                        # @harry-shepherd
 **/jedi_lfric_interface         @ss421  @matthewrmshin              # @DavidSimonin
 **/jules_interface              @iboutle                            # @MetOfficessdteam
-**/jules_interfacerose-meta     @maggiehendry
+**/jules_interface/rose-meta    @maggiehendry
 **/physics_schemes_interface    @iboutle                            # @MetOfficessdteam
 **/socrates_interface           @mo-jmanners                        # @Petzi1
 
