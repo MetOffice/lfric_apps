@@ -198,6 +198,16 @@
             PLATFORM_SYNC = true
 {% endif %}
 
+    [[EX1A_REMOTE_INIT]]
+        inherit = EX1A_BASE
+        [[[directives]]]
+{% if site_vars["ex_trustzone"] == "collab" %}
+            -q = collabshared
+{% else %}
+            -q = shared
+{% endif %}
+            -l ncpus=1
+
     [[EX1A_HOUSEKEEPING]]
         inherit=EX1A_TECH_BASE
 

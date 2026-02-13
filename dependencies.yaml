@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:tommbendall/lfric_core.git
-    ref: TBendall/HeightW0
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: a9ea9596d8841920e7b310e23366f4df6277d90a
 
 moci:
     source: git@github.com:MetOffice/moci.git
